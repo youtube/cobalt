@@ -41,61 +41,73 @@ base::AtomicFlag& GetGraphiteParamsInitFlag() {
   return *flag;
 }
 
-void InitSkiaGraphiteFeatureParams(const base::Feature& feature) {
+void InitSkiaGraphiteFeatureParams(const base::Feature* feature) {
   if (GetGraphiteParamsInitFlag().IsSet()) {
+    return;
+  }
+
+  if (!feature) {
+    g_skia_graphite_feature_params = SkiaGraphiteFeatureParams();
+    GetGraphiteParamsInitFlag().Set();
     return;
   }
 
   g_skia_graphite_feature_params.dawn_skip_validation =
       base::FeatureParam<bool>(
-          &feature, "dawn_skip_validation",
+          feature, "dawn_skip_validation",
           g_skia_graphite_feature_params.dawn_skip_validation)
           .Get();
   g_skia_graphite_feature_params.dawn_backend_validation =
       base::FeatureParam<bool>(
-          &feature, "dawn_backend_validation",
+          feature, "dawn_backend_validation",
           g_skia_graphite_feature_params.dawn_backend_validation)
           .Get();
   g_skia_graphite_feature_params.dawn_backend_debug_labels =
       base::FeatureParam<bool>(
-          &feature, "dawn_backend_debug_labels",
+          feature, "dawn_backend_debug_labels",
           g_skia_graphite_feature_params.dawn_backend_debug_labels)
           .Get();
   g_skia_graphite_feature_params.dawn_enable_auto_map =
       base::FeatureParam<bool>(
-          &feature, "dawn_enable_auto_map",
+          feature, "dawn_enable_auto_map",
           g_skia_graphite_feature_params.dawn_enable_auto_map)
           .Get();
   g_skia_graphite_feature_params.max_pending_recordings =
       base::FeatureParam<int>(
-          &feature, "max_pending_recordings",
+          feature, "max_pending_recordings",
           g_skia_graphite_feature_params.max_pending_recordings)
           .Get();
   g_skia_graphite_feature_params.enable_deferred_submit =
       base::FeatureParam<bool>(
-          &feature, "enable_deferred_submit",
+          feature, "enable_deferred_submit",
           g_skia_graphite_feature_params.enable_deferred_submit)
           .Get();
   g_skia_graphite_feature_params.enable_msaa_on_newer_intel =
       base::FeatureParam<bool>(
-          &feature, "enable_msaa_on_newer_intel",
+          feature, "enable_msaa_on_newer_intel",
           g_skia_graphite_feature_params.enable_msaa_on_newer_intel)
           .Get();
 #if BUILDFLAG(IS_WIN)
   g_skia_graphite_feature_params.dawn_dumpwc_d3d_errors =
       base::FeatureParam<bool>(
-          &feature, "dawn_dumpwc_d3d_errors",
+          feature, "dawn_dumpwc_d3d_errors",
           g_skia_graphite_feature_params.dawn_dumpwc_d3d_errors)
           .Get();
   g_skia_graphite_feature_params.dawn_disable_d3d_shader_optimizations =
       base::FeatureParam<bool>(
-          &feature, "dawn_disable_d3d_shader_optimizations",
+          feature, "dawn_disable_d3d_shader_optimizations",
           g_skia_graphite_feature_params.dawn_disable_d3d_shader_optimizations)
           .Get();
   g_skia_graphite_feature_params.dawn_d3d11_delay_flush =
       base::FeatureParam<bool>(
-          &feature, "dawn_d3d11_delay_flush",
+          feature, "dawn_d3d11_delay_flush",
           g_skia_graphite_feature_params.dawn_d3d11_delay_flush)
+          .Get();
+  g_skia_graphite_feature_params.flush_d3d11_tile_raster_commands_to_driver =
+      base::FeatureParam<bool>(
+          feature, "flush_d3d11_tile_raster_commands_to_driver",
+          g_skia_graphite_feature_params
+              .flush_d3d11_tile_raster_commands_to_driver)
           .Get();
 #endif
 
@@ -164,7 +176,8 @@ const base::FeatureParam<std::string>
 const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneDeviceBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
-        "RelaxLimitAImageReaderMaxSizeToOneDeviceBlocklist", ""};
+        "RelaxLimitAImageReaderMaxSizeToOneDeviceBlocklist",
+        "G08|G10|G17|BRAVIA_CT1"};
 const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneModelBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
@@ -375,7 +388,6 @@ BASE_FEATURE(kSkiaGraphite,
 // instead. This feature only works if `kLateGraphiteFeatureCheck` is
 // also enabled.
 BASE_FEATURE(kSkiaGraphiteWinIntel,
-             "SkiaGraphiteWinIntel",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows CompoundImageBacking to allocate backings during runtime if a
@@ -411,7 +423,6 @@ BASE_FEATURE(kSkiaGraphitePrecompilation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether to use PersistentCache for Skia Graphite's pipeline cache.
 BASE_FEATURE(kSkiaGraphiteUsePersistentCache,
-             "SkiaGraphiteUsePersistentCache",
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
@@ -439,13 +450,7 @@ const SkiaGraphiteFeatureParams& GetSkiaGraphiteFeatureParams() {
 }
 
 void InitSkiaGraphiteDefaultParamsForTesting() {
-  if (GetGraphiteParamsInitFlag().IsSet()) {
-    return;
-  }
-
-  g_skia_graphite_feature_params = SkiaGraphiteFeatureParams();
-
-  GetGraphiteParamsInitFlag().Set();
+  InitSkiaGraphiteFeatureParams(nullptr);
 }
 
 const base::FeatureParam<int> kSkiaGraphiteMinPathSizeForMsaa{
@@ -477,7 +482,7 @@ BASE_FEATURE(kIncreasedCmdBufferParseSlice, base::FEATURE_DISABLED_BY_DEFAULT);
 // Prune transfer cache entries not accessed recently. This also turns off
 // similar logic in cc::GpuImageDecodeCache which is the largest (often single)
 // client of transfer cache.
-BASE_FEATURE(kPruneOldTransferCacheEntries, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPruneOldTransferCacheEntries, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // On platforms with delegated compositing, try to release overlays later, when
 // no new frames are swapped.
@@ -618,9 +623,9 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
 
   // Force Graphite on if --enable-skia-graphite flag is specified.
   if (command_line->HasSwitch(switches::kEnableSkiaGraphite)) {
-    // It is safe to query parameter values for the SkiaGraphite feature. If the
-    // feature is disabled, the default parameter values will be populated.
-    InitSkiaGraphiteFeatureParams(kSkiaGraphite);
+    // The flag enable-skia-graphite is for testing purpose, so set the params
+    // to default values.
+    InitSkiaGraphiteFeatureParams(nullptr);
     return true;
   }
 
@@ -631,7 +636,7 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
   }
 
   if (base::FeatureList::IsEnabled(kSkiaGraphite)) {
-    InitSkiaGraphiteFeatureParams(kSkiaGraphite);
+    InitSkiaGraphiteFeatureParams(&kSkiaGraphite);
     return true;
   }
   return false;
@@ -639,7 +644,7 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
 
 bool IsSkiaGraphiteWinIntelEnabled() {
   if (base::FeatureList::IsEnabled(kSkiaGraphiteWinIntel)) {
-    InitSkiaGraphiteFeatureParams(kSkiaGraphiteWinIntel);
+    InitSkiaGraphiteFeatureParams(&kSkiaGraphiteWinIntel);
     return true;
   }
   return false;

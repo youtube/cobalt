@@ -56,21 +56,35 @@ class AutofillWebDataService : public WebDataServiceBase {
   // Schedules a task to add form fields to the web database.
   virtual void AddFormFields(const std::vector<FormFieldData>& fields);
 
-  // Initiates the request for a vector of values which have been entered in
-  // form input fields named |name|. The method OnWebDataServiceRequestDone of
-  // |consumer| gets called back when the request is finished, with the vector
-  // included in the argument |result|.
+  // Initiates a request for autocomplete entries in the legacy
+  // non-label-sensitive table matching `name` and `prefix`.
+  // `consumer::OnWebDataServiceRequestDone` is called when the request
+  // finishes.
   virtual WebDataServiceBase::Handle GetFormValuesForElementName(
       const std::u16string& name,
       const std::u16string& prefix,
       int limit,
       WebDataServiceRequestCallback consumer);
 
+  // Asynchronously fetches Autofill suggestions.
+  //
+  // Queries for stored form values matching the field's `name`, `label`,
+  // and the user-typed `prefix`. Returns up to `limit` suggestions
+  // via the `consumer`'s OnWebDataServiceRequestDone callback.
+  virtual WebDataServiceBase::Handle GetFormValuesForElementNameAndLabel(
+      std::u16string_view name,
+      std::u16string_view label,
+      std::u16string_view prefix,
+      int limit,
+      WebDataServiceRequestCallback consumer);
+
   // Removes form elements recorded for Autocomplete from the database.
   void RemoveFormElementsAddedBetween(base::Time delete_begin,
                                       base::Time delete_end);
-  void RemoveFormValueForElementName(const std::u16string& name,
-                                     const std::u16string& value);
+  // Deletes autocomplete `value` entries with matching `name` and/or `label`.
+  virtual void RemoveFormValueForElementNameAndLabel(std::u16string_view name,
+                                                     std::u16string_view label,
+                                                     std::u16string_view value);
 
   // Schedules a task to add an Autofill profile to the web database.
   void AddAutofillProfile(

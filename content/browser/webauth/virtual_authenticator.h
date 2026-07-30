@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_WEBAUTH_VIRTUAL_AUTHENTICATOR_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -74,6 +75,7 @@ class CONTENT_EXPORT VirtualAuthenticator
     bool has_hmac_secret_mc = false;
     bool default_backup_eligibility = false;
     bool default_backup_state = false;
+    bool has_cmtg_key = false;
   };
 
   using GetLargeBlobCallback =
@@ -96,14 +98,14 @@ class CONTENT_EXPORT VirtualAuthenticator
   bool AddRegistration(std::vector<uint8_t> key_handle,
                        const std::string& rp_id,
                        base::span<const uint8_t> private_key,
-                       int32_t counter);
+                       std::optional<uint32_t> counter);
 
   // Register a new resident credential. Returns true if the registration was
   // successful, false otherwise.
   bool AddResidentRegistration(std::vector<uint8_t> key_handle,
                                std::string rp_id,
                                base::span<const uint8_t> private_key,
-                               int32_t counter,
+                               std::optional<uint32_t> counter,
                                std::vector<uint8_t> user_handle,
                                std::optional<std::string> user_name,
                                std::optional<std::string> user_display_name);
@@ -126,6 +128,10 @@ class CONTENT_EXPORT VirtualAuthenticator
   // this authenticator. The default is true.
   void SetUserPresence(bool is_user_present);
 
+  // Sets the signature counter for a given credential.
+  void SetSignatureCounter(base::span<const uint8_t> key_handle,
+                           std::optional<uint32_t> counter);
+
   // Sets whether user verification should succeed or not for new requests sent
   // to this authenticator. Defaults to true.
   void set_user_verified(bool is_user_verified) {
@@ -147,6 +153,7 @@ class CONTENT_EXPORT VirtualAuthenticator
   void set_bad_up_bit(bool is_bad_bit) { state_->unset_up_bit = is_bad_bit; }
 
   bool has_resident_key() const { return has_resident_key_; }
+  bool has_cmtg_key() const { return has_cmtg_key_; }
 
   device::FidoTransportProtocol transport() const { return state_->transport; }
   const std::string& unique_id() const { return unique_id_; }
@@ -183,6 +190,21 @@ class CONTENT_EXPORT VirtualAuthenticator
                     const std::vector<uint8_t>& blob,
                     SetLargeBlobCallback callback);
 
+  // Adds a CMTG key to the credential.
+  // Returns true on success, false if the credential was not found or the key
+  // is null.
+  bool AddCmtgKey(
+      base::span<const uint8_t> key_handle,
+      std::unique_ptr<device::VirtualFidoDevice::PrivateKey> cmtg_key);
+  // Selects the CMTG key at the given index for the credential.
+  // Returns true on success, false if the credential was not found.
+  bool SetSelectedCmtgKeyIndex(base::span<const uint8_t> key_handle,
+                               size_t index);
+  // Sets whether the authenticator should generate a new CMTG key on the next
+  // operation. Returns true on success, false if the credential was not found.
+  bool SetGenerateCmtgKeyOnNextOperation(base::span<const uint8_t> key_handle,
+                                         bool generate);
+
  private:
   void OnLargeBlobUncompressed(
       GetLargeBlobCallback callback,
@@ -213,6 +235,7 @@ class CONTENT_EXPORT VirtualAuthenticator
   const bool has_prf_;
   const bool has_hmac_secret_;
   const bool has_hmac_secret_mc_;
+  const bool has_cmtg_key_;
   bool is_user_verified_ = true;
   const std::string unique_id_;
   bool is_user_present_;

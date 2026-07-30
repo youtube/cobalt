@@ -82,6 +82,7 @@ import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
+import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.test.util.FakeAccountManagerFacade;
@@ -139,6 +140,7 @@ public class NewTabPageSigninPromoTest {
     @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
     @Mock private SetupListManager mSetupListManager;
+    @Mock private ExternalAuthUtils mExternalAuthUtilsMock;
 
     private final SigninTestUtil.CustomDeviceLockActivityLauncher mDeviceLockActivityLauncher =
             new SigninTestUtil.CustomDeviceLockActivityLauncher();
@@ -150,6 +152,12 @@ public class NewTabPageSigninPromoTest {
         Mockito.when(mSetupListManager.isSetupListActive()).thenReturn(false);
         SetupListManager.setInstanceForTesting(mSetupListManager);
         EducationalTipModuleUtils.setEducationalTipActiveForTesting(false);
+
+        ExternalAuthUtils.setInstanceForTesting(mExternalAuthUtilsMock);
+        Mockito.lenient().when(mExternalAuthUtilsMock.canUseGooglePlayServices()).thenReturn(true);
+        Mockito.lenient()
+                .when(mExternalAuthUtilsMock.isGooglePlayServicesMissing(Mockito.any()))
+                .thenReturn(false);
     }
 
     @After
@@ -213,6 +221,8 @@ public class NewTabPageSigninPromoTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void testSignInPromo_AccountsReady() {
         openNewTabPage();
         // Check that the sign-in promo is displayed this time.
@@ -242,6 +252,8 @@ public class NewTabPageSigninPromoTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void testSignInPromo_NotShownAfterSignIn() {
         openNewTabPage();
         verifySigninPromoShown();
@@ -255,6 +267,8 @@ public class NewTabPageSigninPromoTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void testSignInPromoDisplayedWithDefaultUser() {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
 
@@ -283,6 +297,8 @@ public class NewTabPageSigninPromoTest {
     @Test
     @MediumTest
     @Feature({"FeedNewTabPage"})
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void testSignInPromoDisplayedWithAADCMinorAccount() {
         mSigninTestRule.addAccount(TestAccounts.AADC_MINOR_ACCOUNT);
 
@@ -398,6 +414,8 @@ public class NewTabPageSigninPromoTest {
     @MediumTest
     @Feature({"FeedNewTabPage"})
     @DisabledTest(message = "https://crbug.com/40116614")
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testSignInPromo_DismissBySwipe() {
         openNewTabPage();
@@ -443,6 +461,8 @@ public class NewTabPageSigninPromoTest {
                 + ":seamless-signin-promo-type/compact"
                 + "/seamless-signin-string-type/continueButton"
     })
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void testSignInPromo_shownIfTimeElapsedSinceFirstShownIsLessThanFirstShownLimit() {
         // Show the promo for the first time.
         openNewTabPage();
@@ -466,6 +486,8 @@ public class NewTabPageSigninPromoTest {
                 + ":seamless-signin-promo-type/compact"
                 + "/seamless-signin-string-type/continueButton"
     })
+    // Restrict to Phones and Tablets because Desktop Android does not show feed in NTP.
+    @Restriction({DeviceFormFactor.PHONE_OR_TABLET})
     public void
             testSignInPromo_shownIfTimeElapsedSinceFirstShownExceedsFirstShownLimitAndResetThreshold() {
         // Show the promo for the first time.

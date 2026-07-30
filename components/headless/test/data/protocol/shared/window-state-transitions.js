@@ -4,13 +4,13 @@
 //
 // META: --screen-info={1600x1200}
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {session, dp} =
       await testRunner.startBlank('Tests window state transitions.');
 
   const {windowId} = (await dp.Browser.getWindowForTarget()).result;
 
-  dp.Browser.setWindowBounds(
+  await dp.Browser.setWindowBounds(
       {windowId, bounds: {left: 0, top: 0, width: 800, height: 600}});
 
   const windowStates = [
@@ -31,7 +31,7 @@
   ];
 
   for (const state of windowStates) {
-    dp.Browser.setWindowBounds({windowId, bounds: {windowState: state}});
+    await dp.Browser.setWindowBounds({windowId, bounds: {windowState: state}});
 
     const {bounds} = (await dp.Browser.getWindowBounds({windowId})).result;
     const visibilityState = await session.evaluate(`document.visibilityState`);

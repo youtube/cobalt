@@ -4,7 +4,7 @@
 //
 // META: --screen-info={label='#1'}{label='#2'}
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {session, dp} = await testRunner.startBlank(
       'Tests Target.createTarget() on a secondary screen.');
 
@@ -12,7 +12,7 @@
 
   const {sessionId} =
       (await testRunner.browserP().Target.attachToBrowserTarget({})).result;
-  const bp = (new TestRunner.Session(testRunner, sessionId)).protocol;
+  const bp = (testRunner.createSessionFor(sessionId)).protocol;
 
   const HttpInterceptor =
       await testRunner.loadScriptAbsolute('../resources/http-interceptor.js');

@@ -25,6 +25,7 @@
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/collaboration_out_of_date/collaboration_out_of_date_infobar_banner_overlay_mediator.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/confirm/confirm_infobar_banner_overlay_mediator.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/features.h"
+#import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/forms_ai_private_inference/forms_ai_private_inference_banner_overlay_mediator.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/infobar_banner_overlay_mediator.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/passwords/password_infobar_banner_overlay_mediator.h"
 #import "ios/chrome/browser/overlays/ui_bundled/infobar_banner/permissions/permissions_infobar_banner_overlay_mediator.h"
@@ -73,6 +74,7 @@
     [TailoredSecurityInfobarBannerOverlayMediator class],
     [SyncErrorInfobarBannerOverlayMediator class],
     [EnhancedSafeBrowsingBannerOverlayMediator class],
+    [FormsAiPrivateInferenceBannerOverlayMediator class],
   ];
 }
 
@@ -179,6 +181,9 @@
   // Mark started as NO before calling dismissal callback to prevent dup
   // stopAnimated: executions.
   self.started = NO;
+  // Disconnect the mediator synchronously so it stops referencing command
+  // handlers before asynchronous view controller dismissal finishes.
+  [self.mediator disconnect];
   __weak InfobarBannerOverlayCoordinator* weakSelf = self;
   [self.baseViewController dismissViewControllerAnimated:animated
                                               completion:^{
@@ -274,6 +279,9 @@
     case InfobarType::kInfobarTypeCollaborationOutOfDate:
       mediatorClass =
           [CollaborationOutOfDateInfobarBannerOverlayMediator class];
+      break;
+    case InfobarType::kInfobarTypeFormsAiPrivateInference:
+      mediatorClass = [FormsAiPrivateInferenceBannerOverlayMediator class];
       break;
     default:
       NOTREACHED() << "Received unsupported infobarType.";

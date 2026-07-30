@@ -63,6 +63,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetPeekView.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetPeekViewBinder.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetProperties.java",
+    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetSuppressionController.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetUtils.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetViewBinder.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetWebUi.java",
@@ -128,7 +129,7 @@ android_library("java") {
 robolectric_library("junit") {
   sources = [
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/CoBrowseViewsUnitTest.java",
-    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetCoordinatorTest.java",
+    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetCoordinatorUnitTest.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetMediatorUnitTest.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetPeekViewBinderTest.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetWebUiUnitTest.java",
@@ -211,6 +212,7 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "co_browse_views_bridge_browsertest.cc",
     "tab_bottom_sheet_browsertest.cc",
     "tab_bottom_sheet_test_feature.cc",
     "tab_bottom_sheet_test_feature.h",
@@ -221,6 +223,7 @@ source_set("browser_tests") {
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/tab_list",
+    "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/test:test_support",
     "//content/test:test_support",
     "//testing/gtest",

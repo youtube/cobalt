@@ -290,7 +290,7 @@ void CleanupImageFetcherCacheIfNeeded(PrefService* pref_service,
 
 @interface NewTabPageMediator () <BooleanObserver,
                                   HomeBackgroundCustomizationServiceObserving,
-                                  IdentityManagerObserverBridgeDelegate,
+                                  IdentityManagerObserving,
                                   PlaceholderServiceObserving,
                                   PrefObserverDelegate,
                                   SearchEngineObserving,
@@ -462,6 +462,13 @@ void CleanupImageFetcherCacheIfNeeded(PrefService* pref_service,
     }
   }
   return self;
+}
+
+- (void)setConsumer:(id<NewTabPageConsumer>)consumer {
+  _consumer = consumer;
+  if (IsChromeNextIaEnabled() && IsBottomOmniboxAvailable()) {
+    [self.consumer setOmniboxInBottomPosition:_bottomOmniboxEnabled.value];
+  }
 }
 
 - (void)setHeaderConsumer:(id<NewTabPageHeaderConsumer>)headerConsumer {
@@ -637,6 +644,7 @@ void CleanupImageFetcherCacheIfNeeded(PrefService* pref_service,
   CHECK(IsChromeNextIaEnabled());
   if (observableBoolean == _bottomOmniboxEnabled) {
     CHECK(IsBottomOmniboxAvailable());
+    [self.consumer setOmniboxInBottomPosition:_bottomOmniboxEnabled.value];
     [self.headerConsumer
         setOmniboxInBottomPosition:_bottomOmniboxEnabled.value];
   }
@@ -664,15 +672,15 @@ void CleanupImageFetcherCacheIfNeeded(PrefService* pref_service,
   [self.headerConsumer setDefaultSearchEngineName:dseName];
 }
 
-#pragma mark - IdentityManagerObserverBridgeDelegate
+#pragma mark - IdentityManagerObserving
 
-- (void)onEndBatchOfPrimaryAccountChanges {
+- (void)batchOfPrimaryAccountChangesDidEnd {
   _signedInIdentity = self.authService->GetPrimaryIdentity();
   [self updateAccountImage];
   [self updateAccountErrorBadge];
 }
 
-- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
+- (void)extendedAccountInfoDidUpdate:(const AccountInfo&)info {
   if (info.gaia != _signedInIdentity.gaiaId) {
     return;
   }

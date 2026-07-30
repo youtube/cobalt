@@ -2294,9 +2294,11 @@ void BoxFragmentPainter::PaintTextClipMask(const PaintInfo& paint_info,
                                            const gfx::Rect& mask_rect,
                                            const PhysicalOffset& paint_offset,
                                            bool object_has_multiple_boxes) {
-  PaintInfo mask_paint_info(paint_info.context, CullRect(mask_rect),
-                            PaintPhase::kTextClip,
-                            paint_info.DescendantPaintingBlocked());
+  PaintInfo mask_paint_info(
+      paint_info.context, CullRect(mask_rect), PaintPhase::kTextClip,
+      paint_info.DescendantPaintingBlocked(),
+      paint_info.IsPrivacyPreserving() ? PaintFlag::kPrivacyPreserving
+                                       : PaintFlag::kNoFlag);
   if (!object_has_multiple_boxes) {
     PaintObject(mask_paint_info, paint_offset);
     return;
@@ -2336,8 +2338,11 @@ PhysicalRect BoxFragmentPainter::AdjustRectForScrolledContent(
     const PhysicalRect& rect) const {
   const PhysicalBoxFragment& physical = GetPhysicalFragment();
 
+  // TODO(crbug.com/539155974): Properly snap to pixels.
   // Clip to the overflow area.
-  context.Clip(gfx::RectF(physical.OverflowClipRect(rect.offset)));
+  PhysicalRect clip_rect = physical.OverflowClipRect();
+  clip_rect.Move(rect.offset);
+  context.Clip(gfx::RectF(clip_rect));
 
   PhysicalRect scrolled_paint_rect = rect;
 
@@ -2439,10 +2444,13 @@ bool BoxFragmentPainter::NodeAtPoint(const HitTestContext& hit_test,
     // PaintLayer::HitTestFragmentsWithPhase() checked the fragments'
     // foreground rect for intersection if a layer is self painting,
     // so only do the overflow clip check here for non-self-painting layers.
-    if (!box_fragment_.HasSelfPaintingLayer() &&
-        !hit_test.location.Intersects(GetPhysicalFragment().OverflowClipRect(
-            physical_offset, kExcludeOverlayScrollbarSizeForHitTesting))) {
-      skip_children = true;
+    if (!box_fragment_.HasSelfPaintingLayer()) {
+      PhysicalRect clip_rect = GetPhysicalFragment().OverflowClipRect(
+          kExcludeOverlayScrollbarSizeForHitTesting);
+      clip_rect.Move(physical_offset);
+      if (!hit_test.location.Intersects(clip_rect)) {
+        skip_children = true;
+      }
     }
     // Also check border-radius and border-shape clipping.
     if (!skip_children && style.HasBorderShape()) {

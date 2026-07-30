@@ -11,12 +11,14 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_test_base.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data_test_api.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill::autofill_metrics {
@@ -40,7 +42,8 @@ TEST_F(SuggestionsListMetricsTest, SuggestionsCount) {
                   {.role = EMAIL_ADDRESS, .autocomplete_attribute = "email"},
                   {.role = CREDIT_CARD_NUMBER,
                    .autocomplete_attribute = "cc-number"}}});
-  autofill_manager().OnFormsSeen({form}, {});
+  autofill_manager().OnFormsSeen({form}, {},
+                                 AutofillManagerTestApi::pass_key());
   personal_data().address_data_manager().AddProfile(test::GetFullProfile());
   personal_data().address_data_manager().AddProfile(test::GetFullProfile2());
   personal_data().payments_data_manager().AddCreditCard(test::GetCreditCard());
@@ -71,7 +74,8 @@ TEST_F(SuggestionsListMetricsTest, AcceptedSuggestionIndex) {
                   {.role = EMAIL_ADDRESS, .autocomplete_attribute = "email"},
                   {.role = CREDIT_CARD_NUMBER,
                    .autocomplete_attribute = "cc-number"}}});
-  autofill_manager().OnFormsSeen({form}, {});
+  autofill_manager().OnFormsSeen({form}, {},
+                                 AutofillManagerTestApi::pass_key());
   {
     Suggestion address_suggestion(SuggestionType::kAddressEntry);
     autofill_manager().OnAskForValuesToFillTest(
@@ -94,6 +98,95 @@ TEST_F(SuggestionsListMetricsTest, AcceptedSuggestionIndex) {
   }
 }
 
+// Tests that the selected suggestion index is counted correctly if there are
+// many available suggestions.
+TEST_F(SuggestionsListMetricsTest, AcceptedSuggestionIndexDisplayedAtLeast) {
+  const FormData form =
+      test::GetFormData({.fields = {{.role = NAME_FULL},
+                                    {.role = ADDRESS_HOME_STREET_ADDRESS},
+                                    {.role = ADDRESS_HOME_CITY}}});
+  autofill_manager().OnFormsSeen({form}, {},
+                                 AutofillManagerTestApi::pass_key());
+  const FormFieldData& form_field = form.fields()[0];
+
+  std::vector<Suggestion> suggestions(
+      3, Suggestion(u"test", SuggestionType::kAddressEntry));
+  {
+    autofill_manager().OnAskForValuesToFillTest(form, form_field.global_id());
+    external_delegate().OnSuggestionsReturned(form_field, suggestions);
+
+    base::HistogramTester histogram_tester;
+    external_delegate().DidAcceptSuggestion(suggestions[1],
+                                            {.multi_index = {1}});
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast5.Address", 0);
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast10.Address", 0);
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast20.Address", 0);
+  }
+
+  suggestions.resize(7, Suggestion(u"test", SuggestionType::kAddressEntry));
+  {
+    autofill_manager().OnAskForValuesToFillTest(form, form_field.global_id());
+    external_delegate().OnSuggestionsReturned(form_field, suggestions);
+
+    base::HistogramTester histogram_tester;
+    external_delegate().DidAcceptSuggestion(suggestions[1],
+                                            {.multi_index = {1}});
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast5.Address"),
+        base::BucketsAre(base::Bucket(1, 1)));
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast10.Address", 0);
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast20.Address", 0);
+  }
+
+  suggestions.resize(10, Suggestion(u"test", SuggestionType::kAddressEntry));
+  {
+    autofill_manager().OnAskForValuesToFillTest(form, form_field.global_id());
+    external_delegate().OnSuggestionsReturned(form_field, suggestions);
+
+    base::HistogramTester histogram_tester;
+    external_delegate().DidAcceptSuggestion(suggestions[5],
+                                            {.multi_index = {5}});
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast5.Address"),
+        base::BucketsAre(base::Bucket(5, 1)));
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast10.Address"),
+        base::BucketsAre(base::Bucket(5, 1)));
+    histogram_tester.ExpectTotalCount(
+        "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast20.Address", 0);
+  }
+
+  suggestions.resize(20, Suggestion(u"test", SuggestionType::kAddressEntry));
+  {
+    autofill_manager().OnAskForValuesToFillTest(form, form_field.global_id());
+    external_delegate().OnSuggestionsReturned(form_field, suggestions);
+
+    base::HistogramTester histogram_tester;
+    external_delegate().DidAcceptSuggestion(suggestions[18],
+                                            {.multi_index = {18}});
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast5.Address"),
+        base::BucketsAre(base::Bucket(18, 1)));
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast10.Address"),
+        base::BucketsAre(base::Bucket(18, 1)));
+    EXPECT_THAT(
+        histogram_tester.GetAllSamples(
+            "Autofill.SuggestionAcceptedIndex.DisplayedAtLeast20.Address"),
+        base::BucketsAre(base::Bucket(18, 1)));
+  }
+}
+
 // Test that we log the length of the field's value right before accepting a
 // suggestion.
 TEST_F(SuggestionsListMetricsTest, AcceptanceFieldValueLength) {
@@ -104,7 +197,8 @@ TEST_F(SuggestionsListMetricsTest, AcceptanceFieldValueLength) {
                    .autocomplete_attribute = "cc-number"}}});
   test_api(form).field(0).set_value(std::u16string(3, 'a'));
   test_api(form).field(-1).set_value(std::u16string(2, 'a'));
-  autofill_manager().OnFormsSeen({form}, {});
+  autofill_manager().OnFormsSeen({form}, {},
+                                 AutofillManagerTestApi::pass_key());
   {
     Suggestion address_suggestion(SuggestionType::kAddressEntry);
     autofill_manager().OnAskForValuesToFillTest(

@@ -96,20 +96,38 @@ constexpr char kInvalidLocale[] = "en-GB";
 
 constexpr char kPromotionBannerVisibilityJavaScript[] = R"(
   (function () {
-    const element =
-      document.getElementsByTagName('promotion-banner-section-container')[0];
+    let element =
+      document.querySelector('promotion-banner-section-container');
+    if (!element) {
+      const app = document.querySelector('policy-app');
+      if (app && app.shadowRoot) {
+        element = app.shadowRoot.querySelector(
+            'promotion-banner-section-container');
+      }
+    }
     return element ? 'visible' : 'hidden';
   })();
 )";
 
 constexpr char kPromotionBannerDismissJavaScript[] = R"(
-  const promotionContainer =
-    document.getElementsByTagName('promotion-banner-section-container')[0];
-  if (promotionContainer){
-    const dismissButton =
-      promotionContainer.shadowRoot.getElementById('promotion-dismiss-button');
-    dismissButton.click();
-  }
+  (function () {
+    let promotionContainer =
+      document.querySelector('promotion-banner-section-container');
+    if (!promotionContainer) {
+      const app = document.querySelector('policy-app');
+      if (app && app.shadowRoot) {
+        promotionContainer = app.shadowRoot.querySelector(
+            'promotion-banner-section-container');
+      }
+    }
+    if (promotionContainer) {
+      const dismissButton =
+        promotionContainer.shadowRoot.getElementById('promotion-dismiss-button');
+      if (dismissButton) {
+        dismissButton.click();
+      }
+    }
+  })();
 )";
 
 }  // namespace
@@ -202,7 +220,7 @@ class PolicyUIManagedStatusTest : public PlatformBrowserTest,
   }
 
   void EnableProfileManagement() {
-    Profile* profile = browser()->profile();
+    Profile* profile = browser()->GetProfile();
     // ChromeOS creates a client on profile creation, so we only need to setup
     // the registration for it there.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -282,7 +300,7 @@ class PolicyUIManagedStatusTest : public PlatformBrowserTest,
 
  protected:
   void SetPromotionBannerDismissedPref(bool is_dismissed) {
-    auto* prefs = browser()->profile()->GetPrefs();
+    auto* prefs = browser()->GetProfile()->GetPrefs();
     prefs->SetBoolean(
         policy::policy_prefs::kHasDismissedPolicyPagePromotionBanner,
         is_dismissed);
@@ -291,7 +309,7 @@ class PolicyUIManagedStatusTest : public PlatformBrowserTest,
   // Helper method to setup and wait for the promotion listener.
   void SetupAndListenForPromotion() {
     // Only wait if the locale is en-US AND not dismissed.
-    const bool is_dismissed = browser()->profile()->GetPrefs()->GetBoolean(
+    const bool is_dismissed = browser()->GetProfile()->GetPrefs()->GetBoolean(
         policy::policy_prefs::kHasDismissedPolicyPagePromotionBanner);
 
     if (g_browser_process->GetApplicationLocale() == kValidLocale &&

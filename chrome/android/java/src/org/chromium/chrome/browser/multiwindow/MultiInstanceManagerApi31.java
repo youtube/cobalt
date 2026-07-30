@@ -25,7 +25,6 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.TimeUtils;
@@ -285,8 +284,22 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
         removeInvalidInstanceData();
         List<InstanceInfo> result = new ArrayList<>();
         SparseBooleanArray visibleTasks = MultiWindowUtils.getVisibleTasks();
+
+        Profile profile = null;
+        TabModelOrchestrator orchestrator = mTabModelOrchestratorSupplier.get();
+        if (orchestrator != null) {
+            TabModelSelector selector = orchestrator.getTabModelSelector();
+            if (selector != null) {
+                profile = selector.getCurrentModel().getProfile();
+            }
+        }
+        boolean isIncognitoForced = profile != null && IncognitoUtils.isIncognitoModeForced(profile);
+
         for (int i : MultiWindowUtils.getPersistedInstanceIds(persistedInstanceType)) {
             if (!includeDeleted && ChromeMultiInstancePersistentStore.readMarkedForDeletion(i)) {
+                continue;
+            }
+            if (isIncognitoForced && ChromeMultiInstancePersistentStore.readNormalTabCount(i) > 0) {
                 continue;
             }
             @InstanceInfo.Type int type = InstanceInfo.Type.OTHER;
@@ -442,6 +455,14 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
                 ChromeFeatureList.sAllocInstanceIdIncreasedDefaultRange.isEnabled()
                         ? TabWindowManager.MAX_SELECTORS_1000
                         : getMaxInstances();
+        boolean lastWindowClosedByApp =
+                MultiWindowUtils.isNewStartupWindowPolicyEnabled()
+                        && ChromeMultiInstancePersistentStore.readLastSessionExitType()
+                                == LastSessionExitType.LAST_WINDOW_CLOSED_BY_APP;
+        if (lastWindowClosedByApp) {
+            ChromeMultiInstancePersistentStore.writeLastSessionExitType(LastSessionExitType.NORMAL);
+        }
+
         for (int i = 0; i < maxRange; ++i) {
             int persistedTaskId = ChromeMultiInstancePersistentStore.readTaskId(i);
             if (persistedTaskId != INVALID_TASK_ID) {
@@ -452,10 +473,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
             }
 
             boolean instanceExists = ChromeMultiInstancePersistentStore.hasInstance(i);
-            if (instanceExists
-                    && !isRelaunch
-                    && (DeviceInfo.isDesktop()
-                            && ChromeFeatureList.sOnStartupWindowPolicy.isEnabled())) {
+            if (instanceExists && !isRelaunch && lastWindowClosedByApp) {
                 // This supports updated default id allocation / startup behavior where a newly
                 // created activity will refrain from using existing instance state and will be
                 // created as a brand-new window instead.
@@ -876,6 +894,14 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
 
     @Override
     public void closeWindows(List<Integer> instanceIds, @CloseWindowAppSource int source) {
+        if (MultiWindowUtils.isNewStartupWindowPolicyEnabled()) {
+            Set<Integer> activeInstanceIds =
+                    MultiWindowUtils.getPersistedInstanceIds(PersistedInstanceType.ACTIVE);
+            if (!activeInstanceIds.isEmpty() && instanceIds.containsAll(activeInstanceIds)) {
+                ChromeMultiInstancePersistentStore.writeLastSessionExitType(
+                        LastSessionExitType.LAST_WINDOW_CLOSED_BY_APP);
+            }
+        }
         boolean shouldCloseCurrentInstance = false;
         var appTasksById = MultiWindowUtils.getAppTasksById(mActivity);
         for (int instanceId : instanceIds) {
@@ -1266,7 +1292,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl
     public void showInstanceCreationLimitMessage() {
         // TODO(crbug.com/535331238): Move this to MultiWindowUtils.java and merge with the
         //  duplicated toast.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.IN_APP_WINDOW_MANAGER_DEPRECATION)) {
+        if (MultiWindowUtils.isWindowManagerDeprecated()) {
             Toast.makeText(
                             mActivity,
                             mActivity.getString(

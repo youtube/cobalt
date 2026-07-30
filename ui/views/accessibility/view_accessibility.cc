@@ -1718,6 +1718,32 @@ void ViewAccessibility::OnViewHasNewAncestor(const View* new_ancestor) {
   }
 }
 
+void ViewAccessibility::OnViewParentChanged() {
+  CHECK(view_);
+  if (view_->parent()) {
+    OnViewHasNewAncestor(view_->parent());
+  }
+
+  UpdateOffsetContainerId();
+}
+
+ui::AXNodeID ViewAccessibility::GetOffsetContainerId() const {
+  CHECK(view_);
+  const ViewAccessibility* parent = GetViewAccessibilityParent();
+  return parent ? static_cast<ui::AXNodeID>(parent->GetUniqueId())
+                : ui::kInvalidAXNodeID;
+}
+
+void ViewAccessibility::UpdateOffsetContainerId() {
+  const ui::AXNodeID offset_container_id = GetOffsetContainerId();
+  if (data_.relative_bounds.offset_container_id == offset_container_id) {
+    return;
+  }
+
+  data_.relative_bounds.offset_container_id = offset_container_id;
+  NotifyDataChanged();
+}
+
 void ViewAccessibility::SetRootViewURL(const std::string& url) {
   CHECK(view_);
   CHECK(!view_->parent())

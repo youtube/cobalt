@@ -98,13 +98,17 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
 }
 
 double GetGlassFrameTintOpacity(bool is_dark_mode, bool is_vertical_tabs) {
-  constexpr double kLiquidGlassOpacity = 0.55;
-
   double opacity_value = is_dark_mode
-                             ? features::kTintOpacityForDarkMode.Get()
-                             : features::kTintOpacityForLightMode.Get();
+                             ? features::kGlassTintOpacityForDarkMode.Get()
+                             : features::kGlassTintOpacityForLightMode.Get();
 
-  double opacity = opacity_value >= 0.0 ? opacity_value : kLiquidGlassOpacity;
+  constexpr double kLiquidGlassOpacityLightMode = 0.55;
+  constexpr double kLiquidGlassOpacityDarkMode = 0.80;
+
+  double opacity = opacity_value >= 0.0
+                       ? opacity_value
+                       : (is_dark_mode ? kLiquidGlassOpacityDarkMode
+                                       : kLiquidGlassOpacityLightMode);
 
   return std::clamp(opacity, 0.0, 1.0);
 }
@@ -249,6 +253,7 @@ void BrowserNativeWidgetMac::OnWindowFullscreenTransitionComplete() {
 }
 
 void BrowserNativeWidgetMac::OnWidgetDestroyed(views::Widget* widget) {
+  widget->RemoveObserver(this);
   CHECK(browser_view_);
   if (UsesRemoteCocoaApplicationHost(browser_view_->browser())) {
     chrome::RemoveCommandObserver(browser_view_->browser(), IDC_BACK, this);
@@ -323,6 +328,8 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
     case IDC_SAVE_PAGE:
     case IDC_SELECT_NEXT_TAB:
     case IDC_SELECT_PREVIOUS_TAB:
+    case IDC_CYCLE_TO_NEXT_TAB:
+    case IDC_CYCLE_TO_PREV_TAB:
     case IDC_SHOW_BOOKMARK_MANAGER:
     case IDC_SHOW_DOWNLOADS:
     case IDC_STOP:
@@ -525,26 +532,34 @@ bool BrowserNativeWidgetMac::ExecuteCommand(
     NSEvent* current_event = [NSApp currentEvent];
     if (auto* controller =
             tabs::VerticalTabStripStateController::From(browser)) {
-      // NSEventTypeApplicationDefined is specifically for test cases.
-      const bool is_keyboard =
-          current_event &&
-          (current_event.type == NSEventTypeKeyDown ||
-           current_event.type == NSEventTypeApplicationDefined);
-      if (is_keyboard) {
-        if (controller->IsCollapsed()) {
-          base::RecordAction(base::UserMetricsAction(
-              "VerticalTabs_TabStrip_KeyboardShortcutToggleUncollapsed"));
-        } else {
-          base::RecordAction(base::UserMetricsAction(
-              "VerticalTabs_TabStrip_KeyboardShortcutToggleCollapsed"));
-        }
-      } else {
+      const bool is_mouse_click =
+          current_event && (current_event.type == NSEventTypeLeftMouseUp ||
+                            current_event.type == NSEventTypeLeftMouseDown);
+
+      NSMenuItem* view_menu_item =
+          [[NSApp mainMenu] itemWithTag:kMacViewMenuId];
+      NSMenuItem* collapse_item = [[view_menu_item submenu]
+          itemWithTag:IDC_TOGGLE_VERTICAL_TABS_COLLAPSE];
+      const bool is_menu_item_focused =
+          collapse_item && [collapse_item isHighlighted];
+
+      const bool is_view_menu = is_mouse_click || is_menu_item_focused;
+
+      if (is_view_menu) {
         if (controller->IsCollapsed()) {
           base::RecordAction(base::UserMetricsAction(
               "VerticalTabs_TabStrip_ViewMenuToggleUncollapsed"));
         } else {
           base::RecordAction(base::UserMetricsAction(
               "VerticalTabs_TabStrip_ViewMenuToggleCollapsed"));
+        }
+      } else {
+        if (controller->IsCollapsed()) {
+          base::RecordAction(base::UserMetricsAction(
+              "VerticalTabs_TabStrip_KeyboardShortcutToggleUncollapsed"));
+        } else {
+          base::RecordAction(base::UserMetricsAction(
+              "VerticalTabs_TabStrip_KeyboardShortcutToggleCollapsed"));
         }
       }
     }
@@ -627,6 +642,9 @@ void BrowserNativeWidgetMac::OnWindowInitialized() {
 
 void BrowserNativeWidgetMac::OnWidgetInitDone() {
   NativeWidgetMac::OnWidgetInitDone();
+  if (!GetWidget()->HasObserver(this)) {
+    GetWidget()->AddObserver(this);
+  }
   // GlassFrameService is only available if glass frame is enabled.
   if (auto* const glass_frame_service = GlassFrameService::GetInstance()) {
     glass_frame_service_subscription_ =
@@ -654,6 +672,13 @@ void BrowserNativeWidgetMac::OnWindowDestroying(
       base::apple::ObjCCastStrict<NativeWidgetMacNSWindow>(
           native_window.GetNativeNSWindow());
   [ns_window setWindowTouchBarDelegate:nil];
+}
+
+void BrowserNativeWidgetMac::OnWidgetActivationChanged(views::Widget* widget,
+                                                       bool active) {
+  last_theme_color_.reset();
+  last_preferred_color_scheme_.reset();
+  UpdateBackground(IsBrowserWidgetEligible());
 }
 
 void BrowserNativeWidgetMac::EnabledStateChangedForCommand(int id,
@@ -783,29 +808,27 @@ void BrowserNativeWidgetMac::UpdateBackground(bool is_eligible) {
       [ns_window setBackgroundColor:[NSColor windowBackgroundColor]];
       [background_view_ removeFromSuperview];
       background_view_ = nil;
-      last_preferred_color_scheme_.reset();
-      last_theme_color_.reset();
     }
+    if (tint_view_) {
+      [tint_view_ removeFromSuperview];
+      tint_view_ = nil;
+    }
+    last_preferred_color_scheme_.reset();
+    last_theme_color_.reset();
     return;
   }
 
   const ui::NativeTheme::PreferredColorScheme color_scheme =
       browser_view_->GetNativeTheme()->preferred_color_scheme();
-  const SkColor theme_color =
-      browser_view_->GetColorProvider()->GetColor(ui::kColorFrameActive);
+  const bool is_active = GetWidget()->IsActive();
+  const SkColor theme_color = browser_view_->GetColorProvider()->GetColor(
+      is_active ? ui::kColorFrameActive : ui::kColorFrameInactive);
 
   // Avoid updating the background view if the theme colors haven't changed.
   if (background_view_ && last_preferred_color_scheme_ == color_scheme &&
       last_theme_color_ == theme_color) {
     return;
   }
-
-  if (background_view_) {
-    [background_view_ removeFromSuperview];
-    background_view_ = nil;
-  }
-
-  NSView* const content_view = [ns_window contentView];
 
   last_preferred_color_scheme_ = color_scheme;
   last_theme_color_ = theme_color;
@@ -820,7 +843,7 @@ void BrowserNativeWidgetMac::UpdateBackground(bool is_eligible) {
   const CGFloat g = SkColorGetG(theme_color) / 255.0;
   const CGFloat b = SkColorGetB(theme_color) / 255.0;
   const CGFloat a =
-      GetGlassFrameTintOpacity(last_preferred_color_scheme_ !=
+      GetGlassFrameTintOpacity(last_preferred_color_scheme_ ==
                                    ui::NativeTheme::PreferredColorScheme::kDark,
                                is_vertical_tabs);
 
@@ -831,17 +854,35 @@ void BrowserNativeWidgetMac::UpdateBackground(bool is_eligible) {
   [ns_window setBackgroundColor:[[NSColor windowBackgroundColor]
                                     colorWithAlphaComponent:0.001]];
 
-  if (@available(macOS 26.0, *)) {
-    NSGlassEffectView* const glass_view =
-        [[GlassFrameBackgroundView alloc] initWithFrame:content_view.bounds];
-    glass_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    glass_view.style = NSGlassEffectViewStyleRegular;
+  if (tint_view_) {
+    tint_view_.layer.backgroundColor =
+        [NSColor colorWithSRGBRed:r green:g blue:b alpha:a].CGColor;
+  } else {
+    DCHECK(!background_view_);
+    NSView* const content_view = [ns_window contentView];
 
-    glass_view.tintColor = [NSColor colorWithSRGBRed:r green:g blue:b alpha:a];
+    if (@available(macOS 26.0, *)) {
+      NSGlassEffectView* const glass_view =
+          [[GlassFrameBackgroundView alloc] initWithFrame:content_view.bounds];
+      glass_view.wantsLayer = YES;
+      glass_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+      glass_view.style = NSGlassEffectViewStyleRegular;
 
-    background_view_ = glass_view;
-    [content_view addSubview:background_view_
-                  positioned:NSWindowBelow
-                  relativeTo:nil];
+      glass_view.tintColor = [NSColor clearColor];
+
+      NSView* tint_view = [[NSView alloc] initWithFrame:glass_view.bounds];
+      tint_view.wantsLayer = YES;
+      tint_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+      tint_view.layer.backgroundColor =
+          [NSColor colorWithSRGBRed:r green:g blue:b alpha:a].CGColor;
+
+      tint_view_ = tint_view;
+      [glass_view addSubview:tint_view_];
+
+      background_view_ = glass_view;
+      [content_view addSubview:background_view_
+                    positioned:NSWindowBelow
+                    relativeTo:nil];
+    }
   }
 }

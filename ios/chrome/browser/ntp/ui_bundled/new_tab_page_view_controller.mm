@@ -191,6 +191,8 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   NewTabPageQuickActionsViewController* _quickActionsViewController;
   // Whether AIM is allowed.
   BOOL _isAIMAllowed;
+  // Whether the omnibox is in bottom position.
+  BOOL _isBottomOmnibox;
 }
 
 // Properties synthesized from NewTabPageConsumer.
@@ -585,6 +587,7 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 
   if (self.feedWrapperViewController) {
     [self removeObjectFromViewHierarchy:self.feedWrapperViewController];
+    self.feedWrapperViewController = nil;
   }
   for (id obj in self.objectsAboveFeed) {
     [self removeObjectFromViewHierarchy:obj];
@@ -733,7 +736,9 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
 #pragma mark - NewTabPageConsumer
 
 - (void)restoreScrollPosition:(CGFloat)scrollPosition {
-  [self.view layoutIfNeeded];
+  if (self.view.window) {
+    [self.view layoutIfNeeded];
+  }
   if (scrollPosition != -CGFLOAT_MAX) {
     [self setSavedContentOffset:scrollPosition];
   } else {
@@ -800,11 +805,17 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
   _isAIMAllowed = allowed;
 }
 
-#pragma mark - NewTabPageHeaderViewDelegate
-
-- (void)didChangeOmniboxPosition:(NewTabPageHeaderView*)headerView {
-  CHECK_EQ(headerView, self.headerView);
-  [self updateFakeOmniboxForScrollPosition];
+- (void)setOmniboxInBottomPosition:(BOOL)isBottomOmnibox {
+  if (_isBottomOmnibox == isBottomOmnibox) {
+    return;
+  }
+  _isBottomOmnibox = isBottomOmnibox;
+  if (self.viewDidFinishLoading) {
+    if (!self.feedVisible) {
+      [self setMinimumHeight];
+    }
+    [self updateFakeOmniboxForScrollPosition];
+  }
 }
 
 #pragma mark - UIScrollViewDelegate
@@ -1353,16 +1364,21 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     // Otherwise, anchor the header to the module below it.
     NSInteger headerIndex =
         [self.objectsAboveFeed indexOfObject:self.headerView];
-    UIView* viewBelowHeader =
-        [self viewForAboveFeedObject:[self.objectsAboveFeed
-                                         objectAtIndex:(headerIndex + 1)]];
-    self.fakeOmniboxConstraints = @[
-      [viewBelowHeader.topAnchor
-          constraintEqualToAnchor:self.headerView.bottomAnchor
-                         constant:self.quickActionsVisible
-                                      ? kQuickActionSpacingTop
-                                      : kSpaceBetweenModules],
-    ];
+    if (headerIndex == NSNotFound ||
+        headerIndex + 1 >= (NSInteger)self.objectsAboveFeed.count) {
+      self.fakeOmniboxConstraints = @[];
+    } else {
+      UIView* viewBelowHeader =
+          [self viewForAboveFeedObject:[self.objectsAboveFeed
+                                           objectAtIndex:(headerIndex + 1)]];
+      self.fakeOmniboxConstraints = @[
+        [viewBelowHeader.topAnchor
+            constraintEqualToAnchor:self.headerView.bottomAnchor
+                           constant:self.quickActionsVisible
+                                        ? kQuickActionSpacingTop
+                                        : kSpaceBetweenModules],
+      ];
+    }
   }
   [NSLayoutConstraint activateConstraints:self.fakeOmniboxConstraints];
 }
@@ -1614,19 +1630,21 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     // header, anchor to the module above it.
     NSUInteger headerIndex =
         [self.objectsAboveFeed indexOfObject:self.headerView];
-    for (NSUInteger index = startIndex; index > headerIndex + 1; --index) {
-      BOOL isQuickActions =
-          _quickActionsViewController == self.objectsAboveFeed[index - 1];
-      UIView* view = [self viewForAboveFeedObject:self.objectsAboveFeed[index]];
-      UIView* viewAbove =
-          [self viewForAboveFeedObject:self.objectsAboveFeed[index - 1]];
+    if (headerIndex != NSNotFound && startIndex < self.objectsAboveFeed.count) {
+      for (NSUInteger index = startIndex; index > headerIndex + 1; --index) {
+        BOOL isQuickActions =
+            _quickActionsViewController == self.objectsAboveFeed[index - 1];
+        UIView* view = [self viewForAboveFeedObject:self.objectsAboveFeed[index]];
+        UIView* viewAbove =
+            [self viewForAboveFeedObject:self.objectsAboveFeed[index - 1]];
 
-      CGFloat spacingToUse =
-          isQuickActions ? kQuickActionSpacingBottom : kSpaceBetweenModules;
-      [NSLayoutConstraint activateConstraints:@[
-        [view.topAnchor constraintEqualToAnchor:viewAbove.bottomAnchor
-                                       constant:spacingToUse],
-      ]];
+        CGFloat spacingToUse =
+            isQuickActions ? kQuickActionSpacingBottom : kSpaceBetweenModules;
+        [NSLayoutConstraint activateConstraints:@[
+          [view.topAnchor constraintEqualToAnchor:viewAbove.bottomAnchor
+                                         constant:spacingToUse],
+        ]];
+      }
     }
   }
 
@@ -1815,6 +1833,11 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
     if ([self shouldPinFakeOmnibox]) {
       minimumHeight -= [self stickyOmniboxHeight];
     } else {
+      // Adjust the minimumHeight when the top toolbar is visible and the
+      // Discover feed is turned off so Quick Actions remain visible.
+      if (!_isBottomOmnibox && !self.feedVisible) {
+        minimumHeight -= [self stickyOmniboxHeight];
+      }
       // Add in half of the margin between the fakebox and the rest of the
       // content suggestions, to ensure there is enough height to fully
       // finish the fakebox to omnibox transition.

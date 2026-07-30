@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">మొబైల్ వీక్షణను రిక్వెస్ట్ చేయండి</translation>
 <translation id="2870560284913253234">సైట్</translation>
 <translation id="2874939134665556319">మునుపటి ట్రాక్</translation>
+<translation id="2890412325133442491">Chrome ఆటోమేటిక్ సెట్టింగ్</translation>
 <translation id="2891975107962658722">మీ పరికరంలో డేటాను సేవ్ చేయకుండా సైట్‌ను బ్లాక్ చేయండి</translation>
 <translation id="2903493209154104877">అడ్రస్‌లు</translation>
 <translation id="2903764741244499151">సైట్‌లు ఆటోమేటిక్‌గా పిక్చర్-ఇన్-పిక్చర్ మోడ్‌లోకి మారతాయి. దీనితో, ఇతర టాస్క్‌ల కోసం మీ స్క్రీన్‌ను మీరు ఖాళీ చేస్తున్నప్పుడు వీడియో చూడటం కొనసాగించవచ్చు.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">పాస్‌వర్డ్‌లను మార్చు</translation>
 <translation id="3797520601150691162">నిర్దిష్ట సైట్‌కు ముదురు రంగు రూపాన్ని వర్తింపజేయకండి</translation>
 <translation id="3803367742635802571">మీరు సందర్శించిన సైట్‌లు, రూపొందించిన విధంగా పని చేయడం ఆగిపోవచ్చు</translation>
-<translation id="3816118180265633665">Chrome రంగులు</translation>
 <translation id="381841723434055211">ఫోన్ నంబర్‌లు</translation>
 <translation id="3823453485268218808">ఫాంట్ మోనో</translation>
 <translation id="3826050100957962900">థర్డ్-పార్టీ సైన్ ఇన్</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">ఫుల్-స్క్రీన్‌ నుండి నిష్క్రమించండి</translation>
 <translation id="640163077447496506">ఈ రోజు గడువు ముగుస్తుంది</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">థీమ్ కలెక్షన్‌లు</translation>
 <translation id="6439114592976064011">మీ వర్చువల్ రియాలిటీ డివైజ్‌ను, డేటాను ఉపయోగించనివ్వకుండా సైట్‌లను బ్లాక్ చేస్తుంది</translation>
 <translation id="6447842834002726250">కుక్కీలు</translation>
 <translation id="6452138246455930388"><ph name="DOMAIN_NAME" />‌కు చెందిన <ph name="PRODUCT_NAME" /> ధర <ph name="OLD_PRICE" /> నుండి <ph name="NEW_PRICE" />‌కు తగ్గింది, ఆ ధర తెరిచిన మీ ట్యాబ్‌లో చూపబడింది</translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">ముందుగా అడుగుతుంది</translation>
 <translation id="7423538860840206698">క్లిప్‌బోర్డ్‌ని చదవకుండా బ్లాక్ చేశారు</translation>
 <translation id="7425915948813553151">సైట్‌ల కోసం డార్క్ థీమ్‌</translation>
+<translation id="7429767477925996803">Chrome రంగులు</translation>
 <translation id="746412105358554870">JavaScript ఆప్టిమైజేషన్ &amp; సెక్యూరిటీ</translation>
 <translation id="7478658909253570368">సీరియల్ పోర్ట్‌లకు కనెక్ట్ చేయడానికి సైట్‌లను అనుమతించకండి</translation>
 <translation id="7488573225650545859">మీ యాాప్ లిస్ట్‌లో వీక్షణ ట్యాబ్‌లను దాచండి</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">డౌన్‌లోడ్ విఫలమైంది</translation>
 <translation id="8033047164036749181">ఈ సైట్ నుండి నోటిఫికేషన్‌ల కోసం సబ్‌స్క్రయిబ్ చేసుకోండి</translation>
 <translation id="8051193500142930381">ఏ ఫీచర్‌లకు కెమెరా అవసరం అవుతుందో అవి పని చేయవు</translation>
-<translation id="8056330801132235235">Chrome ఆటోమేటిక్ సెట్టింగ్</translation>
 <translation id="8067883171444229417">వీడియోను ప్లే చేయి</translation>
 <translation id="8068648041423924542">ప్రమాణపత్రం ఎంపిక చేయడం సాధ్యపడలేదు.</translation>
 <translation id="8077120325605624147">మీరు చూసే ఏ సైట్ అయినా మీకు ఏ యాడ్‌ను అయినా చూపవచ్చు</translation>

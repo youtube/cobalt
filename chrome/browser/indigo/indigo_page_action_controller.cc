@@ -435,6 +435,7 @@ void IndigoPageActionController::Reset(ResetType reset_type) {
   DestroyToolbar();
   tracked_bounds_ = std::nullopt;
   delay_agent_invoke_timer_.Stop();
+  delete_photo_in_flight_ = false;
 
   content::WebContents* web_contents = tab().GetContents();
   if (!web_contents) {
@@ -521,11 +522,7 @@ void IndigoPageActionController::DidFinishNavigation(
 
   invoke_weak_ptr_factory_.InvalidateWeakPtrs();
 
-  optimization_guide_decision_ =
-      optimization_guide::OptimizationGuideDecision::kUnknown;
-  page_has_allowed_category_by_heuristic_ = false;
-  metadata_remote_.reset();
-  UpdateEntryPointsState();
+  ResetTriggeringState();
 
   if (navigation_handle->IsSameDocument()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -591,12 +588,15 @@ void IndigoPageActionController::OnReplaceOriginalPhoto(
 }
 
 void IndigoPageActionController::OnDeleteOriginalPhoto(IndigoToolbar* toolbar) {
-  if (!indigo_service_) {
+  DeleteOriginalPhoto();
+}
+
+void IndigoPageActionController::DeleteOriginalPhoto() {
+  if (!indigo_service_ || delete_photo_in_flight_) {
     return;
   }
 
-  Reset(ResetType::kResetReplacementsAndContentScript);
-
+  delete_photo_in_flight_ = true;
   indigo_service_->GetApiClient().Delete(
       base::BindOnce(&IndigoPageActionController::OnDeleteOriginalPhotoComplete,
                      weak_ptr_factory_.GetWeakPtr()));
@@ -604,11 +604,21 @@ void IndigoPageActionController::OnDeleteOriginalPhoto(IndigoToolbar* toolbar) {
 
 void IndigoPageActionController::OnDeleteOriginalPhotoComplete(
     base::expected<void, DeleteError> result) {
+  delete_photo_in_flight_ = false;
+  ToastController* toast_controller =
+      ToastController::MaybeGetForTabInterface(&tab());
   if (result.has_value()) {
-    // TODO(b/509508517): Show a toast to inform the user the image
-    // was deleted.
+    Reset(ResetType::kResetReplacementsAndContentScript);
+    if (toast_controller) {
+      toast_controller->MaybeShowToast(
+          ToastParams(ToastId::kIndigoDeleteSuccess));
+    }
   } else {
-    LOG(ERROR) << "Delete original photo failed: " << result.error().message;
+    DVLOG(1) << "Delete original photo failed: " << result.error().message;
+    if (toast_controller) {
+      toast_controller->MaybeShowToast(
+          ToastParams(ToastId::kIndigoDeleteError));
+    }
   }
 }
 
@@ -628,6 +638,14 @@ IndigoPageActionController::DetermineTriggerSource() const {
     return IndigoTriggerSource::kLocalProductKeywordHeuristic;
   }
   return std::nullopt;
+}
+
+void IndigoPageActionController::ResetTriggeringState() {
+  optimization_guide_decision_ =
+      optimization_guide::OptimizationGuideDecision::kUnknown;
+  page_has_allowed_category_by_heuristic_ = false;
+  metadata_remote_.reset();
+  UpdateEntryPointsState();
 }
 
 void IndigoPageActionController::UpdateEntryPointsState() {
@@ -863,6 +881,18 @@ void IndigoPageActionController::UnregisterObserverFromHost(
       current_host_ = nullptr;
     }
   }
+}
+
+void IndigoPageActionController::OnDiscardContents(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  tabs::ContentsObservingTabFeature::OnDiscardContents(tab, old_contents,
+                                                       new_contents);
+
+  RegisterObserverWithHost(nullptr);
+  Reset(ResetType::kResetReplacementsAndContentScript);
+  ResetTriggeringState();
 }
 
 void IndigoPageActionController::OnTrackedElementRectsChanged(

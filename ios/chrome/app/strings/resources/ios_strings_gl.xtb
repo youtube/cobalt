@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Sesión iniciada como <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Abrir menú da conta.</translation>
 <translation id="1397144142234474689">Ocultar historial</translation>
 <translation id="1399268420835656394">Se non es unha nena ou un neno, recomendámosche que comprobes a idade definida para a túa conta de Apple neste dispositivo. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Encheuse anteriormente</translation>
 <translation id="1407135791313364759">Abrir todo</translation>
 <translation id="1408847409015257906">Toca Privacidade e seguranza.</translation>
 <translation id="1411386976162024013">Busca visual de Lens</translation>
 <translation id="1417474386970818917">Pechar sesión e eliminar</translation>
 <translation id="1426410128494586442">Si</translation>
-<translation id="1429187656584513419">Abre Passwords (Contrasinais)</translation>
 <translation id="1430915738399379752">Imprimir</translation>
 <translation id="1433478348197382180">Modo de lectura</translation>
 <translation id="1435271730600332883">Abre a opción de AutoFill &amp; Passwords (Autocompletar e contrasinais)</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">A túa conta está xestionada polo teu pai ou pola túa nai.
 <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Cambiada</translation>
+<translation id="1481450969185702334">Buscar e completar</translation>
 <translation id="1483493594462132177">Enviar</translation>
 <translation id="1486096554574027028">Buscar contrasinais</translation>
 <translation id="1486593497476255523">Completáronse os grupos de pestanas</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Para protexer a túa privacidade, Chrome non autocompletará o teu contrasinal neste campo.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 sitio (máis nos dispositivos sincronizados)}other{# sitios (máis nos dispositivos sincronizados)}}</translation>
+<translation id="2865392654629180917">Fai preguntas e obtén respostas con tecnoloxía de IA</translation>
 <translation id="2870560284913253234">Sitio</translation>
 <translation id="2876369937070532032">Enviar a Google os URL das páxinas que visitas cando a túa seguranza corra perigo</translation>
 <translation id="2883151425485251736">Consulta e edita temas que ocultaches na túa conta</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Estase facendo un seguimento do prezo</translation>
 <translation id="3038136505713492417">Verifica a túa identidade para usar as túas claves de acceso neste dispositivo</translation>
 <translation id="3039671569659952257">Eliminar cartafol</translation>
+<translation id="3050988301648974170">Abrir Revisión de contrasinais</translation>
 <translation id="3053332585453689122">Envía a Navegación segura de Google os URL que visites e unha pequena mostra do contido da páxina, das descargas, da actividade das extensións e da información do sistema para comprobar se son daniños.</translation>
 <translation id="3055102495753300780">Almacenamento de información</translation>
 <translation id="3059270601560379555">Nova busca</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Novo grupo de pestanas...</translation>
 <translation id="3185760469172949183">Completouse a busca coa cámara</translation>
 <translation id="3186796054637504691">Clear History and Website Data (Borrar datos dos sitios web e das aplicacións)</translation>
+<translation id="3190558889382726167">Gardouse o contrasinal</translation>
 <translation id="3190736958609431397">Deixar de facer seguimento</translation>
 <translation id="3208260410153224535">A túa organización desactivou a opción de iniciar sesión. Os marcadores, contrasinais e demais datos que engadas gardaranse só neste dispositivo.</translation>
 <translation id="3211969308836412674">Deixar de fixar sitio</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">Últimos 15 minutos</translation>
 <translation id="5020732097997376541">Toca a icona de Lens</translation>
 <translation id="5021500396464456616">Ponte en contacto coa persoa que che enviou esta ligazón</translation>
+<translation id="503173149952522259">Mantén premida esta pestana para fixala</translation>
 <translation id="5039804452771397117">Permitir</translation>
 <translation id="5050042263972837708">Nome do grupo</translation>
 <translation id="5050810143224996149">Compartir o contrasinal</translation>
@@ -2427,6 +2432,7 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="9013605037177245304">Activar notificacións</translation>
 <translation id="9029650858822697271">Pechouse a túa sesión</translation>
 <translation id="9032405509996909363">Confirmar a eliminación dos datos de navegación</translation>
+<translation id="9035699147763101514">Con tecnoloxía de Intelixencia personalizada de Gemini. Xestiona as túas opcións na configuración.</translation>
 <translation id="9039373489628511875">Largura de banda</translation>
 <translation id="9042893549633094279">Privacidade e seguranza</translation>
 <translation id="9055291197094969722">Crea grupos de pestanas para organizar as que estean abertas e seguir mantendo a produtividade</translation>
@@ -2438,6 +2444,7 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="9070824521421603770">Pecharanse a túa sesión e as pestanas</translation>
 <translation id="9072837124205571418">Grupos de pestanas de todos os dispositivos</translation>
 <translation id="9081058212938299310">Queres actualizar o contrasinal do usuario <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Agora podes atopar e completar información de Gmail e outros servizos</translation>
 <translation id="9083838294503912307">Para sincronizar e personalizar todos os teus dispositivos, activa a sincronización.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Tes {count} contrasinal pouco seguro que podería poñer en perigo a túa seguranza. Cámbiao xa para non correr riscos.}other{Tes {count} contrasinais pouco seguros que poderían poñer en perigo a túa seguranza. Cámbiaos xa para non correr riscos.}}</translation>
 <translation id="9084369964545892485">Nova pestana do modo de incógnito no grupo</translation>

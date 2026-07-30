@@ -38,13 +38,11 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/history_clusters/history_clusters_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/search_engines/ai_mode_button_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -84,8 +82,6 @@
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
-#include "components/search_engines/ai_mode_button_config.h"
-#include "components/search_engines/ai_mode_button_service.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/security_state/core/security_state.h"
 #include "components/send_tab_to_self/metrics_util.h"
@@ -2383,21 +2379,10 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
           : kColorOmniboxText);
 }
 
-const ai_mode_button_config::AiModeButtonConfig*
-OmniboxViewViews::GetAiModeConfig() const {
-  if (!location_bar_view_) {
-    return nullptr;
-  }
-  auto* service = AiModeButtonServiceFactory::GetForProfile(
-      location_bar_view_->GetProfile());
-  return service ? service->GetCurrentConfig() : nullptr;
-}
-
-
 BEGIN_METADATA(OmniboxViewViews)
 ADD_READONLY_PROPERTY_METADATA(bool, SelectionAtEnd)
 ADD_READONLY_PROPERTY_METADATA(int, TextWidth)
 ADD_READONLY_PROPERTY_METADATA(int, UnelidedTextWidth)
 ADD_READONLY_PROPERTY_METADATA(int, Width)
-ADD_READONLY_PROPERTY_METADATA(std::u16string_view, SelectedText)
+ADD_READONLY_PROPERTY_METADATA(std::u16string, SelectedText)
 END_METADATA

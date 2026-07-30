@@ -10,8 +10,7 @@
 namespace {
 constexpr char kReportGenerationConfigTemplate[] =
     R"(Trigger: %s, Report Type: %s, Security Signals Mode: %s,"
-    " Using Cookies: %s)";
-
+    " Using Cookies: %s, Has Challenge: %s, Selectors: %s)";
 
 std::string_view TranslateReportType(
     enterprise_reporting::ReportType report_type) {
@@ -64,11 +63,15 @@ ReportGenerationConfig::ReportGenerationConfig(
     ReportTrigger report_trigger,
     ReportType report_type,
     SecuritySignalsMode security_signals_mode,
-    bool use_cookies)
+    bool use_cookies,
+    std::optional<std::string> challenge,
+    base::ListValue client_certificates_selectors)
     : report_trigger(report_trigger),
       report_type(report_type),
       security_signals_mode(security_signals_mode),
-      use_cookies(use_cookies) {
+      use_cookies(use_cookies),
+      challenge(std::move(challenge)),
+      client_certificates_selectors(std::move(client_certificates_selectors)) {
   // Currently security signals are only being reported in profile level
   // reporting.
   if (report_type != ReportType::kProfileReport) {
@@ -80,10 +83,40 @@ ReportGenerationConfig::ReportGenerationConfig(ReportTrigger report_trigger)
     : ReportGenerationConfig(report_trigger,
                              ReportType::kBrowser,
                              SecuritySignalsMode::kNoSignals,
-                             /*use_cookies=*/false) {}
+                             /*use_cookies=*/false,
+                             /*challenge=*/std::nullopt) {}
 
 ReportGenerationConfig::ReportGenerationConfig()
     : ReportGenerationConfig(ReportTrigger::kTriggerNone) {}
+
+ReportGenerationConfig::ReportGenerationConfig(
+    const ReportGenerationConfig& other)
+    : report_trigger(other.report_trigger),
+      report_type(other.report_type),
+      security_signals_mode(other.security_signals_mode),
+      use_cookies(other.use_cookies),
+      challenge(other.challenge),
+      client_certificates_selectors(
+          other.client_certificates_selectors.Clone()) {}
+
+ReportGenerationConfig& ReportGenerationConfig::operator=(
+    const ReportGenerationConfig& other) {
+  if (this != &other) {
+    report_trigger = other.report_trigger;
+    report_type = other.report_type;
+    security_signals_mode = other.security_signals_mode;
+    use_cookies = other.use_cookies;
+    challenge = other.challenge;
+    client_certificates_selectors = other.client_certificates_selectors.Clone();
+  }
+  return *this;
+}
+
+ReportGenerationConfig::ReportGenerationConfig(ReportGenerationConfig&&) =
+    default;
+
+ReportGenerationConfig& ReportGenerationConfig::operator=(
+    ReportGenerationConfig&&) = default;
 
 ReportGenerationConfig::~ReportGenerationConfig() = default;
 
@@ -91,11 +124,16 @@ bool ReportGenerationConfig::operator==(const ReportGenerationConfig&) const =
     default;
 
 std::string ReportGenerationConfig::ToString() const {
-  return base::StringPrintf(kReportGenerationConfigTemplate,
-                            ReportTriggerToString(report_trigger),
-                            TranslateReportType(report_type),
-                            TranslateSecuritySignalsMode(security_signals_mode),
-                            use_cookies ? "Yes" : "No");
+  return base::StringPrintf(
+      kReportGenerationConfigTemplate, ReportTriggerToString(report_trigger),
+      TranslateReportType(report_type),
+      TranslateSecuritySignalsMode(security_signals_mode),
+      use_cookies ? "Yes" : "No", challenge.has_value() ? "Yes" : "No",
+      client_certificates_selectors.DebugString().c_str());
+}
+
+void ReportGenerationConfig::PrintDebugString(std::ostream* os) const {
+  *os << ToString();
 }
 
 }  // namespace enterprise_reporting

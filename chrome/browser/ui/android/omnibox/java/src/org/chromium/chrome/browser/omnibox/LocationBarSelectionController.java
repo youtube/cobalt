@@ -41,7 +41,7 @@ public class LocationBarSelectionController extends SelectionController {
      * @param selectableViews The list of views that this controller addresses/
      */
     public LocationBarSelectionController(List<SelectableView> selectableViews) {
-        super(Mode.WRAPPING);
+        super(Mode.SATURATING);
         mSelectableViews = selectableViews;
         reset();
     }
@@ -55,6 +55,16 @@ public class LocationBarSelectionController extends SelectionController {
         return visibleViews.get(position);
     }
 
+    public boolean selectAutocompleteList() {
+        List<SelectableView> visibleViews = getVisibleViews();
+        for (int i = 0; i < visibleViews.size(); i++) {
+            if (visibleViews.get(i).isAutocompleteList()) {
+                return setPosition(i);
+            }
+        }
+        return false;
+    }
+
     @Override
     public void reset() {
         for (int i = 0; i < mSelectableViews.size(); i++) {
@@ -63,7 +73,7 @@ public class LocationBarSelectionController extends SelectionController {
         super.reset();
     }
 
-    boolean isAutocompleteSelected() {
+    boolean isAutocompleteListSelected() {
         return getSelectedView().isAutocompleteList();
     }
 
@@ -89,5 +99,10 @@ public class LocationBarSelectionController extends SelectionController {
         }
 
         return mVisibleViewsHolder;
+    }
+
+    /* package */ @Mode
+    int getSelectionModeForTesting() {
+        return mMode;
     }
 }

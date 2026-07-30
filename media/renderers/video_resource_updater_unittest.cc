@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "media/renderers/video_resource_updater.h"
 
 #include <stddef.h>
@@ -21,7 +20,9 @@
 #include "components/viz/test/test_raster_interface.h"
 #include "components/viz/test/test_shared_image_interface_provider.h"
 #include "gpu/GLES2/gl2extchromium.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "gpu/command_buffer/common/mailbox.h"
+#include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "skia/ext/skcolorspace_primaries.h"
@@ -243,7 +244,7 @@ class VideoResourceUpdaterTest : public testing::Test {
 
   scoped_refptr<VideoFrame> CreateTestRGBAHardwareVideoFrame() {
     return CreateTestHardwareVideoFrame(viz::SinglePlaneFormat::kRGBA_8888,
-                                        PIXEL_FORMAT_ARGB, kSRGBColorSpace,
+                                        PIXEL_FORMAT_ABGR, kSRGBColorSpace,
                                         GL_TEXTURE_2D,
                                         /*needs_raster_access=*/false);
   }
@@ -251,7 +252,7 @@ class VideoResourceUpdaterTest : public testing::Test {
   scoped_refptr<VideoFrame> CreateTestStreamTextureHardwareVideoFrame(
       bool needs_copy) {
     scoped_refptr<VideoFrame> video_frame = CreateTestHardwareVideoFrame(
-        viz::SinglePlaneFormat::kRGBA_8888, PIXEL_FORMAT_ARGB, kSRGBColorSpace,
+        viz::SinglePlaneFormat::kRGBA_8888, PIXEL_FORMAT_ABGR, kSRGBColorSpace,
         GL_TEXTURE_EXTERNAL_OES, /*needs_raster_access=*/needs_copy);
     video_frame->metadata().copy_required = needs_copy;
     return video_frame;
@@ -260,7 +261,7 @@ class VideoResourceUpdaterTest : public testing::Test {
 #if BUILDFLAG(IS_WIN)
   scoped_refptr<VideoFrame> CreateTestDCompSurfaceVideoFrame() {
     scoped_refptr<VideoFrame> video_frame = CreateTestHardwareVideoFrame(
-        viz::SinglePlaneFormat::kRGBA_8888, PIXEL_FORMAT_ARGB, kSRGBColorSpace,
+        viz::SinglePlaneFormat::kRGBA_8888, PIXEL_FORMAT_ABGR, kSRGBColorSpace,
         GL_TEXTURE_EXTERNAL_OES, /*needs_raster_access=*/false);
     video_frame->metadata().dcomp_surface = true;
     return video_frame;

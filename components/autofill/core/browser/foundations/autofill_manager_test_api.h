@@ -19,6 +19,8 @@ class AutofillManagerTestApi {
   explicit AutofillManagerTestApi(AutofillManager* manager)
       : manager_(*manager) {}
 
+  static AutofillManager::RendererEventPassKey pass_key() { return {}; }
+
   // Returns the cached FormStructures.
   const std::vector<const FormStructure*> form_structures() const {
     return base::ToVector(
@@ -69,6 +71,8 @@ class AutofillManagerTestApi {
   }
 
   void ClearFormStructures() { manager_->form_structures_.clear(); }
+
+  void Reset() { manager_->Reset(); }
 
  private:
   raw_ref<AutofillManager> manager_;

@@ -417,6 +417,8 @@ export enum InvocationSource {
   TAB_RESTORE = 39,
   // Implicitly focused or revealed, e.g., on tab switch or re-focus.
   RESHOW_INACTIVE = 40,
+  // From the tab context menu.
+  TAB_CONTEXT_MENU = 41,
 }
 
 // Target for actuation.
@@ -506,6 +508,8 @@ export enum ExperimentalTriggeringUpdateType {
   TERMINAL_FAILED = 5,
   // The interaction yielded to the user.
   YIELD_TO_USER = 6,
+  // The interaction has resumed after a pause or wait state.
+  RESUMED = 7,
 }
 
 // Lightweight page features detected on the page.
@@ -1075,6 +1079,9 @@ export declare interface ExperimentalTriggeringUpdate {
   // The human-readable text associated with the update, such as response text
   // or status message.
   data: string;
+  // Optional structured metadata associated with the update (e.g., choice
+  // options for interactive yields).
+  metadata?: Record<string, string>;
 }
 
 // Information extracted from a tab.

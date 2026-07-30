@@ -370,6 +370,7 @@ class AutofillAgent : public content::RenderFrameObserver,
   void DidCompleteFocusChangeInFrame() override;
   void DidReceiveLeftMouseDownOrGestureTapInNode(
       const blink::WebNode& node) override;
+  void DidReceiveLeftPointerDownBeforeDispatch() override;
   void SelectFieldOptionsChanged(
       const blink::WebFormControlElement& element) override;
   void SelectControlSelectionChanged(
@@ -477,7 +478,7 @@ class AutofillAgent : public content::RenderFrameObserver,
   // `JavaScriptAutofillTracker`.
   void OnJavaScriptAutofillDetected(
       blink::WebFormControlElement trigger_field,
-      const std::vector<FieldRendererId>& field_ids);
+      std::vector<mojom::JavaScriptFieldModificationPtr> field_modifications);
 
   // Stores immutable configuration this agent was created with. It contains
   // features and settings that are specific to the client using this agent.

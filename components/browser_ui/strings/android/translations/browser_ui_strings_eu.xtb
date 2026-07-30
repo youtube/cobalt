@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Eskatu mugikorretarako ikuspegia</translation>
 <translation id="2870560284913253234">Webgunea</translation>
 <translation id="2874939134665556319">Aurreko pista</translation>
+<translation id="2890412325133442491">Chrome lehenetsia</translation>
 <translation id="2891975107962658722">Ez utzi webgune bati zure gailuan datuak gordetzen</translation>
 <translation id="2903493209154104877">Helbideak</translation>
 <translation id="2903764741244499151">Webguneek automatikoki ireki dezakete pantaila txiki gainjarria. Horrela bideoak ikusten jarrai dezakezu, eta, aldi berean, zure pantaila beste zeregin batzuetarako libre geratzen da.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Aldatu pasahitzak</translation>
 <translation id="3797520601150691162">Ez aplikatu gai iluna webgune zehatz batean</translation>
 <translation id="3803367742635802571">Bisitatzen dituzun webguneek agian ez dute behar bezala funtzionatuko</translation>
-<translation id="3816118180265633665">Chrome-ko koloreak</translation>
 <translation id="381841723434055211">Telefono-zenbakiak</translation>
 <translation id="3823453485268218808">Letra: Mono</translation>
 <translation id="3826050100957962900">Hirugarrenen bidez saioa hastea</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Irten pantaila osoko modutik</translation>
 <translation id="640163077447496506">Gaur iraungiko da</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Gaien bildumak</translation>
 <translation id="6439114592976064011">Ez utzi webguneei errealitate birtualeko gailuak eta datuak erabiltzen</translation>
 <translation id="6447842834002726250">Cookieak</translation>
 <translation id="6452138246455930388">Prezio-jaitsiera irekitako fitxan. Lehen <ph name="OLD_PRICE" />, orain <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" />.</translation>
@@ -625,6 +624,7 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:</translat
 <translation id="7423098979219808738">Galdetu lehenbizi</translation>
 <translation id="7423538860840206698">Blokeatuta dago arbeleko edukia irakurtzeko aukera</translation>
 <translation id="7425915948813553151">Webguneetarako gai iluna</translation>
+<translation id="7429767477925996803">Chrome-ko koloreak</translation>
 <translation id="746412105358554870">JavaScript-en optimizazioa eta segurtasuna</translation>
 <translation id="7478658909253570368">Ez eman serieko ataketara konektatzeko baimena webguneei</translation>
 <translation id="7488573225650545859">Ezkutatu Ikusi fitxak aplikazioen zerrendan</translation>
@@ -676,7 +676,6 @@ Babes aurreratua programak Chrome-ren ezarpen hauek kontrolatzen ditu:</translat
 <translation id="802154636333426148">Ezin izan da deskargatu</translation>
 <translation id="8033047164036749181">Harpidetu webgune honen jakinarazpenak jasotzeko</translation>
 <translation id="8051193500142930381">Kamera bat behar duten eginbideek ez dute funtzionatuko</translation>
-<translation id="8056330801132235235">Chrome-ren gai lehenetsia</translation>
 <translation id="8067883171444229417">Erreproduzitu bideoa</translation>
 <translation id="8068648041423924542">Ezin da hautatu ziurtagiria.</translation>
 <translation id="8077120325605624147">Bisitatzen dituzun webgune guztiek edozein iragarki erakusteko aukera dute</translation>

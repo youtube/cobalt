@@ -124,6 +124,7 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kAtMemorySourceAttribution:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kIdentityCredential:
     case SuggestionType::kLoyaltyCardEntry:
@@ -244,6 +245,11 @@ void PasswordAutofillManager::ShowKeyboardReplacingSurface(
 std::optional<autofill::Suggestion>
 PasswordAutofillManager::GetWebauthnSignInWithAnotherDeviceSuggestion() const {
   return suggestion_generator_.GetWebauthnSignInWithAnotherDeviceSuggestion();
+}
+
+std::optional<autofill::Suggestion>
+PasswordAutofillManager::GetWebauthnInlineQrCodeSuggestion() const {
+  return suggestion_generator_.GetWebauthnInlineQrCodeSuggestion();
 }
 
 std::variant<autofill::AutofillDriver*, PasswordManagerDriver*>

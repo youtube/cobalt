@@ -280,11 +280,22 @@ bool TabView::IsHoverAnimationActive() const {
 std::optional<SkColor> TabView::GetBackgroundColor() {
   if (active_ || IsHoverAnimationActive() ||
       should_fill_background_tab_color_) {
-    return tab_style_->GetCurrentTabBackgroundColor(
-        GetSelectionState(), IsHoverAnimationActive(), GetHoverAnimationValue(),
-        IsFrameActive(), GetColorProvider());
+    return GetCurrentTabBackgroundColor(GetSelectionState());
   }
   return std::nullopt;
+}
+
+SkColor TabView::GetCurrentTabBackgroundColor(
+    TabStyle::TabSelectionState selection_state) const {
+  const bool frame_active = IsFrameActive();
+  const ui::ColorProvider* color_provider = GetColorProvider();
+  const auto* controller =
+      collection_node_ ? collection_node_->GetController() : nullptr;
+  const bool frame_glass = controller && controller->IsGlassFrame();
+
+  return tab_style_->GetCurrentTabBackgroundColor(
+      selection_state, IsHoverAnimationActive(), GetHoverAnimationValue(),
+      frame_active, frame_glass, color_provider);
 }
 
 SkPath TabView::GetPath() const {
@@ -582,9 +593,7 @@ void TabView::PaintTabBackgroundFill(
                                     hovered)) {
     cc::PaintFlags flags;
     flags.setAntiAlias(true);
-    flags.setColor(tab_style_->GetCurrentTabBackgroundColor(
-        GetSelectionState(), IsHoverAnimationActive(), GetHoverAnimationValue(),
-        IsFrameActive(), GetColorProvider()));
+    flags.setColor(GetCurrentTabBackgroundColor(selection_state));
     canvas->DrawRect(GetContentsBounds(), flags);
   }
 
@@ -785,11 +794,29 @@ bool TabView::IsChildVisible(const views::View* child_view,
 
 views::ProposedLayout TabView::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
-  const int width = size_bounds.width().value_or(
-      VerticalTabStripRegionView::kUncollapsedMaxWidth);
+  int width;
+  if (collection_node_ &&
+      collection_node_->orientation() == TabStripOrientation::kHorizontal) {
+    if (pinned_) {
+      width = tab_style_->GetPinnedWidth(split_);
+    } else {
+      const int preferred_width = tab_style_->GetStandardWidth(split_);
+      const int minimum_width = active_
+                                    ? tab_style_->GetMinimumActiveWidth(split_)
+                                    : tab_style_->GetMinimumInactiveWidth();
+      width = std::clamp(size_bounds.width().value_or(preferred_width),
+                         minimum_width, preferred_width);
+    }
+  } else {
+    width = size_bounds.width().value_or(
+        VerticalTabStripRegionView::kUncollapsedMaxWidth);
+  }
   const int height =
-      GetLayoutConstant(pinned_ ? LayoutConstant::kVerticalTabPinnedHeight
-                                : LayoutConstant::kVerticalTabHeight);
+      (collection_node_ &&
+       collection_node_->orientation() == TabStripOrientation::kHorizontal)
+          ? GetLayoutConstant(LayoutConstant::kTabHeight)
+          : GetLayoutConstant(pinned_ ? LayoutConstant::kVerticalTabPinnedHeight
+                                      : LayoutConstant::kVerticalTabHeight);
   views::ProposedLayout layouts;
   layouts.host_size = gfx::Size(width, height);
 
@@ -870,7 +897,7 @@ bool TabView::IsApparentlyActive() const {
   if (active_) {
     return true;
   }
-  if (!features::IsGlassFrameEnabled() && hovered_) {
+  if (hovered_) {
     return GetHoverOpacity() > 0.5f;
   }
   return selected_;
@@ -1049,6 +1076,22 @@ void TabView::UpdateTabData(const tabs::TabInterface* tab) {
   SetHoverCardDataFrom(tab_data_);
 }
 
+void TabView::SetDataForTesting(tabs::TabData data) {
+  tabs::TabData old_data = std::move(tab_data_);
+  tab_data_ = std::move(data);
+
+  if (tabs::ShouldUpdateAccessibleName(old_data, tab_data_)) {
+    UpdateAccessibleName();
+  }
+
+  icon_->SetData(tab_data_);
+  icon_->SetAttention(TabIcon::AttentionType::kTabWantsAttentionStatus,
+                      tab_data_.needs_attention);
+  UpdateTitle(tab_data_.title, tab_data_.should_render_loading_title);
+  alert_indicator_->TransitionToAlertState(tab_data_.alert_state);
+  SetHoverCardDataFrom(tab_data_);
+}
+
 void TabView::UpdateTitle(std::u16string title,
                           bool should_render_loading_title) {
   if (should_render_loading_title) {
@@ -1107,10 +1150,8 @@ void TabView::UpdateThemeColors() {
 
   active_tab_fill_id_ = active_tab_fill_id;
   inactive_tab_fill_id_ = inactive_tab_fill_id;
-  if (!features::IsGlassFrameEnabled()) {
-    should_fill_background_tab_color_ = theme_provider->GetDisplayProperty(
-        ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR);
-  }
+  should_fill_background_tab_color_ = theme_provider->GetDisplayProperty(
+      ThemeProperties::SHOULD_FILL_BACKGROUND_TAB_COLOR);
 }
 
 void TabView::UpdateColors() {

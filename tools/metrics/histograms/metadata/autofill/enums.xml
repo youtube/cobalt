@@ -156,6 +156,18 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/resources/settings/autofill_page/autofill_section.ts:AutofillAddressOptInChange) -->
 
+<!-- LINT.IfChange(AutofillAddressProfileImportCountrySource) -->
+
+<enum name="AutofillAddressProfileImportCountrySource">
+  <int value="0" label="Explicitly Observed"/>
+  <int value="1" label="Variations Services (Latest Country) or Locale"/>
+  <int value="2" label="Phone Number Region Code"/>
+  <int value="3" label="No Country"/>
+  <int value="4" label="Country Merged"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h:ProfileCountrySource) -->
+
 <enum name="AutofillAddressProfileImportCountrySpecificFieldRequirement">
   <int value="0" label="All required fields present"/>
   <int value="1" label="Missing: ZIP"/>
@@ -304,7 +316,7 @@ Called by update_autofill_enums.py.-->
   <int value="4" label="Prefetch was not initiated"/>
 </enum>
 
-<!-- LINT.ThenChange(/components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h:PersonalContextCacheReadinessOnFirstInteraction) -->
+<!-- LINT.ThenChange(/components/autofill/core/browser/integrators/autofill_ai/metrics/personal_context_metrics.h:PersonalContextCacheReadinessOnFirstInteraction) -->
 
 <!-- LINT.IfChange(AutofillAiPersonalContextPrefetchTriggerResult) -->
 
@@ -315,7 +327,7 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="Skipped due to active request in-flight"/>
 </enum>
 
-<!-- LINT.ThenChange(/components/autofill/core/browser/network/autofill_ai/autofill_ai_personal_context_access_manager_impl.h:AutofillAiPersonalContextPrefetchTriggerResult) -->
+<!-- LINT.ThenChange(/components/autofill/core/browser/integrators/autofill_ai/metrics/personal_context_metrics.h:PersonalContextPrefetchTriggerResult) -->
 
 <!-- LINT.IfChange(AutofillAiPrefMigrationStatus) -->
 
@@ -657,7 +669,7 @@ Called by update_autofill_enums.py.-->
   <int value="15" label="Autofill, Gmail, Calendar, Photos"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/accessibility_annotator/core/annotation_reducer/memory_search_result.h:MemoryEntrySourceType) -->
+<!-- LINT.ThenChange(//components/autofill/core/browser/integrators/at_memory/memory_search_result.h:MemoryEntrySourceType) -->
 
 <enum name="AutofillAtMemoryQueryCompletedStatus">
   <int value="0" label="Query returned data"/>
@@ -668,9 +680,22 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="Internal error"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillAtMemorySpiiRetrievalFailureReason) -->
+
+<enum name="AutofillAtMemorySpiiRetrievalFailureReason">
+  <int value="0" label="No connection"/>
+  <int value="1" label="Reauth failed"/>
+  <int value="2" label="Reauth in progress"/>
+  <int value="3" label="Fetch failed"/>
+  <int value="4" label="Parse failed"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/integrators/at_memory/at_memory_query_service.h:SpiiRetrievalFailureReason) -->
+
 <enum name="AutofillAtMemoryTriggerSource">
   <int value="0" label="Typed trigger"/>
   <int value="1" label="Context menu"/>
+  <int value="2" label="Keyboard shortcut"/>
 </enum>
 
 <enum name="AutofillAutocompleteState">
@@ -2511,6 +2536,34 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_ZIP_AND_CITY: False Negative (Unknown)"/>
   <int value="13065"
       label="ADDRESS_HOME_ZIP_AND_CITY: False Negative (Mismatch)"/>
+  <int value="13312" label="ADDRESS_HOME_ZIP_PREFIX: True Positive"/>
+  <int value="13313"
+      label="ADDRESS_HOME_ZIP_PREFIX: True Negative (Ambiguous)"/>
+  <int value="13314" label="ADDRESS_HOME_ZIP_PREFIX: True Negative (Unknown)"/>
+  <int value="13315" label="ADDRESS_HOME_ZIP_PREFIX: True Negative (Empty)"/>
+  <int value="13316"
+      label="ADDRESS_HOME_ZIP_PREFIX: False Positive (Mismatch)"/>
+  <int value="13317"
+      label="ADDRESS_HOME_ZIP_PREFIX: False Positive (Ambiguous)"/>
+  <int value="13318" label="ADDRESS_HOME_ZIP_PREFIX: False Positive (Unknown)"/>
+  <int value="13319" label="ADDRESS_HOME_ZIP_PREFIX: False Positive (Empty)"/>
+  <int value="13320" label="ADDRESS_HOME_ZIP_PREFIX: False Negative (Unknown)"/>
+  <int value="13321"
+      label="ADDRESS_HOME_ZIP_PREFIX: False Negative (Mismatch)"/>
+  <int value="13568" label="ADDRESS_HOME_ZIP_SUFFIX: True Positive"/>
+  <int value="13569"
+      label="ADDRESS_HOME_ZIP_SUFFIX: True Negative (Ambiguous)"/>
+  <int value="13570" label="ADDRESS_HOME_ZIP_SUFFIX: True Negative (Unknown)"/>
+  <int value="13571" label="ADDRESS_HOME_ZIP_SUFFIX: True Negative (Empty)"/>
+  <int value="13572"
+      label="ADDRESS_HOME_ZIP_SUFFIX: False Positive (Mismatch)"/>
+  <int value="13573"
+      label="ADDRESS_HOME_ZIP_SUFFIX: False Positive (Ambiguous)"/>
+  <int value="13574" label="ADDRESS_HOME_ZIP_SUFFIX: False Positive (Unknown)"/>
+  <int value="13575" label="ADDRESS_HOME_ZIP_SUFFIX: False Positive (Empty)"/>
+  <int value="13576" label="ADDRESS_HOME_ZIP_SUFFIX: False Negative (Unknown)"/>
+  <int value="13577"
+      label="ADDRESS_HOME_ZIP_SUFFIX: False Negative (Mismatch)"/>
 </enum>
 
 <enum name="AutofillFieldType">
@@ -4441,6 +4494,39 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_hiding_reason.h:SuggestionHidingReason) -->
 
+<!-- LINT.IfChange(AutofillSuggestionTriggerSource) -->
+
+<enum name="AutofillSuggestionTriggerSource">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Form control element clicked"/>
+  <int value="2" label="Textarea focused without click"/>
+  <int value="3" label="Content editable clicked"/>
+  <int value="4" label="Text field's value did change"/>
+  <int value="5" label="Text field did receive keydown"/>
+  <int value="6" label="Open text data list chooser"/>
+  <int value="7" label="Show cards from account"/>
+  <int value="8" label="Password manager"/>
+  <int value="9" label="iOS"/>
+  <int value="10" label="Manual fallback address"/>
+  <int value="11" label="(Deprecated in M133) Manual fallback payments"/>
+  <int value="12" label="Manual fallback passwords"/>
+  <int value="13" label="(Deprecated in M133) Manual fallback plus addresses"/>
+  <int value="14" label="Show prompt after dialog closed non manual fallback"/>
+  <int value="15" label="Compose dialog lost focus"/>
+  <int value="16" label="Compose delayed proactive nudge"/>
+  <int value="17" label="Password manager processed focused field"/>
+  <int value="18" label="Autofill AI"/>
+  <int value="19" label="Plus address update in browser process"/>
+  <int value="20" label="Proactive password recovery"/>
+  <int value="21" label="Glic"/>
+  <int value="22" label="AtMemory trigger string"/>
+  <int value="23" label="AtMemory context menu"/>
+  <int value="24" label="AtMemory inactivity nudge"/>
+  <int value="25" label="AtMemory keyboard shortcut"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/common/mojom/autofill_types.mojom:AutofillSuggestionTriggerSource) -->
+
 <!-- LINT.IfChange(AutofillSyncDisabledReason) -->
 
 <enum name="AutofillSyncDisabledReason">
@@ -5372,33 +5458,6 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="Success, IBAN upload enabled"/>
 </enum>
 
-<enum name="InferredLabelSource">
-  <int value="0" label="No label"/>
-  <int value="1" label="&lt;label&gt; sibling/ancestor"/>
-  <int value="2" label="&lt;p&gt; sibling"/>
-  <int value="3" label="&lt;div&gt; ancestor"/>
-  <int value="4" label="&lt;td&gt; sibling"/>
-  <int value="5" label="&lt;dt&gt; sibling"/>
-  <int value="6" label="&lt;li&gt; ancestor"/>
-  <int value="7" label="placeholder attribute"/>
-  <int value="8" label="aria-label attribute"/>
-  <int value="9" label="Text node sibling (includes &lt;b&gt;, etc)"/>
-  <int value="10" label="value attribute"/>
-  <int value="11"
-      label="&lt;label&gt; for attribute linked to a control element via its
-             id attribute"/>
-  <int value="12"
-      label="&lt;label&gt; for attribute linked to a control element via its
-             name attribute"/>
-  <int value="13"
-      label="&lt;label&gt; for attribute linked to a control element inside a
-             shadow DOM via its id attribute"/>
-  <int value="14"
-      label="&lt;label&gt; for attribute linked to a control element inside a
-             shadow DOM via its name attribute"/>
-  <int value="15" label="Succeeding DOM node overlaying the input"/>
-</enum>
-
 <!-- LINT.IfChange(InvalidSubmittedFormReasonIOS) -->
 
 <enum name="InvalidSubmittedFormReasonIOS">
@@ -5561,7 +5620,23 @@ Called by update_autofill_enums.py.-->
   <int value="76" label="CreditCardNickname"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/accessibility_annotator/core/annotation_reducer/memory_data_type.h:MemoryDataType) -->
+<!-- LINT.ThenChange(//components/autofill/core/browser/integrators/at_memory/memory_data_type.h:MemoryDataType) -->
+
+<!-- LINT.IfChange(OmniboxAutofillEvents) -->
+
+<enum name="OmniboxAutofillEvents">
+  <int value="0" label="Chip shown"/>
+  <int value="1" label="Chip shown (once per page load)"/>
+  <int value="2" label="Chip clicked"/>
+  <int value="3" label="Chip clicked (once per page load)"/>
+  <int value="4" label="Suggestion accepted"/>
+  <int value="5" label="Suggestion accepted (once per page load)"/>
+  <int value="6" label="Form filled"/>
+  <int value="7" label="Form filled (once per page load)"/>
+  <int value="8" label="Form submitted (once per page load)"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/omnibox_autofill_metrics.h:OmniboxAutofillEvents) -->
 
 <!-- LINT.IfChange(OmniboxAutofillShowChipDecisionPart1) -->
 
@@ -5580,6 +5655,18 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/omnibox_autofill_metrics.h:OmniboxAutofillShowChipDecisionPart1) -->
+
+<!-- LINT.IfChange(OmniboxAutofillShowChipDecisionPart2) -->
+
+<enum name="OmniboxShowChipDecisionPart2">
+  <int value="0"
+      label="IntersectionObserver never reported that the field became
+             visible"/>
+  <int value="1"
+      label="IntersectionObserver reported that the field became visible"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/omnibox_autofill_metrics.h:OmniboxAutofillShowChipDecisionPart2) -->
 
 <!-- LINT.IfChange(OneTimeTokensBackendErrorCode) -->
 
@@ -5643,8 +5730,8 @@ Called by update_autofill_enums.py.-->
   <int value="6" label="Photos and Workspace context unavailable"/>
   <int value="7" label="Personal Intelligence preferences disabled"/>
   <int value="8" label="Glic first run not complete"/>
-  <int value="9" label="Not G1 subscriber"/>
-  <int value="10" label="Not Android premium device"/>
+  <int value="9" label="Find and Fill with Gemini settings disabled"/>
+  <int value="10" label="Not G1 subscriber or Android premium device"/>
   <int value="11" label="Eligible"/>
 </enum>
 
@@ -5872,6 +5959,27 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(//components/autofill/ios/browser/autofill_util.h:SubmissionBlockedReasonIOS) -->
 
+<!-- LINT.IfChange(SuggestionsFromGeminiAction) -->
+
+<enum name="SuggestionsFromGeminiAction">
+  <int value="0" label="Manage connected apps click"/>
+  <int value="1" label="Toggle on"/>
+  <int value="2" label="Toggle off"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:SuggestionsFromGeminiAction) -->
+
+<!-- LINT.IfChange(SuggestionsFromGeminiEntryPoint) -->
+
+<enum name="SuggestionsFromGeminiEntryPoint">
+  <int value="0" label="Your saved info"/>
+  <int value="1" label="Travel"/>
+  <int value="2" label="Shopping"/>
+  <int value="3" label="Identity docs"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:SuggestionsFromGeminiEntryPoint) -->
+
 <!-- LINT.IfChange(SuggestionType) -->
 
 <enum name="SuggestionType">
@@ -5980,6 +6088,7 @@ Called by update_autofill_enums.py.-->
   <int value="93" label="Manage enhanced autofill"/>
   <int value="94" label="AtMemory AI disclosure"/>
   <int value="95" label="Autofill AI other shipments"/>
+  <int value="96" label="AtMemory source attribution"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

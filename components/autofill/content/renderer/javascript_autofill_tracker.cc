@@ -6,28 +6,87 @@
 
 #include <algorithm>
 
-#include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_util.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_node.h"
 
 namespace autofill {
 
 namespace {
-// The min/max number of fields that must be modified by JS to be considered
-// as a custom JS autofill.
+
+// The minimum number of fields that must be modified by JS during the tracking
+// window to detect it as a custom JS autofill without enforcing additional
+// conditions.
 constexpr size_t kJsAutofillMinFieldsChanged = 3;
+
+// The number of fields modified by JS during the tracking window after which it
+// stops being detected as a custom JS autofill.
 constexpr size_t kJsAutofillMaxFieldsChanged = 10;
 
 // The maximum time gap between JS modifications to be considered part of the
 // same JS autofill event.
 constexpr base::TimeDelta kJsAutofillMaxTimeGap = base::Milliseconds(200);
 
-// The maximum number of logs we store before evicting the oldest.
-constexpr size_t kMaxStoredJsLogs = 100;
+bool IsPossibleAnchorElement(blink::WebFormControlElement element) {
+  // A JS-autofill picker would usually be anchored on a text-like input or
+  // textarea element. We exclude select elements to avoid false positives
+  // from country/state dropdowns resetting other fields and checkboxes and
+  // radio buttons to avoid false positives caused by checking boxes like
+  // "Billing address is similar to shipping address".
+  std::optional<mojom::FormControlType> field_type =
+      form_util::GetAutofillFormControlType(element);
+  if (!field_type) {
+    return false;
+  }
+  switch (*field_type) {
+    case mojom::FormControlType::kInputText:
+    case mojom::FormControlType::kInputSearch:
+    case mojom::FormControlType::kInputEmail:
+    case mojom::FormControlType::kInputTelephone:
+    case mojom::FormControlType::kInputUrl:
+    case mojom::FormControlType::kTextArea:
+      return true;
+    case mojom::FormControlType::kContentEditable:
+    case mojom::FormControlType::kInputCheckbox:
+    case mojom::FormControlType::kInputMonth:
+    case mojom::FormControlType::kInputNumber:
+    case mojom::FormControlType::kInputPassword:
+    case mojom::FormControlType::kInputRadio:
+    case mojom::FormControlType::kSelectOne:
+    case mojom::FormControlType::kInputDate:
+    case mojom::FormControlType::kInputHiddenEmailVerification:
+      return false;
+  }
+  NOTREACHED();
+}
+
+mojom::JavaScriptModificationType GetJavaScriptModificationType(
+    std::u16string_view old_value,
+    std::u16string_view new_value) {
+  if (old_value == new_value) {
+    return mojom::JavaScriptModificationType::kTrivial;
+  }
+  if (old_value.empty()) {
+    return mojom::JavaScriptModificationType::kEmptyToNonEmpty;
+  }
+  if (new_value.empty()) {
+    return mojom::JavaScriptModificationType::kClearing;
+  }
+  if (new_value.size() > old_value.size() &&
+      base::StartsWith(new_value, old_value,
+                       base::CompareCase::INSENSITIVE_ASCII)) {
+    return mojom::JavaScriptModificationType::kPrefixCompletion;
+  }
+  return mojom::JavaScriptModificationType::kReassignment;
+}
+
 }  // namespace
 
 JavaScriptAutofillTracker::JavaScriptAutofillTracker(
@@ -42,70 +101,32 @@ JavaScriptAutofillTracker::~JavaScriptAutofillTracker() {
 }
 
 void JavaScriptAutofillTracker::OnJavaScriptChangedValue(
-    const blink::WebFormControlElement& element) {
+    const blink::WebFormControlElement& element,
+    const blink::WebString& old_value) {
   // In order to add a log record to `js_logs_`, the following conditions must
   // be satisfied:
 
-  // (1) The frame must have transient user activation.
-  blink::WebDocument document = web_frame_->GetDocument();
-  if (!document || !web_frame_->HasTransientUserActivation()) {
+  // (1) A mousedown event must have started the timer not earlier than
+  // `kMaxTimeGap` milliseconds ago.
+  if (!timer_.IsRunning()) {
     return;
   }
 
-  // (2) The frame should have a non-null and autofillable focused element.
-  blink::WebFormControlElement focused_element =
-      document.FocusedElement().DynamicTo<blink::WebFormControlElement>();
-  if (!focused_element || !form_util::IsAutofillableElement(focused_element)) {
-    return;
-  }
-
-  // (3) The element whose value was set by JS should also be autofillable.
+  // (2) The element whose value was set by JS should be autofillable.
   if (!form_util::IsAutofillableElement(element)) {
     return;
   }
 
-  // (4) `js_logs_` must still have less than `kMaxStoredJsLogs` records.
-  if (js_logs_.size() >= kMaxStoredJsLogs) {
+  // (3) `js_logs_` must still have less than `kJsAutofillMaxFieldsChanged`
+  // records.
+  if (js_logs_.size() >= kJsAutofillMaxFieldsChanged) {
     return;
   }
 
-  js_logs_.push_back(JsChangeRecord{
-      .modified_field_id = form_util::GetFieldRendererId(element),
-      .focused_field_id = form_util::GetFieldRendererId(focused_element),
-      .timestamp = base::TimeTicks::Now(),
-  });
-
-  if (!timer_.IsRunning()) {
-    timer_.Start(
-        FROM_HERE, kJsAutofillMaxTimeGap,
-        base::BindOnce(&JavaScriptAutofillTracker::DetectJavaScriptAutofill,
-                       // Safe because `timer_` is owned by `this`. Destructing
-                       // it cancels the task.
-                       base::Unretained(this)));
-  }
-}
-
-void JavaScriptAutofillTracker::OnWillAutofillForm() {
-  // It is very unlikely to happen, but it could still happen that this timer
-  // start cancels a timer start done by `OnJavaScriptChangedValue()` if the
-  // user somehow manages to trigger both JS autofill and browser autofill at
-  // the same time.
-  // This is however still better than only starting the timer if it is not
-  // running, because otherwise refills (which are browser autofill operations
-  // fired very shortly after a previous one) could miss the timer and trigger a
-  // false positive.
-  timer_.Start(
-      FROM_HERE, kJsAutofillMaxTimeGap,
-      base::BindOnce(
-          // Autofill modifies multiple fields simultaneously, which can trigger
-          // multiple focus/blur/valuechange events, possibly leading to
-          // multiple JS modifications (formatting, clearing, etc.). This
-          // ensures that `DetectJavaScriptAutofill()` is not fired and
-          // `js_logs_` is not corrupted, avoiding false positives.
-          [](JavaScriptAutofillTracker* tracker) { tracker->js_logs_.clear(); },
-          // Safe because `timer_` is owned by `this`. Destructing it cancels
-          // the task.
-          base::Unretained(this)));
+  js_logs_.push_back(mojom::JavaScriptFieldModification::New(
+      form_util::GetFieldRendererId(element),
+      GetJavaScriptModificationType(old_value.Utf16(),
+                                    element.Value().Utf16())));
 }
 
 void JavaScriptAutofillTracker::Reset() {
@@ -113,65 +134,98 @@ void JavaScriptAutofillTracker::Reset() {
   timer_.Stop();
 }
 
-void JavaScriptAutofillTracker::DetectJavaScriptAutofill() {
-  std::vector<JsChangeRecord> logs = std::move(js_logs_);
+void JavaScriptAutofillTracker::HandleMousedown() {
+  // In order to start recording logs to `js_logs_`, the following conditions
+  // must be satisfied:
+
+  // (1) The frame must have transient user activation.
+  blink::WebDocument document = web_frame_->GetDocument();
+  if (!document || !web_frame_->HasTransientUserActivation()) {
+    return;
+  }
+
+  // (2) The frame should have a non-null focused element whose type can be that
+  // of an anchor element.
+  blink::WebFormControlElement focused_element =
+      document.FocusedElement().DynamicTo<blink::WebFormControlElement>();
+  if (!focused_element || !IsPossibleAnchorElement(focused_element)) {
+    return;
+  }
+
+  // (3) The timer isn't already running.
+  if (timer_.IsRunning()) {
+    return;
+  }
+
+  // This should not be needed in theory, but if for some reason logs exist in
+  // the list BEFORE starting a timer run, they should not be included in the
+  // final analysis done by `DetectJavaScriptAutofill()`.
   js_logs_.clear();
-  CHECK(!logs.empty());
 
-  blink::WebFormControlElement first_focused_field =
-      form_util::GetFormControlByRendererId(logs.front().focused_field_id);
-  if (!first_focused_field) {
+  timer_.Start(
+      FROM_HERE, kJsAutofillMaxTimeGap,
+      base::BindOnce(&JavaScriptAutofillTracker::DetectJavaScriptAutofill,
+                     // Safe because `timer_` is owned by `this`. Destructing
+                     // it cancels the task.
+                     base::Unretained(this),
+                     form_util::GetFieldRendererId(focused_element)));
+}
+
+void JavaScriptAutofillTracker::DetectJavaScriptAutofill(
+    FieldRendererId trigger_element_id) {
+  std::vector<mojom::JavaScriptFieldModificationPtr> logs = std::move(js_logs_);
+  js_logs_.clear();
+  if (logs.empty()) {
     return;
   }
 
-  // A JS-autofill picker would usually be anchored on a text-like input or
-  // textarea element. We exclude select elements to avoid false positives
-  // from country/state dropdowns resetting other fields and checkboxes and
-  // radio buttons to avoid false positives caused by checking boxes like
-  // "Billing address is similar to shipping address".
-  std::optional<mojom::FormControlType> field_type =
-      form_util::GetAutofillFormControlType(first_focused_field);
-  if (!field_type) {
-    return;
-  }
-  switch (*field_type) {
-    case mojom::FormControlType::kInputText:
-    case mojom::FormControlType::kInputSearch:
-    case mojom::FormControlType::kInputEmail:
-    case mojom::FormControlType::kInputTelephone:
-    case mojom::FormControlType::kInputUrl:
-    case mojom::FormControlType::kTextArea:
-      break;
-    case mojom::FormControlType::kContentEditable:
-    case mojom::FormControlType::kInputCheckbox:
-    case mojom::FormControlType::kInputMonth:
-    case mojom::FormControlType::kInputNumber:
-    case mojom::FormControlType::kInputPassword:
-    case mojom::FormControlType::kInputRadio:
-    case mojom::FormControlType::kSelectOne:
-    case mojom::FormControlType::kInputDate:
-    case mojom::FormControlType::kInputHiddenEmailVerification:
-      return;
-  }
-
-  blink::WebFormElement target_form =
-      first_focused_field.GetOwningFormForAutofill();
-  std::erase_if(logs, [&](const JsChangeRecord& record) {
-    blink::WebFormControlElement element =
-        form_util::GetFormControlByRendererId(record.modified_field_id);
-    return !element || element.GetOwningFormForAutofill() != target_form;
-  });
-
-  base::flat_set<FieldRendererId> unique_fields =
-      base::MakeFlatSet<FieldRendererId>(logs, /*comp=*/{},
-                                         &JsChangeRecord::modified_field_id);
-
-  if (unique_fields.size() < kJsAutofillMinFieldsChanged ||
-      unique_fields.size() > kJsAutofillMaxFieldsChanged) {
+  blink::WebFormControlElement trigger_element =
+      form_util::GetFormControlByRendererId(trigger_element_id);
+  if (!trigger_element) {
     return;
   }
 
-  callback_.Run(first_focused_field, base::ToVector(unique_fields));
+  if (!IsPossibleAnchorElement(trigger_element)) {
+    return;
+  }
+
+  std::erase_if(
+      logs, [target_form = trigger_element.GetOwningFormForAutofill()](
+                const mojom::JavaScriptFieldModificationPtr& record) {
+        blink::WebFormControlElement element =
+            form_util::GetFormControlByRendererId(record->field_id);
+        return !element || element.GetOwningFormForAutofill() != target_form;
+      });
+
+  std::vector<mojom::JavaScriptFieldModificationPtr> field_modifications;
+  absl::flat_hash_set<FieldRendererId> seen_fields;
+
+  // `logs` is moved here to ensure it is not used below, since
+  // `field_modifications` should be used in what follows as it contains the
+  // filtered list of logs.
+  for (mojom::JavaScriptFieldModificationPtr& record : std::move(logs)) {
+    if (seen_fields.insert(record->field_id).second) {
+      field_modifications.push_back(std::move(record));
+    }
+  }
+
+  if (field_modifications.empty() ||
+      field_modifications.size() >= kJsAutofillMaxFieldsChanged) {
+    return;
+  }
+
+  // If too few fields were modified by JavaScript, then an extra condition is
+  // enforced, which is that at least one field should be prefix-completed, in
+  // order to reduce IPC noise and false positives.
+  if (field_modifications.size() < kJsAutofillMinFieldsChanged &&
+      !std::ranges::contains(
+          field_modifications,
+          mojom::JavaScriptModificationType::kPrefixCompletion,
+          &mojom::JavaScriptFieldModification::modification_type)) {
+    return;
+  }
+
+  callback_.Run(trigger_element, std::move(field_modifications));
 }
 
 }  // namespace autofill

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -14,6 +15,8 @@
 #include "components/account_settings/account_settings_features.h"
 #include "components/account_settings/mock_account_setting_service.h"
 #include "components/glic/glic_pref_names.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/personal_context/core/personal_context_debug_features.h"
 #include "components/personal_context/core/personal_context_eligibility_service_impl_test_api.h"
 #include "components/personal_context/core/personal_context_features.h"
@@ -84,6 +87,10 @@ class PersonalContextEligibilityServiceImplTest : public testing::Test {
     pref_service_.registry()->RegisterIntegerPref(
         ::glic::prefs::kGlicCompletedFre,
         std::to_underlying(::glic::prefs::FreStatus::kCompleted));
+    pref_service_.registry()->RegisterIntegerPref(
+        optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+        std::to_underlying(optimization_guide::model_execution::prefs::
+                               ModelExecutionEnterprisePolicyValue::kAllow));
     pref_service_.SetBoolean(
         personal_context::prefs::
             kPersonalContextAmbientAutofillNoticeShouldBeShown,
@@ -118,6 +125,7 @@ TEST_F(PersonalContextEligibilityServiceImplTest, ForcedEnablementState) {
     feature_list.InitAndEnableFeatureWithParameters(
         features::debug::kPersonalContextForceEnablementState,
         {{"state", "0"}});
+    test_api(service()).UpdateEligibilityState();
     EXPECT_EQ(service().GetEligibilityState(),
               PersonalContextEligibilityState::kDisabledNotEligible);
   }
@@ -127,6 +135,7 @@ TEST_F(PersonalContextEligibilityServiceImplTest, ForcedEnablementState) {
     feature_list.InitAndEnableFeatureWithParameters(
         features::debug::kPersonalContextForceEnablementState,
         {{"state", "2"}});
+    test_api(service()).UpdateEligibilityState();
     EXPECT_EQ(service().GetEligibilityState(),
               PersonalContextEligibilityState::kEligible);
   }
@@ -143,6 +152,23 @@ TEST_F(PersonalContextEligibilityServiceImplTest, EnabledWhenAllFeaturesAreOn) {
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)  // Signing out does not work on ChromeOS.
+TEST_F(PersonalContextEligibilityServiceImplTest,
+       ForcedEnablementState_SignOut) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::debug::kPersonalContextForceEnablementState,
+        {{"state", "2"}});
+
+    // The force enablement feature should not override the account
+    // requirements.
+    identity_test_env_.ClearPrimaryAccount();
+    test_api(service()).UpdateEligibilityState();
+    EXPECT_EQ(service().GetEligibilityState(),
+              PersonalContextEligibilityState::kDisabledNotEligible);
+  }
+}
+
 // Verifies that the service is disabled when the user is not signed in.
 TEST_F(PersonalContextEligibilityServiceImplTest, DisabledWhenSignedOut) {
   identity_test_env_.ClearPrimaryAccount();
@@ -421,10 +447,95 @@ TEST_F(PersonalContextEligibilityServiceImplTest,
       ::glic::prefs::kGlicCompletedFre,
       std::to_underlying(::glic::prefs::FreStatus::kNotStarted));
 
+  service().RemoveObserver(&observer);
+}
+
+// Tests that `PersonalContextEligibilityService` returns `kDisabledNotEligible`
+// when the `FindAndFillWithGeminiSettings` policy is disabled.
+TEST_F(PersonalContextEligibilityServiceImplTest, EnterprisePolicyDisabled) {
+  pref_service_.SetInteger(
+      optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+      std::to_underlying(optimization_guide::model_execution::prefs::
+                             ModelExecutionEnterprisePolicyValue::kDisable));
+
+  EXPECT_EQ(service().GetEligibilityState(),
+            PersonalContextEligibilityState::kDisabledNotEligible);
+
+  histogram_tester().ExpectBucketCount(
+      "Autofill.PersonalContext.NonEligibilityReason",
+      PersonalContextNonEligibilityReason::
+          kFindAndFillWithGeminiSettingsDisabled,
+      1);
+}
+
+// Tests that observers are notified when the `FindAndFillWithGeminiSettings`
+// policy changes.
+TEST_F(PersonalContextEligibilityServiceImplTest,
+       NotifiedWhenEnterprisePolicyChanges) {
+  MockPersonalContextEligibilityServiceObserver observer;
+  service().AddObserver(&observer);
+
+  EXPECT_CALL(observer,
+              OnEligibilityStateChanged(
+                  PersonalContextEligibilityState::kDisabledNotEligible));
+
+  pref_service_.SetInteger(
+      optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+      std::to_underlying(optimization_guide::model_execution::prefs::
+                             ModelExecutionEnterprisePolicyValue::kDisable));
+
   EXPECT_EQ(service().GetEligibilityState(),
             PersonalContextEligibilityState::kDisabledNotEligible);
 
   service().RemoveObserver(&observer);
+}
+
+// Verifies that the internal state cache is updated when data is loaded
+// from disk in account settings.
+TEST_F(PersonalContextEligibilityServiceImplTest,
+       CacheUpdatedOnAccountSettingsLoaded) {
+  // Initial state is kEligible.
+  ASSERT_EQ(service().GetEligibilityState(),
+            PersonalContextEligibilityState::kEligible);
+
+  // Opt out of context in account settings.
+  ON_CALL(mock_account_settings_service_,
+          GetBoolean(AccountSettingWithName(
+              account_settings::kAccountSettingContext.name)))
+      .WillByDefault(Return(false));
+
+  // Notify the service that data has been loaded from disk.
+  service().OnAccountSettingsLoaded();
+
+  // The eligibility state should be updated to kDisabledNotEligible.
+  EXPECT_EQ(service().GetEligibilityState(),
+            PersonalContextEligibilityState::kDisabledNotEligible);
+}
+
+// Verifies that observers are notified when data is loaded from disk
+// in account settings and causes an eligibility state change.
+TEST_F(PersonalContextEligibilityServiceImplTest,
+       NotifiedOnAccountSettingsLoaded) {
+  MockPersonalContextEligibilityServiceObserver observer;
+  base::ScopedObservation<PersonalContextEligibilityService,
+                          PersonalContextEligibilityService::Observer>
+      scoped_observation(&observer);
+  scoped_observation.Observe(&service());
+
+  ON_CALL(mock_account_settings_service_,
+          GetBoolean(AccountSettingWithName(
+              account_settings::kAccountSettingContext.name)))
+      .WillByDefault(Return(false));
+
+  // Expect that the observer is called with the new state.
+  EXPECT_CALL(observer,
+              OnEligibilityStateChanged(
+                  PersonalContextEligibilityState::kDisabledNotEligible));
+
+  service().OnAccountSettingsLoaded();
+
+  EXPECT_EQ(service().GetEligibilityState(),
+            PersonalContextEligibilityState::kDisabledNotEligible);
 }
 
 }  // namespace

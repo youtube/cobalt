@@ -47,26 +47,10 @@
   </h2>
   <div class="cr-secondary-text">[[getSubheader_(isNoLinkLayout_)]]</div>
 </div>
-<template is="dom-if" if="[[shouldShowPrivacySandbox_]]">
-  <cr-link-row id="privacySandboxRow" using-slotted-label
-      sub-label=
-          "$i18n{privacyGuideCompletionCardPrivacySandboxSubLabelAdTopics}"
-      start-icon="[[getAdsClickIcon_()]]" external
-      on-click="onPrivacySandboxClick_">
-    <div slot="label" class="label">
-      $i18n{privacyGuideCompletionCardPrivacySandboxLabel}
-    </div>
-  </cr-link-row>
-  <div aria-disabled="true" role="none">
-    <a id="privacySandboxLink" href="adPrivacy"
-        target="_blank" tabindex="-1" aria-disabled="true"
-        role="none"></a>
-  </div>
-</template>
 <template is="dom-if" if="[[shouldShowAiSettings_]]">
   <cr-link-row id="aiRow" using-slotted-label
       sub-label="$i18n{privacyGuideCompletionCardAiSettingsLabel}"
-      start-icon="settings20:magic" external on-click="onAiRowClick_">
+      start-icon="settings20:button-magic" external on-click="onAiRowClick_">
     <div slot="label" class="label">$i18n{aiPageTitle}</div>
   </cr-link-row>
   <div aria-disabled="true" role="none">

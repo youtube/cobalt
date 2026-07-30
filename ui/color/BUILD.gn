@@ -30,8 +30,7 @@ source_set("color_headers") {
   ]
 }
 
-# Keep the deps on this target to a minimum so that chromeos/crosapi can depend
-# on it.
+# Keep the deps on this target to a minimum so that chromeos can depend on it.
 component("color_provider_key") {
   sources = [
     "color_provider_key.cc",
@@ -208,6 +207,11 @@ component("mixers") {
       "win/native_color_mixers_win.h",
     ]
     deps += [ ":accent_color_observer" ]
+  } else if (is_android) {
+    sources += [
+      "android/sys_color_mixer_android.cc",
+      "android/sys_color_mixer_android.h",
+    ]
   }
 }
 

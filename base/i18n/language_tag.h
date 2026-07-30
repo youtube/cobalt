@@ -9,6 +9,7 @@
 #include <iosfwd>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "base/containers/span.h"
@@ -112,6 +113,18 @@ class BASE_I18N_EXPORT LanguageTag {
         .region;
   }
 
+  // Returns the parent language tag of this language tag by stripping the most
+  // specific subtag. The parent hierarchy traversal order is:
+  //   1. Private-use subtags (e.g., "en-US-x-test" -> "en-US")
+  //   2. Extensions (e.g., "en-US-u-ca-gregory" -> "en-US")
+  //   3. Variants (e.g., "en-GB-oxendict" -> "en-GB")
+  //   4. Region (e.g., "sr-Latn-RS" -> "sr-Latn")
+  //   5. Script (e.g., "sr-Latn" -> "sr")
+  //
+  // If the language tag only consists of the base language subtag (e.g., "en"),
+  // it has no parent and `std::nullopt` is returned.
+  constexpr std::optional<LanguageTag> GetParentTag() const;
+
   // Retrieves the singleton and subtag(s) for an extension to a BCP47 language
   // tag.
   //
@@ -128,18 +141,39 @@ class BASE_I18N_EXPORT LanguageTag {
   //   LanguageTagConverter::GetInstance().FromString("en-US-u-ca-gregory");
   //   auto ext = locale->GetExtension(bcp47_extensions::unicode());
   //   if (ext) {
-  //     std::string_view val = ext->subtags_string(); // "ca-gregory"
+  //     CHECK_EQ(ext->SubtagsString(), "ca-gregory");
   //   }
-  template <typename T>
-    requires(bcp47_extensions::ExtensionTrait<T>)
-  std::optional<typename T::type> GetExtension(T traits) const {
-    std::string_view extension = GetExtensionStringInternal(traits.key);
+  std::optional<UnicodeExtension> GetExtension(
+      bcp47_extensions::Traits<'u'> traits) const;
+
+  std::optional<PrivateUseSubtags> GetExtension(
+      bcp47_extensions::Traits<'x'> traits) const;
+
+  template <char extid>
+    requires(extid != 'u' && extid != 'x')
+  std::optional<Extension> GetExtension(
+      bcp47_extensions::Traits<extid> traits) const {
+    std::string_view extension = GetExtensionStringInternal(extid);
     if (extension.empty()) {
       return std::nullopt;
     }
 
     return traits.Factory(base::PassKey<LanguageTag>(), extension);
   }
+
+  // Returns a new `LanguageTag` with the given `extension` set (language tags
+  // are immutable). If an extension with the same singleton already exists, it
+  // is replaced. If the extension is empty, the current `LanguageTag` is
+  // returned unchanged.
+  //
+  // Example:
+  //   std::optional<UnicodeExtension> u_ext =
+  //     tag.GetExtension(bcp47_extensions::unicode());
+  //   u_ext->SetKeyword("ca", "gregory");
+  //   LanguageTag mutated = tag.WithExtension(*u_ext);
+  LanguageTag WithExtension(const UnicodeExtension& extension) const;
+  LanguageTag WithExtension(const PrivateUseSubtags& extension) const;
+  LanguageTag WithExtension(const Extension& extension) const;
 
  private:
   friend class LanguageTagConverter;
@@ -156,13 +190,19 @@ class BASE_I18N_EXPORT LanguageTag {
   LanguageTag();
 
   std::string_view GetExtensionStringInternal(char key) const;
+  LanguageTag WithExtensionStringInternal(char key,
+                                          std::string_view subtags) const;
   // This constructor is intended for internal use by `LanguageTagConverter`.
   // Do not call this directly.
   explicit LanguageTag(ImmutableStringType tag);
   // Constexpr Constructor that expects the span of string-views and constructs
   // tha ImmutableString on its own.
   constexpr explicit LanguageTag(base::span<const std::string_view> parts)
-      : tag_(i18n_internal::ImmutableString::ForceStackString{}, parts) {}
+      : tag_(std::is_constant_evaluated()
+                 ? i18n_internal::ImmutableString(
+                       i18n_internal::ImmutableString::ForceStackString{},
+                       parts)
+                 : i18n_internal::ImmutableString(parts)) {}
 
   // The BCP47 language tag, e.g. "pt-BR".
   // Supports language, script, region, variants and extensions.
@@ -175,10 +215,6 @@ BASE_I18N_EXPORT std::ostream& operator<<(std::ostream& os,
 BASE_I18N_EXPORT std::ostream& operator<<(
     std::ostream& os,
     const std::optional<LanguageTag>& opt);
-
-}  // namespace base::i18n
-
-namespace base::i18n {
 
 // Returns a LanguageTag checked at compile time. does not compile if tag is
 // not one of the predefined supported language tags.
@@ -203,6 +239,30 @@ consteval LanguageTag GetKnownLanguageTag(std::string_view tag) {
   }
 
   return LanguageTag(base::span<const std::string_view>({tag}));
+}
+
+constexpr std::optional<LanguageTag> LanguageTag::GetParentTag() const {
+  std::optional<i18n_internal::ParsedBcp47Tag> parsed =
+      i18n_internal::ParseBcp47Tag(tag_string());
+  if (!parsed) {
+    return std::nullopt;
+  }
+
+  if (!parsed->private_use.empty()) {
+    parsed->private_use.clear();
+  } else if (!parsed->extensions.empty()) {
+    parsed->extensions.clear();
+  } else if (!parsed->variants.empty()) {
+    parsed->variants.pop_back();
+  } else if (!parsed->region.empty()) {
+    parsed->region = std::string_view();
+  } else if (!parsed->script.empty()) {
+    parsed->script = std::string_view();
+  } else {
+    return std::nullopt;
+  }
+
+  return LanguageTag(i18n_internal::GetBcp47TagPieces(*parsed));
 }
 
 }  // namespace base::i18n

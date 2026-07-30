@@ -54,6 +54,10 @@ void ConsentKitUrlBuilder::SetHostOrigins(
   host_origins_ = std::move(host_origins);
 }
 
+void ConsentKitUrlBuilder::SetDarkMode(bool is_dark_mode) {
+  is_dark_mode_ = is_dark_mode;
+}
+
 GURL ConsentKitUrlBuilder::Build() {
   // Manually construct 0-indexed JSPB arrays to match the wire format expected
   // by the ConsentKit server.
@@ -83,7 +87,9 @@ GURL ConsentKitUrlBuilder::Build() {
   base::ListValue session_info =
       base::ListValue().Append(std::move(shared_consent_session_id));
 
-  base::ListValue presentation_params = base::ListValue().Append(locale_);
+  base::ListValue presentation_params =
+      base::ListValue::with_capacity(2).Append(locale_).Append(
+          is_dark_mode_ ? 2 : 1);
 
   base::ListValue user_info = base::ListValue().Append(session_index_);
 
@@ -116,6 +122,14 @@ GURL ConsentKitUrlBuilder::Build() {
     url = net::AppendQueryParameter(url, "origin", origin);
   }
   url = net::AppendQueryParameter(url, "allowNonWebView", "true");
+
+  if (is_dark_mode_) {
+    url = net::AppendQueryParameter(url, "theme", "2");
+    url = net::AppendQueryParameter(url, "color_scheme", "dark");
+  } else {
+    url = net::AppendQueryParameter(url, "theme", "1");
+    url = net::AppendQueryParameter(url, "color_scheme", "light");
+  }
 
   return url;
 }

@@ -5,13 +5,13 @@
 // META: --screen-info={label='1st screen'}{600x800 label='2nd screen'}
 // META: --disable-popup-blocking
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {session, dp} = await testRunner.startBlank(
       'Tests element request fullscreen on a secondary screen.');
 
   const {sessionId} =
       (await testRunner.browserP().Target.attachToBrowserTarget({})).result;
-  const bp = (new TestRunner.Session(testRunner, sessionId)).protocol;
+  const bp = (testRunner.createSessionFor(sessionId)).protocol;
 
   const HttpInterceptor =
       await testRunner.loadScriptAbsolute('../resources/http-interceptor.js');

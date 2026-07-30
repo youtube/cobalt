@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -26,6 +27,30 @@ namespace autofill {
 
 class AutofillPopupController;
 
+// Outcomes of interaction with the Ambient Autofill notice.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(PersonalContextAmbientAutofillNoticeInteractions)
+enum class PersonalContextAmbientAutofillNoticeInteractions {
+  kShown = 0,
+  kAcknowledged = 1,
+  kDismissed = 2,
+  kManageSettingsButtonClicked = 3,
+  kMaxValue = kManageSettingsButtonClicked,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/personal_context/enums.xml:PersonalContextAmbientAutofillNoticeInteractions)
+
+// Outcomes of interaction with the AtMemory notice.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(PersonalContextAtMemoryNoticeInteractions)
+enum class PersonalContextAtMemoryNoticeInteractions {
+  kShown = 0,
+  kAcknowledged = 1,
+  kMaxValue = kAcknowledged,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/personal_context/enums.xml:PersonalContextAtMemoryNoticeInteractions)
+
 // The view that displays the "Personal context" notice.
 // This notice is shown at the bottom of the Autofill popup to inform the
 // user that personal context is enabled.
@@ -35,6 +60,8 @@ class PopupPersonalContextNoticeView : public PopupInteractiveRowView {
  public:
   PopupPersonalContextNoticeView(
       PopupRowView::AccessibilitySelectionDelegate& a11y_selection_delegate,
+      base::RepeatingCallback<void(const std::u16string&, bool)>
+          announce_callback,
       base::WeakPtr<AutofillPopupController> controller,
       int line_number);
 
@@ -114,6 +141,9 @@ class PopupPersonalContextNoticeView : public PopupInteractiveRowView {
 
   // The position of this notice in the vertical list of suggestions.
   const int line_number_;
+
+  const base::RepeatingCallback<void(const std::u16string&, bool)>
+      announce_callback_;
 
   const raw_ref<PopupRowView::AccessibilitySelectionDelegate>
       a11y_selection_delegate_;

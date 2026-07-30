@@ -54,7 +54,6 @@
 
 namespace disk_cache {
 
-using disk_cache_sql_queries::GetQuery;
 using disk_cache_sql_queries::Query;
 
 using Error = SqlPersistentStore::Error;
@@ -198,14 +197,33 @@ int32_t CalculateCheckSum(base::span<const uint8_t> data,
   return static_cast<int32_t>(crc32_value);
 }
 
+std::optional<SqlSharedCacheResourceId> GetSharedCacheResourceIdFromStatement(
+    sql::Statement& statement,
+    int db_id_column,
+    int row_id_column) {
+  int64_t db_id = statement.ColumnInt64(db_id_column);
+  int64_t row_id = statement.ColumnInt64(row_id_column);
+  if (db_id != 0 && row_id != 0) {
+    return SqlSharedCacheResourceId{SqlSharedCacheDbId(db_id),
+                                    SqlSharedCacheRowId(row_id)};
+  }
+  return std::nullopt;
+}
+
 // Sets up the database schema and indexes.
-[[nodiscard]] bool InitSchema(sql::Database& db) {
-  if (!db.Execute(GetQuery(Query::kInitSchema_CreateTableResources)) ||
-      !db.Execute(GetQuery(Query::kInitSchema_CreateTableBlobs)) ||
-      !db.Execute(GetQuery(Query::kIndex_ResourcesCacheKeyHashDoomed)) ||
-      !db.Execute(GetQuery(Query::kIndex_LiveResourcesLastUsed)) ||
-      !db.Execute(GetQuery(Query::kIndex_LiveResourcesHints)) ||
-      !db.Execute(GetQuery(Query::kIndex_BlobsResIdStart))) {
+[[nodiscard]] bool InitSchema(sql::Database& db, bool shared_cache_enabled) {
+  if (!db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kInitSchema_CreateTableResources, shared_cache_enabled)) ||
+      !db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kInitSchema_CreateTableBlobs, shared_cache_enabled)) ||
+      !db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kIndex_ResourcesCacheKeyHashDoomed, shared_cache_enabled)) ||
+      !db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kIndex_LiveResourcesLastUsed, shared_cache_enabled)) ||
+      !db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kIndex_LiveResourcesHints, shared_cache_enabled)) ||
+      !db.Execute(disk_cache_sql_queries::GetQuery(
+          Query::kIndex_BlobsResIdStart, shared_cache_enabled))) {
     return false;
   }
   return true;
@@ -301,10 +319,12 @@ SqlPersistentStore::Backend::Backend(
     ShardId shard_id,
     const base::FilePath& path,
     net::CacheType type,
+    bool shared_cache_enabled,
     scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor)
     : shard_id_(shard_id),
       path_(path),
       type_(type),
+      shared_cache_enabled_(shared_cache_enabled),
       read_cache_memory_monitor_(std::move(read_cache_memory_monitor)),
       reduce_uma_(net::features::kSqlDiskCacheReduceUma.Get()),
       db_(sql::DatabaseOptions()
@@ -339,6 +359,45 @@ Error SqlPersistentStore::Backend::CheckDatabaseStatus() {
     // The database have been closed when a catastrophic error occurred and
     // RazeAndPoison() was called.
     return Error::kDatabaseClosed;
+  }
+  return Error::kOk;
+}
+
+SqlPersistentStore::Error
+SqlPersistentStore::Backend::CheckOrInitializeSharedCacheEnabledMetadata(
+    bool is_new_db) {
+  // Ensure that the database's recorded `shared_cache_enabled` setting matches
+  // the current `shared_cache_enabled_` setting.
+  if (is_new_db) {
+    // For newly created databases, record the current `shared_cache_enabled_`
+    // state.
+    if (!meta_table_.SetValue(kSqlBackendMetaTableKeySharedCacheEnabled,
+                              shared_cache_enabled_ ? 1 : 0)) {
+      return Error::kFailedToSetSharedCacheEnabledMetadata;
+    }
+  } else {
+    // For existing databases, check if the recorded state matches current
+    // settings.
+    int64_t recorded_shared_cache_enabled = 0;
+    const bool has_shared_cache_key =
+        meta_table_.GetValue(kSqlBackendMetaTableKeySharedCacheEnabled,
+                             &recorded_shared_cache_enabled);
+
+    // Legacy databases without the key are assumed to have shared cache
+    // disabled (0).
+    const bool was_shared_cache_enabled =
+        has_shared_cache_key && (recorded_shared_cache_enabled != 0);
+
+    if (was_shared_cache_enabled != shared_cache_enabled_) {
+      return Error::kSharedCacheEnabledMismatch;
+    }
+
+    // Populate the missing metadata key in legacy databases for future lookups.
+    if (!has_shared_cache_key) {
+      if (!meta_table_.SetValue(kSqlBackendMetaTableKeySharedCacheEnabled, 0)) {
+        return Error::kFailedToSetSharedCacheEnabledMetadata;
+      }
+    }
   }
   return Error::kOk;
 }
@@ -441,7 +500,7 @@ Error SqlPersistentStore::Backend::InitializeInternal(
 
   if (is_new_db) {
     // Initialize the database schema.
-    if (!InitSchema(db_)) {
+    if (!InitSchema(db_, shared_cache_enabled_)) {
       return Error::kFailedToInitializeSchema;
     }
   }
@@ -450,6 +509,11 @@ Error SqlPersistentStore::Backend::InitializeInternal(
   if (!meta_table_.Init(&db_, kSqlBackendCurrentDatabaseVersion,
                         kSqlBackendCompatibleDatabaseVersion)) {
     return Error::kFailedToInitializeMetaTable;
+  }
+
+  if (Error error = CheckOrInitializeSharedCacheEnabledMetadata(is_new_db);
+      error != Error::kOk) {
+    return error;
   }
 
   int64_t tmp_entry_count = 0;
@@ -612,6 +676,10 @@ OptionalEntryInfoOrError SqlPersistentStore::Backend::OpenEntryInternal(
   entry_info.body_end = statement.ColumnInt64(2);
   int32_t check_sum = statement.ColumnInt(3);
   base::span<const uint8_t> blob_span = statement.ColumnBlob(4);
+  if (shared_cache_enabled_) {
+    entry_info.shared_cache_resource_id =
+        GetSharedCacheResourceIdFromStatement(statement, 5, 6);
+  }
   if (CalculateCheckSum(blob_span, key.hash()) != check_sum) {
     return base::unexpected(Error::kCheckSumError);
   }
@@ -2271,6 +2339,68 @@ ReadResultOrError SqlPersistentStore::Backend::ReadEntryDataInternal(
   return read_result;
 }
 
+ErrorAndStoreStatus SqlPersistentStore::Backend::MoveBlobsToSharedCache(
+    const CacheEntryKey& key,
+    ResId res_id,
+    SqlSharedCacheResourceId shared_cache_resource_id,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.MoveBlobsToSharedCache", "data",
+                     [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("key", key.string());
+                       PopulateTraceDetails(store_status_, dict);
+                     });
+
+  base::ElapsedTimer timer;
+  auto error = MoveBlobsToSharedCacheInternal(res_id, shared_cache_resource_id);
+  RecordTimeAndErrorResultHistogram("MoveBlobsToSharedCache", posting_delay,
+                                    timer.Elapsed(), error,
+                                    /*corruption_detected=*/false);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.MoveBlobsToSharedCache", "result",
+                   [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     dict.Add("error", error);
+                     PopulateTraceDetails(store_status_, dict);
+                   });
+  return ErrorAndStoreStatus(error, store_status_);
+}
+
+Error SqlPersistentStore::Backend::MoveBlobsToSharedCacheInternal(
+    ResId res_id,
+    SqlSharedCacheResourceId shared_cache_resource_id) {
+  CHECK(shared_cache_enabled_);
+  if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
+    return db_error;
+  }
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return Error::kFailedToStartTransaction;
+  }
+
+  if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
+    return error;
+  }
+
+  {
+    sql::Statement statement(db_.GetCachedStatement(
+        SQL_FROM_HERE,
+        GetQuery(Query::kMoveBlobsToSharedCache_UpdateResource)));
+    statement.BindInt64(0, shared_cache_resource_id.db_id.value());
+    statement.BindInt64(1, shared_cache_resource_id.row_id.value());
+    statement.BindInt64(2, res_id.value());
+
+    if (!statement.Step()) {
+      return Error::kFailedToExecute;
+    }
+  }
+
+  if (!transaction.Commit()) {
+    return Error::kFailedToCommitTransaction;
+  }
+  return Error::kOk;
+}
+
 RangeResult SqlPersistentStore::Backend::GetEntryAvailableRange(
     ResId res_id,
     int64_t offset,
@@ -2454,6 +2584,10 @@ SqlPersistentStore::Backend::OpenNextEntryInternal(
     int32_t check_sum = statement.ColumnInt(3);
     result.key = CacheEntryKey(statement.ColumnString(4));
     base::span<const uint8_t> blob_span = statement.ColumnBlob(5);
+    if (shared_cache_enabled_) {
+      entry_info.shared_cache_resource_id =
+          GetSharedCacheResourceIdFromStatement(statement, 6, 7);
+    }
     if (CalculateCheckSum(blob_span, result.key.hash()) != check_sum ||
         blob_span.size() > std::numeric_limits<int>::max()) {
       // If OpenNextEntry encounters invalid data, it records it in a histogram

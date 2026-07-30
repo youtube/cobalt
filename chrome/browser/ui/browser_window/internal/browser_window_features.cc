@@ -13,7 +13,6 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
-#include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/bookmarks/bookmark_merged_surface_service_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -30,10 +29,9 @@
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
-#include "chrome/browser/glic/browser_ui/glic_actor_nudge_controller.h"
-#include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -60,6 +58,7 @@
 #include "chrome/browser/ui/browser_location_bar_model_delegate.h"
 #include "chrome/browser/ui/browser_select_file_dialog_controller.h"
 #include "chrome/browser/ui/browser_tab_menu_model_delegate.h"
+#include "chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -89,7 +88,7 @@
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
+#include "chrome/browser/ui/tabs/organizer/organizer_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
@@ -150,7 +149,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/tabs/groups/recent_activity_bubble_dialog_view.h"
-#include "chrome/browser/ui/views/tabs/projects/projects_panel_utils.h"
+#include "chrome/browser/ui/views/tabs/organizer/organizer_panel_utils.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
@@ -549,9 +548,14 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     }
 
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
-      glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
-          browser, *glic::GlicKeyedService::Get(profile));
-      glic_nudge_controller_ = glic::GlicNudgeController::CreateFor(browser);
+      if (glic::GlicKeyedService* glic_service =
+              glic::GlicKeyedService::Get(profile)) {
+        glic_iph_controller_ =
+            std::make_unique<glic::GlicIphController>(browser, *glic_service);
+        glic_split_button_controller_ =
+            std::make_unique<glic::GlicSplitButtonController>(browser,
+                                                              glic_service);
+      }
     }
 
     initial_web_ui_manager_ = std::make_unique<InitialWebUIManager>(browser);
@@ -572,14 +576,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
               profile, browser->GetTabStripModel(), browser->GetSessionID());
     }
 
-    if (projects_panel::IsProjectsPanelVisibleForProfile(profile)) {
-      glic::GlicKeyedService* glic_service =
-          glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
-      projects_panel_state_controller_ =
-          GetUserDataFactory().CreateInstance<ProjectsPanelStateController>(
-              *browser, browser, browser_actions_->root_action_item(),
-              AimEligibilityServiceFactory::GetForProfile(profile),
-              glic_service ? &glic_service->enabling() : nullptr);
+    if (organizer_panel::IsOrganizerPanelVisibleForProfile(profile)) {
+      organizer_panel_state_controller_ =
+          GetUserDataFactory().CreateInstance<OrganizerPanelStateController>(
+              *browser, browser, browser_actions_->root_action_item());
     }
 
     if (tabs::IsVerticalTabsFeatureEnabled()) {
@@ -732,10 +732,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   if (browser_view) {
     devtools_ui_controller_ = std::make_unique<DevtoolsUIController>(
-        browser_, base::ToVector(browser_view->GetContentsContainerViews(),
-                                 [](ContentsContainerView* view) {
-                                   return raw_ptr<ContentsContainerView>(view);
-                                 }));
+        browser_, browser_view->GetContentsContainerViews());
   }
 
   // Must be before exclusive_access_manager_ (whose construction calls
@@ -751,6 +748,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   exclusive_access_manager_ = std::make_unique<ExclusiveAccessManager>(
       browser,
       BrowserWindow::FromBrowser(browser)->GetExclusiveAccessContext());
+
+  // Must be after exclusive_access_manager_ and
+  // desktop_browser_window_capabilities_.
+  browser_web_contents_delegate_ = std::make_unique<BrowserWebContentsDelegate>(
+      browser, *exclusive_access_manager_, *BrowserWindow::FromBrowser(browser),
+      *desktop_browser_window_capabilities_);
 
   // Must be after exclusive_access_manager_.
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -889,7 +892,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       if (base::FeatureList::IsEnabled(features::kGlicActorUi)) {
         std::vector<std::pair<views::WebView*, ActorOverlayWebView*>>
             container_overlay_view_pairs;
-        for (auto* contents_container :
+        for (auto& contents_container :
              browser_view->GetContentsContainerViews()) {
           container_overlay_view_pairs.emplace_back(
               contents_container->contents_view(),
@@ -925,45 +928,6 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       chrome_labs_coordinator_ =
           GetUserDataFactory().CreateInstance<ChromeLabsCoordinator>(*browser,
                                                                      browser);
-    }
-
-    if (browser_view) {
-      // Shared if-gate: members initialized only when the GlicKeyedService is
-      // available (glic_button_controller_, actor_task_list_bubble_controller_,
-      // glic_actor_nudge_controller_).
-      if (glic::GlicKeyedService* glic_service =
-              glic::GlicKeyedService::Get(browser_view->GetProfile())) {
-        auto* tab_strip_container =
-            BrowserElementsViews::From(browser_view->browser())
-                ->GetViewAs<TabStripActionContainer>(
-                    kTabStripActionContainerElementId);
-        auto* toolbar_view =
-            BrowserElementsViews::From(browser_view->browser())
-                ->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId);
-
-        if (tab_strip_container && toolbar_view) {
-          glic_button_controller_ =
-              std::make_unique<glic::GlicButtonController>(
-                  browser_view->GetProfile(), *browser_, tab_strip_container,
-                  toolbar_view, glic_service);
-        }
-
-        if (base::FeatureList::IsEnabled(features::kGlicActor) &&
-            base::FeatureList::IsEnabled(features::kGlicActorUi) &&
-            features::kGlicActorUiTaskIcon.Get() &&
-            browser_->GetProfile()->IsRegularProfile()) {
-          // Must be before glic_actor_nudge_controller_.
-          actor_task_list_bubble_controller_ =
-              GetUserDataFactory()
-                  .CreateInstance<ActorTaskListBubbleController>(*browser_,
-                                                                 browser_);
-          // Includes browser twice to enable injecting for testing.
-          glic_actor_nudge_controller_ =
-              GetUserDataFactory()
-                  .CreateInstance<glic::GlicActorNudgeController>(
-                      *browser_, browser_, tab_strip_container, toolbar_view);
-        }
-      }
     }
 
     if (MobilePromoOnDesktopEnabled()) {
@@ -1105,8 +1069,6 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   pinned_toolbar_actions_ = nullptr;
   memory_saver_opt_in_iph_controller_.reset();
   ios_promo_controller_.reset();
-  glic_button_controller_.reset();
-  glic_actor_nudge_controller_.reset();
   if (chrome_labs_coordinator_) {
     chrome_labs_coordinator_->TearDown();
   }
@@ -1115,7 +1077,6 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   if (actor_ui_window_controller_) {
     actor_ui_window_controller_->TearDown();
   }
-  actor_task_list_bubble_controller_.reset();
 
   // Owned-by-all members.
   zoom_bubble_coordinator_.reset();
@@ -1156,6 +1117,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
     download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
 #endif
+  browser_web_contents_delegate_.reset();
   exclusive_access_manager_.reset();
   // Must be after exclusive_access_manager_ (which holds a reference to this
   // context for WebUI browser windows).
@@ -1179,6 +1141,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   // Init (reverse).
 
   // TYPE_NORMAL members.
+  glic_iph_controller_.reset();
+  glic_split_button_controller_.reset();
   initial_web_ui_manager_.reset();
   ai_overlay_dialog_controller_.reset();
 
@@ -1206,6 +1170,12 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   }
   browser_animation_controller_.reset();
   actor_border_view_controller_.reset();
+}
+
+glic::GlicNudgeController* BrowserWindowFeatures::glic_nudge_controller() {
+  return glic_split_button_controller_
+             ? glic_split_button_controller_->nudge_controller()
+             : nullptr;
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {

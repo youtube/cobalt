@@ -211,6 +211,7 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/manifest_handlers/description_info.h"
 #include "extensions/common/manifest_handlers/options_page_info.h"
 #include "extensions/common/permissions/api_permission_set.h"
 #include "extensions/common/permissions/permission_set.h"
@@ -265,10 +266,8 @@ using chromeos::PrinterClass;
 
 // Features used for testing `isFeatureEnabled`.
 BASE_FEATURE(kEnabledFeatureForTest,
-             "EnabledFeatureForTest",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDisabledFeatureForTest,
-             "DisabledFeatureForTest",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr char kCrostiniNotAvailableForCurrentUserError[] =
@@ -1573,7 +1572,7 @@ AutotestPrivateGetExtensionsInfoFunction::Run() {
             .Set("version", extension->VersionString())
             .Set("name", extension->name())
             .Set("publicKey", extension->public_key())
-            .Set("description", extension->description())
+            .Set("description", DescriptionInfo::GetDescription(*extension))
             .Set("backgroundUrl",
                  BackgroundInfo::GetBackgroundURL(extension).spec())
             .Set("optionsUrl",

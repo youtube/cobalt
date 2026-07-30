@@ -5,8 +5,6 @@
 package org.chromium.base;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 
@@ -42,19 +40,6 @@ public class PathUtilsTest {
         assertEquals(expectedDataDir, dataDir);
         assertEquals(expectedCacheDir, cacheDir);
         assertEquals(expectedThumbnailDir, thumbnailDir);
-    }
-
-    @Test
-    public void testIsPathUnderAppDir() {
-        Context context = ApplicationProvider.getApplicationContext();
-        File dataDir = context.getDataDir();
-        File externalDir = ContextUtils.getApplicationContext().getExternalFilesDir(null);
-
-        assertFalse(PathUtils.isPathUnderAppDir("/data_path/a/b/c", context));
-        assertTrue(PathUtils.isPathUnderAppDir(dataDir.toString(), context));
-        assertTrue(PathUtils.isPathUnderAppDir(externalDir.toString(), context));
-        assertTrue(PathUtils.isPathUnderAppDir(new File(dataDir, "child").toString(), context));
-        assertTrue(PathUtils.isPathUnderAppDir(new File(dataDir, "bad\u0000").toString(), context));
     }
 
     @Test

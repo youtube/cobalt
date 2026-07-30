@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   testRunner.log('Tests headless context destruction on session close.\n');
 
   async function createSession() {
     const {result: {sessionId}} =
         await testRunner.browserP().Target.attachToBrowserTarget();
-    return new TestRunner.Session(testRunner, sessionId);
+    return testRunner.createSessionFor(sessionId);
   }
 
   async function dumpContextNumber() {

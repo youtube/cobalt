@@ -1400,6 +1400,11 @@ void StyleAdjuster::RunUncacheableStyleAdjustment(
           element.GetDocument().documentElement() == element;
       if (!is_document_element) {
         builder.SetContain(builder.Contain() | kContainsLayout);
+        if (view_transition->NeedsContainmentForDurationOfCapture() &&
+            RuntimeEnabledFeatures::
+                ScopedViewTransitionSizeContainmentEnabled()) {
+          builder.SetHasSizeContainmentForViewTransitionScope(true);
+        }
         builder.SetViewTransitionScope(EViewTransitionScope::kAll);
       }
       builder.SetForcesStackingContext(true);
@@ -1829,6 +1834,8 @@ StyleAdjuster::ElementTypeForCache StyleAdjuster::GetElementTypeCacheKey(
     case ElementType::kHTMLUListElement:
     case ElementType::kHTMLUnknownElement:
     case ElementType::kHTMLUserMediaElement:
+    case ElementType::kHTMLCameraElement:
+    case ElementType::kHTMLMicrophoneElement:
       return {ElementType::kHTMLDivElement};
 
       // Don't add a default here; new SVG/MathML elements need to be different

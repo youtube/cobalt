@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.Str
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnLongClickHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripTabModelActionListener.ActionType;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator.AnchorInfo;
+import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator.TabStripLayoutType;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabLoadTrackerCallback;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabStripIphController.IphType;
 import org.chromium.chrome.browser.compositor.overlays.strip.reorder.ReorderDelegate;
@@ -103,6 +104,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
+import org.chromium.chrome.browser.tabmodel.NextTabSelectionUtil;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
@@ -121,6 +123,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabBubbler;
 import org.chromium.chrome.browser.tasks.tab_management.TabCardLabelData;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinatorFactory;
+import org.chromium.chrome.browser.tasks.tab_management.TabHoverCardView;
 import org.chromium.chrome.browser.tasks.tab_management.TabListNotificationHandler;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
@@ -670,7 +673,7 @@ public class StripLayoutHelper
 
     // Tab hover state.
     private @Nullable StripLayoutTab mLastHoveredTab;
-    private @Nullable StripTabHoverCardView mTabHoverCardView;
+    private @Nullable TabHoverCardView mTabHoverCardView;
     private long mLastHoverCardExitTime;
 
     // Tab Group Sync.
@@ -808,7 +811,7 @@ public class StripLayoutHelper
         // Set tab search button background resource.
         mTabSearchButtonWidth =
                 ChromeFeatureList.sTabSearchForDesktop.isEnabled()
-                        ? BUTTON_BACKGROUND_SIZE_DP
+                        ? BUTTON_TOUCH_TARGET_SIZE_DP
                         : 0.f;
         mTabSearchButton = createTabSearchButton(context, incognito, res);
 
@@ -1028,7 +1031,7 @@ public class StripLayoutHelper
         return mTabSearchButton;
     }
 
-    float getTabSearchButtonWidthForTesting() {
+    float getTabSearchButtonWidth() {
         return mTabSearchButtonWidth;
     }
 
@@ -2329,7 +2332,7 @@ public class StripLayoutHelper
     private void updateTouchableRect() {
         // Make the entire strip touchable when during dragging / reordering mode.
         boolean isTabDraggingInProgress = isViewDraggingInProgress();
-        if (isTabStripFull() || mReorderDelegate.getInReorderMode() || isTabDraggingInProgress) {
+        if (mReorderDelegate.getInReorderMode() || isTabDraggingInProgress) {
             mTouchableRect.set(
                     getVisibleLeftBound(/* clampToUnpinnedViews= */ false),
                     0,
@@ -2349,15 +2352,20 @@ public class StripLayoutHelper
 
         float leftBound = firstStripView.getDrawX();
         float rightBound = lastStripView.getDrawX() + lastStripView.getWidth();
+        float minLeft = getVisibleLeftBound(/* clampToUnpinnedViews= */ false);
+        float maxRight = mWidth - mRightMargin;
 
         if (LocalizationUtils.isLayoutRtl()) {
             leftBound = lastStripView.getDrawX();
             rightBound = firstStripView.getDrawX() + firstStripView.getWidth();
+            minLeft = mLeftMargin;
+            maxRight = getVisibleRightBound(/* clampToUnpinnedViews= */ false);
         }
 
-        // Clamp the bounding box to the visible area.
-        float left = Math.max(leftBound, getVisibleLeftBound(/* clampToUnpinnedViews= */ false));
-        float right = Math.min(rightBound, getVisibleRightBound(/* clampToUnpinnedViews= */ false));
+        // Clamp the bounding box to the visible area (excluding reserved margins for the NTB and
+        // trailing buttons).
+        float left = Math.max(leftBound, minLeft);
+        float right = Math.min(rightBound, maxRight);
 
         // Ensure left is not greater than right, which can happen if all tabs are off-screen.
         if (left > right) {
@@ -2575,7 +2583,8 @@ public class StripLayoutHelper
                                         findGroupTitle(groupId),
                                         toLeft);
                             },
-                            TabClosingSource.TABLET_TAB_STRIP);
+                            TabClosingSource.TABLET_TAB_STRIP,
+                            TabStripLayoutType.HORIZONTAL);
         }
         StripLayoutUtils.performHapticFeedback(mControlContainer);
 
@@ -2658,7 +2667,8 @@ public class StripLayoutHelper
                             mActivityResultTracker,
                             mWindowAndroid.getModalDialogManager(),
                             TabClosingSource.TABLET_TAB_STRIP,
-                            mCanActivateTabLayoutToggleMenuSupplier);
+                            mCanActivateTabLayoutToggleMenuSupplier,
+                            TabStripLayoutType.HORIZONTAL);
         }
         RectProvider anchorRectProvider = new RectProvider();
         anchorTab.getAnchorRect(anchorRectProvider.getRect());
@@ -2851,6 +2861,7 @@ public class StripLayoutHelper
                 interactingView,
                 new PointF(x, y),
                 reorderType);
+        updateTouchableRect();
     }
 
     /**
@@ -2984,7 +2995,7 @@ public class StripLayoutHelper
         mTabSearchButton.setHovered(false);
     }
 
-    void setTabHoverCardView(StripTabHoverCardView tabHoverCardView) {
+    void setTabHoverCardView(TabHoverCardView tabHoverCardView) {
         mTabHoverCardView = tabHoverCardView;
         // If onHoverEnter was already processed before this method call, show card now.
         if (mLastHoveredTab != null && !mTabHoverCardView.isShown()) {
@@ -2992,7 +3003,7 @@ public class StripLayoutHelper
         }
     }
 
-    @Nullable StripTabHoverCardView getTabHoverCardViewForTesting() {
+    @Nullable TabHoverCardView getTabHoverCardViewForTesting() {
         return mTabHoverCardView;
     }
 
@@ -3131,13 +3142,15 @@ public class StripLayoutHelper
         if (isViewContextMenuShowing()) return;
 
         int hoveredTabIndex = findIndexForTab(mLastHoveredTab.getTabId());
-        mTabHoverCardView.show(
-                mModel.getTabAt(hoveredTabIndex),
-                isSelectedTab(mLastHoveredTab.getTabId()),
-                mLastHoveredTab.getDrawX(),
-                mLastHoveredTab.getWidth(),
-                mHeight,
-                mTopPadding);
+        float[] position =
+                StripLayoutUtils.getHoverCardPosition(
+                        mTabHoverCardView,
+                        isSelectedTab(mLastHoveredTab.getTabId()),
+                        mLastHoveredTab.getDrawX(),
+                        mLastHoveredTab.getWidth(),
+                        mHeight,
+                        mTopPadding);
+        mTabHoverCardView.show(mModel.getTabAt(hoveredTabIndex), position[0], position[1]);
     }
 
     private Animator getViewWidthAnimator(StripLayoutView view, float targetWidth, int duration) {
@@ -3360,7 +3373,8 @@ public class StripLayoutHelper
                             mWindowAndroid,
                             mSnackbarManager,
                             () -> handleNewTabClick(NewTabSource.EMPTY_SPACE_CONTEXT_MENU),
-                            mCanActivateTabLayoutToggleMenuSupplier);
+                            mCanActivateTabLayoutToggleMenuSupplier,
+                            TabStripLayoutType.HORIZONTAL);
         }
 
         // Determine the anchor view rect to position the menu.
@@ -3665,13 +3679,6 @@ public class StripLayoutHelper
                 TabClosureParams.closeTab(realTab)
                         .allowUndo(allowUndo)
                         .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP);
-
-        // Iff closing the selected tab, set the recommended next tab. Explicitly set here in order
-        // to follow tab strip's next tab heuristic (left vs. right, expanded vs. collapsed, etc.).
-        if (isSelectedTab(tabId)) {
-            int nextIndex = getNextIndexAfterClose(Collections.singleton(tab));
-            paramsBuilder.recommendedNextTab(mModel.getTabAt(nextIndex));
-        }
 
         TabRemover tabRemover = mModel.getTabRemover();
         tabRemover.closeTabs(paramsBuilder.build(), /* allowDialog= */ true, listener);
@@ -4106,14 +4113,25 @@ public class StripLayoutHelper
 
         // Select an adjacent expanded tab if the current selected tab is being collapsed, If all
         // tabs are collapsed, open a ntp.
-        if (isCollapsed) {
+        if (isCollapsed && mModel != null) {
             Tab selectedTab = getTabById(getSelectedTabId());
             if (selectedTab != null
                     && groupTitle.getTabGroupId().equals(selectedTab.getTabGroupId())) {
-                int nextIndex = getNearbyExpandedTabIndex(groupedTabs);
-                if (nextIndex != TabModel.INVALID_TAB_INDEX && mModel != null) {
-                    TabModelUtils.setIndex(mModel, nextIndex);
-                } else if (mTabCreator != null) {
+                List<Tab> excludedTabs = mModel.getRelatedTabList(selectedTab.getId());
+                Tab nextTab =
+                        NextTabSelectionUtil.findNearbyNotClosingTab(
+                                mModel, mModel.indexOf(selectedTab), excludedTabs);
+
+                boolean tabSelected = false;
+                if (nextTab != null) {
+                    Token nextGroupId = nextTab.getTabGroupId();
+                    if (nextGroupId == null || !mModel.getTabGroupCollapsed(nextGroupId)) {
+                        TabModelUtils.setIndex(mModel, mModel.indexOf(nextTab));
+                        tabSelected = true;
+                    }
+                }
+
+                if (!tabSelected && mTabCreator != null) {
                     TabCreatorUtil.launchNtp(mTabCreator);
                 }
             }
@@ -4139,85 +4157,26 @@ public class StripLayoutHelper
     }
 
     @Override
-    public int getNextIndexAfterClose(Collection<StripLayoutTab> closingTabs) {
-        // Intentionally kept separate from #getNearbyNotClosingTabIndex, to have more specific
-        // javadocs for each method.
-        return getNearbyTabIndex(getAllTabsListForAutoSelect(), closingTabs);
-    }
-
-    /**
-     * Returns a list of all tabs to be used for auto-select on close or tab group collapse.
-     * Prioritizes tabs in a certain direction based on {@link
-     * ChromeFeatureList#TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE}.
-     */
-    private List<StripLayoutTab> getAllTabsListForAutoSelect() {
-        // Have to create a copy of the list, so that the reverse doesn't affect the original array.
-        List<StripLayoutTab> allTabs = new ArrayList<>(Arrays.asList(mStripTabs));
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)) {
-            // If the flag is enabled, reverse the order of tabs to prefer picking a nearby tab
-            // after (as opposed to before) the excluded tabs.
-            Collections.reverse(allTabs);
+    public int getNextIndexAfterClose(Collection<StripLayoutTab> closingStripTabs) {
+        if (mModel == null || closingStripTabs == null || closingStripTabs.isEmpty()) {
+            return TabModel.INVALID_TAB_INDEX;
         }
-        return allTabs;
-    }
 
-    /**
-     * Wrapper for {@link #getNearbyTabIndex(Collection, Collection, boolean)}. Prioritizes expanded
-     * tabs, if possible.
-     */
-    private int getNearbyTabIndex(
-            Collection<StripLayoutTab> allTabs, Collection<StripLayoutTab> excludedTabs) {
-        int nearbyIndex = getNearbyTabIndex(allTabs, excludedTabs, /* ignoreCollapsedTabs= */ true);
-        if (nearbyIndex != TabModel.INVALID_TAB_INDEX) return nearbyIndex;
-        return getNearbyTabIndex(allTabs, excludedTabs, /* ignoreCollapsedTabs= */ false);
-    }
-
-    /**
-     * Returns The index of a tab nearest to the excluded tabs. Can include or ignore collapsed
-     * tabs. Prioritizes tabs before the {@code excludedTabs} in {@code allTabs}, though the
-     * ordering of {@param allTabs} does not necessarily reflect that of the {@link TabModel}.
-     *
-     * @param allTabs All of the {@link StripLayoutTab}s. Ordered to either prefer picking tabs
-     *     before or after the excluded tabs, in the {@link TabModel}.
-     * @param excludedTabs The excluded {@link StripLayoutTab}s.
-     * @param ignoreCollapsedTabs Whether we should include collapsed tabs or not.
-     */
-    private int getNearbyTabIndex(
-            Collection<StripLayoutTab> allTabs,
-            Collection<StripLayoutTab> excludedTabs,
-            boolean ignoreCollapsedTabs) {
-        StripLayoutTab nearbyTab = null;
-        boolean seenExcludedTab = false;
-        for (StripLayoutTab tab : allTabs) {
-            // 1. If we encounter an excluded tab and already have a nearby tab, return its index.
-            if (excludedTabs.contains(tab)) {
-                if (nearbyTab != null) return findIndexForTab(nearbyTab.getTabId());
-                seenExcludedTab = true;
-                continue;
-            }
-            // 2. Potentially ignore collapsed tabs.
-            if (tab.isCollapsed() && ignoreCollapsedTabs) continue;
-            // 3. Process the current tab as a candidate nearby tab.
-            if (seenExcludedTab) {
-                // If we didn't return a tab when we saw the first closing tab, it means there's
-                // none before the excluded tabs. Return the closest tab after them instead.
-                return findIndexForTab(tab.getTabId());
-            } else {
-                nearbyTab = tab;
+        List<Tab> closingTabs = new ArrayList<>(closingStripTabs.size());
+        for (StripLayoutTab stripTab : closingStripTabs) {
+            Tab tab = getTabById(stripTab.getTabId());
+            if (tab != null) {
+                closingTabs.add(tab);
             }
         }
-        return TabModel.INVALID_TAB_INDEX;
-    }
+        if (closingTabs.isEmpty()) {
+            return TabModel.INVALID_TAB_INDEX;
+        }
 
-    /**
-     * Wrapper for {@link #getNearbyTabIndex(Collection, Collection, boolean)} that ignores
-     * collapsed tabs.
-     *
-     * @see #getAllTabsListForAutoSelect to see the direction tabs are prioritized.
-     */
-    private int getNearbyExpandedTabIndex(Collection<StripLayoutTab> excludedTabs) {
-        return getNearbyTabIndex(
-                getAllTabsListForAutoSelect(), excludedTabs, /* ignoreCollapsedTabs= */ true);
+        Tab nextTab =
+                NextTabSelectionUtil.getNextTabIfClosed(
+                        mModel, /* modelDelegate= */ null, closingTabs, /* uponExit= */ false);
+        return nextTab != null ? mModel.indexOf(nextTab) : TabModel.INVALID_TAB_INDEX;
     }
 
     /**
@@ -5953,6 +5912,7 @@ public class StripLayoutHelper
     public void stopReorderMode(boolean isDragCancelled) {
         if (mReorderDelegate.getInReorderMode()) {
             mReorderDelegate.stopReorderMode(mStripViews, mStripGroupTitles, isDragCancelled);
+            updateTouchableRect();
         }
     }
 

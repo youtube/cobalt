@@ -72,6 +72,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/fetch/fetch_request_data.h"
 #include "third_party/blink/renderer/core/fetch/global_fetch.h"
 #include "third_party/blink/renderer/core/frame/reporting_context.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -814,6 +815,8 @@ void ServiceWorkerGlobalScope::Trace(Visitor* visitor) const {
   visitor->Trace(controller_receivers_);
   visitor->Trace(remote_associated_interfaces_);
   visitor->Trace(associated_interfaces_receiver_);
+  visitor->Trace(active_fetch_respond_with_observers_);
+  visitor->Trace(race_network_requests_);
   WorkerGlobalScope::Trace(visitor);
 }
 
@@ -821,6 +824,38 @@ bool ServiceWorkerGlobalScope::HasRelatedFetchEvent(
     const KURL& request_url) const {
   auto it = unresponded_fetch_event_counts_.find(request_url);
   return it != unresponded_fetch_event_counts_.end();
+}
+
+void ServiceWorkerGlobalScope::MaybeRecordFetchError(
+    int net_error_code,
+    const FetchRequestData* request_data) {
+  DCHECK(IsContextThread());
+  if (request_data && request_data->ServiceWorkerRaceNetworkRequestToken()) {
+    base::UnguessableToken token =
+        request_data->ServiceWorkerRaceNetworkRequestToken();
+    for (const auto& entry : active_fetch_respond_with_observers_) {
+      if (entry.value->race_network_request_token() &&
+          *entry.value->race_network_request_token() == token) {
+        entry.value->OnRaceFetchError(net_error_code);
+        return;
+      }
+    }
+    base::UmaHistogramSparse(
+        "ServiceWorker.FetchInFetchHandler.PostRespondWithRaceFetchNetError",
+        -net_error_code);
+    return;
+  }
+  if (active_fetch_respond_with_observers_.empty()) {
+    return;
+  }
+  if (request_data) {
+    for (const auto& entry : active_fetch_respond_with_observers_) {
+      if (entry.value->request_url() == request_data->Url()) {
+        entry.value->OnRegularFetchError(net_error_code);
+        return;
+      }
+    }
+  }
 }
 
 bool ServiceWorkerGlobalScope::HasRangeFetchEvent(
@@ -1013,7 +1048,8 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse(
     bool range_request,
     std::optional<network::DataElementChunkedDataPipe> request_body,
     base::TimeTicks event_dispatch_time,
-    base::TimeTicks respond_with_settled_time) {
+    base::TimeTicks respond_with_settled_time,
+    mojom::blink::ServiceWorkerFetchHandlerErrorsPtr errors) {
   DCHECK(IsContextThread());
   TRACE_EVENT("ServiceWorker",
               "ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse",
@@ -1036,7 +1072,8 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithNoResponse(
     pending_streaming_upload_fetch_events_.insert(fetch_event_id, fetch_event);
   }
 
-  response_callback->OnFallback(std::move(request_body), std::move(timing));
+  response_callback->OnFallback(std::move(request_body), std::move(timing),
+                                std::move(errors));
 }
 void ServiceWorkerGlobalScope::OnStreamingUploadCompletion(int fetch_event_id) {
   pending_streaming_upload_fetch_events_.erase(fetch_event_id);
@@ -1048,7 +1085,8 @@ void ServiceWorkerGlobalScope::RespondToFetchEvent(
     bool range_request,
     mojom::blink::FetchAPIResponsePtr response,
     base::TimeTicks event_dispatch_time,
-    base::TimeTicks respond_with_settled_time) {
+    base::TimeTicks respond_with_settled_time,
+    mojom::blink::ServiceWorkerFetchHandlerErrorsPtr errors) {
   DCHECK(IsContextThread());
   TRACE_EVENT("ServiceWorker", "ServiceWorkerGlobalScope::RespondToFetchEvent",
               perfetto::Flow::ProcessScoped(
@@ -1067,7 +1105,8 @@ void ServiceWorkerGlobalScope::RespondToFetchEvent(
 
   NoteRespondedToFetchEvent(request_url, range_request);
 
-  response_callback->OnResponse(std::move(response), std::move(timing));
+  response_callback->OnResponse(std::move(response), std::move(timing),
+                                std::move(errors));
 }
 
 void ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream(
@@ -1077,7 +1116,8 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream(
     mojom::blink::FetchAPIResponsePtr response,
     mojom::blink::ServiceWorkerStreamHandlePtr body_as_stream,
     base::TimeTicks event_dispatch_time,
-    base::TimeTicks respond_with_settled_time) {
+    base::TimeTicks respond_with_settled_time,
+    mojom::blink::ServiceWorkerFetchHandlerErrorsPtr errors) {
   DCHECK(IsContextThread());
   TRACE_EVENT("ServiceWorker",
               "ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream",
@@ -1096,8 +1136,9 @@ void ServiceWorkerGlobalScope::RespondToFetchEventWithResponseStream(
 
   NoteRespondedToFetchEvent(request_url, range_request);
 
-  response_callback->OnResponseStream(
-      std::move(response), std::move(body_as_stream), std::move(timing));
+  response_callback->OnResponseStream(std::move(response),
+                                      std::move(body_as_stream),
+                                      std::move(timing), std::move(errors));
 }
 
 void ServiceWorkerGlobalScope::DidHandleFetchEvent(
@@ -1110,6 +1151,8 @@ void ServiceWorkerGlobalScope::DidHandleFetchEvent(
               perfetto::TerminatingFlow::ProcessScoped(
                   event_id, kServiceWorkerGlobalScopeTraceScope),
               "status", MojoEnumToString(status));
+
+  active_fetch_respond_with_observers_.erase(event_id);
 
   // Delete the URLLoaderFactory for the RaceNetworkRequest if it's not used.
   RemoveItemFromRaceNetworkRequests(event_id);
@@ -1505,6 +1548,7 @@ void ServiceWorkerGlobalScope::AbortCallbackForFetchEvent(
     response_callback_iter->value->TakeValue().reset();
     fetch_response_callbacks_.erase(response_callback_iter);
   }
+  active_fetch_respond_with_observers_.erase(event_id);
   RemoveItemFromRaceNetworkRequests(event_id);
 
   // Run the event callback with the error code.
@@ -1544,6 +1588,7 @@ void ServiceWorkerGlobalScope::StartFetchEvent(
   auto* respond_with_observer = MakeGarbageCollected<FetchRespondWithObserver>(
       this, event_id, std::move(corp_checker), *params->request,
       wait_until_observer);
+  active_fetch_respond_with_observers_.Set(event_id, respond_with_observer);
   FetchEventInit* event_init = FetchEventInit::Create();
   event_init->setCancelable(true);
   // Note on how clientId / resultingClientID are set:
@@ -2779,16 +2824,45 @@ bool ServiceWorkerGlobalScope::SetAttributeEventListener(
   return WorkerGlobalScope::SetAttributeEventListener(event_type, listener);
 }
 
+ServiceWorkerGlobalScope::RaceNetworkRequestInfo::RaceNetworkRequestInfo(
+    ExecutionContext* execution_context,
+    int fetch_event_id,
+    mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>
+        url_loader_factory,
+    bool fallback_on_disconnect_enabled)
+    : fetch_event_id_(fetch_event_id),
+      url_loader_factory_remote_(execution_context) {
+  if (fallback_on_disconnect_enabled) {
+    url_loader_factory_remote_.Bind(
+        std::move(url_loader_factory),
+        execution_context->GetTaskRunner(TaskType::kNetworking));
+  } else {
+    pending_url_loader_factory_ = std::move(url_loader_factory);
+  }
+}
+
 std::optional<mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>>
 ServiceWorkerGlobalScope::FindRaceNetworkRequestURLLoaderFactory(
     const base::UnguessableToken& token) {
-  if (RaceNetworkRequestInfo result =
-          race_network_requests_.Take(String(token.ToString()));
-      result.IsValid()) {
-    fetch_event_ids_to_token_map_.erase(result.fetch_event_id);
-    return std::move(result.url_loader_factory);
+  const String token_key = String(token.ToString());
+  Member<RaceNetworkRequestInfo> info = race_network_requests_.Take(token_key);
+  if (info) {
+    fetch_event_ids_to_token_map_.erase(info->fetch_event_id());
+    if (info->IsValid()) {
+      return info->TakePendingRemote();
+    }
   }
   return std::nullopt;
+}
+
+void ServiceWorkerGlobalScope::InsertNewItemToRaceNetworkRequestsForTesting(
+    int fetch_event_id,
+    const base::UnguessableToken& token,
+    mojo::PendingRemote<network::mojom::blink::URLLoaderFactory>
+        url_loader_factory,
+    const KURL& request_url) {
+  InsertNewItemToRaceNetworkRequests(
+      fetch_event_id, token, std::move(url_loader_factory), request_url);
 }
 
 void ServiceWorkerGlobalScope::InsertNewItemToRaceNetworkRequests(
@@ -2798,11 +2872,18 @@ void ServiceWorkerGlobalScope::InsertNewItemToRaceNetworkRequests(
         url_loader_factory,
     const KURL& request_url) {
   auto race_network_request_token = String(token.ToString());
-  RaceNetworkRequestInfo info{
-      .fetch_event_id = fetch_event_id,
-      .url_loader_factory = std::move(url_loader_factory)};
-  auto insert_result = race_network_requests_.insert(race_network_request_token,
-                                                     std::move(info));
+  const bool fallback_on_disconnect_enabled = base::FeatureList::IsEnabled(
+      features::kServiceWorkerRaceNetworkRequestFallbackOnDisconnect);
+  auto* info = MakeGarbageCollected<RaceNetworkRequestInfo>(
+      this, fetch_event_id, std::move(url_loader_factory),
+      fallback_on_disconnect_enabled);
+  if (fallback_on_disconnect_enabled) {
+    info->remote().set_disconnect_handler(blink::BindOnce(
+        &ServiceWorkerGlobalScope::OnRaceNetworkRequestDisconnected,
+        WrapWeakPersistent(this), token));
+  }
+  auto insert_result =
+      race_network_requests_.insert(race_network_request_token, info);
   CHECK(insert_result.is_new_entry) << "Collided UnguessableToken";
   fetch_event_ids_to_token_map_.insert(fetch_event_id,
                                        std::move(race_network_request_token));
@@ -2814,6 +2895,15 @@ void ServiceWorkerGlobalScope::RemoveItemFromRaceNetworkRequests(
           fetch_event_ids_to_token_map_.Take(fetch_event_id);
       !token_to_remove.empty()) {
     race_network_requests_.erase(token_to_remove);
+  }
+}
+
+void ServiceWorkerGlobalScope::OnRaceNetworkRequestDisconnected(
+    const base::UnguessableToken& token) {
+  const String token_key = String(token.ToString());
+  if (Member<RaceNetworkRequestInfo> info =
+          race_network_requests_.Take(token_key)) {
+    fetch_event_ids_to_token_map_.erase(info->fetch_event_id());
   }
 }
 

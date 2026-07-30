@@ -19,6 +19,7 @@
 
 namespace autofill {
 
+using ::testing::IsEmpty;
 using ::testing::NiceMock;
 
 class AutofillDialogControllerImplTest
@@ -48,11 +49,32 @@ class AutofillDialogControllerImplTest
 // Test that the dialog is shown.
 TEST_F(AutofillDialogControllerImplTest, ShowDialog) {
   EXPECT_CALL(*mock_view_ptr_, Show());
+  EXPECT_CALL(*mock_view_ptr_, ShowLoadingDialog()).Times(0);
   controller_->Show(u"Title", u"Description", u"Button", base::DoNothing());
 
   EXPECT_EQ(u"Title", controller_->GetTitleText());
   EXPECT_EQ(u"Description", controller_->GetDescriptionText());
   EXPECT_EQ(u"Button", controller_->GetButtonText());
+}
+
+// Test that the loading dialog is shown.
+TEST_F(AutofillDialogControllerImplTest, ShowLoadingDialog) {
+  EXPECT_CALL(*mock_view_ptr_, Show()).Times(0);
+  EXPECT_CALL(*mock_view_ptr_, ShowLoadingDialog());
+  controller_->ShowLoadingDialog(u"Title");
+
+  EXPECT_EQ(u"Title", controller_->GetTitleText());
+  EXPECT_THAT(controller_->GetDescriptionText(), IsEmpty());
+  EXPECT_THAT(controller_->GetButtonText(), IsEmpty());
+}
+
+// Test that `Dismiss` hides the dialog view
+TEST_F(AutofillDialogControllerImplTest, Dismiss) {
+  EXPECT_CALL(*mock_view_ptr_, Show()).Times(0);
+  EXPECT_CALL(*mock_view_ptr_, ShowLoadingDialog());
+  EXPECT_CALL(*mock_view_ptr_, Dismiss());
+  controller_->ShowLoadingDialog(u"Title");
+  controller_->Dismiss();
 }
 
 // Test that only one dialog is shown at a time.

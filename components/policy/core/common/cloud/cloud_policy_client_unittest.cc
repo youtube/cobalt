@@ -499,6 +499,8 @@ class CloudPolicyClientTest : public testing::Test {
 #if BUILDFLAG(IS_CHROMEOS)
     fake_statistics_provider_.SetMachineStatistic(ash::system::kSerialNumberKey,
                                                   "fake_serial_number");
+    fake_statistics_provider_.SetLoadingState(
+        ash::system::StatisticsProvider::LoadingState::kFinished);
 #endif
 
     CreateClient();
@@ -3665,9 +3667,7 @@ INSTANTIATE_TEST_SUITE_P(,
                          ::testing::Values(std::string(), kDeviceDMToken));
 
 #if BUILDFLAG(IS_ANDROID)
-// Constantly failing on android-automotive-12l-x64-rel-tests.
-// crbug.com/528019503
-TEST_F(CloudPolicyClientTest, DISABLED_PolicyFetchDesktopAndroid) {
+TEST_F(CloudPolicyClientTest, PolicyFetchDesktopAndroid) {
   base::android::device_info::set_is_desktop_for_testing(true);
   policy_type_ = dm_protocol::GetChromeUserPolicyType();
   CreateClient();
@@ -3697,9 +3697,7 @@ TEST_F(CloudPolicyClientTest, DISABLED_PolicyFetchDesktopAndroid) {
   base::android::device_info::reset_is_desktop_for_testing();
 }
 
-// Constantly failing on android-automotive-12l-x64-rel-tests.
-// crbug.com/528019503
-TEST_F(CloudPolicyClientTest, DISABLED_RegistrationDesktopAndroid) {
+TEST_F(CloudPolicyClientTest, RegistrationDesktopAndroid) {
   base::android::device_info::set_is_desktop_for_testing(true);
   policy_type_ = dm_protocol::GetChromeUserPolicyType();
   CreateClient();

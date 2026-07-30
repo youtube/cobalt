@@ -452,7 +452,7 @@ BASE_FEATURE(kFedCmLightweightMode, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFedCmMetricsEndpoint, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables FedCM to support login request initiated by the embedder.
-BASE_FEATURE(kFedCmEmbedderInitiatedLogin, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmEmbedderInitiatedLogin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Nonce usage in Params
 BASE_FEATURE(kFedCmNonceInParams, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -529,12 +529,12 @@ BASE_FEATURE(kIdbSqliteOnDiskRollout, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether we ignore duplicate navigations or not, in favor of
 // preserving the already ongoing navigation.
-BASE_FEATURE(kIgnoreDuplicateNavs, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIgnoreDuplicateNavs, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kDuplicateNavThreshold,
                    &kIgnoreDuplicateNavs,
                    "duplicate_nav_threshold",
-                   base::Milliseconds(2000));
+                   base::Milliseconds(3000));
 BASE_FEATURE_PARAM(bool,
                    kSkipIgnoreBrowserInitiatedNavs,
                    &kIgnoreDuplicateNavs,
@@ -661,6 +661,10 @@ BASE_FEATURE(kIsolateFencedFrames, base::FEATURE_DISABLED_BY_DEFAULT);
 // kIsolateOriginsFieldTrialParamName.
 BASE_FEATURE(kIsolateOrigins, base::FEATURE_DISABLED_BY_DEFAULT);
 const char kIsolateOriginsFieldTrialParamName[] = "OriginsList";
+
+// Enables process isolation for subframe error pages. See
+// https://crbug.com/40134629.
+BASE_FEATURE(kIsolateSubframeErrorPages, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Enables the ability to specification a renderer that does not use Java.
@@ -838,6 +842,11 @@ BASE_FEATURE(kProcessSelectionDeferringConditions,
 // OriginAgentClusterDefaultEnable is enabled, since origin-keyed processes
 // require origin-agent-clusters.
 BASE_FEATURE(kOriginKeyedProcessesByDefault, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, ads will not be eligible for origin-keyed processes by default.
+// Ads can still opt into origin-keyed processes by using the
+// Origin-Agent-Cluster: ?1 header.
+BASE_FEATURE(kExcludeAdsFromOriginIsolation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Fires the `pushsubscriptionchange` event defined here:
 // https://w3c.github.io/push-api/#the-pushsubscriptionchange-event

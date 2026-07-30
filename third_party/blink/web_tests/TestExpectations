@@ -68,6 +68,9 @@ crbug.com/475504307 [ Mac ] html/details_summary/details-replace-text.html [ Fai
 
 crbug.com/457388389 http/tests/devtools/sources/debugger-pause/set-return-value.js [ Failure Pass Timeout ]
 
+# Disabled to land https://crrev.com/c/8117529
+crbug.com/407751377 http/tests/devtools/a11y-axe-core/settings/locations-a11y-test.js [ Failure Pass Timeout ]
+
 # Reftest failure related to off-main-thread interaction (imperceptible AA differences)
 crbug.com/395909730 virtual/off-main-thread-css-paint/http/tests/csspaint/paint2d-zoom.html [ Failure ]  # Reftest image failure
 crbug.com/395909730 virtual/off-main-thread-css-paint/http/tests/csspaint/transform-with-page-zoom-003.html [ Failure ]  # Reftest image failure
@@ -129,6 +132,9 @@ crbug.com/1339285 [ Mac ] fast/loader/iframe-window-open-stealing-focus.html [ P
 
 crbug.com/1393073 [ Linux ] virtual/fenced-frame-mparch/external/wpt/fenced-frame/anchor-focus.https.html [ Failure Pass ]
 crbug.com/340949930 virtual/fenced-frame-mparch/external/wpt/fenced-frame/intersection-observer.https.html [ Failure Timeout ]
+
+# Temporarily disabling to land change in DevTools
+crbug.com/493763857 http/tests/devtools/sources/debugger/debugger-resolve-expression-line-by-line.js [ Failure Pass ]
 
 # WPT Test harness doesn't deal with finding an about:blank ref test
 crbug.com/895777 external/wpt/infrastructure/assumptions/blank.html [ Timeout ]
@@ -265,9 +271,6 @@ crbug.com/508672616 wpt_internal/html/rendering/unbounded-element/* [ Failure ]
 # Enabled virtual suite tests should pass:
 crbug.com/508672616 virtual/unbounded-element/wpt_internal/html/rendering/unbounded-element/* [ Pass ]
 
-# This is flaky on some bots - this will be fixed in a followup patch:
-crbug.com/508672616 wpt_internal/html/rendering/unbounded-element/sandboxed-iframe-appearance.html [ Failure ]
-crbug.com/508672616 virtual/unbounded-element/wpt_internal/html/rendering/unbounded-element/sandboxed-iframe-appearance.html [ Failure Pass ]
 
 # ====== END Unbounded Element tests ======
 
@@ -277,7 +280,6 @@ external/wpt/trusted-types/navigate-to-javascript-url-007-crash.html [ Crash ]
 crbug.com/1462226 wpt_internal/prerender/restriction-web-auth.https.html [ Crash Failure Pass Timeout ]
 
 crbug.com/436805487 inspector-protocol/css/css-get-navigation-queries.js [ Failure ]
-crbug.com/436805487 wpt_internal/route/route-event-001.html [ Failure ]
 crbug.com/436805487 wpt_internal/route/route-match-pseudo-003.html [ Failure ]
 
 crbug.com/1461952 [ Win10.20h2 ] external/wpt/html/browsers/browsing-the-web/back-forward-cache/eligibility/broadcast-channel.html [ Pass Timeout ]
@@ -386,8 +388,10 @@ crbug.com/457930206 [ Mac ] wpt_internal/html/canvas/drawElementImage/privacy/su
 crbug.com/457930206 [ Mac ] wpt_internal/html/canvas/drawElementImage/privacy/subframe-cross-origin-html-images.https.sub.html [ Failure Pass ]
 
 # Mac bot-specific flakiness drawing videos to canvas.
-crbug.com/525288402 [ Mac ] wpt_internal/html/canvas/smpte-st-2094-50/drawImage-from-video.html [ Failure Pass ]
 crbug.com/400841 media/video-canvas-draw.html [ Failure ]
+
+# Tests crashing due to Dawn->Vulkan->Swiftshader limitations. Dawn's R10X6BG10X6Biplanar420Unorm format is not supported.
+crbug.com/395910472 [ Mac ] wpt_internal/html/canvas/smpte-st-2094-50/drawImage-from-video.html [ Crash Failure ]
 
 
 crbug.com/433324167 external/wpt/html/canvas/element/text/2d.text.writingmode.html [ Failure ]
@@ -924,6 +928,36 @@ crbug.com/666433 external/wpt/css/css-text-decor/text-emphasis-style-property-01
 crbug.com/666433 external/wpt/css/css-text-decor/text-emphasis-style-property-020.html [ Failure ]
 crbug.com/666433 external/wpt/css/css-text-decor/text-emphasis-style-property-020a.html [ Failure ]
 
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-001.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-002.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-003.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-004.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-005.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-006.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-007.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-008.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-009.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-010.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-011.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-012.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-013.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-014.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-015.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-016.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-017.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-018.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-019.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-020.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-021.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-022.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-023.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-024.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-026.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-027.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-028.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-029.html [ Failure ]
+crbug.com/468928416 external/wpt/css/css-text-decor/text-decoration-inset-030.html [ Failure ]
+
 crbug.com/338842128 fast/table/border-collapsing/composited-cell-collapsed-border.html [ Failure ]
 crbug.com/338842128 fast/table/border-collapsing/composited-row-collapsed-border.html [ Failure ]
 
@@ -1008,29 +1042,6 @@ crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/subgrid/grid-lanes-subgri
 # Baseline subgrid failures.
 crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/alignment/column-subgrid-alignment-in-subgridded-axis-002.html [ Failure ]
 crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/alignment/row-subgrid-alignment-in-subgridded-axis-002.html [ Failure ]
-# Dense-packing alignment tests are not expected to pass yet.
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-items-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-items-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-items-multi-span-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-self-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-self-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-self-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-dense-packing-align-self-multi-span-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-items-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-items-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-items-multi-span-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-self-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-self-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-self-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-dense-packing-justify-self-multi-span-002.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-fill-reverse-dense-packing-align-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/column-track-reverse-dense-packing-align-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-fill-reverse-dense-packing-justify-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-track-reverse-dense-packing-justify-items-multi-span-001.html [ Failure ]
-crbug.com/1076027 external/wpt/css/css-grid/grid-lanes/alignment/row-track-reverse-dense-packing-justify-self-multi-span-001.html [ Failure ]
-
 
 # external/wpt/css/css-fonts/... tests triaged away from the default WPT bug ID
 crbug.com/641861 [ Mac ] external/wpt/css/css-fonts/font-family-name-025.html [ Failure Timeout ]
@@ -1275,6 +1286,8 @@ crbug.com/494341468 external/wpt/quirks/tables-inherit-color-from-body-quirk-003
 crbug.com/494341468 external/wpt/quirks/tables-inherit-color-from-body-quirk-004.html [ Failure ]
 crbug.com/494341468 external/wpt/quirks/tables-inherit-color-from-body-quirk-005.html [ Failure ]
 
+crbug.com/537801217 external/wpt/css/selectors/active-observable.html [ Failure Pass Timeout ]
+
 # ====== Style team owned tests to here ======
 
 crbug.com/384523570 fast/animation/scroll-animations/scroll-timeline-snapshotting.html [ Failure ]
@@ -1413,6 +1426,7 @@ crbug.com/1223214 external/wpt/html/rendering/non-replaced-elements/the-fieldset
 crbug.com/1223214 external/wpt/html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/legend-tall.html [ Failure ]
 crbug.com/1172023 external/wpt/html/rendering/non-replaced-elements/tables/table-border-3s.html [ Failure ]
 crbug.com/1172023 external/wpt/html/rendering/non-replaced-elements/tables/table-border-3q.html [ Failure ]
+crbug.com/40745409 external/wpt/html/rendering/non-replaced-elements/tables/table-border-color-not-inherited.html [ Failure ]
 crbug.com/707210 external/wpt/html/rendering/non-replaced-elements/the-page/body-margin-1i.html [ Failure ]
 crbug.com/707210 external/wpt/html/rendering/non-replaced-elements/the-page/body-margin-1j.html [ Failure ]
 crbug.com/707210 external/wpt/html/rendering/non-replaced-elements/the-page/body-margin-1k.html [ Failure ]
@@ -1768,11 +1782,6 @@ crbug.com/1298321 [ Win11-arm64 ] virtual/scalefactor200/fast/hidpi/static/data-
 crbug.com/40215845 fast/forms/select-popup/popup-menu-appearance-coarse.html [ Failure Pass Timeout ]
 crbug.com/40215845 fast/forms/select-popup/popup-menu-position.html [ Failure Pass Timeout ]
 crbug.com/40215845 http/tests/webfont/popup-menu-load-webfont-after-open.html [ Failure Pass Timeout ]
-crbug.com/40215845 crbug.com/1047176 fast/forms/suggestion-picker/date-suggestion-picker-mouse-operations.html [ Failure Pass Timeout ]
-crbug.com/40215845 crbug.com/1047176 fast/forms/suggestion-picker/week-suggestion-picker-mouse-operations.html [ Failure Pass Timeout ]
-crbug.com/40215845 crbug.com/1047176 fast/forms/suggestion-picker/month-suggestion-picker-mouse-operations.html [ Failure Pass Timeout ]
-crbug.com/40215845 crbug.com/1047176 fast/forms/suggestion-picker/time-suggestion-picker-mouse-operations.html [ Failure Pass Timeout ]
-crbug.com/40215845 crbug.com/1047176 fast/forms/suggestion-picker/datetimelocal-suggestion-picker-mouse-operations.html [ Failure Pass Timeout ]
 crbug.com/40215845 [ Mac ] fast/forms/color-scheme/select/select-appearance-after-closing-popup.html [ Failure Pass Timeout ]
 crbug.com/40215845 fast/forms/color-scheme/select/select-popup-appearance-basic.html [ Failure Pass Timeout ]
 crbug.com/40215845 [ Mac ] fast/forms/select/menulist-popup-type-ahead-style-change.html [ Failure Pass Timeout ]
@@ -2042,6 +2051,10 @@ crbug.com/1024156 external/wpt/css/css-pseudo/active-selection-027.html [ Failur
 
 crbug.com/354751900 external/wpt/css/css-values/viewport-units-scrollbars-auto-vhw-001.html [ Failure ]
 
+# Fails because expected value in some cases is based on randomized values,
+# and failure output will rely on those randomized values.
+crbug.com/537461414 external/wpt/css/css-values/random-item-computed.html [ Failure ]
+
 crbug.com/27659 external/wpt/css/css-ruby/block-ruby-001.html [ Failure ]
 crbug.com/27659 external/wpt/css/css-ruby/empty-ruby-base-container.html [ Failure ]
 crbug.com/27659 external/wpt/css/css-ruby/improperly-contained-annotation-001.html [ Failure ]
@@ -2188,7 +2201,6 @@ crbug.com/501115605 [ Mac15-arm64 ] virtual/webnn-service-with-gpu/external/wpt/
 crbug.com/501115605 [ Mac15 ] virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/expand.https.any.html?gpu [ Failure ]  # Flaky output
 crbug.com/501115605 [ Mac15 ] virtual/webnn-service-on-npu/external/wpt/webnn/conformance_tests/expand.https.any.html?npu [ Failure ]  # Flaky output
 crbug.com/530645748 [ Mac15 ] virtual/webnn-service-on-npu/external/wpt/webnn/conformance_tests/l2Pool2d.https.any.html?npu [ Failure ]  # Flaky output
-crbug.com/528392124 virtual/webnn-service-with-gpu/external/wpt/webnn/conformance_tests/lstm_cell.https.any.html?gpu [ Failure Pass ]
 
 # `wdspec` tests
 external/wpt/webdriver/tests/classic/element_send_keys/interactability.py [ Failure ]  # Flaky output
@@ -2231,116 +2243,13 @@ crbug.com/377833124 external/wpt/webdriver/tests/bidi/browsing_context/navigate/
 crbug.com/1316344 virtual/threaded/external/wpt/requestidlecallback/deadline-max-timeout-dynamic.html [ Failure ]
 crbug.com/1329296 virtual/threaded/external/wpt/requestidlecallback/deadline-max-rAF-dynamic.html [ Failure Pass ]
 
-# *webaudio/* crashes observed on arm64 with debug builds.
-crbug.com/40268415 [ Debug Mac13-arm64 ] webaudio/AudioParam/worklet-warnings.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] webaudio/AudioParam/worklet-warnings.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] webaudio/AudioParam/worklet-warnings.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] webaudio/AudioParam/worklet-warnings.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] webaudio/AudioWorkletProcessor/invalid-audioworkletprocessor-constructor.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] webaudio/AudioWorkletProcessor/invalid-audioworkletprocessor-constructor.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] webaudio/AudioWorkletProcessor/invalid-audioworkletprocessor-constructor.html [ Crash ]
+# AudioWorklet GC test is flaky.
 crbug.com/40268415 [ Mac13 ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
 crbug.com/40268415 [ Debug Mac13-arm64 ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
 crbug.com/40268415 [ Mac14-arm64 ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
 crbug.com/40268415 [ Debug Win11-arm64 ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
 crbug.com/40268415 [ Mac13-arm64 Release ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
 crbug.com/40268415 [ Release Win11-arm64 ] webaudio/internals/audioworkletprocessor-gc.https.html [ Failure Pass ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/idlharness.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/idlharness.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/idlharness.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/idlharness.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam-size.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam-size.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam-size.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam-size.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-denormals.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-denormals.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-denormals.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-denormals.https.window.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-throw-onmessage.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-throw-onmessage.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-throw-onmessage.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-throw-onmessage.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletglobalscope-timing-info.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-automatic-pull.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-onerror.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-output-channel-count.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-param-getter-overridden.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-param-getter-overridden.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-param-getter-overridden.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-param-getter-overridden.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-zero-outputs.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-promises.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/process-parameters.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-channelmergernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/cors-check.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac13-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac14-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https.html [ Crash ]
-crbug.com/40268415 [ Debug Mac15-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https.html [ Crash ]
-crbug.com/40268415 [ Debug Win11-arm64 ] external/wpt/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/no-cors.https.html [ Crash ]
 
 # Test Expectations for Chrome Android/WebView
 # Incompatible with both Chrome Android and Webview
@@ -2484,6 +2393,7 @@ crbug.com/395962971 [ Android ] external/wpt/webdriver/tests/bidi/input/perform_
 crbug.com/395962971 [ Android ] external/wpt/webdriver/tests/bidi/input/perform_actions/pointer_touch.py [ Skip Timeout ]
 
 # Fails on Android-mobile, but passes on Android-desktop.
+[ Android ] external/wpt/audio-output/idlharness.https.window.html [ Failure Pass ]
 [ Android ] external/wpt/visual-viewport/scroll-event-order.html [ Failure Pass ]
 
 # Fails on Android-desktop, but passes on Android-mobile.
@@ -2546,6 +2456,28 @@ crbug.com/383880384 [ Win ] external/wpt/css/css-properties-values-api/registere
 
 # Inheritance of zoom on non-inherited properties
 crbug.com/420443621 external/wpt/css/css-viewport/zoom/text-decoration-thickness.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/background-size.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/block-step-size.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/border-image-outset.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/box-shadow-inset-spread.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/column-rule-width-keywords.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/filters-blur.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/outline-offset.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/perspective.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/row-gap.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-circle.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-ellipse.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-inset.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-polygon.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-rect.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/shape-outside-xywh.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/tab-size.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/transform-matrix-2d.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/transform-matrix-3d.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/transform-perspective.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/transform-translate.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/translate.html [ Failure ]
+crbug.com/420443621 external/wpt/css/css-viewport/zoom/vertical-align.html [ Failure ]
 
 crbug.com/424798906 external/wpt/pointerevents/pointerevent_element_haspointercapture.html?touch [ Failure ]
 
@@ -2797,8 +2729,9 @@ crbug.com/536952792 external/wpt/html/semantics/scripting-1/the-script-element/m
 crbug.com/536952792 external/wpt/html/semantics/scripting-1/the-script-element/module/dynamic-import/shared-dependency-repeated-import.html [ Failure ]
 
 # ====== New tests from wpt-importer added here ======
-crbug.com/536952790 external/wpt/css/css-borders/corner-shape/corner-shape-scoop.html [ Failure ]
-crbug.com/536952790 external/wpt/css/css-borders/corner-shape/corner-shape-superellipse-scoop.html [ Failure ]
+crbug.com/538228192 external/wpt/fetch/compression-dictionary/compressed-large-resources-002.tentative.https.html [ Skip Timeout ]
+crbug.com/538228192 virtual/produce-compile-hints/external/wpt/fetch/compression-dictionary/compressed-large-resources-002.tentative.https.html [ Skip Timeout ]
+crbug.com/537776442 virtual/disable-css-line-clamp/external/wpt/css/css-overflow/line-clamp/line-clamp-bfc.html [ Failure ]
 crbug.com/536956106 [ Win ] external/wpt/css/css-inline/text-box-trim/text-box-on-non-root-inline-box.html [ Pass Timeout ]
 crbug.com/536956106 external/wpt/css/css-inline/text-box-trim/text-box-trim-end-001.html?class=ideographic [ Failure ]
 crbug.com/536956106 external/wpt/css/css-inline/text-box-trim/text-box-trim-end-001.html?class=ideographic-ink [ Failure ]
@@ -2815,22 +2748,13 @@ crbug.com/536956106 external/wpt/css/css-inline/text-box-trim/text-box-trim-star
 crbug.com/536956106 external/wpt/css/css-inline/text-box-trim/text-box-trim-start-001.html?class=vrl,ideographic [ Failure ]
 crbug.com/536956106 external/wpt/css/css-inline/text-box-trim/text-box-trim-start-001.html?class=vrl,ideographic-ink [ Failure ]
 crbug.com/536952793 [ Mac ] external/wpt/css/css-ui/text-overflow-with-selection.html [ Failure ]
-crbug.com/536956053 [ Linux ] external/wpt/css/printing/conic-gradient-skia-crash-print.html [ Failure ]
-crbug.com/536956053 [ Win ] external/wpt/css/printing/conic-gradient-skia-crash-print.html [ Failure ]
 crbug.com/536952791 external/wpt/digital-credentials/get-opaque-origin-combinations.https.html [ Failure Pass ]
 crbug.com/536952619 [ Win ] external/wpt/dom/nodes/node-creation-realm.html [ Pass Timeout ]
 crbug.com/536937898 external/wpt/webdriver/tests/bidi/emulation/set_locale_override/locale.py [ Failure ]
 crbug.com/536952620 external/wpt/webrtc/RTCDtlsTransport-onerror.html [ Timeout ]
 crbug.com/536952620 [ Mac ] external/wpt/webrtc/RTCPeerConnection-video-element-loadedmetadata-event.html [ Timeout ]
-crbug.com/536956105 external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-header-in-subresources.tentative.https.html [ Failure Pass ]
 crbug.com/532607240 [ Win ] external/wpt/bluetooth/bidi/requestDevice/acceptAllDevices/device-with-name.https.window.html [ Pass Timeout ]
 crbug.com/532607276 external/wpt/css/css-backgrounds/background-clip-text-and-blend-mode.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-bevel.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-notch-mixed.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-notch.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-superellipse-bevel.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-superellipse-negative-100.html [ Failure ]
-crbug.com/532629409 external/wpt/css/css-borders/corner-shape/corner-shape-superellipse-negative-inf.html [ Failure ]
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-001.html?class=cap [ Failure ]
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-001.html?class=ex [ Failure ]
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-001.html?class=vlr,alphabetic [ Failure ]
@@ -2841,11 +2765,6 @@ crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inli
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-002.html?class=vlr,ex [ Failure ]
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-002.html?class=vrl,alphabetic [ Failure ]
 crbug.com/532625502 external/wpt/css/css-inline/text-box-trim/text-box-trim-inline-box-003.html [ Failure ]
-crbug.com/532625499 external/wpt/css/css-text-decor/text-decoration-inset-026.html [ Failure ]
-crbug.com/532625499 external/wpt/css/css-text-decor/text-decoration-inset-027.html [ Failure ]
-crbug.com/532625499 external/wpt/css/css-text-decor/text-decoration-inset-028.html [ Failure ]
-crbug.com/532625499 external/wpt/css/css-text-decor/text-decoration-inset-029.html [ Failure ]
-crbug.com/532625499 external/wpt/css/css-text-decor/text-decoration-inset-030.html [ Failure ]
 crbug.com/532638159 external/wpt/css/css-ui/outline-offset-inset-001.html [ Failure ]
 crbug.com/532638159 external/wpt/css/css-ui/outline-offset-inset-002.html [ Failure ]
 crbug.com/532638159 external/wpt/css/css-ui/outline-offset-inset-003.html [ Failure ]
@@ -2867,11 +2786,8 @@ crbug.com/532615208 external/wpt/webdriver/tests/bidi/browsing_context/stop_scre
 crbug.com/532629410 external/wpt/webvtt/rendering/cues-with-video/processing-model/embedded_style_multiple_tracks.html [ Timeout ]
 crbug.com/532607276 virtual/threaded/external/wpt/css/css-backgrounds/background-clip-text-and-blend-mode.html [ Failure ]
 crbug.com/532607276 [ Mac ] virtual/threaded/external/wpt/css/css-backgrounds/background-clip/clip-text-multiline-background-image.html [ Failure ]
-crbug.com/532614040 virtual/threaded/external/wpt/css/css-view-transitions/new-content-transform-change-001.html [ Failure ]
 crbug.com/532614040 virtual/threaded/external/wpt/css/css-view-transitions/pseudo-element-overflow-clip-with-border-radius.html [ Failure ]
-crbug.com/532614040 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/new-content-transform-change-001.html [ Failure ]
 crbug.com/532614040 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/pseudo-element-overflow-clip-with-border-radius.html [ Failure ]
-crbug.com/532614040 virtual/view-transition-wide-gamut/external/wpt/css/css-view-transitions/new-content-transform-change-001.html [ Failure ]
 crbug.com/532614040 virtual/view-transition-wide-gamut/external/wpt/css/css-view-transitions/pseudo-element-overflow-clip-with-border-radius.html [ Failure ]
 crbug.com/526673506 [ Win ] external/wpt/bluetooth/bidi/descriptor/readValue/read-succeeds.https.window.html [ Pass Timeout ]
 crbug.com/526681191 external/wpt/content-security-policy/xslt/xslt-strict-dynamic-blocked.html [ Timeout ]
@@ -2930,6 +2846,7 @@ crbug.com/510497811 virtual/jxl-enabled/external/wpt/jpegxl/sdr-alpha-reftest.ht
 crbug.com/508645094 [ Win ] external/wpt/css/css-transitions/idlharness-2.html [ Pass Timeout ]
 crbug.com/508631189 [ Win ] external/wpt/svg/types/scripted/SVGAnimatedEnumeration-SVGTextPathElement.html [ Pass Timeout ]
 crbug.com/508634577 external/wpt/webdriver/tests/classic/external/webauthn/add_credential/add.py [ Failure ]
+crbug.com/533056772 external/wpt/webdriver/tests/classic/external/webauthn/add_credential/invalid.py [ Failure ]
 crbug.com/508634577 external/wpt/webdriver/tests/classic/external/webauthn/add_virtual_authenticator/add.py [ Failure ]
 crbug.com/508634577 external/wpt/webdriver/tests/classic/external/webauthn/get_credentials/get.py [ Failure ]
 crbug.com/508634577 [ Android ] external/wpt/webdriver/tests/classic/external/webauthn/get_credentials/invalid.py [ Failure ]
@@ -2958,20 +2875,12 @@ crbug.com/503016332 external/wpt/webdriver/tests/classic/get_element_tag_name/us
 crbug.com/503023133 virtual/scalefactor200/external/wpt/css/filter-effects/svg-filter-gradient-interpolation.html [ Failure ]
 crbug.com/503018958 virtual/threaded/external/wpt/css/css-backgrounds/background-clip/clip-text-background-table-cell.html [ Failure ]
 crbug.com/501224236 external/wpt/css/css-masking/clip-path/clip-path-inset-round-rendering.html [ Failure ]
-crbug.com/501216032 external/wpt/css/css-overflow/overflow-clip-margin-016.html [ Failure ]
-crbug.com/501216032 external/wpt/css/css-overflow/overflow-clip-margin-017.html [ Failure ]
 crbug.com/501216032 external/wpt/css/css-overflow/overflow-clip-margin-018.html [ Failure ]
 crbug.com/501216032 external/wpt/css/css-overflow/overflow-clip-margin-019.html [ Failure ]
 crbug.com/501216032 external/wpt/css/css-overflow/overflow-clip-margin-020.html [ Failure ]
 crbug.com/501223525 [ Win ] external/wpt/shadow-dom/build-deep-detached-shadow-then-append-text.html [ Crash ]
 crbug.com/501209160 [ Mac ] external/wpt/webrtc/RTCDataChannel-GC.html [ Skip Timeout ]
 crbug.com/501209160 [ Mac ] external/wpt/webrtc/RTCRtpSender-replaceTrack.https.html [ Skip Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/dedicatedworker-connect-src.html [ Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/dedicatedworker-report-only.html [ Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/serviceworker-connect-src.https.sub.html [ Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/serviceworker-report-only.https.sub.html [ Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/sharedworker-connect-src.sub.html [ Timeout ]
-crbug.com/501216031 virtual/preload-link-rel-dataurls-disabled/external/wpt/content-security-policy/inside-worker/sharedworker-report-only.sub.html [ Timeout ]
 crbug.com/499073686 external/wpt/content-security-policy/connect-src/connect-src-text-import-blocked.sub.html [ Timeout ]
 crbug.com/499073688 external/wpt/css/css-transforms/animation/rotate-explicit-and-implicit-keyframes.html [ Failure ]
 crbug.com/499074022 external/wpt/html/rendering/the-details-element/details-content-pseudo-attr.html [ Failure ]
@@ -2985,10 +2894,6 @@ crbug.com/497404481 [ Android ] external/wpt/webdriver/tests/classic/take_screen
 crbug.com/497145619 external/wpt/credential-management/credentialscontainer-get-basics.https.html [ Timeout ]
 crbug.com/495814731 [ Mac ] external/wpt/css/css-text/letter-spacing/letter-spacing-ligatures-005.html [ Failure ]
 crbug.com/495814731 external/wpt/css/css-text/text-autospace/text-autospace-ideograph-numeric-001.html [ Failure ]
-crbug.com/494377597 external/wpt/css/css-color-adjust/rendering/dark-color-scheme/color-scheme-iframe-background-mismatch-dynamic-cross-origin.sub.html [ Failure ]
-crbug.com/494377597 external/wpt/css/css-color-adjust/rendering/dark-color-scheme/color-scheme-iframe-background-mismatch-dynamic.html [ Failure ]
-crbug.com/494377597 virtual/dark-color-scheme/external/wpt/css/css-color-adjust/rendering/dark-color-scheme/color-scheme-iframe-background-mismatch-dynamic-cross-origin.sub.html [ Failure ]
-crbug.com/494377597 virtual/dark-color-scheme/external/wpt/css/css-color-adjust/rendering/dark-color-scheme/color-scheme-iframe-background-mismatch-dynamic.html [ Failure ]
 crbug.com/494337200 external/wpt/svg/struct/reftests/use-foreignObject.html [ Failure ]
 crbug.com/494337166 external/wpt/webdriver/tests/classic/add_cookie/add.py [ Failure ]
 crbug.com/494337166 external/wpt/webdriver/tests/classic/delete_all_cookies/delete.py [ Failure ]
@@ -3200,7 +3105,6 @@ crbug.com/469460898 external/wpt/editing/run/delete.html?7001-last [ Crash Failu
 crbug.com/469467863 [ Win ] external/wpt/resource-timing/idlharness.any.html [ Pass Timeout ]
 crbug.com/467728926 [ Android ] external/wpt/webdriver/tests/bidi/emulation/set_timezone_override/contexts.py [ Failure ]
 crbug.com/467435140 [ Win ] external/wpt/html/browsers/origin/api/origin-from-messageevent.window.html [ Crash Pass ]
-crbug.com/467185802 external/wpt/css/css-anchor-position/grid-position-area-basic.html [ Failure ]
 crbug.com/467095511 [ Win ] external/wpt/css/css-text/hyphens/lang-tag-case-insensitive.html [ Failure ]
 crbug.com/467094968 [ Android ] external/wpt/webdriver/tests/bidi/script/realm_created/window_open.py [ Failure ]
 crbug.com/466401982 [ Linux ] external/wpt/css/css-fonts/matching/font-weight-search-direction.html [ Failure ]
@@ -3252,30 +3156,6 @@ crbug.com/443415636 [ Mac14 ] virtual/threaded-preload-scanner/external/wpt/html
 crbug.com/443460096 [ Mac14 ] virtual/threaded/external/wpt/css/css-backgrounds/background-origin/origin-content-box_with_size.html [ Timeout ]
 crbug.com/443445658 [ Mac14 ] virtual/trust-tokens/external/wpt/trust-tokens/end-to-end/has-trust-token-with-no-top-frame.tentative.https.html [ Timeout ]
 crbug.com/443383805 [ Mac14 ] virtual/wide-gamut/external/wpt/css/css-images/gradient/gradient-longer-hue-lch-003.html [ Timeout ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-001.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-002.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-003.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-004.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-005.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-006.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-007.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-008.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-009.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-010.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-011.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-012.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-013.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-014.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-015.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-016.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-017.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-018.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-019.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-020.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-021.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-022.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-023.html [ Failure ]
-crbug.com/443254904 external/wpt/css/css-text-decor/text-decoration-inset-024.html [ Failure ]
 crbug.com/442923335 [ Mac15 ] external/wpt/content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-star-allow.html [ Timeout ]
 crbug.com/442871004 [ Mac15 ] external/wpt/focus/focus-double-sync-calls.html [ Timeout ]
 crbug.com/442923115 [ Mac15 ] external/wpt/html/interaction/focus/processing-model/legend-focusable.html [ Timeout ]
@@ -3848,7 +3728,6 @@ crbug.com/383154220 [ Mac15 ] external/wpt/html/cross-origin-opener-policy/ifram
 crbug.com/382953502 external/wpt/webrtc/simulcast/setParameters-maxFramerate.https.html [ Skip Timeout ]
 crbug.com/382552065 [ Mac13 ] external/wpt/css/css-writing-modes/abs-pos-replaced-vrl-001.html [ Failure ]
 crbug.com/382552065 [ Mac14 ] external/wpt/css/css-writing-modes/abs-pos-replaced-vrl-001.html [ Failure ]
-crbug.com/379233932 [ Mac ] external/wpt/css/selectors/active-observable.html [ Timeout ]
 crbug.com/382547589 [ Mac13 ] external/wpt/html/cross-origin-opener-policy/iframe-popup-unsafe-none-to-unsafe-none.https.html?1-2 [ Crash ]
 crbug.com/382302593 [ Win10.20h2 ] external/wpt/mathml/presentation-markup/fractions/frac-created-dynamically-4.html [ Failure ]
 crbug.com/382302593 [ Win10.20h2 ] external/wpt/png/apng/acTL-plays-two.html [ Failure ]
@@ -4536,8 +4415,9 @@ crbug.com/1500354 external/wpt/pointerevents/pointerevent_after_target_removed_i
 ### external/wpt/speculation-rules/prerender
 crbug.com/1126305 external/wpt/speculation-rules/prerender/restrictions.https.html [ Skip Timeout ]
 # Failures for other reasons.
-crbug.com/343754418 external/wpt/speculation-rules/prerender/no-vary-search-hint-target-blank.https.html?17-17 [ Failure ]
-crbug.com/343754418 external/wpt/speculation-rules/prerender/no-vary-search-hint.https.html?17-17 [ Failure ]
+crbug.com/499027745 external/wpt/speculation-rules/prerender/no-vary-search-hint-target-blank.https.html?* [ Failure Pass ]
+crbug.com/499027745 external/wpt/speculation-rules/prerender/no-vary-search-hint.https.html?* [ Failure Pass ]
+crbug.com/499027745 external/wpt/speculation-rules/prerender/no-vary-search-target-blank.https.html?* [ Failure Pass ]
 crbug.com/383653154 external/wpt/speculation-rules/prerender/restriction-speech-synthesis.https.html [ Skip Timeout ]
 
 ### See crbug.com/891427 comment near the top of this file:
@@ -4755,7 +4635,6 @@ crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-anchor-posi
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-anchor-position/anchor-position-multicol-fixed-001.html [ Failure ]
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-anchor-position/anchor-position-multicol-nested-001.html [ Failure ]
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-anchor-position/anchor-scroll-003.html [ Failure ]
-crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-anchor-position/grid-position-area-basic.html [ Failure ]
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-break/abspos-in-clipped-overflow-print.html [ Failure ]
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-break/abspos-in-opacity-003.html [ Failure ]
 crbug.com/40267498 virtual/fragmented-oof-in-cb/external/wpt/css/css-break/box-decoration-break-clone-005.tentative.html [ Failure ]
@@ -5590,7 +5469,6 @@ crbug.com/1179461 external/wpt/webxr/depth-sensing/gpu/depth_sensing_gpu_staleVi
 crbug.com/485140575 http/tests/devtools/console/console-linkify-relative-links.js [ Failure Pass ]
 crbug.com/485140575 http/tests/devtools/sources/debugger-pause/debugger-eval-while-paused-throws.js [ Failure Pass ]
 crbug.com/485140575 http/tests/devtools/console/console-uncaught-exception-in-eval.js [ Failure Pass ]
-
 # Sheriff 2021-03-08
 crbug.com/1092462 [ Linux ] http/tests/media/media-source/mediasource-duration.html [ Failure Pass ]
 
@@ -6169,12 +6047,54 @@ crbug.com/429365670 external/wpt/css/css-break/out-of-flow-in-multicolumn-098.ht
 crbug.com/429365670 external/wpt/css/css-break/out-of-flow-in-multicolumn-109.html [ Failure ]
 crbug.com/429365670 external/wpt/css/css-multicol/multicol-nested-column-rule-002.html [ Failure ]
 
-# Fragmentation bug with a column flex.
-crbug.com/532828232 external/wpt/css/css-gaps/flex/fragmentation/flex-gap-decorations-fragmentation-027.html [ Failure ]
 crbug.com/445971864 external/wpt/css/css-gaps/multicol/multicol-gap-decorations-007.html [ Failure ]
 
-# Grid-lanes gap decorations are not implemented.
-crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/* [ Failure ]
+# Grid-lanes gap decorations have partial grid-axis support.
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-002.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-003.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-004.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-005.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-006.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-007.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-008.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-009.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-010.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-011.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-012.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-013.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-014.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-015.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-016.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-017.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-018.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-019.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-020.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-021.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-022.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-023.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-024.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-025.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-026.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-027.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-028.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/column-gap-decorations-029.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-002.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-003.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-004.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-005.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-006.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-007.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-008.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-009.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-010.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-011.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-012.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-013.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-014.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-015.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-016.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-017.html [ Failure ]
+crbug.com/343257585 external/wpt/css/css-gaps/grid-lanes/row-gap-decorations-018.html [ Failure ]
 
 ### End of tests failing with CSSGapDecorations Enabled
 
@@ -6320,7 +6240,6 @@ crbug.com/1349576 [ Debug Linux ] external/wpt/pointerevents/pointerevent_mouse_
 # unskip print ref tests
 crbug.com/1090628 external/wpt/css/css-break/float-with-large-margin-bottom-cross-page-001-print.html [ Failure ]
 crbug.com/1487479 external/wpt/css/css-page/remote-origin-iframe-print.html [ Failure ]
-crbug.com/1090628 external/wpt/css/printing/fragmented-inline-block-002-print.html [ Failure ]
 crbug.com/1090628 external/wpt/html/browsers/windows/iframe-cross-origin-print.sub.html [ Failure ]
 crbug.com/1090628 external/wpt/html/browsers/windows/iframe-cross-origin-scaled-print.sub.html [ Failure ]
 crbug.com/1090628 external/wpt/infrastructure/reftest/reftest_match_fail-print.html [ Failure ]
@@ -9207,8 +9126,7 @@ crbug.com/448800278 [ Mac ] external/wpt/notifications/registration-association.
 crbug.com/40250618 [ Mac ] external/wpt/html/cross-origin-opener-policy/reporting/access-reporting/access-from-coop-page-to-opener_coop-ro_cross-origin.https.html [ Failure Pass ]
 
 # Gardener 2026-01-08
-crbug.com/474158153 [ Linux ] external/wpt/xml/xslt/large-cdata.html [ Crash Failure Pass ]
-crbug.com/474155097 [ Linux ] virtual/xslt-disabled/external/wpt/xml/xslt/large-cdata.html [ Crash Failure Pass ]
+crbug.com/474158153 external/wpt/xml/xslt/large-cdata.html [ Crash Failure Pass Timeout ]
 
 # Gardener 2026-01-12
 crbug.com/475047610 [ Linux ] external/wpt/webdriver/tests/bidi/input/perform_actions/pointer_mouse.py [ Failure Timeout ]
@@ -9244,6 +9162,12 @@ crbug.com/40281140 [ Win11-arm64 ] external/wpt/mediacapture-record/MediaRecorde
 
 # Temporarily disable to land ccrev.com/c/7526787
 crbug.com/477530170 http/tests/devtools/console/console-revoke-error-in-worker.js [ Failure Pass ]
+
+# Temporarily disable due to moving IgnoreListManager
+http/tests/devtools/console/console-linkify-message-location.js [ Failure Pass ]
+http/tests/devtools/bindings/ignore-listed-sourcemap-detach.js [ Failure Pass ]
+http/tests/devtools/sources/debugger-frameworks/frameworks-ignore-list-by-source-code.js [ Failure Pass ]
+http/tests/devtools/sources/debugger-frameworks/frameworks-ignore-list-patterns.js [ Failure Pass ]
 
 # Gardener 2026-02-02
 crbug.com/479874917 external/wpt/navigation-api/scroll-behavior/manual-scroll-fragment-does-not-exist.html [ Crash Failure Pass Timeout ]
@@ -9397,9 +9321,6 @@ crbug.com/486238126 webaudio/WaveShaper/waveshaper-rendersizehint.html [ Crash F
 crbug.com/502309240 external/wpt/webaudio/the-audio-api/rendersizehint-smoke-tests.https.html [ Crash Timeout ]
 crbug.com/502309240 external/wpt/webaudio/the-audio-api/the-analysernode-interface/analysernode-rendersizehint.https.html [ Crash Failure Timeout ]
 crbug.com/502309240 external/wpt/webaudio/the-audio-api/the-convolvernode-interface/convolver-rendersizehint.https.html [ Crash Failure Timeout ]
-crbug.com/521719869 external/wpt/webaudio/the-audio-api/the-scriptprocessornode-interface/scriptprocessor-rendersizehint.https.html [ Crash Failure Timeout ]
-crbug.com/502311300 webaudio/MediaStreamAudioDestination/mediastreamaudiodestinationnode-rendersizehint.https.html [ Crash Timeout ]
-crbug.com/502311300 webaudio/MediaStreamAudioSource/mediastreamaudiosourcenode-rendersizehint.https.html [ Crash Timeout ]
 
 # Gardener 2026-05-18
 crbug.com/514075904 [ Win11-arm64 ] virtual/text-antialias/emphasis-complex.html [ Failure Pass ]
@@ -9422,7 +9343,7 @@ crbug.com/527385398 external/wpt/web-extensions/browser.idle.extension.html [ Fa
 crbug.com/527385398 external/wpt/web-extensions/browser.storage.extension.html [ Failure ]
 
 # WebMCP: Flaky WPT tests.
-crbug.com/521896358 external/wpt/webmcp/declarative/getTools-declarative-schema.https.html [ Failure Pass Timeout ]
+
 crbug.com/521896358 external/wpt/webmcp/imperative/document-domain-enabled.https.html [ Failure Pass ]
 
 # Gardener 2026-06-01
@@ -9498,9 +9419,6 @@ crbug.com/532703006 virtual/composite-clip-path-animation/external/wpt/css/css-m
 # Partially fixed by CL 8076718 (`is_outermost_main_frame` plumbing to Network Service)
 crbug.com/533331915 external/wpt/top-level-storage-access-api/requestStorageAccessFor.sub.https.window.html [ Crash Failure Pass ]
 
-# Gardener 2026-07-13
-crbug.com/534101060 [ Linux ] wpt_internal/webmcp/custom-element-invalid-schema.https.html [ Failure Pass ]
-
 # Gardener 2026-07-14
 crbug.com/485657219 external/wpt/fetch/fetch-later/quota/max-payload.https.window.html [ Failure Pass ]
 crbug.com/507385957 [ Linux ] external/wpt/html/semantics/menu/tentative/menu-safe-triangle.optional.html [ Failure Pass ]
@@ -9516,3 +9434,9 @@ crbug.com/535696870 [ Linux ] virtual/permission-element/external/wpt/html/seman
 
 # Unblock BoringSSL roll 2026-07-17
 crbug.com/535947496 [ Linux ] http/tests/inspector-protocol/web-transport-handshake-failure.js [ Failure Pass ]
+
+# Gardener 2026-07-21
+crbug.com/531170669 [ Linux ] fast/canvas/canvas-drawImage-live-video.html [ Failure Pass ]
+
+crbug.com/510232476 [ Mac13 ] external/wpt/css/css-tables/height-distribution/percentage-sizing-of-table-cell-children-002.html [ Failure Pass ]
+

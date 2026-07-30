@@ -149,6 +149,7 @@ class GlicInstanceImpl : public GlicInstance,
   void Hibernate();
   void Shutdown();
   void CloseInstanceAndShutdown();
+  void UnbindTabGroup();
   std::optional<tab_groups::TabGroupId> GetTabGroup() const {
     return tab_group_id_;
   }
@@ -220,6 +221,8 @@ class GlicInstanceImpl : public GlicInstance,
   std::optional<std::string> conversation_id() const override;
   std::string conversation_title() const override;
   std::optional<int> task_id() const override;
+  std::optional<mojom::InvocationSource> GetInitialInvocationSource()
+      const override;
   std::vector<tabs::TabInterface*> GetBoundTabs() const;
   tabs::TabInterface* GetGlicTab() const;
 
@@ -423,7 +426,6 @@ class GlicInstanceImpl : public GlicInstance,
 
   // Updates the floating panel can attach state.
   void UpdateFloatingPanelCanAttach();
-  void UnbindTabGroup();
 
   using ConversationInfoChangedCallbackList =
       base::RepeatingCallbackList<void(const mojom::ConversationInfo&)>;

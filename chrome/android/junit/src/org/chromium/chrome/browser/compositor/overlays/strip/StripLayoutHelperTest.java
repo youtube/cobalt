@@ -146,6 +146,7 @@ import org.chromium.chrome.browser.tabmodel.TabRemover;
 import org.chromium.chrome.browser.tabmodel.TabUngrouper;
 import org.chromium.chrome.browser.tasks.tab_management.TabDragHandlerBase;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinatorFactory;
+import org.chromium.chrome.browser.tasks.tab_management.TabHoverCardView;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabModel;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -207,7 +208,7 @@ public class StripLayoutHelperTest {
     @Mock private LayoutRenderHost mRenderHost;
     @Mock private TabUngrouper mTabUngrouper;
     @Mock private View mControlContainer;
-    @Mock private StripTabHoverCardView mTabHoverCardView;
+    @Mock private TabHoverCardView mTabHoverCardView;
     @Mock private Profile mProfile;
     @Mock private StripLayoutViewOnClickHandler mClickHandler;
     @Mock private TooltipHandler mTooltipHandler;
@@ -1551,8 +1552,8 @@ public class StripLayoutHelperTest {
                 mStripLayoutHelper.getNewTabButton().getDrawX(),
                 EPSILON);
         assertEquals(
-                "TouchableRect does not match. Strip is full, touch size should match the strip.",
-                new RectF(PADDING_LEFT, 0, STRIP_WIDTH - PADDING_RIGHT, STRIP_HEIGHT),
+                "TouchableRect does not match. Strip is full, touch size should match tab bounds.",
+                new RectF(PADDING_LEFT, 0, 740.f, STRIP_HEIGHT),
                 mStripLayoutHelper.getTouchableRect());
     }
 
@@ -1596,9 +1597,10 @@ public class StripLayoutHelperTest {
                 18.f,
                 mStripLayoutHelper.getNewTabButton().getDrawX(),
                 EPSILON);
+        // ntbX(18) + ntbWidth(32) = 50. TouchableRect excludes the New Tab Button.
         assertEquals(
-                "TouchableRect does not match. Strip is full, touch size should match the strip.",
-                new RectF(PADDING_LEFT, 0, STRIP_WIDTH - PADDING_RIGHT, STRIP_HEIGHT),
+                "TouchableRect does not match. Strip is full, touch size should match tab bounds.",
+                new RectF(50.f, 0, STRIP_WIDTH - PADDING_RIGHT, STRIP_HEIGHT),
                 mStripLayoutHelper.getTouchableRect());
     }
 
@@ -1728,9 +1730,9 @@ public class StripLayoutHelperTest {
         assertNotNull("Tab Search button should be initialized", button);
         assertTrue("Tab Search button should be visible", button.isVisible());
         assertEquals(
-                "Tab Search button width should be 32dp",
-                32.f,
-                mStripLayoutHelper.getTabSearchButtonWidthForTesting(),
+                "Tab Search button width should be 48dp",
+                48.f,
+                mStripLayoutHelper.getTabSearchButtonWidth(),
                 EPSILON);
     }
 
@@ -1748,7 +1750,7 @@ public class StripLayoutHelperTest {
         assertEquals(
                 "Tab Search button width should be 0dp",
                 0.f,
-                mStripLayoutHelper.getTabSearchButtonWidthForTesting(),
+                mStripLayoutHelper.getTabSearchButtonWidth(),
                 EPSILON);
     }
 
@@ -2734,14 +2736,7 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLastHoveredTab(
                 mStripLayoutHelper.getStripLayoutTabsForTesting()[0]);
 
-        verify(mTabHoverCardView, never())
-                .show(
-                        nullable(Tab.class),
-                        anyBoolean(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat());
+        verify(mTabHoverCardView, never()).show(nullable(Tab.class), anyFloat(), anyFloat());
     }
 
     @Test
@@ -2757,14 +2752,7 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLastHoveredTab(
                 mStripLayoutHelper.getStripLayoutTabsForTesting()[0]);
 
-        verify(mTabHoverCardView, never())
-                .show(
-                        nullable(Tab.class),
-                        anyBoolean(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat());
+        verify(mTabHoverCardView, never()).show(nullable(Tab.class), anyFloat(), anyFloat());
     }
 
     @Test
@@ -4326,8 +4314,7 @@ public class StripLayoutHelperTest {
         // Hover on tabs[2], and close it.
         int index = 2;
         mStripLayoutHelper.updateLastHoveredTab(tabs[index]);
-        verify(mTabHoverCardView)
-                .show(any(), anyBoolean(), anyFloat(), anyFloat(), anyFloat(), anyFloat());
+        verify(mTabHoverCardView).show(any(), anyFloat(), anyFloat());
 
         // Fake the tab closure.
         closeTabAt(index);
@@ -4435,19 +4422,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
-    public void testSelectedTabClose_AutoSelect() {
-        // Initialize and select the tab at index 2.
-        initializeTest(2);
-
-        // Fake a close button click on the tab at index 2
-        closeTabAt(/* index= */ 2);
-
-        // Verify the tab to the left was selected.
-        verify(mModel).setIndex(eq(1), anyInt());
-    }
-
-    @Test
     public void testSelectedTabClose_AutoSelectOnCloseChange() {
         // Initialize and select the tab at index 2.
         initializeTest(2);
@@ -4458,6 +4432,25 @@ public class StripLayoutHelperTest {
         // Verify the tab to the right was selected (Same is the current index, since the current
         // tab has been removed).
         verify(mModel).setIndex(eq(2), anyInt());
+    }
+
+    @Test
+    public void testSelectedTabClose_PrioritizesParentTab() {
+        // Initialize and select the tab at index 1.
+        initializeTest(1);
+
+        // Set tab 0 as the parent tab of tab 1.
+        Tab parentTab = mModel.getTabAt(0);
+        Tab childTab = mModel.getTabAt(1);
+        int parentId = parentTab.getId();
+        when(childTab.getParentId()).thenReturn(parentId);
+
+        // Fake a close button click on the selected child tab at index 1.
+        closeTabAt(/* index= */ 1);
+
+        // Verify that the parent tab (index 0) was selected instead of positional fallback (index
+        // 1/2).
+        verify(mModel).setIndex(eq(0), anyInt());
     }
 
     @Test
@@ -5075,6 +5068,7 @@ public class StripLayoutHelperTest {
             when(mModel.isTabInTabGroup(eq(tab))).thenReturn(true);
             when(mModel.getIndexOfTabInGroup(tab)).thenReturn(i - startIndex);
             when(tab.getTabGroupId()).thenReturn(tabGroupId);
+            when(mModel.getRelatedTabList(tab.getId())).thenReturn(relatedTabs);
             relatedTabs.add(tab);
         }
         when(mModel.tabGroupExists(tabGroupId)).thenReturn(true);
@@ -6145,14 +6139,15 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLastHoveredTab(hoveredTab);
         assertEquals(
                 "Last hovered tab is not set.", hoveredTab, mStripLayoutHelper.getLastHoveredTab());
-        verify(mTabHoverCardView)
-                .show(
-                        mModel.getTabAt(1),
+        float[] position1 =
+                StripLayoutUtils.getHoverCardPosition(
+                        mTabHoverCardView,
                         false,
                         hoveredTab.getDrawX(),
                         hoveredTab.getWidth(),
                         STRIP_HEIGHT,
                         0f);
+        verify(mTabHoverCardView).show(mModel.getTabAt(1), position1[0], position1[1]);
         assertEquals(
                 "Tab container opacity is incorrect.",
                 StripLayoutTabDelegate.TAB_OPACITY_VISIBLE,
@@ -6166,8 +6161,7 @@ public class StripLayoutHelperTest {
         initializeTabHoverTest();
         var hoveredTab = mStripLayoutHelper.getStripLayoutTabsForTesting()[3];
         mStripLayoutHelper.updateLastHoveredTab(hoveredTab);
-        verify(mTabHoverCardView, never())
-                .show(any(), anyBoolean(), anyFloat(), anyFloat(), anyFloat(), anyFloat());
+        verify(mTabHoverCardView, never()).show(any(), anyFloat(), anyFloat());
     }
 
     @Test
@@ -6189,14 +6183,15 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLastHoveredTab(hoveredTab);
         assertEquals(
                 "Last hovered tab is not set.", hoveredTab, mStripLayoutHelper.getLastHoveredTab());
-        verify(mTabHoverCardView)
-                .show(
-                        mModel.getTabAt(1),
+        float[] position2 =
+                StripLayoutUtils.getHoverCardPosition(
+                        mTabHoverCardView,
                         false,
                         hoveredTab.getDrawX(),
                         hoveredTab.getWidth(),
                         STRIP_HEIGHT,
                         PADDING_TOP);
+        verify(mTabHoverCardView).show(mModel.getTabAt(1), position2[0], position2[1]);
         assertEquals(
                 "Tab container opacity is incorrect.",
                 StripLayoutTabDelegate.TAB_OPACITY_VISIBLE,
@@ -6214,8 +6209,7 @@ public class StripLayoutHelperTest {
         when(animator.isRunning()).thenReturn(true);
         mStripLayoutHelper.setRunningAnimatorForTesting(animator);
         mStripLayoutHelper.updateLastHoveredTab(hoveredTab);
-        verify(mTabHoverCardView, never())
-                .show(any(), anyBoolean(), anyFloat(), anyFloat(), anyFloat(), anyFloat());
+        verify(mTabHoverCardView, never()).show(any(), anyFloat(), anyFloat());
     }
 
     @Test
@@ -6243,6 +6237,7 @@ public class StripLayoutHelperTest {
         initializeTest(false, false, 3, 4);
         mStripLayoutHelper.onSizeChanged(
                 STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        when(mTabHoverCardView.getContext()).thenReturn(mContext);
         mStripLayoutHelper.setTabHoverCardView(mTabHoverCardView);
         // For ease of dp/px calculation.
         mContext.getResources().getDisplayMetrics().density = 1f;
@@ -7708,10 +7703,6 @@ public class StripLayoutHelperTest {
         @Override
         public void forceCloseTabs(TabClosureParams tabClosureParams) {
             mModel.closeTabs(tabClosureParams);
-            Tab recommendedNextTab = tabClosureParams.recommendedNextTab;
-            if (recommendedNextTab != null) {
-                mModel.setIndex(mModel.indexOf(recommendedNextTab), TabSelectionType.FROM_CLOSE);
-            }
             mLastParamsForForceCloseTabs = tabClosureParams;
         }
 

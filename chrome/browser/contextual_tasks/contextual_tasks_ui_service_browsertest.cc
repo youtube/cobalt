@@ -20,7 +20,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/lens/lens_media_link_handler.h"
-#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
@@ -433,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceTaskReuseTest,
 
   ContextualTasksUiService* ui_service =
       ContextualTasksUiServiceFactory::GetForBrowserContext(
-          browser()->profile());
+          browser()->GetProfile());
 
   // 2. Start task on Tab 1 with mstk
   GURL launch_url1("https://google.com/aim?mstk=abc");
@@ -490,7 +490,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceTaskReuseTest,
 
   ContextualTasksUiService* ui_service =
       ContextualTasksUiServiceFactory::GetForBrowserContext(
-          browser()->profile());
+          browser()->GetProfile());
 
   // 2. Start task on Tab 1 with mstk, flag=true (so it registers in map)
   GURL launch_url1("https://google.com/aim?mstk=abc");
@@ -535,6 +535,74 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceTaskReuseTest,
 
   std::string task_id2 = GetTaskIdFromPanel(panel_contents2);
   EXPECT_NE(task_id1, task_id2);
+}
+
+class ContextualTasksUiServiceRearchitectureEnabledTest
+    : public ContextualTasksUiServiceZeroStateTestBase {
+ public:
+  ContextualTasksUiServiceRearchitectureEnabledTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_tasks::kContextualTasks, {}},
+         {contextual_tasks::kContextualTasksRearchitecture, {}},
+         {contextual_tasks::kContextualTasksSidePanelRearchitecture, {}},
+         {omnibox::kWebUIOmniboxAskGAboutThisPage,
+          {{"Omnibox_AskGCoBrowse", "true"}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceRearchitectureEnabledTest,
+                       StartTaskUiInSidePanel_LoadsUrlDirectly) {
+  ContextualTasksUiService* ui_service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          browser()->GetProfile());
+  GURL initial_url("https://example.com/ai-page");
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+
+  ui_service->StartTaskUiInSidePanel(browser(), tab, initial_url, nullptr);
+
+  auto* controller = ContextualTasksPanelController::From(browser());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return controller && controller->IsPanelOpenForContextualTask();
+  }));
+
+  content::WebContents* panel_contents = controller->GetActiveWebContents();
+  ASSERT_TRUE(panel_contents);
+  content::WaitForLoadStop(panel_contents);
+
+  GURL expected_url =
+      net::AppendOrReplaceQueryParameter(initial_url, "sourceid", "chrome");
+  expected_url = net::AppendOrReplaceQueryParameter(expected_url, "ccb", "1");
+  EXPECT_EQ(panel_contents->GetLastCommittedURL(), expected_url);
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceRearchitectureEnabledTest,
+                       StartTaskUiInSidePanel_LoadsUrlWhenPanelAlreadyOpen) {
+  ContextualTasksUiService* ui_service =
+      ContextualTasksUiServiceFactory::GetForBrowserContext(
+          browser()->GetProfile());
+  GURL initial_url("https://example.com/ai-page-1");
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+
+  ui_service->StartTaskUiInSidePanel(browser(), tab, initial_url, nullptr);
+
+  auto* controller = ContextualTasksPanelController::From(browser());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return controller && controller->IsPanelOpenForContextualTask();
+  }));
+
+  content::WebContents* panel_contents = controller->GetActiveWebContents();
+  ASSERT_TRUE(panel_contents);
+  content::WaitForLoadStop(panel_contents);
+
+  GURL second_url("https://example.com/ai-page-2");
+  ui_service->StartTaskUiInSidePanel(browser(), tab, second_url, nullptr);
+  content::WaitForLoadStop(panel_contents);
+
+  EXPECT_EQ(panel_contents->GetLastCommittedURL(), second_url);
 }
 
 }  // namespace contextual_tasks

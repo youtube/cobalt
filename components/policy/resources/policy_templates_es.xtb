@@ -1355,6 +1355,18 @@ Si se inhabilita, <ph name="PRODUCT_NAME" /> cerrará la pestaña después de ca
         |TIME_LIMITS| aplica un límite de uso diario y hace que la aplicación deje de estar disponible cuando se alcance ese límite durante el día determinado. El límite de uso se especifica en |daily_limit_mins| y se restablece diariamente a la hora UTC especificada en |reset_at|.
         Esta política solo se usa para usuarios infantiles.
         Esta política es complementaria a "UsageTimeLimit". Las restricciones especificadas en "UsageTimeLimit", como el tiempo de pantalla y la hora de dormir, se aplicarán independientemente de lo que se haya especificado en "PerAppTimeLimits".</translation>
+<translation id="19133869326547269">Esta política está obsoleta y no tiene ningún efecto porque la función Clic de llamada se ha retirado de Chrome.
+
+Descripción original:
+Habilita la función Clic de llamada, que permite a los usuarios enviar números de teléfono desde Chrome para ordenador a un dispositivo Android si el usuario ha iniciado sesión. Puedes consultar más información en este artículo del Centro de Ayuda: https://support.google.com/chrome/answer/9430554?hl=es
+
+Si se habilita esta política, el usuario de Chrome podrá enviar números de teléfono a dispositivos Android.
+
+Si no se habilita esta política, el usuario de Chrome no podrá enviar números de teléfono a dispositivos Android.
+
+Si se asigna un valor a esta política, los usuarios no podrán cambiarlo ni anularlo.
+
+Si no se define esta política, la función Clic de llamada se habilitará de forma predeterminada.</translation>
 <translation id="1913629775420987861">Mostrar un cuadro de diálogo de advertencia cuando el usuario intenta salir</translation>
 <translation id="1915242485679279502">Mostrar insignia de empresa desplegada en la barra de herramientas</translation>
 <translation id="1916266055944569995">Si se asigna un valor a esta política, se definirá el valor de retorno de la API Managed Configuration para un origen determinado.
@@ -2223,17 +2235,6 @@ Si está inhabilitada, <ph name="PRODUCT_NAME" /> no habilitará ServiceWorkerAu
 Esta política es una medida temporal para controlar la función y se eliminará en la versión M154.</translation>
 <translation id="2467181864598429837">Comportamiento predeterminado del navegador</translation>
 <translation id="2467896267442150508">Intervalo de tiempo inferior o igual a una semana. Si la fecha de inicio es posterior a la fecha de finalización, el intervalo se ajustará.</translation>
-<translation id="2475594733565572760">Esta política define la configuración predeterminada de todas las funciones de IA generativa incluidas. Por ejemplo, si se le asigna el valor 1 a la política, esta será la configuración predeterminada de todas las funciones de IA generativa incluidas. No afectará a ningún valor de política definido manualmente. Este ajuste definirá los valores predeterminados de las funciones de IA generativa incluidas en Chrome. Consulta https://support.google.com/chrome/a?p=generative_ai_settings para ver la lista de funciones incluidas.
-
-Algunas políticas, por ejemplo, <ph name="GEMINI_SETTINGS_POLICY_NAME" />, solo admiten los estados Permitido y No permitir. En este caso, si se asigna el valor 0 o 1 a <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />, esta función se habilitará. Si se asigna el valor 2 a <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />, esta función se inhabilitará. La documentación de cada función contiene más detalles sobre cómo interactúa con los valores de esta política (por ejemplo, Gemini en Chrome: https://support.google.com/chrome/a/?p=gemini_in_chrome). Esto se aplica a las siguientes funciones: Gemini en Chrome, Google Lens y el Modo IA, ya que están sujetas a sus propias garantías o términos del servicio (https://support.google.com/chrome/a/?p=genai_features_chrome).
-
-Si se asigna el valor 0, permite que se use la función y que Google utilice datos relevantes para mejorar sus modelos de IA. Según la función, los datos pertinentes pueden ser peticiones, entradas, resultados, fuentes y comentarios escritos. También es posible que los revisen un equipo de personas para mejorar los modelos de IA. 0 es el valor predeterminado, excepto en los casos indicados abajo.
-
-Si se asigna el valor 1, permite que se use la función, pero no permite que Google mejore los modelos con el contenido de los usuarios (incluyendo peticiones, entradas, resultados, fuentes y comentarios escritos). 1 es el valor predeterminado de los usuarios de empresa que se gestionan en la <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> y de las cuentas de centro educativo que se gestionan en <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
-
-Si se asigna el valor 2, no se permite la función.
-
-Para obtener más información sobre el tratamiento de datos en las funciones de IA generativa, consulta https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="2476249479201711962">Habilitar el acceso al menú contextual del proveedor de búsqueda predeterminado</translation>
 <translation id="2478756867046106663">Permitir que los sitios con experiencias engañosas abran nuevas ventanas o pestañas</translation>
 <translation id="2479760962196319822">Esta política controla si los usuarios de <ph name="PRODUCT_OS_NAME" /> pueden almacenar datos de forma local o no.
@@ -3742,15 +3743,6 @@ Si se le asigna el valor 2 (BlockPartitioning), la partición del almacenamiento
 Usa <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> para inhabilitar la partición del almacenamiento de terceros en orígenes de nivel superior específicos. Para obtener información detallada sobre la partición del almacenamiento de terceros, consulta https://developers.google.com/privacy-sandbox/cookies/storage-partitioning.
 
 Se eliminó en Chrome 145 y se recomienda usar el método requestStorageAccess en su lugar: https://developer.mozilla.org/en-US/docs/Web/API/Document/requestStorageAccess. Puedes dejar comentarios en https://crbug.com/425248669.</translation>
-<translation id="3405361833556012520">Esta política solo se aplica al tráfico del navegador. Play Store, la navegación web de las aplicaciones Android y otros tipos de tráfico de usuarios, como el tráfico de las VMs de Linux o los trabajos de impresión, seguirán respetando las restricciones impuestas por la función VPN siempre activada. Esta política solo se aplicará cuando la VPN no esté conectada y únicamente para el tráfico del navegador del usuario. Cuando se aplique esta política, el tráfico del sistema también podrá eludir la función VPN siempre activada para realizar tareas como recoger datos de políticas y sincronizar el reloj del sistema.
-
-Utiliza esta política para abrir excepciones de determinados esquemas, subdominios de otros dominios, puertos o rutas específicas usando el formato especificado en https://support.google.com/chrome/a?p=url_blocklist_filter_format. El filtro más específico determinará si una URL está bloqueada o permitida.
-
-Si se define <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" />, se configurará una VPN siempre activada y esta no estará conectada, por lo que se bloqueará la navegación a todos los hosts, excepto a los que permita la política <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" />. Cuando un dispositivo esté en ese estado, se ignorarán las políticas <ph name="URL_BLOCKLIST_POLICY_NAME" /> y <ph name="URL_ALLOWLIST_POLICY_NAME" />. Cuando la VPN siempre activada esté conectada, se aplicarán las políticas <ph name="URL_BLOCKLIST_POLICY_NAME" /> y <ph name="URL_ALLOWLIST_POLICY_NAME" />, y se ignorará la política <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" />.
-
-Esta política está limitada a 1000 entradas.
-
-Si no se define esta política, no se podrá navegar en el navegador mientras la VPN siempre activada en modo Estricto esté activada y no esté conectada.</translation>
 <translation id="3405997282295704902">No permitir que los usuarios usen <ph name="PRODUCT_NAME" /></translation>
 <translation id="3406122462682235653">No preguntar al usuario (las descargas se inician inmediatamente)</translation>
 <translation id="3410534959501660670">Configuración de la función Captura de texto</translation>
@@ -4988,6 +4980,7 @@ Los dominios deben tener el formato de un nombre de dominio completo (FQDN) o de
 Los dominios con un formato incorrecto se ignorarán.</translation>
 <translation id="4238777612788632629">Reiniciar rápidamente si está obsoleto</translation>
 <translation id="4239720644496144453">La caché no se utiliza en las aplicaciones para Android. Si varios usuarios instalan la misma aplicación para Android, se descargará una nueva para cada uno de ellos.</translation>
+<translation id="4239949495354048254">Permitir que se suban archivos a Gemini en Chrome.</translation>
 <translation id="4242583077375244471">Si se habilita esta política, <ph name="PRODUCT_NAME" /> verificará los certificados de los servidores mediante el verificador de certificados integrado usando Chrome Root Store como fuente de confianza pública.
 
 Si se inhabilita esta política, <ph name="PRODUCT_NAME" /> usará el verificador de certificados del sistema y los certificados raíz del sistema.
@@ -7896,16 +7889,6 @@ Si no se define esta política, se aplicará <ph name="DEFAULT_AUTOMATIC_DOWNLOA
 <translation id="6016304107003486747">Esta política determina cómo funcionará la reasignación de la tecla Supr en la subpágina de reasignación de teclas. La subpágina de reasignación de teclas permite que los usuarios personalicen las teclas del teclado. Si se habilita, esta política impedirá que los usuarios personalicen estas reasignaciones específicas. Si no se define esta política, las combinaciones de teclas basadas en búsquedas serán las predeterminadas y los usuarios podrán configurarlas.</translation>
 <translation id="6019162469732742754">Usar el modo automático</translation>
 <translation id="6019606564278029236">Habilitar la interacción de los usuarios remotos con ventanas con permisos de administrador en sesiones de asistencia remota</translation>
-<translation id="602038990586229155">Esta política controla las solicitudes de instalación de extensiones de <ph name="PRODUCT_NAME" />, que permiten a los usuarios enviar las solicitudes a la consola de administración de Google para su aprobación.
-
-Si no se establece la política <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> o se inhabilita, esta política se ignorará y las solicitudes de instalación de extensiones no se crearán ni se subirán.
-Si no se establece esta política o se inhabilita, las solicitudes de instalación de extensiones no se crearán ni se subirán.
-Si se habilita, las solicitudes de instalación de extensiones se crearán y se subirán a la consola de administración de Google.
-
-Las solicitudes de instalación de extensiones se crean cuando los usuarios intentan instalar una extensión que no está permitida por <ph name="EXTENSION_INSTALL_ALLOWLIST" /> o <ph name="EXTENSION_SETTINGS" />.
-
-En el caso de <ph name="PRODUCT_NAME" />, esta política solo es efectiva si el equipo está registrado en <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
-En el caso de <ph name="PRODUCT_OS_NAME" />, esta política siempre es efectiva.</translation>
 <translation id="6020795917180493154">A partir de la versión M119, si se le asigna el valor false a esta política o no se define, WebSQL se inhabilitará, pero se podrá habilitar mediante la marca de Chrome "web-sql-access". Si se le asigna el valor true, se habilitará el acceso a WebSQL.
 Esta política está obsoleta a partir de la versión M124.</translation>
 <translation id="6022948604095165524">Acción al iniciar</translation>
@@ -8055,6 +8038,14 @@ Si se habilita esta política o no se define, los usuarios podrán personalizar 
 
 Si esta política está inhabilitada, la aplicación Accesos directos estará en modo de solo lectura y no se podrá personalizar.</translation>
 <translation id="6150320133676152520">Inhabilitar el envío automático de PIN en la pantalla de bloqueo y de inicio de sesión</translation>
+<translation id="6152224988699207920">Permite a los administradores personalizar el aspecto de las marcas de agua aplicadas por las reglas de Prevención de la pérdida de datos (DLP). Esto incluye establecer la opacidad del relleno o del contorno, definir el tamaño de la fuente y configurar la zona horaria de la marca de tiempo.
+Si no se definen esta política o algunos valores, Chrome usará su comportamiento predeterminado para las marcas de agua.
+Los valores predeterminados son: opacidad del relleno 4, opacidad del contorno 6, tamaño de la fuente 24 y zona horaria de la marca de tiempo definida como "user_device" (zona horaria local del dispositivo del usuario).
+
+La opacidad del relleno es un porcentaje que va del 0 (totalmente transparente) al 100 (totalmente opaco).
+La opacidad del contorno es un porcentaje que va del 0 (totalmente transparente) al 100 (totalmente opaco).
+El tamaño de la fuente se especifica en puntos.
+La zona horaria de la marca de tiempo especifica el identificador de zona horaria de la IANA (por ejemplo, "America/Toronto") que se usa para dar formato a las marcas de tiempo en de las marcas de agua (disponibles a partir de Chrome 152), que sigue los nombres de la base de datos de zonas horarias de la IANA (https://www.iana.org/time-zones).</translation>
 <translation id="6155350825868160236">Permitir que el usuario elija si se utilizan servicios web de Google para corregir errores ortográficos</translation>
 <translation id="6155936611791017817">Establecer el estado predeterminado del cursor grande en la pantalla de inicio de sesión</translation>
 <translation id="6157537876488211233">Lista de reglas de omisión de proxy separadas por comas</translation>
@@ -8321,6 +8312,7 @@ Si se define esta política, los usuarios no podrán cambiar su tipo de página 
 En <ph name="MS_WIN_NAME" />, esta política solo está disponible en instancias que estén vinculadas a un dominio de <ph name="MS_AD_NAME" /> o a <ph name="MS_AAD_NAME" />, o que se hayan registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 En <ph name="MAC_OS_NAME" />, esta política solo está disponible en instancias que se gestionen mediante MDM, que estén vinculadas a un dominio a través de MCX o que se hayan registrado en <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
+<translation id="6279539269393750872">Configuración de las subidas de archivos a Gemini en Chrome</translation>
 <translation id="628084107912717806">Especifica si los módulos de WebAssembly se pueden enviar a otros orígenes</translation>
 <translation id="6280973140313576289">Forzar selector de perfil al iniciar</translation>
 <translation id="6282524907402492171">Mostrar advertencias de desactivación de <ph name="CLOUD_PRINT_NAME" /></translation>
@@ -8397,7 +8389,7 @@ En <ph name="MAC_OS_NAME" />, esta política solo está disponible en instancias
 
 Si se le asigna el valor True a esta política o no se define, <ph name="PRODUCT_NAME" /> podrá reiniciarse automáticamente para aplicar las actualizaciones pendientes cuando se cierren todas las ventanas del navegador.
 
-Si se le asigna el valor False a esta política, se inhabilitarán los reinicios automáticos cuando se cierren todas las ventanas del navegador.</translation>
+Si se le asigna el valor False, se inhabilitarán los reinicios automáticos cuando se cierren todas las ventanas del navegador.</translation>
 <translation id="6319907968994678054">Si se le asigna el valor Enabled a esta política, se desactivará la sincronización de datos en <ph name="PRODUCT_NAME" /> al usar los servicios de sincronización alojados por Google.
       Para desactivar los servicios de <ph name="CHROME_SYNC_NAME" /> por completo, te recomendamos que desactives el servicio en <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />.
 
@@ -10390,15 +10382,6 @@ Consulta <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />, <ph name="DIR
 
       Si esta política no se define o se le asigna el valor false, no se habilitarán los paquetes de cifrado RC4 en TLS. De lo contrario, se le podrá asignar el valor true para mantener la compatibilidad con un servidor obsoleto. Se trata de una solución provisional y se debería volver a configurar el servidor.</translation>
 <translation id="751615601677744094">Inhabilitada: se aplicará el comportamiento normal de los eventos de mutación, lo que significa que estos eventos no se activarán después de la fecha de retirada.</translation>
-<translation id="7518736413346509172">Si se habilita esta política, las solicitudes de <ph name="LOCAL_NETWORK_ACCESS" /> solo mostrarán advertencias en <ph name="CHROME_DEVTOOLS_NAME" /> debido a un error en las comprobaciones de <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Si se inhabilita esta política o no se define, las solicitudes de <ph name="LOCAL_NETWORK_ACCESS" /> usarán la gestión predeterminada de estas solicitudes.
-
-Consulta https://wicg.github.io/local-network-access/ para ver las restricciones de <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Esta política de empresa es temporal y se eliminará a partir de la versión M152.
-
-A largo plazo, la política <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> se podrá usar para añadir a una lista de permitidos patrones de URL a los que se debe conceder automáticamente el permiso de <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7519218194072744342">La URL del controlador de protocolos.</translation>
 <translation id="7519251620064708155">Permitir la generación de claves en estos sitios web</translation>
 <translation id="7521864460386999758">Impedir que se inyecte código de terceros en Chrome</translation>
@@ -11300,6 +11283,7 @@ En <ph name="MS_WIN_NAME" />, esta política solo está disponible en instancias
 <translation id="8102913158860568230">Opción predeterminada de MediaStream</translation>
 <translation id="8104962233214241919">Seleccionar automáticamente certificados de cliente de estos sitios</translation>
 <translation id="8109762054721090517">Plantilla del <ph name="IPP_ATTRIBUTE" /> de <ph name="INTERNET_PRINTING_PROTOCOL" /> <ph name="CLIENT_NAME_IPP_ATTRIBUTE" /></translation>
+<translation id="811012672754800797">No permitir que se suban archivos a Gemini en Chrome.</translation>
 <translation id="8111331908123507719">Configura el tiempo (en segundos) durante el que el dispositivo deberá permanecer inactivo para que se muestre el salvapantallas de la pantalla de bloqueo.
 
 Los valores válidos están comprendidos entre 1 y 9999 segundos. Si no se define esta política, <ph name="PRODUCT_OS_NAME" /> usará el valor predeterminado de 7 segundos.
@@ -12796,6 +12780,14 @@ Nota: La caché se borra al reiniciar el dispositivo. Los datos de dominio de lo
 <translation id="9087652369391570821">Política de configuración del conector OnFileTransfer de Chrome Enterprise Connectors</translation>
 <translation id="9088433379343318874">Habilitar el proveedor de contenido de usuarios supervisados</translation>
 <translation id="9088444059179765143">Configura el método de detección automática de la zona horaria</translation>
+<translation id="9091741086777905807">Identificador de zona horaria de la IANA (por ejemplo, "America/Toronto") que se usa para dar formato a las marcas de tiempo en las marcas de agua (disponibles a partir de Chrome 152). El valor predeterminado es "user_device".</translation>
+<translation id="9094681501120769194">Controla si el visor de PDFs de <ph name="PRODUCT_NAME" /> usa un iframe fuera de proceso (OOPIF). Esta será la nueva arquitectura del visor de PDF en el futuro, ya que es más sencilla y facilita la incorporación de nuevas funciones. El visor de PDFs GuestView actual usa una arquitectura compleja y obsoleta que va a dejar de estar disponible.
+
+Si se habilita esta política o no se define, <ph name="PRODUCT_NAME" /> podrá usar la arquitectura del visor de PDFs OOPIF. Cuando se habilite o no se defina, <ph name="PRODUCT_NAME" /> decidirá el comportamiento predeterminado.
+
+Si se inhabilita esta política, <ph name="PRODUCT_NAME" /> usará únicamente el visor de PDFs GuestView actual. Inserta una página web con un árbol de marcos independiente en otra página web.
+
+Esta política está obsoleta en la versión M152 y se eliminará en la versión M155. El visor de PDFs GuestView se va a retirar y siempre se usará la arquitectura del visor de PDFs de iframe fuera de proceso (OOPIF).</translation>
 <translation id="9095599826504830315">No permitir la función Comparación de pestañas.</translation>
 <translation id="9096772739225230999">No enviar información sobre la configuración de red</translation>
 <translation id="9098409326885953506">Detectar ventanas tapadas y dejar de generar sus píxeles</translation>

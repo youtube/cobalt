@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Εάν τη διαγράψετε, όλοι οι χρήστες θα χάσουν αμέσως την πρόσβαση στην ομάδα καρτελών <ph name="GROUP_NAME" />, ενώ θα διαγραφεί και από όλες τις συσκευές.</translation>
 <translation id="1142732900304639782">Να μην παρέχεται δυνατότητα μετάφρασης αυτών των ιστοτόπων</translation>
 <translation id="1143193470214071120">Κλείσιμο παραθύρου ή διαχείριση παραθύρων</translation>
+<translation id="1143486892058798649">Αποθήκευση συνδέσμου ως…</translation>
 <translation id="1149725087019908252">Σάρωση <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504">Η εφαρμογή <ph name="APP_NAME" /> θα ανοίξει στο Chrome. Εάν συνεχίσετε, συμφωνείτε με τους <ph name="BEGIN_LINK1" />Όρους Παροχής Υπηρεσιών της Google<ph name="END_LINK1" /> και τους <ph name="BEGIN_LINK2" />Πρόσθετους Όρους Παροχής Υπηρεσιών του Google Chrome και του Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Δεν έχετε αποθηκεύσει κωδικούς πρόσβασης στη Διαχείριση κωδικών πρόσβασης Google.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">Για να διαχειριστείτε τον Λογαριασμό σας Google, πατήστε το κουμπί Διαχείριση λογαριασμού.</translation>
 <translation id="1549000191223877751">Μεταβείτε σε άλλο παράθυρο</translation>
 <translation id="1553358976309200471">Ενημερώστε το Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> για "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Συμβάλετε στη βελτίωση του Chrome για άτομα που το χρησιμοποιούν όπως και εσείς.</translation>
 <translation id="1568636008098739136">Ακούστε αυτήν τη σελίδα. Για να επεξεργαστείτε αυτήν τη συντόμευση, αγγίξτε παρατεταμένα.</translation>
 <translation id="1571041387761170095">Κανένας αδύναμος ή επαναχρησιμοποιημένος κωδικός πρόσβασης</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 παραβιασμένος κωδικός πρόσβασης σε αυτή τη συσκευή}other{# παραβιασμένοι κωδικοί πρόσβασης σε αυτή τη συσκευή}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> προτεινόμενα στοιχεία στην παρακάτω λίστα.</translation>
+<translation id="159689249463841786">Επιλογή φακέλου, προς το παρόν <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">Χρησιμοποιήστε το <ph name="SITE_ETLD_PLUS_ONE" /> με το <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, Καρφιτσωμένη καρτέλα που κάνει εγγραφή</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, Καρτέλα που κοινοποιεί περιεχόμενο</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(κενό)</translation>
 <translation id="219283042927675668">Καρτέλες στην ομάδα</translation>
 <translation id="2194856509914051091">Λάβετε υπόψη τα εξής</translation>
+<translation id="2196695604589508993">Άνοιγμα ιστορικού</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, Καρφιτσωμένη καρτέλα που κοινοποιεί περιεχόμενο</translation>
 <translation id="22091350895006575">Προσθήκη ονόματος χρήστη</translation>
 <translation id="221494669172414749">Εάν ανοίξετε το Chrome χωρίς κλείδωμα προφίλ, θα καταργηθούν οι αποθηκευμένοι κωδικοί πρόσβασης και οι τρόποι πληρωμής από το αυτοκίνητο. Η χρήση ενός κλειδώματος προφίλ διατηρεί αυτά τα δεδομένα ασφαλή.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">Περισσότεροι σελιδοδείκτες</translation>
 <translation id="2332515770639153015">Η Βελτιωμένη Ασφαλής περιήγηση είναι ενεργή</translation>
 <translation id="233375395665273385">Διαγραφή και αποσύνδεση</translation>
+<translation id="2334275697832662087">Η ασφάλεια του Chrome με την υποστήριξη AI σάς προστατεύει από διαδικτυακές απειλές, προσφέροντάς σας σιγουριά κατά την περιήγηση</translation>
 <translation id="2341410551640223969">Δεν ήταν δυνατή η εγκατάσταση της εφαρμογής <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Σύνολο δεδομένων που χρησιμοποιούνται από το Chrome, συμπεριλαμβανομένων των λογαριασμών, των σελιδοδεικτών και των αποθηκευμένων ρυθμίσεων</translation>
 <translation id="2354001756790975382">Άλλοι σελιδοδείκτες</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">Παρουσιάστηκε κάποιο πρόβλημα. Επανάληψη.</translation>
 <translation id="3577558748185201054">Διαχειριστείτε τα ενδιαφέροντα και τις προτιμήσεις σας</translation>
 <translation id="3587482841069643663">Όλες</translation>
+<translation id="3598421953808879451">Αποθήκευση βίντεο ως…</translation>
 <translation id="3602290021589620013">Προεπισκόπηση</translation>
 <translation id="3614126103057878858">Insight τιμών</translation>
 <translation id="3616113530831147358">Ήχος</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">Φύλλο κάτω μέρους</translation>
 <translation id="4045441967987592849">Εκ νέου άνοιγμα</translation>
 <translation id="4049920046559074950">Περισσότερες επιλογές για <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Βρείτε εδώ τις καρτέλες και τα παράθυρα που έκλεισαν πρόσφατα</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Άνοιγμα σε παράθυρο για ανώνυμη περιήγηση}other{Άνοιγμα όλων (#) σε παράθυρο για ανώνυμη περιήγηση}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> τυπική καρτέλα με νέα δραστηριότητα σε ομάδες κοινόχρηστων καρτελών}other{<ph name="TABS_COUNT_MANY" /> τυπικές καρτέλες με νέα δραστηριότητα σε ομάδες κοινόχρηστων καρτελών}}</translation>
 <translation id="405365679581583349">Ενημέρωση των υπηρεσιών Google Play</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">Η επέκταση <ph name="EXTENSION_NAME" /> θέλει να συνδεθείτε στο Chrome</translation>
 <translation id="6324916366299863871">Επεξεργασία συντόμευσης</translation>
 <translation id="6324977638108296054">Δεν είναι δυνατή η δημιουργία συνδέσμου προς την επισήμανση</translation>
+<translation id="6331836477476466332">Ένα πιο ασφαλές και ισχυρό πρόγραμμα περιήγησης για εσάς</translation>
 <translation id="6333140779060797560">Μοιραστείτε μέσω <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Επεξεργασία URL που οδηγεί στη σελίδα στη διεύθυνση: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Κρυπτογράφηση</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">Νέα καρτ. ανών. περιήγ.</translation>
 <translation id="686899695320434745">Οι διευθύνσεις δεν κρυπτογραφούνται με τη φράση πρόσβασής σας. Με αυτόν τον τρόπο, μπορείτε να τις χρησιμοποιείτε σε άλλες υπηρεσίες Google.</translation>
 <translation id="6870625088374152862">Έχετε συνδεθεί ως <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Έναρξη περιήγησης</translation>
 <translation id="687838958001010630">Όποιος διαθέτει τον σύνδεσμο μπορεί να επεξεργαστεί όλες τις καρτέλες</translation>
 <translation id="6880903702195291049">Οι άδειες φαίνονται εντάξει</translation>
 <translation id="6883204995689174413">Κοινοποίηση</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">Η κρυπτογράφηση με φράση πρόσβασης δεν περιλαμβάνει τρόπους πληρωμής και διευθύνσεις από το Google Pay.
 
 Για να αλλάξετε αυτή τη ρύθμιση, <ph name="BEGIN_LINK" />διαγράψτε τα δεδομένα του Chrome στον λογαριασμό σας<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Αποθήκευση εικόνας ως…</translation>
 <translation id="7165972437814027679">Μάθετε περισσότερα σχετικά με τους λόγους για τους οποίους το Chrome αποκλείει ορισμένα αρχεία</translation>
 <translation id="7168323970702333693">Συνδεθήκατε ως <ph name="USER_NAME" />. Ανοίγει τις ρυθμίσεις.</translation>
 <translation id="7170930892977483182">Όλοι οι κωδικοί ασφαλείας που είναι αποθηκευμένοι στη συσκευή σας και στο Πορτοφόλι Google θα διαγραφούν</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">Πρόσβαση σε τρόπους πληρωμής</translation>
 <translation id="7363349185727752629">Ένας οδηγός για τις επιλογές απορρήτου σας</translation>
 <translation id="7364103838544876661">Περισσότερες επιλογές για τη διαγραφή δεδομένων περιήγησης</translation>
+<translation id="736435710397109878">Ψευδώνυμο κάρτας, έως 25 χαρακτήρες</translation>
 <translation id="7365073365123878797">Για να ξεκινήσετε την αποθήκευση και τη χρήση κωδικών πρόσβασης με τη Διαχείριση κωδικών πρόσβασης Google, ενημερώστε τις υπηρεσίες Google Play</translation>
 <translation id="7368009310682364976">Δείτε τις καρτέλες που ανοίξατε πρόσφατα</translation>
 <translation id="7368927539449986686">Επεξεργασία αναζήτησης ιστοτόπου</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">Ο οργανισμός σας απενεργοποίησε την Ασφαλή περιήγηση</translation>
 <translation id="7825973332242257878">Ομάδες καρτελών</translation>
 <translation id="7826342993930002256">Το Chrome μαζί σας παντού</translation>
+<translation id="7845155831233417403">Μπορείτε να έχετε έως <ph name="MAX_INSTANCE_COUNT" /> παράθυρα. Για να συνεχίσετε, κλείστε ένα παράθυρο.</translation>
 <translation id="7846161022626028328">Παρουσιάστηκε σφάλμα. Δοκιμάστε ξανά.</translation>
 <translation id="7846296061357476882">Υπηρεσίες Google</translation>
 <translation id="784652447248278262">Τρέχον παράθυρο</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">Για κοινοποίηση στα άτομα που βρίσκονται κοντά σας, επιτρέψτε τους να σαρώσουν αυτόν τον κωδικό QR.</translation>
 <translation id="8090732854597034573">Εάν χρειάζεσαι βοήθεια, ρώτησε τον γονέα σου</translation>
 <translation id="8101414242770404289">Δεν υπάρχουν καρτέλες από: <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Καρτέλα ανώνυμης περιήγησης</translation>
 <translation id="810433609302852">Φύλλο κάτω μέρους για την προώθηση της λειτουργίας ειδοποιήσεων συμβουλών και τα βήματα χρήσης της</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Κατάργηση επεκτάσεων και των δεδομένων που έχουν αποθηκεύσει σε αυτή τη συσκευή</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">Σκούρο θέμα σε ιστοτ., όταν είναι δυνατό</translation>
 <translation id="8282950411412455249">Μετάβαση στις ρυθμίσεις ασφαλείας</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Κλείσιμο 1 παραθύρου για ανώνυμη περιήγηση}other{Κλείσιμο # παραθύρων για ανώνυμη περιήγηση}}</translation>
+<translation id="8289602658021943461">Αποθήκευση καρέ βίντεο ως…</translation>
 <translation id="8313599942510782709">Η εργασία σας βρίσκεται ακόμη σε εξέλιξη</translation>
 <translation id="8317318757008452355">Άνοιγμα επιλογών για εκτύπωση</translation>
 <translation id="8320212361750431956">Πρόσφατη δραστηριότητα</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Νέο<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Σελιδοδείκτες και λίστες</translation>
 <translation id="8342727528718219152">Το Chrome θα σας ενημερώνει σχετικά με τους ιστοτόπους που μπορεί να στέλνουν πάρα πολλές ειδοποιήσεις</translation>
 <translation id="834313815369870491">Να μην γίνεται ποτέ μετάφραση ιστοτόπων</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, Καρφιτσωμένη καρτέλα ανώνυμης περιήγησης από πολλαπλή επιλογή που κάνει εγγραφή</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">Εισαγωγή φράσης πρόσβασης</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, Καρφιτσωμένη καρτέλα ανώνυμης περιήγησης Picture-in-Picture</translation>
 <translation id="945522503751344254">Αποστολή σχολίων</translation>
+<translation id="948276827484905248">Δημιουργία κωδικού QR</translation>
 <translation id="95817756606698420">Το Chrome μπορεί να χρησιμοποιήσει το <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> για την αναζήτηση στην Κίνα. Μπορείτε να αλλάξετε αυτή την επιλογή στις <ph name="BEGIN_LINK" />Ρυθμίσεις<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Διαγραφή δεδομένων περιήγησης</translation>
 <translation id="963246339335003378">Άνοιγμα Διαχείρισης Εργασιών</translation>

@@ -21,8 +21,6 @@ build_webui("build") {
     "images/password_check_neutral_dark.svg",
     "images/password_check_positive.svg",
     "images/password_check_positive_dark.svg",
-    "images/privacy_guide/ad_topics_graphic.svg",
-    "images/privacy_guide/ad_topics_graphic_dark.svg",
     "images/privacy_guide/clouds_graphic.svg",
     "images/privacy_guide/clouds_graphic_dark.svg",
     "images/privacy_guide/completion_banner_dark_v2.svg",
@@ -52,8 +50,6 @@ build_webui("build") {
 
   # -----------------web_component_files start ---------------------------------
   web_component_files = [
-    "a11y_page/a11y_page.ts",
-    "a11y_page/a11y_page_index.ts",
     "ai_page/ai_info_card.ts",
     "ai_page/ai_logging_info_bullet.ts",
     "ai_page/ai_mode_search_page.ts",
@@ -96,10 +92,6 @@ build_webui("build") {
     "glic_page/glic_page.ts",
     "glic_page/glic_login_permissions_page.ts",
     "glic_page/glic_subpage.ts",
-    "on_startup_page/on_startup_page.ts",
-    "on_startup_page/startup_url_dialog.ts",
-    "on_startup_page/startup_url_entry.ts",
-    "on_startup_page/startup_urls_page.ts",
     "people_page/account_page.ts",
     "people_page/google_services_page.ts",
     "people_page/people_page.ts",
@@ -125,7 +117,6 @@ build_webui("build") {
     "privacy_page/cookies_page.ts",
     "privacy_page/do_not_track_toggle.ts",
     "privacy_page/personalization_options.ts",
-    "privacy_page/privacy_guide/privacy_guide_ad_topics_fragment.ts",
     "privacy_page/privacy_guide/privacy_guide_completion_fragment.ts",
     "privacy_page/privacy_guide/privacy_guide_cookies_fragment.ts",
     "privacy_page/privacy_guide/privacy_guide_dialog.ts",
@@ -151,12 +142,6 @@ build_webui("build") {
     "privacy_page/security/security_page.ts",
     "privacy_page/security/security_page_feature_row.ts",
     "privacy_page/security/security_page_v2.ts",
-    "privacy_sandbox/privacy_sandbox_ad_measurement_subpage.ts",
-    "privacy_sandbox/privacy_sandbox_fledge_subpage.ts",
-    "privacy_sandbox/privacy_sandbox_interest_item.ts",
-    "privacy_sandbox/privacy_sandbox_manage_topics_subpage.ts",
-    "privacy_sandbox/privacy_sandbox_page.ts",
-    "privacy_sandbox/privacy_sandbox_topics_subpage.ts",
     "safety_hub/extensions_module.ts",
     "safety_hub/notification_permissions_module.ts",
     "safety_hub/safety_hub_card.ts",
@@ -265,8 +250,6 @@ build_webui("build") {
 
   if (!is_chromeos) {
     web_component_files += [
-      "a11y_page/live_caption.ts",
-      "a11y_page/live_translate.ts",
       "clear_browsing_data_dialog/clear_browsing_data_account_indicator.ts",
       "languages_page/add_languages_dialog.ts",
       "languages_page/languages_page.ts",
@@ -288,10 +271,6 @@ build_webui("build") {
     web_component_files += [ "languages_page/edit_dictionary_page.ts" ]
   }
 
-  if (is_linux) {
-    web_component_files += [ "a11y_page/captions_page.ts" ]
-  }
-
   if (is_mac) {
     web_component_files += [ "autofill_page/passkey_edit_dialog.ts" ]
   }
@@ -300,16 +279,16 @@ build_webui("build") {
     web_component_files += [ "autofill_page/passkeys_subpage.ts" ]
   }
 
-  if (is_win || is_mac || is_linux) {
-    web_component_files += [ "a11y_page/ax_annotations_section.ts" ]
-  }
-
   # -----------------web_component_files end ----------------------------------
 
   # -----------------ts_files start ----------------------------
 
   ts_files = [
     "a11y_page/a11y_browser_proxy.ts",
+    "a11y_page/a11y_page.html.ts",
+    "a11y_page/a11y_page.ts",
+    "a11y_page/a11y_page_index.html.ts",
+    "a11y_page/a11y_page_index.ts",
     "about_page/about_page_browser_proxy.ts",
     "about_page/about_page.html.ts",
     "about_page/about_page.ts",
@@ -347,9 +326,18 @@ build_webui("build") {
     "glic_page/glic_browser_proxy.ts",
     "global_scroll_target_mixin.ts",
     "i18n_setup.ts",
+    "icons.html.ts",
     "lazy_load.ts",
     "metrics_browser_proxy.ts",
     "on_startup_page/on_startup_browser_proxy.ts",
+    "on_startup_page/on_startup_page.html.ts",
+    "on_startup_page/on_startup_page.ts",
+    "on_startup_page/startup_url_dialog.html.ts",
+    "on_startup_page/startup_url_dialog.ts",
+    "on_startup_page/startup_url_entry.html.ts",
+    "on_startup_page/startup_url_entry.ts",
+    "on_startup_page/startup_urls_page.html.ts",
+    "on_startup_page/startup_urls_page.ts",
     "on_startup_page/startup_urls_page_browser_proxy.ts",
     "page_visibility.ts",
     "performance_page/constants.ts",
@@ -362,7 +350,6 @@ build_webui("build") {
     "privacy_page/privacy_guide/privacy_guide_browser_proxy.ts",
     "privacy_page/security/safe_browsing_types.ts",
     "privacy_page/security/security_keys_browser_proxy.ts",
-    "privacy_sandbox/privacy_sandbox_browser_proxy.ts",
     "relaunch_mixin.ts",
     "relaunch_mixin_lit.ts",
     "reset_page/reset_browser_proxy.ts",
@@ -403,6 +390,10 @@ build_webui("build") {
     ts_files += [ "people_page/account_manager_browser_proxy.ts" ]
   } else {
     ts_files += [
+      "a11y_page/live_caption.html.ts",
+      "a11y_page/live_caption.ts",
+      "a11y_page/live_translate.html.ts",
+      "a11y_page/live_translate.ts",
       "default_browser_page/default_browser_browser_proxy.ts",
       "default_browser_page/default_browser_page.html.ts",
       "default_browser_page/default_browser_page.ts",
@@ -417,9 +408,24 @@ build_webui("build") {
       "system_page/system_page.ts",
       "system_page/system_page_browser_proxy.ts",
     ]
-    if (is_chrome_branded) {
-      ts_files += [ "system_page/on_device_ai_browser_proxy.ts" ]
-    }
+  }
+
+  if (is_chrome_branded) {
+    ts_files += [ "ai_page/on_device_ai_browser_proxy.ts" ]
+  }
+
+  if (is_linux) {
+    ts_files += [
+      "a11y_page/captions_page.html.ts",
+      "a11y_page/captions_page.ts",
+    ]
+  }
+
+  if (is_win || is_mac || is_linux) {
+    ts_files += [
+      "a11y_page/ax_annotations_section.html.ts",
+      "a11y_page/ax_annotations_section.ts",
+    ]
   }
 
   if (is_win || is_mac) {
@@ -429,10 +435,8 @@ build_webui("build") {
   # -----------------ts_files end -------------------------------
 
   icons_html_files = [
-    "icons.html",
     "privacy_icons.html",
     "privacy_page/security/fingerprint_icons.html",
-    "privacy_sandbox/privacy_sandbox_icons.html",
     "site_settings/all_sites_icons.html",
   ]
 
@@ -447,6 +451,7 @@ build_webui("build") {
     "settings_vars.css",
 
     # subfolder files
+    "a11y_page/a11y_page_index.css",
     "a11y_page/captions_page.css",
     "a11y_page/live_caption.css",
     "a11y_page/live_translate.css",
@@ -461,6 +466,8 @@ build_webui("build") {
     "controls/settings_dropdown_menu.css",
     "controls/settings_slider.css",
     "downloads_page/downloads_page.css",
+    "on_startup_page/startup_url_entry.css",
+    "on_startup_page/startup_urls_page.css",
     "privacy_page/privacy_guide/privacy_guide_fragment_shared.css",
     "reset_page/reset_profile_banner.css",
     "reset_page/reset_profile_dialog.css",

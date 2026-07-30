@@ -136,6 +136,7 @@
 <translation id="1085618740036066768">‫<ph name="ITEM" /> לא נבחר. ‫<ph name="INDEX" /> מתוך <ph name="COUNT" />. כדי לבחור, יש ללחוץ על 'חיפוש' ועל מקש הרווח.</translation>
 <translation id="1086486568852410168">‏חיפוש באמצעות Google Lens</translation>
 <translation id="1090126737595388931">אין יישומים פועלים ברקע</translation>
+<translation id="109038914521989341">עליך לכתוב מה הסיבה להדבקת הנתונים האלה:</translation>
 <translation id="1090541560108055381">לפני ההתאמה צריך לוודא שמשתמשים באותו קוד בשני המכשירים</translation>
 <translation id="1093457606523402488">רשתות גלויות:</translation>
 <translation id="1093645050124056515">‏Ctrl +‏ Alt + חץ למטה</translation>
@@ -188,6 +189,7 @@
 <translation id="1130430615924359526">{0,plural, =1{סגירת החלון הפרטי}one{סגירת החלונות הפרטיים (# חלונות)}two{סגירת החלונות הפרטיים (# חלונות)}other{סגירת החלונות הפרטיים (# חלונות)}}</translation>
 <translation id="1130589222747246278"><ph name="WINDOW_TITLE" /> – חלק מהקבוצה <ph name="GROUP_NAME" /></translation>
 <translation id="1130676589211693127">רמת הטעינה של הסוללה הימנית %<ph name="PERCENTAGE" />.</translation>
+<translation id="1130866111814048607">‏כשהכרטיסיות משותפות, התוכן של הדפים, המדיה וכתובות ה-URL שלהן נשלחים אל Google ועשויים להיבדק לצורכי אבטחה.</translation>
 <translation id="1133418583142946603">הוספה של הכרטיסייה הנוכחית</translation>
 <translation id="1133751489735776037">לחיצה משולשת בעכבר</translation>
 <translation id="1136712381129578788">מפתח האבטחה נעול כי הזנת קוד אימות שגוי יותר מדי פעמים. כדי לבטל את הנעילה צריך לנתק ולחבר אותו מחדש.</translation>
@@ -358,7 +360,6 @@
 <translation id="1254034280040157728">גרנד קניון</translation>
 <translation id="1254593899333212300">חיבור אינטרנט ישיר</translation>
 <translation id="1254767904958485584">התצוגה המפוצלת נוצרה</translation>
-<translation id="1255095393630332248">‏בשיתוף כרטיסיות, התוכן של הדפים, המדיה וכתובות ה-URL שלהם נשלחים אל Google.</translation>
 <translation id="1256143630373008432">הבדיקה העצמית נכשלה</translation>
 <translation id="1257336506558170607">ייצוא האישור שנבחר</translation>
 <translation id="1258491128795710625">מה חדש</translation>
@@ -501,6 +502,7 @@
 <translation id="1376836354785490390">הצגת פחות פריטים</translation>
 <translation id="1377438103060664754">‏אם אחת מהסיסמאות נחשפת בפרצה באבטחת המידע, מנהל הסיסמאות של Google שואל אם רוצים לשנות אותה לסיסמה חזקה</translation>
 <translation id="1378613616312864539">ההגדרה הזו נקבעת על ידי <ph name="NAME" /></translation>
+<translation id="1378715594598306389">הצגת כרטיסיות נוספות</translation>
 <translation id="1380028686461971526">התחברות אוטומטית לרשת</translation>
 <translation id="1381567580865186407">‏הדיבור ב<ph name="LANGUAGE" /> נשלח אל Google לעיבוד.</translation>
 <translation id="1382174183118245544">מספרים של כרטיסי אשראי</translation>
@@ -699,6 +701,7 @@
 <translation id="1542137295869176367">לא ניתן לעדכן את פרטי הכניסה שלך</translation>
 <translation id="1543284117603151572">‏ייבוא מ-Edge</translation>
 <translation id="1543538514740974167">רוצה להגיע לכאן מהר יותר?</translation>
+<translation id="1544026754762189866">הארגון שלך ממליץ לא להעתיק את התוכן הזה</translation>
 <translation id="1544588554445317666">אפשר לנסות להשתמש בשם קובץ קצר יותר או לשמור את הקובץ בתיקייה אחרת</translation>
 <translation id="1545749641540134597">‏סריקת קוד QR</translation>
 <translation id="1545775234664667895">נושא שהותקן "<ph name="THEME_NAME" />"</translation>
@@ -725,7 +728,6 @@
 <translation id="1561331397460162942">הפעולה הזו מאפשרת גישה למיקום לאפליקציות, ולאתרים עם הרשאת גישה למיקום ולשירותי המערכת</translation>
 <translation id="1562119309884184621">לאחר שאיש הקשר הזה יתווסף, המערכת תזכור אותו לפעם הבאה שיתבצע שיתוף</translation>
 <translation id="1562585387501039294">לפי דרישת הארגון שלך, <ph name="ACCOUNT_MANAGER" />, צריך פרופיל מנוהל. הארגון יוכל לראות חלק מהמידע, כולל</translation>
-<translation id="156345786953026804">‏תוכן הדף וכתובות ה-URL ש-Gemini משתמש בהם במהלך המשימה ישותפו עם Google.</translation>
 <translation id="1566049601598938765">אתר</translation>
 <translation id="15662109988763471">המדפסת שנבחרה אינה זמינה או שאינה מותקנת כראוי. יש לבדוק את המדפסת או לנסות לבחור מדפסת אחרת.</translation>
 <translation id="1566329594234563241">בזמן שהמכשיר מחובר לחשמל ולא פעיל</translation>
@@ -1108,6 +1110,7 @@
 <translation id="1846308012215045257">‏כדי להפעיל את <ph name="PLUGIN_NAME" />, יש ללחוץ עליו תוך כדי הקשה על Control</translation>
 <translation id="1848219224579402567">יציאה מהחשבון כשמכסה סגור</translation>
 <translation id="184862733444771842">שליחת בקשה להוספת תכונה</translation>
+<translation id="184871971966737653">כדי לשאול כל דבר, אפשר להוסיף כרטיסיות פתוחות</translation>
 <translation id="1849016657376805933">‏כל מכשיר HID</translation>
 <translation id="1849022541429818637">יש הרשאה לתעד את קלט העכבר ולהשתמש בו</translation>
 <translation id="1849252834922144634">כדי להצמיד מקשי קיצור, לוחצים לחיצה ארוכה</translation>
@@ -1239,6 +1242,7 @@
 <translation id="194174710521904357">‏אישרת לאתר הזה להשתמש בקובצי cookie של צד שלישי באופן זמני. במצב כזה יש פחות הגנה במהלך הגלישה, אבל סביר יותר שהתכונות באתר יפעלו בלי בעיות.</translation>
 <translation id="1942128823046546853">קריאה ושינוי של כל הנתונים שלך בכל האתרים</translation>
 <translation id="1944535645109964458">אין מפתחות גישה זמינים</translation>
+<translation id="1944921356641260203">נמצא עדכון</translation>
 <translation id="1947136734041527201">אפשרות להיכנס לאתרים באמצעות החשבון שלך בשירות זיהוי מסוים</translation>
 <translation id="1948528728718281125">הגישה למצלמה מותרת לאפליקציות, לאתרים עם הרשאת גישה למצלמה ולשירותי המערכת</translation>
 <translation id="1949332606889020901">מזהי קריסת מחשב</translation>
@@ -1343,7 +1347,7 @@
 <translation id="202918510990975568">יש להזין את הסיסמה כדי לקבוע את הגדרות האבטחה ולהיכנס לחשבון</translation>
 <translation id="2030455719695904263">משטח מגע</translation>
 <translation id="2030803782168502207">הסרת המינוי מהמכשיר</translation>
-<translation id="2031487800375552010">המיומנויות עוזרות להשתמש שוב ושוב בהנחיות למשימות שחוזרות על עצמן</translation>
+<translation id="2031487800375552010">המיומנויות עוזרות להשתמש שוב ושוב בפרומפטים למשימות שחוזרות על עצמן</translation>
 <translation id="2031914984822377766">יש להוסיף את <ph name="LINK_BEGIN" />שפות האתר<ph name="LINK_END" /> המועדפות. השפה המובילה מהרשימה תשמש לתרגומים.</translation>
 <translation id="2034346955588403444">‏הוספת עוד רשת Wi-Fi</translation>
 <translation id="2037445849770872822">‏הוגדר פיקוח על חשבון Google הזה. כדי להגדיר עוד אפשרויות של בקרת הורים יש ללחוץ על 'המשך'.
@@ -1509,6 +1513,7 @@
 <translation id="2166369534954157698">דג סקרן שט בים זך ולפתע מצא חבורה נחמדה</translation>
 <translation id="2168036794078614559">הדוח נשלח</translation>
 <translation id="2169062631698640254">אני רוצה להיכנס בכל זאת</translation>
+<translation id="217120844667431680">‏עושים יותר עם מצב AI</translation>
 <translation id="2173302385160625112">יש לבדוק את החיבור לאינטרנט</translation>
 <translation id="2175384018164129879">ניהול של מנועי החיפוש ושל החיפוש באתרים ספציפיים</translation>
 <translation id="2175526076681939329">שימוש במקלדת הראשית</translation>
@@ -1776,7 +1781,6 @@
 <translation id="2378602615417849384">{NUM_EXTENSIONS,plural, =1{יכול להיות שבקרוב תופסק התמיכה בתוסף הזה}one{יכול להיות שבקרוב תופסק התמיכה בתוספים האלה}two{יכול להיות שבקרוב תופסק התמיכה בתוספים האלה}other{יכול להיות שבקרוב תופסק התמיכה בתוספים האלה}}</translation>
 <translation id="2378982052244864789">בחר את ספריית ההרחבה.</translation>
 <translation id="2379111564446699251">כדי לשנות את סדר הכפתורים בסרגל הכלים, גוררים אותם</translation>
-<translation id="2379184471043414645">הפעלה של הבנת מדיה</translation>
 <translation id="2379281330731083556">הדפסה באמצעות תיבת דו-שיח של המערכת... <ph name="SHORTCUT_KEY" /></translation>
 <translation id="2381461748765773292">הפעולה עשויה לגרום לניתוק הרשת הסלולרית למשך מספר דקות</translation>
 <translation id="2381499968174336913">תצוגה מקדימה של כרטיסייה משותפת</translation>
@@ -2053,7 +2057,6 @@
 <translation id="2588271083332682494">קבוצות של כרטיסיות עוזרות לשמור על סדר</translation>
 <translation id="2588636910004461974">מכשירים של <ph name="VENDOR_NAME" /></translation>
 <translation id="2589658397149952302">‏אין להציג קובצי Drive אף פעם</translation>
-<translation id="2595508219468433076">מצב כבוי, ללא מיקוד בשורה, באפשרויות הסגנון</translation>
 <translation id="2597073208962000830">‏התכונה 'שיתוף בקרבת מקום' מחפשת מכשירים בקרבת מקום באמצעות Bluetooth.</translation>
 <translation id="2598136842498757793">התאמה אישית של כפתורי סרגל הכלים</translation>
 <translation id="2598710988533271874">‏יש גרסה חדשה זמינה של Chrome</translation>
@@ -2096,6 +2099,7 @@
 <translation id="2624142942574147739">הדף הזה ניגש למצלמה ולמיקרופון שלך.</translation>
 <translation id="2626799779920242286">יש לנסות שוב מאוחר יותר.</translation>
 <translation id="2627424346328942291">השיתוף נכשל</translation>
+<translation id="2627970398976286795">‏מידע על הסיכונים של Gemini Spark</translation>
 <translation id="2628258844236035475">‏להסיר את כתובת המגורים מהמילוי האוטומטי של Chrome?</translation>
 <translation id="2628770867680720336">‏כדי לאפשר ניפוי באגים באמצעות ADB צריך לאפס את ה-Chromebook הזה להגדרות היצרן. <ph name="BEGIN_LINK_LEARN_MORE" />מידע נוסף<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="2628874386573004005">‏התחלת שיחה חדשה עם Gemini</translation>
@@ -2539,6 +2543,7 @@
 <translation id="2955048943983973430">‏שירותי Google קשורים</translation>
 <translation id="2956070239128776395">הקטע מוצב בתוך קבוצה: <ph name="ERROR_LINE" /></translation>
 <translation id="2957124229512318478">‏כדי להשתמש בתוסף הזה, צריך להפעיל את מצב הפיתוח. אי אפשר לבדוק את התוסף הזה בחנות האינטרנט של Chrome.</translation>
+<translation id="2957987442574819977">‏תוצאות לא צפויות מ-Gemini</translation>
 <translation id="2958721676848865875">אזהרת 'אריזת תוסף'</translation>
 <translation id="2959127025785722291">משהו השתבש. לא ניתן היה להשלים את הסריקה. יש לנסות שוב.</translation>
 <translation id="2959474507964749987">‏יכול להיות שהקובץ המוצפן הזה הוא וירוס או תוכנה זדונית.<ph name="LINE_BREAK" />אפשר לשלוח את הקובץ והסיסמה לגלישה הבטוחה של Google כדי לבדוק אם הוא לא בטוח. בדרך כלל סריקות נמשכות כמה שניות.<ph name="LINE_BREAK" />כדי להפעיל סריקה, צריך להוסיף את הסיסמה של הקובץ.</translation>
@@ -2785,6 +2790,7 @@
 <translation id="3134312457920437826">לא ניתן להתקין את התוסף כי הוא משתמש בגרסה של המניפסט שלא נתמכת.</translation>
 <translation id="3134393957315651797">יש לבחור מצב לניסוי <ph name="EXPERIMENT_NAME" />. תיאור הניסוי: <ph name="EXPERIMENT_DESCRIPTION" /></translation>
 <translation id="3139925690611372679">אווטאר ברירת מחדל צהוב</translation>
+<translation id="314095642664111744">השבתת המיקוד</translation>
 <translation id="3141093262818886744">אני רוצה לפתוח בכל זאת</translation>
 <translation id="3141318088920353606">המערכת מקשיבה...</translation>
 <translation id="3142562627629111859">קבוצה חדשה</translation>
@@ -3342,6 +3348,7 @@
 <translation id="3569614820047645079">‏הקבצים בתיקייה 'האחסון שלי' יסונכרנו באופן אוטומטי ב-Chromebook כדי שאפשר יהיה לגשת אליהם בלי חיבור לאינטרנט.</translation>
 <translation id="3569617221227793022">אזור הזמן שמוגדר כרגע הוא <ph name="TIME_ZONE_ENTRY" />. ההגדרה הזו מנוהלת על-ידי האדמין.</translation>
 <translation id="3569682580018832495">ל-<ph name="ORIGIN" /> יש אפשרות להציג את התיקיות והקבצים הבאים</translation>
+<translation id="3570112771874223231">‏כתובות ה-URL ותוכן הדף ש-Gemini משתמש בהם במהלך משימה ישותפו עם Google ועשויים להיבדק לצורכי אבטחה.</translation>
 <translation id="3571734092741541777">הגדרה</translation>
 <translation id="3575121482199441727">אישור לאתר הזה</translation>
 <translation id="3575224072358507281">‏איסוף תוצאות של כתובות IP ומדידת רשת עבור Measurement Lab, בהתאם למדיניות הפרטיות של החברה (measurementlab.net/privacy)</translation>
@@ -3510,6 +3517,7 @@
 <translation id="3700993174159313525">לא לאפשר לאתרים לעקוב אחר מיקום המצלמה</translation>
 <translation id="3701167022068948696">לפתרון הבעיה</translation>
 <translation id="3701515417135397388">הצגת אזהרה אם סיסמה נחשפה בפרצה באבטחת מידע</translation>
+<translation id="3701778844313851487">מעבר לתוספים</translation>
 <translation id="3703166520839776970">אם הבעיה לא נפתרה, ניתן לבחור באפשרות 'פרטים נוספים' למטה כדי לעיין במידע נוסף מ-<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="3703699162703116302">הכרטיס עבר רענון</translation>
 <translation id="370415077757856453">‏JavaScript נחסם</translation>
@@ -3525,6 +3533,7 @@
 <translation id="3708295717182051206">כתוביות ללקויי שמיעה</translation>
 <translation id="3708684582558000260">לא לאפשר לאתרים סגורים לסיים שליחה או קבלה של נתונים</translation>
 <translation id="3709244229496787112">הדפדפן נסגר לפני שההורדה הושלמה.</translation>
+<translation id="3710438437470197252">‏הצגת פרטים נוספים ב-Google Drive</translation>
 <translation id="3710501561113687889">כדי להמשיך, הפרטים '<ph name="FIELDS_STRING" />' ישותפו על ידי <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> עם האתר הזה.</translation>
 <translation id="3711931198657368127">הד&amp;בקה ומעבר אל <ph name="URL" /></translation>
 <translation id="3711945201266135623">נמצאו <ph name="NUM_PRINTERS" /> מדפסות המשויכות לשרת ההדפסה</translation>
@@ -3600,6 +3609,7 @@
 <translation id="3756578970075173856">הגדרת קוד אימות</translation>
 <translation id="3756806135608816820">‏אתרים רשאים לבקש הרשאה לאיתור מכשירי Bluetooth</translation>
 <translation id="3756823472711156529">שחזור קבוצת הכרטיסיות</translation>
+<translation id="3757337311115630808">‏מידע נוסף על Gemini Spark</translation>
 <translation id="3757567010566591880">ביטול ההצמדה לסרגל הכלים</translation>
 <translation id="3757645900890881944">כלי החיפוש</translation>
 <translation id="3757733214359997190">לא נמצאו אתרים</translation>
@@ -3862,6 +3872,7 @@
 <translation id="3930968231047618417">צבע רקע</translation>
 <translation id="3932356525934356570">הצמדה של <ph name="EXTENSION_NAME" /></translation>
 <translation id="3932477678113677556">אורך מקסימלי של <ph name="MAX" /> תווים</translation>
+<translation id="3932501527949942152">שיתוף עם אודיו מהכרטיסייה</translation>
 <translation id="3933121352599513978">כיווץ בקשות לא רצויות (מומלץ)</translation>
 <translation id="3936260554100916852">‏המכשיר <ph name="DEVICE_NAME" /> משתף איתך רשת Wi-Fi</translation>
 <translation id="3936390757709632190">&amp;פתיחת אודיו בכרטיסייה חדשה</translation>
@@ -4317,7 +4328,6 @@
 <translation id="4303079906735388947">הגדרת קוד אימות חדש למפתח האבטחה</translation>
 <translation id="430351398235329166">כדי להתאים אישית את חוויית הגלישה, אפשר לשנות את המיקום של סרגל הכתובות.</translation>
 <translation id="4304713468139749426">מנהל הסיסמאות</translation>
-<translation id="4305402730127028764">העתקה אל <ph name="DEVICE_NAME" /></translation>
 <translation id="4305817255990598646">מעבר</translation>
 <translation id="4306489587293957491">הזנת ביטוי סיסמה</translation>
 <translation id="4306810703452026910">‏‫Chrome יפסיק לסמן את ההתראות מהאתר הזה כספאם</translation>
@@ -4348,6 +4358,7 @@
 <translation id="4325515113816851466">הבחירות של ההורה שלך לא יחולו אחרי היציאה</translation>
 <translation id="4326146840124313313">‏האבטחה הכי יעילה של Chrome מגינה עליך טוב יותר מפני תוספים, הורדות ואתרים מסוכנים</translation>
 <translation id="4327380114687339519">תפריט התוספים</translation>
+<translation id="4328160087116165267">שיתוף עם אודיו מהמערכת</translation>
 <translation id="4330191372652740264">מים עם קרח</translation>
 <translation id="4330387663455830245">איני רוצה לקבל תרגום מ<ph name="LANGUAGE" /> בכלל</translation>
 <translation id="4330963457501417204">הרחבת הכרטיסיות המכווצות כשמציבים מעליהן את הסמן</translation>
@@ -4475,7 +4486,7 @@
 <translation id="4417555042033340400">{NUM_TABS,plural, =1{השהיית הכרטיסייה הזו}one{השהיית הכרטיסיות האלה}two{השהיית הכרטיסיות האלה}other{השהיית הכרטיסיות האלה}}</translation>
 <translation id="4421287311914156329">‫<ph name="WINDOW_TITLE" /> – תצוגה עליונה</translation>
 <translation id="4421823557207751899">מחובר כ-<ph name="USERNAME" /></translation>
-<translation id="4421932172707401417">ההצעות לכתיבה מבוססות על ההנחיות שמזינים ועל התוכן של דף האינטרנט</translation>
+<translation id="4421932172707401417">ההצעות לכתיבה מבוססות על הפרומפטים שמזינים ועל התוכן של דף האינטרנט</translation>
 <translation id="4421932782753506458">לקיק</translation>
 <translation id="4423376891418188461">שחזור הגדרות</translation>
 <translation id="4423525817792153232">מראים את כל השיניים</translation>
@@ -4590,6 +4601,7 @@
 <translation id="4523876148417776526">‏הרשימות של אתרי ה-XML עדיין לא אוחזרו.</translation>
 <translation id="4526051299161934899">קבוצות של כרטיסיות שמורות שהוסתרו</translation>
 <translation id="452750746583162491">סקירת הנתונים המסונכרנים</translation>
+<translation id="4528216716764031072">מודרני (שקוף)</translation>
 <translation id="4528494169189661126">הצעה לתרגום</translation>
 <translation id="4529455689802245339">‏יכול להיות שהכתוביות המיידיות ב-Chrome לא יפעלו</translation>
 <translation id="4531451811601110068">אפשר לנסות שוב, או לפנות לאדמין לקבלת עזרה</translation>
@@ -4743,11 +4755,13 @@
 <translation id="4645575059429386691">מנוהל על-ידי ההורה שלך</translation>
 <translation id="4645676300727003670">&amp;שמירה</translation>
 <translation id="4646675363240786305">יציאות</translation>
+<translation id="4646859937978908916">תוספים שנוספו לאחרונה מוצמדים באופן אוטומטי. אפשר לשנות את זה בדף "תוספים".</translation>
 <translation id="4647025838970719122">ההגדרה הזו מנוהלת על-ידי הארגון שלך</translation>
 <translation id="4647090755847581616">&amp;סגירת כרטיסייה</translation>
 <translation id="4647283074445570750">שלב <ph name="CURRENT_STEP" /> מתוך <ph name="TOTAL_STEPS" /></translation>
 <translation id="4647836961514597010">בוחר צבעים</translation>
 <translation id="4648491805942548247">הרשאות לא מספיקות</translation>
+<translation id="4648876469762528742">האפליקציה מעודכנת.</translation>
 <translation id="4650037136970677721">הזיכרון נשמר</translation>
 <translation id="4650591383426000695">יש לנתק את הטלפון מה-<ph name="DEVICE_TYPE" /></translation>
 <translation id="4651921906638302153">לא ניתן להיכנס באמצעות החשבון הזה</translation>
@@ -4846,6 +4860,7 @@
 <translation id="4722920479021006856"><ph name="APP_NAME" /> משתף את המסך שלך.</translation>
 <translation id="4722989931633062466">לא מורשים להציג בקשות כניסה של צד שלישי</translation>
 <translation id="4723140812774948886">החלפה עם הבא</translation>
+<translation id="4724031052727917178">שיתוף עם אודיו</translation>
 <translation id="4724450788351008910">השיוך השתנה</translation>
 <translation id="4725511304875193254">קורגי</translation>
 <translation id="4726710355753484204">‏כדי להתקרב, מקישים על Ctrl‏ + Alt + העלאת רמת הבהירות.
@@ -4999,6 +5014,7 @@
 <translation id="4840096453115567876">לצאת מהמצב האנונימי בכל זאת?</translation>
 <translation id="4841475798258477260">ניתן לחבר את המכשיר הזה רק לרשת סלולרית ספציפית. <ph name="BEGIN_LINK_LEARN_MORE" />מידע נוסף<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="4842976633412754305">דף זה מנסה לטעון סקריפטים ממקורות שאינם מאומתים.</translation>
+<translation id="4843037705239202082">הבנת המדיה</translation>
 <translation id="484462545196658690">אוטומטי</translation>
 <translation id="4846628405149428620">בחירת המיקום לשמירת שינויים על ידי האתר הזה</translation>
 <translation id="4846680374085650406">הפעילות שלך נעשית בהתאם להמלצה של מנהל המערכת לגבי הגדרה זו.</translation>
@@ -5173,6 +5189,7 @@
 <translation id="4963789650715167449">הסרת הכרטיסייה הנוכחית</translation>
 <translation id="4964455510556214366">סידור</translation>
 <translation id="4964544790384916627">קיבוע חלון</translation>
+<translation id="4964673849688379040">בבדיקה...</translation>
 <translation id="4966972803217407697">עברת למצב אנונימי</translation>
 <translation id="4967227914555989138">הוספת הערה</translation>
 <translation id="4967360192915400530">הורדת הקובץ המסוכן</translation>
@@ -5339,7 +5356,6 @@
 <translation id="5096775069898886423">מקבלים אזהרה לפני שמבקרים באתרים שלא תומכים בחיבורים מאובטחים</translation>
 <translation id="5097002363526479830">ההתחברות לרשת נכשלה '<ph name="NAME" />': <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">אתרים שביקרת בהם יכולים לזהות מה מעניין אותך ואז להציע מודעות במהלך הגלישה</translation>
-<translation id="5097472729724586429">אפשר להוסיף הערות באמצעות הכלי החדש "הוספת הערות לטקסט"</translation>
 <translation id="5097649414558628673">כלי: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">ללחוץ אוטומטית כשהסמן עוצר</translation>
 <translation id="5098963855433723436">פתיחה באפליקציה נפרדת</translation>
@@ -5363,6 +5379,7 @@
 <translation id="5112577000029535889">&amp;כלים עבור מפתחים</translation>
 <translation id="5112686815928391420">{NUM_OF_FILES,plural, =1{קובץ אחד הועבר}one{{NUM_OF_FILES} קבצים הועברו}two{{NUM_OF_FILES} קבצים הועברו}other{{NUM_OF_FILES} קבצים הועברו}}</translation>
 <translation id="511313294362309725">הפעלת ההתאמה המהירה</translation>
+<translation id="5113992879909788634">‏מידע נוסף על פעולות אוטומטיות בדפדפן Chrome</translation>
 <translation id="51143538739122961">צריך להכניס את מפתח האבטחה ולגעת בו</translation>
 <translation id="5115338116365931134">SSO</translation>
 <translation id="5116628073786783676">&amp;שמירת אודיו כ...</translation>
@@ -7047,6 +7064,7 @@
 <translation id="6470823736074966819">השתקת ההתראות</translation>
 <translation id="6472893788822429178">הצגת כפתור 'דף הבית'</translation>
 <translation id="6473315466413288899">יש לבחור אפשרות</translation>
+<translation id="6474021817475285003">‏הצגת פרטים נוספים ביומן Google</translation>
 <translation id="6474498546677193336">‏לא ניתן לבטל את השיתוף כי אפליקציה משתמשת בתיקייה הזו. השיתוף של התיקייה הזו יבוטל בכיבוי הבא של Linux.</translation>
 <translation id="6474884162850599008">‏ניתוק חשבון Google Drive</translation>
 <translation id="6476482583633999078">מהירות הדיבור</translation>
@@ -7285,7 +7303,6 @@
 <translation id="6657180931610302174">להוסיף שם משתמש?</translation>
 <translation id="6657240842932274095">לתת לשירותי המערכת הרשאה להשתמש במיקום שלך?</translation>
 <translation id="6657585470893396449">סיסמה</translation>
-<translation id="6658957691413122395">‏מתבצע שינוי של גודל התצוגה ב-Gemini…</translation>
 <translation id="6659213950629089752">בדף זה בוצע שינוי במרחק התצוגה באמצעות התוסף "<ph name="NAME" />"</translation>
 <translation id="6659594942844771486">Tab</translation>
 <translation id="6660099350750552197"><ph name="WINDOW_TITLE" /> – המצלמה מקליטה</translation>
@@ -7748,6 +7765,7 @@
 <translation id="7001809623433867903">לארגן את הסימניות?</translation>
 <translation id="7003339318920871147">מסדי נתונים באינטרנט</translation>
 <translation id="7003454175711353260">{COUNT,plural, =1{קובץ אחד ({COUNT})}one{{COUNT} קבצים}two{{COUNT} קבצים}other{{COUNT} קבצים}}</translation>
+<translation id="7003537330107832201">יש גרסה חדשה (<ph name="VERSION" />) של <ph name="APP_NAME" />. כדי להפעיל את העדכון, כל החלונות הפתוחים ייסגרו. נתונים שלא נשמרו עלולים להימחק.</translation>
 <translation id="7003644704445046755">הורדת קובצי קול באיכות גבוהה <ph name="LANGUAGE" /></translation>
 <translation id="7003723821785740825">הגדרת דרך מהירה יותר לביטול נעילת המכשיר</translation>
 <translation id="7003844668372540529">מוצר לא ידוע <ph name="PRODUCT_ID" /> מאת <ph name="VENDOR_NAME" /></translation>
@@ -7769,6 +7787,7 @@
 <translation id="701020165009334820">‏אפשר להוריד משחקים ואפליקציות ל-Android מחנות Play.</translation>
 <translation id="701080569351381435">הצגת המקור</translation>
 <translation id="7012430956470647760">אמצעי בקרת הורים לאפליקציות</translation>
+<translation id="7012873145982513962">כדי להשתמש בכל הפונקציות באתר הזה, מומלץ לשתף את האודיו</translation>
 <translation id="7014174261166285193">ההתקנה נכשלה.</translation>
 <translation id="7014480873681694324">הסרת ההדגשה</translation>
 <translation id="7014741021609395734">המרחק מהתצוגה</translation>
@@ -8311,6 +8330,7 @@
 <translation id="7434509671034404296">למפתחים</translation>
 <translation id="7434757724413878233">האצת עכבר</translation>
 <translation id="7434969625063495310">לא ניתן היה להוסיף את שרת ההדפסה. יש לבדוק את הגדרת השרת ולנסות שוב.</translation>
+<translation id="7435500219604275502">עדכון</translation>
 <translation id="7439519621174723623">יש להוסיף את שם המכשיר כדי להמשיך</translation>
 <translation id="7441736921018636843">כדי לשנות את ההגדרה הזאת, צריך להסיר את ביטוי הסיסמה של הסנכרון על ידי <ph name="BEGIN_LINK" />איפוס הסנכרון<ph name="END_LINK" /></translation>
 <translation id="7441830548568730290">משתמשים אחרים</translation>
@@ -8321,6 +8341,7 @@
 <translation id="7446716846072322308">הפעולה הזו תגרום למחיקת נתונים בנפח של <ph name="TOTAL_USAGE" /> שאוחסנו על ידי <ph name="SITE_NAME" /> ואתרים קשורים</translation>
 <translation id="7448430327655618736">התקנה אוטומטית של אפליקציות</translation>
 <translation id="7448664748118305024">מחיקת כל הנתונים מאתרים שמורים במכשיר כשסוגרים את כל החלונות</translation>
+<translation id="7449806939046594699">הארגון שלך חסם את האפשרות להעתיק את התוכן הזה</translation>
 <translation id="7450761244949417357">נפתח ב-<ph name="ALTERNATIVE_BROWSER_NAME" /> עכשיו</translation>
 <translation id="7450926666485653189">‏שליחת קטע קוד מעורפל מכתובת ה-URL ל-Google דרך שרת פרטיות שמסתיר את כתובת ה-IP</translation>
 <translation id="7453008956351770337">הבחירה במדפסת הזו מעניקה לתוסף הבא את ההרשאה לגשת למדפסת:</translation>
@@ -8828,6 +8849,7 @@
 <translation id="7849264908733290972">פתיחת &amp;תמונה בכרטיסייה חדשה</translation>
 <translation id="784934925303690534">טווח זמן</translation>
 <translation id="7850320739366109486">נא לא להפריע</translation>
+<translation id="7851303446278533774">יצירה, תכנון, סיכום</translation>
 <translation id="7851716364080026749">אני רוצה לחסום תמיד גישה למצלמה ולמיקרופון</translation>
 <translation id="78526636422538552">‏הוספה של חשבונות Google הושבתה</translation>
 <translation id="7853747251428735">&amp;כלים נוספים</translation>
@@ -9142,6 +9164,7 @@
 <translation id="8082132721957920509">הכרטיס נשמר</translation>
 <translation id="8082390128630131497">‏השבתה של ניפוי באגים באמצעות ADB יאפס את ה<ph name="DEVICE_TYPE" /> הזה להגדרות היצרן. כל חשבונות המשתמש והנתונים המקומיים יימחקו.</translation>
 <translation id="8084114998886531721">סיסמה שמורה</translation>
+<translation id="8084417885464859041">‏שימוש בטוח ב-Gemini</translation>
 <translation id="8084429490152575036">‏הגדרות APN סלולרי</translation>
 <translation id="8084628902026812045">האתר הזה לא משתמש בחיבור מאובטח ויכול להיות שמישהו שינה את הקובץ</translation>
 <translation id="808488435221187916">‏המידע שלך זמין ב-Google Wallet בכל מכשיר שמחובר לחשבון</translation>
@@ -9480,6 +9503,7 @@
 <translation id="8342387517402567689">התקנות של אפליקציות אינטרנט לא נתמכות במצב פרטי</translation>
 <translation id="8342861492835240085">בחירת אוסף</translation>
 <translation id="8343578633847737325">שיחות ושרשורים מהזמן האחרון</translation>
+<translation id="8345099007452202761">יש גרסה חדשה (<ph name="VERSION" />) של <ph name="APP_NAME" />. רוצה להפעיל אותה עכשיו?</translation>
 <translation id="8345848587667658367">עכשיו יש לך אפשרות לראות את התמונות, המדיה, ההתראות והאפליקציות האחרונות שבטלפון</translation>
 <translation id="8347227221149377169">משימות הדפסה</translation>
 <translation id="8347728744337089388">שליחה אל המכ&amp;שיר שלך</translation>
@@ -9521,7 +9545,6 @@
 <translation id="8376532149031784008"><ph name="DOMAIN" /> בטעינה מחדש…</translation>
 <translation id="8376610503048439696">לתוספים שהותקנו על ידי האדמין עדיין יש הרשאה לקרוא ולשנות את האתר הזה</translation>
 <translation id="8376752431516546391">‏החלונית הצדדית של חיפוש Google</translation>
-<translation id="8376812682111060348">התראה על בעיה בביצועים</translation>
 <translation id="8377625247046155446">מפתח הגישה הזה יישמר רק במכשיר הזה. הוא יישאר במכשיר הזה אחרי שסגרת את כל החלונות הפרטיים.</translation>
 <translation id="837790003026572432">המכשיר הזה לא תומך בהעברת האודיו של הכרטיסייה</translation>
 <translation id="8378714024927312812">מנוהל על-ידי הארגון</translation>
@@ -9737,6 +9760,7 @@
 <translation id="8553342806078037065">ניהול משתמשים אחרים</translation>
 <translation id="8554642222921881444">תפריט צף בטקסט שנבחר</translation>
 <translation id="8554899698005018844">לא הוגדרה שפה</translation>
+<translation id="8555069853078399592">‫<ph name="ACTION_TOOLTIP" /> – תוכן מורחב מוצג</translation>
 <translation id="8555444629041783356">שינוי אוטומטי של המראה לפי זמני זריחה ושקיעה</translation>
 <translation id="8557022314818157177">צריך להמשיך לגעת במפתח האבטחה עד לתיעוד טביעת האצבע</translation>
 <translation id="8557100046150195444">‏צריך לגעת בחיישן Touch ID כדי להמשיך</translation>

@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(crbug.com/259749095): When Crubit (`cpp_api_from_rust`) supports generic
+// return types like `Result<(Value, usize), Error>` directly across FFI, remove
+// `ParseResult` and `parse_with_config_ffi` below, and rely entirely on
+// `parse_with_config` propagating a structured `Result` to C++.
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -34,6 +38,52 @@ pub enum Error {
     UnsupportedFloatingPointValue(u64),
 }
 
+// LINT.IfChange(ErrorCode)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorCode {
+    Ok = 0,
+    UnsupportedMajorType = 1,
+    UnknownAdditionalInfo = 2,
+    IncompleteCborData = 3,
+    IncorrectMapKeyType = 4,
+    TooMuchNesting = 5,
+    InvalidUtf8 = 6,
+    ExtraneousData = 7,
+    OutOfOrderKey = 8,
+    NonMinimalCborEncoding = 9,
+    UnsupportedSimpleValue = 10,
+    UnsupportedFloatingPointValue = 11,
+    OutOfRangeIntegerValue = 12,
+    DuplicateKey = 13,
+    UnknownError = 14,
+}
+// LINT.ThenChange(//components/cbor/reader.h:DecoderError,
+// //components/cbor/reader.cc:DecoderErrorAsserts)
+
+impl Error {
+    pub fn error_code(&self) -> ErrorCode {
+        match self {
+            Error::UnsupportedMajorType(_, _) => ErrorCode::UnsupportedMajorType,
+            Error::UnsupportedAdditionalInformation(_, _) => ErrorCode::UnknownAdditionalInfo,
+            Error::InputTruncated => ErrorCode::IncompleteCborData,
+            Error::UnsupportedMapKeyType(_, _) => ErrorCode::IncorrectMapKeyType,
+            Error::DepthLimitExceeded(_, _) => ErrorCode::TooMuchNesting,
+            Error::InvalidUTF8(_) => ErrorCode::InvalidUtf8,
+            Error::TrailingData(_) => ErrorCode::ExtraneousData,
+            Error::MapKeysOutOfOrder(_, _) => ErrorCode::OutOfOrderKey,
+            Error::NonMinimalAdditionalData(_) => ErrorCode::NonMinimalCborEncoding,
+            Error::UnsupportedSimpleValue(_) => ErrorCode::UnsupportedSimpleValue,
+            Error::UnsupportedFloatingPointValue(_) => ErrorCode::UnsupportedFloatingPointValue,
+            Error::NegativeOutOfRange(_) | Error::UnsignedOutOfRange(_) => {
+                ErrorCode::OutOfRangeIntegerValue
+            }
+            Error::DuplicateMapKey(_, _) => ErrorCode::DuplicateKey,
+        }
+    }
+}
+
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Config {
     pub allow_invalid_utf8: bool,
@@ -55,17 +105,34 @@ fn get<'a>(bytes: &mut &'a [u8], num_bytes: usize) -> Result<&'a [u8], Error> {
     bytes.split_off(..num_bytes).ok_or(Error::InputTruncated)
 }
 
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParseResult {
+    pub value: Value,
+    pub bytes_consumed: usize,
+    pub error_code: ErrorCode,
+}
+
 /// Parses CBOR bytes into a `Value`.
 ///
 /// Returns the parsed value and the number of bytes consumed.
-/// The consumed bytes are used by the C++ FFI (`Reader::Read`) to support
-/// parsing a CBOR structure when it's concatenated with other data (by
-/// reporting how many bytes the C++ caller should advance its buffer by).
 pub fn parse_with_config(mut input: &[u8], config: Config) -> Result<(Value, usize), Error> {
     let orig_len = input.len();
     let ret = parse_value(&mut input, 0, &config)?;
     let consumed = orig_len - input.len();
     Ok((ret, consumed))
+}
+
+/// FFI wrapper returning `ParseResult` for Crubit C++ consumption.
+pub fn parse_with_config_ffi(input: &[u8], config: Config) -> ParseResult {
+    match parse_with_config(input, config) {
+        Ok((value, bytes_consumed)) => {
+            ParseResult { value, bytes_consumed, error_code: ErrorCode::Ok }
+        }
+        Err(err) => {
+            ParseResult { value: Value::Null, bytes_consumed: 0, error_code: err.error_code() }
+        }
+    }
 }
 
 fn parse_value(input: &mut &[u8], depth: usize, config: &Config) -> Result<Value, Error> {
@@ -90,38 +157,66 @@ fn parse_header(input: &mut &[u8]) -> Result<(u8, u8, u64), Error> {
     let major_type = b >> 5;
     let info = b & 0x1f;
     let arg = match (major_type, info) {
-        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_16) => get_float_argument(input, 2),
-        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_32) => get_float_argument(input, 4),
-        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_64) => get_float_argument(input, 8),
+        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_16) => u64_from_be_bytes::<2, u16>(input),
+        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_32) => u64_from_be_bytes::<4, u32>(input),
+        (MAJOR_TYPE_SIMPLE_VALUE, SIMPLE_VALUE_FLOAT_64) => u64_from_be_bytes::<8, u64>(input),
         (_, 0..=23) => Ok(info as u64),
-        (_, ADDL_INFO_1_BYTE) => get_argument(input, 1),
-        (_, ADDL_INFO_2_BYTES) => get_argument(input, 2),
-        (_, ADDL_INFO_4_BYTES) => get_argument(input, 4),
-        (_, ADDL_INFO_8_BYTES) => get_argument(input, 8),
+        (_, ADDL_INFO_1_BYTE) => get_argument::<1, u8>(input),
+        (_, ADDL_INFO_2_BYTES) => get_argument::<2, u16>(input),
+        (_, ADDL_INFO_4_BYTES) => get_argument::<4, u32>(input),
+        (_, ADDL_INFO_8_BYTES) => get_argument::<8, u64>(input),
         _ => Err(Error::UnsupportedAdditionalInformation(input.len(), info)),
     }?;
     Ok((major_type, info, arg))
 }
 
-fn get_float_argument(input: &mut &[u8], num_bytes: u8) -> Result<u64, Error> {
-    let mut v: u64 = 0;
-    for _ in 0..num_bytes {
-        v <<= 8;
-        let b = get_u8(input)?;
-        v |= b as u64;
-    }
-    Ok(v)
+// N should really be an associated const, or even replaced with `const {
+// core::mem::size_of::<Self>() }`, but those can't be used in generic
+// expressions: https://github.com/rust-lang/rust/issues/76560.
+trait FromBytes<const N: usize>: Into<u64> {
+    fn from_be_bytes(bytes: [u8; N]) -> Self;
 }
 
-fn get_argument(input: &mut &[u8], num_bytes: u8) -> Result<u64, Error> {
-    let mut v: u64 = 0;
-    for _ in 0..num_bytes {
-        v <<= 8;
-        let b = get_u8(input)?;
-        v |= b as u64;
+impl FromBytes<1> for u8 {
+    fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::from_be_bytes(bytes)
     }
+}
+
+impl FromBytes<2> for u16 {
+    fn from_be_bytes(bytes: [u8; 2]) -> Self {
+        Self::from_be_bytes(bytes)
+    }
+}
+
+impl FromBytes<4> for u32 {
+    fn from_be_bytes(bytes: [u8; 4]) -> Self {
+        Self::from_be_bytes(bytes)
+    }
+}
+
+impl FromBytes<8> for u64 {
+    fn from_be_bytes(bytes: [u8; 8]) -> Self {
+        Self::from_be_bytes(bytes)
+    }
+}
+
+fn u64_from_be_bytes<const N: usize, T: FromBytes<N>>(input: &mut &[u8]) -> Result<u64, Error> {
+    const {
+        assert!(N == core::mem::size_of::<T>());
+    }
+
+    let Some((bytes, rest)) = input.split_first_chunk::<N>() else {
+        return Err(Error::InputTruncated);
+    };
+    *input = rest;
+    Ok(T::from_be_bytes(*bytes).into())
+}
+
+fn get_argument<const N: usize, T: FromBytes<N>>(input: &mut &[u8]) -> Result<u64, Error> {
+    let v = u64_from_be_bytes::<N, T>(input)?;
     let (_, expected_num_bytes) = crate::writer::low_bits_and_length(v);
-    if num_bytes as usize != expected_num_bytes {
+    if N != expected_num_bytes {
         Err(Error::NonMinimalAdditionalData(input.len()))
     } else {
         Ok(v)
@@ -143,7 +238,7 @@ fn to_int(arg: u64, is_negative: bool) -> Result<Value, Error> {
 }
 
 fn to_bytestring(input: &mut &[u8], len64: u64) -> Result<Value, Error> {
-    let Some(len): Option<usize> = len64.try_into().ok() else {
+    let Ok(len) = usize::try_from(len64) else {
         return Err(Error::InputTruncated);
     };
     let bytes = get(input, len)?;
@@ -151,7 +246,7 @@ fn to_bytestring(input: &mut &[u8], len64: u64) -> Result<Value, Error> {
 }
 
 fn to_string(input: &mut &[u8], len64: u64, config: &Config) -> Result<Value, Error> {
-    let Some(len): Option<usize> = len64.try_into().ok() else {
+    let Ok(len) = usize::try_from(len64) else {
         return Err(Error::InputTruncated);
     };
     let orig_len = input.len();
@@ -187,32 +282,35 @@ fn to_map(
     depth: usize,
     config: &Config,
 ) -> Result<Value, Error> {
-    let mut ret = BTreeMap::new();
-    let mut previous_key: &[u8] = &[];
+    let mut ret: BTreeMap<MapKey, Value> = BTreeMap::new();
 
     for _ in 0..num_elements {
-        let key_slice = *input;
+        // TODO(crbug.com/259749095): Validate key type + order (and possibly return
+        // early) before attempting to parse the value.
         let key_value = parse_value(input, depth, config)?;
-        let key_bytes = &key_slice[..key_slice.len() - input.len()];
-
-        // `previous_key` starts empty. The first key always evaluates as
-        // `Ordering::Greater` since CBOR values require at least a 1-byte
-        // header, meaning `key_bytes` is never empty.
-        match key_bytes.cmp(previous_key) {
-            Ordering::Equal => return Err(Error::DuplicateMapKey(input.len(), key_value)),
-            Ordering::Less => return Err(Error::MapKeysOutOfOrder(input.len(), key_value)),
-            Ordering::Greater => {}
-        }
-        previous_key = key_bytes;
-
-        let key = match key_value {
-            Value::Int(i) => MapKey::Int(i),
-            Value::Bytestring(b) => MapKey::Bytestring(b),
-            Value::String(s) => MapKey::String(s),
-            Value::InvalidUtf8(_) => return Err(Error::InvalidUTF8(input.len())),
-            _ => return Err(Error::UnsupportedMapKeyType(input.len(), key_value)),
-        };
+        let after_key_len = input.len();
         let value = parse_value(input, depth, config)?;
+
+        let key = match MapKey::try_from(key_value) {
+            Ok(key) => key,
+            Err(Value::InvalidUtf8(_)) => return Err(Error::InvalidUTF8(after_key_len)),
+            Err(value) => return Err(Error::UnsupportedMapKeyType(after_key_len, value)),
+        };
+
+        if let Some((previous, _)) = ret.last_key_value() {
+            match previous.cmp(&key) {
+                Ordering::Less => {}
+                Ordering::Greater if !ret.contains_key(&key) => {
+                    return Err(Error::MapKeysOutOfOrder(after_key_len, Value::from(key)));
+                }
+                // Covers `Ordering::Equal` and `Ordering::Greater` when the key is already
+                // in the map (e.g. an out-of-order duplicate).
+                _ => {
+                    return Err(Error::DuplicateMapKey(after_key_len, Value::from(key)));
+                }
+            }
+        }
+
         ret.insert(key, value);
     }
     Ok(Value::Map(ret))

@@ -4,12 +4,17 @@
 
 package org.chromium.chrome.browser.settings;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
 import android.content.ComponentCallbacks;
+import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.os.PersistableBundle;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,17 +38,22 @@ import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
+import org.chromium.chrome.browser.lifecycle.SaveInstanceStateObserver;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.search.SettingsSearchCoordinator;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.settings.PreferenceUpdateObserver;
+import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+
+import java.util.List;
 
 /**
  * Implementation of {@link SettingsPage.FragmentDelegate} that manages {@link SettingsPage}
@@ -55,7 +65,8 @@ public class SettingsPageFragmentDelegateImpl
         implements SettingsPage.FragmentDelegate,
                 SettingsMenuHelper.Delegate,
                 PreferenceUpdateObserver,
-                MultiColumnSettings.Observer {
+                MultiColumnSettings.Observer,
+                SaveInstanceStateObserver {
     private static final String SETTINGS_NATIVE_PAGE_TAG = "settings_native_page";
 
     private final Activity mActivity;
@@ -69,13 +80,13 @@ public class SettingsPageFragmentDelegateImpl
     private final String mFragmentTag;
 
     private @Nullable SettingsHostFragment mSettingsHostFragment;
-    private @Nullable FragmentDependencyProvider mDependencyProvider;
     private FragmentManager.@Nullable FragmentLifecycleCallbacks mTitleUpdaterLifecycleCallbacks;
     private FragmentManager.@Nullable FragmentLifecycleCallbacks mSettingsMetricsReporter;
     private @Nullable Toolbar mToolbar;
     private @Nullable MultiColumnTitleUpdater mMultiColumnTitleUpdater;
     private @Nullable SettingsSearchCoordinator mSearchCoordinator;
     private @Nullable ComponentCallbacks mComponentCallbacks;
+    private @Nullable List<SettingsIndexData.Entry> mInitialBreadcrumbPath;
 
     public SettingsPageFragmentDelegateImpl(
             Activity activity,
@@ -119,20 +130,6 @@ public class SettingsPageFragmentDelegateImpl
                 new OneshotSupplierImpl<>();
         bottomSheetSupplier.set(mBottomSheetController);
 
-        mDependencyProvider =
-                new FragmentDependencyProvider(
-                        mActivity,
-                        mProfile,
-                        windowAndroidSupplier,
-                        mActivityResultTracker,
-                        snackbarSupplier,
-                        bottomSheetSupplier,
-                        mModalDialogSupplier,
-                        () -> mSearchCoordinator);
-
-        fragmentManager.registerFragmentLifecycleCallbacks(
-                mDependencyProvider, /* recursive= */ true);
-
         // Update the search coordinator on configuration change.
         mComponentCallbacks =
                 new ComponentCallbacks() {
@@ -157,11 +154,12 @@ public class SettingsPageFragmentDelegateImpl
         fragmentManager.registerFragmentLifecycleCallbacks(
                 mSettingsMetricsReporter, /* recursive= */ true);
 
-        // Inflate the settings layout into the container view.
+        // Inflate the settings layout into the container view. Ensure it has the right theme.
         // TODO(crbug.com/521895796): Rename settings_activity.xml since with settings-in-a-tab it
         // doesn't map directly to its own activity.
+        Context themedContext = new ContextThemeWrapper(mActivity, R.style.Theme_Chromium_Settings);
         View settingsView =
-                LayoutInflater.from(mActivity).inflate(R.layout.settings_activity, null);
+                LayoutInflater.from(themedContext).inflate(R.layout.settings_activity, null);
 
         // SettingsInTab uses the root BottomSheetController and ModalDialogManager from
         // ChromeTabbedActivity, so remove the unused local containers to prevent duplicate
@@ -204,16 +202,44 @@ public class SettingsPageFragmentDelegateImpl
                     .add(fragmentContainer.getId(), mSettingsHostFragment, mFragmentTag)
                     .commitAllowingStateLoss();
         }
-        mSettingsHostFragment.setDependencyProvider(mDependencyProvider);
+        var dependencyProvider =
+                new FragmentDependencyProvider(
+                        mActivity,
+                        mProfile,
+                        windowAndroidSupplier,
+                        mActivityResultTracker,
+                        snackbarSupplier,
+                        bottomSheetSupplier,
+                        mModalDialogSupplier,
+                        () -> mSearchCoordinator);
+        mSettingsHostFragment.setDependencyProvider(dependencyProvider);
 
+        assert mActivity instanceof ActivityLifecycleDispatcherProvider;
+        ((ActivityLifecycleDispatcherProvider) mActivity).getLifecycleDispatcher().register(this);
+
+        // Compute initial breadcrumb path.
         Bundle savedInstanceState = getSavedInstanceState();
-        if (savedInstanceState != null) {
-            // If savedInstanceState is non-null then the activity is being recreated and
-            // and the multi-column title updater and search coordinator must be created for
-            // the existing fragment.
-            MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
-            assert multiColumnSettings != null;
-            assert multiColumnSettings.getView() != null;
+        if (savedInstanceState == null) {
+            Intent intent = mActivity.getIntent();
+            mInitialBreadcrumbPath =
+                    SettingsBreadcrumbUtil.getInitialBreadcrumbPath(
+                            /* context= */ mActivity,
+                            assertNonNull(mProfile),
+                            intent.getStringExtra(SettingsIntentUtil.EXTRA_SHOW_FRAGMENT),
+                            intent.getBundleExtra(
+                                    SettingsIntentUtil.EXTRA_SHOW_FRAGMENT_ARGUMENTS));
+        } else {
+            mInitialBreadcrumbPath =
+                    SettingsBreadcrumbUtil.getInitialBreadcrumbPath(savedInstanceState);
+        }
+
+        // During activity recreation savedInstanceState may be non-null but MultiColumnSettings may
+        // not be attached yet. Check for the existing of MultiColumnSettings to decide whether to
+        // create the title updater and search coordinator now vs. later.
+        // TODO(crbug.com/537343764): Revisit this and make it more similar to SettingsActivity's
+        // initialization behavior.
+        MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
+        if (multiColumnSettings != null && multiColumnSettings.getView() != null) {
             createMultiColumnTitleUpdater(
                     multiColumnSettings, multiColumnSettings.requireView(), savedInstanceState);
             createSearchCoordinator(multiColumnSettings, savedInstanceState);
@@ -230,12 +256,11 @@ public class SettingsPageFragmentDelegateImpl
 
     @Override
     public void destroySettings() {
+        assert mActivity instanceof ActivityLifecycleDispatcherProvider;
+        ((ActivityLifecycleDispatcherProvider) mActivity).getLifecycleDispatcher().unregister(this);
+
         FragmentManager fragmentManager =
                 ((FragmentActivity) mActivity).getSupportFragmentManager();
-        assumeNonNull(mDependencyProvider);
-        fragmentManager.unregisterFragmentLifecycleCallbacks(mDependencyProvider);
-        mDependencyProvider = null;
-        assumeNonNull(mSettingsHostFragment);
 
         if (mTitleUpdaterLifecycleCallbacks != null) {
             fragmentManager.unregisterFragmentLifecycleCallbacks(mTitleUpdaterLifecycleCallbacks);
@@ -278,6 +303,20 @@ public class SettingsPageFragmentDelegateImpl
         mToolbar = null;
     }
 
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        if (mSearchCoordinator != null) {
+            mSearchCoordinator.onSaveInstanceState(outState);
+        }
+        if (mMultiColumnTitleUpdater != null) {
+            mMultiColumnTitleUpdater.onSaveInstanceState(outState);
+        }
+        SettingsBreadcrumbUtil.saveInitialBreadcrumbPath(outState, mInitialBreadcrumbPath);
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {}
+
     private @Nullable Bundle getSavedInstanceState() {
         return mActivity instanceof AsyncInitializationActivity asyncActivity
                 ? asyncActivity.getSavedInstanceState()
@@ -302,7 +341,7 @@ public class SettingsPageFragmentDelegateImpl
                         titleContainer,
                         mToolbar::setTitle,
                         this::onTitleTapped,
-                        /* initialBreadcrumbPath= */ null);
+                        mInitialBreadcrumbPath);
         multiColumnSettings.addObserver(mMultiColumnTitleUpdater);
     }
 

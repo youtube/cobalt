@@ -197,7 +197,8 @@ int RequestAnimationFrame(Document* document,
 
   auto* frame_callback = MakeGarbageCollected<V8FrameCallback>(callback);
   frame_callback->SetUseLegacyTimeBase(legacy);
-  return document->RequestAnimationFrame(frame_callback);
+  return document->RequestAnimationFrame(frame_callback,
+                                         FrameCallbackType::kWebExposed);
 }
 
 }  // namespace
@@ -278,13 +279,13 @@ void LocalDOMWindow::ClearForReuse() {
           document_->DidRemoveEventListeners(count);
         });
   }
-  document_ = nullptr;
-
-  // Reset per-document metrics bookkeeping.
+  // Reset per-document metrics bookkeeping before clearing `document_`.
   if (soft_navigation_heuristics_) {
     soft_navigation_heuristics_->Shutdown();
     soft_navigation_heuristics_ = nullptr;
   }
+  document_ = nullptr;
+
   WindowPerformance::ClearForWindowReuse(*this);
 }
 
@@ -2217,7 +2218,7 @@ int LocalDOMWindow::webkitRequestAnimationFrame(
 }
 
 void LocalDOMWindow::cancelAnimationFrame(int id) {
-  document()->CancelAnimationFrame(id);
+  document()->CancelAnimationFrame(id, FrameCallbackType::kWebExposed);
 }
 
 bool LocalDOMWindow::originAgentCluster() const {

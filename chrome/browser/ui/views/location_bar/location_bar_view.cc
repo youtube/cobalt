@@ -60,13 +60,11 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
-#include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_layout.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_util.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/views/location_bar/selected_keyword_view.h"
-#include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_aim_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
@@ -114,7 +112,6 @@
 #include "components/omnibox/common/input_state.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url_service.h"
@@ -185,8 +182,6 @@ LocationBarView* GetLocationBarViewForActions(Browser* browser) {
   return browser_view ? browser_view->GetLocationBarView() : nullptr;
 }
 
-// The padding between the intent chip and the other trailing decorations.
-constexpr int kIntentChipIntraItemPadding = 12;
 
 // The padding between the content setting icons and other trailing decorations.
 constexpr int kContentSettingIntraItemPadding = 8;
@@ -439,11 +434,6 @@ void LocationBarView::Init() {
   selected_keyword_view_ = AddChildView(std::make_unique<SelectedKeywordView>(
       this, profile_, omnibox_controller_.get(), font_list));
 
-  if (browser_ && apps::features::ShouldShowLinkCapturingUX() &&
-      !IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
-    intent_chip_ =
-        AddChildView(std::make_unique<IntentChipButton>(browser_, this));
-  }
 
   SkColor icon_color = color_provider->GetColor(kColorOmniboxResultsIcon);
 
@@ -463,9 +453,9 @@ void LocationBarView::Init() {
   }
 
   // We don't need to bridge the new page action container with the legacy one
-  // if all page actions (i.e. up to bookmark star) are migrated.
+  // if page actions migration is enabled.
   const bool should_bridge_containers =
-      !IsPageActionMigrated(PageActionIconType::kBookmarkStar);
+      !base::FeatureList::IsEnabled(features::kPageActionsMigration);
   static constexpr int kBetweenIconSpacing = 8;
   const page_actions::PageActionViewParams page_action_params{
       .icon_size =
@@ -490,19 +480,9 @@ void LocationBarView::Init() {
     // TODO(crbug.com/40835681): Improve the ordering heuristics for page action
     // icons and determine a way to handle simultaneous icon animations.
 
-    if (optimization_guide::features::ShouldEnableOptimizationGuideIconView()) {
-      params.types_enabled.push_back(PageActionIconType::kOptimizationGuide);
-    }
-    if (!apps::features::ShouldShowLinkCapturingUX()) {
-      params.types_enabled.push_back(PageActionIconType::kIntentPicker);
-    }
     params.types_enabled.push_back(PageActionIconType::kFederation);
   }
-  params.types_enabled.push_back(PageActionIconType::kVirtualCardEnroll);
 
-  if (browser_ && !is_popup_mode_) {
-    params.types_enabled.push_back(PageActionIconType::kBookmarkStar);
-  }
 
   params.icon_color = color_provider->GetColor(kColorOmniboxActionIcon);
   params.between_icon_spacing = kBetweenIconSpacing;
@@ -894,11 +874,10 @@ void LocationBarView::Layout(PassKey) {
   // When the AIM page action is shown as the right-most page action in the
   // location bar, it should be positioned flush against the right edge of the
   // location bar.
-  // If all page actions are migrated (i.e. up to bookmark star), then the extra
-  // padding that is usually added to bridge the new and legacy containers can
-  // be discounted.
+  // If page actions migration is enabled, then the extra padding that is
+  // usually added to bridge the new and legacy containers can be discounted.
   const bool all_page_actions_migrated =
-      IsPageActionMigrated(PageActionIconType::kBookmarkStar);
+      base::FeatureList::IsEnabled(features::kPageActionsMigration);
   const int kTrailingEdgePaddingForAim = !all_page_actions_migrated ? -3 : 5;
   const PageActionInfo info = GetPageActionInfo();
   const int kTrailingEdgePaddingForNonAim =
@@ -922,11 +901,6 @@ void LocationBarView::Layout(PassKey) {
                             /*edge_padding=*/trailing_decorations_edge_padding);
   }
 
-  if (intent_chip_) {
-    int intra_item_padding = kIntentChipIntraItemPadding;
-    add_trailing_decoration(intent_chip_, intra_item_padding,
-                            /*edge_padding=*/trailing_decorations_edge_padding);
-  }
 
   add_trailing_decoration(clear_all_button_, /*intra_item_padding=*/0,
                           /*edge_padding=*/trailing_decorations_edge_padding);
@@ -1068,9 +1042,6 @@ void LocationBarView::Update(WebContents* contents) {
   location_icon_view_->Update(
       /*suppress_animations=*/contents, GetOmniboxController()->IsPopupOpen());
 
-  if (intent_chip_) {
-    intent_chip_->Update();
-  }
 
   if (contents) {
     omnibox_view_->OnTabChanged(contents);
@@ -1252,6 +1223,27 @@ OmniboxPopupFileSelector* LocationBarView::GetOmniboxPopupFileSelector() const {
 
 OmniboxPopupAimPresenter* LocationBarView::GetOmniboxPopupAimPresenter() const {
   return omnibox_popup_aim_presenter_.get();
+}
+// If omnibox is open, notify Omnibox presenter that a permission prompt is
+// starting right before constructing the prompt view widget. This is the
+// notification point that is before and closest to rendering the view, which
+// ensures the omnibox knows as soon as possible and ignores focus-loss events
+// during the whole time that the embedded permission prompt is showing.
+void LocationBarView::SetPermissionPromptShowing(bool showing) {
+  OmniboxPopupPresenterBase* presenter = nullptr;
+  // Get Omnibox popup presenter for AIM or normal omnibox, depending
+  // on which is showing.
+  if (auto* aim_presenter = GetOmniboxPopupAimPresenter();
+      aim_presenter && aim_presenter->IsShown()) {
+    presenter = aim_presenter;
+  } else if (auto* popup_view = GetOmniboxPopupView();
+             popup_view && popup_view->presenter() &&
+             popup_view->presenter()->IsShown()) {
+    presenter = popup_view->presenter();
+  }
+  if (presenter) {
+    presenter->SetPermissionPromptShowing(showing);
+  }
 }
 
 WebContents* LocationBarView::GetWebContentsForPageActionIconView() {
@@ -2598,8 +2590,8 @@ void LocationBarView::ExecutePasteAndGo(
 BEGIN_METADATA(LocationBarView)
 ADD_READONLY_PROPERTY_METADATA(int, BorderRadius)
 ADD_READONLY_PROPERTY_METADATA(gfx::Point, OmniboxViewOrigin)
-ADD_PROPERTY_METADATA(std::u16string_view, ImeInlineAutocompletion)
-ADD_PROPERTY_METADATA(std::u16string_view, OmniboxAdditionalText)
+ADD_PROPERTY_METADATA(std::u16string, ImeInlineAutocompletion)
+ADD_PROPERTY_METADATA(std::u16string, OmniboxAdditionalText)
 ADD_READONLY_PROPERTY_METADATA(int, MinimumLeadingWidth)
 ADD_READONLY_PROPERTY_METADATA(int, MinimumTrailingWidth)
 ADD_READONLY_PROPERTY_METADATA(gfx::Rect, LocalBoundsWithoutEndcaps)

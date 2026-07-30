@@ -78,7 +78,6 @@
 #include "chrome/test/base/chrome_test_suite.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/test_launcher_utils.h"
-#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/captive_portal/core/buildflags.h"
 #include "components/feature_engagement/public/feature_list.h"
@@ -663,7 +662,7 @@ void InProcessBrowserTest::SetUpLocalStatePrefService(
 }
 
 Profile* InProcessBrowserTest::GetProfile() const {
-  return browser() ? browser()->profile() : nullptr;
+  return browser() ? browser()->GetProfile() : nullptr;
 }
 
 TabListInterface* InProcessBrowserTest::GetTabListInterface() const {
@@ -787,7 +786,7 @@ Browser* InProcessBrowserTest::CreateBrowser(Profile* profile) {
 Browser* InProcessBrowserTest::CreateIncognitoBrowser(Profile* profile) {
   // Use active profile if default nullptr was passed.
   if (!profile) {
-    profile = browser()->profile();
+    profile = browser()->GetProfile();
   }
   // Create a new browser with using the incognito profile.
   Browser* incognito = Browser::Create(Browser::CreateParams(

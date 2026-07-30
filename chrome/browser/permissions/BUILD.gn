@@ -126,6 +126,7 @@ source_set("permissions") {
     "//components/prefs",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/safe_browsing/core/browser/db:database_manager",
+    "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/segmentation_platform/internal:optimization_guide_segmentation_handler",
@@ -283,6 +284,7 @@ source_set("unit_tests") {
     "//components/passage_embeddings/core",
     "//components/permissions/prediction_service",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
+    "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
     "//components/site_engagement/content",
     "//components/ukm/content",
     "//components/unified_consent",
@@ -300,7 +302,10 @@ source_set("unit_tests") {
       "//components/ukm:test_support",
     ]
   } else {
-    sources += [ "permission_hats_trigger_unittest.cc" ]
+    sources += [
+      "permission_hats_trigger_unittest.cc",
+      "system/system_media_permission_cache_unittest.cc",
+    ]
     deps += [ "//chrome/browser/ui/hats" ]
     if (enable_extensions) {
       deps += [
@@ -379,10 +384,6 @@ if (!is_android) {
       deps += [ "//chrome/browser/ash/privacy_hub" ]
     }
 
-    if (is_mac) {
-      sources += [ "system/system_permission_settings_mac_browsertest.mm" ]
-    }
-
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
@@ -410,5 +411,15 @@ if (!is_android && !is_chromeos_device) {
       "//components/embedder_support",
       "//content/test:browsertest_support",
     ]
+
+    if (is_mac || is_win) {
+      sources += [ "system/system_permission_settings_interactive_uitest.cc" ]
+    }
+    if (is_mac) {
+      sources += [
+        "system/system_media_permission_cache_mac_test_helper.h",
+        "system/system_media_permission_cache_mac_test_helper.mm",
+      ]
+    }
   }
 }

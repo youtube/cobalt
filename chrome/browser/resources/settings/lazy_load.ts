@@ -28,12 +28,6 @@ import './privacy_page/privacy_guide/privacy_guide_page.js';
 import './privacy_page/security/security_keys_subpage.js';
 import './privacy_page/security/security_page_v2.js';
 import './privacy_page/security/security_page.js';
-import './privacy_sandbox/privacy_sandbox_ad_measurement_subpage.js';
-import './privacy_sandbox/privacy_sandbox_fledge_subpage.js';
-import './privacy_sandbox/privacy_sandbox_interest_item.js';
-import './privacy_sandbox/privacy_sandbox_manage_topics_subpage.js';
-import './privacy_sandbox/privacy_sandbox_page.js';
-import './privacy_sandbox/privacy_sandbox_topics_subpage.js';
 import './safety_hub/safety_hub_entry_point.js';
 import './safety_hub/safety_hub_page.js';
 import './search_page/search_engines_page.js';
@@ -169,6 +163,10 @@ export {SettingsAiSuggestionsPageElement} from './ai_page/ai_suggestions_page.js
 export {AiEnterpriseFeaturePrefName, AiPageActions, FeatureOptInState, SettingsAiPageFeaturePrefName} from './ai_page/constants.js';
 export {SettingsHistorySearchPageElement} from './ai_page/history_search_page.js';
 export {COMPOSE_PROACTIVE_NUDGE_DISABLED_SITES_PREF, COMPOSE_PROACTIVE_NUDGE_PREF, SettingsOfferWritingHelpPageElement} from './ai_page/offer_writing_help_page.js';
+// <if expr="_google_chrome">
+export type {OnDeviceAiBrowserProxy, OnDeviceAiEnabled} from './ai_page/on_device_ai_browser_proxy.js';
+export {OnDeviceAiBrowserProxyImpl} from './ai_page/on_device_ai_browser_proxy.js';
+// </if>
 export {SettingsSkillsPageElement} from './ai_page/skills_page.js';
 export {SettingsAppearanceFontsPageElement} from './appearance_page/appearance_fonts_page.js';
 export {SettingsAddressEditDialogElement} from './autofill_page/address_edit_dialog.js';
@@ -253,7 +251,6 @@ export {SettingsCookiesPageElement} from './privacy_page/cookies_page.js';
 export {SettingsDoNotTrackToggleElement} from './privacy_page/do_not_track_toggle.js';
 export {SettingsPersonalizationOptionsElement} from './privacy_page/personalization_options.js';
 export {PrivacyGuideStep} from './privacy_page/privacy_guide/constants.js';
-export {PrivacyGuideAdTopicsFragmentElement} from './privacy_page/privacy_guide/privacy_guide_ad_topics_fragment.js';
 export {PrivacyGuideCompletionFragmentElement} from './privacy_page/privacy_guide/privacy_guide_completion_fragment.js';
 export {PrivacyGuideCookiesFragmentElement} from './privacy_page/privacy_guide/privacy_guide_cookies_fragment.js';
 export {SettingsPrivacyGuideDialogElement} from './privacy_page/privacy_guide/privacy_guide_dialog.js';
@@ -277,12 +274,6 @@ export {SecurityKeysSubpageElement} from './privacy_page/security/security_keys_
 export {HttpsFirstModeSetting, SettingsSecurityPageElement} from './privacy_page/security/security_page.js';
 export {SecurityPageFeatureRowElement} from './privacy_page/security/security_page_feature_row.js';
 export {SecuritySettingsBundleSetting, SettingsSecurityPageV2Element} from './privacy_page/security/security_page_v2.js';
-export {SettingsPrivacySandboxAdMeasurementSubpageElement} from './privacy_sandbox/privacy_sandbox_ad_measurement_subpage.js';
-export {SettingsPrivacySandboxFledgeSubpageElement} from './privacy_sandbox/privacy_sandbox_fledge_subpage.js';
-export {PrivacySandboxInterestItemElement} from './privacy_sandbox/privacy_sandbox_interest_item.js';
-export {SettingsPrivacySandboxManageTopicsSubpageElement} from './privacy_sandbox/privacy_sandbox_manage_topics_subpage.js';
-export {SettingsPrivacySandboxPageElement} from './privacy_sandbox/privacy_sandbox_page.js';
-export {SettingsPrivacySandboxTopicsSubpageElement} from './privacy_sandbox/privacy_sandbox_topics_subpage.js';
 export {SettingsResetPageElement} from './reset_page/reset_page.js';
 export {SettingsResetProfileDialogElement} from './reset_page/reset_profile_dialog.js';
 export {SettingsSafetyHubExtensionsModuleElement} from './safety_hub/extensions_module.js';
@@ -347,10 +338,6 @@ export {WebPrintingPageElement} from './site_settings/web_printing_page.js';
 export {WebsiteUsageBrowserProxyImpl} from './site_settings/website_usage_browser_proxy.js';
 export type {WebsiteUsageBrowserProxy} from './site_settings/website_usage_browser_proxy.js';
 export {ZoomLevelsElement} from './site_settings/zoom_levels.js';
-// <if expr="not is_chromeos and _google_chrome">
-export type {OnDeviceAiBrowserProxy, OnDeviceAiEnabled} from './system_page/on_device_ai_browser_proxy.js';
-export {OnDeviceAiBrowserProxyImpl} from './system_page/on_device_ai_browser_proxy.js';
-// </if>
 // <if expr="not is_chromeos">
 export {SettingsSystemPageElement} from './system_page/system_page.js';
 export {SystemPageBrowserProxyImpl} from './system_page/system_page_browser_proxy.js';

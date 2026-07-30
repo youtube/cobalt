@@ -41,14 +41,18 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxDrawableState;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.PositionalMode;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.RoundSides;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProperties.Action;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
+import org.chromium.components.omnibox.OmniboxCapabilities;
+import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor.ViewBinder;
 
 import java.util.Arrays;
 import java.util.List;
@@ -62,6 +66,7 @@ public class BaseSuggestionViewBinderUnitTest {
     private PropertyModel mModel;
     private BaseSuggestionView<View> mBaseView;
     private BaseSuggestionViewBinder<View> mBinder;
+    private OmniboxResourceProvider mResourceProvider;
     private ImageView mIconView;
 
     @Before
@@ -75,14 +80,16 @@ public class BaseSuggestionViewBinderUnitTest {
         mIconView = mBaseView.decorationIcon;
 
         mModel = new PropertyModel(BaseSuggestionViewProperties.ALL_KEYS);
+        mResourceProvider = new OmniboxResourceProvider(mContext, BrandedColorScheme.APP_DEFAULT);
         mBinder =
-                new BaseSuggestionViewBinder<>(
+                new TestBaseSuggestionViewBinder<>(
+                        mResourceProvider,
                         (m, v, p) -> {
                             assertEquals(mBaseView.contentView, v);
                         });
 
         PropertyModelChangeProcessor.create(mModel, mBaseView, mBinder);
-        BaseSuggestionViewBinder.initializeDimensions(mContext);
+        BaseSuggestionViewBinder.initializeDimensions(mContext, mResourceProvider);
 
         ResettersForTesting.register(() -> BaseSuggestionViewBinder.sFocusableDrawableState = null);
     }
@@ -92,7 +99,6 @@ public class BaseSuggestionViewBinderUnitTest {
         OmniboxDrawableState state =
                 new OmniboxDrawableState(
                         new ColorDrawable(0),
-                        mContext,
                         /* useRoundedCorners= */ false,
                         /* isLarge= */ false,
                         /* allowTint= */ false);
@@ -105,7 +111,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
     @Test
     public void decorIcon_showRoundedIcon() {
-        OmniboxDrawableState state = OmniboxDrawableState.forColor(0, mContext);
+        OmniboxDrawableState state = OmniboxDrawableState.forColor(0);
         mModel.set(BaseSuggestionViewProperties.ICON, state);
 
         assertTrue(mIconView.getClipToOutline());
@@ -115,7 +121,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
     @Test
     public void decorIcon_hideIcon() {
-        OmniboxDrawableState state = OmniboxDrawableState.forColor(0, mContext);
+        OmniboxDrawableState state = OmniboxDrawableState.forColor(0);
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(View.VISIBLE, mIconView.getVisibility());
         assertEquals(state.drawable, mIconView.getDrawable());
@@ -133,7 +139,7 @@ public class BaseSuggestionViewBinderUnitTest {
                 Arrays.asList(
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 callback));
         mModel.set(BaseSuggestionViewProperties.ACTION_BUTTONS, list);
@@ -161,17 +167,17 @@ public class BaseSuggestionViewBinderUnitTest {
                 Arrays.asList(
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 call1),
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 call2),
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 call3));
         mModel.set(BaseSuggestionViewProperties.ACTION_BUTTONS, list);
@@ -204,17 +210,17 @@ public class BaseSuggestionViewBinderUnitTest {
                 Arrays.asList(
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 CallbackUtils.emptyRunnable()),
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 CallbackUtils.emptyRunnable()),
                         new Action(
                                 mContext,
-                                OmniboxDrawableState.forColor(0, mContext),
+                                OmniboxDrawableState.forColor(0),
                                 R.string.accessibility_omnibox_btn_refine,
                                 CallbackUtils.emptyRunnable()));
 
@@ -373,7 +379,8 @@ public class BaseSuggestionViewBinderUnitTest {
         var bgCaptor = ArgumentCaptor.forClass(Drawable.class);
 
         var viewWithNoContext = mock(View.class);
-        BaseSuggestionViewBinder.applySelectableBackground(mModel, viewWithNoContext);
+        BaseSuggestionViewBinder.applySelectableBackground(
+                mModel, viewWithNoContext, mResourceProvider);
         verify(viewWithNoContext).setBackground(bgCaptor.capture());
 
         var color = ((ColorDrawable) bgCaptor.getValue()).getColor();
@@ -418,8 +425,12 @@ public class BaseSuggestionViewBinderUnitTest {
         // Create a second MVP setup. Use Bare context that has no theme data.
         var newModel = new PropertyModel(BaseSuggestionViewProperties.ALL_KEYS);
         var viewWithNoContext = spy(new BaseSuggestionView<>(new ImageView(mBareContext)));
+        OmniboxResourceProvider bareResourceProvider =
+                new OmniboxResourceProvider(mBareContext, BrandedColorScheme.APP_DEFAULT);
         PropertyModelChangeProcessor.create(
-                newModel, viewWithNoContext, new BaseSuggestionViewBinder<>((m, v, p) -> {}));
+                newModel,
+                viewWithNoContext,
+                new TestBaseSuggestionViewBinder<>(bareResourceProvider, (m, v, p) -> {}));
 
         // Apply the same color scheme to the new model.
         // Observe that we don't crash.
@@ -467,7 +478,7 @@ public class BaseSuggestionViewBinderUnitTest {
     }
 
     private void runDecorationIconPaddingTest() {
-        BaseSuggestionViewBinder.initializeDimensions(mContext);
+        BaseSuggestionViewBinder.initializeDimensions(mContext, mResourceProvider);
 
         int smallRoundingRadius =
                 mResources.getDimensionPixelSize(R.dimen.omnibox_small_icon_rounding_radius);
@@ -483,8 +494,7 @@ public class BaseSuggestionViewBinderUnitTest {
         var b = Bitmap.createBitmap(/* width= */ 2, /* height= */ 1, Bitmap.Config.ALPHA_8);
 
         OmniboxDrawableState state =
-                OmniboxDrawableState.forFavIcon(
-                        new BitmapDrawable(mContext.getResources(), b), mContext);
+                OmniboxDrawableState.forFavIcon(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
         assertEquals(smallEdgeSize, mIconView.getLayoutParams().width);
@@ -492,9 +502,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
         // Variant 2: Large, wide, short icon.
         // Width bound by the edge edge size, height wrapping content.
-        state =
-                OmniboxDrawableState.forImage(
-                        new BitmapDrawable(mContext.getResources(), b), mContext);
+        state = OmniboxDrawableState.forImage(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
         assertEquals(largeEdgeSize, mIconView.getLayoutParams().width);
@@ -504,9 +512,7 @@ public class BaseSuggestionViewBinderUnitTest {
         // Height bound by the edge edge size, width wrapping content.
         b = Bitmap.createBitmap(/* width= */ 1, /* height= */ 2, Bitmap.Config.ALPHA_8);
 
-        state =
-                OmniboxDrawableState.forFavIcon(
-                        new BitmapDrawable(mContext.getResources(), b), mContext);
+        state = OmniboxDrawableState.forFavIcon(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().width);
         assertEquals(smallEdgeSize, mIconView.getLayoutParams().height);
@@ -514,9 +520,7 @@ public class BaseSuggestionViewBinderUnitTest {
 
         // Variant 4: Large, narrow, tall icon.
         // Height bound by the edge edge size, width wrapping content.
-        state =
-                OmniboxDrawableState.forImage(
-                        new BitmapDrawable(mContext.getResources(), b), mContext);
+        state = OmniboxDrawableState.forImage(new BitmapDrawable(mContext.getResources(), b));
         mModel.set(BaseSuggestionViewProperties.ICON, state);
         assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().width);
         assertEquals(largeEdgeSize, mIconView.getLayoutParams().height);
@@ -524,8 +528,55 @@ public class BaseSuggestionViewBinderUnitTest {
     }
 
     @Test
+    public void decorIcon_desktopDevice() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        BaseSuggestionViewBinder.resetCachedResources();
+        BaseSuggestionViewBinder.initializeDimensions(mContext, mResourceProvider);
+
+        int smallDesktopEdge =
+                mResources.getDimensionPixelSize(
+                        R.dimen.omnibox_desktop_small_decoration_icon_size);
+        int largeDesktopEdge =
+                mResources.getDimensionPixelSize(
+                        R.dimen.omnibox_desktop_large_decoration_icon_size);
+
+        Bitmap b = Bitmap.createBitmap(/* width= */ 2, /* height= */ 1, Bitmap.Config.ALPHA_8);
+
+        OmniboxDrawableState state =
+                OmniboxDrawableState.forFavIcon(new BitmapDrawable(mContext.getResources(), b));
+        mModel.set(BaseSuggestionViewProperties.ICON, state);
+        assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
+        assertEquals(smallDesktopEdge, mIconView.getLayoutParams().width);
+
+        state = OmniboxDrawableState.forImage(new BitmapDrawable(mContext.getResources(), b));
+        mModel.set(BaseSuggestionViewProperties.ICON, state);
+        assertEquals(MarginLayoutParams.WRAP_CONTENT, mIconView.getLayoutParams().height);
+        assertEquals(largeDesktopEdge, mIconView.getLayoutParams().width);
+
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(false);
+        BaseSuggestionViewBinder.resetCachedResources();
+    }
+
+    @Test
     public void topPadding() {
         mModel.set(BaseSuggestionViewProperties.TOP_PADDING, 13);
         assertEquals(13, mBaseView.getPaddingTop());
+    }
+
+    private static class TestBaseSuggestionViewBinder<T extends View>
+            extends BaseSuggestionViewBinder<T> {
+        private final ViewBinder<PropertyModel, T, PropertyKey> mContentBinder;
+
+        public TestBaseSuggestionViewBinder(
+                OmniboxResourceProvider resourceProvider,
+                ViewBinder<PropertyModel, T, PropertyKey> contentBinder) {
+            super(resourceProvider);
+            mContentBinder = contentBinder;
+        }
+
+        @Override
+        protected void bindContent(PropertyModel model, T contentView, PropertyKey propertyKey) {
+            mContentBinder.bind(model, contentView, propertyKey);
+        }
     }
 }

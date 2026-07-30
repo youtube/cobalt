@@ -475,6 +475,24 @@ void ReadAnythingAppController::OnDestruct() {
 
 void ReadAnythingAppController::OnNodeWillBeDeleted(ui::AXTree* tree,
                                                     ui::AXNode* node) {
+  // Node deletions are ignored for Readability because the Readability panel
+  // renders a static HTML snapshot and does not dynamically update its content
+  // on individual node deletions. The static DOM-to-AX mapping is still used
+  // for selection/links/read aloud:
+  // - Selection: If the deleted node is inside the selection range, selection
+  //   works normally. If the deleted node is the start or end of the selection,
+  //   the renderer's OnSelectionChange returns early and selection sync is
+  //   skipped.
+  // - Links: The browser ignores click events on non-existent node IDs.
+  // - Read Aloud: Text remains in the side panel's DOM and continues to be
+  //   read.
+  // TODO(crbug.com/538746675): Investigate whether this and the readability
+  // check in OnNodeDeleted are the right solution or if it impacts selection
+  // too much.
+  if (model_.is_readability_next_distillation_method() ||
+      tree->GetAXTreeID() != model_.active_tree_id()) {
+    return;
+  }
   ui::AXNodeID node_id = CHECK_DEREF(node).id();
   if (model_.GetCurrentlyVisibleNodes()->contains(node_id)) {
     displayed_nodes_pending_deletion_.insert(node_id);
@@ -487,8 +505,8 @@ void ReadAnythingAppController::OnNodeWillBeDeleted(ui::AXTree* tree,
 
 void ReadAnythingAppController::OnNodeDeleted(ui::AXTree* tree,
                                               ui::AXNodeID node_id) {
-  // Ignore node deletions for Readability as there is no mapping to the
-  // AXTree for this distillation method.
+  // Node deletions are ignored for Readability because the Readability panel
+  // renders a static HTML snapshot and does not dynamically update its content.
   if (model_.is_readability_next_distillation_method()) {
     return;
   }
@@ -548,8 +566,16 @@ void ReadAnythingAppController::OnStringAttributeChanged(
     const std::string& new_value) {
   // Return early when the images flag is disabled to avoid potential crashes.
   if (!features::IsReadAnythingImagesViaAlgorithmEnabled() ||
-      features::IsReadAnythingWithReadabilityEnabled() ||
       attr != ax::mojom::StringAttribute::kUrl) {
+    return;
+  }
+
+  // Also return early for Readability, since images for Readability are
+  // processed separately.
+  bool is_readability_distillation =
+      model_.is_readability_next_distillation_method() ||
+      model_.is_readability_current_distillation_method();
+  if (is_readability_distillation) {
     return;
   }
 
@@ -642,6 +668,8 @@ void ReadAnythingAppController::AccessibilityEventReceived(
           const_cast<std::vector<ui::AXEvent>&>(events));
     }
   }
+
+  MaybeLogAXTreeReady();
 
   // From this point onward, `updates` and `events` should not be accessed.
   if (tree_id != model_.active_tree_id() || IsUpdateProcessingPaused()) {
@@ -795,6 +823,11 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   }
   VLOG(1) << "On active tree changed with new id: " << tree_id;
 
+  ax_tree_ready_for_current_active_tree_measured_ = false;
+  ax_tree_ready_for_current_active_tree_recorded_ = false;
+  active_tree_changed_start_time_ = base::TimeTicks::Now();
+  waiting_for_tree_id_ = false;
+
   // If the previous tree was not unknown (e.g. this is not the first tree
   // seen), log session metrics for the previous tree.
   if (model_.active_tree_id() != ui::AXTreeIDUnknown()) {
@@ -810,7 +843,9 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   model_.SetRootTreeId(tree_id);
   model_.SetUkmSourceIdForTree(tree_id, ukm_source_id);
   model_.set_is_pdf(is_pdf);
-  if (is_pdf && !IsHidden()) {
+  // Reset the PDF draw timer (even if RM is hidden). The debouncer will check
+  // the state of RM at that point again and only act if it's still relevant.
+  if (is_pdf) {
     pdf_draw_debouncer_->Reset();
   }
 
@@ -870,6 +905,9 @@ void ReadAnythingAppController::PrepareForNewContentDistillation() {
 
 ReadAnythingAppModel::DistillationMethod
 ReadAnythingAppController::GetInitialDistillationMethod(bool is_pdf) const {
+  if (forced_distillation_method_for_testing_) {
+    return *forced_distillation_method_for_testing_;
+  }
   // If |is_pdf| = true, or if phrase highlighting is enabled, override
   // IsReadAnythingWithReadabilityEnabled flag and return kScreen2x.
   // TODO: crbug.com/444029483- Update the phrase highlighting implementation
@@ -973,6 +1011,30 @@ void ReadAnythingAppController::RecordEstimatedWordsHeard() {
   model_.set_words_heard(0);
 }
 
+// TODO(crbug.com/525868787): Incorporate OnAXTreeReady for getting the
+// processed AXTree after it is processed.
+void ReadAnythingAppController::MaybeLogAXTreeReady() {
+  if (ax_tree_ready_for_current_active_tree_recorded_) {
+    return;
+  }
+
+  if (model_.GetValidActiveTree()) {
+    if (!ax_tree_ready_for_current_active_tree_measured_) {
+      elapsed_time_ax_tree_ready_ =
+          base::TimeTicks::Now() - active_tree_changed_start_time_;
+      ax_tree_ready_for_current_active_tree_measured_ = true;
+    }
+
+    if (!IsHidden() && ax_tree_ready_for_current_active_tree_measured_) {
+      base::UmaHistogramLongTimes(
+          "Accessibility.ReadAnything."
+          "TimeFromActiveAXTreeIDChangedToAXTreeReady",
+          elapsed_time_ax_tree_ready_);
+      ax_tree_ready_for_current_active_tree_recorded_ = true;
+    }
+  }
+}
+
 void ReadAnythingAppController::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
   // Cancel any running draw timers.
   VLOG(1) << "OnAXTreeDestroyed: " << tree_id;
@@ -1067,7 +1129,7 @@ void ReadAnythingAppController::OnAXTreeDistilled(
     return;
   }
   // Reset state, including the current side panel selection so we can update
-  // it based on the new main panel selection in PostProcessSelection below.ona
+  // it based on the new main panel selection in PostProcessSelection below.
   model_.Reset(content_node_ids);
   read_aloud_model_.ResetReadAloudState();
 
@@ -2790,6 +2852,10 @@ void ReadAnythingAppController::OnReadingModeShown(
   if (open_trigger == read_anything::mojom::ReadAnythingOpenTrigger::
                           kListenToThisPageContextMenu) {
     ExecuteJavaScript("chrome.readingMode.setPlayOnOpen(true);");
+  }
+
+  if (ax_tree_ready_for_current_active_tree_measured_) {
+    MaybeLogAXTreeReady();
   }
 }
 

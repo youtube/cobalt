@@ -246,7 +246,7 @@ void GetPresetNTPBackgroundPreview(
 @interface OverflowMenuMediator () <AuthenticationServiceObserving,
                                     BookmarkModelBridgeObserver,
                                     CRWWebStateObserver,
-                                    IdentityManagerObserverBridgeDelegate,
+                                    IdentityManagerObserving,
                                     IOSLanguageDetectionTabHelperObserving,
                                     OverflowMenuDestinationProvider,
                                     OverlayPresenterObserving,
@@ -912,7 +912,7 @@ void GetPresetNTPBackgroundPreview(
     self.AIPrototypeAction = [self openAIPrototypeAction];
   }
 
-  if (base::FeatureList::IsEnabled(kHideToolbarsInOverflowMenu)) {
+  if (IsHideToolbarEnabled()) {
     self.hideToolbarsAction = [self collapseToolbars];
   }
 
@@ -991,7 +991,7 @@ void GetPresetNTPBackgroundPreview(
   OverflowMenuAction* action = [self
       createOverflowMenuActionWithNameID:nameID
                               actionType:overflow_menu::ActionType::ReaderMode
-                              symbolName:GetReaderModeSymbolName()
+                              symbolName:kReaderModeSymbol
                             systemSymbol:YES
                         monochromeSymbol:NO
                          accessibilityID:kToolsMenuReaderMode
@@ -1902,7 +1902,7 @@ void GetPresetNTPBackgroundPreview(
 
   self.askBWGAction.enabled = [self isGeminiAvailable];
 
-  if (base::FeatureList::IsEnabled(kHideToolbarsInOverflowMenu)) {
+  if (IsHideToolbarEnabled()) {
     self.hideToolbarsAction.enabled = ![self isCurrentWebPageNTP];
   }
 }
@@ -1968,7 +1968,8 @@ void GetPresetNTPBackgroundPreview(
   NSMutableArray<OverflowMenuActionGroup*>* actionGroups =
       [[NSMutableArray alloc] init];
 
-  if (IsIdentityAwarenessEnabled() && self.authenticationService) {
+  if (IsIdentityAwarenessEnabled() && self.authenticationService &&
+      !self.incognito) {
     NSMutableArray<OverflowMenuAction*>* identityActions =
         [NSMutableArray array];
     if (self.authenticationService->GetPrimaryIdentity()) {
@@ -2080,7 +2081,7 @@ void GetPresetNTPBackgroundPreview(
 }
 
 - (void)updateIdentityAction {
-  if (!self.identityAction || !self.authenticationService ||
+  if (self.incognito || !self.identityAction || !self.authenticationService ||
       !self.authenticationService->HasPrimaryIdentity()) {
     return;
   }
@@ -2648,7 +2649,7 @@ void GetPresetNTPBackgroundPreview(
   if (IsReaderModeAvailable()) {
     actions.push_back(overflow_menu::ActionType::ReaderMode);
   }
-  if (base::FeatureList::IsEnabled(kHideToolbarsInOverflowMenu)) {
+  if (IsHideToolbarEnabled()) {
     actions.push_back(overflow_menu::ActionType::HideToolbars);
   }
 
@@ -3196,9 +3197,9 @@ void GetPresetNTPBackgroundPreview(
                                      actionSubtitle:subtitle];
 }
 
-#pragma mark - IdentityManagerObserverBridgeDelegate
+#pragma mark - IdentityManagerObserving
 
-- (void)onPrimaryAccountChanged:
+- (void)primaryAccountDidChange:
     (const signin::PrimaryAccountChangeEvent&)event {
   switch (event.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
     case signin::PrimaryAccountChangeEvent::Type::kNone:
@@ -3210,7 +3211,7 @@ void GetPresetNTPBackgroundPreview(
   }
 }
 
-- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
+- (void)extendedAccountInfoDidUpdate:(const AccountInfo&)info {
   [self updateModel];
 }
 

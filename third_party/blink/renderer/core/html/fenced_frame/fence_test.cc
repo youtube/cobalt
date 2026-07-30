@@ -23,10 +23,8 @@ namespace blink {
 class FenceTest : private ScopedFencedFramesForTest, public SimTest {
  public:
   FenceTest() : ScopedFencedFramesForTest(true) {
-    scoped_feature_list_.InitWithFeatures(
-        {{blink::features::kFencedFrames},
-         {blink::features::kPrivateAggregationApi}},
-        /*disabled_features=*/{});
+    scoped_feature_list_.InitWithFeatures({{blink::features::kFencedFrames}},
+                                          /*disabled_features=*/{});
   }
 
   base::HistogramTester histogram_tester_;
@@ -35,35 +33,7 @@ class FenceTest : private ScopedFencedFramesForTest, public SimTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(FenceTest, ReportPrivateAggregationEvent) {
-  const KURL base_url("https://www.example.com/");
-  V8TestingScope scope(base_url);
-  Fence* fence =
-      MakeGarbageCollected<Fence>(*(GetDocument().GetFrame()->DomWindow()));
-  fence->reportPrivateAggregationEvent("event", scope.GetExceptionState());
 
-  // We expect this to make it past all the other checks, except for the fenced
-  // frame properties check. Since this is loaded in a vacuum and not the result
-  // of an ad auction, we expect it to output the reporting metadata error.
-  EXPECT_EQ(ConsoleMessages().size(), 1u);
-  EXPECT_EQ(ConsoleMessages().front(),
-            "This frame was not loaded with a FencedFrameConfig.");
-}
-
-TEST_F(FenceTest, ReportPrivateAggregationReservedEvent) {
-  const KURL base_url("https://www.example.com/");
-  V8TestingScope scope(base_url);
-  Fence* fence =
-      MakeGarbageCollected<Fence>(*(GetDocument().GetFrame()->DomWindow()));
-  fence->reportPrivateAggregationEvent("reserved.event",
-                                       scope.GetExceptionState());
-
-  // There should be a "Reserved events cannot be triggered manually." console
-  // warning.
-  EXPECT_EQ(ConsoleMessages().size(), 1u);
-  EXPECT_EQ(ConsoleMessages().front(),
-            "Reserved events cannot be triggered manually.");
-}
 
 TEST_F(FenceTest, ReportReservedEvent) {
   const KURL base_url("https://www.example.com/");

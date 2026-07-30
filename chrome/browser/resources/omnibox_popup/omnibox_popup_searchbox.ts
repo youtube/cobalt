@@ -4,6 +4,7 @@
 
 import '//resources/cr_components/searchbox/searchbox_dropdown.js';
 import '//resources/cr_components/searchbox/searchbox_input.js';
+import '//resources/cr_components/searchbox/searchbox_compose_button.js';
 
 import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import type {SearchboxDropdownElement} from '//resources/cr_components/searchbox/searchbox_dropdown.js';
@@ -101,6 +102,22 @@ export class OmniboxPopupSearchboxElement extends
         type: Boolean,
         reflect: true,
       },
+      aimButtonEnabled_: {
+        type: Boolean,
+      },
+      searchboxDynamicColorScheme_: {
+        type: Boolean,
+        reflect: true,
+      },
+      hasUserInput_: {
+        type: Boolean,
+      },
+      searchboxDynamicAnimation_: {
+        type: Boolean,
+      },
+      aimButtonVisible_: {
+        type: Boolean,
+      },
     };
   }
 
@@ -122,6 +139,14 @@ export class OmniboxPopupSearchboxElement extends
   protected accessor isTouchUi_: boolean = loadTimeData.getBoolean('isTouchUi');
   protected accessor omniboxPopupDebugEnabled_: boolean =
       loadTimeData.getBoolean('omniboxPopupDebugEnabled');
+  protected accessor aimButtonEnabled_: boolean =
+      loadTimeData.getBoolean('searchboxShowComposeEntrypoint');
+  protected accessor searchboxDynamicColorScheme_: boolean =
+      loadTimeData.getBoolean('searchboxDynamicColorScheme');
+  protected accessor searchboxDynamicAnimation_: boolean =
+      loadTimeData.getBoolean('searchboxDynamicAnimation');
+  protected accessor hasUserInput_: boolean = false;
+  protected accessor aimButtonVisible_: boolean = false;
 
   private eventTracker_ = new EventTracker();
   private searchboxPageHandler_: SearchboxPageHandlerInterface;
@@ -167,6 +192,10 @@ export class OmniboxPopupSearchboxElement extends
     this.listenerIds_ = [
       this.searchboxCallbackRouter_.autocompleteResultChanged.addListener(
           this.onAutocompleteResultChanged.bind(this)),
+      this.searchboxCallbackRouter_.setAimButtonVisible.addListener(
+          (visible: boolean) => {
+            this.aimButtonVisible_ = visible;
+          }),
     ];
     this.popupListenerIds_ = [
       this.popupCallbackRouter_.setInputState.addListener(
@@ -245,6 +274,17 @@ export class OmniboxPopupSearchboxElement extends
             actionIndex: 0,
           });
     }
+  }
+
+  override shouldAppendDotComOnCtrlEnter(): boolean {
+    return true;
+  }
+
+  override isBackgroundTabNavigation(e: KeyboardEvent|MouseEvent): boolean {
+    // Duplicate logic from
+    // `searchbox::ComputeOpenDispositionFromModifiersAndLogToUma()` to
+    // determine if a background tab is opened.
+    return (e.altKey && e.shiftKey) || (e.metaKey && !e.shiftKey);
   }
 
   focusInput() {
@@ -446,6 +486,7 @@ export class OmniboxPopupSearchboxElement extends
   private onSetInputState_(state: OmniboxInputState) {
     this.$.input.setInputText(state.text);
     this.userInputInProgress_ = state.userInputInProgress;
+    this.hasUserInput_ = !!state.text.trim();
     this.currentSequenceNum_ = state.sequenceNumber;
     this.fullUrl_ = state.fullUrl;
     this.lastQueriedInput = state.text;
@@ -558,10 +599,10 @@ export class OmniboxPopupSearchboxElement extends
     }
   }
 
-
   protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
     this.userInputInProgress_ = true;
+    this.hasUserInput_ = !!e.detail.value.trim();
     if (!e.detail.value.trim()) {
       // Notify the backend when the user clears all input (`onInputCleared`) so
       // it knows the draft was manually cleared and can revert empty drafts on
@@ -602,6 +643,12 @@ export class OmniboxPopupSearchboxElement extends
   protected onLensSearchClick_() {
     this.dropdownIsVisible = false;
     this.dispatchEvent(new Event('open-lens-search'));
+  }
+
+  protected onComposeClick_() {
+    // TODO(b/504670284): Open AIM popup on-click via Mojo IPC.
+    this.dropdownIsVisible = false;
+    this.dispatchEvent(new Event('open-composebox'));
   }
 
   override async handleKeyNavigation(e: KeyboardEvent) {

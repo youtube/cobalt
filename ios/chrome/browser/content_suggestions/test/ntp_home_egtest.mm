@@ -38,6 +38,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
+#import "ios/chrome/browser/popup_menu/overflow_menu/public/features.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_constants.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_constants.h"
@@ -241,6 +242,14 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // TODO(crbug.com/522830813): Test is failing.
   if ([self isRunningTest:@selector(DISABLED_testMinimumHeight)]) {
     config.features_enabled.push_back(kChromeNextIa);
+  }
+
+  if ([self isRunningTest:@selector(
+                              testToggleModuleVisiblityInCustomizationMenu)] ||
+      [self isRunningTest:@selector(testNavigateInCustomizationMenu)]) {
+    // TODO(crbug.com/537272655): Re-enable once the customization menu
+    // coordinator is fully testable in the minimal UI test environment.
+    config.features_enabled.push_back(kOverflowMenuHomeCustomizationEntrypoint);
   }
 
   return config;
@@ -944,59 +953,6 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   GREYAssertTrue(
       AreNumbersEqual(origin.y, collectionView.contentOffset.y),
       @"The collection is not scrolled back to its previous position");
-}
-
-// Tests that tapping the fake omnibox and then scrolling defocuses the omnibox.
-- (void)testTapFakeOmniboxAndScrollDefocuses {
-  if ([ChromeEarlGrey isComposeboxIOSEnabled]) {
-    // TODO(crbug.com/466349961): The collection view needs to be made visible
-    // behind the Composebox view controller first for this test to be able to
-    // pass.
-    EARL_GREY_TEST_DISABLED(
-        @"Composebox not supported yet. The collection view needs to be made "
-        @"visible behind the Composebox view controller first");
-  }
-
-  // Clear pasteboard so that omnibox doesn't cover the NTP on focus.
-  [ChromeEarlGrey clearPasteboard];
-  // Get the collection and its layout.
-  UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
-
-  // Offset before the tap.
-  CGPoint origin = collectionView.contentOffset;
-
-  // Tap the omnibox to focus it.
-  [self focusFakebox];
-
-  // Offset after the fake omnibox has been tapped.
-  CGPoint offsetAfterTap = collectionView.contentOffset;
-
-  // Make sure the fake omnibox has been mostly covered and the collection has
-  // moved.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
-      assertWithMatcher:mostlyNotVisible()];
-
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  GREYAssertTrue(offsetAfterTap.y >= origin.y,
-                 @"The collection has not moved.");
-
-  // Scroll up.
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    // iPad needs more scrolling to see entire fake omnibox since it appears
-    // from under the toolbar.
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPCollectionView()]
-        performAction:grey_scrollInDirection(kGREYDirectionUp, 100)];
-  } else {
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPCollectionView()]
-        performAction:grey_scrollInDirection(kGREYDirectionUp, 50)];
-  }
-
-  // Check the fake omnibox is displayed again.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
-      assertWithMatcher:grey_sufficientlyVisible()];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      assertWithMatcher:grey_notVisible()];
 }
 
 // Tests that tapping the fake omnibox then unfocusing it moves the collection

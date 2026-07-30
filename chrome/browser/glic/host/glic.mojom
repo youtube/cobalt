@@ -1951,6 +1951,8 @@ enum InvocationSource {
   [MinVersion=26] kTabRestore = 39,
   // Implicitly focused or revealed, e.g., on tab switch or re-focus.
   [MinVersion=26] kReshowInactive = 40,
+  // From the tab context menu.
+  [MinVersion=27] kTabContextMenu = 41,
 };
 
 // LINT.ThenChange(
@@ -2207,6 +2209,8 @@ enum ExperimentalTriggeringUpdateType {
   kTerminalFailed = 5,
   // The interaction yielded to the user.
   [MinVersion=1] kYieldToUser = 6,
+  // The interaction has resumed after a pause or wait state.
+  [MinVersion=2] kResumed = 7,
 };
 
 // Types of subscriber observations that may be observed.
@@ -2228,6 +2232,9 @@ struct ExperimentalTriggeringUpdate {
   // The human-readable text associated with the update, such as response text
   // or status message.
   string data;
+  // Optional structured metadata associated with the update (e.g., choice
+  // options for interactive yields).
+  map<string, string>? metadata;
 };
 
 // Interface for receiving updates during web client interactions.

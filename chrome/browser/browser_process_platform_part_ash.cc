@@ -28,6 +28,7 @@
 #include "chrome/browser/ash/net/secure_dns_manager.h"
 #include "chrome/browser/ash/net/system_proxy_manager.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
+#include "chrome/browser/ash/policy/core/device_attributes_impl.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/system/automatic_reboot_manager.h"
@@ -69,8 +70,10 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/keyed_service/content/browser_context_keyed_service_shutdown_notifier_factory.h"
 #include "components/prefs/pref_service.h"
+#include "components/session_manager/core/session.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/sync/base/command_line_switches.h"
+#include "components/user_manager/multi_user/multi_user_sign_in_policy_controller.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_manager_impl.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -146,7 +149,8 @@ void BrowserProcessPlatformPart::InitializeUserManager() {
       std::make_unique<ash::PolicyUserManagerController>(
           user_manager_.get(), ash::CrosSettings::Get(),
           ash::DeviceSettingsService::Get(),
-          browser_policy_connector_ash()->GetMinimumVersionPolicyHandler());
+          browser_policy_connector_ash()->GetMinimumVersionPolicyHandler(),
+          browser_policy_connector_ash()->GetDeviceLocalAccountPolicyService());
   user_image_manager_registry_ =
       std::make_unique<ash::UserImageManagerRegistry>(
           g_browser_process->local_state(),
@@ -328,7 +332,10 @@ void BrowserProcessPlatformPart::InitializePrimaryProfileServices(
   auto* user = user_manager::UserManager::Get()->FindUserAndModify(CHECK_DEREF(
       ash::AnnotatedAccountId::Get(primary_profile->GetOriginalProfile())));
   secure_dns_manager_ = std::make_unique<ash::SecureDnsManager>(
-      g_browser_process->local_state(), CHECK_DEREF(user),
+      g_browser_process->local_state(),
+      std::make_unique<policy::DeviceAttributesImpl>(
+          browser_policy_connector_ash()),
+      CHECK_DEREF(user),
       primary_profile->GetProfilePolicyConnector()->IsManaged());
 
   if (ash::features::IsAutoSignOutEnabled() &&

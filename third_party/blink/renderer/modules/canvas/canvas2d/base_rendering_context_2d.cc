@@ -86,6 +86,7 @@
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/image_data_buffer.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
+#include "third_party/blink/renderer/platform/graphics/scoped_raster_timer.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
@@ -734,19 +735,45 @@ std::optional<cc::PaintRecord> BaseRenderingContext2D::FlushCanvasInternal(
     Canvas2DResourceProvider* shared_image_provider,
     Canvas2DBitmapProvider* bitmap_provider,
     FlushReason reason) {
-  std::optional<cc::PaintRecord> recording;
+  MemoryManagedPaintRecorder* recorder = nullptr;
   if (shared_image_provider) {
-    recording = shared_image_provider->Flush(reason);
-    if (recording) {
-      shared_image_provider->ReleaseImageProviderImages();
-    }
+    recorder = &shared_image_provider->Recorder();
   } else if (bitmap_provider) {
-    recording = bitmap_provider->Flush(reason);
-    if (recording) {
-      bitmap_provider->ReleaseImageProviderImages();
-    }
+    recorder = &bitmap_provider->Recorder();
   }
-  if (recording && Host()) {
+  if (!recorder || !recorder->HasReleasableDrawOps()) {
+    return std::nullopt;
+  }
+
+  cc::PaintRecord recording = recorder->ReleaseMainRecording();
+  bool want_to_print = (Host() && Host()->IsPrinting()) ||
+                       reason == FlushReason::kPrinting ||
+                       reason == FlushReason::kCanvasPushFrameWhilePrinting;
+  if (shared_image_provider) {
+    ScopedRasterTimer timer(shared_image_provider->IsAccelerated()
+                                ? shared_image_provider->RasterInterface()
+                                : nullptr,
+                            *shared_image_provider);
+    if (want_to_print && shared_image_provider->clear_frame()) {
+      shared_image_provider->SetLastRecording(recording);
+    } else {
+      shared_image_provider->ClearLastRecording();
+    }
+    shared_image_provider->set_clear_frame(false);
+    shared_image_provider->RasterRecord(recording);
+    shared_image_provider->ReleaseImageProviderImages();
+  } else if (bitmap_provider) {
+    ScopedRasterTimer timer(nullptr, *bitmap_provider);
+    if (want_to_print && bitmap_provider->clear_frame()) {
+      bitmap_provider->SetLastRecording(recording);
+    } else {
+      bitmap_provider->ClearLastRecording();
+    }
+    bitmap_provider->set_clear_frame(false);
+    bitmap_provider->RasterRecord(recording);
+    bitmap_provider->ReleaseImageProviderImages();
+  }
+  if (Host()) {
     Host()->DidFlush();
   }
   return recording;

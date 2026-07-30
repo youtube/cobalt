@@ -50,6 +50,7 @@
 #import "components/feed/feed_feature_list.h"
 #import "components/history/core/browser/features.h"
 #import "components/lens/lens_features.h"
+#import "components/metrics/metrics_features.h"
 #import "components/ntp_tiles/features.h"
 #import "components/ntp_tiles/switches.h"
 #import "components/omnibox/browser/aim_eligibility_service_features.h"
@@ -183,17 +184,6 @@ const FeatureEntry::FeatureVariation kActorToolsPageStabilityVariations[] = {
     {"PageStabilityEnabled", kActorToolsPageStabilityEnabled, nullptr},
 };
 
-const FeatureEntry::FeatureParam kPageStabilityMetricsDefault[] = {
-    {"PageStabilityIntervalDuration", "4000ms"},
-};
-const FeatureEntry::FeatureParam kPageStabilityMetricsShorterInterval[] = {
-    {"PageStabilityIntervalDuration", "1000ms"},
-};
-
-const FeatureEntry::FeatureVariation kPageStabilityMetricsVariations[] = {
-    {"Default (4s)", kPageStabilityMetricsDefault, nullptr},
-    {"Shorter Interval (1s)", kPageStabilityMetricsShorterInterval, nullptr},
-};
 
 const FeatureEntry::FeatureParam kAIMCobrowseHeaderOptionA[] = {
     {kAIMCobrowseHeaderParam, kAIMCobrowseHeaderParamOptionA}};
@@ -1456,6 +1446,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOmniboxLocalHistoryZeroSuggestBeyondNTPDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(omnibox::kLocalHistoryZeroSuggestBeyondNTP)},
+    {"omnibox-cross-device-tab-zero-suggest",
+     flag_descriptions::kOmniboxCrossDeviceTabZeroSuggestName,
+     flag_descriptions::kOmniboxCrossDeviceTabZeroSuggestDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(omnibox::kOmniboxCrossDeviceTabZeroSuggest)},
     {"force-startup-signin-promo",
      flag_descriptions::kForceStartupSigninPromoName,
      flag_descriptions::kForceStartupSigninPromoDescription, flags_ui::kOsIos,
@@ -1705,7 +1700,8 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"search-engine-choice-screen-snackbar",
      flag_descriptions::kSearchEngineChoiceScreenSnackbarName,
      flag_descriptions::kSearchEngineChoiceScreenSnackbarDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kSearchEngineChoiceScreenSnackbar)},
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(switches::kSearchEngineChoiceScreenSnackbar)},
     {"send-tab-to-self-enhanced-handoff",
      flag_descriptions::kSendTabToSelfEnhancedHandoffName,
      flag_descriptions::kSendTabToSelfEnhancedHandoffDescription,
@@ -2027,6 +2023,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kBWGPromoConsent,
                                     kBWGPromoConsentVariations,
                                     "IOSBWGPromoConsent")},
+    {"safe-browsing-local-lists-use-sbv5",
+     flag_descriptions::kSafeBrowsingLocalListsUseSBv5Name,
+     flag_descriptions::kSafeBrowsingLocalListsUseSBv5Description,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(safe_browsing::kLocalListsUseSBv5)},
     {"safe-browsing-trusted-url",
      flag_descriptions::kSafeBrowsingTrustedURLName,
      flag_descriptions::kSafeBrowsingTrustedURLDescription, flags_ui::kOsIos,
@@ -2170,9 +2170,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSTrustedVaultNotificationName,
      flag_descriptions::kIOSTrustedVaultNotificationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSTrustedVaultNotification)},
-    {"omnibox-drs-prototype", flag_descriptions::kOmniboxDRSPrototypeName,
-     flag_descriptions::kOmniboxDRSPrototypeDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kOmniboxDRSPrototype)},
     {"ios-skip-fre-default-browser-promo-in-eea",
      flag_descriptions::kSkipDefaultBrowserPromoInFirstRunName,
      flag_descriptions::kSkipDefaultBrowserPromoInFirstRunDescription,
@@ -2379,6 +2376,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOmniboxCrashFixKillSwitchName,
      flag_descriptions::kOmniboxCrashFixKillSwitchDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kOmniboxCrashFixKillSwitch)},
+    {"alert-crash-fix-kill-switch",
+     flag_descriptions::kAlertCrashFixKillSwitchName,
+     flag_descriptions::kAlertCrashFixKillSwitchDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAlertCrashFixKillSwitch)},
     {"aim-eligibility-service-start-with-profile",
      flag_descriptions::kAIMEligibilityServiceStartWithProfileName,
      flag_descriptions::kAIMEligibilityServiceStartWithProfileDescription,
@@ -2586,6 +2587,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kDisableFeedbackForIneligibleUsersName,
      flag_descriptions::kDisableFeedbackForIneligibleUsersDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kDisableFeedbackForIneligibleUsers)},
+    {"include-system-log-in-feedback",
+     flag_descriptions::kIncludeSystemLogInFeedbackName,
+     flag_descriptions::kIncludeSystemLogInFeedbackDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIncludeSystemLogInFeedback)},
     {"fullscreen-refactoring", flag_descriptions::kFullscreenRefactoringName,
      flag_descriptions::kFullscreenRefactoringDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kFullscreenRefactoring)},
@@ -2750,6 +2755,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kLensFilterToggleEnabledName,
      flag_descriptions::kLensFilterToggleEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kLensFilterToggleEnabled)},
+    {"lens-followups-full-height-enabled",
+     flag_descriptions::kLensFollowupsFullHeightEnabledName,
+     flag_descriptions::kLensFollowupsFullHeightEnabledDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kLensFollowupsFullHeightEnabled)},
     {"ios-mini-map-universal-links",
      flag_descriptions::kIOSMiniMapUniversalLinkName,
      flag_descriptions::kIOSMiniMapUniversalLinkDescription, flags_ui::kOsIos,
@@ -2783,15 +2792,14 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSBackendPromoServiceIntegrationName,
      flag_descriptions::kIOSBackendPromoServiceIntegrationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSBackendPromoServiceIntegration)},
+    {"ios-background-metrics", flag_descriptions::kIOSBackgroundMetricsName,
+     flag_descriptions::kIOSBackgroundMetricsDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(metrics::features::kIOSBackgroundMetrics)},
+
     {"data-controls-search-with",
      flag_descriptions::kDataControlsSearchWithName,
      flag_descriptions::kDataControlsSearchWithDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(data_controls::kDataControlsSearchWith)},
-    {"page-stability-metrics", flag_descriptions::kPageStabilityMetricsName,
-     flag_descriptions::kPageStabilityMetricsDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(kPageStabilityMetrics,
-                                    kPageStabilityMetricsVariations,
-                                    "PageStabilityMetrics")},
     {"actor-service-logging", flag_descriptions::kActorServiceLoggingName,
      flag_descriptions::kActorServiceLoggingDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kActorServiceLogging)},
@@ -2884,6 +2892,13 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kDefaultBottomOmniboxOnIOSName,
      flag_descriptions::kDefaultBottomOmniboxOnIOSDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDefaultBottomOmniboxOnIOS)},
+    {"atmemory-context-menu-entry-point",
+     flag_descriptions::kAtMemoryContextMenuEntryPointName,
+     flag_descriptions::kAtMemoryContextMenuEntryPointDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kAtMemoryContextMenuEntryPoint)},
+    {"glass-toolbar", flag_descriptions::kGlassToolbarName,
+     flag_descriptions::kGlassToolbarDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGlassToolbar)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

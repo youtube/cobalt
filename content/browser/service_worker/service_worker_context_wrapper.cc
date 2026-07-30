@@ -32,6 +32,8 @@
 #include "content/browser/loader/navigation_url_loader_impl.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/renderer_host/local_network_access_util.h"
+#include "content/browser/renderer_host/policy_container_host.h"
+#include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
@@ -46,6 +48,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/service_worker_context_observer.h"
 #include "content/public/browser/service_worker_registration_information.h"
@@ -137,6 +140,18 @@ void DidStartWorker(
     return;
   }
   EmbeddedWorkerInstance* instance = version->embedded_worker();
+  if (!RenderProcessHost::FromID(instance->process_id())) {
+    // No live RenderProcessHost backs the process id this worker reports, even
+    // though the start resolved successfully. There is no usable process to run
+    // the worker, so reporting success would be wrong. Resolve the start as a
+    // failure instead. This is the proper fix for crbug.com/536945271:
+    // the service worker layer must not deliver a start "success" with a
+    // process that is already gone.
+    std::move(failure_callback)
+        .Run(StatusCodeResponse{
+            .status_code = blink::ServiceWorkerStatusCode::kErrorAbort});
+    return;
+  }
   std::move(info_callback)
       .Run(version->version_id(), instance->process_id(), instance->thread_id(),
            version->worker_host()->token());
@@ -223,6 +238,30 @@ void RunOrPostTaskOnUIThread(const base::Location& location,
   } else {
     GetUIThreadTaskRunner({})->PostTask(location, std::move(task));
   }
+}
+
+PolicyContainerPolicies GetPoliciesForRegistration(
+    const RenderFrameHostImpl* rfh,
+    const GURL& script_url,
+    const blink::mojom::ServiceWorkerRegistrationOptions& options) {
+  if (rfh && rfh->policy_container_host()) {
+    // The initiator frame of the payment request that registers the service
+    // worker has a `PolicyContainerHost`. Return a clone of the policies for
+    // registration.
+    return rfh->policy_container_host()->policies().Clone();
+  }
+
+  // Otherwise, fallback to an ad-hoc PolicyContainerPolicies.
+  PolicyContainerPolicies policies;
+  policies.is_web_secure_context =
+      network::IsUrlPotentiallyTrustworthy(script_url);
+  // TODO(crbug.com/435246545): Add browser test to test extensions and LNA.
+  // TODO(crbug.com/436098661): Figure out the right address space for payment
+  // apps.
+  policies.ip_address_space = content::CalculateIPAddressSpace(
+      options.scope, nullptr, GetContentClient()->browser());
+
+  return policies;
 }
 
 }  // namespace
@@ -583,6 +622,7 @@ void ServiceWorkerContextWrapper::RegisterServiceWorker(
     const GURL& script_url,
     const blink::StorageKey& key,
     const blink::mojom::ServiceWorkerRegistrationOptions& options,
+    GlobalRenderFrameHostId requesting_frame_id,
     StatusCodeCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (!context_core_) {
@@ -595,14 +635,21 @@ void ServiceWorkerContextWrapper::RegisterServiceWorker(
       net::SimplifyUrlForRequest(options.scope), options.type,
       options.update_via_cache);
 
-  PolicyContainerPolicies policy_container_policies;
-  policy_container_policies.is_web_secure_context =
-      network::IsUrlPotentiallyTrustworthy(script_url);
-  // TODO(crbug.com/435246545): Add browser test to test extensions and LNA.
-  // TODO(crbug.com/436098661): Figure out the right address space for payment
-  // apps
-  policy_container_policies.ip_address_space = content::CalculateIPAddressSpace(
-      options.scope, nullptr, GetContentClient()->browser());
+  const RenderFrameHostImpl* rfh =
+      RenderFrameHostImpl::FromID(requesting_frame_id);
+  if (requesting_frame_id && !rfh) {
+    // The frame that initiated the service worker registration request has
+    // already gone (e.g. user closed the tab). For example, the PaymentRequest
+    // API uses this function for registering the service worker for payment
+    // app. In this case, the service worker registration is aborted.
+    GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback),
+                                  blink::ServiceWorkerStatusCode::kErrorAbort));
+    return;
+  }
+
+  const PolicyContainerPolicies policy_container_policies =
+      GetPoliciesForRegistration(rfh, script_url, options);
 
   // TODO(bashi): Pass a valid outside fetch client settings object. Perhaps
   // changing this method to take a settings object.
@@ -621,8 +668,7 @@ void ServiceWorkerContextWrapper::RegisterServiceWorker(
           [](StatusCodeCallback callback, blink::ServiceWorkerStatusCode status,
              const std::string&, int64_t) { std::move(callback).Run(status); },
           std::move(callback)),
-      /*requesting_frame_id=*/GlobalRenderFrameHostId(),
-      policy_container_policies);
+      requesting_frame_id, policy_container_policies);
 }
 
 void ServiceWorkerContextWrapper::UnregisterServiceWorker(

@@ -81,9 +81,15 @@ class WebStateList;
 // Clears suggestions and requests suggestions again for the same form.
 - (void)resetSuggestions;
 
+// Returns the username for the given passkey suggestion.
+- (NSString*)usernameForSuggestion:(FormSuggestion*)suggestion;
+
 // Returns YES if the suggestion label with the given RP ID should show its RP
 // ID.
 - (BOOL)shouldShowRPId:(NSString*)rpId;
+
+// Handles editing the suggestion.
+- (void)openEditForSuggestion:(FormSuggestion*)suggestion;
 
 @end
 

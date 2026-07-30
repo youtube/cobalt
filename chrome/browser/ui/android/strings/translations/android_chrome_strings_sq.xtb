@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Nëse e fshin atë, të gjithë do të humbasin menjëherë qasjen te grupi i skedave "<ph name="GROUP_NAME" />" dhe ai do të fshihet nga të gjitha pajisjet.</translation>
 <translation id="1142732900304639782">Mos ofro t'i përkthesh këto sajte</translation>
 <translation id="1143193470214071120">Mbyll një dritare ose menaxho dritaret</translation>
+<translation id="1143486892058798649">Ruaje lidhjen si…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> po skanohet</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> do të hapet në Chrome. Duke vazhduar, ti pranon <ph name="BEGIN_LINK1" />"Kushtet e shërbimit" të Google<ph name="END_LINK1" /> dhe <ph name="BEGIN_LINK2" />"Kushtet shtesë të shërbimit" të Google Chrome dhe të ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Nuk ke fjalëkalime të ruajtura te "Menaxheri i fjalëkalimeve i Google".</translation>
@@ -142,11 +143,13 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="1544826120773021464">Për të menaxhuar "Llogarinë tënde të Google", prek butonin "Menaxho llogarinë"</translation>
 <translation id="1549000191223877751">Zhvendose te dritarja tjetër</translation>
 <translation id="1553358976309200471">Përditëso Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> për "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Ndihmo në përmirësimin e Chrome për njerëzit që e përdorin si ti</translation>
 <translation id="1568636008098739136">Dëgjoje këtë faqe. Për ta modifikuar këtë shkurtore, preke dhe mbaje shtypur.</translation>
 <translation id="1571041387761170095">Nuk ka fjalëkalime të dobëta ose të ripërdorura</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 fjalëkalim i komprometuar në këtë pajisje}other{# fjalëkalime të komprometuara në këtë pajisje}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> artikuj të sugjeruar në listën e mëposhtme.</translation>
+<translation id="159689249463841786">Zgjidh dosjen, aktualisht "<ph name="FOLDER_NAME" />"</translation>
 <translation id="1598163867407640634">Përdor <ph name="SITE_ETLD_PLUS_ONE" /> me <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, skeda e gozhduar në regjistrim</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, skeda duke ndarë përmbajtjen</translation>
@@ -277,6 +280,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="2190355936436201913">(bosh)</translation>
 <translation id="219283042927675668">Skedat te grupi</translation>
 <translation id="2194856509914051091">Gjëra për t'u pasur parasysh</translation>
+<translation id="2196695604589508993">Hap historikun</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, skeda e gozhduar duke ndarë përmbajtjen</translation>
 <translation id="22091350895006575">Shto emrin e përdoruesit</translation>
 <translation id="221494669172414749">Hapja e Chrome pa një kyçje të profilit do të heqë të gjitha fjalëkalimet e ruajtura dhe mënyrat e pagesës nga makina. Përdorimi i një kyçjeje profili i mban këto të dhëna të sigurta.</translation>
@@ -311,6 +315,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="2330186936255788117">Më shumë faqeshënues</translation>
 <translation id="2332515770639153015">"Shfletimi i sigurt i përmirësuar" është aktiv</translation>
 <translation id="233375395665273385">Fshi dhe dil</translation>
+<translation id="2334275697832662087">Siguria e mundësuar nga IA-ja e Chrome të ndihmon të mbrohesh nga kërcënimet online, duke të të dhënë besim ndërsa shfleton</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> nuk mund të instalohej.</translation>
 <translation id="2349710944427398404">Të dhënat gjithsej të përdorura nga Chrome, duke përfshirë llogaritë, faqeshënuesit dhe cilësimet e ruajtura</translation>
 <translation id="2354001756790975382">Faqeshënues të tjerë</translation>
@@ -612,6 +617,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="3577473026931028326">Ndodhi një gabim. Provo përsëri.</translation>
 <translation id="3577558748185201054">Menaxho interesat dhe preferencat e tua</translation>
 <translation id="3587482841069643663">Të gjitha</translation>
+<translation id="3598421953808879451">Ruaj videon si…</translation>
 <translation id="3602290021589620013">Pamje paraprake</translation>
 <translation id="3614126103057878858">Statistikat e çmimeve</translation>
 <translation id="3616113530831147358">Audio</translation>
@@ -722,6 +728,7 @@ Vetëm dikush me frazën tënde të kalimit mund të lexojë të dhënat e tua t
 <translation id="4044708993631234325">Fleta e poshtme</translation>
 <translation id="4045441967987592849">Rihap</translation>
 <translation id="4049920046559074950">Më shumë opsione për "<ph name="INSTANCE_TITLE" />"</translation>
+<translation id="4051548576872472315">Gjej skedat dhe dritaret e mbyllura së fundi këtu</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Hape në dritare "të fshehtë"}other{Hapi të gjithë (#) në dritare "të fshehtë"}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> skedë standarde me aktivitet të ri në grupet e ndara të skedave}other{<ph name="TABS_COUNT_MANY" /> skeda standarde me aktivitet të ri në grupet e ndara të skedave}}</translation>
 <translation id="405365679581583349">Përditëso shërbimet e Google Play</translation>
@@ -1278,6 +1285,7 @@ Për shembull, disa uebsajte mund t'i përgjigjen kësaj kërkese duke të tregu
 <translation id="6321592572353357376">Shtesa "<ph name="EXTENSION_NAME" />" kërkon që të identifikohesh në Chrome</translation>
 <translation id="6324916366299863871">Modifiko shkurtoren</translation>
 <translation id="6324977638108296054">Nuk mund të krijohet një lidhje për te teksti i theksuar</translation>
+<translation id="6331836477476466332">Një shfletues më i sigurt dhe më i fuqishëm për ty</translation>
 <translation id="6333140779060797560">Ndaje nëpërmjet <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Modifiko URL-në që drejton te faqja në: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Enkriptimi</translation>
@@ -1435,6 +1443,7 @@ Për shembull, disa uebsajte mund t'i përgjigjen kësaj kërkese duke të tregu
 <translation id="6867400383614725881">Skedë e re "e fshehtë"</translation>
 <translation id="686899695320434745">Adresat nuk janë të enkriptuara me frazën tënde të kalimit. Kjo të lejon që t'i përdorësh në shërbimet e tjera të Google.</translation>
 <translation id="6870625088374152862">I identifikuar si <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Fillo të shfletosh</translation>
 <translation id="687838958001010630">Çdo person që ka lidhjen mund të modifikojë të gjitha skedat</translation>
 <translation id="6880903702195291049">Lejet duken në rregull</translation>
 <translation id="6883204995689174413">Ndaj</translation>
@@ -1520,6 +1529,7 @@ Për shembull, disa uebsajte mund t'i përgjigjen kësaj kërkese duke të tregu
 <translation id="71503698506017927">Enkriptimi me frazën e kalimit nuk përfshin mënyrat e pagesës dhe adresat nga Google Pay.
 
 Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Chrome në llogarinë tënde<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Ruaje imazhin si…</translation>
 <translation id="7165972437814027679">Mëso më shumë se pse Chrome i bllokon disa skedarë</translation>
 <translation id="7168323970702333693">I identifikuar si <ph name="USER_NAME" />. Hap cilësimet.</translation>
 <translation id="7170930892977483182">Të gjitha kodet e sigurisë të ruajtura në pajisjen tënde dhe në "Portofolin e Google" do të fshihen</translation>
@@ -1575,6 +1585,7 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="7359002509206457351">Qasu te mënyrat e pagesës</translation>
 <translation id="7363349185727752629">Udhëzues për zgjedhjet e tua të privatësisë</translation>
 <translation id="7364103838544876661">Opsione të tjera për të fshirë të dhënat e shfletimit</translation>
+<translation id="736435710397109878">Pseudonimi i kartës, maksimumi 25 karaktere</translation>
 <translation id="7365073365123878797">Për të filluar të ruash dhe të përdorësh fjalëkalimet me "Menaxherin e fjalëkalimeve të Google", përditëso shërbimet e Google Play</translation>
 <translation id="7368009310682364976">Shiko skedat e hapura së fundi</translation>
 <translation id="7368927539449986686">Modifiko kërkimin në sajt</translation>
@@ -1693,6 +1704,7 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="7824665136384946951">Organizata jote ka e çaktivizuar "Shfletimin e sigurt"</translation>
 <translation id="7825973332242257878">Grupet e skedave</translation>
 <translation id="7826342993930002256">Chrome për ty, kudo</translation>
+<translation id="7845155831233417403">Mund të kesh deri në <ph name="MAX_INSTANCE_COUNT" /> dritare. Mbyll një dritare për të vazhduar.</translation>
 <translation id="7846161022626028328">Ndodhi një gabim. Provo përsëri.</translation>
 <translation id="7846296061357476882">Shërbimet e Google</translation>
 <translation id="784652447248278262">Dritarja aktuale</translation>
@@ -1759,7 +1771,6 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="8088176524274673045">Për të ndarë me personat në afërsi, lejoji të skanojnë këtë kod QR</translation>
 <translation id="8090732854597034573">Nëse ke nevojë për ndihmë, pyet prindin tënd</translation>
 <translation id="8101414242770404289">Asnjë skedë nga <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Skeda "e fshehtë"</translation>
 <translation id="810433609302852">Promovimi i veçorisë së njoftimeve të këshillave dhe fleta e poshtme për hapat e përdorimit</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Hiq shtesat dhe të dhënat që ato kanë ruajtur në këtë pajisje</translation>
@@ -1817,10 +1828,12 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="8282297628636750033">Zbato temën e errët për sajtet</translation>
 <translation id="8282950411412455249">Shko te cilësimet e sigurisë</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Mbyll 1 dritare të fshehtë}other{Mbyll # dritare të fshehta}}</translation>
+<translation id="8289602658021943461">Ruaj kuadrin e videos si…</translation>
 <translation id="8313599942510782709">Detyra jote është ende në vazhdim</translation>
 <translation id="8317318757008452355">Hap opsionet për të printuar</translation>
 <translation id="8320212361750431956">Aktiviteti i fundit</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />E re<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Faqeshënuesit dhe listat</translation>
 <translation id="8342727528718219152">Chrome do të të informojë për sajtet që mund të dërgojnë shumë njoftime</translation>
 <translation id="834313815369870491">Mos i përkthe asnjëherë sajtet</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, skeda "e fshehtë" e gozhduar në regjistrim dhe e zgjedhur me shumë të tjera</translation>
@@ -2062,6 +2075,7 @@ Për ta ndryshuar këtë cilësim, <ph name="BEGIN_LINK" />fshi të dhënat e Ch
 <translation id="939598580284253335">Fut frazën e kalimit</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, skeda "e fshehtë" e gozhduar e "Figurë brenda figurës"</translation>
 <translation id="945522503751344254">Dërgo komente</translation>
+<translation id="948276827484905248">Krijo një kod QR</translation>
 <translation id="95817756606698420">Chrome mund të përdorë <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> për kërkimin në Kinë. Mund ta ndryshosh këtë te <ph name="BEGIN_LINK" />Cilësimet<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Fshi të dhënat e shfletimit</translation>
 <translation id="963246339335003378">Hap "Menaxherin e detyrave"</translation>

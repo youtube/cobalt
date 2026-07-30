@@ -27,7 +27,6 @@ source_set("settings") {
     "password_manager_handler.h",
     "people_handler.h",
     "performance_handler.h",
-    "privacy_sandbox_handler.h",
     "profile_info_handler.h",
     "protocol_handlers_handler.h",
     "recent_site_settings_helper.h",
@@ -108,11 +107,14 @@ source_set("settings") {
 
   if (is_win || is_mac || is_linux) {
     sources += [
-      "on_device_ai_settings_handler.h",
       "settings_default_browser_handler.h",
       "settings_manage_profile_handler.h",
       "system_handler.h",
     ]
+  }
+
+  if (is_chrome_branded) {
+    sources += [ "on_device_ai_settings_handler.h" ]
   }
 
   if (is_mac) {
@@ -150,7 +152,6 @@ source_set("impl") {
     "password_manager_handler.cc",
     "people_handler.cc",
     "performance_handler.cc",
-    "privacy_sandbox_handler.cc",
     "profile_info_handler.cc",
     "protocol_handlers_handler.cc",
     "recent_site_settings_helper.cc",
@@ -240,6 +241,7 @@ source_set("impl") {
     "//chrome/browser/sync",
     "//chrome/browser/themes",
     "//chrome/browser/ui:chrome_pages",
+    "//chrome/browser/ui:confirm_bubble",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui:url_identity",
     "//chrome/browser/ui/desktop_to_mobile_promos:service",
@@ -259,7 +261,11 @@ source_set("impl") {
     "//chrome/browser/ui/toasts/api:toasts",
     "//chrome/browser/ui/toolbar/pinned_toolbar",
     "//chrome/browser/ui/views/side_panel",
+    "//chrome/browser/ui/webui:extension_control_handler",
     "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:managed_ui_handler",
+    "//chrome/browser/ui/webui:metrics_handler",
+    "//chrome/browser/ui/webui:policy_indicator_localized_strings_provider",
     "//chrome/browser/ui/webui:theme_source",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/batch_upload_promo",
@@ -317,7 +323,6 @@ source_set("impl") {
 
   if (is_win || is_mac || is_linux) {
     sources += [
-      "on_device_ai_settings_handler.cc",
       "settings_default_browser_handler.cc",
       "settings_manage_profile_handler.cc",
       "system_handler.cc",
@@ -325,7 +330,12 @@ source_set("impl") {
     deps += [
       "//chrome/browser/default_browser",
       "//chrome/browser/ui/startup/default_browser_prompt",
+      "//chrome/browser/ui/webui:profile_helper",
     ]
+  }
+
+  if (is_chrome_branded) {
+    sources += [ "on_device_ai_settings_handler.cc" ]
   }
 
   if (is_mac) {
@@ -483,7 +493,6 @@ if (!is_android) {
       "metrics_reporting_handler_unittest.cc",
       "on_startup_handler_unittest.cc",
       "people_handler_unittest.cc",
-      "privacy_sandbox_handler_unittest.cc",
       "profile_info_handler_unittest.cc",
       "recent_site_settings_helper_unittest.cc",
       "reset_settings_handler_unittest.cc",
@@ -508,7 +517,6 @@ if (!is_android) {
       "//chrome/browser/autofill",
       "//chrome/browser/bluetooth",
       "//chrome/browser/browsing_data",
-      "//chrome/browser/browsing_topics",
       "//chrome/browser/content_settings",
       "//chrome/browser/download",
       "//chrome/browser/engagement",
@@ -646,7 +654,7 @@ if (!is_android) {
       ]
     }
 
-    if (!is_chromeos && is_chrome_branded) {
+    if (is_chrome_branded) {
       sources += [ "on_device_ai_settings_handler_unittest.cc" ]
       deps += [ "//components/optimization_guide/core:features" ]
     }

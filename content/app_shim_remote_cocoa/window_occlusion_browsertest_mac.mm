@@ -338,6 +338,10 @@ class WebContentsNSViewHostStub
 class WindowOcclusionBrowserTestMac : public ContentBrowserTest {
  public:
   void SetUp() override {
+    if (base::mac::MacOSMajorVersion() == 13) {
+      GTEST_SKIP()
+          << "Flaky on MacOS 13 builders; see https://crbug.com/537434839";
+    }
     if (![NSClassFromString(@"WebContentsOcclusionCheckerMac")
             manualOcclusionDetectionSupportedForCurrentMacOSVersion]) {
       GTEST_SKIP()

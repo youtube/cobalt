@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
+import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -22,10 +23,12 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.ServiceImpl;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.notifications.NotificationConstants;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 
 import java.util.Set;
@@ -63,9 +66,10 @@ public class ActorForegroundServiceControllerImpl implements ActorForegroundServ
             };
 
     @Override
-    public void startService(String contextId) {
+    public void startService(String glicTriggerMessageId) {
         Context context = ContextUtils.getApplicationContext();
-        ActorForegroundServiceImpl.startActorForegroundServiceWithContextId(context, contextId);
+        ActorForegroundServiceImpl.startActorForegroundServiceWithGlicTriggerMessageId(
+                context, glicTriggerMessageId);
     }
 
     @Override
@@ -162,6 +166,24 @@ public class ActorForegroundServiceControllerImpl implements ActorForegroundServ
         }
 
         return false;
+    }
+
+    @Override
+    public boolean isTabbedActivityVisible() {
+        ThreadUtils.assertOnUiThread();
+        int windowId = MultiWindowUtils.getInstanceIdForViewIntent();
+        if (windowId == TabWindowManager.INVALID_WINDOW_ID) return false;
+
+        Activity activity = MultiWindowUtils.getActivityById(windowId);
+        if (activity == null) return false;
+
+        // Safe to cast as getInstanceIdForViewIntent() only returns ChromeTabbedActivity IDs.
+        AsyncInitializationActivity asyncActivity = (AsyncInitializationActivity) activity;
+        if (asyncActivity.isInPictureInPictureMode()) return false;
+        if (asyncActivity.isFinishing() || asyncActivity.isDestroyed()) return false;
+
+        int state = ApplicationStatus.getStateForActivity(asyncActivity);
+        return state == ActivityState.STARTED || state == ActivityState.RESUMED;
     }
 
     public ServiceConnection getServiceConnectionForTesting() {

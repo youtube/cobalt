@@ -1878,6 +1878,30 @@ TEST_F(AuthenticatorContentBrowserClientTest,
             AuthenticatorStatus::SUCCESS);
 }
 
+TEST_F(AuthenticatorContentBrowserClientTest, ReportTLSError) {
+  NavigateAndCommit(GURL(kTestOrigin1));
+  test_client_.is_webauthn_security_level_acceptable = false;
+  PublicKeyCredentialReportOptionsPtr options =
+      GetTestPublicKeyCredentialReportOptions();
+  EXPECT_EQ(AuthenticatorReport(std::move(options)),
+            AuthenticatorStatus::CERTIFICATE_ERROR);
+}
+
+TEST_F(AuthenticatorContentBrowserClientTest,
+       ReportSkipTLSCheckWithVirtualEnvironment) {
+  NavigateAndCommit(GURL(kTestOrigin1));
+  content::AuthenticatorEnvironment::GetInstance()
+      ->EnableVirtualAuthenticatorFor(
+          static_cast<content::RenderFrameHostImpl*>(main_rfh())
+              ->frame_tree_node(),
+          /*enable_ui=*/false);
+  test_client_.is_webauthn_security_level_acceptable = false;
+  PublicKeyCredentialReportOptionsPtr options =
+      GetTestPublicKeyCredentialReportOptions();
+  EXPECT_EQ(AuthenticatorReport(std::move(options)),
+            AuthenticatorStatus::SUCCESS);
+}
+
 TEST_F(AuthenticatorContentBrowserClientTest, TestGetAssertionCancel) {
   NavigateAndCommit(GURL(kTestOrigin1));
   test_client_.simulate_user_cancelled_ = true;
@@ -10751,7 +10775,8 @@ TEST_F(AuthenticatorImplTest, CmtgKeyEndToEnd) {
 
   // Trigger generation of a new CMTG key on next assertion.
   virtual_device_factory_->mutable_state()
-      ->generate_new_cmtg_key_on_next_assertion = true;
+      ->registrations.at(credential_id)
+      .generate_cmtg_key_on_next_operation = true;
   PublicKeyCredentialRequestOptionsPtr get_options2 =
       GetTestPublicKeyCredentialRequestOptions();
   get_options2->allow_credentials[0].id = credential_id;

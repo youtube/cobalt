@@ -27,7 +27,6 @@
 #include "chrome/browser/tab_contents/web_contents_collection.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
-#include "chrome/browser/ui/bookmarks/bookmark_tab_helper_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window_deleter.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -118,7 +117,6 @@ enum class BrowserClosingStatus {
 class Browser : public TabStripModelObserver,
                 public WebContentsCollection::Observer,
                 public content::WebContentsDelegate,
-                public BookmarkTabHelperObserver,
                 public BrowserWindowInterface {
  public:
   // Possible elements of the Browser window.
@@ -333,7 +331,6 @@ class Browser : public TabStripModelObserver,
 
   Type type() const { return type_; }
   const std::string& app_name() const { return app_name_; }
-  Profile* profile() const { return profile_; }
   // In production code, each instance of Browser will always instantiate an
   // instance of BrowserView in the constructor. Some tests instantiate a
   // Browser without a BrowserView: this is an anti-pattern and should be
@@ -690,6 +687,8 @@ class Browser : public TabStripModelObserver,
       const content::WebContents* web_contents) const override;
   blink::mojom::DisplayMode GetDisplayMode(
       const content::WebContents* web_contents) override;
+  blink::mojom::ApplicationContext GetApplicationContext(
+      const content::WebContents* web_contents) override;
   blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel(
       content::RenderFrameHost* requesting_frame) override;
   void RegisterProtocolHandler(content::RenderFrameHost* requesting_frame,
@@ -749,10 +748,6 @@ class Browser : public TabStripModelObserver,
       const base::UnguessableToken& guid,
       content::RenderFrameHost* render_frame_host) override;
 #endif
-
-  // Overridden from BookmarkTabHelperObserver:
-  void URLStarredChanged(content::WebContents* web_contents,
-                         bool starred) override;
 
   // Command and state updating ///////////////////////////////////////////////
 

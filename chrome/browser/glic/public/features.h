@@ -125,8 +125,13 @@ BASE_DECLARE_FEATURE(kGlicHotkeyLocalScope);
 
 BASE_DECLARE_FEATURE(kGlicPasteEligibilityCheck);
 BASE_DECLARE_FEATURE(kGlicWebPasteEligibilityCheck);
+BASE_DECLARE_FEATURE(kGlicOptInDialogLinkA11yFix);
 
 BASE_DECLARE_FEATURE(kGlicTabGroups);
+BASE_DECLARE_FEATURE(kGlicSparkSettingsAccessibleLabels);
+
+BASE_DECLARE_FEATURE(kGlicOptInDialogA11yFix);
+BASE_DECLARE_FEATURE(kGlicStructuredYieldMetadata);
 }  // namespace features
 
 #endif  // CHROME_BROWSER_GLIC_PUBLIC_FEATURES_H_

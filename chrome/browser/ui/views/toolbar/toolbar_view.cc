@@ -25,9 +25,11 @@
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/command_updater.h"
+#include "chrome/browser/glic/browser_ui/glic_actor_nudge_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_actor_task_icon_manager_factory.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_controller.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
@@ -75,10 +77,9 @@
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
+#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_contextual_menu.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
-#include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
-#include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/page_action/page_action_container_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_container.h"
@@ -259,7 +260,6 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ToolbarView, kToolbarElementId);
 
 ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
     : AnimationDelegateViews(this),
-      glic_button_controller_(glic::GlicButtonController::From(browser)),
       browser_(browser),
       browser_view_(browser_view),
       app_menu_icon_controller_(browser->GetProfile(), this),
@@ -285,16 +285,13 @@ ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
 
   mouse_watcher_ = std::make_unique<views::MouseWatcher>(
       std::make_unique<views::MouseWatcherViewHost>(this, gfx::Insets()), this);
-
-
-  // `glic_nudge_controller` will be null if feature is not enabled.
-  if (glic::GlicNudgeController* glic_nudge_controller =
-          glic::GlicNudgeController::From(browser_)) {
-    glic_nudge_controller->SetVerticalTabsDelegate(this);
-  }
 }
 
 ToolbarView::~ToolbarView() {
+  if (glic_split_button_controller_) {
+    glic_split_button_controller_->SetVerticalTabsDelegate(nullptr);
+  }
+
   if (display_mode_ != DisplayMode::kNormal) {
     return;
   }
@@ -303,12 +300,6 @@ ToolbarView::~ToolbarView() {
 
   for (const auto& view_and_command : GetViewCommandMap()) {
     chrome::RemoveCommandObserver(browser_, view_and_command.second, this);
-  }
-
-  glic::GlicNudgeController* glic_nudge_controller =
-      browser_->browser_window_features()->glic_nudge_controller();
-  if (glic_nudge_controller) {
-    glic_nudge_controller->SetVerticalTabsDelegate(/*delegate=*/nullptr);
   }
 }
 
@@ -405,9 +396,11 @@ void ToolbarView::Init() {
 
   std::unique_ptr<MediaToolbarButtonView> media_button;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  media_button = std::make_unique<MediaToolbarButtonView>(
-      browser_view_,
-      std::make_unique<MediaToolbarButtonContextualMenu>(browser_));
+  if (!features::IsWebUIMediaButtonEnabled()) {
+    media_button = std::make_unique<MediaToolbarButtonView>(
+        browser_view_,
+        std::make_unique<MediaToolbarButtonContextualMenu>(browser_));
+  }
 #endif
 
   // Always add children in order from left to right, for accessibility.
@@ -539,7 +532,9 @@ void ToolbarView::Init() {
         AddChildView(std::make_unique<PerformanceInterventionButton>(browser_));
   }
 
-  if (media_button) {
+  if (features::IsWebUIMediaButtonEnabled()) {
+    media_button_ = toolbar_webview_->GetMediaToolbarButton();
+  } else if (media_button) {
     media_button_ = AddChildView(std::move(media_button));
   }
 
@@ -658,6 +653,12 @@ void ToolbarView::Init() {
     }
   }
 
+  if (auto* glic_split_button_controller =
+          glic::GlicSplitButtonController::From(browser_)) {
+    glic_split_button_controller_ = glic_split_button_controller->GetWeakPtr();
+    glic_split_button_controller_->SetVerticalTabsDelegate(this);
+  }
+
   initialized_ = true;
 }
 
@@ -764,6 +765,8 @@ std::unique_ptr<glic::ToolbarGlicButton> ToolbarView::CreateGlicButton() {
 }
 
 void ToolbarView::OnGlicButtonClicked() {
+  CHECK(glic_split_button_controller_);
+
   // Indicate that the glic button was pressed so that we can either close the
   // IPH promo (if present) or note that it has already been used to prevent
   // unnecessarily displaying the promo.
@@ -772,22 +775,18 @@ void ToolbarView::OnGlicButtonClicked() {
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
 
   std::optional<std::string> prompt_suggestion;
-  glic::GlicNudgeController* glic_nudge_controller =
-      browser_->browser_window_features()->glic_nudge_controller();
-  if (glic_nudge_controller) {
-    prompt_suggestion = glic_nudge_controller->GetPromptSuggestion();
-    glic_nudge_controller->ClearPromptSuggestion();
-  }
+  glic::GlicNudgeController* nudge_controller =
+      glic_split_button_controller_->nudge_controller();
+  CHECK(nudge_controller);
+  prompt_suggestion = nudge_controller->GetPromptSuggestion();
+  nudge_controller->ClearPromptSuggestion();
 
   glic::mojom::InvocationSource source;
-  if (glic_button_controller_) {
-    source = glic_button_controller_->GetInvocationSource(
-        glic_button_->GetIsShowingNudge(), /*is_toolbar=*/true);
-  } else {
-    source = glic_button_->GetIsShowingNudge()
-                 ? glic::mojom::InvocationSource::kNudge
-                 : glic::mojom::InvocationSource::kToolbarButton;
-  }
+  glic::GlicButtonController* button_controller =
+      glic_split_button_controller_->button_controller();
+  CHECK(button_controller);
+  source = button_controller->GetInvocationSource(
+      glic_button_->GetIsShowingNudge(), /*is_toolbar=*/true);
 
   auto* glic_service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
       browser_view_->GetProfile());
@@ -804,8 +803,7 @@ void ToolbarView::OnGlicButtonClicked() {
   }
 
   if (glic_button_->GetIsShowingNudge()) {
-    glic_nudge_controller->OnNudgeActivity(
-        glic::GlicNudgeActivity::kNudgeClicked);
+    nudge_controller->OnNudgeActivity(glic::GlicNudgeActivity::kNudgeClicked);
   }
 
   ExecuteHideToolbarNudge(glic_button_);
@@ -815,8 +813,11 @@ void ToolbarView::OnGlicButtonClicked() {
 }
 
 void ToolbarView::OnGlicButtonDismissed() {
-  browser_->browser_window_features()->glic_nudge_controller()->OnNudgeActivity(
-      glic::GlicNudgeActivity::kNudgeDismissed);
+  CHECK(glic_split_button_controller_);
+  glic::GlicNudgeController* nudge_controller =
+      glic_split_button_controller_->nudge_controller();
+  CHECK(nudge_controller);
+  nudge_controller->OnNudgeActivity(glic::GlicNudgeActivity::kNudgeDismissed);
 
   // Force hide the button when pressed, bypassing locked expansion mode.
   ExecuteHideToolbarNudge(glic_button_);
@@ -860,7 +861,9 @@ void ToolbarView::OnTriggerGlicNudgeUI(glic::NudgeParams params) {
     return;
   }
 
-  CHECK(glic_button_);
+  if (!glic_button_) {
+    return;
+  }
   if (!params.label.empty()) {
     glic_button_->SetNudgeLabel(std::move(params.label));
     ShowToolbarNudge(glic_button_);
@@ -874,11 +877,15 @@ void ToolbarView::OnHideGlicNudgeUI() {
 }
 
 void ToolbarView::SetGlicActorNudgeLabel(const std::u16string& nudge_label) {
-  glic_actor_task_icon()->ShowNudgeLabel(nudge_label);
+  if (glic_actor_task_icon_) {
+    glic_actor_task_icon_->ShowNudgeLabel(nudge_label);
+  }
 }
 
 void ToolbarView::TriggerGlicActorNudge(const std::u16string& nudge_text) {
-  CHECK(glic_actor_task_icon_);
+  if (!glic_button_ || !glic_actor_task_icon_) {
+    return;
+  }
   if (GetIsShowingGlicNudge()) {
     // If the glic button is showing, start the hide animation in parallel to
     // the show actor nudge animation.
@@ -888,12 +895,10 @@ void ToolbarView::TriggerGlicActorNudge(const std::u16string& nudge_text) {
   ShowGlicActorNudge(nudge_text);
 }
 
-bool ToolbarView::IsGlicAdded() {
-  return glic_button_ && glic_actor_task_icon_;
-}
-
 void ToolbarView::ShowGlicActorNudge(const std::u16string nudge_text) {
-  CHECK(glic_actor_task_icon_);
+  if (!glic_button_ || !glic_actor_task_icon_) {
+    return;
+  }
   // Start animation for minimizing the glic button.
   glic_button_->Collapse();
   ShowGlicActorTaskIcon();
@@ -902,8 +907,10 @@ void ToolbarView::ShowGlicActorNudge(const std::u16string nudge_text) {
 }
 
 void ToolbarView::ShowGlicActorTaskIcon() {
-  CHECK(glic_actor_button_container_);
-  CHECK(glic_button_);
+  if (!glic_button_ || !glic_actor_task_icon_ ||
+      !glic_actor_button_container_) {
+    return;
+  }
   // If the nudge is showing (ex: previous state was CheckTasks), hide the
   // nudge.
   if (glic_actor_task_icon_->GetIsShowingNudge()) {
@@ -928,7 +935,9 @@ void ToolbarView::ShowGlicActorTaskIcon() {
 }
 
 void ToolbarView::HideGlicActorTaskIcon() {
-  CHECK(glic_actor_task_icon_);
+  if (!glic_actor_task_icon_) {
+    return;
+  }
 
   // If it's already hidden, do nothing.
   if (!glic_actor_task_icon_->GetVisible() &&
@@ -950,17 +959,24 @@ void ToolbarView::HideGlicActorTaskIcon() {
 }
 
 void ToolbarView::SetGlicActorNudgePressedState(bool pressed) {
-  glic_actor_task_icon()->SetPressedState(pressed);
+  if (glic_actor_task_icon_) {
+    glic_actor_task_icon_->SetPressedState(pressed);
+  }
 }
 
 void ToolbarView::ShowActorTaskListBubble() {
+  if (!glic_actor_task_icon_) {
+    return;
+  }
   ActorTaskListBubbleController::From(browser_)->ShowBubble(
       glic_actor_task_icon());
 }
 
 void ToolbarView::FinalizeHideGlicActorTaskIcon() {
-  CHECK(glic_actor_button_container_);
-  CHECK(glic_button_);
+  if (!glic_button_ || !glic_actor_task_icon_ ||
+      !glic_actor_button_container_) {
+    return;
+  }
   // Reset Nudge State
   if (glic_actor_task_icon_->GetIsShowingNudge()) {
     // TODO(crbug.com/484389669): Glic actor nudge animation
@@ -1234,9 +1250,7 @@ void ToolbarView::ShowIntentPickerBubble(
     const std::optional<url::Origin>& initiating_origin,
     IntentPickerResponse callback) {
   std::optional<ui::ElementIdentifier> higlighted_element;
-  if (GetIntentChipButton()) {
-    higlighted_element = kIntentChipElementId;
-  } else if (GetPageActionViewInterface(kActionShowIntentPicker)) {
+  if (GetPageActionViewInterface(kActionShowIntentPicker)) {
     higlighted_element = kIntentPickerPageActionElementId;
   } else {
     return;
@@ -1262,6 +1276,25 @@ void ToolbarView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
 bool ToolbarView::IsPositionInWindowCaption(
     const gfx::Point& test_point) const {
   return IsPositionInWindowCaptionForView(this, test_point);
+}
+
+void ToolbarView::RecordHitTestMetrics(bool is_caption_area) {
+  const bool is_mouse_down = GetWidget() && GetWidget()->IsMouseButtonDown();
+
+  if (!is_mouse_down) {
+    was_mouse_down_ = false;
+  } else if (!was_mouse_down_) {
+    was_mouse_down_ = true;
+    if (browser_view_->ShouldDrawVerticalTabStrip()) {
+      if (is_caption_area) {
+        base::RecordAction(
+            base::UserMetricsAction("VerticalTabs.Toolbar.CaptionAreaPressed"));
+      } else {
+        base::RecordAction(base::UserMetricsAction(
+            "VerticalTabs.Toolbar.InteractiveAreaPressed"));
+      }
+    }
+  }
 }
 
 views::Button* ToolbarView::GetChromeLabsButton() const {
@@ -1706,7 +1739,13 @@ PageActionIconView* ToolbarView::GetPageActionIconView(
 
 page_actions::PageActionViewInterface* ToolbarView::GetPageActionViewInterface(
     actions::ActionId action_id) {
-  // TODO: crbug.com/501449027 -- implement for WebUI location bar.
+  if (features::IsWebUILocationBarEnabled()) {
+    if (toolbar_webview_ && !location_bar_view_) {
+      return toolbar_webview_->GetLocationBar()->GetPageActionViewInterface(
+          action_id);
+    }
+    return nullptr;
+  }
   page_actions::PageActionPropertiesProvider provider;
   if (!provider.Contains(action_id)) {
     return nullptr;
@@ -1836,9 +1875,6 @@ ReloadControl* ToolbarView::GetReloadButton() {
   return reload_;
 }
 
-IntentChipButton* ToolbarView::GetIntentChipButton() {
-  return location_bar_view() ? location_bar_view()->intent_chip() : nullptr;
-}
 
 ToolbarButton* ToolbarView::GetDownloadButton() {
   return pinned_toolbar_actions_container_

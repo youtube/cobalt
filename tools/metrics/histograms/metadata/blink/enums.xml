@@ -3800,7 +3800,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3282" label="OBSOLETE_RubyElementWithDisplayBlock"/>
   <int value="3283" label="OBSOLETE_LocationFragmentDirectiveAccessed"/>
   <int value="3284" label="CanvasRenderingContext"/>
-  <int value="3285" label="SchemefulSameSiteContextDowngrade"/>
+  <int value="3285" label="OBSOLETE_SchemefulSameSiteContextDowngrade"/>
   <int value="3286" label="OriginAgentClusterHeader"/>
   <int value="3287" label="V8WasmSimdOpcodes"/>
   <int value="3288" label="GridRowGapPercent"/>
@@ -5786,7 +5786,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5111"
       label="OBSOLETE_MaxInterStageShaderComponentsRequiredLimit"/>
   <int value="5112" label="ShowPickerSelect"/>
-  <int value="5113" label="AudioContextPlayoutStats"/>
+  <int value="5113" label="OBSOLETE_AudioContextPlayoutStats"/>
   <int value="5114" label="OBSOLETE_ThirdPartyCookieBlocked"/>
   <int value="5115"
       label="V8PerformanceResourceTiming_WorkerRouterEvaluationStart_AttributeGetter"/>
@@ -6718,6 +6718,13 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5966" label="DeclarativePerformanceObserver"/>
   <int value="5967" label="PrefetchAndPrerenderActivationBeacon"/>
   <int value="5968" label="LocalNetworkAccessForWebRTCOptOut"/>
+  <int value="5969" label="HTMLCameraElement"/>
+  <int value="5970" label="HTMLMicrophoneElement"/>
+  <int value="5971"
+      label="V8WorkerNavigator_GlobalPrivacyControl_AttributeGetter"/>
+  <int value="5972" label="V8Navigator_GlobalPrivacyControl_AttributeGetter"/>
+  <int value="5973" label="XmlCAPAlert"/>
+  <int value="5974" label="XmlCAPAlertWithXSLT"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6801,7 +6808,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="70" label="StorageAccessAPI"/>
   <int value="71" label="ClientHintUAFullVersion"/>
   <int value="72" label="TrustTokenRedemption"/>
-  <int value="73" label="AttributionReporting"/>
+  <int value="73" label="Deprecated: AttributionReporting"/>
   <int value="74" label="ClientHintUAPlatformVersion"/>
   <int value="75" label="CrossOriginIsolated"/>
   <int value="76" label="ClipboardRead"/>

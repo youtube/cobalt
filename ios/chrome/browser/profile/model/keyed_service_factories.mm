@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/autocomplete/model/remote_suggestions_service_factory.h"
 #import "ios/chrome/browser/autocomplete/model/shortcuts_backend_factory.h"
 #import "ios/chrome/browser/autocomplete/model/zero_suggest_cache_service_factory.h"
+#import "ios/chrome/browser/autofill/atmemory/model/ios_at_memory_query_service_factory.h"
 #import "ios/chrome/browser/autofill/model/autocomplete_history_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/autofill_image_fetcher_factory.h"
 #import "ios/chrome/browser/autofill/model/autofill_log_router_factory.h"
@@ -98,6 +99,7 @@
 #import "ios/chrome/browser/intelligence/actor/model/actor_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_capabilities_manager_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
+#import "ios/chrome/browser/intelligence/on_device_category_classifier/in_process_category_classification_service.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/page_content_cache_service_factory.h"
 #import "ios/chrome/browser/invalidation/model/ios_chrome_profile_invalidation_provider_factory.h"
 #import "ios/chrome/browser/language/model/accept_languages_service_factory.h"
@@ -132,6 +134,7 @@
 #import "ios/chrome/browser/passwords/model/ios_password_requirements_service_factory.h"
 #import "ios/chrome/browser/passwords/model/password_manager_log_router_factory.h"
 #import "ios/chrome/browser/personal_context/model/ios_personal_context_eligibility_service_factory.h"
+#import "ios/chrome/browser/personal_context/model/ios_personal_context_first_run_service_factory.h"
 #import "ios/chrome/browser/personal_context/model/ios_personal_context_service_factory.h"
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/policy/model/cloud/user_policy_signin_service_factory.h"
@@ -290,6 +293,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetInstance();
   segmentation_platform::SegmentationPlatformServiceFactory::GetInstance();
   supervised_user::FamilyLinkSettingsServiceFactory::GetInstance();
+  supervised_user::ListFamilyMembersServiceFactory::GetInstance();
   supervised_user::SupervisedUserUrlFilteringServiceFactory::GetInstance();
   tab_groups::TabGroupSyncServiceFactory::GetInstance();
   translate::TranslateRankerFactory::GetInstance();
@@ -341,6 +345,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   ImpressionLimitServiceFactory::GetInstance();
   InactiveTabsServiceFactory::GetInstance();
   IOSAccountSettingServiceFactory::GetInstance();
+  IOSAtMemoryQueryServiceFactory::GetInstance();
   IOSAutofillAiModelCacheFactory::GetInstance();
   IOSAutofillAiModelExecutorFactory::GetInstance();
   IOSAutofillAiPersonalContextAccessManagerFactory::GetInstance();
@@ -369,6 +374,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   IOSPasswordManagerSettingsServiceFactory::GetInstance();
   IOSPasswordRequirementsServiceFactory::GetInstance();
   IOSPersonalContextEligibilityServiceFactory::GetInstance();
+  IOSPersonalContextFirstRunServiceFactory::GetInstance();
   IOSPersonalContextServiceFactory::GetInstance();
   IOSProfileMetricsServiceFactory::GetInstance();
   IOSProfileSessionDurationsServiceFactory::GetInstance();
@@ -380,7 +386,6 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   JavaScriptConsoleFeatureFactory::GetInstance();
   LanguageDetectionModelLoaderServiceIOSFactory::GetInstance();
   LanguageModelManagerFactory::GetInstance();
-  ListFamilyMembersServiceFactory::GetInstance();
   MailtoHandlerServiceFactory::GetInstance();
   ManagedBookmarkServiceFactory::GetInstance();
   MiniMapServiceFactory::GetInstance();
@@ -447,6 +452,7 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   // Call other "Ensure...FactoriesBuilt" functions as necessary.
   EnsureSessionProtoDBFactoriesBuilt();
 
+  InProcessCategoryClassificationService::EnsureFactoryBuilt();
   if (web::features::IsCobaltEnabled()) {
     ios::provider::EnsureCobaltProfileKeyedServiceFactoriesBuilt();
   }

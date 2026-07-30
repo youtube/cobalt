@@ -219,13 +219,19 @@ class EmailVerifierDelegateTestBase
           AutofillClient::EmailVerificationPermissionUiResult::kAccepted) {
     EXPECT_CALL(email_verifier(), CheckIfVerifiable(email, _))
         .WillOnce(RunOnceCallback<1>(CreateVerifiableResult(email)));
+    const bool is_accepted =
+        popup_result ==
+        AutofillClient::EmailVerificationPermissionUiResult::kAccepted;
     EXPECT_CALL(driver(), UpdateEmailVerificationState(
                               form.field(0)->global_id(),
                               mojom::EmailVerificationState::kLoading))
-        .Times(AnyNumber());
+        .Times(is_accepted ? 1 : 0);
+    EXPECT_CALL(driver(), UpdateEmailVerificationState(
+                              form.field(0)->global_id(),
+                              mojom::EmailVerificationState::kNone))
+        .Times(is_accepted ? 0 : 1);
 
-    if (popup_result ==
-        AutofillClient::EmailVerificationPermissionUiResult::kAccepted) {
+    if (is_accepted) {
       EXPECT_CALL(email_verifier(), Verify(_, "test_nonce", _))
           .WillOnce(
               RunOnceCallback<2>(std::optional<std::string>("test_token")));
@@ -239,9 +245,6 @@ class EmailVerifierDelegateTestBase
     } else {
       EXPECT_CALL(email_verifier(), Verify).Times(0);
       EXPECT_CALL(driver(), SendEmailVerificationToken).Times(0);
-      EXPECT_CALL(driver(), UpdateEmailVerificationState(
-                                form.field(0)->global_id(),
-                                mojom::EmailVerificationState::kNone));
     }
 
     EXPECT_CALL(client(), ShowEmailVerificationPopup)
@@ -1188,10 +1191,6 @@ TEST_F(EmailVerifierDelegateTest, UpdateEmailVerificationStateLoading) {
 
   SetUpVerificationExpectations(*form);
 
-  EXPECT_CALL(driver(), UpdateEmailVerificationState(
-                            form->field(0)->global_id(),
-                            mojom::EmailVerificationState::kLoading));
-
   TriggerDefaultFormFill(*form);
 
   popup_shown_run_loop_.Run();
@@ -1206,10 +1205,6 @@ TEST_F(EmailVerifierDelegateTest,
 
   EXPECT_CALL(email_verifier(), CheckIfVerifiable("johndoe@hades.com", _))
       .WillOnce(RunOnceCallback<1>(std::nullopt));
-
-  EXPECT_CALL(driver(), UpdateEmailVerificationState(
-                            form->field(0)->global_id(),
-                            mojom::EmailVerificationState::kLoading));
 
   EXPECT_CALL(driver(),
               UpdateEmailVerificationState(
@@ -1233,7 +1228,13 @@ TEST_F(EmailVerifierDelegateTest, UpdateEmailVerificationStateFailed) {
 
   EXPECT_CALL(driver(), UpdateEmailVerificationState(
                             form->field(0)->global_id(),
-                            mojom::EmailVerificationState::kLoading));
+                            mojom::EmailVerificationState::kLoading))
+      .Times(1);
+
+  EXPECT_CALL(driver(), UpdateEmailVerificationState(
+                            form->field(0)->global_id(),
+                            mojom::EmailVerificationState::kFailed))
+      .Times(1);
 
   EXPECT_CALL(client(), ShowEmailVerificationPopup)
       .WillOnce(RunOnceCallback<3>(
@@ -1241,10 +1242,6 @@ TEST_F(EmailVerifierDelegateTest, UpdateEmailVerificationStateFailed) {
 
   EXPECT_CALL(email_verifier(), Verify(_, "test_nonce", _))
       .WillOnce(RunOnceCallback<2>(std::nullopt));
-
-  EXPECT_CALL(driver(), UpdateEmailVerificationState(
-                            form->field(0)->global_id(),
-                            mojom::EmailVerificationState::kFailed));
 
   TriggerDefaultFormFill(*form);
 

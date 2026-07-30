@@ -27,6 +27,7 @@ const CGFloat kBarricadeTapeHeight = 6.0;
 constexpr CGFloat kInputPlateMargin = 16.0f;
 constexpr CGFloat kTitleVerticalMargin = 12.0;
 constexpr CGFloat kHeaderCenteringVerticalMargin = 16.0;
+constexpr CGFloat kThresholdForHistoryDismissal = 0.001;
 constexpr CGFloat kThresholdForClosedState = 0.12;
 constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
@@ -35,6 +36,10 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 @interface AssistantAIMViewController () <
     AssistantAIMHeaderViewDelegate,
     AssistantAIMHistoryViewControllerDelegate>
+
+// Whether the asisstant view is fully mimimized.
+@property(nonatomic, assign) BOOL isMinimized;
+
 @end
 
 @implementation AssistantAIMViewController {
@@ -53,10 +58,12 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   AssistantAIMState _state;
   AssistantAIMState _previousState;
   NSString* _greetingMessage;
-  // Whether the asisstant view is fully mimimized.
-  BOOL _isMinimized;
   // Tracks the gesture recognizer panning the input plate.
   __weak UIPanGestureRecognizer* _panGestureInInputPlate;
+  // Whether the input plate should stay hidden.
+  BOOL _inputPlateForceHidden;
+  // The title of the current thread.
+  NSString* _threadTitle;
 }
 
 @synthesize delegate = _delegate;
@@ -138,8 +145,10 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
         (kThresholdForCompleteVisibility - kThresholdForClosedState);
   }
 
-  if (percentage <= kThresholdForCompleteVisibility) {
-    [self hideHistoryAnimated];
+  if (percentage <= kThresholdForHistoryDismissal &&
+      _state == AssistantAIMState::kHistory) {
+    [self setAssistantAIMState:_previousState];
+    [self hideHistory];
   }
 
   // This ensures the header end up centered in the collapsed state.
@@ -151,8 +160,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   _inputViewController.view.alpha = effectPercentage;
   _webStateView.alpha = effectPercentage;
   _inputViewFade.alpha = effectPercentage;
-  _isMinimized = effectPercentage == 0;
-  _inputViewController.view.hidden = _isMinimized;
+  self.isMinimized = effectPercentage == 0;
 
   [_headerView adjustForPercentage:effectPercentage];
 }
@@ -248,19 +256,9 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 }
 
 - (void)setupInputPlateConstraints {
-  if (IsChromeNextIaEnabled()) {
-    // `usesBottomSafeArea = NO` ensures the inactive layout guide rests at the
-    // absolute bottom of `self.view`, preventing double safe-area padding.
-    self.view.keyboardLayoutGuide.usesBottomSafeArea = NO;
-    _inputPlateBottomMargin = [_inputViewController.view.bottomAnchor
-        constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
-                       constant:-kInputPlateMargin];
-  } else {
-    _inputPlateBottomMargin = [_inputViewController.view.bottomAnchor
-        constraintEqualToAnchor:self.view.bottomAnchor
-                       constant:-kInputPlateMargin];
-  }
-
+  _inputPlateBottomMargin = [_inputViewController.view.bottomAnchor
+      constraintEqualToAnchor:self.view.bottomAnchor
+                     constant:-kInputPlateMargin];
   [NSLayoutConstraint activateConstraints:@[
     _inputPlateBottomMargin,
     [_inputViewController.view.leadingAnchor
@@ -272,9 +270,6 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   ]];
 
   if (_inputViewFade) {
-    NSLayoutYAxisAnchor* fadeBottomAnchor =
-        IsChromeNextIaEnabled() ? self.view.keyboardLayoutGuide.topAnchor
-                                : self.view.bottomAnchor;
     [NSLayoutConstraint activateConstraints:@[
       [_inputViewFade.topAnchor
           constraintEqualToAnchor:_inputViewController.view.topAnchor],
@@ -282,7 +277,9 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
           constraintEqualToAnchor:self.view.leadingAnchor],
       [_inputViewFade.trailingAnchor
           constraintEqualToAnchor:self.view.trailingAnchor],
-      [_inputViewFade.bottomAnchor constraintEqualToAnchor:fadeBottomAnchor],
+      [_inputViewFade.bottomAnchor
+          constraintEqualToAnchor:_inputViewController.view.bottomAnchor
+                         constant:kInputPlateMargin],
     ]];
   }
 
@@ -303,15 +300,19 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
                         name:UITextViewTextDidBeginEditingNotification
                       object:nil];
 
-  if (!IsChromeNextIaEnabled()) {
-    // In the non-ChromeNext flow, we do not use the system keyboard layout
-    // guide, so we must manually observe keyboard frame changes to adjust
-    // the input plate's bottom margin.
-    [defaultCenter addObserver:self
-                      selector:@selector(keyboardWillChangeFrame:)
-                          name:UIKeyboardWillChangeFrameNotification
-                        object:nil];
+  [defaultCenter addObserver:self
+                    selector:@selector(keyboardWillChangeFrame:)
+                        name:UIKeyboardWillChangeFrameNotification
+                      object:nil];
+}
+
+- (void)setIsMinimized:(BOOL)isMinimized {
+  if (_isMinimized == isMinimized) {
+    return;
   }
+
+  _isMinimized = isMinimized;
+  [self computeInputPlateVisibility];
 }
 
 #pragma mark - AssistantAIMConsumer
@@ -351,6 +352,9 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
       _webStateView.hidden = NO;
       _historyViewController.view.hidden = YES;
       [_headerView setMode:AssistantAIMState::kThread];
+      if (_threadTitle) {
+        [_headerView setTitle:_threadTitle];
+      }
       self.view.backgroundColor = [UIColor clearColor];
       break;
     case AssistantAIMState::kHistory:
@@ -393,7 +397,15 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 }
 
 - (void)setHeaderTitle:(NSString*)title {
-  [_headerView setTitle:title];
+  _threadTitle = [title copy];
+  if (_state != AssistantAIMState::kHistory) {
+    [_headerView setTitle:title];
+  }
+}
+
+- (void)setInputPlateForceHidden:(BOOL)hidden {
+  _inputPlateForceHidden = hidden;
+  [self computeInputPlateVisibility];
 }
 
 - (void)setGreetingMessage:(NSString*)message {
@@ -461,6 +473,12 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 #pragma mark - Private
 
+// Computes the visibility for the input plate.
+- (void)computeInputPlateVisibility {
+  BOOL shouldHide = _inputPlateForceHidden || _isMinimized;
+  [_inputViewController.view setHidden:shouldHide];
+}
+
 // Recursively searches for a WKWebView in the given view's hierarchy.
 - (WKWebView*)findWKWebViewInView:(UIView*)view {
   if ([view isKindOfClass:[WKWebView class]]) {
@@ -481,29 +499,6 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   return fabs(translation.y) <= 3 * fabs(translation.x);
 }
 
-// Performs the animation logic to hide the history view.
-- (void)animateHistoryHide {
-  [_headerView setMode:AssistantAIMState::kThread];
-  _historyViewController.view.alpha = 0;
-  self.view.backgroundColor = [UIColor clearColor];
-  [self.view layoutIfNeeded];
-}
-
-// Hides the history view with animation.
-- (void)hideHistoryAnimated {
-  if (!_historyViewController) {
-    return;
-  }
-
-  __weak __typeof(self) weakSelf = self;
-  [UIView animateWithDuration:0.3
-      animations:^{
-        [weakSelf animateHistoryHide];
-      }
-      completion:^(BOOL) {
-        [weakSelf hideHistory];
-      }];
-}
 
 // Hides the history view.
 - (void)hideHistory {
@@ -581,7 +576,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 // Adjusts the input plate's bottom margin to account for the keyboard's frame.
 - (void)keyboardWillChangeFrame:(NSNotification*)notification {
-  if (IsChromeNextIaEnabled() || !self.isViewLoaded || !self.view.window) {
+  if (!self.isViewLoaded || !self.view.window) {
     return;
   }
   NSDictionary* userInfo = notification.userInfo;
@@ -606,9 +601,6 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 // Updates the input plate's bottom margin in the non-ChromeNext fallback flow.
 - (void)updateInputPlateOverlap {
-  if (IsChromeNextIaEnabled()) {
-    return;
-  }
   if (CGRectIsEmpty(_keyboardFrameInWindow)) {
     _inputPlateBottomMargin.constant = -kInputPlateMargin;
     return;

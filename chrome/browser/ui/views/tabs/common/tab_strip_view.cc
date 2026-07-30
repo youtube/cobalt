@@ -48,7 +48,8 @@ bool IsVerticalOrientation(const TabCollectionNode* collection_node) {
 
 class TabStripView::TargetViewsTracker : public views::ViewObserver {
  public:
-  TargetViewsTracker() = default;
+  explicit TargetViewsTracker(TabStripOrientation orientation)
+      : orientation_(orientation) {}
   TargetViewsTracker(const TargetViewsTracker&) = delete;
   TargetViewsTracker& operator=(const TargetViewsTracker&) = delete;
   ~TargetViewsTracker() override = default;
@@ -61,24 +62,22 @@ class TabStripView::TargetViewsTracker : public views::ViewObserver {
     RemoveView(observed_view);
   }
   void OnViewBoundsChanged(views::View* observed_view) override {
-    CheckTrackedViewsHeight();
+    CheckTrackedViewsSize();
   }
   void OnViewPreferredSizeChanged(views::View* observed_view) override {
-    CheckTrackedViewsHeight();
+    CheckTrackedViewsSize();
   }
 
   void SetViews(views::View* primary_view,
-                const std::vector<views::View*>& secondary_views = {}) {
+                views::View* secondary_view = nullptr) {
     Clear();
     if (primary_view) {
       primary_view_ = primary_view;
       observations_.AddObservation(primary_view);
     }
-    for (views::View* view : secondary_views) {
-      if (view && view != primary_view &&
-          !observations_.IsObservingSource(view)) {
-        observations_.AddObservation(view);
-      }
+    if (secondary_view && secondary_view != primary_view) {
+      secondary_view_ = secondary_view;
+      observations_.AddObservation(secondary_view);
     }
   }
 
@@ -89,9 +88,12 @@ class TabStripView::TargetViewsTracker : public views::ViewObserver {
     if (view == primary_view_) {
       primary_view_ = nullptr;
     }
+    if (view == secondary_view_) {
+      secondary_view_ = nullptr;
+    }
     observations_.RemoveObservation(view);
     if (!observations_.IsObservingAnySource()) {
-      on_reached_preferred_height_cb_.Reset();
+      on_reached_target_size_cb_.Reset();
     }
   }
 
@@ -99,63 +101,71 @@ class TabStripView::TargetViewsTracker : public views::ViewObserver {
     if (!container) {
       return;
     }
-    std::vector<views::View*> views_to_remove;
-    for (views::View* v : observations_.sources()) {
-      if (container->Contains(v)) {
-        views_to_remove.push_back(v);
-      }
+    if (primary_view_ && container->Contains(primary_view_)) {
+      RemoveView(primary_view_);
     }
-    for (views::View* v : views_to_remove) {
-      RemoveView(v);
+    if (secondary_view_ && container->Contains(secondary_view_)) {
+      RemoveView(secondary_view_);
     }
   }
 
   void Clear() {
     primary_view_ = nullptr;
+    secondary_view_ = nullptr;
     observations_.RemoveAllObservations();
-    on_reached_preferred_height_cb_.Reset();
+    on_reached_target_size_cb_.Reset();
   }
 
-  views::View* primary_view() { return primary_view_; }
-  const auto& sources() const { return observations_.sources(); }
+  views::View* primary_view() const { return primary_view_; }
+  views::View* secondary_view() const { return secondary_view_; }
   bool empty() const { return !observations_.IsObservingAnySource(); }
 
-  // Returns true if all tracked views are at their preferred height.
-  bool AreViewsAtPreferredHeight() const {
-    if (!observations_.IsObservingAnySource()) {
-      return true;
-    }
-    for (views::View* view : observations_.sources()) {
-      if (view->height() != view->GetPreferredSize().height()) {
-        return false;
+  // Returns true if all tracked views are at their target size based on
+  // orientation.
+  bool AreViewsAtTargetSize() const {
+    for (views::View* view : {primary_view_.get(), secondary_view_.get()}) {
+      if (!view) {
+        continue;
+      }
+      if (orientation_ == TabStripOrientation::kVertical) {
+        if (view->height() != view->GetPreferredSize().height()) {
+          return false;
+        }
+      } else {
+        if (view->width() != GetTabStripViewTargetBounds(view).width()) {
+          return false;
+        }
       }
     }
     return true;
   }
 
-  void SetOnReachedPreferredHeightCallback(
-      base::OnceClosure on_reached_preferred_height_cb) {
-    on_reached_preferred_height_cb_ = std::move(on_reached_preferred_height_cb);
-    CheckTrackedViewsHeight();
+  void SetOnReachedTargetSizeCallback(
+      base::OnceClosure on_reached_target_size_cb) {
+    on_reached_target_size_cb_ = std::move(on_reached_target_size_cb);
+    CheckTrackedViewsSize();
   }
 
  private:
-  void CheckTrackedViewsHeight() {
-    if (observations_.IsObservingAnySource() && AreViewsAtPreferredHeight() &&
-        on_reached_preferred_height_cb_) {
-      std::move(on_reached_preferred_height_cb_).Run();
+  void CheckTrackedViewsSize() {
+    if (observations_.IsObservingAnySource() && AreViewsAtTargetSize() &&
+        on_reached_target_size_cb_) {
+      std::move(on_reached_target_size_cb_).Run();
     }
   }
 
+  const TabStripOrientation orientation_;
   raw_ptr<views::View> primary_view_ = nullptr;
-  base::OnceClosure on_reached_preferred_height_cb_;
+  raw_ptr<views::View> secondary_view_ = nullptr;
+  base::OnceClosure on_reached_target_size_cb_;
   base::ScopedMultiSourceObservation<views::View, views::ViewObserver>
       observations_{this};
 };
 
 TabStripView::TabStripView(TabCollectionNode* collection_node)
     : collection_node_(collection_node),
-      target_views_tracker_(std::make_unique<TargetViewsTracker>()) {
+      target_views_tracker_(std::make_unique<TargetViewsTracker>(
+          collection_node->orientation())) {
   // Paint to a layer and mask to bounds to prevent tabs from overflowing and
   // drawing outside the window boundaries on Linux when the window is small.
   // This is configured here rather than a higher-level container so that drop
@@ -350,9 +360,14 @@ void TabStripView::ScrollToFitViews(views::View* view1, views::View* view2) {
     return;
   }
 
-  target_views_tracker_->SetViews(
-      primary_view, secondary_view ? std::vector<views::View*>{secondary_view}
-                                   : std::vector<views::View*>{});
+  // If a scroll request is active, restore normal overflow visuals and clear
+  // pending callbacks before servicing the new target views.
+  if (!target_views_tracker_->empty()) {
+    EnableOverflowVisuals(pinned_tabs_scroll_view_);
+    EnableOverflowVisuals(unpinned_tabs_scroll_view_);
+  }
+
+  target_views_tracker_->SetViews(primary_view, secondary_view);
 
   bool has_pinned = false;
   bool has_unpinned = false;
@@ -375,15 +390,12 @@ void TabStripView::ScrollToFitViews(views::View* view1, views::View* view2) {
     pinned_tabs_scroll_view_->RegisterPostLayoutCallback(base::BindRepeating(
         &TabStripView::EnsureViewsVisibleInViewportPostLayout,
         base::Unretained(this)));
-    pinned_tabs_scroll_view_->InvalidateLayout();
   }
   if (has_unpinned) {
     unpinned_tabs_scroll_view_->RegisterPostLayoutCallback(base::BindRepeating(
         &TabStripView::EnsureViewsVisibleInViewportPostLayout,
         base::Unretained(this)));
-    unpinned_tabs_scroll_view_->InvalidateLayout();
   }
-  InvalidateLayout();
 }
 
 void TabStripView::RecordMousePressedInTab() {
@@ -400,21 +412,14 @@ bool TabStripView::IsFocusInTabStrip() {
   return GetFocusManager() && Contains(GetFocusManager()->GetFocusedView());
 }
 
-views::View* TabStripView::GetActivatedViewForTesting() const {
+views::View* TabStripView::GetPrimaryScrollTargetForTesting() const {
   return target_views_tracker_ ? target_views_tracker_->primary_view()
                                : nullptr;
 }
 
-views::View* TabStripView::GetBackgroundViewForTesting() const {
-  if (!target_views_tracker_ || target_views_tracker_->sources().empty()) {
-    return nullptr;
-  }
-  for (views::View* view : target_views_tracker_->sources()) {
-    if (view != target_views_tracker_->primary_view()) {
-      return view;
-    }
-  }
-  return nullptr;
+views::View* TabStripView::GetSecondaryScrollTargetForTesting() const {
+  return target_views_tracker_ ? target_views_tracker_->secondary_view()
+                               : nullptr;
 }
 
 PinnedTabContainerView* TabStripView::GetPinnedTabsContainer() const {
@@ -562,7 +567,8 @@ void TabStripView::EnsureViewsVisibleInViewportPostLayout(
   gfx::Rect combined_bounds;
   bool has_valid_views = false;
 
-  for (views::View* view : target_views_tracker_->sources()) {
+  for (views::View* view : {target_views_tracker_->primary_view(),
+                            target_views_tracker_->secondary_view()}) {
     if (view && Contains(view) && scroll_view->contents()->Contains(view)) {
       gfx::Rect view_bounds = GetBoundsInScrollViewContents(view, scroll_view);
       if (!has_valid_views) {
@@ -592,9 +598,9 @@ void TabStripView::EnsureViewsVisibleInViewportPostLayout(
     // (i.e. it was activated as it is being animated in). In such a case
     // disable overflow visuals to prevent jank that can occur if content view
     // bounds are changed in quick succession.
-    if (!target_views_tracker_->AreViewsAtPreferredHeight()) {
+    if (!target_views_tracker_->AreViewsAtTargetSize()) {
       DisableOverflowVisuals(scroll_view);
-      target_views_tracker_->SetOnReachedPreferredHeightCallback(
+      target_views_tracker_->SetOnReachedTargetSizeCallback(
           base::BindOnce(&TabStripView::EnsureViewsVisibleInViewportPostLayout,
                          base::Unretained(this), scroll_view));
     } else {

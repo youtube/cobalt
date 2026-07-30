@@ -175,21 +175,42 @@ TEST(ParseProvisioningDomainProxyProtocolTest, MapsProtocolStringsCorrectly) {
             ParseProvisioningDomainProxyProtocol("invalid"));
 }
 
-TEST(ResolveExtraHeadersTest, ExpandsPlaceholdersCorrectly) {
-  ProvisioningDomainConfig policy;
-  policy.pvd_id = "example.com";
-  policy.extra_headers = {
-      ProxyExtraHeader(kTestHeaderKeyResourceKey, "projects/default"),
-      ProxyExtraHeader(kTestHeaderKeyProfileId, "${profile_id}"),
-      ProxyExtraHeader(kTestHeaderKeyLanguages, "${accept_language}"),
+TEST(ResolveExtraHeadersTest, ExpandsPlaceholdersAndEnforcesTypes) {
+  std::vector<ProxyExtraHeader> extra_headers = {
+      // Constant header
+      ProxyExtraHeader(kTestHeaderKeyResourceKey, "static_value",
+                       ProxyExtraHeader::HeaderType::kConstant),
+
+      // Constant header with placeholder (unexpanded)
+      ProxyExtraHeader("X-Constant-Literal-Placeholder", "prefix-${profile_id}",
+                       ProxyExtraHeader::HeaderType::kConstant),
+
+      // kVariable header with supported placeholder (expanded)
+      ProxyExtraHeader(kTestHeaderKeyProfileId, "profile_${profile_id}",
+                       ProxyExtraHeader::HeaderType::kVariable),
+      ProxyExtraHeader(kTestHeaderKeyLanguages, "${accept_language}",
+                       ProxyExtraHeader::HeaderType::kVariable),
+
+      // kVariable header with static value (kept)
+      ProxyExtraHeader("X-Variable-Static", "hello",
+                       ProxyExtraHeader::HeaderType::kVariable),
+
+      // kVariable header with unsupported placeholder (dropped)
+      ProxyExtraHeader("X-Variable-Unknown", "val_${unknown_var}",
+                       ProxyExtraHeader::HeaderType::kVariable),
   };
 
-  net::HttpRequestHeaders headers =
-      ResolveExtraHeaders(policy, kTestProfileId, kTestAcceptLanguages);
+  net::HttpRequestHeaders headers = ResolveExtraHeadersWithValues(
+      extra_headers, kTestProfileId, kTestAcceptLanguages);
 
-  ExpectHeader(headers, kTestHeaderKeyResourceKey, "projects/default");
-  ExpectHeader(headers, kTestHeaderKeyProfileId, kTestProfileId);
+  ExpectHeader(headers, kTestHeaderKeyResourceKey, "static_value");
+  ExpectHeader(headers, "X-Constant-Literal-Placeholder",
+               "prefix-${profile_id}");
+  ExpectHeader(headers, kTestHeaderKeyProfileId,
+               "profile_" + std::string(kTestProfileId));
   ExpectHeader(headers, kTestHeaderKeyLanguages, kTestAcceptLanguages);
+  ExpectHeader(headers, "X-Variable-Static", "hello");
+  EXPECT_FALSE(headers.HasHeader("X-Variable-Unknown"));
 }
 
 TEST(ParseProxyProvisioningDomainPolicyTest, ParsesValidPolicyDict) {
@@ -432,6 +453,143 @@ TEST(FindMatchingProxyEndpointTest, FindsFirstMatchingEndpoint) {
       FindMatchingProxyEndpoint(*config, GURL("https://test.domain.com/path"),
                                 MakeHttpsProxyChain("unknown.proxy.com:443"));
   EXPECT_EQ(nullptr, non_matching);
+}
+
+TEST(ProvisioningDomainConfigToDictTest, SerializesConfigToDict) {
+  ProvisioningDomainConfig policy;
+  policy.pvd_id = "example.pvd.com";
+  policy.auth_config = ProxyAuthConfig{AuthType::kProfileBearerToken,
+                                       AuthScope::kCloudSecureGateway};
+  policy.extra_headers = {ProxyExtraHeader("x-custom-key", "custom-value")};
+
+  base::DictValue dict = ProvisioningDomainConfigToDict(policy);
+  EXPECT_EQ("example.pvd.com", *dict.FindString("pvd_id"));
+  ASSERT_NE(nullptr, dict.FindDict("auth_config"));
+  EXPECT_EQ("profile_bearer_token",
+            *dict.FindDict("auth_config")->FindString("type"));
+  EXPECT_EQ("cloud_secure_gateway",
+            *dict.FindDict("auth_config")->FindString("scope"));
+  ASSERT_NE(nullptr, dict.FindList("extra_headers"));
+  EXPECT_EQ(1u, dict.FindList("extra_headers")->size());
+}
+
+TEST(ProvisioningDomainProxyConfigToDictTest, ParseAndSerializeRoundtrip) {
+  std::optional<ProvisioningDomainProxyConfig> config =
+      ParseProvisioningDomainConfig(GetValidPvdJsonResponse());
+  ASSERT_TRUE(config.has_value());
+
+  base::DictValue dict = ProvisioningDomainProxyConfigToDict(*config);
+  EXPECT_EQ("api.example.com", *dict.FindString("pvd_id"));
+  EXPECT_EQ("RefreshNeeded", *dict.FindString("state"));
+
+  const base::ListValue* proxies = dict.FindList("proxies");
+  ASSERT_NE(nullptr, proxies);
+  EXPECT_EQ(3u, proxies->size());
+
+  // Verify detailed values of proxy endpoint "test-proxy-1".
+  const base::DictValue* proxy1_dict = nullptr;
+  for (const auto& entry : *proxies) {
+    if (entry.is_dict() && entry.GetDict().FindString("identifier") &&
+        *entry.GetDict().FindString("identifier") == kTestProxyIdentity1) {
+      proxy1_dict = &entry.GetDict();
+      break;
+    }
+  }
+  ASSERT_NE(nullptr, proxy1_dict);
+  EXPECT_EQ(kTestProxyIdentity1, *proxy1_dict->FindString("identifier"));
+  EXPECT_EQ("[https://proxy1.example.com:443]",
+            *proxy1_dict->FindString("proxy_chain"));
+
+  const base::DictValue* auth_dict = proxy1_dict->FindDict("auth");
+  ASSERT_NE(nullptr, auth_dict);
+  EXPECT_EQ("profile_bearer_token", *auth_dict->FindString("type"));
+  EXPECT_EQ("cloud_secure_gateway", *auth_dict->FindString("scope"));
+
+  const base::ListValue* headers = proxy1_dict->FindList("extra_headers");
+  ASSERT_NE(nullptr, headers);
+  EXPECT_EQ(2u, headers->size());
+  EXPECT_EQ("x-chrome-custom", *(*headers)[0].GetDict().FindString("key"));
+  EXPECT_EQ("custom-value", *(*headers)[0].GetDict().FindString("value"));
+  EXPECT_EQ("constant", *(*headers)[0].GetDict().FindString("type"));
+
+  // Verify detailed values of proxy-match routing rules.
+  const base::ListValue* rules = dict.FindList("proxy-match");
+  ASSERT_NE(nullptr, rules);
+  EXPECT_EQ(4u, rules->size());
+
+  const base::DictValue& rule0 = (*rules)[0].GetDict();
+  const base::ListValue* rule0_proxies = rule0.FindList("proxies");
+  ASSERT_NE(nullptr, rule0_proxies);
+  EXPECT_EQ(1u, rule0_proxies->size());
+  EXPECT_EQ(kTestProxyIdentity1, (*rule0_proxies)[0].GetString());
+
+  const base::ListValue* rule0_matchers =
+      rule0.FindList("destination_matchers");
+  ASSERT_NE(nullptr, rule0_matchers);
+  EXPECT_EQ(1u, rule0_matchers->size());
+  EXPECT_EQ("test.domain.com:443", (*rule0_matchers)[0].GetString());
+}
+
+TEST(ParseRoutingRuleTest, WildcardApexDomainExpansion) {
+  base::DictValue match_dict;
+  base::ListValue domains;
+  domains.Append("*.ifconfig.co");
+  match_dict.Set("domains", std::move(domains));
+
+  base::ListValue proxies;
+  proxies.Append("proxy1");
+  match_dict.Set("proxies", std::move(proxies));
+
+  std::optional<ProvisioningDomainProxyConfig::RoutingRule> rule =
+      ParseRoutingRule(match_dict);
+  ASSERT_TRUE(rule.has_value());
+
+  // Verify that both subdomains (sub.ifconfig.co) and the apex domain
+  // (ifconfig.co) match.
+  EXPECT_TRUE(
+      rule->destination_matchers.Matches(GURL("https://sub.ifconfig.co/")));
+  EXPECT_TRUE(rule->destination_matchers.Matches(GURL("https://ifconfig.co/")));
+  EXPECT_FALSE(
+      rule->destination_matchers.Matches(GURL("https://notifconfig.co/")));
+  EXPECT_FALSE(
+      rule->destination_matchers.Matches(GURL("https://otherdomain.co/")));
+}
+
+TEST(ParseRoutingRuleTest, SinglePortParsingAndIgnoredPortRanges) {
+  base::DictValue match_dict;
+  base::ListValue domains;
+  domains.Append("example.com");
+  match_dict.Set("domains", std::move(domains));
+
+  base::ListValue ports;
+  // Single string port and integer port should work as expected.
+  ports.Append("80");
+  ports.Append(8080);
+  // TODO(crbug.com/538199264): Port range strings like "80-82" are required
+  // by the PvD standard. Support to be added, but we are ignoring these for
+  // now.
+  ports.Append("8000-8005");
+  match_dict.Set("ports", std::move(ports));
+
+  base::ListValue proxies;
+  proxies.Append("proxy1");
+  match_dict.Set("proxies", std::move(proxies));
+
+  std::optional<ProvisioningDomainProxyConfig::RoutingRule> rule =
+      ParseRoutingRule(match_dict);
+  ASSERT_TRUE(rule.has_value());
+
+  // Single ports match.
+  EXPECT_TRUE(
+      rule->destination_matchers.Matches(GURL("http://example.com:80/")));
+  EXPECT_TRUE(
+      rule->destination_matchers.Matches(GURL("http://example.com:8080/")));
+
+  // Unlisted single ports and ignored port ranges do not match.
+  EXPECT_FALSE(
+      rule->destination_matchers.Matches(GURL("http://example.com:81/")));
+  EXPECT_FALSE(
+      rule->destination_matchers.Matches(GURL("http://example.com:8001/")));
 }
 
 }  // namespace

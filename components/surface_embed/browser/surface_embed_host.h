@@ -12,9 +12,9 @@
 #include "components/surface_embed/common/surface_embed.mojom.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/surface_embed_connector.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/associated_receiver.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 
 namespace content {
 class RenderFrameHost;
@@ -47,15 +47,17 @@ class SurfaceEmbedHost : public mojom::SurfaceEmbedHost,
   // RenderFrameHost and the mojo pipe, whichever is destroyed first.
   static SurfaceEmbedHost* Create(
       content::RenderFrameHost* rfh,
-      mojo::PendingReceiver<mojom::SurfaceEmbedHost> receiver);
+      mojo::PendingAssociatedReceiver<mojom::SurfaceEmbedHost> receiver);
 
   // mojom::SurfaceEmbedHost implementation:
-  void SetSurfaceEmbed(
-      mojo::PendingRemote<mojom::SurfaceEmbed> surface_embed) override;
+  void SetSurfaceEmbed(mojo::PendingAssociatedRemote<mojom::SurfaceEmbed>
+                           surface_embed) override;
   void AttachConnector(const base::UnguessableToken& content_id) override;
   void SynchronizeVisualProperties(
       const blink::FrameVisualProperties& visual_properties,
       bool is_visible) override;
+  void OnEmbedElementFocused(bool focused,
+                             blink::mojom::FocusType focus_type) override;
 
   // content::SurfaceEmbedConnector::Delegate implementation:
   void SetFrameSinkId(const viz::FrameSinkId& frame_sink_id,
@@ -78,9 +80,10 @@ class SurfaceEmbedHost : public mojom::SurfaceEmbedHost,
 
   explicit SurfaceEmbedHost(SurfaceEmbedHostCollection* collection);
 
-  void Bind(mojo::PendingReceiver<mojom::SurfaceEmbedHost> receiver);
+  void Bind(mojo::PendingAssociatedReceiver<mojom::SurfaceEmbedHost> receiver);
 
   void OnMojoDisconnect();
+  void OnRequestFocusOnEmbedElementCompleted();
 
   // May return null.
   content::SurfaceEmbedConnector* GetConnector() const;
@@ -91,8 +94,11 @@ class SurfaceEmbedHost : public mojom::SurfaceEmbedHost,
   // The WebContents of the child document.
   base::WeakPtr<content::WebContents> child_contents_ = nullptr;
 
-  mojo::Remote<mojom::SurfaceEmbed> surface_embed_;
-  mojo::Receiver<mojom::SurfaceEmbedHost> receiver_{this};
+  bool pending_request_focus_on_embed_element_ = false;
+
+  mojo::AssociatedRemote<mojom::SurfaceEmbed> surface_embed_;
+  mojo::AssociatedReceiver<mojom::SurfaceEmbedHost> receiver_{this};
+  base::WeakPtrFactory<SurfaceEmbedHost> weak_ptr_factory_{this};
 };
 
 }  // namespace surface_embed

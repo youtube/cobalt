@@ -101,7 +101,7 @@ void BrowserDesktopWindowTreeHostLinux::AddAdditionalInitProperties(
     ui::PlatformWindowInitProperties* properties) {
   views::DesktopWindowTreeHostLinux::AddAdditionalInitProperties(params,
                                                                  properties);
-  auto* profile = browser_view_->browser()->profile();
+  auto* profile = browser_view_->browser()->GetProfile();
   const auto* linux_ui_theme = ui::LinuxUiTheme::GetForProfile(profile);
   properties->prefer_dark_theme =
       linux_ui_theme && linux_ui_theme->PreferDarkTheme();
@@ -138,11 +138,7 @@ void BrowserDesktopWindowTreeHostLinux::TabDraggingKindChanged(
         browser_widget_->tab_drag_kind() == TabDragKind::kAllTabs;
     bool is_dragging_window = tab_drag_kind == TabDragKind::kAllTabs;
     if (is_dragging_window != was_dragging_window) {
-      auto weak_this = weak_factory_.GetWeakPtr();
       x11_extension->SetOverrideRedirect(is_dragging_window);
-      if (!weak_this) {
-        return;
-      }
     }
   }
 

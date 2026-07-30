@@ -581,6 +581,10 @@ void ContentAnalysisDelegate::TextRequestCallback(RequestHandlerResult result) {
   std::fill(result_.text_results.begin(), result_.text_results.end(),
             text_request_result_.complies);
 
+  result_.is_kept_in_managed_chrome |=
+      text_request_result_.final_result ==
+      FinalContentAnalysisResult::KEPT_IN_MANAGED_CHROME;
+
   UpdateFinalResult(text_request_result_.final_result, text_request_result_.tag,
                     text_request_result_.custom_rule_message);
 
@@ -599,6 +603,10 @@ void ContentAnalysisDelegate::ImageRequestCallback(
 
   DVLOG(1) << __func__ << ": image result=" << image_request_result_.complies;
   result_.image_result = image_request_result_.complies;
+
+  result_.is_kept_in_managed_chrome |=
+      image_request_result_.final_result ==
+      FinalContentAnalysisResult::KEPT_IN_MANAGED_CHROME;
 
   UpdateFinalResult(image_request_result_.final_result,
                     image_request_result_.tag,
@@ -703,6 +711,7 @@ bool ContentAnalysisDelegate::ShowFinalResultInDialog() {
   }
 
   if (access_point_ == DeepScanAccessPoint::ACTOR && web_contents_ &&
+      !web_contents_->IsBeingDestroyed() &&
       final_result_ != FinalContentAnalysisResult::SUCCESS) {
     // TODO(crbug.com/473047343): Add browsertests to validate surfacing works.
     if (web_contents_->GetDelegate()) {
@@ -985,12 +994,20 @@ void ContentAnalysisDelegate::MaybeCompleteScanRequest() {
       base::TimeTicks::Now() - creation_time_, base::Milliseconds(1),
       base::Minutes(30), 50);
 
+  base::WeakPtr<ContentAnalysisDelegate> weak_this =
+      weak_ptr_factory_.GetWeakPtr();
+
   // If showing the warning message, wait before running the callback. The
   // callback will be called either in BypassWarnings or Cancel.
   if (final_result_ != FinalContentAnalysisResult::WARNING) {
     DVLOG(1) << __func__ << ": calling RunCallback()";
     RunCallback();
   }
+
+  // The callback can synchronously tear down the WebContents acting as the
+  // context for this analysis, which deletes `this`. Check if we were destroyed.
+  if (!weak_this)
+    return;
 
   AckAllRequests();
 
@@ -1018,7 +1035,17 @@ void ContentAnalysisDelegate::RunCallback() {
   }
 
   callback_running_ = true;
+  base::WeakPtr<ContentAnalysisDelegate> weak_this =
+      weak_ptr_factory_.GetWeakPtr();
   std::move(callback_).Run(data_, result_);
+
+  // The callback can synchronously tear down the WebContents acting as the
+  // context for this analysis, which deletes `this`. Check if we were destroyed
+  // to avoid executing the remainder of this function.
+  if (!weak_this) {
+    return;
+  }
+
   callback_running_ = false;
 
   // Since `result_` might have been tweaked by `callback_`, `final_actions_`

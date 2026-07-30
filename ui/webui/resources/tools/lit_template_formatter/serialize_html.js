@@ -4,7 +4,7 @@
 
 import assert from 'node:assert';
 
-import {EXPR_PREFIX, FORMAT_OFF_PREFIX, getIndentationPrefix, INDENT_SIZE, LINE_LENGTH_LIMIT, PROP_PREFIX, RESTRICTED_TAGS, VOID_ELEMENTS, WRAPPED_LINE_INDENT_SIZE} from './html_utils.js';
+import {EXPR_PREFIX, FORMAT_OFF_PREFIX, getChildDepthForNode, getDepthForNode, getDepthForTagName, getIndentationPrefix, INDENT_SIZE, LINE_LENGTH_LIMIT, PROP_PREFIX, RESTRICTED_TAGS, TRAILING_NEWLINE_REGEX, VOID_ELEMENTS, WRAPPED_LINE_INDENT_SIZE} from './html_utils.js';
 
 const PREFIX_REGEX = /^[?.]/;
 
@@ -110,8 +110,8 @@ function analyzeChildNodes(node, placeholderMap) {
 function formatAttributes(
     tagName, attrs, depth, placeholderMap, childLen, sourceCodeLocation,
     sortAttributes = false) {
-  const elementIndentStr = ' '.repeat((depth - 1) * INDENT_SIZE);
-
+  const elementIndentStr =
+      ' '.repeat(getDepthForTagName(tagName, depth - 1) * INDENT_SIZE);
   const resolvedAttrs = attrs.map(attr => {
     let rawText = ` ${attr.name}="${attr.value}"`;
     // parse5 records a value of "" for boolean attributes. Don't inject
@@ -157,9 +157,11 @@ function formatAttributes(
     const currentIndent =
         lines.length === 0 ? elementIndentStr.length : attrIndentStr.length;
     const extraLen = (i === resolvedAttrs.length - 1) ? childLen + 1 : 0;
+    const exceedsLimit = (currentIndent + currentLine.length +
+                          firstLine.length + extraLen) > LINE_LENGTH_LIMIT;
+    const isMultiline = attrLines.length > 1;
 
-    if ((currentIndent + currentLine.length + firstLine.length + extraLen) >
-        LINE_LENGTH_LIMIT) {
+    if (currentLine !== '' && (isMultiline || exceedsLimit)) {
       // The first line of the attribute doesn't fit, so push the current line
       pushCurrentLine();
 
@@ -173,31 +175,27 @@ function formatAttributes(
       }
     } else {
       // The first line of the attribute fits on the current line, so append it
-      currentLine += attrLines[0];
+      currentLine =
+          currentLine === '' ? attrLines[0].trim() : currentLine + attrLines[0];
       if (attrLines.length > 1) {
         // For multi line attributes, commit the current line with the first
         // line of the attribute
         pushCurrentLine();
       }
     }
-    // Push intermediate lines and set the current line to the last line of the
-    // current attribute. Apply relative indentation to intermediate lines of
-    // multiline attributes. Assume lines are indented as desired relative to
-    // the last line.
+    // Push remaining lines of multiline attributes directly and reset current
+    // line to empty so subsequent attributes start on a clean dedicated line.
     if (attrLines.length > 1) {
-      const lastLine = attrLines[attrLines.length - 1];
-      const leadingWhitespace = lastLine.match(/^\s*/)[0].length;
-      for (let j = 1; j < attrLines.length - 1; j++) {
-        const line = attrLines[j];
-        const lineLeading = line.match(/^\s*/)[0].length;
-        const stripAmount = Math.min(leadingWhitespace, lineLeading);
-        const strippedLine = line.substring(stripAmount);
-        lines.push(`${attrIndentStr}${strippedLine}`);
+      for (let j = 1; j < attrLines.length; j++) {
+        lines.push(attrLines[j].trimEnd());
       }
-      currentLine = lastLine.trim();
+      currentLine = '';
     }
   }
-  pushCurrentLine();
+
+  if (currentLine !== '') {
+    pushCurrentLine();
+  }
 
   return lines.join('\n') + '>';
 }
@@ -255,9 +253,10 @@ export function serializeNode(node, depth, placeholderMap, sortAttributes) {
     return startTag;
   }
 
+  const nextDepth = getChildDepthForNode(node, depth);
   const childrenHtml = node.childNodes ?
       node.childNodes
-          .map(c => serializeNode(c, depth + 1, placeholderMap, sortAttributes))
+          .map(c => serializeNode(c, nextDepth, placeholderMap, sortAttributes))
           .join('') :
       '';
 
@@ -267,7 +266,8 @@ export function serializeNode(node, depth, placeholderMap, sortAttributes) {
       placeholderMap.get(closingPlaceholder).code :
       `</${tagName}>`;
 
-  const elementIndent = depth > 0 ? (depth - 1) * INDENT_SIZE : 0;
+  const elementIndent =
+      depth > 0 ? getDepthForNode(node, depth - 1) * INDENT_SIZE : 0;
   const fullLength =
       elementIndent + startTag.length + childrenHtml.length + endTag.length;
 
@@ -282,11 +282,16 @@ export function serializeNode(node, depth, placeholderMap, sortAttributes) {
     // Since the full tag doesn't fit on one line, put children on new line
     // and indent if they're not already on one.
     if (!childrenHtml.startsWith('\n') && childrenHtml.trim() !== '') {
-      const childIndent = getIndentationPrefix(elementIndent + INDENT_SIZE);
+      const childIndentSize = nextDepth > 0 ? (nextDepth - 1) * INDENT_SIZE : 0;
+      const childIndent = getIndentationPrefix(childIndentSize);
       return `${startTag}${childIndent}${childrenHtml.trim()}${endTagIndent}${
           endTag}`;
     }
 
+    if (TRAILING_NEWLINE_REGEX.test(childrenHtml)) {
+      return `${startTag}${
+          childrenHtml.replace(TRAILING_NEWLINE_REGEX, endTagIndent)}${endTag}`;
+    }
     return `${startTag}${childrenHtml.trimEnd()}${endTagIndent}${endTag}`;
   }
 

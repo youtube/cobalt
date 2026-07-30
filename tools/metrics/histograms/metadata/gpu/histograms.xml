@@ -430,7 +430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ANGLECanEmulateGLES3" enum="BooleanANGLECanEmulateGLES3"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>blundell@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -713,32 +713,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GPU.Dawn.DeviceLockAcquireTimeAvgUs" units="microseconds"
-    expires_after="2027-06-01">
-  <owner>magchen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <improvement direction="LOWER_IS_BETTER"/>
-  <summary>
-    Tracks the average lock acquisition time (in microseconds) for the Dawn
-    device lock. Computed and emitted on every 100th lock acquisition on each
-    Dawn device as the average of the previous 100 lock acquisition durations.
-    Only reported on platforms supporting high-resolution clocks.
-  </summary>
-</histogram>
-
-<histogram name="GPU.Dawn.DeviceLockAcquireTimeMaxUs" units="microseconds"
-    expires_after="2027-06-01">
-  <owner>magchen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <improvement direction="LOWER_IS_BETTER"/>
-  <summary>
-    Tracks the maximum lock acquisition time (in microseconds) for the Dawn
-    device lock. Computed and emitted on every 100th lock acquisition for each
-    Dawn device as the maximum of the previous 100 lock acquisition durations.
-    Only reported on platforms supporting high-resolution clocks.
-  </summary>
-</histogram>
-
 <histogram name="GPU.Dawn.InfoCollectionTimeMS" units="ms"
     expires_after="2026-04-28">
   <owner>enga@chromium.org</owner>
@@ -860,7 +834,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.OverlaysSupported"
-    enum="BooleanOverlaySupported" expires_after="2026-11-15">
+    enum="BooleanOverlaySupported" expires_after="2027-01-17">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <owner>magchen@chromium.org</owner>
@@ -872,7 +846,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.Supported" enum="Boolean"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>lehoangquyen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -970,7 +944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.EGLDisplayType" enum="EGLDisplayType"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>The display type used to ask for an EGLDisplay.</summary>
@@ -1079,7 +1053,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.EstablishGpuChannelSyncRetry" enum="BooleanSuccess"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>fangzhoug@chromium.org</owner>
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1101,7 +1075,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.EstablishGpuChannelSyncTime.FirstRun" units="ms"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>chikamune@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1201,7 +1175,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GPUProcessExitCode" enum="CrashExitCodes"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1210,7 +1184,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GPUProcessLaunchTime" units="ms"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Startup time of the GPU process as measured by the GPU process host.
@@ -1260,6 +1234,58 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
     The return value for each Graphite insertRecording call made by Chromium.
+  </summary>
+</histogram>
+
+<histogram name="GPU.GraphiteDawn.DeviceLockAcquireTimeAvgUs"
+    units="microseconds" expires_after="2027-06-01">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Tracks the average lock acquisition time (in microseconds) for the Dawn
+    device lock. Computed and emitted on every 100th lock acquisition on each
+    Dawn device as the average of the previous 100 lock acquisition durations.
+    Only reported on platforms supporting high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="GPU.GraphiteDawn.DeviceLockAcquireTimeMaxUs"
+    units="microseconds" expires_after="2027-06-01">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Tracks the maximum lock acquisition time (in microseconds) for the Dawn
+    device lock. Computed and emitted on every 100th lock acquisition for each
+    Dawn device as the maximum of the previous 100 lock acquisition durations.
+    Only reported on platforms supporting high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="GPU.GraphiteDawn.GPU.Dawn.DeviceLockAcquireTimeAvgUs"
+    units="microseconds" expires_after="2027-06-01">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Tracks the average lock acquisition time (in microseconds) for the Dawn
+    device lock. Computed and emitted on every 100th lock acquisition on each
+    Dawn device as the average of the previous 100 lock acquisition durations.
+    Only reported on platforms supporting high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="GPU.GraphiteDawn.GPU.Dawn.DeviceLockAcquireTimeMaxUs"
+    units="microseconds" expires_after="2027-06-01">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Tracks the maximum lock acquisition time (in microseconds) for the Dawn
+    device lock. Computed and emitted on every 100th lock acquisition for each
+    Dawn device as the maximum of the previous 100 lock acquisition durations.
+    Only reported on platforms supporting high-resolution clocks.
   </summary>
 </histogram>
 
@@ -1413,7 +1439,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.IntelGpuGeneration" enum="IntelGpuGeneration"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1579,7 +1605,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.OutputSurface.ScheduleOverlaysUs" units="microseconds"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>magchen@chromium.org</owner>
   <owner>ccameron@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1753,7 +1779,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ProcessLifetimeEvents.HardwareAccelerated"
-    enum="GPUProcessLifetimeEvent" expires_after="2026-11-15">
+    enum="GPUProcessLifetimeEvent" expires_after="2027-01-17">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Recorded once for every GPU process launch and crash when GPU process is
@@ -1787,7 +1813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.RequestAdapterStatus.WebGPU"
-    enum="WebGPURequestAdapterStatus" expires_after="2026-11-15">
+    enum="WebGPURequestAdapterStatus" expires_after="2027-01-17">
   <owner>olivierli@chromium.org</owner>
   <owner>fdoray@chromium.org</owner>
   <summary>
@@ -1877,11 +1903,23 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SharedImage.BackingType" enum="SharedImageBackingType"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
     Records the type of each SharedImageBacking that's initialized/registered.
+  </summary>
+</histogram>
+
+<histogram name="GPU.SharedImage.R16FToLuminanceF16Fallback" enum="Boolean"
+    expires_after="2027-07-01">
+  <owner>hitawala@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records whether a single-channel 16-bit half-float texture (R_F16) fell back
+    to LUMINANCE_F16 because the OpenGL ES context lacks ES3 or half-float
+    linear filtering support. Recorded when getting GL format info for a plane
+    during backing creation.
   </summary>
 </histogram>
 
@@ -1908,7 +1946,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SoftwareRendering" enum="BooleanSoftwareRendering"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>zmo@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2706,7 +2744,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FrameIntervalDecider.ActualIntervalDefault" units="ms"
-    expires_after="2026-11-22">
+    expires_after="2027-08-02">
   <owner>boliu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2723,7 +2761,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FrameIntervalDecider.ActualIntervalFor{DecidedHz}hz"
-    units="ms" expires_after="2026-08-02">
+    units="ms" expires_after="2027-08-02">
   <owner>boliu@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

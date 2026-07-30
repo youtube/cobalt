@@ -15,6 +15,7 @@
 #include "components/autofill/core/browser/filling/field_filling_util.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "url/origin.h"
 
 namespace autofill {
 
@@ -25,6 +26,14 @@ struct AutofillFieldWithAttributeType;
 class EntityInstance;
 class FormStructure;
 class Section;
+
+// Returns the set of entity types that are currently being prefetched for the
+// given `field`. We collect all eligible types rather than returning the first
+// match to ensure the UI footer correctly decides between showing a
+// category-specific manage button (if exactly one section is being loaded) and
+// a generic manage button (if multiple sections are being loaded).
+DenseSet<EntityType> GetEntityTypesBeingFetched(const AutofillField& field,
+                                                const AutofillClient& client);
 
 // Returns the entities from EntityDataManager::GetEntityInstances() for which
 // filling is enabled.
@@ -62,6 +71,10 @@ bool WillRequireServerFetch(const EntityInstance& entity,
                             const FormStructure& form,
                             const Section& section,
                             std::string_view app_locale);
+
+// Returns the authentication message shown when reauthenticating with
+// biometrics for `origin`.
+std::u16string GetAuthenticationMessage(const url::Origin& origin);
 
 }  // namespace autofill
 

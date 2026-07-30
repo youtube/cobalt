@@ -143,20 +143,6 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Client Cert"/>
 </enum>
 
-<!-- LINT.IfChange(CertManagerPageEnum) -->
-
-<enum name="CertificateManagerPage">
-  <int value="0" label="Local Certs"/>
-  <int value="1" label="Client Certs"/>
-  <int value="2" label="Chrome Root Store Certs"/>
-  <int value="3" label="Admin Certs subpage"/>
-  <int value="4" label="Platform Client Certs subpage"/>
-  <int value="5" label="Platform Certs subpage"/>
-  <int value="6" label="User Certs subpage"/>
-</enum>
-
-<!-- LINT.ThenChange(/chrome/browser/resources/certificate_manager/navigation_v2.ts:PageHistogramEnum) -->
-
 <enum name="ConnectionInfo">
   <summary>
     Application protocol used for HTTP response as defined in
@@ -686,6 +672,7 @@ historical analysis. -->
   <int value="1" label="DnsTCPAttempt due to low UDP entropy"/>
   <int value="2" label="DnsTCPAttempt due to retry due to UDP trucation"/>
   <int value="3" label="DnsHTTPAttempt"/>
+  <int value="4" label="DnsPlatformAttempt"/>
 </enum>
 
 <!-- LINT.IfChange(DnsClientCapability) -->
@@ -3338,6 +3325,17 @@ Called by update_net_trust_anchors.py.-->
 
 <!-- LINT.ThenChange(//chrome/browser/net/stub_resolver_config_reader.h:SecureDnsModeDetailsForHistogram) -->
 
+<!-- LINT.IfChange(SetSocketOptionGroResult) -->
+
+<enum name="SetSocketOptionGroResult">
+  <int value="0" label="Success"/>
+  <int value="1"
+      label="Unsupported Kernel Fallback (ENOPROTOOPT, EOPNOTSUPP, or ENOPKG)"/>
+  <int value="2" label="Other Error"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/socket/udp_socket_posix.h:SetSocketOptionGroResult) -->
+
 <!-- LINT.IfChange(SharedDictionaryStorageEvictionReason) -->
 
 <enum name="SharedDictionaryStorageEvictionReason">
@@ -3586,6 +3584,8 @@ Called by update_net_trust_anchors.py.-->
   <int value="22" label="FailedToSetAutoVacuum"/>
   <int value="23" label="IncrementalVacuumDisabled"/>
   <int value="24" label="FailedToInitializeSharedCacheIndexDatabase"/>
+  <int value="25" label="FailedToSetSharedCacheEnabledMetadata"/>
+  <int value="26" label="SharedCacheEnabledMismatch"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.h:SqlDiskCacheStoreError) -->

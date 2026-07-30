@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">ਮੋਬਾਈਲ ਦ੍ਰਿਸ਼ ਲਈ ਬੇਨਤੀ ਕਰੋ</translation>
 <translation id="2870560284913253234">ਸਾਈਟ</translation>
 <translation id="2874939134665556319">ਪਿਛਲਾ ਟਰੈਕ</translation>
+<translation id="2890412325133442491">Chrome ਪੂਰਵ-ਨਿਰਧਾਰਿਤ</translation>
 <translation id="2891975107962658722">ਕਿਸੇ ਸਾਈਟ ਨੂੰ ਤੁਹਾਡੇ ਡੀਵਾਈਸ 'ਤੇ ਡਾਟਾ ਰੱਖਿਅਤ ਕਰਨ ਤੋਂ ਬਲਾਕ ਕਰੋ</translation>
 <translation id="2903493209154104877">ਪਤੇ</translation>
 <translation id="2903764741244499151">ਸਾਈਟਾਂ ਆਪਣੇ ਆਪ ਤਸਵੀਰ-ਵਿੱਚ-ਤਸਵੀਰ ਦਾਖਲ ਕਰ ਸਕਦੀਆਂ ਹਨ। ਇਸ ਨਾਲ ਤੁਸੀਂ ਆਪਣੀ ਸਕ੍ਰੀਨ ਨੂੰ ਹੋਰ ਕਾਰਜਾਂ ਲਈ ਖਾਲੀ ਰੱਖਦੇ ਹੋਏ, ਵੀਡੀਓ ਦੇਖਣਾ ਜਾਰੀ ਰੱਖ ਸਕਦੇ ਹੋ।</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">ਪਾਸਵਰਡ ਬਦਲੋ</translation>
 <translation id="3797520601150691162">ਕਿਸੇ ਖਾਸ ਸਾਈਟ ਲਈ ਗੂੜ੍ਹਾ ਥੀਮ ਲਾਗੂ ਨਾ ਕਰੋ</translation>
 <translation id="3803367742635802571">ਜਿਹੜੀਆਂ ਸਾਈਟਾਂ ਤੁਸੀਂ ਦੇਖਦੇ ਹੋ, ਉਹ ਡਿਜ਼ਾਈਨ ਮੁਤਾਬਕ ਕੰਮ ਕਰਨਾ ਬੰਦ ਕਰ ਸਕਦੀਆਂ ਹਨ</translation>
-<translation id="3816118180265633665">Chrome ਦੇ ਰੰਗ</translation>
 <translation id="381841723434055211">ਫ਼ੋਨ ਨੰਬਰ</translation>
 <translation id="3823453485268218808">ਮੋਨੋ ਫ਼ੌਂਟ</translation>
 <translation id="3826050100957962900">ਤੀਜੀ-ਧਿਰ ਦਾ ਸਾਈਨ-ਇਨ</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">ਪੂਰੀ ਸਕ੍ਰੀਨ ਤੋਂ ਬਾਹਰ ਜਾਓ</translation>
 <translation id="640163077447496506">ਮਿਆਦ ਅੱਜ ਸਮਾਪਤ ਹੋ ਜਾਵੇਗੀ</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">ਥੀਮ ਸੰਗ੍ਰਹਿ</translation>
 <translation id="6439114592976064011">ਸਾਈਟਾਂ ਨੂੰ ਤੁਹਾਡੇ ਆਭਾਸੀ ਵਾਸਤਵਿਕਤਾ ਡੀਵਾਈਸ ਅਤੇ ਡਾਟੇ ਨੂੰ ਵਰਤਣ ਤੋਂ ਬਲਾਕ ਕਰੋ</translation>
 <translation id="6447842834002726250">ਕੁਕੀਜ਼</translation>
 <translation id="6452138246455930388">ਤੁਹਾਡੀ ਖੁੱਲ੍ਹੀ ਟੈਬ 'ਤੇ ਕੀਮਤ ਵਿੱਚ <ph name="OLD_PRICE" /> ਤੋਂ <ph name="NEW_PRICE" /> ਤੱਕ ਕਮੀ, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">ਪਹਿਲਾਂ ਪੁੱਛੋ</translation>
 <translation id="7423538860840206698">ਕਲਿੱਪਬੋਰਡ ਪੜ੍ਹਨ ਤੋਂ ਬਲਾਕ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="7425915948813553151">ਸਾਈਟਾਂ ਲਈ ਗੂੜ੍ਹਾ ਥੀਮ</translation>
+<translation id="7429767477925996803">Chrome ਦੇ ਰੰਗ</translation>
 <translation id="746412105358554870">JavaScript ਸੁਯੋਗਕਰਨ ਅਤੇ ਸੁਰੱਖਿਆ</translation>
 <translation id="7478658909253570368">ਸਾਈਟਾਂ ਨੂੰ ਸੀਰੀਅਲ ਪੋਰਟਾਂ ਨਾਲ ਕਨੈਕਟ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਨਾ ਦਿਓ</translation>
 <translation id="7488573225650545859">ਆਪਣੀ ਐਪ ਸੂਚੀ ਵਿੱਚ ਦੇਖਣ ਸੰਬੰਧੀ ਟੈਬਾਂ ਨੂੰ ਲੁਕਾਓ</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">ਡਾਊਨਲੋਡ ਅਸਫਲ ਰਿਹਾ</translation>
 <translation id="8033047164036749181">ਇਸ ਸਾਈਟ ਦੀਆਂ ਸੂਚਨਾਵਾਂ ਲਈ ਸਬਸਕ੍ਰਾਈਬ ਕਰੋ</translation>
 <translation id="8051193500142930381">ਜਿਹੜੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਲਈ ਕੈਮਰੇ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ ਉਹ ਕੰਮ ਨਹੀਂ ਕਰਨਗੀਆਂ</translation>
-<translation id="8056330801132235235">Chrome ਦੀ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਸੈਟਿੰਗ</translation>
 <translation id="8067883171444229417">ਵੀਡੀਓ ਚਲਾਓ</translation>
 <translation id="8068648041423924542">ਪ੍ਰਮਾਣ-ਪੱਤਰ ਚੁਣਨ ਵਿੱਚ ਅਸਮਰੱਥ।</translation>
 <translation id="8077120325605624147">ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੀ ਗਈ ਕੋਈ ਵੀ ਸਾਈਟ ਤੁਹਾਨੂੰ ਕੋਈ ਵੀ ਵਿਗਿਆਪਨ ਦਿਖਾ ਸਕਦੀ ਹੈ</translation>

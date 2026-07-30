@@ -87,6 +87,7 @@ class WebUILocationBar : public LocationBar,
   bool ShouldCloseOmniboxPopup(ui::MouseEvent* event) override;
   ChipController* GetChipController() override;
   content::WebContents* GetWebContents() override;
+  void SetPermissionPromptShowing(bool showing) override;
 
   // LocationBarTesting:
   LocationBarModel* GetLocationBarModel() override;
@@ -138,6 +139,11 @@ class WebUILocationBar : public LocationBar,
 
   page_actions::WebUIPageActionControl& page_action_control() {
     return page_action_control_;
+  }
+
+  page_actions::PageActionViewInterface* GetPageActionViewInterface(
+      actions::ActionId action_id) {
+    return page_action_control_.GetPageActionViewInterface(action_id);
   }
 
   // ContentSettingImageViewDelegate:

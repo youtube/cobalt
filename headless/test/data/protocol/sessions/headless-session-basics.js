@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   testRunner.log('Tests headless session basics.\n');
 
   // HeadlessDevToolsSession handles Target.createTarget. So, it's responsible
@@ -16,7 +16,7 @@
         (await testRunner.browserP().Target.onceAttachedToTarget())
         .params.sessionId;
 
-  const session = new TestRunner.Session(testRunner, sessionId);
+  const session = testRunner.createSessionFor(sessionId);
 
   const browserContextId =
         (await session.protocol.Target.createBrowserContext()).browserContextId;

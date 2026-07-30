@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">If you delete it, everyone will immediately lose access to the '<ph name="GROUP_NAME" />' tab group and it will be deleted from all devices.</translation>
 <translation id="1142732900304639782">Don’t offer to translate these sites</translation>
 <translation id="1143193470214071120">Close a window or manage windows</translation>
+<translation id="1143486892058798649">Save link as…</translation>
 <translation id="1149725087019908252">Scanning <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> will open in Chrome. By continuing, you agree to the <ph name="BEGIN_LINK1" />Google Terms of Service<ph name="END_LINK1" />, and the <ph name="BEGIN_LINK2" />Google Chrome and Chrome OS additional Terms of Service<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">You don't have passwords saved in Google Password Manager.</translation>
@@ -142,11 +143,13 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="1544826120773021464">To manage your Google Account, tap the 'Manage account' button</translation>
 <translation id="1549000191223877751">Move to other window</translation>
 <translation id="1553358976309200471">Update Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> for '<ph name="SEARCH_TERMS" />'</translation>
 <translation id="1554532453982918912">Help make Chrome better for people who use it the way that you do</translation>
 <translation id="1568636008098739136">Listen to this page. To edit this shortcut, touch and hold.</translation>
 <translation id="1571041387761170095">No weak or reused passwords</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 compromised password on this device}other{# compromised passwords on this device}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> suggested items in list below.</translation>
+<translation id="159689249463841786">Choose folder, currently <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">Use <ph name="SITE_ETLD_PLUS_ONE" /> with <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, pinned recording tab</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, sharing tab</translation>
@@ -277,6 +280,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2190355936436201913">(empty)</translation>
 <translation id="219283042927675668">Tabs in group</translation>
 <translation id="2194856509914051091">Things to consider</translation>
+<translation id="2196695604589508993">Open history</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, pinned sharing tab</translation>
 <translation id="22091350895006575">Add username</translation>
 <translation id="221494669172414749">Opening Chrome without a profile lock will remove your saved passwords and payment methods from the car. Using a profile lock keeps this data secure.</translation>
@@ -311,6 +315,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2330186936255788117">More bookmarks</translation>
 <translation id="2332515770639153015">Enhanced Safe Browsing is on</translation>
 <translation id="233375395665273385">Delete and sign out</translation>
+<translation id="2334275697832662087">Chrome's AI-powered security helps protect you against online threats, giving you confidence as you browse</translation>
 <translation id="2341410551640223969">Couldn’t install <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Total data used by Chrome, including accounts, bookmarks and saved settings</translation>
 <translation id="2354001756790975382">Other bookmarks</translation>
@@ -612,6 +617,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="3577473026931028326">Something went wrong. Try again.</translation>
 <translation id="3577558748185201054">Manage your interests and preferences</translation>
 <translation id="3587482841069643663">All</translation>
+<translation id="3598421953808879451">Save video as…</translation>
 <translation id="3602290021589620013">Preview</translation>
 <translation id="3614126103057878858">Price insights</translation>
 <translation id="3616113530831147358">Audio</translation>
@@ -722,6 +728,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="4044708993631234325">Bottom sheet</translation>
 <translation id="4045441967987592849">Re-open</translation>
 <translation id="4049920046559074950">More options for <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Find your recently closed tabs and windows here</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Open in Incognito window}other{Open all (#) in Incognito window}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> standard tab with new activity in shared tab groups}other{<ph name="TABS_COUNT_MANY" /> standard tabs with new activity in shared tab groups}}</translation>
 <translation id="405365679581583349">Update Google Play services</translation>
@@ -1278,6 +1285,7 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="6321592572353357376">The extension '<ph name="EXTENSION_NAME" />' wants you to sign in to Chrome</translation>
 <translation id="6324916366299863871">Edit shortcut</translation>
 <translation id="6324977638108296054">Can’t create link to highlight</translation>
+<translation id="6331836477476466332">A safer, more powerful browser for you</translation>
 <translation id="6333140779060797560">Share via <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Edit URL pointing to page on: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Encryption</translation>
@@ -1435,6 +1443,7 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="6867400383614725881">New Incognito tab</translation>
 <translation id="686899695320434745">Addresses aren't encrypted with your passphrase. This lets you use them in other Google services.</translation>
 <translation id="6870625088374152862">Signed in as <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Start browsing</translation>
 <translation id="687838958001010630">Anyone with the link can edit all tabs</translation>
 <translation id="6880903702195291049">Permissions look good</translation>
 <translation id="6883204995689174413">Share</translation>
@@ -1520,6 +1529,7 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="71503698506017927">Passphrase encryption doesn't include payment methods and addresses from Google Pay.
 
 To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your account<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Save image as…</translation>
 <translation id="7165972437814027679">Learn more about why Chrome blocks some files</translation>
 <translation id="7168323970702333693">Signed in as <ph name="USER_NAME" />. Opens settings.</translation>
 <translation id="7170930892977483182">All security codes saved on your device and in Google Wallet will be deleted</translation>
@@ -1575,6 +1585,7 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="7359002509206457351">Access payment methods</translation>
 <translation id="7363349185727752629">A guide to your privacy choices</translation>
 <translation id="7364103838544876661">More options to delete browsing data</translation>
+<translation id="736435710397109878">Card nickname, maximum 25 characters</translation>
 <translation id="7365073365123878797">To start saving and using passwords with Google Password Manager, update Google Play services</translation>
 <translation id="7368009310682364976">View recently opened tabs</translation>
 <translation id="7368927539449986686">Edit Site Search</translation>
@@ -1693,6 +1704,7 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="7824665136384946951">Your organisation has turned off Safe Browsing</translation>
 <translation id="7825973332242257878">Tab groups</translation>
 <translation id="7826342993930002256">Your Chrome, everywhere</translation>
+<translation id="7845155831233417403">You can have up to <ph name="MAX_INSTANCE_COUNT" /> windows. Close a window to continue.</translation>
 <translation id="7846161022626028328">There was an error. Try again.</translation>
 <translation id="7846296061357476882">Google services</translation>
 <translation id="784652447248278262">Current window</translation>
@@ -1759,7 +1771,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="8088176524274673045">To share with people nearby, let them scan this QR code</translation>
 <translation id="8090732854597034573">If you need help, ask your parent</translation>
 <translation id="8101414242770404289">No tabs from the <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Incognito Tab</translation>
 <translation id="810433609302852">Tips notifications feature promo and usage steps bottom sheet</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Remove extensions and the data that they saved on this device</translation>
@@ -1817,10 +1828,12 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="8282297628636750033">Apply Dark theme to sites, when possible</translation>
 <translation id="8282950411412455249">Go to security settings</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Close 1 Incognito window}other{Close # Incognito windows}}</translation>
+<translation id="8289602658021943461">Save video frame as…</translation>
 <translation id="8313599942510782709">Your task is still in progress</translation>
 <translation id="8317318757008452355">Open options to print</translation>
 <translation id="8320212361750431956">Recent activity</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Bookmarks and lists</translation>
 <translation id="8342727528718219152">Chrome will let you know about sites that may be sending too many notifications</translation>
 <translation id="834313815369870491">Never translate sites</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, multi-selected pinned recording incognito tab</translation>
@@ -2062,6 +2075,7 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="939598580284253335">Enter passphrase</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, pinned picture-in-picture Incognito tab</translation>
 <translation id="945522503751344254">Send feedback</translation>
+<translation id="948276827484905248">Create QR code</translation>
 <translation id="95817756606698420">Chrome can use <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> for search in China. You can change this in <ph name="BEGIN_LINK" />Settings<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Delete browsing data</translation>
 <translation id="963246339335003378">Open task manager</translation>

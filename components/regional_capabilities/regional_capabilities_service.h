@@ -105,7 +105,7 @@ class RegionalCapabilitiesService : public KeyedService {
 
   // -- Getters for regional capabilities -------------------------------------
 
-  std::vector<const TemplateURLPrepopulateData::PrepopulatedEngine*>
+  std::vector<raw_ptr<const TemplateURLPrepopulateData::PrepopulatedEngine>>
   GetRegionalPrepopulatedEngines();
 
   // Returns whether the profile is associated with a region in which we can
@@ -159,6 +159,12 @@ class RegionalCapabilitiesService : public KeyedService {
   // require a search engine choice screen.
   std::optional<ChoiceScreenDesign> GetChoiceScreenDesign();
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_IOS)
+  // Returns `true` if a snackbar should be shown after presenting the search
+  // engine choice screen for existing users.
+  bool ShouldShowChoiceConfirmationSnackbar();
+#endif  // BUILDFLAG(IS_IOS)
 
   const std::optional<ChoiceScreenEligibilityConfig>&
   GetChoiceScreenEligibilityConfig();

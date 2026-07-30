@@ -24,13 +24,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
+#include "components/autofill/core/browser/webdata/autocomplete/autocomplete_table_label_sensitive.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
@@ -211,8 +213,7 @@ struct Suggestion {
 
     AtMemoryPayload();
     // `value` is the value to be shown in the suggestion UI and the preview.
-    AtMemoryPayload(std::u16string value,
-                    accessibility_annotator::MemoryDataType memory_data_type);
+    AtMemoryPayload(std::u16string value, MemoryDataType memory_data_type);
     AtMemoryPayload(const AtMemoryPayload&);
     AtMemoryPayload(AtMemoryPayload&&);
     AtMemoryPayload& operator=(const AtMemoryPayload&);
@@ -231,16 +232,14 @@ struct Suggestion {
     // The identifier for the entry (e.g. IBAN Guid or InstrumentId).
     Identifier identifier;
 
-    // The type of the entry from accessibility annotator.
-    accessibility_annotator::MemoryDataType memory_data_type =
-        accessibility_annotator::MemoryDataType::kUnknown;
+    // The memory data type of the entry.
+    MemoryDataType memory_data_type = MemoryDataType::kUnknown;
 
     // Whether the entry is sourced from `PersonalContextService`.
     bool is_personal_context_sourced = false;
 
     // The data sources that provided the entry.
-    std::underlying_type_t<accessibility_annotator::MemoryEntrySourceType>
-        sources_bitmask = 0;
+    std::underlying_type_t<MemoryEntrySourceType> sources_bitmask = 0;
   };
 
   struct OpenGeminiPayload final {
@@ -274,7 +273,8 @@ struct Suggestion {
                                AutocompleteEntry,
                                BnplIssuer,
                                AtMemoryPayload,
-                               OpenGeminiPayload>;
+                               OpenGeminiPayload,
+                               AutocompleteSearchResultLabelSensitive>;
 
   // This struct is used to provide password suggestions with custom icons,
   // using the favicon of the website associated with the credentials. While
@@ -683,10 +683,14 @@ struct Suggestion {
   FiltrationPolicy filtration_policy = FiltrationPolicy::kFilterable;
 
   // The acceptability of the suggestion, see the enum values doc for details.
+  // Note that even if `acceptability` is `kAcceptable`, some `SuggestionType`
+  // are still not acceptable. See `IsAcceptable()` for details.
   Acceptability acceptability = Acceptability::kAcceptable;
 
   // Returns whether the user is able to preview the suggestion by hovering on
-  // it or accept it by clicking on it.
+  // it or accept it by clicking on it. Checks both whether the suggestion type
+  // is acceptable (i.e. not a separator, title, etc.) and whether
+  // `acceptability == Acceptability::kAcceptable`.
   bool IsAcceptable() const;
 
   // Returns whether the user will see the suggestion in

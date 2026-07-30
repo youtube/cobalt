@@ -58,7 +58,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.EngineLifetime" units="ms" expires_after="2026-11-15">
+<histogram name="PDF.EngineLifetime" units="ms" expires_after="2027-01-17">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -68,7 +68,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2026-11-15">
+<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2027-01-17">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -80,7 +80,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2026-11-15">
+<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2027-01-17">
   <owner>dhoss@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -152,6 +152,26 @@ chromium-metrics-reviews@google.com.
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
     User interaction with the PDF infobar (e.g., accepted, ignored, dismissed).
+  </summary>
+</histogram>
+
+<histogram name="PDF.Ink2EmojiFontLoadFailed" enum="Boolean"
+    expires_after="2026-12-16">
+  <owner>andyphan@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Tracks emoji font load failures for Ink text annotations in the PDF viewer.
+    Recorded when an emoji font fails to load. Always records true.
+  </summary>
+</histogram>
+
+<histogram name="PDF.Ink2FontLoaded" enum="Boolean" expires_after="2026-12-16">
+  <owner>andyphan@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Tracks the success or failure of loading fonts for Ink text annotations in
+    the PDF viewer. Recorded when attempting to load a font. Records true on
+    success and false on failure.
   </summary>
 </histogram>
 
@@ -367,7 +387,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2026-11-15">
+<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2027-01-17">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>

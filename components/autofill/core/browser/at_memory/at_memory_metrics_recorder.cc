@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/at_memory/at_memory_metrics_recorder.h"
 
+#include <algorithm>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -12,7 +13,7 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/common/aliases.h"
@@ -25,9 +26,7 @@ namespace autofill {
 namespace {
 
 std::optional<AtMemoryQueryCompletedStatus> GetQueryCompletedStatus(
-    const accessibility_annotator::MemorySearchResults& result) {
-  using accessibility_annotator::MemorySearchStatus;
-
+    const MemorySearchResults& result) {
   switch (result.status) {
     case MemorySearchStatus::kUnsupportedQuery:
       return AtMemoryQueryCompletedStatus::kQueryUnsupported;
@@ -61,6 +60,136 @@ std::string_view FetchPiiSourceToString(
       return "PersonalContext";
   }
   NOTREACHED();
+}
+
+std::string_view MemoryDataTypeToCategoryString(MemoryDataType type) {
+  switch (type) {
+    case MemoryDataType::kUnknown:
+      return "Unknown";
+
+    case MemoryDataType::kNameFull:
+    case MemoryDataType::kAddressFull:
+    case MemoryDataType::kAddressStreetAddress:
+    case MemoryDataType::kAddressCity:
+    case MemoryDataType::kAddressState:
+    case MemoryDataType::kAddressZip:
+    case MemoryDataType::kAddressCountry:
+    case MemoryDataType::kPhone:
+    case MemoryDataType::kEmail:
+    case MemoryDataType::kCompanyName:
+      return "Address";
+
+    case MemoryDataType::kCreditCardNumber:
+    case MemoryDataType::kCreditCardExpirationDate:
+    case MemoryDataType::kCreditCardSecurityCode:
+    case MemoryDataType::kCreditCardNameOnCard:
+    case MemoryDataType::kCreditCardNickname:
+      return "CreditCard";
+
+    case MemoryDataType::kDriversLicenseFull:
+    case MemoryDataType::kDriversLicenseName:
+    case MemoryDataType::kDriversLicenseState:
+    case MemoryDataType::kDriversLicenseNumber:
+    case MemoryDataType::kDriversLicenseIssueDate:
+    case MemoryDataType::kDriversLicenseExpirationDate:
+      return "DriversLicense";
+
+    case MemoryDataType::kFlightReservationFull:
+    case MemoryDataType::kFlightReservationFlightNumber:
+    case MemoryDataType::kFlightReservationTicketNumber:
+    case MemoryDataType::kFlightReservationConfirmationCode:
+    case MemoryDataType::kFlightReservationPassengerName:
+    case MemoryDataType::kFlightReservationDepartureAirport:
+    case MemoryDataType::kFlightReservationArrivalAirport:
+    case MemoryDataType::kFlightReservationDepartureDate:
+    case MemoryDataType::kFlightReservationArrivalDate:
+      return "FlightReservation";
+
+    case MemoryDataType::kIban:
+    case MemoryDataType::kIbanNickname:
+      return "Iban";
+
+    case MemoryDataType::kKnownTravelerNumberFull:
+    case MemoryDataType::kKnownTravelerNumberName:
+    case MemoryDataType::kKnownTravelerNumberNumber:
+    case MemoryDataType::kKnownTravelerNumberExpirationDate:
+      return "KnownTravelerNumber";
+
+    case MemoryDataType::kNationalIdCardFull:
+    case MemoryDataType::kNationalIdCardName:
+    case MemoryDataType::kNationalIdCardCountry:
+    case MemoryDataType::kNationalIdCardNumber:
+    case MemoryDataType::kNationalIdCardIssueDate:
+    case MemoryDataType::kNationalIdCardExpirationDate:
+      return "NationalIdCard";
+
+    case MemoryDataType::kOrderFull:
+    case MemoryDataType::kOrderId:
+    case MemoryDataType::kOrderAccount:
+    case MemoryDataType::kOrderDate:
+    case MemoryDataType::kOrderMerchantName:
+    case MemoryDataType::kOrderMerchantDomain:
+    case MemoryDataType::kOrderProductNames:
+    case MemoryDataType::kOrderGrandTotal:
+      return "Order";
+
+    case MemoryDataType::kPassportFull:
+    case MemoryDataType::kPassportName:
+    case MemoryDataType::kPassportCountry:
+    case MemoryDataType::kPassportNumber:
+    case MemoryDataType::kPassportIssueDate:
+    case MemoryDataType::kPassportExpirationDate:
+      return "Passport";
+
+    case MemoryDataType::kRedressNumberFull:
+    case MemoryDataType::kRedressNumberName:
+    case MemoryDataType::kRedressNumberNumber:
+      return "RedressNumber";
+
+    case MemoryDataType::kShipmentFull:
+    case MemoryDataType::kShipmentTrackingNumber:
+    case MemoryDataType::kShipmentAssociatedOrderId:
+    case MemoryDataType::kShipmentDeliveryAddress:
+    case MemoryDataType::kShipmentDeliveryZipCode:
+    case MemoryDataType::kShipmentCarrierName:
+    case MemoryDataType::kShipmentCarrierDomain:
+    case MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case MemoryDataType::kShipmentShippedDate:
+      return "Shipment";
+
+    case MemoryDataType::kVehicle:
+    case MemoryDataType::kVehicleMake:
+    case MemoryDataType::kVehicleModel:
+    case MemoryDataType::kVehicleYear:
+    case MemoryDataType::kVehicleOwner:
+    case MemoryDataType::kVehiclePlateNumber:
+    case MemoryDataType::kVehiclePlateState:
+    case MemoryDataType::kVehicleVin:
+      return "Vehicle";
+  }
+  NOTREACHED();
+}
+
+// Returns the category string used for histogram metric logging based on the
+// types of non-Autofill data present in `result`. Returns "Empty" if there are
+// no non-Autofill entries, "MultipleTypes" if entries span multiple categories,
+// or the category name if all non-Autofill entries share the same category.
+std::string_view GetQueryDatatypeCategory(const MemorySearchResults& result) {
+  std::optional<std::string_view> category;
+  for (const MemorySearchResult& entry : result.entries) {
+    if (std::ranges::contains(entry.sources, MemoryEntrySourceType::kAutofill,
+                              &MemoryEntrySource::type)) {
+      continue;
+    }
+    const std::string_view entry_category =
+        MemoryDataTypeToCategoryString(entry.type);
+    if (!category.has_value()) {
+      category = entry_category;
+    } else if (*category != entry_category) {
+      return "MultipleTypes";
+    }
+  }
+  return category.value_or("Empty");
 }
 
 }  // namespace
@@ -152,11 +281,14 @@ void AtMemoryMetricsRecorder::OnPopupShown(
   }
 
   switch (trigger_source) {
-    case AutofillSuggestionTriggerSource::kAtMemory:
-      source_ = AutofillMetrics::AtMemoryTriggerSource::kTypedTrigger;
-      break;
     case AutofillSuggestionTriggerSource::kAtMemoryContextMenu:
       source_ = AutofillMetrics::AtMemoryTriggerSource::kContextMenu;
+      break;
+    case AutofillSuggestionTriggerSource::kAtMemoryKeyboardShortcut:
+      source_ = AutofillMetrics::AtMemoryTriggerSource::kKeyboardShortcut;
+      break;
+    case AutofillSuggestionTriggerSource::kAtMemoryTriggerString:
+      source_ = AutofillMetrics::AtMemoryTriggerSource::kTypedTrigger;
       break;
     case AutofillSuggestionTriggerSource::kUnspecified:
     case AutofillSuggestionTriggerSource::kFormControlElementClicked:
@@ -218,7 +350,7 @@ void AtMemoryMetricsRecorder::OnQuerySubmitted(std::u16string_view query) {
 }
 
 void AtMemoryMetricsRecorder::OnSuggestionAccepted(
-    accessibility_annotator::MemoryDataType memory_data_type,
+    MemoryDataType memory_data_type,
     MemorySourcesBitmask sources_bitmask,
     base::optional_ref<const AutofillSuggestionDelegate::SuggestionMetadata>
         metadata) {
@@ -272,7 +404,7 @@ void AtMemoryMetricsRecorder::OnSuggestionAccepted(
 }
 
 void AtMemoryMetricsRecorder::OnQueryResponseReceived(
-    const accessibility_annotator::MemorySearchResults& result) {
+    const MemorySearchResults& result) {
   if (std::optional<AtMemoryQueryCompletedStatus> status =
           GetQueryCompletedStatus(result)) {
     base::UmaHistogramEnumeration("Autofill.AtMemory.QueryCompleted", *status);
@@ -291,6 +423,9 @@ void AtMemoryMetricsRecorder::OnQueryResponseReceived(
   base::TimeDelta time_since_query_submitted =
       query_to_suggestions_shown_timer_->Elapsed();
   base::UmaHistogramTimes("Autofill.AtMemory.Latency.Query",
+                          time_since_query_submitted);
+  base::UmaHistogramTimes(base::StrCat({"Autofill.AtMemory.Latency.Query.",
+                                        GetQueryDatatypeCategory(result)}),
                           time_since_query_submitted);
   if (ukm_search_query_builder_) {
     ukm_search_query_builder_->SetQueryLatencyMs(
@@ -313,9 +448,8 @@ void AtMemoryMetricsRecorder::OnQueryResponseReceived(
   for (const auto& suggestion : result.entries) {
     auto* quality_suggestion = quality->add_suggestions();
     bool has_autofill_source = std::ranges::contains(
-        suggestion.sources,
-        accessibility_annotator::MemoryEntrySourceType::kAutofill,
-        &accessibility_annotator::MemoryEntrySource::type);
+        suggestion.sources, MemoryEntrySourceType::kAutofill,
+        &MemoryEntrySource::type);
     quality_suggestion->set_source(
         has_autofill_source
             ? optimization_guide::proto::AT_MEMORY_SUGGESTION_SOURCE_AUTOFILL
@@ -335,6 +469,12 @@ void AtMemoryMetricsRecorder::OnFetchPiiStarted(FetchPiiSource source) {
 void AtMemoryMetricsRecorder::OnFetchPiiCompleted() {
   CHECK(fetch_pii_.start_time);
   fetch_pii_.duration.emplace(base::TimeTicks::Now() - *fetch_pii_.start_time);
+}
+
+void AtMemoryMetricsRecorder::OnFetchPersonalContextPiiDataFailed(
+    AtMemoryQueryService::SpiiRetrievalFailureReason reason) {
+  base::UmaHistogramEnumeration(
+      "Autofill.AtMemory.FetchPersonalContextPiiData.FailureReason", reason);
 }
 
 void AtMemoryMetricsRecorder::MarkFilled() {

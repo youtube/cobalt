@@ -77,7 +77,7 @@ Windows-specific. An opaque handle to a system-native window. Ultimately
 [type-aliased to a `void*`](https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types),
 but you should never dereference this or examine the actual value; it is only
 used to pass to various Windows native APIs. Used as the type for
-[`AcceleratedWidget`](/ui/gfx/native_widget_types.h) on Windows.
+[`AcceleratedWidget`](/ui/gfx/native_ui_types.h) on Windows.
 
 ### Ink drop
 
@@ -89,13 +89,6 @@ in water, and the most prominent effect, known as a "ripple", spreads rapidly
 outward from a single point (generally the cursor position). The base
 [`InkDrop`](/ui/views/animation/ink_drop.h) class can also manage instant on/off
 "hover highlight" effects and contains a variety of hooks for different uses.
-
-### LaCrOS
-
-An abbreviation for "Linux And Chrome OS". An architecture project to decouple
-the Chrome browser on Chrome OS from the operating system stack; historically
-these were tightly coupled and updated simultaneously.
-[More general background on LaCrOS](/docs/lacros.md)
 
 ### Layer
 

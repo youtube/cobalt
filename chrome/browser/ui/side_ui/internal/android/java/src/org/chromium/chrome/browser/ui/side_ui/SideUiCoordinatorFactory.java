@@ -10,9 +10,12 @@ import android.view.ViewStub;
 
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
@@ -28,27 +31,33 @@ public final class SideUiCoordinatorFactory {
      * @param parentActivity The {@link Activity} containing all Side UIs.
      * @param lifecycleDispatcher The {@link ActivityLifecycleDispatcher} for {@code
      *     parentActivity}.
+     * @param layoutStateProviderSupplier Supplier for the {@link LayoutStateProvider}.
      * @param browserControlsStateProvider The {@link BrowserControlsStateProvider} to adjust for
      *     top controls changes.
+     * @param topControlsStacker The {@link TopControlsStacker} to calculate heights for top
+     *     controls.
      * @param anchorContainerParent The {@link ViewGroup} that is the parent for the side UI
      *     containers.
      * @param leftAnchorContainerStub The {@link ViewStub} for the left-anchored container.
      * @param rightAnchorContainerStub The {@link ViewStub} for the right-anchored container.
      * @param webContentHairlineContainerStub The {@link ViewStub} for the web content hairline
      *     container.
-     * @param topMarginSupplier The supplier for the Side UI's top margin.
+     * @param tabStripBottomPxSupplier The supplier for the Side UI's top margin added for tab
+     *     strip.
      * @return The newly-created {@link SideUiCoordinator}, or {@code null} if it was not created.
      */
     @Nullable
     public static SideUiCoordinator create(
             Activity parentActivity,
             ActivityLifecycleDispatcher lifecycleDispatcher,
+            OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier,
             BrowserControlsStateProvider browserControlsStateProvider,
+            TopControlsStacker topControlsStacker,
             @Nullable ViewGroup anchorContainerParent,
             @Nullable ViewStub leftAnchorContainerStub,
             @Nullable ViewStub rightAnchorContainerStub,
             @Nullable ViewStub webContentHairlineContainerStub,
-            @Nullable NonNullObservableSupplier<Integer> topMarginSupplier) {
+            @Nullable NonNullObservableSupplier<Integer> tabStripBottomPxSupplier) {
         if (!AndroidSidePanelEnabledFn.isEnabled()
                 && !VerticalTabUtils.isVerticalTabsEligible(parentActivity)) {
             return null;
@@ -59,17 +68,19 @@ public final class SideUiCoordinatorFactory {
         assert rightAnchorContainerStub != null;
         assert webContentHairlineContainerStub != null;
 
-        if (topMarginSupplier == null) {
-            topMarginSupplier = ObservableSuppliers.createNonNull(0);
+        if (tabStripBottomPxSupplier == null) {
+            tabStripBottomPxSupplier = ObservableSuppliers.createNonNull(0);
         }
         return new SideUiCoordinatorImpl(
                 parentActivity,
                 lifecycleDispatcher,
+                layoutStateProviderSupplier,
                 browserControlsStateProvider,
+                topControlsStacker,
                 anchorContainerParent,
                 leftAnchorContainerStub,
                 rightAnchorContainerStub,
                 webContentHairlineContainerStub,
-                topMarginSupplier);
+                tabStripBottomPxSupplier);
     }
 }

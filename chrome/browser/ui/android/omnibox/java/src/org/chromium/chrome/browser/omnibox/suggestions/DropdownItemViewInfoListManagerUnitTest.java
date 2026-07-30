@@ -27,6 +27,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLayoutMode;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties.RoundSides;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
@@ -46,7 +47,6 @@ public class DropdownItemViewInfoListManagerUnitTest {
 
     private @Spy SuggestionProcessor mBasicSuggestionProcessor;
     private @Spy SuggestionProcessor mEditUrlSuggestionProcessor;
-    private @Spy DropdownItemProcessor mHeaderProcessor;
     private @Mock PropertyModel mModel;
     private @Mock ListObserver<Void> mListObserver;
 
@@ -59,7 +59,6 @@ public class DropdownItemViewInfoListManagerUnitTest {
         when(mBasicSuggestionProcessor.getViewTypeId()).thenReturn(OmniboxSuggestionUiType.DEFAULT);
         when(mEditUrlSuggestionProcessor.getViewTypeId())
                 .thenReturn(OmniboxSuggestionUiType.EDIT_URL_SUGGESTION);
-        when(mHeaderProcessor.getViewTypeId()).thenReturn(OmniboxSuggestionUiType.HEADER);
 
         mSuggestionModels = new ModelList();
         mSuggestionModels.addObserver(mListObserver);
@@ -141,13 +140,11 @@ public class DropdownItemViewInfoListManagerUnitTest {
         // 5. AutocompleteMediator receives same suggestions as in (2)
         // 6. user sees suggestions again.
         final List<DropdownItemViewInfo> list1 = new ArrayList<>();
-        list1.add(new DropdownItemViewInfo(mHeaderProcessor, mModel, SECTION_1_NO_HEADER));
         list1.add(new DropdownItemViewInfo(mBasicSuggestionProcessor, mModel, SECTION_1_NO_HEADER));
         list1.add(new DropdownItemViewInfo(mBasicSuggestionProcessor, mModel, SECTION_1_NO_HEADER));
 
         final List<DropdownItemViewInfo> list2 =
                 Arrays.asList(
-                        new DropdownItemViewInfo(mHeaderProcessor, mModel, SECTION_1_NO_HEADER),
                         new DropdownItemViewInfo(
                                 mBasicSuggestionProcessor, mModel, SECTION_1_NO_HEADER),
                         new DropdownItemViewInfo(
@@ -166,10 +163,6 @@ public class DropdownItemViewInfoListManagerUnitTest {
     public void updateSuggestionsList_uiChangesArePropagatedToSuggestions() {
         List<DropdownItemViewInfo> list =
                 Arrays.asList(
-                        new DropdownItemViewInfo(
-                                mHeaderProcessor,
-                                new PropertyModel(SuggestionCommonProperties.ALL_KEYS),
-                                SECTION_1_NO_HEADER),
                         new DropdownItemViewInfo(
                                 mBasicSuggestionProcessor,
                                 new PropertyModel(SuggestionCommonProperties.ALL_KEYS),
@@ -195,16 +188,12 @@ public class DropdownItemViewInfoListManagerUnitTest {
         mManager.setBrandedColorScheme(BrandedColorScheme.INCOGNITO);
         verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO, true);
 
-        mManager.setApplySideSpacing(false);
+        mManager.setFuseboxLayoutMode(FuseboxLayoutMode.SUGGESTIONS_POPOVER);
         verifyPropertyValues(View.LAYOUT_DIRECTION_RTL, BrandedColorScheme.INCOGNITO, false);
 
         // Finally, set the new list and confirm that the values are still applied.
         list =
                 Arrays.asList(
-                        new DropdownItemViewInfo(
-                                mHeaderProcessor,
-                                new PropertyModel(SuggestionCommonProperties.ALL_KEYS),
-                                SECTION_2_WITH_HEADER),
                         new DropdownItemViewInfo(
                                 mBasicSuggestionProcessor,
                                 new PropertyModel(SuggestionCommonProperties.ALL_KEYS),
@@ -226,10 +215,6 @@ public class DropdownItemViewInfoListManagerUnitTest {
     public void updateSuggestionsList_roundSidesArePropagatedToSuggestions() {
         List<DropdownItemViewInfo> list =
                 Arrays.asList(
-                        new DropdownItemViewInfo(
-                                mHeaderProcessor,
-                                new PropertyModel(SuggestionCommonProperties.ALL_KEYS),
-                                SECTION_1_NO_HEADER),
                         new DropdownItemViewInfo(
                                 mBasicSuggestionProcessor,
                                 new PropertyModel(SuggestionCommonProperties.ALL_KEYS),

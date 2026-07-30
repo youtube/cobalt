@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">இதை நீக்கிவிட்டால் "<ph name="GROUP_NAME" />" பக்கக் குழுவிற்கான அணுகலை எல்லோரும் இழப்பார்கள். அத்துடன், எல்லாச் சாதனங்களில் இருந்தும் இது நீக்கப்படும்.</translation>
 <translation id="1142732900304639782">இந்த மொழிகளுக்கு மொழிபெயர்ப்பு வேண்டாம்:</translation>
 <translation id="1143193470214071120">ஒரு சாளரத்தை மூடவும் அல்லது சாளரங்களை நிர்வகிக்கவும்</translation>
+<translation id="1143486892058798649">இணைப்பை இப்படிச் சேமி…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> ஃபைலை ஸ்கேன் செய்கிறது</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> Chromeமில் திறக்கப்படும். தொடர்வதன் மூலம் <ph name="BEGIN_LINK1" />Google சேவை விதிமுறைகள்<ph name="END_LINK1" />, <ph name="BEGIN_LINK2" />Google Chrome &amp; ChromeOS தொடர்பான கூடுதல் சேவை விதிமுறைகள்<ph name="END_LINK2" /> ஆகியவற்றை ஏற்கிறீர்கள்.</translation>
 <translation id="1154555449933432029">Google Password Managerரில் நீங்கள் எந்தக் கடவுச்சொல்லையும் சேமிக்கவில்லை.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">உங்கள் Google கணக்கை நிர்வகிக்க "கணக்கை நிர்வகி" என்ற பட்டனைத் தட்டுங்கள்</translation>
 <translation id="1549000191223877751">வேறு சாளரத்திற்கு நகர்த்து</translation>
 <translation id="1553358976309200471">Chromeஐப் புதுப்பி</translation>
+<translation id="1554352084785952638">"<ph name="SEARCH_TERMS" />"க்கான <ph name="SEARCH_ENGINE" /></translation>
 <translation id="1554532453982918912">உங்களைப் போன்ற பயனர்களுக்காக Chromeமை மேம்படுத்த உதவுங்கள்</translation>
 <translation id="1568636008098739136">இந்தப் பக்கத்தைப் படி. இந்த ஷார்ட்கட்டை மாற்ற தொட்டுப் பிடித்திருக்கவும்.</translation>
 <translation id="1571041387761170095">வலுவற்ற அல்லது ஏற்கெனவே பயன்படுத்திய கடவுச்சொற்கள் எதுவுமில்லை</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{இந்தச் சாதனத்தில் 1 களவாடப்பட்ட கடவுச்சொல் உள்ளது}other{இந்தச் சாதனத்தில் # களவாடப்பட்ட கடவுச்சொற்கள் உள்ளன}}</translation>
 <translation id="1594635596540195766">இந்தப் பட்டியலில் <ph name="SUGGESTIONS_COUNT" /> பரிந்துரைகள் உள்ளன.</translation>
+<translation id="159689249463841786">ஃபோல்டரைத் தேர்வுசெய்யும். தற்போதைய ஃபோல்டர்: <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> மூலம் <ph name="SITE_ETLD_PLUS_ONE" /> இணையதளத்தைப் பயன்படுத்துங்கள்</translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, பின் செய்யப்பட்ட ரெக்கார்டு செய்யப்படுகின்ற பக்கம்</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, பகிரப்படுகின்ற பக்கம்</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(காலி)</translation>
 <translation id="219283042927675668">குழுவில் உள்ள பக்கங்கள்</translation>
 <translation id="2194856509914051091">கருத்தில்கொள்ள வேண்டியவை</translation>
+<translation id="2196695604589508993">பதிவுகளைத் திற</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, பின் செய்யப்பட்ட பகிரப்படுகின்ற பக்கம்</translation>
 <translation id="22091350895006575">பயனர்பெயரைச் சேருங்கள்</translation>
 <translation id="221494669172414749">சுயவிவரப் பூட்டு இல்லாமல் Chromeமைத் திறந்தால் நீங்கள் காரில் சேமித்துள்ள கடவுச்சொற்களும் பேமெண்ட் முறைகளும் அகற்றப்படும். சுயவிவரப் பூட்டைப் பயன்படுத்தினால் இந்தத் தரவு பாதுகாப்பாக இருக்கும்.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">கூடுதல் புக்மார்க்குகள்</translation>
 <translation id="2332515770639153015">‘மேம்பட்ட பாதுகாப்பு உலாவல்’ அம்சம் இயக்கப்பட்டுள்ளது</translation>
 <translation id="233375395665273385">நீக்கிவிட்டு வெளியேறு</translation>
+<translation id="2334275697832662087">Chromeமின் AI-திறனுள்ள பாதுகாப்பு ஆன்லைன் அச்சுறுத்தல்களில் இருந்து உங்களைப் பாதுகாக்கிறது. இதனால் நீங்கள் நம்பிக்கையுடன் பிரவுஸ் செய்யலாம்.</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ஆப்ஸை நிறுவ முடியவில்லை.</translation>
 <translation id="2349710944427398404">கணக்குகள், புக்மார்க்குகள், சேமித்த அமைப்புகள் உள்பட Chrome பயன்படுத்தும் மொத்தத் தரவு</translation>
 <translation id="2354001756790975382">பிற புக்மார்க்ஸ்</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">ஏதோ தவறாகிவிட்டது. மீண்டும் முயலவும்.</translation>
 <translation id="3577558748185201054">உங்கள் ஆர்வங்களையும் விருப்பத்தேர்வுகளையும் நிர்வகிக்கலாம்</translation>
 <translation id="3587482841069643663">அனைத்தும்</translation>
+<translation id="3598421953808879451">வீடியோவை இப்படிச் சேமி...</translation>
 <translation id="3602290021589620013">மாதிரிக்காட்சி</translation>
 <translation id="3614126103057878858">கட்டண விவரங்கள்</translation>
 <translation id="3616113530831147358">ஆடியோ</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">அடிப்புறத் தாள்</translation>
 <translation id="4045441967987592849">மீண்டும் திற</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" />க்கான கூடுதல் விருப்பங்கள்</translation>
+<translation id="4051548576872472315">சமீபத்தில் மூடப்பட்ட பக்கங்களையும் சாளரங்களையும் இங்கே பார்க்கலாம்</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{மறைநிலைச் சாளரத்தில் திற}other{அனைத்தையும் (#) மறைநிலைச் சாளரத்தில் திற}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{பகிர்ந்த பக்கக் குழுக்களில் புதிய செயல்பாட்டுடன் உள்ள <ph name="TABS_COUNT_ONE" /> வழக்கமான பக்கம்}other{பகிர்ந்த பக்கக் குழுக்களில் புதிய செயல்பாட்டுடன் உள்ள <ph name="TABS_COUNT_MANY" /> வழக்கமான பக்கங்கள்}}</translation>
 <translation id="405365679581583349">Google Play சேவைகளைப் புதுப்பியுங்கள்</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" நீட்டிப்பைப் பயன்படுத்த Chromeமில் நீங்கள் உள்நுழைய வேண்டும்</translation>
 <translation id="6324916366299863871">ஷார்ட்கட்டைத் திருத்து</translation>
 <translation id="6324977638108296054">ஹைலைட் செய்யப்பட்ட உரைக்கான இணைப்பை உருவாக்க முடியவில்லை</translation>
+<translation id="6331836477476466332">உங்களுக்கான பாதுகாப்புமிக்க, மிகவும் திறன் வாய்ந்த பிரவுசர்</translation>
 <translation id="6333140779060797560"><ph name="APPLICATION" /> வழியாகப் பகிர்</translation>
 <translation id="6335454563754888572"><ph name="PAGE_URL" /> என்ற தளத்தில் உள்ள பக்கத்தைக் காட்டும் URLலை மாற்றலாம்</translation>
 <translation id="6337234675334993532">என்க்ரிப்ஷன்</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">புதிய மறைநிலைத் தாவல்</translation>
 <translation id="686899695320434745">உங்கள் முகவரிகள் உங்கள் கடவுச்சொற்றொடரைக் கொண்டு என்க்ரிப்ட் செய்யப்படவில்லை. இதனால் நீங்கள் பிற Google சேவைகளில் அந்த முகவரிகளைப் பயன்படுத்தலாம்.</translation>
 <translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> என்ற கணக்கின் மூலம் உள்நுழைந்துள்ளீர்கள்</translation>
+<translation id="6871397658902960384">பிரவுசிங் செய்யுங்கள்</translation>
 <translation id="687838958001010630">இணைப்பு உள்ள அனைவரும் எல்லாப் பக்கங்களையும் திருத்தலாம்</translation>
 <translation id="6880903702195291049">அனுமதிகள் சரியாக உள்ளன</translation>
 <translation id="6883204995689174413">பகிர்தல்</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">கடவுச்சொற்றொடர் என்க்ரிப்ஷனில் Google Payயில் உள்ள பேமெண்ட் முறைகளும் முகவரிகளும் சேர்க்கப்படவில்லை.
 
 இந்த அமைப்பை மாற்ற, <ph name="BEGIN_LINK" />உங்கள் கணக்கில் உள்ள Chrome தரவை நீக்கவும்<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">படத்தை இப்படிச் சேமி…</translation>
 <translation id="7165972437814027679">சில ஃபைல்களை Chrome தடுப்பதற்கான காரணம் குறித்து மேலும் தெரிந்துகொள்ளுங்கள்</translation>
 <translation id="7168323970702333693">உள்நுழைந்துள்ள கணக்கு: <ph name="USER_NAME" />. அமைப்புகளைத் திறக்கும்.</translation>
 <translation id="7170930892977483182">உங்கள் சாதனத்திலும் Google Walletடிலும் சேமிக்கப்பட்டுள்ள எல்லாப் பாதுகாப்புக் குறியீடுகளும் நீக்கப்படும்</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">கட்டண முறைகளை அணுகுவதற்கான அனுமதி</translation>
 <translation id="7363349185727752629">உங்கள் தனியுரிமை விருப்பங்களுக்கான வழிகாட்டி</translation>
 <translation id="7364103838544876661">உலாவிய தரவை நீக்குவதற்கான கூடுதல் விருப்பங்கள்</translation>
+<translation id="736435710397109878">கார்டு புனைப்பெயர், அதிகபட்சம் 25 எழுத்துகள்</translation>
 <translation id="7365073365123878797">Google Password Managerரில் கடவுச்சொற்களைச் சேமித்துப் பயன்படுத்தத் தொடங்க, Google Play சேவைகளைப் புதுப்பிக்கவும்</translation>
 <translation id="7368009310682364976">சமீபத்தில் திறக்கப்பட்ட பக்கங்களைக் காட்டவும்</translation>
 <translation id="7368927539449986686">தளத் தேடலைத் திருத்துதல்</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">பாதுகாப்பு உலாவல் அமைப்பை உங்கள் நிறுவனம் முடக்கியுள்ளது</translation>
 <translation id="7825973332242257878">பக்கக் குழுக்கள்</translation>
 <translation id="7826342993930002256">எங்கிருந்தும் Chromeமைப் பயன்படுத்துங்கள்</translation>
+<translation id="7845155831233417403">அதிகபட்சம் <ph name="MAX_INSTANCE_COUNT" /> சாளரங்களை மட்டுமே திறந்திருக்கலாம். தொடர ஒரு சாளரத்தை மூடவும்.</translation>
 <translation id="7846161022626028328">பிழை ஏற்பட்டது. மீண்டும் முயலவும்.</translation>
 <translation id="7846296061357476882">Google சேவைகள்</translation>
 <translation id="784652447248278262">தற்போதைய சாளரம்</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">அருகிலுள்ளவர்களுடன் பகிர இந்த QR குறியீட்டை அவர்கள் ஸ்கேன் செய்ய வேண்டும்</translation>
 <translation id="8090732854597034573">உங்களுக்கு உதவி தேவைப்பட்டால் பெற்றோரிடம் கேளுங்கள்</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" /> திறக்கப்பட்ட உலாவிப் பக்கம் எதுவும் இல்லை</translation>
-<translation id="8103578431304235997">மறைநிலைத் தாவல்</translation>
 <translation id="810433609302852">உதவிக்குறிப்பு அறிவிப்புகள் அம்சத்தின் புரோமோவையும் பயன்படுத்துவதற்கான வழிமுறைகளையும் காட்டும் கீழ்ப்புறச் சீட்டு</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">நீட்டிப்புகளையும் அவை இந்தச் சாதனத்தில் சேமித்து வைத்திருக்கும் தரவையும் அகற்று</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">சாத்தியமானால், தளங்களுக்கு டார்க் தீமினைப் பயன்படுத்து</translation>
 <translation id="8282950411412455249">பாதுகாப்பு அமைப்புகளைக் காட்டு</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 மறைநிலைச் சாளரத்தை மூடு}other{# மறைநிலைச் சாளரங்களை மூடு}}</translation>
+<translation id="8289602658021943461">வீடியோ ஃபிரேமை இப்படிச் சேமி…</translation>
 <translation id="8313599942510782709">உங்கள் பணி இன்னும் நடைபெறுகிறது</translation>
 <translation id="8317318757008452355">அச்சிடுவதற்கான விருப்பங்களைத் திறக்கும்</translation>
 <translation id="8320212361750431956">சமீபத்திய செயல்</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />புதிது<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">புக்மார்க் &amp; பட்டியல்கள்</translation>
 <translation id="8342727528718219152">அதிகமான அறிவிப்புகளை அனுப்பக்கூடிய தளங்கள் குறித்து Chrome உங்களுக்குத் தெரியப்படுத்தும்</translation>
 <translation id="834313815369870491">மொழிபெயர்க்கக்கூடாத தளங்கள்</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, தேர்ந்தெடுத்தவற்றில் பின் செய்யப்பட்ட ரெக்கார்டு செய்யப்படுகின்ற மறைநிலைப் பக்கம்</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">கடவுச்சொற்றொடரை உள்ளிடுக</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, பின் செய்யப்பட்ட பிக்ச்சர்-இன்-பிக்ச்சர் மறைநிலைப் பக்கம்</translation>
 <translation id="945522503751344254">கருத்தை அனுப்பு</translation>
+<translation id="948276827484905248">QR குறியீட்டை உருவாக்கு</translation>
 <translation id="95817756606698420">சீனாவில் தேடுவதற்கு, Chromeமில் <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" />ஐப் பயன்படுத்தலாம். இதை <ph name="BEGIN_LINK" />அமைப்புகளுக்குச்<ph name="END_LINK" /> சென்று மாற்றலாம்.</translation>
 <translation id="961856697154696964">உலாவிய தரவை நீக்கு</translation>
 <translation id="963246339335003378">செயல் நிர்வாகியைத் திறக்கும்</translation>

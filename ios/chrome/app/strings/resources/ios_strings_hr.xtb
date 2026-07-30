@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Prijavljeni ste kao <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Otvorite izbornik računa.</translation>
 <translation id="1397144142234474689">Sakrij povijest</translation>
 <translation id="1399268420835656394">Ako niste dijete, možda biste trebali provjeriti dob na Apple računu na ovom uređaju. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Prethodno ispunjeno</translation>
 <translation id="1407135791313364759">Otvori sve</translation>
 <translation id="1408847409015257906">Dodirnite Privatnost i sigurnost.</translation>
 <translation id="1411386976162024013">Vizualno pretraživanje pomoću Objektiva</translation>
 <translation id="1417474386970818917">Odjavi me i izbriši podatke</translation>
 <translation id="1426410128494586442">Da</translation>
-<translation id="1429187656584513419">Otvorite Zaporke</translation>
 <translation id="1430915738399379752">Ispis</translation>
 <translation id="1433478348197382180">Prozor za čitanje</translation>
 <translation id="1435271730600332883">Otvorite automatsko popunjavanje i zaporke</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Tvojim računom upravlja roditelj.
 <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Izmijenjeno</translation>
+<translation id="1481450969185702334">Pronađi i ispuni</translation>
 <translation id="1483493594462132177">Pošalji</translation>
 <translation id="1486096554574027028">Pretražite zaporke</translation>
 <translation id="1486593497476255523">Grupe kartica su dovršene!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Da bi zaštitio vašu privatnost, Chrome neće automatski popuniti zaporku u ovom polju.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 web-lokacija (više na sinkroniziranim uređajima)}one{# web-lokacija (više na sinkroniziranim uređajima)}few{# web-lokacije (više na sinkroniziranim uređajima)}other{# web-lokacija (više na sinkroniziranim uređajima)}}</translation>
+<translation id="2865392654629180917">Postavite bilo koje pitanje i dobijte odgovore s primjenom AI-ja</translation>
 <translation id="2870560284913253234">Web lokacija</translation>
 <translation id="2876369937070532032">Googleu šalje URL-ove nekih stranica koje posjećujete kada je ugrožena vaša sigurnost</translation>
 <translation id="2883151425485251736">Pregled i uređivanje tema koje ste sakrili na računu</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Praćenje cijene</translation>
 <translation id="3038136505713492417">Potvrdite da ste to vi da biste upotrebljavali pristupne ključeve na ovom uređaju</translation>
 <translation id="3039671569659952257">Izbriši mapu</translation>
+<translation id="3050988301648974170">Otvorite Provjeru zaporki</translation>
 <translation id="3053332585453689122">URL-ove koje posjećujete i mali uzorak sadržaja stranice, preuzimanja, aktivnosti proširenja i informacija o sustavu šalje Google sigurnom pregledavanju kako bi se provjerilo jesu li štetni.</translation>
 <translation id="3055102495753300780">Pohrana podataka</translation>
 <translation id="3059270601560379555">Novo pretraživanje</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Nova grupa kartica...</translation>
 <translation id="3185760469172949183">Pretraživanje kamerom je dovršeno!</translation>
 <translation id="3186796054637504691">Izbriši povijest i podatke web-lokacija</translation>
+<translation id="3190558889382726167">Zaporka spremljena</translation>
 <translation id="3190736958609431397">Poništi praćenje</translation>
 <translation id="3208260410153224535">Vaša organizacija isključila je prijavljivanje. Nove oznake, zaporke i drugi podaci spremat će se samo na ovom uređaju.</translation>
 <translation id="3211969308836412674">Otkvači web-lokaciju</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">Posljednjih 15 minuta</translation>
 <translation id="5020732097997376541">Dodirnite ikonu Objektiva</translation>
 <translation id="5021500396464456616">Obratite se osobi koja vam je poslala vezu</translation>
+<translation id="503173149952522259">Pritisnite i zadržite da biste prikvačili ovu karticu</translation>
 <translation id="5039804452771397117">Dopusti</translation>
 <translation id="5050042263972837708">Naziv grupe</translation>
 <translation id="5050810143224996149">Dijeljenje zaporke</translation>
@@ -2427,6 +2432,7 @@ Da biste nastavili s računala, prebacite se na <ph name="OTHER_EMAIL" />. Dohva
 <translation id="9013605037177245304">Uključite obavijesti</translation>
 <translation id="9029650858822697271">Odjavljeni ste</translation>
 <translation id="9032405509996909363">Potvrdite brisanje podataka o pregledavanju</translation>
+<translation id="9035699147763101514">Omogućuje osobna inteligencija s Geminijem. Svojim odabirima možete upravljati u postavkama.</translation>
 <translation id="9039373489628511875">Propusnost</translation>
 <translation id="9042893549633094279">Privatnost i sigurnost</translation>
 <translation id="9055291197094969722">Izradite grupe kartica da biste organizirali otvorene kartice i bili produktivni</translation>
@@ -2438,6 +2444,7 @@ Da biste nastavili s računala, prebacite se na <ph name="OTHER_EMAIL" />. Dohva
 <translation id="9070824521421603770">Odjavit ćete se i kartice će se zatvoriti</translation>
 <translation id="9072837124205571418">Grupe kartica sa svih uređaja</translation>
 <translation id="9081058212938299310">Želite li ažurirati zaporku za <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Sada možete pronaći i popuniti informacije s Gmaila i drugih izvora</translation>
 <translation id="9083838294503912307">Da biste sinkronizirali i prilagodili više uređaja, uključite sinkronizaciju.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Imate {count} slabu zaporku koja bi mogla ugroziti vašu sigurnost. Riješite problem odmah da biste se zaštitili.}one{Imate {count} slabu zaporku koja bi mogla ugroziti vašu sigurnost. Riješite problem odmah da biste se zaštitili.}few{Imate {count} slabe zaporke koje bi mogle ugroziti vašu sigurnost. Riješite problem odmah da biste se zaštitili.}other{Imate {count} slabih zaporki koje bi mogle ugroziti vašu sigurnost. Riješite problem odmah da biste se zaštitili.}}</translation>
 <translation id="9084369964545892485">Nova anonimna kartica u grupi</translation>

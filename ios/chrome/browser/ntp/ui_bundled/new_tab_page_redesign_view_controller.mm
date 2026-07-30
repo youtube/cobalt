@@ -164,6 +164,8 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
       [[NewTabPageBottomSheetViewController alloc] init];
   _bottomSheetViewController.delegate = self;
   _bottomSheetViewController.feedViewController = _feedViewController;
+  _bottomSheetViewController.magicStackViewController =
+      _magicStackViewController;
   [self addChildViewController:_bottomSheetViewController];
   [self.view addSubview:_bottomSheetViewController.view];
   [_bottomSheetViewController didMoveToParentViewController:self];
@@ -345,6 +347,7 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
   self.NTPContentDelegate = nil;
   self.NTPShortcutsHandler = nil;
   self.mostVisitedViewController = nil;
+  self.magicStackViewController = nil;
   [self setFeedViewController:nil];
   [_bottomSheetViewController invalidate];
   _bottomSheetViewController = nil;
@@ -503,6 +506,18 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
   }
 }
 
+- (void)setMagicStackViewController:
+    (UIViewController*)magicStackViewController {
+  if (_magicStackViewController == magicStackViewController) {
+    return;
+  }
+  _magicStackViewController = magicStackViewController;
+  if (_bottomSheetViewController) {
+    _bottomSheetViewController.magicStackViewController =
+        magicStackViewController;
+  }
+}
+
 - (void)setMostVisitedViewController:
     (UIViewController*)mostVisitedViewController {
   if (_mostVisitedViewController == mostVisitedViewController) {
@@ -572,7 +587,6 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
 
 - (CGFloat)centeredFakeOmniboxTop {
   CGFloat screenHeight = self.view.bounds.size.height;
-  CGFloat fakeOmniboxHeight = content_suggestions::FakeOmniboxHeight();
   // During the initial view loading sequence (e.g. before initial layout pass
   // occurs), screen height bounds will be 0. We fallback to the dynamic
   // top-down logo offset to avoid negative constraint values during early
@@ -583,7 +597,7 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
         content_suggestions::DoodleHeight(_logoState, self.traitCollection);
     return safeAreaTop + kLogoTopMargin + logoHeight + kLogoToOmniboxSpacing;
   }
-  return (screenHeight - fakeOmniboxHeight) * 0.5;
+  return screenHeight * 0.35;
 }
 
 #pragma mark - SearchEngineLogoConsumer
@@ -602,10 +616,6 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
 
 - (BOOL)shouldPinFakeOmnibox {
   return NO;
-}
-
-- (void)didChangeOmniboxPosition:(NewTabPageHeaderView*)headerView {
-  // TODO(crbug.com/526677926): To be implemented in Phase 2.
 }
 
 #pragma mark - UserAccountImageUpdateDelegate
@@ -792,7 +802,7 @@ constexpr CGFloat kHintLabelYOffset = -1.0;
     _plusButton.accessibilityLabel = l10n_util::GetNSString(
         IDS_IOS_COMPOSEBOX_ADD_ATTACHMENT_BUTTON_ACCESSIBILITY_LABEL);
     [_plusButton
-        setImage:DefaultSymbolWithPointSize(kPlusSymbol, kSymbolActionPointSize)
+        setImage:SymbolWithPointSize(SymbolPlus, kSymbolActionPointSize)
         forState:UIControlStateNormal];
     [_plusButton addTarget:self.NTPShortcutsHandler
                     action:@selector(openMultimodalActionsMenu)

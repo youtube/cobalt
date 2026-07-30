@@ -15,7 +15,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
-#include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
+#include "components/autofill/core/browser/data_quality/addresses/address_import_requirement_utils.h"
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/common/autofill_constants.h"
@@ -120,10 +120,24 @@ void MultiStepImportMerger::MergeImportMetadata(
   // unrecognized autocomplete attribute, so does the combined profile.
   target.did_import_from_unrecognized_autocomplete_field |=
       source.did_import_from_unrecognized_autocomplete_field;
-  // The country of the merged profile is only considered complemented if both
-  // of them were complemented. Otherwise one of them was observed and
-  // complementing the country has not made a difference.
-  target.did_complement_country &= source.did_complement_country;
+  // Set `country_source` to `ProfileCountrySource::kCountryMerged` if the
+  // origin of the profile's country cannot be determined.
+  switch (target.country_source) {
+    case ProfileCountrySource::kExplicitlyObserved:
+    case ProfileCountrySource::kDefaultCountryCodeForNewAddress:
+    case ProfileCountrySource::kPhoneNumberRegionCode:
+      if (target.country_source != source.country_source) {
+        target.country_source = ProfileCountrySource::kCountryMerged;
+      }
+      break;
+    case ProfileCountrySource::kNoCountry:
+      // Target profile does not have any country, unconditionally take country
+      // of source profile.
+      target.country_source = source.country_source;
+      break;
+    case ProfileCountrySource::kCountryMerged:
+      break;
+  }
 }
 
 void MultiStepImportMerger::OnBrowsingHistoryCleared(

@@ -266,10 +266,10 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "contextMenuAnimationLimitingEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextMenuAnimationLimiting));
-  source->AddBoolean(
-      "ntpNextFeaturesEnabled",
+  bool ntp_next_features_enabled =
       ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
-          base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
+      base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures);
+  source->AddBoolean("ntpNextFeaturesEnabled", ntp_next_features_enabled);
   source->AddBoolean("ntpNextShowDismissalUIEnabled",
                      ntp_features::kNtpNextShowDismissalUIParam.Get());
   source->AddBoolean("ntpNextDisablementContextMenuEnabled",
@@ -288,6 +288,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean(
       "doodleMuralsEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpDoodleMurals));
+  bool use_google_logo_26 = false;
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  use_google_logo_26 =
+      base::FeatureList::IsEnabled(ntp_features::kNtpGoogleLogo26);
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  source->AddBoolean("useGoogleLogo26", use_google_logo_26);
   source->AddBoolean(
       "middleSlotPromoEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpMiddleSlotPromo) &&
@@ -779,9 +785,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       num_tools_eligible++;
     }
   }
-  bool action_chips_eligible = aim_eligibility_service &&
-                               aim_eligibility_service->IsAimEligible() &&
-                               num_tools_eligible >= 2;
+  bool action_chips_eligible =
+      base::FeatureList::IsEnabled(ntp_features::kNtpScaledActionChips)
+          ? ntp_next_features_enabled
+          : (aim_eligibility_service &&
+             aim_eligibility_service->IsAimEligible() &&
+             num_tools_eligible >= 2);
   bool show_action_chips =
       action_chips_eligible &&
       (!ntp_features::kNtpNextDisablementParam.Get() ||
@@ -794,6 +803,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean("addTabUploadDelayOnActionChipClick",
                      add_tab_upload_delay_on_action_chip_click);
   source->AddBoolean("actionChipsEnabled", show_action_chips);
+  source->AddBoolean(
+      "ntpSmallActionChipsEnabled",
+      base::FeatureList::IsEnabled(ntp_features::kNtpScaledActionChipsSmall));
 
   // User education browser promos.
   int browser_promo_limit = 0;
@@ -822,6 +834,15 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
 #if !BUILDFLAG(OPTIMIZE_WEBUI)
   source->AddResourcePaths(kNewTabSharedResources);
 #endif  // BUILDFLAG(OPTIMIZE_WEBUI)
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Overrides the mapping installed by SetupWebUIDataSource() above, so the
+  // stable logo path serves the 2026 version of the Google logo.
+  if (use_google_logo_26) {
+    source->AddResourcePath("icons/google_logo.svg",
+                            IDR_NEW_TAB_PAGE_BRANDED_GOOGLE_LOGO_SVG);
+  }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   // Allow embedding of iframes for the doodle and
   // chrome-untrusted://new-tab-page for other external content and resources.

@@ -61,6 +61,7 @@
 <translation id="1090629319939036170">VR-valikko</translation>
 <translation id="1091463901118115503">Jatka lukemista</translation>
 <translation id="1091779689406092804">kuvakaappaukset</translation>
+<translation id="1095093219235104018">Hae ja täytä Geminillä</translation>
 <translation id="1096545575934602868">Kentässä voi olla korkeintaan <ph name="MAX_ITEMS_LIMIT" /> kohtaa. Muut kohdat ohitetaan.</translation>
 <translation id="1097803577928227769">Kansallispuistot ja julkiset puutarhat</translation>
 <translation id="1099928364755383720">automaattinen pikkuruutu</translation>
@@ -321,6 +322,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="147358896496811705">2A0</translation>
 <translation id="1474576429883213321">Siivouspalvelut</translation>
 <translation id="1476595624592550506">Vaihda salasana</translation>
+<translation id="1481450969185702334">Etsi ja täytä</translation>
 <translation id="1482372785911828880">Erittäin ohut</translation>
 <translation id="1482879811280872320">Pyöräily</translation>
 <translation id="1483493594462132177">Lähetä</translation>
@@ -365,6 +367,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 
           &lt;p&gt;Muokkaa aikaa ja päivämäärää &lt;strong&gt;Asetukset&lt;/strong&gt;‑sovelluksen  &lt;strong&gt;Yleistä&lt;/strong&gt;‑osiossa.&lt;/p&gt;</translation>
 <translation id="1559839503761818503">Jäjestelmänvalvojasi käynnistää laitteen uudelleen <ph name="DATE" /> kello <ph name="TIME" /></translation>
+<translation id="1562601408588733317">Ylläpidä tietojen hakemista ja täyttämistä Geminillä</translation>
 <translation id="1562805467275776390">Autourheilu</translation>
 <translation id="1563755205047885671">Toiminta‑ ja tasohyppelypelit</translation>
 <translation id="1564634006476980707">Haun URL-osoitteelle suositellaan HTTPS-mallia: <ph name="SEARCH_URL" /></translation>
@@ -462,7 +465,6 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="1711234383449478798">Ohitettu, koska käytännön (<ph name="POLICY_NAME" />) arvoksi ei ole asetettu <ph name="VALUE" />.</translation>
 <translation id="1712552549805331520"><ph name="URL" /> haluaa tallentaa tietoja pysyvästi paikalliselle tietokoneellesi.</translation>
 <translation id="1713628304598226412">Lokero 2</translation>
-<translation id="1713819065634160212">Käytä ja tallenna Google-tilisi osoitteita</translation>
 <translation id="1714807406136741351">Selaustila, voit vaihtaa lomaketilaan ja tarkastella hinnan muutoksia kaaviossa vasemmalla tai oikealla nuolella</translation>
 <translation id="1717218214683051432">Liiketunnistimet</translation>
 <translation id="1717494416764505390">Postilaatikko 3</translation>
@@ -655,7 +657,6 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2027465737841872819">Muovi</translation>
 <translation id="2027707238798802149">Kortti ei käytettävissä</translation>
 <translation id="2029735183873159415">Sukujuuret ja sukututkimus</translation>
-<translation id="2031095660415483845">Hae ja täytä mistä tahansa…</translation>
 <translation id="2032962459168915086"><ph name="BEGIN_LINK" />Tarkista välityspalvelimen ja palomuurin määritykset.<ph name="END_LINK" /></translation>
 <translation id="2033900728810589426">Pikakuvake ei voi olla sama kuin oletushakupalvelun avainsana, jonka <ph name="DEFAULT_SEARCH_PROVIDER_KEYWORD_POLICY_NAME" /> on määrittänyt: <ph name="SHORTCUT_NAME" /></translation>
 <translation id="2034971124472263449">Tallenna silti</translation>
@@ -725,6 +726,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2130699163006053678">A3 x 7</translation>
 <translation id="2131511685263818470"><ph name="SEARCH_ENGINE_NAME" />. <ph name="MARKETING_SNIPPET" /></translation>
 <translation id="2132825047782982803">Ne näytetään satunnaisessa järjestyksessä. Voit muuttaa oletusasetusta milloin tahansa.</translation>
+<translation id="2134584557120247184">Lentolippu</translation>
 <translation id="2137891579555018930">Odotetaan lupaa…</translation>
 <translation id="213826338245044447">Mobiilikirjanmerkit</translation>
 <translation id="2141000681034340397">Muokkaa tekstiä</translation>
@@ -831,6 +833,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2268044343513325586">Tarkenna</translation>
 <translation id="2268966938956566076">Lataa <ph name="MINUTES" /> minuutin kuluttua</translation>
 <translation id="2270484714375784793">Puhelinnumero</translation>
+<translation id="2274179746480077483">Täytä tiedot automaattisesti esimerkiksi Gmailista ja Kuvista. Hyödyntää henkilökohtaista älyä.</translation>
 <translation id="2276057643614339130">Tulostusalusta</translation>
 <translation id="2277103315734023688">Kelaa eteenpäin</translation>
 <translation id="2277753418458118549">Näytä yhteyden tiedot</translation>
@@ -1171,6 +1174,7 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2784949926578158345">Yhteys katkaistiin.</translation>
 <translation id="2786008859124691917">Polkupyörät ja pyöräilyvarusteet</translation>
 <translation id="2792012897584536778">Tämän laitteen järjestelmänvalvojat ovat ottaneet käyttöön tietosuojavarmenteita, joiden avulla he saattavat nähdä avaamiesi sivustojen sisällöt.</translation>
+<translation id="2793425367785017642">Lomakkeiden ymmärtämiseksi ja täyttämiseksi paremmin avaamiesi sivujen sisältöä ja URL-osoitteita voidaan käsitellä yksityisessä tilassa pilvessä.</translation>
 <translation id="2794233252405721443">Sivusto estetty</translation>
 <translation id="2794629552137076216">Lasi (pinnallinen)</translation>
 <translation id="2799223571221894425">Käynnistä uudelleen</translation>
@@ -1278,7 +1282,6 @@ Muussa tapauksessa tämä estetään tietosuoja-asetuksilla. Jos sallit tämän,
 <translation id="2978824962390592855">Ooppera</translation>
 <translation id="2979424420072875974">Kirjoittajan oppaat</translation>
 <translation id="2980742331521553164">Kortin CVC-koodi salataan ja tallennetaan Google-tilillesi nopeampaa maksamista varten</translation>
-<translation id="2983311431122838216">Kysy tekoälyltä ‑tila Google Haussa</translation>
 <translation id="2983666748527428214">Avaa incognito-välilehti</translation>
 <translation id="2985398929374701810">Anna kelvollinen osoite.</translation>
 <translation id="2986485254770343131">Tallennetaan kameratiedostoja</translation>
@@ -1423,6 +1426,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="3194737229810486521"><ph name="URL" /> haluaa tallentaa tietoja pysyvästi laitteellesi.</translation>
 <translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956"><ph name="PRINTER_NAME" />, palvelin: <ph name="SERVER_NAME" /></translation>
+<translation id="3196374699162453920">Varauskoodi</translation>
 <translation id="3196902089458890316">Jaetaanko relevantit välilehdet aina, jotta saat parempia vastauksia?</translation>
 <translation id="3197136577151645743">Saa pyytää luvan tietää, kun käytät tätä laitetta aktiivisesti</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, paina sarkainta ja Enter, niin voit valita synkronoitavat tiedot Chromen asetuksista</translation>
@@ -1544,6 +1548,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="3391482648489541560">tiedostojen muokkaus</translation>
 <translation id="3392028486601120379">URL-osoitemallille <ph name="URL_PATTERN" /> on määritetty polku. Tämä avain ei tue polkuja, poista polku ja yritä uudelleen, esim. *://example.com/ =&gt; *://example.com".</translation>
 <translation id="3395827396354264108">Noutotapa</translation>
+<translation id="3397968074427155329">Jatka keskustelua muuttamalla ikkunan kokoa</translation>
 <translation id="3399161914051569225">Puettava teknologia</translation>
 <translation id="3399952811970034796">Toimitusosoite</translation>
 <translation id="3402261774528610252">Tämä sivusto ladattiin TLS 1.0:lla tai TLS 1.1:llä. Ne ovat vanhentuneet ja poistetaan käytöstä tulevaisuudessa. Kun ne poistetaan käytöstä, käyttäjät eivät voi enää ladata tätä sivustoa. Palvelimen pitäisi ottaa käyttöön TLS 1.2 tai uudempi versio.</translation>
@@ -1861,6 +1866,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="385489333361351399">Kamera- ja valokuvauslaitteet</translation>
 <translation id="3858027520442213535">Päivitä päivämäärä ja aika</translation>
 <translation id="3858860766373142691">Nimi</translation>
+<translation id="3864558817291331916">Näytä <ph name="AI_ENGINE_NAME" /> aina</translation>
 <translation id="3865339060090354361">Katso ehdot: <ph name="CREDIT_CARD_NAME" /></translation>
 <translation id="3869939189466884821">Paikalliset tiedostosi poistetaan <ph name="MINUTES" /> minuutin kuluttua</translation>
 <translation id="3872834068356954457">Tiede</translation>
@@ -1883,6 +1889,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="390391808978419508">Avaaminen aikakatkaistu</translation>
 <translation id="3905894480064208252">{0,plural, =1{Tiedoston siirtäminen estetty}other{<ph name="FILE_COUNT" /> tiedoston siirtäminen estetty}}</translation>
 <translation id="3906022360148923497">Maksuvälineen kuvake</translation>
+<translation id="3906234161316839040">Muut tilaukset</translation>
 <translation id="3906954721959377182">Tabletti</translation>
 <translation id="3909695131102177774"><ph name="LABEL" /> <ph name="ERROR" /></translation>
 <translation id="3910231615117880630">Lue lisää upotetusta sisällöstä</translation>
@@ -2037,6 +2044,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4140905366050378834">Lemmikkien ruoka ja tarvikkeet</translation>
 <translation id="4140905530744469899">Profiilin tunnus:</translation>
 <translation id="4142935452406587478">Lokero 10</translation>
+<translation id="4143568335933115324">Kohdekenttä</translation>
 <translation id="4147897805161313378">Google Kuvat</translation>
 <translation id="4148925816941278100">American Express</translation>
 <translation id="4150099059797363385">Kirjekuori kiinalainen #4</translation>
@@ -2190,7 +2198,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4340810192899866471">Tuo JSON-tiedostosta</translation>
 <translation id="4340982228985273705">Havaintojen mukaan tämä tietokone ei ole yrityksen hallinnoima, joten käytäntö voi asentaa automaattisesti vain Chrome Web Storessa hostattuja laajennuksia. Chrome Web Storen päivitys-URL-osoite on <ph name="CWS_UPDATE_URL" />.</translation>
 <translation id="4342742994656318294">Huvipuistot</translation>
-<translation id="4344194909635300809">Sivujen otsikot ja URL-osoitteet lähetetään Googlelle, ja ihmiset voivat tarkistaa ne</translation>
 <translation id="4346670990181948854">Matkatiedot · Ajoneuvot</translation>
 <translation id="4348834659292907206">Yhteys sivustoon (<ph name="SITE" />) ei ole turvallinen</translation>
 <translation id="4349365535725594680">Luottamuksellista sisältöä ei voida jakaa</translation>
@@ -2249,7 +2256,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4445964943162061557">Tämä on kokeellinen ominaisuus, joka ei ehkä osu aina oikeaan.</translation>
 <translation id="4449116177348980384">Muuta sivustoasetuksia ‑painike, aktivoi ylläpitääksesi sivustoille tallennettuja lupia ja dataa Chromen asetuksista</translation>
 <translation id="4451135742916150903">Saa pyytää lupaa yhdistää HID-laitteisiin</translation>
-<translation id="4451684391620232683">Käyttäjälle näkyvä teksti:</translation>
 <translation id="4452328064229197696">Juuri käyttämäsi salasana löytyi tietosuojaloukkauksesta. Tiliesi suojaamiseksi Googlen Salasanojen ylläpito suosittelee, että tarkistat tallennetut salasanasi.</translation>
 <translation id="4454620051637646665">Sulje banneri</translation>
 <translation id="4456937135469235202">Seikkailumatkat</translation>
@@ -2305,6 +2311,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4543072026714825470">Jos haluat maksaa nopeammin ensi kerralla, tallenna kortti ja laskutusosoite Google-tilillesi</translation>
 <translation id="4546730006268514143">Siirto aikakatkaistu</translation>
 <translation id="4548974025982531828">{NUM_DAYS,plural, =1{Luotu 1 päivä sitten}other{Luotu {NUM_DAYS} päivää sitten}}</translation>
+<translation id="4550087677305533997">Matkustaja</translation>
 <translation id="455113658016510503">A9</translation>
 <translation id="4556069465387849460">Käytät näytön lukituksen avaustapaa salasanojen täyttämiseen</translation>
 <translation id="4557573143631562971">Kotivakuutukset</translation>
@@ -2358,6 +2365,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4658801711339831733">Skannaus tallennettu Google Driveen</translation>
 <translation id="4660592918803576381">Avaa Drivessa</translation>
 <translation id="4660780573807106293">Voi pyytää lupaa käyttää liike- ja valoantureita</translation>
+<translation id="4661010630350489875">Lennon numero</translation>
 <translation id="4661556981531699496">Lemmikit ja eläimet</translation>
 <translation id="4661868874067696603">Hae lisää ostovaihtoehtoja</translation>
 <translation id="4663373278480897665">Kamera sallittu</translation>
@@ -2424,7 +2432,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="4749924365937394956">Palvelimen todennus</translation>
 <translation id="4750671009706599284">tämä puhelin</translation>
 <translation id="4750917950439032686">Salasanat, luottokorttinumerot ja muut tietosi pysyvät yksityisinä, kun ne lähetetään tälle sivustolle.</translation>
-<translation id="4751249061288707459">Suostumus päivitetty viimeksi:</translation>
 <translation id="4754461935447132332">Sallittu vain turvallisilla sivustoilla</translation>
 <translation id="4756501505996488486">PRC 16K</translation>
 <translation id="4757740693289347881">Koodi on virheellinen</translation>
@@ -2585,6 +2592,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5001526427543320409">Kolmannen osapuolen evästeet</translation>
 <translation id="5007344584818503324">Jaettujen välilehtiryhmien toiminta</translation>
 <translation id="5007392906805964215">Tarkista</translation>
+<translation id="5008767248670679254">Kaikki toimitukset</translation>
 <translation id="5011561501798487822">Havaittu kieli</translation>
 <translation id="5015510746216210676">Laitteen nimi:</translation>
 <translation id="5016205925109358554">Serif</translation>
@@ -2630,6 +2638,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5074134429918579056">Housut ja shortsit</translation>
 <translation id="5077767274537436092">Käytä toista avainkoodia</translation>
 <translation id="5078060223219502807">Juuri käyttämäsi salasana on löytynyt tietosuojaloukkauksesta. Tiliesi suojaamiseksi Salasanat suosittelee, että vaihdat salasanan heti ja tarkistat tallennetut salasanasi.</translation>
+<translation id="5082949343606863311">Järjestelmädataa, kuten lomakekenttiä ja ominaisuuksien toimintaa, analysoidaan tulevien ehdotusten parantamiseksi</translation>
 <translation id="5087286274860437796">Palvelimen varmenne ei ole tällä hetkellä kelvollinen.</translation>
 <translation id="5087580092889165836">Lisää kortti</translation>
 <translation id="5088142053160410913">Viesti operaattorille</translation>
@@ -2642,7 +2651,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5097099694988056070">Laitetilastot esim. CPU:n/RAM-muistin käytöstä</translation>
 <translation id="5097468150760963273">27 x 39 tuumaa</translation>
 <translation id="5097501891273180634">A2</translation>
-<translation id="5102512728737175215">Paina sarkainta ja sitten Enteriä, niin voit kysyä tekoälytilalta</translation>
 <translation id="5105442806410269908">Muun Google-datan ylläpito</translation>
 <translation id="510644072453496781">Pahvi (loppu)</translation>
 <translation id="5106648964679263509">Virtuaalikortin (<ph name="BNPL_ISSUER_NAME" />) tiedot täytetty</translation>
@@ -2830,6 +2838,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5391010642126249196">Kävit täällä</translation>
 <translation id="5391030615542642809">Laite (<ph name="MANUFACTURER" />)</translation>
 <translation id="5391306025131596142">Avaa historiasivu</translation>
+<translation id="5391870546630695708">Lähtökenttä</translation>
 <translation id="539203134595252721">Pöytätennis</translation>
 <translation id="5392506727170022660">Metalli (puolikiiltävä)</translation>
 <translation id="5394069166371280357">TV-perheohjelmat</translation>
@@ -2940,6 +2949,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5540969246441091044">Ratsastus</translation>
 <translation id="5541086400771735334">Postilaatikko 7</translation>
 <translation id="5541546772353173584">Lisää sähköposti</translation>
+<translation id="5541735141423273733">Saapumispäivä</translation>
 <translation id="5543452229212526547">Tekstisi sekä sen sivun sisältö ja URL-osoite, jolle kirjoitat, lähetetään Googlelle. Tarkastajat eivät käytä sisältöäsi tekoälyn parantamiseen. Organisaatio voi muuttaa näitä asetuksia milloin tahansa.</translation>
 <translation id="5543564889050342791">Eläintarhat, akvaariot ja suojelualueet</translation>
 <translation id="5543722831081909240">180 astetta</translation>
@@ -3030,6 +3040,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5675809467256309336">Dance‑ ja elektroninen musiikki</translation>
 <translation id="5675959228867414813">Näytä päivämäärän mukaan</translation>
 <translation id="567604591393105935">Kaupan alapaneeli avattu puoliksi</translation>
+<translation id="5676124785522323481">Ylläpidä yhdistettyjä sovelluksia</translation>
 <translation id="5676641328629468296">Google Pay, Pix</translation>
 <translation id="5678007133659493065">Folio</translation>
 <translation id="5679086391497468752">Kotiosoite</translation>
@@ -3066,6 +3077,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5728246486828755318">Voi pyytää lupaa käyttää tulostimen lisäominaisuuksia</translation>
 <translation id="5729442113829771034">Varhaisopetus</translation>
 <translation id="5730040223043577876">Chrome suosittelee salasanan vaihtamista, jos olet käyttänyt sitä myös muilla sivustoilla.</translation>
+<translation id="5731983613206445054">Autat kehittämään parannettua automaattista täyttöä</translation>
 <translation id="5735174108294025227">Vahvistetut sähköpostiosoitteet näkyvät täällä</translation>
 <translation id="573555826359077410">Luo lomake ‑painike, aktivoi luodaksesi uusi lomake nopeasti Google Formsissa</translation>
 <translation id="5738385766833540397">Valitse, miten saat hinnanlaskuilmoituksia seuraamistasi tuotteista</translation>
@@ -3181,7 +3193,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="5921952831792678223">Avolava-autot</translation>
 <translation id="5923492272538889093">Käytetäänkö laitteen lukituksen avaustapaa CVC:n sijaan?</translation>
 <translation id="5924510104057992926">Tarkasta tiedostot ennen avaamista</translation>
-<translation id="5924782825030413055">Viimeisimmän suostumuspäivityksen lähde:</translation>
 <translation id="5925040402342933574">Optinen levy (puolikiiltävä)</translation>
 <translation id="5925147183566400388">Hyväksymiskäytännön lausunto-osoitus</translation>
 <translation id="5926982310317673627">Kuntosalit</translation>
@@ -3357,6 +3368,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="6177531123306197852">Kirjekuori C2</translation>
 <translation id="6180316780098470077">Uudelleenyritysten aikaväli</translation>
 <translation id="6182972682129119950">A4 x 5</translation>
+<translation id="6187575936001446786">Paina sarkainta ja sitten Enteriä, niin voit kysyä tekoälyltä (<ph name="AI_ENGINE_NAME" />)</translation>
 <translation id="6189351761800074311">Tekstisi ja sivun sisältö lähetetään Googlelle, mutta niitä ei käytetä tekoälyn parantamiseen.
     <ph name="BEGIN_LINK" />Lue lisää<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">Ohita joitakin näppäimistön näppäimiä (esim. Esc)</translation>
@@ -3391,6 +3403,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="6240553182907836376">Päivitä henkilötodistus</translation>
 <translation id="6240601837375010619">Tallenna passi</translation>
 <translation id="6240964651812394252">Jos haluat käyttää Google Salasanoja käyttöjärjestelmäsi kanssa, käynnistä Chrome uudelleen ja salli pääsy tietokoneesi Salasanoihin. Välilehdet avataan uudelleen uudelleenkäynnistyksen jälkeen.</translation>
+<translation id="6244366663267187541">Valitse, mihin sovelluksiin Gemini muodostaa yhteyden</translation>
 <translation id="624499991300733384">Tulosteiden koontipalvelu</translation>
 <translation id="6246316216123107851"><ph name="NUM_DAYS" /> päivää sitten</translation>
 <translation id="6246382863801034910">Ajoneuvo</translation>
@@ -3432,7 +3445,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="6302546952464230349">Näytä lupatiedot: <ph name="PERMISSION_NAME" /></translation>
 <translation id="6304398603974202180">Multimediaohjelmat</translation>
 <translation id="6305205051461490394">Sivustoon <ph name="URL" /> ei saada yhteyttä.</translation>
-<translation id="6305834316918845109">Kun kirjoitat parannettua automaattista täyttöä koskevan pyynnön, Chrome kirjaa ominaisuuden käyttötavan, esimerkiksi hyväksytkö, muokkaatko vai ohitatko automaattisen täytön ehdotukset</translation>
 <translation id="6306713302480826305">Osoite poistetaan tältä ja muilta sisäänkirjautuneilta laitteilta</translation>
 <translation id="6307968763353904914">Pankkisi ei tarjoa tällä hetkellä virtuaalikortteja tälle maksutavalle. Voit kuitenkin maksaa kortilla (<ph name="CARD_LABEL" />) verkossa.</translation>
 <translation id="6311410654831092784">Kartonki</translation>
@@ -3744,7 +3756,6 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="6786145470008421571">Kirjekuori 152 x 228 mm</translation>
 <translation id="6786747875388722282">Laajennukset</translation>
 <translation id="6787094689637422836">Lanseeraamme uusia yksityisyysominaisuuksia, jotta voit paremmin vaikuttaa näkemiisi mainoksiin.</translation>
-<translation id="6788615780749001893">Tekoälytilapainike, kysy tekoälytilalta painamalla Enter</translation>
 <translation id="6789062271869667677">Jatkuva (pitkä)</translation>
 <translation id="678982761784843853">Suojatun sisällön tunnukset</translation>
 <translation id="6790428901817661496">Toista</translation>
@@ -3816,6 +3827,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="6898699227549475383">Organisaatio (O)</translation>
 <translation id="6900702165119149418">Olet kirjautunut ulos</translation>
 <translation id="6907458757809079309">Kuntoilu</translation>
+<translation id="6910211073230771657">Poistettu</translation>
 <translation id="691024665142758461">ladata useita tiedostoja</translation>
 <translation id="691046363691324218">Oikaisunumero</translation>
 <translation id="6915804003454593391">Käyttäjä:</translation>
@@ -3894,6 +3906,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="7011763495818914549">Henkilöllisyyskortti</translation>
 <translation id="7012363358306927923">China UnionPay</translation>
 <translation id="7013835112918108252">Voit pyytää lupaa lukitukseen ja hiiren käyttöön</translation>
+<translation id="7013844825046560088">Chrome kirjaa ominaisuuden käyttötavan, esimerkiksi pyyntösi ja toimintasi, kun hyväksyt tai ohitat ehdotuksia</translation>
 <translation id="7014042602717177828">Auton äänentoistolaitteet</translation>
 <translation id="7014741021609395734">Zoomauksen taso</translation>
 <translation id="7016992613359344582">Veloitukset voivat olla kertaluontoisia tai toistuvia, eikä niitä välttämättä esitetä selkeästi.</translation>
@@ -3983,6 +3996,7 @@ Jos haluat piilottaa maksa myöhemmin ‑vaihtoehdot, siirry <ph name="BEGIN_LIN
 <translation id="7153549335910886479">{PAYMENT_METHOD,plural, =0{<ph name="PAYMENT_METHOD_PREVIEW" />}=1{<ph name="PAYMENT_METHOD_PREVIEW" /> ja <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" /> toinen}other{<ph name="PAYMENT_METHOD_PREVIEW" /> ja <ph name="NUMBER_OF_ADDITIONAL_PAYMENT_METHODS" /> muuta}}</translation>
 <translation id="7156870133441232244">Palvelin pitäisi päivittää TLS 1.2:een tai uudempaan versioon.</translation>
 <translation id="7156885531105222428">Pyytämääsi sivua ei löytynyt sovelluksesta</translation>
+<translation id="7157447397944182926">Kysy <ph name="AI_ENGINE_NAME" /> <ph name="SEARCH_ENGINE_NAME" /> Haussa</translation>
 <translation id="715996170234243096">{NUM_FILES,plural, =1{Jos haluat, että <ph name="FEATURE_NAME" /> lähettää tiedoston, vapauta tilaa (<ph name="DISK_SPACE_SIZE" />) laitteelta}other{Jos haluat, että <ph name="FEATURE_NAME" /> lähettää tiedostot, vapauta tilaa (<ph name="DISK_SPACE_SIZE" />) laitteelta}}</translation>
 <translation id="7160999678034985039">Tallenna työsi ja aloita päivitys, kun olet valmis.</translation>
 <translation id="7162277662076933695">Älykortinlukija</translation>
@@ -4076,7 +4090,6 @@ Lisätietoja:
 <translation id="7310392214323165548">Laite käynnistyy pian uudelleen</translation>
 <translation id="7311244614769792472">Ei tuloksia</translation>
 <translation id="7313107491291103073">Organisaatiosi on merkinnyt sivuston, koska se saattaa rikkoa käytäntöä.</translation>
-<translation id="7313260329718515829">Geminillä lähetetyt henkilökohtaisen älyn pyynnöt analysoidaan automaattisen täytön parantamiseksi</translation>
 <translation id="7316521168101843192">Tallennetaan tiedostoa Microsoft OneDriveen</translation>
 <translation id="7319430975418800333">A3</translation>
 <translation id="7320336641823683070">Yhteysohjeet</translation>
@@ -4123,6 +4136,7 @@ Lisätietoja:
 <translation id="7393161616326137353">Seikkailupelit</translation>
 <translation id="7393475648162498734">Näytä korteilla saatavat palkinnot ja edut kassalla</translation>
 <translation id="7393971683644170444">Muodostetaan yhteyttä kortin myöntäjään…</translation>
+<translation id="7394497897677511168">Muut toimitukset</translation>
 <translation id="739728382607845710">Maksujen käsittelijä ‑kuvake</translation>
 <translation id="7399616692258236448">Sijaintipyynnöt estetään automaattisesti kaikilla muilla paitsi sallituilla sivustoilla</translation>
 <translation id="7400418766976504921">URL-osoite</translation>
@@ -4204,6 +4218,7 @@ Lisätietoja:
 <translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> tarkastaa, täytätkö ehdot (tämä ei vaikuta luottokelpoisuuteesi). Jos tarkastus menee läpi, <ph name="BNPL_ISSUER_NAME" /> tarjoaa erilaisia maksusopimuksia, joista voit valita haluamasi ja viedä ostoksen loppuun.</translation>
 <translation id="7489392576326061356">Shampoot ja hoitoaineet</translation>
 <translation id="7489919936111034362">Google Drive ‑tallennustilasi on täynnä</translation>
+<translation id="7490622939531327327">Älykkäämpi lomakkeiden ymmärtäminen</translation>
 <translation id="7495528107193238112">Tämä sisältö on estetty. Pyydä sivuston omistajalta apua ongelman korjaamiseen.</translation>
 <translation id="749865518782565832">Putkityöt</translation>
 <translation id="7499188644237027195">Kun teet ostoksia Chromessa, näet vaihtoehtoina sähköisen lompakon ja Pixin</translation>
@@ -4303,7 +4318,6 @@ Lisätietoja:
 <translation id="762844065391966283">Yksi kerrallaan</translation>
 <translation id="7629058630148860366">Työosoite</translation>
 <translation id="763042426047865637">Palokunta ja turvallisuuspalvelut</translation>
-<translation id="7630470133768862132">Suostumuksen tila:</translation>
 <translation id="7631072086707140121">URL-osoitteen on oltava https-muodossa.</translation>
 <translation id="7631527008834753063">Television tietovisat</translation>
 <translation id="7633909222644580952">Tehokkuusdata ja virheraportit</translation>
@@ -4444,7 +4458,6 @@ Lisätietoja:
 <translation id="7840103971441592723">Näytön tallennus on alkanut</translation>
 <translation id="784137052867620416">Shopping-vinkit</translation>
 <translation id="7841633276323004751">Maksamiseen käytettävät maksutavat. Näppäimistö piilotettu.</translation>
-<translation id="784189052219692670">Gemini voi nyt muistaa henkilökohtaisia tietojasi kaikista Google-sovelluksistasi ja täyttää ne automaattisesti avoinna olevalla sivulla.</translation>
 <translation id="7844689747373518809">{COUNT,plural, =0{Ei mitään}=1{1 sovellus (<ph name="EXAMPLE_APP_1" />)}=2{2 sovellusta (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}other{# sovellusta (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Tapahtui virhe. Yritä uudelleen.</translation>
 <translation id="784623644169604270">Ei uutta toimintaa</translation>
@@ -4633,6 +4646,7 @@ Lisätietoja:
 <translation id="815036624016370447">Google-tilisi (<ph name="ACCOUNT" />) tiedot voivat auttaa sinua täyttämään lomakkeita nopeammin Chromessa</translation>
 <translation id="8150722005171944719">Tiedosto osoitteessa <ph name="URL" /> ei ole luettavissa. Se on voitu poistaa tai siirtää, tai tiedoston käyttöluvat voivat estää sen käytön.</translation>
 <translation id="8151185429379586178">Kehittäjän työkalut</translation>
+<translation id="8152194419479742504">Kirjoita mihin tahansa lomakkeeseen @@, niin voit hakea ja täyttää tietoja vaihtamatta välilehtiä</translation>
 <translation id="8153865548451212769">{0,plural, =1{Järjestelmänvalvojakäytännössä ei suositella tämän tiedoston lataamista tänne: <ph name="DESTINATION_NAME" />}other{Järjestelmänvalvojakäytännössä ei suositella näiden tiedostojen lataamista tänne: <ph name="DESTINATION_NAME" />}}</translation>
 <translation id="8155253549374198915">Viimeksi avoinna olleet välilehdet</translation>
 <translation id="81563721597823545">Jää- ja rullakiekkotarvikkeet</translation>
@@ -4653,6 +4667,7 @@ Lisätietoja:
 <translation id="8189557652711717875">Valitsemaasi hakukonetta käytetään esimerkiksi hakujen tekemiseen osoitepalkin kautta ja kuvien etsimiseen verkkosivuilta.</translation>
 <translation id="8190193880870196235">Laajennuksen hallinnoima</translation>
 <translation id="8194412401381329820">Et voi käyttää tätä sivua hallinnoidun tilin kautta tällä hallinnoimattomalla laitteella. Kaikki hallinnoidut tilit lukitaan, jos käytät tätä sivua. Poikkeuksena ovat tilit, joita hallinnoi sama taho kuin tätä laitetta (kumppanitilit).</translation>
+<translation id="8194579937546982778">Näytä aina: <ph name="AI_ENGINE_NAME" /></translation>
 <translation id="8194797478851900357">K&amp;umoa siirto</translation>
 <translation id="8194956568907463262">Ammuntapelit</translation>
 <translation id="8199437620497683918">Optinen levy (kiiltävä)</translation>
@@ -4723,6 +4738,7 @@ Lisätietoja:
 <translation id="8288320283441806607">Jos haluat käyttää tätä ominaisuutta, laita Paranna hakuja ja selausta ‑asetus päälle</translation>
 <translation id="8288807391153049143">Näytä varmenne</translation>
 <translation id="8289355894181816810">Ota yhteyttä verkon ylläpitäjään, jos et tiedä, mitä tämä tarkoittaa.</translation>
+<translation id="8289655756644294629">Lähtöpäivä</translation>
 <translation id="8291367150570302588">Henkilötodistus</translation>
 <translation id="829335040383910391">ääni</translation>
 <translation id="8294425747071240447">Tekoälyä hyödyntävät ehdotukset</translation>
@@ -4846,7 +4862,6 @@ Lisätietoja:
 <translation id="8488350697529856933">Käyttöalue</translation>
 <translation id="8490137692873530638">Pinoaja 10</translation>
 <translation id="8493948351860045254">Vapauta tilaa</translation>
-<translation id="8495170825732897952">Kirjoita mihin tahansa lomakkeeseen @@, niin voit lisätä tietoa muistiin ja täyttää sitä vaihtamatta välilehtiä</translation>
 <translation id="8498870489552322848">täyttää arkaluontoiset tiedot sovelluksessa: <ph name="APP_NAME" /></translation>
 <translation id="8498891568109133222"><ph name="HOST_NAME" /> ei vastannut riittävän nopeasti.</translation>
 <translation id="8502023382441452707">Syntymä‑ ja nimipäivät</translation>
@@ -5015,7 +5030,9 @@ Lisätietoja:
 <translation id="877348612833018844">{0,plural, =1{Siirretäänkö luottamuksellinen tiedosto?}other{Siirretäänkö luottamukselliset tiedostot?}}</translation>
 <translation id="8775347646940100151">Paperi (kirjelomake)</translation>
 <translation id="8775863327608679820">"Osta nyt, maksa myöhemmin" ‑maksutavan tarjoajat puoliksi avattuna.</translation>
+<translation id="8776789089819232268">Kaikki tilaukset</translation>
 <translation id="877985182522063539">A4</translation>
+<translation id="8781233757384402598">Kun teet parannettua automaattista täyttöä koskevan pyynnön, käyttödata, pyynnöt ja sivun tiedot jaetaan Googlelle automaattisen täytön käyttökokemuksen parantamiseksi</translation>
 <translation id="8781278378794969337">Käännä sivu ‑painike, aktivoi kääntääksesi tämä sivu Google Kääntäjällä</translation>
 <translation id="8785658048882205566">Moottoripyörät</translation>
 <translation id="8790007591277257123">&amp;Toista poisto</translation>
@@ -5159,6 +5176,7 @@ Lisätietoja:
 <translation id="9027020981272345766">Kokeile Chrome Enterprise Corea</translation>
 <translation id="9027531288681624875">Poistu koko näytön tilasta painamalla pitkään |<ph name="ACCELERATOR" />|</translation>
 <translation id="9035022520814077154">Suojausvirhe</translation>
+<translation id="9035699147763101514">Hyödyntää Geminin henkilökohtaista älyä. Muuta valintoja asetuksista.</translation>
 <translation id="9035824888276246493">Tallenna turvakoodit</translation>
 <translation id="9036306139374661733">Sallitaanko mikrofoni?</translation>
 <translation id="9036484080057916082">Allekirjoitettujen varmenteiden aikaleimalista</translation>
@@ -5196,6 +5214,7 @@ Lisätietoja:
 <translation id="9078912659001679888">Tehosekoittimet ja mehulingot</translation>
 <translation id="9078964945751709336">Lisätietoja tarvitaan</translation>
 <translation id="9080712759204168376">Tilauksen yhteenveto</translation>
+<translation id="908365381820697818">Voit nyt löytää ja täyttää tietoja esimerkiksi Gmailista</translation>
 <translation id="9084304544887760521">Voit saada sähköpostia osoitteeseen <ph name="EMAIL" />, kun seuraamiesi tuotteiden hinta laskee jollakin sivustolla.</translation>
 <translation id="9089260154716455634">Ei-aktiivisen ajan käytäntö:</translation>
 <translation id="9090218457905363312">Reggae ja karibialainen musiikki</translation>
@@ -5337,6 +5356,7 @@ Lisätietoja:
 <translation id="979107176848483472">Selainta ja profiilia ylläpitää <ph name="DOMAIN" /></translation>
 <translation id="979189555234810423">Messut ja kokoukset</translation>
 <translation id="981121421437150478">Offline</translation>
+<translation id="983587187183716432"><ph name="AI_ENGINE_NAME" /> -painike, kysy <ph name="AI_ENGINE_NAME" /> painamalla Enter</translation>
 <translation id="984101218975906499">Lääkkeet ja bioteknologia</translation>
 <translation id="984275831282074731">Maksutavat</translation>
 <translation id="985199708454569384">&lt;p&gt;Näet tämän virheen, jos tietokoneen tai mobiililaitteen päivämäärä ja aika ovat virheellisiä.&lt;/p&gt;

@@ -20,8 +20,10 @@
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "net/base/net_errors.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
 namespace multistep_filter {
@@ -76,6 +78,7 @@ class MockMultistepFilterService : public MultistepFilterService {
           return params;
         }()) {
     ON_CALL(*this, HasUserProvidedConsent).WillByDefault(Return(true));
+    ON_CALL(*this, CanUseModelExecutionFeatures).WillByDefault(Return(true));
   }
   ~MockMultistepFilterService() override = default;
 
@@ -83,6 +86,7 @@ class MockMultistepFilterService : public MultistepFilterService {
               HasUserProvidedConsent,
               (int64_t navigation_id, std::string_view host),
               (override));
+  MOCK_METHOD(bool, CanUseModelExecutionFeatures, (), (const, override));
 };
 
 class NavigationTimeCapturer : public content::WebContentsObserver {
@@ -97,17 +101,20 @@ class NavigationTimeCapturer : public content::WebContentsObserver {
       finish_time_ =
           handle->GetNavigationHandleTiming().navigation_did_commit_time;
       navigation_id_ = handle->GetNavigationId();
+      ukm_source_id_ = handle->GetNextPageUkmSourceId();
     }
   }
 
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks finish_time() const { return finish_time_; }
   int64_t navigation_id() const { return navigation_id_; }
+  ukm::SourceId ukm_source_id() const { return ukm_source_id_; }
 
  private:
   base::TimeTicks start_time_;
   base::TimeTicks finish_time_;
   int64_t navigation_id_ = 0;
+  ukm::SourceId ukm_source_id_ = ukm::kInvalidSourceId;
 };
 
 UrlFilterSuggestion CreateSuggestion(std::string task_type) {
@@ -197,6 +204,7 @@ TEST_F(ContentFilterNavigationObserverTest, HttpsNavigation) {
   navigation->Commit();
 
   EXPECT_EQ(captured_metadata.navigation_id, time_capturer.navigation_id());
+  EXPECT_EQ(captured_metadata.ukm_source_id, time_capturer.ukm_source_id());
   EXPECT_EQ(captured_metadata.navigation_start_time,
             time_capturer.start_time());
   EXPECT_EQ(captured_metadata.navigation_finish_time,
@@ -211,6 +219,59 @@ TEST_F(ContentFilterNavigationObserverTest, HttpsNavigation) {
   EXPECT_TRUE(captured_metadata.has_user_gesture);
   EXPECT_FALSE(captured_metadata.was_filter_initiated_navigation);
   EXPECT_FALSE(captured_metadata.is_same_document_navigation);
+}
+
+// Tests that a navigation from the address bar is correctly identified as
+// navigation from omnibox or bookmarks.
+TEST_F(ContentFilterNavigationObserverTest, NavigationFromAddressBar) {
+  const GURL url("https://www.example.com");
+  FilterNavigationMetadata captured_metadata;
+  EXPECT_CALL(mock_controller(), OnNavigationFinished)
+      .WillOnce(testing::SaveArg<0>(&captured_metadata));
+
+  std::unique_ptr<content::NavigationSimulator> navigation =
+      content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
+  navigation->SetTransition(ui::PageTransitionFromInt(
+      ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
+  navigation->Start();
+  navigation->Commit();
+
+  EXPECT_TRUE(captured_metadata.is_navigation_from_omnibox_or_bookmarks);
+}
+
+// Tests that a navigation from a bookmark is correctly identified as
+// navigation from omnibox or bookmarks.
+TEST_F(ContentFilterNavigationObserverTest, NavigationFromBookmark) {
+  const GURL url("https://www.example.com");
+  FilterNavigationMetadata captured_metadata;
+  EXPECT_CALL(mock_controller(), OnNavigationFinished)
+      .WillOnce(testing::SaveArg<0>(&captured_metadata));
+
+  std::unique_ptr<content::NavigationSimulator> navigation =
+      content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
+  navigation->SetTransition(ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  navigation->Start();
+  navigation->Commit();
+
+  EXPECT_TRUE(captured_metadata.is_navigation_from_omnibox_or_bookmarks);
+}
+
+// Tests that a standard link click is not identified as user-initiated
+// navigation from omnibox or bookmarks.
+TEST_F(ContentFilterNavigationObserverTest,
+       StandardNavigationNotFromOmniboxOrBookmark) {
+  const GURL url("https://www.example.com");
+  FilterNavigationMetadata captured_metadata;
+  EXPECT_CALL(mock_controller(), OnNavigationFinished)
+      .WillOnce(testing::SaveArg<0>(&captured_metadata));
+
+  std::unique_ptr<content::NavigationSimulator> navigation =
+      content::NavigationSimulator::CreateRendererInitiated(url, main_rfh());
+  navigation->SetTransition(ui::PAGE_TRANSITION_LINK);
+  navigation->Start();
+  navigation->Commit();
+
+  EXPECT_FALSE(captured_metadata.is_navigation_from_omnibox_or_bookmarks);
 }
 
 // Tests that same-document navigations trigger OnNavigationFinished and

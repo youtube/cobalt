@@ -59,6 +59,7 @@ CGFloat const kSheetTopPadding = 40.0f;
 }  // namespace
 
 @interface ComposeboxMenuCoordinator () <
+    ComposeboxInputStateManagerDelegate,
     ComposeboxMenuMediatorDelegate,
     ComposeboxMenuSharedTabsViewControllerDelegate,
     ComposeboxMenuViewControllerDelegate,
@@ -161,7 +162,9 @@ CGFloat const kSheetTopPadding = 40.0f;
            templateURLService:templateURLService
                 sessionHandle:_sessionHandle.get()
                    entrypoint:_entrypoint
-                  isIncognito:profile->IsOffTheRecord()];
+                  isIncognito:profile->IsOffTheRecord()
+             urlLoaderFactory:profile->GetSharedURLLoaderFactory()];
+    _stateManager.delegate = self;
     _stateManager.metricsRecorder = _metricsRecorder;
 
     std::set<web::WebStateID> emptySet;
@@ -437,7 +440,9 @@ CGFloat const kSheetTopPadding = 40.0f;
 - (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
                     didPickImages:
                         (NSArray<ComposeboxPickerImageResult*>*)results {
-  [_metricsRecorder recordImagesAttached:results.count];
+  if (results.count > 0) {
+    [_metricsRecorder recordImagesAttached:results.count];
+  }
 
   [_mediator processImageItems:results];
 }
@@ -493,6 +498,11 @@ CGFloat const kSheetTopPadding = 40.0f;
     (ComposeboxPickerPresenter*)presenter {
   CHECK(_inputState);
   return _inputState.maxTabAttachmentCount;
+}
+
+- (NSArray<NSString*>*)attachedImageAssetIDsForPresenter:
+    (ComposeboxPickerPresenter*)presenter {
+  return [_mediator attachedImageAssetIDs];
 }
 
 #pragma mark - Private
@@ -559,6 +569,20 @@ CGFloat const kSheetTopPadding = 40.0f;
 - (void)composeboxMenuViewControllerDidRequestClose:
     (ComposeboxMenuViewController*)composeboxMenuViewController {
   [self requestMenuDismissal];
+}
+
+#pragma mark - ComposeboxInputStateManagerDelegate
+
+- (void)inputStateManager:(ComposeboxInputStateManager*)manager
+             didChangeMode:(ComposeboxMode)mode
+    invalidatedAttachments:(NSArray<ComposeboxInputItem*>*)invalidatedItems {
+}
+
+- (void)inputStateManagerDidUpdateUIState:
+    (ComposeboxInputStateManager*)manager {
+  _inputState = [_stateManager computeUIInputStateWithFavicon:nil
+                                          attachedWebStateIDs:{}];
+  [_mediator updateUIInputState:_inputState];
 }
 
 @end

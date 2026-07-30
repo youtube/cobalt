@@ -526,6 +526,30 @@ gfx::Rect Window::GetActualBoundsInScreen() const {
   return bounds;
 }
 
+gfx::Rect Window::GetBoundsInScreenWithoutTransform() const {
+  if (aura::client::ScreenPositionClient* screen_position_client =
+          aura::client::GetScreenPositionClient(GetRootWindow())) {
+    gfx::Point origin;
+    screen_position_client->ConvertPointToScreenIgnoringTransforms(this,
+                                                                   &origin);
+    return gfx::Rect(origin, bounds().size());
+  } else {
+    gfx::Point origin;
+    const Window* current_window = this;
+    const Window* root_window = GetRootWindow();
+    if (root_window) {
+      // If aura::client::GetScreenPositionClient returns null, then the origin
+      // of the root_window is always (0, 0).
+      CHECK_EQ(root_window->GetBoundsInScreen().origin(), gfx::Point(0, 0));
+    }
+    while (current_window && current_window != root_window) {
+      origin += current_window->bounds().OffsetFromOrigin();
+      current_window = current_window->parent();
+    }
+    return gfx::Rect(origin, bounds().size());
+  }
+}
+
 void Window::SetTransform(const gfx::Transform& transform) {
   CHECK(layer());
   DUMP_WILL_BE_CHECK(!is_destroying_);
@@ -1477,7 +1501,12 @@ void Window::NotifyAddedToRootWindow() {
 
 void Window::NotifyWindowHierarchyChange(
     const WindowObserver::HierarchyChangeParams& params) {
-  ScopedDeleteBlocker blocker(this);
+
+  // Block deletion of old_parent and new_parent across all target
+  // sub-tree callbacks to ensure neither parent is destroyed before
+  // NotifyWindowHierarchyChangeUp() runs.
+  ScopedDeleteBlocker old_blocker(params.old_parent);
+  ScopedDeleteBlocker new_blocker(params.new_parent);
 
   params.target->NotifyWindowHierarchyChangeDown(params);
   switch (params.phase) {
@@ -1509,6 +1538,8 @@ void Window::NotifyWindowHierarchyChangeUp(
 
 void Window::NotifyWindowHierarchyChangeAtReceiver(
     const WindowObserver::HierarchyChangeParams& params) {
+  ScopedDeleteBlocker blocker(this);
+
   WindowObserver::HierarchyChangeParams local_params = params;
   local_params.receiver = this;
 
@@ -1995,7 +2026,7 @@ void Window::SetLayer(std::unique_ptr<ui::Layer> alayer) {
 
 void Window::OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) {
   DCHECK_EQ(surface_info.id().frame_sink_id(), GetFrameSinkId());
-  layer()->SetShowSurface(surface_info.id(), bounds().size(), SK_ColorWHITE,
+  layer()->SetShowSurface(surface_info.id(), bounds().size(), SkColors::kWhite,
                           cc::DeadlinePolicy::UseDefaultDeadline(),
                           false /* stretch_content_to_fill_bounds */);
 }
@@ -2157,6 +2188,29 @@ void Window::SetVisible(bool visible) {
   else
     Hide();
   // Changed notification is handled in SetVisibleInternal().
+}
+
+Window::ScopedDeleteBlocker::ScopedDeleteBlocker(Window* window)
+    : window_(window) {
+  if (window_) {
+    window_->delete_block_count_++;
+  }
+}
+
+Window::ScopedDeleteBlocker::ScopedDeleteBlocker(const Windows& windows)
+    : windows_(windows) {
+  for (Window* window : windows_) {
+    window->delete_block_count_++;
+  }
+}
+
+Window::ScopedDeleteBlocker::~ScopedDeleteBlocker() {
+  if (window_) {
+    window_->delete_block_count_--;
+  }
+  for (Window* window : windows_) {
+    window->delete_block_count_--;
+  }
 }
 
 BEGIN_METADATA_BASE(Window)

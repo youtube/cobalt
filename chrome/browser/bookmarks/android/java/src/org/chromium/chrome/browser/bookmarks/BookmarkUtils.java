@@ -144,8 +144,23 @@ public class BookmarkUtils {
             boolean isBookmarkBarVisible) {
         assert bookmarkModel.isBookmarkModelLoaded();
         if (existingBookmarkItem != null) {
-            bookmarkManagerOpener.startEditActivity(
-                    activity, tab.getProfile(), existingBookmarkItem.getId());
+            if (DeviceInfo.isDesktop()
+                    && ChromeFeatureList.isEnabled(
+                            ChromeFeatureList.ANDROID_DESKTOP_BOOKMARK_POPUP)) {
+                showSaveFlow(
+                        activity,
+                        bottomSheetController,
+                        tab.getProfile(),
+                        existingBookmarkItem.getId(),
+                        fromExplicitTrackUi,
+                        /* wasBookmarkMoved= */ false,
+                        /* isNewBookmark= */ false,
+                        bookmarkManagerOpener,
+                        priceDropNotificationManager);
+            } else {
+                bookmarkManagerOpener.startEditActivity(
+                        activity, tab.getProfile(), existingBookmarkItem.getId());
+            }
             callback.onResult(Collections.singletonList(existingBookmarkItem.getId()));
             return;
         }
@@ -912,6 +927,14 @@ public class BookmarkUtils {
         }
 
         return bookmarkIds;
+    }
+
+    /**
+     * @return Whether the desktop bookmarks layout is enabled.
+     */
+    public static boolean isDesktopBookmarksLayoutEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.BOOKMARKS_DESKTOP_LAYOUT)
+                && DeviceInfo.isDesktop();
     }
 
     private static Locale getLocale(Activity activity) {

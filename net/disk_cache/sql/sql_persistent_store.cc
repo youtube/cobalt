@@ -40,6 +40,7 @@
 #include "net/disk_cache/sql/sql_persistent_store_backend_shard.h"
 #include "net/disk_cache/sql/sql_read_cache_memory_monitor.h"
 #include "net/disk_cache/sql/sql_shared_cache_manager.h"
+#include "net/http/http_response_info.h"
 
 namespace disk_cache {
 namespace {
@@ -102,11 +103,32 @@ void RecordEvictionHistograms(std::string_view method_name,
 
 }  // namespace
 
+SqlPersistentStore::SharedCacheEligibleEntry::SharedCacheEligibleEntry() =
+    default;
+SqlPersistentStore::SharedCacheEligibleEntry::~SharedCacheEligibleEntry() =
+    default;
+SqlPersistentStore::SharedCacheEligibleEntry::SharedCacheEligibleEntry(
+    SqlPersistentStore::SharedCacheEligibleEntry&&) = default;
+SqlPersistentStore::SharedCacheEligibleEntry&
+SqlPersistentStore::SharedCacheEligibleEntry::operator=(
+    SqlPersistentStore::SharedCacheEligibleEntry&&) = default;
+
+SqlPersistentStore::SharedCacheEligibleEntry::SharedCacheEligibleEntry(
+    CacheEntryKey key,
+    GURL url,
+    std::unique_ptr<net::HttpResponseInfo> response_info,
+    net::NetworkIsolationKey nik)
+    : key(std::move(key)),
+      url(std::move(url)),
+      response_info(std::move(response_info)),
+      nik(std::move(nik)) {}
+
 // static
 std::vector<std::unique_ptr<SqlPersistentStore::BackendShard>>
 SqlPersistentStore::CreateBackendShards(
     const base::FilePath& path,
     net::CacheType type,
+    bool shared_cache_enabled,
     std::vector<scoped_refptr<base::SequencedTaskRunner>>
         background_task_runners,
     SqlAsyncTaskManager& async_task_manager,
@@ -120,7 +142,7 @@ SqlPersistentStore::CreateBackendShards(
           net::features::kSqlDiskCacheMaxReadBufferTotalSize.Get());
   for (size_t i = 0; i < num_shards; ++i) {
     backend_shards.emplace_back(std::make_unique<BackendShard>(
-        ShardId(i), path, type, read_cache_memory_monitor,
+        ShardId(i), path, type, shared_cache_enabled, read_cache_memory_monitor,
         background_task_runners[i], async_task_manager, cleanup_tracker));
   }
   return backend_shards;
@@ -143,11 +165,13 @@ SqlPersistentStore::SqlPersistentStore(
                                                         path,
                                                         cleanup_tracker)
               : nullptr),
-      backend_shards_(CreateBackendShards(path,
-                                          type,
-                                          background_task_runners_,
-                                          async_task_manager,
-                                          std::move(cleanup_tracker))),
+      backend_shards_(
+          CreateBackendShards(path,
+                              type,
+                              /*shared_cache_enabled=*/!!shared_cache_manager_,
+                              background_task_runners_,
+                              async_task_manager,
+                              std::move(cleanup_tracker))),
       user_max_bytes_(max_bytes),
       reduce_uma_(net::features::kSqlDiskCacheReduceUma.Get()) {}
 SqlPersistentStore::~SqlPersistentStore() = default;
@@ -318,6 +342,15 @@ void SqlPersistentStore::ReadEntryData(const CacheEntryKey& key,
                                        ReadResultOrErrorCallback callback) {
   GetShard(key).ReadEntryData(key, res_id, offset, std::move(buffer), buf_len,
                               body_end, sparse_reading, std::move(callback));
+}
+
+void SqlPersistentStore::MoveBlobsToSharedCache(
+    const CacheEntryKey& key,
+    ResId res_id,
+    SqlSharedCacheResourceId shared_cache_resource_id,
+    ErrorCallback callback) {
+  GetShard(key).MoveBlobsToSharedCache(key, res_id, shared_cache_resource_id,
+                                       std::move(callback));
 }
 
 void SqlPersistentStore::GetEntryAvailableRange(const CacheEntryKey& key,

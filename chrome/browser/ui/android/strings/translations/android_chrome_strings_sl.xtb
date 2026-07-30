@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Če jo izbrišete, bodo vsi takoj izgubili dostop do skupine zavihkov »<ph name="GROUP_NAME" />« in izbrisana bo iz vseh naprav.</translation>
 <translation id="1142732900304639782">Ne ponudi prevajanja teh spletnih mest</translation>
 <translation id="1143193470214071120">Zapiranje okna ali upravljanje oken</translation>
+<translation id="1143486892058798649">Shrani povezavo kot …</translation>
 <translation id="1149725087019908252">Pregled datoteke <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504">Aplikacija <ph name="APP_NAME" /> se bo odprla v Chromu. Če nadaljujete, se strinjate z <ph name="BEGIN_LINK1" />Googlovimi pogoji storitve<ph name="END_LINK1" /> in <ph name="BEGIN_LINK2" />dodatnimi pogoji storitve za Google Chrome in Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">V Googlovem upravitelju gesel nimate shranjenih gesel.</translation>
@@ -142,11 +143,13 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="1544826120773021464">Če želite upravljati račun Google, se dotaknite gumba »Upravljanje računa«</translation>
 <translation id="1549000191223877751">Premik v drugo okno</translation>
 <translation id="1553358976309200471">Posodobi Chrome</translation>
+<translation id="1554352084785952638">V iskalniku <ph name="SEARCH_ENGINE" /> poišči »<ph name="SEARCH_TERMS" />«</translation>
 <translation id="1554532453982918912">Pomagajte izboljšati Chrome za ljudi, ki ga uporabljajo tako kot vi.</translation>
 <translation id="1568636008098739136">Poslušanje te strani. Če želite urediti to bližnjico, pridržite.</translation>
 <translation id="1571041387761170095">Ni šibkih ali znova uporabljenih gesel</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 ogroženo geslo v tej napravi}one{# ogroženo geslo v tej napravi}two{# ogroženi gesli v tej napravi}few{# ogrožena gesla v tej napravi}other{# ogroženih gesel v tej napravi}}</translation>
 <translation id="1594635596540195766">Št. predlaganih elementov na seznamu spodaj: <ph name="SUGGESTIONS_COUNT" />.</translation>
+<translation id="159689249463841786">Izbira mape, trenutno izbrana mapa <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">Uporabite <ph name="SITE_ETLD_PLUS_ONE" /> z računom pri ponudniku <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, pripeti zavihek za snemanje</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, zavihek za deljenje</translation>
@@ -277,6 +280,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="2190355936436201913">(prazno)</translation>
 <translation id="219283042927675668">Zavihki v skupini</translation>
 <translation id="2194856509914051091">Kaj morate upoštevati</translation>
+<translation id="2196695604589508993">Odpri zgodovino</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, pripeti zavihek za deljenje</translation>
 <translation id="22091350895006575">Dodajanje uporabniškega imena</translation>
 <translation id="221494669172414749">Če odprete Chrome brez zaklepanja profila, bodo shranjena gesla in plačilna sredstva odstranjena iz avtomobila. Z zaklepanjem profila poskrbite za varnost teh podatkov.</translation>
@@ -311,6 +315,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="2330186936255788117">Več zaznamkov</translation>
 <translation id="2332515770639153015">Izboljšano varno brskanje je vklopljeno</translation>
 <translation id="233375395665273385">Izbriši in se odjavi</translation>
+<translation id="2334275697832662087">Chromova varnost, ki uporablja umetno inteligenco, vas ščiti pred spletnimi grožnjami, da lahko brskate po spletu z večjo gotovostjo</translation>
 <translation id="2341410551640223969">Aplikacije <ph name="WEBAPK_NAME" /> ni bilo mogoče namestiti.</translation>
 <translation id="2349710944427398404">Skupna količina podatkov, ki jih uporablja Chrome, vključno z računi, zaznamki in shranjenimi nastavitvami.</translation>
 <translation id="2354001756790975382">Drugi zaznamki</translation>
@@ -612,6 +617,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="3577473026931028326">Prišlo je do napake. Poskusite znova.</translation>
 <translation id="3577558748185201054">Upravljanje zanimanj in nastavitev</translation>
 <translation id="3587482841069643663">Vse</translation>
+<translation id="3598421953808879451">Shrani videoposnetek kot …</translation>
 <translation id="3602290021589620013">Predogled</translation>
 <translation id="3614126103057878858">Vpogled v cene</translation>
 <translation id="3616113530831147358">Zvok</translation>
@@ -722,6 +728,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="4044708993631234325">List na dnu zaslona</translation>
 <translation id="4045441967987592849">Znova odpri</translation>
 <translation id="4049920046559074950">Več možnosti za »<ph name="INSTANCE_TITLE" />«</translation>
+<translation id="4051548576872472315">Tukaj najdete nedavno zaprte zavihke in okna</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Odpri v anonimnem oknu}one{Odpri vse (#) v anonimnem oknu}two{Odpri vse (#) v anonimnem oknu}few{Odpri vse (#) v anonimnem oknu}other{Odpri vse (#) v anonimnem oknu}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> standardni zavihek z novo dejavnostjo v deljenih skupinah zavihkov}one{<ph name="TABS_COUNT_MANY" /> standardni zavihek z novo dejavnostjo v deljenih skupinah zavihkov}two{<ph name="TABS_COUNT_MANY" /> standardna zavihka z novo dejavnostjo v deljenih skupinah zavihkov}few{<ph name="TABS_COUNT_MANY" /> standardni zavihki z novo dejavnostjo v deljenih skupinah zavihkov}other{<ph name="TABS_COUNT_MANY" /> standardnih zavihkov z novo dejavnostjo v deljenih skupinah zavihkov}}</translation>
 <translation id="405365679581583349">Posodobite storitve Google Play</translation>
@@ -1278,6 +1285,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="6321592572353357376">Razširitev »<ph name="EXTENSION_NAME" />« želi, da se prijavite v Chrome</translation>
 <translation id="6324916366299863871">Urejanje bližnjice</translation>
 <translation id="6324977638108296054">Povezave do označitve ni mogoče ustvariti.</translation>
+<translation id="6331836477476466332">Varnejši in zmogljivejši brskalnik za vas</translation>
 <translation id="6333140779060797560">Skupna raba prek: <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Urejanje URL-ja, ki kaže na stran: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Šifriranje</translation>
@@ -1435,6 +1443,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="6867400383614725881">Nov anonimni zavihek</translation>
 <translation id="686899695320434745">Naslovi niso šifrirani z geslom To vam omogoča uporabo v drugih Googlovih storitvah.</translation>
 <translation id="6870625088374152862">Prijavljeni ste kot <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Začnite brskati</translation>
 <translation id="687838958001010630">Vsi s povezavo lahko urejajo vse zavihke</translation>
 <translation id="6880903702195291049">Dovoljenja so videti v redu</translation>
 <translation id="6883204995689174413">Deli</translation>
@@ -1520,6 +1529,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="71503698506017927">Šifriranje gesla ne vključuje plačilnih sredstev in naslovov iz Googla Pay.
 
 Če želite spremeniti to nastavitev, <ph name="BEGIN_LINK" />izbrišite podatke iz Chroma v računu<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Shrani sliko kot …</translation>
 <translation id="7165972437814027679">Preberite več o tem, zakaj Chrome blokira nekatere datoteke</translation>
 <translation id="7168323970702333693">Prijavljen kot <ph name="USER_NAME" />. Odpre nastavitve.</translation>
 <translation id="7170930892977483182">Izbrisane bodo vse varnostne kode, shranjene v napravi in Google Denarnici</translation>
@@ -1575,6 +1585,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="7359002509206457351">Dostop do plačilnih sredstev</translation>
 <translation id="7363349185727752629">Vodnik po vaših izbirah zasebnosti</translation>
 <translation id="7364103838544876661">Več možnosti za izbris podatkov brskanja</translation>
+<translation id="736435710397109878">Vzdevek za kartico, največ 25 znakov</translation>
 <translation id="7365073365123878797">Če želite začeti shranjevati in uporabljati gesla z Googlovim upraviteljem gesel, posodobite storitve Google Play</translation>
 <translation id="7368009310682364976">Ogled nedavno odprtih zavihkov</translation>
 <translation id="7368927539449986686">Urejanje iskanja po spletnem mestu</translation>
@@ -1693,6 +1704,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="7824665136384946951">Vaša organizacija je izklopila Varno brskanje</translation>
 <translation id="7825973332242257878">Skupine zavihkov</translation>
 <translation id="7826342993930002256">Vaš Chrome povsod</translation>
+<translation id="7845155831233417403">Imate lahko največ toliko oken: <ph name="MAX_INSTANCE_COUNT" />. Če želite nadaljevati, zaprite okno.</translation>
 <translation id="7846161022626028328">Prišlo je do napake. Poskusite znova.</translation>
 <translation id="7846296061357476882">Googlove storitve</translation>
 <translation id="784652447248278262">Trenutno okno</translation>
@@ -1759,7 +1771,6 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="8088176524274673045">Če želite deliti z osebami v bližini, naj optično preberejo to kodo QR.</translation>
 <translation id="8090732854597034573">Če potrebuješ pomoč, se obrni na starša.</translation>
 <translation id="8101414242770404289">Ni zavihkov za to obdobje: <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Anonimni zavihek</translation>
 <translation id="810433609302852">Razdelek na dnu zaslona s promocijo funkcije obvestil z nasveti in koraki za uporabo</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /><ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Odstrani razširitve in podatke, ki so jih shranile v tej napravi</translation>
@@ -1817,10 +1828,12 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="8282297628636750033">Tem. tema za mesta, ko je mogoče</translation>
 <translation id="8282950411412455249">Odpri nastavitve varnosti</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Zapri 1 anonimno okno}one{Zapri # anonimno okno}two{Zapri # anonimni okni}few{Zapri # anonimna okna}other{Zapri # anonimnih oken}}</translation>
+<translation id="8289602658021943461">Shrani videosličico kot …</translation>
 <translation id="8313599942510782709">Vaše opravilo še vedno poteka</translation>
 <translation id="8317318757008452355">Odpiranje možnosti za tiskanje</translation>
 <translation id="8320212361750431956">Nedavna dejavnost</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Novo<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Zaznamki in seznami</translation>
 <translation id="8342727528718219152">Chrome vas bo obvestil o spletnih mestih, ki morda pošiljajo preveč obvestil</translation>
 <translation id="834313815369870491">Nikoli ne prevedi spletnih mest</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, večkrat izbrani pripeti anonimni zavihek za snemanje</translation>
@@ -2062,6 +2075,7 @@ Nekatera spletna mesta se lahko na primer na zahtevo odzovejo tako, da prikažej
 <translation id="939598580284253335">Vnesite geslo</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, pripeti anonimni zavihek s sliko v sliki</translation>
 <translation id="945522503751344254">Pošiljanje povratnih informacij</translation>
+<translation id="948276827484905248">Ustvari kodo QR</translation>
 <translation id="95817756606698420">Chrome lahko za iskanje na Kitajskem uporablja <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" />. To je mogoče spremeniti v <ph name="BEGIN_LINK" />nastavitvah<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Brisanje podatkov brskanja</translation>
 <translation id="963246339335003378">Odpri upravitelja opravil</translation>

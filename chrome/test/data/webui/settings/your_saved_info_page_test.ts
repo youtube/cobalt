@@ -12,6 +12,8 @@ import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 import {isChildVisible} from 'chrome://webui-test/test_util.js';
+import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+
 
 import {createAddressEntry, createCreditCardEntry, createIbanEntry, createPayOverTimeIssuerEntry, TestAutofillManager, TestPaymentsManager} from './autofill_fake_data.js';
 import {TestEntityDataManagerProxy} from './test_entity_data_manager_proxy.js';
@@ -291,7 +293,7 @@ suite('YourSavedInfoPage', function() {
     assertFalse(!!geminiCard);
   });
 
-  test('SuggestionsFromGeminiCardNavigates', function() {
+  test('SuggestionsFromGeminiCardNavigates', async function() {
     const geminiCard = yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(
         '#suggestionsFromGeminiCard');
     assertTrue(!!geminiCard);
@@ -300,9 +302,27 @@ suite('YourSavedInfoPage', function() {
         '#suggestionsFromGeminiLinkRow');
     assertTrue(!!button);
 
-    button.click();
+    const icon = yourSavedInfoPage.shadowRoot!.querySelector<CrIconElement>(
+        '#suggestionsFromGeminiSubLabel cr-icon');
+    assertTrue(!!icon);
+    // <if expr="_google_chrome">
     assertEquals(
-        '/suggestionsFromGemini', Router.getInstance().currentRoute.path);
+        loadTimeData.getBoolean('glicAssetsV2Enabled') ?
+            'settings-internal:sparkv2' :
+            'settings-internal:spark',
+        icon.icon);
+    // </if>
+    // <if expr="not _google_chrome">
+    assertEquals('settings20:lightbulb', icon.icon);
+    // </if>
+
+    button.click();
+    assertEquals('/enhancedAutofill', Router.getInstance().currentRoute.path);
+
+    const action = await metricsBrowserProxy.whenCalled('recordAction');
+    assertEquals(
+        'PersonalContext.Settings.EntryPoint.AutofillAndPasswordsSettings',
+        action);
   });
 });
 

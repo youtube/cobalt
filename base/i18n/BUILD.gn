@@ -23,6 +23,7 @@ source_set("language_tag") {
   public_deps = [
     ":base_i18n_export",
     "//base/i18n/internal",
+    "//third_party/icu",
   ]
   deps = [
     "//base",
@@ -32,6 +33,21 @@ source_set("language_tag") {
   visibility = [
     ":*",
     "//base:*",
+  ]
+}
+
+source_set("language_tag_value_converters") {
+  sources = [
+    "language_tag_value_converters.cc",
+    "language_tag_value_converters.h",
+  ]
+
+  defines = [ "BASE_I18N_IMPLEMENTATION" ]
+
+  public_deps = [
+    ":base_i18n_export",
+    ":language_tag",
+    "//base",
   ]
 }
 

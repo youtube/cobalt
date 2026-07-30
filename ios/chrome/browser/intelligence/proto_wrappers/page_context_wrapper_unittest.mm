@@ -190,11 +190,13 @@ class TestAutofillManager : public autofill::TestBrowserAutofillManager {
     return forms_seen_waiter_.Wait(min_num_awaited_calls);
   }
 
-  void OnFormsSeen(std::vector<autofill::FormData> updated_forms,
-                   std::vector<autofill::FormGlobalId> removed_forms) override {
+  void OnFormsSeen(
+      std::vector<autofill::FormData> updated_forms,
+      std::vector<autofill::FormGlobalId> removed_forms,
+      autofill::AutofillManager::RendererEventPassKey pass_key) override {
     base::Extend(seen_forms_, updated_forms);
-    autofill::BrowserAutofillManager::OnFormsSeen(std::move(updated_forms),
-                                                  std::move(removed_forms));
+    autofill::BrowserAutofillManager::OnFormsSeen(
+        std::move(updated_forms), std::move(removed_forms), pass_key);
   }
 
   const std::vector<autofill::FormData>& seen_forms() { return seen_forms_; }
@@ -1167,10 +1169,10 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_UnsafePageBlocked) {
 }
 
 // Tests that the wrapper correctly handles an unextractable page due to MIME
-// type (PDF).
-TEST_P(PageContextWrapperTest, PopulatePageContext_NotExtractable_PDF) {
-  fake_web_state()->SetVisibleURL(GURL("https://example.com/file.pdf"));
-  fake_web_state()->SetContentsMimeType("application/pdf");
+// type (zip).
+TEST_P(PageContextWrapperTest, PopulatePageContext_NotExtractable_Zip) {
+  fake_web_state()->SetVisibleURL(GURL("https://example.com/file.zip"));
+  fake_web_state()->SetContentsMimeType("application/zip");
 
   PageContextWrapperCallbackResponse captured_response =
       RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {

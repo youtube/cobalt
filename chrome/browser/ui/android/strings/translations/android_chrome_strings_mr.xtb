@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">तुम्ही तो हटवल्यास, सर्वजण लगेच "<ph name="GROUP_NAME" />" या टॅब गटाचा अ‍ॅक्सेस गमवतील आणि तो सर्व डिव्हाइसवरून हटवला जाईल.</translation>
 <translation id="1142732900304639782">या साइटचे भाषांतर करणे ऑफर करू नका</translation>
 <translation id="1143193470214071120">विंडो बंद करा किंवा विंडो व्यवस्थापित करा</translation>
+<translation id="1143486892058798649">या फॉरमॅटमध्ये लिंक सेव्ह करा…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> स्कॅन करत आहे</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> हे Chrome मध्ये उघडेल. पुढे सुरू ठेवून, तुम्ही <ph name="BEGIN_LINK1" />Google सेवा अटी<ph name="END_LINK1" /> आणि <ph name="BEGIN_LINK2" />Google Chrome व ChromeOS च्या अतिरिक्त सेवा अटी<ph name="END_LINK2" /> यांना सहमती दर्शवता.</translation>
 <translation id="1154555449933432029">तुमच्याकडे Google Password Manager मध्ये सेव्ह केलेले पासवर्ड नाहीत.</translation>
@@ -142,6 +143,7 @@
 <translation id="1544826120773021464">तुमचे Google खाते व्यवस्थापित करण्यासाठी, "खाते व्यवस्थापित करा" बटणावर टॅप करा</translation>
 <translation id="1549000191223877751">अन्य विंडोवर हलवा</translation>
 <translation id="1553358976309200471">Chrome अपडेट करा</translation>
+<translation id="1554352084785952638">"<ph name="SEARCH_TERMS" />" साठी <ph name="SEARCH_ENGINE" /></translation>
 <translation id="1554532453982918912">तुमच्याप्रमाणे Chrome चा वापर करणाऱ्या लोकांसाठी ते आणखी चांगले करण्याकरिता मदत करा</translation>
 <translation id="1568636008098739136">हे पेज ऐका. हा शॉर्टकट संपादित करण्यासाठी, स्‍पर्श करून धरून ठेवा.</translation>
 <translation id="1571041387761170095">कोणतेही कमकुवत आणि पुन्हा वापरलेला पासवर्ड नाहीत</translation>
@@ -313,6 +315,7 @@
 <translation id="2330186936255788117">आणखी बुकमार्क</translation>
 <translation id="2332515770639153015">वर्धित सुरक्षित ब्राउझिंग सुरू केलेले आहे</translation>
 <translation id="233375395665273385">हटवा आणि साइन आउट करा</translation>
+<translation id="2334275697832662087">Chrome ची AI द्वारे सक्षम केलेली सुरक्षा तुम्हाला ऑनलाइन धोक्यांपासून सुरक्षित ठेवण्यास मदत करते, ज्यामुळे ब्राउझिंग करताना तुम्हाला आत्मविश्वास मिळतो</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> इंस्टॉल करता आले नाही.</translation>
 <translation id="2349710944427398404">खाती, बुकमार्क आणि सेव्ह केलेल्या सेटिंग्जसह, Chrome ने वापरलेला एकूण डेटा</translation>
 <translation id="2354001756790975382">इतर बुकमार्क</translation>
@@ -614,6 +617,7 @@
 <translation id="3577473026931028326">काहीतरी चूक झाली. पुन्हा प्रयत्न करा.</translation>
 <translation id="3577558748185201054">तुमची स्वारस्ये आणि प्राधान्ये व्यवस्थापित करा</translation>
 <translation id="3587482841069643663">सर्व</translation>
+<translation id="3598421953808879451">या फॉरमॅटमध्ये व्हिडिओ सेव्ह करा…</translation>
 <translation id="3602290021589620013">पूर्वावलोकन</translation>
 <translation id="3614126103057878858">किमतीचे इनसाइट</translation>
 <translation id="3616113530831147358">ऑडिओ</translation>
@@ -724,6 +728,7 @@
 <translation id="4044708993631234325">तळाशी असलेली शीट</translation>
 <translation id="4045441967987592849">पुन्हा उघडा</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" /> यासाठी आणखी पर्याय</translation>
+<translation id="4051548576872472315">तुमचे अलीकडे बंद केलेले टॅब आणि विंडो इथे शोधा</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{गुप्त विंडोमध्ये उघडा}other{सर्व (#) गुप्त विंडोमध्ये उघडा}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{शेअर केलेल्या टॅब गटांमध्ये नवीन अ‍ॅक्टिव्हिटी असलेला <ph name="TABS_COUNT_ONE" /> साधारण टॅब आहे}other{शेअर केलेल्या टॅब गटांमध्ये नवीन अ‍ॅक्टिव्हिटी असलेले <ph name="TABS_COUNT_MANY" /> साधारण टॅब आहेत}}</translation>
 <translation id="405365679581583349">Google Play सेवा अपडेट करा</translation>
@@ -1280,6 +1285,7 @@
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" या एक्स्टेंशनसाठी तुम्हाला Chrome मध्ये साइन इन करावे लागेल</translation>
 <translation id="6324916366299863871">शॉर्टकट संपादित करा</translation>
 <translation id="6324977638108296054">हायलाइट करण्यासाठी लिंक तयार करू शकत नाही</translation>
+<translation id="6331836477476466332">तुमच्यासाठी सुरक्षित, आणखी प्रभावी ब्राउझर</translation>
 <translation id="6333140779060797560"><ph name="APPLICATION" /> द्वारे शेअर करा</translation>
 <translation id="6335454563754888572">या पेजकडे पॉइंट करणारी URL संपादित करा: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">एंक्रिप्शन</translation>
@@ -1437,6 +1443,7 @@
 <translation id="6867400383614725881">नवीन गुप्त टॅब</translation>
 <translation id="686899695320434745">पत्ते तुमच्या पासफ्रेझसह एन्क्रिप्ट केले जात नाहीत. यामुळे तुम्ही ते इतर Google सेवांमध्ये वापरू शकता.</translation>
 <translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> म्हणून साइन इन केले आहे</translation>
+<translation id="6871397658902960384">ब्राउझिंग सुरू करा</translation>
 <translation id="687838958001010630">लिंक असलेली कोणतीही व्यक्ती सर्व टॅब संपादित करू शकते</translation>
 <translation id="6880903702195291049">परवानग्यांशी संबंधित कोणतीही समस्या नाही</translation>
 <translation id="6883204995689174413">शेअर करा</translation>
@@ -1522,6 +1529,7 @@
 <translation id="71503698506017927">पासफ्रेझ एन्क्रिप्शनमध्ये Google Pay वरील पेमेंट पद्धतींचा आणि पत्त्यांचा समावेश नसतो.
 
 हे सेटिंग बदलण्यासाठी, <ph name="BEGIN_LINK" />तुमच्या खात्यामधील Chrome डेटा हटवणे<ph name="END_LINK" /> हे करा.</translation>
+<translation id="7159399361248977424">या फॉरमॅटमध्ये इमेज सेव्ह करा…</translation>
 <translation id="7165972437814027679">Chrome काही फाइल का ब्लॉक करते याबद्दल अधिक जाणून घ्या</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> म्हणून साइन इन केले. सेटिंग उघडते.</translation>
 <translation id="7170930892977483182">तुमच्या डिव्हाइसवर आणि Google Wallet मध्ये सेव्ह केलेले सर्व सुरक्षा कोड हटवले जातील</translation>
@@ -1577,6 +1585,7 @@
 <translation id="7359002509206457351">पेमेंट पद्धती अ‍ॅक्सेस करा</translation>
 <translation id="7363349185727752629">तुमच्या गोपनीयता निवडींचे मार्गदर्शक</translation>
 <translation id="7364103838544876661">ब्राउझिंग डेटा हटवण्याचे आणखी पर्याय</translation>
+<translation id="736435710397109878">कार्डचे टोपणनाव, कमाल २५ वर्ण</translation>
 <translation id="7365073365123878797">Google Password Manager सह पासवर्ड सेव्ह करणे आणि वापरणे सुरू करण्यासाठी, Google Play सेवा अपडेट करा</translation>
 <translation id="7368009310682364976">अलीकडे उघडलेले टॅब पहा</translation>
 <translation id="7368927539449986686">साइट शोध संपादित करा</translation>
@@ -1695,6 +1704,7 @@
 <translation id="7824665136384946951">तुमच्या संस्थेने सुरक्षित ब्राउझिंग बंद केले आहे</translation>
 <translation id="7825973332242257878">टॅब गट</translation>
 <translation id="7826342993930002256">तुमचे Chrome, सर्व ठिकाणी</translation>
+<translation id="7845155831233417403">तुमच्याकडे कमाल <ph name="MAX_INSTANCE_COUNT" /> विंडो असू शकतात. पुढे सुरू ठेवण्यासाठी विंडो बंद करा.</translation>
 <translation id="7846161022626028328">एरर आली. पुन्हा प्रयत्न करा.</translation>
 <translation id="7846296061357476882">Google सेवा</translation>
 <translation id="784652447248278262">सद्य विंडो</translation>
@@ -1761,7 +1771,6 @@
 <translation id="8088176524274673045">जवळपासच्या लोकांसोबत शेअर करण्यासाठी, त्यांना हा QR कोड स्कॅन करू द्या</translation>
 <translation id="8090732854597034573">तुम्हाला मदत हवी असल्यास, तुमच्या पालकांना विचारा</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" /> कालावधीमधील कोणतेही टॅब बंद केले जाणार नाहीत</translation>
-<translation id="8103578431304235997">गुप्त टॅब</translation>
 <translation id="810433609302852">तळाशी असलेल्या शीटमधील टिपा असलेल्या नोटिफिकेशनमध्ये प्रोमो आणि वापराच्या पायऱ्या दिसतात</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">एक्स्टेंशन आणि त्यांनी या डिव्हाइसवर सेव्ह केलेला डेटा काढून टाका</translation>
@@ -1819,6 +1828,7 @@
 <translation id="8282297628636750033">शक्य असेल तेव्हा, साइटवर गडद थीम लागू करा</translation>
 <translation id="8282950411412455249">सुरक्षा सेटिंग्जवर जा</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{१ गुप्त विंडो बंद करा}other{# गुप्त विंडो बंद करा}}</translation>
+<translation id="8289602658021943461">या फॉरमॅटमध्ये व्हिडिओ फ्रेम सेव्ह करा…</translation>
 <translation id="8313599942510782709">तुमची टास्क अजूनही प्रगतीपथावर आहे</translation>
 <translation id="8317318757008452355">प्रिंट करण्यासाठी पर्याय उघडा</translation>
 <translation id="8320212361750431956">अलीकडील अ‍ॅक्टिव्हिटी</translation>

@@ -12,6 +12,8 @@
 #import "components/infobars/core/infobar.h"
 #import "components/metrics/profile_metrics_service.h"
 #import "components/password_manager/core/browser/password_form_metrics_recorder.h"
+#import "components/sync/test/test_sync_service.h"
+#import "ios/chrome/browser/authentication/signin/non_modal_promo/coordinator/non_modal_signin_promo_types.h"
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/ui_bundled/banners/test/fake_infobar_banner_consumer.h"
 #import "ios/chrome/browser/overlays/model/public/default/default_infobar_overlay_request_config.h"
@@ -21,6 +23,7 @@
 #import "ios/chrome/browser/passwords/infobars/test/mock_ios_chrome_save_passwords_infobar_delegate.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/credential_provider_promo_commands.h"
+#import "ios/chrome/browser/shared/public/commands/non_modal_signin_promo_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -50,6 +53,14 @@ class PasswordInfobarBannerOverlayMediatorTest : public PlatformTest {
 
   void InitInfobar(
       std::optional<std::string> account_to_store_password = std::nullopt) {
+    if (account_to_store_password.has_value()) {
+      CoreAccountInfo account_info;
+      account_info.email = *account_to_store_password;
+      sync_service_.SetSignedIn(signin::ConsentLevel::kSync, account_info);
+    } else {
+      sync_service_.SetSignedOut();
+    }
+
     metrics_recorder_ =
         base::MakeRefCounted<password_manager::PasswordFormMetricsRecorder>(
             /*is_main_frame_secure=*/true, ukm::kInvalidSourceId,
@@ -57,7 +68,7 @@ class PasswordInfobarBannerOverlayMediatorTest : public PlatformTest {
     infobar_ = std::make_unique<InfoBarIOS>(
         InfobarType::kInfobarTypePasswordSave,
         MockIOSChromeSavePasswordInfoBarDelegate::Create(
-            kUsername, kPassword, GURL(), account_to_store_password,
+            kUsername, kPassword, GURL(), &sync_service_,
             metrics_recorder_.get()));
     request_ =
         OverlayRequest::CreateWithConfig<DefaultInfobarOverlayRequestConfig>(
@@ -70,6 +81,7 @@ class PasswordInfobarBannerOverlayMediatorTest : public PlatformTest {
 
  protected:
   metrics::ProfileMetricsService profile_metrics_service_;
+  syncer::TestSyncService sync_service_;
   scoped_refptr<password_manager::PasswordFormMetricsRecorder>
       metrics_recorder_;
   std::unique_ptr<InfoBarIOS> infobar_;
@@ -94,8 +106,8 @@ TEST_F(PasswordInfobarBannerOverlayMediatorTest,
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
   // Verify that the multi-color infobar icon was set up properly.
-  EXPECT_NSEQ(MakeSymbolMulticolor(CustomSymbolWithPointSize(
-                  kMulticolorPasswordSymbol, kInfobarSymbolPointSize)),
+  EXPECT_NSEQ(MakeSymbolMulticolor(SymbolWithPointSize(
+                  SymbolMulticolorPassword, kInfobarSymbolPointSize)),
               consumer_.iconImage);
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
 }
@@ -117,8 +129,8 @@ TEST_F(PasswordInfobarBannerOverlayMediatorTest,
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
   // Verify that the multi-color infobar icon was set up properly.
-  EXPECT_NSEQ(MakeSymbolMulticolor(CustomSymbolWithPointSize(
-                  kMulticolorPasswordSymbol, kInfobarSymbolPointSize)),
+  EXPECT_NSEQ(MakeSymbolMulticolor(SymbolWithPointSize(
+                  SymbolMulticolorPassword, kInfobarSymbolPointSize)),
               consumer_.iconImage);
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
 }
@@ -166,4 +178,17 @@ TEST_F(PasswordInfobarBannerOverlayMediatorTest,
   base::HistogramTester histogram_tester;
   [mediator_ finishDismissal];
   histogram_tester.ExpectTotalCount("PasswordManager.SaveUIDismissalReason", 0);
+}
+
+// Tests that -finishDismissal triggers -showNonModalSignInPromoWithType: on
+// nonModalSignInPromoHandler when the infobar delegate is set.
+TEST_F(PasswordInfobarBannerOverlayMediatorTest,
+       FinishDismissalShowsNonModalPromo) {
+  InitInfobar();
+  id mock_handler = OCMProtocolMock(@protocol(NonModalSignInPromoCommands));
+  mediator_.nonModalSignInPromoHandler = mock_handler;
+  OCMExpect([mock_handler
+      showNonModalSignInPromoWithType:NonModalSignInPromoType::kPassword]);
+  [mediator_ finishDismissal];
+  EXPECT_OCMOCK_VERIFY(mock_handler);
 }

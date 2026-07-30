@@ -19,6 +19,7 @@
 
 class BrowserWindowInterface;
 class SidePanelEntryWaiter;
+class TabAndroid;
 
 // Android implementation of `SidePanelUIBase`.
 //
@@ -54,8 +55,7 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   void Destroy();
   void ClosePanel();
   bool HasContentToShow();
-  void OnPanelClosed();
-  void OnPanelOpened();
+  void OnPanelContainerUpdated(int old_width, int new_width);
   void OnPanelContentReplaced();
   void OnWillAutoClose();
   void OnWillAutoRestore();
@@ -71,13 +71,32 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   void DisableAnimationsForTesting() override;
   void SetNoDelaysForTesting(bool no_delays_for_testing) override;
 
-  // Other public functions:
-  void ClearDeferredEntryForTab(const tabs::TabHandle& tab_handle);
+  /////////////////////////////////////////////////////////////////
+  //            Start of other public functions                  //
+  /////////////////////////////////////////////////////////////////
+
+  // Called when a tab is closed (destroyed).
+  void OnTabClosed(TabAndroid* tab);
+
   // Called when a tab is detached from this window's tab strip for reparenting
   // into another window.
-  void OnTabReparented(tabs::TabInterface* tab);
+  void OnTabReparented(TabAndroid* tab);
 
-  // Functions for testing:
+  /////////////////////////////////////////////////////////////////
+  //            End of other public functions                    //
+  /////////////////////////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////////////
+  //            Start of functions for testing                   //
+  /////////////////////////////////////////////////////////////////
+
+  // Enables/Disables deferred View replacement for testing.
+  //
+  // See the Java
+  // `SidePanelContainerCoordinator#configDeferredViewReplacementForTesting`
+  // for detailed documentation.
+  void ConfigDeferredViewReplacementForTesting(bool enable);
+
   SidePanelState GetStateForTesting();
   int GetContainerWidthForTesting();
   SidePanelEntryWaiter* GetWaiterForTesting() { return waiter(); }
@@ -85,6 +104,11 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
       const {
     return deferred_entry_tracker_;
   }
+  bool HasPendingReplacedEntryForTesting() const;
+
+  /////////////////////////////////////////////////////////////////
+  //            End of functions for testing                     //
+  /////////////////////////////////////////////////////////////////
 
  protected:
   // Implements `SidePanelUIBase`:
@@ -107,6 +131,8 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // the window-scoped registry and all contextual (tab-scoped) registries.
   void ClearCachedEntryViews();
 
+  void ClearDeferredEntryForTab(const tabs::TabHandle& tab_handle);
+
   UniqueKey GetCurrentKeyNonNull() const;
   SidePanelEntry* GetEntryForCurrentKeyNonNull() const;
 
@@ -114,12 +140,24 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
 
   // Starts opening the side panel.
   // This should only be called when the side panel isn't currently shown.
-  // `OnPanelOpened()` will be called when the side panel is fully opened.
+  // `FinishOpeningPanel()` will be called when the side panel is fully opened.
   void StartOpeningPanel(
       SidePanelEntry* entry,
       const UniqueKey& unique_key,
       bool suppress_animations,
       std::unique_ptr<SidePanelNativeViewAndroid> native_view);
+
+  // Completes the state updates for opening the side panel.
+  void FinishOpeningPanel();
+
+  // Starts closing the side panel.
+  // This should only be called when the side panel is currently shown.
+  // `FinishClosingPanel()` will be called when the side panel is fully closed.
+  void StartClosingPanel(SidePanelEntryHideReason hide_reason,
+                         bool suppress_animations);
+
+  // Completes the state updates for closing the side panel.
+  void FinishClosingPanel();
 
   // Starts replacing the entry shown in the side panel.
   // This should only be called when the side panel is already shown.
@@ -136,6 +174,10 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // This will also complete all state updates scheduled at the end of the
   // animations and ensure the side panel is in a stable state.
   void EndAnimations();
+
+  // Flushes any async view detachments (e.g. from a tab switch) if the given
+  // tab's active entry is currently pending replacement.
+  void CompletePendingContentReplacementForTab(TabAndroid* tab);
 
   bool CanShowEntryForKey(const UniqueKey& key) const;
 

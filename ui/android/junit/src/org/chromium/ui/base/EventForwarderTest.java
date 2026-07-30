@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verify;
 
 import android.content.ClipData;
 import android.content.ClipDescription;
-import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
 import android.view.DragEvent;
@@ -30,8 +29,6 @@ import android.view.MotionEvent;
 import android.view.MotionEvent.PointerCoords;
 import android.view.Surface;
 import android.view.View;
-
-import androidx.test.InstrumentationRegistry;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -50,9 +47,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.ui.util.MotionEventUtils;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 
 /** Tests logic in the {@link EventForwarder} class. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -127,7 +122,7 @@ public class EventForwarderTest {
                 new EventForwarder(NATIVE_EVENT_FORWARDER_ID, true, true, false);
         MotionEvent hoverEvent =
                 MotionEventTestUtils.getTrackpadEvent(MotionEvent.ACTION_HOVER_MOVE, 0);
-        eventForwarder.onHoverEvent(hoverEvent);
+        Assert.assertTrue(eventForwarder.onHoverEvent(hoverEvent));
         verifyNativeMouseEventSent(NATIVE_EVENT_FORWARDER_ID, hoverEvent, eventForwarder, 1);
         eventForwarder.destroy();
     }
@@ -289,25 +284,20 @@ public class EventForwarderTest {
         validateDragDropEvent(
                 new String[] {"image/jpeg", "text/plain"},
                 new ClipData.Item[] {
-                    new ClipData.Item(Uri.parse("/foo/image.jpg")),
-                    new ClipData.Item(Uri.parse("/foo/hello.txt"))
+                    new ClipData.Item(Uri.parse("content://com.pkg/foo/image.jpg")),
+                    new ClipData.Item(Uri.parse("content://com.pkg/foo/hello.txt"))
                 },
                 /* expectedFilenames= */ new String[][] {
-                    {"/foo/image.jpg", ""}, {"/foo/hello.txt", ""}
+                    {"content://com.pkg/foo/image.jpg", ""}, {"content://com.pkg/foo/hello.txt", ""}
                 },
                 /* expectedText= */ null,
                 /* expectedHtml= */ null,
                 /* expectedUrl= */ null);
 
-        // Internal Files disallowed.
-        Context context = InstrumentationRegistry.getTargetContext();
-        File fileUnderDataDir = new File(context.getDataDir(), "test.txt");
-        Files.writeString(fileUnderDataDir.toPath(), "file content");
+        // Non content-URIs disallowed.
         validateDragDropEvent(
                 new String[] {"text/plain"},
-                new ClipData.Item[] {
-                    new ClipData.Item(Uri.parse(fileUnderDataDir.getAbsolutePath())),
-                },
+                new ClipData.Item[] {new ClipData.Item(Uri.parse("/foo/image.jpg"))},
                 /* expectedFilenames= */ new String[][] {},
                 /* expectedText= */ null,
                 /* expectedHtml= */ null,
@@ -778,7 +768,7 @@ public class EventForwarderTest {
     }
 
     @Test
-    public void testHoverExitCancelledByTouchDown() {
+    public void testHoverExitFlushedByTouchDown() {
         EventForwarder eventForwarder =
                 new EventForwarder(NATIVE_EVENT_FORWARDER_ID, true, true, false);
 
@@ -794,16 +784,28 @@ public class EventForwarderTest {
         eventForwarder.onHoverEvent(exitEvent);
 
         // 3. Touch down (before delay)
-        MotionEvent downEvent = MotionEventTestUtils.getTrackpadEvent(MotionEvent.ACTION_DOWN, 0);
+        MotionEvent downEvent =
+                MotionEvent.obtain(
+                        0,
+                        0,
+                        MotionEvent.ACTION_DOWN,
+                        1,
+                        MotionEventTestUtils.getToolTypeFingerProperties(1),
+                        MotionEventTestUtils.getPointerCoords(1),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        InputDevice.SOURCE_TOUCHSCREEN,
+                        0);
         eventForwarder.onTouchEvent(downEvent);
 
-        // 4. Wait for delay (50ms)
-        ShadowLooper.idleMainLooper(50, java.util.concurrent.TimeUnit.MILLISECONDS);
-
-        // Exit should NEVER be sent.
-        verify(mNativeMock, never())
+        // Exit SHOULD be sent immediately when touch down occurs.
+        verify(mNativeMock, times(1))
                 .onMouseEvent(
-                        anyLong(),
+                        eq(NATIVE_EVENT_FORWARDER_ID),
                         any(MotionEvent.class),
                         anyLong(),
                         eq(MotionEvent.ACTION_HOVER_EXIT),
@@ -889,6 +891,55 @@ public class EventForwarderTest {
                         any(MotionEvent.class),
                         anyLong(),
                         eq(MotionEvent.ACTION_HOVER_ENTER),
+                        anyInt(),
+                        anyInt());
+
+        eventForwarder.destroy();
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    public void testHoverExitCancelledByTrackpadScroll() {
+        EventForwarder eventForwarder =
+                new EventForwarder(NATIVE_EVENT_FORWARDER_ID, true, true, false);
+
+        // 1. Enter hover
+        MotionEvent enterEvent =
+                MotionEventTestUtils.getTrackpadEvent(MotionEvent.ACTION_HOVER_ENTER, 0);
+        Assert.assertTrue(eventForwarder.onHoverEvent(enterEvent));
+
+        // 2. Exit hover
+        MotionEvent exitEvent =
+                MotionEventTestUtils.getTrackpadEvent(MotionEvent.ACTION_HOVER_EXIT, 0);
+        Assert.assertTrue(eventForwarder.onHoverEvent(exitEvent));
+
+        // 3. Trackpad scroll down (before delay)
+        MotionEvent scrollDownEvent =
+                spy(
+                        MotionEvent.obtain(
+                                0,
+                                0,
+                                MotionEvent.ACTION_DOWN,
+                                /* x= */ 10,
+                                /* y= */ 20,
+                                /* metaState= */ 0));
+        scrollDownEvent.setSource(InputDevice.SOURCE_MOUSE);
+        doReturn(MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE)
+                .when(scrollDownEvent)
+                .getClassification();
+
+        eventForwarder.onTouchEvent(scrollDownEvent);
+
+        // 4. Wait for delay (50ms)
+        ShadowLooper.idleMainLooper(50, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+        // Exit should NEVER be sent.
+        verify(mNativeMock, never())
+                .onMouseEvent(
+                        anyLong(),
+                        any(MotionEvent.class),
+                        anyLong(),
+                        eq(MotionEvent.ACTION_HOVER_EXIT),
                         anyInt(),
                         anyInt());
 

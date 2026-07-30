@@ -1203,7 +1203,7 @@ void TabStrip::NewTabButtonPressed(const ui::Event& event) {
   new_tab_button_pressed_start_time_ = base::TimeTicks::Now();
 
   base::RecordAction(base::UserMetricsAction("NewTab_Button"));
-  GetBrowser()->profile()->SetUserData(
+  GetBrowser()->GetProfile()->SetUserData(
       NewTabGroupingUserData::kNewTabGroupingUserDataKey,
       std::make_unique<NewTabGroupingUserData>(
           GetBrowser()->tab_strip_model()->GetActiveTab()->GetGroup()));
@@ -1240,6 +1240,10 @@ void TabStrip::SetTabStripObserver(TabStripObserver* observer) {
   // bug.
   CHECK_NE(!!observer_, !!observer);
   observer_ = observer;
+}
+
+void TabStrip::SetIsGlassFrame(bool is_glass) {
+  is_glass_ = is_glass;
 }
 
 bool TabStrip::IsRectInWindowCaption(const gfx::Rect& rect) {
@@ -2058,6 +2062,10 @@ bool TabStrip::CanPaintThrobberToLayer() const {
   const views::Widget* widget = GetWidget();
   return widget && !dragging && !IsAnimatingInTabStrip() &&
          !widget->IsFullscreen();
+}
+
+bool TabStrip::IsGlassFrame() const {
+  return is_glass_;
 }
 
 SkColor TabStrip::GetTabSeparatorColor() const {

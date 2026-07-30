@@ -9,16 +9,19 @@
 #include <string>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
-#include "chrome/browser/actor/tools/attempt_otp_filling_tool_metrics.h"
+#include "chrome/browser/actor/tools/actor_login_flow_verifier.h"
+#include "chrome/browser/actor/tools/attempt_otp_filling_metrics.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/autofill/actor/one_time_tokens/actor_login_context.h"
@@ -26,9 +29,12 @@
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/actor/core/actor_switches.h"
 #include "components/actor/core/aggregated_journal.h"
 #include "components/actor/core/shared_types.h"
 #include "components/actor/core/task_id.h"
+#include "components/affiliations/core/browser/domain_matching/domain_relation_checker.h"
+#include "components/affiliations/core/browser/fake_affiliation_service.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -38,6 +44,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "components/variations/scoped_variations_ids_provider.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
@@ -75,7 +82,9 @@ class MockActorOneTimeTokenFillingService
       void,
       RetrieveOtp,
       (tabs::TabHandle,
+       const url::Origin&,
        const std::vector<autofill::FieldGlobalId>&,
+       bool,
        base::OnceCallback<
            void(base::expected<std::string,
                                one_time_tokens::OneTimeTokenRetrievalError>)>),
@@ -94,6 +103,22 @@ class MockActorOneTimeTokenFillingService
 
  private:
   base::WeakPtrFactory<MockActorOneTimeTokenFillingService> weak_factory_{this};
+};
+
+class MockActorLoginFlowVerifier : public ActorLoginFlowVerifier {
+ public:
+  explicit MockActorLoginFlowVerifier(
+      affiliations::AffiliationService& affiliation_service)
+      : ActorLoginFlowVerifier(affiliation_service) {}
+  ~MockActorLoginFlowVerifier() override = default;
+
+  MOCK_METHOD(void,
+              VerifyIsActorLoginFlow,
+              (content::FrameTreeNodeId otp_frame_id,
+               const url::Origin& otp_frame_origin,
+               const std::optional<autofill::ActorLoginContext>& context,
+               base::OnceCallback<void(bool)> callback),
+              (override));
 };
 
 class FakeToolDelegate : public ToolDelegate {
@@ -205,6 +230,20 @@ class AttemptOtpFillingToolTest : public testing::Test {
         {{web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId(), 1}});
   }
 
+  AttemptOtpFillingTool CreateTool(
+      std::vector<PageTarget> trigger_fields,
+      bool for_signin = true,
+      AttemptOtpFillingToolRequest::OtpType predicted_otp_type =
+          AttemptOtpFillingToolRequest::OtpType::kUnknown,
+      std::unique_ptr<ActorLoginFlowVerifier> verifier = nullptr) {
+    if (!verifier) {
+      verifier =
+          std::make_unique<ActorLoginFlowVerifier>(fake_affiliation_service_);
+    }
+    return AttemptOtpFillingTool(TaskId(1), delegate(), mock_tab().GetHandle(),
+                                 std::move(trigger_fields), for_signin,
+                                 predicted_otp_type, std::move(verifier));
+  }
 
   // Ensures `tool` passes time-of-use validation for `target` by setting up an
   // `AnnotatedPageContent` with an element corresponding to `target`.
@@ -246,10 +285,13 @@ class AttemptOtpFillingToolTest : public testing::Test {
   }
 
  protected:
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+      variations::VariationsIdsProvider::Mode::kUseSignedInState};
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfile> profile_;
   content::TestWebContentsFactory web_contents_factory_;
   raw_ptr<content::WebContents> web_contents_ = nullptr;
+  affiliations::FakeAffiliationService fake_affiliation_service_;
   std::unique_ptr<FakeToolDelegate> delegate_;
   std::unique_ptr<tabs::MockTabInterface> mock_tab_;
   base::HistogramTester histogram_tester_;
@@ -286,9 +328,7 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionGranted) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog)
       .WillOnce(RunOnceCallback<0>(GmailOtpOptInResult::NewResponse(
           webui::mojom::GmailOtpOptInResponse::New(true))));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(90));
@@ -300,6 +340,12 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionGranted) {
   EXPECT_TRUE(IsAutofillGmailOtpFillingEnabled(prefs()));
   EXPECT_EQ(base::Time(),
             GetAutofillGmailOtpFillingActivationDismissalTimestamp(prefs()));
+  histogram_tester_.ExpectBucketCount(kGmailOtpOptInCardInteractionHistogram,
+                                      GmailOtpOptInCardInteraction::kShowCard,
+                                      1);
+  histogram_tester_.ExpectBucketCount(
+      kGmailOtpOptInCardInteractionHistogram,
+      GmailOtpOptInCardInteraction::kPermissionGranted, 1);
 }
 
 // When the user denies permission to opt in to Gmail OTPs, the tool
@@ -309,9 +355,7 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionDenied) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog)
       .WillOnce(RunOnceCallback<0>(GmailOtpOptInResult::NewResponse(
           webui::mojom::GmailOtpOptInResponse::New(false))));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(90));
@@ -326,6 +370,12 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionDenied) {
   histogram_tester_.ExpectBucketCount(
       kAttemptOtpFillingToolHistogram,
       AttemptOtpFillingToolEvent::kOptInPermissionDenied, 1);
+  histogram_tester_.ExpectBucketCount(kGmailOtpOptInCardInteractionHistogram,
+                                      GmailOtpOptInCardInteraction::kShowCard,
+                                      1);
+  histogram_tester_.ExpectBucketCount(
+      kGmailOtpOptInCardInteractionHistogram,
+      GmailOtpOptInCardInteraction::kPermissionDenied, 1);
 }
 
 // When the asking the user for opting into using Gmail OTPs fails, the tool
@@ -334,9 +384,7 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionCallbackError) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog)
       .WillOnce(RunOnceCallback<0>(GmailOtpOptInResult::NewErrorReason(
           GmailOtpErrorReason::kRequestPromiseNoSubscriber)));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(90));
@@ -351,6 +399,12 @@ TEST_F(AttemptOtpFillingToolTest, Validate_OptInPermissionCallbackError) {
   histogram_tester_.ExpectBucketCount(
       kAttemptOtpFillingToolHistogram,
       AttemptOtpFillingToolEvent::kOptInErrorResponse, 1);
+  histogram_tester_.ExpectBucketCount(kGmailOtpOptInCardInteractionHistogram,
+                                      GmailOtpOptInCardInteraction::kShowCard,
+                                      1);
+  histogram_tester_.ExpectBucketCount(
+      kGmailOtpOptInCardInteractionHistogram,
+      GmailOtpOptInCardInteraction::kErrorResponse, 1);
 }
 
 // When Gmail OTP is disabled, but we're within the cool off period for asking
@@ -360,9 +414,7 @@ TEST_F(AttemptOtpFillingToolTest,
        Validate_GmailOtpFillingDisabledWithinCoolOffPeriod) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog).Times(0);
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp).Times(0);
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(89));
@@ -385,9 +437,7 @@ TEST_F(AttemptOtpFillingToolTest,
 TEST_F(AttemptOtpFillingToolTest,
        Validate_GmailOtpFillingDisabledOutsideCoolOffPeriod) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog);
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(90));
@@ -404,12 +454,10 @@ TEST_F(AttemptOtpFillingToolTest,
 // Time of use validation returns kTabWentAway when the target tab is not
 // available any more.
 TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_TabWentAway) {
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   mock_tab_.reset();
-
   AnnotatedPageContent observation;
+
   ActionResultPtr result = tool.TimeOfUseValidation(&observation);
 
   EXPECT_EQ(kTabWentAway, result->code);
@@ -422,9 +470,7 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_TabWentAway) {
 // invocation request is dispatched without a preceding observation. This might
 // be a result of the tab not having been observed (yet), a possible GLIC state.
 TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_NoLastObservation) {
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
 
   ActionResultPtr result = tool.TimeOfUseValidation(nullptr);
 
@@ -437,11 +483,9 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_NoLastObservation) {
 // Time of use validation returns kOtpFieldNotFound when any of the
 // trigger fields aren't found.
 TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_FieldNotFound) {
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
-
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   AnnotatedPageContent observation;
+
   ActionResultPtr result = tool.TimeOfUseValidation(&observation);
 
   EXPECT_EQ(kOtpFieldNotFound, result->code);
@@ -455,10 +499,8 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_HappyPath) {
   auto* user_data = DocumentIdentifierUserData::GetOrCreateForCurrentDocument(
       web_contents_->GetPrimaryMainFrame());
   std::string doc_token = user_data->serialized_token();
-  AttemptOtpFillingTool tool(
-      TaskId(1), delegate(), mock_tab().GetHandle(),
-      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})},
-      /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool(
+      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})});
   AnnotatedPageContent observation;
   observation.mutable_main_frame_data()
       ->mutable_document_identifier()
@@ -481,10 +523,8 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_InsecureContext) {
   auto* user_data = DocumentIdentifierUserData::GetOrCreateForCurrentDocument(
       web_contents_->GetPrimaryMainFrame());
   std::string doc_token = user_data->serialized_token();
-  AttemptOtpFillingTool tool(
-      TaskId(1), delegate(), mock_tab().GetHandle(),
-      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})},
-      /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool(
+      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})});
   AnnotatedPageContent observation;
   observation.mutable_main_frame_data()
       ->mutable_document_identifier()
@@ -506,13 +546,13 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_HappyPath) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(CreateValidLoginContext()));
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
-      .WillOnce(RunOnceCallback<2>("123456"));
+      .WillOnce(RunOnceCallback<4>("123456"));
   EXPECT_CALL(delegate().mock_otp_service(), FillOtp(_, _, "123456", _))
       .WillOnce(RunOnceCallback<3>(true));
   PageTarget target(gfx::Point(10, 10));
-  AttemptOtpFillingTool tool(
-      TaskId(1), delegate(), mock_tab().GetHandle(), {target},
-      /*for_signin=*/true, AttemptOtpFillingToolRequest::OtpType::kEmail);
+  AttemptOtpFillingTool tool =
+      CreateTool({target}, /*for_signin=*/true,
+                 AttemptOtpFillingToolRequest::OtpType::kEmail);
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
   SetupSuccessfulTimeOfUseValidation(tool, target);
   base::HistogramTester histogram_tester;
@@ -542,13 +582,11 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_ErrorFilling) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(CreateValidLoginContext()));
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
-      .WillOnce(RunOnceCallback<2>("123456"));
+      .WillOnce(RunOnceCallback<4>("123456"));
   EXPECT_CALL(delegate().mock_otp_service(), FillOtp(_, _, "123456", _))
       .WillOnce(RunOnceCallback<3>(false));
   PageTarget target(gfx::Point(10, 10));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {target},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({target});
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
   SetupSuccessfulTimeOfUseValidation(tool, target);
 
@@ -567,12 +605,10 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_ErrorRetrievingGmailOtp) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(CreateValidLoginContext()));
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
-      .WillOnce(RunOnceCallback<2>(base::unexpected(
+      .WillOnce(RunOnceCallback<4>(base::unexpected(
           one_time_tokens::OneTimeTokenRetrievalError::kUnknown)));
   PageTarget target(gfx::Point(10, 10));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {target},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({target});
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
   SetupSuccessfulTimeOfUseValidation(tool, target);
 
@@ -592,9 +628,7 @@ TEST_F(AttemptOtpFillingToolTest,
        Validate_OptInPermissionCallbackNullResponse) {
   EXPECT_CALL(delegate(), RequestToShowGmailOtpOptInDialog)
       .WillOnce(RunOnceCallback<0>(nullptr));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), false);
   SetAutofillGmailOtpFillingActivationDismissalTimestamp(
       prefs(), base::Time::Now() - base::Days(90));
@@ -606,12 +640,16 @@ TEST_F(AttemptOtpFillingToolTest,
   histogram_tester_.ExpectBucketCount(
       kAttemptOtpFillingToolHistogram,
       AttemptOtpFillingToolEvent::kOptInNullResponse, 1);
+  histogram_tester_.ExpectBucketCount(kGmailOtpOptInCardInteractionHistogram,
+                                      GmailOtpOptInCardInteraction::kShowCard,
+                                      1);
+  histogram_tester_.ExpectBucketCount(
+      kGmailOtpOptInCardInteractionHistogram,
+      GmailOtpOptInCardInteraction::kErrorResponse, 1);
 }
 
 TEST_F(AttemptOtpFillingToolTest, Validate_GmailOtpFillingEnabled) {
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
 
   TestFuture<ActionResultPtr> future;
@@ -626,10 +664,8 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_FormNotFound) {
   auto* user_data = DocumentIdentifierUserData::GetOrCreateForCurrentDocument(
       web_contents_->GetPrimaryMainFrame());
   std::string doc_token = user_data->serialized_token();
-  AttemptOtpFillingTool tool(
-      TaskId(1), delegate(), mock_tab().GetHandle(),
-      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})},
-      /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool(
+      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})});
   AnnotatedPageContent observation;
   observation.mutable_main_frame_data()
       ->mutable_document_identifier()
@@ -652,10 +688,8 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_TabNotAvailable) {
   auto* user_data = DocumentIdentifierUserData::GetOrCreateForCurrentDocument(
       web_contents_->GetPrimaryMainFrame());
   std::string doc_token = user_data->serialized_token();
-  AttemptOtpFillingTool tool(
-      TaskId(1), delegate(), mock_tab().GetHandle(),
-      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})},
-      /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool(
+      {PageTarget(DomNode{.node_id = 1234, .document_identifier = doc_token})});
   AnnotatedPageContent observation;
   observation.mutable_main_frame_data()
       ->mutable_document_identifier()
@@ -674,9 +708,7 @@ TEST_F(AttemptOtpFillingToolTest, TimeOfUseValidation_TabNotAvailable) {
 
 TEST_F(AttemptOtpFillingToolTest, Invoke_NoTargetFrameWithOtpFound) {
   EXPECT_CALL(mock_tab(), GetContents()).WillRepeatedly(Return(nullptr));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {PageTarget(gfx::Point(10, 10))},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({PageTarget(gfx::Point(10, 10))});
 
   TestFuture<ActionResultPtr> future;
   tool.Invoke(future.GetCallback());
@@ -691,9 +723,7 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_NoLoginContextAvailable) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(std::nullopt));
   PageTarget target(gfx::Point(10, 10));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {target},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({target});
   SetupSuccessfulTimeOfUseValidation(tool, target);
 
   TestFuture<ActionResultPtr> future;
@@ -706,11 +736,66 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_NoLoginContextAvailable) {
                                       1);
 }
 
+TEST_F(AttemptOtpFillingToolTest, Invoke_ActorLoginVerificationFailed) {
+  EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
+      .WillOnce(Return(CreateValidLoginContext()));
+  auto verifier =
+      std::make_unique<testing::NiceMock<MockActorLoginFlowVerifier>>(
+          fake_affiliation_service_);
+  EXPECT_CALL(*verifier, VerifyIsActorLoginFlow)
+      .WillOnce(base::test::RunOnceCallback<3>(false));
+  PageTarget target(gfx::Point(10, 10));
+  AttemptOtpFillingTool tool = CreateTool(
+      {target}, /*for_signin=*/true,
+      AttemptOtpFillingToolRequest::OtpType::kUnknown, std::move(verifier));
+  SetupSuccessfulTimeOfUseValidation(tool, target);
+
+  TestFuture<ActionResultPtr> future;
+  tool.Invoke(future.GetCallback());
+
+  EXPECT_EQ(mojom::ActionResultCode::kOtpSigninContextMismatch,
+            future.Take()->code);
+  histogram_tester_.ExpectBucketCount(kAttemptOtpFillingToolHistogram,
+                                      AttemptOtpFillingToolEvent::kNoActorLogin,
+                                      1);
+}
+
+TEST_F(AttemptOtpFillingToolTest,
+       Invoke_ActorLoginVerificationFailed_WithBypassSwitch) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kAttemptOtpFillingBypassLoginCheck);
+  EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
+      .WillOnce(Return(CreateValidLoginContext()));
+  EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
+      .WillOnce(RunOnceCallback<4>("123456"));
+  EXPECT_CALL(delegate().mock_otp_service(), FillOtp(_, _, "123456", _))
+      .WillOnce(RunOnceCallback<3>(true));
+  auto verifier =
+      std::make_unique<testing::NiceMock<MockActorLoginFlowVerifier>>(
+          fake_affiliation_service_);
+  EXPECT_CALL(*verifier, VerifyIsActorLoginFlow)
+      .WillOnce(base::test::RunOnceCallback<3>(false));
+  PageTarget target(gfx::Point(10, 10));
+  AttemptOtpFillingTool tool = CreateTool(
+      {target}, /*for_signin=*/true,
+      AttemptOtpFillingToolRequest::OtpType::kUnknown, std::move(verifier));
+  SetupSuccessfulTimeOfUseValidation(tool, target);
+
+  TestFuture<ActionResultPtr> future;
+  tool.Invoke(future.GetCallback());
+
+  EXPECT_EQ(kOk, future.Take()->code);
+  histogram_tester_.ExpectBucketCount(kAttemptOtpFillingToolHistogram,
+                                      AttemptOtpFillingToolEvent::kNoActorLogin,
+                                      0);
+}
+
 TEST_F(AttemptOtpFillingToolTest, Invoke_InsecureBeforeFilling) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(CreateValidLoginContext()));
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
-      .WillOnce(RunOnceCallback<2>("123456"));
+      .WillOnce(RunOnceCallback<4>("123456"));
   // `TimeOfUseValidation()` is called during setup and invokes
   // `ValidateFormFillingContext()`. `Invoke()` calls it a second time during
   // OTP filling. This test specifically tests the call in `Invoke()`.
@@ -718,9 +803,7 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_InsecureBeforeFilling) {
       .WillOnce(Return(autofill::FormFillingContextStatus::kSecure))
       .WillOnce(Return(autofill::FormFillingContextStatus::kInsecureContext));
   PageTarget target(gfx::Point(10, 10));
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {target},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({target});
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
   SetupSuccessfulTimeOfUseValidation(tool, target);
 
@@ -739,7 +822,7 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_DomNode_HappyPath) {
   EXPECT_CALL(delegate().mock_otp_service(), ConsumeLoginContext())
       .WillOnce(Return(CreateValidLoginContext()));
   EXPECT_CALL(delegate().mock_otp_service(), RetrieveOtp)
-      .WillOnce(RunOnceCallback<2>("123456"));
+      .WillOnce(RunOnceCallback<4>("123456"));
   EXPECT_CALL(delegate().mock_otp_service(), FillOtp(_, _, "123456", _))
       .WillOnce(RunOnceCallback<3>(true));
   std::string doc_token =
@@ -747,9 +830,7 @@ TEST_F(AttemptOtpFillingToolTest, Invoke_DomNode_HappyPath) {
           web_contents_->GetPrimaryMainFrame())
           ->serialized_token();
   PageTarget target(DomNode{.node_id = 1234, .document_identifier = doc_token});
-  AttemptOtpFillingTool tool(TaskId(1), delegate(), mock_tab().GetHandle(),
-                             {target},
-                             /*for_signin=*/true);
+  AttemptOtpFillingTool tool = CreateTool({target});
   SetAutofillGmailOtpFillingEnabled(prefs(), true);
   SetupSuccessfulTimeOfUseValidation(tool, target);
 

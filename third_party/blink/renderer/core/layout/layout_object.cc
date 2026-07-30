@@ -41,6 +41,7 @@
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
+#include "third_party/blink/renderer/core/css/counter_style.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/resolver/style_adjuster.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
@@ -133,7 +134,6 @@
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
-#include "third_party/blink/renderer/core/paint/timing/image_element_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
@@ -865,8 +865,9 @@ bool LayoutObject::HasClipRelatedProperty() const {
   // CSS clip-path/mask/filter induces a stacking context and applies inherited
   // clip to that stacking context, while resetting clip for descendants. This
   // special behavior is already handled elsewhere.
-  if (HasClip() || ShouldClipOverflowAlongEitherAxis())
+  if (HasCSSClip() || ShouldClipOverflowAlongEitherAxis()) {
     return true;
+  }
   // Paint containment establishes isolation which creates clip isolation nodes.
   // Style & Layout containment also establish isolation (see
   // |NeedsIsolationNodes| in PaintPropertyTreeBuilder).
@@ -921,10 +922,8 @@ bool LayoutObject::IsListMarkerForSummary() const {
     if (ListMarker::GetListStyleCategory(GetDocument(), StyleRef()) !=
         ListMarker::ListStyleCategory::kSymbol)
       return false;
-    const AtomicString& name =
-        StyleRef().ListStyleType()->GetCounterStyleName();
-    return name == keywords::kDisclosureOpen ||
-           name == keywords::kDisclosureClosed;
+    return ListMarker::GetCounterStyle(GetDocument(), StyleRef())
+        .IsDisclosureMarker();
   }
   return false;
 }
@@ -4569,8 +4568,7 @@ void LayoutObject::ImageNotifyFinished(ImageResourceContent* image) {
   if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache())
     cache->ImageLoaded(this);
 
-  if (LocalDOMWindow* window = GetDocument().domWindow()) {
-    ImageElementTiming::From(*window).NotifyImageFinished(*this, image);
+  if (GetDocument().domWindow()) {
     PaintTimingDetector::From(GetDocument()).NotifyImageFinished(*this, image);
   }
 
@@ -4722,8 +4720,7 @@ Element* LayoutObject::OffsetParent(const Element* base) const {
 
 void LayoutObject::NotifyImageFullyRemoved(ImageResourceContent* image) {
   NOT_DESTROYED();
-  if (LocalDOMWindow* window = GetDocument().domWindow()) {
-    ImageElementTiming::From(*window).NotifyImageRemoved(this, image);
+  if (GetDocument().domWindow()) {
     PaintTimingDetector::From(GetDocument()).NotifyImageRemoved(*this, image);
   }
 }
@@ -5074,12 +5071,14 @@ void LayoutObject::ClearPaintFlags() {
   bitfields_.SetEffectiveAllowedTouchActionChanged(false);
   bitfields_.SetBlockingWheelEventHandlerChanged(false);
   bitfields_.SetSoftNavigationContextChanged(false);
+  bitfields_.SetContainerTimingChanged(false);
 
   if (!ChildPrePaintBlockedByDisplayLock()) {
     bitfields_.SetDescendantNeedsPaintPropertyUpdate(false);
     bitfields_.SetDescendantEffectiveAllowedTouchActionChanged(false);
     bitfields_.SetDescendantBlockingWheelEventHandlerChanged(false);
     bitfields_.SetDescendantSoftNavigationContextChanged(false);
+    bitfields_.SetDescendantContainerTimingChanged(false);
     subtree_paint_property_update_reasons_ =
         static_cast<unsigned>(SubtreePaintPropertyUpdateReason::kNone);
   }
@@ -5249,6 +5248,39 @@ void LayoutObject::MarkDescendantSoftNavigationContextChanged() {
   LayoutObject* obj = this;
   while (obj && !obj->DescendantSoftNavigationContextChanged()) {
     obj->bitfields_.SetDescendantSoftNavigationContextChanged(true);
+    if (obj->ChildPrePaintBlockedByDisplayLock()) {
+      break;
+    }
+    obj = obj->Parent();
+  }
+}
+
+void LayoutObject::MarkContainerTimingChanged() {
+  NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::ContainerTimingPrepaintTraversalEnabled(
+      GetDocument().GetExecutionContext()));
+  DCHECK(!GetDocument().InvalidationDisallowed());
+  bitfields_.SetContainerTimingChanged(true);
+  // If we're locked, mark our descendants as needing this change. This is used
+  // as a signal to ensure we mark the element as needing container timing
+  // recalculation when the element becomes unlocked.
+  if (ChildPrePaintBlockedByDisplayLock()) {
+    bitfields_.SetDescendantContainerTimingChanged(true);
+    return;
+  }
+  if (Parent()) {
+    Parent()->MarkDescendantContainerTimingChanged();
+  }
+}
+
+void LayoutObject::MarkDescendantContainerTimingChanged() {
+  NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::ContainerTimingPrepaintTraversalEnabled(
+      GetDocument().GetExecutionContext()));
+  DCHECK(!GetDocument().InvalidationDisallowed());
+  LayoutObject* obj = this;
+  while (obj && !obj->DescendantContainerTimingChanged()) {
+    obj->bitfields_.SetDescendantContainerTimingChanged(true);
     if (obj->ChildPrePaintBlockedByDisplayLock()) {
       break;
     }
@@ -5460,6 +5492,26 @@ bool LayoutObject::IsBackdropForOverscrollAreaParent() const {
   NOT_DESTROYED();
   const auto* pseudo = DynamicTo<PseudoElement>(GetNode());
   return pseudo && pseudo->GetPseudoId() == kPseudoIdOverscrollBackdrop;
+}
+
+bool LayoutObject::IsCanvasOrInCanvasSubtree() const {
+  if (auto* element = DynamicTo<Element>(GetNode())) {
+    return element->IsCanvasOrInCanvasSubtree();
+  }
+  return IsInCanvasSubtree();
+}
+
+bool LayoutObject::IsInCanvasSubtree() const {
+  if (auto* node = GetNode()) {
+    if (auto* element = DynamicTo<Element>(node)) {
+      return element->IsInCanvasSubtree();
+    }
+    if (auto* document = DynamicTo<Document>(node)) {
+      auto* owner = document->LocalOwner();
+      return owner && owner->IsCanvasOrInCanvasSubtree();
+    }
+  }
+  return Parent() && Parent()->IsCanvasOrInCanvasSubtree();
 }
 
 }  // namespace blink

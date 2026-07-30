@@ -33,6 +33,7 @@ SqlPersistentStore::BackendShard::BackendShard(
     ShardId shard_id,
     const base::FilePath& path,
     net::CacheType type,
+    bool shared_cache_enabled,
     scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
     SqlAsyncTaskManager& async_task_manager,
@@ -43,6 +44,7 @@ SqlPersistentStore::BackendShard::BackendShard(
                shard_id,
                path,
                type,
+               shared_cache_enabled,
                std::move(read_cache_memory_monitor)),
       cleanup_tracker_(std::move(cleanup_tracker)) {}
 
@@ -278,6 +280,16 @@ void SqlPersistentStore::BackendShard::ReadEntryData(
       .WithArgs(key, res_id, offset, std::move(buffer), buf_len, body_end,
                 sparse_reading, base::TimeTicks::Now())
       .Then(WrapCallback(std::move(callback)));
+}
+
+void SqlPersistentStore::BackendShard::MoveBlobsToSharedCache(
+    const CacheEntryKey& key,
+    ResId res_id,
+    SqlSharedCacheResourceId shared_cache_resource_id,
+    ErrorCallback callback) {
+  backend_.AsyncCall(&SqlPersistentStore::Backend::MoveBlobsToSharedCache)
+      .WithArgs(key, res_id, shared_cache_resource_id, base::TimeTicks::Now())
+      .Then(WrapCallbackWithStoreStatus(std::move(callback)));
 }
 
 void SqlPersistentStore::BackendShard::GetEntryAvailableRange(

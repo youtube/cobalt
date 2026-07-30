@@ -13,6 +13,7 @@ import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/values.mojom";
+import "services/network/public/mojom/connection_allowlist.mojom";
 import "services/network/public/mojom/content_security_policy.mojom";
 import "services/network/public/mojom/cross_origin_opener_policy.mojom";
 import "services/network/public/mojom/fetch_api.mojom";
@@ -234,12 +235,17 @@ const uint16 kMaxTitleChars = 4096; // 4 * 1024;
 struct IframeAttributes {
   // Parsed value of the 'csp' attribute of the iframe.
   network.mojom.ContentSecurityPolicy? parsed_csp_attribute;
+  // Parsed value of the iframe's 'connectionallowlist' attribute, used for
+  // Connection-Allowlist embedded enforcement. Parsed in the renderer. The
+  // `response-origin` token can't be resolved here (the frame hasn't navigated
+  // yet), so it is carried unresolved via `match_response_origin` and resolved
+  // by the browser against the frame's response origin before enforcement.
+  // Null when the attribute is unset.
+  network.mojom.ConnectionAllowlist? required_connection_allowlist;
   // 'credentialless' attribute of the iframe.
   bool credentialless;
   // 'browsingtopics' attribute of the iframe.
   bool browsing_topics;
-  // 'adauctionheaders' attribute of the iframe.
-  bool ad_auction_headers;
   // 'sharedstoragewritable' attribute of the iframe.
   bool shared_storage_writable_opted_in;
   // 'id' attribute of the iframe. This can be optional because id might not be set.
@@ -742,15 +748,7 @@ interface LocalFrameHost {
       bool once,
       bool cross_origin_exposed);
 
-  // See:
-  // https://github.com/WICG/turtledove/blob/main/FLEDGE_extended_PA_reporting.md
-  //
-  // This implements the API:
-  // window.fence.reportEvent(eventType)
-  //
-  // A document in a fenced frame can invoke the reportEvent API to request the
-  // browser to send private aggregation requests associated with `event_type`.
-  SendPrivateAggregationRequestsForFencedFrameEvent(string event_type);
+
 
   // Sent by the frame in a renderer process that hosts/owns a <fencedframe>
   // element, to the browser process requesting the creation of a new fenced
@@ -1468,5 +1466,14 @@ interface LocalMainFrameHost {
   DraggableRegionsChanged(array<DraggableRegion> regions);
 
   // Called when the main frame did a first contentful paint.
-  OnFirstContentfulPaint(mojo_base.mojom.TimeDelta duration);
+  // `presentation_time` is the renderer-side presentation timestamp of the
+  // paint.
+  OnFirstContentfulPaint(mojo_base.mojom.TimeTicks presentation_time);
+
+  // Called when the outermost main frame's largest contentful paint candidate
+  // changed. May be dispatched multiple times as larger elements paint; the
+  // last notification (before user input freezes the metric) corresponds to the
+  // page's largest contentful paint. `presentation_time` is the renderer-side
+  // presentation timestamp of the current candidate.
+  OnLargestContentfulPaint(mojo_base.mojom.TimeTicks presentation_time);
 };

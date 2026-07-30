@@ -22,6 +22,7 @@ build_webui("build") {
   static_files = [
     "contextual_tasks.html",
     "internals/contextual_tasks_internals.html",
+    "toolbar.html",
   ]
 
   if (is_chrome_branded) {
@@ -32,6 +33,8 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "toolbar_app.ts",
+    "toolbar_app.html.ts",
     "contextual_tasks_browser_proxy.ts",
     "error_dialog.html.ts",
     "error_dialog.ts",
@@ -54,6 +57,7 @@ build_webui("build") {
     "sources_menu.ts",
     "top_toolbar.html.ts",
     "top_toolbar.ts",
+    "top_toolbar_logo.html.ts",
     "utils.ts",
     "utils/clip_path.ts",
     "web_view_type.ts",
@@ -90,6 +94,7 @@ build_webui("build") {
     "reopen_tabs.css",
     "sources_menu.css",
     "top_toolbar.css",
+    "toolbar_app.css",
   ]
   if (!is_android) {
     css_files += [
@@ -135,6 +140,9 @@ build_webui("build") {
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",
   ]
+  if (!is_android) {
+    ts_deps += [ "//chrome/browser/resources/webui_toolbar_shared:build_ts" ]
+  }
   if (!is_android || enable_webui_contextual_tasks_composebox) {
     ts_deps += [
       "//ui/webui/resources/cr_components/composebox:build_ts",
@@ -148,6 +156,11 @@ build_webui("build") {
       [ "/shared/guest_view/*|" + rebase_path(
             "$root_gen_dir/chrome/browser/resources/guest_view_shared/tsc/*",
             target_gen_dir) ]
+  if (!is_android) {
+    ts_path_mappings += [ "/shared/*|" + rebase_path(
+                              "$root_gen_dir/chrome/browser/resources/webui_toolbar_shared/tsc/*",
+                              target_gen_dir) ]
+  }
 
   webui_context_type = "trusted"
 }

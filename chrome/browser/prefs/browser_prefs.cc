@@ -92,7 +92,7 @@
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/prefs/prefs_tab_helper.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
-#include "chrome/browser/ui/tabs/projects/projects_prefs.h"
+#include "chrome/browser/ui/tabs/organizer/organizer_prefs.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.h"
@@ -268,9 +268,7 @@
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/ui/webui/management/management_ui.h"
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
@@ -318,6 +316,7 @@
 #include "chrome/browser/themes/theme_syncable_service.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
 #include "chrome/browser/ui/hats/hats_service_desktop.h"
+#include "chrome/browser/ui/omnibox/omnibox_everywhere/omnibox_everywhere_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/side_panel/side_panel_prefs.h"
@@ -502,6 +501,7 @@
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/onc/onc_pref_names.h"  // nogncheck
 #include "components/quirks/quirks_manager.h"
+#include "components/user_manager/multi_user/multi_user_sign_in_policy_controller.h"
 #include "components/user_manager/user_manager_impl.h"
 #if BUILDFLAG(USE_CUPS)
 #include "chrome/browser/extensions/api/printing/printing_api_handler.h"
@@ -1390,6 +1390,12 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 07/2026.
   registry->RegisterTimePref(kObsoleteManagementProfileLastLogTime,
                              base::Time());
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Deprecated 07/2026.
+  registry->RegisterBooleanPref(prefs::kProjectsPanelEntrypointEnabled, true);
+  registry->RegisterBooleanPref(prefs::kProjectsPanelPinnedToTabstrip, true);
+#endif
 }
 
 }  // namespace
@@ -1442,6 +1448,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   metrics::TabStatsTracker::RegisterPrefs(registry);
   network_time::NetworkTimeTracker::RegisterPrefs(registry);
   omnibox::RegisterLocalStatePrefs(registry);
+#if !BUILDFLAG(IS_ANDROID)
+  omnibox_everywhere::prefs::RegisterLocalStatePrefs(registry);
+#endif
   optimization_guide::prefs::RegisterLocalStatePrefs(registry);
   optimization_guide::model_execution::prefs::RegisterLocalStatePrefs(registry);
   password_manager::PasswordManager::RegisterLocalPrefs(registry);
@@ -1548,6 +1557,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   ash::ManagedCellularPrefHandler::RegisterLocalStatePrefs(registry);
   ash::ChromeSessionManager::RegisterPrefs(registry);
   user_manager::UserManagerImpl::RegisterPrefs(registry);
+  user_manager::MultiUserSignInPolicyController::RegisterPrefs(registry);
   ash::CupsPrintersManager::RegisterLocalStatePrefs(registry);
   ash::bluetooth_config::BluetoothPowerControllerImpl::RegisterLocalStatePrefs(
       registry);
@@ -1781,6 +1791,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   MediaEngagementService::RegisterProfilePrefs(registry);
   MediaStorageIdSalt::RegisterProfilePrefs(registry);
   metrics::RegisterDemographicsProfilePrefs(registry);
+  metrics::MetricsReportingChoiceService::RegisterProfilePrefs(registry);
   NotificationDisplayServiceImpl::RegisterProfilePrefs(registry);
   NotifierStateTracker::RegisterProfilePrefs(registry);
   ntp_tiles::CustomLinksManagerImpl::RegisterProfilePrefs(registry);
@@ -1989,9 +2000,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   toolbar::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   ManagementUI::RegisterProfilePrefs(registry);
-#endif
 
 #if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   DevToolsWindow::RegisterProfilePrefs(registry);
@@ -2179,7 +2188,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 
   actor::ui::RegisterProfilePrefs(registry);
 
-  projects::RegisterProfilePrefs(registry);
+  organizer::RegisterProfilePrefs(registry);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   registry->RegisterBooleanPref(webauthn::pref_names::kAllowWithBrokenCerts,
@@ -2710,6 +2719,12 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 07/2026.
   profile_prefs->ClearPref(kObsoleteManagementProfileLastLogTime);
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Added 07/2026.
+  profile_prefs->ClearPref(prefs::kProjectsPanelEntrypointEnabled);
+  profile_prefs->ClearPref(prefs::kProjectsPanelPinnedToTabstrip);
+#endif
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

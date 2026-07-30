@@ -517,6 +517,10 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   // Called when `view_` gets added as a child of another View.
   void OnViewHasNewAncestor(const View* new_ancestor);
 
+  // Called when `view_`'s parent changes, including when `view_` is removed
+  // from its parent.
+  void OnViewParentChanged();
+
   // This should only ever be called on the RootView.
   void SetRootViewIsReadyToNotifyEvents();
 
@@ -773,6 +777,12 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   void SetWidgetClosedRecursive(Widget* widget, bool value);
 
   void SetDataForClosedWidget(ui::AXNodeData* data) const;
+
+  // Returns the node that this node's bounds are relative to, or
+  // `ui::kInvalidAXNodeID` if they are relative to the root of the tree.
+  virtual ui::AXNodeID GetOffsetContainerId() const;
+
+  void UpdateOffsetContainerId();
 
   // Contains data that is populated by the accessibility attributes setters.
   ui::AXNodeData data_;

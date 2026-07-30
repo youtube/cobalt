@@ -1037,7 +1037,8 @@ TEST_F(ChromePaymentsAutofillClientOmniboxTest, GetOmniboxAutofillDelegate) {
             chrome_payments_client()->GetOmniboxAutofillDelegate());
 }
 
-TEST_F(ChromePaymentsAutofillClientOmniboxTest, ShowOmniboxAutofillChip) {
+TEST_F(ChromePaymentsAutofillClientOmniboxTest,
+       ShowExpandedOmniboxAutofillChip) {
   tabs::MockTabInterface mock_tab_interface;
   ui::UnownedUserDataHost user_data_host;
   ON_CALL(mock_tab_interface, GetUnownedUserDataHost())
@@ -1056,8 +1057,9 @@ TEST_F(ChromePaymentsAutofillClientOmniboxTest, ShowOmniboxAutofillChip) {
               ShowSuggestionChip(kActionAutofillPayment, _))
       .Times(1);
 
-  chrome_payments_client()->ShowOmniboxAutofillChip(
+  chrome_payments_client()->ShowExpandedOmniboxAutofillChip(
       /*suggestions=*/{},
+      /*on_chip_shown=*/base::DoNothing(),
       /*on_suggestions_shown=*/base::DoNothing(),
       /*on_suggestions_hidden=*/base::DoNothing(),
       /*did_select_suggestion=*/base::DoNothing(),

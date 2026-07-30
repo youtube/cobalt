@@ -314,18 +314,9 @@ inline LayoutStateScenePassKey PassKey() {
     _viewController.layoutGuideCenter =
         LayoutGuideCenterForScene(self.sceneState);
     _viewController.delegate = self;
-    UIViewController* tabGridViewController =
-        _tabGridCoordinator.viewController;
-    [_viewController addChildViewController:tabGridViewController];
-    if (IsChromeNextIaEnabled() && !IsFullscreenRefactoringEnabled()) {
-      [_viewController.view addSubview:tabGridViewController.view];
-      [tabGridViewController.view addSubview:_viewController.appContainer];
-      tabGridViewController.view.frame = _viewController.view.bounds;
-    } else {
-      [_viewController.appContainer addSubview:tabGridViewController.view];
-      tabGridViewController.view.frame = _viewController.appContainer.bounds;
-    }
-    [tabGridViewController didMoveToParentViewController:_viewController];
+    _viewController.geminiHandler = HandlerForProtocol(
+        _regularBrowser->GetCommandDispatcher(), GeminiCommands);
+    [_viewController setTabGrid:_tabGridCoordinator.viewController];
     self.sceneState.window.rootViewController = _viewController;
 
     _sceneMediator = [[SceneMediator alloc]
@@ -374,7 +365,21 @@ inline LayoutStateScenePassKey PassKey() {
   // unregister observers and destroy C++ objects before the application is
   // shut down without depending on non-deterministic call to -dealloc.
   [self stopSettingsAnimated:NO completion:nil];
-  [_regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+  if (!IsAlertCrashFixKillSwitchEnabled()) {
+    // Ensure command dispatching is stopped across all non-nil browsers so that
+    // shutdown captures unregistered targets in silently failing targets.
+    if (_regularBrowser) {
+      [_regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+    }
+    if (_incognitoBrowser) {
+      [_incognitoBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+    }
+    if (_inactiveBrowser) {
+      [_inactiveBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+    }
+  } else {
+    [_regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+  }
   _policyWatcherObserver.reset();
   _policyWatcherObserverBridge.reset();
   [self stopAccountMenu];
@@ -1391,6 +1396,13 @@ inline LayoutStateScenePassKey PassKey() {
   }];
 }
 
+- (void)showAutofillSettings {
+  __weak SceneCoordinator* weakSelf = self;
+  [self dismissModalDialogsWithCompletion:^{
+    [weakSelf showAutofillSettingsAfterModalDismiss];
+  }];
+}
+
 - (void)showPasswordManagerForCredentialImport:(NSUUID*)UUID
     API_AVAILABLE(ios(26.0)) {
   if (!_settingsNavigationController) {
@@ -1623,6 +1635,9 @@ inline LayoutStateScenePassKey PassKey() {
 }
 
 - (void)setIncognitoBrowser:(Browser*)incognitoBrowser {
+  if (!IsAlertCrashFixKillSwitchEnabled() && _incognitoBrowser) {
+    [_incognitoBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
+  }
   _incognitoBrowser = incognitoBrowser;
   _tabGridCoordinator.incognitoBrowser = incognitoBrowser;
   if (IsChromeNextIaEnabled()) {
@@ -1981,6 +1996,23 @@ inline LayoutStateScenePassKey PassKey() {
   _settingsNavigationController = [SettingsNavigationController
       autofillAndPasswordsControllerForBrowser:_regularBrowser.get()
                                       delegate:self];
+  [self.activeViewController presentViewController:_settingsNavigationController
+                                          animated:YES
+                                        completion:nil];
+}
+
+// Shows the Autofill settings in the settings UI.
+- (void)showAutofillSettingsAfterModalDismiss {
+  DCHECK(!self.isSigninInProgress);
+
+  if (_settingsNavigationController) {
+    [_settingsNavigationController showAutofillSettings];
+    return;
+  }
+  _settingsNavigationController = [SettingsNavigationController
+      autofillAndPasswordsControllerForBrowser:_regularBrowser.get()
+                                      delegate:self];
+  [_settingsNavigationController showAutofillSettings];
   [self.activeViewController presentViewController:_settingsNavigationController
                                           animated:YES
                                         completion:nil];
@@ -2375,6 +2407,15 @@ inline LayoutStateScenePassKey PassKey() {
   }
 }
 
+- (void)sceneViewControllerHideGeminiFloatyIfInvoked:
+    (SceneViewController*)viewController {
+  if (IsPageActionMenuEnabled()) {
+    [self
+        hideFloatyIfInvokedAnimated:YES
+                         fromSource:gemini::FloatyUpdateSource::ViewTransition];
+  }
+}
+
 #pragma mark - GeminiCommands
 
 - (void)startGeminiFlowWithStartupState:(GeminiStartupState*)startupState {
@@ -2384,8 +2425,6 @@ inline LayoutStateScenePassKey PassKey() {
 - (void)
     startGeminiEntryFlowWithStartupState:(GeminiStartupState*)startupState
                       baseViewController:(UIViewController*)baseViewController
-                             accessPoint:
-                                 (signin_metrics::AccessPoint)accessPoint
                 showSnackbarOnCompletion:(BOOL)showSnackbar
                               completion:(GeminiEntryFlowCompletion)completion {
   if (!IsGeneralizedGeminiEntryFlowEnabled()) {
@@ -2407,7 +2446,6 @@ inline LayoutStateScenePassKey PassKey() {
       initWithBaseViewController:presenter
                          browser:_regularBrowser.get()
                     startupState:startupState
-                     accessPoint:accessPoint
         showSnackbarOnCompletion:showSnackbar
                       completion:^(GeminiEntryFlowResult result) {
                         [weakSelf
@@ -2565,39 +2603,20 @@ inline LayoutStateScenePassKey PassKey() {
 
   GeminiBrowserAgent* geminiBrowserAgent =
       GeminiBrowserAgent::FromBrowser(_regularBrowser.get());
-  GeminiService* geminiService =
-      GeminiServiceFactory::GetForProfile(self.profile);
   GeminiTabHelper* geminiTabHelper =
       GeminiTabHelper::FromWebState(activeWebState);
-  if (!geminiBrowserAgent || !geminiTabHelper || !geminiService) {
+  if (!geminiBrowserAgent || !geminiTabHelper) {
     return;
   }
 
-  // Don't show the floaty if the page is ineligible or the active WebState
-  // isn't visible.
-  // TODO(crbug.com/476145805): Move WebState related checks to tab helper.
-  bool isWebStateVisible = activeWebState->IsVisible();
-  if (!isWebStateVisible && !IsChromeNextIaEnabled()) {
+  bool isFloatyVisible = geminiBrowserAgent->IsFloatyVisible();
+  if (!isFloatyVisible) {
     geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
     geminiBrowserAgent->HideFloatyIfInvoked(
         animated, gemini::FloatyUpdateSource::IneligibleSite);
-    return;
+  } else {
+    geminiBrowserAgent->ShowFloatyIfInvoked(animated, source);
   }
-
-  bool eligibleSite = gemini::IsGeminiAvailable(gemini::EntryPoint::Unknown,
-                                                self.profile, activeWebState)
-                          .enabled;
-  if (!eligibleSite) {
-    // Reset presented sources before hiding the floaty due to an ineligible
-    // site.
-    geminiTabHelper->UpdatePresentedSource(source, /*is_presented=*/false);
-    gemini::FloatyUpdateSource hideSource =
-        gemini::FloatyUpdateSource::IneligibleSite;
-    geminiBrowserAgent->HideFloatyIfInvoked(animated, hideSource);
-    return;
-  }
-
-  geminiBrowserAgent->ShowFloatyIfInvoked(animated, source);
 }
 
 #pragma mark - Helper methods for Gemini entry flow

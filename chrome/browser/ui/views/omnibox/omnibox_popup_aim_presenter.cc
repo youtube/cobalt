@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
@@ -42,26 +43,25 @@ void OmniboxPopupAimPresenter::Show() {
   if (GetWidget() && !widget_observation_.IsObserving()) {
     widget_observation_.Observe(GetWidget());
   }
-  if (GetWebUIContent()) {
-    auto* permission_manager =
-        permissions::PermissionRequestManager::FromWebContents(
-            GetWebUIContent()->GetWebContents());
-    if (permission_manager && !permission_observation_.IsObserving()) {
-      permission_observation_.Observe(permission_manager);
-    }
-  }
 }
 
 void OmniboxPopupAimPresenter::Hide() {
   widget_observation_.Reset();
-  permission_observation_.Reset();
-  is_handling_prompt_dismissal_ = false;
   ResetFocusRestorationState();
   OmniboxPopupPresenterBase::Hide();
 }
 
 std::string_view OmniboxPopupAimPresenter::GetPopupMetricPrefix() const {
   return OmniboxPopupPresenterBase::kAimPopupMetricPrefix;
+}
+
+void OmniboxPopupAimPresenter::LogResultToContentReadyMetric(
+    base::TimeTicks /*result_ready_time*/,
+    bool /*success*/) {
+  // The AIM popup calculates its ready state inherently differently than
+  // standard dropdowns. We explicitly override this metric to a no-op here to
+  // prevent logging garbage data and to avoid polluting standard WebUI
+  // telemetry.
 }
 
 std::optional<base::TimeDelta>
@@ -81,11 +81,12 @@ bool OmniboxPopupAimPresenter::ShouldDetachWebContentsOnHide() const {
 
 void OmniboxPopupAimPresenter::OnWidgetActivationChanged(views::Widget* widget,
                                                          bool active) {
-  // Reset prompt dismissal tracking flag once focus/activation returns to the
-  // omnibox.
   if (active) {
-    is_handling_prompt_dismissal_ = false;
-    ResetFocusRestorationState();
+    // If omnibox has received focus, it has been told by permission prompt that
+    // permission prompt is closed and omnibox can behave normally again.
+    // Therefore, turn off the 'is_handling_prompt_dismissal_' flag that forces
+    // omnibox to ignore focus-out events via function.
+    OnWidgetActivated();
     return;
   }
 
@@ -95,25 +96,22 @@ void OmniboxPopupAimPresenter::OnWidgetActivationChanged(views::Widget* widget,
   // Separately, if a user opens a context menu inside this popup. The context
   // menu is a child widget so this popup widget is still considered active. We
   // will not hide the popup.
-  // If a permission prompt was just closed, ignore any out of focus events from
-  // that.
+  // If a permission prompt is showing or was just closed, ignore any out of
+  // focus events from that.
   if (!active &&
       controller()->popup_state_manager()->popup_state() ==
           OmniboxPopupState::kAim &&
       !location_bar()->in_popup_state_transition() &&
-      !is_handling_prompt_dismissal_) {
+      !IsPermissionPromptPreventingClose()) {
+    // If keep open on file selection is enabled, don't close the popup if:
+    // 1) An active deactivation blocker is held (while the OS file dialog is
+    //    open).
+    // 2) We are restoring focus after file selection (after the dialog
+    //    closes and the blocker is released, during window reactivation focus
+    //    transfer).
     if (base::FeatureList::IsEnabled(
             omnibox::kOmniboxKeepOpenOnFileSelection) &&
-        is_restoring_focus_after_file_selection_) {
-      // Focus restoration was interrupted or completed. Stop observing
-      // FocusManager and clear the flag.
-      ResetFocusRestorationState();
-      return;
-    }
-
-    if (base::FeatureList::IsEnabled(
-            omnibox::kOmniboxKeepOpenOnFileSelection) &&
-        has_active_blockers()) {
+        (has_active_blockers() || is_restoring_focus_after_file_selection_)) {
       return;
     }
 
@@ -131,21 +129,6 @@ void OmniboxPopupAimPresenter::OnWidgetActivationChanged(views::Widget* widget,
     }
     controller()->popup_state_manager()->SetPopupState(
         OmniboxPopupState::kNone);
-  }
-}
-
-void OmniboxPopupAimPresenter::OnPromptRemoved() {
-  // When a permission prompt is removed (e.g., accepted or dismissed), focus
-  // moves to the main web contents temporarily before returning to the omnibox
-  // popup. Set `is_handling_prompt_dismissal_` to true and explicitly request
-  // focus back to the omnibox (again, even though embedded prompt does so).
-  // There is a task queue delay for this to be processed (or other focus events
-  // before this), so the flag protects the omnibox from incorrectly closing due
-  // to out of focus events until the omnibox gains focus (as requested here).
-  is_handling_prompt_dismissal_ = true;
-  if (location_bar()) {
-    location_bar()->FocusLocation(/*is_user_initiated=*/false,
-                                  /*clear_focus_if_failed=*/false);
   }
 }
 
@@ -177,29 +160,38 @@ void OmniboxPopupAimPresenter::OnFileSelectionClosed() {
 
 void OmniboxPopupAimPresenter::OnDidChangeFocus(views::View* focused_before,
                                                 views::View* focused_now) {
-  auto* location_bar_view = static_cast<LocationBarView*>(location_bar());
-  if (is_restoring_focus_after_file_selection_ && location_bar_view) {
-    // If the FocusManager is attempting to restore focus back to the omnibox
-    // text field (which is the default behavior when the file picker closes and
-    // the window re-activates), we intercept it and redirect focus to the
-    // popup.
-    if (focused_now == location_bar_view->omnibox_view()) {
-      auto* fm = location_bar_view->GetWidget()->GetFocusManager();
-      if (fm && fm->focus_change_reason() ==
-                    views::FocusManager::FocusChangeReason::kFocusRestore) {
-        RequestFocus();
-        // Focus restored successfully. Clean up observation and flag.
-        ResetFocusRestorationState();
-      }
-    } else if (focused_now) {
-      // Focus went somewhere else. Cancel the restoration state.
-      ResetFocusRestorationState();
-    }
+  // Ignore calls before focus restoration, and focus clears during
+  // transitions.
+  if (!is_restoring_focus_after_file_selection_ || !focused_now) {
+    return;
   }
+
+  auto* location_bar_view = static_cast<LocationBarView*>(location_bar());
+  // When the file picker closes and the window re-activates, `FocusManager`
+  // attempts to restore focus back to the native omnibox text field. We
+  // intercept this and redirect focus back to the WebUI popup.
+  if (location_bar_view && focused_now == location_bar_view->omnibox_view()) {
+    auto* fm = location_bar_view->GetWidget()->GetFocusManager();
+    if (fm && fm->focus_change_reason() ==
+                  views::FocusManager::FocusChangeReason::kFocusRestore) {
+      // Defer `RequestFocus` asynchronously to prevent re-entrant activation in
+      // wm::FocusController.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&OmniboxPopupAimPresenter::RequestFocus,
+                                    weak_factory_.GetWeakPtr()));
+    }
+  } else {
+    // Focus intentionally went to a completely different view (e.g., a toolbar
+    // button). We should ensure the popup closes.
+    controller()->popup_state_manager()->SetPopupState(
+        OmniboxPopupState::kNone);
+  }
+
+  // Reset state and stop observing focus transitions.
+  ResetFocusRestorationState();
 }
 
 void OmniboxPopupAimPresenter::ResetFocusRestorationState() {
-  // Clear the restoration state and stop observing focus transitions.
   is_restoring_focus_after_file_selection_ = false;
   focus_manager_observation_.Reset();
 }

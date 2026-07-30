@@ -59,18 +59,14 @@ class SharedTabGroupInteractiveUiTest
         {data_sharing::features::kDataSharingFeature, {}},
         {features::kTabGroupMenuMoreEntryPoints, {}}};
 
-    std::vector<base::test::FeatureRef> disabled_features = {
-        tab_groups::kProjectsPanel};
-
-    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
-                                                       disabled_features);
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
     InProcessBrowserTest::SetUp();
   }
 
   MultiStep ShowBookmarksBar() {
     return Steps(
         Do([this]() {
-          PrefService* prefs = browser()->profile()->GetPrefs();
+          PrefService* prefs = browser()->GetProfile()->GetPrefs();
           if (base::FeatureList::IsEnabled(
                   ntp_features::kNtpSimplificationBookmarkBar)) {
             prefs->SetInteger(

@@ -243,7 +243,6 @@
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_shadow_controller_delegate.h"
 #include "ash/wm/workspace_controller.h"
-#include "ash/wm_mode/wm_mode_controller.h"
 #include "base/check.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
@@ -672,10 +671,11 @@ void Shell::NotifyUserWorkAreaInsetsChanged(aura::Window* root_window) {
   if (shutting_down_) {
     return;
   }
-  // A fullscreen state change in `NotifyFullscreenStateChanged` may trigger a
-  // reentrancy call to user work area insets change.
-  // TODO(crbug.com/528597195): Investigate if we can remove the reentrancy.
-  shell_observers_.NotifyAllowReentrancyUntriaged(
+  // Allow reentrancy here. A fullscreen state change in
+  // `NotifyFullscreenStateChanged` could move the accessibility panel which
+  // triggers this call to update shelf components' layout.
+  // See crbug.com/525739020 for details.
+  shell_observers_.NotifyAllowReentrancy(
       &ShellObserver::OnUserWorkAreaInsetsChanged, root_window);
 }
 
@@ -885,8 +885,6 @@ Shell::~Shell() {
   // Close and destroy all application windows here, so that the window manager
   // related objects, which app windows relies on, can be sefely deleted.
   CloseAllAppWindows();
-
-  wm_mode_controller_.reset();
 
   // `shortcut_input_handler_` must be cleaned up before
   // `event_rewriter_controller_`.
@@ -1786,13 +1784,6 @@ void Shell::Init(
   detachable_base_notification_controller_ =
       std::make_unique<DetachableBaseNotificationController>(
           detachable_base_handler_.get());
-
-  // WmModeController should be created before initializing the window tree
-  // hosts, since the latter will initialize the shelf on each display, which
-  // hosts the WM mode tray button.
-  if (features::IsWmModeEnabled()) {
-    wm_mode_controller_ = std::make_unique<WmModeController>();
-  }
 
   hotspot_icon_animation_ = std::make_unique<HotspotIconAnimation>();
   hotspot_info_cache_ = std::make_unique<HotspotInfoCache>();

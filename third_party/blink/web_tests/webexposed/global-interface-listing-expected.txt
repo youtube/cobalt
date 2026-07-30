@@ -179,7 +179,6 @@ interface AudioContext : BaseAudioContext
     getter onsinkchange
     getter outputLatency
     getter playbackStats
-    getter playoutStats
     getter sinkId
     method close
     method constructor
@@ -299,17 +298,6 @@ interface AudioPlaybackStats
     getter totalDuration
     getter underrunDuration
     getter underrunEvents
-    method constructor
-    method resetLatency
-    method toJSON
-interface AudioPlayoutStats
-    attribute @@toStringTag
-    getter averageLatency
-    getter fallbackFramesDuration
-    getter fallbackFramesEvents
-    getter maximumLatency
-    getter minimumLatency
-    getter totalFramesDuration
     method constructor
     method resetLatency
     method toJSON
@@ -2169,7 +2157,6 @@ interface Document : Node
     getter readyState
     getter referrer
     getter rootElement
-    getter routeMap
     getter scripts
     getter scrollingElement
     getter spellCheckCustomDictionary
@@ -3289,6 +3276,7 @@ interface GPUComputePassEncoder
     method setBindGroup
     method setImmediates
     method setPipeline
+    method setResourceTable
     method writeTimestamp
     setter label
 interface GPUComputePipeline
@@ -3318,6 +3306,7 @@ interface GPUDevice : EventTarget
     method createRenderBundleEncoder
     method createRenderPipeline
     method createRenderPipelineAsync
+    method createResourceTable
     method createSampler
     method createShaderModule
     method createTexture
@@ -3431,6 +3420,16 @@ interface GPURenderPipeline
     getter label
     method constructor
     method getBindGroupLayout
+    setter label
+interface GPUResourceTable
+    attribute @@toStringTag
+    getter label
+    getter size
+    method constructor
+    method destroy
+    method insert
+    method remove
+    method update
     setter label
 interface GPUSampler
     attribute @@toStringTag
@@ -3548,6 +3547,7 @@ interface GamepadButton
     attribute @@toStringTag
     getter pressed
     getter touched
+    getter type
     getter value
     method constructor
 interface GamepadEvent : Event
@@ -4514,6 +4514,7 @@ interface HTMLIFrameElement : HTMLElement
     getter allowFullscreen
     getter allowPaymentRequest
     getter browsingTopics
+    getter connectionAllowlist
     getter contentDocument
     getter contentWindow
     getter credentialless
@@ -4532,7 +4533,6 @@ interface HTMLIFrameElement : HTMLElement
     getter referrerPolicy
     getter sandbox
     getter scrolling
-    getter sharedStorageWritable
     getter src
     getter srcdoc
     getter width
@@ -4544,6 +4544,7 @@ interface HTMLIFrameElement : HTMLElement
     setter allowFullscreen
     setter allowPaymentRequest
     setter browsingTopics
+    setter connectionAllowlist
     setter credentialless
     setter csp
     setter frameBorder
@@ -4558,7 +4559,6 @@ interface HTMLIFrameElement : HTMLElement
     setter referrerPolicy
     setter sandbox
     setter scrolling
-    setter sharedStorageWritable
     setter src
     setter srcdoc
     setter width
@@ -4583,7 +4583,6 @@ interface HTMLImageElement : HTMLElement
     getter naturalHeight
     getter naturalWidth
     getter referrerPolicy
-    getter sharedStorageWritable
     getter sizes
     getter src
     getter srcset
@@ -4609,7 +4608,6 @@ interface HTMLImageElement : HTMLElement
     setter lowsrc
     setter name
     setter referrerPolicy
-    setter sharedStorageWritable
     setter sizes
     setter src
     setter srcset
@@ -5406,6 +5404,7 @@ interface HTMLTableSectionElement : HTMLElement
     setter vAlign
 interface HTMLTemplateElement : HTMLElement
     attribute @@toStringTag
+    getter buffer
     getter content
     getter htmlFor
     getter shadowRootAdoptedStyleSheets
@@ -5417,6 +5416,7 @@ interface HTMLTemplateElement : HTMLElement
     getter shadowRootSerializable
     getter shadowRootSlotAssignment
     method constructor
+    setter buffer
     setter htmlFor
     setter shadowRootAdoptedStyleSheets
     setter shadowRootClonable
@@ -5839,7 +5839,6 @@ interface Image
     getter naturalHeight
     getter naturalWidth
     getter referrerPolicy
-    getter sharedStorageWritable
     getter sizes
     getter src
     getter srcset
@@ -5865,7 +5864,6 @@ interface Image
     setter lowsrc
     setter name
     setter referrerPolicy
-    setter sharedStorageWritable
     setter sizes
     setter src
     setter srcset
@@ -8653,18 +8651,6 @@ interface Rewriter
     method measureInputUsage
     method rewrite
     method rewriteStreaming
-interface Route : EventTarget
-    attribute @@toStringTag
-    getter matches
-    getter pattern
-    method constructor
-interface RouteEvent : Event
-    attribute @@toStringTag
-    method constructor
-interface RouteMap
-    attribute @@toStringTag
-    method constructor
-    method get
 interface RtcReceivedPacket
     attribute @@toStringTag
     getter payloadByteLength
@@ -10177,39 +10163,6 @@ interface ShadowRoot : DocumentFragment
     setter innerHTML
     setter onslotchange
     setter referenceTarget
-interface SharedStorage
-    attribute @@toStringTag
-    getter worklet
-    method append
-    method batchUpdate
-    method clear
-    method constructor
-    method createWorklet
-    method delete
-    method run
-    method selectURL
-    method set
-interface SharedStorageAppendMethod : SharedStorageModifierMethod
-    attribute @@toStringTag
-    method constructor
-interface SharedStorageClearMethod : SharedStorageModifierMethod
-    attribute @@toStringTag
-    method constructor
-interface SharedStorageDeleteMethod : SharedStorageModifierMethod
-    attribute @@toStringTag
-    method constructor
-interface SharedStorageModifierMethod
-    attribute @@toStringTag
-    method constructor
-interface SharedStorageSetMethod : SharedStorageModifierMethod
-    attribute @@toStringTag
-    method constructor
-interface SharedStorageWorklet
-    attribute @@toStringTag
-    method addModule
-    method constructor
-    method run
-    method selectURL
 interface SharedWorker : EventTarget
     attribute @@toStringTag
     getter onerror
@@ -13979,7 +13932,6 @@ namespace console
     getter scrollbars
     getter self
     getter sessionStorage
-    getter sharedStorage
     getter speechSynthesis
     getter status
     getter statusbar

@@ -109,6 +109,10 @@ void EmailVerifierDelegate::Verify(
                         EvpAutofillFlowResult::kVerifierUnavailable);
     return;
   }
+
+  manager->driver().UpdateEmailVerificationState(
+      email_field_id, mojom::EmailVerificationState::kLoading);
+
   in_flight_verify_count_++;
   verifier->Verify(
       result, nonce,
@@ -579,9 +583,6 @@ void EmailVerifierDelegate::TriggerVerification(
   const base::DictValue* email_data = state.FindDict(email_utf8);
   const bool already_allowed =
       email_data && email_data->FindBool("allowed").value_or(false);
-
-  manager.driver().UpdateEmailVerificationState(
-      email_field.global_id(), mojom::EmailVerificationState::kLoading);
 
   verifier->CheckIfVerifiable(
       email_utf8,

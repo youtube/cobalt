@@ -364,6 +364,40 @@ suite('ComposeboxMixinTest', () => {
         assertEquals(0, element.aimThreadRestoredTabs.length);
       });
 
+
+  test(
+      'refreshTabSuggestions() removes tab context if it was navigated',
+      async () => {
+        const tokenTab = 'test-token-tab' as unknown as UnguessableToken;
+        const selectedTabId = 100;
+        const mockTabFile = new ComposeboxFile(
+            tokenTab, 'Selected Tab', 'tab', InputType.kBrowserTab, {
+              isDeletable: true,
+              tabId: selectedTabId,
+              url: 'about:blank?original',
+            });
+
+        element.files = new Map([[tokenTab, mockTabFile]]);
+        element.addedTabsIds = new Map([[selectedTabId, tokenTab]]);
+
+        const freshTab = {
+          tabId: selectedTabId,
+          title: 'Selected Tab',
+          url: 'about:blank?navigated',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [freshTab]}));
+
+        await element.refreshTabSuggestions();
+
+        assertFalse(element.files.has(tokenTab));
+        assertFalse(element.addedTabsIds.has(selectedTabId));
+        assertEquals(1, searchboxHandler.getCallCount('deleteContext'));
+      });
+
   test('submitCleanup() clears active tab selections', async () => {
     const tokenTab = 'test-token-tab' as unknown as UnguessableToken;
     const selectedTabId = 100;
@@ -473,11 +507,10 @@ suite('ComposeboxMixinTest', () => {
     inputElement.inputElement.selectionStart = 3;
     inputElement.inputElement.selectionEnd = 3;
 
-    searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
+    searchboxHandler.resetResolver('queryAutocomplete');
     element.queryAutocomplete(/*clearMatches=*/ false);
 
-    const args = await searchboxHandler.whenCalled(
-        'queryAutocompleteWithSuggestInventory');
+    const args = await searchboxHandler.whenCalled('queryAutocomplete');
     assertDeepEquals(
         args, [0, 'hello', false, 3, SuggestInventory.kDefault, false]);
   });
@@ -499,43 +532,39 @@ suite('ComposeboxMixinTest', () => {
         // reflected in the DOM.
         element.input = 'hello world';
 
-        // Clear the `queryAutocompleteWithSuggestInventory` called for ZPS.
-        searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
+        // Clear the `queryAutocomplete` called for ZPS.
+        searchboxHandler.resetResolver('queryAutocomplete');
         element.queryAutocomplete(/*clearMatches=*/ false);
 
-        const args = await searchboxHandler.whenCalled(
-            'queryAutocompleteWithSuggestInventory');
+        const args = await searchboxHandler.whenCalled('queryAutocomplete');
         assertDeepEquals(
             args,
             [0, 'hello world', false, 11, SuggestInventory.kDefault, false]);
       });
 
   test('queries autocomplete on load by default', async () => {
-    searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
+    searchboxHandler.resetResolver('queryAutocomplete');
     const freshComposebox = document.createElement('test-composebox-mixin');
     document.body.appendChild(freshComposebox);
     await microtasksFinished();
 
-    assertEquals(
-        1,
-        searchboxHandler.getCallCount('queryAutocompleteWithSuggestInventory'));
+    assertEquals(1, searchboxHandler.getCallCount('queryAutocomplete'));
   });
 
-  test('does not query autocomplete on load when queryZpsOnLoad is false',
-       async () => {
-    searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
-    const freshComposebox = document.createElement('test-composebox-mixin');
-    // queryZpsOnLoad is read in connectedCallback, so it must be set before
-    // the element connects. Contextual Tasks sets it false and drives
-    // autocomplete from its own zero-state logic instead.
-    freshComposebox.queryZpsOnLoad = false;
-    document.body.appendChild(freshComposebox);
-    await microtasksFinished();
+  test(
+      'does not query autocomplete on load when queryZpsOnLoad is false',
+      async () => {
+        searchboxHandler.resetResolver('queryAutocomplete');
+        const freshComposebox = document.createElement('test-composebox-mixin');
+        // queryZpsOnLoad is read in connectedCallback, so it must be set before
+        // the element connects. Contextual Tasks sets it false and drives
+        // autocomplete from its own zero-state logic instead.
+        freshComposebox.queryZpsOnLoad = false;
+        document.body.appendChild(freshComposebox);
+        await microtasksFinished();
 
-    assertEquals(
-        0,
-        searchboxHandler.getCallCount('queryAutocompleteWithSuggestInventory'));
-  });
+        assertEquals(0, searchboxHandler.getCallCount('queryAutocomplete'));
+      });
 
   test(
       'Shift+Enter allows inserting a newline when input is focused and not empty',

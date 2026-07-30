@@ -328,6 +328,7 @@ GlicInstanceImpl::~GlicInstanceImpl() {
   // (e.g., during host or embedder shutdown) from posting new tasks back to
   // the coordinator while this instance is being destroyed.
   coordinator_delegate_ = nullptr;
+  tab_group_id_ = std::nullopt;
   // Destroying the web contents may result in calls back here, so do it first.
   host_.Shutdown();
 
@@ -469,6 +470,7 @@ void GlicInstanceImpl::Show(ShowOptions options) {
           std::get_if<SidePanelShowOptions>(&options.embedder_options);
       side_panel_options) {
     if (ShouldShowInactiveSidePanel(*side_panel_options)) {
+      instance_metrics().OnShowInactiveSidePanel(options.invocation_source);
       ShowInactiveSidePanelEmbedderFor(*side_panel_options);
       return;
     }
@@ -861,6 +863,12 @@ void GlicInstanceImpl::UnbindEmbedder(EmbedderKey key) {
   UpdateFloatingPanelCanAttach();
 
   MaybeRemoveInstance();
+
+  if (tab) {
+    if (tab_group_id_.has_value()) {
+      EnsureTabNotInGroup(tab, tab_group_id_.value());
+    }
+  }
 }
 
 void GlicInstanceImpl::UnbindTab(tabs::TabInterface* tab) {
@@ -1020,6 +1028,11 @@ std::string GlicInstanceImpl::conversation_title() const {
 std::optional<int> GlicInstanceImpl::task_id() const {
   return actor_task_manager_ ? actor_task_manager_->current_task_id()
                              : std::nullopt;
+}
+
+std::optional<mojom::InvocationSource>
+GlicInstanceImpl::GetInitialInvocationSource() const {
+  return instance_metrics_.initial_invocation_source();
 }
 
 std::vector<tabs::TabInterface*> GlicInstanceImpl::GetBoundTabs() const {
@@ -1649,6 +1662,9 @@ void GlicInstanceImpl::OnTabGroupingChanged(tabs::TabInterface* tab,
                                      GlicPinTrigger::kTabGroupIntegration));
     }
   } else {
+    if (tab->GetGroup() == tab_group_id_.value()) {
+      return;
+    }
     EmbedderKey key = SidePanelEmbedderKey(tab);
     if (GetEmbedderEntry(key)) {
       GetSharingManagerInternal().UnpinTabs(
@@ -2117,6 +2133,8 @@ void GlicInstanceImpl::UnbindTabGroup() {
     return;
   }
 
+  tab_group_id_ = std::nullopt;
+
   std::vector<tabs::TabInterface*> bound_tabs = GetBoundTabs();
   std::vector<tabs::TabHandle> handles;
   for (tabs::TabInterface* t : bound_tabs) {
@@ -2134,8 +2152,6 @@ void GlicInstanceImpl::UnbindTabGroup() {
       UnbindEmbedder(SidePanelEmbedderKey(t));
     }
   }
-
-  tab_group_id_ = std::nullopt;
 }
 
 tabs::TabInterface* GlicInstanceImpl::GetGlicTab() const {

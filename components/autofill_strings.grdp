@@ -398,14 +398,8 @@
   <message name="IDS_AUTOFILL_HOME_WORK_ADDRESS_EDIT_A11Y_LABEL" desc="The a11y label for the edit button for the home/work address in Settings.">
     Edit, opens new window
   </message>
-  <message name="IDS_AUTOFILL_SYNC_TOGGLE_LABEL" desc="The Sync Autofill toggle label on the Autofill Settings page.">
-    Use and save Addresses from your Google Account
-  </message>
   <message name="IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE" desc="Title for the Autofill settings page that allows user to manage their list of saved addresses and Autofill preferences for addresses. Sentence-Cased." formatter_data="android_java">
     Addresses and more
-  </message>
-  <message name="IDS_AUTOFILL_ADDRESSES_SETTINGS_SUBLABEL" desc="Description shown below the link to the Autofill settings page for managing addresses and more." translateable="false">
-    Phone numbers, email addresses, shipping addresses, and plus addresses
   </message>
   <message name="IDS_AUTOFILL_SETTINGS_EMAIL_VERIFICATION_LABEL" desc="Label for a toggle that allows users to control whether email addresses should be automatically confirmed on supported sites.">
     Automatically confirm your emails
@@ -823,7 +817,7 @@
     More about relevant data sent to Google
   </message>
   <message name="IDS_AUTOFILL_AT_MEMORY_NO_CONNECTION" desc="Message shown when @memory search fails to connect to the server." translateable="false">
-    No server connection
+    Couldn't connect
   </message>
   <message name="IDS_AUTOFILL_AT_MEMORY_GENERIC_ERROR" desc="Message shown when @memory search fails due to a generic or internal error." translateable="false">
     Something went wrong
@@ -857,7 +851,7 @@
       Now you can find and fill info from Gmail and more
     </message>
     <message name="IDS_AT_MEMORY_NOTICE_TEXT" desc="Text for the notice shown in the @memory bottom sheet." formatter_data="android_java">
-      Powered by Personal Intelligence with Gemini. Page titles and URLs are sent to Google and may be reviewed by humans. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Manage settings<ph name="END_LINK">&lt;/link&gt;</ph>
+      Powered by Personal Intelligence with Gemini. Your requests, page titles, and URLs may be reviewed to improve enhanced autofill. <ph name="BEGIN_LINK">&lt;link&gt;</ph>Manage settings<ph name="END_LINK">&lt;/link&gt;</ph>
     </message>
     <message name="IDS_AT_MEMORY_NOTICE_OK_BUTTON" desc="Button text to acknowledge the notice in the @memory bottom sheet." formatter_data="android_java">
       OK
@@ -868,6 +862,9 @@
   </message>
   <message name="IDS_AUTOFILL_AI_SUGGESTED_BY_GEMINI" desc="Sublabel text indicating that a suggestion is sourced from Gemini.">
     Suggested by Gemini
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_MANAGE_CONTACT_INFO" desc="The text displayed at the bottom of the AtMemory popup to allow the user to manage their Autofill preferences for contact information. When the user clicks on it, opens the Contact info settings page." translateable="false">
+    Manage contact info
   </message>
 
   <!-- Autofill Address Edit Dialog -->
@@ -1086,6 +1083,32 @@
   </message>
   <message name="IDS_AUTOFILL_AI_SHIPMENT_PRODUCT_NAMES_ATTRIBUTE_NAME" desc="Used as a general label for the shipment product names attribute." translateable="false">
     Product names
+  </message>
+
+  <!-- Attributes of the flight reservation entity -->
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_FLIGHT_NUMBER_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation flight number attribute.">
+    Flight number
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_TICKET_NUMBER_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation ticket number attribute.">
+    Flight ticket
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_CONFIRMATION_CODE_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation confirmation code attribute.">
+    Booking code
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_PASSENGER_NAME_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation passenger name attribute.">
+    Passenger
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_DEPARTURE_AIRPORT_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation departure airport attribute.">
+    Departure airport
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_ARRIVAL_AIRPORT_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation arrival airport attribute.">
+    Arrival airport
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_DEPARTURE_DATE_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation departure date attribute.">
+    Departure date
+  </message>
+  <message name="IDS_AUTOFILL_AI_FLIGHT_RESERVATION_ARRIVAL_DATE_ATTRIBUTE_NAME" desc="Used as a general label for the flight reservation arrival date attribute.">
+    Arrival date
   </message>
 
   <!-- Attributes of the driver's license entity -->
@@ -1375,7 +1398,7 @@
     Couldn't save to Google Wallet
   </message>
 
-  <message name="IDS_AUTOFILL_AI_WALLET_FETCH_FAILURE_NOTIFICATION" desc="A snackbar (toast) message appearing at the top of the screen. The user sees this error if they attempt to autofill information but the request fails due to network connectivity issues.">
+  <message name="IDS_AUTOFILL_AI_FETCH_ENTITY_FAILURE_NOTIFICATION" desc="A snackbar (toast) message appearing at the top of the screen. The user sees this error if they attempt to autofill information but the request fails due to network connectivity issues.">
     Trouble filling your info. Check your connection.
   </message>
 
@@ -1501,11 +1524,15 @@
     <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_DESCRIPTION" desc="The description text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet." formatter_data="android_java">
       Chrome will offer to save it to <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE">$1<ex>Google Wallet</ex></ph> next time you use it
     </message>
-    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_CONFIRMATION_BUTTON_LABEL" desc="The confirmation button text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet." formatter_data="android_java">
+    <message name="IDS_AUTOFILL_AI_SNACK_BAR_CONFIRMATION_BUTTON_LABEL" desc="The confirmation button text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet." formatter_data="android_java">
       Got it
     </message>
     <message name="IDS_AUTOFILL_AI_ENTITY_STORED_IN_GOOGLE_WALLET_ACCESSIBILITY_LABEL" desc="The accessibility label used for entities listed in settings that are stored in Google Wallet." formatter_data="android_java">
       Stored in Google Wallet
+    </message>
+
+    <message name="IDS_AUTOFILL_AI_LOADING_DIALOG_LABEL" desc="The string shown in the loading dialog that is opened after successful user authentication. It's is informing the user about an ongoing request to fetch their data from the server.">
+      Filling your info
     </message>
 
     <message name="IDS_AUTOFILL_AI_SUGGESTION_LONG_PRESS_DIALOG_DESCRIPTION" desc="The description text shown in the dialog after the user long presses a suggestion in the keyboard accessory." formatter_data="android_java">
@@ -1571,7 +1598,7 @@
     Type @@ in any form to find and fill info without switching tabs
   </message>
   <message name="IDS_AT_MEMORY_PROMO_DESCRIPTION" desc="Description of the at-memory promo bubble.">
-    Enhanced autofill can now find and fill info — like flight numbers and appointment times — from apps like Gmail and Photos. Autofill info from apps such as Gmail and Photos.
+    Enhanced autofill can now find and fill info — like flight numbers and appointment times — from apps like Gmail and Photos
   </message>
   <message name="IDS_AT_MEMORY_PROMO_LEARN_MORE_BUTTON" desc="Label of the 'Learn more' button in the at-memory promo bubble.">
     Learn more
@@ -1635,14 +1662,17 @@
   <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_QUALITY_LOGGING_TITLE" desc="Title of the collapsible quality logging section in enhanced autofill settings.">
     You're helping improve enhanced autofill by sharing data with Google
   </message>
+  <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_QUALITY_LOGGING_SUBTITLE" desc="Subtitle of the collapsible quality logging section in enhanced autofill settings.">
+    When you make a request for enhanced autofill, your usage data, requests, and page details are shared with Google to improve the autofill experience
+  </message>
   <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_WHEN_USED_1" desc="Bullet point 1 under When used in the quality logging section.">
-    When you type a request for enhanced autofill, Chrome logs how you use the feature, such as whether you accept, edit, or ignore autofill suggestions
+    Chrome logs how you use the feature, such as your requests and behavior when you accept or ignore suggestions
   </message>
   <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_WHEN_USED_2" desc="Bullet point 2 under When used in the quality logging section.">
-    The requests sent to Personal Intelligence with Gemini are analyzed to improve autofill
+    System data, including form fields and feature performance, is analyzed to improve future suggestions
   </message>
   <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_CONSIDER_1" desc="Bullet point 1 under Things to consider in the quality logging section.">
-    Page titles and URLs are sent to Google and may be reviewed by humans
+    Your requests, page titles, and URLs are sent to Google and may be reviewed to improve enhanced autofill
   </message>
   <message name="IDS_SETTINGS_SUGGESTIONS_FROM_GEMINI_CONSIDER_2" desc="Bullet point 2 under Things to consider in the quality logging section.">
     The info you autofill is never seen by anyone
@@ -1651,54 +1681,45 @@
     Your content will not be used to improve AI. Your organization may change these settings at any time.
   </message>
 
-  <!-- Personal Context Notice in Autofill Popup -->
-  <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_TITLE" translateable="false" desc="Title for the personal context notice in Autofill popup.">
-    Now autofill info from Gmail and more.
-  </message>
-  <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT" translateable="false" desc="Context text for the personal context notice in Autofill popup.">
-    Powered by Gemini with Personal Intelligence.
-  </message>
-  <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_LINK_TEXT" translateable="false" desc="Link text for the personal context notice in Autofill popup.">
-    Manage settings
-  </message>
-  <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_OK_BUTTON" translateable="false" desc="Got it button text in Autofill popup personal context notice.">
-    OK
-  </message>
-
-  <!-- Personal Context Notice in AtMemory Popup -->
-  <message name="IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_TITLE" translateable="false" desc="Title for the personal context notice in AtMemory popup.">
-    Now you can find and fill info from Gmail and more.
-  </message>
-  <message name="IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT" translateable="false" desc="Context text for the personal context notice in AtMemory popup.">
-    Powered by Personal Intelligence with Gemini. Page titles and URLs are sent to Google and may be reviewed by humans. More about enhanced autofill in
-  </message>
-  <message name="IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_LINK_TEXT" translateable="false" desc="Link text for the personal context notice in AtMemory popup.">
-    settings.
-  </message>
-  <message name="IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_OK_BUTTON" translateable="false" desc="Got it button text in AtMemory popup personal context notice.">
-    OK
-  </message>
+  <!-- Personal Context Notice in Ambient Autofill/AtMemory Popup on Desktop -->
+  <if expr="not is_android and not is_ios">
+    <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_TITLE" translateable="false" desc="Title for the personal context notice in Ambient Autofill/AtMemory popup.">
+      Now you can find and fill info from Gmail and more.
+    </message>
+    <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT" translateable="false" desc="Context text for the default personal context notice in AmbientAutofill popup or in AtMemory popup when the logging is disabled by policy.">
+      Powered by Personal Intelligence with Gemini.
+    </message>
+    <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT_WITH_LOGGING" translateable="false" desc="Context text for the personal context notice in AtMemory popup when the logging is enabled.">
+      Powered by Personal Intelligence with Gemini. Your requests, page titles, and URLs may be reviewed to improve enhanced autofill.
+    </message>
+    <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_LINK_TEXT" translateable="false" desc="Link text for the personal context notice in Ambient Autofill/AtMemory popup.">
+      Manage settings
+    </message>
+    <message name="IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_OK_BUTTON" translateable="false" desc="Got it button text for the personal context notice in Ambient Autofill/AtMemory popup.">
+      OK
+    </message>
+  </if>
 
   <!-- Personal Context Notice in Autofill Bottomsheet -->
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_CONTENT_DESCRIPTION" desc="Accessibility string read when the autofill personal context notice sheet is opened." formatter_data="android_java" translateable="false">
-    Autofill from your Google apps notice opened
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_CONTENT_DESCRIPTION" desc="Accessibility string read when the autofill personal context notice sheet is opened." formatter_data="android_java">
+    Autofill from Gmail and more notice opened
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_FULL_HEIGHT" desc="Accessibility string read upon opening the autofill personal context notice sheet." formatter_data="android_java" translateable="false">
-    Autofill from your Google apps notice opened at full height
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_FULL_HEIGHT" desc="Accessibility string read upon opening the autofill personal context notice sheet." formatter_data="android_java">
+    Autofill from Gmail and more notice opened at full height
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_CLOSED" desc="Accessibility string read upon closing the autofill personal context notice sheet." formatter_data="android_java" translateable="false">
-    Autofill from your Google apps notice closed
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SHEET_CLOSED" desc="Accessibility string read upon closing the autofill personal context notice sheet." formatter_data="android_java">
+    Autofill from Gmail and more notice closed
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_TITLE" desc="Title of the bottom sheet notice informing users they can autofill from Google apps." formatter_data="android_java" translateable="false">
-    Now you can autofill info from your Google apps
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_TITLE" desc="Headline of an informational notice or consent dialog introducing a new autofill feature. 'Gmail' is a Google product name and must remain unlocalized." formatter_data="android_java">
+    Now you can find and fill info from Gmail and more
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_DESCRIPTION" desc="Description text of the bottom sheet notice informing users about Gemini and settings." formatter_data="android_java" translateable="false">
-    Powered by Gemini with Personal Intelligence. Manage your choices anytime in settings.
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_DESCRIPTION" desc="Body text of the feature notice. 'Personal Intelligence' and 'Gemini' are proper branding names and should match standard branding guidelines across languages." formatter_data="android_java">
+    Powered by Personal Intelligence with Gemini. Manage your choices in settings.
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_OK_BUTTON" desc="Label for the OK button on the autofill notice sheet." formatter_data="android_java" translateable="false">
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_OK_BUTTON" desc="Label for the OK button on the autofill notice sheet." formatter_data="android_java">
     OK
   </message>
-  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SETTINGS_LINK" desc="Label for the Manage settings link on the autofill notice sheet." formatter_data="android_java" translateable="false">
-    Manage settings
+  <message name="IDS_AUTOFILL_PERSONAL_CONTEXT_NOTICE_SETTINGS_LINK" desc="Label for the Manage settings link on the autofill notice sheet." formatter_data="android_java">
+    Settings
   </message>
 </grit-part>

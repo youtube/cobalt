@@ -26,8 +26,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 import {getTemplate} from './diagnostics_app.html.js';
 import {DiagnosticsBrowserProxyImpl} from './diagnostics_browser_proxy.js';
 import {getDiagnosticsIcon, getNavigationIcon} from './diagnostics_utils.js';
-import type {KeyboardInfo} from './input.mojom-webui.js';
-import type {ConnectedDevices, InputDataProviderInterface, TouchDeviceInfo} from './input_data_provider.mojom-webui.js';
+import type {InputDataProviderInterface} from './input_data_provider.mojom-webui.js';
 import {ConnectedDevicesObserverReceiver} from './input_data_provider.mojom-webui.js';
 import {getInputDataProvider} from './mojo_interface_provider.js';
 
@@ -96,10 +95,10 @@ export class DiagnosticsAppElement extends DiagnosticsAppElementBase {
     };
   }
 
-  protected bannerMessage: string;
-  protected isLoggedIn: boolean;
-  private saveSessionLogEnabled: boolean;
-  private toastText: string;
+  declare protected bannerMessage: string;
+  declare protected isLoggedIn: boolean;
+  declare private saveSessionLogEnabled: boolean;
+  declare private toastText: string;
   private browserProxy: DiagnosticsBrowserProxyImpl =
       DiagnosticsBrowserProxyImpl.getInstance();
   private inputDataProvider: InputDataProviderInterface =

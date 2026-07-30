@@ -118,7 +118,7 @@ fn test_inputs() {
             // All truncations of the input should fail to parse.
             for i in 0..bytes.len() - 1 {
                 let result = parse_bytes(&bytes[..i]);
-                assert!(matches!(result, Result::Err(_)));
+                assert!(result.is_err());
             }
         }
     }
@@ -182,4 +182,15 @@ fn test_corner_cases() {
         let result = parse_bytes(&bytes);
         assert_eq!(result, test.1, "{}", test.0);
     }
+}
+
+#[gtest(CBORReaderRustTest, TestMapKeyIsUnsupportedSimpleValue)]
+fn test_map_unsupported_simple_values() {
+    let bytes_key = hex::decode("a1f002").unwrap();
+    let result_key = parse_bytes(&bytes_key);
+    assert_eq!(result_key, Err(Error::UnsupportedSimpleValue(16)));
+
+    let bytes_value = hex::decode("a102f0").unwrap();
+    let result_value = parse_bytes(&bytes_value);
+    assert_eq!(result_value, Err(Error::UnsupportedSimpleValue(16)));
 }

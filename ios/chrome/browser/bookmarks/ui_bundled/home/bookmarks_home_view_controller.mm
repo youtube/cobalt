@@ -1793,8 +1793,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 // Returns a button to add a new folder to the bookmarks.
 - (UIBarButtonItem*)createNewFolderButton {
-  UIImage* newFolderIcon =
-      DefaultSymbolWithConfiguration(kFolderBadgePlusSymbol, nil);
+  UIImage* newFolderIcon = SymbolWithConfiguration(SymbolFolderBadgePlus, nil);
 
   UIBarButtonItem* newFolderButton =
       [[UIBarButtonItem alloc] initWithImage:newFolderIcon
@@ -3092,8 +3091,11 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
           sectionIdentifierForSectionIndex:indexPath.section]);
   if (IsABookmarkNodeSectionForIdentifier(sectionIdentifier)) {
     const BookmarkNode* node = [self nodeAtIndexPath:indexPath];
-    CHECK(node, base::NotFatalUntil::M152);
     if (!node) {
+      // If the user tapped on an entry and the list changed before the current
+      // method is called, that cause a wrong entry to be opened. In particular
+      // if the last entry was tapped and an entry is removed, the node don’t
+      // exists. Let’s just do nothing in this last case.
       [tableView deselectRowAtIndexPath:indexPath animated:YES];
       return;
     }

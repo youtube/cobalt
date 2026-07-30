@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Inloggad som <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Öppna kontomenyn</translation>
 <translation id="1397144142234474689">Dölj historik</translation>
 <translation id="1399268420835656394">Om du inte är ett barn kan du kontrollera åldern i Apple-kontot på den här enheten. <ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" />.</translation>
+<translation id="140486444381639942">Tidigare ifyllt</translation>
 <translation id="1407135791313364759">Öppna alla</translation>
 <translation id="1408847409015257906">Tryck på Integritet och säkerhet.</translation>
 <translation id="1411386976162024013">Visuell sökning med Lens</translation>
 <translation id="1417474386970818917">Logga ut och radera</translation>
 <translation id="1426410128494586442">Ja</translation>
-<translation id="1429187656584513419">Öppna Lösenord</translation>
 <translation id="1430915738399379752">Skriv ut</translation>
 <translation id="1433478348197382180">Läsläge</translation>
 <translation id="1435271730600332883">Öppna Autofyll och lösenord</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Ditt konto hanteras av din förälder.
 <ph name="BEGIN_LINK" />Läs mer<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Ändrade</translation>
+<translation id="1481450969185702334">Hitta och fyll i</translation>
 <translation id="1483493594462132177">Skicka</translation>
 <translation id="1486096554574027028">Sök efter lösenord</translation>
 <translation id="1486593497476255523">Flikgrupper har slutförts.</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Av integritetsskäl fylls ditt lösenord inte i automatiskt i det här fältet.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 webbplats (fler på synkroniserade enheter)}other{# webbplatser (fler på synkroniserade enheter)}}</translation>
+<translation id="2865392654629180917">Fråga vad som helst och få AI-baserade svar</translation>
 <translation id="2870560284913253234">Webbplats</translation>
 <translation id="2876369937070532032">Webbadresser till vissa sidor som du besöker skickas till Google när din säkerhet är utsatt för risk.</translation>
 <translation id="2883151425485251736">Se och redigera ämnen som har dolts i kontot</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Bevakar pris</translation>
 <translation id="3038136505713492417">Verifiera din identitet om du vill använda dina nycklar på den här enheten</translation>
 <translation id="3039671569659952257">Radera mappen</translation>
+<translation id="3050988301648974170">Öppna Lösenordskontroll</translation>
 <translation id="3053332585453689122">Webbadresser som du besöker och ett litet urval av sidans innehåll, nedladdningar, tilläggsaktivitet och systeminformation skickas till Google Säker webbsökning, som kontrollerar om webbadresserna är skadliga.</translation>
 <translation id="3055102495753300780">Informationslagring</translation>
 <translation id="3059270601560379555">Ny sökning</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Ny flikgrupp …</translation>
 <translation id="3185760469172949183">Sök med kameran har slutförts.</translation>
 <translation id="3186796054637504691">Rensa historik och webbplatsdata</translation>
+<translation id="3190558889382726167">Lösenordet sparades</translation>
 <translation id="3190736958609431397">Ta bort bevakning</translation>
 <translation id="3208260410153224535">Din organisation har inaktiverat inloggning. Nya bokmärken, lösenord med mera sparas endast på den här enheten.</translation>
 <translation id="3211969308836412674">Lossa webbplats</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">De senaste 15 minuterna</translation>
 <translation id="5020732097997376541">Tryck på Lens-ikonen</translation>
 <translation id="5021500396464456616">Kontakta personen som skickade den här länken</translation>
+<translation id="503173149952522259">Håll den här fliken nedtryckt för att fästa den</translation>
 <translation id="5039804452771397117">Tillåt</translation>
 <translation id="5050042263972837708">Gruppnamn</translation>
 <translation id="5050810143224996149">Dela lösenordet</translation>
@@ -2427,6 +2432,7 @@ Byt till <ph name="OTHER_EMAIL" /> om du vill fortsätta på datorn. Du får lö
 <translation id="9013605037177245304">Aktivera aviseringar</translation>
 <translation id="9029650858822697271">Du loggades ut</translation>
 <translation id="9032405509996909363">Bekräfta att du vill radera webbinformation</translation>
+<translation id="9035699147763101514">Drivs av Personlig intelligens med Gemini. Hantera dina val i inställningarna.</translation>
 <translation id="9039373489628511875">Bandbredd</translation>
 <translation id="9042893549633094279">Integritet och säkerhet</translation>
 <translation id="9055291197094969722">Skapa flikgrupper för att ordna dina öppna flikar och vara produktiv</translation>
@@ -2438,6 +2444,7 @@ Byt till <ph name="OTHER_EMAIL" /> om du vill fortsätta på datorn. Du får lö
 <translation id="9070824521421603770">Du loggas ut och flikar stängs</translation>
 <translation id="9072837124205571418">Flikgrupper från alla enheter</translation>
 <translation id="9081058212938299310">Vill du uppdatera lösenordet för <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Nu kan du söka efter och fylla i information från Gmail med mera</translation>
 <translation id="9083838294503912307">Aktivera synkronisering om du vill synkronisera och anpassa alla dina enheter.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Du har {count} svagt lösenord som kan innebära en säkerhetsrisk. Åtgärda det nu för att hålla dig säker.}other{Du har {count} svaga lösenord som kan innebära en säkerhetsrisk. Åtgärda dem nu för att hålla dig säker.}}</translation>
 <translation id="9084369964545892485">Ny inkognitoflik i grupp</translation>

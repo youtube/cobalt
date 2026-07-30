@@ -82,10 +82,6 @@
   return self;
 }
 
-- (instancetype)initWithAppState:(AppState*)appState {
-  return [self init];
-}
-
 #pragma mark - public
 
 - (void)addObserver:(id<SceneStateObserver>)observer {
@@ -129,6 +125,10 @@
 #pragma mark - Setters & Getters.
 
 - (UIWindow*)window {
+  if (_window) {
+    return _window;
+  }
+
   UIWindow* mainWindow = nil;
   for (UIWindow* window in self.scene.windows) {
     if ([window isKindOfClass:[ChromeOverlayWindow class]]) {
@@ -140,10 +140,6 @@
 
 - (std::string_view)sceneSessionID {
   return _sceneStateOptions.identifier;
-}
-
-- (void)setScene:(UIWindowScene*)scene {
-  _scene = scene;
 }
 
 - (void)setActivationLevel:(SceneActivationLevel)newLevel {

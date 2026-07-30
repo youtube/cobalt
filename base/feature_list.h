@@ -5,6 +5,7 @@
 #ifndef BASE_FEATURE_LIST_H_
 #define BASE_FEATURE_LIST_H_
 
+#include <compare>
 #include <functional>
 #include <map>
 #include <memory>
@@ -159,6 +160,19 @@ class BASE_EXPORT FeatureList {
   using FeatureOverrideInfo =
       std::pair<const std::reference_wrapper<const Feature>, OverrideState>;
 
+  // Describes information about the trial controlling a feature's state.
+  struct ControllingTrialInfo {
+    // Name of the trial controlling the feature. Empty string if the feature is
+    // not being controlled by any trial.
+    std::string trial_name;
+    // Whether this trial is a runtime override or not. Defaults to false if
+    // the feature is not being controlled by any trial.
+    bool is_runtime_override = false;
+
+    friend auto operator<=>(const ControllingTrialInfo&,
+                            const ControllingTrialInfo&) = default;
+  };
+
   // Callback to be invoked when a runtime mutable feature's OverrideState
   // changes at runtime.
   using OnRuntimeMutableFeatureStateChangedCallback =
@@ -290,6 +304,21 @@ class BASE_EXPORT FeatureList {
   // if there is currently no override.
   std::string_view GetAssociatedRuntimeFieldTrialOverrideByFeatureName(
       std::string_view feature_name) const;
+
+  // Returns information about the field trial controlling or associated with
+  // the given `feature_name`. If the feature has runtime mutability enabled and
+  // has an active runtime override, returns the runtime override trial name and
+  // sets `is_runtime_override` to true. Otherwise returns the associated field
+  // trial name (if any) and `is_runtime_override` set to false. If no trial is
+  // associated with the feature, `trial_name` will be empty. Must be called on
+  // the main sequence.
+  ControllingTrialInfo GetControllingTrialInfoByFeatureName(
+      std::string_view feature_name) const;
+
+  // Returns the names of all features associated with the field trial described
+  // by `controlling_trial_info`.
+  base::flat_set<std::string> GetFeaturesAssociatedWithTrial(
+      const ControllingTrialInfo& controlling_trial_info) const;
 
   // Adds extra overrides (not associated with a field trial). Should be called
   // before SetInstance().
@@ -509,11 +538,6 @@ class BASE_EXPORT FeatureList {
 
   // Allow Accessor to access GetOverrideStateByFeatureName().
   friend class Accessor;
-  // Allow VariationsService to access `runtime_mutable_overrides_` and
-  // `overrides_` so that it can find all features associated with a trial.
-  // TODO(crbug.com/482450632): Remove this once we maintain a map of trials to
-  // associated features.
-  friend class variations::VariationsService;
 
   struct OverrideEntry {
     // The overridden enable (on/off) state of the feature.

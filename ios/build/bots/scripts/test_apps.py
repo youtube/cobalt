@@ -284,6 +284,9 @@ class GTestsApp(object):
         f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer')
     dyld_library_paths.append(f'{platform_dev_path}/Library')
     dyld_framework_paths.append(f'{platform_dev_path}/Library/Frameworks')
+    if self.xcode_platform_dir_name == 'iPhoneSimulator.platform':
+      dyld_framework_paths.append(
+          f'{platform_dev_path}/Library/PrivateFrameworks')
 
     module_data = {
         'TestBundlePath': self.test_app_path,
@@ -356,9 +359,16 @@ class GTestsApp(object):
     if is_running_rosetta():
       cmd.extend(['arch', '-arch', 'arm64'])
     cmd.extend([
-        'xcodebuild', 'test-without-building', '-xctestrun',
-        self.fill_xctest_run(out_dir), '-destination', destination,
-        '-resultBundlePath', out_dir
+        'xcodebuild',
+        'test-without-building',
+        '-xctestrun',
+        self.fill_xctest_run(out_dir),
+        '-destination',
+        destination,
+        '-resultBundlePath',
+        out_dir,
+        '-collect-test-diagnostics',
+        'never',
     ])
     if clones > 1:
       cmd.extend([
@@ -673,11 +683,15 @@ class SimulatorXCTestUnitTestsApp(GTestsApp):
                     f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
                     'usr/lib/libXCTestBundleInject.dylib',
                 'DYLD_LIBRARY_PATH':
+                    '__TESTHOST__/Frameworks:'
                     f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
                     'Library',
                 'DYLD_FRAMEWORK_PATH':
+                    '__TESTHOST__/Frameworks:'
                     f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
-                    'Library/Frameworks',
+                    'Library/Frameworks:'
+                    f'__PLATFORMS__/{self.xcode_platform_dir_name}/Developer/'
+                    'Library/PrivateFrameworks',
                 'XCInjectBundleInto': '__TESTHOST__/%s' % self.module_name
             }
         }

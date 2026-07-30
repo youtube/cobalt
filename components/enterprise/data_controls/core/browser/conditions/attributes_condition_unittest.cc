@@ -8,6 +8,8 @@
 
 #include "base/json/json_reader.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
+#include "components/enterprise/data_controls/core/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace data_controls {
@@ -922,6 +924,205 @@ TEST(AttributesConditionTest, GeminiInChromeIgnoresIncognitoContext) {
       {.source = {.incognito = true, .gemini_in_chrome = true}}));
   EXPECT_TRUE(condition->IsTriggered(
       {.source = {.incognito = false, .gemini_in_chrome = true}}));
+}
+
+TEST(AttributesConditionTest, FileSizeParsing_Disabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "size_higher_than": 1024,
+      })"));
+  EXPECT_FALSE(condition);
+}
+
+TEST(AttributesConditionTest, FileSizeParsing_Enabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "size_higher_than": 100,
+        "size_lower_than": 1024,
+      })"));
+  EXPECT_TRUE(condition);
+}
+
+TEST(AttributesConditionTest, FileSizeIsTriggered) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto higher_condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "size_higher_than": 1000,
+      })"));
+  ASSERT_TRUE(higher_condition);
+  EXPECT_FALSE(higher_condition->IsTriggered(
+      {.source = {.content_size = 500}}));
+  EXPECT_FALSE(higher_condition->IsTriggered(
+      {.source = {.content_size = 1000}}));
+  EXPECT_TRUE(higher_condition->IsTriggered(
+      {.source = {.content_size = 1001}}));
+  EXPECT_TRUE(higher_condition->IsTriggered(
+      {.source = {.content_size = 2000}}));
+  EXPECT_FALSE(higher_condition->IsTriggered(
+      {.source = {.url = GURL(kGoogleUrl)}}));
+
+  auto lower_condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "size_lower_than": 500,
+      })"));
+  ASSERT_TRUE(lower_condition);
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.content_size = 250}}));
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.content_size = 499}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.content_size = 500}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.content_size = 1000}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.url = GURL(kGoogleUrl)}}));
+}
+
+TEST(AttributesConditionTest, FileSizeRejectedForDestination) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto condition = DestinationAttributesCondition::Create(CreateDict(R"(
+      {
+        "size_higher_than": 1024,
+      })"));
+  EXPECT_FALSE(condition);
+}
+
+TEST(AttributesConditionTest, FileSizeIsTriggeredWithOsClipboard) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "os_clipboard": true,
+        "size_higher_than": 1000,
+      })"));
+  ASSERT_TRUE(condition);
+  EXPECT_FALSE(condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 500}}));
+  EXPECT_FALSE(condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 1000}}));
+  EXPECT_TRUE(condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 1001}}));
+  EXPECT_TRUE(condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 2000}}));
+  auto lower_condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "os_clipboard": true,
+        "size_lower_than": 1000,
+      })"));
+  ASSERT_TRUE(lower_condition);
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 500}}));
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 999}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 1000}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.os_clipboard = true, .content_size = 2000}}));
+}
+
+TEST(AttributesConditionTest, FileSizeIsTriggeredWithGeminiInChrome) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kDataControlsUrlRegexAndSizeAttributes);
+
+  auto condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "gemini_in_chrome": true,
+        "size_higher_than": 1000,
+      })"));
+  ASSERT_TRUE(condition);
+  EXPECT_FALSE(condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 500}}));
+  EXPECT_FALSE(condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 1000}}));
+  EXPECT_TRUE(condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 1001}}));
+  EXPECT_TRUE(condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 2000}}));
+
+  auto lower_condition = SourceAttributesCondition::Create(CreateDict(R"(
+      {
+        "gemini_in_chrome": true,
+        "size_lower_than": 1000,
+      })"));
+  ASSERT_TRUE(lower_condition);
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 500}}));
+  EXPECT_TRUE(lower_condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 999}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 1000}}));
+  EXPECT_FALSE(lower_condition->IsTriggered(
+      {.source = {.gemini_in_chrome = true, .content_size = 2000}}));
+}
+
+TEST(AttributesConditionTest, UrlRegexParsing_Disabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      kDataControlsUrlRegexAndSizeAttributes);
+
+  AttributesCondition condition(CreateDict(R"({
+    "url_regexprs": ["^https://.*\\.secret\\.com/.*$"]
+  })").GetDict());
+  EXPECT_FALSE(condition.IsValid());
+}
+
+TEST(AttributesConditionTest, UrlRegexParsing_Enabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      kDataControlsUrlRegexAndSizeAttributes);
+
+  AttributesCondition condition(CreateDict(R"({
+    "url_regexprs": ["^https://.*\\.secret\\.com/.*$"]
+  })").GetDict());
+  EXPECT_TRUE(condition.IsValid());
+}
+
+TEST(AttributesConditionTest, UrlRegexIsTriggered_SourceAndDestination) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      kDataControlsUrlRegexAndSizeAttributes);
+
+  auto source_condition = SourceAttributesCondition::Create(CreateDict(R"({
+    "url_regexprs": ["^https://.*\\.secret\\.com/.*$", "internal\\.google\\.com"]
+  })"));
+  ASSERT_TRUE(source_condition);
+  EXPECT_FALSE(source_condition->IsTriggered({.source = {.url = GURL("https://google.com")}}));
+  EXPECT_TRUE(source_condition->IsTriggered({.source = {.url = GURL("https://foo.secret.com/bar")}}));
+  EXPECT_TRUE(source_condition->IsTriggered({.source = {.url = GURL("https://sub.internal.google.com/doc/123")}}));
+
+  auto destination_condition = DestinationAttributesCondition::Create(CreateDict(R"({
+    "url_regexprs": ["^https://(chatgpt|claude)\\.ai/.*$", "ai\\.external\\.com"]
+  })"));
+  ASSERT_TRUE(destination_condition);
+  EXPECT_FALSE(destination_condition->IsTriggered({.destination = {.url = GURL("https://google.com")}}));
+  EXPECT_TRUE(destination_condition->IsTriggered({.destination = {.url = GURL("https://chatgpt.ai/share")}}));
+  EXPECT_TRUE(destination_condition->IsTriggered({.destination = {.url = GURL("https://ai.external.com/prompt")}}));
+}
+
+TEST(AttributesConditionTest, UrlRegexIsTriggered_PartialMatch) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      kDataControlsUrlRegexAndSizeAttributes);
+
+  // Unanchored regex patterns should trigger on substrings anywhere in the URL.
+  auto condition = SourceAttributesCondition::Create(CreateDict(R"({
+    "url_regexprs": ["confidential", "corp\\.company\\.com/secret"]
+  })"));
+  ASSERT_TRUE(condition);
+  EXPECT_FALSE(condition->IsTriggered({.source = {.url = GURL("https://company.com/public")}}));
+  EXPECT_TRUE(condition->IsTriggered({.source = {.url = GURL("https://docs.company.com/document/d/confidential_notes")}}));
+  EXPECT_TRUE(condition->IsTriggered({.source = {.url = GURL("https://sub.corp.company.com/secret/123/edit")}}));
 }
 
 }  // namespace data_controls

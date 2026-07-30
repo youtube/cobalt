@@ -221,20 +221,20 @@ TEST_F(AutofillProfileComparatorTest, CompareTokens) {
   std::u16string kHelloThereAlice = u"hello there alice";
   std::u16string kHelloThereBob = u"hello there bob";
 
-  EXPECT_EQ(AutofillProfileComparator::SAME_TOKENS,
-            comparator_.CompareTokens(kHelloThereBob, kHelloThereBob));
-  EXPECT_EQ(AutofillProfileComparator::S2_CONTAINS_S1,
-            comparator_.CompareTokens(kEmptyStr, kHello));
-  EXPECT_EQ(AutofillProfileComparator::S1_CONTAINS_S2,
-            comparator_.CompareTokens(kHello, kEmptyStr));
-  EXPECT_EQ(AutofillProfileComparator::S1_CONTAINS_S2,
-            comparator_.CompareTokens(kHelloThere, kHello));
-  EXPECT_EQ(AutofillProfileComparator::S2_CONTAINS_S1,
-            comparator_.CompareTokens(kHello, kHelloThere));
-  EXPECT_EQ(AutofillProfileComparator::DIFFERENT_TOKENS,
-            comparator_.CompareTokens(kHelloThereAlice, kHelloThereBob));
-  EXPECT_EQ(AutofillProfileComparator::DIFFERENT_TOKENS,
-            comparator_.CompareTokens(kHelloThereBob, kHelloThereAlice));
+  EXPECT_EQ(comparator_.CompareTokens(kHelloThereBob, kHelloThereBob),
+            AutofillProfileComparator::SAME_TOKENS);
+  EXPECT_EQ(comparator_.CompareTokens(kEmptyStr, kHello),
+            AutofillProfileComparator::S2_CONTAINS_S1);
+  EXPECT_EQ(comparator_.CompareTokens(kHello, kEmptyStr),
+            AutofillProfileComparator::S1_CONTAINS_S2);
+  EXPECT_EQ(comparator_.CompareTokens(kHelloThere, kHello),
+            AutofillProfileComparator::S1_CONTAINS_S2);
+  EXPECT_EQ(comparator_.CompareTokens(kHello, kHelloThere),
+            AutofillProfileComparator::S2_CONTAINS_S1);
+  EXPECT_EQ(comparator_.CompareTokens(kHelloThereAlice, kHelloThereBob),
+            AutofillProfileComparator::DIFFERENT_TOKENS);
+  EXPECT_EQ(comparator_.CompareTokens(kHelloThereBob, kHelloThereAlice),
+            AutofillProfileComparator::DIFFERENT_TOKENS);
 }
 
 TEST_F(AutofillProfileComparatorTest, Compare) {
@@ -268,14 +268,17 @@ TEST_F(AutofillProfileComparatorTest, Compare) {
 
   // Checks that characters such as 'œ' respect the status quo established by
   // NormalizeForComparison.
-  EXPECT_TRUE(AutofillProfileComparator::Compare(u"œil", u"oeil"));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"œil", u"oeil", normalization::WhitespaceSpec::kDiscard));
   EXPECT_TRUE(AutofillProfileComparator::Compare(
       u"Straße", u"Strasse", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that a substring of the string is not considered equal.
-  EXPECT_FALSE(AutofillProfileComparator::Compare(u"A", u"Anna"));
+  EXPECT_FALSE(AutofillProfileComparator::Compare(
+      u"A", u"Anna", normalization::WhitespaceSpec::kDiscard));
 
-  EXPECT_FALSE(AutofillProfileComparator::Compare(u"Anna", u"A"));
+  EXPECT_FALSE(AutofillProfileComparator::Compare(
+      u"Anna", u"A", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that Compare behaves like NormalizeForComparison. Also, checks that
   // diacritics are removed.

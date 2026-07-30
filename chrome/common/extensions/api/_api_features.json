@@ -864,10 +864,6 @@
     "dependencies": ["permission:processes"],
     "contexts": ["privileged_extension"]
   },
-  "proxy": {
-    "dependencies": ["permission:proxy"],
-    "contexts": ["privileged_extension"]
-  },
   "imageWriterPrivate": {
     "dependencies": ["permission:imageWriterPrivate"],
     "contexts": ["privileged_extension"]
@@ -1101,18 +1097,6 @@
       "81986D4F846CEDDDB962643FA501D1780DD441BB"   // http://crbug.com/40545416
     ]
   },
-  "webstorePrivate": [{
-    "channel": "stable",
-    "contexts": ["web_page"],
-    "matches": ["https://chromewebstore.google.com/*"]
-  }, {
-    // Used for webstore testing. See comment in
-    // chrome/common/extensions/webstore_override.cc
-    "channel": "stable",
-    "contexts": ["web_page"],
-    "requires_delegated_availability_check": true,
-    "matches": ["<all_urls>"]
-  }],
   "webviewTag": {
     "internal": true,
     "dependencies": ["permission:webview"],

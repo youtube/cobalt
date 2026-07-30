@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Заявяване на изглед за мобилни устройства</translation>
 <translation id="2870560284913253234">Сайт</translation>
 <translation id="2874939134665556319">Предишен запис</translation>
+<translation id="2890412325133442491">Стандартно за Chrome</translation>
 <translation id="2891975107962658722">Блокиране на даден сайт, така че да не запазва данни на устройството ви</translation>
 <translation id="2903493209154104877">Адреси</translation>
 <translation id="2903764741244499151">Сайтовете могат автоматично да преминават в режим „картина в картината“. Това ви дава възможност да продължите да гледате видеоклип, като същевременно освобождава екрана ви за други задачи.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Промяна на паролите</translation>
 <translation id="3797520601150691162">Без прилагане на тъмната тема към конкретен сайт</translation>
 <translation id="3803367742635802571">Сайтовете, които посещавате, може да спрат да работят нормално</translation>
-<translation id="3816118180265633665">Цветове на Chrome</translation>
 <translation id="381841723434055211">Телефонни номера</translation>
 <translation id="3823453485268218808">Непропорционален шрифт</translation>
 <translation id="3826050100957962900">Подкани за вход от трети страни</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Изход от цял екран</translation>
 <translation id="640163077447496506">Изтича днес</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Колекции от теми</translation>
 <translation id="6439114592976064011">Блокиране на сайтовете, така че да не използват устройствата и данните ви за виртуална реалност</translation>
 <translation id="6447842834002726250">„Бисквитки“</translation>
 <translation id="6452138246455930388">Цената на <ph name="PRODUCT_NAME" /> в отворения раздел е понижена от <ph name="OLD_PRICE" /> на <ph name="NEW_PRICE" /> в сайта <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">Първо ще се извежда запитване</translation>
 <translation id="7423538860840206698">Достъпът за четене до буферната памет е блокиран</translation>
 <translation id="7425915948813553151">Тъмна тема за сайтовете</translation>
+<translation id="7429767477925996803">Цветове на Chrome</translation>
 <translation id="746412105358554870">Оптимизиране и защита на JavaScript</translation>
 <translation id="7478658909253570368">Да не се разрешава на сайтовете да се свързват със серийни портове</translation>
 <translation id="7488573225650545859">Скриване на картата „Преглед на разделите в списъка ви с приложения“</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">Изтеглянето не бе успешно</translation>
 <translation id="8033047164036749181">Абониране за известията от този сайт</translation>
 <translation id="8051193500142930381">Функциите, за които е необходима камера, няма да работят</translation>
-<translation id="8056330801132235235">Стандартно за Chrome</translation>
 <translation id="8067883171444229417">Възпроизвеждане на видеоклипа</translation>
 <translation id="8068648041423924542">Сертификатът не може да бъде избран.</translation>
 <translation id="8077120325605624147">Всички посещавани от вас сайтове могат да ви показват всякакви реклами</translation>

@@ -218,6 +218,11 @@ GeminiSettingsAction* ActionForSettingsContext(GeminiSettingsContext context);
 // viewport.
 void UpdateOverlayOffsetWithOpacity(CGFloat offset, CGFloat opacity);
 
+// Updates Gemini detent heights. `collapsed_height` corresponds to the
+// minimized detent height, and `extended_height` corresponds to the medium
+// detent height.
+void UpdateDetentHeights(CGFloat collapsed_height, CGFloat extended_height);
+
 // TODO(crbug.com/475205334): Remove this method after function below is
 // implemented.
 // Updates Gemini floaty view state.
@@ -254,6 +259,12 @@ bool IsLiveStopButtonHidden();
 // Sets and gets the number of caption lines in Gemini Live mode.
 void SetLiveCaptionsNumberOfLines(int number_of_lines);
 int GetLiveCaptionsNumberOfLines();
+
+// Sets whether the suggestion chips should be shown on the floaty.
+void SetShouldShowSuggestionChips(bool should_show);
+
+// Shows the account snackbar on the Gemini floaty.
+void ShowAccountSnackbar();
 
 // Returns the view controller for the Gemini floaty.
 UIViewController* GetFloatyViewControllerWithConfiguration(

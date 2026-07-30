@@ -2552,7 +2552,7 @@ enum WebFeature {
   kOBSOLETE_RubyElementWithDisplayBlock = 3282,
   kOBSOLETE_LocationFragmentDirectiveAccessed = 3283,
   kCanvasRenderingContext = 3284,
-  kSchemefulSameSiteContextDowngrade = 3285,
+  kOBSOLETE_SchemefulSameSiteContextDowngrade = 3285,
   kOriginAgentClusterHeader = 3286,
   kV8WasmSimdOpcodes = 3287,
   kGridRowGapPercent = 3288,
@@ -4412,7 +4412,7 @@ enum WebFeature {
       = 5110,
   kOBSOLETE_MaxInterStageShaderComponentsRequiredLimit = 5111,
   kShowPickerSelect = 5112,
-  kAudioContextPlayoutStats = 5113,
+  kOBSOLETE_AudioContextPlayoutStats = 5113,
   kOBSOLETE_ThirdPartyCookieBlocked = 5114,
   kV8PerformanceResourceTiming_WorkerRouterEvaluationStart_AttributeGetter =
       5115,
@@ -5283,6 +5283,12 @@ enum WebFeature {
   kDeclarativePerformanceObserver = 5966,
   kPrefetchAndPrerenderActivationBeacon = 5967,
   kLocalNetworkAccessForWebRTCOptOut = 5968,
+  kHTMLCameraElement = 5969,
+  kHTMLMicrophoneElement = 5970,
+  kV8WorkerNavigator_GlobalPrivacyControl_AttributeGetter = 5971,
+  kV8Navigator_GlobalPrivacyControl_AttributeGetter = 5972,
+  kXmlCAPAlert = 5973,
+  kXmlCAPAlertWithXSLT = 5974,
 
   // Add new features immediately above this line. Don't change the existing
   // numbers of any item, and don't reuse removed slots. Also don't add extra

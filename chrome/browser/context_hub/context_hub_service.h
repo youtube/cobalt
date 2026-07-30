@@ -8,13 +8,18 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/containers/lru_cache.h"
 #include "base/containers/span.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/id_type.h"
 #include "chrome/browser/context_hub/memory_bank/memory_bank.h"
+#include "chrome/browser/context_hub/tab_group_store/tab_group_entry.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/proto/features/context_hub.pb.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/personal_context/proto/features/auto_todos.pb.h"
 #include "url/gurl.h"
@@ -31,24 +36,8 @@ class PersonalContextService;
 
 namespace context_hub {
 
+class TabGroupStore;
 class ContextHubBackend;
-
-struct TabData {
-  int32_t id;
-  std::string title;
-  GURL url;
-};
-
-struct TabGroupData {
-  std::string label;
-  std::vector<TabData> tabs;
-};
-
-struct TabGroupMinimalData {
-  std::string label;
-  std::vector<int32_t> tab_ids;
-  std::string group_id;
-};
 
 class ContextHubService : public KeyedService {
  public:
@@ -56,13 +45,8 @@ class ContextHubService : public KeyedService {
       personal_context::PersonalContextService* personal_context_service,
       optimization_guide::RemoteModelExecutor*
           optimization_guide_remote_model_executor,
-      std::unique_ptr<MemoryBank> memory_bank);
-
-  ContextHubService(
-      personal_context::PersonalContextService* personal_context_service,
-      optimization_guide::RemoteModelExecutor*
-          optimization_guide_remote_model_executor,
       std::unique_ptr<MemoryBank> memory_bank,
+      std::unique_ptr<TabGroupStore> tab_group_store,
       std::unique_ptr<ContextHubBackend> context_hub_backend);
 
   ContextHubService(const ContextHubService&) = delete;
@@ -77,30 +61,48 @@ class ContextHubService : public KeyedService {
   void GenerateAutoTodos(AutoTodosCallback callback);
 
   using GroupTabsCallback =
-      base::OnceCallback<void(std::vector<TabGroupData> groups,
+      base::OnceCallback<void(std::vector<TabGroupEntry> groups,
                               std::vector<TabData> ungrouped_tabs)>;
   // Groups tabs based on the provided `tabs` list.
   void GroupTabs(std::vector<TabData> tabs,
                  const std::string& user_command,
                  GroupTabsCallback callback);
 
+  // Adds a tab group chat history turn to the cache.
+  void AddTabGroupChatHistoryTurn(
+      optimization_guide::proto::ChatHistoryTurn::Role role,
+      std::string_view message_content);
+  // Returns all tab group chat history turns stored in the LRU cache in
+  // chronological order (oldest to newest).
+  std::vector<optimization_guide::proto::ChatHistoryTurn>
+  GetTabGroupChatHistory() const;
+  // Clears all tab group chat history turns from the LRU cache.
+  void ClearTabGroupChatHistory();
+
   // Memory bank wrappers that forward operations to the underlying storage
   // backend.
   // Saves a tab to the memory bank.
   void SaveTab(const GURL& url,
-               const std::string& tab_title,
-               const std::string& page_text,
+               std::string_view tab_title,
+               std::string_view page_text,
                MemoryBank::OperationCompleteCallback callback);
   // Saves a text selection to the memory bank.
   void SaveTextSelection(const GURL& url,
-                         const std::string& tab_title,
-                         const std::string& selected_text,
+                         std::string_view tab_title,
+                         std::string_view selected_text,
                          MemoryBank::OperationCompleteCallback callback);
   // Deletes an entry from the memory bank.
   void DeleteEntries(base::span<const int64_t> ids,
                      MemoryBank::OperationCompleteCallback callback);
   // Returns all entries from the memory bank.
   void GetAllEntries(MemoryBank::GetAllEntriesCallback callback) const;
+
+  using GetTabGroupsCallback =
+      base::OnceCallback<void(std::vector<TabGroupEntry>)>;
+  // Returns all stored tab groups.
+  void GetTabGroups(GetTabGroupsCallback callback) const;
+  // Deletes all stored tab groups.
+  void DeleteAllTabGroups(base::OnceClosure callback);
 
   base::WeakPtr<ContextHubService> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
@@ -129,6 +131,12 @@ class ContextHubService : public KeyedService {
   const raw_ref<optimization_guide::RemoteModelExecutor>
       optimization_guide_remote_model_executor_;
 
+  using TabGroupChatHistoryTurnId =
+      base::IdType64<class TabGroupChatHistoryTurnIdTag>;
+  base::LRUCache<TabGroupChatHistoryTurnId,
+                 optimization_guide::proto::ChatHistoryTurn>
+      tab_group_chat_history_cache_;
+
   // Backend storage engine for SQLite operations. May be null if DB storage is
   // disabled.
   std::unique_ptr<ContextHubBackend> context_hub_backend_;
@@ -136,6 +144,8 @@ class ContextHubService : public KeyedService {
   // Guaranteed to be non-null. If features::kMemoryBanks is disabled, this
   // will be a NoOpMemoryBank.
   std::unique_ptr<MemoryBank> memory_bank_;
+
+  std::unique_ptr<TabGroupStore> tab_group_store_;
 
   base::WeakPtrFactory<ContextHubService> weak_factory_{this};
 };

@@ -241,9 +241,6 @@ class BrowserAutofillManager : public AutofillManager {
   // Gets the Autofill AI access manager owned by `this`.
   virtual AutofillAiAccessManager& GetAutofillAiAccessManager();
 
-  // Triggers suggestions for @memory.
-  void TriggerAtMemorySuggestions(const FieldGlobalId& field_id);
-
   // Gets the payments BNPL manager owned by `this`. This will be used to
   // handle BNPL flows. May return nullptr if BNPL is not supported on the
   // current platform.
@@ -287,28 +284,6 @@ class BrowserAutofillManager : public AutofillManager {
   // AutofillManager:
   base::WeakPtr<AutofillManager> GetWeakPtr() override;
   bool ShouldClearPreviewedForm() override;
-  void OnFocusOnNonFormFieldImpl() override;
-  void OnFocusOnFormFieldImpl(const FormData& form,
-                              const FieldGlobalId& field_id) override;
-  void OnDidAutofillFormImpl(const FormData& form) override;
-  void SuppressAutomaticRefillsImpl(const FillId& fill_id) override;
-  void RequestRefillImpl(const FillId& fill_id) override;
-  void OnDidEndTextFieldEditingImpl() override;
-  void OnHidePopupImpl() override;
-  void OnSelectFieldOptionsDidChangeImpl(
-      const FormData& form,
-      const FieldGlobalId& field_id) override;
-  void OnJavaScriptChangedAutofilledValueImpl(
-      const FormData& form,
-      const FieldGlobalId& field_id,
-      const std::u16string& old_value) override;
-  void OnLoadedServerPredictionsImpl(
-      base::span<const raw_ref<FormStructure>> forms) override;
-  void OnDidDetectJavaScriptAutofillImpl(
-      const FormData& form,
-      const FieldGlobalId& trigger_field_id,
-      const std::vector<FieldGlobalId>& field_ids) override;
-  void Reset() override;
 
   base::WeakPtr<BrowserAutofillManager> GetBrowserAutofillManagerWeakPtr();
 
@@ -377,6 +352,40 @@ class BrowserAutofillManager : public AutofillManager {
   virtual const gfx::Image& GetCardImage(const CreditCard& credit_card);
 
   // AutofillManager:
+  bool ShouldParseForms() override;
+  void OnBeforeProcessParsedForms() override;
+  void OnFormProcessed(const FormStructure& form) override;
+
+ private:
+  friend class BrowserAutofillManagerTestApi;
+
+  // AutofillManager:
+  void Reset() override;
+
+  // AutofillManager:
+  // These functions should be called only by AutofillManager::OnFoo().
+  void OnFocusOnNonFormFieldImpl() override;
+  void OnFocusOnFormFieldImpl(const FormData& form,
+                              const FieldGlobalId& field_id) override;
+  void OnDidAutofillFormImpl(const FormData& form) override;
+  void SuppressAutomaticRefillsImpl(const FillId& fill_id) override;
+  void RequestRefillImpl(const FillId& fill_id) override;
+  void OnDidEndTextFieldEditingImpl() override;
+  void OnHidePopupImpl() override;
+  void OnSelectFieldOptionsDidChangeImpl(
+      const FormData& form,
+      const FieldGlobalId& field_id) override;
+  void OnJavaScriptChangedAutofilledValueImpl(
+      const FormData& form,
+      const FieldGlobalId& field_id,
+      const std::u16string& old_value) override;
+  void OnLoadedServerPredictionsImpl(
+      base::span<const raw_ref<FormStructure>> forms) override;
+  void OnDidDetectJavaScriptAutofillImpl(
+      const FormData& form,
+      const FieldGlobalId& trigger_field_id,
+      const std::vector<JavaScriptFieldModification>& field_modifications)
+      override;
   void OnFormSubmittedImpl(const FormData& form,
                            mojom::SubmissionSource source) override;
   void OnFormWithEmailVerificationTokenSubmittedImpl(
@@ -399,12 +408,6 @@ class BrowserAutofillManager : public AutofillManager {
   void OnSelectControlSelectionChangedImpl(
       const FormData& form,
       const FieldGlobalId& field_id) override;
-  bool ShouldParseForms() override;
-  void OnBeforeProcessParsedForms() override;
-  void OnFormProcessed(const FormStructure& form) override;
-
- private:
-  friend class BrowserAutofillManagerTestApi;
 
   // Mutable version of `FindFormAndField`.
   MutableFormAndField FindMutableFormAndField(const FormGlobalId& form_id,
@@ -586,16 +589,17 @@ class BrowserAutofillManager : public AutofillManager {
       bool show_suggestions,
       std::vector<Suggestion> suggestions);
 
-  // Combines passkey suggestion and existing suggestions into a single list,
+  // Combines passkey suggestions and existing suggestions into a single list,
   // prioritizing existing suggestions first.
-  void MergePasskeysAndExistingSuggestions(std::vector<Suggestion>& suggestions,
-                                           Suggestion passkey_suggestions);
+  void MergePasskeysAndExistingSuggestions(
+      std::vector<Suggestion>& suggestions,
+      std::vector<Suggestion> passkey_suggestions);
 
-  // Creates passkey suggestion that will be used in
-  // MergePasskeysIntoExistingSuggestions.
+  // Creates passkey suggestions that will be used in
+  // MergePasskeysAndExistingSuggestions.
   // TODO(crbug.com/409962888): Remove after new suggestion generation logic is
   // launched.
-  std::optional<Suggestion> CreatePasskeySuggestionForMerge(
+  std::vector<Suggestion> CreatePasskeySuggestionsForMerge(
       const FormFieldData& field);
 
   // Combines identity credential suggestions and existing suggestions into a

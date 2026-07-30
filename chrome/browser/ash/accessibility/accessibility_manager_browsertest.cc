@@ -922,8 +922,11 @@ IN_PROC_BROWSER_TEST_F(AccessibilityManagerTest, AccessibilityMenuVisibility) {
   EXPECT_FALSE(ShouldShowAccessibilityMenu());
 }
 
-IN_PROC_BROWSER_TEST_F(AccessibilityManagerTest,
-                       EnhancedNetworkVoicesExtensionLoadedWhenNeeded) {
+// TODO (crbug.com/535989327): Re-enable this test after migrating to new speech
+// backend.
+IN_PROC_BROWSER_TEST_F(
+    AccessibilityManagerTest,
+    DISABLED_EnhancedNetworkVoicesExtensionLoadedWhenNeeded) {
   auto* component_loader =
       extensions::ComponentLoader::Get(browser()->GetProfile());
 
@@ -947,20 +950,20 @@ IN_PROC_BROWSER_TEST_F(AccessibilityManagerTest,
   // Pretend the dialog was shown but the user didn't accept it by changing the
   // pref that the dialog was shown but not the pref to enable the voices.
   SetSelectToSpeakEnabled(true);
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       prefs::kAccessibilitySelectToSpeakEnhancedVoicesDialogShown, true);
   EXPECT_FALSE(
       component_loader->Exists(extension_misc::kEnhancedNetworkTtsExtensionId));
 
   // Pretend the user turned on the network voices setting.
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       prefs::kAccessibilitySelectToSpeakEnhancedNetworkVoices, true);
   WaitForEnhancedNetworkTtsLoad();
   EXPECT_TRUE(
       component_loader->Exists(extension_misc::kEnhancedNetworkTtsExtensionId));
 
   // Now the admin disallows network voices by policy.
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       prefs::kAccessibilityEnhancedNetworkVoicesInSelectToSpeakAllowed, false);
   EXPECT_FALSE(
       component_loader->Exists(extension_misc::kEnhancedNetworkTtsExtensionId));

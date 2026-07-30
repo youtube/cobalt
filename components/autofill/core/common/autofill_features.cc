@@ -67,6 +67,15 @@ BASE_FEATURE(kAutofillActorFormFillingSplitOutContactInfo,
 // context see: go/autofill-actor-mode-implementation
 BASE_FEATURE(kAutofillActorMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// This parameter configures a preamble which is returned in the
+// extra_information attribute of the return value of attempt_form_filling. It
+// can be used to pass instructions or information to the model.
+BASE_FEATURE_PARAM(
+    std::string,
+    kAutofillActorModeExtraInformationPreamble,
+    &kAutofillActorMode,
+    "The user chose to fill the following information into the form:");
+
 // Controls whether to rewrite the credit card trigger field to the first
 // credit card number field in the same section.
 BASE_FEATURE(kAutofillActorRewriteCreditCardTriggerField,
@@ -214,6 +223,10 @@ BASE_FEATURE_PARAM(std::string,
                    "autofill_ai_geo_ip_blocklist",
                    "");
 
+// If enabled, Autofill AI suggestion width can be limited.
+BASE_FEATURE(kAutofillAiLimitSuggestionWidth,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, Autofill AI will use a new update prompt on Desktop that shows
 // both the previous and the new value of an updated entity attribute.
 BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kAutofillAiNewUpdatePrompt,
@@ -351,10 +364,8 @@ BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kAutofillAiWalletPrivatePasses,
                                        base::FEATURE_ENABLED_FOR_COUNTRIES,
                                        WALLET_SUPPORTED_COUNTRIES);
 
-// When enabled, account-related eligibility criteria (minor status, location)
-// are determined based on a capability, rather than approximated through
-// signals that were readily available in Chrome prior to the Autofill-specific
-// capability (e.g., using geo-location).
+// When enabled, account location rather than geo-location is used to determine
+// the eligiblity to save Wallet private passes.
 BASE_FEATURE(kAutofillAiWalletPrivatePassesCapability,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -675,12 +686,6 @@ BASE_FEATURE(kAutofillExtractOnlyNonAdFrames,
 BASE_FEATURE(kAutofillFilterPlaceholderValuesOnImport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, improves heuristic regexes for state classification to avoid
-// misclassification as civil state.
-// TODO(crbug.com/465491175): Cleanup when launched.
-BASE_FEATURE(kAutofillFixCivilStateMisclassificationForESPT,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // When enabled, the rewriter uses updated rewrite rules.
 // TODO(crbug.com/445863287): Cleanup when launched.
 BASE_FEATURE(kAutofillFixRewriterRules, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -834,7 +839,7 @@ BASE_FEATURE(kAutofillServerExperimentalSignatures,
 // Enables querying the server for predictions before the form has been parsed
 // locally.
 BASE_FEATURE(kAutofillServerQueryPredictionsEarly,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables uploading of more data to the Autofill server to use for computing
 // signatures: go/autofill-signatures-more-data.
@@ -933,11 +938,6 @@ BASE_FEATURE_PARAM(std::string,
                    &kAutofillUKMExperimentalFields,
                    "autofill_experimental_regex_bucket4",
                    "");
-
-// Enables uploading fields that were autofilled with fallback types.
-// TODO: crbug.com/444147005 - Clean up after this feature is rolled out.
-BASE_FEATURE(kAutofillUploadManualFallbackFieldsToServer,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables using a custom address model for India, overriding the legacy one.
 BASE_FEATURE(kAutofillUseINAddressModel, base::FEATURE_DISABLED_BY_DEFAULT);

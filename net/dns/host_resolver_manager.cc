@@ -449,12 +449,10 @@ HostResolverManager::HostResolverManager(
       is_happy_eyeballs_v3_enabled_(
           base::FeatureList::IsEnabled(features::kHappyEyeballsV3)),
       tick_clock_(base::DefaultTickClock::GetInstance()),
-      https_svcb_options_(options.https_svcb_options
-                              ? *options.https_svcb_options
-                              : HostResolver::HttpsSvcbOptions::FromFeatures()),
-      platform_apis_enabled_(options.insecure_dns_via_platform_apis_enabled) {
-  CHECK(!platform_apis_enabled_ || features::IsDnsPlatformSupported());
-
+      https_svcb_options_(
+          options.https_svcb_options
+              ? *options.https_svcb_options
+              : HostResolver::HttpsSvcbOptions::FromFeatures()) {
   PrioritizedDispatcher::Limits job_limits = GetDispatcherLimits(options);
   dispatcher_ = std::make_unique<PrioritizedDispatcher>(job_limits);
   max_queued_jobs_ = job_limits.total_jobs * 100u;
@@ -484,9 +482,18 @@ HostResolverManager::HostResolverManager(
   UpdateConnectionType(connection_type);
 
 #if defined(ENABLE_BUILT_IN_DNS)
+  InsecureDnsMode initial_insecure_dns_mode = InsecureDnsMode::kDisabled;
+  if (options.insecure_dns_client_enabled) {
+    initial_insecure_dns_mode = options.insecure_dns_via_platform_apis_enabled
+                                    ? InsecureDnsMode::kEnabledPlatform
+                                    : InsecureDnsMode::kEnabledBuiltIn;
+  }
+  CHECK(initial_insecure_dns_mode != InsecureDnsMode::kEnabledPlatform ||
+        features::IsDnsPlatformSupported());
+
   dns_client_ = DnsClient::CreateClient(net_log_);
   dns_client_->SetInsecureEnabled(
-      options.insecure_dns_client_enabled,
+      initial_insecure_dns_mode,
       options.additional_types_via_insecure_dns_enabled);
   dns_client_->SetConfigOverrides(options.dns_config_overrides);
 #else
@@ -645,27 +652,10 @@ void HostResolverManager::SetInsecureDnsClientEnabled(
   if (!dns_client_)
     return;
 
-  bool insecure_dns_enabled = false;
-  switch (mode) {
-    case InsecureDnsMode::kDisabled:
-      insecure_dns_enabled = false;
-      platform_apis_enabled_ = false;
-      break;
-    case InsecureDnsMode::kEnabledBuiltIn:
-      insecure_dns_enabled = true;
-      platform_apis_enabled_ = false;
-      break;
-    case InsecureDnsMode::kEnabledPlatform:
-      insecure_dns_enabled = true;
-      platform_apis_enabled_ = true;
-      break;
-  }
-
   bool enabled_before = dns_client_->CanUseInsecureDnsTransactions();
   bool additional_types_before =
       enabled_before && dns_client_->CanQueryAdditionalTypesViaInsecureDns();
-  dns_client_->SetInsecureEnabled(insecure_dns_enabled,
-                                  additional_dns_types_enabled);
+  dns_client_->SetInsecureEnabled(mode, additional_dns_types_enabled);
 
   // Abort current tasks if `CanUseInsecureDnsTransactions()` changes or if
   // insecure transactions are enabled and
@@ -1339,7 +1329,7 @@ bool HostResolverManager::ShouldForceSystemResolverDueToTestOverride() const {
 
 void HostResolverManager::PushDnsTasks(bool system_task_allowed,
                                        SecureDnsMode secure_dns_mode,
-                                       bool insecure_tasks_allowed,
+                                       InsecureDnsMode insecure_dns_mode,
                                        bool allow_cache,
                                        bool prioritize_local_lookups,
                                        ResolveContext* resolve_context,
@@ -1351,8 +1341,12 @@ void HostResolverManager::PushDnsTasks(bool system_task_allowed,
   // DnsTasks. It is still necessary to call this method, however, so that the
   // correct cache tasks for the secure dns mode are added.
   const bool dns_tasks_allowed = !ShouldForceSystemResolverDueToTestOverride();
+  const bool insecure_tasks_allowed =
+      (insecure_dns_mode != InsecureDnsMode::kDisabled);
   const TaskType dns_task_type =
-      platform_apis_enabled_ ? TaskType::DNS_PLATFORM : TaskType::DNS;
+      (insecure_dns_mode == InsecureDnsMode::kEnabledPlatform)
+          ? TaskType::DNS_PLATFORM
+          : TaskType::DNS;
   // Upgrade the insecure DnsTask depending on the secure dns mode.
   switch (secure_dns_mode) {
     case SecureDnsMode::kSecure:
@@ -1469,13 +1463,15 @@ void HostResolverManager::CreateTaskSequence(
             has_address_type &&
             job_key.secure_dns_mode != SecureDnsMode::kSecure;
         if (dns_client_ && dns_client_->GetEffectiveConfig()) {
-          bool insecure_allowed =
-              dns_client_->CanUseInsecureDnsTransactions() &&
+          InsecureDnsMode insecure_dns_mode = InsecureDnsMode::kDisabled;
+          if (dns_client_->CanUseInsecureDnsTransactions() &&
               !dns_client_->FallbackFromInsecureTransactionPreferred() &&
               (has_address_type ||
-               dns_client_->CanQueryAdditionalTypesViaInsecureDns());
+               dns_client_->CanQueryAdditionalTypesViaInsecureDns())) {
+            insecure_dns_mode = dns_client_->GetInsecureDnsMode();
+          }
           PushDnsTasks(system_task_allowed, job_key.secure_dns_mode,
-                       insecure_allowed, allow_cache, prioritize_local_lookups,
+                       insecure_dns_mode, allow_cache, prioritize_local_lookups,
                        &*job_key.resolve_context, out_tasks);
         } else if (system_task_allowed) {
           out_tasks->push_back(TaskType::SYSTEM);
@@ -1494,12 +1490,14 @@ void HostResolverManager::CreateTaskSequence(
       break;
     case HostResolverSource::DNS:
       if (dns_client_ && dns_client_->GetEffectiveConfig()) {
-        bool insecure_allowed =
-            dns_client_->CanUseInsecureDnsTransactions() &&
+        InsecureDnsMode insecure_dns_mode = InsecureDnsMode::kDisabled;
+        if (dns_client_->CanUseInsecureDnsTransactions() &&
             (has_address_type ||
-             dns_client_->CanQueryAdditionalTypesViaInsecureDns());
+             dns_client_->CanQueryAdditionalTypesViaInsecureDns())) {
+          insecure_dns_mode = dns_client_->GetInsecureDnsMode();
+        }
         PushDnsTasks(false /* system_task_allowed */, job_key.secure_dns_mode,
-                     insecure_allowed, allow_cache, prioritize_local_lookups,
+                     insecure_dns_mode, allow_cache, prioritize_local_lookups,
                      &*job_key.resolve_context, out_tasks);
       }
       break;

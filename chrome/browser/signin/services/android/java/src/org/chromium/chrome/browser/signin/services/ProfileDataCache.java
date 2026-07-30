@@ -151,16 +151,16 @@ public class ProfileDataCache implements IdentityManager.Observer {
 
     /**
      * @param context Context of the application to extract resources from.
-     * @param imageSizeRedId Resource id of the image size.
+     * @param imageSizeResId Resource id of the image size.
      * @return A {@link ProfileDataCache} object with the given image size and no badge.
      */
     public static ProfileDataCache createWithoutBadge(
-            Context context, IdentityManager identityManager, @DimenRes int imageSizeRedId) {
+            Context context, IdentityManager identityManager, @DimenRes int imageSizeResId) {
         return new ProfileDataCache(
                 context,
                 AccountManagerFacadeProvider.getInstance(),
                 identityManager,
-                context.getResources().getDimensionPixelSize(imageSizeRedId),
+                context.getResources().getDimensionPixelSize(imageSizeResId),
                 /* badgeConfig= */ null);
     }
 
@@ -369,7 +369,8 @@ public class ProfileDataCache implements IdentityManager.Observer {
                     croppedAvatar,
                     accountInfo.getFullName(),
                     accountInfo.getGivenName(),
-                    accountInfo.canHaveEmailAddressDisplayed());
+                    accountInfo.canHaveEmailAddressDisplayed(),
+                    /* hasAiTierRing= */ false);
         } else {
             final var shouldPopulateNames = accountInfo.hasDisplayableInfo() || badgeConfig != null;
             return new DisplayableProfileData(
@@ -378,7 +379,8 @@ public class ProfileDataCache implements IdentityManager.Observer {
                     croppedAvatar,
                     shouldPopulateNames ? accountInfo.getFullName() : null,
                     shouldPopulateNames ? accountInfo.getGivenName() : null,
-                    accountInfo.canHaveEmailAddressDisplayed());
+                    accountInfo.canHaveEmailAddressDisplayed(),
+                    /* hasAiTierRing= */ false);
         }
     }
 

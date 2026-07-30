@@ -21,6 +21,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -44,6 +45,8 @@
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "components/strings/grit/components_strings.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
 
@@ -201,6 +204,28 @@ std::optional<SelectOption> GetOptionForSelect(
 
 }  // namespace
 
+DenseSet<EntityType> GetEntityTypesBeingFetched(const AutofillField& field,
+                                                const AutofillClient& client) {
+  const AutofillAiPersonalContextAccessManager* access_manager =
+      client.GetAutofillAiPersonalContextAccessManager();
+  if (!access_manager) {
+    return {};
+  }
+  DenseSet<EntityType> types;
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
+
+  for (EntityType entity_type : DenseSet<EntityType>::all()) {
+    if (field.Type().GetAutofillAiType(entity_type) != UNKNOWN_TYPE) {
+      if (access_manager->ServerHasSpiiPresenceSignal(entity_type) &&
+          access_manager->GetPrefetchStatusByEntityType(entity_type) ==
+              RequestStatus::kPending) {
+        types.insert(entity_type);
+      }
+    }
+  }
+  return types;
+}
+
 std::vector<const EntityInstance*> GetFillableEntityInstances(
     const AutofillClient& client) {
   const EntityDataManager* const edm = client.GetEntityDataManager();
@@ -234,9 +259,6 @@ base::flat_set<FieldGlobalId> GetFieldsFillableByAutofillAi(
     const AutofillClient& client) {
   std::vector<const EntityInstance*> entities =
       GetFillableEntityInstances(client);
-  if (entities.empty()) {
-    return {};
-  }
 
   base::flat_map<
       Section,
@@ -246,6 +268,12 @@ base::flat_set<FieldGlobalId> GetFieldsFillableByAutofillAi(
 
   // Returns true if there is data present that could fill the `field`.
   auto is_fillable = [&](const AutofillField& field) {
+    // Return true if the `field` is of an entity type that is currently being
+    // prefetched.
+    if (!GetEntityTypesBeingFetched(field, client).empty()) {
+      return true;
+    }
+
     return std::ranges::any_of(entities, [&](const EntityInstance* entity) {
       std::optional<AttributeType> type = GetAttributeTypeForEntityAndField(
           section_to_entity_and_field_and_types, *entity, field);
@@ -350,6 +378,22 @@ bool WillRequireServerFetch(const EntityInstance& entity,
       base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
 
   return is_ambient_enabled || is_wallet_enabled;
+}
+
+std::u16string GetAuthenticationMessage(const url::Origin& origin) {
+  // Android is excluded here because the system biometric prompt does not
+  // support a custom message.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/492978632): Evaluate if the host should be accessed based
+  // on the field origin instead of using the last committed main frame origin
+  // and what should happen when `host` is empty.
+  return l10n_util::GetStringFUTF16(IDS_AUTOFILL_AI_FILLING_REAUTH,
+                                    base::UTF8ToUTF16(origin.host()));
+#else
+  return std::u16string();
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_IOS)
 }
 
 }  // namespace autofill

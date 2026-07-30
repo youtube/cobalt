@@ -9,6 +9,7 @@ import android.view.View;
 import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
 
+import org.chromium.components.extensions.ExtensionsBuildflags;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -297,6 +298,12 @@ public interface NativePage {
         } else if (UrlConstants.EXPLORE_HOST.equals(host)) {
             return NativePageType.EXPLORE;
         } else if (UrlConstants.MANAGEMENT_HOST.equals(host)) {
+            // WebUI chrome://management is enabled by default on Desktop Android
+            // (which supports extensions core) and gated behind an experiment flag on Mobile Android.
+            if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE
+                    || ChromeFeatureList.sMigrateManagementToWebUIOnMobile.isEnabled()) {
+                return NativePageType.NONE;
+            }
             return NativePageType.MANAGEMENT;
         } else if (UrlConstants.BRICKS_HOST.equals(host)
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_BRICKS_NATIVE_PAGE)) {

@@ -484,7 +484,7 @@ V5Store::ConvertExtensionsBlocklistFromV4ToV5(
     if (!crx_file::id_util::IdIsValid(id)) {
       return ConvertExtensionBlocklistV4ToV5Result::kInvalidExtensionId;
     }
-    v5_hash_data.append(SBStore::ExtensionV4IdToV5Hash(id));
+    v5_hash_data.append(SBStore::ExtensionIdToHash(id));
   }
   if (!base::WriteFile(v5_hash_file_path, v5_hash_data)) {
     return ConvertExtensionBlocklistV4ToV5Result::kWriteV5Failed;
@@ -551,13 +551,15 @@ void V5Store::CollectStoreInfo(
   SBStore::CollectStoreInfo(store_info);
   store_info->set_v5_update_status(
       V5ApplyUpdateResultToDebuggingString(last_apply_update_result_));
-  // TODO(crbug.com/362791941): report back checks_attempted_ once added.
+  store_info->set_checks_attempted(checks_attempted_);
   hash_prefix_list_->GetPrefixInfo(store_info->mutable_prefix_sets());
 }
 
 HashPrefixStr V5Store::GetMatchingHashPrefix(const FullHashStr& full_hash) {
-  // TODO(crbug.com/362791941): implement
-  NOTREACHED();
+  CHECK(full_hash.size() == 32u || full_hash.size() == 16u);
+  CHECK_GE(full_hash.size(), prefix_size_);
+  checks_attempted_++;
+  return hash_prefix_list_->GetMatchingHashPrefix(full_hash);
 }
 
 void V5Store::ApplyUpdate(

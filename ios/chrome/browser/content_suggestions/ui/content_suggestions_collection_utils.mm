@@ -232,7 +232,8 @@ CGFloat SearchFieldWidth(CGFloat width, UITraitCollection* trait_collection) {
   }
 
   if (IsAimEnabledInNtp() && !IsCompactHeight(trait_collection)) {
-    return std::max(width - kMIASearchFieldMinMargin * 2, kSearchFieldSmallMin);
+    return std::clamp(width - kMIASearchFieldMinMargin * 2,
+                      kSearchFieldSmallMin, kSearchFieldLarge);
   }
 
   // Special case for narrow sizes.
@@ -326,8 +327,8 @@ void ConfigureVoiceSearchButton(UIButton* voice_search_button,
   buttonConfig.contentInsets = NSDirectionalEdgeInsetsMake(0, 0, 0, 0);
   buttonConfig.background.backgroundColor = [UIColor clearColor];
   voice_search_button.configuration = buttonConfig;
-  UIImage* mic_image = CustomSymbolWithPointSize(
-      kVoiceSymbol, kSymbolContentSuggestionsPointSize);
+  UIImage* mic_image =
+      SymbolWithPointSize(SymbolVoice, kSymbolContentSuggestionsPointSize);
   mic_image = use_color_icon ? MakeSymbolMulticolor(mic_image)
                              : MakeSymbolMonochrome(mic_image);
   [voice_search_button setImage:mic_image forState:UIControlStateNormal];
@@ -361,8 +362,8 @@ void ConfigureLensButtonAppearance(UIButton* lens_button,
       CreateLiftEffectCirclePointerStyleProvider();
 
   // Use a monochrome or colored symbol with no background.
-  UIImage* camera_image = CustomSymbolWithPointSize(
-      kCameraLensSymbol, kSymbolContentSuggestionsPointSize);
+  UIImage* camera_image =
+      SymbolWithPointSize(SymbolCameraLens, kSymbolContentSuggestionsPointSize);
   camera_image = use_color_icon ? MakeSymbolMulticolor(camera_image)
                                 : MakeSymbolMonochrome(camera_image);
   [lens_button setImage:camera_image forState:UIControlStateNormal];

@@ -122,6 +122,9 @@ BASE_FEATURE(kNtpDriveModuleLink, base::FEATURE_DISABLED_BY_DEFAULT);
 // show the Drive module.
 BASE_FEATURE(kNtpDriveModuleSegmentation, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, branded NTPs use the 2026 version of the Google logo.
+BASE_FEATURE(kNtpGoogleLogo26, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, logo will be shown.
 // This is a kill switch. Keep indefinitely.
 BASE_FEATURE(kNtpLogo, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -184,6 +187,10 @@ BASE_FEATURE(kNtpOutlookCalendarModule,
 // If enabled, scaled merchandising action chips (e.g., dynamic tool
 // suggestions and resource pickers) will be shown on the NTP.
 BASE_FEATURE(kNtpScaledActionChips, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, scaled merchandising action chips will be in a smaller format.
+// Requires #ntp-scaled-action-chips to be enabled too.
+BASE_FEATURE(kNtpScaledActionChipsSmall, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, sharepoint module will be shown.
 BASE_FEATURE(kNtpSharepointModule,

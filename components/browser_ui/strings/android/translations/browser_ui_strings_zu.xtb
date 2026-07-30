@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Cela ukubuka kweselula</translation>
 <translation id="2870560284913253234">Isayithi</translation>
 <translation id="2874939134665556319">Ithrekhi yangaphambilini</translation>
+<translation id="2890412325133442491">Okuzenzakalelayo kweChrome</translation>
 <translation id="2891975107962658722">Vimba isayithi ekulondolozeni idatha kudivayisi yakho</translation>
 <translation id="2903493209154104877">Amakheli</translation>
 <translation id="2903764741244499151">Amasayithi angafaka isithombe-esithombeni ngokuzenzekelayo. Lokhu kukuvumela ukuthi uqhubeke nokubuka ividiyo, kuyilapho ukhulula isikrini sakho ukuze wenze eminye imisebenzi.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Shintsha amaphasiwedi</translation>
 <translation id="3797520601150691162">Ungasebenzisi itimu emnyama yesayithi elithile</translation>
 <translation id="3803367742635802571">Amasayithi owavakashelayo angase ayeke ukusebenza ngendlela eklanywe ngayo</translation>
-<translation id="3816118180265633665">Imibala ye-Chrome</translation>
 <translation id="381841723434055211">Izinombolo zefoni</translation>
 <translation id="3823453485268218808">Ifonti yeMono</translation>
 <translation id="3826050100957962900">Ukungena ngemvume kwenkampani yangaphandle</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Phuma kusikrini esigcwele</translation>
 <translation id="640163077447496506">Kuphelelwa yisikhathi namuhla</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Isihloko Sokuqoqiwe</translation>
 <translation id="6439114592976064011">Vimbela amasayithi ukuthi angasebenzisi idivayisi yakho yento engekho ngokoqobo nedatha</translation>
 <translation id="6447842834002726250">Amakhukhi</translation>
 <translation id="6452138246455930388">Ukwehla kwentengo kwethebhu yakho evuliwe, kusukela ku-<ph name="OLD_PRICE" /> kuya ku-<ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Ukuvikela Okuthuthukile kulawula la masethingi eChrome:</translation>
 <translation id="7423098979219808738">Buza kuqala</translation>
 <translation id="7423538860840206698">Kuvinjelwe kusukela ekufundeni ibhodi lokunamathisela</translation>
 <translation id="7425915948813553151">Itimu emnyama yamasayithi</translation>
+<translation id="7429767477925996803">Imibala yeChrome</translation>
 <translation id="746412105358554870">Ukulungiselela iJavascript nokuvikeleka</translation>
 <translation id="7478658909253570368">Ungavumeli amasayithi ukuba axhume ezimbobeni zomkhiqizo</translation>
 <translation id="7488573225650545859">Fihla amathebhu esakhi esithi Buka ohlwini lwe-app yakho</translation>
@@ -676,7 +676,6 @@ Ukuvikela Okuthuthukile kulawula la masethingi eChrome:</translation>
 <translation id="802154636333426148">Ukulanda kwehlulekile</translation>
 <translation id="8033047164036749181">Bhalisela izaziso ezivela kule sayithi</translation>
 <translation id="8051193500142930381">Izici ezidinga ikhamera ngeke zisebenze</translation>
-<translation id="8056330801132235235">IChrome Ezenzekelayo</translation>
 <translation id="8067883171444229417">Dlala ividiyo</translation>
 <translation id="8068648041423924542">Ayikwazi ukukhetha isitifiketi.</translation>
 <translation id="8077120325605624147">Noma iyiphi isayithi oyivakashelayo ingakubonisa noma yisiphi isikhangiso</translation>

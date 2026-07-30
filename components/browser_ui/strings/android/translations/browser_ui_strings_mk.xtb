@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Барање приказ на мобилен</translation>
 <translation id="2870560284913253234">Локација</translation>
 <translation id="2874939134665556319">Претходна песна</translation>
+<translation id="2890412325133442491">Стандардно за Chrome</translation>
 <translation id="2891975107962658722">Блокирајте сајт за да не може да зачувува податоци на вашиот уред</translation>
 <translation id="2903493209154104877">Адреси</translation>
 <translation id="2903764741244499151">Сајтовите може да влегуваат во „Слика во слика“ автоматски. Тоа ви овозможува да продолжите да гледате конкретно видео, а притоа да го ослободите вашиот екран за други задачи.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Променете ги лозинките</translation>
 <translation id="3797520601150691162">Не применувај темна тема за конкретен сајт</translation>
 <translation id="3803367742635802571">Сајтовите што ги посетувате може да прекинат со функционирање како што се дизајнирани</translation>
-<translation id="3816118180265633665">Бои на Chrome</translation>
 <translation id="381841723434055211">Телефонски броеви</translation>
 <translation id="3823453485268218808">Фонт Mono</translation>
 <translation id="3826050100957962900">Најавување на трети страни</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Излези од цел екран</translation>
 <translation id="640163077447496506">Истекува денес</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Збирки теми</translation>
 <translation id="6439114592976064011">Не дозволувај сајтовите да ги користат уредот и податоците за виртуелна реалност</translation>
 <translation id="6447842834002726250">Колачиња</translation>
 <translation id="6452138246455930388">Намалување на цената на вашата отворена картичка, од <ph name="OLD_PRICE" /> до <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">Прво прашај</translation>
 <translation id="7423538860840206698">Блокирано читање на привремената меморија</translation>
 <translation id="7425915948813553151">Темна тема за сајтови</translation>
+<translation id="7429767477925996803">Бои на Chrome</translation>
 <translation id="746412105358554870">Оптимизација и безбедност на JavaScript</translation>
 <translation id="7478658909253570368">Не им дозволувај на сајтовите да се поврзуваат со сериски порти</translation>
 <translation id="7488573225650545859">Скриј „Прегледајте ги картичките во списокот со апликации“</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">Неуспешно преземање</translation>
 <translation id="8033047164036749181">Претплатете се за известувања од сајтов</translation>
 <translation id="8051193500142930381">Функциите на коишто им треба камерата нема да работат</translation>
-<translation id="8056330801132235235">Стандардно за Chrome</translation>
 <translation id="8067883171444229417">Пушти го видеото</translation>
 <translation id="8068648041423924542">Сертификатот не може да се избере.</translation>
 <translation id="8077120325605624147">Секој сајт што го посетувате може да ви прикаже која било реклама</translation>

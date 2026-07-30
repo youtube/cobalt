@@ -46,9 +46,7 @@ import org.chromium.ui.widget.UiWidgetFactory;
 
 /** Unit test for {@link ContextMenuDialog}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {ShadowPhoneWindow.class})
+@Config(manifest = Config.NONE)
 public class ContextMenuDialogUnitTest {
     private static final int DIALOG_SIZE_DIP = 50;
 
@@ -284,7 +282,8 @@ public class ContextMenuDialogUnitTest {
                 mSpyDragDispatchingDestinationView,
                 new Rect(0, 0, 0, 0),
                 /* shouldPadForWindowInsets= */ true,
-                /* onDismissCallback= */ null);
+                /* onDismissCallback= */ null,
+                /* flyoutExtraPaddingY= */ 0);
     }
 
     private void requestLayoutForRootView() {

@@ -14,6 +14,7 @@
 #include "chrome/browser/bookmarks/bookmark_test_helpers.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
+#include "chrome/browser/page_load_metrics/chrome_initiator_location.h"
 #include "chrome/browser/preloading/bookmarkbar_preload/bookmarkbar_preload_pipeline_manager.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
@@ -59,7 +60,7 @@ namespace {
 class BookmarkBarTestBase : public InProcessBrowserTest {
  public:
   void SetUpOnMainThread() override {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         bookmarks::prefs::kShowBookmarkBar, true);
 
     test_helper_ = std::make_unique<BookmarkBarViewTestHelper>(bookmark_bar());
@@ -655,8 +656,8 @@ IN_PROC_BROWSER_TEST_F(
         test_ukm_recorder()->ExpectEntryMetric(
             entry,
             ukm::builders::PrerenderPageLoad::kNavigation_InitiatorLocationName,
-            static_cast<int>(page_load_metrics::NavigationHandleUserData::
-                                 InitiatorLocation::kBookmarkBar));
+            static_cast<int>(
+                GetInitiatorLocation(ChromeInitiatorLocation::kBookmarkBar)));
         witness_bookmarkbar_ukm = true;
       }
     }
@@ -676,8 +677,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_EQ(bookmark_navigation_list().size(), 2u);
   for (int i = 0; i < 2; ++i) {
     EXPECT_EQ(bookmark_navigation_list()[i],
-              page_load_metrics::NavigationHandleUserData::InitiatorLocation::
-                  kBookmarkBar);
+              GetInitiatorLocation(ChromeInitiatorLocation::kBookmarkBar));
   }
   histogram_tester.ExpectTotalCount(
       "Bookmarks.BookmarkBar.PrerenderNavigationToActivation", 1);
@@ -815,8 +815,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBookmarkBarDisabledNavigationTest,
   ASSERT_EQ(bookmark_navigation_list().size(), 1u);
   for (int i = 0; i < 1; ++i) {
     EXPECT_EQ(bookmark_navigation_list()[i],
-              page_load_metrics::NavigationHandleUserData::InitiatorLocation::
-                  kBookmarkBar);
+              GetInitiatorLocation(ChromeInitiatorLocation::kBookmarkBar));
   }
   histogram_tester.ExpectTotalCount(
       "Bookmarks.BookmarkBar.PrerenderNavigationToActivation", 0);

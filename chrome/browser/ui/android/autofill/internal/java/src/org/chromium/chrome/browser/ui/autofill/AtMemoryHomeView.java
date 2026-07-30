@@ -5,24 +5,17 @@
 package org.chromium.chrome.browser.ui.autofill;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Rect;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.view.View;
 import android.widget.LinearLayout;
 
-import androidx.annotation.Px;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.RecyclerView.Adapter;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties.ItemType;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.bottomsheet.ItemDividerBase;
 import org.chromium.ui.modelutil.LayoutViewBuilder;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
@@ -31,8 +24,6 @@ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 public class AtMemoryHomeView extends LinearLayout {
     private AtMemorySearchBarView mSearchBarView;
     private RecyclerView mRecyclerView;
-    private View mNoticeContainer;
-    private View mNoticeOkButton;
 
     public AtMemoryHomeView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -48,8 +39,6 @@ public class AtMemoryHomeView extends LinearLayout {
         // Disable animations to prevent view flickering during frequent updates (e.g. search
         // affordance).
         mRecyclerView.setItemAnimator(null);
-        mNoticeContainer = findViewById(R.id.notice_container);
-        mNoticeOkButton = findViewById(R.id.notice_ok_button);
     }
 
     public void setUpSheetItems(ModelList items) {
@@ -61,9 +50,19 @@ public class AtMemoryHomeView extends LinearLayout {
                 AtMemoryBottomSheetViewBinder::bindSuggestionItemView);
 
         adapter.registerType(
+                ItemType.SUGGESTION_WITH_NO_BACKGROUND,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_suggestion_item),
+                AtMemoryBottomSheetViewBinder::bindSuggestionItemView);
+
+        adapter.registerType(
                 ItemType.ZERO_STATE,
                 new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_zero_state_item),
                 (model, view, propertyKey) -> {});
+
+        adapter.registerType(
+                ItemType.NOTICE,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_notice_item),
+                AtMemoryBottomSheetViewBinder::bindNoticeItemView);
 
         mRecyclerView.setAdapter(adapter);
         mRecyclerView.addItemDecoration(new AtMemoryDividerItemDecoration(getContext()));
@@ -81,32 +80,6 @@ public class AtMemoryHomeView extends LinearLayout {
         mSearchBarView.hideKeyboardAndClearFocus();
     }
 
-    public void setNoticeVisible(boolean visible) {
-        mNoticeContainer.setVisibility(visible ? View.VISIBLE : View.GONE);
-    }
-
-    public void setNoticeOkClickListener(Runnable listener) {
-        mNoticeOkButton.setOnClickListener(v -> listener.run());
-    }
-
-    public void setNoticeSettingsClickListener(Runnable listener) {
-        android.widget.TextView noticeTextView = findViewById(R.id.notice_text);
-        android.content.Context context = getContext();
-        String rawText = context.getString(R.string.at_memory_notice_text);
-
-        org.chromium.ui.text.ChromeClickableSpan settingsSpan =
-                new org.chromium.ui.text.ChromeClickableSpan(context, (widget) -> listener.run());
-
-        android.text.SpannableString formattedText =
-                org.chromium.ui.text.SpanApplier.applySpans(
-                        rawText,
-                        new org.chromium.ui.text.SpanApplier.SpanInfo(
-                                "<link>", "</link>", settingsSpan));
-
-        noticeTextView.setText(formattedText);
-        noticeTextView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
-    }
-
     public void setSearchBarDelegate(AtMemorySearchBarView.Delegate delegate) {
         mSearchBarView.setDelegate(delegate);
     }
@@ -119,75 +92,17 @@ public class AtMemoryHomeView extends LinearLayout {
         mSearchBarView.setIsLoading(isLoading);
     }
 
-    // TODO(crbug.com/536749145): Remove background logic.
-    public void setShowSuggestionsBackground(boolean showBackground) {
-        if (showBackground) {
-            mRecyclerView.setBackgroundResource(R.drawable.at_memory_suggestions_bg);
-        } else {
-            mRecyclerView.setBackground(null);
-        }
-    }
-
-    // TODO(crbug.com/513146609): Reuse ItemDividerBase instead of custom ItemDecoration.
-    /** Draws a divider line below each item in the list except for the last item. */
-    private static class AtMemoryDividerItemDecoration extends RecyclerView.ItemDecoration {
-        private final Drawable mDivider;
-        private final @Px int mDividerHeight;
-
+    private static class AtMemoryDividerItemDecoration extends ItemDividerBase {
         public AtMemoryDividerItemDecoration(Context context) {
-            mDivider = new ColorDrawable(SemanticColorUtils.getDefaultBgColor(context));
-            mDividerHeight =
-                    context.getResources()
-                            .getDimensionPixelSize(R.dimen.at_memory_bottom_sheet_divider_height);
+            super(context);
         }
 
         @Override
-        public void onDraw(Canvas c, RecyclerView parent, RecyclerView.State state) {
-            Adapter adapter = parent.getAdapter();
-            if (adapter == null) return;
-
-            int left = parent.getPaddingLeft();
-            int right = parent.getWidth() - parent.getPaddingRight();
-            int childCount = parent.getChildCount();
-
-            for (int i = 0; i < childCount; i++) {
-                View child = parent.getChildAt(i);
-                int position = parent.getChildAdapterPosition(child);
-                if (position == RecyclerView.NO_POSITION
-                        || position == adapter.getItemCount() - 1
-                        || shouldSkipItemType(adapter.getItemViewType(position))) {
-                    continue;
-                }
-
-                RecyclerView.LayoutParams params =
-                        (RecyclerView.LayoutParams) child.getLayoutParams();
-                int top = child.getBottom() + params.bottomMargin;
-                int bottom = top + mDividerHeight;
-
-                mDivider.setBounds(left, top, right, bottom);
-                mDivider.draw(c);
-            }
-        }
-
-        @Override
-        public void getItemOffsets(
-                Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
-            Adapter adapter = parent.getAdapter();
-            if (adapter == null) return;
-
-            int position = parent.getChildAdapterPosition(view);
-            if (position == RecyclerView.NO_POSITION
-                    || position == adapter.getItemCount() - 1
-                    || shouldSkipItemType(adapter.getItemViewType(position))) {
-                outRect.set(0, 0, 0, 0);
-            } else {
-                outRect.set(0, 0, 0, mDividerHeight);
-            }
-        }
-
-        private boolean shouldSkipItemType(@ItemType int type) {
+        protected boolean shouldSkipItemType(@ItemType int type) {
             switch (type) {
                 case ItemType.ZERO_STATE:
+                case ItemType.NOTICE:
+                case ItemType.SUGGESTION_WITH_NO_BACKGROUND:
                     return true;
                 case ItemType.SUGGESTION:
                     return false;

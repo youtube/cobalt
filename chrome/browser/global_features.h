@@ -66,9 +66,7 @@ class ApplicationAdvancedProtectionStatusDetector;
 class ProfileLaunchObserver;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_MAC)
 class GlassFrameService;
-#endif
 
 #if BUILDFLAG(IS_WIN)
 class StartupLaunchManager;
@@ -131,6 +129,7 @@ class GlobalFeatures {
   // called immediately after construction, before any other
   // initialization.
   void Init();
+  void PreMainMessageLoopRun();
 
   // Each of these is called exactly once when the browser starts to shutdown,
   // in the named browser shutdown lifecycle phases. Importantly,
@@ -314,9 +313,7 @@ class GlobalFeatures {
 
   std::unique_ptr<tabs_api::TabDragSessionManager> tab_drag_session_manager_;
 
-#if BUILDFLAG(IS_MAC)
   std::unique_ptr<GlassFrameService> glass_frame_service_;
-#endif
 };
 
 #endif  // CHROME_BROWSER_GLOBAL_FEATURES_H_

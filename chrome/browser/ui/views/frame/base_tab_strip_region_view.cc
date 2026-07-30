@@ -461,6 +461,26 @@ void BaseTabStripRegionView::RecordNewTabButtonPressed() {
   base::RecordAction(base::UserMetricsAction("NewTab_Button"));
 }
 
+void BaseTabStripRegionView::AddedToWidget() {
+  widget_observation_.Observe(GetWidget());
+}
+
+void BaseTabStripRegionView::RemovedFromWidget() {
+  widget_observation_.Reset();
+}
+
+void BaseTabStripRegionView::OnWidgetVisibilityChanged(views::Widget* widget,
+                                                       bool visible) {
+  if (visible && is_first_window_presentation_) {
+    is_first_window_presentation_ = false;
+    // Only scroll-in the active tab for the first window presentation.
+    if (tab_strip_view()) {
+      tab_strip_view()->OnTabChanged(
+          root_node()->GetController()->GetActiveTab());
+    }
+  }
+}
+
 void BaseTabStripRegionView::OnChildrenAdded(
     const tabs::TabCollectionNodes& handles) {
   if (new_tab_button_pressed_start_time_.has_value()) {
@@ -486,8 +506,8 @@ void BaseTabStripRegionView::OnChildrenAdded(
     }
   }
 
-  if (last_new_tab) {
-    ScrollToFitTabs(active_tab, last_new_tab);
+  if (last_new_tab && tab_strip_view_ && !is_first_window_presentation_) {
+    tab_strip_view_->ScrollToFitTabs(active_tab, last_new_tab);
   }
 }
 
@@ -497,25 +517,22 @@ void BaseTabStripRegionView::OnChildrenRemoved() {
 
 void BaseTabStripRegionView::OnChildMoved(TabCollectionNode* moved_node) {
   hover_tab_selector_->CancelTabTransition();
-  if (tab_strip_view_) {
+  if (tab_strip_view_ && !is_first_window_presentation_) {
     tab_strip_view_->OnChildMoved(moved_node);
   }
 }
 
 void BaseTabStripRegionView::OnActiveTabChanged(
     const tabs::TabInterface* active_tab) {
-  if (tab_strip_view_) {
+  if (hover_card_controller_) {
+    hover_card_controller_->UpdateHoverCard(
+        nullptr, TabSlotController::HoverCardUpdateType::kSelectionChanged);
+  }
+  if (tab_strip_view_ && !is_first_window_presentation_) {
     tab_strip_view_->OnTabChanged(active_tab);
   }
 }
 
-void BaseTabStripRegionView::ScrollToFitTabs(
-    const tabs::TabInterface* active_tab,
-    const tabs::TabInterface* new_tab) {
-  if (tab_strip_view_) {
-    tab_strip_view_->ScrollToFitTabs(active_tab, new_tab);
-  }
-}
 
 void BaseTabStripRegionView::SetLinkDropArrow(
     const std::optional<BrowserRootView::DropIndex>& index) {
@@ -600,6 +617,10 @@ gfx::Rect BaseTabStripRegionView::GetLinkDropBoundsFromPosition(
   }
 
   return gfx::Rect(position, gfx::Size(DropArrow::kSize, DropArrow::kSize));
+}
+
+void BaseTabStripRegionView::OnGlassFrameEligibilityChanged(bool is_eligible) {
+  SchedulePaint();
 }
 
 BEGIN_METADATA(BaseTabStripRegionView)

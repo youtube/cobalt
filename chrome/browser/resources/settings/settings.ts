@@ -91,11 +91,11 @@ export {loadTimeData} from './i18n_setup.js';
 // <if expr="not is_chromeos">
 export {convertLanguageCodeForChrome, convertLanguageCodeForTranslate, getBaseLanguage, isTranslateBaseLanguage} from './languages_page/languages_util.js';
 // </if>
-export {AiPageComposeInteractions, AiPageHistorySearchInteractions, AiPageInteractions, AiPageSuggestionsInteractions, AutofillSettingsReferrer, CardBenefitsUserAction, CvcDeletionUserAction, DeleteBrowsingDataAction, MetricsBrowserProxyImpl, PrivacyElementInteractions, PrivacyGuideInteractions, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached, SafeBrowsingInteractions, SafetyCheckNotificationsModuleInteractions, SafetyCheckUnusedSitePermissionsModuleInteractions, SafetyHubCardState, SafetyHubEntryPoint, SafetyHubModuleType, SafetyHubSurfaces, YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from './metrics_browser_proxy.js';
+export {AiPageComposeInteractions, AiPageHistorySearchInteractions, AiPageInteractions, AiPageSuggestionsInteractions, AutofillSettingsReferrer, CardBenefitsUserAction, CvcDeletionUserAction, DeleteBrowsingDataAction, MetricsBrowserProxyImpl, PrivacyElementInteractions, PrivacyGuideInteractions, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached, SafeBrowsingInteractions, SafetyCheckNotificationsModuleInteractions, SafetyCheckUnusedSitePermissionsModuleInteractions, SafetyHubCardState, SafetyHubEntryPoint, SafetyHubModuleType, SafetyHubSurfaces, SuggestionsFromGeminiAction, SuggestionsFromGeminiEntryPoint, YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from './metrics_browser_proxy.js';
 export type {MetricsBrowserProxy} from './metrics_browser_proxy.js';
 export {OnStartupBrowserProxyImpl} from './on_startup_page/on_startup_browser_proxy.js';
 export type {NtpExtension, OnStartupBrowserProxy} from './on_startup_page/on_startup_browser_proxy.js';
-export {SettingsOnStartupPageElement} from './on_startup_page/on_startup_page.js';
+export {PrefValues, SettingsOnStartupPageElement} from './on_startup_page/on_startup_page.js';
 export {SettingsStartupUrlDialogElement} from './on_startup_page/startup_url_dialog.js';
 export {EDIT_STARTUP_URL_EVENT, SettingsStartupUrlEntryElement} from './on_startup_page/startup_url_entry.js';
 export {SettingsStartupUrlsPageElement} from './on_startup_page/startup_urls_page.js';
@@ -131,8 +131,6 @@ export type {PrivacyGuideBrowserProxy} from './privacy_page/privacy_guide/privac
 export {SettingsPrivacyPageElement} from './privacy_page/privacy_page.js';
 export {SettingsPrivacyPageIndexElement} from './privacy_page/privacy_page_index.js';
 export {SafeBrowsingSetting} from './privacy_page/security/safe_browsing_types.js';
-export {PrivacySandboxBrowserProxyImpl} from './privacy_sandbox/privacy_sandbox_browser_proxy.js';
-export type {CanonicalTopic, FirstLevelTopicsState, FledgeState, PrivacySandboxBrowserProxy, PrivacySandboxInterest, TopicsState} from './privacy_sandbox/privacy_sandbox_browser_proxy.js';
 export {RelaunchMixin, RestartType} from './relaunch_mixin.js';
 export {ResetBrowserProxyImpl} from './reset_page/reset_browser_proxy.js';
 export type {ResetBrowserProxy} from './reset_page/reset_browser_proxy.js';

@@ -2978,15 +2978,6 @@ _CONFIG = [
     },
     {
         'paths': [
-            'third_party/blink/renderer/modules/ad_auction/',
-            'third_party/blink/renderer/modules/shared_storage/',
-        ],
-        'allowed': [
-            'aggregation_service::.+',
-        ]
-    },
-    {
-        'paths': [
             'third_party/blink/renderer/core/scheduler/',
             'third_party/blink/renderer/modules/shared_storage/',
         ],
@@ -3087,7 +3078,6 @@ _CONFIG = [
         'allowed': [
             'net::HttpCache',
             'network::features::kBrowsingTopics',
-            'network::features::kInterestGroupStorage',
             'network::features::kSharedStorageAPI',
         ]
     },

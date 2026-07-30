@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/no_destructor.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
@@ -58,10 +59,28 @@ optimization_guide::PageEligibilityResult MockCheckPageEligibility(
       .meta_tag_names_affecting_eligibility = {.data = nullptr, .size = 0}};
 }
 
+bool MockIsEligible(
+    const std::string& host,
+    const std::string& path,
+    const std::vector<optimization_guide::FrameMetadata>& frame_metadata) {
+  if (path.find("ineligible") != std::string::npos ||
+      host.find("ineligible") != std::string::npos) {
+    return false;
+  }
+  return true;
+}
+
+bool MockShouldReextractPageContext(
+    const std::string& host,
+    const std::string& path,
+    const std::vector<std::string>& updated_meta_tags) {
+  return false;
+}
+
 optimization_guide::PageContextEligibilityAPI g_test_api = {
-    .IsPageContextEligible = nullptr,
+    .IsPageContextEligible = &MockIsEligible,
     .IsPageContextEligibleWithAccount = &MockIsEligibleWithAccount,
-    .ShouldReextractPageContext = nullptr,
+    .ShouldReextractPageContext = &MockShouldReextractPageContext,
     .GetMetaTagNamesAffectingEligibility = &MockGetMeta,
     .CheckPageEligibility = &MockCheckPageEligibility,
 };
@@ -71,18 +90,14 @@ class GlicPasteEligibilityBrowserTest : public GlicBrowserTest {
   GlicPasteEligibilityBrowserTest() = default;
 
   void SetUp() override {
-    test_eligibility_holder_ =
-        std::make_unique<optimization_guide::PageContextEligibility>(
-            &g_test_api);
     optimization_guide::PageContextEligibility::SetForTesting(
-        test_eligibility_holder_.get());
+        GetTestEligibilityHolder());
     GlicBrowserTest::SetUp();
   }
 
   void TearDown() override {
     GlicBrowserTest::TearDown();
     optimization_guide::PageContextEligibility::SetForTesting(nullptr);
-    test_eligibility_holder_.reset();
   }
 
   void SetUpOnMainThread() override {
@@ -92,8 +107,11 @@ class GlicPasteEligibilityBrowserTest : public GlicBrowserTest {
   }
 
  protected:
-  std::unique_ptr<optimization_guide::PageContextEligibility>
-      test_eligibility_holder_;
+  optimization_guide::PageContextEligibility* GetTestEligibilityHolder() {
+    static base::NoDestructor<optimization_guide::PageContextEligibility>
+        holder(&g_test_api);
+    return holder.get();
+  }
 
   std::optional<content::ClipboardPasteData> SyncCheckPasteEligibility(
       const content::ClipboardEndpoint& source,

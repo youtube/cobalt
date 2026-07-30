@@ -424,7 +424,7 @@ public class RootUiCoordinator
     protected final @ActivityType int mActivityType;
     protected final Supplier<Boolean> mIsInOverviewModeSupplier;
     private final AppMenuDelegate mAppMenuDelegate;
-    private final Supplier<TabContentManager> mTabContentManagerSupplier;
+    protected final Supplier<TabContentManager> mTabContentManagerSupplier;
     private final IntentRequestTracker mIntentRequestTracker;
     private final boolean mInitializeUiWithIncognitoColors;
     protected final SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
@@ -1432,6 +1432,10 @@ public class RootUiCoordinator
     }
 
     protected boolean isContextualSearchEnabled() {
+        // Caution: this cannot return anything else. A lot of code implicitly assumes the
+        // mContextualSearchManager is always available.
+        // Only special cases can currently override this value - ones where no logic ever
+        // calls `assumeNonNull` on `mContextualSearchManagerSupplier`.
         return true;
     }
 

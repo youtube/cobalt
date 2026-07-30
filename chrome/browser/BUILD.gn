@@ -533,9 +533,10 @@ if (!is_win && !is_android) {
       "//content/public/browser",
       "//ui/base",
     ]
+    if (is_linux || is_chromeos) {
+      deps += [ "//chrome/browser/ui/dialogs:process_singleton_dialog_linux" ]
+    }
 
-    # process_singleton_posix.cc includes process_singleton_dialog_linux.h,
-    # still owned by //chrome/browser/ui (the ui target adds the back-edge).
     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
   }
 }
@@ -795,6 +796,7 @@ if (is_chromeos) {
       "//components/session_manager/core",
       "//components/sync/base",
       "//components/user_manager",
+      "//components/user_manager:multi_user",
       "//services/network/public/cpp",
       "//services/service_manager/public/cpp",
       "//ui/base",
@@ -1066,7 +1068,6 @@ source_set("core") {
     "//chrome/browser/ui/webui/actor_internals",
     "//chrome/browser/ui/webui/bluetooth_internals",
     "//chrome/browser/ui/webui/bluetooth_internals:mojo_bindings",
-    "//chrome/browser/ui/webui/browsing_topics",
     "//chrome/browser/ui/webui/chrome_finds_internals",
     "//chrome/browser/ui/webui/chrome_finds_internals:mojo_bindings",
     "//chrome/browser/ui/webui/chrome_urls",
@@ -1109,7 +1110,6 @@ source_set("core") {
     "//components/browser_apis/tab_drag/sessions:impl",
     "//components/browser_sync:switches",
     "//components/browsing_topics",
-    "//components/browsing_topics/mojom:mojo_bindings",
     "//components/captive_portal/content",
     "//components/collaboration/public:features",
     "//components/color",
@@ -1197,6 +1197,7 @@ source_set("core") {
     "//components/safe_browsing/content/browser/password_protection",
     "//components/safe_browsing/core/browser",
     "//components/safe_browsing/core/browser:referring_app_info",
+    "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
     "//components/safe_browsing/core/browser/hashprefix_realtime:hash_realtime_service",
     "//components/safe_browsing/core/browser/realtime:enterprise_url_lookup_service",
     "//components/safe_browsing/core/browser/realtime:policy_engine",
@@ -1221,6 +1222,8 @@ source_set("core") {
     "//components/subresource_filter/content/mojom",
     "//components/subresource_filter/core/browser",
     "//components/supervised_user/core/browser:device_parental_controls",
+    "//components/surface_embed/browser",
+    "//components/surface_embed/common",
     "//components/sync_preferences:features",
     "//components/themes/cross_device:features",
     "//components/tracing:background_tracing_utils",
@@ -1371,7 +1374,7 @@ source_set("core") {
     deps += [ "//chrome/browser/ui/webui/discards" ]
   }
 
-  if (enable_dice_support) {
+  if (enable_dice_support || is_chromeos) {
     deps += [ "//chrome/browser/ui/webui/signin:batch_upload" ]
   }
 
@@ -2090,8 +2093,6 @@ source_set("browser") {
     "//chrome/browser/browser_actuator",
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/browsing_data:impl",
-    "//chrome/browser/browsing_topics",
-    "//chrome/browser/browsing_topics:impl",
     "//chrome/browser/btm",
     "//chrome/browser/btm:impl",
     "//chrome/browser/chooser_controller",
@@ -2545,7 +2546,6 @@ source_set("browser") {
     "//components/browsing_data/content",
     "//components/browsing_data/core",
     "//components/browsing_topics",
-    "//components/browsing_topics/mojom:mojo_bindings",
     "//components/captive_portal/content",
     "//components/certificate_matching",
     "//components/certificate_transparency",
@@ -2865,8 +2865,6 @@ source_set("browser") {
     "//components/supervised_user/core/browser:fetcher",
     "//components/supervised_user/core/common",
     "//components/supervised_user/core/common:buildflags",
-    "//components/surface_embed/browser",
-    "//components/surface_embed/common",
     "//components/sync",
     "//components/sync_bookmarks",
     "//components/sync_preferences",
@@ -3250,7 +3248,7 @@ source_set("browser") {
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/views/page_action:impl",
       "//chrome/browser/ui/views/side_panel",
-      "//chrome/browser/ui/views/tabs/projects:impl",
+      "//chrome/browser/ui/views/tabs/organizer:impl",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/views/zoom:impl",
@@ -3984,7 +3982,6 @@ source_set("browser") {
       "//chromeos/components/security_token_pin",
       "//chromeos/components/webauthn",
       "//chromeos/constants",
-      "//chromeos/crosapi/mojom",
       "//chromeos/dbus/constants",
       "//chromeos/dbus/power",
       "//chromeos/dbus/regmon",
@@ -4030,6 +4027,7 @@ source_set("browser") {
       "//components/sync/base",
       "//components/trusted_vault",
       "//components/user_manager",
+      "//components/user_manager:multi_user",
       "//components/webapk:proto",
       "//components/webauthn/core/browser:passkey_model",
       "//device/fido",
@@ -4654,7 +4652,6 @@ group("browser_public_dependencies") {
     # and thus their public dependencies are shared.
     "//base",
     "//chrome/app/vector_icons",
-    "//chrome/browser/browsing_topics",
     "//chrome/browser/enterprise",
     "//chrome/browser/optimization_guide:optimization_guide_on_device_model_installer",
     "//chrome/browser/plugins",

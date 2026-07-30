@@ -21,6 +21,7 @@
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/mock_autofill_manager_observer.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
@@ -42,6 +43,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace autofill {
 namespace {
@@ -273,6 +275,13 @@ class TouchToFillPaymentMethodDelegateAndroidImplUnitTest
         });
   }
 
+  void set_last_committed_primary_main_frame_url(const GURL& url) {
+    autofill_client().set_last_committed_primary_main_frame_url(url);
+    for (auto& field : test_api(form_).fields()) {
+      field.set_origin(url::Origin::Create(url));
+    }
+  }
+
   // Helper method to add the given `card` and create a card form.
   void ConfigureForCreditCards(const CreditCard& card) {
     form_ = test::CreateTestCreditCardFormData(/*is_https=*/true,
@@ -306,13 +315,13 @@ class TouchToFillPaymentMethodDelegateAndroidImplUnitTest
     form_ = test::CreateTestLoyaltyCardFormData();
     test_api(form_).field(0).set_is_focusable(true);
     // The current URL matches the loyalty card merchant domain.
-    autofill_client().set_last_committed_primary_main_frame_url(
-        GURL("https://domain.example"));
+    set_last_committed_primary_main_frame_url(GURL("https://domain.example"));
   }
 
   void OnFormsSeen() {
     if (!autofill_manager().FindCachedFormById(form_.global_id())) {
-      autofill_manager().OnFormsSeen({form_}, {});
+      autofill_manager().OnFormsSeen(
+          {form_}, {}, autofill::AutofillManagerTestApi::pass_key());
     }
   }
 
@@ -780,13 +789,15 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplCreditCardUnitTest,
        TryToShowTouchToFillFailsForPrefilledCardNumber) {
   // Force the form to be parsed here to test the case, when form values are
   // changed after the form is added to the cache.
-  autofill_manager().OnFormsSeen({form_}, {});
+  autofill_manager().OnFormsSeen({form_}, {},
+                                 autofill::AutofillManagerTestApi::pass_key());
   // Set credit card value.
   // TODO(crbug.com/40900766): Retrieve the card number field by name here.
   ASSERT_EQ(form_.fields()[1].name(), u"cardnumber");
   test_api(form_).field(1).set_value(u"411111111111");
   // Force a cache update so it knows about the field edit.
-  autofill_manager().OnFormsSeen({form_}, {});
+  autofill_manager().OnFormsSeen({form_}, {},
+                                 autofill::AutofillManagerTestApi::pass_key());
   ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
 
   TryToShowTouchToFill(/*expected_success=*/false);
@@ -800,7 +811,8 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplCreditCardUnitTest,
        TryToShowTouchToFillSucceedsForPrefilledYear) {
   // Force the form to be parsed here to test the case, when form values are
   // changed after the form is added to the cache.
-  autofill_manager().OnFormsSeen({form_}, {});
+  autofill_manager().OnFormsSeen({form_}, {},
+                                 autofill::AutofillManagerTestApi::pass_key());
   // Set card expiration year.
   // TODO(crbug.com/40900766): Retrieve the card expiry year field by name here.
   ASSERT_EQ(form_.fields()[3].name(), u"ccyear");
@@ -817,8 +829,7 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplCreditCardUnitTest,
 TEST_F(TouchToFillPaymentMethodDelegateAndroidImplCreditCardUnitTest,
        TryToShowTouchToFillFailsIfClientIsNotSecure) {
   // Simulate non-secure client.
-  autofill_client().set_last_committed_primary_main_frame_url(
-      GURL("http://example.test"));
+  set_last_committed_primary_main_frame_url(GURL("http://example.test"));
 
   ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
 
@@ -1426,8 +1437,7 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplLoyaltyCardUnitTest,
   LoyaltyCard card2 = test::CreateLoyaltyCard2();
   std::vector<LoyaltyCard> loyalty_cards{card2, card1};
   // Makes sure there is at least one affiliated card available.
-  autofill_client().set_last_committed_primary_main_frame_url(
-      card1.merchant_domains()[0]);
+  set_last_committed_primary_main_frame_url(card1.merchant_domains()[0]);
   test_api(*autofill_client().GetValuablesDataManager())
       .SetLoyaltyCards(loyalty_cards);
 
@@ -1440,7 +1450,7 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplLoyaltyCardUnitTest,
 
 TEST_F(TouchToFillPaymentMethodDelegateAndroidImplLoyaltyCardUnitTest,
        TryToShowTouchToFillFailsIfNoMatchingDomains) {
-  autofill_client().set_last_committed_primary_main_frame_url(
+  set_last_committed_primary_main_frame_url(
       GURL("https://non-matching.domain"));
   std::vector<LoyaltyCard> loyalty_cards{test::CreateLoyaltyCard()};
   test_api(*autofill_client().GetValuablesDataManager())
@@ -1546,8 +1556,7 @@ class TouchToFillPaymentMethodDelegateAndroidImplEmailOrLoyaltyCardUnitTest
     form_ = test::CreateTestEmailOrLoyaltyCardFormData();
     test_api(form_).field(0).set_is_focusable(true);
     // The current URL matches the loyalty card merchant domain.
-    autofill_client().set_last_committed_primary_main_frame_url(
-        GURL("https://domain.example"));
+    set_last_committed_primary_main_frame_url(GURL("https://domain.example"));
   }
 };
 
@@ -1559,8 +1568,7 @@ TEST_F(TouchToFillPaymentMethodDelegateAndroidImplEmailOrLoyaltyCardUnitTest,
   LoyaltyCard card2 = test::CreateLoyaltyCard2();
   std::vector<LoyaltyCard> loyalty_cards{card2, card1};
   // Makes sure there is at least one affiliated card available.
-  autofill_client().set_last_committed_primary_main_frame_url(
-      card1.merchant_domains()[0]);
+  set_last_committed_primary_main_frame_url(card1.merchant_domains()[0]);
   test_api(*autofill_client().GetValuablesDataManager())
       .SetLoyaltyCards(loyalty_cards);
 

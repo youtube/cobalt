@@ -2790,7 +2790,8 @@ Called by update_extension_histograms.py.-->
   <int value="1867" label="ACCESSIBILITY_PRIVATE_INSTALLFACEGAZEASSETS"/>
   <int value="1868" label="OS_MANAGEMENT_SETAUDIOVOLUME"/>
   <int value="1869" label="AUTOTESTPRIVATE_SETDEVICELANGUAGE"/>
-  <int value="1870" label="AUTOFILLPRIVATE_SETAUTOFILLSYNCTOGGLEENABLED"/>
+  <int value="1870"
+      label="DELETED_AUTOFILLPRIVATE_SETAUTOFILLSYNCTOGGLEENABLED"/>
   <int value="1871"
       label="ODFSCONFIGPRIVATE_ISFILESYSTEMPROVIDERCLOUDFILESYSTEMENABLED"/>
   <int value="1872" label="PDFVIEWERPRIVATE_SETPDFDOCUMENTTITLE"/>
@@ -2918,6 +2919,7 @@ Called by update_extension_histograms.py.-->
   <int value="1976" label="DICTATIONPRIVATE_UPDATETRANSCRIPTION"/>
   <int value="1977" label="DICTATIONPRIVATE_SETSTREAMSTATE"/>
   <int value="1978" label="WEBREQUESTINTERNAL_EVENTHANDLINGDONE"/>
+  <int value="1979" label="DICTATIONPRIVATE_UPDATEAUDIOLEVEL"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3313,6 +3315,30 @@ Called by update_extension_permission.py.-->
   <int value="272" label="kBluetoothPeripheral"/>
 </enum>
 
+<enum name="ExtensionPinReason">
+  <int value="0" label="Pinned by default">
+    The extension was successfully pinned to the toolbar because the
+    kExtensionsPinnedByDefault feature flag is enabled, the user's &quot;Pin new
+    extensions&quot; toggle is ON, and no policy prevents it.
+  </int>
+  <int value="1" label="Not pinned (Toggle OFF)">
+    The extension was not pinned because the user disabled the &quot;Pin new
+    extensions&quot; toggle in chrome://extensions.
+  </int>
+  <int value="2" label="Not pinned (Feature Disabled)">
+    The extension was not pinned because the kExtensionsPinnedByDefault feature
+    is disabled.
+  </int>
+  <int value="3" label="Overridden by policy">
+    The pinning behavior was dictated by an enterprise policy. Because
+    enterprise policy takes precedence, it overrides both the feature flag and
+    user preference.
+  </int>
+  <int value="4" label="Not pinned (No action)">
+    The extension does not have a toolbar action, so pinning is not applicable.
+  </int>
+</enum>
+
 <enum name="ExtensionPolicyReinstallReason">
   <int value="0" label="Tried to load a corrupted extension"/>
   <int value="1" label="Corrupted Chrome Web Store extension"/>
@@ -3544,13 +3570,6 @@ Called by update_extension_permission.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/extensions/chrome_extensions_browser_client.h:ManifestSettingsOverrideType) -->
-
-<enum name="ManifestVersionPopulationSplit">
-  <int value="0" label="No extensions"/>
-  <int value="1" label="Manifest Version 2 extensions only"/>
-  <int value="2" label="Manifest Version 2 and Manifest Version 3 extensions"/>
-  <int value="3" label="Manifest Version 3 extensions only"/>
-</enum>
 
 <!-- LINT.IfChange(MissingParams) -->
 

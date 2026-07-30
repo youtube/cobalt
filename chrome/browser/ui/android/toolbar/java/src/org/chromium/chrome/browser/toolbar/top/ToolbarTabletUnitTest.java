@@ -65,6 +65,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
@@ -253,7 +254,12 @@ public final class ToolbarTabletUnitTest {
         mToolbarTablet.ensureOptionalButtonWidthConsumerForTesting();
         mToolbarTablet.ensurePaddingWidthConsumer();
         mToolbarTablet.ensureLocationBarMidWidthConsumer();
-        mToolbarTabletLayout = mToolbarTablet.findViewById(R.id.toolbar_tablet_layout);
+        mToolbarTabletLayout =
+                spy((LinearLayout) mToolbarTablet.findViewById(R.id.toolbar_tablet_layout));
+        doReturn(mToolbarTabletLayout)
+                .when(mToolbarTablet)
+                .findViewById(R.id.toolbar_tablet_layout);
+
         mHomeButton = mToolbarTablet.findViewById(R.id.home_button);
         mBackButton = mToolbarTablet.findViewById(R.id.back_button);
         mForwardButton = mToolbarTablet.findViewById(R.id.forward_button);
@@ -672,7 +678,9 @@ public final class ToolbarTabletUnitTest {
         updateOptionalButton(
                 /* buttonVariant= */ AdaptiveToolbarButtonVariant.READER_MODE,
                 /* tooltipTextResId= */ 0);
-        assertEquals(null, mToolbarTablet.getOptionalButtonViewForTesting().getTooltipText());
+        assertEquals(
+                mActivity.getString(R.string.actionbar_share),
+                mToolbarTablet.getOptionalButtonViewForTesting().getTooltipText());
 
         // Test whether share button tooltip Text is set correctly.
         updateOptionalButton(
@@ -1301,6 +1309,84 @@ public final class ToolbarTabletUnitTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
+    public void testOptionalButtonToolbarWidthConsumer_returnsPartialWidthWhenNoSpace() {
+        ToolbarWidthConsumer consumer = mToolbarTablet.getOptionalButtonWidthConsumerForTesting();
+        int buttonWidth =
+                mToolbarTablet
+                        .getContext()
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.toolbar_button_width);
+
+        // When available width >= buttonWidth, it returns buttonWidth.
+        assertEquals(buttonWidth, consumer.updateVisibility(buttonWidth));
+        assertTrue(consumer.hasSpaceToShow());
+
+        // When available width < buttonWidth, it returns availableWidth.
+        int availableWidth = buttonWidth - 10;
+        assertEquals(availableWidth, consumer.updateVisibility(availableWidth));
+        assertFalse(consumer.hasSpaceToShow());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
+    public void testAllocateAvailableToolbarWidth_subtractsControlContainerMargins() {
+        updateOptionalButton(
+                /* buttonVariant= */ AdaptiveToolbarButtonVariant.SHARE,
+                R.string.adaptive_toolbar_button_preference_share);
+        MarginLayoutParams params = new MarginLayoutParams(100, 100);
+        mToolbarTablet.setLayoutParams(params);
+        MarginLayoutParams params2 = new MarginLayoutParams(100, 100);
+        params2.leftMargin = 200;
+        mToolbarTabletLayout.setLayoutParams(params2);
+
+        // Measure with width 500px. With 200px left margin, net available width is 300px.
+        mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(500, EXACTLY), UNSPECIFIED);
+
+        // At 300px available width (500 - 200), padding (start/end), menu, and tab switcher receive
+        // width, but back button does not (since locationBarMidWidth 200 + buttons exceeds 300).
+        assertToolbarComponentsReceivedWidth(Set.of(PADDING, MENU, TAB_SWITCHER));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
+    public void testGlicToolbarWidthConsumer_hidesWhenNoSpace() {
+        mToolbarTablet.ensureGlicToolbarWidthConsumer();
+        ToolbarWidthConsumer consumer = mToolbarTablet.getGlicWidthConsumerForTesting();
+        assertNotNull(consumer);
+
+        doReturn(1200).when(mToolbarTablet).getWidth();
+        mToolbarTablet.setGlicActionChipVisibility(true, v -> {}, v -> false);
+        View glicChip = mToolbarTablet.getGlicActionChipForTesting();
+        assertNotNull(glicChip);
+        assertEquals(View.VISIBLE, glicChip.getVisibility());
+
+        int chipWidth =
+                mToolbarTablet
+                        .getContext()
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.min_touch_target_size);
+
+        // When available width >= chipWidth, hasSpaceToShow is true, returns chipWidth, chip is
+        // VISIBLE.
+        assertEquals(chipWidth, consumer.updateVisibility(chipWidth + 10));
+        assertTrue(consumer.hasSpaceToShow());
+        assertEquals(View.VISIBLE, glicChip.getVisibility());
+
+        // When available width < chipWidth, hasSpaceToShow is false, still returns the available
+        // width, and chip is GONE.
+        int availableWidth = chipWidth - 10;
+        assertEquals(availableWidth, consumer.updateVisibility(availableWidth));
+        assertFalse(consumer.hasSpaceToShow());
+        assertEquals(View.GONE, glicChip.getVisibility());
+
+        // Re-triggering visibility update while no space is available must keep chip GONE.
+        doReturn(300).when(mToolbarTablet).getWidth();
+        mToolbarTablet.setGlicActionChipVisibility(true, v -> {}, v -> false);
+        assertEquals(View.GONE, glicChip.getVisibility());
+    }
+
+    @Test
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testFuseboxState() {
         mToolbarTablet.onAttachedToWindow();
@@ -1330,6 +1416,50 @@ public final class ToolbarTabletUnitTest {
 
         mToolbarTablet.setIsBottomMostTopControlsLayer(true);
         assertEquals(View.VISIBLE, mToolbarHairline.getVisibility());
+    }
+
+    @Test
+    public void testSetGlicActionChipVisibility_ListenersAndVisibility() {
+        View.OnClickListener mockClickListener = mock(View.OnClickListener.class);
+        View.OnLongClickListener mockLongClickListener = mock(View.OnLongClickListener.class);
+        when(mockLongClickListener.onLongClick(any())).thenReturn(true);
+
+        // Show the action chip and set listeners.
+        mToolbarTablet.setGlicActionChipVisibility(
+                /* visible= */ true, mockClickListener, mockLongClickListener);
+
+        View actionChip = mToolbarTablet.getGlicActionChipView();
+        assertNotNull("Glic action chip should be inflated and non-null.", actionChip);
+        assertEquals(
+                "Glic action chip should be visible.", View.VISIBLE, actionChip.getVisibility());
+
+        // Perform long click and verify longClickListener is called.
+        actionChip.performLongClick();
+        verify(mockLongClickListener).onLongClick(actionChip);
+
+        // Perform context click (right-click) and verify longClickListener is called again.
+        actionChip.performContextClick();
+        verify(mockLongClickListener, Mockito.times(2)).onLongClick(actionChip);
+
+        // Hide the action chip and verify visibility.
+        mToolbarTablet.setGlicActionChipVisibility(
+                /* visible= */ false, mockClickListener, mockLongClickListener);
+        assertEquals("Glic action chip should be hidden.", View.GONE, actionChip.getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
+    public void testSetGlicActionChipVisibility_invokesOnWidthConsumerVisibilityChanged() {
+        View.OnClickListener mockClickListener = mock(View.OnClickListener.class);
+        View.OnLongClickListener mockLongClickListener = mock(View.OnLongClickListener.class);
+
+        mToolbarTablet.setGlicActionChipVisibility(
+                /* visible= */ true, mockClickListener, mockLongClickListener);
+        verify(mToolbarTablet).onWidthConsumerVisibilityChanged();
+
+        mToolbarTablet.setGlicActionChipVisibility(
+                /* visible= */ false, mockClickListener, mockLongClickListener);
+        verify(mToolbarTablet, Mockito.times(2)).onWidthConsumerVisibilityChanged();
     }
 
     @SuppressWarnings("DirectInvocationOnMock")

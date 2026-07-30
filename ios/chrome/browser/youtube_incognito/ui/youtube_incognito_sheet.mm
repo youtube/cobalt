@@ -105,7 +105,7 @@ NSAttributedString* FormatHTMLListForUILabel(NSString* listString) {
 - (void)viewDidLoad {
   [super viewDidLoad];
   self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-  self.view.backgroundColor = [UIColor systemBackgroundColor];
+  self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
 
   _scrollView = [[UIScrollView alloc] init];
   _scrollView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -322,10 +322,10 @@ NSAttributedString* FormatHTMLListForUILabel(NSString* listString) {
   chromeIconView.backgroundColor = [UIColor whiteColor];
 #if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   UIImage* chromeLogo = MakeSymbolMulticolor(
-      CustomSymbolWithPointSize(kMulticolorChromeballSymbol, kChromeLogoSize));
+      SymbolWithPointSize(SymbolMulticolorChromeball, kChromeLogoSize));
 #else
   UIImage* chromeLogo =
-      CustomSymbolWithPointSize(kChromeProductSymbol, kChromeLogoSize);
+      SymbolWithPointSize(SymbolChromeProduct, kChromeLogoSize);
 #endif  // BUILDFLAG(IOS_USE_BRANDED_ASSETS)
 
   UIImageView* chromeLogoView = [[UIImageView alloc] initWithImage:chromeLogo];
@@ -337,7 +337,7 @@ NSAttributedString* FormatHTMLListForUILabel(NSString* listString) {
   _icognitoIconView.layer.cornerRadius = kTitleContainerCornerRadius;
   _icognitoIconView.backgroundColor = LargeIncognitoBackgroundColor();
   UIImage* incognitoLogo =
-      CustomSymbolWithPointSize(kIncognitoSymbol, kIncognitoLogoSize);
+      SymbolWithPointSize(SymbolIncognito, kIncognitoLogoSize);
   UIImageView* incognitoLogoView =
       [[UIImageView alloc] initWithImage:incognitoLogo];
   incognitoLogoView.tintColor = LargeIncognitoForegroundColor();

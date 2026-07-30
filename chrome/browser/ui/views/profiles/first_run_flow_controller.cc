@@ -41,9 +41,11 @@
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/default_browser_step_eligibility_checker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_constants.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_eligibility_tracker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_metrics.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/gemini_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/google_lens_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/password_manager_feature_showcase_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/themes_and_customization_step_eligibility_checker.h"
@@ -197,10 +199,6 @@ class IntroStepController : public ProfileManagementStepController {
     }
   }
 
-  void OnNavigateBackRequested() override {
-    NavigateBackInternal(host()->GetPickerContents());
-  }
-
   void OnHidden() override {
     if (!effects_button_shown_by_default_) {
       host()->SetNativeToolbarEffectsControlButtonVisible(false);
@@ -314,10 +312,6 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
         *profile_,
         base::BindOnce(&DefaultBrowserStepController::OnEligibilityDetermined,
                        weak_ptr_factory_.GetWeakPtr()));
-  }
-
-  void OnNavigateBackRequested() override {
-    // Do nothing, navigating back is not allowed.
   }
 
  private:
@@ -469,11 +463,6 @@ class FinishOrContinueStepController : public ProfileManagementStepController {
     host()->ShowScreenInPickerContents(
         url, base::BindOnce(&FinishOrContinueStepController::OnLoadFinished,
                             weak_ptr_factory_.GetWeakPtr()));
-  }
-
-  void OnNavigateBackRequested() override {
-    // Navigating back is not allowed for the finish or continue step.
-    NOTREACHED();
   }
 
   void OnHidden() override {
@@ -653,18 +642,32 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
         toggle_ambient_sound_callback_(
             std::move(toggle_ambient_sound_callback)) {
     CHECK(step_completed_callback_);
+
     std::vector<std::unique_ptr<FeatureShowcaseStepEligibilityChecker>>
         checkers;
     // Register checkers in order of priority (highest first).
     checkers.push_back(
         std::make_unique<DefaultBrowserStepEligibilityChecker>());
+    if (base::FeatureList::IsEnabled(
+            switches::kFirstRunFeatureShowcaseGeminiStep)) {
+      checkers.push_back(std::make_unique<GeminiStepEligibilityChecker>());
+    }
     checkers.push_back(std::make_unique<GoogleLensStepEligibilityChecker>());
     checkers.push_back(
         std::make_unique<PasswordManagerFeatureShowcaseEligibilityChecker>());
     checkers.push_back(
         std::make_unique<ThemesAndCustomizationStepEligibilityChecker>());
+
+    base::flat_map<std::string, std::string> conflicting_steps;
+    if (base::FeatureList::IsEnabled(
+            switches::kFirstRunFeatureShowcaseGeminiStep)) {
+      conflicting_steps = {
+          {kFeatureShowcaseGeminiStepIdentifier,
+           kFeatureShowcaseGoogleLensStepIdentifier},
+      };
+    }
     tracker_ = std::make_unique<FeatureShowcaseEligibilityTracker>(
-        std::move(checkers));
+        std::move(checkers), std::move(conflicting_steps));
   }
 
   bool is_eligible() const { return !eligible_steps_.empty(); }
@@ -704,11 +707,6 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
         *profile_,
         base::BindOnce(&FeatureShowcaseStepController::OnEligibilityDetermined,
                        weak_ptr_factory_.GetWeakPtr()));
-  }
-
-  void OnNavigateBackRequested() override {
-    // Navigating back from post-identity steps is usually blocked.
-    NOTREACHED();
   }
 
  private:

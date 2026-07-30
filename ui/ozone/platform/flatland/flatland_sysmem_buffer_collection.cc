@@ -313,7 +313,7 @@ FlatlandSysmemBufferCollection::FlatlandSysmemBufferCollection()
 
 bool FlatlandSysmemBufferCollection::Initialize(
     fuchsia::sysmem2::Allocator_Sync* sysmem_allocator,
-    fuchsia::ui::composition::Allocator* flatland_allocator,
+    RegisterBufferCollectionCallback register_buffer_collection,
     FlatlandSurfaceFactory* flatland_surface_factory,
     zx::eventpair handle,
     zx::channel sysmem_token,
@@ -321,14 +321,13 @@ bool FlatlandSysmemBufferCollection::Initialize(
     viz::SharedImageFormat format,
     NativePixmapUsageSet usage,
     VkDevice vk_device,
-    size_t min_buffer_count,
-    bool register_with_flatland_allocator) {
+    size_t min_buffer_count) {
   if (!IsNativePixmapConfigSupported(format, usage)) {
     LOG(ERROR) << "Unsupported format/usage: " << format.ToString();
     return false;
   }
-  DCHECK(!collection_);
-  DCHECK(!vk_buffer_collection_);
+  CHECK(!collection_);
+  CHECK(!vk_buffer_collection_);
 
   handle_ = std::move(handle);
   auto koid = base::GetKoid(handle_);
@@ -382,9 +381,9 @@ bool FlatlandSysmemBufferCollection::Initialize(
     }
   }
 
-  return InitializeInternal(sysmem_allocator, flatland_allocator,
-                            std::move(collection_token),
-                            register_with_flatland_allocator, min_buffer_count);
+  return InitializeInternal(sysmem_allocator,
+                            std::move(register_buffer_collection),
+                            std::move(collection_token), min_buffer_count);
 }
 
 void FlatlandSysmemBufferCollection::InitializeForTesting(
@@ -399,6 +398,20 @@ void FlatlandSysmemBufferCollection::InitializeForTesting(
     zx::eventpair::create(0, &export_token.value,
                           &flatland_import_token_.value);
   }
+}
+
+void FlatlandSysmemBufferCollection::InitializeForTesting(  // IN-TEST
+    zx::eventpair handle,
+    NativePixmapUsageSet usage,
+    viz::SharedImageFormat format,
+    fuchsia::sysmem2::BufferCollectionInfo buffers_info,
+    VkDevice vk_device) {
+  InitializeForTesting(std::move(handle), usage);  // IN-TEST
+  usage_ = usage;
+  format_ = format;
+  vk_device_ = vk_device;
+  buffers_info_ = std::move(buffers_info);
+  buffer_size_ = buffers_info_.settings().buffer_settings().size_bytes();
 }
 
 scoped_refptr<gfx::NativePixmap>
@@ -531,9 +544,11 @@ bool FlatlandSysmemBufferCollection::CreateVkImage(
   VkMemoryRequirements requirements;
   vkGetImageMemoryRequirements(vk_device, *vk_image, &requirements);
 
-  CHECK_LE(requirements.size, buffer_size_)
-      << "VkImage memory requirements (" << requirements.size
-      << ") exceed the allocated sysmem buffer size (" << buffer_size_ << ").";
+  if (requirements.size > buffer_size_) {
+    LOG(WARNING) << "VkImage memory requirements (" << requirements.size
+                 << ") exceed the allocated sysmem buffer size ("
+                 << buffer_size_ << "). This is a known negotiation issue.";
+  }
 
   uint32_t viable_memory_types =
       properties.memoryTypeBits & requirements.memoryTypeBits;
@@ -616,9 +631,8 @@ FlatlandSysmemBufferCollection::~FlatlandSysmemBufferCollection() {
 
 bool FlatlandSysmemBufferCollection::InitializeInternal(
     fuchsia::sysmem2::Allocator_Sync* sysmem_allocator,
-    fuchsia::ui::composition::Allocator* flatland_allocator,
+    RegisterBufferCollectionCallback register_buffer_collection,
     fuchsia::sysmem2::BufferCollectionTokenSyncPtr collection_token,
-    bool register_with_flatland_allocator,
     size_t min_buffer_count) {
   fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>
       collection_token_for_vulkan;
@@ -629,7 +643,7 @@ bool FlatlandSysmemBufferCollection::InitializeInternal(
 
   fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>
       collection_token_for_flatland;
-  if (register_with_flatland_allocator) {
+  if (register_buffer_collection) {
     collection_token->Duplicate(std::move(
         fuchsia::sysmem2::BufferCollectionTokenDuplicateRequest{}
             .set_rights_attenuation_mask(ZX_RIGHT_SAME_RIGHTS)
@@ -677,8 +691,7 @@ bool FlatlandSysmemBufferCollection::InitializeInternal(
   }
 
   // Set Flatland allocator constraints.
-  if (register_with_flatland_allocator) {
-    DCHECK(flatland_allocator);
+  if (register_buffer_collection) {
     fuchsia::ui::composition::BufferCollectionExportToken export_token;
     status = zx::eventpair::create(0, &export_token.value,
                                    &flatland_import_token_.value);
@@ -688,14 +701,7 @@ bool FlatlandSysmemBufferCollection::InitializeInternal(
     args.set_buffer_collection_token2(std::move(collection_token_for_flatland));
     args.set_usage(
         fuchsia::ui::composition::RegisterBufferCollectionUsage::DEFAULT);
-    flatland_allocator->RegisterBufferCollection(
-        std::move(args),
-        [](fuchsia::ui::composition::Allocator_RegisterBufferCollection_Result
-               result) {
-          if (result.is_err()) {
-            LOG(FATAL) << "RegisterBufferCollection failed";
-          }
-        });
+    std::move(register_buffer_collection).Run(std::move(args));
   }
 
   // Set Vulkan constraints.

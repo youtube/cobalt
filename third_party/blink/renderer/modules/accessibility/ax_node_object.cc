@@ -38,6 +38,7 @@
 
 #include "base/auto_reset.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/containers/span.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "third_party/blink/public/common/features.h"
@@ -48,6 +49,7 @@
 #include "third_party/blink/renderer/core/accessibility/ax_utilities_generated.h"
 #include "third_party/blink/renderer/core/css/counter_style_map.h"
 #include "third_party/blink/renderer/core/css/css_resolution_units.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
 #include "third_party/blink/renderer/core/dom/column_pseudo_element.h"
@@ -4334,9 +4336,9 @@ RGBA32 AXNodeObject::ColorValue() const {
     return AXObject::ColorValue();
   }
 
-  // HTMLInputElement::Value always returns a string parseable by Color.
+  // HTMLInputElement::Value always returns a string parseable as a CSS color.
   Color color;
-  bool success = color.SetFromString(input->Value());
+  bool success = CSSParser::ParseColor(color, input->Value());
   DCHECK(success);
   return color.Rgb();
 }

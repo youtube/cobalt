@@ -53,7 +53,6 @@ source_set("print_preview") {
     ]
     public_deps += [
       "//chrome/browser/ash/printing",
-      "//chromeos/crosapi/mojom",
       "//chromeos/printing",
     ]
   } else {
@@ -92,6 +91,8 @@ source_set("impl") {
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/select_file_policy",
     "//chrome/browser/ui/webui",
+    "//chrome/browser/ui/webui:managed_ui_handler",
+    "//chrome/browser/ui/webui:metrics_handler",
     "//chrome/browser/ui/webui:plural_string_handler",
     "//chrome/browser/ui/webui:theme_source",
     "//chrome/common",
@@ -151,6 +152,7 @@ source_set("impl") {
     ]
     deps += [
       "//ash/constants",
+      "//chrome/browser:browser_process_platform_part",
       "//chrome/browser/ash/drive",
       "//chrome/browser/ash/printing",
       "//chrome/browser/ash/profiles",
@@ -158,7 +160,6 @@ source_set("impl") {
       "//chrome/browser/ui/ash/holding_space",
       "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/experiences/settings_ui",
-      "//chromeos/crosapi/mojom",
       "//chromeos/printing",
       "//components/session_manager/core",
       "//components/signin/public/identity_manager",
@@ -242,7 +243,6 @@ source_set("unit_tests") {
       "//chrome/browser/ash/printing:test_support",
       "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/components/login/login_state",
-      "//chromeos/crosapi/mojom",
       "//chromeos/printing",
       "//components/account_id:test_support",
       "//components/session_manager/core",

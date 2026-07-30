@@ -27,8 +27,8 @@
 #include "content/public/test/hit_test_region_observer.h"
 #include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/shell/browser/shell.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
 #include "net/dns/mock_host_resolver.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -92,15 +92,18 @@ class SurfaceEmbedTestContentBrowserClient
       : tracker_(tracker) {}
   ~SurfaceEmbedTestContentBrowserClient() override = default;
 
-  void RegisterBrowserInterfaceBindersForFrame(
-      content::RenderFrameHost* render_frame_host,
-      mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override {
+  void RegisterAssociatedInterfaceBindersForRenderFrameHost(
+      content::RenderFrameHost& render_frame_host,
+      blink::AssociatedInterfaceRegistry& associated_registry) override {
     content::ContentBrowserTestContentBrowserClient::
-        RegisterBrowserInterfaceBindersForFrame(render_frame_host, map);
-    map->Add<mojom::SurfaceEmbedHost>(base::BindRepeating(
+        RegisterAssociatedInterfaceBindersForRenderFrameHost(
+            render_frame_host, associated_registry);
+    associated_registry.RemoveInterface(mojom::SurfaceEmbedHost::Name_);
+    associated_registry.AddInterface<
+        mojom::SurfaceEmbedHost>(base::BindRepeating(
         [](SurfaceEmbedHostTracker* tracker,
            content::RenderFrameHost* render_frame_host,
-           mojo::PendingReceiver<mojom::SurfaceEmbedHost> receiver) {
+           mojo::PendingAssociatedReceiver<mojom::SurfaceEmbedHost> receiver) {
           SurfaceEmbedHost* host =
               SurfaceEmbedHost::Create(render_frame_host, std::move(receiver));
           host->SetDestructionCallbackForTesting(
@@ -108,7 +111,7 @@ class SurfaceEmbedTestContentBrowserClient
                              base::Unretained(tracker), host));
           tracker->AddHost(host);
         },
-        base::Unretained(tracker_)));
+        base::Unretained(tracker_), &render_frame_host));
   }
 
  private:
@@ -1059,4 +1062,42 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedBrowserTest, FocusPreservedAfterNavigation) {
   EXPECT_TRUE(content::EvalJs(child_contents.get(), "document.hasFocus()")
                   .ExtractBool());
 }
+
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedBrowserTest, FocusByTabKey) {
+  NavigateToTestUrl(kFocusHarnessUrl);
+
+  auto child_contents = CreateChildWebContents();
+  NavigateChildToUrl(child_contents.get(), kInnerPageUrl);
+  content::ReadyForInputObserver(web_contents()).Wait();
+
+  AttachChildToEmbedWithId(child_contents.get(), "my_embed");
+
+  // Focus outer1 which is before the embed tag.
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              "document.getElementById('outer1').focus()"));
+  ASSERT_EQ("outer1",
+            content::EvalJs(web_contents(), "document.activeElement.id"));
+
+  // Press tab, it should move into the embed element, which focuses the child
+  // WebContents.
+  content::SimulateKeyPress(web_contents(), ui::DomKey::TAB, ui::DomCode::TAB,
+                            ui::VKEY_TAB, false, false, false, false);
+
+  // Focus should go to the embed element in the parent WebContents.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_contents(), "document.activeElement.id") ==
+               "my_embed" &&
+           content::EvalJs(child_contents.get(), "document.hasFocus()")
+               .ExtractBool() &&
+           content::EvalJs(child_contents.get(), "document.activeElement.id") ==
+               "inner";
+  }));
+
+  // Keep pressing tab, it should not crash.
+  // TODO(crbug.com/508638062): update this test to traverse to the next element
+  // after the embed element.
+  content::SimulateKeyPress(web_contents(), ui::DomKey::TAB, ui::DomCode::TAB,
+                            ui::VKEY_TAB, false, false, false, false);
+}
+
 }  // namespace surface_embed

@@ -925,6 +925,8 @@ class MediaStreamManager::DeviceRequest {
 
   PermissionController::SubscriptionId video_subscription_id;
 
+  bool is_allowed_while_screen_locked = false;
+
   virtual base::WeakPtr<DeviceRequest> GetWeakPtr() = 0;
 
  private:
@@ -935,17 +937,25 @@ class MediaStreamManager::DeviceRequest {
       return;
     }
     switch (new_state) {
-      case MediaRequestState::MEDIA_REQUEST_STATE_OPENING:
+      case MediaRequestState::MEDIA_REQUEST_STATE_OPENING: {
+        base::OnceClosure stop_callback = base::BindPostTask(
+            GetIOThreadTaskRunner({}),
+            base::BindOnce(&MediaStreamManager::StopMediaStreamFromBrowser,
+                           base::Unretained(MediaStreamManager::GetInstance()),
+                           label_));
         GetUIThreadTaskRunner({})->PostTask(
             FROM_HERE,
             base::BindOnce(
-                [](GlobalRenderFrameHostId renderer_id, std::string label) {
+                [](GlobalRenderFrameHostId renderer_id, std::string label,
+                   base::OnceClosure stop_callback) {
                   GetContentClient()->browser()->NotifyMultiCaptureStateChanged(
                       renderer_id, label,
-                      ContentBrowserClient::MultiCaptureChanged::kStarted);
+                      ContentBrowserClient::MultiCaptureChanged::kStarted,
+                      std::move(stop_callback));
                 },
-                frame_host_id, label_));
+                frame_host_id, label_, std::move(stop_callback)));
         break;
+      }
       case MediaRequestState::MEDIA_REQUEST_STATE_ERROR:
         GetUIThreadTaskRunner({})->PostTask(
             FROM_HERE,
@@ -953,11 +963,23 @@ class MediaStreamManager::DeviceRequest {
                 [](GlobalRenderFrameHostId renderer_id, std::string label) {
                   GetContentClient()->browser()->NotifyMultiCaptureStateChanged(
                       renderer_id, label,
-                      ContentBrowserClient::MultiCaptureChanged::kStopped);
+                      ContentBrowserClient::MultiCaptureChanged::kStopped,
+                      base::NullCallback());
                 },
                 frame_host_id, label_));
         break;
       case MediaRequestState::MEDIA_REQUEST_STATE_CLOSING:
+        GetUIThreadTaskRunner({})->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](GlobalRenderFrameHostId renderer_id, std::string label) {
+                  GetContentClient()->browser()->NotifyMultiCaptureStateChanged(
+                      renderer_id, label,
+                      ContentBrowserClient::MultiCaptureChanged::kStopped,
+                      base::NullCallback());
+                },
+                frame_host_id, label_));
+        break;
       case MediaRequestState::MEDIA_REQUEST_STATE_NOT_REQUESTED:
       case MediaRequestState::MEDIA_REQUEST_STATE_REQUESTED:
       case MediaRequestState::MEDIA_REQUEST_STATE_PENDING_APPROVAL:
@@ -2571,7 +2593,8 @@ void MediaStreamManager::DeleteRequest(
             [](GlobalRenderFrameHostId renderer_id, std::string label) {
               GetContentClient()->browser()->NotifyMultiCaptureStateChanged(
                   renderer_id, label,
-                  ContentBrowserClient::MultiCaptureChanged::kStopped);
+                  ContentBrowserClient::MultiCaptureChanged::kStopped,
+                  base::NullCallback());
             },
             request_it->second->requesting_render_frame_host_id,
             request_it->first));
@@ -2731,9 +2754,15 @@ void MediaStreamManager::SetUpRequest(const std::string& label) {
     // owned by BrowserMainLoop.
     screen_enumerator->EnumerateScreens(
         request->video_type(),
-        base::BindOnce(&MediaStreamManager::HandleAccessRequestResponse,
-                       base::Unretained(this), label,
-                       media::AudioParameters()));
+        base::BindOnce(
+            [](MediaStreamManager* manager, const std::string& label,
+               const blink::mojom::StreamDevicesSet& stream_devices_set,
+               blink::mojom::MediaStreamRequestResult result) {
+              manager->HandleAccessRequestResponse(
+                  label, media::AudioParameters(), stream_devices_set, result,
+                  /*is_allowed_while_screen_locked=*/false);
+            },
+            base::Unretained(this), label));
     return;
   }
 
@@ -3609,7 +3638,8 @@ void MediaStreamManager::HandleAccessRequestResponse(
     const std::string& label,
     const media::AudioParameters& output_parameters,
     const blink::mojom::StreamDevicesSet& stream_devices_set,
-    MediaStreamRequestResult result) {
+    MediaStreamRequestResult result,
+    bool is_allowed_while_screen_locked) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK((result == MediaStreamRequestResult::OK &&
           !stream_devices_set.stream_devices.empty()) ||
@@ -3622,6 +3652,7 @@ void MediaStreamManager::HandleAccessRequestResponse(
     return;
   }
   DeviceRequest* const request = request_it->second.get();
+  request->is_allowed_while_screen_locked = is_allowed_while_screen_locked;
 
   SendLogMessage(base::StringPrintf(
       "HandleAccessRequestResponse({label=%s}, {request=%s}, {result=%s})",
@@ -4509,6 +4540,16 @@ std::optional<url::Origin> MediaStreamManager::GetOriginByVideoSessionId(
     return std::nullopt;
   }
   return request->salt_and_origin.origin();
+}
+
+bool MediaStreamManager::IsSessionAllowedOnLockScreen(
+    const base::UnguessableToken& session_id) {
+  SessionType actual_type;
+  DeviceRequest* request = FindRequestBySessionId(session_id, &actual_type);
+  if (request == nullptr || actual_type != SessionType::kVideo) {
+    return false;
+  }
+  return request->is_allowed_while_screen_locked;
 }
 
 // static

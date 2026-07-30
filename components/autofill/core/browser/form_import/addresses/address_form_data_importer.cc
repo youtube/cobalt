@@ -20,9 +20,11 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/optional_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
@@ -31,7 +33,7 @@
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/addresses/phone_number.h"
-#include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
+#include "components/autofill/core/browser/data_quality/addresses/address_import_requirement_utils.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_import/addresses/address_profile_save_manager.h"
@@ -456,9 +458,12 @@ AutofillProfile AddressFormDataImporter::ConstructProfileFromObservedValues(
   // country of the profile first.
   if (const std::u16string* country =
           base::FindOrNull(observed_values, ADDRESS_HOME_COUNTRY)) {
-    candidate_profile.SetInfoWithVerificationStatus(
-        ADDRESS_HOME_COUNTRY, *country, client_->GetAppLocale(),
-        VerificationStatus::kObserved);
+    if (candidate_profile.SetInfoWithVerificationStatus(
+            ADDRESS_HOME_COUNTRY, *country, client_->GetAppLocale(),
+            VerificationStatus::kObserved)) {
+      import_metadata.country_source =
+          ProfileCountrySource::kExplicitlyObserved;
+    }
 
     import_metadata.observed_invalid_country =
         !candidate_profile.HasRawInfo(ADDRESS_HOME_COUNTRY);
@@ -469,12 +474,15 @@ AutofillProfile AddressFormDataImporter::ConstructProfileFromObservedValues(
   // complementing the phone number's country code, the profile country
   // complemention needs to happen before `SetPhoneNumber()`.
   if (!candidate_profile.HasRawInfo(ADDRESS_HOME_COUNTRY)) {
-    const std::u16string fallback_country = GetFallbackCountry(combined_phone);
+    std::u16string fallback_country;
+    std::tie(fallback_country, import_metadata.country_source) =
+        GetFallbackCountry(combined_phone);
 
-    import_metadata.did_complement_country =
-        candidate_profile.SetInfoWithVerificationStatus(
+    if (!candidate_profile.SetInfoWithVerificationStatus(
             ADDRESS_HOME_COUNTRY, fallback_country, client_->GetAppLocale(),
-            VerificationStatus::kObserved);
+            VerificationStatus::kObserved)) {
+      import_metadata.country_source = ProfileCountrySource::kNoCountry;
+    }
 
     LOG_AF(import_log_buffer)
         << LogMessage::kImportAddressProfileComplementedCountryCode
@@ -558,14 +566,33 @@ AddressFormDataImporter::ExtractAddressProfileFromSection(
   // Remove invalid values of types that are optional in some countries.
   // This is done after `FinalizeAfterImport()` to ensure that formatted
   // invalid values are also removed.
-  RemoveInvalidValues(candidate_profile, &import_log_buffer, import_metadata);
+  RemoveInvalidValuesForImportedProfile(candidate_profile, &import_log_buffer,
+                                        import_metadata);
 
   // Reject the profile if the validation requirements are not met.
-  // `ValidateNonEmptyValues()` goes first to collect metrics.
-  bool has_invalid_information =
-      !ValidateNonEmptyValues(candidate_profile, &import_log_buffer) ||
-      has_multiple_distinct_email_addresses || has_invalid_field_types ||
-      has_synthesized_types;
+  // `ValidateNonEmptyProfileValues()` goes first to collect metrics.
+  bool has_invalid_information = !ValidateNonEmptyValuesForImportedProfile(
+                                     candidate_profile, &import_log_buffer) ||
+                                 has_multiple_distinct_email_addresses ||
+                                 has_invalid_field_types ||
+                                 has_synthesized_types;
+
+  // TODO(crbug.com/414842437) Remove debug data.
+  SCOPED_CRASH_KEY_BOOL("Autofill", "has_observed_country",
+                        observed_field_values.contains(ADDRESS_HOME_COUNTRY));
+  SCOPED_CRASH_KEY_STRING32(
+      "Autofill", "observed_country",
+      base::UTF16ToUTF8(
+          base::OptionalFromPtr(
+              base::FindOrNull(observed_field_values, ADDRESS_HOME_COUNTRY))
+              .value_or(u"")));
+  SCOPED_CRASH_KEY_STRING32(
+      "Autofill", "default_country",
+      *address_data_manager().GetDefaultCountryCodeForNewAddress());
+  SCOPED_CRASH_KEY_STRING32("Autofill", "app_locale",
+                            address_data_manager().app_locale());
+  SCOPED_CRASH_KEY_NUMBER("Autofill", "country_source",
+                          std::to_underlying(import_metadata.country_source));
 
   // Profiles with valid information qualify for multi-step imports.
   // This requires the profile to be finalized to apply the merging logic.
@@ -616,6 +643,7 @@ AddressFormDataImporter::ExtractAddressProfileFromSection(
       candidate_profile.GetRawInfo(ADDRESS_HOME_ZIP));
   autofill_metrics::LogZipCodeSeparatorMetric(
       candidate_profile.GetRawInfo(ADDRESS_HOME_ZIP));
+  autofill_metrics::LogAddressFormImportCountrySource(import_metadata);
 
   // At this stage, the saving of the profile can only be omitted by the
   // incognito mode but the import is not triggered if the browser is in the
@@ -629,21 +657,26 @@ AddressFormDataImporter::ExtractAddressProfileFromSection(
   return extracted_address_profile;
 }
 
-std::u16string AddressFormDataImporter::GetFallbackCountry(
+std::pair<std::u16string, ProfileCountrySource>
+AddressFormDataImporter::GetFallbackCountry(
     const PhoneNumber::PhoneCombineHelper& combined_phone) const {
   return combined_phone.GetRegionCode()
-      .and_then(
-          [](std::u16string region_code) -> std::optional<std::u16string> {
-            // Perform feature check only if phone number is in international
-            // format and contains a region code.
-            if (base::FeatureList::IsEnabled(
-                    features::kAutofillComplementCountryUsingPhoneNumber)) {
-              return region_code;
-            }
-            return std::nullopt;
-          })
-      .value_or(base::UTF8ToUTF16(
-          *address_data_manager().GetDefaultCountryCodeForNewAddress()));
+      .and_then([](std::u16string region_code)
+                    -> std::optional<
+                        std::pair<std::u16string, ProfileCountrySource>> {
+        // Perform feature check only if phone number is in international
+        // format and contains a region code.
+        if (base::FeatureList::IsEnabled(
+                features::kAutofillComplementCountryUsingPhoneNumber)) {
+          return std::make_pair(region_code,
+                                ProfileCountrySource::kPhoneNumberRegionCode);
+        }
+        return std::nullopt;
+      })
+      .value_or(std::make_pair(
+          base::UTF8ToUTF16(
+              *address_data_manager().GetDefaultCountryCodeForNewAddress()),
+          ProfileCountrySource::kDefaultCountryCodeForNewAddress));
 }
 
 bool AddressFormDataImporter::SetPhoneNumber(

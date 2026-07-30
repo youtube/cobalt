@@ -48,18 +48,24 @@ namespace {
 
 const char kErrorSiteHistogramPrefix[] = "Sync.DataTypeErrorSite.";
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SyncMetadataConsistency)
 enum class SyncMetadataConsistency {
   // Stored metadata is consistent with the activation request.
-  kMetadataConsistent,
+  kMetadataConsistent = 0,
 
   // The following cases will result in metadata being cleared.
-  kCacheGuidMismatch,
-  kDataTypeIdMismatch,
+  kCacheGuidMismatch = 1,
+  kDataTypeIdMismatch = 2,
 
   // The following cases won't result in metadata being cleared.
-  kEmptyPersistedAuthenticatedGaiaId,
-  kAuthenticatedGaiaIdMismatch,
+  kEmptyPersistedAuthenticatedGaiaId = 3,
+  kAuthenticatedGaiaIdMismatch = 4,
+
+  kMaxValue = kAuthenticatedGaiaIdMismatch,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncMetadataConsistency)
 
 SyncMetadataConsistency GetSyncMetadataConsistency(
     const sync_pb::DataTypeState& data_type_state,
@@ -1004,10 +1010,8 @@ void ClientTagBasedDataTypeProcessor::OnUpdateReceived(
 
   CHECK(entity_tracker_);
   // If there were entities with empty storage keys, they should have been
-  // updated by bridge as part of ApplyIncrementalSyncChanges.
-  // TODO(crbug.com/339260002): This check used to trigger sometimes; verify
-  // whether it still does after crrev.com/c/6979865.
-  DUMP_WILL_BE_CHECK(entity_tracker_->AllStorageKeysPopulated());
+  // updated by the bridge as part of ApplyIncrementalSyncChanges.
+  CHECK(entity_tracker_->AllStorageKeysPopulated());
   // There may be new reasons to commit by the time this function is done.
   NudgeForCommitIfNeeded();
 }
@@ -1534,6 +1538,13 @@ void ClientTagBasedDataTypeProcessor::
   const SyncMetadataConsistency sync_metadata_consistency =
       GetSyncMetadataConsistency(entity_tracker_->data_type_state(),
                                  activation_request_, type_);
+
+  // TODO(crbug.com/40897441): remove once the account mismatch case is
+  // resolved.
+  const std::string_view type_suffix = DataTypeToHistogramSuffix(type_);
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Sync.DataTypeMetadataConsistency.", type_suffix}),
+      sync_metadata_consistency);
 
   switch (sync_metadata_consistency) {
     case SyncMetadataConsistency::kMetadataConsistent:

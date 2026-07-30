@@ -29,7 +29,6 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.task.AsyncTask;
@@ -128,8 +127,8 @@ import java.util.function.Supplier;
     private final BackPressManager mBackPressManager;
     private final SettableNonNullObservableSupplier<Boolean> mBackPressStateSupplier =
             ObservableSuppliers.createNonNull(false);
-    private final NullableObservableSupplier<GURL> mExactMatchUrlSupplier;
-    private final Callback<@Nullable GURL> mOnExactMatchUrlChanged = this::onExactMatchUrlChanged;
+    private final Callback<@Nullable GURL> mOnPreviewMatchUrlChanged =
+            this::onPreviewMatchUrlChanged;
     private final SettableNonNullObservableSupplier<Boolean> mActivationChipVisibilitySupplier;
     private final Runnable mOnActivationChipClickedWithQuery;
     private final Runnable mClearUrlBarTextRunnable;
@@ -177,7 +176,6 @@ import java.util.function.Supplier;
             Supplier<@Nullable View> scrimAnchorViewSupplier,
             BackPressManager backPressManager,
             @Nullable Runnable onFirstPickerInteractionCanceledCallback,
-            NullableObservableSupplier<GURL> exactMatchUrlSupplier,
             SettableNonNullObservableSupplier<Boolean> activationChipVisibilitySupplier,
             Runnable onActivationChipClickedWithQuery,
             Runnable clearUrlBarTextRunnable,
@@ -197,8 +195,6 @@ import java.util.function.Supplier;
         mScrimAnchorViewSupplier = scrimAnchorViewSupplier;
         mBackPressManager = backPressManager;
         mOnFirstPickerInteractionCanceledCallback = onFirstPickerInteractionCanceledCallback;
-        mExactMatchUrlSupplier = exactMatchUrlSupplier;
-        mExactMatchUrlSupplier.addSyncObserver(mOnExactMatchUrlChanged);
         mActivationChipVisibilitySupplier = activationChipVisibilitySupplier;
         mOnActivationChipClickedWithQuery = onActivationChipClickedWithQuery;
         mClearUrlBarTextRunnable = clearUrlBarTextRunnable;
@@ -249,7 +245,6 @@ import java.util.function.Supplier;
     /* package */ void destroy() {
         endInput();
         mBackPressManager.removeHandler(this);
-        mExactMatchUrlSupplier.removeObserver(mOnExactMatchUrlChanged);
     }
 
     public boolean wasActionTaken() {
@@ -409,6 +404,7 @@ import java.util.function.Supplier;
             mInput.getRequestTypeSupplier().removeObserver(mOnAutocompleteRequestTypeChanged);
             mInput.getSiteSearchDataSupplier().removeObserver(mOnSiteSearchDataChanged);
             mInput.getAutocompleteStateSupplier().removeObserver(mOnAutocompleteStateChanged);
+            mInput.getPreviewMatchUrlSupplier().removeObserver(mOnPreviewMatchUrlChanged);
         }
         mInput = input;
         if (mInput == null) {
@@ -431,6 +427,7 @@ import java.util.function.Supplier;
                     .addSyncObserverAndCallIfNonNull(mOnSiteSearchDataChanged);
             mInput.getAutocompleteStateSupplier()
                     .addSyncObserverAndCallIfNonNull(mOnAutocompleteStateChanged);
+            mInput.getPreviewMatchUrlSupplier().addSyncObserver(mOnPreviewMatchUrlChanged);
         }
     }
 
@@ -547,6 +544,13 @@ import java.util.function.Supplier;
         mModel.set(FuseboxProperties.FUSEBOX_STATE, targetState);
         mModel.set(FuseboxProperties.PLUS_BUTTON_VISIBLE, targetState == FuseboxState.EXPANDED);
         mModel.set(FuseboxProperties.REQUEST_TYPE_BUTTON_VISIBLE, showRequestTypeButton);
+        updateAttachmentsVisibility();
+    }
+
+    private void updateAttachmentsVisibility() {
+        boolean hasAttachments = mHasAttachmentsSupplier.get();
+        boolean isExpanded = mModel.get(FuseboxProperties.FUSEBOX_STATE) == FuseboxState.EXPANDED;
+        mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, hasAttachments && isExpanded);
     }
 
     private void updatePlusButtonBackgroundStyle() {
@@ -796,9 +800,8 @@ import java.util.function.Supplier;
     private void onAttachmentsChanged() {
         if (!isInInputSession()) return;
         updateFuseboxState();
-        boolean hasAttachments = !mModelList.isEmpty();
-        mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, hasAttachments);
-        mHasAttachmentsSupplier.set(hasAttachments);
+        mHasAttachmentsSupplier.set(!mModelList.isEmpty());
+        updateAttachmentsVisibility();
         if (!OmniboxFeatures.sShowModelPicker.getValue()) {
             updateClientControlledToolButtonList();
             updatePopupButtonEnabledStates();
@@ -1040,7 +1043,7 @@ import java.util.function.Supplier;
         updateActivationChip();
     }
 
-    private void onExactMatchUrlChanged(@Nullable GURL url) {
+    private void onPreviewMatchUrlChanged(@Nullable GURL url) {
         updateActivationChip();
     }
 
@@ -1051,7 +1054,7 @@ import java.util.function.Supplier;
                                 == FuseboxLayoutMode.SUGGESTIONS_POPOVER
                         && mInput.getRequestType() == AutocompleteRequestType.SEARCH
                         && mInput.getSiteSearchData() == null
-                        && (mExactMatchUrlSupplier.get() == null);
+                        && (mInput.getPreviewMatchUrlSupplier().get() == null);
         if (mProfile != null
                 && !UserPrefs.get(mProfile).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON)) {
             showActivationChip = false;

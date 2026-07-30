@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Zahtijevaj prikaz na mobilnom uređaju</translation>
 <translation id="2870560284913253234">Web lokacija</translation>
 <translation id="2874939134665556319">Prethodna pjesma</translation>
+<translation id="2890412325133442491">Chrome – zadano</translation>
 <translation id="2891975107962658722">Blokiraj web-lokaciju kako ne bi spremala podatke na uređaju</translation>
 <translation id="2903493209154104877">Adrese</translation>
 <translation id="2903764741244499151">Web-lokacije mogu automatski pokrenuti sliku u slici. To će vam omogućiti da nastavite gledati videozapis, a istovremeno oslobodite zaslon za druge zadatke.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Promijeni zaporke</translation>
 <translation id="3797520601150691162">Ne primjenjuj tamnu temu za određenu web-lokaciju</translation>
 <translation id="3803367742635802571">Web-lokacije koje posjećujete mogu prestati funkcionirati kao što je predviđeno</translation>
-<translation id="3816118180265633665">Boje u Chromeu</translation>
 <translation id="381841723434055211">Telefonski brojevi</translation>
 <translation id="3823453485268218808">Font Mono</translation>
 <translation id="3826050100957962900">Prijava putem treće strane</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Izađi iz cijelog zaslona</translation>
 <translation id="640163077447496506">Istječe danas</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Zbirke tema</translation>
 <translation id="6439114592976064011">Onemogući web-lokacijama da koriste uređaj i podatke virtualne stvarnosti</translation>
 <translation id="6447842834002726250">Kolačići</translation>
 <translation id="6452138246455930388">Sniženje cijene na otvorenoj kartici, s <ph name="OLD_PRICE" /> na <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:</translation>
 <translation id="7423098979219808738">Prvo pitaj</translation>
 <translation id="7423538860840206698">Blokirano je čitanje međuspremnika</translation>
 <translation id="7425915948813553151">Tamna tema za web-lokacije</translation>
+<translation id="7429767477925996803">Boje u Chromeu</translation>
 <translation id="746412105358554870">Optimizacija i sigurnost JavaScripta</translation>
 <translation id="7478658909253570368">Ne dopuštaj web-lokacijama povezivanje sa serijski spojenim priključcima</translation>
 <translation id="7488573225650545859">Sakrij kartice pregleda na popisu aplikacija</translation>
@@ -676,7 +676,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:</translation>
 <translation id="802154636333426148">Preuzimanje nije uspjelo</translation>
 <translation id="8033047164036749181">Pretplatite se na obavijesti s ove web-lokacije</translation>
 <translation id="8051193500142930381">Značajke kojima je potrebna kamera neće raditi</translation>
-<translation id="8056330801132235235">Chrome – zadano</translation>
 <translation id="8067883171444229417">Reproduciraj videozapis</translation>
 <translation id="8068648041423924542">Ne može se odabrati certifikat.</translation>
 <translation id="8077120325605624147">Svaka web-lokacija koju posjetite može vam prikazati bilo koji oglas</translation>

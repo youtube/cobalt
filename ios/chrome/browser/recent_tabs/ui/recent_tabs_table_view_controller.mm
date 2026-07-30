@@ -363,7 +363,7 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   historyItem.title = l10n_util::GetNSString(IDS_HISTORY_SHOWFULLHISTORY_LINK);
 
   historyItem.image =
-      DefaultSymbolWithPointSize(kHistorySymbol, kSymbolActionPointSize);
+      SymbolWithPointSize(SymbolHistory, kSymbolActionPointSize);
   historyItem.textColor = [UIColor colorNamed:kBlueColor];
   historyItem.accessibilityIdentifier =
       kRecentTabsShowFullHistoryCellAccessibilityIdentifier;
@@ -1670,13 +1670,13 @@ typedef std::pair<SessionID, TableViewURLItem*> RecentlyClosedTableViewItemPair;
   NSMutableDictionary* newCollapsedSection = [NSMutableDictionary
       dictionaryWithDictionary:newUserInfo[kListModelCollapsedKey]];
   newUserInfo[kListModelCollapsedKey] = newCollapsedSection;
-  newCollapsedSection[sectionKey] = [NSNumber numberWithBool:collapsed];
+  newCollapsedSection[sectionKey] = @(collapsed);
   _session.userInfo = newUserInfo;
 }
 
 - (BOOL)sectionKeyIsCollapsed:(NSString*)sectionKey {
   NSDictionary* collapsedSections = _session.userInfo[kListModelCollapsedKey];
-  NSNumber* value = (NSNumber*)[collapsedSections valueForKey:sectionKey];
+  NSNumber* value = (NSNumber*)collapsedSections[sectionKey];
   return [value boolValue];
 }
 

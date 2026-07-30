@@ -148,12 +148,6 @@ source_set("extensions") {
     "api/preference/privacy_sandbox_transformer.h",
     "api/preference/protected_content_enabled_transformer.cc",
     "api/preference/protected_content_enabled_transformer.h",
-    "api/proxy/proxy_api_constants.cc",
-    "api/proxy/proxy_api_constants.h",
-    "api/proxy/proxy_api_helpers.cc",
-    "api/proxy/proxy_api_helpers.h",
-    "api/proxy/proxy_pref_transformer.cc",
-    "api/proxy/proxy_pref_transformer.h",
     "api/sessions/session_id.cc",
     "api/sessions/session_id.h",
     "api/sessions/sessions_api.cc",
@@ -189,8 +183,8 @@ source_set("extensions") {
     "api/tabs/windows_util.h",
     "api/top_sites/top_sites_api.cc",
     "api/top_sites/top_sites_api.h",
-    "api/webstore_private/webstore_private_api.cc",
-    "api/webstore_private/webstore_private_api.h",
+    "api/webstore_private/chrome_webstore_private_api_delegate.cc",
+    "api/webstore_private/chrome_webstore_private_api_delegate.h",
     "blocklist_factory.cc",
     "blocklist_factory.h",
     "bookmarks/bookmarks_error_constants.cc",
@@ -383,8 +377,6 @@ source_set("extensions") {
     "launch_util.cc",
     "launch_util.h",
     "managed_toolbar_pin_mode.h",
-    "management/management_util.cc",
-    "management/management_util.h",
     "menu_icon_loader.h",
     "menu_manager.cc",
     "menu_manager.h",
@@ -581,6 +573,7 @@ source_set("extensions") {
     "//components/bookmarks/managed",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
+    "//components/contextual_search:prefs",
     "//components/contextual_tasks/public",
     "//components/cookie_config",
     "//components/crx_file",
@@ -746,6 +739,15 @@ source_set("extensions") {
     ]
   }
 
+  if (is_win || is_mac) {
+    sources += [
+      "management/management_util.cc",
+      "management/management_util.h",
+      "policy_dse_ntp_override_metrics_reporter.cc",
+      "policy_dse_ntp_override_metrics_reporter.h",
+    ]
+  }
+
   if (enable_extensions) {
     sources += [
       # TODO(crbug.com/40245282): Ideally, no API implementations would be
@@ -861,6 +863,10 @@ source_set("extensions") {
     }
 
     allow_circular_includes_from += [
+      # autofill generated pref includes
+      # extensions/api/settings_private/generated_pref.h.
+      "//chrome/browser/autofill:generated_find_and_fill_with_gemini_pref",
+
       # TODO(b/40251079): Remove this circular dependency.
       "//chrome/browser/apps/app_service/app_icon",
 
@@ -961,7 +967,6 @@ source_set("extensions") {
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/web_applications",
-      "//chrome/browser/ui/webui/omnibox/aim_eligibility:mojo_bindings",
       "//chrome/browser/ui/window_sizer",
       "//chrome/browser/ui/zoom",
       "//chrome/browser/webauthn",
@@ -970,7 +975,7 @@ source_set("extensions") {
 
       # Only for allow_circular_includes_from
       "//chrome/browser/apps/app_service/app_icon",
-      "//chrome/browser/autofill",
+      "//chrome/browser/autofill:generated_find_and_fill_with_gemini_pref",
       "//chrome/browser/browsing_data:constants",
       "//chrome/browser/devtools",
       "//chrome/browser/image_decoder",
@@ -1670,14 +1675,17 @@ static_library("test_support") {
     "//chrome/browser/notifications:test_support",
     "//chrome/browser/prefs",
     "//chrome/browser/preloading:test_support",
+    "//chrome/browser/signin:identity_test_support",
     "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/tab_list",
     "//chrome/browser/trusted_vault",
+    "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/toolbar",
     "//chrome/browser/ui/webui:theme_source",
+    "//chrome/test/base:testing_profile",
     "//components/crx_file",
     "//components/feed:feature_list",
     "//components/policy/core/common:test_support",
@@ -1762,6 +1770,7 @@ static_library("test_support") {
         "//chrome/browser/ash/printing:test_support",
         "//chrome/browser/ash/printing/history:print_job_info_proto",
         "//chrome/browser/printing",
+        "//chrome/browser/printing:browser_printing_context_factory_for_test",
       ]
     }  # enable_printing && use_cups
   }  # is_chromeos
@@ -1832,19 +1841,24 @@ source_set("chrome_extensions_browser_client") {
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/safe_browsing",
+    "//chrome/browser/safe_browsing:metrics_collector",
     "//chrome/browser/search_engines",
     "//chrome/browser/task_manager",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/extensions",
     "//chrome/browser/usb",
     "//components/content_settings/core/browser",
     "//components/embedder_support:user_agent",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/proxy_config",
+    "//components/safe_browsing/content/browser",
+    "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/sessions",
     "//components/update_client",
     "//extensions/browser:crx_installer",
     "//extensions/browser:keepalive",
     "//extensions/browser/api/content_settings",
+    "//extensions/browser/api/proxy",
     "//extensions/browser/updater",
   ]
 
@@ -1960,7 +1974,6 @@ source_set("unit_tests") {
     "api/permissions/permissions_api_helpers_unittest.cc",
     "api/preference/autofill_settings_transformer_unittest.cc",
     "api/preference/preference_api_prefs_unittest.cc",
-    "api/proxy/proxy_api_helpers_unittest.cc",
     "api/runtime/chrome_runtime_api_delegate_unittest.cc",
     "api/storage/managed_value_store_cache_unittest.cc",
     "api/storage/policy_value_store_unittest.cc",
@@ -2196,6 +2209,10 @@ source_set("unit_tests") {
 
     if (is_win) {
       sources += [ "external_registry_loader_win_unittest.cc" ]
+    }
+
+    if (is_win || is_mac) {
+      sources += [ "policy_dse_ntp_override_metrics_reporter_unittest.cc" ]
     }
 
     if (is_win || is_mac || is_linux) {
@@ -2532,6 +2549,7 @@ source_set("browser_tests") {
     "//components/bookmarks/managed",
     "//components/contextual_tasks/public:feature_list",
     "//components/embedder_support",
+    "//components/enterprise:test_support",
     "//components/enterprise/browser/promotion",
     "//components/infobars/content",
     "//components/javascript_dialogs",
@@ -2628,6 +2646,7 @@ source_set("browser_tests") {
       "//chrome/browser/ash/net",
       "//chrome/browser/ash/test:test_support",
       "//chrome/browser/chromeos/policy/dlp/test:test_support",
+      "//chrome/browser/policy:extension_force_install_mixin",
       "//chrome/browser/ui/webui/ash/parent_access:test_support",
       "//chromeos/ash/components/browser_context_helper",
       "//chromeos/services/tts",
@@ -2850,6 +2869,7 @@ source_set("browser_tests") {
       ]
       deps += [
         "//chrome/browser/enterprise/connectors/test:test_support",
+        "//chrome/browser/ui/webui:chrome_web_contents_handler",
         "//components/enterprise/buildflags",
         "//components/enterprise/connectors/core",
       ]
@@ -2946,6 +2966,7 @@ source_set("browser_tests") {
         "//chrome/browser/ash/crostini:test_support",
         "//chrome/browser/ash/drive:test_support",
         "//chrome/browser/ash/file_manager:test_support",
+        "//chrome/browser/ash/guest_os",
         "//chrome/browser/ash/login/lock",
         "//chrome/browser/ash/login/lock:test_support",
         "//chrome/browser/ash/ownership",
@@ -2960,6 +2981,7 @@ source_set("browser_tests") {
         "//chrome/browser/ash/scanning",
         "//chrome/browser/ash/scanning:test_support",
         "//chrome/browser/ash/system_web_apps/test_support:test_support_ui",
+        "//chrome/browser/chromeos/extensions/login_screen:test_support",
         "//chrome/browser/chromeos/extensions/smart_card_provider_private:browser_tests",
         "//chrome/browser/chromeos/extensions/telemetry/api:browser_tests",
         "//chrome/browser/chromeos/extensions/vpn_provider",
@@ -3157,6 +3179,10 @@ source_set("browser_tests") {
       "//third_party/wpt_tools/wpt/resources/testdriver.js",
     ]
   }  # enable_extensions
+
+  if (enable_pdf) {
+    deps += [ "//chrome/browser/pdf:pdf_extension_test_base" ]
+  }
 }
 
 source_set("interactive_ui_tests") {
@@ -3199,6 +3225,7 @@ source_set("interactive_ui_tests") {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui:view_ids",
       "//chrome/browser/ui/browser_window:create_browser_window",
       "//chrome/browser/ui/extensions:test_support",

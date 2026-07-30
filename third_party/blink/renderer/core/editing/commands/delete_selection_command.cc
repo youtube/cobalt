@@ -800,8 +800,8 @@ void DeleteSelectionCommand::RemoveCompletelySelectedNodes(
 }
 
 static void UpdatePositionForTextRemoval(Text* node,
-                                         int offset,
-                                         int count,
+                                         wtf_size_t offset,
+                                         wtf_size_t count,
                                          Position& position) {
   if (!position.IsOffsetInAnchor() || position.ComputeContainerNode() != node)
     return;
@@ -814,8 +814,8 @@ static void UpdatePositionForTextRemoval(Text* node,
 }
 
 void DeleteSelectionCommand::DeleteTextFromNode(Text* node,
-                                                unsigned offset,
-                                                unsigned count) {
+                                                wtf_size_t offset,
+                                                wtf_size_t count) {
   // FIXME: Update the endpoints of the range being deleted.
   UpdatePositionForTextRemoval(node, offset, count, ending_position_);
   UpdatePositionForTextRemoval(node, offset, count, leading_whitespace_);
@@ -857,7 +857,7 @@ void DeleteSelectionCommand::HandleGeneralDelete(EditingState* editing_state) {
   if (upstream_start_.IsNull())
     return;
 
-  int start_offset = upstream_start_.ComputeEditingOffset();
+  wtf_size_t start_offset = upstream_start_.ComputeEditingOffset();
   Node* start_node = upstream_start_.AnchorNode();
   DCHECK(start_node);
 
@@ -880,7 +880,7 @@ void DeleteSelectionCommand::HandleGeneralDelete(EditingState* editing_state) {
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   auto* text = DynamicTo<Text>(start_node);
   if (start_offset >= CaretMaxOffset(start_node) && text) {
-    if (text->length() > static_cast<unsigned>(CaretMaxOffset(start_node))) {
+    if (text->length() > CaretMaxOffset(start_node)) {
       DeleteTextFromNode(text, CaretMaxOffset(start_node),
                          text->length() - CaretMaxOffset(start_node));
     }

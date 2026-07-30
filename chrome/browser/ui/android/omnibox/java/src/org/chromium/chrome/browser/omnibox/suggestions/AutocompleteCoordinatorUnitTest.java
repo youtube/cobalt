@@ -6,8 +6,11 @@ package org.chromium.chrome.browser.omnibox.suggestions;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.view.ContextThemeWrapper;
@@ -29,6 +32,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
@@ -48,6 +52,7 @@ public class AutocompleteCoordinatorUnitTest {
     @Mock private LocationBarEmbedder mLocationBarEmbedder;
     @Mock private OmniboxSuggestionsContainer mSuggestionsContainer;
     @Mock private ViewGroup mParentView;
+    @Mock private OmniboxResourceProvider mResourceProvider;
 
     @Before
     public void setUp() {
@@ -64,7 +69,8 @@ public class AutocompleteCoordinatorUnitTest {
                         mAutocompleteMediator,
                         mProfileObservableSupplier,
                         mLocationBarEmbedder,
-                        mModalDialogManagerSupplier);
+                        mModalDialogManagerSupplier,
+                        mResourceProvider);
 
         mAutocompleteCoordinator.setSuggestionsContainerForTest(mSuggestionsContainer);
     }
@@ -85,6 +91,36 @@ public class AutocompleteCoordinatorUnitTest {
 
         // Alt+Tab is not handled.
         assertFalse(sendKeyDownEvent(KeyEvent.KEYCODE_TAB, KeyEvent.META_ALT_ON));
+    }
+
+    @Test
+    public void testHandleKeyEvent_enter_delegatesToContainer() {
+        doReturn(true).when(mSuggestionsContainer).isShown();
+
+        // Container handles Enter.
+        doReturn(true).when(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+        assertTrue(sendKeyDownEvent(KeyEvent.KEYCODE_ENTER, 0));
+        verify(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+
+        // Container does not handle Enter.
+        doReturn(false).when(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+        assertFalse(sendKeyDownEvent(KeyEvent.KEYCODE_ENTER, 0));
+    }
+
+    @Test
+    public void testHandleKeyEvent_altEnter_delegatesToContainer() {
+        doReturn(true).when(mSuggestionsContainer).isShown();
+        doReturn(true).when(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+        assertTrue(sendKeyDownEvent(KeyEvent.KEYCODE_ENTER, KeyEvent.META_ALT_ON));
+        verify(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+    }
+
+    @Test
+    public void testHandleKeyEvent_shiftEnter_delegatesToContainer() {
+        doReturn(true).when(mSuggestionsContainer).isShown();
+        doReturn(false).when(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
+        assertFalse(sendKeyDownEvent(KeyEvent.KEYCODE_ENTER, KeyEvent.META_SHIFT_ON));
+        verify(mSuggestionsContainer).onKeyDown(eq(KeyEvent.KEYCODE_ENTER), any());
     }
 
     private boolean sendKeyDownEvent(int keyCode, int metaState) {

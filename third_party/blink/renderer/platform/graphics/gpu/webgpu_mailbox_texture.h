@@ -12,7 +12,7 @@
 #include "gpu/command_buffer/common/sync_token.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/dawn_control_client_holder.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
-#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_resource_provider_cache.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_shared_image_wrapper_cache.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "ui/gfx/geometry/rect.h"
@@ -48,7 +48,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       wgpu::TextureUsage usage,
       scoped_refptr<gpu::ClientSharedImage> shared_image,
       const gpu::SyncToken& sync_token,
-      std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource);
+      std::unique_ptr<WebGpuSharedImageWrapperLease> wrapper_lease);
 
   static scoped_refptr<WebGPUMailboxTexture> FromExistingSharedImage(
       scoped_refptr<DawnControlClientHolder> dawn_control_client,

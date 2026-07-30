@@ -29,8 +29,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
-@interface LevelUpMediator () <IdentityManagerObserverBridgeDelegate,
-                               PrefObserverDelegate>
+@interface LevelUpMediator () <IdentityManagerObserving, PrefObserverDelegate>
 @end
 
 @implementation LevelUpMediator {
@@ -202,8 +201,10 @@
 - (void)configureTaskStat:(NSArray<LevelUpTask*>*)allTasks {
   NSMutableArray<LevelUpStat*>* stats = [[NSMutableArray alloc] init];
 
-  NSString* title1 =
-      l10n_util::GetPluralNSStringF(IDS_IOS_LEVEL_UP_STAT_TABS_DECLUTTERED, 3);
+  int tabsDecluttered =
+      _levelUpService->GetStatValue(LevelUpTaskStatType::kTabsDecluttered);
+  NSString* title1 = l10n_util::GetPluralNSStringF(
+      IDS_IOS_LEVEL_UP_STAT_TABS_DECLUTTERED, tabsDecluttered);
   NSString* subtitle1 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_TABS_DECLUTTERED);
   LevelUpStat* stat1 =
@@ -213,8 +214,10 @@
                                     type:LevelUpTaskStatType::kTabsDecluttered];
   [stats addObject:stat1];
 
-  NSString* title2 =
-      l10n_util::GetPluralNSStringF(IDS_IOS_LEVEL_UP_STAT_TYPING_SAVED, 5);
+  int typingSaved =
+      _levelUpService->GetStatValue(LevelUpTaskStatType::kTypingSaved);
+  NSString* title2 = l10n_util::GetPluralNSStringF(
+      IDS_IOS_LEVEL_UP_STAT_TYPING_SAVED, typingSaved);
   NSString* subtitle2 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_TYPING_SAVED);
   LevelUpStat* stat2 =
@@ -224,8 +227,10 @@
                                     type:LevelUpTaskStatType::kTypingSaved];
   [stats addObject:stat2];
 
+  int passwordsVerified =
+      _levelUpService->GetStatValue(LevelUpTaskStatType::kPasswordsVerified);
   NSString* title3 = l10n_util::GetPluralNSStringF(
-      IDS_IOS_LEVEL_UP_STAT_PASSWORDS_VERIFIED, 5);
+      IDS_IOS_LEVEL_UP_STAT_PASSWORDS_VERIFIED, passwordsVerified);
   NSString* subtitle3 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_PASSWORDS_VERIFIED);
   LevelUpStat* stat3 = [[LevelUpStat alloc]
@@ -235,8 +240,10 @@
                  type:LevelUpTaskStatType::kPasswordsVerified];
   [stats addObject:stat3];
 
-  NSString* title4 =
-      l10n_util::GetPluralNSStringF(IDS_IOS_LEVEL_UP_STAT_SEARCHES_SKIPPED, 3);
+  int photoSearchesPerformed = _levelUpService->GetStatValue(
+      LevelUpTaskStatType::kPhotoSearchesPerformed);
+  NSString* title4 = l10n_util::GetPluralNSStringF(
+      IDS_IOS_LEVEL_UP_STAT_SEARCHES_SKIPPED, photoSearchesPerformed);
   NSString* subtitle4 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_SEARCHES_SKIPPED);
   LevelUpStat* stat4 = [[LevelUpStat alloc]
@@ -281,9 +288,9 @@
   [self.profileConsumer setUserFullName:userFullName userAvatar:userAvatar];
 }
 
-#pragma mark - IdentityManagerObserverBridgeDelegate
+#pragma mark - IdentityManagerObserving
 
-- (void)onPrimaryAccountChanged:
+- (void)primaryAccountDidChange:
     (const signin::PrimaryAccountChangeEvent&)event {
   if (_identityManager->IsBatchOfPrimaryAccountChangesInProgress()) {
     return;
@@ -298,7 +305,7 @@
   }
 }
 
-- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
+- (void)extendedAccountInfoDidUpdate:(const AccountInfo&)info {
   if (_identityManager->IsBatchOfPrimaryAccountChangesInProgress()) {
     return;
   }

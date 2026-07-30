@@ -8,6 +8,20 @@ found in the LICENSE file.
 
 <histograms>
 
+<histogram
+    name="OneTimeTokens.Actor.AttemptOtpFilling.GmailOtpOptInCardInteraction"
+    enum="GmailOtpOptInCardInteraction" expires_after="2027-06-30">
+  <owner>ioanap@chromium.org</owner>
+  <owner>sdrab@google.com</owner>
+  <summary>
+    Records user interactions with the Gmail OTP opt-in dialog card during the
+    AttemptOtpFilling tool execution, such as whether permission was granted,
+    denied, or if an error occurred. Recorded once when the dialog is requested
+    to be shown, when there's an error, the user approves or declines the opt-in
+    dialog.
+  </summary>
+</histogram>
+
 <histogram name="OneTimeTokens.Actor.AttemptOtpFilling.PredictedOtpType"
     enum="AttemptOtpFillingPredictedOtpType" expires_after="2027-06-30">
   <owner>ioanap@chromium.org</owner>
@@ -29,6 +43,18 @@ found in the LICENSE file.
     actor, such as the start of an attempt, OTP retrieval status, consent
     checks, and whether OTP filling succeeded or failed. This metric spans
     across the lifecycle methods Validate, TimeOfUseValidation and Invoke.
+  </summary>
+</histogram>
+
+<histogram name="OneTimeTokens.Actor.AttemptOtpFilling.VerifyIsActorLoginFlow"
+    enum="VerifyIsActorLoginFlowEvent" expires_after="2027-06-30">
+  <owner>ioanap@chromium.org</owner>
+  <owner>sdrab@google.com</owner>
+  <summary>
+    Records whether the OTP frame matches a previous actor login flow. Recorded
+    at the start of VerifyOtpFrameOriginMatch invocations, and when matching
+    outcomes (e.g. same origin without checker, exact or affiliated matches,
+    allowed/disallowed PSL matches, or origin mismatches) are determined.
   </summary>
 </histogram>
 
@@ -55,6 +81,20 @@ found in the LICENSE file.
     ActorOneTimeTokenFillingService. Recorded at the start of RetrieveOtp
     invocations, and when retrieval outcomes or error conditions (e.g. cache
     hits, mock OTPs, or superseded callbacks) are determined.
+  </summary>
+</histogram>
+
+<histogram
+    name="OneTimeTokens.Actor.OneTimeTokenFillingService.RetrieveOtpCallbackSuperseded"
+    enum="ActorOtpRetrieveOtpCallbackSupersededEvent"
+    expires_after="2027-06-30">
+  <owner>ioanap@chromium.org</owner>
+  <owner>sdrab@google.com</owner>
+  <summary>
+    Records events measuring how often a pending RetrieveOtp callback is
+    superseded by a new RetrieveOtp request in ActorOneTimeTokenFillingService.
+    Recorded at the start of RetrieveOtp invocations and when a pending callback
+    is superseded.
   </summary>
 </histogram>
 

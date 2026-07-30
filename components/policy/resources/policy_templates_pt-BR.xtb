@@ -941,6 +941,7 @@ A "entrada do usuário" é definida pelas APIs do sistema operacional e inclui a
 <translation id="1625700732886306811">Permitir que o <ph name="PRODUCT_NAME" /> se conecte- a dispositivos em todos os endereços IP</translation>
 <translation id="1626379196197114720">Permitir o uso do cache de avanço e retorno</translation>
 <translation id="1628974048137236820">A página Nova guia não exibirá cards</translation>
+<translation id="1628984674324273832">Não permitir o recurso Encontrar e Preencher com o Gemini.</translation>
 <translation id="163200210584085447">Os padrões nesta lista serão comparados com a origem
       de segurança do URL solicitante. Se for encontrada uma correspondência, o acesso a dispositivos de captura
       de vídeo será concedido em páginas de login SAML. Se nenhuma correspondência for
@@ -989,6 +990,17 @@ Caso a política seja deixada sem definição, é possível que o <ph name="PROD
 <translation id="1654087023995670109">Aplicar o modo visitante do navegador</translation>
 <translation id="1655229863189977773">Define o tamanho do cache de disco em bytes</translation>
 <translation id="1655518801232583832">Ativar a resolução de DNS do sistema fora do serviço de rede</translation>
+<translation id="1656749771365000307">Esta política define a configuração padrão para todos os recursos de IA generativa abrangidos por ela. Por exemplo, se esta política for definida com o valor 1, então 1 será a configuração padrão para todos os recursos de IA generativa que ela abrange. Isso não afeta os valores de política definidos manualmente. Essa configuração vai definir os padrões para os recursos de IA generativa aplicáveis no Chrome. Consulte https://support.google.com/chrome/a?p=generative_ai_settings para conferir a lista de recursos aplicáveis.
+
+Algumas políticas, como a <ph name="GEMINI_SETTINGS_POLICY_NAME" />, só aceitam as definições Permitido e Não Permitido. Nesse caso, se a política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> for definida como 0 ou 1, o recurso será ativado. Se <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> for definida como 2, o recurso será desativado. A documentação de cada recurso contém mais informações sobre a interação com os valores nesta política (por exemplo, Gemini no Chrome: https://support.google.com/chrome/a/answer/16291696). Isso se aplica aos seguintes recursos: <ph name="GEMINI_IN_CHROME_NAME" />, Google Lens e Modo IA, pois estão sujeitos às próprias garantias e/ou Termos de Serviço (https://support.google.com/chrome/a/?p=genai_features_chrome).
+
+Se ela for definida como 0, o recurso será habilitado e os dados relevantes poderão ser usados pelo Google para melhorar os modelos de IA. Esses dados podem incluir comandos, entradas, saídas, materiais de fonte e feedback por escrito, dependendo do recurso. Eles também podem ser analisados por humanos para melhorar os modelos de IA. O valor padrão é 0, exceto quando indicado de outra forma abaixo.
+
+Se a política for definida como 1, o recurso será habilitado, mas o Google não poderá usar o conteúdo dos usuários (incluindo comandos, entradas, saídas, materiais de fonte e feedback por escrito) para melhorar os modelos. O valor 1 é o padrão para usuários corporativos gerenciados pelo <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> e contas de ensino gerenciadas pelo <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
+
+Se ela for definida como 2, o recurso não será habilitado.
+
+Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="165769015320654523">Conceder automaticamente permissão a esses sites para se conectarem a dispositivos HID com determinados IDs de fornecedores e de produtos.</translation>
 <translation id="1659406551862245683">O comportamento padrão de redimensionamento do teclado virtual é modificado para redimensionar a janela de visualização de layout</translation>
 <translation id="166427968280387991">Servidor proxy</translation>
@@ -1404,6 +1416,18 @@ Se a política for definida como desativada, o <ph name="PRODUCT_NAME" /> fechar
         |TIME_LIMITS| aplica o limite de uso diário e torna o app indisponível após o limite ser atingido no dia especificado. O limite de uso é especificado em |daily_limit_mins|. O limite de uso é redefinido diariamente no horário UTC transmitido em |reset_at|.
         Esta política é usada apenas para crianças.
         Esta política complementa a "UsageTimeLimit". Restrições especificadas em "UsageTimeLimit", como tempo de tela e hora de dormir, serão aplicadas independentemente de "PerAppTimeLimits".</translation>
+<translation id="19133869326547269">Esta política foi descontinuada e não tem efeito porque o recurso "Clique para ligar" foi removido do Chrome.
+
+Descrição original:
+Ative o recurso "Clique para ligar", que permite aos usuários enviar números de telefone de computadores com Chrome para um dispositivo Android quando estiverem conectados. Para mais informações, acesse o artigo de Central de Ajuda: https://support.google.com/chrome/answer/9430554?hl=pt-BR.
+
+Se esta política estiver ativada, a capacidade de enviar números de telefone para dispositivos Android estará ativada para o usuário do Chrome.
+
+Se esta política estiver desativada, a capacidade de enviar números de telefone para dispositivos Android não estará ativada para o usuário do Chrome.
+
+Se você definir esta política, os usuários não poderão mudá-la ou substituí-la.
+
+Se esta política não for definida, o recurso "Clique para ligar" vai ficar ativado por padrão.</translation>
 <translation id="1913629775420987861">Mostrar uma caixa de diálogo de alerta quando o usuário tentar sair</translation>
 <translation id="1915242485679279502">Mostrar o selo aberto da barra de ferramentas corporativa</translation>
 <translation id="1916266055944569995">Se a política for definida, o valor de retorno da API Managed Configuration será definido para origens específicas.
@@ -1696,6 +1720,7 @@ No <ph name="MAC_OS_NAME" />, essa política só está disponível em instância
 <translation id="2107601598727098402">
         O uso desta política foi suspenso no M72. Use CloudManagementEnrollmentToken.
         </translation>
+<translation id="2111355600078097861">Permitir o recurso Encontrar e Preencher com o Gemini sem melhorar os modelos de IA.</translation>
 <translation id="2112656109118682849">Permitir que os usuários escolham se as informações do sistema vão ser mostradas na tela de login ou não</translation>
 <translation id="2113068765175018713">Limitar tempo de execução do dispositivo reiniciando automaticamente</translation>
 <translation id="211386002920955760">Controle se um usuário empresarial pode acessar o recurso de compartilhamento de grupos de guias no Chrome.
@@ -2300,17 +2325,6 @@ Se estiver desativado, o <ph name="PRODUCT_NAME" /> não vai ativar o ServiceWor
 Esta política é uma medida temporária para controlar o recurso e será removida na versão M154.</translation>
 <translation id="2467181864598429837">Comportamento padrão do navegador</translation>
 <translation id="2467896267442150508">Intervalo de tempo que dura no máximo uma semana. Se o horário de início for posterior ao de término, o intervalo será contínuo.</translation>
-<translation id="2475594733565572760">Esta política define a configuração padrão para todos os recursos de IA generativa cobertos. Por exemplo, se esta política for definida com o valor 1, então 1 será a configuração padrão para todos os recursos de IA generativa cobertos. Isso não afeta os valores de política definidos manualmente. Essa configuração vai definir os padrões para os recursos de IA generativa cobertos no Chrome. Consulte https://support.google.com/chrome/a?p=generative_ai_settings para conferir a lista de recursos cobertos.
-
-Algumas políticas, como a <ph name="GEMINI_SETTINGS_POLICY_NAME" />, só aceitam as definições "Permitido" e "Não permitido". Nesse caso, se a política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> estiver definida como 0 ou 1, o recurso estará ativado. Se <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> estiver definida como 2, o recurso estará desativado. A documentação de cada recurso contém mais informações sobre a interação com os valores nesta política (por exemplo, Gemini no Chrome: https://support.google.com/chrome/a/?p=gemini_in_chrome). Isso se aplica aos seguintes recursos: Gemini no Chrome, Google Lens e Modo IA, pois estão sujeitos às próprias garantias e/ou Termos de Serviço (https://support.google.com/chrome/a/?p=genai_features_chrome).
-
-Definir a política como 0 habilita o recurso e permite que os dados relevantes sejam usados pelo Google para melhorar os modelos de IA. Esses dados podem incluir comandos, entradas, saídas, materiais de fonte e feedback por escrito, dependendo do recurso. Eles também podem ser analisados por humanos para melhorar os modelos de IA. O valor padrão é 0, exceto quando indicado de outra forma abaixo.
-
-Definir a política como 1 habilita o recurso, mas não permite que o Google use o conteúdo dos usuários para melhorar os modelos (incluindo comandos, entradas, saídas, material de fonte e feedback por escrito). O valor 1 é o padrão para usuários corporativos, gerenciados pelo <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />, e contas de ensino, gerenciadas pelo <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
-
-Definir a política como 2 não permite que o recurso seja habilitado.
-
-Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="2476249479201711962">Ativar o acesso ao menu de contexto do provedor de pesquisa padrão</translation>
 <translation id="2478756867046106663">Permitir que sites com experiências abusivas abram novas janelas ou guias</translation>
 <translation id="2479760962196319822">Esta política controla se os usuários do <ph name="PRODUCT_OS_NAME" /> podem armazenar dados localmente.
@@ -3874,15 +3888,6 @@ Se ela for definida como 2 (BlockPartitioning), o particionamento de armazenamen
 Use <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> para desativar o particionamento de armazenamento de terceiros para origens de nível superior específicas. Para conferir informações detalhadas sobre o particionamento de armazenamento de terceiros, consulte https://developers.google.com/privacy-sandbox/cookies/storage-partitioning.
 
 Ele foi removido no Chrome 145, e é recomendável usar o método requestStorageAccess: https://developer.mozilla.org/en-US/docs/Web/API/Document/requestStorageAccess (em inglês). Para enviar feedback, acesse https://crbug.com/425248669 (em inglês).</translation>
-<translation id="3405361833556012520">Esta política se aplica apenas ao tráfego do navegador. A Play Store, a navegação na Web em apps Android e outros tipos de tráfego de usuários, como o de VMs do Linux ou o de trabalhos de impressão, ainda respeitam as restrições impostas pela VPN sempre ativa. Esta política só é aplicada quando a VPN não está conectada e somente para o tráfego do navegador do usuário. Enquanto estiver aplicada, o tráfego do sistema também poderá ignorar a VPN sempre ativada para realizar tarefas como buscas de políticas e sincronização do relógio do sistema.
-
-Use a política para abrir exceções para alguns esquemas, subdomínios de outros domínios, portas ou caminhos específicos usando o formato especificado em https://support.google.com/chrome/a?p=url_blocklist_filter_format. O filtro mais específico vai determinar se um URL será bloqueado ou permitido.
-
-Se a política <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> for definida e uma VPN sempre ativada estiver configurada e não conectada, a navegação para todos os hosts será bloqueada, exceto os permitidos pela <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" />. Nesse estado do dispositivo, <ph name="URL_BLOCKLIST_POLICY_NAME" /> e <ph name="URL_ALLOWLIST_POLICY_NAME" /> são ignorados. Quando a VPN sempre ativada se conectar, as políticas <ph name="URL_BLOCKLIST_POLICY_NAME" /> e <ph name="URL_ALLOWLIST_POLICY_NAME" /> serão aplicadas e a <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> será ignorada.
-
-Esta política tem um limite de 1.000 entradas.
-
-Se a política for deixada sem definição, a navegação no navegador será bloqueada enquanto a VPN sempre ativada com modo restrito estiver ativada e não conectada.</translation>
 <translation id="3405997282295704902">Não permitir o uso do <ph name="PRODUCT_NAME" /></translation>
 <translation id="3406122462682235653">Não perguntar ao usuário (o download começa imediatamente)</translation>
 <translation id="3410534959501660670">Configurações do recurso Captura de Texto</translation>
@@ -4026,6 +4031,18 @@ Se a opção <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> for definida com
 <translation id="3518293344797498431">Carrega a bateria até cerca de 80% para maximizar a vida útil dela.</translation>
 <translation id="3518512927469906365">Desativar o particionamento de armazenamento de terceiros para origens de nível superior específicas</translation>
 <translation id="3519035925054387801">Sites permitidos para detecção de inatividade</translation>
+<translation id="3522162663567623647">Esta política controla as solicitações de instalação de extensões do <ph name="PRODUCT_NAME" />, que permite que os usuários enviem as solicitações ao Google Admin Console para aprovação.
+
+Quando a <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> não for definida, ou for desativada, esta política será ignorada e as solicitações de instalação de extensões não serão criadas nem enviadas por upload.
+Quando esta política não for definida, ou for desativada, as solicitações de instalação de extensões não serão criadas nem enviadas por upload.
+Quando esta política for ativada, as solicitações de instalação de extensões serão criadas e enviadas ao Google Admin Console.
+
+Essas solicitações são criadas quando os usuários tentam instalar uma extensão que não foi autorizada pela <ph name="EXTENSION_INSTALL_ALLOWLIST" /> nem pela <ph name="EXTENSION_SETTINGS" />.
+
+Esta política só é aplicada quando a máquina está registrada no <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> do <ph name="PRODUCT_NAME" />.
+Para o <ph name="PRODUCT_OS_NAME" />, ela sempre é aplicada.
+
+Observação: esta política só se aplica a plataformas que são compatíveis com extensões.</translation>
 <translation id="3522257170445891912">Quando esta política é definida, o fluxo de autenticação de login acontece em uma das seguintes formas, dependendo do valor da configuração:
 
       Se configurada como GAIA, o login é feito pelo fluxo normal de autenticação GAIA.
@@ -5126,6 +5143,11 @@ Para informações mais detalhadas sobre padrões de URL válidos, consulte http
 
           Se esta política não for definida, o clique automático ficará desativado inicialmente, mas poderá ser ativado pelo usuário a qualquer momento.</translation>
 <translation id="4212181786686887763">O URL no qual o download da imagem do plano de fundo pode ser feito.</translation>
+<translation id="4224566202253696739">Esta configuração controla se os uploads de arquivos são permitidos no <ph name="GEMINI_IN_CHROME_NAME" /> (consulte https://support.google.com/chrome/a/answer/16291696).
+
+Se ela for definida como 0, ou não for definida, os usuários poderão fazer upload de arquivos para o <ph name="GEMINI_IN_CHROME_NAME" />.
+
+Se ela for definida como 1, os usuários não terão permissão para fazer upload de arquivos para o <ph name="GEMINI_IN_CHROME_NAME" />.</translation>
 <translation id="4224610387358583899">Tempo de espera para bloqueio de tela</translation>
 <translation id="42267415200641481">Se a política for definida como verdadeira, a resolução de DNS (getaddrinfo()) poderá ser executada fora do processo de rede, dependendo da configuração do sistema e das flags de recursos.
 
@@ -5142,6 +5164,7 @@ Os domínios precisam estar no formato de um nome de domínio totalmente qualifi
 Domínios com formato incorreto serão ignorados.</translation>
 <translation id="4238777612788632629">Reinicializar rapidamente em caso de desatualização</translation>
 <translation id="4239720644496144453">O cache não é usado para apps Android. Se vários usuários instalarem o mesmo app Android, o download dele será feito novamente para cada usuário.</translation>
+<translation id="4239949495354048254">Permita uploads de arquivos para o Gemini no Chrome.</translation>
 <translation id="4242583077375244471">Quando a política é ativada, o <ph name="PRODUCT_NAME" />
 verifica os certificados do servidor usando o verificador de certificados integrado,
 com a Chrome Root Store como fonte de verdade pública.
@@ -6561,6 +6584,7 @@ Se ela for definida como 2, o recurso não será habilitado.
 Se for deixada sem definição, o comportamento será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
 
 Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
+<translation id="5070539335358964387">Permitir o recurso Encontrar e Preencher com o Gemini e melhorar os modelos de IA.</translation>
 <translation id="5071303485174858500">Desativar sessão de visitante gerenciada restrita.</translation>
 <translation id="5073609397321802133">Se a política for definida como falsa, a página "Nova guia" não permitirá que os usuários personalizem o plano de fundo. Qualquer plano de fundo personalizado já existente será removido permanentemente, mesmo que a política seja definida como verdadeira mais tarde.
 
@@ -8127,16 +8151,6 @@ os atalhos baseados em pesquisa vão funcionar como padrão e permitir que sejam
 configurados.</translation>
 <translation id="6019162469732742754">Usar o modo automático</translation>
 <translation id="6019606564278029236">Ativar a interação de usuários remotos com janelas elevadas em sessões de assistência remota</translation>
-<translation id="602038990586229155">Esta política controla as solicitações de instalação de extensões do <ph name="PRODUCT_NAME" />, que permite que os usuários enviem as solicitações ao Google Admin Console para aprovação.
-
-Quando a <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> não for definida ou for desativada, esta política será ignorada e as solicitações de instalação de extensões não serão criadas nem enviadas por upload.
-Quando a política não é definida ou é desativada, as solicitações de instalação de extensões não são criadas nem enviadas por upload.
-Quando esta política é ativada, as solicitações de instalação de extensões são criadas e enviadas ao Google Admin Console.
-
-Essas solicitações são criadas quando os usuários tentam instalar uma extensão que não foi autorizada pela <ph name="EXTENSION_INSTALL_ALLOWLIST" /> nem pela <ph name="EXTENSION_SETTINGS" />.
-
-Esta política só é eficaz quando a máquina está registrada na <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> do <ph name="PRODUCT_NAME" />.
-Para o <ph name="PRODUCT_OS_NAME" />, ela sempre é eficaz.</translation>
 <translation id="6020795917180493154">Na versão M119, se a política for definida como falsa ou deixada sem definição, o WebSQL será desativado, mas poderá ser ativado com a Sinalização do Chrome "web-sql-access". Se ela for definida como verdadeira, o acesso ao WebSQL será ativado.
 Esta política foi descontinuada na versão M124.</translation>
 <translation id="6022948604095165524">Ação na inicialização</translation>
@@ -8293,6 +8307,14 @@ Quando esta política for ativada ou deixada sem definição, os usuários poder
 
 Quando ela estiver desativada, o app vai estar no modo somente leitura, impedindo qualquer personalização.</translation>
 <translation id="6150320133676152520">Desativar o envio automático do PIN nas telas de bloqueio e login</translation>
+<translation id="6152224988699207920">Permite que os admins personalizem a aparência das marcas-d'água aplicadas pelas regras de Prevenção Contra Perda de Dados (DLP, na sigla em inglês). Isso inclui configurar a opacidade do preenchimento/contorno, o tamanho da fonte e o fuso horário do carimbo de data/hora.
+Se a política ou alguns valores não forem definidos, o Chrome vai usar o comportamento padrão de marca-d'água.
+Os valores padrão são: opacidade do preenchimento em 4, opacidade do contorno em 6, tamanho da fonte em 24 e fuso horário do carimbo de data/hora definido como "user_device" (fuso horário local do dispositivo do usuário).
+
+A opacidade do preenchimento é uma porcentagem de 0 (totalmente transparente) a 100 (totalmente opaco).
+A opacidade do contorno é uma porcentagem de 0 (totalmente transparente) a 100 (totalmente opaco).
+O tamanho da fonte é definido em pontos.
+O fuso horário do carimbo de data/hora especifica o identificador da IANA, como "America/Toronto", usado para formatar marcas-d'água com carimbo de data/hora (disponível a partir do Chrome 152), seguindo os nomes no banco de dados dessa organização (https://www.iana.org/time-zones, site em inglês).</translation>
 <translation id="6155350825868160236">Permitir que o usuário escolha se serviços da Web do Google serão usados para solucionar erros de ortografia</translation>
 <translation id="6155936611791017817">Definir estado padrão do cursor grande na tela de login</translation>
 <translation id="6157537876488211233">Lista separada por vírgulas das regras de proxies ignoráveis</translation>
@@ -8584,6 +8606,7 @@ Se você definir a política, os usuários não poderão mudar a página inicial
 No <ph name="MS_WIN_NAME" />, essa política só está disponível em instâncias associadas a um domínio do <ph name="MS_AD_NAME" />, associadas ao <ph name="MS_AAD_NAME" /> ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 No <ph name="MAC_OS_NAME" />, essa política só está disponível em instâncias gerenciadas por MDM, associadas a um domínio via MCX ou registradas em <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
+<translation id="6279539269393750872">Configurações de uploads de arquivos do Gemini no Chrome</translation>
 <translation id="628084107912717806">Especifica se módulos WebAssembly podem ser enviados em origem cruzada</translation>
 <translation id="6280973140313576289">Seletor de perfil forçado na inicialização</translation>
 <translation id="6282524907402492171">Exibir avisos de suspensão de uso de <ph name="CLOUD_PRINT_NAME" /></translation>
@@ -10165,6 +10188,7 @@ Para mais informações sobre como tratar dados de recursos de IA generativa, co
 <translation id="7136237405361383549">Usar o renderizador padrão com base na configuração do teste de campo.</translation>
 <translation id="7138762292550697459">Controle o tempo limite mínimo da função setTimeout() do JavaScript.</translation>
 <translation id="7138792262152376158">Segue cronogramas regulares de descontinuação para a API PrefixedVideoFullscreen</translation>
+<translation id="7140755255968613921">Configurações do recurso Encontrar e Preencher com o Gemini</translation>
 <translation id="7140760943584613237">Provedor de identidade na nuvem da Microsoft®</translation>
 <translation id="714219487865269980">Ativar destaque de foco do teclado</translation>
 <translation id="7144022711746703451">
@@ -10590,6 +10614,19 @@ Os valores reais dos dados sensíveis (como cookies ou valores de entrada) NÃO 
 <translation id="7402257017733669351">Impedir que o processo do navegador crie código dinâmico</translation>
 <translation id="7406039009275722824">Desativar a <ph name="CHROME_SYNC_NAME" /> fará com que o recurso de backup e restauração do Android não funcione corretamente.</translation>
 <translation id="7406276857470642718">Controla as configurações para usuários autenticados por SAML com um IdP externo</translation>
+<translation id="7407431811343706437">Controla se os usuários podem usar o recurso "Encontrar e Preencher com o Gemini" no <ph name="PRODUCT_NAME" />.
+
+Se ela for definida como 0, o recurso será habilitado e os dados relevantes poderão ser usados pelo Google para melhorar os modelos de IA. Esses dados podem incluir comandos, entradas, saídas, materiais de fonte e feedback por escrito, dependendo do recurso. O valor padrão é 0, exceto quando indicado de outra forma abaixo.
+
+Se a política for definida como 1, o recurso será habilitado, mas o Google não poderá usar o conteúdo dos usuários (incluindo comandos, entradas, saídas, materiais de fonte e feedback por escrito) para melhorar os modelos. O valor 1 é o padrão para usuários corporativos gerenciados pelo <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> e contas de ensino gerenciadas pelo <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
+
+Se ela for definida como 2, o recurso não será habilitado.
+
+Esta política não tem efeito quando o app do Gemini está desativado. Por exemplo, ele pode ser desativado pela política <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Se ela não for definida, o comportamento será determinado pela política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Para mais informações sobre como tratar dados de recursos de IA generativa, consulte https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="7407441173422042771">Esta política controla a previsão de rede no <ph name="PRODUCT_NAME" />. Ela controla a pré-busca de DNS, a pré-conexão SSL e TCP e a pré-renderização das páginas da Web.
 
       Se você definir a política, os usuários não poderão mudá-la. Se ela não for definida, a previsão de rede será ativada, mas os usuários poderão mudar a configuração.</translation>
@@ -10762,19 +10799,6 @@ Consulte <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />, <ph name="DIR
 
       Se a política for deixada sem definição ou for definida como falsa, os pacotes de criptografia RC4 no TLS não vão ser ativados. Caso contrário, ela pode ser definida como verdadeira para manter a compatibilidade com um servidor desatualizado. Essa é uma medida provisória, e o servidor deve ser reconfigurado.</translation>
 <translation id="751615601677744094">Desativado: comportamento normal para eventos de mutação, o que significa não disparar esses eventos após a data de remoção.</translation>
-<translation id="7518736413346509172">Se esta política for ativada, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" />
-só vão mostrar avisos no <ph name="CHROME_DEVTOOLS_NAME" /> devido a falhas nas verificações de <ph name="LOCAL_NETWORK_ACCESS" />.
-
-Se ela for desativada ou não for definida, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" /> vão usar o
-gerenciamento padrão.
-
-Consulte as restrições de <ph name="LOCAL_NETWORK_ACCESS" /> em https://wicg.github.io/local-network-access/ (página em inglês).
-
-Esta política corporativa é temporária e será removida após a versão M152.
-
-A longo prazo, a política <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" />
-pode ser usada para permitir padrões de URL que devem receber automaticamente
-a permissão <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="7519218194072744342">O URL do gerenciador de protocolos.</translation>
 <translation id="7519251620064708155">Permitir a geração de chaves nesses sites</translation>
 <translation id="7521864460386999758">Impedir que código de terceiros seja injetado no Chrome</translation>
@@ -11700,6 +11724,7 @@ No <ph name="MS_WIN_NAME" />, essa política só está disponível em instância
 <translation id="8102913158860568230">Configuração padrão mediastream</translation>
 <translation id="8104962233214241919">Selecionar certificados de cliente automaticamente para estes sites</translation>
 <translation id="8109762054721090517">Modelo do <ph name="IPP_ATTRIBUTE" /><ph name="INTERNET_PRINTING_PROTOCOL" /> <ph name="CLIENT_NAME_IPP_ATTRIBUTE" /></translation>
+<translation id="811012672754800797">Não permitir uploads de arquivos para o Gemini no Chrome.</translation>
 <translation id="8111331908123507719">Configura por quantos segundos o dispositivo precisa ficar inativo antes de mostrar o protetor na tela de bloqueio.
 
 Os valores vão de 1 a 9.999 segundos. Se a política for deixada sem definição, o valor padrão de 7 segundos vai ser usado pelo <ph name="PRODUCT_OS_NAME" />.
@@ -13027,6 +13052,15 @@ Se esta política for ativada, o novo comportamento vai ser usado.
 Se ela for desativada, o comportamento antigo será usado.
 
 Quando a política é deixada sem definição, o novo comportamento é usado, assim como acontece com os demais usuários do Chromium.</translation>
+<translation id="8954797065581717017">Aviso: configurar esta política reduz as restrições do bloqueio da VPN Sempre Ativa antes da conexão da VPN. O filtro no nível do URL só é garantido para o tráfego no navegador Chrome e não afeta aplicativos de sistemas internos ou outros tipos de tráfego. Enquanto esta política estiver aplicada, o tráfego do sistema também poderá ignorar a VPN Sempre Ativa para realizar tarefas como buscas de políticas e sincronização do relógio do sistema.
+
+Use a política para abrir exceções para alguns esquemas, subdomínios de outros domínios, portas ou caminhos específicos usando o formato especificado em https://support.google.com/chrome/a?p=url_blocklist_filter_format. O filtro mais específico determinará se um URL será bloqueado ou permitido.
+
+Se a política <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> for definida e uma VPN Sempre Ativa estiver configurada e não conectada, a navegação para todos os hosts será bloqueada, exceto os permitidos pela <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" />. Nesse estado do dispositivo, <ph name="URL_BLOCKLIST_POLICY_NAME" /> e <ph name="URL_ALLOWLIST_POLICY_NAME" /> são ignoradas. Quando a VPN Sempre Ativa se conectar, as políticas <ph name="URL_BLOCKLIST_POLICY_NAME" /> e <ph name="URL_ALLOWLIST_POLICY_NAME" /> serão aplicadas e a <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> será ignorada.
+
+Esta política tem um limite de 1.000 entradas.
+
+Se a política for deixada sem definição, a navegação será bloqueada enquanto a VPN Sempre Ativa com modo restrito estiver ativada e não conectada.</translation>
 <translation id="8955719471735800169">Voltar ao início</translation>
 <translation id="8956312248048980644">Permite o clustering do agente com origin-key por padrão.</translation>
 <translation id="8963464192296208229">As configurações F11 usam o atalho que contém a tecla modificadora Alt</translation>
@@ -13235,9 +13269,28 @@ Observação: a reinicialização do dispositivo limpa o cache. Até os dados te
 
       Se a política for definida como falsa ou deixada sem definição, as informações não serão enviadas.
       Se ela for definida como verdadeira, os eventos de login/logout do dispositivo serão informados.</translation>
+<translation id="9087577919890548366">Se esta política for ativada, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" /> só vão mostrar avisos no <ph name="CHROME_DEVTOOLS_NAME" /> devido a falhas nas verificações de <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Se ela for desativada ou não for definida, as solicitações de <ph name="LOCAL_NETWORK_ACCESS" /> vão usar o gerenciamento padrão.
+
+Consulte as restrições de <ph name="LOCAL_NETWORK_ACCESS" /> em https://wicg.github.io/local-network-access/ (em inglês).
+
+Esta política corporativa é temporária e será removida após a versão M156.
+
+A longo prazo, a política <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" />
+pode ser usada para permitir padrões de URL que devem receber automaticamente
+a permissão <ph name="LOCAL_NETWORK_ACCESS" />.</translation>
 <translation id="9087652369391570821">Política de configuração para o conector OnFileTransfer do Chrome Enterprise</translation>
 <translation id="9088433379343318874">Ativar o provedor de conteúdo de usuário supervisionado</translation>
 <translation id="9088444059179765143">Configurar o método de detecção automática de fuso horário</translation>
+<translation id="9091741086777905807">Identificador de fuso horário da IANA, como "America/Toronto", usado para formatar marcas-d'água com carimbo de data/hora (compatível a partir do Chrome 152). O padrão é "user_device".</translation>
+<translation id="9094681501120769194">Controla se o visualizador de PDF no <ph name="PRODUCT_NAME" /> usa um iframe fora do processo (OOPIF, na sigla em inglês). Essa será a nova arquitetura do visualizador de PDF no futuro, porque é mais simples e facilita a adição de novos recursos. O visualizador de PDF do GuestView atual é uma arquitetura complexa e desatualizada que está sendo descontinuada.
+
+Quando esta política for ativada ou deixada sem definição, o <ph name="PRODUCT_NAME" /> poderá usar a arquitetura do visualizador de PDF OOPIF. Se a política for ativada ou deixada sem definição, o comportamento padrão será decidido pelo <ph name="PRODUCT_NAME" />.
+
+Se ela for desativada, o <ph name="PRODUCT_NAME" /> vai usar estritamente o visualizador de PDF do GuestView. Ele incorpora uma página da web, com uma árvore de frames separada, a outra página.
+
+Esta política foi descontinuada na versão M152 e será removida na versão M155. O visualizador de PDF do GuestView está sendo removido, e a arquitetura do visualizador de PDF do iframe fora do processo (OOPIF) será sempre usada.</translation>
 <translation id="9095599826504830315">Não permitir o uso da Tabela de comparação.</translation>
 <translation id="9096772739225230999">Não informar configuração da rede</translation>
 <translation id="9098409326885953506">Detectar janela coberta e suspender a pintura</translation>

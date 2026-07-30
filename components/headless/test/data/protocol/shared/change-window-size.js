@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {dp} = await testRunner.startBlank(
       'Tests window bounds are properly adjusted upon Browser.setWindowSize.');
 
   const {windowId} = (await dp.Browser.getWindowForTarget()).result;
-  dp.Browser.setWindowBounds({
+  await dp.Browser.setWindowBounds({
     windowId,
     bounds: {
       windowState: 'normal',

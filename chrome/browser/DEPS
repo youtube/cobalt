@@ -236,6 +236,7 @@ include_rules = [
   "+components/network_time",
   "+components/no_state_prefetch/browser",
   "+components/no_state_prefetch/common",
+  "+components/notebooks/internals/webui",
   "+components/notebooks/public",
   "+components/ntp_tiles",
   "+components/offline_items_collection/core",
@@ -348,7 +349,7 @@ include_rules = [
   "+components/signin/core/browser",
   "+components/signin/public",
   "+components/skills:features",
-  "+components/site_cookie_provider",
+  "+components/site_token_provider",
   "+components/site_engagement",
   "+components/site_isolation",
   "+components/skills",
@@ -536,6 +537,17 @@ include_rules = [
 
   # Ensure flags are usable anywhere.
   "+chrome/browser/flags",
+
+  # Do not use these legacy test fixtures in new tests.
+  # Use chrome/browser/glic/test_support/glic_browser_test.h,
+  # chrome/browser/glic/test_support/new_glic_api_test.h, or
+  # chrome/browser/glic/actor/new_glic_actor_functional_browsertest.h instead.
+  "!chrome/browser/glic/actor/glic_actor_functional_browsertest.h",
+  "!chrome/browser/glic/host/glic_actor_interactive_uitest_common.h",
+  "!chrome/browser/glic/test_support/glic_api_test.h",
+  "!chrome/browser/glic/test_support/glic_functional_browsertest.h",
+  "!chrome/browser/glic/test_support/interactive_glic_test.h",
+  "!chrome/browser/glic/test_support/non_interactive_glic_test.h",
 
   # Ensure that only the public interface of performance_manager gets used.
   "-chrome/browser/performance_manager",

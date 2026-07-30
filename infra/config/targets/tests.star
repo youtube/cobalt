@@ -2185,6 +2185,10 @@ targets.tests.isolated_script_test(
 )
 
 targets.tests.gtest_test(
+    name = "rlz_unittests",
+)
+
+targets.tests.gtest_test(
     name = "rust_gtest_interop_unittests",
 )
 
@@ -3041,6 +3045,13 @@ targets.tests.gpu_telemetry_test(
         "gpu_integration_test_common_args",
     ],
     module_scheme = "flat",
+)
+
+targets.tests.isolated_script_test(
+    name = "webdriver_bidi_unittests",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
 )
 
 targets.tests.isolated_script_test(

@@ -60,6 +60,14 @@ class TriggeringUpdatesTest extends ApiTestFixtureBase {
     });
   }
 
+  async testRelaysResumedUpdate(): Promise<void> {
+    await runUntil(() => client.isSubscribed);
+    client.triggeringUpdatesSubject.next({
+      type: ExperimentalTriggeringUpdateType.RESUMED,
+      data: '',
+    });
+  }
+
   async testRelaysConversationId() {
     await runUntil(() => client.isSubscribed);
     assertDefined(this.host.registerConversation);
@@ -135,6 +143,30 @@ class TriggeringUpdatesTest extends ApiTestFixtureBase {
     client.triggeringUpdatesSubject.next({
       type: ExperimentalTriggeringUpdateType.WORKLOG,
       data: 'ready_for_screenshot',
+    });
+  }
+
+  async testRelaysUpdatesWithMetadataEnabled() {
+    await runUntil(() => client.isSubscribed);
+    client.triggeringUpdatesSubject.next({
+      type: ExperimentalTriggeringUpdateType.WORKLOG,
+      data: 'test_update_with_metadata',
+      metadata: {
+        'key1': 'value1',
+        'key2': 'value2',
+      },
+    });
+  }
+
+  async testRelaysUpdatesWithMetadataDisabled() {
+    await runUntil(() => client.isSubscribed);
+    client.triggeringUpdatesSubject.next({
+      type: ExperimentalTriggeringUpdateType.WORKLOG,
+      data: 'test_update_with_metadata',
+      metadata: {
+        'key1': 'value1',
+        'key2': 'value2',
+      },
     });
   }
 }

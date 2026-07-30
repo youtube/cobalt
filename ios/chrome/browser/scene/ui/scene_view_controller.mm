@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/assistant/ui/assistant_container_view_controller.h"
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view_controller.h"
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view_controller_presenter.h"
+#import "ios/chrome/browser/keyboard/ui_bundled/responder_chaining.h"
 #import "ios/chrome/browser/scene/ui/app_container_view.h"
 #import "ios/chrome/browser/scene/ui/scene_mutator.h"
 #import "ios/chrome/browser/scene/ui/scene_ui_constants.h"
@@ -67,7 +68,9 @@ inline LayoutStateScenePassKey PassKey() {
 
 @implementation SceneViewController {
   // The app bar.
-  UIViewController* _appBar;
+  UIViewController<ResponderChaining>* _appBar;
+  // The TabGrid.
+  UIViewController<ResponderChaining>* _tabGridViewController;
   // The assistant container view controller.
   AssistantContainerViewController* _assistantContainerViewController;
 
@@ -226,20 +229,51 @@ inline LayoutStateScenePassKey PassKey() {
   [self updateAssistantTopConstraints:self.layoutState.containedLayoutActive];
 }
 
-#pragma mark - Public
-
-- (UIView*)appContainer {
-  [self loadViewIfNeeded];
-  return _appContentView;
+- (BOOL)canBecomeFirstResponder {
+  return YES;
 }
 
-- (void)setAppBar:(UIViewController*)appBar {
+- (UIResponder*)nextResponder {
+  UIResponder* nextResponder = [super nextResponder];
+  UIResponder* chainResponder = nextResponder;
+  if (_tabGridViewController) {
+    [_tabGridViewController respondBeforeResponder:chainResponder];
+    chainResponder = _tabGridViewController;
+  }
+  if (_appBar) {
+    [_appBar respondBeforeResponder:chainResponder];
+    chainResponder = _appBar;
+  }
+  return chainResponder;
+}
+
+#pragma mark - Public
+
+- (void)setAppBar:(UIViewController<ResponderChaining>*)appBar {
   CHECK(!_appBar);
   [self loadViewIfNeeded];
   _appBar = appBar;
 
   [self setupAppBarView:appBar];
   [self updateLayoutForViews];
+}
+
+- (void)setTabGrid:(UIViewController<ResponderChaining>*)tabGridViewController {
+  CHECK(!_tabGridViewController);
+  [self loadViewIfNeeded];
+  _tabGridViewController = tabGridViewController;
+
+  UIView* tabGrid = tabGridViewController.view;
+  [self addChildViewController:tabGridViewController];
+  if (IsChromeNextIaEnabled() && !IsFullscreenRefactoringEnabled()) {
+    [self.view addSubview:tabGrid];
+    [tabGrid addSubview:_appContentView];
+    tabGrid.frame = self.view.bounds;
+  } else {
+    [_appContentView addSubview:tabGrid];
+    tabGrid.frame = _appContentView.bounds;
+  }
+  [tabGridViewController didMoveToParentViewController:self];
 }
 
 #pragma mark - SceneViewDelegate
@@ -260,6 +294,15 @@ inline LayoutStateScenePassKey PassKey() {
 }
 
 #pragma mark - UIViewController
+
+- (void)presentViewController:(UIViewController*)viewControllerToPresent
+                     animated:(BOOL)flag
+                   completion:(void (^)())completion {
+  [self hideGeminiFloatyIfInvoked];
+  [super presentViewController:viewControllerToPresent
+                      animated:flag
+                    completion:completion];
+}
 
 - (void)dismissViewControllerAnimated:(BOOL)flag
                            completion:(void (^)())completion {
@@ -649,7 +692,11 @@ inline LayoutStateScenePassKey PassKey() {
   return insets;
 }
 
-
+// Helper method for presentation when attempting to hide the Gemini floaty
+// if invoked.
+- (void)hideGeminiFloatyIfInvoked {
+  [self.delegate sceneViewControllerHideGeminiFloatyIfInvoked:self];
+}
 
 // Helper method for dismissal block when attempting to show the Gemini floaty
 // if invoked.

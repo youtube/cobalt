@@ -129,6 +129,11 @@ content::WebContents* ContextualTasksPanelHostDesktopAndroid::GetWebContents() {
   return web_contents_;
 }
 
+content::WebContents*
+ContextualTasksPanelHostDesktopAndroid::GetToolbarWebContents() {
+  return GetWebContents();
+}
+
 bool ContextualTasksPanelHostDesktopAndroid::MaybeCreateBridge() {
   // Reuse the bridge if it exists and the tab we created it with is still
   // alive.
@@ -147,7 +152,9 @@ bool ContextualTasksPanelHostDesktopAndroid::MaybeCreateBridge() {
       std::make_unique<context_sharing::CoBrowseViewsBridge>(
           *active_tab,
           context_sharing::TabBottomSheetClientType::kContextualTasks,
-          context_sharing::CoBrowseContainerType::kSidePanel);
+          context_sharing::CoBrowseContainerType::kSidePanel,
+          /*bottom_sheet_content_provider=*/nullptr,
+          /*enable_pinch_to_zoom=*/true);
   return co_browse_views_bridge_ != nullptr;
 }
 

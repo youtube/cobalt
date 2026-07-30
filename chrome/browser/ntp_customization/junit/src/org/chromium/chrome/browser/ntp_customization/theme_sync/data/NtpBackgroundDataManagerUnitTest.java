@@ -27,7 +27,6 @@ import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
-import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
 
 import java.io.File;
 
@@ -76,6 +75,7 @@ public class NtpBackgroundDataManagerUnitTest {
 
         // Save first data.
         mManager.saveRemoteSyncDataToSharedPreference(data1);
+        RobolectricUtil.runAllBackgroundAndUi();
         NtpBackgroundDataGroup group =
                 mManager.getBackgroundDataGroupFromSharedPreference(platformType);
         assertEquals(1, group.size());
@@ -83,6 +83,7 @@ public class NtpBackgroundDataManagerUnitTest {
 
         // Save second data. It should be moved to the first.
         mManager.saveRemoteSyncDataToSharedPreference(data2);
+        RobolectricUtil.runAllBackgroundAndUi();
         group = mManager.getBackgroundDataGroupFromSharedPreference(platformType);
         assertEquals(2, group.size());
         assertEquals(data2, group.get(0));
@@ -90,6 +91,7 @@ public class NtpBackgroundDataManagerUnitTest {
 
         // Save third data. It should remove the last one (MAXIMUM_REMOTE_HISTORY = 2).
         mManager.saveRemoteSyncDataToSharedPreference(data3);
+        RobolectricUtil.runAllBackgroundAndUi();
         group = mManager.getBackgroundDataGroupFromSharedPreference(platformType);
         assertEquals(2, group.size());
         assertEquals(data3, group.get(0));
@@ -97,6 +99,7 @@ public class NtpBackgroundDataManagerUnitTest {
 
         // Save first data again. It should move to the first.
         mManager.saveRemoteSyncDataToSharedPreference(data2);
+        RobolectricUtil.runAllBackgroundAndUi();
         group = mManager.getBackgroundDataGroupFromSharedPreference(platformType);
         assertEquals(2, group.size());
         assertEquals(data2, group.get(0));
@@ -132,6 +135,7 @@ public class NtpBackgroundDataManagerUnitTest {
         dataGroup.add(data3);
 
         mManager.saveRemoteSyncDataToSharedPreference(dataGroup);
+        RobolectricUtil.runAllBackgroundAndUi();
         NtpBackgroundDataGroup group1 =
                 mManager.getBackgroundDataGroupFromSharedPreference(platformType1);
         assertNotNull(group1);

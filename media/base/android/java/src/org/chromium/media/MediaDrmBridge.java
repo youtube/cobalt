@@ -534,7 +534,7 @@ public class MediaDrmBridge {
         Log.d(TAG, "Set origin: %s", origin);
 
         if (!isWidevine()) {
-            Log.d(TAG, "Property " + ORIGIN + " isn't supported");
+            Log.d(TAG, "Property %s isn't supported", ORIGIN);
             return true;
         }
 
@@ -797,6 +797,11 @@ public class MediaDrmBridge {
                             + "MediaDrmBridge creation can trigger the provision flow.",
                     e);
             unprovision();
+        } catch (MediaDrm.SessionException e) {
+            // getKeyRequest sometimes has transient SessionException.
+            // We just catch and log it, and let the player retry if they would like to.
+            // Refer to crbug.com/537329064 for details.
+            Log.e(TAG, "Failed to getKeyRequest().", e);
         } catch (java.lang.IllegalStateException e) {
             // We've seen both MediaDrmStateException and MediaDrmResetException happening.
             // Since both are IllegalStateExceptions, so they will be handled here.
@@ -1770,7 +1775,7 @@ public class MediaDrmBridge {
                                 return;
                             }
 
-                            Log.d(TAG, "SessionLost: " + sessionId);
+                            Log.d(TAG, "SessionLost: %s", sessionId);
                             if (mMediaDrm != null) {
                                 closeSessionNoException(sessionId);
                             }

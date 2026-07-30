@@ -41,6 +41,7 @@
 #include "chrome/browser/ash/login/demo_mode/demo_mode_test_helper.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_features.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_test_helper.h"
+#include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/browser/extensions/chrome_app_icon.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -684,13 +685,7 @@ class CrostiniAppTest : public AppServiceAppModelBuilderTest {
   void TearDown() override {
     ResetBuilder();
     test_helper_.reset();
-    AppListTestBase::TearDown();
-
-    // |profile_| is initialized in AppListTestBase::SetUp but not destroyed in
-    // the ::TearDown method, but we need it to go away before shutting down
-    // DBusThreadManager to ensure all keyed services that might rely on DBus
-    // clients are destroyed.
-    DeleteProfile();
+    AppServiceAppModelBuilderTest::TearDown();
 
     ash::SeneschalClient::Shutdown();
     ash::ConciergeClient::Shutdown();

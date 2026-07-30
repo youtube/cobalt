@@ -99,6 +99,7 @@ import org.chromium.chrome.browser.gesturenav.OverscrollGlowCoordinator;
 import org.chromium.chrome.browser.gesturenav.TabOnBackGestureHandler;
 import org.chromium.chrome.browser.glic.GlicButtonDelegate;
 import org.chromium.chrome.browser.glic.GlicKeyedService.GlicInvocationSource;
+import org.chromium.chrome.browser.glic.GlicUtils;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.homepage.HomepageManager.HomepageStateListener;
@@ -457,7 +458,6 @@ public class ToolbarManager
     private @Nullable TabGroupUiOneshotSupplier mTabGroupUiOneshotSupplier;
 
     private @Nullable SideUiStateProvider mSideUiStateProvider;
-    private @Nullable SideUiObserver mSideUiObserver;
     private @Nullable SideUiObserver mControlContainerSideUiObserver;
     private @Nullable SideUiObserver mProgressBarSideUiObserver;
 
@@ -1414,6 +1414,7 @@ public class ToolbarManager
                         refreshSelectedTab(tab);
                         onTabOrModelChanged();
                         maybeTriggerCacheRefreshForZeroSuggest(tab.getUrl());
+                        maybeShowGlicIph(tab);
                     }
 
                     /**
@@ -1483,6 +1484,13 @@ public class ToolbarManager
                         updateTabLoadingState(true);
                         mLocationBarModel.onPageLoadStopped();
                         mToolbar.onPageLoadStopped();
+                    }
+
+                    @Override
+                    public void onPageLoadFinished(Tab tab, GURL url) {
+                        if (tab == mActivityTabProvider.get()) {
+                            maybeShowGlicIph(tab);
+                        }
                     }
 
                     @Override
@@ -1871,25 +1879,27 @@ public class ToolbarManager
 
         mSideUiStateProvider = sideUiStateProvider;
 
-        mSideUiObserver =
-                (sideUiSpecs) -> {
-                    // Can be null after destroy(), empty specs are passed when the observer
-                    // is removed.
-                    if (mFindToolbarManager != null) {
-                        mFindToolbarManager.onSideUiSpecsChanged(sideUiSpecs);
-                    }
-                };
-        mSideUiStateProvider.addObserver(mSideUiObserver);
+        // This method may be called after a SideUiContainer is already shown, in which case the
+        // SideUiObservers will miss the SideUiSpecs change. So we use the current SideUiSpecs to
+        // initialize Views that observe SideUiSpecs.
+        // TODO(https://crbug.com/536963036): Remove the explicit calls to onSideUiSpecsChanged
+        // after fixing the initialization order.
+        var currentSideUiSpecs = sideUiStateProvider.getCurrentSideUiSpecs();
 
         mControlContainerSideUiObserver = new ToolbarMarginAdjusterForSideUi(mControlContainer);
+        mControlContainerSideUiObserver.onSideUiSpecsChanged(currentSideUiSpecs);
         mSideUiStateProvider.addObserver(mControlContainerSideUiObserver);
-        mProgressBarSideUiObserver = new ViewMarginAdjusterForSideUi(mProgressBarContainer);
+
+        mProgressBarSideUiObserver =
+                new ViewMarginAdjusterForSideUi(
+                        mProgressBarContainer, /* forToolbarElement= */ true);
+        mProgressBarSideUiObserver.onSideUiSpecsChanged(currentSideUiSpecs);
         mSideUiStateProvider.addObserver(mProgressBarSideUiObserver);
     }
 
     private static class ToolbarMarginAdjusterForSideUi extends ViewMarginAdjusterForSideUi {
         ToolbarMarginAdjusterForSideUi(View view) {
-            super(view);
+            super(view, /* forToolbarElement= */ true);
         }
 
         @Override
@@ -2788,6 +2798,19 @@ public class ToolbarManager
         mToggleGlicCallback.onClick(/* preventClose= */ false, GlicInvocationSource.TOOLBAR_BUTTON);
     }
 
+    private void maybeShowGlicIph(@Nullable Tab tab) {
+        if (tab == null || tab.isIncognitoBranded()) return;
+        if (!mToolbar.shouldShowGlicToolbarButton()) return;
+        if (!GlicUtils.isTabEligibleForGlicIph(tab)) return;
+
+        View anchorView = assumeNonNull(mToolbar.getGlicActionChipView());
+        if (anchorView.getVisibility() != View.VISIBLE || !anchorView.isAttachedToWindow()) {
+            return;
+        }
+
+        mIphController.showGlicIph(anchorView);
+    }
+
     /**
      * @return The toolbar interface that this manager handles.
      */
@@ -3057,9 +3080,6 @@ public class ToolbarManager
 
     private void removeSideUiObservers() {
         if (mSideUiStateProvider != null) {
-            if (mSideUiObserver != null) {
-                mSideUiStateProvider.removeObserver(mSideUiObserver);
-            }
             if (mControlContainerSideUiObserver != null) {
                 mSideUiStateProvider.removeObserver(mControlContainerSideUiObserver);
             }

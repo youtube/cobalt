@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Mobil görünüş tələb edin</translation>
 <translation id="2870560284913253234">Sayt</translation>
 <translation id="2874939134665556319">Öncəki trek</translation>
+<translation id="2890412325133442491">Chrome defoltu</translation>
 <translation id="2891975107962658722">Saytın cihazınızda data saxlamasını bloklayın</translation>
 <translation id="2903493209154104877">Ünvanlar</translation>
 <translation id="2903764741244499151">Saytlar şəkildə şəkil rejiminə avtomatik daxil ola bilər. Bu funksiya sayəsində ekranı digər işlər üçün boş saxlayaraq videoya baxmağa davam edə bilərsiniz.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Parolları dəyişin</translation>
 <translation id="3797520601150691162">Müəyyən sayta tünd tema tətbiq etməyin</translation>
 <translation id="3803367742635802571">Ziyarət etdiyiniz saytlar nəzərdə tutulduğu kimi fəaliyyətini dayandıra bilər</translation>
-<translation id="3816118180265633665">Chrome Rəngləri</translation>
 <translation id="381841723434055211">Telefon nömrələri</translation>
 <translation id="3823453485268218808">Şrift Mono</translation>
 <translation id="3826050100957962900">Üçüncü tərəfin girişi</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Tam ekrandan çıxın</translation>
 <translation id="640163077447496506">Bu gün vaxtı bitir</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Tema kolleksiyaları</translation>
 <translation id="6439114592976064011">Saytların virtual reallıq cihazınızı və datanızı istifadə etməsinin qarşısını alın</translation>
 <translation id="6447842834002726250">Kukilər</translation>
 <translation id="6452138246455930388">Açıq tabda qiymət <ph name="OLD_PRICE" /> məbləğindən <ph name="NEW_PRICE" /> məbləğinə düşdü: <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:</translation>
 <translation id="7423098979219808738">Öncə soruşun</translation>
 <translation id="7423538860840206698">Buferdə oxu girişi blok edildi</translation>
 <translation id="7425915948813553151">Saytlar üçün tünd tema</translation>
+<translation id="7429767477925996803">Chrome rəngləri</translation>
 <translation id="746412105358554870">JavaScript optimallaşdırılması və təhlükəsizliyi</translation>
 <translation id="7478658909253570368">Saytlara ardıcıl portlara qoşulmaq icazəsi verməyin</translation>
 <translation id="7488573225650545859">Tətbiq siyahısındakı Baxış tablarını gizlədin</translation>
@@ -676,7 +676,6 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:</translation>
 <translation id="802154636333426148">Endirmə alınmadı</translation>
 <translation id="8033047164036749181">Bu saytdan gələn bildirişlərə abunə olun</translation>
 <translation id="8051193500142930381">Kamera tələb edən xüsusiyyətlər işləmir</translation>
-<translation id="8056330801132235235">Defolt Chrome</translation>
 <translation id="8067883171444229417">Videonu oxudun</translation>
 <translation id="8068648041423924542">Sertifikatı seçmək mümkün deyil.</translation>
 <translation id="8077120325605624147">Ziyarət etdiyiniz istənilən sayt sizə istənilən reklamı göstərə bilər</translation>

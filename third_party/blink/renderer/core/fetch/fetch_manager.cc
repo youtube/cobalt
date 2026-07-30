@@ -851,6 +851,11 @@ void FetchManager::Loader::DidFinishLoading(uint64_t) {
 
 void FetchManager::Loader::DidFail(uint64_t identifier,
                                    const ResourceError& error) {
+  if (GetExecutionContext()) {
+    GetExecutionContext()->MaybeRecordFetchError(error.ErrorCode(),
+                                                 GetFetchRequestData());
+  }
+
   // Record the failures for blob fetch request.
   if (GetFetchRequestData() &&
       GetFetchRequestData()->Url().ProtocolIs("blob")) {
@@ -1179,7 +1184,6 @@ void FetchLoaderBase::PerformHTTPFetch(ExceptionState& exception_state) {
     request.SetFetchRetryOptions(fetch_request_data_->RetryOptions().value());
   }
 
-  request.SetAdAuctionHeaders(fetch_request_data_->AdAuctionHeaders());
   request.SetSharedStorageWritableOptedIn(
       fetch_request_data_->SharedStorageWritable());
 

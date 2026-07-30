@@ -30,6 +30,7 @@ import type {ComposeboxFileCarouselElement} from '//resources/cr_components/comp
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
@@ -63,6 +64,7 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
 
   static override get properties() {
     return {
+      entrypointName: {type: String, reflect: true},
       /*
       `expanding_` property is used in composebox.css styles. It is added
       so that the imported styles work well. Remove this property once each
@@ -72,14 +74,20 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
         reflect: true,
         type: Boolean,
       },
+      shouldRemainFolded_: {
+        reflect: true,
+        type: Boolean,
+      },
     };
   }
 
+  accessor entrypointName: string = 'Realbox';
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   protected accessor expanding_: boolean = true;
+  protected accessor shouldRemainFolded_: boolean = true;
 
   override get keepMenuOpenOnTabSelect(): boolean {
     return getLoadTimeBoolean('keepMenuOpenOnTabSelectForRealbox', false);
@@ -136,6 +144,26 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
     this.eventTracker_.removeAll();
   }
 
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    this.shouldRemainFolded_ = this.computeShouldRemainFolded();
+  }
+
+  private computeShouldRemainFolded(): boolean {
+    if (this.errorMessage) {
+      return false;
+    }
+    if ((this.files?.size ?? 0) > 0) {
+      return false;
+    }
+    if (this.inToolMode) {
+      return false;
+    }
+    if ((this.result?.matches?.length ?? 0) > 0) {
+      return false;
+    }
+    return true;
+  }
 
   override shouldShowDivider(): boolean {
     const hasNonTabFiles = Array.from(this.files.values()).some(f => !f.url);

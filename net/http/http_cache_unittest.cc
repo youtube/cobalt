@@ -12750,15 +12750,13 @@ TEST_F(HttpCacheTest, SetWebSocketHandshakeStreamCreateHelper) {
   EXPECT_FALSE(cache.network_layer()->last_transaction());
 
   info.url = GURL(kSimpleGET_Transaction.url);
+  trans->SetWebSocketHandshakeStreamCreateHelper(&create_helper);
+
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING,
             trans->Start(&info, callback.callback(), NetLogWithSource()));
 
   ASSERT_TRUE(cache.network_layer()->last_transaction());
-  EXPECT_FALSE(cache.network_layer()
-                   ->last_transaction()
-                   ->websocket_handshake_stream_create_helper());
-  trans->SetWebSocketHandshakeStreamCreateHelper(&create_helper);
   EXPECT_EQ(&create_helper, cache.network_layer()
                                 ->last_transaction()
                                 ->websocket_handshake_stream_create_helper());
@@ -17345,6 +17343,19 @@ TEST_F(HttpCacheTest, InvalidationFilterRevocation) {
   // Second request should be HIT again.
   RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
   EXPECT_EQ(cache.network_layer()->transaction_count(), current_count);
+}
+
+// Tests that restarting a transaction cleanly resets
+// done_headers_create_new_entry_ to false, preventing a CHECK failure in
+// DoGetBackendComplete() (crbug.com/537817232).
+TEST_F(HttpCacheTest, RestartResetsDoneHeadersCreateNewEntry) {
+  MockHttpCache cache;
+
+  // First request populates the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  // Subsequent request that revalidates or restarts does not hit CHECK failure.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
 }
 
 TEST_F(HttpCacheTest, SetMaxBytesBeforeInitWithoutForcedInit) {

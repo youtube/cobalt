@@ -49,6 +49,7 @@
 #import "ios/web/navigation/wk_navigation_util.h"
 #import "ios/web/public/annotations/annotations_text_manager.h"
 #import "ios/web/public/browser_state.h"
+#import "ios/web/public/content_type_util.h"
 #import "ios/web/public/find_in_page/crw_find_interaction.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/permissions/permissions.h"
@@ -56,7 +57,6 @@
 #import "ios/web/public/web_client.h"
 #import "ios/web/security/crw_cert_verification_controller.h"
 #import "ios/web/security/crw_ssl_status_updater.h"
-#import "ios/web/util/content_type_util.h"
 #import "ios/web/util/wk_web_view_util.h"
 #import "ios/web/web_state/crw_data_controls_delegate.h"
 #import "ios/web/web_state/crw_web_view.h"
@@ -887,8 +887,11 @@ JavaScriptCompletionBlock WrapCompletionBlock(
 - (void)createFullPagePDFWithCompletion:(void (^)(NSData*))completionBlock {
   // Invoke the `completionBlock` with nil rather than a blank PDF for certain
   // URLs or if there is a javascript dialog running.
+  const std::string& mimeType = self.webState->GetContentsMimeType();
+  const bool contentSupported =
+      web::IsContentTypeHtml(mimeType) || web::IsContentTypePdf(mimeType);
   const GURL& URL = self.webState->GetLastCommittedURL();
-  if (![self contentIsHTML] || !URL.is_valid() ||
+  if (!self.webView || !contentSupported || !URL.is_valid() ||
       web::GetWebClient()->IsAppSpecificURL(URL) ||
       self.webStateImpl->IsJavaScriptDialogRunning()) {
     dispatch_async(dispatch_get_main_queue(), ^{

@@ -777,6 +777,15 @@ suite('GlicSubpage', function() {
       assertTrue(isVisible(webActuationToggle));
     });
 
+    test('WebActuationSublabelAriaAttributes', () => {
+      const webActuationToggle =
+          $<SettingsToggleButtonElement>('webActuationToggle')!;
+      const sublabelLink = webActuationToggle.shadowRoot!.querySelector('a');
+      assertTrue(!!sublabelLink);
+      assertTrue(sublabelLink.hasAttribute('aria-label'));
+      assertTrue(sublabelLink.hasAttribute('aria-description'));
+    });
+
     test('ToggleEnabled', async () => {
       page.set('webActuationEnabledPref_.value', true);
       await flushTasks();
@@ -1221,7 +1230,80 @@ suite('GlicSubpage', function() {
       assertTrue(!!link);
       link.click();
       const url = await openWindowProxy.whenCalled('openUrl');
-      assertEquals('https://support.google.com/gemini/answer/16283624', url);
+      assertEquals('https://support.google.com/chrome?p=gic_media_questions', url);
+    });
+  });
+
+  suite('HotkeyLocalScopeEnabled', () => {
+    suiteSetup(function() {
+      loadTimeData.overrideValues({
+        glicHotkeyLocalScopeEnabled: true,
+      });
+    });
+
+    setup(function() {
+      return createGlicPage(/*initialShortcut=*/ '⌃A');
+    });
+
+    test('DropdownVisible', () => {
+      const scopeSelector = $<HTMLSelectElement>('scopeSelector');
+      assertTrue(!!scopeSelector);
+      assertTrue(isVisible(scopeSelector));
+    });
+
+    test('DropdownSelectionReflectsPref', () => {
+      const scopeSelector = $<HTMLSelectElement>('scopeSelector')!;
+
+      page.setPrefValue(PrefName.HOTKEY_GLOBAL_SCOPE_ENABLED, true);
+      assertEquals('GLOBAL', scopeSelector.value);
+
+      page.setPrefValue(PrefName.HOTKEY_GLOBAL_SCOPE_ENABLED, false);
+      assertEquals('CHROME', scopeSelector.value);
+    });
+
+    test('ChangingDropdownUpdatesPrefAndMetrics', async () => {
+      const scopeSelector = $<HTMLSelectElement>('scopeSelector')!;
+
+      scopeSelector.value = 'GLOBAL';
+      scopeSelector.dispatchEvent(new Event('change'));
+      assertTrue(
+          page.getPref<boolean>(PrefName.HOTKEY_GLOBAL_SCOPE_ENABLED).value);
+      await verifyUserAction('Glic.Settings.HotkeyScope.Global');
+
+      scopeSelector.value = 'CHROME';
+      scopeSelector.dispatchEvent(new Event('change'));
+      assertFalse(
+          page.getPref<boolean>(PrefName.HOTKEY_GLOBAL_SCOPE_ENABLED).value);
+      await verifyUserAction('Glic.Settings.HotkeyScope.Chrome');
+    });
+
+    test('MainShortcutVisibleEvenIfLauncherDisabled', async () => {
+      const mainShortcutSettingId = 'mainShortcutSetting';
+      const selectionShortcutSettingId = 'selectionShortcutSetting';
+
+      // Disable launcher, both shortcuts should still be visible because local
+      // scope is enabled.
+      page.setPrefValue(PrefName.LAUNCHER_ENABLED, false);
+      await flushTasks();
+      assertTrue(isVisible($(mainShortcutSettingId)));
+      assertTrue(isVisible($(selectionShortcutSettingId)));
+    });
+  });
+
+  suite('HotkeyLocalScopeDisabled', () => {
+    suiteSetup(function() {
+      loadTimeData.overrideValues({
+        glicHotkeyLocalScopeEnabled: false,
+      });
+    });
+
+    setup(function() {
+      return createGlicPage(/*initialShortcut=*/ '⌃A');
+    });
+
+    test('DropdownHidden', () => {
+      const scopeSelector = $<HTMLSelectElement>('scopeSelector');
+      assertFalse(isVisible(scopeSelector));
     });
   });
 });

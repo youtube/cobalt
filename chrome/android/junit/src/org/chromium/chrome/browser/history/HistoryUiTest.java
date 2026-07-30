@@ -49,7 +49,6 @@ import androidx.test.filters.SmallTest;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -440,10 +439,13 @@ public class HistoryUiTest {
                 mHistoryManager
                         .getContentManagerForTests()
                         .getOpenUrlIntent(mItem1.getUrl(), null, false);
-        Assert.assertEquals(mItem1.getUrl().getSpec(), intent.getDataString());
+        assertEquals(mItem1.getUrl().getSpec(), intent.getDataString());
         assertFalse(intent.hasExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB));
         assertFalse(intent.hasExtra(Browser.EXTRA_CREATE_NEW_TAB));
-        Assert.assertEquals(
+        assertEquals(
+                IntentHandler.TabOpenType.CLOBBER_CURRENT_TAB,
+                intent.getIntExtra(IntentHandler.EXTRA_TAB_OPEN_TYPE, -1));
+        assertEquals(
                 PageTransition.AUTO_BOOKMARK,
                 intent.getIntExtra(IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, -1));
 
@@ -451,11 +453,11 @@ public class HistoryUiTest {
                 mHistoryManager
                         .getContentManagerForTests()
                         .getOpenUrlIntent(mItem2.getUrl(), true, true);
-        Assert.assertEquals(mItem2.getUrl().getSpec(), intent.getDataString());
-        Assert.assertTrue(
-                intent.getBooleanExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false));
-        Assert.assertTrue(intent.getBooleanExtra(Browser.EXTRA_CREATE_NEW_TAB, false));
-        Assert.assertEquals(
+        assertEquals(mItem2.getUrl().getSpec(), intent.getDataString());
+        assertTrue(intent.getBooleanExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false));
+        assertFalse(intent.hasExtra(Browser.EXTRA_CREATE_NEW_TAB));
+        assertFalse(intent.hasExtra(IntentHandler.EXTRA_TAB_OPEN_TYPE));
+        assertEquals(
                 PageTransition.AUTO_BOOKMARK,
                 intent.getIntExtra(IntentHandler.EXTRA_PAGE_TRANSITION_TYPE, -1));
     }
@@ -1012,7 +1014,6 @@ public class HistoryUiTest {
 
     @Test
     @SmallTest
-    @Ignore // See https://crbug.com/40861892
     public void testCopyLink() {
         final ClipboardManager clipboardManager =
                 (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);

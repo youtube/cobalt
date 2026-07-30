@@ -110,7 +110,6 @@
 #include "content/browser/hid/hid_service.h"
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
-#include "content/browser/interest_group/ad_auction_document_data.h"
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -140,6 +139,7 @@
 #include "content/browser/renderer_host/dip_util.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
+#include "content/browser/renderer_host/initiator_navigation_state_impl.h"
 #include "content/browser/renderer_host/input/input_injector_impl.h"
 #include "content/browser/renderer_host/ipc_utils.h"
 #include "content/browser/renderer_host/local_network_access_util.h"
@@ -153,6 +153,7 @@
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/page_delegate.h"
+#include "content/browser/renderer_host/policy_container_host.h"
 #include "content/browser/renderer_host/randomized_confidence_utils.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_owner.h"
@@ -2605,7 +2606,6 @@ RenderFrameHostImpl::RenderFrameHostImpl(
           GetProcess()->GetStoragePartition()->GetGeneratedCodeCacheContext()),
       fenced_frame_status_(fenced_frame_status),
       devtools_frame_token_(devtools_frame_token),
-      base_auction_nonce_(base::Uuid::GenerateRandomV4()),
       tracing_track_(GetLocalFrameTracingTrack(
           frame_token_,
           is_main_frame(),
@@ -8570,16 +8570,28 @@ void RenderFrameHostImpl::DidInferColorScheme(
   }
 }
 
-void RenderFrameHostImpl::OnFirstContentfulPaint(base::TimeDelta duration) {
-  GetPage().SetFirstContentfulPaintInMainDocumentDuration(duration);
-  NotifyFirstContentfulPaint();
+void RenderFrameHostImpl::OnFirstContentfulPaint(
+    base::TimeTicks presentation_time) {
+  GetPage().SetFirstContentfulPaintInMainDocumentTime(presentation_time);
+  NotifyFirstContentfulPaint(presentation_time);
 }
 
-void RenderFrameHostImpl::NotifyFirstContentfulPaint() {
+void RenderFrameHostImpl::NotifyFirstContentfulPaint(
+    base::TimeTicks presentation_time) {
   if (IsInPrimaryMainFrame()) {
     // Notify the delegates of the FCP. Note that the notifications for
     // prerendering pages will be deferred until activation.
-    delegate_->OnFirstContentfulPaintInPrimaryMainFrame();
+    delegate_->OnFirstContentfulPaintInPrimaryMainFrame(presentation_time);
+  }
+}
+
+void RenderFrameHostImpl::OnLargestContentfulPaint(
+    base::TimeTicks presentation_time) {
+  if (IsInPrimaryMainFrame()) {
+    // Notify the delegates of the LCP candidate update. Note that, unlike FCP,
+    // candidate updates that occur while prerendering are not re-dispatched on
+    // activation; they are simply not forwarded.
+    delegate_->OnLargestContentfulPaintInPrimaryMainFrame(presentation_time);
   }
 }
 
@@ -9584,8 +9596,15 @@ void RenderFrameHostImpl::FocusedElementChanged(
     return;
   }
 
-  has_focused_editable_element_ = is_editable_element;
-  has_focused_richly_editable_element_ = is_richly_editable_element;
+  // TODO(https://crbug.com/538645006): Have blink send an enum instead of
+  // separate bools.
+  if (is_richly_editable_element) {
+    focused_editable_level_ = EditableLevel::kRichlyEditable;
+  } else if (is_editable_element) {
+    focused_editable_level_ = EditableLevel::kPlaintextEditable;
+  } else {
+    focused_editable_level_ = EditableLevel::kNotEditable;
+  }
 
   // First convert the bounds to root view.
   delegate_->OnFocusedElementChangedInFrame(
@@ -10663,7 +10682,7 @@ void RenderFrameHostImpl::CreateNewWindow(
           reply->widget_screen_rect.emplace(shown_rwhv->GetViewBounds());
           reply->window_screen_rect.emplace(
               static_cast<RenderWidgetHostViewBase*>(shown_rwhv)
-                  ->GetBoundsInScreen());
+                  ->GetBoundsInScreenWithoutTransform());
           reply->visual_properties =
               static_cast<RenderWidgetHostImpl*>(shown_rwh)
                   ->GetVisualProperties();
@@ -10684,12 +10703,6 @@ void RenderFrameHostImpl::SendLegacyTechEvent(
       /*url=*/GetOutermostMainFrameOrEmbedder()->GetLastCommittedURL(),
       /*frame_url=*/GetLastCommittedURL(), code_location->filename,
       code_location->line, code_location->column, std::nullopt);
-}
-
-void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
-    const std::string& event_type) {
-  // TODO(crbug.com/531746235): Remove this method once Mojo interface is
-  // updated.
 }
 
 std::vector<FencedFrame*> RenderFrameHostImpl::GetFencedFrames() const {
@@ -11516,6 +11529,13 @@ void RenderFrameHostImpl::BeginNavigation(
                                  initiator_process_id)) {
     return;
   }
+  // TODO(crbug.com/510258191): Ensure that we always have an initiator
+  // navigation state when a renderer is behaving properly, and reject any
+  // attempt to start a navigation without such a state.
+  scoped_refptr<InitiatorNavigationState> initiator_navigation_state =
+      GetInitiatorNavigationStateFromFrameToken(
+          base::OptionalToPtr(begin_params->initiator_frame_token),
+          initiator_process_id.GetUnsafeValue(), GetBrowserContext());
 
   // Container-initiated navigations must come from the same process as the
   // parent.
@@ -11526,6 +11546,25 @@ void RenderFrameHostImpl::BeginNavigation(
           "container initiated navigation from non-parent process");
       return;
     }
+  }
+
+  bool is_initiator_sandboxed_with_forms = false;
+  if (initiator_navigation_state) {
+    auto* initiator_navigation_state_impl =
+        static_cast<InitiatorNavigationStateImpl*>(
+            initiator_navigation_state.get());
+    is_initiator_sandboxed_with_forms =
+        (initiator_navigation_state_impl->policy_container_policies()
+             .sandbox_flags &
+         network::mojom::WebSandboxFlags::kForms) !=
+        network::mojom::WebSandboxFlags::kNone;
+  }
+  if ((begin_params->is_form_submission ||
+       validated_common_params->post_data) &&
+      is_initiator_sandboxed_with_forms) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(), bad_message::RFH_FORM_SUBMISSION_FROM_SANDBOXED_FRAME);
+    return;
   }
 
   // If the request is bearing Private State Tokens parameters:
@@ -11606,14 +11645,6 @@ void RenderFrameHostImpl::BeginNavigation(
     blob_url_loader_factory = ChromeBlobStorageContext::URLLoaderFactoryForUrl(
         GetStoragePartition(), validated_common_params->url);
   }
-
-  // TODO(crbug.com/510258191): Ensure that we always have an initiator
-  // navigation state when a renderer is behaving properly, and reject any
-  // attempt to start a navigation without such a state.
-  scoped_refptr<InitiatorNavigationState> initiator_navigation_state =
-      GetInitiatorNavigationStateFromFrameToken(
-          base::OptionalToPtr(begin_params->initiator_frame_token),
-          GetProcess()->GetDeprecatedID(), GetBrowserContext());
 
   if (waiting_for_init_) {
     pending_navigate_ = std::make_unique<PendingNavigation>(
@@ -13675,7 +13706,7 @@ void RenderFrameHostImpl::ResetLoadingState() {
 }
 
 void RenderFrameHostImpl::ClearFocusedElement() {
-  has_focused_editable_element_ = false;
+  focused_editable_level_ = EditableLevel::kNotEditable;
   GetAssociatedLocalFrame()->ClearFocusedElement();
 }
 
@@ -15066,6 +15097,24 @@ void RenderFrameHostImpl::BindFederatedRequestServiceReceiver(
 
 void RenderFrameHostImpl::BindRestrictedCookieManager(
     mojo::PendingReceiver<network::mojom::RestrictedCookieManager> receiver) {
+  // Check whether the current frame is permitted to access cookies. For
+  // example, this will avoid binding the interface for PDF or sandboxed frame
+  // processes that should never need to access cookies.
+  auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
+  if (!policy->CanAccessDataForOrigin(GetProcess()->GetID().GetUnsafeValue(),
+                                      GetLastCommittedOrigin())) {
+    // Note that there's intentionally no renderer kill here because the
+    // renderer doesn't prevent code in a sandboxed frame from requesting this
+    // interface via cookieStore.get() (despite such a frame having an opaque
+    // origin and no access to any cookies). The renderer does have subsequent
+    // security checks to deny access to cookies from opaque origins before it
+    // ever tries to use that interface, though. If a compromised renderer skips
+    // those checks and attempts to send IPCs to read/write cookies, those IPCs
+    // would fail if this interface isn't bound; writes would therefore be
+    // no-ops and reads would behave as if there are no cookies.
+    return;
+  }
+
   BindRestrictedCookieManagerWithOrigin(
       std::move(receiver), GetIsolationInfoForSubresources(),
       GetLastCommittedOrigin(), GetCookieSettingOverrides());
@@ -15577,18 +15626,30 @@ bool RenderFrameHostImpl::ValidateDidCommitParams(
     return false;
   }
 
-  // Error pages must commit in a opaque origin. Terminate the renderer
-  // process if this is violated.
-  if (bypass_checks_for_error_page && !params->origin.opaque()) {
-    DEBUG_ALIAS_FOR_ORIGIN(origin_debug_alias, params->origin);
-    bad_message::ReceivedBadMessage(
-        process, bad_message::RFH_ERROR_PROCESS_NON_UNIQUE_ORIGIN_COMMIT);
-    return false;
-  }
+  if (bypass_checks_for_error_page) {
+    // Error pages must commit in a opaque origin. Terminate the renderer
+    // process if this is violated.
+    if (!params->origin.opaque()) {
+      DEBUG_ALIAS_FOR_ORIGIN(origin_debug_alias, params->origin);
+      bad_message::ReceivedBadMessage(
+          process, bad_message::RFH_ERROR_PROCESS_NON_UNIQUE_ORIGIN_COMMIT);
+      return false;
+    }
 
-  if (!bypass_checks_for_error_page &&
-      !ValidateURLAndOrigin(params->url, params->origin,
-                            is_same_document_navigation, navigation_request)) {
+    // Error pages may legitimately commit a URL that doesn't match the process
+    // lock, so the CanCommitOriginAndUrl checks below are skipped. However, the
+    // committed URL must still match the URL that the browser asked the
+    // renderer to commit, since otherwise the renderer could place an arbitrary
+    // URL into session history and `last_committed_url_`.
+    if (navigation_request && !is_same_document_navigation &&
+        params->url != navigation_request->GetURL()) {
+      bad_message::ReceivedBadMessage(process,
+                                      bad_message::RFH_ERROR_PAGE_URL_MISMATCH);
+      return false;
+    }
+  } else if (!ValidateURLAndOrigin(params->url, params->origin,
+                                   is_same_document_navigation,
+                                   navigation_request)) {
     return false;
   }
 
@@ -16393,16 +16454,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility());
       }
 
-      if (fenced_frame_properties->ad_auction_data().has_value()) {
-        AdAuctionDocumentData::CreateForCurrentDocument(
-            this,
-            fenced_frame_properties->ad_auction_data()
-                ->GetValueIgnoringVisibility()
-                .interest_group_owner,
-            fenced_frame_properties->ad_auction_data()
-                ->GetValueIgnoringVisibility()
-                .interest_group_name);
-      }
     }
 
     // Continue observing the events for the committed navigation.
@@ -17225,7 +17276,7 @@ void RenderFrameHostImpl::SendCommitNavigation(
         std::move(subresource_proxying_loader_factory),
         std::move(keep_alive_loader_factory),
         std::move(fetch_later_loader_factory), document_token,
-        devtools_navigation_token, base_auction_nonce_,
+        devtools_navigation_token, base::Uuid::GenerateRandomV4(),
         std::move(policy_container), std::move(code_cache_host),
         std::move(code_cache_host_for_background),
         std::move(cookie_manager_info), std::move(storage_info),

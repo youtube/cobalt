@@ -9,6 +9,7 @@ import '/strings.m.js';
 import './feature_showcase_step.js';
 import './feature_showcase_stepper.js';
 import './default_browser/default_browser_step.js';
+import './gemini/gemini_step.js';
 import './google_lens/google_lens_step.js';
 import './themes_and_customization/themes_and_customization_step.js';
 import './password_manager/password_manager_step.js';
@@ -21,7 +22,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
-import {FeatureShowcaseBrowserProxyImpl} from './feature_showcase_browser_proxy.js';
+import {browserProxyFactory} from './feature_showcase.mojom-webui.js';
 
 export interface FeatureShowcaseAppElement {
   $: {
@@ -135,12 +136,11 @@ export class FeatureShowcaseAppElement extends CrLitElement {
       return;
     }
 
-    FeatureShowcaseBrowserProxyImpl.getInstance()
-        .handler.finishFeatureShowcase();
+    browserProxyFactory.getInstance().handler.finishFeatureShowcase();
   }
 
   private notifyStepShown_() {
-    FeatureShowcaseBrowserProxyImpl.getInstance().handler.nextStepShown();
+    browserProxyFactory.getInstance().handler.nextStepShown();
   }
 
   private tryPlayingTransitionAnimations() {

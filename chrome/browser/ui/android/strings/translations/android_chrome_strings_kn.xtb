@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">ನೀವು ಅದನ್ನು ಅಳಿಸಿದರೆ, ಎಲ್ಲರೂ ತಕ್ಷಣವೇ "<ph name="GROUP_NAME" />" ಟ್ಯಾಬ್ ಗುಂಪಿಗೆ ಆ್ಯಕ್ಸೆಸ್ ಅನ್ನು ಕಳೆದುಕೊಳ್ಳುತ್ತಾರೆ ಮತ್ತು ಅದನ್ನು ಎಲ್ಲಾ ಸಾಧನಗಳಿಂದ ಅಳಿಸಲಾಗುತ್ತದೆ.</translation>
 <translation id="1142732900304639782">ಈ ಸೈಟ್‌ಗಳನ್ನು ಅನುವಾದಿಸುವ ಪ್ರಸ್ತಾಪ ಮಾಡಬೇಡಿ</translation>
 <translation id="1143193470214071120">ವಿಂಡೋವನ್ನು ಮುಚ್ಚಿ ಅಥವಾ ವಿಂಡೋಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
+<translation id="1143486892058798649">ಇದರಂತೆ ಲಿಂಕ್ ಅನ್ನು ಸೇವ್ ಮಾಡಿ…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> ಅನ್ನು ಸ್ಕ್ಯಾನ್‌ ಮಾಡಲಾಗುತ್ತಿದೆ</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" />, Chrome ನಲ್ಲಿ ತೆರೆಯುತ್ತದೆ. ಮುಂದುವರಿಯುವ ಮೂಲಕ, ನೀವು <ph name="BEGIN_LINK1" />Google ಸೇವಾ ನಿಯಮಗಳು<ph name="END_LINK1" />, ಹಾಗೂ <ph name="BEGIN_LINK2" />Google Chrome ಮತ್ತು ChromeOS ಹೆಚ್ಚುವರಿ ಸೇವಾ ನಿಯಮಗಳಿಗೆ<ph name="END_LINK2" /> ಸಮ್ಮತಿಸುತ್ತೀರಿ.</translation>
 <translation id="1154555449933432029">ನೀವು Google Password Manager ನಲ್ಲಿ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಸೇವ್‌ ಮಾಡಲಾಗಿಲ್ಲ.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">ನಿಮ್ಮ Google ಖಾತೆಯನ್ನು ನಿರ್ವಹಿಸಲು, "ಖಾತೆಯನ್ನು ನಿರ್ವಹಿಸಿ" ಬಟನ್ ಅನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
 <translation id="1549000191223877751">ಇತರ ವಿಂಡೋಗೆ ಸರಿಸಿ</translation>
 <translation id="1553358976309200471">Chrome ಅಪ್‌ಡೇಟ್‌ ಮಾಡಿ</translation>
+<translation id="1554352084785952638">"<ph name="SEARCH_TERMS" />" ಗಾಗಿ <ph name="SEARCH_ENGINE" /></translation>
 <translation id="1554532453982918912">ನೀವು ಬಳಸುವ ರೀತಿಯಲ್ಲಿ Chrome ಅನ್ನು ಬಳಸುವ ಇತರ ಬಳಕೆದಾರರಿಗಾಗಿ ಅದನ್ನು ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಿ</translation>
 <translation id="1568636008098739136">ಈ ಪುಟವನ್ನು ಆಲಿಸಿ ಈ ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಎಡಿಟ್ ಮಾಡಲು ಸ್ಪರ್ಶಿಸಿ ಮತ್ತು ಒತ್ತಿ ಹಿಡಿಯಿರಿ.</translation>
 <translation id="1571041387761170095">ದುರ್ಬಲ ಅಥವಾ ಮರುಬಳಕೆ ಮಾಡಲಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳಿಲ್ಲ</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{ಈ ಸಾಧನದಲ್ಲಿ 1 ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್ ಇದೆ}one{ಈ ಸಾಧನದಲ್ಲಿ # ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳಿವೆ}other{ಈ ಸಾಧನದಲ್ಲಿ # ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳಿವೆ}}</translation>
 <translation id="1594635596540195766">ಕೆಳಗಿನ ಪಟ್ಟಿಯಲ್ಲಿ <ph name="SUGGESTIONS_COUNT" /> ಸಲಹೆ ಮಾಡಿರುವ ಐಟಂಗಳಿವೆ.</translation>
+<translation id="159689249463841786">ಫೋಲ್ಡರ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಿ, ಪ್ರಸ್ತುತ <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634"><ph name="SITE_ETLD_PLUS_ONE" /> ಅನ್ನು <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ಜೊತೆ ಬಳಸಿ</translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, ಪಿನ್ ಮಾಡಿದ ರೆಕಾರ್ಡಿಂಗ್ ಟ್ಯಾಬ್</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, ಹಂಚಿಕೊಳ್ಳುವಿಕೆ ಟ್ಯಾಬ್</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(ಖಾಲಿ)</translation>
 <translation id="219283042927675668">ಗುಂಪಿನಲ್ಲಿನ ಟ್ಯಾಬ್‌ಗಳು</translation>
 <translation id="2194856509914051091">ಪರಿಗಣಿಸಬೇಕಾದ ಸಂಗತಿಗಳು</translation>
+<translation id="2196695604589508993">ಇತಿಹಾಸವನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, ಪಿನ್ ಮಾಡಿದ ಹಂಚಿಕೊಳ್ಳುವಿಕೆ ಟ್ಯಾಬ್</translation>
 <translation id="22091350895006575">ಬಳಕೆದಾರರ ಹೆಸರನ್ನು ಸೇರಿಸಿ</translation>
 <translation id="221494669172414749">ಪ್ರೊಫೈಲ್ ಲಾಕ್ ಇಲ್ಲದೆ Chrome ಅನ್ನು ತೆರೆಯುವುದರಿಂದ ನಿಮ್ಮ ಸೇವ್ ಮಾಡಿದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಪಾವತಿ ವಿಧಾನಗಳನ್ನು ಕಾರ್‌ನಿಂದ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ. ಪ್ರೊಫೈಲ್ ಲಾಕ್ ಅನ್ನು ಬಳಸುವುದರಿಂದ ಈ ಡೇಟಾವನ್ನು ಸುರಕ್ಷಿತವಾಗಿರಿಸುತ್ತದೆ.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">ಇನ್ನಷ್ಟು ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು</translation>
 <translation id="2332515770639153015">ವರ್ಧಿತ ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್ ಆನ್ ಆಗಿದೆ</translation>
 <translation id="233375395665273385">ಅಳಿಸಿ ಮತ್ತು ಸೈನ್ ಔಟ್ ಆಗಿ</translation>
+<translation id="2334275697832662087">Chrome ನ AI-ಚಾಲಿತ ಭದ್ರತೆಯು ಆನ್‌ಲೈನ್ ಬೆದರಿಕೆಗಳ ವಿರುದ್ಧ ನಿಮ್ಮನ್ನು ರಕ್ಷಿಸಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ, ನೀವು ಬ್ರೌಸ್ ಮಾಡುವಾಗ ನಿಮಗೆ ವಿಶ್ವಾಸವನ್ನು ನೀಡುತ್ತದೆ</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</translation>
 <translation id="2349710944427398404">ಖಾತೆಗಳು, ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು ಮತ್ತು ಸೇವ್ ಮಾಡಿದ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಒಳಗೊಂಡಂತೆ Chrome ಬಳಸಿದ ಒಟ್ಟು ಡೇಟಾ</translation>
 <translation id="2354001756790975382">ಇತರ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">ಏನೋ ತಪ್ಪಾಗಿದೆ. ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="3577558748185201054">ನಿಮ್ಮ ಆಸಕ್ತಿಗಳು ಮತ್ತು ಆದ್ಯತೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
 <translation id="3587482841069643663">ಎಲ್ಲ</translation>
+<translation id="3598421953808879451">ಇದರಂತೆ ವೀಡಿಯೊ ಸೇವ್ ಮಾಡಿ…</translation>
 <translation id="3602290021589620013">ಪೂರ್ವವೀಕ್ಷಣೆ</translation>
 <translation id="3614126103057878858">ದರದ ಒಳನೋಟಗಳು</translation>
 <translation id="3616113530831147358">ಆಡಿಯೋ</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">ಕೆಳಭಾಗದ ಶೀಟ್</translation>
 <translation id="4045441967987592849">ಪುನಃ ತೆರೆಯಿರಿ</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" /> ಗಾಗಿ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು</translation>
+<translation id="4051548576872472315">ನಿಮ್ಮ ಇತ್ತೀಚೆಗೆ ಮುಚ್ಚಲಾದ ಟ್ಯಾಬ್‌ಗಳು ಮತ್ತು ವಿಂಡೋಗಳನ್ನು ಇಲ್ಲಿ ಹುಡುಕಿ</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{ಅಜ್ಞಾತ ವಿಂಡೋದಲ್ಲಿ ತೆರೆಯಿರಿ}one{ಅಜ್ಞಾತ ವಿಂಡೋದಲ್ಲಿ ಎಲ್ಲಾ (#) ತೆರೆಯಿರಿ}other{ಅಜ್ಞಾತ ವಿಂಡೋದಲ್ಲಿ ಎಲ್ಲಾ (#) ತೆರೆಯಿರಿ}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯ <ph name="TABS_COUNT_ONE" /> ಪ್ರಮಾಣಿತ ಟ್ಯಾಬ್}one{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯ <ph name="TABS_COUNT_MANY" /> ಪ್ರಮಾಣಿತ ಟ್ಯಾಬ್‌ಗಳು}other{ಹಂಚಿಕೊಂಡ ಟ್ಯಾಬ್ ಗುಂಪುಗಳಲ್ಲಿನ ಹೊಸ ಚಟುವಟಿಕೆಯ <ph name="TABS_COUNT_MANY" /> ಪ್ರಮಾಣಿತ ಟ್ಯಾಬ್‌ಗಳು}}</translation>
 <translation id="405365679581583349">Google Play ಸೇವೆಗಳನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಿ</translation>
@@ -1277,6 +1284,7 @@
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" ಎಕ್ಸ್‌ಟೆನ್ಶನ್ ಅನ್ನು ನಿಮ್ಮ Google ಖಾತೆಯ ಮೂಲಕ ಬಳಸುವುದಕ್ಕಾಗಿ ನೀವು Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಬೇಕಿದೆ</translation>
 <translation id="6324916366299863871">ಶಾರ್ಟ್‌ಕಟ್ ಎಡಿಟ್ ಮಾಡಿ</translation>
 <translation id="6324977638108296054">ಹೈಲೈಟ್ ಮಾಡುವುದಕ್ಕಾಗಿ ಲಿಂಕ್ ಅನ್ನು ರಚಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
+<translation id="6331836477476466332">ನಿಮಗಾಗಿ ಸುರಕ್ಷಿತವಾದ, ಹೆಚ್ಚು ಶಕ್ತಿಯುತವಾದ ಬ್ರೌಸರ್</translation>
 <translation id="6333140779060797560"><ph name="APPLICATION" /> ಮೂಲಕ ಹಂಚು</translation>
 <translation id="6335454563754888572">ಪುಟವನ್ನು ಸೂಚಿಸುವ URL ಅನ್ನು ಎಡಿಟ್ ಮಾಡಿ: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">ಎನ್‌ಕ್ರಿಪ್ಶನ್</translation>
@@ -1434,6 +1442,7 @@
 <translation id="6867400383614725881">ಹೊಸ ಅಜ್ಞಾತ ವಿಂಡೋ</translation>
 <translation id="686899695320434745">ನಿಮ್ಮ ಪಾಸ್‌ಫ್ರೇಸ್‌ನೊಂದಿಗೆ ವಿಳಾಸಗಳನ್ನು ಎನ್‌ಕ್ರಿಪ್ಟ್ ಮಾಡಲಾಗಿಲ್ಲ. ಇತರ Google ಸೇವೆಗಳಲ್ಲಿ ಅವುಗಳನ್ನು ಬಳಸಲು ಇದು ನಿಮಗೆ ಅನುಮತಿಸುತ್ತದೆ.</translation>
 <translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> ಮೂಲಕ ಸೈನ್ ಇನ್ ಮಾಡಿದ್ದೀರಿ</translation>
+<translation id="6871397658902960384">ಬ್ರೌಸ್ ಮಾಡಲು ಪ್ರಾರಂಭಿಸಿ</translation>
 <translation id="687838958001010630">ಲಿಂಕ್ ಹೊಂದಿರುವ ಯಾರಾದರೂ ಎಲ್ಲಾ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಎಡಿಟ್ ಮಾಡಬಹುದು</translation>
 <translation id="6880903702195291049">ಅನುಮತಿಗಳ ಸೆಟ್ಟಿಂಗ್ ಸರಿಯಾಗಿದೆ</translation>
 <translation id="6883204995689174413">ಹಂಚಿಕೊಳ್ಳಿ</translation>
@@ -1519,6 +1528,7 @@
 <translation id="71503698506017927">ಪಾಸ್‌ಫ್ರೇಸ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್ Google Pay ಗೆ ಸಂಬಂಧಿಸಿದ ಪಾವತಿ ವಿಧಾನಗಳು ಮತ್ತು ವಿಳಾಸಗಳನ್ನು ಒಳಗೊಂಡಿರುವುದಿಲ್ಲ.
 
 ಈ ಸೆಟ್ಟಿಂಗ್ ಅನ್ನು ಬದಲಾಯಿಸಲು, <ph name="BEGIN_LINK" />ನಿಮ್ಮ ಖಾತೆಯಲ್ಲಿರುವ Chrome ಡೇಟಾವನ್ನು ಅಳಿಸಿ<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">ಚಿತ್ರವನ್ನು ಈ ರೀತಿ ಸೇವ್ ಮಾಡಿ…</translation>
 <translation id="7165972437814027679">Chrome ಕೆಲವು ಫೈಲ್‌ಗಳನ್ನು ಏಕೆ ನಿರ್ಬಂಧಿಸುತ್ತದೆ ಎಂಬುದರ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> ಹೆಸರಿನಲ್ಲಿ ಸೈನ್ ಇನ್ ಮಾಡಲಾಗಿದೆ. ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯುತ್ತದೆ.</translation>
 <translation id="7170930892977483182">ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಮತ್ತು Google Wallet ನಲ್ಲಿ ಸೇವ್ ಮಾಡಲಾದ ಎಲ್ಲಾ ಸೆಕ್ಯೂರಿಟಿ ಕೋಡ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ</translation>
@@ -1574,6 +1584,7 @@
 <translation id="7359002509206457351">ಪಾವತಿ ವಿಧಾನಗಳನ್ನು ಪ್ರವೇಶಿಸಿ</translation>
 <translation id="7363349185727752629">ನಿಮ್ಮ ಗೌಪ್ಯತೆಯ ಆಯ್ಕೆಗಳ ಮಾರ್ಗದರ್ಶಿ</translation>
 <translation id="7364103838544876661">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಲು ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು</translation>
+<translation id="736435710397109878">ಕಾರ್ಡ್‌ನ ಅಡ್ಡಹೆಸರು, ಗರಿಷ್ಠ 25 ಅಕ್ಷರಗಳು</translation>
 <translation id="7365073365123878797">Google Password Manager ಜೊತೆಗೆ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಸೇವ್ ಮಾಡಲು ಮತ್ತು ಬಳಸಲು ಪ್ರಾರಂಭಿಸುವುದಕ್ಕಾಗಿ, Google Play ಸೇವೆಗಳನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಿ</translation>
 <translation id="7368009310682364976">ಇತ್ತೀಚೆಗೆ ತೆರೆದ ಟ್ಯಾಬ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸಿ</translation>
 <translation id="7368927539449986686">ಸೈಟ್ ಹುಡುಕಾಟವನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ</translation>
@@ -1692,6 +1703,7 @@
 <translation id="7824665136384946951">ನಿಮ್ಮ ಸಂಸ್ಥೆಯು ಸುರಕ್ಷಿತ ಬ್ರೌಸಿಂಗ್ ಅನ್ನು ಆಫ್ ಮಾಡಿದೆ</translation>
 <translation id="7825973332242257878">ಟ್ಯಾಬ್ ಗುಂಪುಗಳು</translation>
 <translation id="7826342993930002256">ನಿಮ್ಮ Chrome, ಎಲ್ಲೆಡೆಯಲ್ಲೂ</translation>
+<translation id="7845155831233417403">ನೀವು ಗರಿಷ್ಠ <ph name="MAX_INSTANCE_COUNT" /> ವಿಂಡೋಗಳನ್ನು ಹೊಂದಿರಬಹುದು. ಮುಂದುವರಿಯಲು ವಿಂಡೋವನ್ನು ಮುಚ್ಚಿರಿ.</translation>
 <translation id="7846161022626028328">ದೋಷ ಎದುರಾಗಿದೆ. ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="7846296061357476882">Google ಸೇವೆಗಳು</translation>
 <translation id="784652447248278262">ಪ್ರಸ್ತುತ ವಿಂಡೋ</translation>
@@ -1758,7 +1770,6 @@
 <translation id="8088176524274673045">ಸಮೀಪದ ಜನರ ಜೊತೆಗೆ ಹಂಚಿಕೊಳ್ಳಲು, ಅವರು ಈ QR ಕೋಡ್ ಅನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಲಿ</translation>
 <translation id="8090732854597034573">ನಿಮಗೆ ಸಹಾಯ ಬೇಕಿದ್ದರೆ, ನಿಮ್ಮ ಪೋಷಕರನ್ನು ಕೇಳಿ</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" /> ಅವಧಿಯ ಯಾವುದೇ ಟ್ಯಾಬ್‌ಗಳು ಇಲ್ಲ</translation>
-<translation id="8103578431304235997">ಅದೃಶ್ಯ ಟ್ಯಾಬ್‌</translation>
 <translation id="810433609302852">ಸಲಹೆಗಳ ನೋಟಿಫಿಕೇಶನ್‌ಗಳ ಫೀಚರ್ ಪ್ರೋಮೋ ಮತ್ತು ಬಳಕೆಯ ಹಂತಗಳ ಕೆಳಭಾಗದ ಶೀಟ್</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">ಎಕ್ಸ್‌ಟೆನ್ಶನ್‌ಗಳು ಮತ್ತು ಈ ಸಾಧನದಲ್ಲಿ ಅವು ಸೇವ್ ಮಾಡಿದ ಡೇಟಾವನ್ನು ತೆಗೆದುಹಾಕಿ</translation>
@@ -1816,10 +1827,12 @@
 <translation id="8282297628636750033">ಸೈಟ್‌ಗೆ ಡಾರ್ಕ್ ಥೀಮ್ ಅನ್ವಯಿಸಿ</translation>
 <translation id="8282950411412455249">ಭದ್ರತೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಗೆ ಹೋಗಿ</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 ಅಜ್ಞಾತ ವಿಂಡೋವನ್ನು ಮುಚ್ಚಿರಿ}one{# ಅಜ್ಞಾತ ವಿಂಡೋಗಳನ್ನು ಮುಚ್ಚಿರಿ}other{# ಅಜ್ಞಾತ ವಿಂಡೋಗಳನ್ನು ಮುಚ್ಚಿರಿ}}</translation>
+<translation id="8289602658021943461">ವೀಡಿಯೊ ಫ್ರೇಮ್ ಅನ್ನು ಹೀಗೆ ಸೇವ್ ಮಾಡಿ…</translation>
 <translation id="8313599942510782709">ನಿಮ್ಮ ಕಾರ್ಯವು ಇನ್ನೂ ಪ್ರಗತಿಯಲ್ಲಿದೆ</translation>
 <translation id="8317318757008452355">ಪ್ರಿಂಟ್ ಮಾಡಲು ಆಯ್ಕೆಗಳನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="8320212361750431956">ಇತ್ತೀಚಿನ ಚಟುವಟಿಕೆ</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />ಹೊಸತು<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು, ಪಟ್ಟಿಗಳು</translation>
 <translation id="8342727528718219152">ಹಲವಾರು ನೋಟಿಫಿಕೇಶನ್‌ಗಳನ್ನು ಕಳುಹಿಸುವ ಸೈಟ್‌ಗಳ ಕುರಿತು Chrome ನಿಮಗೆ ತಿಳಿಸುತ್ತದೆ</translation>
 <translation id="834313815369870491">ಸೈಟ್‌ಗಳನ್ನು ಎಂದಿಗೂ ಅನುವಾದಿಸಬೇಡಿ</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, ಬಹು ಆಯ್ಕೆಮಾಡಿದ ಪಿನ್ ಮಾಡಿರುವ ರೆಕಾರ್ಡಿಂಗ್ ಅಜ್ಞಾತ ಟ್ಯಾಬ್</translation>
@@ -2061,6 +2074,7 @@
 <translation id="939598580284253335">ಪಾಸ್‌ಫ್ರೇಸ್ ಅನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, ಪಿನ್ ಮಾಡಿರುವ ಪಿಕ್ಚರ್-ಇನ್-ಪಿಕ್ಚರ್ ಅಜ್ಞಾತ ಟ್ಯಾಬ್</translation>
 <translation id="945522503751344254">ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ಕಳುಹಿಸಿ</translation>
+<translation id="948276827484905248">QR ಕೋಡ್ ರಚಿಸಿ</translation>
 <translation id="95817756606698420">Chrome ಚೀನಾದಲ್ಲಿ ಹುಡುಕಲು <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ಬಳಸಬಹುದು. ನೀವು ಇದನ್ನು <ph name="BEGIN_LINK" />ಸೆಟ್ಟಿಂಗ್‌ಗಳು<ph name="END_LINK" /> ನಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</translation>
 <translation id="961856697154696964">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ</translation>
 <translation id="963246339335003378">ಟಾಸ್ಕ್‌ ಮ್ಯಾನೇಜರ್‌ ಅನ್ನು ತೆರೆಯಿರಿ</translation>

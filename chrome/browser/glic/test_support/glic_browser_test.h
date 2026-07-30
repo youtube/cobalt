@@ -102,36 +102,66 @@ namespace glic {
 // Runs `get_value` until it returns `expected_value`. Returns a
 // TestResult<> indicating success or failure.
 // Note, `type_identity_t` ensures T's type is inferred from `expected_value`.
-template <typename T>
-[[nodiscard]] TestResult<> RunUntilEqual(
+template <typename T, typename Compare>
+[[nodiscard]] TestResult<> RunUntilComparisonPasses(
     base::FunctionRef<std::type_identity_t<T>()> get_value,
     const T& expected_value,
+    Compare compare,
+    std::string_view op_name,
     std::string_view message = std::string_view()) {
   using ValueType = std::remove_reference_t<T>;
-  if (get_value() == expected_value) {
+  if (compare(get_value(), expected_value)) {
     return base::ok();
   }
   std::vector<ValueType> ignored_values;
-  if (base::test::RunUntil([get_value, expected_value, &ignored_values]() {
-        ValueType value = get_value();
-        if (value == expected_value) {
-          return true;
-        }
-        if (ignored_values.empty() || ignored_values.back() != value) {
-          ignored_values.push_back(value);
-        }
-        return false;
-      })) {
+  if (base::test::RunUntil(
+          [get_value, expected_value, &ignored_values, compare]() {
+            ValueType value = get_value();
+            if (compare(value, expected_value)) {
+              return true;
+            }
+            if (ignored_values.empty() || ignored_values.back() != value) {
+              ignored_values.push_back(value);
+            }
+            return false;
+          })) {
     return base::ok();
   }
   std::stringstream ss;
-  ss << message << " Expected: " << base::ToString(expected_value)
-     << ", saw values: {";
+  ss << message << " Expected " << op_name << " "
+     << base::ToString(expected_value) << ", saw values: {";
   for (const auto& value : ignored_values) {
     ss << base::ToString(value) << ", ";
   }
   ss << "}";
   return base::unexpected(ss.str());
+}
+
+template <typename T>
+[[nodiscard]] TestResult<> RunUntilEqual(
+    base::FunctionRef<std::type_identity_t<T>()> get_value,
+    const T& expected_value,
+    std::string_view message = std::string_view()) {
+  return RunUntilComparisonPasses<T>(get_value, expected_value,
+                                     std::equal_to<T>(), "==", message);
+}
+
+template <typename T>
+[[nodiscard]] TestResult<> RunUntilGreaterThan(
+    base::FunctionRef<std::type_identity_t<T>()> get_value,
+    const T& threshold,
+    std::string_view message = std::string_view()) {
+  return RunUntilComparisonPasses<T>(get_value, threshold, std::greater<T>(),
+                                     ">", message);
+}
+
+template <typename T>
+[[nodiscard]] TestResult<> RunUntilLessThan(
+    base::FunctionRef<std::type_identity_t<T>()> get_value,
+    const T& threshold,
+    std::string_view message = std::string_view()) {
+  return RunUntilComparisonPasses<T>(get_value, threshold, std::less<T>(), "<",
+                                     message);
 }
 
 template <typename Trigger>
@@ -748,7 +778,7 @@ class GlicBrowserTestMixin : public T {
     return static_accels[0];
   }
 
-  bool TriggerHotkey(ui::Accelerator accelerator) {
+  void TriggerHotkey(ui::Accelerator accelerator) {
 #if BUILDFLAG(IS_ANDROID)
     gfx::NativeWindow window = GetBrowser()->GetWindow()->GetNativeWindow();
     int accelerator_state = ui_controls::kNoAccelerator;
@@ -764,25 +794,20 @@ class GlicBrowserTestMixin : public T {
     if (accelerator.IsCmdDown()) {
       accelerator_state |= ui_controls::kCommand;
     }
-    return ui_controls::SendKeyEvents(window, accelerator.key_code(),
-                                      ui_controls::kKeyPress,
-                                      accelerator_state);
+    ui_controls::SendKeyEvents(window, accelerator.key_code(),
+                               ui_controls::kKeyPress, accelerator_state);
 #else
     views::Widget* widget = views::Widget::GetWidgetForNativeWindow(
         GetBrowser()->GetWindow()->GetNativeWindow());
-    if (!widget) {
-      return false;
-    }
+    CHECK(widget);
     views::FocusManager* focus_manager = widget->GetFocusManager();
-    if (!focus_manager) {
-      return false;
-    }
-    return focus_manager->ProcessAccelerator(accelerator);
+    CHECK(focus_manager);
+    focus_manager->ProcessAccelerator(accelerator);
 #endif
   }
 
-  bool TriggerHotkey(LocalHotkeyManager::Command command) {
-    return TriggerHotkey(GetAccelerator(command));
+  void TriggerHotkey(LocalHotkeyManager::Command command) {
+    TriggerHotkey(GetAccelerator(command));
   }
 
  private:

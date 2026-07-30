@@ -260,8 +260,9 @@ void SpellCheckProvider::DidCreateNewDocument() {
   // documents that actually used the API, so the per-document cap can be
   // revisited with real-world data.
   if (!document_custom_words_.empty()) {
-    UMA_HISTOGRAM_COUNTS_10000("Spellcheck.DocumentCustomDictionary.WordCount",
-                               static_cast<int>(document_custom_words_.size()));
+    UMA_HISTOGRAM_COUNTS_100000(
+        "Spellcheck.DocumentCustomDictionary.WordCount",
+        static_cast<int>(document_custom_words_.size()));
   }
   document_custom_words_.clear();
   document_custom_dictionary_overflow_warned_ = false;
@@ -442,7 +443,8 @@ void SpellCheckProvider::OnRespondSpellingService(
   std::vector<blink::WebTextCheckingResult> textcheck_results;
   spellcheck_->CreateTextCheckingResults(
       SpellCheck::USE_HUNSPELL_FOR_GRAMMAR, GetSpellCheckHost(),
-      /*line_offset=*/0, line, results, &textcheck_results);
+      /*line_offset=*/0, line, results, &textcheck_results,
+      document_custom_words_.empty() ? nullptr : &document_custom_words_);
   completion->DidFinishCheckingText(textcheck_results);
 
   // Cache the request and the converted results.
@@ -559,8 +561,9 @@ void SpellCheckProvider::OnDestruct() {
   // Capture the final word count for documents that used the API but were
   // torn down without a follow-on navigation (e.g., the frame was removed).
   if (!document_custom_words_.empty()) {
-    UMA_HISTOGRAM_COUNTS_10000("Spellcheck.DocumentCustomDictionary.WordCount",
-                               static_cast<int>(document_custom_words_.size()));
+    UMA_HISTOGRAM_COUNTS_100000(
+        "Spellcheck.DocumentCustomDictionary.WordCount",
+        static_cast<int>(document_custom_words_.size()));
   }
   delete this;
 }

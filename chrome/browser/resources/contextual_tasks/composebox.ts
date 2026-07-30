@@ -188,7 +188,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   protected accessor showContextMenu_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
   protected accessor voiceSearchCoherenceEnabled_: boolean =
-      loadTimeData.getBoolean('voiceSearchCoherenceComposeboxesEnabled');
+      loadTimeData.getBoolean(
+          'voiceSearchCoherenceCobrowsingComposeboxEnabled');
   protected accessor inputState_: InputState|null = null;
   protected accessor showSuggestionsActivityLink_: boolean = false;
   protected accessor inVoiceSearchMode_: boolean = false;
@@ -501,11 +502,12 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
           /*line=*/ index,
           /*url=*/ match.destinationUrl,
           /*areMatchesShowing=*/ true,
-          /*mouseButton=*/ 0,
-          /*altKey=*/ false,
-          /*ctrlKey=*/ false,
-          /*metaKey=*/ false,
-          /*shiftKey=*/ false,
+          /*mouseButton=*/ 0, {
+            altKey: false,
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+          },
           /*viaKeyboard=*/ viaKeyboard);
     }
     this.clearInputAndFocus(/* querySubmitted= */ true);

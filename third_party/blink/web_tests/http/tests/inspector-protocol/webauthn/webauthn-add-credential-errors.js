@@ -6,11 +6,11 @@
 
   const credentialId = "cred-1";
   const credentialOptions = {
-    authenticatorId: "non-existant authenticator",
+    authenticatorId: 'non-existant authenticator',
     credential: {
       credentialId: btoa(credentialId),
-      privateKey: btoa("invalid private key"),
-      signCount: 0,
+      privateKey: btoa('invalid private key'),
+      signCount: -2,
       isResidentCredential: true,
     }
   };
@@ -32,6 +32,11 @@
     },
   })).result.authenticatorId;
   testRunner.log(await dp.WebAuthn.addCredential(credentialOptions));
+
+  // Try with a signature counter < -1.
+  credentialOptions.credential.rpId = 'devtools.test';
+  testRunner.log(await dp.WebAuthn.addCredential(credentialOptions));
+  credentialOptions.credential.signCount = 0;
 
   // Try registering a resident credential on an authenticator not capable of
   // resident credentials.
@@ -65,6 +70,62 @@
   credentialOptions.credential.largeBlob = btoa("large blob");
   credentialOptions.credential.isResidentCredential = false;
   testRunner.log(await dp.WebAuthn.addCredential(credentialOptions));
+
+  // Try with CMTG keys on a non-CMTG authenticator.
+  const cmtgOnNonCmtgAuthOptions = {
+    authenticatorId: credentialOptions.authenticatorId,
+    credential: {
+      credentialId: btoa('cmtg-on-non-cmtg'),
+      rpId: 'devtools.test',
+      privateKey: await session.evaluateAsync('generateBase64Key()'),
+      signCount: 0,
+      isResidentCredential: true,
+      userHandle: btoa('nina'),
+      cmtgKeys: [await session.evaluateAsync('generateBase64Key()')],
+    }
+  };
+  testRunner.log(await dp.WebAuthn.addCredential(cmtgOnNonCmtgAuthOptions));
+
+  // Create a CMTG-enabled authenticator.
+  const cmtgAuthId = (await dp.WebAuthn.addVirtualAuthenticator({
+                       options: {
+                         protocol: 'ctap2',
+                         transport: 'usb',
+                         hasResidentKey: true,
+                         hasUserVerification: false,
+                         hasCmtgKey: true,
+                       }
+                     })).result.authenticatorId;
+
+  // Try with an invalid CMTG key on CMTG authenticator.
+  const invalidCmtgKeyOptions = {
+    authenticatorId: cmtgAuthId,
+    credential: {
+      credentialId: btoa('cmtg-cred-invalid-key'),
+      rpId: 'devtools.test',
+      privateKey: await session.evaluateAsync('generateBase64Key()'),
+      signCount: 0,
+      isResidentCredential: true,
+      userHandle: btoa('nina'),
+      cmtgKeys: [btoa('invalid cmtg key')],
+    }
+  };
+  testRunner.log(await dp.WebAuthn.addCredential(invalidCmtgKeyOptions));
+
+  // Try with activeCmtgKeyIndex out of bounds on CMTG authenticator.
+  const cmtgCredentialOptions = {
+    authenticatorId: cmtgAuthId,
+    credential: {
+      credentialId: btoa('cmtg-cred-error'),
+      rpId: 'devtools.test',
+      privateKey: await session.evaluateAsync('generateBase64Key()'),
+      signCount: 0,
+      isResidentCredential: true,
+      userHandle: btoa('nina'),
+      activeCmtgKeyIndex: 0,
+    }
+  };
+  testRunner.log(await dp.WebAuthn.addCredential(cmtgCredentialOptions));
 
   testRunner.completeTest();
 })

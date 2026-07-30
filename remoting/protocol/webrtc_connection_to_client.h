@@ -31,6 +31,7 @@ struct AudioSampleInfo;
 class WebrtcAudioFifoSinkAdapter;
 
 class WebrtcVideoEncoderFactory;
+class IceConfigFetcher;
 class HostControlDispatcher;
 class HostEventDispatcher;
 
@@ -39,8 +40,7 @@ class WebrtcConnectionToClient : public ConnectionToClient,
                                  public ChannelDispatcherBase::EventHandler {
  public:
   WebrtcConnectionToClient(
-      std::unique_ptr<Session> session,
-      scoped_refptr<protocol::TransportContext> transport_context,
+      std::unique_ptr<protocol::IceConfigFetcher> ice_config_fetcher,
       scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner);
 
   WebrtcConnectionToClient(const WebrtcConnectionToClient&) = delete;
@@ -53,7 +53,6 @@ class WebrtcConnectionToClient : public ConnectionToClient,
   // ConnectionToClient interface.
   void SetEventHandler(
       ConnectionToClient::EventHandler* event_handler) override;
-  Session* session() override;
   Transport* transport() override;
   void Disconnect(ErrorCode error,
                   std::string_view error_details,
@@ -101,8 +100,6 @@ class WebrtcConnectionToClient : public ConnectionToClient,
   raw_ptr<ConnectionToClient::EventHandler> event_handler_ = nullptr;
 
   std::unique_ptr<WebrtcTransport> transport_;
-
-  std::unique_ptr<Session> session_;
 
   raw_ptr<WebrtcVideoEncoderFactory, AcrossTasksDanglingUntriaged>
       video_encoder_factory_;

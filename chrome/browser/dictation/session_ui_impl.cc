@@ -107,7 +107,9 @@ void SessionUiImpl::OnError(StreamType stream_type) {
   }
 
   if (stream_type == StreamType::kAttached) {
-    controller_->UiRequestEndSession();
+    // If the attached stream failed, we still want to let any finalizing
+    // streams finish before ending the session.
+    controller_->FinalizeAndShutdown();
   }
 }
 
@@ -120,6 +122,10 @@ void SessionUiImpl::OnStopped() {
       toast_controller->MaybeShowToast(ToastParams(ToastId::kDictationStopped));
     }
   }
+}
+
+void SessionUiImpl::UpdateAudioLevel(float audio_level) {
+  bubble_ui_->UpdateAudioLevel(audio_level);
 }
 
 void SessionUiImpl::OnSessionStateChanged(SessionState state) {

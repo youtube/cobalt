@@ -59,10 +59,11 @@ void AugmentExceptionWithSourceLocation(ScriptState* script_state,
   String message_string = ToCoreString(isolate, message_value.As<v8::String>());
   String new_message_string;
   if (line_number != 0) {
-    new_message_string = message_string + " (at " + location_string + ":" +
-                         String::Number(line_number) + ")";
+    new_message_string = StrCat({message_string, " (at ", location_string, ":",
+                                 String::Number(line_number), ")"});
   } else {
-    new_message_string = message_string + " (at " + location_string + ")";
+    new_message_string =
+        StrCat({message_string, " (at ", location_string, ")"});
   }
 
   std::ignore =
@@ -84,6 +85,15 @@ WorkletModuleTreeClient::WorkletModuleTreeClient(
 // https://drafts.css-houdini.org/worklets/#fetch-and-invoke-a-worklet-script
 void WorkletModuleTreeClient::NotifyModuleTreeLoadFinished(
     ModuleScript* module_script) {
+  if (!script_state_->ContextIsValid()) {
+    PostCrossThreadTask(
+        *outside_settings_task_runner_, FROM_HERE,
+        CrossThreadBindOnce(&WorkletPendingTasks::Abort,
+                            WrapCrossThreadPersistent(pending_tasks_.Get()),
+                            /*error_to_rethrow=*/nullptr));
+    return;
+  }
+
   // TODO(nhiroki): Call reporting proxy functions appropriately (e.g.,
   // DidFailToFetchModuleScript(), WillEvaluateModuleScript()).
 

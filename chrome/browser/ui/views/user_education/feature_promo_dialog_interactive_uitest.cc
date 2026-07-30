@@ -25,7 +25,6 @@
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
-#include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/test_support/page_action_test_support.h"
@@ -104,7 +103,7 @@ class FeaturePromoDialogTest : public TestBase {
   }
 
   void TearDownOnMainThread() override {
-    Profile* const profile = browser()->profile();
+    Profile* const profile = browser()->GetProfile();
     web_app::WebAppRegistrar& registrar =
         web_app::WebAppProvider::GetForTest(profile)->registrar_unsafe();
     for (const auto& app_id : registrar.GetAppIds()) {

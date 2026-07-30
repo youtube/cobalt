@@ -32,6 +32,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/host_resolver_source.h"
+#include "net/dns/public/insecure_dns_mode.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/dns/resolve_context.h"
@@ -392,6 +393,9 @@ class HostResolverServiceEndpointRequestTest
     FastForwardBy(kDefaultTtl);
   }
 
+ protected:
+  base::test::ScopedFeatureList& feature_list() { return feature_list_; }
+
  private:
   base::test::ScopedFeatureList feature_list_;
 
@@ -454,7 +458,7 @@ TEST_F(HostResolverServiceEndpointRequestTest, KillDnsTask) {
   // DNS client causing AbortInsecureDnsTasks. The request falls back to
   // SystemTask, which doesn't resolve the destination.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
   ASSERT_TRUE(requester.request()->GetEndpointResults().empty());
   ASSERT_TRUE(requester.request()->GetDnsAliasResults().empty());
@@ -501,7 +505,7 @@ TEST_F(HostResolverServiceEndpointRequestTest, KillDnsTaskFallbackSecure) {
   // DNS client causing AbortInsecureDnsTasks, triggering secure DNS task as
   // fallback.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   EXPECT_THAT(requester.request()->GetEndpointResults(),
@@ -1900,6 +1904,49 @@ TEST_F(HostResolverServiceEndpointRequestTest, ReentrantCancelDuringAbortAll) {
   ASSERT_FALSE(requester_b.request());
 
   proc_->SignalMultiple(2u);
+}
+
+class HostResolverServiceEndpointRequestIntermediateResultsOnlyTest
+    : public HostResolverServiceEndpointRequestTest {
+ public:
+  HostResolverServiceEndpointRequestIntermediateResultsOnlyTest() {
+    feature_list().Reset();
+    feature_list().InitWithFeatures(
+        /*enabled_features=*/{features::kEnableIntermediateDnsResults},
+        /*disabled_features=*/{features::kHappyEyeballsV3});
+  }
+};
+
+TEST_F(HostResolverServiceEndpointRequestIntermediateResultsOnlyTest,
+       Ipv4Slow) {
+  UseIpv4DelayedDnsRules("4slow_ok");
+
+  Requester requester = CreateRequester("https://4slow_ok");
+  int rv = requester.Start();
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+  EXPECT_EQ(3u, resolver_->num_running_dispatcher_jobs_for_tests());
+
+  // AAAA and HTTPS should complete.
+  requester.WaitForOnUpdated();
+  EXPECT_EQ(1u, resolver_->num_running_dispatcher_jobs_for_tests());
+  ASSERT_FALSE(requester.finished_result().has_value());
+  ASSERT_TRUE(requester.request()->EndpointsCryptoReady());
+  EXPECT_THAT(requester.request()->GetEndpointResults(),
+              ElementsAre(ExpectServiceEndpoint(
+                  IsEmpty(), ElementsAre(MakeIPEndPoint("::1", 443)))));
+  EXPECT_THAT(requester.request()->GetDnsAliasResults(),
+              UnorderedElementsAre("4slow_ok"));
+
+  // Complete A request, which finishes the request synchronously.
+  mock_dns_client_->CompleteDelayedTransactions();
+  ASSERT_TRUE(requester.request()->EndpointsCryptoReady());
+  EXPECT_THAT(*requester.finished_result(), IsOk());
+  EXPECT_THAT(requester.finished_endpoints(),
+              ElementsAre(ExpectServiceEndpoint(
+                  ElementsAre(MakeIPEndPoint("127.0.0.1", 443)),
+                  ElementsAre(MakeIPEndPoint("::1", 443)))));
+  EXPECT_THAT(requester.request()->GetDnsAliasResults(),
+              UnorderedElementsAre("4slow_ok"));
 }
 
 TEST(HangingHostResolverTest, ServiceEndpointRequest) {

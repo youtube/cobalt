@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Đã đăng nhập bằng <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Mở trình đơn tài khoản.</translation>
 <translation id="1397144142234474689">Ẩn tuỳ chọn Nhật ký</translation>
 <translation id="1399268420835656394">Nếu không phải trẻ em, bạn nên kiểm tra tuổi trong Tài khoản Apple trên thiết bị này. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Đã điền trước đó</translation>
 <translation id="1407135791313364759">Mở tất cả</translation>
 <translation id="1408847409015257906">Nhấn vào "Quyền riêng tư và bảo mật".</translation>
 <translation id="1411386976162024013">Tìm kiếm bằng hình ảnh qua Ống kính</translation>
 <translation id="1417474386970818917">Đăng xuất và xoá</translation>
 <translation id="1426410128494586442">Có</translation>
-<translation id="1429187656584513419">Mở phần Mật khẩu</translation>
 <translation id="1430915738399379752">In</translation>
 <translation id="1433478348197382180">Chế độ đọc</translation>
 <translation id="1435271730600332883">Mở phần Tự động điền và mật khẩu</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Tài khoản của bạn do cha mẹ bạn quản lý.
 <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Đã thay đổi</translation>
+<translation id="1481450969185702334">Tìm và điền</translation>
 <translation id="1483493594462132177">Gửi</translation>
 <translation id="1486096554574027028">Tìm mật khẩu</translation>
 <translation id="1486593497476255523">Đã hoàn thành tác vụ với Nhóm thẻ!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Để bảo vệ quyền riêng tư của bạn, Chrome sẽ không tự động điền mật khẩu của bạn vào trường này.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 trang web (nhiều trang web khác trên các thiết bị đã đồng bộ hoá)}other{# trang web (nhiều trang web khác trên các thiết bị đã đồng bộ hoá)}}</translation>
+<translation id="2865392654629180917">Đặt câu hỏi để nhận câu trả lời dựa trên AI</translation>
 <translation id="2870560284913253234">Trang web</translation>
 <translation id="2876369937070532032">Gửi URL của một số trang mà bạn truy cập cho Google khi bạn gặp rủi ro về bảo mật</translation>
 <translation id="2883151425485251736">Xem và sửa những chủ đề bạn đã ẩn khỏi tài khoản</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Đang theo dõi giá</translation>
 <translation id="3038136505713492417">Xác minh danh tính của bạn để sử dụng khoá truy cập trên thiết bị này</translation>
 <translation id="3039671569659952257">Xóa thư mục</translation>
+<translation id="3050988301648974170">Mở tính năng Kiểm tra mật khẩu</translation>
 <translation id="3053332585453689122">Gửi các URL bạn truy cập và một mẫu nhỏ nội dung trang, nội dung tải xuống, hoạt động của tiện ích và thông tin hệ thống cho dịch vụ Duyệt web An toàn của Google để kiểm tra xem các nội dung đó có gây hại hay không.</translation>
 <translation id="3055102495753300780">Dung lượng lưu trữ thông tin</translation>
 <translation id="3059270601560379555">Lượt tìm kiếm mới</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Nhóm thẻ mới...</translation>
 <translation id="3185760469172949183">Đã hoàn thành tác vụ tìm kiếm bằng camera!</translation>
 <translation id="3186796054637504691">Xoá nhật ký và dữ liệu trang web</translation>
+<translation id="3190558889382726167">Đã lưu mật khẩu</translation>
 <translation id="3190736958609431397">Bỏ theo dõi</translation>
 <translation id="3208260410153224535">Tổ chức của bạn đã tắt tính năng đăng nhập. Dấu trang, mật khẩu mới và các nội dung khác sẽ chỉ được lưu vào thiết bị này.</translation>
 <translation id="3211969308836412674">Bỏ ghim trang web</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">15 phút qua</translation>
 <translation id="5020732097997376541">Nhấn vào "biểu tượng Ống kính"</translation>
 <translation id="5021500396464456616">Liên hệ với người đã gửi đường liên kết này</translation>
+<translation id="503173149952522259">Nhấn và giữ để ghim thẻ này</translation>
 <translation id="5039804452771397117">Cho phép</translation>
 <translation id="5050042263972837708">Tên nhóm</translation>
 <translation id="5050810143224996149">Chia sẻ mật khẩu</translation>
@@ -2427,6 +2432,7 @@
 <translation id="9013605037177245304">Bật thông báo</translation>
 <translation id="9029650858822697271">Hệ thống đã đăng xuất bạn</translation>
 <translation id="9032405509996909363">Xác nhận yêu cầu xoá dữ liệu duyệt web</translation>
+<translation id="9035699147763101514">Dựa trên Trí thông minh cá nhân của Gemini. Quản lý lựa chọn của bạn trong phần cài đặt.</translation>
 <translation id="9039373489628511875">Băng thông</translation>
 <translation id="9042893549633094279">Quyền riêng tư và bảo mật</translation>
 <translation id="9055291197094969722">Tạo nhóm thẻ để sắp xếp các thẻ đang mở và giữ vững hiệu quả</translation>
@@ -2438,6 +2444,7 @@
 <translation id="9070824521421603770">Hệ thống sẽ đăng xuất bạn và đóng các thẻ</translation>
 <translation id="9072837124205571418">Nhóm thẻ trên tất cả các thiết bị</translation>
 <translation id="9081058212938299310">Bạn có muốn cập nhật mật khẩu cho <ph name="USERNAME" /> không?</translation>
+<translation id="908365381820697818">Giờ đây, bạn có thể tìm và điền thông tin từ Gmail và nhiều nguồn khác</translation>
 <translation id="9083838294503912307">Để đồng bộ hóa và cá nhân hóa trên các thiết bị, hãy bật tính năng đồng bộ hóa.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Bạn có {count} mật khẩu yếu. Điều này có thể khiến bạn gặp rủi ro về bảo mật. Hãy khắc phục ngay để giữ an toàn.}other{Bạn có {count} mật khẩu yếu. Điều này có thể khiến bạn gặp rủi ro về bảo mật. Hãy khắc phục ngay để giữ an toàn.}}</translation>
 <translation id="9084369964545892485">Thẻ ẩn danh mới trong nhóm</translation>

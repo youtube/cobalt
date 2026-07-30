@@ -103,7 +103,8 @@ class MockDiceWebSigninInterceptor : public DiceWebSigninInterceptor {
                CoreAccountId account_id,
                signin_metrics::AccessPoint access_point,
                bool is_new_account,
-               bool is_sync_signin),
+               bool is_sync_signin,
+               signin::Tribool primary_is_connected),
               (override));
 
  private:
@@ -121,7 +122,8 @@ class ProcessDiceHeaderDelegateImplTest
  public:
   ProcessDiceHeaderDelegateImplTest()
       : email_("foo@bar.com"),
-        auth_error_(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS) {
+        auth_error_(GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+            GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN)) {
     account_info_.gaia = GaiaId("12345");
     account_info_.account_id = CoreAccountId::FromGaiaId(account_info_.gaia);
     account_info_.email = "email@gmail.com";
@@ -431,8 +433,10 @@ TEST_F(ProcessDiceHeaderDelegateImplTest, AttemptChromeSigninChoiceRemembered) {
       CreateDelegateAndNavigateToSignin(/*is_sync_signin_tab=*/false,
                                         /*redirect_url=*/GURL());
 
-  delegate->HandleTokenExchangeSuccess(account_info_.account_id,
-                                       /*is_new_account=*/true);
+  delegate->HandleTokenExchangeSuccess(
+      account_info_.account_id,
+      /*is_new_account=*/true,
+      /*primary_is_connected=*/signin::Tribool::kUnknown);
 
   histogram_tester.ExpectUniqueSample(
       "Signin.SignIn.Offered",
@@ -595,11 +599,13 @@ TEST_P(ProcessDiceHeaderDelegateImplTestHandleTokenExchangeSuccess,
 
   EXPECT_CALL(
       *mock_interceptor(),
-      MaybeInterceptWebSignin(web_contents(), account_info_.account_id,
-                              GetParam().access_point, !GetParam().is_reauth,
-                              GetParam().sync_signin));
-  delegate->HandleTokenExchangeSuccess(account_info_.account_id,
-                                       !GetParam().is_reauth);
+      MaybeInterceptWebSignin(
+          web_contents(), account_info_.account_id, GetParam().access_point,
+          !GetParam().is_reauth, GetParam().sync_signin,
+          /*primary_is_connected=*/signin::Tribool::kUnknown));
+  delegate->HandleTokenExchangeSuccess(
+      account_info_.account_id, !GetParam().is_reauth,
+      /*primary_is_connected=*/signin::Tribool::kUnknown);
 
   // Check that the sync signin flow is complete.
   if (GetParam().signin_tab) {

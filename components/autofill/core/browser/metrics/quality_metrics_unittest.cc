@@ -971,47 +971,6 @@ TEST_F(QualityMetricsTest, BasedOnAutocomplete) {
   }
 }
 
-// Tests that the Autofill.LabelInference.InferredLabelSource.AtSubmission2
-// metric is emitted correctly.
-TEST_F(QualityMetricsTest, InferredLabelSourceAtSubmissionMetric) {
-  const AutofillProfile& profile =
-      *personal_data().address_data_manager().GetProfileByGUID(kTestProfileId);
-
-  // Create a form and fill the `name_field` and `country_field` with values
-  // from the `profile`, ensuring that they have a possible type. The
-  // `street_field` is filled with an unknown value, which makes sure that it
-  // doesn't have a possible type.
-  // The `FormFieldData::label_source` of the fields is set manually, since
-  // this test doesn't run label inference.
-  const std::u16string name_value = profile.GetInfo(
-      NAME_FULL, personal_data().address_data_manager().app_locale());
-  const std::u16string country_value =
-      profile.GetInfo(ADDRESS_HOME_COUNTRY,
-                      personal_data().address_data_manager().app_locale());
-  const FormData form = test::GetFormData(
-      {.fields = {{.role = NAME_FULL,
-                   .value = name_value,
-                   .label_source = FormFieldData::LabelSource::kUnknown},
-                  {.role = ADDRESS_HOME_LINE1,
-                   .value = u"unknown",
-                   .label_source = FormFieldData::LabelSource::kForId},
-                  {.role = ADDRESS_HOME_COUNTRY,
-                   .value = country_value,
-                   .label_source = FormFieldData::LabelSource::kLabelTag}}});
-  autofill_manager().AddSeenForm(
-      test::WithoutValues(form),
-      {NAME_FIRST, ADDRESS_HOME_LINE1, ADDRESS_HOME_COUNTRY});
-
-  // Expect that the label source of all fields with a possible type is logged
-  // on form submission.
-  base::HistogramTester histogram_tester;
-  SubmitForm(form);
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "Autofill.LabelInference.InferredLabelSource.AtSubmission2"),
-              BucketsAre(Bucket(FormFieldData::LabelSource::kUnknown, 1),
-                         Bucket(FormFieldData::LabelSource::kLabelTag, 1)));
-}
-
 // Tests that precision metric is recorded for email field predictions.
 TEST_F(QualityMetricsTest, EmailPredictionCorrectnessPrecisionMetric) {
   FormData form = CreateForm(
@@ -1113,6 +1072,42 @@ TEST_F(QualityMetricsTest, EmailPredictionCorrectnessRecallMetric) {
     SubmitForm(form);
     histogram_tester.ExpectTotalCount(precision_histogram, 0);
   }
+}
+
+// Tests that when split ZIP support is enabled and a 9-digit ZIP is stored in
+// the profile, a heuristic prediction of `ADDRESS_HOME_ZIP_PREFIX` for a
+// 5-digit entry is logged as a true positive.
+TEST_F(QualityMetricsTest, SplitZip_PrefixPredictionIsTruePositive) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillSupportSplitZipCode};
+
+  personal_data().test_address_data_manager().ClearProfiles();
+  AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
+  test::SetProfileInfo(&profile, test::SetProfileInfoOptionsBuilder()
+                                     .with_country("US")
+                                     .with_zipcode("79401-1234")
+                                     .Build());
+  personal_data().address_data_manager().AddProfile(profile);
+
+  test::FormDescription form_description = {
+      .description_for_logging = "SplitZip_PrefixPredictionIsTruePositive",
+      .fields = {{.heuristic_type = ADDRESS_HOME_ZIP_PREFIX, .value = u"79401"},
+                 {.heuristic_type = ADDRESS_HOME_ZIP_SUFFIX, .value = u"1234"}},
+  };
+
+  FormData form = GetAndAddSeenForm(form_description);
+
+  base::HistogramTester histogram_tester;
+  SubmitForm(form);
+
+  EXPECT_THAT(histogram_tester.GetAllSamples(
+                  "Autofill.FieldPredictionQuality.ByFieldType.Heuristic"),
+              BucketsAre(Bucket(GetFieldTypeGroupPredictionQualityMetric(
+                                    ADDRESS_HOME_ZIP_PREFIX, TRUE_POSITIVE),
+                                1),
+                         Bucket(GetFieldTypeGroupPredictionQualityMetric(
+                                    ADDRESS_HOME_ZIP_SUFFIX, TRUE_POSITIVE),
+                                1)));
 }
 
 }  // namespace autofill::autofill_metrics

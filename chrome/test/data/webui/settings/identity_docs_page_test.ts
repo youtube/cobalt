@@ -8,10 +8,12 @@ import {AiEnterpriseFeaturePrefName, EntityDataManagerProxyImpl} from 'chrome://
 import type {SettingsIdentityDocsPageElement} from 'chrome://settings/lazy_load.js';
 import {CrSettingsPrefs, loadTimeData, ModelExecutionEnterprisePolicyValue, resetRouterForTesting, Router} from 'chrome://settings/settings.js';
 import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {MetricsBrowserProxyImpl} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestEntityDataManagerProxy} from './test_entity_data_manager_proxy.js';
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
 suite('IdentityDocsPage', function() {
   let entityDataManager: TestEntityDataManagerProxy;
@@ -353,7 +355,11 @@ suite('IdentityDocsPage', function() {
       });
 
   suite('SuggestionsFromGemini', function() {
+    let metricsBrowserProxy: TestMetricsBrowserProxy;
+
     setup(function() {
+      metricsBrowserProxy = new TestMetricsBrowserProxy();
+      MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
       loadTimeData.overrideValues({
         showSuggestionsFromGeminiSettings: false,
       });
@@ -380,8 +386,11 @@ suite('IdentityDocsPage', function() {
       assertTrue(!!button);
 
       button.click();
+      assertEquals('/enhancedAutofill', Router.getInstance().currentRoute.path);
+      const action = await metricsBrowserProxy.whenCalled('recordAction');
       assertEquals(
-          '/suggestionsFromGemini', Router.getInstance().currentRoute.path);
+          'PersonalContext.Settings.EntryPoint.IdentityDocsSettings',
+          action);
     });
 
     test('row is hidden when flag is disabled', async function() {

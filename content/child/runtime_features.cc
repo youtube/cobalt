@@ -133,10 +133,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
       blinkFeatureToBaseFeatureMapping[] = {
           {wf::EnableAccessibilityUseAXPositionForDocumentMarkers,
            raw_ref(features::kUseAXPositionForDocumentMarkers)},
-#if BUILDFLAG(IS_ANDROID)
-          {wf::EnableAudioOutputDevices,
-           raw_ref(features::kAAudioPerStreamDeviceSelection)},
-#endif
           {wf::EnableBackgroundFetch, raw_ref(features::kBackgroundFetch)},
           {wf::EnableBoundaryEventDispatchTracksNodeRemoval,
            raw_ref(blink::features::kBoundaryEventDispatchTracksNodeRemoval)},
@@ -315,13 +311,7 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            kSetOnlyIfOverridden},
           {"FencedFramesLocalUnpartitionedDataAccess",
            raw_ref(blink::features::kFencedFramesLocalUnpartitionedDataAccess)},
-          {"Fledge", raw_ref(blink::features::kFledge)},
-          {"Fledge", raw_ref(features::kPrivacySandboxAdsAPIsOverride),
-           kSetOnlyIfOverridden},
-          {"Fledge", raw_ref(features::kPrivacySandboxAdsAPIsM1Override),
-           kSetOnlyIfOverridden},
-          {"FledgeBiddingAndAuctionServerAPI",
-           raw_ref(blink::features::kFledgeBiddingAndAuctionServer), kDefault},
+
 #if BUILDFLAG(IS_WIN)
           {"FontDataServiceForCSSLocalFonts",
            raw_ref(features::kFontDataServiceForCSSLocalFonts)},
@@ -486,6 +476,9 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
       ui::NativeTheme::GetInstanceForWeb()->use_overlay_scrollbar());
   WebRuntimeFeatures::EnableFluentScrollbars(ui::IsFluentScrollbarEnabled());
 #if BUILDFLAG(IS_ANDROID)
+  WebRuntimeFeatures::EnableAudioOutputDevices(
+      base::FeatureList::IsEnabled(features::kAAudioPerStreamDeviceSelection) &&
+      base::android::device_info::is_desktop());
   WebRuntimeFeatures::EnableDesktopAndroidScrollbars(
       command_line.HasSwitch(
           blink::switches::kEnableDesktopAndroidScrollbars) &&
@@ -586,16 +579,6 @@ void ResolveInvalidConfigurations() {
     WebRuntimeFeatures::EnableAttributionReporting(false);
   }
 
-  if (!base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
-    LOG_IF(WARNING,
-           WebRuntimeFeatures::IsAdInterestGroupAPIEnabledByRuntimeFlag())
-        << "AdInterestGroupAPI cannot be enabled in this "
-           "configuration. Use --"
-        << switches::kEnableFeatures << "="
-        << network::features::kInterestGroupStorage.name << " in addition.";
-    WebRuntimeFeatures::EnableAdInterestGroupAPI(false);
-    WebRuntimeFeatures::EnableFledge(false);
-  }
 
   // UserMediaElement cannot be enabled without the support of the
   // browser process.

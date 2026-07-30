@@ -329,7 +329,8 @@ class ContentAutofillDriver : public AutofillDriver,
   void DidDetectJavaScriptAutofill(
       const FormData& form,
       FieldRendererId trigger_field_id,
-      const std::vector<FieldRendererId>& field_ids) override;
+      std::vector<mojom::JavaScriptFieldModificationPtr> field_modifications)
+      override;
 
   // The functions below this line do not cross the IPC boundary.
   bool IsSafeToFill(const FormFieldData& field,
@@ -344,13 +345,21 @@ class ContentAutofillDriver : public AutofillDriver,
 
   const mojo::AssociatedRemote<mojom::AutofillAgent>& GetAutofillAgent();
 
+  // This only exists so that ContentAutofillDriverAttorney can make the pass
+  // key available to the helper functions in the anonymous namespace.
+  static AutofillManager::RendererEventPassKey autofill_manager_pass_key() {
+    return {};
+  }
+
+  // This only exists so that ContentAutofillDriverTestApi can make Lift()
+  // available to tests.
+  void LiftForTest(FormData& form);
+
   // The frame/document to which this driver is associated. Outlives `this`.
   // RFH is corresponds to neither a frame nor a document: it may survive
   // navigations that documents don't, but it may not survive cross-origin
   // navigations.
   const raw_ref<content::RenderFrameHost> render_frame_host_;
-
-  void LiftForTest(FormData& form);
 
   // The factory that created this driver. Outlives `this`.
   const raw_ref<ContentAutofillDriverFactory> owner_;

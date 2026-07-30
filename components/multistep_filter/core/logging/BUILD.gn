@@ -14,6 +14,8 @@ source_set("logging") {
     "multistep_filter_metrics.h",
     "multistep_filter_metrics_tracker.cc",
     "multistep_filter_metrics_tracker.h",
+    "multistep_filter_metrics_util.cc",
+    "multistep_filter_metrics_util.h",
   ]
   public_deps = [ "//components/multistep_filter/core/data_models" ]
   deps = [
@@ -22,6 +24,8 @@ source_set("logging") {
     "//components/multistep_filter/core:features",
     "//components/multistep_filter/core:util",
     "//components/multistep_filter/core/prefs",
+    "//services/metrics/public/cpp:metrics_cpp",
+    "//services/metrics/public/cpp:ukm_builders",
   ]
 }
 
@@ -39,6 +43,8 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/multistep_filter/core/data_models",
     "//components/multistep_filter/core/prefs",
+    "//components/ukm:test_support",
+    "//services/metrics/public/cpp:ukm_builders",
     "//testing/gmock",
     "//testing/gtest",
   ]

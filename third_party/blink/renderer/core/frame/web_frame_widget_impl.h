@@ -57,6 +57,7 @@
 #include "third_party/blink/public/mojom/input/ime_host.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/input/stylus_writing_gesture.mojom-blink.h"
+#include "third_party/blink/public/mojom/manifest/application_context.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/widget.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
@@ -115,6 +116,10 @@ class WebViewImpl;
 class WidgetBase;
 class WidgetEventHandler;
 class ScreenMetricsEmulator;
+
+template <typename IDLType>
+class ScriptPromiseResolver;
+struct IDLUndefined;
 
 // Implements WebFrameWidget for both main frames and child local root frame
 // (OOPIF).
@@ -263,6 +268,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   cc::EventListenerProperties EventListenerProperties(
       cc::EventListenerClass) const final;
   mojom::blink::DisplayMode DisplayMode() const override;
+  mojom::blink::ApplicationContext ApplicationContext() const override;
   ui::mojom::blink::WindowShowState WindowShowState() const override;
   bool Resizable() const override;
   const std::vector<gfx::Rect>& ViewportSegments() const override;
@@ -538,7 +544,8 @@ class CORE_EXPORT WebFrameWidgetImpl
       mojo::PendingAssociatedReceiver<mojom::blink::UnboundedSurfaceClient>
           client_receiver,
       mojo::PendingAssociatedRemote<mojom::blink::UnboundedSurfaceHost>
-          host_remote);
+          host_remote,
+      ScriptPromiseResolver<IDLUndefined>* resolver);
   void UpdateUnboundedElementBounds(const gfx::Rect& bounds);
 
   // mojom::blink::FrameWidgetInputHandler overrides:
@@ -549,6 +556,11 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Sets the display mode, which comes from the top-level browsing context and
   // is applied to all widgets.
   void SetDisplayMode(mojom::blink::DisplayMode);
+
+  // Sets how the top-level browsing context is presented to the user (a
+  // standalone web application window vs ordinary browser UI). Comes from the
+  // top-level browsing context and is applied to all widgets.
+  void SetApplicationContext(mojom::blink::ApplicationContext);
 
   // Sets the window show state.
   void SetWindowShowState(ui::mojom::blink::WindowShowState);
@@ -1225,6 +1237,8 @@ class CORE_EXPORT WebFrameWidgetImpl
   Member<WebLocalFrameImpl> local_root_;
 
   mojom::blink::DisplayMode display_mode_;
+  mojom::blink::ApplicationContext application_context_ =
+      mojom::blink::ApplicationContext::kNone;
   ui::mojom::blink::WindowShowState window_show_state_;
   bool resizable_;
 
@@ -1411,6 +1425,7 @@ class CORE_EXPORT WebFrameWidgetImpl
       visitor->Trace(client_receiver_);
       visitor->Trace(host_);
       visitor->Trace(active_element_);
+      visitor->Trace(unbounded_element_resolver_);
       ExecutionContextLifecycleObserver::Trace(visitor);
     }
 
@@ -1423,6 +1438,10 @@ class CORE_EXPORT WebFrameWidgetImpl
     HeapMojoAssociatedRemote<mojom::blink::UnboundedSurfaceHost> host_;
 
     WeakMember<HTMLElement> active_element_;
+
+    // The resolver for the pending showUnboundedElement() promise. It is used
+    // to resolve or reject when unbounded elements are shown or dismissed.
+    Member<ScriptPromiseResolver<IDLUndefined>> unbounded_element_resolver_;
 
     viz::FrameSinkId frame_sink_id_;
     viz::LocalSurfaceId local_surface_id_;

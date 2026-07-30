@@ -37,6 +37,13 @@ BASE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch,
 BASE_FEATURE(kOmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHideToolbarsInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsHideToolbarEnabled() {
+  if (IsChromeNextIaEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kHideToolbarsInOverflowMenu);
+}
 BASE_FEATURE(kHideFuseboxVoiceLensActions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSharedHighlightingIOS, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -80,8 +87,6 @@ BASE_FEATURE(kLensOverlayNavigationHistory, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLensOverlayCustomBottomSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchHeadersCheckEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kOmniboxDRSPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableTraitCollectionWorkAround,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -127,9 +132,6 @@ BASE_FEATURE(kIOSChooseFromDrive, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIOSChooseFromDriveSignedOut, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSDateToCalendarSignedOut, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSSaveToDriveSignedOut, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -854,6 +856,12 @@ bool IsOmniboxCrashFixKillSwitchEnabled() {
   return base::FeatureList::IsEnabled(kOmniboxCrashFixKillSwitch);
 }
 
+BASE_FEATURE(kAlertCrashFixKillSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAlertCrashFixKillSwitchEnabled() {
+  return base::FeatureList::IsEnabled(kAlertCrashFixKillSwitch);
+}
+
 BASE_FEATURE(kAIMEligibilityServiceStartWithProfile,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -878,6 +886,12 @@ BASE_FEATURE(kIOSWebContextMenuNewTitle, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsIOSWebContextMenuNewTitleEnabled() {
   return base::FeatureList::IsEnabled(kIOSWebContextMenuNewTitle);
+}
+
+BASE_FEATURE(kAtMemoryContextMenuEntryPoint, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAtMemoryContextMenuEntryPointEnabled() {
+  return base::FeatureList::IsEnabled(kAtMemoryContextMenuEntryPoint);
 }
 
 BASE_FEATURE(kAssistantContainer, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1068,6 +1082,12 @@ bool IsDisableFeedbackForIneligibleUsersEnabled() {
   return base::FeatureList::IsEnabled(kDisableFeedbackForIneligibleUsers);
 }
 
+BASE_FEATURE(kIncludeSystemLogInFeedback, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIncludeSystemLogInFeedbackEnabled() {
+  return base::FeatureList::IsEnabled(kIncludeSystemLogInFeedback);
+}
+
 BASE_FEATURE(kFullscreenRefactoring, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsFullscreenRefactoringEnabled() {
@@ -1243,16 +1263,17 @@ bool IsAppBarHiddenInFullscreen() {
   return base::FeatureList::IsEnabled(kAppBarHideInFullscreen);
 }
 
-// Feature flag for SearchEngineChoiceScreenSnackbar.
-BASE_FEATURE(kSearchEngineChoiceScreenSnackbar,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsSearchEngineChoiceScreenSnackbarEnabled() {
-  return base::FeatureList::IsEnabled(kSearchEngineChoiceScreenSnackbar);
-}
-
 BASE_FEATURE(kDefaultBottomOmniboxOnIOS, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsDefaultBottomOmniboxOnIOSEnabled() {
   return base::FeatureList::IsEnabled(kDefaultBottomOmniboxOnIOS);
+}
+
+BASE_FEATURE(kGlassToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGlassToolbarEnabled() {
+  if (@available(iOS 26, *)) {
+    return base::FeatureList::IsEnabled(kGlassToolbar);
+  }
+  return false;
 }

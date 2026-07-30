@@ -112,11 +112,9 @@ bool ShouldUseInfiniteCullRect(
   }
 
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(
-          object.GetDocument().GetExecutionContext())) {
-    auto* element = DynamicTo<Element>(object.GetNode());
-    if (element && element->IsInCanvasSubtree()) {
-      return true;
-    }
+          object.GetDocument().GetExecutionContext()) &&
+      object.IsInCanvasSubtree()) {
+    return true;
   }
 
   // TODO(crbug.com/501066634): This can likely be tighter bounded than
@@ -317,8 +315,8 @@ void CullRectUpdater::UpdateRecursively(const Context& parent_context,
       object.ShouldClipOverflowAlongBothAxis() && !object.IsFragmented()) {
     const auto* box = layer.GetLayoutBox();
     DCHECK(box);
-    PhysicalRect clip_rect =
-        box->OverflowClipRect(box->FirstFragment().PaintOffset());
+    PhysicalRect clip_rect = box->OverflowClipRect();
+    clip_rect.Move(box->FirstFragment().PaintOffset());
     if (!box->FirstFragment().GetCullRect().Intersects(
             ToEnclosingRect(clip_rect))) {
       context.current.subtree_is_out_of_cull_rect = true;

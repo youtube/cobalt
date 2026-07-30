@@ -270,10 +270,11 @@ component("views") {
     "focus/focus_search.h",
     "focus/native_view_focus_manager.h",
     "input_event_activation_protector.h",
-    "input_protection/default_input_protector_delegate.h",
-    "input_protection/input_protector_delegate.h",
+    "input_protection/default_input_protection_policy.h",
+    "input_protection/input_protection_policy.h",
     "input_protection/occluded_widget_input_protector.h",
-    "input_protection/occlusion_aware_input_protection_delegate.h",
+    "input_protection/occlusion_aware_input_protection_policy.h",
+    "input_protection/window_activation_input_protection_policy.h",
     "interaction/element_highlighter_views.h",
     "interaction/element_tracker_views.h",
     "interaction/element_tracker_widget_state.h",
@@ -517,9 +518,10 @@ component("views") {
     "focus/focus_search.cc",
     "focus/native_view_focus_manager.cc",
     "input_event_activation_protector.cc",
-    "input_protection/default_input_protector_delegate.cc",
+    "input_protection/default_input_protection_policy.cc",
     "input_protection/occluded_widget_input_protector.cc",
-    "input_protection/occlusion_aware_input_protection_delegate.cc",
+    "input_protection/occlusion_aware_input_protection_policy.cc",
+    "input_protection/window_activation_input_protection_policy.cc",
     "interaction/element_highlighter_views.cc",
     "interaction/element_tracker_views.cc",
     "interaction/element_tracker_widget_state.cc",
@@ -861,6 +863,7 @@ component("views") {
       "touchui/touch_selection_controller_impl.h",
       "view_constants_aura.h",
       "widget/focus_manager_event_handler.h",
+      "widget/legacy_window_reorderer.h",
       "widget/native_widget_aura.h",
       "widget/tooltip_manager_aura.h",
       "widget/widget_aura_utils.h",
@@ -893,6 +896,7 @@ component("views") {
       "touchui/touch_selection_controller_impl.cc",
       "view_constants_aura.cc",
       "widget/focus_manager_event_handler.cc",
+      "widget/legacy_window_reorderer.cc",
       "widget/native_widget_aura.cc",
       "widget/tooltip_manager_aura.cc",
       "widget/window_reorderer.cc",
@@ -1363,7 +1367,8 @@ test("views_unittests") {
     "focus/focus_traversal_unittest.cc",
     "input_event_activation_protector_unittest.cc",
     "input_protection/occluded_widget_input_protector_unittest.cc",
-    "input_protection/occlusion_aware_input_protection_delegate_unittest.cc",
+    "input_protection/occlusion_aware_input_protection_policy_unittest.cc",
+    "input_protection/window_activation_input_protection_policy_unittest.cc",
     "layout/animating_layout_manager_unittest.cc",
     "layout/box_layout_unittest.cc",
     "layout/box_layout_view_unittest.cc",
@@ -1576,6 +1581,7 @@ test("views_unittests") {
       "corewm/tooltip_controller_unittest.cc",
       "touchui/touch_selection_controller_impl_unittest.cc",
       "view_unittest_aura.cc",
+      "widget/legacy_window_reorderer_unittest.cc",
       "widget/native_widget_aura_unittest.cc",
       "widget/window_reorderer_unittest.cc",
     ]
@@ -1589,7 +1595,10 @@ test("views_unittests") {
 
     if (is_mac) {
       # views_unittests not yet compiling on Mac. http://crbug.com/378134
-      sources -= [ "widget/window_reorderer_unittest.cc" ]
+      sources -= [
+        "widget/legacy_window_reorderer_unittest.cc",
+        "widget/window_reorderer_unittest.cc",
+      ]
     }
 
     if (is_win) {

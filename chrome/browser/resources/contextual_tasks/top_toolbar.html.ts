@@ -6,29 +6,26 @@ import '/strings.m.js';
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
+import {getHtml as getLogoHtml} from './top_toolbar_logo.html.js';
 import type {TopToolbarElement} from './top_toolbar.js';
 
 // clang-format off
 export function getHtml(this: TopToolbarElement) {
   return html`<!--_html_template_start_-->
 <div id="top-row" data-element-id="kContextualTasksWebUIToolbarElementId">
-<if expr="_google_chrome">
-    <img src="chrome://resources/cr_components/searchbox/icons/google_g_gradient.svg"
-        class="top-toolbar-logo ${
-            this.isSidePanelRearchitectureEnabled_ ? 'clickable' : ''}"
+<div class="top-toolbar-logo-container">
+  ${this.isSidePanelRearchitectureEnabled_ ? html`
+    <cr-button class="top-toolbar-logo-button clickable"
+        data-element-id="kContextualTasksSuperGButtonElementId"
         @click="${this.onLogoClick_}">
-</if>
-<if expr="not _google_chrome">
-    <img class="top-toolbar-logo chrome-logo-light ${
-        this.isSidePanelRearchitectureEnabled_ ? 'clickable' : ''}"
-        src="chrome://resources/cr_components/searchbox/icons/chrome_product.svg"
-        @click="${this.onLogoClick_}"
-        alt="Chrome Logo">
-    <img class="top-toolbar-logo chrome-logo-dark ${
-        this.isSidePanelRearchitectureEnabled_ ? 'clickable' : ''}"
-        src="chrome://resources/images/chrome_logo_dark.svg" alt="Chrome Logo"
-        @click="${this.onLogoClick_}">
-</if>
+      ${getLogoHtml()}
+    </cr-button>
+  ` : html`
+    <div class="top-toolbar-logo-button">
+      ${getLogoHtml()}
+    </div>
+  `}
+</div>
   <div class="top-toolbar-title">
     ${this.title}
   </div>

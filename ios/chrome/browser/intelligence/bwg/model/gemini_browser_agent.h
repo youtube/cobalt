@@ -37,6 +37,7 @@
 class Browser;
 class FullscreenController;
 class AppBarMediatorTest;
+class ToolbarMediatorTest;
 class LocationBarBadgeMediatorTest;
 
 namespace gemini {
@@ -98,6 +99,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Returns true if Gemini is available for the active web state.
   bool IsGeminiAvailableForActiveWebState() const;
+
+  // Returns true if the floaty is currently visible.
+  bool IsFloatyVisible() const;
 
   // Returns true if Gemini Live mode is currently active.
   bool IsInGeminiLiveMode() const;
@@ -193,6 +197,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   friend class BrowserUserData<GeminiBrowserAgent>;
   friend class GeminiBrowserAgentTest;
   friend class AppBarMediatorTest;
+  friend class ToolbarMediatorTest;
   friend class LocationBarBadgeMediatorTest;
 
   // Fetches the full context of the active page and feeds it to Gemini.
@@ -523,9 +528,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // The entry point that triggered the current Gemini flow.
   gemini::EntryPoint entry_point_ = gemini::EntryPoint::Unknown;
 
-  // Weak pointer factory.
   // Observers for GeminiBrowserAgent.
   base::ObserverList<Observer> observers_;
+
+  // Weak pointer factory.
   base::WeakPtrFactory<GeminiBrowserAgent> weak_factory_{this};
 };
 

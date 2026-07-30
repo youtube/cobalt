@@ -27,7 +27,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
+#include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_service.h"
@@ -204,9 +204,10 @@ class NotificationContentDetectionBrowserTest
         ->OverrideTargetModelForTesting(
             optimization_guide::proto::
                 OPTIMIZATION_TARGET_NOTIFICATION_CONTENT_DETECTION,
-            optimization_guide::TestModelInfoBuilder()
-                .SetModelFilePath(model_file_path)
-                .Build());
+            optimization_guide::ModelInfo{
+                .model_file_path = model_file_path,
+                .version = 123,
+            });
   }
 
  private:
@@ -619,7 +620,7 @@ IN_PROC_BROWSER_TEST_F(NotificationContentDetectionBrowserTest,
   // Setup enterprise allowlist.
   base::ListValue allowlist;
   allowlist.Append("enterprise-domain.com");
-  browser()->profile()->GetPrefs()->SetList(
+  browser()->GetProfile()->GetPrefs()->SetList(
       prefs::kSafeBrowsingAllowlistDomains, std::move(allowlist));
 
   UpdateNotificationContentDetectionModel();
@@ -711,7 +712,7 @@ class NotificationContentDetectionLoggingEnabledBrowserTest
 
     base::RunLoop run_loop;
     browser()
-        ->profile()
+        ->GetProfile()
         ->GetStoragePartitionForUrl(origin)
         ->GetPlatformNotificationContext()
         ->WriteNotificationData(
@@ -828,7 +829,7 @@ IN_PROC_BROWSER_TEST_P(NotificationContentDetectionLoggingEnabledBrowserTest,
       std::make_unique<PersistentNotificationHandler>();
   handler->ReportUnwarnedNotificationAsSpam(
       GetNotificationId(/*is_allowlisted=*/true), GURL(kAllowlistedUrl),
-      browser()->profile());
+      browser()->GetProfile());
   ASSERT_TRUE(log_uploaded_signal.Wait());
   VerifyUniqueQualityLog(
       /*did_user_always_allow_url=*/false,
@@ -856,7 +857,7 @@ IN_PROC_BROWSER_TEST_P(NotificationContentDetectionLoggingEnabledBrowserTest,
       std::make_unique<PersistentNotificationHandler>();
   handler->ReportWarnedNotificationAsSpam(
       GetNotificationId(/*is_allowlisted=*/false), GURL(kNonAllowlistedUrl),
-      browser()->profile());
+      browser()->GetProfile());
   ASSERT_TRUE(log_uploaded_signal.Wait());
   VerifyUniqueQualityLog(
       /*did_user_always_allow_url=*/false,
@@ -884,7 +885,7 @@ IN_PROC_BROWSER_TEST_P(NotificationContentDetectionLoggingEnabledBrowserTest,
       std::make_unique<PersistentNotificationHandler>();
   handler->ReportNotificationAsSafe(GetNotificationId(/*is_allowlisted=*/false),
                                     GURL(kNonAllowlistedUrl),
-                                    browser()->profile());
+                                    browser()->GetProfile());
   ASSERT_TRUE(log_uploaded_signal.Wait());
   VerifyUniqueQualityLog(
       /*did_user_always_allow_url=*/false,

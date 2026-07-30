@@ -118,12 +118,8 @@ bool IsValidToolName(const String& name) {
 
 ScriptObject JSONStringToScriptObject(ScriptState* script_state,
                                       const String& json_string) {
-  v8::Local<v8::String> v8_json_string;
-  if (!v8::String::NewFromUtf8(script_state->GetIsolate(),
-                               json_string.Utf8().c_str())
-           .ToLocal(&v8_json_string)) {
-    return ScriptObject();
-  }
+  v8::Local<v8::String> v8_json_string =
+      V8String(script_state->GetIsolate(), json_string);
 
   v8::Local<v8::Value> parsed_value;
   if (!v8::JSON::Parse(script_state->GetContext(), v8_json_string)
@@ -131,6 +127,11 @@ ScriptObject JSONStringToScriptObject(ScriptState* script_state,
     return ScriptObject();
   }
 
+  // `v8::JSON::Parse()` parses any valid JSON primitive, which means
+  // `parsed_value` could be a Number, a String, etc. We want to explicitly
+  // reject non-objects. Note that arrays are considered objects by v8 and
+  // ECMAScript; see
+  // `external/wpt/webmcp/imperative/object-arguments.https.html`.
   if (!parsed_value->IsObject()) {
     return ScriptObject();
   }
@@ -1030,6 +1031,16 @@ ScriptPromise<IDLNullable<IDLString>> ModelContext::executeTool(
                                            kPermissionPolicyNotEnabledError));
   }
 
+  scoped_refptr<SecurityOrigin> expected_target_origin =
+      SecurityOrigin::CreateFromString(tool->origin());
+  if (expected_target_origin->IsOpaque()) {
+    return ScriptPromise<IDLNullable<IDLString>>::RejectWithDOMException(
+        script_state, MakeGarbageCollected<DOMException>(
+                          DOMExceptionCode::kDataError,
+                          "Cannot execute tools that live in a document with "
+                          "an opaque origin."));
+  }
+
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<IDLString>>>(
           script_state);
@@ -1079,25 +1090,17 @@ ScriptPromise<IDLNullable<IDLString>> ModelContext::executeTool(
   base::UnguessableToken invocation_id = base::UnguessableToken::Create();
 
   model_context_host_remote_->ExecuteRemoteScriptTool(
-      invocation_id, frame_token,
-      SecurityOrigin::CreateFromString(tool->origin()), tool->name(),
+      invocation_id, frame_token, expected_target_origin, tool->name(),
       input_arguments,
-      blink::BindOnce(
-          [](ModelContext* self,
-             ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
-             std::unique_ptr<ScopedAbortState> abort_state,
-             const String& result, bool success) {
-            if (self) {
-              self->OnExecuteScriptToolCompleted(resolver, result, success);
-            }
-          },
-          WrapWeakPersistent(this), WrapPersistent(resolver),
-          std::move(scoped_abort_state)));
+      blink::BindOnce(&ModelContext::OnExecuteScriptToolCompleted,
+                      WrapWeakPersistent(this), WrapPersistent(resolver),
+                      std::move(scoped_abort_state)));
   return promise;
 }
 
 void ModelContext::OnExecuteScriptToolCompleted(
     ScriptPromiseResolver<IDLNullable<IDLString>>* resolver,
+    std::unique_ptr<ScopedAbortState> abort_state,
     const String& result,
     bool success) {
   // For the execution result to have been received from the browser process

@@ -36,6 +36,10 @@ namespace extensions {
 
 namespace {
 
+// TODO(b/538580887): Update these tests to use a session like a real stream
+// provider would.
+// TODO(b/538580230): Add a test for UpdateAudioLevel once the above bug is
+// fixed.
 class ExtensionApiTestStreamProvider : public dictation::StreamProvider {
  public:
   ExtensionApiTestStreamProvider(
@@ -177,8 +181,8 @@ IN_PROC_BROWSER_TEST_F(DictationPrivateApiTest, Basic) {
       profile(), extension->id(), test_stream_id);
   multiplexer.RegisterStreamProvider(test_stream_id, &test_stream_provider);
 
-  auto target = std::make_unique<dictation::Target>(
-      content::GlobalDOMNodeId{content::WeakDocumentPtr()});
+  auto target = std::make_unique<dictation::Target>(dictation::TargetDetails(
+      content::GlobalDOMNodeId{content::WeakDocumentPtr()}));
   test_stream_provider.BindToTargetAndConnect(std::move(target));
 
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
@@ -263,8 +267,8 @@ IN_PROC_BROWSER_TEST_P(DictationPrivateApiStartStreamFlagsTest,
       profile(), extension->id(), test_stream_id);
   multiplexer.RegisterStreamProvider(test_stream_id, &test_stream_provider);
 
-  auto target = std::make_unique<dictation::Target>(
-      content::GlobalDOMNodeId{content::WeakDocumentPtr()});
+  auto target = std::make_unique<dictation::Target>(dictation::TargetDetails(
+      content::GlobalDOMNodeId{content::WeakDocumentPtr()}));
   test_stream_provider.BindToTargetAndConnect(std::move(target));
 
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();

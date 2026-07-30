@@ -15,8 +15,6 @@ source_set("location_bar") {
     public += [
       "content_setting_image_view.h",
       "custom_tab_bar_view.h",
-      "intent_chip_button.h",
-      "intent_picker_view.h",
       "lens_overlay_homework_page_action_controller.h",
       "location_bar_bubble_delegate_view.h",
       "location_bar_layout.h",
@@ -28,7 +26,6 @@ source_set("location_bar") {
       "omnibox_popup_file_selector.h",
       "record_replay_page_action_controller.h",
       "selected_keyword_view.h",
-      "star_view.h",
       "webui_content_setting_image_control.h",
       "webui_location_bar.h",
       "zoom_bubble_coordinator.h",
@@ -47,6 +44,7 @@ source_set("location_bar") {
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/page_action:icon_type",
       "//chrome/browser/ui/views/bubble",
+      "//chrome/browser/ui/views/omnibox",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/web_applications",
       "//components/browser_apis/ui_controllers/toolbar:mojom",
@@ -82,8 +80,6 @@ source_set("impl") {
     sources += [
       "content_setting_image_view.cc",
       "custom_tab_bar_view.cc",
-      "intent_chip_button.cc",
-      "intent_picker_view.cc",
       "lens_overlay_homework_page_action_controller.cc",
       "location_bar_bubble_delegate_view.cc",
       "location_bar_layout.cc",
@@ -94,7 +90,6 @@ source_set("impl") {
       "omnibox_popup_file_selector.cc",
       "record_replay_page_action_controller.cc",
       "selected_keyword_view.cc",
-      "star_view.cc",
       "webui_content_setting_image_control.cc",
       "webui_location_bar.cc",
       "zoom_bubble_coordinator.cc",
@@ -270,6 +265,7 @@ source_set("browser_tests") {
     "//chrome/browser/apps/link_capturing",
     "//chrome/browser/apps/link_capturing:test_support",
     "//chrome/browser/content_settings",
+    "//chrome/browser/ui:browser_actions",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/views/frame",
     "//chrome/browser/ui/views/frame:toolbar_button_provider",
@@ -336,7 +332,6 @@ source_set("interactive_ui_tests") {
     "location_icon_view_interactive_uitest.cc",
     "record_replay_page_action_controller_interactive_uitest.cc",
     "selected_keyword_view_interactive_uitest.cc",
-    "star_view_interactive_uitest.cc",
   ]
 
   deps = [

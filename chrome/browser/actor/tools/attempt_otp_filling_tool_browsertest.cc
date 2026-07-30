@@ -47,6 +47,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::base::test::TestFuture;
+using ::testing::_;
 
 namespace actor {
 
@@ -94,7 +95,8 @@ class MockKeyedOneTimeTokenService
               Subscribe,
               (one_time_tokens::OneTimeTokenSource,
                base::Time,
-               one_time_tokens::OneTimeTokenService::Callback),
+               one_time_tokens::OneTimeTokenService::Callback,
+               base::OnceClosure),
               (override));
 };
 
@@ -189,12 +191,12 @@ class AttemptOtpFillingToolBrowserTest : public ActorToolsTest {
 
   void SetExpectedOtp(std::optional<std::string> otp) {
     EXPECT_CALL(GetMockOtpService(),
-                Subscribe(one_time_tokens::OneTimeTokenSource::kGmail,
-                          testing::_, testing::_))
+                Subscribe(one_time_tokens::OneTimeTokenSource::kGmail, _, _, _))
         .WillOnce(
             [otp](one_time_tokens::OneTimeTokenSource source,
                   base::Time expiration,
-                  one_time_tokens::OneTimeTokenService::Callback callback) {
+                  one_time_tokens::OneTimeTokenService::Callback callback,
+                  base::OnceClosure expiration_callback) {
               if (otp) {
                 callback.Run(
                     one_time_tokens::OneTimeTokenSource::kGmail,
@@ -209,6 +211,22 @@ class AttemptOtpFillingToolBrowserTest : public ActorToolsTest {
               }
               return one_time_tokens::ExpiringSubscription();
             });
+  }
+
+  // Seeds affiliation between the test server's port-specific origin for a
+  // given host and the standard HTTPS origin for the same host. This allows the
+  // strict OTP sender matching (which expects standard HTTPS ports) to succeed
+  // on custom test server ports.
+  void SeedTestServerAffiliation(std::string_view host) {
+    GURL test_url = embedded_https_test_server().GetURL(host, "/");
+    std::string test_spec = url::Origin::Create(test_url).Serialize();
+    std::string standard_spec = base::StrCat({"https://", host});
+    fake_affiliation_service()->AddAffiliationGroup({
+        affiliations::Facet(
+            affiliations::FacetURI::FromCanonicalSpec(test_spec)),
+        affiliations::Facet(
+            affiliations::FacetURI::FromCanonicalSpec(standard_spec)),
+    });
   }
 
   bool HasJournalEntryWithDetails(std::string_view event,
@@ -283,6 +301,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
   std::unique_ptr<ToolRequest> request =
@@ -330,6 +349,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
   std::unique_ptr<ToolRequest> request =
@@ -363,6 +383,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
   std::unique_ptr<ToolRequest> request =
@@ -394,6 +415,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
   std::unique_ptr<ToolRequest> request =
@@ -408,11 +430,11 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                 /*should_use_strong_matching=*/true, {});
 
   EXPECT_CALL(GetMockOtpService(),
-              Subscribe(one_time_tokens::OneTimeTokenSource::kGmail, testing::_,
-                        testing::_))
+              Subscribe(one_time_tokens::OneTimeTokenSource::kGmail, _, _, _))
       .WillOnce([](one_time_tokens::OneTimeTokenSource source,
                    base::Time expiration,
-                   one_time_tokens::OneTimeTokenService::Callback callback) {
+                   one_time_tokens::OneTimeTokenService::Callback callback,
+                   base::OnceClosure expiration_callback) {
         base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
@@ -442,6 +464,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field_1,
                        GetDomNodeOnPage(*main_frame(), "#otp_digit_1"));
   ASSERT_OK_AND_ASSIGN(DomNode otp_field_2,
@@ -507,6 +530,7 @@ IN_PROC_BROWSER_TEST_F(
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
   std::unique_ptr<ToolRequest> request =
@@ -661,6 +685,7 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
                                                        "/actor/otp_page.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+  SeedTestServerAffiliation("example.com");
 
   ASSERT_OK_AND_ASSIGN(DomNode otp_field,
                        GetDomNodeOnPage(*main_frame(), "#otp"));
@@ -742,6 +767,8 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
       affiliations::Facet(
           affiliations::FacetURI::FromCanonicalSpec(login_spec)),
       affiliations::Facet(affiliations::FacetURI::FromCanonicalSpec(page_spec)),
+      affiliations::Facet(
+          affiliations::FacetURI::FromCanonicalSpec("https://example.com")),
   });
 
   actor_task()
@@ -812,6 +839,18 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
 
   // Sign-in started on sub2.example.com.
   GURL login_url = GURL("https://sub2.example.com");
+
+  // Seed affiliation group containing page origin and standard HTTPS origin
+  // of the sender to allow OTP sender matching (which requires exact or
+  // affiliated matches).
+  // The login flow match (`sub2.example.com` vs `sub1.example.com`) is still
+  // tested via PSL match since they are not affiliated.
+  std::string page_spec = url::Origin::Create(url).Serialize();
+  fake_affiliation_service()->AddAffiliationGroup({
+      affiliations::Facet(affiliations::FacetURI::FromCanonicalSpec(page_spec)),
+      affiliations::Facet(
+          affiliations::FacetURI::FromCanonicalSpec("https://example.com")),
+  });
 
   actor_task()
       .GetExecutionEngine()
@@ -946,6 +985,19 @@ IN_PROC_BROWSER_TEST_F(AttemptOtpFillingToolBrowserTest,
   ASSERT_TRUE(
       content::NavigateIframeToURL(web_contents(), "iframe", iframe_url));
   ASSERT_NO_FATAL_FAILURE(WaitForTabObservation());
+
+  // Seed an affiliation group containing the test server's port-specific origin
+  // of the iframe and the standard HTTPS origin of the sender. This allows
+  // the OTP sender matching to succeed (via affiliation), while the login
+  // flow check is validated purely via PSL matching (since the main frame is
+  // not affiliated with the iframe).
+  std::string iframe_origin_spec = url::Origin::Create(iframe_url).Serialize();
+  fake_affiliation_service()->AddAffiliationGroup({
+      affiliations::Facet(affiliations::FacetURI::FromPotentiallyInvalidSpec(
+          iframe_origin_spec)),
+      affiliations::Facet(affiliations::FacetURI::FromPotentiallyInvalidSpec(
+          "https://example.com")),
+  });
 
   // 3. Locate the OTP field inside the same-site iframe.
   content::RenderFrameHost* iframe_host =

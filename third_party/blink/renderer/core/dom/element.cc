@@ -2468,8 +2468,8 @@ bool Element::ShouldUpdateLastRememberedBlockSize() const {
   }
 
   return style->IsHorizontalWritingMode()
-             ? style->ContainIntrinsicHeight().HasAuto()
-             : style->ContainIntrinsicWidth().HasAuto();
+             ? style->EffectiveContainIntrinsicHeight().HasAuto()
+             : style->EffectiveContainIntrinsicWidth().HasAuto();
 }
 
 bool Element::ShouldUpdateLastRememberedInlineSize() const {
@@ -2479,8 +2479,8 @@ bool Element::ShouldUpdateLastRememberedInlineSize() const {
   }
 
   return style->IsHorizontalWritingMode()
-             ? style->ContainIntrinsicWidth().HasAuto()
-             : style->ContainIntrinsicHeight().HasAuto();
+             ? style->EffectiveContainIntrinsicWidth().HasAuto()
+             : style->EffectiveContainIntrinsicHeight().HasAuto();
 }
 
 void Element::SetLastRememberedInlineSize(std::optional<LayoutUnit> size) {
@@ -2539,7 +2539,7 @@ int Element::clientWidth() {
         // |layout_view| is not a scroll-container.
         DCHECK(layout_view->IsScrollContainer());
         return AdjustForAbsoluteZoom::AdjustLayoutUnit(
-                   layout_view->OverflowClipRect(PhysicalOffset()).Width(),
+                   layout_view->OverflowClipRect().Width(),
                    layout_view->StyleRef())
             .Round();
       }
@@ -2582,7 +2582,7 @@ int Element::clientHeight() {
         // |layout_view| is not a scroll-container.
         DCHECK(layout_view->IsScrollContainer());
         return AdjustForAbsoluteZoom::AdjustLayoutUnit(
-                   layout_view->OverflowClipRect(PhysicalOffset()).Height(),
+                   layout_view->OverflowClipRect().Height(),
                    layout_view->StyleRef())
             .Round();
       }
@@ -3267,7 +3267,7 @@ gfx::Rect Element::VisibleBoundsInLocalRoot() const {
   PhysicalRect rect(
       gfx::ToRoundedRect(GetLayoutObject()->AbsoluteBoundingBoxRectF()));
   PhysicalRect frame_clip_rect =
-      GetDocument().View()->GetLayoutView()->ClippingRect(PhysicalOffset());
+      GetDocument().View()->GetLayoutView()->ClippingRect();
   rect.Intersect(frame_clip_rect);
 
   // MapToVisualRectInAncestorSpace, called with a null ancestor argument,
@@ -4144,13 +4144,16 @@ Node::InsertionNotificationRequest Element::InsertedInto(
 
   RecomputeDirectionFromParent();
 
+  // Do not call ComputeIsInCanvasSubtree from here because during
+  // slot assignment it will cause DCHECK failures. If an element is slotted
+  // the checks will be re-run when slot assignment completes.
   auto* parent = ParentOrShadowHostElement();
   if (parent && parent->IsCanvasOrInCanvasSubtree()) {
-    SetIsCanvasOrInCanvasSubtree(true);
+    SetIsInCanvasSubtree(true);
   } else if (!parent && insertion_point.IsDocumentNode()) {
     auto* owner = GetDocument().LocalOwner();
     if (owner && owner->IsCanvasOrInCanvasSubtree()) {
-      SetIsCanvasOrInCanvasSubtree(true);
+      SetIsInCanvasSubtree(true);
     }
   }
 
@@ -4295,13 +4298,14 @@ void Element::MovedFrom(ContainerNode& old_parent) {
 
 #if DCHECK_IS_ON()
 void VerifySubtreeIsInCanvas(const Element& element, bool value) {
+  DCHECK(element.IsInCanvasSubtree() == value);
   if (IsA<HTMLCanvasElement>(element)) {
+    DCHECK(element.IsCanvasOrInCanvasSubtree());
     // When the verifier starts with an element outside the tree that should
     // have value false, but then reaches a canvas within the subtree (e.g.
     // in an iframe or nested), we should set the expected value back to true.
     value = true;
   }
-  DCHECK(element.IsCanvasOrInCanvasSubtree() == value);
   if (ShadowRoot* shadow_root = element.GetShadowRoot()) {
     for (Element& child : ElementTraversal::ChildrenOf(*shadow_root)) {
       VerifySubtreeIsInCanvas(child, value);
@@ -4330,15 +4334,8 @@ void VerifySubtreeIsInCanvas(const Element& element, bool value) {
 }
 #endif
 
-void Element::SetIsCanvasOrInCanvasSubtree(bool value) {
-  if (IsA<HTMLCanvasElement>(*this)) {
-    value = true;
-  }
-
-  if (value != IsCanvasOrInCanvasSubtree()) {
-    SetElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree, value);
-    DidChangeIsCanvasOrInCanvasSubtree();
-  } else {
+void Element::SetIsInCanvasSubtree(bool value) {
+  if (value == IsInCanvasSubtree()) {
 #if DCHECK_IS_ON()
     if (!GetDocument().IsSlotAssignmentRecalcForbidden()) {
       VerifySubtreeIsInCanvas(*this, value);
@@ -4347,15 +4344,23 @@ void Element::SetIsCanvasOrInCanvasSubtree(bool value) {
     return;
   }
 
+  SetElementFlag(ElementFlags::kIsInCanvasSubtree, value);
+  // Note that this call leads to HTMLFrameOwnerElement updating iframes.
+  DidChangeIsInCanvasSubtree();
+  if (!value && IsA<HTMLCanvasElement>(*this)) {
+    // Nested canvas element must reset the value to true.
+    value = true;
+  }
+
   if (ShadowRoot* shadow_root = GetShadowRoot()) {
     for (Element& child : ElementTraversal::ChildrenOf(*shadow_root)) {
-      child.SetIsCanvasOrInCanvasSubtree(value);
+      child.SetIsInCanvasSubtree(value);
     }
   }
   if (auto* slot = ToHTMLSlotElementIfSupportsAssignmentOrNull(*this)) {
     for (Node* node : slot->AssignedNodesNoRecalc()) {
       if (auto* child = DynamicTo<Element>(node)) {
-        child->SetIsCanvasOrInCanvasSubtree(value);
+        child->SetIsInCanvasSubtree(value);
       }
     }
   }
@@ -4363,23 +4368,11 @@ void Element::SetIsCanvasOrInCanvasSubtree(bool value) {
     if (!child.IsPseudoElement() && child.AssignedSlotWithoutRecalc()) {
       continue;
     }
-    child.SetIsCanvasOrInCanvasSubtree(value);
+    child.SetIsInCanvasSubtree(value);
   }
 }
 
-void Element::DidChangeIsCanvasOrInCanvasSubtree() {
-  if (auto* layout_object = GetLayoutObject()) {
-    layout_object->SetNeedsPaintPropertyUpdate();
-    if (layout_object->HasLayer()) {
-      To<LayoutBoxModelObject>(layout_object)->Layer()->SetNeedsRepaint();
-    }
-    ObjectPaintInvalidator(*layout_object)
-        .InvalidateDisplayItemClient(*layout_object,
-                                     PaintInvalidationReason::kUncacheable);
-  }
-}
-
-bool Element::IsInCanvasSubtree() const {
+bool Element::ComputeIsInCanvasSubtree() const {
   auto& document = GetDocument();
   const Element* parent = nullptr;
   if (document.IsFlatTreeTraversalForbidden() ||
@@ -4404,6 +4397,28 @@ bool Element::IsInCanvasSubtree() const {
 
   auto* owner = document.LocalOwner();
   return owner && owner->IsCanvasOrInCanvasSubtree();
+}
+
+bool Element::IsCanvasOrInCanvasSubtree() const {
+  if (IsInCanvasSubtree()) {
+    return true;
+  }
+  if (IsA<HTMLCanvasElement>(*this)) {
+    return true;
+  }
+  return false;
+}
+
+void Element::DidChangeIsInCanvasSubtree() {
+  if (auto* layout_object = GetLayoutObject()) {
+    layout_object->SetNeedsPaintPropertyUpdate();
+    if (layout_object->HasLayer()) {
+      To<LayoutBoxModelObject>(layout_object)->Layer()->SetNeedsRepaint();
+    }
+    ObjectPaintInvalidator(*layout_object)
+        .InvalidateDisplayItemClient(*layout_object,
+                                     PaintInvalidationReason::kUncacheable);
+  }
 }
 
 void Element::RemovedFrom(ContainerNode& insertion_point) {
@@ -4496,7 +4511,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     document.RemoveFromTopLayerImmediately(this);
   }
 
-  SetIsCanvasOrInCanvasSubtree(false);
+  SetIsInCanvasSubtree(false);
 
   if (NodeRareData* data = RareData()) {
     data->ClearFocusgroupData();
@@ -5811,7 +5826,10 @@ StyleRecalcChange Element::RecalcOwnStyle(
          "about to be deleted is a waste.";
 
   if (LayoutObject* layout_object = GetLayoutObject()) {
-    DCHECK(new_style);
+    CHECK(old_style) << "Modifying style of an existing LayoutObject - "
+                        "old_style must be non-null";
+    CHECK(new_style) << "Modifying style of an existing LayoutObject - "
+                        "new_style must be non-null";
     if (layout_object->IsText() &&
         IsA<LayoutTextCombine>(layout_object->Parent())) [[unlikely]] {
       // Adjust style for <br> and <wbr> in combined text.
@@ -5819,6 +5837,7 @@ StyleRecalcChange Element::RecalcOwnStyle(
       ComputedStyleBuilder adjust_builder(*new_style);
       StyleAdjuster::AdjustStyleForCombinedText(adjust_builder);
       new_style = adjust_builder.TakeStyle();
+      CHECK(new_style);
     }
     // kEqual means that the computed style didn't change, but there are
     // additional flags in ComputedStyle which may have changed. For instance,
@@ -8356,9 +8375,11 @@ void Element::Focus(const FocusParams& params) {
     if (Element* new_focus_target = GetFocusableArea()) {
       // Unlike the specification, we re-run focus() for new_focus_target
       // because we can't change |this| in a member function.
-      new_focus_target->Focus(FocusParams(
-          SelectionBehaviorOnFocus::kReset, mojom::blink::FocusType::kForward,
-          /*capabilities=*/nullptr, params_to_use.options));
+      // Forward the caller's FocusType so we don't set
+      // WasLastFocusFromUserGesture incorrectly.
+      new_focus_target->Focus(
+          FocusParams(SelectionBehaviorOnFocus::kReset, params_to_use.type,
+                      /*capabilities=*/nullptr, params_to_use.options));
     }
     // 2. If new focus target is null, then:
     //  2.1. If no fallback target was specified, then return.

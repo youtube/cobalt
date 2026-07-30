@@ -59,7 +59,6 @@ constexpr char kWebUiFunctionName[] = "webUiCallbackName";
 
 net::DohProviderEntry::List GetDohProviderListForTesting() {
   static BASE_FEATURE(kDohProviderFeatureForProvider_Global1,
-                      "DohProviderFeatureForProvider_Global1",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   static const auto global1 = net::DohProviderEntry::ConstructForTesting(
       "Provider_Global1", &kDohProviderFeatureForProvider_Global1,
@@ -69,7 +68,6 @@ net::DohProviderEntry::List GetDohProviderListForTesting() {
       "https://global1.provider/privacy_policy/" /* privacy_policy */,
       true /* display_globally */, {} /* display_countries */);
   static BASE_FEATURE(kDohProviderFeatureForProvider_NoDisplay,
-                      "DohProviderFeatureForProvider_NoDisplay",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   static const auto no_display = net::DohProviderEntry::ConstructForTesting(
       "Provider_NoDisplay", &kDohProviderFeatureForProvider_NoDisplay,
@@ -79,7 +77,6 @@ net::DohProviderEntry::List GetDohProviderListForTesting() {
       "https://nodisplay.provider/privacy_policy/" /* privacy_policy */,
       false /* display_globally */, {} /* display_countries */);
   static BASE_FEATURE(kDohProviderFeatureForProvider_EE_FR,
-                      "DohProviderFeatureForProvider_EE_FR",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   static const auto ee_fr = net::DohProviderEntry::ConstructForTesting(
       "Provider_EE_FR", &kDohProviderFeatureForProvider_EE_FR, {} /*ip_strs */,
@@ -88,7 +85,6 @@ net::DohProviderEntry::List GetDohProviderListForTesting() {
       "https://ee.fr.provider/privacy_policy/" /* privacy_policy */,
       false /* display_globally */, {"EE", "FR"} /* display_countries */);
   static BASE_FEATURE(kDohProviderFeatureForProvider_FR,
-                      "DohProviderFeatureForProvider_FR",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   static const auto fr = net::DohProviderEntry::ConstructForTesting(
       "Provider_FR", &kDohProviderFeatureForProvider_FR, {} /*ip_strs */,
@@ -97,7 +93,6 @@ net::DohProviderEntry::List GetDohProviderListForTesting() {
       "https://fr.provider/privacy_policy/" /* privacy_policy */,
       false /* display_globally */, {"FR"} /* display_countries */);
   static BASE_FEATURE(kDohProviderFeatureForProvider_Global2,
-                      "DohProviderFeatureForProvider_Global2",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   static const auto global2 = net::DohProviderEntry::ConstructForTesting(
       "Provider_Global2", &kDohProviderFeatureForProvider_Global2,
@@ -279,7 +274,7 @@ IN_PROC_BROWSER_TEST_F(SecureDnsHandlerTest, SecureDnsModes) {
 #if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS, the local_state is shared between all users so the user-set
   // pref is stored in the profile's pref service.
-  pref_service_for_user_settings = browser()->profile()->GetPrefs();
+  pref_service_for_user_settings = browser()->GetProfile()->GetPrefs();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   pref_service_for_user_settings->SetString(prefs::kDnsOverHttpsMode,
@@ -436,7 +431,7 @@ IN_PROC_BROWSER_TEST_F(SecureDnsHandlerTest, SecureDnsTemplates) {
 #if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS, the local_state is shared between all users so the user-set
   // pref is stored in the profile's pref service.
-  pref_service_for_user_settings = browser()->profile()->GetPrefs();
+  pref_service_for_user_settings = browser()->GetProfile()->GetPrefs();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   pref_service_for_user_settings->SetString(prefs::kDnsOverHttpsMode,
@@ -527,7 +522,7 @@ IN_PROC_BROWSER_TEST_F(SecureDnsHandlerTest,
   const char kTemplatesAlt[] = "https://test2/dns-query{?dns}";
 
   PrefService* local_state = g_browser_process->local_state();
-  PrefService* profile_prefs = browser()->profile()->GetPrefs();
+  PrefService* profile_prefs = browser()->GetProfile()->GetPrefs();
 
   local_state->SetString(prefs::kDnsOverHttpsMode,
                          SecureDnsConfig::kModeSecure);

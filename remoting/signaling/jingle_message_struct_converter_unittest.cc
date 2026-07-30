@@ -316,6 +316,7 @@ TEST(JingleMessageStructConverterTest, JingleTransportInfoConversion) {
   const auto* converted_transport =
       std::get_if<JingleTransportInfo>(&converted.payload());
   ASSERT_TRUE(converted_transport);
+
   ASSERT_TRUE(converted_transport->session_description.has_value());
   EXPECT_EQ(converted_transport->session_description->type,
             SessionDescription::Type::kOffer);

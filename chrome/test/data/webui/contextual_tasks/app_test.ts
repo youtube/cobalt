@@ -6,17 +6,14 @@ import 'chrome://contextual-tasks/app.js';
 
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {WindowOpenDisposition} from 'chrome://resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
-import { microtasksFinished } from 'chrome://webui-test/test_util.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
+import {assertStyle, createContextualTasksAppElement, fixtureUrl, simulateLoadCommit} from './contextual_tasks_test_utils.js';
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {assertStyle, createContextualTasksAppElement, fixtureUrl} from './contextual_tasks_test_utils.js';
-
-// <if expr="not is_android or enable_webui_contextual_tasks_composebox">
-import { isVisible } from 'chrome://webui-test/test_util.js';
-import { simulateLoadCommit } from './contextual_tasks_test_utils.js';
 // </if>
 
 // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
@@ -134,27 +131,20 @@ suite('ContextualTasksAppTest', function() {
     assertFalse(appElement.hasAttribute('is-zero-state_'));
   });
 
-  test('host initialized from URL parameter', async () => {
-    const forcedHost = 'test.host.com';
-    window.history.replaceState({}, '', `?chrome_host=${forcedHost}`);
+  test(
+      'host initialized from loadTimeData and URL parameter is ignored',
+      async () => {
+        const urlParamHost = 'untrusted.host.com';
+        const loadTimeDataHost = 'trusted.host.com';
+        window.history.replaceState({}, '', `?chrome_host=${urlParamHost}`);
+        loadTimeData.overrideValues({chrome_host: loadTimeDataHost});
 
-    const appElement = document.createElement('contextual-tasks-app');
-    document.body.appendChild(appElement);
-    await microtasksFinished();
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
 
-    assertEquals(forcedHost, (appElement as any).host_);
-  });
-
-  test('host initialized from loadTimeData when URL param absent', async () => {
-    const forcedHost = 'default.host.com';
-    loadTimeData.overrideValues({chrome_host: forcedHost});
-
-    const appElement = document.createElement('contextual-tasks-app');
-    document.body.appendChild(appElement);
-    await microtasksFinished();
-
-    assertEquals(forcedHost, (appElement as any).host_);
-  });
+        assertEquals(loadTimeDataHost, (appElement as any).host_);
+      });
 
 
   test('restores thread if task param set', async () => {
@@ -394,7 +384,7 @@ suite('ContextualTasksAppTest', function() {
     const {appElement} =
         await createContextualTasksAppElement(/*url=*/ fixtureUrl);
     // Initial state should be light mode (or whatever default is).
-    assertFalse(appElement['darkMode_']);
+    assertFalse(appElement.getDarkModeForTesting());
     const urlWithCs1 = `${fixtureUrl}?cs=1`;
     // 1. Test that loadstart alone does NOT update theme.
     const eventStart = {
@@ -405,7 +395,7 @@ suite('ContextualTasksAppTest', function() {
     await microtasksFinished();
     // Should still be false because logic moved to
     // maybeOnThreadFrameTopLevelNavigation which is called on commit/redirect.
-    assertFalse(appElement['darkMode_']);
+    assertFalse(appElement.getDarkModeForTesting());
     // 2. Test that loadabort prevents update.
     const eventAbort = {
       url: urlWithCs1,
@@ -413,7 +403,7 @@ suite('ContextualTasksAppTest', function() {
     } as unknown as chrome.webviewTag.LoadAbortEvent;
     await appElement.onThreadFrameLoadAbortForTesting(eventAbort);
     await microtasksFinished();
-    assertFalse(appElement['darkMode_']);
+    assertFalse(appElement.getDarkModeForTesting());
     // 3. Test that loadcommit updates theme.
     // Need to call loadstart again to set lastThreadFrameLoadStartEvent_
     appElement.onThreadFrameLoadStartForTesting(eventStart);
@@ -424,7 +414,7 @@ suite('ContextualTasksAppTest', function() {
     } as unknown as chrome.webviewTag.LoadCommitEvent;
     appElement.onThreadFrameLoadCommitForTesting(eventCommit);
     await microtasksFinished();
-    assertTrue(appElement['darkMode_']);
+    assertTrue(appElement.getDarkModeForTesting());
   });
   // <if expr="not is_android or enable_webui_contextual_tasks_composebox">
   test('isAiPage reflected in dom', async () => {
@@ -1212,22 +1202,27 @@ suite('ContextualTasksAppTest', function() {
   // </if> not is_android or enable_webui_contextual_tasks_composebox
 
   test(
-      'does not initialize WindowManager when windowTrackingEnabled is false',
+      'handles newwindow event via openUrl when windowTrackingEnabled is false',
       async () => {
         loadTimeData.overrideValues({
           windowTrackingEnabled: false,
         });
 
-        const {appElement} =
+        const {appElement, proxy} =
             await createContextualTasksAppElement(/*url=*/ fixtureUrl);
 
-        let newWindowIntercepted = false;
-        appElement.$.threadFrame.addEventListener('newwindow', (e: Event) => {
-          newWindowIntercepted = e.defaultPrevented;
-        });
-        appElement.$.threadFrame.dispatchEvent(
-            new CustomEvent('newwindow', {cancelable: true}));
-        assertFalse(newWindowIntercepted);
+        const targetUrl = 'http://example.com/share';
+        const newWindowEvent = new CustomEvent('newwindow', {
+                                 cancelable: true,
+                               }) as any;
+        newWindowEvent.targetUrl = targetUrl;
+
+        appElement.$.threadFrame.dispatchEvent(newWindowEvent);
+
+        assertTrue(newWindowEvent.defaultPrevented);
+        const [url, disposition] = await proxy.handler.whenCalled('openUrl');
+        assertEquals(targetUrl, url);
+        assertEquals(WindowOpenDisposition.NEW_FOREGROUND_TAB, disposition);
       });
 
   test('side panel zero state plays animations immediately', async () => {

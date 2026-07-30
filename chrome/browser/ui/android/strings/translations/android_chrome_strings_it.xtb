@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Se lo elimini, tutti perderanno immediatamente l'accesso al gruppo di schede "<ph name="GROUP_NAME" />", che verrà eliminato da tutti i dispositivi.</translation>
 <translation id="1142732900304639782">Non proporre di tradurre questi siti</translation>
 <translation id="1143193470214071120">Chiudi una finestra o gestisci le finestre</translation>
+<translation id="1143486892058798649">Salva link come…</translation>
 <translation id="1149725087019908252">Scansione di <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> si aprirà in Chrome. Se continui, accetti i <ph name="BEGIN_LINK1" />Termini di servizio di Google<ph name="END_LINK1" /> e i <ph name="BEGIN_LINK2" />Termini di servizio aggiuntivi di Google Chrome e ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Non hai password salvate in Gestore delle password di Google.</translation>
@@ -142,11 +143,13 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="1544826120773021464">Per gestire il tuo Account Google, tocca il pulsante "Gestisci account"</translation>
 <translation id="1549000191223877751">Passa a un'altra finestra</translation>
 <translation id="1553358976309200471">Aggiorna Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" />: "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Contribuisci a migliorare Chrome per le persone che lo usano come fai tu</translation>
 <translation id="1568636008098739136">Ascolta questa pagina. Tocca e tieni premuto per modificare questa scorciatoia.</translation>
 <translation id="1571041387761170095">Nessuna password inefficace o riutilizzata</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 password compromessa su questo dispositivo}other{# password compromesse su questo dispositivo}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> elementi suggeriti nell'elenco di seguito.</translation>
+<translation id="159689249463841786">Scegli la cartella, attualmente <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">Utilizza <ph name="SITE_ETLD_PLUS_ONE" /> con <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, scheda con registrazione fissata</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, scheda condivisa</translation>
@@ -277,6 +280,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2190355936436201913">(vuoto)</translation>
 <translation id="219283042927675668">Schede nel gruppo</translation>
 <translation id="2194856509914051091">Aspetti da considerare</translation>
+<translation id="2196695604589508993">Apri cronologia</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, scheda condivisa fissata</translation>
 <translation id="22091350895006575">Aggiungi nome utente</translation>
 <translation id="221494669172414749">Se apri Chrome senza un blocco del profilo, le password e i metodi di pagamento salvati verranno rimossi dall'auto. L'utilizzo di un blocco del profilo protegge questi dati.</translation>
@@ -311,6 +315,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2330186936255788117">Altri preferiti</translation>
 <translation id="2332515770639153015">Navigazione sicura avanzata attiva</translation>
 <translation id="233375395665273385">Elimina ed esci</translation>
+<translation id="2334275697832662087">La sicurezza di Chrome basata sull'AI protegge dalle minacce online, garantendo la massima sicurezza durante la navigazione</translation>
 <translation id="2341410551640223969">Impossibile installare <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Dati totali utilizzati da Chrome, tra cui account, preferiti e impostazioni salvate</translation>
 <translation id="2354001756790975382">Altri preferiti</translation>
@@ -612,6 +617,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="3577473026931028326">Si è verificato un errore. Riprova.</translation>
 <translation id="3577558748185201054">Gestisci i tuoi interessi e le tue preferenze</translation>
 <translation id="3587482841069643663">Tutti</translation>
+<translation id="3598421953808879451">Salva video come…</translation>
 <translation id="3602290021589620013">Anteprima</translation>
 <translation id="3614126103057878858">Insight sul prezzo</translation>
 <translation id="3616113530831147358">Audio</translation>
@@ -722,6 +728,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="4044708993631234325">Riquadro inferiore</translation>
 <translation id="4045441967987592849">Riapri</translation>
 <translation id="4049920046559074950">Altre opzioni per <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Qui trovi le schede e le finestre chiuse di recente</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Apri nella finestra Incognito}other{Apri tutti (#) nella finestra Incognito}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> scheda standard con nuova attività in gruppi di schede condivisi}other{<ph name="TABS_COUNT_MANY" /> schede standard con nuova attività in gruppi di schede condivisi}}</translation>
 <translation id="405365679581583349">Aggiorna Google Play Services</translation>
@@ -1278,6 +1285,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="6321592572353357376">L'estensione "<ph name="EXTENSION_NAME" />" richiede l'accesso a Chrome</translation>
 <translation id="6324916366299863871">Modifica scorciatoia</translation>
 <translation id="6324977638108296054">Impossibile creare un link al testo evidenziato</translation>
+<translation id="6331836477476466332">Un browser più sicuro e potente per te</translation>
 <translation id="6333140779060797560">Condividi tramite <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Modifica l'URL che rimanda alla pagina <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Crittografia</translation>
@@ -1435,6 +1443,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="6867400383614725881">Nuova scheda Incognito</translation>
 <translation id="686899695320434745">Gli indirizzi non vengono criptati con la tua passphrase. In questo modo puoi utilizzarli in altri servizi Google.</translation>
 <translation id="6870625088374152862">Accesso eseguito come <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Inizia a navigare</translation>
 <translation id="687838958001010630">Chiunque abbia il link può modificare tutte le schede</translation>
 <translation id="6880903702195291049">Non ci sono problemi con le autorizzazioni</translation>
 <translation id="6883204995689174413">Condividi</translation>
@@ -1520,6 +1529,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="71503698506017927">La crittografia delle passphrase non include metodi di pagamento e indirizzi di Google Pay.
 
 Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Chrome nel tuo account<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Salva immagine come…</translation>
 <translation id="7165972437814027679">Scopri di più sul motivo per cui Chrome blocca alcuni file</translation>
 <translation id="7168323970702333693">Accesso eseguito come <ph name="USER_NAME" />. Consente di aprire le impostazioni.</translation>
 <translation id="7170930892977483182">Tutti i codici di sicurezza salvati sul dispositivo e in Google Wallet verranno eliminati</translation>
@@ -1575,6 +1585,7 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="7359002509206457351">Accesso ai metodi di pagamento</translation>
 <translation id="7363349185727752629">Una guida alle scelte relative alla tua privacy</translation>
 <translation id="7364103838544876661">Altre opzioni per eliminare i dati di navigazione</translation>
+<translation id="736435710397109878">Nickname della carta, massimo 25 caratteri</translation>
 <translation id="7365073365123878797">Per iniziare a salvare e utilizzare le password con Gestore delle password di Google, aggiorna Google Play Services</translation>
 <translation id="7368009310682364976">Visualizza le schede aperte di recente</translation>
 <translation id="7368927539449986686">Modifica ricerca su sito</translation>
@@ -1693,6 +1704,7 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="7824665136384946951">La tua organizzazione ha disattivato Navigazione sicura</translation>
 <translation id="7825973332242257878">Gruppi di schede</translation>
 <translation id="7826342993930002256">Il tuo Chrome, ovunque</translation>
+<translation id="7845155831233417403">Puoi avere fino a <ph name="MAX_INSTANCE_COUNT" /> finestre. Chiudi una finestra per continuare.</translation>
 <translation id="7846161022626028328">Si è verificato un errore. Riprova.</translation>
 <translation id="7846296061357476882">Servizi Google</translation>
 <translation id="784652447248278262">Finestra corrente</translation>
@@ -1759,7 +1771,6 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="8088176524274673045">Per condividere i contenuti con le persone qui vicino, fa' scansionare loro questo codice QR</translation>
 <translation id="8090732854597034573">Se hai bisogno di aiuto, rivolgiti al tuo genitore</translation>
 <translation id="8101414242770404289">Nessuna scheda: <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Scheda Incognito</translation>
 <translation id="810433609302852">Riquadro inferiore con notifica di promozione della funzionalità suggerita e passaggi per l'utilizzo</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Rimuovi le estensioni e i dati che hanno salvato su questo dispositivo</translation>
@@ -1817,10 +1828,12 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="8282297628636750033">Applica il tema scuro ai siti, se possibile</translation>
 <translation id="8282950411412455249">Vai alle impostazioni di sicurezza</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Chiudi 1 finestra Incognito}other{Chiudi # finestre Incognito}}</translation>
+<translation id="8289602658021943461">Salva frame come…</translation>
 <translation id="8313599942510782709">L'attività è ancora in corso</translation>
 <translation id="8317318757008452355">Apri le opzioni per stampare</translation>
 <translation id="8320212361750431956">Attività recente</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Novità<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Preferiti ed elenchi</translation>
 <translation id="8342727528718219152">Chrome ti avviserà quando dei siti potrebbero inviare troppe notifiche</translation>
 <translation id="834313815369870491">Non tradurre mai i siti</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, schede Incognito con registrazione fissate selezionate</translation>
@@ -2062,6 +2075,7 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="939598580284253335">Inserisci passphrase</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, scheda Incognito Picture in picture fissata</translation>
 <translation id="945522503751344254">Invia feedback</translation>
+<translation id="948276827484905248">Crea codice QR</translation>
 <translation id="95817756606698420">Chrome può usare <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> per le ricerche in Cina. Puoi modificare questa preferenza nelle <ph name="BEGIN_LINK" />Impostazioni<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Elimina dati navigazione</translation>
 <translation id="963246339335003378">Apri Task Manager</translation>

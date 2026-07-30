@@ -19,6 +19,7 @@ import static org.robolectric.Shadows.shadowOf;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.view.ContextThemeWrapper;
 
 import androidx.annotation.DrawableRes;
 import androidx.test.filters.SmallTest;
@@ -38,7 +39,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
@@ -57,7 +57,6 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.DocumentType;
-import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.components.omnibox.action.ActionPresentationMode;
@@ -153,9 +152,12 @@ public class BasicSuggestionProcessorUnitTest {
 
     @Before
     public void setUp() {
+        var context =
+                new ContextThemeWrapper(
+                        ContextUtils.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
         AutocompleteUIContext uiContext =
                 new AutocompleteUIContext(
-                        ContextUtils.getApplicationContext(),
+                        context,
                         mSuggestionHost,
                         null,
                         mImageSupplier,
@@ -597,7 +599,6 @@ public class BasicSuggestionProcessorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_ITEM_DECORATION)
     public void accessibilityAnnouncements_groupedSearchSuggestions() {
         mProcessor.onNativeInitialized();
         mSuggestion =
@@ -623,7 +624,6 @@ public class BasicSuggestionProcessorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_ITEM_DECORATION)
     public void accessibilityAnnouncements_groupedAiModeSuggestions() {
         mProcessor.onNativeInitialized();
         mSuggestion =

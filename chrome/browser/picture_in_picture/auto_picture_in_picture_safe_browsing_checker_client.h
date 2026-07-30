@@ -16,6 +16,10 @@
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "url/gurl.h"
 
+namespace safe_browsing {
+class V5GetHashProtocolManager;
+}
+
 // Class used to check URL safety. A URL will be considered unsafe if it is
 // present in the Safe Browsing blocklist for any of the threat types defined by
 // `threat_types_`.
@@ -33,9 +37,25 @@ class AutoPictureInPictureSafeBrowsingCheckerClient
 
   static constexpr base::TimeDelta kMinimumCheckDelay = base::Milliseconds(500);
 
+  // LINT.IfChange(AutoPictureInPictureSafeBrowsingCheckResult)
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class CheckResult {
+    // The check completed and the URL was classified as safe.
+    kSafe = 0,
+    // The check completed and the URL was classified as unsafe.
+    kUnsafe = 1,
+    // The check timed out before a result was received.
+    kTimeout = 2,
+    kMaxValue = kTimeout,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml:AutoPictureInPictureSafeBrowsingCheckResult)
+
   AutoPictureInPictureSafeBrowsingCheckerClient(
       scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
           database_manager,
+      base::WeakPtr<safe_browsing::V5GetHashProtocolManager>
+          v5_get_hash_protocol_manager,
       base::TimeDelta safe_browsing_check_delay,
       ReportUrlSafetyCb report_url_safety_cb);
 
@@ -51,16 +71,27 @@ class AutoPictureInPictureSafeBrowsingCheckerClient
  private:
   FRIEND_TEST_ALL_PREFIXES(AutoPictureInPictureSafeBrowsingCheckerClientTest,
                            CheckCanceledOnCheckBlocklistTimeout);
+  FRIEND_TEST_ALL_PREFIXES(AutoPictureInPictureSafeBrowsingCheckerClientTest,
+                           GetV5GetHashProtocolManager);
 
   // safe_browsing::SafeBrowsingDatabaseManager::Client:
   void OnCheckBrowseUrlResult(const GURL& url,
                               safe_browsing::SBThreatType threat_type) override;
 
+  base::WeakPtr<safe_browsing::V5GetHashProtocolManager>
+  GetV5GetHashProtocolManager() override;
+
   // Callback to be run if a Safe Browsing request does not return a response
   // within `safe_browsing_check_delay` time.
   void OnCheckBlocklistTimeout();
 
+  // Logs the outcome of the Safe Browsing blocklist check.
+  void LogCheckResult(CheckResult result);
+
   scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager> database_manager_;
+
+  base::WeakPtr<safe_browsing::V5GetHashProtocolManager>
+      v5_get_hash_protocol_manager_;
 
   // Delay amount allowed for blocklist checks.
   base::TimeDelta safe_browsing_check_delay_;

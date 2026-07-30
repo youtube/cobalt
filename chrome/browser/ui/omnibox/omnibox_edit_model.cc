@@ -89,7 +89,6 @@
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/omnibox/common/omnibox_focus_state.h"
-#include "components/search_engines/ai_mode_button_config.h"
 #include "components/search_engines/ai_mode_button_service.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/template_url.h"
@@ -98,6 +97,7 @@
 #include "components/search_engines/template_url_starter_pack_data.h"
 #include "components/search_engines/util.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/navigation_handle.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_features.h"
@@ -121,13 +121,20 @@
 #include "url/url_util.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "components/sessions/content/session_tab_helper.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/contextual_search/desktop_query_contextualizer_delegate.h"  // nogncheck
+#include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
+#include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/tabs/public/tab_interface.h"
+#include "components/sessions/core/session_id.h"
 #endif
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -196,9 +203,9 @@ void EmitEnteredKeywordModeHistogram(
   }
 }
 
-const ai_mode_button_config::AiModeButtonConfig* GetAiModeButtonConfig(
+const AiModeButtonUiConfig* GetAiModeButtonUiConfig(
     OmniboxController* controller) {
-  // `GetAiModeButtonConfig()` is only called when AI mode button is visible.
+  // `GetAiModeButtonUiConfig()` is only called when AI mode button is visible.
   CHECK(controller);
   auto* service = controller->client()->GetAiModeButtonService();
   CHECK(service);
@@ -573,9 +580,10 @@ ui::ImageModel OmniboxEditModel::GetSuperGIcon(int image_size,
 }
 
 ui::ImageModel OmniboxEditModel::GetAddContextIcon(int image_size) const {
-  return ui::ImageModel::FromVectorIcon(
-      features::IsRoundedIconsEnabled() ? kAdd2Icon : kAddChromeRefreshOldIcon,
-      ui::kColorSysPrimary, image_size);
+  return ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                            ? vector_icons::kAdd2Icon
+                                            : kAddChromeRefreshOldIcon,
+                                        ui::kColorSysPrimary, image_size);
 }
 
 gfx::Image OmniboxEditModel::GetAgentspaceIcon(bool dark_mode) const {
@@ -782,9 +790,47 @@ void OmniboxEditModel::EnterKeywordModeForDefaultSearchProvider(
 }
 
 void OmniboxEditModel::OpenComposeboxForAskG() {
-  // TODO (crbug.com/532597302): Potential wiring to get autotab and suggestions
-  // to work.
+  PopulateActiveTabContext();
   controller_->popup_state_manager()->SetPopupState(OmniboxPopupState::kAim);
+}
+
+void OmniboxEditModel::PopulateActiveTabContext() {
+#if !BUILDFLAG(IS_ANDROID)
+  // Ensure we are in a Chrome browser window context.
+  auto* client = controller_->client();
+  if (!client->IsChromeOmniboxClient()) {
+    return;
+  }
+
+  Browser* browser = static_cast<ChromeOmniboxClient*>(client)->browser();
+  SearchboxContextData* searchbox_context_data =
+      browser ? browser->GetFeatures().searchbox_context_data() : nullptr;
+  TabStripModel* tab_strip = browser ? browser->tab_strip_model() : nullptr;
+  tabs::TabInterface* tab = tab_strip ? tab_strip->GetActiveTab() : nullptr;
+  content::WebContents* web_contents = tab ? tab->GetContents() : nullptr;
+
+  // Abort if any required component for the active tab context is missing.
+  if (!searchbox_context_data || !tab || !web_contents) {
+    return;
+  }
+
+  // We must use the TabHandle's raw value here, NOT the SessionID.
+  // The WebUI's Mojo interfaces (e.g., TabInfo) represent tab IDs using the
+  // TabHandle values mapped by SessionMappedTabHandleFactory. Passing a
+  // raw SessionID here will cause handle resolution to fail browser-side
+  // when the WebUI requests tab upload.
+  int32_t tab_handle_val = tab->GetHandle().raw_value();
+
+  auto context = std::make_unique<SearchboxContextData::Context>();
+  auto tab_attachment = searchbox::mojom::TabAttachment::New();
+  tab_attachment->tab_id = tab_handle_val;
+  tab_attachment->title = base::UTF16ToUTF8(web_contents->GetTitle());
+  tab_attachment->url = web_contents->GetLastCommittedURL();
+  context->file_infos.push_back(
+      searchbox::mojom::SearchContextAttachment::NewTabAttachment(
+          std::move(tab_attachment)));
+  searchbox_context_data->SetPendingContext(std::move(context));
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void OmniboxEditModel::OpenAiMode(AimActivation activation) {
@@ -797,7 +843,7 @@ void OmniboxEditModel::OpenAiMode(AimActivation activation) {
 
   RecordAiModeMetrics(query_text, activation);
 
-  if (GetAiModeButtonConfig(controller_)->id !=
+  if (GetAiModeButtonUiConfig(controller_)->id !=
       SearchEngineType::SEARCH_ENGINE_GOOGLE) {
     NavigateToThirdPartyAiMode(query_text);
     return;
@@ -829,6 +875,13 @@ void OmniboxEditModel::OpenAiMode(AimActivation activation) {
 }
 
 void OmniboxEditModel::OpenLensSearch() {
+  if (omnibox::kAskGLensChipRoute.Get()) {
+    if (auto* client =
+            autocomplete_controller()->autocomplete_provider_client()) {
+      client->OpenLensOverlay(/*show=*/true);
+    }
+    return;
+  }
   if (auto* provider =
           autocomplete_controller()->contextual_search_provider()) {
     OpenMatch(
@@ -875,6 +928,25 @@ void OmniboxEditModel::OpenSelection(OmniboxPopupSelection selection,
 
   const AutocompleteMatch& match =
       autocomplete_controller()->result().match_at(selection.line);
+
+  // For Ctrl+Enter selections triggered via a WebUI searchbox, the event
+  // bypasses `AcceptInput` and arrives here directly. The match is mutated here
+  // to generate a TLD match.
+  if (selection.state == OmniboxPopupSelection::CTRL_ENTER &&
+      autocomplete_controller()->history_url_provider()) {
+    std::u16string text_for_tld = autocomplete_controller()->input().text();
+    if (selection.line > 0) {
+      text_for_tld = match.fill_into_edit;
+    }
+    AutocompleteMatch url_match = searchbox::GenerateDotComMatch(
+        controller_->client(), autocomplete_controller(), input_, text_for_tld,
+        nullptr);
+    if (url_match.destination_url.is_valid()) {
+      OpenMatch(selection, url_match, disposition, GURL(), std::u16string(),
+                timestamp);
+      return;
+    }
+  }
 
   // Selecting a featured search match should enter keyword mode instead of
   // navigating to the suggestion.
@@ -1900,11 +1972,6 @@ gfx::Image OmniboxEditModel::GetMatchIconIfExtension(
              : controller_->client()->GetSizedIcon(extension_icon);
 }
 
-std::u16string OmniboxEditModel::GetSuggestionGroupHeaderText(
-    const std::optional<omnibox::GroupId>& suggestion_group_id) const {
-  return autocomplete_controller()->GetSuggestionGroupHeaderText(
-      suggestion_group_id);
-}
 
 void OmniboxEditModel::ResetPopupToInitialState() {
   if (!popup_view_) {
@@ -2096,7 +2163,9 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
     // screen reader with the header ("Summary") and then the answer in
     // `description`, and finally the URL details in `contents` (includes date).
     return AutocompleteMatchType::ToAccessibilityLabel(
-        match, GetSuggestionGroupHeaderText(match.suggestion_group_id),
+        match,
+        autocomplete_controller()->GetSuggestionGroupHeaderText(
+            match.suggestion_group_id),
         base::StrCat({
             match.history_embeddings_answer_header_text,
             match.description,
@@ -2109,7 +2178,7 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
   int additional_message_id = 0;
   std::u16string additional_message;
   // This switch statement should be updated when new selection types are added.
-  static_assert(OmniboxPopupSelection::LINE_STATE_MAX_VALUE == 8);
+  static_assert(OmniboxPopupSelection::LINE_STATE_MAX_VALUE == 9);
   switch (popup_selection_.state) {
     case OmniboxPopupSelection::NORMAL: {
       int available_actions_count = 0;
@@ -2201,10 +2270,13 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
       return base::StrCat(
           {match_text, u" ",
            AutocompleteMatchType::ToAccessibilityLabel(
-               match, GetSuggestionGroupHeaderText(match.suggestion_group_id),
+               match,
+               autocomplete_controller()->GetSuggestionGroupHeaderText(
+                   match.suggestion_group_id),
                match.iph_link_text, line, 0,
                l10n_util::GetStringUTF16(IDS_ACC_OMNIBOX_IPH_LINK_SELECTED),
                label_prefix_length)});
+    case OmniboxPopupSelection::CTRL_ENTER:
     default:
       break;
   }
@@ -2221,13 +2293,15 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
 
   // If there's a button focused, we don't want the "n of m" message announced.
   return AutocompleteMatchType::ToAccessibilityLabel(
-      match, GetSuggestionGroupHeaderText(match.suggestion_group_id),
+      match,
+      autocomplete_controller()->GetSuggestionGroupHeaderText(
+          match.suggestion_group_id),
       match_text, line, total_matches, additional_message, label_prefix_length);
 }
 
 std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForAimButton() {
   DCHECK(popup_selection_.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM);
-  return GetAiModeButtonConfig(controller_)->a11y_label;
+  return GetAiModeButtonUiConfig(controller_)->a11y_label;
 }
 
 std::u16string
@@ -2492,28 +2566,9 @@ void OmniboxEditModel::AcceptInput(WindowOpenDisposition disposition,
       text_for_desired_tld_navigation = url_for_editing_;
     }
 
-    // Generate a new AutocompleteInput, copying the latest one but using "com"
-    // as the desired TLD. Then use this autocomplete input to generate a
-    // URL_WHAT_YOU_TYPED AutocompleteMatch.
-    AutocompleteInput input(
-        text_for_desired_tld_navigation, input_.cursor_position(), "com",
-        input_.current_page_classification(),
-        controller_->client()->GetSchemeClassifier(),
-        controller_->client()->ShouldDefaultTypedNavigationsToHttps(), 0,
-        false);
-    input.set_prevent_inline_autocomplete(input_.prevent_inline_autocomplete());
-    input.set_in_keyword_mode(input_.in_keyword_mode());
-    input.set_allow_exact_keyword_match(input_.allow_exact_keyword_match());
-    input.set_omit_asynchronous_matches(input_.omit_asynchronous_matches());
-    input.set_focus_type(input_.focus_type());
-    input_ = input;
-    AutocompleteMatch url_match(VerbatimMatchForInput(
-        autocomplete_controller()->history_url_provider(),
-        autocomplete_controller()->autocomplete_provider_client(), input_,
-        input_.canonicalized_url(), false));
-
-    base::UmaHistogramBoolean("Omnibox.Search.CtrlEnter.ResolvedAsUrl",
-                              url_match.destination_url.is_valid());
+    AutocompleteMatch url_match = searchbox::GenerateDotComMatch(
+        controller_->client(), autocomplete_controller(), input_,
+        text_for_desired_tld_navigation, &input_);
 
     if (url_match.destination_url.is_valid()) {
       // We have a valid URL, we use this newly generated AutocompleteMatch.
@@ -2786,11 +2841,7 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
   controller_->client()->OnURLOpenedFromOmnibox(&log);
   OmniboxEventGlobalTracker::GetInstance()->OnURLOpened(&log);
 
-  if (auto* geolocation_header_service = autocomplete_controller()
-                                             ->autocomplete_provider_client()
-                                             ->GetGeolocationHeaderService()) {
-    geolocation_header_service->RecordInlineLocationSuggestionClicked(match);
-  }
+  autocomplete_controller()->MaybeProcessInlineLocationSuggestionMatch(match);
 
   TemplateURLService* template_url_service =
       controller_->client()->GetTemplateURLService();
@@ -3455,9 +3506,9 @@ void OmniboxEditModel::NavigateToAiModeWithoutContextualizer(
 
 void OmniboxEditModel::NavigateToThirdPartyAiMode(
     const std::u16string& query_text) {
-  auto* config = GetAiModeButtonConfig(controller_);
-  std::string url = query_text.empty() ? config->navigation_url_empty
-                                       : config->navigation_url;
+  auto* config = GetAiModeButtonUiConfig(controller_);
+  std::string url(query_text.empty() ? config->navigation_url_empty
+                                     : config->navigation_url);
   TemplateURLData turl_data;
   turl_data.SetURL(url);
   TemplateURL turl(turl_data);

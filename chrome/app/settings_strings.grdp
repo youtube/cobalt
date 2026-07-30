@@ -260,7 +260,7 @@
       Switch between two most recently used tabs with Ctrl+Tab
     </message>
     <message name="IDS_SETTINGS_TAB_STYLING" desc="Label for the dropdown menu for choosing browser frame styling.">
-      Tab Styling
+      Tab styling
     </message>
     <message name="IDS_SETTINGS_TAB_STYLING_CLASSIC" desc="Option for classic appearance without glass effect.">
       Classic
@@ -286,7 +286,7 @@
     <message name="IDS_SETTINGS_SHOW_TAB_SEARCH_BUTTON" desc="Label for the checkbox which enables or disables showing the tab search button in the tab strip.">
       Show tab search button
     </message>
-    <message name="IDS_SETTINGS_SHOW_PROJECTS_PANEL_BUTTON" desc="Label for the checkbox which enables or disables showing the projects panel button in the tab strip.">
+    <message name="IDS_SETTINGS_SHOW_ORGANIZER_PANEL_BUTTON" desc="Label for the checkbox which enables or disables showing the organizer panel button in the tab strip.">
       Show organizer button
     </message>
     <message name="IDS_SETTINGS_SHOW_EVERYTHING_MENU_BUTTON" desc="Label for the checkbox which enables or disables showing the saved tab groups button in the tab strip.">
@@ -1435,14 +1435,6 @@
     </message>
     <message name="IDS_SETTINGS_ANTI_ABUSE_THINGS_TO_CONSIDER_SECTION_ONE" desc="A description that informs users that the anti-abuse features do not reveal their browsing history.">
       This setting works without identifying you or allowing sites to see your browsing history, though sites can share a small amount of info as part of the verification
-    </message>
-
-    <!-- Privacy Sandbox strings -->
-    <message name="IDS_SETTINGS_PRIVACY_SANDBOX_COOKIES_DIALOG" desc="Text of a dialog shown to users when they interacted with cookies to make them aware of the Privacy Sandbox.">
-      Learn about and control new technologies that aim to replace third-party cookies
-    </message>
-    <message name="IDS_SETTINGS_PRIVACY_SANDBOX_COOKIES_DIALOG_MORE" desc="Label on the button in the dialog shown to users when they interacted with cookies to make them aware of the Privacy Sandbox.">
-      More
     </message>
 
     <!-- Privacy Sandbox Settings 4 - Privacy & Security Page -->
@@ -4094,7 +4086,7 @@
         Browser proxy settings are controlled by multiple sources
       </message>
     </if>
-    <if expr="not is_chromeos and _google_chrome">
+    <if expr="_google_chrome">
       <message name="IDS_SETTINGS_SYSTEM_FEATURE_ON_DEVICE_AI_ENABLED_LABEL" desc="Label for the toggle that allows or prevents chrome to download on device GenAI models to local disk.">
         On-device AI
       </message>

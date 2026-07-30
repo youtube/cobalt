@@ -236,6 +236,7 @@ source_set("impl") {
       "//chrome/browser/search",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui:chrome_pages",
+      "//chrome/browser/ui:session_crashed_bubble",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/extensions",
@@ -359,6 +360,7 @@ source_set("impl") {
     ]
     deps += [
       "//chrome/browser/signin:signin_promo",
+      "//chrome/browser/ui/webui:chrome_web_contents_handler",
       "//chrome/credential_provider/common:common_constants",
     ]
   }

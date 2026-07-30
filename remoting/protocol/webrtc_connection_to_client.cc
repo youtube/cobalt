@@ -19,11 +19,13 @@
 #include "remoting/protocol/audio_source.h"
 #include "remoting/protocol/audio_stream.h"
 #include "remoting/protocol/authenticator.h"
+#include "remoting/protocol/chromium_port_allocator_factory.h"
 #include "remoting/protocol/clipboard_stub.h"
 #include "remoting/protocol/desktop_capturer.h"
 #include "remoting/protocol/host_control_dispatcher.h"
 #include "remoting/protocol/host_event_dispatcher.h"
 #include "remoting/protocol/host_stub.h"
+#include "remoting/protocol/ice_config_fetcher.h"
 #include "remoting/protocol/input_stub.h"
 #include "remoting/protocol/message_pipe.h"
 #include "remoting/protocol/transport_context.h"
@@ -51,14 +53,17 @@ const char kVideoStatsStreamLabel[] = "screen_stream";
 // TODO(sergeyu): Figure out if we would benefit from using a separate thread as
 // a worker thread.
 WebrtcConnectionToClient::WebrtcConnectionToClient(
-    std::unique_ptr<protocol::Session> session,
-    scoped_refptr<protocol::TransportContext> transport_context,
+    std::unique_ptr<protocol::IceConfigFetcher> ice_config_fetcher,
     scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner)
-    : session_(std::move(session)),
-      video_stats_dispatcher_(kVideoStatsStreamLabel),
+    : video_stats_dispatcher_(kVideoStatsStreamLabel),
       audio_task_runner_(audio_task_runner),
       control_dispatcher_(new HostControlDispatcher()),
       event_dispatcher_(new HostEventDispatcher()) {
+  webrtc::ThreadWrapper::EnsureForCurrentMessageLoop();
+  auto transport_context = base::MakeRefCounted<protocol::TransportContext>(
+      std::make_unique<protocol::ChromiumPortAllocatorFactory>(),
+      webrtc::ThreadWrapper::current()->SocketServer(),
+      std::move(ice_config_fetcher), protocol::TransportRole::SERVER);
   auto video_encoder_factory = std::make_unique<WebrtcVideoEncoderFactory>();
   video_encoder_factory_ = video_encoder_factory.get();
   transport_ = std::make_unique<WebrtcTransport>(
@@ -84,11 +89,6 @@ void WebrtcConnectionToClient::SetEventHandler(
   event_handler_ = event_handler;
 }
 
-protocol::Session* WebrtcConnectionToClient::session() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return session_.get();
-}
-
 Transport* WebrtcConnectionToClient::transport() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return transport_.get();
@@ -111,9 +111,9 @@ void WebrtcConnectionToClient::Disconnect(
     transport_.reset();
   }
 
-  // This should trigger OnConnectionClosed() event and this object
-  // may be destroyed as the result.
-  session_->Close(error, error_details, error_location);
+  if (event_handler_) {
+    event_handler_->OnConnectionClosed(error, error_details, error_location);
+  }
 }
 
 std::unique_ptr<VideoStream> WebrtcConnectionToClient::StartVideoStream(

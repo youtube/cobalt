@@ -35,6 +35,7 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/tab_list/mock_tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
@@ -77,6 +78,7 @@
 #include "components/omnibox/composebox/contextual_search_mojom_traits.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -370,6 +372,8 @@ class ContextualSearchboxHandlerTest
         .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
     ON_CALL(mock_browser_window_interface_, GetWindow())
         .WillByDefault(testing::Return(&mock_base_window_));
+    ON_CALL(mock_browser_window_interface_, GetFeatures())
+        .WillByDefault(testing::ReturnRef(browser_window_features_));
     ON_CALL(mock_base_window_, GetNativeWindow())
         .WillByDefault(
             testing::Return(web_contents()->GetTopLevelNativeWindow()));
@@ -479,6 +483,7 @@ class ContextualSearchboxHandlerTest
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       contextual_session_handle_;
   testing::NiceMock<MockBrowserWindowInterface> mock_browser_window_interface_;
+  BrowserWindowFeatures browser_window_features_;
   testing::NiceMock<ui::MockBaseWindow> mock_base_window_;
   ui::UnownedUserDataHost unowned_user_data_host_;
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1912,6 +1917,7 @@ TEST_F(ContextualSearchboxHandlerTest, OnDriveUploadClicked) {
   EXPECT_FALSE(response->error.has_value());
 
   EXPECT_FALSE(handler().IsDrivePickerReceiverBound());
+  EXPECT_FALSE(handler().has_drive_picker_deactivation_blocker_for_testing());
 }
 
 TEST_F(ContextualSearchboxHandlerTest,
@@ -2082,9 +2088,10 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
             GetMetricsRecorderPtr(),
             &MockContextualSearchMetricsRecorder::RecordZeroSuggestClickBase));
 
+    auto modifiers = searchbox::mojom::ActionModifiers::New();
     handler().OpenAutocompleteMatch(0, GURL("https://www.google.com"),
-                                    /*are_matches_showing=*/true, 0, false,
-                                    false, false, false,
+                                    /*are_matches_showing=*/true,
+                                    /*mouse_button=*/0, std::move(modifiers),
                                     /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
@@ -2117,9 +2124,10 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
             GetMetricsRecorderPtr(),
             &MockContextualSearchMetricsRecorder::RecordZeroSuggestClickBase));
 
+    auto modifiers = searchbox::mojom::ActionModifiers::New();
     handler().OpenAutocompleteMatch(0, GURL("https://www.contextual.com"),
-                                    /*are_matches_showing=*/true, 0, false,
-                                    false, false, false,
+                                    /*are_matches_showing=*/true,
+                                    /*mouse_button=*/0, std::move(modifiers),
                                     /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
@@ -2165,9 +2173,10 @@ TEST_F(ContextualSearchboxHandlerTest,
                                   &MockContextualSearchMetricsRecorder::
                                       RecordTypedSuggestNavigationBase));
 
+    auto modifiers = searchbox::mojom::ActionModifiers::New();
     handler().OpenAutocompleteMatch(0, GURL("https://www.google.com"),
-                                    /*are_matches_showing=*/true, 0, false,
-                                    false, false, false,
+                                    /*are_matches_showing=*/true,
+                                    /*mouse_button=*/0, std::move(modifiers),
                                     /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
@@ -2204,9 +2213,10 @@ TEST_F(ContextualSearchboxHandlerTest,
                                   &MockContextualSearchMetricsRecorder::
                                       RecordTypedSuggestNavigationBase));
 
+    auto modifiers = searchbox::mojom::ActionModifiers::New();
     handler().OpenAutocompleteMatch(
         1, GURL("https://www.google.com/search?q=suggestion"),
-        /*are_matches_showing=*/true, 0, false, false, false, false,
+        /*are_matches_showing=*/true, /*mouse_button=*/0, std::move(modifiers),
         /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
@@ -2288,9 +2298,10 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
   handler().SetAutocompleteControllerForTesting(
       std::move(autocomplete_controller));
 
-  handler().QueryAutocomplete(0, u"test",
-                              /*prevent_inline_autocomplete=*/false, 0,
-                              /*is_on_focus=*/false);
+  handler().QueryAutocomplete(
+      0, u"test", /*prevent_inline_autocomplete=*/false, 0,
+      omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+      /*is_on_focus=*/false);
 
   EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
   EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
@@ -2322,9 +2333,10 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(0, u"test",
-                                /*prevent_inline_autocomplete=*/false, 0,
-                                /*is_on_focus=*/false);
+    handler().QueryAutocomplete(
+        0, u"test", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/false);
     EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
     EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
               "xyz");
@@ -2347,9 +2359,10 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(0, u"test",
-                                /*prevent_inline_autocomplete=*/false, 0,
-                                /*is_on_focus=*/false);
+    handler().QueryAutocomplete(
+        0, u"test", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/false);
     EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
     EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
               "xyz");
@@ -2581,7 +2594,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, ClearFiles_KeepTabs) {
   EXPECT_EQ(handler().GetUploadedContextTokens().size(), 0u);
 
   // Verify tab token remains in submitted tabs:
-  const auto& submitted_tabs = contextual_session_handle_->submitted_tabs();
+  const auto& submitted_tabs = contextual_session_handle_->persisted_tabs();
   EXPECT_EQ(submitted_tabs.size(), 1u);
   auto it = submitted_tabs.find(SessionID::FromSerializedValue(sample_tab_id));
   ASSERT_NE(it, submitted_tabs.end());
@@ -3459,6 +3472,79 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, GetRecentTabs) {
     EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
     EXPECT_EQ(tabs[1]->tab_id, gmail_tab->GetHandle().raw_value());
   }
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       GetRecentTabs_IncludesUnloadedTab) {
+  auto* loaded_tab = AddTab(GURL("https://www.google.com"));
+  auto unloaded_mock_tab = std::make_unique<tabs::MockTabInterface>();
+  tabs::TabInterface* unloaded_tab = unloaded_mock_tab.get();
+
+  ui::UnownedUserDataHost unloaded_user_data_host;
+  ON_CALL(*unloaded_mock_tab, GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(unloaded_user_data_host));
+  ON_CALL(testing::Const(*unloaded_mock_tab), GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(unloaded_user_data_host));
+  ON_CALL(*unloaded_mock_tab, GetTabFeatures())
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(testing::Const(*unloaded_mock_tab), GetTabFeatures())
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(*unloaded_mock_tab, GetContents)
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(*unloaded_mock_tab, GetURL)
+      .WillByDefault(testing::Return(GURL("https://www.unloaded.com")));
+  ON_CALL(*unloaded_mock_tab, GetTitle)
+      .WillByDefault(testing::Return(u"Unloaded Tab"));
+  ON_CALL(*unloaded_mock_tab, GetLastActiveTime)
+      .WillByDefault(testing::Return(base::Time::Now() - base::Days(10)));
+  ON_CALL(*unloaded_mock_tab, GetTabHandle).WillByDefault(testing::Return(999));
+
+  all_tabs_.push_back(unloaded_tab);
+  ON_CALL(*tab_list(), GetAllTabs()).WillByDefault(testing::Return(all_tabs_));
+
+  base::test::TestFuture<std::vector<searchbox::mojom::TabInfoPtr>> future;
+  handler().GetRecentTabs(future.GetCallback());
+  auto tabs = future.Take();
+
+  ASSERT_EQ(tabs.size(), 2u);
+  EXPECT_EQ(tabs[0]->tab_id, loaded_tab->GetHandle().raw_value());
+  EXPECT_EQ(tabs[1]->tab_id, unloaded_tab->GetHandle().raw_value());
+  EXPECT_EQ(tabs[1]->url, GURL("https://www.unloaded.com"));
+  EXPECT_EQ(tabs[1]->title, "Unloaded Tab");
+
+  all_tabs_.pop_back();
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       WaitForTabFaviconLoad_UnloadedTab) {
+  auto unloaded_mock_tab = std::make_unique<tabs::MockTabInterface>();
+  tabs::TabInterface* unloaded_tab = unloaded_mock_tab.get();
+
+  ui::UnownedUserDataHost unloaded_user_data_host;
+  ON_CALL(*unloaded_mock_tab, GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(unloaded_user_data_host));
+  ON_CALL(testing::Const(*unloaded_mock_tab), GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(unloaded_user_data_host));
+  ON_CALL(*unloaded_mock_tab, GetTabFeatures())
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(testing::Const(*unloaded_mock_tab), GetTabFeatures())
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(*unloaded_mock_tab, GetContents)
+      .WillByDefault(testing::Return(nullptr));
+  ON_CALL(*unloaded_mock_tab, GetURL)
+      .WillByDefault(testing::Return(GURL("https://www.unloaded.com")));
+  ON_CALL(*unloaded_mock_tab, GetTabHandle).WillByDefault(testing::Return(999));
+
+  all_tabs_.push_back(unloaded_tab);
+  ON_CALL(*tab_list(), GetAllTabs()).WillByDefault(testing::Return(all_tabs_));
+
+  base::test::TestFuture<const std::optional<GURL>&> future;
+  handler().WaitForTabFaviconLoad(999, future.GetCallback());
+  auto result = future.Take();
+
+  EXPECT_EQ(result, std::nullopt);
+
+  all_tabs_.pop_back();
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, GetRecentTabs_UsesServerLimit) {

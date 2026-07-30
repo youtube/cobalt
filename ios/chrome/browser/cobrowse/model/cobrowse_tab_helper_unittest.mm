@@ -14,8 +14,11 @@
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state_options.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/fake_scene_state.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -70,18 +73,14 @@ class CobrowseTabHelperTest : public PlatformTest {
         template_url_service->Add(std::make_unique<TemplateURL>(data));
     template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
 
-    // Create a mock dispatcher and associate it with a mock scene commands
-    // handler.
-    mock_command_dispatcher_ = OCMClassMock([CommandDispatcher class]);
-    mock_scene_commands_handler_ = OCMProtocolMock(@protocol(SceneCommands));
-    OCMStub([mock_command_dispatcher_
-                strictCallableForProtocol:@protocol(SceneCommands)])
-        .andReturn(mock_scene_commands_handler_);
+    scene_state_ = [[FakeSceneState alloc] initWithProfile:profile_.get()];
+    [scene_state_ connectWithOptions:{.identifier = "FakeScene"}];
 
-    scene_state_ =
-        [[FakeSceneState alloc] initWithProfile:profile_.get()
-                                 sceneSessionID:"FakeScene"
-                              commandDispatcher:mock_command_dispatcher_];
+    // Create a mock command handler for SceneCommands and register it.
+    mock_scene_commands_handler_ = OCMProtocolMock(@protocol(SceneCommands));
+    [browser()->GetCommandDispatcher()
+        startDispatchingToTarget:mock_scene_commands_handler_
+                     forProtocol:@protocol(SceneCommands)];
 
     CobrowseBrowserAgent::CreateForBrowser(browser());
   }
@@ -172,7 +171,6 @@ class CobrowseTabHelperTest : public PlatformTest {
   std::unique_ptr<TestProfileIOS> profile_;
   FakeSceneState* scene_state_;
   id mock_scene_commands_handler_;
-  id mock_command_dispatcher_;
 };
 
 // Tests that showAssistant is called when navigating in a new tab if the opener
@@ -291,6 +289,7 @@ TEST_F(CobrowseTabHelperTest, HideAssistantOnAimSearchNavigation) {
   GURL aim_search_url("https://www.google.com/search?q=test&udm=50");
 
   web::FakeWebState* web_state = CreateAndInsertWebState({});
+  web_state->WasShown();
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
 
   web::FakeNavigationContext context;
@@ -309,6 +308,7 @@ TEST_F(CobrowseTabHelperTest, HideAssistantOnAimZeroStateSearchNavigation) {
   GURL aim_zero_state_url("https://www.google.com/?udm=50");
 
   web::FakeWebState* web_state = CreateAndInsertWebState({});
+  web_state->WasShown();
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
 
   web::FakeNavigationContext context;

@@ -31,7 +31,6 @@ import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
@@ -79,8 +78,6 @@ export interface SettingsAutofillSectionElement {
     addressList: HTMLElement,
     addressSharedMenu: CrActionMenuElement,
     autofillProfileToggle: SettingsToggleButtonElement,
-    autofillSyncToggle: CrToggleElement,
-    autofillSyncToggleWrapper: HTMLElement,
     emailSharedMenu: CrActionMenuElement,
     menuEditAddress: HTMLElement,
     menuRemoveAddress: HTMLElement,
@@ -126,11 +123,6 @@ export class SettingsAutofillSectionElement extends
         computed: 'computeIsGoogleProfileAddress_(activeAddress)',
       },
 
-      isPlusAddressEnabled_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('plusAddressEnabled'),
-      },
-
       isEmailVerificationProtocolEnabled_: {
         type: Boolean,
         value: () =>
@@ -173,7 +165,6 @@ export class SettingsAutofillSectionElement extends
   declare private showEmailRemoveConfirmationDialog_: boolean;
   declare private activeEmailIssuer_: string;
   declare private isGoogleProfileAddress: boolean;
-  declare private isPlusAddressEnabled_: boolean;
   declare private isEmailVerificationProtocolEnabled_: boolean;
   declare private isYourSavedInfoSubpage_: boolean;
   declare private emailVerificationAddresses_: string[];
@@ -186,11 +177,6 @@ export class SettingsAutofillSectionElement extends
   override ready() {
     super.ready();
     this.addEventListener('save-address', this.saveAddress_);
-
-    // This is to mimic the behaviour of <settings-toggle-button>.
-    this.$.autofillSyncToggleWrapper.addEventListener('click', () => {
-      this.$.autofillSyncToggle.click();
-    });
   }
 
   override connectedCallback() {
@@ -557,12 +543,6 @@ export class SettingsAutofillSectionElement extends
     return this.i18n(messageKey, fullLabel);
   }
 
-  private isAutofillSyncToggleVisible_(accountInfo:
-                                           chrome.autofillPrivate.AccountInfo|
-                                       null): boolean {
-    return !!(accountInfo?.isAutofillSyncToggleAvailable);
-  }
-
   private computeShowGmailOtpFillingToggle_(): boolean {
     const isSignedIn = !!this.accountInfo_;
     return isSignedIn &&
@@ -602,18 +582,6 @@ export class SettingsAutofillSectionElement extends
         'Autofill.ProfileDeleted.Any.' + suffix, wasDeletionConfirmed);
   }
 
-  /**
-   * Triggered by settings-toggle-button#autofillSyncToggle. It passes
-   * the toggle state to the native code. If the data changed the page
-   * content will be refreshed automatically via `PersonalDataChangedListener`.
-   */
-  private onAutofillSyncEnabledChange_() {
-    assert(
-        this.accountInfo_ && this.accountInfo_.isAutofillSyncToggleAvailable);
-    this.autofillManager_.setAutofillSyncToggleEnabled(
-        this.$.autofillSyncToggle.checked);
-  }
-
   private onAutofillProfileToggleChanged_() {
     const value = this.$.autofillProfileToggle.checked ?
         AutofillAddressOptInChange.OPT_IN :
@@ -621,13 +589,6 @@ export class SettingsAutofillSectionElement extends
     chrome.metricsPrivate.recordEnumerationValue(
         'Autofill.Address.IsEnabled.Change', value,
         AutofillAddressOptInChange.COUNT);
-  }
-
-  private onPlusAddressClick_() {
-    chrome.metricsPrivate.recordUserAction(
-        'Settings.ManageOptionOnSettingsSelected');
-    OpenWindowProxyImpl.getInstance().openUrl(
-        loadTimeData.getString('plusAddressManagementUrl'));
   }
 
   private onGmailOtpFillingLinkClick_() {

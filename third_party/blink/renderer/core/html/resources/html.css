@@ -649,6 +649,7 @@ input::-internal-input-suggested {
         font-family: sans-serif !important;
     }
     textarea::-internal-input-suggested,
+    input:-internal-autofill-previewed::-webkit-datetime-edit,
     input:-internal-autofill-previewed::-webkit-datetime-edit-ampm-field,
     input:-internal-autofill-previewed::-webkit-datetime-edit-day-field,
     input:-internal-autofill-previewed::-webkit-datetime-edit-hour-field,
@@ -665,6 +666,7 @@ input::-internal-input-suggested {
     input::-internal-input-suggested,
     textarea::-internal-input-suggested,
     select:-internal-autofill-previewed,
+    input:-internal-autofill-previewed::-webkit-datetime-edit,
     input:-internal-autofill-previewed::-webkit-datetime-edit-ampm-field,
     input:-internal-autofill-previewed::-webkit-datetime-edit-day-field,
     input:-internal-autofill-previewed::-webkit-datetime-edit-hour-field,
@@ -1170,11 +1172,6 @@ input::-internal-email-verification-indicator {
     background-size: contain;
 }
 
-input::-internal-email-verification-indicator[data-state="supported"] {
-    display: inline-block;
-    background-image: url("images/email_verification_supported.svg");
-}
-
 input::-internal-email-verification-indicator[data-state="verified"] {
     display: inline-block;
     background-image: url("images/email_verification_verified.svg");
@@ -1184,16 +1181,6 @@ input::-internal-email-verification-indicator[data-state="loading"] {
     display: inline-block;
     background-image: url("images/email_verification_loading.svg");
     animation: -internal-email-verification-spin 1s linear infinite;
-}
-
-input::-internal-email-verification-indicator[data-state="logged-out-or-unsupported"] {
-    display: inline-block;
-    background-image: url("images/email_verification_logged_out.svg");
-}
-
-input::-internal-email-verification-indicator[data-state="failed"] {
-    display: inline-block;
-    background-image: url("images/email_verification_failed.svg");
 }
 
 @keyframes -internal-email-verification-spin {

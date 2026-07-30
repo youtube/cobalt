@@ -49,6 +49,8 @@ class GPURenderBundleEncoder;
 class GPURenderBundleEncoderDescriptor;
 class GPURenderPipeline;
 class GPURenderPipelineDescriptor;
+class GPUResourceTable;
+class GPUResourceTableDescriptor;
 class GPUSampler;
 class GPUSamplerDescriptor;
 class GPUShaderModule;
@@ -129,6 +131,9 @@ class GPUDevice final : public EventTarget,
       ExceptionState& exception_state);
   GPUPipelineLayout* createPipelineLayout(
       const GPUPipelineLayoutDescriptor* descriptor);
+  GPUResourceTable* createResourceTable(
+      const GPUResourceTableDescriptor* descriptor,
+      ExceptionState& exception_state);
 
   GPUShaderModule* createShaderModule(
       const GPUShaderModuleDescriptor* descriptor);
@@ -245,9 +250,8 @@ class GPUDevice final : public EventTarget,
       wgpu::ComputePipeline compute_pipeline,
       wgpu::StringView message);
 
-  void SetLabelImpl(const String& value) override {
-    std::string utf8_label = value.Utf8();
-    GetHandle().SetLabel(utf8_label.c_str());
+  void SetLabelImpl(std::string_view value) override {
+    GetHandle().SetLabel(value);
   }
 
   Member<GPUAdapter> adapter_;

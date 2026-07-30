@@ -72,6 +72,7 @@
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/autofill/address_bubbles_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
+#include "chrome/browser/ui/autofill/autofill_dialog_controller_impl.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller.h"
 #include "chrome/browser/ui/autofill/chrome_otp_phish_guard_delegate.h"
 #include "chrome/browser/ui/autofill/edit_address_profile_dialog_controller_impl.h"
@@ -238,6 +239,18 @@ AutoselectFirstSuggestion ShouldAutofillPopupAutoselectFirstSuggestion(
       source == AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown);
 }
 
+// Returns a string representation of `saved_entities` (comma separated). Used
+// to include in product data to hats surveys.
+std::string GetStringRepresentatioOfSavedEntitiesTypes(
+    const base::flat_set<EntityTypeName>& saved_entities) {
+  return base::JoinString(
+      base::ToVector(saved_entities,
+                     [](EntityTypeName name) {
+                       return std::string(EntityType(name).name_as_string());
+                     }),
+      ",");
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 const base::Feature& GetFeature(AutofillClient::IphFeature iph_feature) {
   switch (iph_feature) {
@@ -255,51 +268,6 @@ ui::ElementIdentifier GetElementId(AutofillClient::IphFeature iph_feature) {
   NOTREACHED();
 }
 
-// Returns a string representation of `saved_entities` (comma separated). Used
-// to include in product data to hats surveys.
-std::string GetStringRepresentatioOfSavedEntitiesTypes(
-    const base::flat_set<EntityTypeName>& saved_entities) {
-  return base::JoinString(
-      base::ToVector(saved_entities,
-                     [](EntityTypeName name) {
-                       return std::string(EntityType(name).name_as_string());
-                     }),
-      ",");
-}
-
-bool CanTriggerAutofillAiFillingSurveyForEntityType(EntityType type) {
-  switch (type.name()) {
-    case EntityTypeName::kVehicle:
-    case EntityTypeName::kFlightReservation:
-      return true;
-    case EntityTypeName::kKnownTravelerNumber:
-    case EntityTypeName::kRedressNumber:
-    case EntityTypeName::kPassport:
-    case EntityTypeName::kNationalIdCard:
-    case EntityTypeName::kDriversLicense:
-    case EntityTypeName::kOrder:
-    case EntityTypeName::kShipment:
-      return false;
-  }
-  NOTREACHED();
-}
-
-bool CanTriggerAutofillAiSavePromptSurveyForEntityType(EntityType type) {
-  switch (type.name()) {
-    case EntityTypeName::kVehicle:
-      return true;
-    case EntityTypeName::kFlightReservation:
-    case EntityTypeName::kKnownTravelerNumber:
-    case EntityTypeName::kRedressNumber:
-    case EntityTypeName::kPassport:
-    case EntityTypeName::kNationalIdCard:
-    case EntityTypeName::kDriversLicense:
-    case EntityTypeName::kOrder:
-    case EntityTypeName::kShipment:
-      return false;
-  }
-  NOTREACHED();
-}
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -1019,10 +987,6 @@ void ChromeAutofillClient::TriggerAutofillAiFillingJourneySurvey(
     EntityType entity_type,
     const base::flat_set<EntityTypeName>& saved_entities,
     const FieldTypeSet& triggering_field_types) {
-#if !BUILDFLAG(IS_ANDROID)
-  if (!CanTriggerAutofillAiFillingSurveyForEntityType(entity_type)) {
-    return;
-  }
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   auto* hats_service =
@@ -1036,40 +1000,8 @@ void ChromeAutofillClient::TriggerAutofillAiFillingJourneySurvey(
        {"Triggering field types", FieldTypeSetToString(triggering_field_types)},
        {"Saved entities",
         GetStringRepresentatioOfSavedEntitiesTypes(saved_entities)}});
-#endif
 }
 
-void ChromeAutofillClient::TriggerAutofillAiSavePromptSurvey(
-    bool prompt_accepted,
-    EntityType entity_type,
-    const base::flat_set<EntityTypeName>& saved_entities) {
-#if !BUILDFLAG(IS_ANDROID)
-  if (!CanTriggerAutofillAiSavePromptSurveyForEntityType(entity_type)) {
-    return;
-  }
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  auto* hats_service =
-      HatsServiceFactory::GetForProfile(profile, /*create_if_necessary=*/true);
-  CHECK(hats_service);
-
-  const std::string trigger_id =
-      prompt_accepted
-          ? features::kAutofillAiSavePromptSurveyAcceptedTriggerId.Get()
-          : features::kAutofillAiSavePromptSurveyDeclinedTriggerId.Get();
-  if (!trigger_id.empty()) {
-    hats_service->LaunchDelayedSurveyForWebContents(
-        kHatsSurveyTriggerAutofillAiSavePrompt, web_contents(),
-        /*timeout_ms=*/10000,
-        /*product_specific_bits_data=*/{},
-        {{"Entity type", std::string(entity_type.name_as_string())},
-         {"Saved entities",
-          GetStringRepresentatioOfSavedEntitiesTypes(saved_entities)}},
-        HatsService::NavigationBehavior::ALLOW_ANY, base::DoNothing(),
-        base::DoNothing(), trigger_id);
-  }
-#endif
-}
 
 bool ChromeAutofillClient::IsTabInActorMode() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1241,6 +1173,15 @@ ChromeAutofillClient::GetAutofillSnackbarController() {
   return autofill_snackbar_controller_impl_.get();
 }
 
+AutofillDialogController* ChromeAutofillClient::GetAutofillDialogController() {
+  if (!autofill_dialog_controller_impl_) {
+    autofill_dialog_controller_impl_ =
+        std::make_unique<AutofillDialogControllerImpl>(web_contents());
+  }
+
+  return autofill_dialog_controller_impl_.get();
+}
+
 AutofillMessageController*
 ChromeAutofillClient::GetAutofillMessageController() {
   if (!autofill_message_controller_) {
@@ -1363,7 +1304,8 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
   if (base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema)) {
     autofill_ai_save_update_entity_flow_manager_ =
         std::make_unique<AutofillAiSaveUpdateEntityFlowManager>(
-            web_contents, GetAutofillMessageController(), GetAppLocale());
+            web_contents, GetAutofillMessageController(),
+            GetAutofillDialogController(), GetAppLocale());
   }
   save_update_address_profile_flow_manager_ =
       std::make_unique<SaveUpdateAddressProfileFlowManager>(
@@ -1618,14 +1560,13 @@ void ChromeAutofillClient::ShowAutofillAiSaveToWalletFailureNotification() {
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void ChromeAutofillClient::ShowAutofillAiFetchFromWalletFailureNotification() {
+void ChromeAutofillClient::ShowAutofillAiFetchEntityFailureNotification() {
 #if BUILDFLAG(IS_ANDROID)
   GetAutofillSnackbarController()->Show(
-      AutofillSnackbarType::kAutofillAiFetchFromWalletFailure,
-      base::DoNothing());
+      AutofillSnackbarType::kAutofillAiFetchEntityFailure, base::DoNothing());
 #else
   if (ToastController* toast_controller = GetToastController()) {
-    ToastParams params(ToastId::kAutofillAiFetchFromWalletErrorMessage);
+    ToastParams params(ToastId::kAutofillAiFetchEntityErrorMessage);
     toast_controller->MaybeShowToast(std::move(params));
   }
 #endif  // BUILDFLAG(IS_ANDROID)

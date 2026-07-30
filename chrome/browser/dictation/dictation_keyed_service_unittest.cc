@@ -45,13 +45,13 @@ TEST_F(DictationKeyedServiceTest, EndSessionDoesNotCrash) {
 
 TEST_F(DictationKeyedServiceTest, StartSessionWithNullTarget) {
   ASSERT_EQ(service_->session_controller(), nullptr);
-  service_->StartSession(tab_, EmptyTargetId(),
+  service_->StartSession(tab_, EmptyTarget(),
                          DictationSessionEntryPoint::kContextMenu);
   EXPECT_NE(service_->session_controller(), nullptr);
 }
 
 TEST_F(DictationKeyedServiceTest, EndSessionRemovesController) {
-  service_->StartSession(tab_, EmptyTargetId(),
+  service_->StartSession(tab_, EmptyTarget(),
                          DictationSessionEntryPoint::kContextMenu);
   ASSERT_NE(service_->session_controller(), nullptr);
   service_->EndSession();
@@ -66,7 +66,7 @@ TEST_F(DictationKeyedServiceTest,
   histogram_tester.ExpectUniqueSample(kIsEnabledOnProfileInitHistogramName,
                                       true, 1);
 
-  service->StartSession(tab_, EmptyTargetId(),
+  service->StartSession(tab_, EmptyTarget(),
                         DictationSessionEntryPoint::kContextMenu);
   histogram_tester.ExpectUniqueSample(kSessionStartSourceHistogramName,
                                       DictationSessionEntryPoint::kContextMenu,
@@ -80,7 +80,7 @@ TEST_F(DictationKeyedServiceTest, RecordsMetricsForStartButton) {
   base::HistogramTester histogram_tester;
 
   auto service = std::make_unique<MockDictationKeyedService>(&profile_);
-  service->StartSession(tab_, EmptyTargetId(),
+  service->StartSession(tab_, EmptyTarget(),
                         DictationSessionEntryPoint::kContextMenu);
   histogram_tester.ExpectBucketCount(kStreamStartTriggerHistogramName,
                                      DictationStreamStartTrigger::kSessionStart,
@@ -106,6 +106,19 @@ TEST_F(DictationKeyedServiceTest, RecordsMetricsForStartButton) {
                                      DictationStreamStartTrigger::kStartButton,
                                      1);
   histogram_tester.ExpectTotalCount(kStreamStartTriggerHistogramName, 2);
+}
+
+TEST_F(DictationKeyedServiceTest, UpdateAudioLevelPropagatesToController) {
+  service_->StartSession(tab_, EmptyTargetId(),
+                         DictationSessionEntryPoint::kContextMenu);
+  auto* controller = service_->session_controller();
+  ASSERT_NE(controller, nullptr);
+
+  auto* mock_ui = static_cast<MockSessionUi*>(controller->ui_for_testing());
+  ASSERT_NE(mock_ui, nullptr);
+
+  EXPECT_CALL(*mock_ui, UpdateAudioLevel(0.5f));
+  service_->UpdateAudioLevel(0.5f);
 }
 
 }  // namespace dictation

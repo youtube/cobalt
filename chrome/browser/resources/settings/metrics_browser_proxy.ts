@@ -193,7 +193,7 @@ export enum PrivacyGuideInteractions {
   PRIVACY_SANDBOX_COMPLETION_LINK = 9,
   SEARCH_SUGGESTIONS_NEXT_BUTTON = 10,
   // TRACKING_PROTECTION_COMPLETION_LINK = 11, // OBSOLETE
-  AD_TOPICS_NEXT_BUTTON = 12,
+  // AD_TOPICS_NEXT_BUTTON = 12, // OBSOLETE
   AI_SETTINGS_COMPLETION_LINK = 13,
   // Max value should be updated whenever new entries are added.
   MAX_VALUE = 14,
@@ -232,10 +232,10 @@ export enum PrivacyGuideSettingsStates {
   SEARCH_SUGGESTIONS_ON_TO_OFF = 17,
   SEARCH_SUGGESTIONS_OFF_TO_ON = 18,
   SEARCH_SUGGESTIONS_OFF_TO_OFF = 19,
-  AD_TOPICS_ON_TO_ON = 20,
-  AD_TOPICS_ON_TO_OFF = 21,
-  AD_TOPICS_OFF_TO_ON = 22,
-  AD_TOPICS_OFF_TO_OFF = 23,
+  // AD_TOPICS_ON_TO_ON = 20, // OBSOLETE
+  // AD_TOPICS_ON_TO_OFF = 21, // OBSOLETE
+  // AD_TOPICS_OFF_TO_ON = 22, // OBSOLETE
+  // AD_TOPICS_OFF_TO_OFF = 23, // OBSOLETE
   // Max value should be updated whenever new entries are added.
   MAX_VALUE = 24,
 }
@@ -264,8 +264,8 @@ export enum PrivacyGuideStepsEligibleAndReached {
   COMPLETION_REACHED = 9,
   SEARCH_SUGGESTIONS_ELIGIBLE = 10,
   SEARCH_SUGGESTIONS_REACHED = 11,
-  AD_TOPICS_ELIGIBLE = 12,
-  AD_TOPICS_REACHED = 13,
+  // AD_TOPICS_ELIGIBLE = 12, // OBSOLETE
+  // AD_TOPICS_REACHED = 13, // OBSOLETE
   // Leave this at the end.
   COUNT = 14,
 }
@@ -483,6 +483,25 @@ export enum YourSavedInfoRelatedService {
 }
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:YourSavedInfoRelatedService)
 
+// LINT.IfChange(SuggestionsFromGeminiEntryPoint)
+export enum SuggestionsFromGeminiEntryPoint {
+  YOUR_SAVED_INFO = 0,
+  TRAVEL = 1,
+  SHOPPING = 2,
+  IDENTITY_DOCS = 3,
+  MAX_VALUE = 4,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionsFromGeminiEntryPoint)
+
+// LINT.IfChange(SuggestionsFromGeminiAction)
+export enum SuggestionsFromGeminiAction {
+  MANAGE_CONNECTED_APPS_CLICK = 0,
+  TOGGLE_ON = 1,
+  TOGGLE_OFF = 2,
+  MAX_VALUE = 3,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionsFromGeminiAction)
+
 export interface MetricsBrowserProxy {
   /**
    * Helper function that calls recordAction with one action from
@@ -574,6 +593,19 @@ export interface MetricsBrowserProxy {
    */
   recordSafeBrowsingInteractionHistogram(interaction: SafeBrowsingInteractions):
       void;
+
+  /**
+   * Records a click on the Suggestions from Gemini link across Your saved info
+   * and category subpages with a corresponding metric and user action.
+   */
+  recordSuggestionsFromGeminiEntryPointClick(
+      entryPoint: SuggestionsFromGeminiEntryPoint): void;
+
+  /**
+   * Records an action triggered inside the Suggestions from Gemini subpage
+   * with a corresponding metric and user action.
+   */
+  recordSuggestionsFromGeminiAction(action: SuggestionsFromGeminiAction): void;
 
   /**
    * Helper function that calls recordHistogram for the
@@ -951,6 +983,47 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
     if (service !== YourSavedInfoRelatedService.MAX_VALUE) {
       this.recordAction(`Settings.YourSavedInfo.RelatedServiceClick.${
           YourSavedInfoRelatedService[service]}`);
+    }
+  }
+
+  recordSuggestionsFromGeminiEntryPointClick(
+      entryPoint: SuggestionsFromGeminiEntryPoint) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Autofill.YourSavedInfoSettingsPage.SuggestionsFromGeminiLinkClick',
+      entryPoint,
+      SuggestionsFromGeminiEntryPoint.MAX_VALUE,
+    ]);
+    if (entryPoint !== SuggestionsFromGeminiEntryPoint.MAX_VALUE) {
+      const actionMap = {
+        [SuggestionsFromGeminiEntryPoint.YOUR_SAVED_INFO]:
+            'PersonalContext.Settings.EntryPoint.AutofillAndPasswordsSettings',
+        [SuggestionsFromGeminiEntryPoint.TRAVEL]:
+            'PersonalContext.Settings.EntryPoint.TravelSettings',
+        [SuggestionsFromGeminiEntryPoint.SHOPPING]:
+            'PersonalContext.Settings.EntryPoint.ShoppingSettings',
+        [SuggestionsFromGeminiEntryPoint.IDENTITY_DOCS]:
+            'PersonalContext.Settings.EntryPoint.IdentityDocsSettings',
+      };
+      this.recordAction(actionMap[entryPoint]);
+    }
+  }
+
+  recordSuggestionsFromGeminiAction(action: SuggestionsFromGeminiAction) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Autofill.YourSavedInfoSettingsPage.SuggestionsFromGeminiAction',
+      action,
+      SuggestionsFromGeminiAction.MAX_VALUE,
+    ]);
+    if (action !== SuggestionsFromGeminiAction.MAX_VALUE) {
+      const actionMap = {
+        [SuggestionsFromGeminiAction.MANAGE_CONNECTED_APPS_CLICK]:
+            'PersonalContext.Settings.ManageConnectedAppsClick',
+        [SuggestionsFromGeminiAction.TOGGLE_ON]:
+            'PersonalContext.Settings.ToggledOn',
+        [SuggestionsFromGeminiAction.TOGGLE_OFF]:
+            'PersonalContext.Settings.ToggledOff',
+      };
+      this.recordAction(actionMap[action]);
     }
   }
 

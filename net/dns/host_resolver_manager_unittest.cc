@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "net/dns/host_resolver_manager_unittest.h"
 
 #include <algorithm>
@@ -63,6 +62,7 @@
 #include "net/dns/dns_client.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_test_util.h"
+#include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/host_resolver_cache.h"
@@ -80,6 +80,7 @@
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/public/dns_query_type.h"
 #include "net/dns/public/doh_provider_entry.h"
+#include "net/dns/public/insecure_dns_mode.h"
 #include "net/dns/public/mdns_listener_update_type.h"
 #include "net/dns/public/resolve_error_info.h"
 #include "net/dns/public/secure_dns_mode.h"
@@ -4694,14 +4695,14 @@ void HostResolverManagerDnsTest::CreateResolverWithOptionsAndParams(
       std::make_unique<MockDnsClient>(DnsConfig(), CreateDefaultDnsRules());
   mock_dns_client_ = dns_client.get();
   resolver_->SetDnsClientForTesting(std::move(dns_client));
-  HostResolverManager::InsecureDnsMode mode;
+  InsecureDnsMode mode;
   if (options.insecure_dns_client_enabled &&
       options.insecure_dns_via_platform_apis_enabled) {
-    mode = HostResolverManager::InsecureDnsMode::kEnabledPlatform;
+    mode = InsecureDnsMode::kEnabledPlatform;
   } else if (options.insecure_dns_client_enabled) {
-    mode = HostResolverManager::InsecureDnsMode::kEnabledBuiltIn;
+    mode = InsecureDnsMode::kEnabledBuiltIn;
   } else {
-    mode = HostResolverManager::InsecureDnsMode::kDisabled;
+    mode = InsecureDnsMode::kDisabled;
   }
   resolver_->SetInsecureDnsClientEnabled(
       mode, options.additional_types_via_insecure_dns_enabled);
@@ -4717,9 +4718,8 @@ void HostResolverManagerDnsTest::UseMockDnsClient(const DnsConfig& config,
       std::make_unique<MockDnsClient>(DnsConfig(), std::move(rules));
   mock_dns_client_ = dns_client.get();
   resolver_->SetDnsClientForTesting(std::move(dns_client));
-  resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
-      /*additional_dns_types_enabled=*/true);
+  resolver_->SetInsecureDnsClientEnabled(InsecureDnsMode::kEnabledBuiltIn,
+                                         /*additional_dns_types_enabled=*/true);
   if (!config.Equals(DnsConfig())) {
     ChangeDnsConfig(config);
   }
@@ -4985,7 +4985,7 @@ TEST_F(HostResolverManagerDnsTest, DisableAndEnableInsecureDnsClient) {
   proc_->SignalMultiple(1u);
 
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled*/ false);
   ResolveHostResponseHelper response_system(resolver_->CreateRequest(
       HostPortPair("nx_succeed", 1212), NetworkAnonymizationKey(),
@@ -4998,9 +4998,8 @@ TEST_F(HostResolverManagerDnsTest, DisableAndEnableInsecureDnsClient) {
               testing::ElementsAre(ExpectEndpointResult(
                   testing::ElementsAre(CreateExpected("192.168.2.47", 1212)))));
 
-  resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
-      /*additional_dns_types_enabled=*/true);
+  resolver_->SetInsecureDnsClientEnabled(InsecureDnsMode::kEnabledBuiltIn,
+                                         /*additional_dns_types_enabled=*/true);
   ResolveHostResponseHelper response_dns_client(resolver_->CreateRequest(
       HostPortPair("ok_fail", 1212), NetworkAnonymizationKey(),
       handles::kInvalidNetworkHandle, NetLogWithSource(), std::nullopt,
@@ -5356,9 +5355,8 @@ TEST_F(HostResolverManagerDnsTest,
 
   auto dns_client = DnsClient::CreateClient(nullptr);
   SetDnsClient(std::move(dns_client));
-  resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
-      /*additional_dns_types_enabled=*/true);
+  resolver_->SetInsecureDnsClientEnabled(InsecureDnsMode::kEnabledBuiltIn,
+                                         /*additional_dns_types_enabled=*/true);
   ChangeDnsConfig(CreateValidDnsConfig());
 
   // Target a specific network.
@@ -5406,7 +5404,7 @@ TEST_F(HostResolverManagerDnsTest,
   // Disable insecure DNS, but secure DNS remains enabled because we have DoH
   // servers.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   // Configure DnsConfig with SecureDnsMode::kAutomatic and a DoH server.
@@ -5416,8 +5414,9 @@ TEST_F(HostResolverManagerDnsTest,
 
   // Mark DoH server as successful so it is considered available in Automatic
   // mode.
-  resolve_context_->RecordServerSuccess(0, /*is_doh_server=*/true,
-                                        GetDnsClient()->GetCurrentSession());
+  resolve_context_->RecordServerSuccess(
+      0, DnsTransactionFactory::AttemptMode::kHttp,
+      GetDnsClient()->GetCurrentSession());
 
   // Target a specific network.
   handles::NetworkHandle target_network = 12345;
@@ -5478,7 +5477,7 @@ TEST_F(HostResolverManagerDnsTest, FallbackOnAbortBySource_Any) {
   // Simulate the case when the preference or policy has disabled the insecure
   // DNS client causing AbortInsecureDnsTasks.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   // All requests should fallback to system resolver.
@@ -5518,7 +5517,7 @@ TEST_F(HostResolverManagerDnsTest, FallbackOnAbortBySource_Dns) {
   // Simulate the case when the preference or policy has disabled the insecure
   // DNS client causing AbortInsecureDnsTasks.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   // No fallback expected.  All requests should fail.
@@ -5549,7 +5548,7 @@ TEST_F(HostResolverManagerDnsTest,
   // Simulate the case when the preference or policy has disabled the insecure
   // DNS client causing AbortInsecureDnsTasks.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled*/ false);
 
   EXPECT_THAT(response_secure.result_error(), IsOk());
@@ -5859,7 +5858,7 @@ TEST_F(HostResolverManagerDnsTest,
        SkipHostsWithUpcomingHostResolverSystemTask) {
   // Disable the DnsClient.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   proc_->AddRuleForAllFamilies(std::string(),
@@ -6214,7 +6213,7 @@ TEST_F(HostResolverManagerDnsTest, Ipv6Unreachable_Localhost) {
 
   // Try without DnsClient.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
   ResolveHostResponseHelper system_response(resolver_->CreateRequest(
       HostPortPair("localhost", 80), NetworkAnonymizationKey(),
@@ -7056,9 +7055,9 @@ TEST_F(HostResolverManagerDnsTest,
   // Mark a DoH server successful only for |resolve_context2|. Note that this
   // must come after the resolver's configuration is set because this relies on
   // the specific configuration containing a DoH server.
-  resolve_context2.RecordServerSuccess(0u /* server_index */,
-                                       true /* is_doh_server */,
-                                       mock_dns_client_->GetCurrentSession());
+  resolve_context2.RecordServerSuccess(
+      0u /* server_index */, DnsTransactionFactory::AttemptMode::kHttp,
+      mock_dns_client_->GetCurrentSession());
 
   // No available DoH servers for |resolve_context1|, so expect a non-secure
   // request. Non-secure requests for "secure" will fail with
@@ -7122,7 +7121,7 @@ TEST_F(HostResolverManagerDnsTest,
   proc_->AddRuleForAllFamilies("insecure_automatic", "192.168.1.100");
   ChangeDnsConfig(CreateValidDnsConfig());
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
   DnsConfigOverrides overrides;
   overrides.secure_dns_mode = SecureDnsMode::kAutomatic;
@@ -7371,7 +7370,7 @@ TEST_F(HostResolverManagerDnsTest, SecureDnsMode_Secure_InsecureAsyncDisabled) {
   proc_->AddRuleForAllFamilies("nx_succeed", "192.168.1.100");
   set_allow_fallback_to_systemtask(true);
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   ChangeDnsConfig(CreateValidDnsConfig());
@@ -7995,7 +7994,7 @@ TEST_F(HostResolverManagerDnsTest,
   // HostResolverSystemTask, and the next one should be started with a
   // HostResolverSystemTask.
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   // All three in-progress requests should now be running a
@@ -8028,7 +8027,7 @@ TEST_F(HostResolverManagerDnsTest,
 TEST_F(HostResolverManagerDnsTest, DnsCallsWithDisabledDnsClient) {
   ChangeDnsConfig(CreateValidDnsConfig());
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kDisabled,
+      InsecureDnsMode::kDisabled,
       /*additional_dns_types_enabled=*/false);
 
   HostResolver::ResolveHostParameters params;
@@ -9482,7 +9481,8 @@ TEST_F(HostResolverManagerDnsTest,
 
   DnsSession* session_before = mock_dns_client_->GetCurrentSession();
   resolve_context_->RecordServerSuccess(
-      0u /* server_index */, true /* is_doh_server */, session_before);
+      0u /* server_index */, DnsTransactionFactory::AttemptMode::kHttp,
+      session_before);
   ASSERT_TRUE(resolve_context_->GetDohServerAvailability(0u, session_before));
 
   // Flush data by triggering a DnsConfigOverrides change.
@@ -9497,7 +9497,8 @@ TEST_F(HostResolverManagerDnsTest,
 
   // Confirm new session is in use.
   resolve_context_->RecordServerSuccess(
-      0u /* server_index */, true /* is_doh_server */, session_after);
+      0u /* server_index */, DnsTransactionFactory::AttemptMode::kHttp,
+      session_after);
   EXPECT_TRUE(resolve_context_->GetDohServerAvailability(0u, session_after));
 }
 
@@ -9632,7 +9633,8 @@ TEST_F(HostResolverManagerDnsTest,
 
   DnsSession* session_before = mock_dns_client_->GetCurrentSession();
   resolve_context_->RecordServerSuccess(
-      0u /* server_index */, true /* is_doh_server */, session_before);
+      0u /* server_index */, DnsTransactionFactory::AttemptMode::kHttp,
+      session_before);
   ASSERT_TRUE(resolve_context_->GetDohServerAvailability(0u, session_before));
 
   // Flush data by triggering a config change.
@@ -9647,7 +9649,8 @@ TEST_F(HostResolverManagerDnsTest,
 
   // Confirm new session is in use.
   resolve_context_->RecordServerSuccess(
-      0u /* server_index */, true /* is_doh_server */, session_after);
+      0u /* server_index */, DnsTransactionFactory::AttemptMode::kHttp,
+      session_after);
   EXPECT_TRUE(resolve_context_->GetDohServerAvailability(0u, session_after));
 }
 
@@ -10001,7 +10004,7 @@ TEST_F(HostResolverManagerDnsTest,
   overrides.secure_dns_mode = SecureDnsMode::kOff;
   resolver_->SetDnsConfigOverrides(overrides);
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
+      InsecureDnsMode::kEnabledBuiltIn,
       /*additional_dns_types_enabled=*/false);
 
   HostResolver::ResolveHostParameters parameters;
@@ -10336,7 +10339,7 @@ TEST_F(HostResolverManagerDnsTest,
   overrides.secure_dns_mode = SecureDnsMode::kOff;
   resolver_->SetDnsConfigOverrides(overrides);
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
+      InsecureDnsMode::kEnabledBuiltIn,
       /*additional_dns_types_enabled=*/false);
 
   HostResolver::ResolveHostParameters parameters;
@@ -10661,7 +10664,7 @@ TEST_F(HostResolverManagerDnsTest,
   overrides.secure_dns_mode = SecureDnsMode::kOff;
   resolver_->SetDnsConfigOverrides(overrides);
   resolver_->SetInsecureDnsClientEnabled(
-      HostResolverManager::InsecureDnsMode::kEnabledBuiltIn,
+      InsecureDnsMode::kEnabledBuiltIn,
       /*additional_dns_types_enabled=*/false);
 
   HostResolver::ResolveHostParameters parameters;
@@ -13445,7 +13448,8 @@ TEST_F(HostResolverManagerDnsTest,
   // ResolveContext. MockDnsClient skips most other interaction with
   // ResolveContext.
   mock_dns_client_->SetForceDohServerAvailable(false);
-  context.RecordServerSuccess(0u /* server_index */, true /* is_doh_server */,
+  context.RecordServerSuccess(0u /* server_index */,
+                              DnsTransactionFactory::AttemptMode::kHttp,
                               mock_dns_client_->GetCurrentSession());
   ResolveHostResponseHelper response(resolver_->CreateRequest(
       HostPortPair("secure", 80), NetworkAnonymizationKey(),
@@ -13485,7 +13489,8 @@ TEST_F(HostResolverManagerDnsTest,
   // ResolveContext. MockDnsClient skips most other interaction with
   // ResolveContext.
   mock_dns_client_->SetForceDohServerAvailable(false);
-  context.RecordServerSuccess(0u /* server_index */, true /* is_doh_server */,
+  context.RecordServerSuccess(0u /* server_index */,
+                              DnsTransactionFactory::AttemptMode::kHttp,
                               mock_dns_client_->GetCurrentSession());
   ResolveHostResponseHelper response(resolver_->CreateRequest(
       HostPortPair("secure", 80), NetworkAnonymizationKey(),

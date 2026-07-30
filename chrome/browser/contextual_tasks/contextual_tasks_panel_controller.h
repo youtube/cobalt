@@ -93,6 +93,8 @@ class ContextualTasksPanelController {
   // WebContents & session management.
   // Returns the currently active WebContents, or NULL if there is none.
   virtual content::WebContents* GetActiveWebContents() const = 0;
+  // Returns the WebContents hosting the top WebUI toolbar, or nullptr if none.
+  virtual content::WebContents* GetToolbarWebContents() const = 0;
   // Returns a list of all cached panel WebContents.
   virtual std::vector<content::WebContents*> GetPanelWebContentsList()
       const = 0;
@@ -128,6 +130,9 @@ class ContextualTasksPanelController {
 
   // Whether the side panel can expand to full tab.
   virtual bool CanExpandToFullTab() const = 0;
+
+  // Shows the native PageInfo bubble.
+  virtual void ShowPageInfoBubble() = 0;
 
   // Static.
   static ContextualTasksPanelController* From(BrowserWindowInterface* browser);

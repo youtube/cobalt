@@ -76,11 +76,11 @@ export class NetworkListElement extends NetworkListElementBase {
     };
   }
 
-  testSuiteStatus: TestSuiteStatus;
-  isActive: boolean;
-  protected isLoggedIn: boolean;
-  private otherNetworkGuids: string[];
-  private activeGuid: string;
+  declare testSuiteStatus: TestSuiteStatus;
+  declare isActive: boolean;
+  declare protected isLoggedIn: boolean;
+  declare private otherNetworkGuids: string[];
+  declare private activeGuid: string;
   private browserProxy: DiagnosticsBrowserProxy =
       DiagnosticsBrowserProxyImpl.getInstance();
   private networkHealthProvider: NetworkHealthProviderInterface =
@@ -132,20 +132,24 @@ export class NetworkListElement extends NetworkListElementBase {
       // fallback to focusing the element's main container.
       afterNextRender(this, () => {
         if (this.activeGuid) {
-          const connectivityCard: ConnectivityCardElement|null =
-              this.shadowRoot!.querySelector('connectivity-card');
+          const connectivityCard =
+              this.shadowRoot!.querySelector<ConnectivityCardElement>(
+                  'connectivity-card');
           assert(connectivityCard);
-          const cardTitle: HTMLDivElement|null =
-              connectivityCard.shadowRoot!.querySelector('#cardTitle');
+          const cardTitle =
+              connectivityCard.shadowRoot!.querySelector<HTMLDivElement>(
+                  '#cardTitle');
           assert(cardTitle);
           cardTitle.focus();
           return;
         } else if (this.otherNetworkGuids.length > 0) {
-          const networkCard: NetworkCardElement|null =
-              this.shadowRoot!.querySelector('network-card');
+          const networkCard =
+              this.shadowRoot!.querySelector<NetworkCardElement>(
+                  'network-card');
           assert(networkCard);
-          const cardTitle: HTMLDivElement|null =
-              networkCard.shadowRoot!.querySelector('#cardTitle');
+          const cardTitle =
+              networkCard.shadowRoot!.querySelector<HTMLDivElement>(
+                  '#cardTitle');
           assert(cardTitle);
           cardTitle.focus();
         }

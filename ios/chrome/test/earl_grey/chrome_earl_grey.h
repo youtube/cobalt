@@ -125,6 +125,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // `ProfileAttributesStorageIOS::GetPersonalProfileName()`.
 - (NSString*)personalProfileName;
 
+// Waits for the current profile name to match `profileName`.
+- (void)waitForCurrentProfileName:(NSString*)profileName;
+
 #pragma mark - History Utilities (EG2)
 
 // Clears browsing history. Raises an EarlGrey exception if history is not
@@ -201,6 +204,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // within a timeout, or a GREYAssert is induced.
 - (void)goBack;
 
+// Starts navigating forward to the next page without waiting for the loading to
+// complete.
+- (void)startGoingForward;
+
 // Navigates forward to the next page and waits for the loading to complete
 // within a timeout, or a GREYAssert is induced.
 - (void)goForward;
@@ -208,6 +215,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Waits for the page to finish loading within a timeout, or a GREYAssert is
 // induced.
 - (void)waitForPageToFinishLoading;
+
+// Waits for the page to finish loading within the given `timeout`. Returns nil
+// on success, or else an NSError indicating why the operation failed.
+- (NSError*)waitForPageToFinishLoadingWithTimeout:(base::TimeDelta)timeout;
 
 // Waits for the matcher to return an element that is sufficiently visible.
 - (void)waitForSufficientlyVisibleElementWithMatcher:(id<GREYMatcher>)matcher;
@@ -817,6 +828,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Returns YES if kTestFeature is enabled.
 - (BOOL)isTestFeatureEnabled;
+
+// Returns YES if kOverflowMenuHomeCustomizationEntrypoint is enabled.
+- (BOOL)isOverflowMenuHomeCustomizationEntrypointEnabled;
 
 // Returns YES if Fullscreen smooth scrolling is supported.
 - (BOOL)isFullscreenSmoothScrollingSupported;

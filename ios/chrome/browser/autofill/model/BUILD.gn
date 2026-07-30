@@ -27,6 +27,8 @@ source_set("model") {
     "form_suggestion_controller.mm",
     "form_suggestion_tab_helper.h",
     "form_suggestion_tab_helper.mm",
+    "forms_ai_private_inference_infobar_delegate_ios.h",
+    "forms_ai_private_inference_infobar_delegate_ios.mm",
     "ios_autofill_ai_model_cache_factory.h",
     "ios_autofill_ai_model_cache_factory.mm",
     "ios_autofill_ai_model_executor_factory.h",
@@ -74,6 +76,7 @@ source_set("model") {
     "//components/wallet/core/browser",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/account_settings/model",
+    "//ios/chrome/browser/autofill/atmemory/public",
     "//ios/chrome/browser/autofill/autofill_ai/public",
     "//ios/chrome/browser/autofill/resources",
     "//ios/chrome/browser/history/model",
@@ -119,6 +122,7 @@ source_set("autofill_agent_delegate") {
   deps = [
     "//base",
     "//components/autofill/ios/browser",
+    "//ios/chrome/browser/autofill/atmemory/public",
     "//ios/chrome/browser/shared/public/commands",
   ]
 }

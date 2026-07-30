@@ -149,6 +149,27 @@ IN_PROC_BROWSER_TEST_F(SettingsUITest, GoogleSearchAiModeWorkspaceUrl) {
   EXPECT_EQ(url_val, "https://myactivity.google.com/search-services/apps");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsUITest, GoogleSearchAiModeRestrictedUrl) {
+  ASSERT_TRUE(NavigateToURL(browser(), GURL(chrome::kChromeUISettingsURL)));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Wait for settings UI to be loaded.
+  ASSERT_TRUE(content::ExecJs(web_contents,
+                              "customElements.whenDefined('settings-ui');"));
+
+  // Evaluate the loadTimeData string in settings page using dynamic import.
+  std::string url_val =
+      content::EvalJs(
+          web_contents,
+          "import('chrome://resources/js/load_time_data.js').then(m => "
+          "m.loadTimeData.getString('googleSearchAiModeRestrictedUrl'))")
+          .ExtractString();
+
+  EXPECT_EQ(url_val, "https://myactivity.google.com/myactivity");
+}
+
 class SettingsUITestGlicDisabledButAnchored : public SettingsUITest {
  public:
   SettingsUITestGlicDisabledButAnchored() {
@@ -164,7 +185,7 @@ class SettingsUITestGlicDisabledButAnchored : public SettingsUITest {
 
 IN_PROC_BROWSER_TEST_F(SettingsUITestGlicDisabledButAnchored, DoesNotCrash) {
   // Set Glic as completed onboarding.
-  browser()->profile()->GetPrefs()->SetInteger(
+  browser()->GetProfile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       static_cast<int>(glic::prefs::FreStatus::kCompleted));
 

@@ -26,6 +26,13 @@ namespace {
 class JavaScriptAutofillTrackerTest : public test::AutofillRendererTest {
  public:
   JavaScriptAutofillTrackerTest() = default;
+
+  void ActivateFocusAndClick(const char* element_id) {
+    GetMainFrame()->NotifyUserActivation(
+        blink::mojom::UserActivationNotificationType::kInteraction);
+    Focus(element_id);
+    SimulateElementClickAndWait(element_id);
+  }
 };
 
 // Test that the log is updated when JavaScript sets a value.
@@ -47,7 +54,7 @@ TEST_F(JavaScriptAutofillTrackerTest, JavaScriptChangedValueLogging) {
         R"(document.getElementById('%s').value = '%s';)", id, value));
   };
 
-  const std::vector<JavaScriptAutofillTracker::JsChangeRecord>& logs =
+  const std::vector<mojom::JavaScriptFieldModificationPtr>& logs =
       test_api(test_api(autofill_agent()).javascript_autofill_tracker())
           .js_logs();
 
@@ -55,15 +62,14 @@ TEST_F(JavaScriptAutofillTrackerTest, JavaScriptChangedValueLogging) {
   js_set_value("text_1", "js_val_1");
   EXPECT_TRUE(logs.empty());
 
-  // 2. JS change with user activation -> should log.
-  GetMainFrame()->NotifyUserActivation(
-      blink::mojom::UserActivationNotificationType::kInteraction);
-  Focus("text_1");
+  // 2. JS change with user activation and mousedown -> should log.
+  ActivateFocusAndClick("text_1");
   js_set_value("text_1", "js_val_2");
 
   ASSERT_EQ(logs.size(), 1u);
-  EXPECT_EQ(logs[0].modified_field_id, form_util::GetFieldRendererId(text1));
-  EXPECT_EQ(logs[0].focused_field_id, form_util::GetFieldRendererId(text1));
+  EXPECT_EQ(logs[0]->field_id, form_util::GetFieldRendererId(text1));
+  EXPECT_EQ(logs[0]->modification_type,
+            mojom::JavaScriptModificationType::kReassignment);
 
   // Clear logs by waiting for timer.
   task_environment_.FastForwardBy(base::Milliseconds(200));
@@ -78,115 +84,42 @@ TEST_F(JavaScriptAutofillTrackerTest, JavaScriptChangedValueLogging) {
 
   // 4. JS change with user activation and focused element, but modified
   // element is NOT autofillable (button) -> should not log.
-  Focus("text_1");
-  GetMainFrame()->NotifyUserActivation(
-      blink::mojom::UserActivationNotificationType::kInteraction);
+  ActivateFocusAndClick("text_1");
   js_set_value("button_id", "js_val_button");
   EXPECT_TRUE(logs.empty());
 
   // 5. JS change to the SAME value with user activation -> should log.
-  Focus("text_1");
-  GetMainFrame()->NotifyUserActivation(
-      blink::mojom::UserActivationNotificationType::kInteraction);
+  ActivateFocusAndClick("text_1");
   js_set_value("text_1", "js_val_3");  // Same value (set in step 3).
 
   ASSERT_EQ(logs.size(), 1u);
-  EXPECT_EQ(logs[0].modified_field_id, form_util::GetFieldRendererId(text1));
-}
+  EXPECT_EQ(logs[0]->field_id, form_util::GetFieldRendererId(text1));
+  EXPECT_EQ(logs[0]->modification_type,
+            mojom::JavaScriptModificationType::kTrivial);
 
-// Test that JS changes triggered by browser autofill are ignored.
-TEST_F(JavaScriptAutofillTrackerTest, BrowserAutofillIgnored) {
-  LoadHTML(R"(
-      <form id="form_id">
-        <input id="text_1">
-        <input id="text_2">
-        <input id="text_3">
-      </form>
-      <script>
-        document.getElementById('text_1').addEventListener('input', () => {
-          document.getElementById('text_1').value = 'js_1';
-          document.getElementById('text_2').value = 'js_2';
-          document.getElementById('text_3').value = 'js_3';
-        });
-      </script>)");
-
-  EXPECT_CALL(autofill_driver(), DidDetectJavaScriptAutofill).Times(0);
-
-  std::optional<FormData> form = ExtractFormData("form_id");
-  ASSERT_TRUE(form);
-  EXPECT_TRUE(SimulateFillForm(
-      *form, "text_1",
-      {{u"text_1", u"autofill_1"}, {u"text_2", u"autofill_2"}}));
-
-  // Fast forward to let the clear timer fire.
+  // 6. JS change to a prefix completion -> should log kPrefixCompletion.
   task_environment_.FastForwardBy(base::Milliseconds(200));
-  const std::vector<JavaScriptAutofillTracker::JsChangeRecord>& logs =
-      test_api(test_api(autofill_agent()).javascript_autofill_tracker())
-          .js_logs();
-  EXPECT_TRUE(logs.empty());
-}
+  ActivateFocusAndClick("text_1");
+  js_set_value("text_1", "js_val_3_more");
+  ASSERT_EQ(logs.size(), 1u);
+  EXPECT_EQ(logs[0]->modification_type,
+            mojom::JavaScriptModificationType::kPrefixCompletion);
 
-// Test that consecutive browser autofills (like refills) extend the guard
-// window, ensuring delayed JS changes are still ignored.
-TEST_F(JavaScriptAutofillTrackerTest, AutofillAndRefillIgnored) {
-  LoadHTML(R"(
-      <form id="form_id">
-        <input id="text_1">
-        <input id="text_2">
-        <input id="text_3">
-        <input id="text_4">
-      </form>
-      <script>
-        document.getElementById('text_1').addEventListener('input', () => {
-          // Triggered by the initial autofill operation
-          document.getElementById('text_1').value = 'js_1_1';
-          document.getElementById('text_2').value = 'js_2_1';
-          document.getElementById('text_3').value = 'js_3_1';
-        });
-        document.getElementById('text_4').addEventListener('input', () => {
-          // Triggered by the refill operation
-          document.getElementById('text_2').value = 'js_2_2';
-          setTimeout(() => {
-            document.getElementById('text_3').value = 'js_3_2';
-          }, 60);
-          setTimeout(() => {
-            document.getElementById('text_4').value = 'js_4_2';
-          }, 70);
-        });
-      </script>)");
+  // 7. JS change from non-empty to empty -> should log kClearing.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+  ActivateFocusAndClick("text_1");
+  js_set_value("text_1", "");
+  ASSERT_EQ(logs.size(), 1u);
+  EXPECT_EQ(logs[0]->modification_type,
+            mojom::JavaScriptModificationType::kClearing);
 
-  EXPECT_CALL(autofill_driver(), DidDetectJavaScriptAutofill).Times(0);
-
-  FormData form = ExtractFormData("form_id").value();
-
-  const std::vector<JavaScriptAutofillTracker::JsChangeRecord>& logs =
-      test_api(test_api(autofill_agent()).javascript_autofill_tracker())
-          .js_logs();
-
-  // 1. First Fill at t=0.
-  EXPECT_TRUE(SimulateFillForm(form, "text_1", {{u"text_1", u"autofill_1"}}));
-  task_environment_.FastForwardBy(base::Milliseconds(150));
-
-  // 2. Refill at t=150ms.
-  // This should restart the clear timer to expire at t=350ms.
-  EXPECT_TRUE(SimulateFillForm(form, "text_4", {{u"text_4", u"autofill_4"}}));
-
-  // Advance time by 50ms (to 200ms).
-  // Logs should not have been cleared by now because the timer was restarted.
-  task_environment_.FastForwardBy(base::Milliseconds(50));
-  EXPECT_EQ(logs.size(), 4u);
-
-  // Advance time by 50ms (to t=250ms).
-  // During this time:
-  // - t=210ms: text_3 is modified by JS.
-  // - t=220ms: text_4 is modified by JS.
-  task_environment_.FastForwardBy(base::Milliseconds(50));
-  EXPECT_EQ(logs.size(), 6u);
-
-  // Advance time by 100ms (to t=350ms).
-  // All the logs should be cleared because of the timer firing at t=350ms.
-  task_environment_.FastForwardBy(base::Milliseconds(100));
-  EXPECT_TRUE(logs.empty());
+  // 8. JS change from empty to non-empty -> should log kEmptyToNonEmpty.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+  ActivateFocusAndClick("text_1");
+  js_set_value("text_1", "new_val");
+  ASSERT_EQ(logs.size(), 1u);
+  EXPECT_EQ(logs[0]->modification_type,
+            mojom::JavaScriptModificationType::kEmptyToNonEmpty);
 }
 
 // Test that if JavaScript modifies fields in a different form than the
@@ -210,15 +143,12 @@ TEST_F(JavaScriptAutofillTrackerTest, IgnoreCrossFormModifications) {
         R"(document.getElementById('%s').value = '%s';)", id, value));
   };
 
-  const std::vector<JavaScriptAutofillTracker::JsChangeRecord>& logs =
+  const std::vector<mojom::JavaScriptFieldModificationPtr>& logs =
       test_api(test_api(autofill_agent()).javascript_autofill_tracker())
           .js_logs();
 
-  GetMainFrame()->NotifyUserActivation(
-      blink::mojom::UserActivationNotificationType::kInteraction);
-
-  // Focus a field in form_1.
-  Focus("text_1_1");
+  // Focus and click a field in form_1.
+  ActivateFocusAndClick("text_1_1");
 
   // Modify 3 fields in form_2.
   js_set_value("text_2_1", "val_1");
@@ -235,12 +165,12 @@ TEST_F(JavaScriptAutofillTrackerTest, IgnoreCrossFormModifications) {
   EXPECT_TRUE(logs.empty());
   testing::Mock::VerifyAndClearExpectations(&autofill_driver());
 
-  // Focus a field in form_2 and modify the same fields in form_2.
+  // Focus and click a field in form_2 and modify the same fields in form_2.
   // Now that the focused field belongs to the same form as the modified fields,
   // DidDetectJavaScriptAutofill() should be called.
   EXPECT_CALL(autofill_driver(), DidDetectJavaScriptAutofill).Times(1);
 
-  Focus("text_2_1");
+  ActivateFocusAndClick("text_2_1");
   js_set_value("text_2_1", "val_1_new");
   js_set_value("text_2_2", "val_2_new");
   js_set_value("text_2_3", "val_3_new");
@@ -249,6 +179,63 @@ TEST_F(JavaScriptAutofillTrackerTest, IgnoreCrossFormModifications) {
 
   task_environment_.FastForwardBy(base::Milliseconds(200));
   EXPECT_TRUE(logs.empty());
+}
+
+// Test that if fewer than 3 fields are modified by JavaScript, detection is
+// still triggered if at least one field underwent prefix completion
+// (kPrefixCompletion).
+TEST_F(JavaScriptAutofillTrackerTest,
+       DetectFewerThanMinFieldsWithPrefixCompletion) {
+  LoadHTML(R"(
+      <form id="form_id">
+        <input id="text_1" value="app">
+        <input id="text_2">
+      </form>)");
+
+  EXPECT_CALL(autofill_driver(), DidDetectJavaScriptAutofill).Times(1);
+
+  auto js_set_value = [this](const char* id, const char* value) {
+    ExecuteJavaScriptForTests(base::StringPrintf(
+        R"(document.getElementById('%s').value = '%s';)", id, value));
+  };
+
+  ActivateFocusAndClick("text_1");
+
+  // JS extends "app" to "apple" (kPrefixCompletion).
+  js_set_value("text_1", "apple");
+
+  // Even though only 1 field changed (< 3), kPrefixCompletion triggers
+  // detection.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
+}
+
+// Test that if fewer than 3 fields are modified by JavaScript and NONE of them
+// underwent prefix completion, detection is NOT triggered.
+TEST_F(JavaScriptAutofillTrackerTest,
+       IgnoreFewerThanMinFieldsWithoutPrefixCompletion) {
+  LoadHTML(R"(
+      <form id="form_id">
+        <input id="text_1">
+        <input id="text_2">
+      </form>)");
+
+  EXPECT_CALL(autofill_driver(), DidDetectJavaScriptAutofill).Times(0);
+
+  auto js_set_value = [this](const char* id, const char* value) {
+    ExecuteJavaScriptForTests(base::StringPrintf(
+        R"(document.getElementById('%s').value = '%s';)", id, value));
+  };
+
+  ActivateFocusAndClick("text_1");
+
+  // JS sets text_1 to "apple" from empty (kEmptyToNonEmpty) and text_2 to
+  // "banana" (kEmptyToNonEmpty).
+  js_set_value("text_1", "apple");
+  js_set_value("text_2", "banana");
+
+  // 2 fields changed (< 3), but neither is kPrefixCompletion -> should NOT
+  // trigger detection.
+  task_environment_.FastForwardBy(base::Milliseconds(200));
 }
 
 }  // namespace

@@ -158,6 +158,7 @@ should be able to be added at any place in this file.
   <variant name="Lens" summary="Lens"/>
   <variant name="NewTabPage" summary="New tab page"/>
   <variant name="Omnibox" summary="Omnibox"/>
+  <variant name="OmniboxEverywhere" summary="Omnibox Everywhere"/>
   <variant name="Unknown" summary="Unknown"/>
 </variants>
 
@@ -1560,6 +1561,23 @@ should be able to be added at any place in this file.
   <description>
     Starting a same app window selection cycle by pressing alt-backtick. Only
     counts the initial alt-backtick, not each step in the cycle.
+  </description>
+</action>
+
+<action name="Accel_CycleToNextTab">
+  <owner>markchang@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Logged when the user activates the accelerator for cycling to the next tab.
+  </description>
+</action>
+
+<action name="Accel_CycleToPrevTab">
+  <owner>markchang@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Logged when the user activates the accelerator for cycling to the previous
+    tab.
   </description>
 </action>
 
@@ -5175,6 +5193,230 @@ should be able to be added at any place in this file.
     User tapped 'Unpin Glic' on the tab strip context menu to unpin the Glic
     button in the tab strip.
   </description>
+</action>
+
+<action name="Android.VerticalTabs.GroupMenu{ActionType}">
+  <owner>agazal@google.com</owner>
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    Recorded when the user interacts with the group context menu on Vertical
+    Tabs on Android. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".CloseGroup"
+        summary="User closed a group from the Vertical Tabs group menu."/>
+    <variant name=".ColorChanged"
+        summary="User changed group color from the Vertical Tabs group menu."/>
+    <variant name=".DeleteGroup"
+        summary="User deleted a group from the Vertical Tabs group menu."/>
+    <variant name=".DeleteSharedGroup"
+        summary="User deleted a shared group from the Vertical Tabs group
+                 menu."/>
+    <variant name=".LeaveSharedGroup"
+        summary="User left a shared group from the Vertical Tabs group menu."/>
+    <variant name=".ManageSharing"
+        summary="User clicked manage sharing from the Vertical Tabs group
+                 menu."/>
+    <variant name=".MoveGroupToAnotherWindow"
+        summary="User moved a group to another window from the Vertical Tabs
+                 group menu."/>
+    <variant name=".MoveGroupToNewWindow"
+        summary="User moved a group to a new window from the Vertical Tabs
+                 group menu."/>
+    <variant name=".NewTabInGroup"
+        summary="User added a new tab in a group from the Vertical Tabs group
+                 menu."/>
+    <variant name=".RecentActivity"
+        summary="User viewed recent activity from the Vertical Tabs group
+                 menu."/>
+    <variant name=".ShareGroup"
+        summary="User shared a group from the Vertical Tabs group menu."/>
+    <variant name=".Shown"
+        summary="Vertical Tabs group context menu was shown."/>
+    <variant name=".TitleChanged"
+        summary="User changed group title from the Vertical Tabs group menu."/>
+    <variant name=".TitleReset"
+        summary="User reset group title from the Vertical Tabs group menu."/>
+    <variant name=".Ungroup"
+        summary="User ungrouped a group from the Vertical Tabs group menu."/>
+  </token>
+</action>
+
+<action name="Android.VerticalTabs.SearchButtonClicked">
+  <owner>agazal@google.com</owner>
+  <owner>kije@google.com</owner>
+  <description>
+    Recorded when a user taps the search button/field inside the Vertical Tabs
+    rail.
+  </description>
+</action>
+
+<action name="Android.VerticalTabs.StripMenu{ActionType}">
+  <owner>agazal@google.com</owner>
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    Recorded when the user interacts with the empty strip context menu on
+    Vertical Tabs on Android. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".PinGlic"
+        summary="User pinned glic from the Vertical Tabs strip menu."/>
+    <variant name=".ReopenClosedEntry"
+        summary="User reopened a closed entry from the Vertical Tabs strip
+                 menu."/>
+    <variant name=".SendFeedback"
+        summary="User sent feedback from the Vertical Tabs strip menu."/>
+    <variant name=".TaskManager"
+        summary="User opened task manager from the Vertical Tabs strip menu."/>
+    <variant name=".ToggleTabLayout"
+        summary="User toggled tab layout from the Vertical Tabs strip menu."/>
+    <variant name=".UnpinGlic"
+        summary="User unpinned glic from the Vertical Tabs strip menu."/>
+  </token>
+</action>
+
+<action name="Android.VerticalTabs.TabMenu{ActionType}">
+  <owner>agazal@google.com</owner>
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    Recorded when the user interacts with the tab context menu on Vertical Tabs
+    on Android. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".AddTabToReadingList"
+        summary="User added a tab to their reading list via the tab context
+                 menu on Vertical Tabs."/>
+    <variant name=".AddTabToReadingList.MultiTab"
+        summary="User added multiple tabs to their reading list via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".AddToNewTabGroup"
+        summary="User added a tab to a new tab group via the tab context menu
+                 on Vertical Tabs."/>
+    <variant name=".AddToNewTabGroup.MultiTab"
+        summary="User added multiple tabs to a new tab group via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".AddToTabGroup"
+        summary="User opened the bottom sheet to add a tab to a tab group via
+                 the tab context menu on Vertical Tabs."/>
+    <variant name=".AddToTabGroup.MultiTab"
+        summary="User opened the bottom sheet to add multiple tabs to a tab
+                 group via the tab context menu on Vertical Tabs."/>
+    <variant name=".CloseAllIncognitoTabs"
+        summary="User closed all incognito tabs via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".CloseAllTabs"
+        summary="User closed all tabs via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".CloseOtherTabs"
+        summary="User closed other tabs via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".CloseOtherTabs.MultiTab"
+        summary="User closed other tabs via the tab context menu on Vertical
+                 Tabs while having multiple tabs selected."/>
+    <variant name=".CloseTab"
+        summary="User closed a tab via the tab context menu on Vertical Tabs."/>
+    <variant name=".CloseTab.MultiTab"
+        summary="User closed multiple tabs via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".CloseTabsBelow"
+        summary="User closed tabs below via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".CloseTabsBelow.MultiTab"
+        summary="User closed tabs below via the tab context menu on Vertical
+                 Tabs while having multiple tabs selected."/>
+    <variant name=".DuplicateTab"
+        summary="User duplicated a tab via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".DuplicateTab.MultiTab"
+        summary="User duplicated multiple tabs via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".MoveTabsToOtherWindow"
+        summary="User moved tabs to another window via the tab context menu
+                 on Vertical Tabs."/>
+    <variant name=".MoveTabsToOtherWindow.MultiTab"
+        summary="User moved multiple tabs to another window via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".MoveTabToGroup"
+        summary="User moved a tab to a synced tab group via the tab context
+                 menu on Vertical Tabs."/>
+    <variant name=".MoveTabToGroup.MultiTab"
+        summary="User moved multiple tabs to a synced tab group via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".MoveTabToIncognitoGroup"
+        summary="User moved a tab to an incognito tab group via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".MoveTabToIncognitoGroup.MultiTab"
+        summary="User moved multiple tabs to an incognito tab group via the
+                 tab context menu on Vertical Tabs."/>
+    <variant name=".MoveTabToNewWindow"
+        summary="User moved a tab to a new window via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".MoveTabToNewWindow.MultiTab"
+        summary="User moved multiple tabs to a new window via the tab context
+                 menu on Vertical Tabs."/>
+    <variant name=".MoveTabToOtherWindow"
+        summary="User moved a tab to another window via the tab context menu
+                 on Vertical Tabs."/>
+    <variant name=".MoveTabToOtherWindow.MultiTab"
+        summary="User moved multiple tabs to another window via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".MuteSite"
+        summary="User muted a site via the tab context menu on Vertical Tabs."/>
+    <variant name=".MuteSite.MultiTab"
+        summary="User muted site(s) from multiple selected tabs via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".NewGroup"
+        summary="User created a new group via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".NewGroup.MultiTab"
+        summary="User created a new group from multiple selected tabs via the
+                 tab context menu on Vertical Tabs."/>
+    <variant name=".NewTabBelow"
+        summary="User opened a new tab below via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".PinTab"
+        summary="User pinned a tab via the tab context menu on Vertical Tabs."/>
+    <variant name=".PinTab.MultiTab"
+        summary="User pinned multiple tabs via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".RemoveTabFromTabGroup"
+        summary="User removed a tab from tab group via the tab context menu
+                 on Vertical Tabs."/>
+    <variant name=".RemoveTabFromTabGroup.MultiTab"
+        summary="User removed multiple tabs from tab group via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".SendToYourDevices"
+        summary="User sent tab to another device via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".ShareTab"
+        summary="User shared a tab via the tab context menu on Vertical Tabs."/>
+    <variant name=".ShareTab.MultiTab"
+        summary="User shared multiple tabs via the tab context menu on
+                 Vertical Tabs."/>
+    <variant name=".Shown"
+        summary="Tab context menu was shown on Vertical Tabs."/>
+    <variant name=".Shown.MultiTab"
+        summary="Tab context menu was shown for multiple selected tabs on
+                 Vertical Tabs."/>
+    <variant name=".ToggleTabLayout"
+        summary="User toggled tab layout via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".UnmuteSite"
+        summary="User unmuted a site via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".UnmuteSite.MultiTab"
+        summary="User unmuted site(s) from multiple selected tabs via the tab
+                 context menu on Vertical Tabs."/>
+    <variant name=".UnpinTab"
+        summary="User unpinned a tab via the tab context menu on Vertical
+                 Tabs."/>
+    <variant name=".UnpinTab.MultiTab"
+        summary="User unpinned multiple tabs via the tab context menu on
+                 Vertical Tabs."/>
+  </token>
 </action>
 
 <action name="Android.VerticalTabs.UndoCloseTab">
@@ -9383,6 +9625,13 @@ should be able to be added at any place in this file.
   <description>Time period in CBD was changed to OlderThan30Days.</description>
 </action>
 
+<action name="ClearBrowsingData_UserDeletedCookieOrCache">
+  <owner>pabouchard@google.com</owner>
+  <description>
+    Logged when the user clears browsing data and deletes cookies or cache.
+  </description>
+</action>
+
 <action name="ClearSelection">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -11106,6 +11355,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ContextualSearch.CurrentTabChipClick.{ContextualSearchSource}">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the current tab chip is clicked in the composebox on
+    {ContextualSearchSource}.
+  </description>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</action>
+
 <action name="ContextualSearch.logInPanelHelpAcknowledged">
   <owner>donnd@chromium.org</owner>
   <owner>contextual-search-eng@google.com</owner>
@@ -11153,16 +11412,6 @@ should be able to be added at any place in this file.
     Contextual Search maximized when the user navigated to a search result in
     the expanded panel.
   </description>
-</action>
-
-<action name="ContextualSearch.RecentTabChipClick.{ContextualSearchSource}">
-  <owner>niharm@google.com</owner>
-  <owner>chrome-contextual-tasks-eng@google.com</owner>
-  <description>
-    Recorded when a recent tab chip is clicked in the composebox on
-    {ContextualSearchSource}.
-  </description>
-  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </action>
 
 <action name="ContextualSearch.SearchBarTapClose">
@@ -16056,6 +16305,22 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.Settings.BottomBarGlicButton.Disabled">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <description>
+    Logged if the user disables the Gemini button in bottom toolbar settings.
+  </description>
+</action>
+
+<action name="Glic.Settings.BottomBarGlicButton.Enabled">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <description>
+    Logged if the user enables the Gemini button in bottom toolbar settings.
+  </description>
+</action>
+
 <action name="Glic.Settings.ClosedCaptions.Disabled">
   <owner>sanaakbani@google.com</owner>
   <owner>iwells@chromium.org</owner>
@@ -16103,6 +16368,24 @@ should be able to be added at any place in this file.
   <owner>erikchen@chromium.org</owner>
   <description>
     Logged if the user enables geolocation in glic settings.
+  </description>
+</action>
+
+<action name="Glic.Settings.HotkeyScope.Chrome">
+  <owner>andreaxg@google.com</owner>
+  <owner>iwells@chromium.org</owner>
+  <description>
+    Logged when the user changes the Glic hotkey scope setting to 'In Chrome'
+    (local scope) on the Glic settings page.
+  </description>
+</action>
+
+<action name="Glic.Settings.HotkeyScope.Global">
+  <owner>andreaxg@google.com</owner>
+  <owner>iwells@chromium.org</owner>
+  <description>
+    Logged when the user changes the Glic hotkey scope setting to 'Global' on
+    the Glic settings page.
   </description>
 </action>
 
@@ -18772,6 +19055,14 @@ should be able to be added at any place in this file.
     Recorded when the user navigates away from the current site with an open
     intent picker bubble view, leading to it being closed. This is currently
     measured on all desktop platforms (ChromeOS, Mac, Windows and Linux).
+  </description>
+</action>
+
+<action name="IOS.AISummarization.AppSwitcherEntrypoint">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    The user entered the AI Summarization flow via the App Switcher. iOS only.
   </description>
 </action>
 
@@ -30156,6 +30447,9 @@ should be able to be added at any place in this file.
     <variant name=".TabStrip"
         summary="Users tapped '+' button on the tab strip, causing a new tab
                  to be created in the group."/>
+    <variant name=".VerticalTabs"
+        summary="Users tapped '+' button on the vertical tabs strip, causing
+                 a new tab to be created."/>
   </token>
 </action>
 
@@ -30464,6 +30758,14 @@ should be able to be added at any place in this file.
 <action name="MobileNTPSwitchToOpenTabs">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="MobileOmnibox.Back">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <description>
+    Recorded when the back button inside the mobile omnibox is tapped.
+  </description>
 </action>
 
 <action name="MobileOmniboxBookmarkHidden" not_user_triggered="true">
@@ -31735,6 +32037,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileSelectionDropdown.Print">
+  <owner>oka@google.com</owner>
+  <description>
+    User tapped the Print item in the Android text selection dropdown menu to
+    print the selected text.
+  </description>
+</action>
+
 <action name="MobileSettingsCleanupStarted">
   <owner>cheickcisse@google.com</owner>
   <owner>gambard@chromium.org</owner>
@@ -32237,6 +32547,9 @@ should be able to be added at any place in this file.
     <variant name=".TabStrip"
         summary="Users tapped the currently selected tab's favicon on the tab
                  strip, causing a tab to be closed in the group."/>
+    <variant name=".VerticalTabs"
+        summary="Users tapped 'x' button on the tab in the vertical tab
+                 strip, causing a tab to be closed."/>
   </token>
 </action>
 
@@ -33161,6 +33474,10 @@ should be able to be added at any place in this file.
                  switcher."/>
     <variant name=".TabStrip"
         summary="Users switched tabs from the tab strip."/>
+    <variant name=".VerticalTabs"
+        summary="Users switched tabs from the vertical tabs strip."/>
+    <variant name=".VerticalTabsPinned"
+        summary="Users switched to a pinned tab from the vertical tabs strip."/>
   </token>
 </action>
 
@@ -38036,6 +38353,14 @@ should be able to be added at any place in this file.
   <description>Settings: Users: Remove a whitelisted user</description>
 </action>
 
+<action name="OrganizerPanel.OpenButtonPressed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the organizer panel via the tab strip entrypoint.
+  </description>
+</action>
+
 <action name="OriginChipPress">
   <obsolete>This flag no longer exists.</obsolete>
   <owner>macourteau@chromium.org</owner>
@@ -40439,14 +40764,6 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="ProjectsPanel.OpenButtonPressed">
-  <owner>chazzy@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <description>
-    The user opened the projects panel via the tab strip entrypoint.
-  </description>
-</action>
-
 <action name="ProjectsPanel.TabGroups.CreateNewGroup.{HadExistingGroups}">
   <owner>chazzy@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -42733,6 +43050,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacyGuide.AdTopicsPrivacyPolicyLinkClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <owner>rainhard@chromium.org</owner>
@@ -42743,6 +43063,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacyGuide.BackClickAdTopics">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <description>
@@ -42804,12 +43127,18 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacyGuide.ChangeAdTopicsOff">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <description>User changes Ad Topics to off in Privacy guide.</description>
 </action>
 
 <action name="Settings.PrivacyGuide.ChangeAdTopicsOn">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <description>User changes Ad Topics to on in Privacy guide.</description>
@@ -42905,6 +43234,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacyGuide.CompletionPSClick">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>harrisonsean@chromium.org</owner>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
@@ -42924,6 +43256,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacyGuide.NextClickAdTopics">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-privacy-controls@google.com</owner>
   <description>
@@ -43010,6 +43345,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.AdMeasurement.Disabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43019,6 +43357,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.AdMeasurement.Enabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43028,6 +43369,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.AdMeasurement.Opened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>dullweber@google.com</owner>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
@@ -43035,6 +43379,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.AdMeasurement.PrivacyPolicyLinkClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -43086,6 +43433,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.AdTopics.PrivacyPolicyLinkClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -43114,6 +43464,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Block3PCookies">
+  <obsolete>
+    Made obsolete 07/2026 with the removal of the cookies page Privacy Sandbox
+    toast.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>sauski@google.com</owner>
   <owner>msramek@chromium.org</owner>
@@ -43247,6 +43601,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.AllSitesOpened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43256,6 +43613,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.BlockedSitesOpened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43265,6 +43625,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.Disabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43273,6 +43636,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.Enabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43281,6 +43647,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.LearnMoreClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>olesiamarukhno@google.com</owner>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
@@ -43291,6 +43660,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.Opened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43299,6 +43671,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.SiteAdded">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43307,6 +43682,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Fledge.SiteRemoved">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43541,6 +43919,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.OpenedFromCookiesPageToast">
+  <obsolete>
+    Made obsolete 07/2026 with the removal of the cookies page Privacy Sandbox
+    toast.
+  </obsolete>
   <owner>rainhard@chromium.org</owner>
   <owner>sauski@google.com</owner>
   <owner>msramek@chromium.org</owner>
@@ -43690,6 +44072,9 @@ should be able to be added at any place in this file.
 
 <action
     name="Settings.PrivacySandbox.SiteSuggestedAds.PrivacyPolicyLinkClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -43706,6 +44091,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.BlockedTopicsOpened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43715,6 +44103,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Disabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43723,6 +44114,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Enabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43731,6 +44125,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.LearnMoreClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>olesiamarukhno@google.com</owner>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
@@ -43741,24 +44138,36 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.LearnMoreClicked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>Learn more is clicked in the Manage Topics Page.</description>
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.PageOpened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>Manage Topics page is opened.</description>
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.TopicBlocked">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>Topic blocked from the Manage Topics page.</description>
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.TopicBlockingCanceled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -43767,6 +44176,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.TopicBlockingConfirmed">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>
@@ -43775,12 +44187,18 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Manage.TopicEnabled">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>jacobstanley@google.com</owner>
   <owner>koilos@google.com</owner>
   <description>Topic enabled from the Manage Topics page.</description>
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.Opened">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43789,6 +44207,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.TopicAdded">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -43797,6 +44218,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Settings.PrivacySandbox.Topics.TopicRemoved">
+  <obsolete>
+    Deprecated as of 07/2026 as part of Ad Privacy UX deprecation.
+  </obsolete>
   <owner>sauski@google.com</owner>
   <owner>kartoffel-core@google.com</owner>
   <description>
@@ -53230,19 +53654,19 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="TabStripComboButton.ProjectsPanel.Pinned">
+<action name="TabStripComboButton.OrganizerPanel.Pinned">
   <owner>emshack@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
-    User pinned the Projects Panel button to the tabstrip.
+    User pinned the Organizer Panel button to the tabstrip.
   </description>
 </action>
 
-<action name="TabStripComboButton.ProjectsPanel.Unpinned">
+<action name="TabStripComboButton.OrganizerPanel.Unpinned">
   <owner>emshack@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
-    User unpinned the Projects Panel button from the tabstrip.
+    User unpinned the Organizer Panel button from the tabstrip.
   </description>
 </action>
 
@@ -54917,6 +55341,32 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="VerticalTabs.Toolbar.CaptionAreaPressed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user presses on the non-interactive caption area of the
+    toolbar in vertical tabs mode to potentially start a window drag. Note: This
+    metric is based on hit testing during mouse button state checks. It may
+    include false positives (e.g. right-clicks or deduplication artifacts), and
+    should be used primarily for relative comparison with
+    VerticalTabs.Toolbar.InteractiveAreaPressed.
+  </description>
+</action>
+
+<action name="VerticalTabs.Toolbar.InteractiveAreaPressed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user presses on an interactive area (e.g. buttons,
+    omnibox, or menu) of the toolbar in vertical tabs mode. Note: This metric is
+    based on hit testing during mouse button state checks. It may include
+    inaccuracies (e.g. false positives or deduplication artifacts) and should be
+    used primarily for relative comparison with
+    VerticalTabs.Toolbar.CaptionAreaPressed.
+  </description>
+</action>
+
 <action name="VerticalTabs_EnabledFirstTime">
   <owner>charlesmeng@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -55225,7 +55675,36 @@ should be able to be added at any place in this file.
   <description>The user set a web app to open in an app window.</description>
 </action>
 
+<action name="WebAppDetailedDialogAccepted">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user accepted an installation of a web app in the detailed installation
+    dialog (with screenshots, etc).
+  </description>
+</action>
+
+<action name="WebAppDetailedDialogCancelled">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user explicitly declined the installation of a web app from the detailed
+    installation dialog.
+  </description>
+</action>
+
+<action name="WebAppDetailedDialogClosed">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user closed the detailed installation dialog for a web app.
+  </description>
+</action>
+
 <action name="WebAppDetailedInstallAccepted">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppDetailedDialogAccepted.
+  </obsolete>
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55235,6 +55714,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="WebAppDetailedInstallCancelled">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppDetailedDialogCancelled and
+    WebAppDetailedDialogClosed.
+  </obsolete>
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55252,7 +55735,45 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="WebAppDialogOpenedApp">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user clicked the &quot;Open tab in app&quot; button to open the newly
+    installed app from the success dialog.
+  </description>
+</action>
+
+<action name="WebAppDiyDialogAccepted">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user accepted an installation of a web app in the DIY installation
+    dialog.
+  </description>
+</action>
+
+<action name="WebAppDiyDialogCancelled">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user explicitly cancelled or declined the installation of a web app from
+    the DIY installation dialog.
+  </description>
+</action>
+
+<action name="WebAppDiyDialogClosed">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user closed the DIY installation dialog for a web app.
+  </description>
+</action>
+
 <action name="WebAppDiyInstallAccepted">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppDiyDialogAccepted.
+  </obsolete>
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55262,6 +55783,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="WebAppDiyInstallCancelled">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppDiyDialogCancelled and
+    WebAppDiyDialogClosed.
+  </obsolete>
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55280,6 +55805,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="WebAppInstallAccepted">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppSimpleDialogAccepted.
+  </obsolete>
   <owner>dmurph@gchromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55288,6 +55816,12 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="WebAppInstallCancelled">
+  <obsolete>
+    Deprecated as of 07/2026. Replaced by WebAppSimpleDialogCancelled,
+    WebAppSimpleDialogClosed, WebAppDetailedDialogCancelled,
+    WebAppDetailedDialogClosed, WebAppDiyDialogCancelled, and
+    WebAppDiyDialogClosed.
+  </obsolete>
   <owner>dmurph@gchromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <description>
@@ -55349,6 +55883,31 @@ should be able to be added at any place in this file.
     Shortcut added to the homescreen with a valid Manifest. This action will be
     recorded in addition to AppShortcut, AppShortcutApple and Bookmark actions
     to keep a trend of whether the webapp also add meta tags.
+  </description>
+</action>
+
+<action name="WebAppSimpleDialogAccepted">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user accepted an installation of a web app in the installation dialog.
+  </description>
+</action>
+
+<action name="WebAppSimpleDialogCancelled">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user explicitly cancelled or declined the installation of a web app from
+    the simple installation dialog.
+  </description>
+</action>
+
+<action name="WebAppSimpleDialogClosed">
+  <owner>ksukh@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <description>
+    The user closed the simple installation dialog for a web app.
   </description>
 </action>
 

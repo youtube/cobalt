@@ -39,7 +39,6 @@
 <translation id="137466361146087520">Google Chrome Beta</translation>
 <translation id="1383876407941801731">Pesquisar</translation>
 <translation id="1399397803214730675">Este computador já tem uma versão mais recente do Google Chrome. Se o software não estiver a funcionar, desinstale o Google Chrome e tente novamente.</translation>
-<translation id="1404026649028693342">Mostrar sempre o Modo IA</translation>
 <translation id="141901961143729572">Partilhe a sua opinião</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{A atualização do Chrome está concluída. Pode usar a versão mais recente assim que reiniciar. Depois, os separadores atuais vão ser reabertos.}=1{A atualização do Chrome está concluída. Pode usar a versão mais recente assim que reiniciar. Depois, os separadores atuais vão ser reabertos. Não é possível reabrir a janela de navegação anónima.}other{A atualização do Chrome está concluída. Pode usar a versão mais recente assim que reiniciar. Depois, os separadores atuais vão ser reabertos. Não é possível reabrir # janelas de navegação anónima.}}</translation>
 <translation id="1434626383986940139">Apps do Chrome para o Canary</translation>
@@ -107,7 +106,6 @@
 <translation id="2039417478970545937">Definições.</translation>
 <translation id="2040220733769034247">Leia o código QR com o telemóvel para transferir o Chrome e iniciar sessão na sua Conta Google.</translation>
 <translation id="2050189601866423230">Pode fixar o Modo IA da Pesquisa Google para fazer perguntas enquanto navega</translation>
-<translation id="2066690553719545730">Mostrar sempre o Modo IA</translation>
 <translation id="2091012649849228750">Para obter atualizações futuras do Google Chrome, precisa do Windows 10 ou posterior. Este computador está a usar o Windows 8.</translation>
 <translation id="2094648590148273905">Termos do ChromeOS Flex</translation>
 <translation id="2094919256425865063">Quer fechar o Chrome mesmo assim?</translation>
@@ -260,6 +258,7 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="3595784445906693824">Iniciar sessão no Chrome num novo perfil?</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{O seu administrador necessita que reinicie o Chrome para aplicar uma atualização.}=1{O seu administrador necessita que reinicie o Chrome para aplicar uma atualização. Não é possível reabrir a sua janela de navegação anónima.}other{O seu administrador necessita que reinicie o Chrome para aplicar uma atualização. Não é possível reabrir as suas # janelas de navegação anónima.}}</translation>
 <translation id="3597003331831379823">Falha ao executar a configuração com privilégios elevados. <ph name="METAINSTALLER_ERROR" /></translation>
+<translation id="3598673391539778844">Mostrar o Gemini no Chrome no tabuleiro do sistema</translation>
 <translation id="3622716124581627104">Identifique itens ou locais e copie ou traduza texto. Quando usa o Google Lens, é enviada uma captura de ecrã da página para a Google. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">Agora é mais fácil utilizar o Chrome com a sua Conta Google e em computadores partilhados.</translation>
 <translation id="3635073343384702370">O Chrome consegue verificar as suas palavras-passe quando as guarda</translation>
@@ -478,7 +477,6 @@ Se esta página não estiver a funcionar conforme esperado, experimente permitir
 <translation id="5941830788786076944">Tornar o Google Chrome no browser padrão.</translation>
 <translation id="5947104538377036631">Atalho do Chrome</translation>
 <translation id="5960071705175224773">As suas definições foram alteradas por uma app desconhecida</translation>
-<translation id="5968400720580217226">Modo IA</translation>
 <translation id="5980111191913430208">As extensões, as apps e os temas de fontes desconhecidas podem danificar o seu dispositivo. O Chrome recomenda instalá-los apenas a partir da <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">A transferir… Falta(m) <ph name="HOURS" /> hora(s)</translation>
 <translation id="6008161919456049856">As suas palavras-passe, métodos de pagamento e moradas guardadas na sua Conta Google vão ser removidas deste dispositivo. Para os usar novamente no Chrome, volte a iniciar sessão.</translation>
@@ -786,6 +784,7 @@ Não é possível guardar novos marcadores na sua conta até eliminar alguns. Se
 <translation id="8821043148920470810">Para obter atualizações futuras do Google Chrome, precisa do Windows 10 ou posterior. Este computador está a usar o Windows 7.</translation>
 <translation id="8823341990149967727">O Chrome Está Desatualizado</translation>
 <translation id="8834965163890861871">O Google Chrome está a tentar editar palavras-passe. Escreva a sua palavra-passe do Windows para permitir esta ação.</translation>
+<translation id="8841151363570555833">Mostrar o Gemini no Chrome na barra de menu do Mac</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{O Chrome recomenda que a remova}other{O Chrome recomenda que as remova}}</translation>
 <translation id="8862326446509486874">Não tem os direitos adequados para uma instalação ao nível do sistema. Tente executar o programa de instalação novamente como Administrador.</translation>
 <translation id="8865415417596392024">Dados do Chrome na sua conta</translation>

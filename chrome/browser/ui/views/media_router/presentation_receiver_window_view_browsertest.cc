@@ -130,7 +130,7 @@ class PresentationReceiverWindowViewBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     fake_delegate_ =
-        std::make_unique<FakeReceiverDelegate>(browser()->profile());
+        std::make_unique<FakeReceiverDelegate>(browser()->GetProfile());
     receiver_view_ = CreateReceiverWindowView(fake_delegate_.get(), bounds_);
   }
 
@@ -332,7 +332,8 @@ IN_PROC_BROWSER_TEST_F(PresentationReceiverWindowViewBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PresentationReceiverWindowViewBrowserTest,
                        DelegateUnsetOnTeardown) {
-  auto delegate = std::make_unique<FakeReceiverDelegate>(browser()->profile());
+  auto delegate =
+      std::make_unique<FakeReceiverDelegate>(browser()->GetProfile());
   PresentationReceiverWindowView* view =
       CreateReceiverWindowView(delegate.get(), bounds_);
 

@@ -224,8 +224,6 @@ class SyncConfirmationStepControllerForTest
             weak_ptr_factory_.GetWeakPtr(), std::move(step_shown_callback)));
   }
 
-  void OnNavigateBackRequested() override { NOTREACHED(); }
-
   void OnSyncConfirmationLoaded(
       StepSwitchFinishedCallback step_shown_callback) {
     SyncConfirmationUI* sync_confirmation_ui = static_cast<SyncConfirmationUI*>(
@@ -309,7 +307,7 @@ class SyncConfirmationUIWindowPixelTest
         ProfilePicker::Params::ForTesting(
             GetParam().is_first_run ? ProfilePicker::EntryPoint::kFirstRun
                                     : ProfilePicker::EntryPoint::kOnStartup,
-            browser()->profile()->GetPath()),
+            browser()->GetProfile()->GetPath()),
         ProfileManagementFlowController::Step::kPostSignInFlow,
         /*step_controller_factory=*/
         base::BindRepeating([](ProfilePickerWebContentsHost* host) {

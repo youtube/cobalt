@@ -23,7 +23,10 @@ NSString* const kTabGridRemoteTabsPageButtonIdentifier =
     @"TabGridRemoteTabsPageButtonIdentifier";
 NSString* const kTabGridTabGroupsPageButtonIdentifier =
     @"TabGridTabGroupsPageButtonIdentifier";
-NSString* const kTabGridDoneButtonIdentifier = @"TabGridDoneButtonIdentifier";
+NSString* const kTabGridExitTabGridButtonIdentifier =
+    @"TabGridExitTabGridButtonIdentifier";
+NSString* const kTabGridExitSelectionButtonIdentifier =
+    @"TabGridExitSelectionButtonIdentifier";
 NSString* const kTabGridCancelButtonIdentifier =
     @"TabGridCancelButtonIdentifier";
 NSString* const kTabGridSearchButtonIdentifier =
@@ -39,7 +42,6 @@ NSString* const kInactiveTabGridIdentifier = @"kInactiveTabGridIdentifier";
 NSString* const kInactiveTabGridCloseAllButtonIdentifier =
     @"kInactiveTabGridCloseAllButtonIdentifier";
 
-NSString* const kTabGridEditButtonIdentifier = @"kTabGridEditButtonIdentifier";
 NSString* const kTabGridEditCloseTabsButtonIdentifier =
     @"kTabGridEditCloseTabsButtonIdentifier";
 NSString* const kTabGridEditSelectAllButtonIdentifier =

@@ -600,6 +600,8 @@ DeveloperPrivateUpdateProfileConfigurationFunction::Run() {
   if (update.extensions_pinned_by_default) {
     profile->GetPrefs()->SetBoolean(prefs::kExtensionsPinnedByDefault,
                                     *update.extensions_pinned_by_default);
+    base::UmaHistogramBoolean("Extensions.Settings.DefaultPinningToggled",
+                              *update.extensions_pinned_by_default);
   }
 
   if (update.is_mv2_deprecation_notice_dismissed.value_or(false)) {
@@ -1050,7 +1052,9 @@ DeveloperPrivateInstallDroppedFileFunction::Run() {
         ->InstallZipFileToUnpackedExtensionsDir(
             file.path, registrar->unpacked_install_directory());
   } else {
-    auto prompt = std::make_unique<ExtensionInstallPrompt>(web_contents);
+    auto prompt = std::make_unique<ExtensionInstallPrompt>(
+        web_contents, std::make_unique<extensions::InstallPromptData>(
+                          extensions::InstallPromptData::UNSET_PROMPT_TYPE));
     scoped_refptr<CrxInstaller> crx_installer =
         CrxInstaller::Create(browser_context(), std::move(prompt));
     crx_installer->set_error_on_unsupported_requirements(true);

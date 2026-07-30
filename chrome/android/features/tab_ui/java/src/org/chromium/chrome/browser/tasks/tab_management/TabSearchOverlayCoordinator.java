@@ -16,8 +16,11 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.IdRes;
 import androidx.annotation.VisibleForTesting;
 
@@ -81,6 +84,8 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
     private final SettableNonNullObservableSupplier<Boolean> mBackPressStateSupplier =
             ObservableSuppliers.createNonNull(false);
     private final PropertyModel mModel;
+    private final SearchBoxDataProvider mSearchBoxDataProvider;
+    private final Callback<Profile> mProfileObserver;
 
     private @Nullable
             PropertyModelChangeProcessor<
@@ -88,8 +93,7 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
             mChangeProcessor;
     private @Nullable LinearLayout mPanelContainer;
     private @Nullable SearchUiCoordinator mSearchUiCoordinator;
-    private final SearchBoxDataProvider mSearchBoxDataProvider;
-    private final Callback<Profile> mProfileObserver;
+    private final Callback<Boolean> mSuggestionsObserver = this::onSuggestionsChanged;
 
     /**
      * Constructs a new TabSearchOverlayCoordinator.
@@ -131,6 +135,7 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
         mModel = TabSearchOverlayProperties.createDefaultModel();
         mModel.set(TabSearchOverlayProperties.VISIBLE, false);
         mModel.set(TabSearchOverlayProperties.ON_SCRIM_CLICK, (v) -> hide());
+        mModel.set(TabSearchOverlayProperties.ON_CLOSE_CLICK, (v) -> hide());
 
         mSearchBoxDataProvider = new SearchBoxDataProvider();
         mSearchBoxDataProvider.setPageClassification(PageClassification.ANDROID_HUB_VALUE);
@@ -148,6 +153,10 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
             mChangeProcessor = null;
         }
         if (mSearchUiCoordinator != null) {
+            mSearchUiCoordinator
+                    .getLocationBarCoordinator()
+                    .getSuggestionsListNonEmptySupplier()
+                    .removeObserver(mSuggestionsObserver);
             mSearchUiCoordinator.destroy();
             mSearchUiCoordinator = null;
         }
@@ -171,7 +180,6 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
                                         mParentContainer,
                                         false);
         final LinearLayout panelContainer = mPanelContainer;
-        View scrim = panelContainer.findViewById(R.id.tab_search_overlay_scrim);
         View panelView = panelContainer.findViewById(R.id.tab_search_overlay_panel);
         View searchActivityView = panelContainer.findViewById(R.id.search_activity_container);
         mParentContainer.addView(panelContainer);
@@ -248,8 +256,17 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
                 mEdgeToEdgeSystemBarColorHelper);
         setSearchUiElements();
 
+        mSearchUiCoordinator
+                .getLocationBarCoordinator()
+                .getSuggestionsListNonEmptySupplier()
+                .addSyncObserver(mSuggestionsObserver);
+
+        View emptyStateView = panelView.findViewById(R.id.empty_state_container);
+        setupEmptyStateView(emptyStateView);
+
         TabSearchOverlayViewBinder.ViewHolder viewHolder =
-                new TabSearchOverlayViewBinder.ViewHolder(panelContainer, scrim, panelView);
+                new TabSearchOverlayViewBinder.ViewHolder(
+                        panelContainer, panelView, emptyStateView);
         mChangeProcessor =
                 PropertyModelChangeProcessor.create(
                         mModel, viewHolder, TabSearchOverlayViewBinder::bind);
@@ -271,6 +288,26 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
                 .getLocationBarCoordinator()
                 .getUrlBarCoordinator()
                 .setUrlBarHintText(mActivity.getResources().getString(hintTextRes));
+    }
+
+    private void setupEmptyStateView(View emptyStateView) {
+        @DrawableRes int emptyImageResId = R.drawable.tablet_tab_switcher_empty_state_illustration;
+        ImageView icon = emptyStateView.findViewById(R.id.empty_state_icon);
+        icon.setImageResource(emptyImageResId);
+        TextView title = emptyStateView.findViewById(R.id.empty_state_text_title);
+        title.setText(R.string.search_in_settings_no_match);
+        TextView description = emptyStateView.findViewById(R.id.empty_state_text_description);
+        description.setVisibility(View.GONE);
+    }
+
+    private void onSuggestionsChanged(boolean hasSuggestions) {
+        String query =
+                assumeNonNull(mSearchUiCoordinator)
+                        .getLocationBarCoordinator()
+                        .getUrlBarCoordinator()
+                        .getTextWithoutAutocomplete();
+        boolean showEmptyState = query != null && !query.isEmpty() && !hasSuggestions;
+        mModel.set(TabSearchOverlayProperties.EMPTY_STATE_VISIBLE, showEmptyState);
     }
 
     private boolean loadUrl(OmniboxLoadUrlParams params, boolean isIncognito) {
@@ -380,6 +417,10 @@ public class TabSearchOverlayCoordinator implements BackPressHandler {
 
     @Nullable LinearLayout getPanelContainerForTesting() {
         return mPanelContainer;
+    }
+
+    PropertyModel getModelForTesting() {
+        return mModel;
     }
 
     void setSearchUiCoordinatorForTesting(SearchUiCoordinator searchUiCoordinator) {

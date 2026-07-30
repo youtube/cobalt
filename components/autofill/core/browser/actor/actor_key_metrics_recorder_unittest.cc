@@ -18,6 +18,7 @@
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager_test_api.h"
 #include "components/autofill/core/browser/payments/test/mock_multiple_request_payments_network_interface.h"
@@ -45,7 +46,7 @@ using GetSuggestionsFuture =
     base::test::TestFuture<base::expected<std::vector<ActorFormFillingRequest>,
                                           ActorFormFillingError>>;
 using FillSuggestionsFuture =
-    base::test::TestFuture<base::expected<void, ActorFormFillingError>>;
+    base::test::TestFuture<base::expected<std::string, ActorFormFillingError>>;
 
 // Returns a fill-request with a non-sensical (because null) field id.
 ActorFormFillingService::FillRequest UnfindableFillRequest() {
@@ -97,10 +98,11 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingAssistanceMetrics_AddressFilled) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   EXPECT_THAT(fill_future.Get(), HasValue());
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingAssistance.Address", true, 1);
 }
@@ -122,7 +124,8 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingAssistanceMetrics_AddressNotFilled) {
 
   // Do NOT fill.
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingAssistance.Address", false, 1);
 }
@@ -149,11 +152,12 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingAssistanceMetrics_CreditCardFilled) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   EXPECT_THAT(fill_future.Get(), HasValue());
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingAssistance.CreditCard", true, 1);
 }
@@ -178,7 +182,7 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_AddressCorrect) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   EXPECT_THAT(fill_future.Get(), HasValue());
 
   // Simulate all fields being submitted as autofilled (unchanged).
@@ -188,7 +192,8 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_AddressCorrect) {
   }
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingCorrectness.Address", true, 1);
 }
@@ -212,7 +217,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   EXPECT_THAT(fill_future.Get(), HasValue());
 
   // Simulate one field being modified.
@@ -222,8 +227,10 @@ TEST_F(ActorKeyMetricsRecorderTest,
   form.set_fields(std::move(fields));
 
   manager().OnTextFieldValueChanged(form, form.fields()[0].global_id(),
-                                    base::TimeTicks::Now());
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingCorrectness.Address", false, 1);
 }
@@ -249,7 +256,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   EXPECT_THAT(fill_future.Get(), HasValue());
 
@@ -260,7 +267,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   }
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingCorrectness.CreditCard", true, 1);
 }
@@ -286,7 +294,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   EXPECT_THAT(fill_future.Get(), HasValue());
 
@@ -296,8 +304,10 @@ TEST_F(ActorKeyMetricsRecorderTest,
   form.set_fields(std::move(fields));
 
   manager().OnTextFieldValueChanged(form, form.fields()[1].global_id(),
-                                    base::TimeTicks::Now());
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingCorrectness.CreditCard", false, 1);
 }
@@ -327,7 +337,7 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_MixedForm) {
   FillSuggestionsFuture addr_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(addr_requests[0].suggestions[0].id)},
-      addr_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, addr_fill_future.GetCallback());
   EXPECT_THAT(addr_fill_future.Get(), HasValue());
 
   // Fill credit card.
@@ -342,7 +352,7 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_MixedForm) {
   FillSuggestionsFuture cc_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(cc_requests[0].suggestions[0].id)},
-      cc_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, cc_fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   EXPECT_THAT(cc_fill_future.Get(), HasValue());
 
@@ -355,8 +365,10 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_MixedForm) {
   form.set_fields(std::move(fields));
 
   manager().OnTextFieldValueChanged(form, form.fields()[0].global_id(),
-                                    base::TimeTicks::Now());
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingAssistance.Address", true, 1);
@@ -388,7 +400,7 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_PartialFilling) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   EXPECT_THAT(fill_future.Get(), HasValue());
 
   // Verify that only the NAME_FULL field was filled by the actor.
@@ -405,7 +417,8 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingCorrectnessMetrics_PartialFilling) {
   fields[1].set_value(u"User Content");
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   // Should be recorded as Correct (true) because the actor-filled field was not
   // modified.
@@ -438,16 +451,18 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   EXPECT_THAT(fill_future.Get(), HasValue());
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingAssistance.Address", true, 1);
 
   // Now "navigate" away, which removes forms.
   manager().OnFormsSeen(/*updated_forms=*/{},
-                        /*removed_forms=*/{form.global_id()});
+                        /*removed_forms=*/{form.global_id()},
+                        AutofillManagerTestApi::pass_key());
 
   // Re-add the same form (simulating coming back to the page).
   FormData form2 = SeeForm(form_desc);
@@ -455,7 +470,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
 
   // Record at submission. Should record false now because it's a new session
   // and it wasn't filled by actor in this session.
-  manager().OnFormSubmitted(form2, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form2, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectBucketCount(
       "Autofill.Actor.KeyMetrics.FillingAssistance.Address", false, 1);
   histogram_tester.ExpectTotalCount(
@@ -477,7 +493,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
                            future.GetCallback());
   EXPECT_THAT(future.Get(), HasValue());
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingReadiness.Address", true, 1);
   histogram_tester.ExpectTotalCount(
@@ -500,7 +517,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
                            future.GetCallback());
   EXPECT_THAT(future.Get(), ErrorIs(ActorFormFillingError::kNoSuggestions));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingReadiness.Address", false, 1);
 }
@@ -521,7 +539,8 @@ TEST_F(ActorKeyMetricsRecorderTest, FillingReadinessMetrics_CreditCard) {
       future.GetCallback());
   EXPECT_THAT(future.Get(), HasValue());
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.KeyMetrics.FillingReadiness.CreditCard", true, 1);
 }
@@ -544,7 +563,7 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_Address_Perfect) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate perfect filling (no user edits).
@@ -553,7 +572,8 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_Address_Perfect) {
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample("Autofill.Actor.PerfectFilling.Address",
                                       true, 1);
@@ -576,13 +596,14 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_Address_Imperfect) {
                      ActorFormFillingSelection(requests[0].suggestions[0].id));
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
-      client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
+      client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)}, {},
       fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate imperfect filling (user edit).
   manager().OnTextFieldValueChanged(form, form.fields()[0].global_id(),
-                                    base::TimeTicks::Now());
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
 
   // Simulate submission.
   std::vector<FormFieldData> fields = form.ExtractFields();
@@ -590,7 +611,8 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_Address_Imperfect) {
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample("Autofill.Actor.PerfectFilling.Address",
                                       false, 1);
@@ -616,7 +638,7 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_CreditCard_Perfect) {
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   ASSERT_THAT(fill_future.Get(), HasValue());
 
@@ -626,7 +648,8 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_CreditCard_Perfect) {
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.PerfectFilling.CreditCard", true, 1);
@@ -651,20 +674,22 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_CreditCard_Imperfect) {
                      ActorFormFillingSelection(requests[0].suggestions[0].id));
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
-      client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
+      client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)}, {},
       fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate imperfect filling.
   manager().OnTextFieldValueChanged(form, form.fields()[1].global_id(),
-                                    base::TimeTicks::Now());
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
 
   std::vector<FormFieldData> fields = form.ExtractFields();
   fields[1].set_is_autofilled_according_to_renderer(false);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.Actor.PerfectFilling.CreditCard", false, 1);
@@ -692,7 +717,7 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_MixedForm_Perfect) {
   FillSuggestionsFuture addr_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(addr_requests[0].suggestions[0].id)},
-      addr_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, addr_fill_future.GetCallback());
   ASSERT_THAT(addr_fill_future.Get(), HasValue());
 
   // Fill credit card.
@@ -707,7 +732,7 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_MixedForm_Perfect) {
   FillSuggestionsFuture cc_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(cc_requests[0].suggestions[0].id)},
-      cc_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, cc_fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   ASSERT_THAT(cc_fill_future.Get(), HasValue());
 
@@ -717,7 +742,8 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_MixedForm_Perfect) {
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectUniqueSample("Autofill.Actor.PerfectFilling.Address",
                                       true, 1);
@@ -747,7 +773,7 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_MixedForm_Imperfect) {
   FillSuggestionsFuture addr_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(addr_requests[0].suggestions[0].id)},
-      addr_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, addr_fill_future.GetCallback());
   ASSERT_THAT(addr_fill_future.Get(), HasValue());
 
   // Fill credit card.
@@ -762,20 +788,22 @@ TEST_F(ActorKeyMetricsRecorderTest, PerfectFilling_MixedForm_Imperfect) {
   FillSuggestionsFuture cc_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(cc_requests[0].suggestions[0].id)},
-      cc_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, cc_fill_future.GetCallback());
   ASSERT_TRUE(credit_card_access_manager().RunCreditCardFetchedCallback(card));
   ASSERT_THAT(cc_fill_future.Get(), HasValue());
 
   // Imperfect filling (address field edited).
   manager().OnTextFieldValueChanged(form, form.fields()[0].global_id(),
-                                    base::TimeTicks::Now());
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
 
   std::vector<FormFieldData> fields = form.ExtractFields();
   fields[0].set_is_autofilled_according_to_renderer(false);
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   // Both should be false because one field in the form was edited, which
   // penalizes all products in a combined form.
@@ -806,7 +834,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate submission.
@@ -821,8 +849,10 @@ TEST_F(ActorKeyMetricsRecorderTest,
   form.set_fields(std::move(fields));
 
   manager().OnTextFieldValueChanged(form, form.fields()[3].global_id(),
-                                    base::TimeTicks::Now());
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   // Should record false because any field interaction (even on UNKNOWN_TYPE)
   // penalizes the metric.
@@ -852,7 +882,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture addr_fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(addr_requests[0].suggestions[0].id)},
-      addr_fill_future.GetCallback());
+      /*trigger_field_map=*/{}, addr_fill_future.GetCallback());
   ASSERT_THAT(addr_fill_future.Get(), HasValue());
 
   // Manually add the kAutofill modifier to the cached field to perfectly
@@ -867,7 +897,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   // Should record false because followup filling by standard Autofill is not
   // considered an actor perfect filling experience.
@@ -897,7 +928,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate submission. The actor fields are marked as autofilled.
@@ -908,7 +939,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   fields[2].set_is_autofilled_according_to_renderer(false);  // Left empty
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   // Should succeed because the untouched empty field does not penalize the
   // metric.
@@ -935,7 +967,7 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate perfect filling (no user edits).
@@ -944,7 +976,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectBucketCount(
       "Autofill.Actor.EditedAutofilledFieldAtSubmission.Aggregate",
@@ -977,12 +1010,13 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate imperfect filling (user edit).
   manager().OnTextFieldValueChanged(form, form.fields()[0].global_id(),
-                                    base::TimeTicks::Now());
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
 
   // Simulate submission.
   std::vector<FormFieldData> fields = form.ExtractFields();
@@ -990,7 +1024,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   fields[1].set_is_autofilled_according_to_renderer(true);
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectBucketCount(
       "Autofill.Actor.EditedAutofilledFieldAtSubmission.Aggregate",
@@ -1023,13 +1058,14 @@ TEST_F(ActorKeyMetricsRecorderTest,
   FillSuggestionsFuture fill_future;
   service().FillSuggestions(
       client(), {ActorFormFillingSelection(requests[0].suggestions[0].id)},
-      fill_future.GetCallback());
+      /*trigger_field_map=*/{}, fill_future.GetCallback());
   ASSERT_THAT(fill_future.Get(), HasValue());
 
   // Simulate imperfect filling (user edit on an UNKNOWN_TYPE field that
   // wasn't filled by actor).
   manager().OnTextFieldValueChanged(form, form.fields()[1].global_id(),
-                                    base::TimeTicks::Now());
+                                    base::TimeTicks::Now(),
+                                    AutofillManagerTestApi::pass_key());
 
   // Simulate submission.
   std::vector<FormFieldData> fields = form.ExtractFields();
@@ -1038,7 +1074,8 @@ TEST_F(ActorKeyMetricsRecorderTest,
   fields[1].set_value(u"User Content");
   form.set_fields(std::move(fields));
 
-  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);
+  manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION,
+                            AutofillManagerTestApi::pass_key());
 
   histogram_tester.ExpectBucketCount(
       "Autofill.Actor.EditedAutofilledFieldAtSubmission.Aggregate",

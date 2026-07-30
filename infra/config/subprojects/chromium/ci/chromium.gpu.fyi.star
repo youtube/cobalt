@@ -55,6 +55,7 @@ consoles.console_view(
     branch_selector = [
         branches.selector.ANDROID_BRANCHES,
         branches.selector.MAC_BRANCHES,
+        branches.selector.WINDOWS_BRANCHES,
     ],
     ordering = {
         None: ["Windows", "Mac", "Linux"],
@@ -393,6 +394,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "Android FYI Release (Pixel 10)",
+    branch_selector = branches.selector.ANDROID_BRANCHES,
     description_html = "Runs release GPU tests on stable Pixel 10 configs",
     parent = "GPU FYI Android arm64 Builder",
     builder_spec = builder_config.builder_spec(
@@ -452,7 +454,6 @@ ci.thin_tester(
         os_type = targets.os_type.ANDROID,
         use_android_merge_script_by_default = False,
     ),
-    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "Android|arm64|IMG",
         short_name = "P10",
@@ -2298,7 +2299,7 @@ ci.thin_tester(
             "pixel_skia_gold_metal_passthrough_graphite_test": targets.per_test_modification(
                 mixins = targets.mixin(
                     swarming = targets.swarming(
-                        shards = 2,
+                        shards = 4,
                     ),
                 ),
             ),
@@ -3695,6 +3696,7 @@ ci.thin_tester(
 
 ci.thin_tester(
     name = "Win11 FYI arm64 Release (Qualcomm Snapdragon X Elite)",
+    branch_selector = branches.selector.WINDOWS_BRANCHES,
     description_html = "Runs release GPU tests on stable Windows 11/Snapdragon X Elite configs (Dell Latitude 7455)",
     parent = "GPU FYI Win arm64 Builder",
     builder_spec = builder_config.builder_spec(
@@ -3749,6 +3751,22 @@ ci.thin_tester(
                     "--test-launcher-filter-file=../../testing/buildbot/filters/win.qualcomm.snapdragon_x_elite.services_webnn_unittests.filter",
                 ],
             ),
+            "webcodecs_tests": targets.per_test_modification(
+                mixins = targets.mixin(
+                    args = [
+                        # TODO(crbug.com/414723481): Remove this when the test
+                        # that is flakily killing machines is found and skipped.
+                        "--jobs=1",
+                    ],
+                ),
+                replacements = targets.replacements(
+                    args = {
+                        # Magic substitution happens after regular replacement, so remove it
+                        # now since we are manually applying the number of jobs above.
+                        targets.magic_args.GPU_PARALLEL_JOBS: None,
+                    },
+                ),
+            ),
             "xr_browser_tests": targets.remove(
                 reason = "No Windows arm64 devices currently support XR features, so don't bother running related tests.",
             ),
@@ -3766,6 +3784,7 @@ ci.thin_tester(
 
 gpu_fyi_windows_builder(
     name = "GPU FYI Win arm64 Builder",
+    branch_selector = branches.selector.WINDOWS_BRANCHES,
     description_html = "Builds release Windows arm64 binaries for GPU testing",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(

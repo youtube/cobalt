@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Si lo eliminas, todos los usuarios perderán inmediatamente el acceso al grupo de pestañas <ph name="GROUP_NAME" /> y se eliminará de todos los dispositivos.</translation>
 <translation id="1142732900304639782">No ofrecer que se traduzcan estos sitios</translation>
 <translation id="1143193470214071120">Cierra una ventana o gestiona ventanas</translation>
+<translation id="1143486892058798649">Guardar enlace como…</translation>
 <translation id="1149725087019908252">Comprobando <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> se abrirá en Chrome. Al continuar, aceptas los <ph name="BEGIN_LINK1" />Términos del Servicio de Google<ph name="END_LINK1" /> y los <ph name="BEGIN_LINK2" />Términos del Servicio Adicionales de Google Chrome y ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">No tienes contraseñas guardadas en el Gestor de contraseñas de Google.</translation>
@@ -142,11 +143,13 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="1544826120773021464">Para gestionar tu cuenta de Google, toca el botón Gestionar cuenta</translation>
 <translation id="1549000191223877751">Mover a otra ventana</translation>
 <translation id="1553358976309200471">Actualizar Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Ayuda a mejorar Chrome para las personas que lo usan como tú</translation>
 <translation id="1568636008098739136">Escuchar esta página. Para editar esta combinación de teclas, mantenlas pulsadas.</translation>
 <translation id="1571041387761170095">No hay contraseñas poco seguras ni reutilizadas</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 contraseña vulnerada en este dispositivo}other{# contraseñas vulneradas en este dispositivo}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> elementos sugeridos en la lista siguiente.</translation>
+<translation id="159689249463841786">Elegir carpeta (actualmente, <ph name="FOLDER_NAME" />)</translation>
 <translation id="1598163867407640634">Usar <ph name="SITE_ETLD_PLUS_ONE" /> con <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, pestaña en grabación fijada</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, pestaña compartida</translation>
@@ -277,6 +280,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="2190355936436201913">(vacío)</translation>
 <translation id="219283042927675668">Pestañas en el grupo</translation>
 <translation id="2194856509914051091">Notas importantes</translation>
+<translation id="2196695604589508993">Abrir historial</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, pestaña que comparte contenido fijada</translation>
 <translation id="22091350895006575">Añadir nombre de usuario</translation>
 <translation id="221494669172414749">Si abres Chrome sin un bloqueo de perfil, se eliminarán del coche tus contraseñas y métodos de pago guardados. Si usas un bloqueo de perfil, estos datos estarán protegidos.</translation>
@@ -311,6 +315,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="2330186936255788117">Más marcadores</translation>
 <translation id="2332515770639153015">Navegación segura mejorada está activada</translation>
 <translation id="233375395665273385">Eliminar y cerrar sesión</translation>
+<translation id="2334275697832662087">La seguridad basada en IA de Chrome te ayuda a protegerte frente a amenazas online para que puedas navegar sin preocupaciones</translation>
 <translation id="2341410551640223969">No se ha podido instalar <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Datos totales utilizados por Chrome, incluidos los marcadores, las cuentas y la configuración guardada</translation>
 <translation id="2354001756790975382">Otros marcadores</translation>
@@ -612,6 +617,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="3577473026931028326">Se ha producido un error. Inténtalo de nuevo.</translation>
 <translation id="3577558748185201054">Gestiona tus intereses y preferencias</translation>
 <translation id="3587482841069643663">Todo</translation>
+<translation id="3598421953808879451">Guardar vídeo como…</translation>
 <translation id="3602290021589620013">Vista previa</translation>
 <translation id="3614126103057878858">Estadísticas sobre precios</translation>
 <translation id="3616113530831147358">Audio</translation>
@@ -722,6 +728,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="4044708993631234325">Hoja inferior</translation>
 <translation id="4045441967987592849">Reabrir</translation>
 <translation id="4049920046559074950">Más opciones de <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Aquí encontrarás las pestañas y ventanas que has cerrado recientemente</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Abrir en una ventana de Incógnito}other{Abrir todos (#) en una ventana de Incógnito}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> pestaña estándar con actividad nueva en grupos de pestañas compartidos}other{<ph name="TABS_COUNT_MANY" /> pestañas estándar con actividad nueva en grupos de pestañas compartidos}}</translation>
 <translation id="405365679581583349">Actualiza los Servicios de Google Play</translation>
@@ -878,7 +885,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="4665799914191099447">Toca Privacidad y seguridad &gt; Navegación segura</translation>
 <translation id="4668279686271488041">Los datos de medición de anuncios se eliminarán periódicamente de tu dispositivo.</translation>
 <translation id="4668347365065281350">Todos los datos almacenados por sitios, incluidas las cookies y otros datos almacenados de forma local</translation>
-<translation id="4673702426794876519">Ventana de Incógnito</translation>
+<translation id="4673702426794876519">Modo Incógnito</translation>
 <translation id="4675298276894277358">Este sitio no se volverá a mostrar</translation>
 <translation id="4678082183394354975">El tema oscuro para sitios está activado en Chrome</translation>
 <translation id="4685741273709472646">Selecciona una opción de la lista desplegable</translation>
@@ -1278,6 +1285,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="6321592572353357376">La extensión "<ph name="EXTENSION_NAME" />" quiere que inicies sesión en Chrome</translation>
 <translation id="6324916366299863871">Editar acceso directo</translation>
 <translation id="6324977638108296054">No se puede crear un enlace al texto destacado</translation>
+<translation id="6331836477476466332">Un navegador más seguro y potente para ti</translation>
 <translation id="6333140779060797560">Compartir a través de <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Edita la URL que apunta a la página en <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Cifrado</translation>
@@ -1435,6 +1443,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="6867400383614725881">Nueva pestaña de Incógnito</translation>
 <translation id="686899695320434745">Las direcciones no se cifran con tu frase de contraseña. Así, puedes usarlas en otros servicios de Google.</translation>
 <translation id="6870625088374152862">Has iniciado sesión como <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Empezar a navegar</translation>
 <translation id="687838958001010630">Cualquier persona que tenga el enlace puede editar todas las pestañas</translation>
 <translation id="6880903702195291049">Los permisos están bien</translation>
 <translation id="6883204995689174413">Compartir</translation>
@@ -1520,6 +1529,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="71503698506017927">El cifrado con frase de contraseña no incluye los métodos de pago ni las direcciones de Google Pay.
 
 Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de tu cuenta<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Guardar imagen como…</translation>
 <translation id="7165972437814027679">Más información sobre por qué Chrome bloquea algunos archivos</translation>
 <translation id="7168323970702333693">Has iniciado sesión como <ph name="USER_NAME" />. Abre la configuración.</translation>
 <translation id="7170930892977483182">Se eliminarán todos los códigos de seguridad guardados en tu dispositivo y en Google Wallet</translation>
@@ -1575,6 +1585,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="7359002509206457351">Acceder a métodos de pago</translation>
 <translation id="7363349185727752629">Una guía de tus opciones de privacidad</translation>
 <translation id="7364103838544876661">Más opciones para eliminar los datos de navegación</translation>
+<translation id="736435710397109878">Nombre de la tarjeta (25 caracteres como máximo)</translation>
 <translation id="7365073365123878797">Para empezar a guardar y usar contraseñas con el Gestor de contraseñas de Google, actualiza Servicios de Google Play</translation>
 <translation id="7368009310682364976">Ver pestañas abiertas recientemente</translation>
 <translation id="7368927539449986686">Editar búsqueda en el sitio</translation>
@@ -1693,6 +1704,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="7824665136384946951">Tu organización ha desactivado Navegación segura</translation>
 <translation id="7825973332242257878">Grupos de pestañas</translation>
 <translation id="7826342993930002256">Llévate tu Chrome a todas partes</translation>
+<translation id="7845155831233417403">Puedes tener hasta <ph name="MAX_INSTANCE_COUNT" /> ventanas. Cierra una ventana para continuar.</translation>
 <translation id="7846161022626028328">Se ha producido un error. Inténtalo de nuevo.</translation>
 <translation id="7846296061357476882">Servicios de Google</translation>
 <translation id="784652447248278262">Ventana actual</translation>
@@ -1759,7 +1771,6 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="8088176524274673045">Para compartir con personas que estén cerca de ti, pídeles que escaneen este código QR.</translation>
 <translation id="8090732854597034573">Si necesitas ayuda, pídesela a tu padre o madre</translation>
 <translation id="8101414242770404289">No hay pestañas en <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Pestaña de Incógnito</translation>
 <translation id="810433609302852">Hoja inferior de promoción de la función de notificaciones de consejos y pasos de uso</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Eliminar extensiones y los datos que tienen guardados en este dispositivo</translation>
@@ -1817,10 +1828,12 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="8282297628636750033">Aplicar tema oscuro a sitios, siempre que sea posible</translation>
 <translation id="8282950411412455249">Ir a la configuración de seguridad</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Cerrar 1 ventana de Incógnito}other{Cerrar # ventanas de Incógnito}}</translation>
+<translation id="8289602658021943461">Guardar fotograma como…</translation>
 <translation id="8313599942510782709">Tu tarea aún está en curso</translation>
 <translation id="8317318757008452355">Abrir opciones de impresión</translation>
 <translation id="8320212361750431956">Actividad reciente</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Novedad<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Marcadores y listas</translation>
 <translation id="8342727528718219152">Chrome te avisará de los sitios que puedan estar enviando demasiadas notificaciones</translation>
 <translation id="834313815369870491">No traducir sitios nunca</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, pestaña de Incógnito en grabación en selección múltiple fijada</translation>
@@ -2062,6 +2075,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="939598580284253335">Introducir frase de contraseña</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, pestaña de Incógnito de imagen en imagen fijada</translation>
 <translation id="945522503751344254">Enviar comentarios</translation>
+<translation id="948276827484905248">Crear código QR</translation>
 <translation id="95817756606698420">Chrome puede utilizar <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> para hacer búsquedas en China. Puedes cambiar esta opción en <ph name="BEGIN_LINK" />Configuración<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Borrar datos navegación</translation>
 <translation id="963246339335003378">Abrir administrador de tareas</translation>

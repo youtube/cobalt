@@ -234,13 +234,13 @@ TouchToFillPaymentMethodDelegateAndroidImpl::DryRunForAffiliatedLoyaltyCard() {
 
   // Only show the TTF surface if any loyalty card have a matching merchant
   // domain.
-  const GURL& current_domain =
-      manager_->client().GetLastCommittedPrimaryMainFrameURL();
-  if (std::ranges::any_of(
-          loyalty_cards, [&current_domain](const LoyaltyCard& loyalty_card) {
-            return loyalty_card.GetAffiliationCategory(current_domain) ==
-                   LoyaltyCard::AffiliationCategory::kAffiliated;
-          })) {
+  if (std::ranges::any_of(loyalty_cards, [&](const LoyaltyCard& loyalty_card) {
+        return loyalty_card.GetAffiliationCategory(
+                   manager_->client().GetLastCommittedPrimaryMainFrameURL()) ==
+                   LoyaltyCard::AffiliationCategory::kAffiliated &&
+               manager_->client().GetLastCommittedPrimaryMainFrameOrigin() ==
+                   query_field_.origin();
+      })) {
     return DryRunResult(TriggerOutcome::kShown, loyalty_cards);
   }
   return DryRunResult(TriggerOutcome::kNoValidPaymentMethods, {});
@@ -469,13 +469,14 @@ void TouchToFillPaymentMethodDelegateAndroidImpl::IbanSuggestionSelected(
           base::BindOnce(
               [](base::WeakPtr<TouchToFillPaymentMethodDelegateAndroidImpl>
                      delegate,
-                 const std::u16string& value) {
-                if (delegate) {
+                 base::expected<std::u16string,
+                                IbanAccessManager::FailureReason> result) {
+                if (delegate && result.has_value()) {
                   delegate->manager_->FillOrPreviewField(
                       mojom::ActionPersistence::kFill,
                       mojom::FieldActionType::kReplaceAll,
                       delegate->query_form_.global_id(),
-                      delegate->query_field_.global_id(), value,
+                      delegate->query_field_.global_id(), *result,
                       FillingProduct::kIban, IBAN_VALUE);
                 }
               },

@@ -13,11 +13,13 @@
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_delegate.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/omnibox/common/omnibox_metrics_utils.h"
@@ -55,12 +57,19 @@ void OmniboxPopupPresenterBase::Show() {
     return;
   }
 
+  if (GetWebUIContent()) {
+    auto* permission_manager =
+        permissions::PermissionRequestManager::FromWebContents(
+            GetWebUIContent()->GetWebContents());
+    if (permission_manager && !permission_observation_.IsObserving()) {
+      permission_observation_.Observe(permission_manager);
+    }
+  }
+
   if (ShouldPreserveRequestedFocus()) {
     focus_requested_ = false;
   }
   has_logged_content_ready_since_open_ = false;
-  // Drop stale metrics callbacks.
-  metrics_weak_factory_.InvalidateWeakPtrs();
   // Drop stale visual state callbacks.
   visual_state_weak_factory_.InvalidateWeakPtrs();
 
@@ -80,18 +89,17 @@ void OmniboxPopupPresenterBase::Show() {
 
     auto show_request_time = base::TimeTicks::Now();
     auto timeout = ShouldDeferUntilVisualStateReady();
+    base::TimeTicks result_ready_time =
+        controller()->autocomplete_controller()->result().result_ready_time();
     if (timeout.has_value()) {
       is_deferred_ = true;
-
-      base::TimeTicks result_ready_time =
-          controller()->autocomplete_controller()->result().result_ready_time();
-
       content->GetWebContents()
           ->GetPrimaryMainFrame()
           ->InsertVisualStateCallback(
               base::BindOnce(&OmniboxPopupPresenterBase::OnVisualStateReady,
                              visual_state_weak_factory_.GetWeakPtr(),
-                             show_request_time, result_ready_time,
+                             show_request_time,
+                             result_ready_time,
                              /*from_fallback=*/false));
 
       // Add a backup timer in case the visual state callback is never called.
@@ -102,12 +110,20 @@ void OmniboxPopupPresenterBase::Show() {
           FROM_HERE,
           base::BindOnce(&OmniboxPopupPresenterBase::OnVisualStateReady,
                          visual_state_weak_factory_.GetWeakPtr(),
-                         show_request_time, result_ready_time,
+                         show_request_time,
+                         result_ready_time,
                          /*from_fallback=*/true,
                          /*success=*/false),
           timeout.value());
     } else {
-      LogResultToContentReadyMetric(content->GetWebContents());
+      content->GetWebContents()
+          ->GetPrimaryMainFrame()
+          ->InsertVisualStateCallback(
+              base::BindOnce(&OmniboxPopupPresenterBase::OnVisualStateReady,
+                             visual_state_weak_factory_.GetWeakPtr(),
+                             show_request_time,
+                             result_ready_time,
+                             /*from_fallback=*/false));
       ShowWidget(show_request_time);
     }
   }
@@ -119,7 +135,7 @@ void OmniboxPopupPresenterBase::OnVisualStateReady(
     bool from_fallback,
     bool success) {
   if (!from_fallback) {
-    OnVisualStateReadyForMetrics(result_ready_time, success);
+    LogResultToContentReadyMetric(result_ready_time, success);
   }
 
   if (!is_deferred_) {
@@ -194,14 +210,6 @@ void OmniboxPopupPresenterBase::RequestFocus() {
 }
 
 void OmniboxPopupPresenterBase::LogResultToContentReadyMetric(
-    content::WebContents* web_contents) {
-  web_contents->GetPrimaryMainFrame()->InsertVisualStateCallback(base::BindOnce(
-      &OmniboxPopupPresenterBase::OnVisualStateReadyForMetrics,
-      metrics_weak_factory_.GetWeakPtr(),
-      controller()->autocomplete_controller()->result().result_ready_time()));
-}
-
-void OmniboxPopupPresenterBase::OnVisualStateReadyForMetrics(
     base::TimeTicks result_ready_time,
     bool success) {
   if (result_ready_time.is_null()) {
@@ -236,12 +244,14 @@ void OmniboxPopupPresenterBase::OnVisualStateReadyForMetrics(
 }
 
 void OmniboxPopupPresenterBase::Hide() {
+  permission_observation_.Reset();
+  is_prompt_showing_ = false;
+  is_handling_prompt_dismissal_ = false;
+
   if (ShouldPreserveRequestedFocus()) {
     focus_requested_ = false;
   }
   is_deferred_ = false;
-  // Drop stale metrics callbacks.
-  metrics_weak_factory_.InvalidateWeakPtrs();
   // Drop stale visual state callbacks.
   visual_state_weak_factory_.InvalidateWeakPtrs();
 
@@ -404,8 +414,6 @@ bool OmniboxPopupPresenterBase::ShouldPreserveRequestedFocus() const {
 void OmniboxPopupPresenterBase::OnWidgetClosed(
     views::Widget::ClosedReason closed_reason) {
   is_deferred_ = false;
-  // Drop metrics callbacks when the widget is closed.
-  metrics_weak_factory_.InvalidateWeakPtrs();
   // Drop stale visual state callbacks when the widget is closed.
   visual_state_weak_factory_.InvalidateWeakPtrs();
   if (auto* frame = GetResultsFrame()) {
@@ -428,10 +436,6 @@ RoundedOmniboxResultsFrame* OmniboxPopupPresenterBase::GetResultsFrame() const {
   CHECK(widget_);
   return views::AsViewClass<RoundedOmniboxResultsFrame>(
       widget_->GetContentsView());
-}
-
-OmniboxController* OmniboxPopupPresenterBase::controller() const {
-  return controller_;
 }
 
 // Avoid initialization order 'race conditions' by only interacting with WebUI
@@ -519,3 +523,46 @@ void OmniboxPopupPresenterBase::UnregisterBlocker() {
 }
 
 void OmniboxPopupPresenterBase::OnFileSelectionClosed() {}
+
+void OmniboxPopupPresenterBase::SetPermissionPromptShowing(bool showing) {
+  is_prompt_showing_ = showing;
+}
+
+void OmniboxPopupPresenterBase::OnPromptAdded() {
+  SetPermissionPromptShowing(true);
+}
+
+void OmniboxPopupPresenterBase::OnPromptRemoved() {
+  SetPermissionPromptShowing(false);
+  is_handling_prompt_dismissal_ = true;
+  if (location_bar()) {
+    location_bar()->FocusLocation(/*is_user_initiated=*/false,
+                                  /*clear_focus_if_failed=*/false);
+  }
+}
+
+void OmniboxPopupPresenterBase::OnPromptRecreateViewFailed() {
+  SetPermissionPromptShowing(false);
+}
+
+void OmniboxPopupPresenterBase::OnPromptCreationFailedHiddenTab() {
+  SetPermissionPromptShowing(false);
+}
+
+void OmniboxPopupPresenterBase::OnRequestsFinalized() {
+  SetPermissionPromptShowing(false);
+}
+
+void OmniboxPopupPresenterBase::OnPermissionRequestManagerDestructed() {
+  permission_observation_.Reset();
+  is_prompt_showing_ = false;
+  is_handling_prompt_dismissal_ = false;
+}
+
+void OmniboxPopupPresenterBase::OnWidgetActivated() {
+  is_handling_prompt_dismissal_ = false;
+}
+
+bool OmniboxPopupPresenterBase::IsPermissionPromptPreventingClose() const {
+  return is_prompt_showing_ || is_handling_prompt_dismissal_;
+}

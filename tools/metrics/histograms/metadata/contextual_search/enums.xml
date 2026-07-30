@@ -32,7 +32,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="ContextMenu"/>
   <int value="1" label="CopyPaste"/>
   <int value="2" label="DragAndDrop"/>
-  <int value="3" label="RecentTabChip"/>
+  <int value="3" label="CurrentTabChip"/>
 </enum>
 
 <!-- LINT.ThenChange(//ui/webui/resources/cr_components/search/constants.ts:ComposeboxContextAddedMethod) -->
@@ -136,6 +136,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Omnibox"/>
   <int value="3" label="ContextualTasks"/>
   <int value="4" label="Lens"/>
+  <int value="5" label="OmniboxEverywhere"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/contextual_search/contextual_search_metrics_recorder.h:ContextualSearchSource) -->

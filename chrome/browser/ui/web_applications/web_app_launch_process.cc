@@ -233,12 +233,6 @@ content::WebContents* WebAppLaunchProcess::Run() {
   }
   browser->GetWindow()->Show();
 
-  webapps::LaunchParams launch_params;
-  launch_params.set_app_id(web_app_->app_id());
-  launch_params.set_target_url(launch_url);
-  launch_params.set_paths(is_file_handling ? params_->launch_files
-                                           : std::vector<base::FilePath>());
-
   WindowOpenDisposition navigation_disposition =
       GetNavigationDisposition(is_new_browser);
   content::WebContents* existing_tab =
@@ -246,6 +240,27 @@ content::WebContents* WebAppLaunchProcess::Run() {
   bool open_in_new_window =
       !existing_tab ||
       navigation_disposition != WindowOpenDisposition::CURRENT_TAB;
+
+  auto* const app_controller = web_app::AppBrowserController::From(browser);
+  if (app_controller && app_controller->IsUrlInHomeTabScope(launch_url)) {
+    // Navigations to the home tab URL in tabbed apps should happen in the home
+    // tab.
+    browser->GetTabStripModel()->ActivateTabAt(0);
+    content::WebContents* home_tab_web_contents =
+        browser->GetTabStripModel()->GetWebContentsAt(0);
+    GURL previous_home_tab_url = home_tab_web_contents->GetLastCommittedURL();
+    if (previous_home_tab_url == launch_url) {
+      // URL is identical so no need for the navigation.
+      return home_tab_web_contents;
+    }
+    navigation_disposition = WindowOpenDisposition::CURRENT_TAB;
+  }
+
+  webapps::LaunchParams launch_params;
+  launch_params.set_app_id(web_app_->app_id());
+  launch_params.set_target_url(launch_url);
+  launch_params.set_paths(is_file_handling ? params_->launch_files
+                                           : std::vector<base::FilePath>());
   // In the case of prevent-close, we do not navigate but instead focus the
   // existing window.
   bool app_wants_focus_existing_without_navigation =
@@ -303,7 +318,8 @@ content::WebContents* WebAppLaunchProcess::Run() {
 
   nav_params.web_app_navigation_data->SetLaunchParams(std::move(launch_params));
   nav_params.web_app_navigation_data->SetLaunchSource(params_->launch_source);
-  return NavigateWebAppUsingParams(nav_params);
+  Navigate(&nav_params);
+  return nav_params.navigated_or_inserted_contents;
 }
 
 const apps::ShareTarget* WebAppLaunchProcess::MaybeGetShareTarget() const {
@@ -359,7 +375,16 @@ WindowOpenDisposition WebAppLaunchProcess::GetNavigationDisposition(
   }
 
   if (is_new_browser) {
-    return WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    // By opening a new window we've already performed part of a "disposition",
+    // the only remaining thing for Navigate() to do is navigate the new window.
+    return WindowOpenDisposition::CURRENT_TAB;
+    // TODO(crbug.com/40762104): Use NEW_FOREGROUND_TAB instead of CURRENT_TAB.
+    // The window has no tabs so it doesn't make sense to open the "current"
+    // tab. We use it anyway because it happens to work.
+    // If NEW_FOREGROUND_TAB is used the the WindowCanOpenTabs() check fails
+    // when `launch_url` is out of scope for web app windows causing it to
+    // open another separate browser window. It should be updated to check the
+    // extended scope.
   }
 
   // If launch handler is routing to an existing client, we want to use the

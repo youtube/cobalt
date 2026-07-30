@@ -27,6 +27,7 @@
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_util.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.h"
@@ -36,6 +37,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/signin_resources.h"
+#include "chrome/browser/ui/webui/theme_source.h"
 #include "components/prefs/pref_service.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/signin/public/base/consent_level.h"
@@ -82,9 +84,11 @@ ManagedUserProfileNoticeUI::ScreenType GetScreenTypeFromURL(const GURL& url) {
 
 ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
     : content::WebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
-      Profile::FromWebUI(web_ui),
-      chrome::kChromeUIManagedUserProfileNoticeHost);
+      profile, chrome::kChromeUIManagedUserProfileNoticeHost);
+  // Explicitly add ThemeSource for serving the dynamic WebUI color stylesheet.
+  content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 
   static constexpr webui::ResourcePath kResources[] = {
       {"icons.html.js", IDR_SIGNIN_ICONS_HTML_JS},
@@ -285,6 +289,7 @@ ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
   source->AddLocalizedString(
       "signalsDisclaimerCancelLabel",
       IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_CANCEL_BUTTON_LABEL);
+  source->AddLocalizedString("learnMore", IDS_LEARN_MORE);
 
   if (base::FeatureList::IsEnabled(
           switches::kDisableFirstRunAnimationsForTesting)) {
@@ -293,8 +298,6 @@ ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
   } else {
     source->AddBoolean("disableAnimations", false);
   }
-
-  Profile* profile = Profile::FromWebUI(web_ui);
 
   bool is_in_search_engine_choice_region =
       CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
@@ -380,7 +383,7 @@ ManagedUserProfileNoticeUI::GetScreenTypeFromURLForTesting(const GURL& url) {
 ManagedUserProfileNoticeUI::~ManagedUserProfileNoticeUI() = default;
 
 void ManagedUserProfileNoticeUI::Initialize(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     ManagedUserProfileNoticeUI::ScreenType type,
     std::unique_ptr<signin::EnterpriseProfileCreationDialogParams>
         create_param) {
@@ -567,7 +570,7 @@ void ManagedUserProfileNoticeUI::Initialize(
 }
 
 void ManagedUserProfileNoticeUI::InitializeForDeviceSignalsDisclaimer(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     std::unique_ptr<signin::EnterpriseProfileCreationDialogParams>
         create_param) {
   base::DictValue update_data =

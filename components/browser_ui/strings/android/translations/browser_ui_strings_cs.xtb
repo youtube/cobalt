@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Požadovat mobilní zobrazení</translation>
 <translation id="2870560284913253234">Weby</translation>
 <translation id="2874939134665556319">Předchozí skladba</translation>
+<translation id="2890412325133442491">Výchozí nastavení Chromu</translation>
 <translation id="2891975107962658722">Blokovat webu ukládání dat do zařízení</translation>
 <translation id="2903493209154104877">Adresy</translation>
 <translation id="2903764741244499151">Weby mohou automaticky aktivovat režim obrazu v obraze. To vám umožní pokračovat ve sledování videa a zároveň uvolnit obrazovku pro jiné úkoly.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Změnit hesla</translation>
 <translation id="3797520601150691162">Nepoužívat tmavý motiv pro konkrétní web</translation>
 <translation id="3803367742635802571">Navštívené weby mohou přestat fungovat podle očekávání</translation>
-<translation id="3816118180265633665">Barvy Chromu</translation>
 <translation id="381841723434055211">Telefonní čísla</translation>
 <translation id="3823453485268218808">Neproporcionální písmo</translation>
 <translation id="3826050100957962900">Externí přihlašování</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Ukončit režim celé obrazovky</translation>
 <translation id="640163077447496506">Platnost skončí dnes</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Sbírka motivů</translation>
 <translation id="6439114592976064011">Bránit webům v používání zařízení a dat pro virtuální realitu</translation>
 <translation id="6447842834002726250">Soubory cookie</translation>
 <translation id="6452138246455930388">Pokles ceny na otevřené kartě z <ph name="OLD_PRICE" /> na <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:</translation>
 <translation id="7423098979219808738">Nejprve se dotázat</translation>
 <translation id="7423538860840206698">Čtení schránky je blokováno</translation>
 <translation id="7425915948813553151">Tmavý motiv pro weby</translation>
+<translation id="7429767477925996803">Barvy Chromu</translation>
 <translation id="746412105358554870">Optimalizace a zabezpečení JavaScriptu</translation>
 <translation id="7478658909253570368">Nepovolovat webům připojení k sériovým portům</translation>
 <translation id="7488573225650545859">Skrýt kartu Zobrazení karet v seznamu aplikací</translation>
@@ -676,7 +676,6 @@ Pokročilá ochrana spravuje tato nastavení Chromu:</translation>
 <translation id="802154636333426148">Stažení se nezdařilo</translation>
 <translation id="8033047164036749181">Odebírat oznámení z tohoto webu</translation>
 <translation id="8051193500142930381">Funkce vyžadující fotoaparát nebudou k dispozici</translation>
-<translation id="8056330801132235235">Výchozí nastavení Chromu</translation>
 <translation id="8067883171444229417">Přehrát video</translation>
 <translation id="8068648041423924542">Certifikát nelze vybrat.</translation>
 <translation id="8077120325605624147">Kterýkoliv web, který navštívíte, vám může zobrazit jakoukoliv reklamu</translation>

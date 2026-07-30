@@ -304,6 +304,7 @@ public class KeyboardFocusRowManagerTest {
         // Focus directly on bookmarks bar with shortcut even though it's not next in cycle order.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> mActivity.onMenuOrKeyboardAction(R.id.focus_bookmarks, false));
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         assertOnBookmarksBar();
 
         // Now switch and make sure we appropriately switch given our new cycle position.

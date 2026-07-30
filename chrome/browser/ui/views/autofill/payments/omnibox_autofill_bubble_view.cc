@@ -14,12 +14,14 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/fill_layout.h"
+#include "ui/views/view.h"
 
 namespace autofill {
 
@@ -38,7 +40,6 @@ class SuggestionButton : public views::Button {
         selected_callback_(std::move(selected_callback)),
         deselection_callback_(std::move(deselection_callback)) {
     SetLayoutManager(std::make_unique<views::FillLayout>());
-    SetFocusBehavior(FocusBehavior::ALWAYS);
     SetRequestFocusOnPress(true);
     SetAccessibleName(accessible_name);
     SetNotifyEnterExitOnChild(true);
@@ -69,7 +70,6 @@ class SuggestionButton : public views::Button {
       selected_ = selected;
       content_view_->UpdateStyle(selected);
       if (selected_) {
-        RequestFocus();
         if (selected_callback_) {
           selected_callback_.Run();
         }
@@ -106,6 +106,10 @@ OmniboxAutofillBubbleView::OmniboxAutofillBubbleView(
   set_fixed_width(ChromeLayoutProvider::Get()->GetDistanceMetric(
                       views::DISTANCE_BUBBLE_PREFERRED_WIDTH) +
                   width_adjustment);
+
+  SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kDialog);
+  GetViewAccessibility().SetName(GetWindowTitle());
 }
 
 OmniboxAutofillBubbleView::~OmniboxAutofillBubbleView() = default;
@@ -148,9 +152,6 @@ void OmniboxAutofillBubbleView::AddedToWidget() {
   }
 }
 
-views::View* OmniboxAutofillBubbleView::GetInitiallyFocusedView() {
-  return initially_focused_view_;
-}
 
 void OmniboxAutofillBubbleView::Init() {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -195,10 +196,6 @@ void OmniboxAutofillBubbleView::Init() {
                             base::Unretained(this), suggestion),
         base::BindRepeating(&OmniboxAutofillBubbleView::OnSuggestionDeselected,
                             weak_ptr_factory_.GetWeakPtr()));
-    // Ensures the first suggestion is initially focused.
-    if (!initially_focused_view_) {
-      initially_focused_view_ = suggestion_button.get();
-    }
     suggestions_container->AddChildView(std::move(suggestion_button));
     row_index++;
   }
@@ -209,6 +206,7 @@ void OmniboxAutofillBubbleView::OnSuggestionAccepted(
     size_t row_index) {
   if (controller_) {
     controller_->OnSuggestionAccepted(suggestion, row_index);
+    CloseBubble();
   }
 }
 

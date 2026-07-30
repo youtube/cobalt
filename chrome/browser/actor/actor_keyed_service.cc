@@ -362,10 +362,11 @@ TaskId ActorKeyedService::CreateTaskWithOptions(
     const TaskSourceInfo& source_info,
     const EnterprisePolicyChecker* policy_checker,
     webui::mojom::TaskOptionsPtr options,
-    base::WeakPtr<ActorTaskDelegate> delegate) {
+    base::WeakPtr<ActorTaskDelegate> delegate,
+    std::optional<glic::mojom::InvocationSource> initial_invocation_source) {
   return CreateTaskImpl(ui::NewUiEventDispatcher(GetActorUiStateManager()),
                         source_info, policy_checker, std::move(options),
-                        std::move(delegate));
+                        std::move(delegate), initial_invocation_source);
 }
 
 TaskId ActorKeyedService::CreateTaskForTesting(
@@ -373,10 +374,11 @@ TaskId ActorKeyedService::CreateTaskForTesting(
     const TaskSourceInfo& source_info,
     const EnterprisePolicyChecker* policy_checker,
     webui::mojom::TaskOptionsPtr options,
-    base::WeakPtr<ActorTaskDelegate> delegate) {
+    base::WeakPtr<ActorTaskDelegate> delegate,
+    std::optional<glic::mojom::InvocationSource> initial_invocation_source) {
   return CreateTaskImpl(std::move(ui_event_dispatcher), source_info,
-                        policy_checker, std::move(options),
-                        std::move(delegate));
+                        policy_checker, std::move(options), std::move(delegate),
+                        initial_invocation_source);
 }
 
 TaskId ActorKeyedService::CreateTaskImpl(
@@ -384,7 +386,8 @@ TaskId ActorKeyedService::CreateTaskImpl(
     const TaskSourceInfo& source_info,
     const EnterprisePolicyChecker* policy_checker,
     webui::mojom::TaskOptionsPtr options,
-    base::WeakPtr<ActorTaskDelegate> delegate) {
+    base::WeakPtr<ActorTaskDelegate> delegate,
+    std::optional<glic::mojom::InvocationSource> initial_invocation_source) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::CreateTask", {});
 
@@ -392,7 +395,7 @@ TaskId ActorKeyedService::CreateTaskImpl(
   auto actor_task = std::make_unique<ActorTask>(
       base::PassKey<ActorKeyedService>(), *this, task_id,
       std::move(ui_event_dispatcher), std::move(options), source_info,
-      policy_checker, std::move(delegate));
+      policy_checker, std::move(delegate), initial_invocation_source);
 
   active_tasks_[task_id] = std::move(actor_task);
 
@@ -597,13 +600,18 @@ void ActorKeyedService::PerformActions(
       task_metadata.added_writable_mainframe_origins());
   if (task_metadata.agent_container_config().has_value()) {
     JournalDetailsBuilder builder;
-    if (task->GetExecutionEngine().actor_container_config_slot().Assign(
-            task_metadata.agent_container_config().value())) {
+    if (!task->GetExecutionEngine()
+             .origin_gating_checker()
+             .actor_container_config_slot()
+             .has_value()) {
+      origin_gating::ActorContainerConfig config = ConvertAgentContainerConfig(
+          task_metadata.agent_container_config().value());
       builder.Add("status", "assigned")
-          .Add("active config", task->GetExecutionEngine()
-                                    .actor_container_config_slot()
-                                    .value()
-                                    .ToDebugValue());
+          .Add("active config", config.ToDebugValue());
+      task->GetExecutionEngine()
+          .origin_gating_checker()
+          .actor_container_config_slot()
+          .Assign(std::move(config));
     } else {
       builder.Add("status", "ignored config");
     }
@@ -723,16 +731,16 @@ void ActorKeyedService::RemoveObserver(BackgroundActuationObserver* observer) {
 
 void ActorKeyedService::NotifyBackgroundTabReady(
     tabs::TabInterface* tab,
-    const std::string& context_id) {
+    const std::string& glic_trigger_message_id) {
   for (auto& observer : observers_) {
-    observer.OnBackgroundTabPrepared(tab, context_id);
+    observer.OnBackgroundTabPrepared(tab, glic_trigger_message_id);
   }
 }
 
 void ActorKeyedService::NotifyBackgroundSetupFailed(
-    const std::string& context_id) {
+    const std::string& glic_trigger_message_id) {
   for (auto& observer : observers_) {
-    observer.OnBackgroundSetupFailed(context_id);
+    observer.OnBackgroundSetupFailed(glic_trigger_message_id);
   }
 }
 
@@ -743,8 +751,8 @@ ActorKeyedService::AddForegroundServiceStartedCallback(
 }
 
 void ActorKeyedService::EnsureForegroundServiceStarted(
-    const std::string& context_id) {
-  ensure_foreground_service_started_callbacks_.Notify(context_id);
+    const std::string& glic_trigger_message_id) {
+  ensure_foreground_service_started_callbacks_.Notify(glic_trigger_message_id);
 }
 #endif
 

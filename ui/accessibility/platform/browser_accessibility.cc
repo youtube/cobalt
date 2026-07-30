@@ -16,7 +16,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_constants.mojom.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_id_forward.h"
@@ -927,12 +926,13 @@ bool BrowserAccessibility::IsWebContent() const {
 }
 
 bool BrowserAccessibility::HasVisibleCaretOrSelection() const {
-  // The caret should be visible if Caret Browsing is enabled.
+  // The caret should be visible if Caret Browsing is enabled, but only in the
+  // node which contains it.
   //
   // TODO(crbug.com/40674120): Caret Browsing should be looking at leaf text
   // nodes so it might not return expected results in this method.
   if (AXPlatform::GetInstance().IsCaretBrowsingEnabled()) {
-    return true;
+    return node()->HasSelectionFocusInSubtree();
   }
   return node()->HasVisibleCaretOrSelection();
 }
@@ -1271,14 +1271,8 @@ std::optional<size_t> BrowserAccessibility::GetIndexInParent() const {
 
 gfx::AcceleratedWidget
 BrowserAccessibility::GetTargetForNativeAccessibilityEvent() {
-  // Views trees can use their manager's delegate because it always maps to a
-  // native widget, but web trees need the root manager's delegate so nested
-  // iframes get the right target.
   AXPlatformTreeManagerDelegate* delegate =
-      features::IsAccessibilityTreeForViewsEnabled() && !IsWebContent()
-          ? manager()->delegate()
-          : manager()->GetDelegateFromRootManager();
-
+      manager()->GetDelegateForNativeView();
   if (!delegate) {
     return gfx::kNullAcceleratedWidget;
   }

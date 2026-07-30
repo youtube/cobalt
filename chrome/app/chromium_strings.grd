@@ -348,6 +348,12 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
       <message name="IDS_PRODUCT_LOGO_ENTERPRISE_ALT_TEXT" desc="Alt text for the Chromium Enterprise logo image." formatter_data="android_java">
         Chromium Enterprise logo
       </message>
+      <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_IDENTITY_DISC_WITH_NAME_AND_EMAIL_AI_TIER" desc="The content description for a toolbar button displaying user profile picture when the user has an AI subscription. Tapping on this button navigates to Settings page" formatter_data="android_java">
+        Signed in as <ph name="USER_NAME">%1$s<ex>Peter Parker</ex></ph>, <ph name="USER_EMAIL">%2$s<ex>peter.parker@gmail.com</ex></ph>, membership. Open the account menu
+      </message>
+      <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_IDENTITY_DISC_WITH_NAME_AI_TIER" desc="The content description for a toolbar button displaying user profile picture when the user has an AI subscription, for users who don't have a readable email address. Tapping on this button navigates to Settings page" formatter_data="android_java">
+        Signed in as <ph name="USER_NAME">%s<ex>Bruce Wayne</ex></ph>, membership. Open the account menu
+      </message>
       <if expr="is_macosx or is_chromeos">
         <message name="IDS_TASK_MANAGER_TITLE" desc="The title of the Task Manager window">
           Task Manager
@@ -1902,6 +1908,9 @@ Chromium is unable to recover your settings.
         <message name="IDS_MESSAGE_MISSING_LOCATION_PERMISSION_TEXT" desc="Text shown in a prompt ui when a website has requested access to the location capabilities, but Chrome is missing the Android location permission.">
           Chromium needs location permission for this site
         </message>
+        <message name="IDS_MESSAGE_MISSING_LOCAL_NETWORK_PERMISSION_TEXT" desc="Text shown in a prompt ui when a website has requested access to the local network capabilities, but Chrome is missing the Android local network permission.">
+          Chromium needs local network permission for this site
+        </message>
         <message name="IDS_MESSAGE_STORAGE_ACCESS_PERMISSION_TEXT" desc="Text shown educating the user that Chrome is missing the Android storage permission, which is required to download files.">
           Chromium needs storage access permission to download files
         </message>
@@ -2608,9 +2617,15 @@ Chromium is unable to recover your settings.
         <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_DISCLOSURE" desc="This is a technical disclosure for the Lens Overlay. It specifies that PDFs are also part of the shared data. The tone should be informative.">
           When you use Image Search on desktop, the page title, URL, and content, including PDFs, are sent to the server
         </message>
+
+        <!-- Feature Showcase - Gemini -->
+        <message name="IDS_FEATURE_SHOWCASE_GEMINI_TITLE" desc="This is the headline for the Gemini (AI assistant) opt-in screen. It introduces the benefit of AI assistance for productivity. (CHAR LIMIT = 60)">
+          Ask anything, right where you are, with Gemini in Chromium
+        </message>
+
       </if>
 
-      <!-- Feature Showcase - Lens Overlay -->
+      <!-- Feature Showcase - Themes -->
       <message name="IDS_FEATURE_SHOWCASE_THEMES_TITLE" desc="This is the headline for a customization onboarding screen. It focuses on personalization and user choice. (CHAR LIMIT = 30)">
         Make Chromium yours
       </message>
@@ -3084,10 +3099,16 @@ Chromium is unable to recover your settings.
         <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the MacOS menu bar (on Mac only).">
           Show Gemini in Chromium in Mac menu bar and turn on keyboard shortcut
         </message>
+        <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SHORTCUT_EXCLUDED" desc="Name of the toggle that controls whether the Gemini icon is shown in the MacOS menu bar (on Mac only) when local hotkeys can be configured independently.">
+          Show Gemini in Chromium in Mac menu bar
+        </message>
       </if>
       <if expr="is_win or is_linux or is_chromeos">
         <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the system tray (on ChromeOS, Windows and Linux).">
           Show Gemini in Chromium in system tray and turn on keyboard shortcut
+        </message>
+        <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SHORTCUT_EXCLUDED" desc="Name of the toggle that controls whether the Gemini icon is shown in the system tray (on ChromeOS, Windows and Linux) when local hotkeys can be configured independently.">
+          Show Gemini in Chromium in system tray
         </message>
       </if>
       <message name="IDS_SETTINGS_GLIC_OS_WIDGET_TOGGLE_SUBLABEL" desc="Sublabel of the toggle that controls whether the Gemini icon is shown in the menu bar (on Mac) / system tray (on Windows and Linux)." formatter_data="android_java">
@@ -3104,6 +3125,9 @@ Chromium is unable to recover your settings.
       </message>
       <message name="IDS_SETTINGS_GLIC_SELECTION_SHORTCUT_SUBLABEL" desc="Sublabel describing the selection shortcut triggering in Gemini.">
         To select part of the screen in Gemini in Chromium, use keyboard shortcut.
+      </message>
+      <message name="IDS_SETTINGS_GLIC_HOTKEY_SCOPE_CHROME" desc="Label for the 'In Chromium' option in the shortcut invocation scope dropdown.">
+        In Chromium
       </message>
 
       <!-- Profile Picker Glic version-->
@@ -3375,7 +3399,7 @@ If this page isn’t working as expected, try allowing optimization.
         Your work secured on Chromium
       </message>
       <message name="IDS_ENTERPRISE_DEVICE_SIGNALS_DISCLAIMER_SUBTITLE" desc="Subtitle of an enterprise device signals collection disclaimer modal dialog. The dialog is shown on Chrome startup to managed Chrome users who have not previously acknowledged device signals collection.">
-        To secure your work on Chromium, your organization will be able to view or manage certain information
+        To secure your work on Chromium, your organization will be able to view or manage certain information when you’re signed-in to Chromium.
       </message>
     </messages>
   </release>

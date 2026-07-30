@@ -69,8 +69,6 @@ class IOSChromeMetricsServiceClientTest : public PlatformTest {
   TestingPrefServiceSimple prefs_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
-  base::test::ScopedFeatureList scoped_feature_list_{
-      switches::kDynamicProfileCountry};
 };
 
 namespace {
@@ -102,7 +100,7 @@ TEST_F(IOSChromeMetricsServiceClientTest, TestRegisterMetricsServiceProviders) {
 
   // This is the number of metrics providers that are registered inside
   // IOSChromeMetricsServiceClient::Initialize().
-  expected_providers += 23;
+  expected_providers += 24;
 
   std::unique_ptr<IOSChromeMetricsServiceClient> chrome_metrics_service_client =
       IOSChromeMetricsServiceClient::Create(metrics_state_manager_.get(),

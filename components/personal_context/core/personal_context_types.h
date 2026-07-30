@@ -28,8 +28,8 @@ enum class PersonalContextNonEligibilityReason {
   kNotPhotosAndWorkspaceAvailable = 6,
   kPersonalIntelligencePrefDisabled = 7,
   kNotGlicFirstRun = 8,
-  kNotG1Subscriber = 9,
-  kNotAndroidPremiumDevice = 10,
+  kFindAndFillWithGeminiSettingsDisabled = 9,
+  kNotG1SubscriberOrAndroidPremiumDevice = 10,
   kEligible = 11,
   kMaxValue = kEligible
 };

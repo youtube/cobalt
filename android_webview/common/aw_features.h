@@ -42,6 +42,9 @@ BASE_DECLARE_FEATURE(kWebViewEnableDnsPlatform);
 BASE_DECLARE_FEATURE(kWebViewFasterGetDefaultUserAgent);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
 BASE_DECLARE_FEATURE(kWebViewForceWebAuthn);
+BASE_DECLARE_FEATURE(kWebViewPurgeMemoryInBackground);
+extern const base::FeatureParam<base::TimeDelta>
+    kWebViewPurgeMemoryInBackgroundDelay;
 BASE_DECLARE_FEATURE(kWebViewGateTextSizeAdjustOnTextAutosizing);
 BASE_DECLARE_FEATURE(kWebViewHttpCacheQuotaApi);
 extern const base::FeatureParam<bool> kWebViewHttpCacheQuotaApiAllowShrinking;
@@ -94,6 +97,7 @@ BASE_DECLARE_FEATURE(kWebViewTestNonembeddedLowEntropySource);
 BASE_DECLARE_FEATURE(kWebViewUnreducedProductVersion);
 BASE_DECLARE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime);
 BASE_DECLARE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager);
+BASE_DECLARE_FEATURE(kWebViewWarmupNetworkService);
 BASE_DECLARE_FEATURE(kWebViewWebPerformanceMetricsReporting);
 // Don't add new features to the end! Insert them in alphabetical order to
 // reduce conflicts.

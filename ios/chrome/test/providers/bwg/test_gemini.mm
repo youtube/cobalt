@@ -69,6 +69,8 @@ GeminiSettingsAction* ActionForSettingsContext(GeminiSettingsContext context) {
 
 void UpdateOverlayOffsetWithOpacity(CGFloat offset, CGFloat opacity) {}
 
+void UpdateDetentHeights(CGFloat collapsed_height, CGFloat extended_height) {}
+
 void UpdateGeminiViewState(GeminiViewState view_state) {}
 
 void UpdateGeminiViewState(GeminiViewState view_state, bool animated) {}
@@ -113,6 +115,10 @@ void SetLiveCaptionsNumberOfLines(int number_of_lines) {}
 int GetLiveCaptionsNumberOfLines() {
   return 0;
 }
+
+void SetShouldShowSuggestionChips(bool should_show) {}
+
+void ShowAccountSnackbar() {}
 
 UIViewController* GetFloatyViewControllerWithConfiguration(
     GeminiConfiguration* gemini_configuration) {

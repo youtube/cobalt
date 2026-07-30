@@ -55,6 +55,11 @@ source_set("new_tab_page") {
   if (!is_android) {
     public_deps += [ "//components/user_education/webui" ]
   }
+
+  # action_chips_handler.cc includes new_tab_page_ui.h, while this target
+  # depends on action_chips.
+  allow_circular_includes_from =
+      [ "//chrome/browser/ui/webui/new_tab_page/action_chips" ]
 }
 
 # Full implementation target.
@@ -198,7 +203,10 @@ source_set("impl") {
   }
 
   if (!is_official_build) {
-    deps += [ "//chrome/browser/ui/webui/new_tab_page/foo:mojo_bindings" ]
+    deps += [
+      "//chrome/browser/ui/webui/new_tab_page/foo:foo_handler",
+      "//chrome/browser/ui/webui/new_tab_page/foo:mojo_bindings",
+    ]
   }
 }
 

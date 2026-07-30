@@ -20,11 +20,15 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPrewarmThrottleUserNavigation);
 BASE_DECLARE_FEATURE_PARAM(bool, kForceEnableWithDevTools);
 BASE_DECLARE_FEATURE_PARAM(int, kMinMemoryThresholdMb);
 BASE_DECLARE_FEATURE_PARAM(int, kMaxBlackoutDurationSeconds);
+BASE_DECLARE_FEATURE(kPrewarmDisableOnStartup);
 
 // If enabled, requests the compositor warm-up (crbug.com/41496019) for
 // each prerender trigger.
 BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForBookmarkBar);
 BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForNewTabPage);
+
+// Controls whether Omnibox Direct URL Input (DUI) prerendering is enabled.
+BASE_DECLARE_FEATURE(kOmniboxDuiPrerendering);
 
 }  // namespace features
 

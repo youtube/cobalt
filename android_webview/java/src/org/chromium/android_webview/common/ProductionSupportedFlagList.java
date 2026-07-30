@@ -256,10 +256,6 @@ public final class ProductionSupportedFlagList {
                 "Allows autofill to offer filling again on fields that were autofilled and now hold"
                         + " autocomplete=unrecognized value."),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_FIX_CIVIL_STATE_MISCLASSIFICATION_FOR_ESPT,
-                "When enabled, improves heuristic regexes for state classification to avoid"
-                        + " misclassification as civil state."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_FIX_STATE_COUNTRY_MISCLASSIFICATION,
                 "When enabled, the rationalization engine will fix misclassifications where"
                         + " a field is detected as a COUNTRY when it should be a STATE or vice"
@@ -498,6 +494,9 @@ public final class ProductionSupportedFlagList {
                 NetFeatures.SPDY_HEADERS_TO_HTTP_RESPONSE_USE_BUILDER,
                 "Enables new optimized implementation of SpdyHeadersToHttpResponse. No behavior"
                         + " change."),
+        Flag.baseFeature(
+                NetFeatures.ENABLE_INTERMEDIATE_DNS_RESULTS,
+                "Enables intermediate DNS results to ServiceEndpointRequest delegates"),
         Flag.baseFeature(NetFeatures.HAPPY_EYEBALLS_V2, "Enables Happy Eyeballs V2"),
         Flag.baseFeature(NetFeatures.HAPPY_EYEBALLS_V3, "Enables Happy Eyeballs V3"),
         Flag.baseFeature(NetFeatures.OPTIMISTIC_DNS_FOR_TCP, "Enables optimistic DNS for TCP"),
@@ -693,6 +692,9 @@ public final class ProductionSupportedFlagList {
                 "Controls if back/forward cache is enabled. Note that it's also possible"
                         + " to enable BFCache through AwSettings as well. If either of"
                         + " the flag / setting is enabled, BFCache will be enabled"),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_PURGE_MEMORY_IN_BACKGROUND,
+                "Aggressively purge memory when WebView apps go to the background."),
         Flag.baseFeature(
                 AwSwitches.WEBVIEW_STATIC_METHODS_NOT_TRIGGER_STARTUP,
                 "When enabled, static methods in SharedStatics do not trigger startup."),
@@ -1120,6 +1122,10 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_PROFILE_STORE_NOT_TRIGGER_STARTUP,
                 "When enabled, accessing the ProfileStore does not trigger WebView startup."),
         Flag.baseFeature(
+                AwFeatures.WEBVIEW_WARMUP_NETWORK_SERVICE,
+                "When enabled, eagerly warms up the Network Service during early native browser"
+                        + " process startup in WebView."),
+        Flag.baseFeature(
                 NetworkServiceFeatures.COMPRESSION_DICTIONARY_LIMIT_EARLY_MATCHING,
                 "When enabled, limits the early loading of compression dictionaries to document"
                         + " requests."),
@@ -1422,6 +1428,10 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "ConversionMeasurement",
                 "Controls whether the Attribution Reporting API stub is enabled."),
+        Flag.baseFeature(
+                PaymentFeatureList.PAYMENT_HANDLER_DIALOG_USE_INITIATOR_IN_URL_LOAD,
+                "When enabled, the merchant site is set as the initiator for the web payment"
+                        + " handler modal dialog popup."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

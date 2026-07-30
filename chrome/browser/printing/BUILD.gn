@@ -47,10 +47,6 @@ if (enable_printing) {
       public += [ "pdf_to_emf_converter.h" ]
     }
 
-    if (is_chromeos) {
-      public_deps += [ "//chromeos/crosapi/mojom" ]
-    }
-
     if (enable_oop_printing) {
       public += [
         "oop_features.h",
@@ -247,6 +243,7 @@ if (enable_printing) {
             "//components/content_settings/browser",
             "//components/content_settings/core/browser",
             "//components/content_settings/core/common",
+            "//components/printing/common:print_media_l10n",
             "//components/session_manager/core",
           ]
         }
@@ -362,6 +359,48 @@ if (enable_printing) {
   }
 }
 
+if (enable_printing) {
+  source_set("print_test_utils") {
+    testonly = true
+
+    sources = [
+      "print_test_utils.cc",
+      "print_test_utils.h",
+    ]
+
+    public_deps = [
+      "//printing",
+      "//printing/backend",
+      "//printing/mojom",
+      "//ui/gfx/geometry",
+    ]
+
+    deps = [
+      ":printing",
+      "//base",
+    ]
+  }
+}
+
+if (enable_print_preview) {
+  source_set("browser_printing_context_factory_for_test") {
+    testonly = true
+
+    sources = [
+      "browser_printing_context_factory_for_test.cc",
+      "browser_printing_context_factory_for_test.h",
+    ]
+
+    public_deps = [
+      "//printing",
+      "//printing:test_support",
+      "//printing/buildflags",
+    ]
+
+    deps = [ ":print_test_utils" ]
+  }
+}
+
 if (enable_print_preview) {
   source_set("test_support") {
     testonly = true
@@ -369,8 +408,12 @@ if (enable_print_preview) {
     sources = [
       "print_preview_test.cc",
       "print_preview_test.h",
+      "test_print_preview_dialog_cloned_observer.cc",
+      "test_print_preview_dialog_cloned_observer.h",
       "test_print_preview_observer.cc",
       "test_print_preview_observer.h",
+      "test_print_view_manager_for_request_preview.cc",
+      "test_print_view_manager_for_request_preview.h",
     ]
 
     public_deps = [

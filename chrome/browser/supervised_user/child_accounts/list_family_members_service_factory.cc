@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -14,12 +15,7 @@
 #include "components/supervised_user/core/browser/list_family_members_service.h"
 #include "content/public/browser/browser_context.h"
 
-// static
-supervised_user::ListFamilyMembersService*
-ListFamilyMembersServiceFactory::GetForProfile(Profile* profile) {
-  return static_cast<supervised_user::ListFamilyMembersService*>(
-      GetInstance()->GetServiceForBrowserContext(profile, true));
-}
+namespace supervised_user {
 
 // static
 ListFamilyMembersServiceFactory*
@@ -29,9 +25,8 @@ ListFamilyMembersServiceFactory::GetInstance() {
 }
 
 ListFamilyMembersServiceFactory::ListFamilyMembersServiceFactory()
-    : ProfileKeyedServiceFactory(
-          "ListFamilyMembersService",
-          supervised_user::BuildProfileSelectionsForRegularAndGuest()) {
+    : ProfileKeyedServiceFactory("ListFamilyMembersService",
+                                 BuildProfileSelectionsForRegularAndGuest()) {
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
@@ -40,8 +35,29 @@ ListFamilyMembersServiceFactory::~ListFamilyMembersServiceFactory() = default;
 std::unique_ptr<KeyedService>
 ListFamilyMembersServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  Profile* profile = static_cast<Profile*>(context);
-  return std::make_unique<supervised_user::ListFamilyMembersService>(
-      IdentityManagerFactory::GetForProfile(profile),
-      profile->GetURLLoaderFactory(), *profile->GetPrefs());
+  Profile* profile = Profile::FromBrowserContext(context);
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    // Match lifecycle of the identity manager. No identity means no family.
+    return nullptr;
+  }
+  return std::make_unique<ListFamilyMembersService>(
+      CHECK_DEREF(identity_manager), profile->GetURLLoaderFactory(),
+      CHECK_DEREF(profile->GetPrefs()));
 }
+
+// This is a leaf service, and this value ensures that it's created within
+// the browser context. It is required to gather information family
+// information specific to the profile.
+bool ListFamilyMembersServiceFactory::ServiceIsCreatedWithBrowserContext()
+    const {
+  return true;
+}
+
+// Do not create this service in unit tests unless explicitly needed.
+bool ListFamilyMembersServiceFactory::ServiceIsNULLWhileTesting() const {
+  return true;
+}
+
+}  // namespace supervised_user

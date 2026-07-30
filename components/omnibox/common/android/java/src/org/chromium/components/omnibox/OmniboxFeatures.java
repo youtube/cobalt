@@ -88,6 +88,11 @@ public class OmniboxFeatures {
                     OmniboxFeatureList.OMNIBOX_TOUCH_DOWN_TRIGGER_FOR_PREFETCH,
                     FeatureState.ENABLED_IN_PROD);
 
+    public static final CachedFlag sOmniboxSearchPrefetchOnEnterKeyDown =
+            newFlag(
+                    OmniboxFeatureList.OMNIBOX_SEARCH_PREFETCH_ON_ENTER_KEY_DOWN,
+                    FeatureState.DISABLED);
+
     public static final CachedFlag sUrlBarWithoutLigatures =
             newFlag(OmniboxFeatureList.URL_BAR_WITHOUT_LIGATURES, FeatureState.ENABLED_IN_PROD);
 
@@ -182,10 +187,9 @@ public class OmniboxFeatures {
     public static final CachedFlag sAIMSuppressVerbatimMatch =
             newFlag(OmniboxFeatureList.AIM_SUPPRESS_VERBATIM_MATCH, FeatureState.ENABLED_IN_PROD);
 
-    public static final CachedFlag sOmniboxItemDecoration =
-            newFlag(OmniboxFeatureList.OMNIBOX_ITEM_DECORATION, FeatureState.ENABLED_IN_TEST);
-
-    public static final CachedFlag sExactMatchFavicons =
+    // Shows the preview match's favicon in the status view. Originally and incorrectly called exact
+    // match. The feature string remains exact, but java code should be updated to the right name.
+    public static final CachedFlag sPreviewMatchFavicons =
             newFlag(OmniboxFeatureList.EXACT_MATCH_FAVICONS, FeatureState.ENABLED_IN_TEST);
 
     public static final CachedFlag sServeJavaCachedZeroSuggest =

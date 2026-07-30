@@ -42,7 +42,7 @@ class VerticalTabStripTopContainerInteractiveUiTest
 
   auto SetPinned(const char* pref, bool pinned) {
     return Do([this, pref, pinned]() {
-      browser()->profile()->GetPrefs()->SetBoolean(pref, pinned);
+      browser()->GetProfile()->GetPrefs()->SetBoolean(pref, pinned);
     });
   }
 };
@@ -92,7 +92,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripTopContainerInteractiveUiTest,
 // container of the vertical tab strip
 IN_PROC_BROWSER_TEST_F(VerticalTabStripTopContainerInteractiveUiTest,
                        VerifyTabGroupButton) {
-  browser()->profile()->GetPrefs()->SetBoolean(
+  browser()->GetProfile()->GetPrefs()->SetBoolean(
       prefs::kEverythingMenuPinnedToTabstrip, true);
   RunTestSequence(
       CheckResult([this]() { return browser()->tab_strip_model()->count(); },

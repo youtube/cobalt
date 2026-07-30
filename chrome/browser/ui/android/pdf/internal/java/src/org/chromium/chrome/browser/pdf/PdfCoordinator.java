@@ -56,6 +56,7 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.pdf.PdfUtils.PdfHyperlinkClickResult;
 import org.chromium.chrome.browser.pdf.PdfUtils.PdfLoadResult;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
@@ -204,7 +205,8 @@ public class PdfCoordinator
                 new View.OnAttachStateChangeListener() {
                     @Override
                     public void onViewAttachedToWindow(View view) {
-                        loadPdfFile();
+                        // Post to avoid modifying view hierarchy during attachment traversal.
+                        view.post(() -> loadPdfFile());
                     }
 
                     @Override
@@ -1003,7 +1005,18 @@ public class PdfCoordinator
     @Override
     public void onDownloadComplete(String pdfFilePath, String pdfFileName) {
         mTitle = pdfFileName;
-        loadPdfFile(pdfFilePath);
+        // `mIsPdfLoaded` is true when the PDF is reloaded. In this case, a new download is
+        // triggered while the current PDF is still loaded. Since the `PdfCoordinator` is reused,
+        // `mIsPdfLoaded` remains true. We then reload the fragment with the new file path.
+        // This reload flow is only used when fragment reuse is disabled.
+        if (mIsPdfLoaded) {
+            assert !PdfUtils.isReuseFragmentEnabled();
+            mPdfFilePath = pdfFilePath;
+            mUri = PdfUtils.getContentUri(mPdfFilePath, mTitle, mTabId, mIsIncognito);
+            reload();
+        } else {
+            loadPdfFile(pdfFilePath);
+        }
     }
 
     /** Returns the filepath of the pdf document. */
@@ -1033,7 +1046,7 @@ public class PdfCoordinator
         if (mView.getParent() == null) {
             return;
         }
-        mUri = PdfUtils.getUriFromFilePath(mPdfFilePath);
+        mUri = PdfUtils.getContentUri(mPdfFilePath, mTitle, mTabId, mIsIncognito);
         PdfUtils.recordIsUriNull(mUri == null);
         loadPdfInternal();
     }
@@ -1289,10 +1302,12 @@ public class PdfCoordinator
     @Override
     public boolean onLinkClicked(Uri uri) {
         if (!PdfUtils.isInlinePdfV2Enabled()) {
+            PdfUtils.recordHyperlinkClickResult(PdfHyperlinkClickResult.IGNORED_V2_DISABLED);
             return false;
         }
         String scheme = uri.getScheme();
         if (scheme == null || !ALLOWED_LINK_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT))) {
+            PdfUtils.recordHyperlinkClickResult(PdfHyperlinkClickResult.BLOCKED_INVALID_SCHEME);
             return false;
         }
         LoadUrlParams params = new LoadUrlParams(uri.toString(), PAGE_TRANSITION_TYPE);
@@ -1300,6 +1315,7 @@ public class PdfCoordinator
         // TODO(crbug.com/484103003): Reconsider initiator origin if renderer initiated is true.
         params.setInitiatorOrigin(Origin.create(new GURL(mUrl)));
         mNativePageHost.loadUrl(params, mIsIncognito);
+        PdfUtils.recordHyperlinkClickResult(PdfHyperlinkClickResult.SUCCESS_LOAD_INITIATED);
         return true;
     }
 

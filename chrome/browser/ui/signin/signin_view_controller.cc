@@ -561,7 +561,6 @@ void SigninViewController::ShowCrossDeviceSigninQrBubble(
   bubble_widget_ = views::BubbleDialogDelegate::CreateBubble(
       delegate.release(),
       base::BindOnce(&SigninViewController::OnBubbleClosed, AsWeakPtr()));
-  bubble_widget_->Show();
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -606,7 +605,7 @@ void SigninViewController::ShowModalManagedUserNoticeDialog(
   CloseModalSignin();
   dialog_ = std::make_unique<SigninModalDialogImpl>(
       SigninViewControllerDelegate::CreateManagedUserNoticeDelegate(
-          browser_->GetBrowserForMigrationOnly(), std::move(create_param)),
+          browser_.get(), std::move(create_param)),
       GetOnModalDialogClosedCallback());
 #else
   NOTREACHED() << "Managed user notice dialog modal not supported";

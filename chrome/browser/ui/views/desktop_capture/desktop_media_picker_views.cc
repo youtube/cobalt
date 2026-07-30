@@ -392,6 +392,13 @@ bool DesktopMediaPickerDialogView::AudioSupported(
   NOTREACHED();
 }
 
+bool DesktopMediaPickerDialogView::IsAudioSelectionFeatureEnabled() const {
+  return base::FeatureList::IsEnabled(
+             blink::features::kGetDisplayMediaAudioSelection) &&
+         request_source_ ==
+             DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia;
+}
+
 bool DesktopMediaPickerDialogView::AudioRequestedForType(
     DesktopMediaList::Type type) const {
   // TODO(crbug.com/397167331): Instead of special-casing kScreen, iterate
@@ -523,9 +530,7 @@ DesktopMediaPickerDialogView::DesktopMediaPickerDialogView(
   const bool system_audio_capture_default_checked =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kSystemAudioCaptureDefaultChecked) ||
-      (base::FeatureList::IsEnabled(
-           blink::features::kGetDisplayMediaAudioSelection) &&
-       params.audio_selection_preferred);
+      (IsAudioSelectionFeatureEnabled() && params.audio_selection_preferred);
 
   for (auto& source_list : source_lists) {
     switch (source_list->GetMediaListType()) {
@@ -781,6 +786,12 @@ void DesktopMediaPickerDialogView::ConfigureUIForNewPane(int index) {
 
   if (audio_requested_ && category.audio_offered) {
     category.pane->SetAudioSharingApprovedByUser(category.audio_checked);
+    if (IsAudioSelectionFeatureEnabled()) {
+      category.controller->OnAudioShareToggled(category.audio_checked);
+    }
+#if BUILDFLAG(IS_MAC)
+    UpdateAudioPermissionsWarningState(index);
+#endif
   }
 #if BUILDFLAG(IS_MAC)
   if (category.pane->IsPermissionPaneVisible()) {
@@ -863,10 +874,7 @@ std::u16string DesktopMediaPickerDialogView::GetLabelForAudioToggle(
         GetHintId(is_screen_audio_offered_, IsWindowAudioOffered()));
   }
 
-  if (base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection) &&
-      request_source_ ==
-          DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia) {
+  if (IsAudioSelectionFeatureEnabled()) {
     if (category.type == DesktopMediaList::Type::kScreen ||
         (category.type == DesktopMediaList::Type::kWindow &&
          window_audio_type_offered_ ==
@@ -920,10 +928,7 @@ std::unique_ptr<views::View> DesktopMediaPickerDialogView::SetupPane(
   }
 #endif
 
-  if (base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection) &&
-      request_source_ ==
-          DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia) {
+  if (IsAudioSelectionFeatureEnabled()) {
     if (trigger_audio_permission_check.is_null()) {
       trigger_audio_permission_check = base::BindRepeating(
           &DesktopMediaPickerDialogView::OnAudioShareToggled,
@@ -943,16 +948,13 @@ std::unique_ptr<views::View> DesktopMediaPickerDialogView::SetupPane(
     }
   }
 
-  const bool show_audio_recommendation =
-      base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection) &&
-      audio_selection_preferred_ && audio_offered;
+  const bool show_audio_recommendation = IsAudioSelectionFeatureEnabled() &&
+                                         audio_selection_preferred_ &&
+                                         audio_offered;
 
   const AudioSharingToggleStyle style_audio_toggle =
-      base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection)
-          ? AudioSharingToggleStyle::kBoxed
-          : AudioSharingToggleStyle::kDefault;
+      IsAudioSelectionFeatureEnabled() ? AudioSharingToggleStyle::kBoxed
+                                       : AudioSharingToggleStyle::kDefault;
 
   auto share_audio_view =
       audio_requested_
@@ -1004,10 +1006,7 @@ bool DesktopMediaPickerDialogView::IsAudioSharingApprovedByUser() const {
 }
 
 void DesktopMediaPickerDialogView::UpdateOkButtonLabel() {
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection) ||
-      request_source_ !=
-          DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia) {
+  if (!IsAudioSelectionFeatureEnabled()) {
     return;
   }
   bool audio_shared = IsAudioSharingApprovedByUser();
@@ -1030,11 +1029,13 @@ void DesktopMediaPickerDialogView::OnAudioShareToggled() {
   }
 
   bool approved = category.pane->IsAudioSharingApprovedByUser();
-  bool show_recommendation =
-      base::FeatureList::IsEnabled(
-          blink::features::kGetDisplayMediaAudioSelection) &&
-      audio_selection_preferred_ && category.audio_offered && !approved;
+  bool show_recommendation = IsAudioSelectionFeatureEnabled() &&
+                             audio_selection_preferred_ &&
+                             category.audio_offered && !approved;
   category.pane->SetAudioRecommendationVisible(show_recommendation);
+  if (IsAudioSelectionFeatureEnabled()) {
+    category.controller->OnAudioShareToggled(approved);
+  }
 }
 
 void DesktopMediaPickerDialogView::RecordSourceCountsUma() {
@@ -1415,46 +1416,42 @@ void DesktopMediaPickerDialogView::OnPermissionUpdate(bool has_permission) {
 
 
 void DesktopMediaPickerDialogView::OnAudioSharingApprovedByUserUpdate() {
-  const int index = GetSelectedTabIndex();
+  UpdateAudioPermissionsWarningState(GetSelectedTabIndex());
+}
+
+void DesktopMediaPickerDialogView::UpdateAudioPermissionsWarningState(
+    int index) {
   CHECK_GE(index, 0);
   CHECK_LT(static_cast<size_t>(index), categories_.size());
-  if (!categories_[index].pane) {
+
+  DisplaySurfaceCategory& category = categories_[index];
+  if (!category.pane || !audio_capture_permission_checker_ ||
+      (category.type != DesktopMediaList::Type::kScreen &&
+       category.type != DesktopMediaList::Type::kWindow)) {
     return;
   }
 
-  if (categories_[index].pane->IsAudioSharingApprovedByUser()) {
+  if (category.pane->IsAudioSharingApprovedByUser()) {
     switch (audio_capture_permission_checker_->GetState()) {
       case AudioCapturePermissionChecker::State::kUnknown:
         audio_capture_permission_checker_->RunCheck();
         break;
       case AudioCapturePermissionChecker::State::kDenied:
-        categories_[index].pane->SetAudioWarningVisible(true);
+        category.pane->SetAudioWarningVisible(true);
         break;
       case AudioCapturePermissionChecker::State::kGranted:
       case AudioCapturePermissionChecker::State::kChecking:
-        // Do nothing.
+        category.pane->SetAudioWarningVisible(false);
         break;
     }
   } else {
-    categories_[index].pane->SetAudioWarningVisible(false);
+    category.pane->SetAudioWarningVisible(false);
   }
 }
 
 void DesktopMediaPickerDialogView::OnAudioPermissionUpdate() {
-  if (audio_capture_permission_checker_->GetState() !=
-      AudioCapturePermissionChecker::State::kDenied) {
-    return;
-  }
-
-  for (auto& category : categories_) {
-    if (!category.pane || (category.type != DesktopMediaList::Type::kScreen &&
-                           category.type != DesktopMediaList::Type::kWindow)) {
-      continue;
-    }
-
-    if (category.pane->IsAudioSharingApprovedByUser()) {
-      category.pane->SetAudioWarningVisible(true);
-    }
+  for (size_t i = 0; i < categories_.size(); ++i) {
+    UpdateAudioPermissionsWarningState(i);
   }
 }
 

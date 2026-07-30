@@ -73,6 +73,7 @@
 #include "chrome/browser/printing/print_view_manager.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "ui/views/test/widget_activation_waiter.h"
 #endif
 
 namespace glic {
@@ -325,7 +326,11 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorUnbindOnCloseTest,
       {tab2->GetHandle()}, GlicPinTrigger::kConversationChange);
 
   // Bind tab2 to the instance by showing it.
-  coordinator().ShowInstanceForTabs({tab2}, instance->id());
+  GlicInvokeOptions options(mojom::InvocationSource::kTopChromeButton);
+  options.target = Target(*tab2, instance->id());
+  options.tab_sharing =
+      TabSharingOptions({tab2->GetHandle()}, GlicPinTrigger::kInstanceCreation);
+  coordinator().Invoke(std::move(options));
 
   // Verify it is bound.
   EXPECT_EQ(GetInstanceForTab(tab2), instance);
@@ -415,7 +420,12 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorUnbindOnCloseTest,
   tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
 
   // This pins with kContextMenu.
-  coordinator().CreateNewConversationForTabs({tab1, tab2});
+  GlicInvokeOptions options(mojom::InvocationSource::kTabContextMenu);
+  options.target = Target(*tab2, NewConversation());
+  options.tab_sharing = TabSharingOptions(
+      {tab1->GetHandle(), tab2->GetHandle()}, GlicPinTrigger::kContextMenu);
+  coordinator().Invoke(std::move(options));
+
   auto* instance = coordinator().GetInstanceImplForTab(tab2);
   ASSERT_TRUE(instance);
   EXPECT_EQ(GetInstanceForTab(tab1), instance);
@@ -474,19 +484,6 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorUnbindOnCloseTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
-                       CreateConversationForTabs) {
-  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
-  tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
-
-  coordinator().CreateNewConversationForTabs({tab1, tab2});
-
-  EXPECT_TRUE(GetInstanceForTab(tab1));
-  EXPECT_EQ(GetInstanceForTab(tab1), GetInstanceForTab(tab2));
-  EXPECT_TRUE(GetInstanceForTab(tab1)->IsShowing());
-  EXPECT_FALSE(coordinator().GetInstances().empty());
-}
-
-IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        NewTabDaisyChaining) {
   GetProfile()->GetPrefs()->SetBoolean(
       glic::prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, true);
@@ -526,29 +523,6 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   // but the side panel is not shown on the newly created tab.
   EXPECT_EQ(GetInstanceForTab(new_tab), instance);
   EXPECT_NE(instance->GetActiveEmbedderTabForTesting(), new_tab);
-}
-
-IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
-                       ShowInstanceForTabs) {
-  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
-  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
-  tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
-  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
-  ASSERT_TRUE(tab1);
-  ASSERT_TRUE(tab2);
-
-  EXPECT_NE(instance1, instance2);
-
-  // Assign a conversation ID to instance2 so it can be targeted.
-  // In production, this comes from the web client.
-  PreventDeletionOnClose(instance2, "conv_2");
-
-  // Move tab1 to instance2's conversation.
-  coordinator().ShowInstanceForTabs({tab1}, instance2->id());
-
-  EXPECT_EQ(GetInstanceForTab(tab1), instance2);
-  EXPECT_EQ(GetInstanceForTab(tab2), instance2);
-  EXPECT_EQ(GetContentsVisibility(instance2), content::Visibility::VISIBLE);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -802,7 +776,13 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
   tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
 
-  coordinator().CreateNewConversationForTabs({tab1, tab2});
+  GlicInvokeOptions options(mojom::InvocationSource::kTopChromeButton);
+  options.target = Target(*tab2, NewConversation());
+  options.tab_sharing =
+      TabSharingOptions({tab1->GetHandle(), tab2->GetHandle()},
+                        GlicPinTrigger::kInstanceCreation);
+  coordinator().Invoke(std::move(options));
+
   auto* instance = coordinator().GetInstanceImplForTab(tab1);
 
   EXPECT_OK(WaitForActiveEmbedderToMatchTab(instance, tab2));
@@ -826,8 +806,13 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
   tabs::TabInterface* tab3 = CreateAndActivateTab(GURL("about:blank"));
 
-  // Bind tab1 and tab3 to the same instance.a
-  coordinator().CreateNewConversationForTabs({tab1, tab3});
+  // Bind tab1 and tab3 to the same instance.
+  GlicInvokeOptions options(mojom::InvocationSource::kTabContextMenu);
+  options.target = Target(*tab3, NewConversation());
+  options.tab_sharing = TabSharingOptions(
+      {tab1->GetHandle(), tab3->GetHandle()}, GlicPinTrigger::kContextMenu);
+  coordinator().Invoke(std::move(options));
+
   GlicInstanceImpl* instance = coordinator().GetInstanceImplForTab(tab1);
   ASSERT_TRUE(instance);
   EXPECT_EQ(instance, coordinator().GetInstanceImplForTab(tab3));
@@ -854,21 +839,6 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   EXPECT_EQ(future.Take(), nullptr);
   EXPECT_EQ(coordinator().GetActiveInstance(), nullptr);
   EXPECT_FALSE(instance->GetActiveEmbedderTabForTesting());
-}
-
-IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
-                       ExplicitPinningUsingShowInstanceForTabs) {
-  tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
-  ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
-  // Unpin the tab.
-  instance->GetSharingManagerInternal().UnpinTabs({tab->GetHandle()});
-  EXPECT_FALSE(
-      instance->GetSharingManagerInternal().IsTabPinned(tab->GetHandle()));
-
-  // Verify kContextMenu trigger explicitly pins the tab.
-  coordinator().ShowInstanceForTabs({tab}, instance->id());
-  EXPECT_TRUE(
-      instance->GetSharingManagerInternal().IsTabPinned(tab->GetHandle()));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest, TabRestoration) {
@@ -920,13 +890,23 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(tab2->GetContents()));
 
   // Bind Tab 2 to Instance 1.
-  coordinator().ShowInstanceForTabs({tab2}, instance1_id);
+  GlicInvokeOptions options(mojom::InvocationSource::kTabContextMenu);
+  options.target = Target(*tab2, instance1_id);
+  options.tab_sharing =
+      TabSharingOptions({tab2->GetHandle()}, GlicPinTrigger::kContextMenu);
+  coordinator().Invoke(std::move(options));
 
   // Create Instance 2 and bind Tab 2 to it.
   // This should unbind Tab 2 from Instance 1, but keep it pinned to Instance 1.
   ASSERT_TRUE(
       instance1->GetSharingManagerInternal().IsTabPinned(tab2->GetHandle()));
-  coordinator().CreateNewConversationForTabs({tab2});
+
+  GlicInvokeOptions options2(mojom::InvocationSource::kTabContextMenu);
+  options2.target = Target(*tab2, NewConversation());
+  options2.tab_sharing =
+      TabSharingOptions({tab2->GetHandle()}, GlicPinTrigger::kContextMenu);
+  coordinator().Invoke(std::move(options2));
+
   GlicInstanceImpl* instance2 = GetInstanceForTab(tab2);
   ASSERT_TRUE(instance2);
   ASSERT_NE(instance2, instance1);
@@ -990,7 +970,13 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   // Wait for contents to load to ensure that the tab will be eligible for
   // restoration.
   EXPECT_TRUE(content::WaitForLoadStop(tab2->GetContents()));
-  coordinator().ShowInstanceForTabs({tab2}, instance_id);
+
+  GlicInvokeOptions options(mojom::InvocationSource::kTopChromeButton);
+  options.target = Target(*tab2, instance_id);
+  options.tab_sharing =
+      TabSharingOptions({tab2->GetHandle()}, GlicPinTrigger::kInstanceCreation);
+  coordinator().Invoke(std::move(options));
+
   ASSERT_EQ(GetInstanceForTab(tab2), instance);
 
   // Close Tab 2.
@@ -2021,5 +2007,46 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorRemoveBlankInstancesTest,
   // Wait for the blank instance to be deleted asynchronously.
   ASSERT_OK(WaitForInstanceDeletion(weak_instance));
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       DetachedPanelActivationWithMultipleInstances) {
+  // 1. Open glic detached and activate live mode
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * floaty_instance,
+                       OpenGlicForActiveTabAndDetach());
+  ASSERT_TRUE(floaty_instance->IsDetached());
+  ASSERT_OK(WaitForGlicClient(floaty_instance));
+
+  floaty_instance->OnInteractionModeChange(mojom::WebClientMode::kAudio);
+  floaty_instance->host().SetContextAccessIndicator(true);
+  ASSERT_TRUE(floaty_instance->IsLiveMode());
+
+  views::View* floaty_view =
+      floaty_instance->GetActiveEmbedderGlicViewForTesting();
+  ASSERT_TRUE(floaty_view);
+  views::Widget* floaty_widget = floaty_view->GetWidget();
+  ASSERT_TRUE(floaty_widget);
+
+  // 2. Open glic in side panel in a different tab
+  tabs::TabInterface* tab2 =
+      GetTabListInterface()->OpenTab(GURL("about:blank"), -1);
+  GetTabListInterface()->ActivateTab(tab2->GetHandle());
+
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * side_panel_instance,
+                       OpenGlicForActiveTab());
+  ASSERT_OK(WaitForGlicClient(side_panel_instance));
+
+  // 3. Move focus back to the floating instance
+  floaty_widget->Activate();
+  views::test::WaitForWidgetActive(floaty_widget, true);
+
+  // Verify that the floaty widget remains open, visible, and registered in the
+  // coordinator.
+  EXPECT_FALSE(floaty_widget->IsClosed());
+  EXPECT_TRUE(floaty_widget->IsVisible());
+  EXPECT_EQ(coordinator().GetInstanceWithFloaty(), floaty_instance);
+  EXPECT_EQ(coordinator().GetActiveInstance(), floaty_instance);
+}
+#endif
 
 }  // namespace glic

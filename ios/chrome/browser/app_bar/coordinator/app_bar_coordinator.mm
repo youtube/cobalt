@@ -19,6 +19,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
+#import "ios/chrome/browser/keyboard/ui_bundled/responder_chaining.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
@@ -95,6 +96,7 @@
   _viewController = [[AppBarViewController alloc] init];
   _viewController.sceneHandler = sceneHandler;
   _viewController.tabGridHandler = tabGridHandler;
+  _viewController.geminiHandler = geminiHandler;
   _viewController.layoutGuideCenter = LayoutGuideCenterForScene(sceneState);
   _viewController.layoutState = sceneState.layoutState;
   ProfileIOS* profile = _regularBrowser->GetProfile();
@@ -260,7 +262,7 @@
 
 #pragma mark - Properties
 
-- (UIViewController*)viewController {
+- (UIViewController<ResponderChaining>*)viewController {
   return _containerViewController;
 }
 

@@ -270,6 +270,27 @@ public class WindowAndroid
     private final ObserverList<SelectionHandlesObserver> mSelectionHandlesObservers =
             new ObserverList<>();
 
+    /** Interface for delegating keyboard events. */
+    public interface KeyboardShortcutsDelegate {
+        /**
+         * Called before a keyboard event is dispatched to the page.
+         *
+         * @param event The KeyEvent to handle.
+         * @return true if the event was handled and should be consumed.
+         */
+        boolean preHandleKeyboardEvent(KeyEvent event);
+
+        /**
+         * Called to handle a keyboard event if it wasn't handled by the page.
+         *
+         * @param event The KeyEvent to handle.
+         * @return true if the event was handled and should be consumed.
+         */
+        boolean handleKeyboardEvent(KeyEvent event);
+    }
+
+    private @Nullable KeyboardShortcutsDelegate mKeyboardShortcutsDelegate;
+
     private boolean mAllowChangeRefreshRate;
 
     /** Gets the view for readback. */
@@ -431,15 +452,13 @@ public class WindowAndroid
     }
 
     private boolean shouldTrackOcclusionWithTrustedPresentationApi() {
-        // On rotate Android seems to send a spurious occlusion signal. See crbug.com/380209799 for
-        // details.
+        AconfigFlaggedApiDelegate delegate = AconfigFlaggedApiDelegate.getInstance();
         return mOcclusionTrackingAllowed
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                 && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled()
-                && "trusted_presentation"
-                        .equals(
-                                UiAndroidFeatureList.sAndroidWindowOcclusionTrackingMode
-                                        .getValue());
+                && "trusted_presentation_strict_mode"
+                        .equals(UiAndroidFeatureList.sAndroidWindowOcclusionTrackingMode.getValue())
+                && delegate != null
+                && delegate.isStrictOcclusionAvailable();
     }
 
     private void maybeTrackOcclusionWithTrustedPresentationApi() {
@@ -465,7 +484,13 @@ public class WindowAndroid
         Context context = assumeNonNull(getContext().get());
         WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 
-        var thresholds = new TrustedPresentationThresholds(Float.MIN_VALUE, Float.MIN_VALUE, 1);
+        AconfigFlaggedApiDelegate delegate = AconfigFlaggedApiDelegate.getInstance();
+        assert delegate != null;
+        TrustedPresentationThresholds thresholds =
+                delegate.createTrustedPresentationThresholdsStrictMode(
+                        Float.MIN_VALUE, Float.MIN_VALUE, 1);
+        assert thresholds != null;
+
         mTrustedPresentationOcclusionObserver =
                 new Consumer<>() {
                     @Override
@@ -1309,6 +1334,20 @@ public class WindowAndroid
      */
     public KeyboardVisibilityDelegate getKeyboardDelegate() {
         return mKeyboardVisibilityDelegate;
+    }
+
+    /**
+     * @param delegate The delegate to handle keyboard events.
+     */
+    public void setKeyboardShortcutsDelegate(KeyboardShortcutsDelegate delegate) {
+        mKeyboardShortcutsDelegate = delegate;
+    }
+
+    /**
+     * @return The delegate to handle keyboard events.
+     */
+    public @Nullable KeyboardShortcutsDelegate getKeyboardShortcutsDelegate() {
+        return mKeyboardShortcutsDelegate;
     }
 
     /** Returns the {@link InsetObserver} for the root view of the activity or null. */

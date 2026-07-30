@@ -6,7 +6,6 @@ import("//ui/webui/resources/tools/build_webui.gni")
 
 build_webui("build") {
   grd_prefix = "policy"
-  html_to_wrapper_template = "detect"
 
   static_files = [
     "logs/policy_logs.html",
@@ -16,17 +15,15 @@ build_webui("build") {
     "test/policy_test.html",
   ]
 
-  # Files holding a Custom element definition AND have an equivalent .html file.
-  web_component_files = [
-    "test/policy_test_row.ts",
-    "test/policy_test_table.ts",
-  ]
-
   ts_files = [
     "logs/policy_logs.ts",
+    "logs/policy_logs_app.html.ts",
+    "logs/policy_logs_app.ts",
+    "logs/policy_logs_search.ts",
     "logs/types.ts",
     "policy.ts",
-    "policy_base.ts",
+    "policy_app.html.ts",
+    "policy_app.ts",
     "browser_proxy.ts",
     "policy_conflict.html.ts",
     "policy_conflict.ts",
@@ -44,9 +41,15 @@ build_webui("build") {
     "promotion_banner_section_container.ts",
     "test/policy_test.ts",
     "test/policy_test_browser_proxy.ts",
+    "test/policy_test_row.html.ts",
+    "test/policy_test_row.ts",
+    "test/policy_test_table.html.ts",
+    "test/policy_test_table.ts",
   ]
 
   css_files = [
+    "logs/policy_logs_app.css",
+    "policy_app.css",
     "policy_conflict.css",
     "policy_precedence_row.css",
     "promotion_banner_section_container.css",
@@ -54,12 +57,12 @@ build_webui("build") {
     "status_box.css",
     "policy_table.css",
     "policy_table_header_cell.css",
+    "test/policy_test_row.css",
+    "test/policy_test_table.css",
   ]
 
-  mojo_files = [
-    "$root_gen_dir/components/policy/resources/webui/" +
-    "mojom/policy.mojom-webui.ts",
-  ]
+  mojo_files = [ "$root_gen_dir/components/policy/resources/webui/" +
+                 "mojom/policy.mojom-webui.ts" ]
   mojo_files_deps = [
     "//components/policy/resources/webui/mojom:mojo_bindings_ts__generator",
   ]

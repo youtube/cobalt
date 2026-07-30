@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/test/metrics/histogram_tester.h"
+#include "chrome/browser/page_load_metrics/chrome_initiator_location.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/prerender/prerender_manager.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -42,7 +43,8 @@ void AttachInitiatorLocation(
     page_load_metrics::NavigationHandleUserData::InitiatorLocation location,
     content::NavigationHandle& navigation_handle) {
   page_load_metrics::NavigationHandleUserData::CreateForNavigationHandle(
-      navigation_handle, location);
+      navigation_handle, location,
+      StringifyChromeInitiatorLocation(GetChromeInitiatorLocation(location)));
 }
 
 }  // namespace
@@ -86,10 +88,9 @@ IN_PROC_BROWSER_TEST_F(NavigationInitiatorPageLoadMetricsBrowserTest,
   base::HistogramTester histogram_tester;
 
   base::RepeatingCallback<void(content::NavigationHandle&)>
-      navigation_handle_callback =
-          base::BindRepeating(&AttachInitiatorLocation,
-                              page_load_metrics::NavigationHandleUserData::
-                                  InitiatorLocation::kNewTabPage);
+      navigation_handle_callback = base::BindRepeating(
+          &AttachInitiatorLocation,
+          GetInitiatorLocation(ChromeInitiatorLocation::kNewTabPage));
 
   GURL url = embedded_test_server()->GetURL("/empty.html");
   GetActiveWebContents()->OpenURL(
@@ -103,13 +104,11 @@ IN_PROC_BROWSER_TEST_F(NavigationInitiatorPageLoadMetricsBrowserTest,
 
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.All",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kNewTabPage),
+      MetricValue(GetInitiatorLocation(ChromeInitiatorLocation::kNewTabPage)),
       1);
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.SRP",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kNewTabPage),
+      MetricValue(GetInitiatorLocation(ChromeInitiatorLocation::kNewTabPage)),
       0);
 }
 
@@ -121,13 +120,13 @@ IN_PROC_BROWSER_TEST_F(NavigationInitiatorPageLoadMetricsBrowserTest, Basic) {
 
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.All",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       1);
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.SRP",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       0);
 }
 
@@ -140,13 +139,13 @@ IN_PROC_BROWSER_TEST_F(NavigationInitiatorPageLoadMetricsBrowserTest,
 
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.All",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       1);
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.SRP",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       1);
 }
 
@@ -159,13 +158,13 @@ IN_PROC_BROWSER_TEST_F(NavigationInitiatorPageLoadMetricsBrowserTest,
 
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.All",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       1);
   histogram_tester.ExpectBucketCount(
       "Navigation.InitiatorType.SRP",
-      MetricValue(page_load_metrics::NavigationHandleUserData::
-                      InitiatorLocation::kOther),
+      MetricValue(
+          page_load_metrics::NavigationHandleUserData::kInitiatorLocationOther),
       0);
 }
 

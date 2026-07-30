@@ -63,7 +63,6 @@ source_set("configs") {
     "//chrome/browser/ui/webui/accessibility",
     "//chrome/browser/ui/webui/actor_internals",
     "//chrome/browser/ui/webui/autofill_and_password_manager_internals",
-    "//chrome/browser/ui/webui/browsing_topics",
     "//chrome/browser/ui/webui/chrome_urls",
     "//chrome/browser/ui/webui/commerce:commerce_internals_ui_config",
     "//chrome/browser/ui/webui/components",
@@ -81,6 +80,7 @@ source_set("configs") {
     "//chrome/browser/ui/webui/interstitials",
     "//chrome/browser/ui/webui/local_state",
     "//chrome/browser/ui/webui/location_internals",
+    "//chrome/browser/ui/webui/management",
     "//chrome/browser/ui/webui/media",
     "//chrome/browser/ui/webui/metrics_internals",
     "//chrome/browser/ui/webui/net_internals",
@@ -98,6 +98,7 @@ source_set("configs") {
     "//chrome/browser/ui/webui/version",
     "//components/compose:buildflags",
     "//components/lens:buildflags",
+    "//components/notebooks/internals/webui",
     "//components/security_interstitials/content:security_interstitial_page",
     "//components/webui/user_actions",
     "//content/public/browser",
@@ -278,13 +279,10 @@ source_set("configs") {
   }
 
   if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
-    deps += [
-      "//chrome/browser/ui/webui/discards",
-      "//chrome/browser/ui/webui/management",
-    ]
+    deps += [ "//chrome/browser/ui/webui/discards" ]
   }
 
-  if (enable_dice_support) {
+  if (enable_dice_support || is_chromeos) {
     deps += [ "//chrome/browser/ui/webui/signin:batch_upload" ]
   }
 
@@ -540,6 +538,91 @@ source_set("log_web_ui_url") {
   }
 }
 
+source_set("fileicon_source") {
+  sources = [ "fileicon_source.cc" ]
+  public = [ "fileicon_source.h" ]
+  public_deps = [
+    "//chrome/browser:icon_manager",
+    "//content/public/browser",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/common",
+    "//ui/base",
+    "//ui/gfx",
+    "//ui/gfx/codec",
+  ]
+}
+
+source_set("metrics_handler") {
+  sources = [ "metrics_handler.cc" ]
+  public = [ "metrics_handler.h" ]
+  public_deps = [ "//content/public/browser" ]
+  deps = [
+    "//base",
+    "//chrome/browser/ui/tab_contents",
+  ]
+}
+
+if (enable_extensions_core) {
+  source_set("managed_ui_handler") {
+    sources = [ "managed_ui_handler.cc" ]
+    public = [ "managed_ui_handler.h" ]
+    public_deps = [
+      "//components/policy/core/common",
+      "//components/prefs",
+      "//content/public/browser",
+    ]
+    deps = [
+      "//chrome/browser:browser_process",
+      "//chrome/browser/policy",
+      "//chrome/browser/profiles:profile",
+      "//chrome/common",
+      "//chrome/common:constants",
+      "//components/supervised_user/core/common",
+    ]
+  }
+}
+
+if (is_win || is_mac || is_linux) {
+  source_set("profile_helper") {
+    sources = [ "profile_helper.cc" ]
+    public = [ "profile_helper.h" ]
+    public_deps = [ "//chrome/browser/profiles:profile" ]
+    deps = [
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles",
+      "//chrome/browser/signin",
+      "//chrome/browser/ui/profiles",
+      "//chrome/browser/ui/startup",
+      "//chrome/browser/ui/webui/signin:signin_utils",
+      "//content/public/browser",
+    ]
+  }
+}
+
+if (is_chromeos) {
+  source_set("certificate_provisioning_ui_handler") {
+    sources = [ "certificate_provisioning_ui_handler.cc" ]
+    public = [ "certificate_provisioning_ui_handler.h" ]
+    public_deps = [ "//content/public/browser" ]
+    deps = [
+      "//chrome/browser:browser_process",
+      "//chrome/browser:browser_process_platform_part",
+      "//chrome/browser/ash/cert_provisioning",
+      "//chrome/browser/ash/policy/core",
+      "//chrome/browser/ash/profiles",
+      "//chrome/common",
+      "//chrome/common/net",
+      "//components/policy/core/browser",
+      "//components/policy/core/common:common_constants",
+      "//components/user_manager",
+      "//ui/base",
+    ]
+  }
+}
+
 source_set("prefs_internals_source") {
   sources = [
     "prefs_internals_source.cc",
@@ -570,6 +653,79 @@ if (!is_android) {
       "//extensions/common:common_constants",
       "//third_party/blink/public/common",
     ]
+  }
+
+  source_set("chrome_web_contents_handler") {
+    sources = [ "chrome_web_contents_handler.cc" ]
+    public = [ "chrome_web_contents_handler.h" ]
+    public_deps = [ "//ui/web_dialogs" ]
+    deps = [
+      "//chrome/browser:file_select_helper",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/navigator",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//content/public/browser",
+    ]
+  }
+
+  source_set("extension_control_handler") {
+    sources = [ "extension_control_handler.cc" ]
+    public = [ "extension_control_handler.h" ]
+    public_deps = [ "//chrome/browser/ui/webui/settings" ]
+    deps = [
+      "//chrome/browser/profiles:profile",
+      "//content/public/browser",
+      "//extensions/browser",
+    ]
+  }
+
+  source_set("policy_indicator_localized_strings_provider") {
+    sources = [ "policy_indicator_localized_strings_provider.cc" ]
+    public = [ "policy_indicator_localized_strings_provider.h" ]
+    public_deps = [ "//content/public/browser" ]
+    deps = [
+      "//chrome/app:generated_resources",
+      "//components/sync/base:features",
+      "//ui/base",
+      "//ui/webui",
+    ]
+    if (is_chromeos) {
+      deps += [ "//chromeos/ash/components/demo_mode" ]
+    }
+  }
+
+  source_set("theme_colors_source_manager") {
+    sources = [
+      "theme_colors_source_manager.cc",
+      "theme_colors_source_manager_factory.cc",
+    ]
+    public = [
+      "theme_colors_source_manager.h",
+      "theme_colors_source_manager_factory.h",
+    ]
+    public_deps = [
+      "//chrome/browser/profiles:profile",
+      "//components/keyed_service/core",
+    ]
+    deps = [
+      ":theme_source",
+      "//chrome/browser/themes",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/webui/webui_toolbar:impl",
+      "//chrome/common:chrome_features",
+      "//content/public/browser",
+      "//content/public/common",
+      "//ui/base",
+      "//ui/color",
+    ]
+
+    # webui_toolbar_ui.cc and webui_toolbar_ui_browsertest.cc include
+    # theme_colors_source_manager(_factory).h, while this target depends on
+    # //chrome/browser/ui (which pulls in webui_toolbar transitively).
+    allow_circular_includes_from =
+        [ "//chrome/browser/ui/webui/webui_toolbar:impl" ]
   }
 
   source_set("webui_load_timer") {

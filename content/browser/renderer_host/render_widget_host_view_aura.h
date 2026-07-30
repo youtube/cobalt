@@ -133,6 +133,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   bool IsShowing() override;
   void WasOccluded() override;
   gfx::Rect GetViewBounds() override;
+  gfx::Rect GetViewBoundsWithoutTransform() override;
   bool IsPointerLocked() override;
   gfx::Size GetVisibleViewportSize() override;
   gfx::Size GetVisibleViewportSizeDevicePx() override;
@@ -176,6 +177,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
   ui::FilteredGestureProvider* GetFilteredGestureProviderForTesting() override;
   void TransformPointToRootSurface(gfx::PointF* point) override;
   gfx::Rect GetBoundsInScreen() override;
+  gfx::Rect GetBoundsInScreenWithoutTransform() override;
   void WheelEventAck(const blink::WebMouseWheelEvent& event,
                      blink::mojom::InputEventResultState ack_result) override;
   void GestureEventAck(const blink::WebGestureEvent& event,

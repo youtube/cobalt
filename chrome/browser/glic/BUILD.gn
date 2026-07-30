@@ -17,6 +17,9 @@ import("//mojo/public/tools/bindings/mojom.gni")
 source_set("glic") {
   sources = [
     "common/local_hotkey_manager.h",
+    "experimental_triggering/glic_experimental_triggering_coordinator.h",
+    "experimental_triggering/glic_experimental_triggering_metrics.h",
+    "experimental_triggering/glic_experimental_triggering_types.h",
     "gemini_act_on_web_settings_policy_handler.h",
     "glic_hotkey.h",
     "glic_metrics.h",
@@ -303,8 +306,11 @@ source_set("impl") {
     "common/panel_focus_dependent_hotkey_manager.h",
     "common/panel_visibility_dependent_hotkey_manager.cc",
     "common/panel_visibility_dependent_hotkey_manager.h",
+    "common/view_scoped_registration_delegate.h",
+    "experimental_triggering/glic_experimental_triggering_coordinator.cc",
     "experimental_triggering/glic_experimental_triggering_manager.cc",
     "experimental_triggering/glic_experimental_triggering_manager.h",
+    "experimental_triggering/glic_experimental_triggering_metrics.cc",
     "gemini_act_on_web_settings_policy_handler.cc",
     "glic_hotkey.cc",
     "glic_metrics.cc",
@@ -367,6 +373,8 @@ source_set("impl") {
     "host/glic_synthetic_trial_manager.cc",
     "host/glic_synthetic_trial_manager.h",
     "host/glic_ui.cc",
+    "host/glic_web_client_handler.cc",
+    "host/glic_web_client_handler.h",
     "host/glic_web_contents_warming_pool.cc",
     "host/glic_web_contents_warming_pool.h",
     "host/guest_util.cc",
@@ -496,6 +504,7 @@ source_set("impl") {
     "//ui/base",
     "//ui/base/clipboard:file_info",
     "//ui/base/interaction",
+    "//ui/content_accelerators",
     "//ui/gfx",
     "//ui/snapshot",
     "//ui/webui",
@@ -505,7 +514,9 @@ source_set("impl") {
   if (!is_android) {
     # TODO(b/470059315): Make these work on Android, or move them to the
     # desktop-only section.
+    public_deps += [ "//chrome/browser/glic/selection" ]
     sources += [
+      "common/view_scoped_registration_delegate_impl.cc",
       "experimental_opt_in/glic_experimental_opt_in_controller.cc",
       "experimental_opt_in/glic_experimental_opt_in_controller.h",
       "experimental_opt_in/glic_experimental_opt_in_dialog_view.cc",
@@ -574,6 +585,7 @@ source_set("impl") {
     ]
   } else {  # is_android
     sources += [
+      "common/view_scoped_registration_delegate_android.cc",
       "glic_settings_util_android.cc",
       "host/context/favicon_impl/glic_tab_favicon_adapter_android.cc",
       "host/context/favicon_impl/glic_tab_favicon_adapter_android.h",
@@ -713,6 +725,7 @@ source_set("unit_tests") {
     "//chrome/browser:global_features",
     "//chrome/browser/background/glic",
     "//chrome/browser/glic/test_support",
+    "//chrome/browser/sync",
     "//chrome/browser/ui:ui_features",
     "//components/tabs:test_support",
     "//testing/gmock",
@@ -1004,6 +1017,7 @@ if (!is_android) {
       "//chrome/browser/actor",
       "//chrome/browser/actor:test_support",
       "//chrome/browser/actor:tools_test_support",
+      "//chrome/browser/autofill",
       "//chrome/browser/background/glic",
       "//chrome/browser/compose",
       "//chrome/browser/contextual_tasks:ui",
@@ -1011,6 +1025,7 @@ if (!is_android) {
       "//chrome/browser/download:test_support",
       "//chrome/browser/enterprise/connectors/test:test_support",
       "//chrome/browser/glic:mojo_bindings",
+      "//chrome/browser/glic/actor:test_support",
       "//chrome/browser/glic/browser_ui:interactive_ui_tests",
       "//chrome/browser/glic/public:features",
       "//chrome/browser/glic/selection:interactive_ui_tests",

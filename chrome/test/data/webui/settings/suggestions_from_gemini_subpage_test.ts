@@ -5,20 +5,26 @@
 import 'chrome://settings/lazy_load.js';
 
 import type {CrShortcutInputElement, SettingsSuggestionsFromGeminiSubpageElement} from 'chrome://settings/lazy_load.js';
-import {CrSettingsPrefs, loadTimeData, OpenWindowProxyImpl} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, loadTimeData, ModelExecutionEnterprisePolicyValue, OpenWindowProxyImpl} from 'chrome://settings/settings.js';
 import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {MetricsBrowserProxyImpl, SuggestionsFromGeminiAction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
-suite('SuggestionsFromGeminiSubpage', function() {
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
+suite('SuggestionsFromGeminiSubpage', function() {
   let openWindowProxy: TestOpenWindowProxy;
   let settingsPrefs: SettingsPrefsElement;
+  let metricsBrowserProxy: TestMetricsBrowserProxy;
 
   setup(async function() {
+    metricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
+
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     settingsPrefs = document.createElement('settings-prefs');
     await CrSettingsPrefs.initialized;
@@ -45,7 +51,10 @@ suite('SuggestionsFromGeminiSubpage', function() {
     page.prefs = settingsPrefs.prefs!;
     page.setPrefValue(
         'autofill.at_memory.trigger_info', {is_shortcut: false, trigger: '@@'});
-    page.setPrefValue('autofill.personal_context.settings_toggle_status', true);
+    page.setPrefValue('generated.find_and_fill_with_gemini', true);
+    page.setPrefValue(
+        'autofill.personal_context.find_and_fill_with_gemini_settings',
+        ModelExecutionEnterprisePolicyValue.ALLOW);
 
     document.body.appendChild(page);
     await flushTasks();
@@ -63,6 +72,11 @@ suite('SuggestionsFromGeminiSubpage', function() {
     const url = await openWindowProxy.whenCalled('openUrl');
     assertEquals(
         loadTimeData.getString('personalContextConnectedAppsUrl'), url);
+
+    const userAction = await metricsBrowserProxy.whenCalled('recordAction');
+    assertEquals(
+        'PersonalContext.Settings.ManageConnectedAppsClick',
+        userAction);
   });
 
   test('QualityLoggingRendersExpectedColumnsAndBullets', async function() {
@@ -105,12 +119,37 @@ suite('SuggestionsFromGeminiSubpage', function() {
         loadTimeData.getString('suggestionsFromGeminiConsider2'),
         secondColumnBullets[1]!.querySelector(
                                    '.cr-secondary-text')!.textContent.trim());
+
+    const considerNoLoggingEnterprise =
+        subpage.shadowRoot!.querySelector('#considerNoLoggingEnterprise');
+    assertTrue(!!considerNoLoggingEnterprise);
+    assertFalse(isVisible(considerNoLoggingEnterprise));
+  });
+
+  test('ConsiderNoLoggingEnterpriseVisibility', async function() {
+    const subpage = await setupPage();
+    const considerNoLoggingEnterprise =
+        subpage.shadowRoot!.querySelector('#considerNoLoggingEnterprise');
+    assertTrue(!!considerNoLoggingEnterprise);
+
+    // By default (ALLOW = 0), the bullet should be hidden.
+    assertFalse(isVisible(considerNoLoggingEnterprise));
+
+    // When policy is set to ALLOW_WITHOUT_LOGGING = 1, it should become
+    // visible.
+    subpage.setPrefValue(
+        'autofill.personal_context.find_and_fill_with_gemini_settings',
+        ModelExecutionEnterprisePolicyValue.ALLOW_WITHOUT_LOGGING);
+    await flushTasks();
+
+    assertTrue(isVisible(considerNoLoggingEnterprise));
     assertEquals(
-        'cr20:domain', secondColumnBullets[2]!.querySelector('cr-icon')!.icon);
+        'cr20:domain',
+        considerNoLoggingEnterprise.querySelector('cr-icon')!.icon);
     assertEquals(
         loadTimeData.getString('suggestionsFromGeminiConsider3'),
-        secondColumnBullets[2]!.querySelector(
-                                   '.cr-secondary-text')!.textContent.trim());
+        considerNoLoggingEnterprise.querySelector('.cr-secondary-text')!
+            .textContent.trim());
   });
 
   test('QualityLoggingIsHiddenWhenToggleIsOff', async function() {
@@ -118,8 +157,7 @@ suite('SuggestionsFromGeminiSubpage', function() {
     assertTrue(
         isVisible(subpage.shadowRoot!.querySelector('#qualityLoggingCard')));
 
-    subpage.set(
-        'prefs.autofill.personal_context.settings_toggle_status.value', false);
+    subpage.set('prefs.generated.find_and_fill_with_gemini.value', false);
     await flushTasks();
 
     assertFalse(
@@ -138,6 +176,35 @@ suite('SuggestionsFromGeminiSubpage', function() {
         isVisible(subpage.shadowRoot!.querySelector('#qualityLoggingCard')));
   });
 
+  test('ToggleChangeRecordsMetrics', async function() {
+    const subpage = await setupPage();
+    const toggle = subpage.shadowRoot!.querySelector<HTMLElement>(
+        '#suggestionsFromGeminiToggle');
+    assertTrue(!!toggle);
+
+    // Click toggle to turn OFF
+    toggle.click();
+    let action = await metricsBrowserProxy.whenCalled(
+        'recordSuggestionsFromGeminiAction');
+    assertEquals(SuggestionsFromGeminiAction.TOGGLE_OFF, action);
+    let userAction = await metricsBrowserProxy.whenCalled('recordAction');
+    assertEquals(
+        'PersonalContext.Settings.ToggledOff',
+        userAction);
+
+    metricsBrowserProxy.reset();
+
+    // Click toggle to turn ON
+    toggle.click();
+    action = await metricsBrowserProxy.whenCalled(
+        'recordSuggestionsFromGeminiAction');
+    assertEquals(SuggestionsFromGeminiAction.TOGGLE_ON, action);
+    userAction = await metricsBrowserProxy.whenCalled('recordAction');
+    assertEquals(
+        'PersonalContext.Settings.ToggledOn',
+        userAction);
+  });
+
   test('AtMemoryTriggerSettingHidden', async function() {
     loadTimeData.overrideValues({
       isAtMemoryTriggerCustomizationAllowed: false,
@@ -147,6 +214,20 @@ suite('SuggestionsFromGeminiSubpage', function() {
         subpage.shadowRoot!.querySelector<CrShortcutInputElement>(
             '#atMemoryTriggerSetting cr-shortcut-input');
     assertTrue(!!inputElement);
+    assertFalse(isVisible(inputElement));
+  });
+
+  test('AtMemoryTriggerSettingIsHiddenWhenToggleIsOff', async function() {
+    const subpage = await setupPage();
+    const inputElement =
+        subpage.shadowRoot!.querySelector<CrShortcutInputElement>(
+            '#atMemoryTriggerSetting cr-shortcut-input');
+    assertTrue(!!inputElement);
+    assertTrue(isVisible(inputElement));
+
+    subpage.set('prefs.generated.find_and_fill_with_gemini.value', false);
+    await flushTasks();
+
     assertFalse(isVisible(inputElement));
   });
 
@@ -209,5 +290,19 @@ suite('SuggestionsFromGeminiSubpage', function() {
         subpage.get('prefs.autofill.at_memory.trigger_info.value');
     assertEquals(newPrefValue.trigger, '@@');
     assertFalse(newPrefValue.is_shortcut);
+  });
+
+  test('FocusBackButton', async function() {
+    const subpage = await setupPage();
+    let focusCalled = false;
+    const settingsSubpage =
+        subpage.shadowRoot!.querySelector('settings-subpage');
+    assertTrue(!!settingsSubpage);
+    settingsSubpage.focusBackButton = () => {
+      focusCalled = true;
+      return Promise.resolve();
+    };
+    subpage.focusBackButton();
+    assertTrue(focusCalled);
   });
 });

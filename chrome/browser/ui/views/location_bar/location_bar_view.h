@@ -67,7 +67,6 @@ class Browser;
 class BrowserWindowInterface;
 class CommandUpdater;
 class ContentSettingBubbleModelDelegate;
-class IntentChipButton;
 class OmniboxController;
 class OmniboxContextMenu;
 enum class OmniboxPart;
@@ -218,8 +217,6 @@ class LocationBarView
     return permission_dashboard_view_;
   }
 
-  IntentChipButton* intent_chip() { return intent_chip_; }
-
   // LocationBar:
   void FocusLocation(bool is_user_initiated,
                      bool clear_focus_if_failed) override;
@@ -307,6 +304,9 @@ class LocationBarView
   // Called when omnibox view receives mouse notifications relevant to hover.
   // |is_hovering| should be true when mouse is in omnibox; false when exited.
   void OnOmniboxHovered(bool is_hovering);
+
+  // LocationBar:
+  void SetPermissionPromptShowing(bool showing) override;
 
   // `browser_` returned here may be nullptr. There are two known cases.
   //
@@ -602,7 +602,6 @@ class LocationBarView
   // Shown if the user has selected a keyword.
   raw_ptr<SelectedKeywordView> selected_keyword_view_ = nullptr;
 
-  raw_ptr<IntentChipButton> intent_chip_ = nullptr;
 
   // The content setting views.
   ContentSettingViews content_setting_views_;

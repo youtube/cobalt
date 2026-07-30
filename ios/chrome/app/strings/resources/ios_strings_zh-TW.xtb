@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">目前登入的帳戶是<ph name="USER_NAME" />。<ph name="USER_EMAIL" />。開啟帳戶選單。</translation>
 <translation id="1397144142234474689">隱藏歷史記錄</translation>
 <translation id="1399268420835656394">如果你不是兒童，建議檢查這部裝置上的 Apple 帳戶年齡設定。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">先前填入的資料</translation>
 <translation id="1407135791313364759">全部開啟</translation>
 <translation id="1408847409015257906">輕觸「隱私權和安全性」。</translation>
 <translation id="1411386976162024013">智慧鏡頭影像搜尋功能</translation>
 <translation id="1417474386970818917">登出並刪除</translation>
 <translation id="1426410128494586442">是</translation>
-<translation id="1429187656584513419">開啟「密碼」</translation>
 <translation id="1430915738399379752">列印</translation>
 <translation id="1433478348197382180">閱讀模式</translation>
 <translation id="1435271730600332883">開啟「自動填入和密碼」</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">你的帳戶是由家長管理。
 <ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">已變更</translation>
+<translation id="1481450969185702334">尋找並填入</translation>
 <translation id="1483493594462132177">傳送</translation>
 <translation id="1486096554574027028">搜尋密碼</translation>
 <translation id="1486593497476255523">「分頁群組」已完成！</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">為保護個人隱私，Chrome 不會將你的密碼自動填入這個欄位。</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 個網站 (已同步的裝置上還有其他網站)}other{# 個網站 (已同步的裝置上還有其他網站)}}</translation>
+<translation id="2865392654629180917">萬事皆可問，AI 幫你答</translation>
 <translation id="2870560284913253234">網站</translation>
 <translation id="2876369937070532032">當網站具有安全性風險時，Chrome 會將你造訪的部分網頁網址傳送給 Google</translation>
 <translation id="2883151425485251736">查看及編輯你在帳戶中設為隱藏的主題</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">追蹤價格</translation>
 <translation id="3038136505713492417">如要在這部裝置上使用密碼金鑰，請驗證身分</translation>
 <translation id="3039671569659952257">刪除資料夾</translation>
+<translation id="3050988301648974170">開啟密碼安全檢查</translation>
 <translation id="3053332585453689122">將你造訪的網址和網頁內容、下載內容、擴充功能活動和系統資訊的少許樣本傳送給 Google 安全瀏覽服務，檢查是否有害。</translation>
 <translation id="3055102495753300780">資訊儲存空間</translation>
 <translation id="3059270601560379555">新搜尋</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">新增分頁群組......</translation>
 <translation id="3185760469172949183">「相機搜尋」已完成！</translation>
 <translation id="3186796054637504691">清除歷史記錄和網站資料</translation>
+<translation id="3190558889382726167">密碼已儲存</translation>
 <translation id="3190736958609431397">取消追蹤</translation>
 <translation id="3208260410153224535">貴機構已關閉登入功能。新的書籤、密碼等資訊只會儲存在這部裝置上。</translation>
 <translation id="3211969308836412674">取消固定網站</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">過去 15 分鐘</translation>
 <translation id="5020732097997376541">輕觸「智慧鏡頭」圖示</translation>
 <translation id="5021500396464456616">請與傳送這個連結的使用者聯絡</translation>
+<translation id="503173149952522259">按住即可固定這個分頁</translation>
 <translation id="5039804452771397117">允許</translation>
 <translation id="5050042263972837708">群組名稱</translation>
 <translation id="5050810143224996149">分享密碼</translation>
@@ -2427,6 +2432,7 @@
 <translation id="9013605037177245304">開啟通知</translation>
 <translation id="9029650858822697271">系統已將你登出</translation>
 <translation id="9032405509996909363">確認刪除瀏覽資料</translation>
+<translation id="9035699147763101514">採用 Gemini 個人化智慧服務。你可以前往「設定」管理偏好選項。</translation>
 <translation id="9039373489628511875">頻寬</translation>
 <translation id="9042893549633094279">隱私權和安全性</translation>
 <translation id="9055291197094969722">建立分頁群組來整理開啟的分頁，維持工作效率</translation>
@@ -2438,6 +2444,7 @@
 <translation id="9070824521421603770">系統會將你登出並關閉所有分頁</translation>
 <translation id="9072837124205571418">所有裝置上的分頁群組</translation>
 <translation id="9081058212938299310">要更新 <ph name="USERNAME" /> 的密碼嗎？</translation>
+<translation id="908365381820697818">現在可以在 Gmail 等服務中尋找及填入資訊了</translation>
 <translation id="9083838294503912307">想在所有裝置上保持同步並享有個人化體驗，請開啟同步功能。</translation>
 <translation id="9084367296493549256">{count,plural, =1{你有 {count} 組低強度密碼，可能導致安全性風險。請立即修正以確保安全。}other{你有 {count} 組低強度密碼，可能導致安全性風險。請立即修正以確保安全。}}</translation>
 <translation id="9084369964545892485">在群組中新增無痕分頁</translation>

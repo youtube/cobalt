@@ -499,6 +499,8 @@ crbug.com/436522727 [ amd-0x7340 debug graphite-enabled no-clang-coverage sonoma
 
 ## Apple M2 ##
 
+crbug.com/537387984 [ mac apple-angle-metal-renderer:-apple-m2 asan ] conformance/glsl/misc/shader-with-for-loop.html [ Slow ]
+
 ####################
 # Linux failures   #
 ####################
@@ -507,8 +509,6 @@ crbug.com/436522727 [ amd-0x7340 debug graphite-enabled no-clang-coverage sonoma
 
 crbug.com/1021428 [ linux angle-vulkan passthrough intel ] WebglExtension_WEBGL_depth_texture [ Failure ]  # finder:disable-unused Not tested in Chromium, but tested by Intel.
 
-## Linux / OpenGL / GTX 1660 ##
-crbug.com/498282277 [ linux angle-opengl nvidia-0x2184 ] conformance/textures/canvas/tex-2d-rgba-rgba-unsigned_byte.html [ RetryOnFailure ]
 
 
 ####################

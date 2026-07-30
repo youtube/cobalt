@@ -28,13 +28,18 @@ FlexGapAccumulator::FlexGapAccumulator(
       border_scrollbar_padding_block_start_(
           border_scrollbar_padding_block_start),
       border_scrollbar_padding_inline_start_(
-          border_scrollbar_padding_inline_start),
-      fragment_relative_line_indices_(num_lines, kNotFound) {
+          border_scrollbar_padding_inline_start) {
   gap_geometry_->ReserveCrossGaps(num_flex_items);
   if (num_lines > 0) {
     gap_geometry_->ReserveMainGaps(num_lines - 1);
   }
   gap_geometry_->ResizeFlexCrossGapSizes(num_lines);
+  if (is_column_) {
+    // Entries use global-line indexing. Pre-size the vector so lines skipped
+    // by this fragment still have entries, even when the fragment has no row
+    // gaps at all.
+    row_gap_break_token_data_.resize(num_lines);
+  }
 }
 
 const GapGeometry* FlexGapAccumulator::BuildGapGeometry(
@@ -73,30 +78,75 @@ const GapGeometry* FlexGapAccumulator::BuildGapGeometry(
                                          content_inline_end);
   gap_geometry_->SetContentBlockOffsets(content_block_start, content_block_end);
 
-  gap_geometry_->Finalize();
-
   return gap_geometry_;
 }
 
-void FlexGapAccumulator::BuildGapsForCurrentItem(const FlexLine& flex_line,
-                                                 wtf_size_t flex_line_index,
-                                                 LogicalOffset item_offset,
-                                                 bool is_first_item,
-                                                 bool is_last_item,
-                                                 bool is_last_line,
-                                                 LayoutUnit line_cross_start,
-                                                 LayoutUnit line_cross_end,
-                                                 LayoutUnit container_main_end,
-                                                 bool in_fragmentation) {
-  // Assign this line its fragment-relative index the first time we visit it.
-  if (fragment_relative_line_indices_[flex_line_index] == kNotFound) {
-    fragment_relative_line_indices_[flex_line_index] =
-        next_fragment_relative_line_index_++;
+Vector<FlexRowGapBreakTokenData>
+FlexGapAccumulator::FinalizeRowGapBreakTokenData() {
+  // Column flex needs every global-line entry, including skipped lines and
+  // fragments whose row-gap counts are all zero, so later fragments can resume
+  // each line's stitched pattern.
+  if (is_column_) {
+    return std::move(row_gap_break_token_data_);
   }
-  const wtf_size_t fragment_relative_line_index =
-      fragment_relative_line_indices_[flex_line_index];
 
+  // Row flex stores at most one entry. Discarding a faux main gap can leave
+  // that entry with a zero count; omit it because there is no row gap to
+  // stitch.
+  if (!row_gap_break_token_data_.empty() &&
+      row_gap_break_token_data_[0].row_gap_count == 0u) {
+    return {};
+  }
+
+  return std::move(row_gap_break_token_data_);
+}
+
+void FlexGapAccumulator::InitializeFragmentedColumnGapGeometry(
+    const FlexLineVector& flex_lines) {
+  CHECK(is_column_);
+  CHECK(!flex_lines.empty());
+  CHECK_EQ(gap_geometry_->MainGapCount(), 0u);
+
+  content_cross_start_ = flex_lines.front().cross_axis_offset;
+  const FlexLine& last_line = flex_lines.back();
+  content_cross_end_ = last_line.cross_axis_offset + last_line.line_cross_size;
+  content_main_start_ = border_scrollbar_padding_block_start_;
+
+  for (wtf_size_t i = 0; i + 1 < flex_lines.size(); ++i) {
+    const LayoutUnit preceding_end =
+        flex_lines[i].cross_axis_offset + flex_lines[i].line_cross_size;
+    PopulateMainGapForFirstItem(preceding_end);
+  }
+}
+
+void FlexGapAccumulator::BuildGapsForCurrentItem(
+    const FlexLineVector& flex_lines,
+    wtf_size_t global_line_index,
+    LogicalOffset item_offset,
+    bool is_first_item,
+    bool is_last_item,
+    bool is_last_line,
+    LayoutUnit line_cross_start,
+    LayoutUnit line_cross_end,
+    LayoutUnit container_main_end,
+    bool in_fragmentation) {
+  const FlexLine& flex_line = flex_lines[global_line_index];
+  const bool is_fragmented_column = is_column_ && in_fragmentation;
+
+  // Geometry uses global flex-line slots for column flex and
+  // fragment-relative slots for row flex.
+  wtf_size_t fragment_relative_line_index = global_line_index;
+  if (!is_column_) {
+    if (first_row_flex_line_index_ == kNotFound) {
+      first_row_flex_line_index_ = global_line_index;
+    }
+    fragment_relative_line_index -= first_row_flex_line_index_;
+  }
+
+  // In a fragmented column flex we populate the `MainGaps` ahead of time since
+  // they exist in every fragment, so we skip adding them here.
   const bool need_to_add_main_gap =
+      !is_fragmented_column &&
       (gap_geometry_->MainGapCount() == 0 ||
        gap_geometry_->MainGapCount() - 1 < fragment_relative_line_index) &&
       !is_last_line;
@@ -108,7 +158,7 @@ void FlexGapAccumulator::BuildGapsForCurrentItem(const FlexLine& flex_line,
     SetContentStartOffsetsIfNeeded(item_offset, line_cross_start);
   }
 
-  if (is_last_line && is_first_item) {
+  if (!is_fragmented_column && is_last_line && is_first_item) {
     content_cross_end_ = line_cross_end;
   }
 
@@ -117,6 +167,20 @@ void FlexGapAccumulator::BuildGapsForCurrentItem(const FlexLine& flex_line,
     // line, and nothing else. The last line does not have any `MainGap`s.
     SetContentStartOffsetsIfNeeded(item_offset, line_cross_start);
     PopulateMainGapForFirstItem(line_cross_end);
+    // For row flex containers, row gaps are the gaps between its flex lines. We
+    // store a single entry for the whole fragment and build up its
+    // `row_gap_count` as each main gap is placed.
+    if (!is_column_) {
+      // For row flex, count this main gap in the fragment's single entry. The
+      // first main gap creates the entry; later ones add to it.
+      if (row_gap_break_token_data_.empty()) {
+        row_gap_break_token_data_.push_back(
+            FlexRowGapBreakTokenData{global_line_index,
+                                     /*row_gap_count=*/1u});
+      } else {
+        IncrementRowGapCount(/*row_gap_data_index=*/0);
+      }
+    }
 
     if (is_last_item) {
       content_main_end_ = container_main_end;
@@ -145,9 +209,9 @@ void FlexGapAccumulator::BuildGapsForCurrentItem(const FlexLine& flex_line,
   const LayoutUnit main_intersection_offset =
       main_offset - (flex_line.effective_gap_between_items / 2);
 
-  PopulateCrossGapForCurrentItem(flex_line, fragment_relative_line_index,
-                                 is_first_line, is_last_line, single_line,
-                                 main_intersection_offset, line_cross_start);
+  PopulateCrossGapForCurrentItem(
+      flex_line, global_line_index, fragment_relative_line_index, is_first_line,
+      is_last_line, single_line, main_intersection_offset, line_cross_start);
 
   if (is_last_item) {
     const LayoutUnit last_gap_offset =
@@ -186,6 +250,7 @@ void FlexGapAccumulator::HandleCrossGapRangesForCurrentItem(
 
 void FlexGapAccumulator::PopulateCrossGapForCurrentItem(
     const FlexLine& flex_line,
+    wtf_size_t global_line_index,
     wtf_size_t fragment_relative_line_index,
     bool is_first_line,
     bool is_last_line,
@@ -230,8 +295,74 @@ void FlexGapAccumulator::PopulateCrossGapForCurrentItem(
       is_column_ ? main_intersection_offset : cross_intersection_offset);
   gap_geometry_->AddCrossGap(logical_offset, edge_state);
 
+  // For column flex containers, a line's cross gaps are its row gaps. We store
+  // one entry per flex line and build up each line's `row_gap_count` as its
+  // cross gaps are placed.
+  if (is_column_) {
+    IncrementRowGapCount(global_line_index);
+  }
+
   HandleCrossGapRangesForCurrentItem(fragment_relative_line_index,
                                      gap_geometry_->CrossGapCount() - 1);
+}
+
+void FlexGapAccumulator::IncrementRowGapCount(wtf_size_t row_gap_data_index) {
+  DCHECK_LT(row_gap_data_index, row_gap_break_token_data_.size());
+  ++row_gap_break_token_data_[row_gap_data_index].row_gap_count;
+}
+
+void FlexGapAccumulator::DecrementRowGapCount() {
+  CHECK(!is_column_);
+  if (gap_geometry_->MainGapCount() == 0 || row_gap_break_token_data_.empty()) {
+    return;
+  }
+
+  DCHECK_EQ(row_gap_break_token_data_.size(), 1u);
+  DCHECK_GT(row_gap_break_token_data_[0].row_gap_count, 0u);
+  --row_gap_break_token_data_[0].row_gap_count;
+}
+
+void FlexGapAccumulator::CalculateColumnFlexLineRowGapStart(
+    const FlexLineVector& flex_lines,
+    wtf_size_t global_line_index,
+    const FlexGapBreakTokenData* previous_gap_data) {
+  CHECK(is_column_);
+  DCHECK_LT(global_line_index, row_gap_break_token_data_.size());
+
+  // The very first line of the first fragment starts at 0, so no adjustment to
+  // the gap start offset is needed.
+  if (global_line_index == 0 && !previous_gap_data) {
+    CHECK_EQ(row_gap_break_token_data_[global_line_index].first_row_gap_index,
+             0u);
+    return;
+  }
+
+  wtf_size_t previous_start;
+  wtf_size_t previous_gap_count = 0;
+
+  // For the first fragment, we get the `previous_start` and
+  // `previous_gap_count` using the number of items in the previous flex line.
+  if (!previous_gap_data) {
+    const wtf_size_t num_items_in_previous_line =
+        flex_lines[global_line_index - 1].item_indices.size();
+    previous_start =
+        row_gap_break_token_data_[global_line_index - 1].first_row_gap_index;
+    if (num_items_in_previous_line > 1) {
+      previous_gap_count = num_items_in_previous_line - 1;
+    }
+  } else {
+    // For subsequent fragments, we get the `previous_start` and
+    // `previous_gap_count` from the previous fragment's row gaps info.
+    const Vector<FlexRowGapBreakTokenData>& previous_row_gap_data =
+        previous_gap_data->gap_data_for_rows;
+    DCHECK_LT(global_line_index, previous_row_gap_data.size());
+    previous_start =
+        previous_row_gap_data[global_line_index].first_row_gap_index;
+    previous_gap_count = previous_row_gap_data[global_line_index].row_gap_count;
+  }
+
+  row_gap_break_token_data_[global_line_index].first_row_gap_index =
+      previous_start + previous_gap_count;
 }
 
 void FlexGapAccumulator::FinalizeContentMainEndForColumnFlex(

@@ -4,19 +4,27 @@
 
 #include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
+#include "components/autofill/core/browser/field_type_utils.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
@@ -41,6 +49,29 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   if (out) {
     *out = std::string(message);
   }
+}
+
+AutofillClient::AutofillPolicyDataCategory GetPolicyCategory(
+    AtMemoryAction action) {
+  switch (action) {
+    case AtMemoryAction::kRetrievePaymentsForFilling:
+      return AutofillClient::AutofillPolicyDataCategory::kPayments;
+    case AtMemoryAction::kRetrieveContactInfoForFilling:
+      return AutofillClient::AutofillPolicyDataCategory::kContactInfo;
+    case AtMemoryAction::kRetrieveIdentityDocsForFilling:
+      return AutofillClient::AutofillPolicyDataCategory::kIdentityDocs;
+    case AtMemoryAction::kRetrieveTravelDataForFilling:
+      return AutofillClient::AutofillPolicyDataCategory::kTravel;
+    case AtMemoryAction::kRetrieveShoppingDataForFilling:
+      return AutofillClient::AutofillPolicyDataCategory::kShopping;
+    case AtMemoryAction::kTriggerSearchUI:
+    case AtMemoryAction::kShowAtMemoryInSettings:
+    case AtMemoryAction::kAllowCustomizeAtMemoryShortcut:
+    case AtMemoryAction::kShowIph:
+    case AtMemoryAction::kShowAutocompleteAtMemoryButton:
+      break;
+  }
+  NOTREACHED();
 }
 
 [[nodiscard]] bool IsPersonalContextEligible(
@@ -146,32 +177,6 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   return true;
 }
 
-// Returns whether enterprise policies allow AtMemory trigger.
-//
-// AtMemory is disabled for the Enterprise accounts and these are blocked in the
-// `PersonalContextService`. Additional checks are performed here to ensure
-// correct behavior for consumer accounts on enterprise devices.
-[[nodiscard]] bool SatisfiesEnterprisePolicies(const PrefService* pref_service,
-                                               std::string* debug_message) {
-  if (!pref_service) {
-    MaybeOutputReason(debug_message, "Prefs are not available.");
-    return false;
-  }
-
-  // TODO(crbug.com/521270638) Add a check for the AtMemory specific policy on
-  // top of the enterprise policy for Gemini.
-
-  const bool gemini_settings_allowed =
-      pref_service->GetInteger(optimization_guide::prefs::kGeminiSettings) ==
-      std::to_underlying(
-          optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled);
-  if (!gemini_settings_allowed) {
-    MaybeOutputReason(debug_message,
-                      "Disallowed by GeminiSettings enterprise policy.");
-  }
-  return gemini_settings_allowed;
-}
-
 // Returns true if AtMemory is supported for the user.
 //
 // Checks that AtMemory feature flags are enabled, At-Memory eligibility
@@ -206,6 +211,11 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
     case AtMemoryAction::kAllowCustomizeAtMemoryShortcut:
     case AtMemoryAction::kShowIph:
     case AtMemoryAction::kShowAutocompleteAtMemoryButton:
+    case AtMemoryAction::kRetrievePaymentsForFilling:
+    case AtMemoryAction::kRetrieveContactInfoForFilling:
+    case AtMemoryAction::kRetrieveIdentityDocsForFilling:
+    case AtMemoryAction::kRetrieveTravelDataForFilling:
+    case AtMemoryAction::kRetrieveShoppingDataForFilling:
       return IsPersonalContextToggleOn(pref_service, debug_message);
     case AtMemoryAction::kShowAtMemoryInSettings:
       return true;
@@ -217,6 +227,11 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   switch (action) {
     case AtMemoryAction::kShowAtMemoryInSettings:
     case AtMemoryAction::kAllowCustomizeAtMemoryShortcut:
+    case AtMemoryAction::kRetrievePaymentsForFilling:
+    case AtMemoryAction::kRetrieveContactInfoForFilling:
+    case AtMemoryAction::kRetrieveIdentityDocsForFilling:
+    case AtMemoryAction::kRetrieveTravelDataForFilling:
+    case AtMemoryAction::kRetrieveShoppingDataForFilling:
       return false;
     case AtMemoryAction::kTriggerSearchUI:
     case AtMemoryAction::kShowIph:
@@ -247,20 +262,103 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   return true;
 }
 
+std::optional<AtMemoryAction> MapCategoryToAtMemoryAction(
+    AutofillClient::AutofillPolicyDataCategory category) {
+  switch (category) {
+    case AutofillClient::AutofillPolicyDataCategory::kPayments:
+      return AtMemoryAction::kRetrievePaymentsForFilling;
+    case AutofillClient::AutofillPolicyDataCategory::kContactInfo:
+      return AtMemoryAction::kRetrieveContactInfoForFilling;
+    case AutofillClient::AutofillPolicyDataCategory::kIdentityDocs:
+      return AtMemoryAction::kRetrieveIdentityDocsForFilling;
+    case AutofillClient::AutofillPolicyDataCategory::kTravel:
+      return AtMemoryAction::kRetrieveTravelDataForFilling;
+    case AutofillClient::AutofillPolicyDataCategory::kShopping:
+      return AtMemoryAction::kRetrieveShoppingDataForFilling;
+  }
+  NOTREACHED();
+}
+
 }  // namespace
 
-bool MayPerformAtMemoryAction(AtMemoryAction action,
-                              const AutofillClient& client,
-                              base::optional_ref<const GURL> url,
-                              std::string* debug_message) {
-  return MayPerformAtMemoryAction(
+[[nodiscard]] bool IsRetrieveForFillingAction(AtMemoryAction action) {
+  switch (action) {
+    case AtMemoryAction::kRetrievePaymentsForFilling:
+    case AtMemoryAction::kRetrieveContactInfoForFilling:
+    case AtMemoryAction::kRetrieveIdentityDocsForFilling:
+    case AtMemoryAction::kRetrieveTravelDataForFilling:
+    case AtMemoryAction::kRetrieveShoppingDataForFilling:
+      return true;
+    case AtMemoryAction::kShowAtMemoryInSettings:
+    case AtMemoryAction::kAllowCustomizeAtMemoryShortcut:
+    case AtMemoryAction::kTriggerSearchUI:
+    case AtMemoryAction::kShowIph:
+    case AtMemoryAction::kShowAutocompleteAtMemoryButton:
+      return false;
+  }
+  NOTREACHED();
+}
+
+std::optional<AtMemoryAction> ToAtMemoryRetrieveForFillingAction(
+    MemoryDataType type) {
+  return ToAtMemoryDataType(type)
+      .and_then(&ToAutofillPolicyDataCategory)
+      .and_then(&MapCategoryToAtMemoryAction);
+}
+
+bool MayPerformAtMemoryAction(
+    AtMemoryAction action,
+    const AutofillClient& client,
+    base::optional_ref<const GURL> url,
+    base::optional_ref<const RetrieveForFillingParams> retrieve_params,
+    std::string* debug_message) {
+  if (IsRetrieveForFillingAction(action)) {
+    if (!retrieve_params.has_value()) {
+      DCHECK(false) << "retrieve_params must be provided for retrieve actions.";
+      return false;
+    }
+  } else {
+    DCHECK(!retrieve_params.has_value())
+        << "retrieve_params must not be provided for non-retrieve actions.";
+  }
+
+  if (retrieve_params.has_value()) {
+    if (retrieve_params->is_spii) {
+      bool reauth_ok = client.SupportsDeviceReauth() ||
+                       base::FeatureList::IsEnabled(
+                           features::debug::kAtMemoryNoDeviceReauthCheck);
+      if (!retrieve_params->is_context_secure || !reauth_ok) {
+        MaybeOutputReason(
+            debug_message,
+            "SPII data is not allowed in insecure contexts or when "
+            "device reauth is not supported.");
+        return false;
+      }
+    }
+
+    bool comes_from_autofill =
+        std::ranges::any_of(retrieve_params->sources, [](const auto& source) {
+          return source.type == MemoryEntrySourceType::kAutofill;
+        });
+    if (comes_from_autofill) {
+      AutofillClient::AutofillPolicyDataCategory category =
+          GetPolicyCategory(action);
+      const GURL& target_url =
+          url ? *url : client.GetLastCommittedPrimaryMainFrameURL();
+      if (client.IsAutofillTypeBlockedByPolicy(target_url, category)) {
+        return false;
+      }
+    }
+  }
+
+  return MayPerformAtMemoryActionBase(
       action, client.GetPersonalContextEligibilityService(),
       client.GetSubscriptionEligibilityService(), client.GetPrefs(),
       client.GetGoogleGroupsManager(),
       client.GetAutofillOptimizationGuideDecider(), url, debug_message);
 }
 
-bool MayPerformAtMemoryAction(
+bool MayPerformAtMemoryActionBase(
     AtMemoryAction action,
     personal_context::PersonalContextEligibilityService*
         personal_context_service,
@@ -275,12 +373,9 @@ bool MayPerformAtMemoryAction(
           features::debug::kAtMemorySkipEnablementChecks)) {
     return base::FeatureList::IsEnabled(features::kAutofillAtMemory);
   }
+
   if (!IsAtMemorySupported(personal_context_service,
                            subscription_eligibility_service, debug_message)) {
-    return false;
-  }
-
-  if (!SatisfiesEnterprisePolicies(pref_service, debug_message)) {
     return false;
   }
 

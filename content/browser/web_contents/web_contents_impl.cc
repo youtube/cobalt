@@ -5262,6 +5262,12 @@ blink::mojom::DisplayMode WebContentsImpl::GetDisplayMode() const {
                    : blink::mojom::DisplayMode::kBrowser;
 }
 
+blink::mojom::ApplicationContext WebContentsImpl::GetApplicationContext()
+    const {
+  return delegate_ ? delegate_->GetApplicationContext(this)
+                   : blink::mojom::ApplicationContext::kNone;
+}
+
 void WebContentsImpl::RequestToLockPointer(
     RenderWidgetHostImpl* render_widget_host,
     bool user_gesture,
@@ -5695,21 +5701,17 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   bool was_blocked = false;
   base::WeakPtr<WebContentsImpl> weak_new_contents =
       new_contents_impl->weak_factory_.GetWeakPtr();
+  base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
   WebContentsImpl* contents_to_load = new_contents_impl;
   if (delegate_) {
-    // Capture WeakPtrs before AddNewContents(), whose nested message loop on
-    // Windows can destroy `this` and/or `opener` re-entrantly.
-    base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
-    base::WeakPtr<RenderFrameHostImpl> weak_opener = opener->GetWeakPtr();
     WebContents* web_contents_navigated = delegate_->AddNewContents(
         this, std::move(new_contents), params.target_url, params.disposition,
         *params.features, has_user_gesture, &was_blocked);
 
-    if (!weak_this || !weak_opener) {
-      // `this` or `opener` may be deleted after AddNewContents() due to a
-      // nested message loop (e.g. the window hosting the opener is closed, or
-      // a subframe opener is detached during the nested loop). See
-      // crbug.com/527676561 and crbug.com/531415953.
+    if (!weak_this) {
+      // `this` may be deleted after AddNewContents() due to a nested message
+      // loop (e.g. the window hosting the opener is closed). See
+      // crbug.com/527676561.
       return nullptr;
     }
 
@@ -7997,9 +7999,18 @@ void WebContentsImpl::DraggableRegionsChanged(
   GetDelegate()->DraggableRegionsChanged(regions, this);
 }
 
-void WebContentsImpl::OnFirstContentfulPaintInPrimaryMainFrame() {
+void WebContentsImpl::OnFirstContentfulPaintInPrimaryMainFrame(
+    base::TimeTicks presentation_time) {
   observers_.NotifyObservers(
-      &WebContentsObserver::OnFirstContentfulPaintInPrimaryMainFrame);
+      &WebContentsObserver::OnFirstContentfulPaintInPrimaryMainFrame,
+      presentation_time);
+}
+
+void WebContentsImpl::OnLargestContentfulPaintInPrimaryMainFrame(
+    base::TimeTicks presentation_time) {
+  observers_.NotifyObservers(
+      &WebContentsObserver::OnLargestContentfulPaintInPrimaryMainFrame,
+      presentation_time);
 }
 
 gfx::NativeWindow WebContentsImpl::GetOwnerNativeWindow() {
@@ -10812,7 +10823,7 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
 
   GlobalDOMNodeId global_dom_node_id{frame->GetWeakDocumentPtr(),
                                      editable_dom_node_id};
-  FocusedNodeDetails details = {frame->has_focused_editable_element(),
+  FocusedNodeDetails details = {frame->focused_editable_level(),
                                 bounds_in_screen, focus_type,
                                 global_dom_node_id};
   BrowserAccessibilityStateImpl::GetInstance()->OnFocusChangedInPage(details);

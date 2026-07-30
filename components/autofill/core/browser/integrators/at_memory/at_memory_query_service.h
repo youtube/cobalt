@@ -14,7 +14,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/personal_context/core/context_memory_error.h"
 #include "components/personal_context/core/personal_context_types.h"
@@ -37,19 +37,25 @@ class AutofillDataProvider;
 // profile.
 class AtMemoryQueryService : public KeyedService {
  public:
+  // LINT.IfChange(SpiiRetrievalFailureReason)
   // Reasons for unmasking or authentication failure when retrieving PII.
+  //
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
   enum class SpiiRetrievalFailureReason {
     // There is no network connection.
-    kNoConnection,
+    kNoConnection = 0,
     // Biometric/screen-lock authentication failed or was cancelled.
-    kReauthFailed,
+    kReauthFailed = 1,
     // Another authentication request is already in progress.
-    kReauthInProgress,
+    kReauthInProgress = 2,
     // The request to the `PersonalContextService` failed.
-    kFetchFailed,
+    kFetchFailed = 3,
     // The server response could not be parsed.
-    kParseFailed
+    kParseFailed = 4,
+    kMaxValue = kParseFailed
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAtMemorySpiiRetrievalFailureReason)
 
   using SpiiRetrievalResult =
       base::expected<std::u16string, SpiiRetrievalFailureReason>;
@@ -74,29 +80,25 @@ class AtMemoryQueryService : public KeyedService {
       std::u16string_view query,
       const GURL& url,
       std::u16string_view title,
-      base::RepeatingCallback<
-          void(accessibility_annotator::MemorySearchResults)> callback);
+      base::RepeatingCallback<void(MemorySearchResults)> callback);
 
   // Authenticates the user and then fetches the unmasked PII entities from the
   // server. Fails if an authentication request is already in progress.
   // `callback` is always called asynchronously. If successful, `callback` is
   // called with an unobfuscated value for `data_type`, otherwise an error
   // reason is provided.
-  // TODO(crbug.com/525385681): Use in `AtMemoryManager` before filling
-  // suggestions.
   virtual void AuthenticateAndFetchPiiEntity(
       const AutofillClient& client,
       const std::u16string& auth_message,
       std::u16string_view masked_value,
-      accessibility_annotator::MemoryDataType data_type,
-      base::span<const accessibility_annotator::EntryMetadata> metadata_list,
+      MemoryDataType data_type,
+      base::span<const EntryMetadata> metadata_list,
       FetchUnmaskedPiiEntitiesCallback callback);
 
  private:
   // Called when the PersonalContextService query returns.
   void OnPersonalContextRetrieved(
-      base::RepeatingCallback<
-          void(accessibility_annotator::MemorySearchResults)> callback,
+      base::RepeatingCallback<void(MemorySearchResults)> callback,
       personal_context::FetchContextResult result);
 
   // Called when the local data provider finishes retrieving local memory
@@ -104,22 +106,20 @@ class AtMemoryQueryService : public KeyedService {
   // ranks them with the remote results, deduplicates them, and reports the
   // final results via `callback`.
   void OnLocalDataRetrieved(
-      base::RepeatingCallback<
-          void(accessibility_annotator::MemorySearchResults)> callback,
-      std::vector<accessibility_annotator::MemorySearchResult> remote_results,
+      base::RepeatingCallback<void(MemorySearchResults)> callback,
+      std::vector<MemorySearchResult> remote_results,
       base::flat_set<std::u16string> filter_words,
       std::string server_request_id,
-      std::vector<accessibility_annotator::MemorySearchResult> local_results);
+      std::vector<MemorySearchResult> local_results);
 
   // Called when the authentication is completed.
   // Performs the final PII unmasking request to `PersonalContextService` if
   // authentication succeeded.
-  void OnAuthenticationCompleted(
-      std::u16string masked_value,
-      accessibility_annotator::MemoryDataType data_type,
-      std::vector<accessibility_annotator::EntryMetadata> metadata_list,
-      FetchUnmaskedPiiEntitiesCallback callback,
-      bool auth_succeeded);
+  void OnAuthenticationCompleted(std::u16string masked_value,
+                                 MemoryDataType data_type,
+                                 std::vector<EntryMetadata> metadata_list,
+                                 FetchUnmaskedPiiEntitiesCallback callback,
+                                 bool auth_succeeded);
 
   std::unique_ptr<AutofillDataProvider> data_provider_;
   raw_ptr<personal_context::PersonalContextService> personal_context_service_ =

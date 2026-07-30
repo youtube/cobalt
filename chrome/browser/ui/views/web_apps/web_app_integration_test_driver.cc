@@ -75,7 +75,6 @@
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
-#include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_action/test_support/page_action_test_support.h"
@@ -4931,7 +4930,7 @@ void WebAppIntegrationTestDriver::LaunchAppStartupBrowserCreator(
   command_line.AppendSwitchASCII(switches::kTestType, "browser");
   ASSERT_TRUE(StartupBrowserCreator().ProcessCmdLineImpl(
       command_line, base::FilePath(), chrome::startup::IsProcessStartup::kNo,
-      {browser()->profile(), StartupProfileMode::kBrowserWindow}, {}));
+      {browser()->GetProfile(), StartupProfileMode::kBrowserWindow}, {}));
   provider()->command_manager().AwaitAllCommandsCompleteForTesting();
 }
 
@@ -5160,7 +5159,7 @@ const net::EmbeddedTestServer* WebAppIntegrationTest::EmbeddedTestServer()
 }
 
 Profile* WebAppIntegrationTest::GetDefaultProfile() {
-  return browser()->profile();
+  return browser()->GetProfile();
 }
 
 bool WebAppIntegrationTest::IsSyncTest() {

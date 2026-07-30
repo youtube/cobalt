@@ -124,7 +124,7 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
       profile_, base::BindRepeating(&GlicInstanceCoordinatorImpl::OnTabEvent,
                                     weak_ptr_factory_.GetWeakPtr()));
   hotkey_manager_ =
-      std::make_unique<InstanceIndependentHotkeyManager>(this, profile_);
+      std::make_unique<InstanceIndependentHotkeyManager>(this, profile_, enabling);
   onboarding_tracker_ =
       std::make_unique<GlicOnboardingTracker>(profile_, enabling);
   metrics_.StartPeriodicMemoryMetricsRecording();
@@ -413,27 +413,6 @@ GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceWithGlicWebContents(
   return nullptr;
 }
 
-void GlicInstanceCoordinatorImpl::CreateNewConversationForTabs(
-    const std::vector<tabs::TabInterface*>& tabs) {
-  if (tabs.empty()) {
-    return;
-  }
-
-  GlicInstanceImpl* instance = CreateGlicInstance();
-  ShowInstanceForTabs(instance, tabs, GlicPinTrigger::kContextMenu);
-}
-
-void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
-    const std::vector<tabs::TabInterface*>& tabs,
-    const InstanceId& instance_id) {
-  auto* target_instance = GetInstanceImplFor(instance_id);
-
-  if (!target_instance) {
-    return;
-  }
-
-  ShowInstanceForTabs(target_instance, tabs, GlicPinTrigger::kContextMenu);
-}
 
 void GlicInstanceCoordinatorImpl::Toggle(BrowserWindowInterface* browser,
                                          bool prevent_close,
@@ -969,25 +948,6 @@ GlicInstanceCoordinatorImpl::CreateInstanceImpl(std::optional<InstanceId> id) {
       contextual_cueing_service_);
 }
 
-void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
-    GlicInstanceImpl* instance,
-    const std::vector<tabs::TabInterface*>& tabs,
-    GlicPinTrigger pin_trigger) {
-  for (tabs::TabInterface* tab : tabs) {
-    SidePanelShowOptions side_panel_options(*tab);
-    side_panel_options.pin_trigger = pin_trigger;
-    ShowOptions show_opts(side_panel_options);
-    show_opts.focus_on_show =
-        IsActive(tab->GetBrowserWindowInterface()) && tab->IsActivated();
-    if (pin_trigger == GlicPinTrigger::kContextMenu) {
-      // Explicitly pin the tabs for the context menu trigger.
-      instance->GetSharingManagerInternal().PinTabs({tab->GetHandle()},
-                                                    pin_trigger);
-      show_opts.invocation_source = mojom::InvocationSource::kSharedTab;
-    }
-    instance->Show(show_opts);
-  }
-}
 
 GlicInstanceImpl*
 GlicInstanceCoordinatorImpl::GetOrCreateInstanceImplForFloaty() {
@@ -1037,14 +997,8 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
     return;
   }
 
-  GlicInstanceImpl* instance = nullptr;
+  GlicInstanceImpl* instance = GetOrCreateGlicInstanceImplForTab(tab);
 
-  if (source == glic::mojom::InvocationSource::kSharedImage) {
-    // kSharedImage currently requires a new instance.
-    instance = CreateGlicInstance();
-  } else {
-    instance = GetOrCreateGlicInstanceImplForTab(tab);
-  }
   // If the tab is already bound, then it already has a pin trigger and this pin
   // trigger will not be used. If it's not already bound, then we know it's a
   // newly created instance, so we provide the instance creation trigger.

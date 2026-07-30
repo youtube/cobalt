@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Siz <ph name="USER_NAME" /> nomidan kirdingiz. <ph name="USER_EMAIL" />. Hisob menyusini ochish.</translation>
 <translation id="1397144142234474689">Tarixni yopish</translation>
 <translation id="1399268420835656394">Agar bola boʻlmasangiz, bu qurilmadagi Apple hisobida belgilangan yoshni tekshiring. <ph name="BEGIN_LINK" />Batafsil<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Avval kiritilgan</translation>
 <translation id="1407135791313364759">Barchasini ochish</translation>
 <translation id="1408847409015257906">“Maxfiylik va xavfsizlik” ustiga bosing.</translation>
 <translation id="1411386976162024013">Lens orqali vizual qidiruv</translation>
 <translation id="1417474386970818917">Hisobdan chiqish va oʻchirish</translation>
 <translation id="1426410128494586442">Ha</translation>
-<translation id="1429187656584513419">Parollarni oching</translation>
 <translation id="1430915738399379752">Chop etish</translation>
 <translation id="1433478348197382180">Oʻqish rejimi</translation>
 <translation id="1435271730600332883">Avtomatik kiritish va parollarni ochish</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Hisobingiz ota-onangiz boshqaruvida.
 <ph name="BEGIN_LINK" />Batafsil<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Oʻzgardi</translation>
+<translation id="1481450969185702334">Topish va kiritish</translation>
 <translation id="1483493594462132177">Yuborish</translation>
 <translation id="1486096554574027028">Parollarni qidirish</translation>
 <translation id="1486593497476255523">Varaqlarni guruhlash bajarildi!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Maxfiyligingizni muhofaza qilish uchun Chrome parolingizni bu maydonga kiritmaydi.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 ta sayt (qolgani sinxronlangan qurilmalarda)}other{# ta sayt (qolgani sinxronlangan qurilmalarda)}}</translation>
+<translation id="2865392654629180917">Istalgan narsani soʻrang va AI imkoniyatli javoblar oling</translation>
 <translation id="2870560284913253234">Sayt</translation>
 <translation id="2876369937070532032">Xavfli vaziyatlarda siz tashrif buyurgan ayrim URL manzillarni Google serverlariga yuboradi</translation>
 <translation id="2883151425485251736">Hisobingizdan yashirilgan mavzularni koʻrish va tahrirlash</translation>
@@ -660,6 +662,7 @@
 <translation id="3183362380688692618">Yangi varaqlar guruhi...</translation>
 <translation id="3185760469172949183">Kamera orqali qidiruv bajarildi!</translation>
 <translation id="3186796054637504691">Tarix va sayt maʼlumotlarini tozalash</translation>
+<translation id="3190558889382726167">Parol saqlandi</translation>
 <translation id="3190736958609431397">Kuzatilmasin</translation>
 <translation id="3208260410153224535">Hisobga kirish tashkilotingiz tomonidan faolsizlantirilgan. Yangi bukmarklar, parollar va boshqalar faqat shu qurilmada saqlanadi.</translation>
 <translation id="3211969308836412674">Saytni yechib olish</translation>
@@ -1194,6 +1197,7 @@
 <translation id="5017529052065664584">Oxirgi 15 daqiqa</translation>
 <translation id="5020732097997376541">"Lens belgisi" ustiga bosing</translation>
 <translation id="5021500396464456616">Bu havolani yuborgan shaxsga murojaat qiling</translation>
+<translation id="503173149952522259">Bu varaqni mahkamlash uchun ustiga bosib turing</translation>
 <translation id="5039804452771397117">Ruxsat berish</translation>
 <translation id="5050042263972837708">Guruh nomi</translation>
 <translation id="5050810143224996149">Parolni ulashish</translation>
@@ -2307,6 +2311,7 @@ Kompyuterda davom etish uchun <ph name="OTHER_EMAIL" /> hisobiga almashtiring. B
 <translation id="8643403533759285912">Guruhni olib tashlash</translation>
 <translation id="8647280737650867362">Narxni kuzatish imkonsiz.</translation>
 <translation id="8654802032646794042">Bekor qilish</translation>
+<translation id="8655861111558401309">“Brauzer maʼlumotlarini oʻchirish” bandini tanlang</translation>
 <translation id="8659875081143553823">Kutib turing</translation>
 <translation id="8660600697590740984">Lens rasmdan nusxa oldi</translation>
 <translation id="866266761389616183">Ana xolos!</translation>

@@ -95,6 +95,7 @@ constexpr CGFloat kFakeboxMinimumFontScaleFactor = 0.57;
 // The constants for the constraints affecting the end button; either Lens or
 // Voice Search, depending on if Lens is enabled.
 constexpr CGFloat kEndButtonFakeboxTrailingSpace = 13.0;
+constexpr CGFloat kEndButtonFakeboxIPadTrailingSpace = 18.0;
 constexpr CGFloat kEndButtonNormalSizeFakeboxWithBadgeTrailingSpace = 7.0;
 constexpr CGFloat kEndButtonOmniboxTrailingSpace = 7.0;
 
@@ -108,6 +109,7 @@ constexpr CGFloat kHintLabelOmniboxLeadingSpaceWithIcon = 42.0;
 constexpr CGFloat kHintLabelOmniboxLeadingSpaceWithWithPlus = 52.0;
 
 // The constants for the search engine image.
+constexpr CGFloat kFakeboxIPadExtraLeadingSpace = 5.0;
 constexpr CGFloat kFakeboxImageLeadingSpace = 13.0;
 constexpr CGFloat kFakeboxPlusLeadingSpace = 18.0;
 constexpr CGFloat kOmniboxImageLeadingSpace = 22.0;
@@ -647,6 +649,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 - (CGFloat)fakeboxLeadingSpace {
   if ([self shouldShowPlusButton]) {
     return kFakeboxPlusLeadingSpace;
+  } else if (CanShowTabStrip(self) || !IsSplitToolbarMode(self)) {
+    return kFakeboxImageLeadingSpace + kFakeboxIPadExtraLeadingSpace;
   } else {
     return kFakeboxImageLeadingSpace;
   }
@@ -1039,8 +1043,8 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   UIButtonConfiguration* configuration =
       [UIButtonConfiguration plainButtonConfiguration];
 
-  UIImage* icon = DefaultSymbolTemplateWithPointSize(
-      kPencilSymbol, ntp_home::kNTPMenuButtonIconSize);
+  UIImage* icon = SymbolTemplateWithPointSize(SymbolPencil,
+                                              ntp_home::kNTPMenuButtonIconSize);
   configuration.image = icon;
   configuration.background.cornerRadius = ntp_home::kNTPMenuButtonCornerRadius;
   customizationMenuButton.configuration = configuration;
@@ -1194,7 +1198,6 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   if (IsSplitToolbarMode(self)) {
     [self resetSplitToolbarResizing];
   }
-  [self.delegate didChangeOmniboxPosition:self];
 }
 
 - (void)setVoiceSearchIsEnabled:(BOOL)voiceSearchIsEnabled {
@@ -1357,7 +1360,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   self.plusButton.accessibilityLabel = l10n_util::GetNSString(
       IDS_IOS_COMPOSEBOX_ADD_ATTACHMENT_BUTTON_ACCESSIBILITY_LABEL);
   [self.plusButton
-      setImage:DefaultSymbolWithPointSize(kPlusSymbol, kSymbolActionPointSize)
+      setImage:SymbolWithPointSize(SymbolPlus, kSymbolActionPointSize)
       forState:UIControlStateNormal];
   [self.plusButton addTarget:self.NTPShortcutsHandler
                       action:@selector(openMultimodalActionsMenu)
@@ -1643,6 +1646,13 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
   if (_useNewBadgeForLensButton && !IsAimEnabledInNtp()) {
     return kEndButtonNormalSizeFakeboxWithBadgeTrailingSpace;
   }
+
+  // Adjust the iPad voice button spacing to mirror the leading padding when no
+  // other buttons are present.
+  BOOL isSplitToolbarMode = IsSplitToolbarMode(self);
+  if (!isSplitToolbarMode) {
+    return kEndButtonFakeboxIPadTrailingSpace;
+  }
   // Common trailing space.
   return kEndButtonFakeboxTrailingSpace;
 }
@@ -1694,6 +1704,9 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 - (CGFloat)hintLabelFakeboxLeadingSpace {
   if ([self shouldShowPlusButton]) {
     return kHintLabelFakeboxLeadingSpaceWithPlus;
+  } else if (CanShowTabStrip(self) || !IsSplitToolbarMode(self)) {
+    return kHintLabelFakeboxLeadingSpaceWithIcon +
+           kFakeboxIPadExtraLeadingSpace;
   } else {
     return kHintLabelFakeboxLeadingSpaceWithIcon;
   }

@@ -20,7 +20,6 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/omnibox_pref_names.h"
 #include "components/search/search.h"
-#include "components/search_engines/ai_mode_button_config.h"
 #include "components/search_engines/ai_mode_button_service.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -31,15 +30,16 @@ namespace omnibox {
 
 namespace {
 
-const ai_mode_button_config::AiModeButtonConfig* GetAiModeConfig(
-    LocationBar& location_bar) {
+constexpr int kAimHintImpressionLimitTotal = 15;
+constexpr int kAimHintImpressionLimitDaily = 3;
+
+const AiModeButtonUiConfig* GetAiModeUiConfig(LocationBar& location_bar) {
   auto* service =
       AiModeButtonServiceFactory::GetForProfile(location_bar.GetProfile());
   return service ? service->GetCurrentConfig() : nullptr;
 }
 
-std::u16string AimPlaceholderText(
-    const ai_mode_button_config::AiModeButtonConfig& config) {
+std::u16string AimPlaceholderText(const AiModeButtonUiConfig& config) {
   // Prepends a unicode character to represent the tab key.
   const std::u16string kTabChar = u"\u21E5";
   return base::StrCat({kTabChar, u" ", config.placeholder_text});
@@ -66,7 +66,7 @@ void ComputePlaceholderText(
     // placeholder text to suggest tabbing into AI Mode. Note, even if the AI
     // placeholder text is installed, it will only be visible if
     // `ShouldShowPlaceholderText()` is also true.
-    auto* config = GetAiModeConfig(*location_bar);
+    auto* config = GetAiModeUiConfig(*location_bar);
     CHECK(config);
     out_placeholder_text = AimPlaceholderText(*config);
     // Override the AIM accessibility placeholder text, so that the tab icon is
@@ -166,9 +166,6 @@ bool AreAimHintImpressionLimitsReached(LocationBar* location_bar,
     return false;
   }
 
-  constexpr int kAimHintImpressionLimitTotal = 15;
-  constexpr int kAimHintImpressionLimitDaily = 3;
-
   PrefService* prefs = location_bar->GetProfile()->GetPrefs();
 
   // Check total impressions.
@@ -208,14 +205,14 @@ bool ShouldInstallAimPlaceholderText(LocationBar* location_bar) {
          location_bar->GetOmniboxController()
              ->edit_model()
              ->is_caret_visible() &&
-         GetAiModeConfig(*location_bar);
+         GetAiModeUiConfig(*location_bar);
 }
 
 bool IsAimPlaceholderText(LocationBar* location_bar, std::u16string_view text) {
   if (!location_bar) {
     return false;
   }
-  auto* config = GetAiModeConfig(*location_bar);
+  auto* config = GetAiModeUiConfig(*location_bar);
   return config && text == AimPlaceholderText(*config);
 }
 

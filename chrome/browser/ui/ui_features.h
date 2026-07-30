@@ -198,6 +198,8 @@ BASE_DECLARE_FEATURE(kCollapseTabGroupDuringDrag);
 BASE_DECLARE_FEATURE(kTabGroupMenuMoreEntryPoints);
 bool IsTabGroupMenuMoreEntryPointsEnabled();
 
+BASE_DECLARE_FEATURE(kNewTabButtonContextMenu);
+
 BASE_DECLARE_FEATURE(kTabGroupHoverCards);
 bool IsTabGroupHoverCardsEnabled();
 
@@ -269,6 +271,9 @@ BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kEnterpriseReleaseNotes);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
+// Enables WebUI migration for chrome://management on Android Mobile.
+BASE_DECLARE_FEATURE(kMigrateManagementPageToWebUIOnMobile);
+
 
 // Cocoa to views migration.
 #if BUILDFLAG(IS_MAC)
@@ -290,6 +295,10 @@ BASE_DECLARE_FEATURE(kEnableManagementPromotionBanner);
 // LensOverlayHomeworkPageActionController.
 BASE_DECLARE_FEATURE(kLensOverlayHomeworkPageActionFocusOptimization);
 
+// Enables the anchored message bubble to close when deactivated (e.g. when
+// losing focus).
+BASE_DECLARE_FEATURE(kPageActionAnchoredMessageEasyDismiss);
+
 // Controls whether the new page actions framework should be displaying page
 // actions.
 BASE_DECLARE_FEATURE(kPageActionsMigration);
@@ -303,9 +312,6 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 
 // The following feature params indicate whether individual features should
 // have their page actions controlled using the new framework.
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationVirtualCard);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationBookmarkStar);
 
 BASE_DECLARE_FEATURE(kPageActionsPrioritySelector);
 
@@ -320,10 +326,6 @@ BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);
 
 // If enabled, the "Tabs from other devices" side panel will be available.
 BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanel);
-
-// If enabled, Stable-channel instances of Chrome will be hidden from the "Tabs
-// from other devices" side panel.
-BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanelExcludeStableChannel);
 
 // If enabled, the "Tabs from other devices" toolbar button will be pinned by
 // default.
@@ -354,13 +356,21 @@ bool IsWebUISplitTabsButtonEnabled();
 BASE_DECLARE_FEATURE(kWebUIAvatarButton);
 bool IsWebUIAvatarButtonEnabled();
 
+// Controls whether the WebUI version of the Media Button is used.
+BASE_DECLARE_FEATURE(kWebUIMediaButton);
+bool IsWebUIMediaButtonEnabled();
+
 bool IsWebUIPerformanceInterventionButtonEnabled();
 
 bool IsWebUIAppMenuButtonEnabled();
 
 bool IsWebUILocationBarEnabled();
 
+// Returns true if any of the toolbar control is being handled by WebUI.
 bool IsWebUIToolbarEnabled();
+
+// Returns true if all toolbar controls are being handled by WebUI.
+bool IsWebUIToolbarFullyEnabled();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether to show a toast for Chrome non milestone update.
@@ -383,8 +393,6 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kAiOverlayDialogMockJsonPath);
 
 BASE_DECLARE_FEATURE(kTabGroupsFocusing);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingPinnedTabs);
-BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingAutoClose);
-BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingDefaultToFocused);
 
 BASE_DECLARE_FEATURE(kVerticalTabsGrabHandleRemoval);
 BASE_DECLARE_FEATURE_PARAM(bool, kVerticalTabsGrabHandleRemovalAlways);

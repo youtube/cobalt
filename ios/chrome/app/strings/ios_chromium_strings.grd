@@ -234,9 +234,6 @@
       <message name="IDS_IOS_BEST_FEATURES_NEVER_FORGET_PASSWORDS_SECOND_STEP" desc="The second step to set up save and autofill passwords">
         Chromium will offer to save your password
       </message>
-      <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_4_SELECT" desc="The fourth step to enable Passwords in other apps. OS must be below iOS 18.">
-        Select Chromium
-      </message>
       <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_4_TOGGLE" desc="The fourth step to enable Passwords in other apps. OS must be iOS 18 or later.">
         Toggle Chromium
       </message>
@@ -281,6 +278,9 @@
       </message>
       <message name="IDS_IOS_CREDENTIAL_EXCHANGE_EXPORTER_DISPLAY_NAME" desc="Display name of Password Manager used in credential export feature. [iOS only]">
         Password Manager
+      </message>
+      <message name="IDS_IOS_PASSWORD_SAVED_INFOBAR_MESSAGE" desc="Message displayed on an infobar confirming that the password was saved to the specified account. [iOS only]">
+        To Password Manager for <ph name="EMAIL">$1<ex>johndoe@gmail.com</ex></ph>
       </message>
       <message name="IDS_IOS_CREDENTIAL_EXCHANGE_IMPORT_DISCLAIMER" desc="The bottom text displayed on Credential Exchange import screen to declare that the data will be saved to the user's password manager. [iOS only]">
         Your data will be saved to Password Manager for <ph name="USER_EMAIL">$1<ex>elisa.g.beckett@gmail.com</ex></ph>

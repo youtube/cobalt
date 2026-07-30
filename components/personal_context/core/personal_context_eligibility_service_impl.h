@@ -42,6 +42,8 @@ class PersonalContextEligibilityServiceImpl
   void RemoveObserver(
       PersonalContextEligibilityService::Observer* observer) override;
   PersonalContextEligibilityState GetEligibilityState() override;
+  std::optional<PersonalContextNonEligibilityReason> GetNonEligibilityReason()
+      const override;
 
   // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(
@@ -49,8 +51,10 @@ class PersonalContextEligibilityServiceImpl
   void OnIdentityManagerShutdown(
       signin::IdentityManager* identity_manager) override;
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
+
   // account_settings::AccountSettingService::Observer:
   void OnAccountSettingDataUpdated(const std::string& setting_name) override;
+  void OnAccountSettingsLoaded() override;
 
  private:
   friend class PersonalContextEligibilityServiceImplTestApi;

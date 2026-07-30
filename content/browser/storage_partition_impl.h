@@ -87,7 +87,6 @@ namespace indexed_db {
 class IndexedDBControlWrapper;
 }
 
-class AggregationService;
 class BackgroundFetchContext;
 class BlobRegistryWrapper;
 class BluetoothAllowedDevicesMap;
@@ -107,7 +106,6 @@ class FileSystemAccessManagerImpl;
 class FontAccessManager;
 class GeneratedCodeCacheContext;
 class HostZoomLevelContext;
-class InterestGroupManagerImpl;
 class PaymentAppContextImpl;
 class PushMessagingContext;
 class QuotaContext;
@@ -151,8 +149,6 @@ class CONTENT_EXPORT StoragePartitionImpl
       BackgroundSyncContextImpl* background_sync_context);
   void OverrideSharedWorkerServiceForTesting(
       std::unique_ptr<SharedWorkerServiceImpl> shared_worker_service);
-  void OverrideAggregationServiceForTesting(
-      std::unique_ptr<AggregationService> aggregation_service);
   void OverrideDeviceBoundSessionManagerForTesting(
       std::unique_ptr<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager);
@@ -200,7 +196,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   HostZoomLevelContext* GetHostZoomLevelContext() override;
   ZoomLevelDelegate* GetZoomLevelDelegate() override;
   PlatformNotificationContextImpl* GetPlatformNotificationContext() override;
-  InterestGroupManager* GetInterestGroupManager() override;
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProvider() override;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -275,7 +270,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   void SetFontAccessManagerForTesting(
       std::unique_ptr<FontAccessManager> font_access_manager);
   const std::string& GetPartitionDomain() const;
-  AggregationService* GetAggregationService();
   FontAccessManager* GetFontAccessManager();
 
   // blink::mojom::DomStorage interface.
@@ -374,9 +368,6 @@ class CONTENT_EXPORT StoragePartitionImpl
           methods_with_options,
       const std::optional<std::string>& with_lock,
       OnSharedStorageHeaderReceivedCallback callback) override;
-  void OnAdAuctionEventRecordHeaderReceived(
-      network::AdAuctionEventRecord event_record,
-      const std::optional<url::Origin>& top_frame_origin) override;
 
   // performance_scenarios::MatchingScenarioObserver overrides:
   void OnScenarioMatchChanged(performance_scenarios::ScenarioScope scope,
@@ -539,55 +530,9 @@ class CONTENT_EXPORT StoragePartitionImpl
     kDeviceBoundSessionContext,
   };
 
- private:
-  class DataDeletionHelper;
-  class ServiceWorkerCookieAccessObserver;
-  class ServiceWorkerTrustTokenAccessObserver;
-  class ServiceWorkerSharedDictionaryAccessObserver;
-  class ServiceWorkerDeviceBoundSessionAccessObserver;
-  struct NetworkContextOwner;
-
-  friend class BackgroundSyncManagerTest;
-  friend class BackgroundSyncServiceImplTestHarness;
-  friend class CookieStoreManagerTest;
-  friend class PaymentAppContentUnitTestBase;
-  friend class ServiceWorkerRegistrationTest;
-  friend class ServiceWorkerUpdateJobTest;
-  friend class StoragePartitionImplMap;
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionShaderClearTest, ClearShaderCache);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForeverBoth);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForeverOnlyTemporary);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForeverOnlyPersistent);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForeverNeither);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForeverSpecificOrigin);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForLastHour);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedDataForLastWeek);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedUnprotectedOrigins);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedProtectedSpecificOrigin);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedProtectedOrigins);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveQuotaManagedIgnoreDevTools);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest, RemoveCookieForever);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest, RemoveCookieLastHour);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveCookieWithDeleteInfo);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveUnprotectedLocalStorageForever);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveProtectedLocalStorageForever);
-  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
-                           RemoveLocalStorageForLastWeek);
-
+  // Public so that free helper functions in the anonymous namespace of
+  // storage_partition_impl.cc (e.g. ResolveLocalNetworkAccess) can reference
+  // it.
   class URLLoaderNetworkContext {
    public:
     struct NavigationRequestContext {
@@ -670,6 +615,55 @@ class CONTENT_EXPORT StoragePartitionImpl
 
     Context context_;
   };
+
+ private:
+  class DataDeletionHelper;
+  class ServiceWorkerCookieAccessObserver;
+  class ServiceWorkerTrustTokenAccessObserver;
+  class ServiceWorkerSharedDictionaryAccessObserver;
+  class ServiceWorkerDeviceBoundSessionAccessObserver;
+  struct NetworkContextOwner;
+
+  friend class BackgroundSyncManagerTest;
+  friend class BackgroundSyncServiceImplTestHarness;
+  friend class CookieStoreManagerTest;
+  friend class PaymentAppContentUnitTestBase;
+  friend class ServiceWorkerRegistrationTest;
+  friend class ServiceWorkerUpdateJobTest;
+  friend class StoragePartitionImplMap;
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionShaderClearTest, ClearShaderCache);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForeverBoth);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForeverOnlyTemporary);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForeverOnlyPersistent);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForeverNeither);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForeverSpecificOrigin);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForLastHour);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedDataForLastWeek);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedUnprotectedOrigins);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedProtectedSpecificOrigin);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedProtectedOrigins);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveQuotaManagedIgnoreDevTools);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest, RemoveCookieForever);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest, RemoveCookieLastHour);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveCookieWithDeleteInfo);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveUnprotectedLocalStorageForever);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveProtectedLocalStorageForever);
+  FRIEND_TEST_ALL_PREFIXES(StoragePartitionImplTest,
+                           RemoveLocalStorageForLastWeek);
 
   // `relative_partition_path` is the relative path under `profile_path` to the
   // StoragePartition's on-disk-storage.
@@ -806,10 +800,8 @@ class CONTENT_EXPORT StoragePartitionImpl
       proto_database_provider_;
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
   std::unique_ptr<FontAccessManager> font_access_manager_;
-  std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
-  std::unique_ptr<AggregationService> aggregation_service_;
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)

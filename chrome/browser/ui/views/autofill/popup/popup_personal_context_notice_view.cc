@@ -9,7 +9,9 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
+#include "cc/paint/paint_flags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -19,14 +21,21 @@
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
+#include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/outsets_f.h"
+#include "ui/gfx/geometry/rect_f.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
@@ -54,14 +63,71 @@ constexpr int kRowVerticalMargin = 12;
 constexpr int kRowHorizontalMargin = 12;
 constexpr int kMinimumWidth = 320;
 
+// A border for link fragments that renders a 1px solid focus border without
+// adding insets to the view content bounds. Setting non-zero insets on
+// `views::Link` child views of `views::StyledLabel` reduces the content bounds
+// width, causing `views::Label` to elide the link text.
+class LinkFocusBorder : public views::Border {
+ public:
+  explicit LinkFocusBorder(bool is_focused) : is_focused_(is_focused) {
+    SetColor(is_focused ? ui::kColorFocusableBorderFocused
+                        : ui::ColorVariant());
+  }
+
+  LinkFocusBorder(const LinkFocusBorder&) = delete;
+  LinkFocusBorder& operator=(const LinkFocusBorder&) = delete;
+  ~LinkFocusBorder() override = default;
+
+  void Paint(const views::View& view, gfx::Canvas* canvas) override {
+    if (is_focused_) {
+      cc::PaintFlags flags;
+      flags.setStrokeWidth(1.0f);
+      flags.setColor(color().ResolveToSkColor(view.GetColorProvider()));
+      flags.setStyle(cc::PaintFlags::kStroke_Style);
+      flags.setAntiAlias(true);
+
+      gfx::RectF bounds(view.GetLocalBounds());
+      bounds.Inset(0.5f);
+      canvas->DrawRoundRect(bounds, /*radius=*/2.0f, flags);
+    }
+  }
+
+  gfx::Insets GetInsets() const override { return gfx::Insets(); }
+  gfx::Size GetMinimumSize() const override { return gfx::Size(); }
+
+ private:
+  const bool is_focused_;
+};
+
+// TODO(b/524157152): Refactor AutofillPopupController to provide this.
+bool IsLoggingDisabledByPolicy(const AutofillPopupController* controller) {
+  if (!controller || !controller->GetWebContents()) {
+    return false;
+  }
+  Profile* profile = Profile::FromBrowserContext(
+      controller->GetWebContents()->GetBrowserContext());
+  if (!profile || !profile->GetPrefs()) {
+    return false;
+  }
+  const int policy_value = profile->GetPrefs()->GetInteger(
+      optimization_guide::prefs::kFindAndFillWithGeminiSettings);
+  return policy_value ==
+         std::to_underlying(
+             optimization_guide::model_execution::prefs::
+                 ModelExecutionEnterprisePolicyValue::kAllowWithoutLogging);
+}
+
 }  // namespace
 
 PopupPersonalContextNoticeView::PopupPersonalContextNoticeView(
     PopupRowView::AccessibilitySelectionDelegate& a11y_selection_delegate,
+    base::RepeatingCallback<void(const std::u16string&, bool)>
+        announce_callback,
     base::WeakPtr<AutofillPopupController> controller,
     int line_number)
     : controller_(std::move(controller)),
       line_number_(line_number),
+      announce_callback_(std::move(announce_callback)),
       a11y_selection_delegate_(a11y_selection_delegate) {
   auto* layout_manager = SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal, gfx::Insets(),
@@ -91,16 +157,18 @@ PopupPersonalContextNoticeView::PopupPersonalContextNoticeView(
       IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_OK_BUTTON);
 
   if (controller_) {
-    FillingProduct product = controller_->GetMainFillingProduct();
-    if (product == FillingProduct::kAtMemory) {
-      title_text = l10n_util::GetStringUTF16(
-          IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_TITLE);
-      context_text = l10n_util::GetStringUTF16(
-          IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT);
-      link_text = l10n_util::GetStringUTF16(
-          IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_LINK_TEXT);
-      button_text = l10n_util::GetStringUTF16(
-          IDS_AT_MEMORY_POPUP_PERSONAL_CONTEXT_NOTICE_OK_BUTTON);
+    if (controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+      base::UmaHistogramEnumeration(
+          "PersonalContext.AtMemory.NoticeInteractions",
+          PersonalContextAtMemoryNoticeInteractions::kShown);
+      if (!IsLoggingDisabledByPolicy(controller_.get())) {
+        context_text = l10n_util::GetStringUTF16(
+            IDS_AUTOFILL_POPUP_PERSONAL_CONTEXT_NOTICE_CONTEXT_WITH_LOGGING);
+      }
+    } else {
+      base::UmaHistogramEnumeration(
+          "PersonalContext.AmbientAutofill.NoticeInteractions",
+          PersonalContextAmbientAutofillNoticeInteractions::kShown);
     }
   }
 
@@ -188,6 +256,18 @@ bool PopupPersonalContextNoticeView::HandleKeyPressEvent(
     FocusLink();
     return true;
   }
+
+  if (event.windows_key_code == ui::VKEY_RETURN) {
+    if (is_link_focused_) {
+      OnSettingsLinkClicked();
+      return true;
+    }
+    if (is_button_focused_) {
+      OnGotItButtonClicked();
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -197,6 +277,15 @@ bool PopupPersonalContextNoticeView::IsSelectable() const {
 
 void PopupPersonalContextNoticeView::OnGotItButtonClicked() {
   if (controller_) {
+    if (controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+      base::UmaHistogramEnumeration(
+          "PersonalContext.AtMemory.NoticeInteractions",
+          PersonalContextAtMemoryNoticeInteractions::kAcknowledged);
+    } else {
+      base::UmaHistogramEnumeration(
+          "PersonalContext.AmbientAutofill.NoticeInteractions",
+          PersonalContextAmbientAutofillNoticeInteractions::kAcknowledged);
+    }
     // TODO(crbug.com/520201413): Add metrics to track the cases when
     // `RemoveSuggestion` returns false.
     controller_->RemoveSuggestion(
@@ -222,6 +311,12 @@ void PopupPersonalContextNoticeView::FocusLink() {
   if (description_) {
     is_link_focused_ = true;
     UpdateLinkBorders(/*focused=*/true);
+    a11y_selection_delegate_->NotifyAXSelection(*this);
+    GetViewAccessibility().NotifyEvent(ax::mojom::Event::kFocus, true);
+    GetViewAccessibility().SetIsSelected(true);
+    if (views::Link* link = GetSettingsLink()) {
+      announce_callback_.Run(std::u16string(link->GetText()), /*polite=*/false);
+    }
   }
 }
 
@@ -229,6 +324,7 @@ void PopupPersonalContextNoticeView::UnfocusLink() {
   if (description_) {
     is_link_focused_ = false;
     UpdateLinkBorders(/*focused=*/false);
+    GetViewAccessibility().SetIsSelected(false);
   }
 }
 
@@ -241,9 +337,7 @@ void PopupPersonalContextNoticeView::UpdateLinkBorders(bool focused) {
   // focus border styling is applied to or removed from the entire wrapped link.
   for (views::View* child : description_->children()) {
     if (views::IsViewClass<views::Link>(child)) {
-      child->SetBorder(focused ? views::CreateSolidBorder(
-                                     1, ui::kColorFocusableBorderFocused)
-                               : views::CreateEmptyBorder(1));
+      child->SetBorder(std::make_unique<LinkFocusBorder>(focused));
     }
   }
 }
@@ -255,6 +349,11 @@ void PopupPersonalContextNoticeView::FocusButton() {
     if (views::FocusRing* focus_ring = views::FocusRing::Get(got_it_button_)) {
       focus_ring->Refresh();
     }
+    a11y_selection_delegate_->NotifyAXSelection(*this);
+    GetViewAccessibility().NotifyEvent(ax::mojom::Event::kFocus, true);
+    GetViewAccessibility().SetIsSelected(true);
+    announce_callback_.Run(std::u16string(got_it_button_->GetText()),
+                           /*polite=*/false);
   }
 }
 
@@ -265,6 +364,7 @@ void PopupPersonalContextNoticeView::UnfocusButton() {
     if (views::FocusRing* focus_ring = views::FocusRing::Get(got_it_button_)) {
       focus_ring->Refresh();
     }
+    GetViewAccessibility().SetIsSelected(false);
   }
 }
 
@@ -284,14 +384,16 @@ void PopupPersonalContextNoticeView::Layout(views::View::PassKey pass_key) {
   LayoutSuperclass<PopupInteractiveRowView>(this);
 
   // Because `description_` (a `StyledLabel`) creates its link child lazily
-  // during layout, we must wait until after `LayoutSuperclass` runs to find
-  // the link and set its focus behavior to `NEVER`. This prevents clicking the
-  // link from stealing native focus from the search bar/input field.
+  // during layout, we must wait until after `LayoutSuperclass` runs to
+  // configure the link. This sets its focus behavior to `NEVER` (preventing
+  // clicking the link from stealing native focus from the search bar/input
+  // field) and applies the active focus border styling.
   auto* link = GetSettingsLink();
   if (link) {
     link->SetFocusBehavior(views::View::FocusBehavior::NEVER);
     link->SetFontList(link->font_list().DeriveWithStyle(gfx::Font::UNDERLINE));
   }
+  UpdateLinkBorders(is_link_focused_);
 }
 
 gfx::Size PopupPersonalContextNoticeView::GetMinimumSize() const {

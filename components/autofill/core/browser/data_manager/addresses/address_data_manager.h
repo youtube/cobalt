@@ -52,7 +52,6 @@ namespace autofill {
 class AccountNameEmailStore;
 class AddressDataCleaner;
 class AlternativeStateNameMapUpdater;
-class ContactInfoPreconditionChecker;
 class HomeAndWorkMetadataStore;
 
 // Contains all address-related logic of the `PersonalDataManager`. See comment
@@ -280,20 +279,6 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   // SyncService::IsSyncFeatureEnabled() are deleted from the codebase.
   bool IsSyncFeatureEnabledForAutofill() const;
 
-  // Returns true if `syncer::UserSelectableType::kAutofill` is enabled.
-  bool IsAutofillUserSelectableTypeEnabled() const;
-
-  // Defines whether the Sync toggle on the Autofill Settings page is visible.
-  // TODO(crbug.com/40943238): Remove when toggle becomes available on the Sync
-  // page for non-syncing users.
-  bool IsAutofillSyncToggleAvailable() const;
-
-  // Sets the Sync UserSelectableType::kAutofill toggle value.
-  // TODO(crbug.com/40943238): Used for the toggle on the Autofill Settings page
-  // only. It controls syncing of autofill data stored in user accounts for
-  // non-syncing users. Remove when toggle becomes available on the Sync page.
-  void SetAutofillSelectableTypeEnabled(bool enabled);
-
   // Returns the account info of currently signed-in user, or std::nullopt if
   // the user is not signed-in or the identity manager is not available.
   std::optional<CoreAccountInfo> GetPrimaryAccountInfo() const;
@@ -415,9 +400,6 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
       /*check_empty=*/false,
       base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
       observers_;
-
-  std::unique_ptr<ContactInfoPreconditionChecker>
-      contact_info_precondition_checker_;
 
   WebDataServiceBase::Handle pending_profile_query_ = 0;
 

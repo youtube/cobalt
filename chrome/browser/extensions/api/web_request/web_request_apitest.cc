@@ -103,6 +103,7 @@
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/install_prefs_helper.h"
+#include "extensions/browser/lazy_context_id.h"
 #include "extensions/browser/permissions/active_tab_permission_granter.h"
 #include "extensions/browser/permissions/scripting_permissions_modifier.h"
 #include "extensions/browser/process_manager.h"
@@ -2909,6 +2910,110 @@ IN_PROC_BROWSER_TEST_F(
   api.reset();
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+// Verifies that for child-process requests, the proxying `URLLoaderFactory`
+// generates and forwards a unique, non-zero request ID to the underlying
+// factory, even when the client passes duplicate IDs or 0. For
+// browser-initiated navigations (`render_process_id == -1`), verifies that the
+// original negative request ID is preserved without modification.
+IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
+                       ProxyingFactoryAssignsUniqueRequestId) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // Make sure the WebRequest proxy is inserted into the `URLLoaderFactory`
+  // chain for subresource and navigation requests.
+  auto* web_request_api =
+      BrowserContextKeyedAPIFactory<WebRequestAPI>::Get(profile());
+  ASSERT_TRUE(web_request_api);
+  web_request_api->ForceProxyForTesting();
+  profile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
+
+  const GURL navigation_url = embedded_test_server()->GetURL("/simple.html");
+  const GURL url_a = embedded_test_server()->GetURL("/echo?a");
+  const GURL url_b = embedded_test_server()->GetURL("/echo?b");
+  const GURL url_c = embedded_test_server()->GetURL("/echo?c");
+
+  // Intercept requests exiting the WebRequest proxy and record the forwarded
+  // network service request ID for each target URL.
+  std::map<GURL, int32_t> forwarded_request_ids;
+  content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
+      [&](content::URLLoaderInterceptor::RequestParams* params) {
+        const GURL& url = params->url_request.url;
+        if (url == navigation_url || url == url_a || url == url_b ||
+            url == url_c) {
+          forwarded_request_ids[url] = params->request_id;
+        }
+        return false;
+      }));
+
+  // Perform a main-frame navigation. Because navigations are browser-initiated
+  // (`render_process_id == -1`), `GlobalRequestID::MakeBrowserInitiated()`
+  // generates a negative request ID.
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), navigation_url));
+  content::RenderFrameHost* frame =
+      GetActiveWebContents()->GetPrimaryMainFrame();
+
+  // Bind a WebRequest-proxied `URLLoaderFactory` for subresource requests and
+  // drive it directly to simulate a client submitting duplicate or zero IDs.
+  mojo::Remote<network::mojom::URLLoaderFactory> factory;
+  ASSERT_TRUE(frame->CreateNetworkServiceDefaultFactory(
+      factory.BindNewPipeAndPassReceiver()));
+
+  constexpr int32_t kClientRequestId = 42;
+
+  auto make_request = [&](const GURL& url) {
+    network::ResourceRequest request;
+    request.url = url;
+    request.request_initiator = frame->GetLastCommittedOrigin();
+    return request;
+  };
+
+  network::TestURLLoaderClient client_a;
+  mojo::PendingRemote<network::mojom::URLLoader> loader_a;
+  factory->CreateLoaderAndStart(
+      loader_a.InitWithNewPipeAndPassReceiver(), kClientRequestId,
+      network::mojom::kURLLoadOptionNone, make_request(url_a),
+      client_a.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  network::TestURLLoaderClient client_b;
+  mojo::PendingRemote<network::mojom::URLLoader> loader_b;
+  factory->CreateLoaderAndStart(
+      loader_b.InitWithNewPipeAndPassReceiver(), kClientRequestId,
+      network::mojom::kURLLoadOptionNone, make_request(url_b),
+      client_b.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  network::TestURLLoaderClient client_c;
+  mojo::PendingRemote<network::mojom::URLLoader> loader_c;
+  factory->CreateLoaderAndStart(
+      loader_c.InitWithNewPipeAndPassReceiver(), 0 /* request_id */,
+      network::mojom::kURLLoadOptionNone, make_request(url_c),
+      client_c.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  client_a.RunUntilComplete();
+  client_b.RunUntilComplete();
+  client_c.RunUntilComplete();
+
+  // Verify that the browser-initiated navigation (`render_process_id == -1`)
+  // forwarded its original negative request ID unmodified.
+  ASSERT_TRUE(forwarded_request_ids.contains(navigation_url));
+  EXPECT_LT(forwarded_request_ids[navigation_url], 0);
+
+  // Verify that untrusted child-process requests receive unique, non-zero
+  // network service request IDs, even when the client reuses an ID (`url_a` vs
+  // `url_b`) or passes 0 (`url_c`).
+  ASSERT_TRUE(forwarded_request_ids.contains(url_a));
+  ASSERT_TRUE(forwarded_request_ids.contains(url_b));
+  ASSERT_TRUE(forwarded_request_ids.contains(url_c));
+  EXPECT_NE(forwarded_request_ids[url_a], 0);
+  EXPECT_NE(forwarded_request_ids[url_b], 0);
+  EXPECT_NE(forwarded_request_ids[url_c], 0);
+  EXPECT_NE(forwarded_request_ids[url_a], forwarded_request_ids[url_b]);
+  EXPECT_NE(forwarded_request_ids[url_a], forwarded_request_ids[url_c]);
+  EXPECT_NE(forwarded_request_ids[url_b], forwarded_request_ids[url_c]);
+}
 
 // Tests that webRequest API can inspect window.open() requests initiated from
 // chrome-untrusted:// pages to Web origins, but not other WebUI origins.
@@ -7026,6 +7131,123 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
   }
 
   ASSERT_TRUE(skipped_listener.WaitUntilSatisfied());
+}
+
+// Regression test for a bug where lazy webRequest event dispatching failed to
+// specify `restrict_to_browser_context` on the generated Event. Previously,
+// omitting this restriction caused the EventRouter to bypass profile isolation
+// checks and uselessly wake up incognito service workers for split-mode
+// extensions whenever a navigation occurred in a regular window (and vice
+// versa). This test verifies that lazy events are properly scoped to the
+// originating browser context and neither service worker is unnecessarily
+// woken up.
+IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
+                       LazyDispatchDoesNotWakeIncognitoSplitModeWorker) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // Ensure an incognito browser exists before loading the extension so that
+  // loading the split-mode extension initializes both contexts.
+  content::WebContents* incognito_contents =
+      PlatformOpenURLOffTheRecord(profile(), GURL("about:blank"));
+  ASSERT_TRUE(incognito_contents);
+  Profile* incognito_profile =
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  ASSERT_TRUE(incognito_profile);
+
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Split Mode WebRequest Test",
+           "version": "0.1",
+           "manifest_version": 3,
+           "incognito": "split",
+           "permissions": ["webRequest"],
+           "host_permissions": ["<all_urls>"],
+           "background": {"service_worker": "background.js"}
+         })";
+  static constexpr char kBackgroundJs[] =
+      R"(const mode = chrome.extension.inIncognitoContext ? 'incognito'
+                                                          : 'regular';
+         chrome.webRequest.onBeforeRequest.addListener(
+             (details) => {
+               chrome.test.sendMessage('event_' + mode);
+             },
+             {urls: ['<all_urls>'], types: ['main_frame']});
+         chrome.test.sendMessage('started_' + mode);)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+
+  const Extension* extension = nullptr;
+  {
+    ExtensionTestMessageListener started_regular("started_regular");
+    ExtensionTestMessageListener started_incognito("started_incognito");
+
+    extension = LoadExtension(
+        test_dir.UnpackedPath(),
+        {.allow_in_incognito = true, .wait_for_registration_stored = true});
+    ASSERT_TRUE(extension);
+
+    // Wait for both regular and incognito service workers to finish starting.
+    EXPECT_TRUE(started_regular.WaitUntilSatisfied());
+    EXPECT_TRUE(started_incognito.WaitUntilSatisfied());
+  }
+
+  // Stop both service workers so the event listener becomes lazy in both
+  // contexts.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(profile(),
+                                                             extension->id());
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(incognito_profile,
+                                                             extension->id());
+  base::RunLoop().RunUntilIdle();
+
+  auto expect_no_running_or_pending_workers =
+      [extension](content::BrowserContext* context) {
+        EXPECT_TRUE(ProcessManager::Get(context)
+                        ->GetServiceWorkersForExtension(extension->id())
+                        .empty());
+        EXPECT_EQ(
+            0u, ServiceWorkerTaskQueue::Get(context)->GetNumPendingTasksForTest(
+                    LazyContextId::ForExtension(context, extension)));
+      };
+
+  // 1) Navigate only in the incognito browser context.
+  {
+    ExtensionTestMessageListener event_incognito("event_incognito");
+
+    ASSERT_TRUE(NavigateToURL(
+        incognito_contents,
+        embedded_test_server()->GetURL("example.com", "/simple.html")));
+
+    // Only the incognito service worker should be woken up and receive the
+    // event; the regular service worker must remain stopped with no pending
+    // tasks or starts.
+    EXPECT_TRUE(event_incognito.WaitUntilSatisfied());
+    expect_no_running_or_pending_workers(profile());
+  }
+
+  // 2) Stop the incognito worker again to test regular navigation isolation.
+  // Note that the regular worker remained stopped from step 1 because our
+  // event dispatching fix correctly avoided waking it up.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(incognito_profile,
+                                                             extension->id());
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate only in the regular (on-the-record) browser context.
+  {
+    ExtensionTestMessageListener event_regular("event_regular");
+
+    content::WebContents* web_contents = GetActiveWebContents();
+    ASSERT_TRUE(NavigateToURL(
+        web_contents,
+        embedded_test_server()->GetURL("example.com", "/simple.html")));
+
+    // Only the regular service worker should be woken up and receive the event;
+    // the incognito service worker must remain stopped with no pending tasks or
+    // starts.
+    EXPECT_TRUE(event_regular.WaitUntilSatisfied());
+    expect_no_running_or_pending_workers(incognito_profile);
+  }
 }
 
 // Tests a service worker-based extension using webRequest for observational

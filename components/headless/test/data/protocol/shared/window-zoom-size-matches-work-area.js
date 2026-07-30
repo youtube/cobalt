@@ -5,14 +5,14 @@
 // META: --screen-info={800x600 \
 // META:   workAreaLeft=10 workAreaRight=90 workAreaTop=20 workAreaBottom=80}
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {dp} = await testRunner.startBlank(
       'Tests maximized/fullscreen window matches workarea.');
 
   const {windowId} = (await dp.Browser.getWindowForTarget()).result;
 
   for (const state of ['maximized', 'fullscreen']) {
-    dp.Browser.setWindowBounds({windowId, bounds: {windowState: state}});
+    await dp.Browser.setWindowBounds({windowId, bounds: {windowState: state}});
 
     const {bounds} = (await dp.Browser.getWindowBounds({windowId})).result;
     testRunner.log(`${bounds.left},${bounds.top} ${bounds.width}x${

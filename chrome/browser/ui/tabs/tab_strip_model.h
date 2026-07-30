@@ -26,6 +26,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_selection_state.h"
 #include "chrome/browser/ui/tabs/tab_strip_scrubbing_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
@@ -937,6 +938,10 @@ class TabStripModel {
   void OnChange(const TabStripModelChange& change,
                 const TabStripSelectionChange& selection);
 
+  // Notify observers if the focused tab group has changed.
+  void NotifyTabGroupFocusChanged(
+      const std::optional<tab_groups::TabGroupId>& old_focused_group);
+
   // Notify observers that a `group` was created.
   void NotifyTabGroupVisualsChanged(const tab_groups::TabGroupId& group_id,
                                     TabGroupChange::VisualsChange visuals);
@@ -1167,7 +1172,8 @@ class TabStripModel {
   TabStripSelectionChange SetSelection(
       const tabs::TabStripModelSelectionState& new_model,
       TabStripModelObserver::ChangeReason reason,
-      bool triggered_by_other_operation);
+      bool triggered_by_other_operation,
+      bool notify_focus_change = true);
 
   // Close all tabs in the given |group| at once.
   void CloseAllTabsInGroupImpl(const tab_groups::TabGroupId& group);
@@ -1472,9 +1478,6 @@ class TabStripModel {
 
   // Tracks whether a modal UI is showing.
   bool showing_modal_ui_ = false;
-
-  // The focused group. If no group is focused, this is nullopt.
-  std::optional<tab_groups::TabGroupId> focused_group_;
 
   base::WeakPtrFactory<TabStripModel> weak_factory_{this};
 };

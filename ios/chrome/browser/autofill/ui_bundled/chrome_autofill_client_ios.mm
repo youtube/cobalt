@@ -47,10 +47,12 @@
 #import "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
+#import "components/personal_context/first_run/personal_context_first_run_service.h"
 #import "components/security_state/ios/security_state_utils.h"
 #import "components/sync/service/sync_service.h"
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
+#import "ios/chrome/browser/autofill/atmemory/model/ios_at_memory_query_service_factory.h"
 #import "ios/chrome/browser/autofill/autofill_ai/error_dialog/model/autofill_ai_error_dialog_context.h"
 #import "ios/chrome/browser/autofill/autofill_ai/public/save_entity_params.h"
 #import "ios/chrome/browser/autofill/model/address_normalizer_factory.h"
@@ -61,6 +63,7 @@
 #import "ios/chrome/browser/autofill/model/autofill_log_router_factory.h"
 #import "ios/chrome/browser/autofill/model/autofill_policy_service_factory.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
+#import "ios/chrome/browser/autofill/model/forms_ai_private_inference_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_cache_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_executor_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_personal_context_access_manager_factory.h"
@@ -83,6 +86,7 @@
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_password_field_classification_model_handler_factory.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
+#import "ios/chrome/browser/personal_context/model/ios_personal_context_first_run_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -249,6 +253,11 @@ SingleFieldFillRouter& ChromeAutofillClientIOS::GetSingleFieldFillRouter() {
 AutocompleteHistoryManager*
 ChromeAutofillClientIOS::GetAutocompleteHistoryManager() {
   return autocomplete_history_manager_;
+}
+
+autofill::AtMemoryQueryService*
+ChromeAutofillClientIOS::GetAtMemoryQueryService() {
+  return IOSAtMemoryQueryServiceFactory::GetForProfile(profile_);
 }
 
 void ChromeAutofillClientIOS::GetAiPageContent(
@@ -455,6 +464,29 @@ ChromeAutofillClientIOS::ShowAutofillSuggestions(
     const AutofillClient::PopupOpenArgs& open_args,
     base::WeakPtr<AutofillSuggestionDelegate> delegate) {
   active_suggestion_delegate_ = std::move(delegate);
+
+  // TODO(crbug.com/538597989): This manual suggestions-based notice triggering
+  // check is a temporary workaround. Replace it with the shared
+  // cross-platform logic once verified.
+  bool has_autofill_ai_suggestion = std::ranges::any_of(
+      open_args.suggestions, [](const Suggestion& suggestion) {
+        return suggestion.type == SuggestionType::kFillAutofillAi;
+      });
+
+  if (has_autofill_ai_suggestion) {
+    PrefService* prefs = GetPrefs();
+    bool should_show_notice =
+        prefs
+            ->GetTime(
+                autofill::prefs::
+                    kAutofillAiPrivateInferenceNoticeAcknowledgedTimestamp)
+            .is_null();
+    if (should_show_notice &&
+        base::FeatureList::IsEnabled(features::kAutofillAiUsePrivateAi)) {
+      ShowAutofillAiPrivateInferenceNotice();
+    }
+  }
+
   [bridge_ showAutofillPopup:open_args.suggestions
           suggestionDelegate:active_suggestion_delegate_];
   return SuggestionUiSessionId();
@@ -728,10 +760,9 @@ void ChromeAutofillClientIOS::ShowAutofillAiSaveToWalletFailureNotification() {
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
 }
 
-void ChromeAutofillClientIOS::
-    ShowAutofillAiFetchFromWalletFailureNotification() {
+void ChromeAutofillClientIOS::ShowAutofillAiFetchEntityFailureNotification() {
   AutofillAiErrorDialogContext errorContext;
-  errorContext.type = AutofillAiErrorDialogType::kTypeFetchFromWalletFailure;
+  errorContext.type = AutofillAiErrorDialogType::kTypeFetchEntityFailure;
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
 }
 
@@ -751,6 +782,28 @@ void ChromeAutofillClientIOS::ShowAutofillAiPreFetchFailureNotification() {
 
   infobar_manager_->AddInfoBar(std::make_unique<InfoBarIOS>(
       InfobarType::kInfobarTypeConfirm, std::move(delegate)));
+}
+
+void ChromeAutofillClientIOS::ShowAutofillAiPrivateInferenceNotice() {
+  const auto existing_infobar =
+      std::ranges::find(infobar_manager_->infobars(),
+                        infobars::InfoBarDelegate::
+                            FORMS_AI_PRIVATE_INFERENCE_INFOBAR_DELEGATE_IOS,
+                        &infobars::InfoBar::GetIdentifier);
+
+  if (existing_infobar != infobar_manager_->infobars().cend()) {
+    infobar_manager_->RemoveInfoBar(*existing_infobar);
+  }
+
+  GetPrefs()->SetTime(
+      autofill::prefs::kAutofillAiPrivateInferenceNoticeFirstShownTimestamp,
+      base::Time::Now());
+
+  auto delegate =
+      std::make_unique<FormsAiPrivateInferenceInfoBarDelegateIOS>(GetPrefs());
+
+  infobar_manager_->AddInfoBar(std::make_unique<InfoBarIOS>(
+      InfobarType::kInfobarTypeFormsAiPrivateInference, std::move(delegate)));
 }
 
 AutofillAiSaveEntityInfoBarDelegateIOS*
@@ -777,6 +830,22 @@ void ChromeAutofillClientIOS::ShowAutofillAiSaveUpdateUI() {
 
   SaveEntityParams params = delegate->ExtractParams();
   [commands_handler_ showSaveEntityDialog:std::move(params)];
+}
+
+bool ChromeAutofillClientIOS::ShouldShowPersonalContextAmbientAutofillNotice()
+    const {
+  personal_context::PersonalContextFirstRunService* service =
+      IOSPersonalContextFirstRunServiceFactory::GetForProfile(profile_);
+  return service && service->ShouldShowPersonalContextAmbientAutofillNotice();
+}
+
+void ChromeAutofillClientIOS::
+    MarkPersonalContextAmbientAutofillNoticeAsAcknowledged() {
+  personal_context::PersonalContextFirstRunService* service =
+      IOSPersonalContextFirstRunServiceFactory::GetForProfile(profile_);
+  if (service) {
+    service->MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
+  }
 }
 
 }  // namespace autofill

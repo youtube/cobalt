@@ -22,6 +22,7 @@
 #include "chrome/browser/media/webrtc/desktop_media_picker_manager.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker_utils.h"
 #include "chrome/browser/media/webrtc/fake_desktop_media_list.h"
+#include "chrome/browser/ui/views/desktop_capture/audio_capture_permission_checker.h"
 #include "chrome/browser/ui/views/desktop_capture/desktop_media_delegated_source_list_view.h"
 #include "chrome/browser/ui/views/desktop_capture/desktop_media_list_controller.h"
 #include "chrome/browser/ui/views/desktop_capture/desktop_media_list_view.h"
@@ -126,7 +127,9 @@ class FakeAudioCapturePermissionChecker : public AudioCapturePermissionChecker {
 };
 #endif
 
-class DesktopMediaPickerViewsTestBase : public testing::Test {
+class DesktopMediaPickerViewsTestBase
+    : public testing::Test,
+      public AudioCapturePermissionChecker::Factory {
  public:
   explicit DesktopMediaPickerViewsTestBase(
       const std::vector<DesktopMediaList::Type>& source_types)
@@ -134,8 +137,21 @@ class DesktopMediaPickerViewsTestBase : public testing::Test {
 
   ~DesktopMediaPickerViewsTestBase() override = default;
 
+  std::unique_ptr<AudioCapturePermissionChecker> Create(
+      base::RepeatingClosure callback) override {
+#if BUILDFLAG(IS_MAC)
+    if (media::IsMacCatapSystemLoopbackCaptureSupported()) {
+      auto fake = std::make_unique<views::FakeAudioCapturePermissionChecker>();
+      last_created_fake_checker_ = fake.get();
+      return fake;
+    }
+#endif
+    return nullptr;
+  }
+
   void SetUp() override {
 #if BUILDFLAG(IS_MAC)
+    AudioCapturePermissionChecker::SetFactoryForTesting(this);
     // These tests create actual child Widgets, which normally have a closure
     // animation on Mac; inhibit it here to avoid the tests flakily hanging.
     base::CommandLine::ForCurrentProcess()->AppendSwitch(
@@ -152,10 +168,16 @@ class DesktopMediaPickerViewsTestBase : public testing::Test {
   }
 
   void TearDown() override {
+#if BUILDFLAG(IS_MAC)
+    AudioCapturePermissionChecker::SetFactoryForTesting(nullptr);
+    last_created_fake_checker_ = nullptr;
+#endif
     if (GetPickerDialogView()) {
       GetPickerDialogView()->GetWidget()->CloseNow();
     }
-    widget_destroyed_waiter_->Wait();
+    if (widget_destroyed_waiter_) {
+      widget_destroyed_waiter_->Wait();
+    }
     DesktopMediaPickerManager::Get()->RemoveObserver(&observer_);
   }
 
@@ -216,13 +238,6 @@ class DesktopMediaPickerViewsTestBase : public testing::Test {
     widget_destroyed_waiter_ =
         std::make_unique<views::test::WidgetDestroyedWaiter>(
             waiter.WaitIfNeededAndGet());
-#if BUILDFLAG(IS_MAC)
-    if (GetPickerDialogView() &&
-        media::IsMacCatapSystemLoopbackCaptureSupported()) {
-      GetPickerDialogView()->SetAudioCapturePermissionCheckerForTest(
-          std::make_unique<FakeAudioCapturePermissionChecker>());
-    }
-#endif
   }
 
   DesktopMediaPickerDialogView* GetPickerDialogView() const {
@@ -263,6 +278,10 @@ class DesktopMediaPickerViewsTestBase : public testing::Test {
   base::RunLoop run_loop_;
   std::optional<PickedIdOrErrorCode> picker_result_;
   std::unique_ptr<views::test::WidgetDestroyedWaiter> widget_destroyed_waiter_;
+#if BUILDFLAG(IS_MAC)
+  raw_ptr<views::FakeAudioCapturePermissionChecker, DanglingUntriaged>
+      last_created_fake_checker_ = nullptr;
+#endif
 
   base::WeakPtrFactory<DesktopMediaPickerViewsTestBase> weak_factory_{this};
 };
@@ -381,7 +400,6 @@ class DesktopMediaPickerDefaultAudioOnTest
         content::DesktopMediaID(media_id_type, 1));
     test_api_.FocusSourceAtIndex(0);
     test_api_.SetAudioSharingApprovedByUser(false);
-    test_api_.TriggerAudioShareToggled();
     EXPECT_TRUE(test_api_.IsAudioRecommendationVisible());
     EXPECT_EQ(test_api_.GetOkButtonLabelText(),
               l10n_util::GetStringUTF16(IDS_DESKTOP_MEDIA_PICKER_SHARE));
@@ -1749,6 +1767,139 @@ TEST_F(DelegatedSourceListTest, ReselectTriggersShowDelegatedSourceList) {
 }  // namespace views
 
 #if BUILDFLAG(IS_MAC)
+class DelegatedSourceListAudioTest : public views::DelegatedSourceListTest {
+ public:
+  void SetUp() override {
+    DelegatedSourceListTest::SetUp();
+    SetSourceTypes(
+        {DesktopMediaList::Type::kWebContents},
+        {DesktopMediaList::Type::kScreen, DesktopMediaList::Type::kWindow});
+    CreatePickerViews(/*request_audio=*/true,
+                      /*screen_exclude_system_audio=*/false,
+                      blink::mojom::WindowAudioPreference::kSystem);
+    if (!media::IsMacCatapSystemLoopbackCaptureSupported()) {
+      GTEST_SKIP()
+          << "System audio capture is not supported on this macOS version.";
+    }
+  }
+
+  void SetupAudioSelectionTest(bool audio_selection_preferred,
+                               bool enable_feature = true) {
+    std::vector<base::test::FeatureRef> enabled_features, disabled_features;
+    (enable_feature ? enabled_features : disabled_features)
+        .push_back(blink::features::kGetDisplayMediaAudioSelection);
+    feature_list_.InitWithFeatures(enabled_features, disabled_features);
+
+    CreatePickerViews(
+        /*request_audio=*/true, /*screen_exclude_system_audio=*/false,
+        blink::mojom::WindowAudioPreference::kSystem,
+        blink::mojom::PreferredDisplaySurface::NO_PREFERENCE,
+        DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia,
+        audio_selection_preferred);
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(DelegatedSourceListAudioTest, AudioLabelsWithFeatureDisabled) {
+  SetupAudioSelectionTest(/*audio_selection_preferred=*/false,
+                          /*enable_feature=*/false);
+
+  // Screen delegated button text when feature is disabled
+  if (test_api_.AudioSupported(DesktopMediaList::Type::kScreen)) {
+    test_api_.SelectTabForSourceType(DesktopMediaList::Type::kScreen);
+    EXPECT_FALSE(test_api_.IsAudioSharingApprovedByUser());
+    EXPECT_EQ(
+        test_api_.GetDelegatedButtonText(),
+        l10n_util::GetStringUTF16(
+            IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON));
+
+    test_api_.SetAudioSharingApprovedByUser(true);
+    EXPECT_TRUE(test_api_.IsAudioSharingApprovedByUser());
+    // Since the feature is disabled, the button label is not updated
+    // dynamically.
+    EXPECT_EQ(
+        test_api_.GetDelegatedButtonText(),
+        l10n_util::GetStringUTF16(
+            IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON));
+  }
+
+  // Window delegated button text when feature is disabled
+  if (test_api_.AudioSupported(DesktopMediaList::Type::kWindow)) {
+    test_api_.SelectTabForSourceType(DesktopMediaList::Type::kWindow);
+    EXPECT_FALSE(test_api_.IsAudioSharingApprovedByUser());
+    EXPECT_EQ(
+        test_api_.GetDelegatedButtonText(),
+        l10n_util::GetStringUTF16(
+            IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_WINDOW_BUTTON));
+
+    test_api_.SetAudioSharingApprovedByUser(true);
+    EXPECT_TRUE(test_api_.IsAudioSharingApprovedByUser());
+    // Since the feature is disabled, the button label is not updated
+    // dynamically.
+    EXPECT_EQ(
+        test_api_.GetDelegatedButtonText(),
+        l10n_util::GetStringUTF16(
+            IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_WINDOW_BUTTON));
+  }
+}
+
+TEST_F(DelegatedSourceListAudioTest, AudioSelectionPreferredDynamicButtonText) {
+  SetupAudioSelectionTest(/*audio_selection_preferred=*/true);
+
+  // Switch to Screen. By default, with audio_selection_preferred, the audio
+  // toggle is check-enabled.
+  test_api_.SelectTabForSourceType(DesktopMediaList::Type::kScreen);
+  EXPECT_TRUE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(
+      test_api_.GetDelegatedButtonText(),
+      l10n_util::GetStringUTF16(
+          IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON_WITH_AUDIO));
+
+  // Disable audio sharing. The button text should change to "Choose a screen".
+  test_api_.SetAudioSharingApprovedByUser(false);
+  EXPECT_FALSE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(test_api_.GetDelegatedButtonText(),
+            l10n_util::GetStringUTF16(
+                IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON));
+
+  // Switch to Window. By default, the audio toggle is also check-enabled.
+  test_api_.SelectTabForSourceType(DesktopMediaList::Type::kWindow);
+  EXPECT_TRUE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(
+      test_api_.GetDelegatedButtonText(),
+      l10n_util::GetStringUTF16(
+          IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_WINDOW_BUTTON_WITH_AUDIO));
+
+  // Disable audio sharing. The button text should change to "Choose a window".
+  test_api_.SetAudioSharingApprovedByUser(false);
+  EXPECT_FALSE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(test_api_.GetDelegatedButtonText(),
+            l10n_util::GetStringUTF16(
+                IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_WINDOW_BUTTON));
+}
+
+TEST_F(DelegatedSourceListAudioTest, NoAudioSelectionDynamicButtonText) {
+  SetupAudioSelectionTest(/*audio_selection_preferred=*/false);
+
+  // Switch to Screen. With audio_selection_preferred=false, the audio toggle is
+  // OFF by default.
+  test_api_.SelectTabForSourceType(DesktopMediaList::Type::kScreen);
+  EXPECT_FALSE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(test_api_.GetDelegatedButtonText(),
+            l10n_util::GetStringUTF16(
+                IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON));
+
+  // Enable audio sharing. The button text should change to "Choose a screen
+  // with audio".
+  test_api_.SetAudioSharingApprovedByUser(true);
+  EXPECT_TRUE(test_api_.IsAudioSharingApprovedByUser());
+  EXPECT_EQ(
+      test_api_.GetDelegatedButtonText(),
+      l10n_util::GetStringUTF16(
+          IDS_DESKTOP_MEDIA_PICKER_DELEGATED_SOURCE_LIST_SCREEN_BUTTON_WITH_AUDIO));
+}
 
 class DesktopMediaPickerAudioPermissionTest
     : public views::DesktopMediaPickerViewsTestBase {
@@ -1764,11 +1915,7 @@ class DesktopMediaPickerAudioPermissionTest
                       "loopback capture is supported.";
     }
 
-    auto fake_audio_permission_checker =
-        std::make_unique<views::FakeAudioCapturePermissionChecker>();
-    fake_audio_permission_checker_ = fake_audio_permission_checker.get();
-    GetPickerDialogView()->SetAudioCapturePermissionCheckerForTest(
-        std::move(fake_audio_permission_checker));
+    fake_audio_permission_checker_ = last_created_fake_checker_;
 
     test_api_.SelectTabForSourceType(DesktopMediaList::Type::kScreen);
 
@@ -1792,7 +1939,7 @@ class DesktopMediaPickerAudioPermissionTest
 
  protected:
   raw_ptr<DesktopMediaPaneView> pane_ = nullptr;
-  raw_ptr<views::FakeAudioCapturePermissionChecker>
+  raw_ptr<views::FakeAudioCapturePermissionChecker, DanglingUntriaged>
       fake_audio_permission_checker_ = nullptr;
 };
 

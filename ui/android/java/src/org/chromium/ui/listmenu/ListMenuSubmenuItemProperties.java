@@ -12,10 +12,12 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.ICON_TINT_COLOR_ST
 import static org.chromium.ui.listmenu.ListMenuItemProperties.IS_HIGHLIGHTED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.KEY_LISTENER;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.LONG_CLICK_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.START_ICON_BITMAP;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TEXT_APPEARANCE_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TOOLTIP;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.TOUCH_LISTENER;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -47,6 +49,8 @@ public class ListMenuSubmenuItemProperties {
         IS_EXPANDED,
         IS_TEXT_ELLIPSIZED_AT_END,
         KEY_LISTENER,
+        TOUCH_LISTENER,
+        LONG_CLICK_LISTENER,
         TEXT_APPEARANCE_ID,
         ICON_TINT_COLOR_STATE_LIST_ID
     };

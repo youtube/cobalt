@@ -143,7 +143,14 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 }
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
+  // On Android, hotkeys are scoped to the active browser window rather than
+  // operating as OS-global background shortcuts. Therefore, the launcher
+  // hotkey is enabled by default without requiring a default browser check.
+#if BUILDFLAG(IS_ANDROID)
+  registry->RegisterBooleanPref(prefs::kGlicLauncherEnabled, true);
+#else
   registry->RegisterBooleanPref(prefs::kGlicLauncherEnabled, false);
+#endif
 
   registry->RegisterStringPref(
       prefs::kGlicLauncherHotkey,
@@ -160,7 +167,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
               LocalHotkeyManager::Command::kFocusToggle)));
-  registry->RegisterBooleanPref(prefs::kGlicHotkeyGlobalScopeEnabled, true);
+  registry->RegisterBooleanPref(prefs::kGlicHotkeyGlobalScopeEnabled, false);
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetAutopush, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetStaging, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetPreprod, "");

@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Hvis du sletter den, mister alle øjeblikkeligt adgangen til fanegruppen "<ph name="GROUP_NAME" />", og den slettes fra alle enheder.</translation>
 <translation id="1142732900304639782">Tilbyd ikke at oversætte disse websites</translation>
 <translation id="1143193470214071120">Luk et vindue, eller administrer vinduer</translation>
+<translation id="1143486892058798649">Gem link som…</translation>
 <translation id="1149725087019908252">Scanner <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> åbnes i Chrome. Når du fortsætter, accepterer du <ph name="BEGIN_LINK1" />Googles servicevilkår<ph name="END_LINK1" /> og de <ph name="BEGIN_LINK2" />yderligere servicevilkår for Google Chrome og ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Du har ingen gemte adgangskoder i Google Adgangs­kode­admin­istrator.</translation>
@@ -142,6 +143,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="1544826120773021464">Tryk på knappen "Administrer konto" for at administrere din Google-konto</translation>
 <translation id="1549000191223877751">Flyt til et andet vindue</translation>
 <translation id="1553358976309200471">Opdater Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> for "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Vær med til at gøre Chrome bedre for andre, der bruger Chrome på samme måde som dig</translation>
 <translation id="1568636008098739136">Få oplæst denne side. Hold fingeren på denne genvej for at redigere den.</translation>
 <translation id="1571041387761170095">Ingen svage eller genbrugte adgangskoder</translation>
@@ -313,6 +315,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="2330186936255788117">Flere bogmærker</translation>
 <translation id="2332515770639153015">Udvidet beskyttet browsing er aktiveret</translation>
 <translation id="233375395665273385">Slet, og log ud</translation>
+<translation id="2334275697832662087">Chromes AI-baserede sikkerhed hjælper med at beskytte dig mod onlinetrusler, så du kan browse med ro i sindet</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> kunne ikke installeres.</translation>
 <translation id="2349710944427398404">Samlet mængde data, som Chrome anvender, herunder konti, bogmærker og gemte indstillinger</translation>
 <translation id="2354001756790975382">Andre bogmærker</translation>
@@ -614,6 +617,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="3577473026931028326">Der opstod en fejl. Prøv igen.</translation>
 <translation id="3577558748185201054">Administrer dine interesser og præferencer</translation>
 <translation id="3587482841069643663">Alle</translation>
+<translation id="3598421953808879451">Gem video som…</translation>
 <translation id="3602290021589620013">Forhåndsvisning</translation>
 <translation id="3614126103057878858">Prisinfo</translation>
 <translation id="3616113530831147358">Lyd</translation>
@@ -724,6 +728,7 @@ Kun personer med din adgangssætning kan læse dine krypterede data. Adgangssæt
 <translation id="4044708993631234325">Felt i bunden</translation>
 <translation id="4045441967987592849">Genåbn</translation>
 <translation id="4049920046559074950">Flere valgmuligheder for <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Find dine senest lukkede faner og vinduer her</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Åbn i inkognitovindue}one{Åbn alle (#) i et inkognitovindue}other{Åbn alle (#) i et inkognitovindue}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> standardfane med ny aktivitet i delte fanegrupper}one{<ph name="TABS_COUNT_MANY" /> standardfane med ny aktivitet i delte fanegrupper}other{<ph name="TABS_COUNT_MANY" /> standardfaner med ny aktivitet i delte fanegrupper}}</translation>
 <translation id="405365679581583349">Opdater Google Play-tjenester</translation>
@@ -1280,6 +1285,7 @@ Nogle websites kan f.eks. reagere på denne anmodning ved at vise dig annoncer, 
 <translation id="6321592572353357376">Udvidelsen "<ph name="EXTENSION_NAME" />" vil have dig til at logge ind i Chrome</translation>
 <translation id="6324916366299863871">Rediger genvej</translation>
 <translation id="6324977638108296054">Der kan ikke oprettes et link til fremhævning</translation>
+<translation id="6331836477476466332">En mere sikker og effektiv browser til dig</translation>
 <translation id="6333140779060797560">Del via <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Rediger webadressen til siden på: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Kryptering</translation>
@@ -1437,6 +1443,7 @@ Nogle websites kan f.eks. reagere på denne anmodning ved at vise dig annoncer, 
 <translation id="6867400383614725881">Ny inkognitofane</translation>
 <translation id="686899695320434745">Adresser krypteres ikke med din adgangssætning. Dette giver dig mulighed for at bruge dem i andre Google-tjenester.</translation>
 <translation id="6870625088374152862">Logget ind som <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Browse</translation>
 <translation id="687838958001010630">Alle med linket kan redigere alle faner</translation>
 <translation id="6880903702195291049">Ingen tilladelser skal gennemgås</translation>
 <translation id="6883204995689174413">Del</translation>
@@ -1522,6 +1529,7 @@ Nogle websites kan f.eks. reagere på denne anmodning ved at vise dig annoncer, 
 <translation id="71503698506017927">Kryptering med adgangssætning omfatter ikke betalingsmetoder og adresser fra Google Pay.
 
 Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dataene på din konto<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Gem billede som…</translation>
 <translation id="7165972437814027679">Få flere oplysninger om, hvorfor Chrome blokerer visse filer</translation>
 <translation id="7168323970702333693">Logget ind som <ph name="USER_NAME" />. Åbner indstillinger.</translation>
 <translation id="7170930892977483182">Alle sikkerhedskoder, der er gemt på din enhed og i Google Wallet, slettes</translation>
@@ -1577,6 +1585,7 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="7359002509206457351">Adgang til betalingsmetoder</translation>
 <translation id="7363349185727752629">En guide til dine privatlivsindstillinger</translation>
 <translation id="7364103838544876661">Flere valgmuligheder for sletning af browserdata</translation>
+<translation id="736435710397109878">Kortets kaldenavn, maks. 25 tegn</translation>
 <translation id="7365073365123878797">Opdater Google Play-tjenester for at begynde at gemme og bruge adgangskoder via Google Adgangskodeadministrator</translation>
 <translation id="7368009310682364976">Se de senest åbnede faner</translation>
 <translation id="7368927539449986686">Rediger websitesøgning</translation>
@@ -1695,6 +1704,7 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="7824665136384946951">Din organisation har deaktiveret Beskyttet browsing</translation>
 <translation id="7825973332242257878">Fanegrupper</translation>
 <translation id="7826342993930002256">Dit Chrome – overalt</translation>
+<translation id="7845155831233417403">Du kan have op til <ph name="MAX_INSTANCE_COUNT" /> vinduer. Luk et vindue for at fortsætte.</translation>
 <translation id="7846161022626028328">Der opstod en fejl. Prøv igen.</translation>
 <translation id="7846296061357476882">Google-tjenester</translation>
 <translation id="784652447248278262">Aktuelt vindue</translation>
@@ -1761,7 +1771,6 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="8088176524274673045">Du kan dele med brugere i nærheden ved at få dem til at scanne denne QR-kode</translation>
 <translation id="8090732854597034573">Spørg din forælder, hvis du har brug for hjælp</translation>
 <translation id="8101414242770404289">Ingen faner fra <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Inkognitofane</translation>
 <translation id="810433609302852">Promovering af funktionen til notifikationer med tips og felt i bunden med brugervejledning</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Fjern udvidelser og de data, de har gemt på denne enhed</translation>
@@ -1819,6 +1828,7 @@ Du kan ændre denne indstilling ved at <ph name="BEGIN_LINK" />slette Chrome-dat
 <translation id="8282297628636750033">Anvend Mørkt tema på websites</translation>
 <translation id="8282950411412455249">Gå til sikkerhedsindstillingerne</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Luk 1 inkognitovindue}one{Luk # inkognitovindue}other{Luk # inkognitovinduer}}</translation>
+<translation id="8289602658021943461">Gem videobillede som…</translation>
 <translation id="8313599942510782709">Din opgave er stadig i gang</translation>
 <translation id="8317318757008452355">Åbn valgmulighederne for udskrivning</translation>
 <translation id="8320212361750431956">Seneste aktivitet</translation>

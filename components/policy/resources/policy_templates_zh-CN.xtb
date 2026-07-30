@@ -1341,6 +1341,18 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
         |TIME_LIMITS| 会应用每日使用限制；当在某一天达到此限制后，相应应用在当天的剩余时间内便会一直处于不可用的状态。使用限制应在 |daily_limit_mins| 中指定。系统每天都会在指定的 UTC 时间（通过 |reset_at| 传递）重置使用限制。
         此政策仅适用于未成年用户。
         此政策是对“UsageTimeLimit”的补充。无论“PerAppTimeLimits”是如何设置的，系统都会强制执行“UsageTimeLimit”中指定的限制（例如屏幕使用时间和就寝时间）。</translation>
+<translation id="19133869326547269">此政策已被弃用，不会产生任何效力，因为 Chrome 已移除“点击通话”功能。
+
+原始描述：
+启用“点击通话”功能，以允许已登录的 Chrome 用户从桌面设备向 Android 设备发送电话号码。若想了解详情，请参阅这篇帮助中心文章：https://support.google.com/chrome/answer/9430554?hl=zh-CN。
+
+如果启用此政策，Chrome 用户将能够向 Android 设备发送电话号码。
+
+如果停用此政策，Chrome 用户将无法向 Android 设备发送电话号码。
+
+如果您设置此政策，用户便无法对其进行更改或覆盖。
+
+如果未设置此政策，“点击通话”功能会默认开启。</translation>
 <translation id="1913629775420987861">在用户尝试退出时显示警告对话框</translation>
 <translation id="1915242485679279502">显示展开的企业工具栏标记</translation>
 <translation id="1916266055944569995">通过设置此政策，您可以指定 Managed Configuration API 应为给定来源返回的值。
@@ -2208,17 +2220,6 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 此政策只是用于控制该功能的一项暂时性措施，将在 M154 中移除。</translation>
 <translation id="2467181864598429837">默认浏览器行为</translation>
 <translation id="2467896267442150508">持续时间不超过 1 周的间隔时段。如果开始时间晚于结束时间，该间隔时段会跨周。</translation>
-<translation id="2475594733565572760">此政策用于为其涵盖的所有生成式 AI 功能定义默认设置。例如，如果此政策的值设为 1，则 1 将是其涵盖的所有生成式 AI 功能的默认设置。这不会影响任何手动设置的政策值。此设置将为 Chrome 中涵盖的生成式 AI 功能定义默认值。如需查看此政策涵盖的功能列表，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。
-
-<ph name="GEMINI_SETTINGS_POLICY_NAME" /> 等某些政策仅支持“允许”和“不允许”两种状态。在这种情况下，如果将 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 设为 0 或 1，系统就会启用相应功能。如果将 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 设为 2，系统则会停用相应功能。各项功能的文档都详细介绍了此政策中的值对各自的影响，例如，对于 Chrome 中的 Gemini，可以访问 https://support.google.com/chrome/a/?p=gemini_in_chrome。此政策适用于以下功能：Chrome 中的 Gemini、Google 智能镜头和 AI 模式，而它们受各自的保障和/或服务条款的约束 (https://support.google.com/chrome/a/?p=genai_features_chrome)。
-
-0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
-
-1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
-
-2 表示不允许使用此功能。
-
-如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="2476249479201711962">允许在上下文菜单中使用默认搜索服务提供商</translation>
 <translation id="2478756867046106663">允许那些提供误导性体验的网站打开新的窗口或标签页</translation>
 <translation id="2479760962196319822">此政策旨在控制 <ph name="PRODUCT_OS_NAME" /> 用户能否在本地存储数据。
@@ -3718,15 +3719,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 使用 <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 为特定顶级源停用第三方存储分区。如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。
 
 此方法已在 Chrome 145 中移除，建议改用 requestStorageAccess 方法：https://developer.mozilla.org/en-US/docs/Web/API/Document/requestStorageAccess。您可以在 https://crbug.com/425248669 上提供反馈。</translation>
-<translation id="3405361833556012520">此政策仅适用于浏览器流量。Play 商店流量、Android 应用网页导航流量和其他用户流量（例如 Linux 虚拟机流量或打印任务）仍需满足由始终开启的 VPN 施加的限制。此政策仅在未连接 VPN 时才会执行，而且仅对用户浏览器流量有效。即使是在执行此政策的情况下，系统流量也可以绕过始终开启的 VPN，执行政策提取和系统时钟同步等任务。
-
-您可借助此政策为某些 scheme、其他网域的子网域、端口或特定路径设置例外情况（需使用指定格式，详见 https://support.google.com/chrome/a?p=url_blocklist_filter_format）。某个网址是否会遭到屏蔽取决于最具体的过滤条件。
-
-如果设置了 <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> 并配置了始终开启的 VPN，但是未连接始终开启的 VPN，系统会阻止导航到所有主机（<ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> 政策允许的主机除外）。在此设备状态下，<ph name="URL_BLOCKLIST_POLICY_NAME" /> 和 <ph name="URL_ALLOWLIST_POLICY_NAME" /> 会被忽略。当连接始终开启的 VPN 时，系统会使用 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 和 <ph name="URL_ALLOWLIST_POLICY_NAME" /> 政策，而 <ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> 政策会被忽略。
-
-此政策最多只能包含 1,000 个条目。
-
-如果未设置此政策，当在严格模式下激活始终开启的 VPN，而且未连接 VPN 时，系统会阻止所有浏览器导航。</translation>
 <translation id="3405997282295704902">不允许用户使用 <ph name="PRODUCT_NAME" /></translation>
 <translation id="3406122462682235653">不询问用户（直接开始下载）</translation>
 <translation id="3410534959501660670">提取文本功能的设置</translation>
@@ -4952,6 +4944,7 @@ SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟
 格式不正确的网域将被忽略。</translation>
 <translation id="4238777612788632629">版本过期则快速重新启动</translation>
 <translation id="4239720644496144453">缓存不适用于 Android 应用。如果多个用户都想安装同一款 Android 应用，系统便会分别为每个用户重新下载相应的 Android 应用。</translation>
+<translation id="4239949495354048254">允许将文件上传到 Chrome 中的 Gemini。</translation>
 <translation id="4242583077375244471">如果此政策已启用，<ph name="PRODUCT_NAME" /> 会使用内置的证书验证程序来验证服务器证书，并会将 Chrome 根存储区作为公共信任来源。
 
 如果此政策已停用，<ph name="PRODUCT_NAME" /> 会使用系统证书验证程序和系统根证书。
@@ -7793,16 +7786,6 @@ IP 地址空间覆盖有两种形式：
 <translation id="6016304107003486747">此政策可决定在“重新映射按键”子页面中重新映射 Delete 键的行为。用户可以在“重新映射按键”子页面自定义键盘按键。如果启用，此政策会阻止用户自定义这些特定的重新映射。如果未设置此政策，基于搜索键的快捷键将作为默认设置，并允许用户配置快捷键。</translation>
 <translation id="6019162469732742754">使用自动模式</translation>
 <translation id="6019606564278029236">允许远程用户在远程协助会话中操控提权后的窗口</translation>
-<translation id="602038990586229155">此政策旨在控制 <ph name="PRODUCT_NAME" /> 扩展程序安装请求，可允许用户将请求发送到 Google 管理控制台以供审批。
-
-如果 <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> 政策未设置或已停用，系统将忽略此政策，并且不会创建或上传扩展程序安装请求。
-如果此政策未设置或已停用，系统将不会创建或上传扩展程序安装请求。
-如果此政策已启用，系统将会创建扩展程序安装请求并将其上传到 Google 管理控制台。
-
-当用户尝试安装 <ph name="EXTENSION_INSTALL_ALLOWLIST" /> 或 <ph name="EXTENSION_SETTINGS" /> 所不允许的扩展程序时，系统将会创建扩展程序安装请求。
-
-对于 <ph name="PRODUCT_NAME" />，此政策仅在已使用 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> 注册相应设备后有效。
-对于 <ph name="PRODUCT_OS_NAME" />，此政策一直有效。</translation>
 <translation id="6020795917180493154">自 M119 起，如果此政策设为 false 或未设置，系统会停用 WebSQL，但用户可以通过 Chrome flag“web-sql-access”启用 WebSQL。如果此政策设为 true，系统会启用 WebSQL 访问权限。
 自 M124 起，此政策已被弃用。</translation>
 <translation id="6022948604095165524">启动时的操作</translation>
@@ -7952,6 +7935,14 @@ IP 地址空间覆盖有两种形式：
 
 如果此政策已停用，“键盘快捷键”应用将处于只读模式，禁止进行任何自定义。</translation>
 <translation id="6150320133676152520">禁止在锁定的屏幕和登录屏幕上自动提交 PIN 码</translation>
+<translation id="6152224988699207920">允许管理员自定义数据泄露防护 (DLP) 规则应用的水印外观，包括设置填充/轮廓不透明度、定义字号以及设置时间戳时区。
+如果未设置此政策或某些值，Chrome 将使用其默认水印行为。
+默认值如下：填充不透明度为 4，轮廓不透明度为 6，字号为 24，时间戳时区设置为“user_device”（用户设备的本地时区）。
+
+“填充不透明度”是介于 0（完全透明）到 100（完全不透明）之间的百分比。
+“轮廓不透明度”是介于 0（完全透明）到 100（完全不透明）之间的百分比。
+“字号”以磅为单位。
+“时间戳时区”指定了用于设置水印时间戳格式的 IANA 时区标识符（例如“America/Toronto”，自 Chrome 152 起支持），该标识符遵循 IANA 时区数据库 (https://www.iana.org/time-zones) 中的名称。</translation>
 <translation id="6155350825868160236">允许用户选择是否使用 Google 网络服务来修正拼写错误</translation>
 <translation id="6155936611791017817">设置登录屏幕上大号光标的默认状态</translation>
 <translation id="6157537876488211233">代理绕过规则的逗号分隔列表</translation>
@@ -8216,6 +8207,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。
 
 在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
+<translation id="6279539269393750872">Chrome 中的 Gemini 文件上传设置</translation>
 <translation id="628084107912717806">指定能否跨源发送 WebAssembly 模块</translation>
 <translation id="6280973140313576289">在浏览器启动时强制显示个人资料选择器</translation>
 <translation id="6282524907402492171">显示 <ph name="CLOUD_PRINT_NAME" />弃用警告</translation>
@@ -10256,15 +10248,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
       如果此政策设为 false 或未设置，系统将不会启用 TLS 中的 RC4 加密套件。您也可将此政策设为 true，以便与过时的服务器保持兼容。这只是一种权宜之计，正确的做法是重新配置服务器。</translation>
 <translation id="751615601677744094">已停用：变更事件的正常行为，这意味着在移除日期之后不触发这些事件。</translation>
-<translation id="7518736413346509172">如果此政策设为“已启用”，<ph name="LOCAL_NETWORK_ACCESS" />请求将仅在 <ph name="CHROME_DEVTOOLS_NAME" />中显示因<ph name="LOCAL_NETWORK_ACCESS" />检查失败而导致的警告。
-
-如果此政策设为“已停用”或未设置，<ph name="LOCAL_NETWORK_ACCESS" />请求将使用此类请求的默认处理方式。
-
-如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
-
-这项企业政策只是暂时性政策，将在 M152 之后移除。
-
-从长远来看，可以使用政策 <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> 将应自动获得<ph name="LOCAL_NETWORK_ACCESS" />权限的网址格式列入许可名单。</translation>
 <translation id="7519218194072744342">协议处理程序的网址。</translation>
 <translation id="7519251620064708155">允许在这些网站上使用密钥生成功能</translation>
 <translation id="7521864460386999758">禁止在 Chrome 中注入第三方代码</translation>
@@ -11143,6 +11126,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8102913158860568230">默认 mediastream 设置</translation>
 <translation id="8104962233214241919">自动选择这些网站的客户端证书</translation>
 <translation id="8109762054721090517"><ph name="CLIENT_NAME_IPP_ATTRIBUTE" /><ph name="INTERNET_PRINTING_PROTOCOL" /><ph name="IPP_ATTRIBUTE" />专用模板</translation>
+<translation id="811012672754800797">不允许将文件上传到 Chrome 中的 Gemini。</translation>
 <translation id="8111331908123507719">配置设备的空闲时间，也就是等到设备闲置多久（以秒为单位）之后系统才会在锁定屏幕上显示屏保。
 
 有效值范围为 1 秒到 9999 秒。如果您未设置此政策，<ph name="PRODUCT_OS_NAME" /> 将会使用默认值（7 秒）。
@@ -12619,6 +12603,14 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="9087652369391570821">OnFileTransfer Chrome 企业版接口的配置政策</translation>
 <translation id="9088433379343318874">启用受监管用户内容提供方</translation>
 <translation id="9088444059179765143">配置自动检测时区方法</translation>
+<translation id="9091741086777905807">用于设置水印时间戳格式的 IANA 时区标识符（例如“America/Toronto”，自 Chrome 152 起支持），默认值为“user_device”。</translation>
+<translation id="9094681501120769194">控制 <ph name="PRODUCT_NAME" /> 中的 PDF 查看器是否会使用进程外 iframe (OOPIF)。这将成为未来的新 PDF 查看器架构，因为它更加简单，并且更易于添加新功能。现有的 GuestView PDF 查看器架构陈旧且复杂，目前正被逐步弃用。
+
+如果此政策已启用或未设置，<ph name="PRODUCT_NAME" /> 便能使用 OOPIF PDF 查看器架构。如果此政策已启用或未设置，默认行为将由 <ph name="PRODUCT_NAME" /> 决定。
+
+如果此政策已停用，<ph name="PRODUCT_NAME" /> 将严格使用现有的 GuestView PDF 查看器。它会将具有单独框架树的网页嵌入到另一个网页中。
+
+此政策已在 M152 中弃用，并将在 M155 中移除。GuestView PDF 查看器正在被移除，系统将始终使用进程外 iframe (OOPIF) PDF 查看器架构。</translation>
 <translation id="9095599826504830315">不允许使用“标签页比较”工具。</translation>
 <translation id="9096772739225230999">不报告网络配置</translation>
 <translation id="9098409326885953506">检测被遮挡的窗口并暂停其渲染进程</translation>

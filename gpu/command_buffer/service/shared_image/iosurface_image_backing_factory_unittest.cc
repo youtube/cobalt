@@ -124,11 +124,7 @@ class IOSurfaceImageBackingFactoryTest : public SharedImageTestBase {
     backing_factory_ = std::make_unique<IOSurfaceImageBackingFactory>(
         context_state_->gr_context_type(), context_state_->GetMaxTextureSize(),
         context_state_->feature_info(), /*progress_reporter=*/nullptr,
-#if BUILDFLAG(IS_MAC)
-        GetTextureTargetForIOSurfaces());
-#else
         GL_TEXTURE_2D);
-#endif
   }
 
  protected:
@@ -202,12 +198,6 @@ TEST_F(IOSurfaceImageBackingFactoryTest, GL_SkiaGL) {
   EXPECT_TRUE(backing);
   backing->SetCleared();
 
-  GLenum expected_target =
-#if BUILDFLAG(IS_MAC)
-      GetTextureTargetForIOSurfaces();
-#else
-      GL_TEXTURE_2D;
-#endif
   std::unique_ptr<SharedImageRepresentationFactoryRef> factory_ref =
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
 
@@ -217,8 +207,6 @@ TEST_F(IOSurfaceImageBackingFactoryTest, GL_SkiaGL) {
         shared_image_representation_factory_.ProduceGLTexturePassthrough(
             mailbox);
     EXPECT_TRUE(gl_representation);
-    EXPECT_EQ(expected_target,
-              gl_representation->GetTexturePassthrough()->target());
 
     // Access the SharedImageRepresentationGLTexutre
     auto scoped_write_access = gl_representation->BeginScopedAccess(
@@ -584,15 +572,7 @@ TEST_P(IOSurfaceImageBackingFactoryDawnTest, GL_Dawn_Skia_UnclearTexture) {
     auto gl_representation =
         shared_image_representation_factory_.ProduceGLTexturePassthrough(
             factory_ref->mailbox());
-    GLenum expected_target =
-#if BUILDFLAG(IS_MAC)
-        GetTextureTargetForIOSurfaces();
-#else
-        GL_TEXTURE_2D;
-#endif
     EXPECT_TRUE(gl_representation);
-    EXPECT_EQ(expected_target,
-              gl_representation->GetTexturePassthrough()->target());
 
     std::unique_ptr<GLTexturePassthroughImageRepresentation::ScopedAccess>
         gl_scoped_access = gl_representation->BeginScopedAccess(
@@ -806,6 +786,36 @@ TEST_P(IOSurfaceImageBackingFactoryDawnTest, Dawn_SamplingVideoTexture) {
                            kUFillValue, kVFillValue);
 }
 
+// Tests that sizes larger than max texture size will be rejected by
+// IsSupported().
+TEST_F(IOSurfaceImageBackingFactoryTest, SizeLargerThanMaxTextueSize) {
+  const int max_texture_size = context_state_->GetMaxTextureSize();
+
+  const auto format = viz::SinglePlaneFormat::kRGBA_8888;
+  const SharedImageUsageSet usage = {SHARED_IMAGE_USAGE_GLES2_READ,
+                                     SHARED_IMAGE_USAGE_SCANOUT};
+  const GrContextType gr_context_type = GrContextType::kGraphiteDawn;
+
+  {
+    // Verify that size not larger than max texture size is supported first.
+    gfx::Size size(max_texture_size, max_texture_size);
+    bool supported = backing_factory_->CanCreateSharedImage(
+        usage, format, size, /*is_thread_safe=*/false,
+        gfx::GpuMemoryBufferType::IO_SURFACE_BUFFER, gr_context_type,
+        /*pixel_data=*/{});
+    EXPECT_TRUE(supported);
+  }
+
+  {
+    gfx::Size size(max_texture_size + 1, max_texture_size);
+    bool supported = backing_factory_->CanCreateSharedImage(
+        usage, format, size, /*is_thread_safe=*/false,
+        gfx::GpuMemoryBufferType::IO_SURFACE_BUFFER, gr_context_type,
+        /*pixel_data=*/{});
+    EXPECT_FALSE(supported);
+  }
+}
+
 // Test that Skia trying to access uninitialized SharedImage will fail
 TEST_F(IOSurfaceImageBackingFactoryTest, SkiaAccessFirstFails) {
   // Create a mailbox.
@@ -890,11 +900,7 @@ class IOSurfaceImageBackingFactoryParameterizedTestBase
     backing_factory_ = std::make_unique<IOSurfaceImageBackingFactory>(
         context_state_->gr_context_type(), context_state_->GetMaxTextureSize(),
         context_state_->feature_info(), &progress_reporter_,
-#if BUILDFLAG(IS_MAC)
-        GetTextureTargetForIOSurfaces());
-#else
         GL_TEXTURE_2D);
-#endif
   }
 
   viz::SharedImageFormat get_format() { return std::get<0>(GetParam()); }
@@ -1146,12 +1152,6 @@ TEST_P(IOSurfaceImageBackingFactoryScanoutTest, InitialData) {
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
   EXPECT_TRUE(shared_image);
-  GLenum expected_target =
-#if BUILDFLAG(IS_MAC)
-      GetTextureTargetForIOSurfaces();
-#else
-      GL_TEXTURE_2D;
-#endif
 
   if (gr_context_type == GrContextType::kGL) {
     // First, validate a GLTexturePassthroughImageRepresentation.
@@ -1160,8 +1160,6 @@ TEST_P(IOSurfaceImageBackingFactoryScanoutTest, InitialData) {
             mailbox);
     EXPECT_TRUE(gl_representation);
     EXPECT_TRUE(gl_representation->GetTexturePassthrough()->service_id());
-    EXPECT_EQ(expected_target,
-              gl_representation->GetTexturePassthrough()->target());
     EXPECT_EQ(size, gl_representation->size());
     EXPECT_EQ(format, gl_representation->format());
     EXPECT_EQ(color_space, gl_representation->color_space());

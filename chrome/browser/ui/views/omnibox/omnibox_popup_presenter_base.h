@@ -12,9 +12,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
-#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
+#include "components/permissions/permission_request_manager.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -50,8 +51,10 @@ class OmniboxPopupDeactivationBlocker {
 // this class is presentation only, i.e. Views and Widgets.  For omnibox logic
 // concerns and communication between native omnibox code and the WebUI code,
 // work with OmniboxPopupViewWebUI directly.
-class OmniboxPopupPresenterBase : public content::WebContentsObserver,
-                                  public SearchboxHandler::Delegate {
+class OmniboxPopupPresenterBase
+    : public content::WebContentsObserver,
+      public SearchboxHandler::Delegate,
+      public permissions::PermissionRequestManager::Observer {
  public:
   // An RAII-style helper that registers itself as a blocker upon creation and
   // unregisters itself when destroyed.
@@ -140,6 +143,15 @@ class OmniboxPopupPresenterBase : public content::WebContentsObserver,
   // Outermost view in the hierarchy; used for hit testing.
   views::View* GetOuterView();
 
+  // Sets explicit permission prompt showing state. Called by permission request
+  // observer callbacks, PermissionPromptFactory, and WebUI media request
+  // handlers.
+  void SetPermissionPromptShowing(bool showing);
+
+  // Returns true if a permission prompt is showing or being dismissed,
+  // which should prevent out-of-focus activation events from hiding the popup.
+  bool IsPermissionPromptPreventingClose() const;
+
  protected:
   inline static constexpr std::string_view kWebUIPopupMetricPrefix =
       "Omnibox.Popup.WebUI";
@@ -184,11 +196,27 @@ class OmniboxPopupPresenterBase : public content::WebContentsObserver,
   // show/hide rather than unconditionally re-requesting focus after show.
   virtual bool ShouldPreserveRequestedFocus() const;
 
+  // Logs the ResultToContentReady metric. This is called synchronously when the
+  // visual state is ready.
+  virtual void LogResultToContentReadyMetric(base::TimeTicks result_ready_time,
+                                             bool success);
+
   LocationBar* location_bar() const { return location_bar_.get(); }
 
   views::Widget* GetWidget() const { return widget_.get(); }
 
-  OmniboxController* controller() const;
+  OmniboxController* controller() const { return controller_.get(); }
+
+  // permissions::PermissionRequestManager::Observer:
+  void OnPromptAdded() override;
+  void OnPromptRemoved() override;
+  void OnPromptRecreateViewFailed() override;
+  void OnPromptCreationFailedHiddenTab() override;
+  void OnRequestsFinalized() override;
+  void OnPermissionRequestManagerDestructed() override;
+
+  // Called by subclasses when widget activation changes to active = true.
+  void OnWidgetActivated();
 
   // Whether focus has been explicitly requested since the popup was shown.
   bool focus_requested_ = false;
@@ -201,6 +229,17 @@ class OmniboxPopupPresenterBase : public content::WebContentsObserver,
   friend class OmniboxWebUiInteractiveTest;
   friend class OmniboxPopupPresenterBaseTest;
 
+  base::ScopedObservation<permissions::PermissionRequestManager,
+                          permissions::PermissionRequestManager::Observer>
+      permission_observation_{this};
+
+  // Set to true when a permission prompt is added/showing.
+  bool is_prompt_showing_ = false;
+
+  // Set to true when a permission prompt is removed to prevent the omnibox
+  // popup from closing due to activation loss while focus is being restored.
+  bool is_handling_prompt_dismissal_ = false;
+
   void OnWidgetClosed(views::Widget::ClosedReason closed_reason);
 
   // Shows the popup widget immediately, called after stale frame fix deferral
@@ -212,14 +251,6 @@ class OmniboxPopupPresenterBase : public content::WebContentsObserver,
                           base::TimeTicks result_ready_time,
                           bool from_fallback,
                           bool success);
-
-  // Callback for when the visual state is ready.
-  // This is specifically for metrics logging and is distinct from the
-  // OnVisualStateReady deferral callback.
-  void OnVisualStateReadyForMetrics(base::TimeTicks result_ready_time,
-                                    bool success);
-
-  void LogResultToContentReadyMetric(content::WebContents* web_contents);
 
   // Remove observation and reset widget, optionally requesting it to close.
   void ReleaseWidget();
@@ -266,8 +297,6 @@ class OmniboxPopupPresenterBase : public content::WebContentsObserver,
   // greater than zero, out-of-focus widget deactivations will be ignored.
   int deactivation_blockers_count_ = 0;
 
-  // Weak pointer factory for callbacks related to metrics logging.
-  base::WeakPtrFactory<OmniboxPopupPresenterBase> metrics_weak_factory_{this};
   // Weak pointer factory for callbacks related to visual state.
   base::WeakPtrFactory<OmniboxPopupPresenterBase> visual_state_weak_factory_{
       this};

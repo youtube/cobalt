@@ -54,8 +54,10 @@ class ActorFormFillingServiceImpl : public ActorFormFillingService {
   void FillSuggestions(
       AutofillClient& client,
       base::span<const ActorFormFillingSelection> chosen_suggestions,
-      base::OnceCallback<void(base::expected<void, ActorFormFillingError>)>
-          callback) override;
+      base::flat_map<FieldGlobalId, ::actor::PageTarget> trigger_field_map,
+      base::OnceCallback<
+          void(base::expected<std::string, ActorFormFillingError>)> callback)
+      override;
   void ScrollToForm(AutofillClient& client, int form_index) override;
   void PreviewForm(AutofillClient& client,
                    int form_index,
@@ -123,13 +125,14 @@ class ActorFormFillingServiceImpl : public ActorFormFillingService {
   // `ActorFormFillingService::FillForm()`.
   std::unique_ptr<ActorFillingObserver> filling_observer_;
 
-  // Contains the `FieldGlobalId` of the trigger field that was used to generate
-  // suggestions during `ActorFormFillingServiceImpl::GetSuggestions()`.
-  // The `i`th ID in that list corresponds to the `i`th generated
-  // `FormFillingRequest`.
-  // TODO(crbug.com/448398227): Consider dropping the ordering and instead
-  // identify a `FormFillingRequest` by a `FormFillingRequestId`.
-  std::vector<FieldGlobalId> suggestion_trigger_field_id_;
+  struct Section final {
+    FieldGlobalId trigger_field_id;
+    std::string section_label;
+    ActorFormFillingRequest::RequestedData requested_data;
+  };
+  // Contains metadata about the fillable sections. The `i`th entry in this list
+  // corresponds to the `i`th generated `FormFillingRequest`.
+  std::vector<Section> sections_;
 
   // The actor journal for writing debug entries to.
   base::SafeRef<::actor::AggregatedJournal> journal_;

@@ -16,7 +16,7 @@
 <translation id="1036436692654972538">ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਵਿੱਚ ਰੱਖਿਅਤ ਹੁੰਦਾ ਹੈ</translation>
 <translation id="1041322626941363065">ਡਾਟਾ ਉਲੰਘਣਾ ਵਜੋਂ ਪਾਸਵਰਡਾਂ ਦਾ ਖੁਲਾਸਾ ਹੋਣ 'ਤੇ ਤੁਹਾਨੂੰ ਚਿਤਾਵਨੀ ਦਿੱਤੀ ਜਾਵੇ</translation>
 <translation id="1046742265332833834">ਨੀਲਾ ਥੀਮ</translation>
-<translation id="1049743911850919806">ਗੁਮਨਾਮ</translation>
+<translation id="1049743911850919806">ਇਨਕੋਗਨਿਟੋ</translation>
 <translation id="1053651653201045802">ਸਾਈਨ-ਆਊਟ ਕੀਤਾ ਗਿਆ। ਆਪਣੇ ਖਾਤੇ ਵਿੱਚ ਬੁੱਕਮਾਰਕਾਂ, ਪਾਸਵਰਡਾਂ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਨੂੰ ਵਰਤਣ ਲਈ ਵਾਪਸ ਸਾਈਨ-ਇਨ ਕਰੋ।</translation>
 <translation id="1054745118061919935">ਜਾਰੀ ਰੱਖ ਕੇ, ਤੁਸੀਂ <ph name="BEGIN_LINK" />ਸੇਵਾ ਦੇ ਨਿਯਮਾਂ<ph name="END_LINK" /> ਨਾਲ ਸਹਿਮਤ ਹੁੰਦੇ ਹੋ।</translation>
 <translation id="10614374240317010">ਕਦੇ ਵੀ ਸੁਰੱਖਿਅਤ ਨਹੀਂ ਕੀਤਾ</translation>
@@ -126,12 +126,12 @@
 <translation id="1396260204083880024"><ph name="USER_NAME" /> ਵਜੋਂ ਸਾਈਨ-ਇਨ ਕੀਤਾ ਗਿਆ। <ph name="USER_EMAIL" />. ਖਾਤਾ ਮੀਨੂ ਖੋਲ੍ਹੋ।</translation>
 <translation id="1397144142234474689">ਇਤਿਹਾਸ ਲੁਕਾਓ</translation>
 <translation id="1399268420835656394">ਜੇ ਤੁਸੀਂ ਬੱਚੇ ਨਹੀਂ ਹੋ, ਤਾਂ ਤੁਸੀਂ ਇਸ ਡੀਵਾਈਸ 'ਤੇ Apple ਖਾਤੇ ਵਿੱਚ ਜਾ ਕੇ ਉਮਰ ਦੀ ਜਾਣਕਾਰੀ ਦੇਖ ਸਕਦੇ ਹੋ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">ਪਹਿਲਾਂ ਤੋਂ ਭਰਿਆ ਗਿਆ</translation>
 <translation id="1407135791313364759">ਸਾਰੇ ਖੋਲ੍ਹੋ</translation>
 <translation id="1408847409015257906">“ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ” 'ਤੇ ਟੈਪ ਕਰੋ।</translation>
 <translation id="1411386976162024013">Lens ਦ੍ਰਿਸ਼ਟੀਗਤ ਖੋਜ</translation>
 <translation id="1417474386970818917">ਸਾਈਨ-ਆਊਟ ਕਰੋ ਅਤੇ ਮਿਟਾਓ</translation>
 <translation id="1426410128494586442">ਹਾਂ</translation>
-<translation id="1429187656584513419">ਪਾਸਵਰਡ ਖੋਲ੍ਹੋ</translation>
 <translation id="1430915738399379752">ਪ੍ਰਿੰਟ ਕਰੋ</translation>
 <translation id="1433478348197382180">ਪੜ੍ਹਨ ਦਾ ਮੋਡ</translation>
 <translation id="1435271730600332883">AutoFill ਅਤੇ Passwords ਖੋਲ੍ਹੋ</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">ਤੁਹਾਡੇ ਖਾਤੇ ਦਾ ਪ੍ਰਬੰਧਨ ਤੁਹਾਡੇ ਮਾਂ-ਪਿਓ ਵੱਲੋਂ ਕੀਤਾ ਜਾਂਦਾ ਹੈ।
 <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">ਬਦਲੀ ਗਈ</translation>
+<translation id="1481450969185702334">ਲੱਭੋ ਅਤੇ ਭਰੋ</translation>
 <translation id="1483493594462132177">ਭੇਜੋ</translation>
 <translation id="1486096554574027028">ਪਾਸਵਰਡ ਖੋਜੋ</translation>
 <translation id="1486593497476255523">ਟੈਬ ਗਰੁੱਪ ਬਣਾਉਣਾ ਪੂਰਾ ਹੋਇਆ!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">ਤੁਹਾਡੀ ਪਰਦੇਦਾਰੀ ਦੀ ਸੁਰੱਖਿਆ ਲਈ, Chrome ਇਸ ਖੇਤਰ ਵਿੱਚ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਨੂੰ ਆਟੋਫਿਲ ਨਹੀਂ ਕਰੇਗਾ।</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 ਸਾਈਟ (ਸਿੰਕ ਕੀਤੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਹੋਰ)}one{# ਸਾਈਟ (ਸਿੰਕ ਕੀਤੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਹੋਰ)}other{# ਸਾਈਟਾਂ (ਸਿੰਕ ਕੀਤੇ ਡੀਵਾਈਸਾਂ 'ਤੇ ਹੋਰ)}}</translation>
+<translation id="2865392654629180917">ਕੁਝ ਵੀ ਪੁੱਛੋ ਅਤੇ AI-ਸੰਚਾਲਿਤ ਜਵਾਬ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
 <translation id="2870560284913253234">ਸਾਈਟ</translation>
 <translation id="2876369937070532032">ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਜੋਖਮ ਵਿੱਚ ਹੋਣ 'ਤੇ, ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੇ ਕੁਝ ਪੰਨਿਆਂ ਦੇ URL Google ਨੂੰ ਭੇਜੇ ਜਾਂਦੇ ਹਨ</translation>
 <translation id="2883151425485251736">ਤੁਹਾਡੇ ਵੱਲੋਂ ਤੁਹਾਡੇ ਖਾਤੇ ਤੋਂ ਲੁਕਾਏ ਗਏ ਵਿਸ਼ਿਆਂ ਨੂੰ ਦੇਖੋ ਅਤੇ ਉਨ੍ਹਾਂ ਦਾ ਸੰਪਾਦਨ ਕਰੋ</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">ਕੀਮਤ 'ਤੇ ਨਜ਼ਰ ਰੱਖੀ ਜਾ ਰਹੀ ਹੈ</translation>
 <translation id="3038136505713492417">ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਆਪਣੀਆਂ ਪਾਸਕੀਆਂ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ ਆਪਣੀ ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ</translation>
 <translation id="3039671569659952257">ਫੋਲਡਰ ਮਿਟਾਓ</translation>
+<translation id="3050988301648974170">ਪਾਸਵਰਡ ਜਾਂਚ ਖੋਲ੍ਹੋ</translation>
 <translation id="3053332585453689122">ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੇ ਜਾਣ ਵਾਲੇ URL ਅਤੇ ਪੰਨੇ ਦੀ ਸਮੱਗਰੀ ਦੇ ਛੋਟੇ ਨਮੂਨੇ, ਡਾਊਨਲੋਡਾਂ, ਐਕਸਟੈਂਸ਼ਨ ਸਰਗਰਮੀ ਅਤੇ ਸਿਸਟਮ ਦੀ ਜਾਣਕਾਰੀ Google ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਨੂੰ ਭੇਜੀ ਜਾਂਦੀ ਹੈ, ਤਾਂ ਕਿ ਇਹ ਜਾਂਚ ਕੀਤੀ ਜਾ ਸਕੇ ਉਹ ਹਾਨੀਕਾਰਕ ਹਨ ਜਾਂ ਨਹੀਂ।</translation>
 <translation id="3055102495753300780">ਜਾਣਕਾਰੀ ਦੀ ਸਟੋਰੇਜ</translation>
 <translation id="3059270601560379555">ਨਵੀਂ ਖੋਜ</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">ਨਵਾਂ ਟੈਬ ਗਰੁੱਪ...</translation>
 <translation id="3185760469172949183">ਕੈਮਰੇ ਨਾਲ ਖੋਜਣ ਦਾ ਕੰਮ ਪੂਰਾ ਹੋਇਆ!</translation>
 <translation id="3186796054637504691">ਇਤਿਹਾਸ ਅਤੇ ਵੈੱਬਸਾਈਟ ਡਾਟਾ ਕਲੀਅਰ ਕਰੋ</translation>
+<translation id="3190558889382726167">ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="3190736958609431397">ਟਰੈਕਿੰਗ ਬੰਦ ਕਰੋ</translation>
 <translation id="3208260410153224535">ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੇ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬੰਦ ਕਰ ਦਿੱਤਾ ਹੈ। ਨਵੇਂ ਬੁੱਕਮਾਰਕਾਂ, ਪਾਸਵਰਡਾਂ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਨੂੰ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਜਾਵੇਗਾ।</translation>
 <translation id="3211969308836412674">ਸਾਈਟ ਨੂੰ ਅਣਪਿੰਨ ਕਰੋ</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">ਪਿਛਲੇ 15 ਮਿੰਟ</translation>
 <translation id="5020732097997376541">"Lens ਪ੍ਰਤੀਕ" 'ਤੇ ਟੈਪ ਕਰੋ</translation>
 <translation id="5021500396464456616">ਇਸ ਲਿੰਕ ਨੂੰ ਭੇਜਣ ਵਾਲੇ ਵਿਅਕਤੀ ਨਾਲ ਸੰਪਰਕ ਕਰੋ</translation>
+<translation id="503173149952522259">ਇਸ ਟੈਬ ਨੂੰ ਪਿੰਨ ਕਰਨ ਲਈ ਦਬਾਈ ਰੱਖੋ</translation>
 <translation id="5039804452771397117">ਆਗਿਆ ਦਿਓ</translation>
 <translation id="5050042263972837708">ਗਰੁੱਪ ਦਾ ਨਾਮ</translation>
 <translation id="5050810143224996149">ਪਾਸਵਰਡ ਸਾਂਝਾ ਕਰੋ</translation>
@@ -2427,6 +2432,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="9013605037177245304">ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="9029650858822697271">ਤੁਹਾਨੂੰ ਸਾਈਨ-ਆਊਟ ਹੋ ਗਏ ਸੀ</translation>
 <translation id="9032405509996909363">ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟਾ ਮਿਟਾਉਣ ਦੀ ਤਸਦੀਕ ਕਰੋ</translation>
+<translation id="9035699147763101514">Gemini ਨਾਲ ਪਰਸਨਲ ਇੰਟੈਲੀਜੈਂਸ ਵੱਲੋਂ ਸੰਚਾਲਿਤ। ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਆਪਣੀਆਂ ਚੋਣਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ।</translation>
 <translation id="9039373489628511875">ਬੈਂਡਵਿਡਥ</translation>
 <translation id="9042893549633094279">ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ</translation>
 <translation id="9055291197094969722">ਆਪਣੀਆਂ ਖੁੱਲ੍ਹੀਆਂ ਹੋਈਆਂ ਟੈਬਾਂ ਨੂੰ ਵਿਵਸਥਿਤ ਕਰਨ ਲਈ ਟੈਬ ਗਰੁੱਪ ਬਣਾਓ ਅਤੇ ਉਤਪਾਦਕ ਰਹੋ</translation>
@@ -2438,6 +2444,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="9070824521421603770">ਤੁਸੀਂ ਸਾਈਨ-ਆਊਟ ਹੋ ਜਾਵੋਗੇ ਅਤੇ ਟੈਬਾਂ ਬੰਦ ਹੋ ਜਾਣਗੀਆਂ</translation>
 <translation id="9072837124205571418">ਸਾਰੇ ਡੀਵਾਈਸਾਂ ਤੋਂ ਟੈਬ ਗਰੁੱਪ</translation>
 <translation id="9081058212938299310">ਕੀ <ph name="USERNAME" /> ਲਈ ਪਾਸਵਰਡ ਅੱਪਡੇਟ ਕਰਨਾ ਹੈ?</translation>
+<translation id="908365381820697818">ਹੁਣ ਤੁਸੀਂ Gmail ਅਤੇ ਹੋਰ ਸਰੋਤਾਂ ਤੋਂ ਜਾਣਕਾਰੀ ਲੱਭ ਸਕਦੇ ਹੋ ਅਤੇ ਭਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="9083838294503912307">ਡੀਵਾਈਸਾਂ ਵਿਚਾਲੇ ਸਿੰਕ ਕਰਨ ਅਤੇ ਵਿਅਕਤੀਗਤ ਬਣਾਉਣ ਲਈ, ਸਿੰਕ ਚਾਲੂ ਕਰੋ।</translation>
 <translation id="9084367296493549256">{count,plural, =1{ਤੁਹਾਡੇ ਕੋਲ {count} ਕਮਜ਼ੋਰ ਪਾਸਵਰਡ ਹੈ ਜੋ ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਨੂੰ ਖਤਰੇ ਵਿੱਚ ਪਾ ਸਕਦਾ ਹੈ। ਸੁਰੱਖਿਅਤ ਰਹਿਣ ਲਈ ਇਸਨੂੰ ਹੁਣੇ ਠੀਕ ਕਰੋ।}one{ਤੁਹਾਡੇ ਕੋਲ {count} ਕਮਜ਼ੋਰ ਪਾਸਵਰਡ ਹੈ ਜੋ ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਨੂੰ ਖਤਰੇ ਵਿੱਚ ਪਾ ਸਕਦਾ ਹੈ। ਸੁਰੱਖਿਅਤ ਰਹਿਣ ਲਈ ਇਸਨੂੰ ਹੁਣੇ ਠੀਕ ਕਰੋ।}other{ਤੁਹਾਡੇ ਕੋਲ {count} ਕਮਜ਼ੋਰ ਪਾਸਵਰਡ ਹਨ ਜੋ ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਨੂੰ ਖਤਰੇ ਵਿੱਚ ਪਾ ਸਕਦੇ ਹਨ। ਸੁਰੱਖਿਅਤ ਰਹਿਣ ਲਈ ਇਨ੍ਹਾਂ ਨੂੰ ਹੁਣੇ ਠੀਕ ਕਰੋ।}}</translation>
 <translation id="9084369964545892485">ਗਰੁੱਪ ਵਿੱਚ ਨਵੀਂ ਇਨਕੋਗਨਿਟੋ ਟੈਬ</translation>

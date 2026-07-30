@@ -30,6 +30,7 @@
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/page_load_metrics/chrome_initiator_location.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
@@ -330,7 +331,7 @@ class OmniboxViewTest : public InProcessBrowserTest {
   }
 
   void SetupSearchEngine() {
-    Profile* profile = browser()->profile();
+    Profile* profile = browser()->GetProfile();
     TemplateURLService* model =
         TemplateURLServiceFactory::GetForProfile(profile);
     ASSERT_TRUE(model);
@@ -360,7 +361,7 @@ class OmniboxViewTest : public InProcessBrowserTest {
   }
 
   void AddHistoryEntry(const TestHistoryEntry& entry, const base::Time& time) {
-    Profile* profile = browser()->profile();
+    Profile* profile = browser()->GetProfile();
     history::HistoryService* history_service =
         HistoryServiceFactory::GetForProfile(
             profile, ServiceAccessType::EXPLICIT_ACCESS);
@@ -653,7 +654,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewTest, DISABLED_DesiredTLDWithTemporaryText) {
   ASSERT_NO_FATAL_FAILURE(GetOmniboxView(&omnibox_view));
   ASSERT_TRUE(GetOmniboxController()->IsPopupOpen());
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
 
@@ -1000,7 +1001,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewTest, NonDefaultSubstitutingKeywordTest) {
   OmniboxView* omnibox_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(GetOmniboxView(&omnibox_view));
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
 
@@ -1036,7 +1037,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewTest, NonSubstitutingKeywordTest) {
   OmniboxView* omnibox_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(GetOmniboxView(&omnibox_view));
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
 
@@ -1394,13 +1395,13 @@ class TestOmniboxNavigationObserver : public content::WebContentsObserver {
           page_load_metrics::NavigationHandleUserData::GetForNavigationHandle(
               *navigation_handle);
       if (user_data) {
-        navigation_type_ = user_data->navigation_type();
+        navigation_type_ =
+            GetChromeInitiatorLocation(user_data->navigation_type());
       }
     }
   }
 
-  std::optional<page_load_metrics::NavigationHandleUserData::InitiatorLocation>
-      navigation_type_;
+  std::optional<ChromeInitiatorLocation> navigation_type_;
 };
 
 }  // namespace
@@ -1429,8 +1430,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewTest,
 
   ASSERT_TRUE(omnibox_observer.navigation_type_.has_value());
   EXPECT_EQ(omnibox_observer.navigation_type_.value(),
-            page_load_metrics::NavigationHandleUserData::InitiatorLocation::
-                kOmniboxDirectUrlInput);
+            ChromeInitiatorLocation::kOmniboxDirectUrlInput);
 }
 
 IN_PROC_BROWSER_TEST_F(OmniboxViewTest,
@@ -1457,8 +1457,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewTest,
 
   ASSERT_TRUE(omnibox_observer.navigation_type_.has_value());
   EXPECT_EQ(omnibox_observer.navigation_type_.value(),
-            page_load_metrics::NavigationHandleUserData::InitiatorLocation::
-                kOmniboxDefaultSearchEngine);
+            ChromeInitiatorLocation::kOmniboxDefaultSearchEngine);
 }
 
 IN_PROC_BROWSER_TEST_F(OmniboxViewTest, Paste) {
@@ -1822,7 +1821,7 @@ class OmniboxViewAiModeTest : public OmniboxViewTest {
 IN_PROC_BROWSER_TEST_F(OmniboxViewAiModeTest,
                        OpenAiModeTriggersContextualization) {
   // Re-add google keyword; otherwise AI flow will hit a `CHECK()`.
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
   TemplateURLData data;

@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/default_browser_step_eligibility_checker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_constants.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/google_lens_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/password_manager_feature_showcase_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/themes_and_customization_step_eligibility_checker.h"
@@ -53,6 +54,7 @@ const std::vector<FeatureShowcaseTestParam>& GetTestParams() {
         const std::string kSteps[] = {
             kFeatureShowcaseDefaultBrowserStepIdentifier,
             kFeatureShowcaseGoogleLensStepIdentifier,
+            kFeatureShowcaseGeminiStepIdentifier,
             kFeatureShowcasePasswordManagerStepIdentifier,
             kFeatureShowcaseThemesAndCustomizationStepIdentifier,
         };
@@ -116,7 +118,7 @@ class FirstRunFeatureShowcasePixelTest
                 -> std::unique_ptr<ProfileManagementStepController> {
               return CreateFeatureShowcaseStep(host, profile);
             },
-            browser()->profile()));
+            browser()->GetProfile()));
 
     profile_picker_view_->views::View::AddObserver(this);
     profile_picker_view_->ShowAndWait(GetParam().pixel_test_param.window_size);
@@ -184,6 +186,8 @@ INSTANTIATE_TEST_SUITE_P(
         step_name = "DefaultBrowser";
       } else if (step_name == kFeatureShowcaseGoogleLensStepIdentifier) {
         step_name = "GoogleLens";
+      } else if (step_name == kFeatureShowcaseGeminiStepIdentifier) {
+        step_name = "Gemini";
       } else if (step_name == kFeatureShowcasePasswordManagerStepIdentifier) {
         step_name = "PasswordManager";
       } else if (step_name ==

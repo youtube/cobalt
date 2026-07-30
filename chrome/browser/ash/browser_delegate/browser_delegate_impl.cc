@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -206,7 +207,8 @@ content::WebContents* BrowserDelegateImpl::NavigateWebApp(
         *std::move(launch_params));
   }
 
-  return web_app::NavigateWebAppUsingParams(nav_params);
+  Navigate(&nav_params);
+  return nav_params.navigated_or_inserted_contents;
 }
 
 void BrowserDelegateImpl::CreateTabGroup(
@@ -287,6 +289,8 @@ void BrowserDelegateImpl::SetTabSwitchCommandsEnabled(bool enabled) {
       browser_->command_controller();
   command_controller->UpdateCommandEnabled(IDC_SELECT_NEXT_TAB, enabled);
   command_controller->UpdateCommandEnabled(IDC_SELECT_PREVIOUS_TAB, enabled);
+  command_controller->UpdateCommandEnabled(IDC_CYCLE_TO_NEXT_TAB, enabled);
+  command_controller->UpdateCommandEnabled(IDC_CYCLE_TO_PREV_TAB, enabled);
   command_controller->UpdateCommandEnabled(IDC_SELECT_TAB_0, enabled);
   command_controller->UpdateCommandEnabled(IDC_SELECT_TAB_1, enabled);
   command_controller->UpdateCommandEnabled(IDC_SELECT_TAB_2, enabled);

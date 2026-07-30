@@ -52,7 +52,7 @@ class MemoryHandleImpl
     // Nothing is serialized because we're using shared memory.
     return 0;
   }
-  void SerializeDataUpdate(std::span<std::byte> serialize_data,
+  void SerializeDataUpdate(std::span<volatile std::byte> serialize_data,
                            size_t offset,
                            size_t size,
                            std::span<const std::byte> data) const override {

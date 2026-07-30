@@ -249,7 +249,8 @@ void GlicActorClientSession::CreateTask(
   current_task_id_ = actor_keyed_service().CreateTaskWithOptions(
       actor::TaskSourceInfo(actor::TaskSourceInfo::Client::kGlic,
                             conversation_id),
-      &actor_policy_checker(), std::move(options), GetWeakPtr());
+      &actor_policy_checker(), std::move(options), GetWeakPtr(),
+      instance_metrics().initial_invocation_source());
   CHECK(!current_task_id_.is_null());
 
   if (manager_->delegate_) {
@@ -400,6 +401,15 @@ void GlicActorClientSession::OnPerformActionsComplete(
   }
 
   actor::CopyScriptToolResults(response, action_results);
+
+  for (const auto& action_result : action_results) {
+    if (actor::IsOk(*action_result.result)) {
+      response.add_extra_information(action_result.result->message);
+    } else {
+      // In case of an error, the message is copied to `error_message` instead.
+      response.add_extra_information(std::string());
+    }
+  }
 
   auto* latency_info = response.mutable_latency_information();
   for (size_t i = 0; i < action_results.size(); ++i) {

@@ -54,8 +54,6 @@
 constexpr char kHatsSurveyTriggerAutofillAddress[] = "autofill-address";
 constexpr char kHatsSurveyTriggerAutofillAddressUserPerception[] =
     "autofill-address-users-perception";
-constexpr char kHatsSurveyTriggerAutofillAiFilling[] =
-    "autofill-ai-walletable-entity-filled";
 constexpr char kHatsSurveyTriggerAutofillAiSavePrompt[] =
     "autofill-ai-walletable-entity-save-prompt";
 constexpr char kHatsSurveyTriggerAutofillAddressUserDeclinedSuggestion[] =
@@ -205,6 +203,7 @@ constexpr char kHatsSurveyTriggerTesting[] = "testing";
 constexpr char kHatsNextSurveyTriggerIDTesting[] =
     "HLpeYy5Av0ugnJ3q1cK0XzzA8UHv";
 
+constexpr char kHatsSurveyTriggerAutofillAiFilling[] = "autofill-ai-filling";
 constexpr char kHatsSurveyTriggerPermissionsPrompt[] = "permissions-prompt";
 constexpr char kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness[] =
     "omnibox-on-focus-happiness";
@@ -487,14 +486,6 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
           "Total number of fields"});
 
   survey_configs.emplace_back(
-      &::autofill::features::kAutofillAiFillingSurvey,
-      kHatsSurveyTriggerAutofillAiFilling,
-      /*presupplied_trigger_id=*/std::nullopt,
-      std::vector<std::string>{"User accepted suggestion"},
-      std::vector<std::string>{"Entity type", "Triggering field types",
-                               "Saved entities"});
-
-  survey_configs.emplace_back(
       &::autofill::features::kAutofillAiSavePromptSurvey,
       kHatsSurveyTriggerAutofillAiSavePrompt,
       /*presupplied_trigger_id=*/std::nullopt, std::vector<std::string>{},
@@ -561,7 +552,7 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       data_management_psd_bits_fields);
 
   std::vector<std::string> autopip_string_psd_fields{
-      "AutoPip Reason", "Opener site URL", "Pip window duration"};
+      "AutoPip Reason", "Opener site domain", "Pip window duration"};
   survey_configs.emplace_back(&media::kAutoPictureInPictureSurveys,
                               kHatsSurveyTriggerAutoPipPermissionPromptIgnored,
                               /*presupplied_trigger_id=*/std::nullopt,
@@ -833,17 +824,17 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   survey_configs.emplace_back(
       &metrics::kHappinessTrackingSurveysForDownloadJourney,
       metrics::kHatsSurveyTriggerDownloadJourney,
-      /*presupplied_trigger_id=*/"Y2We4jMf70ugnJ3q1cK0QFVzpBEr");
+      /*presupplied_trigger_id=*/"mL46CjHkE0ugnJ3q1cK0NsAQJpTP");
 
   survey_configs.emplace_back(
       &metrics::kHappinessTrackingSurveysForPinExtensionJourney,
       metrics::kHatsSurveyTriggerPinExtensionJourney,
-      /*presupplied_trigger_id=*/"ZPGYEfdNz0ugnJ3q1cK0WdJNwYC3");
+      /*presupplied_trigger_id=*/"8RJXcn5t20ugnJ3q1cK0VLDGHPAz");
 
   survey_configs.emplace_back(
       &metrics::kHappinessTrackingSurveysForClearBrowsingHistory,
       metrics::kHatsSurveyTriggerClearBrowsingHistory,
-      /*presupplied_trigger_id=*/"uAmt8ZyqJ0ugnJ3q1cK0PAWUdnZB");
+      /*presupplied_trigger_id=*/"R8iDTcjjT0ugnJ3q1cK0TiRRjjy4");
 
   // Lens overlay surveys.
   survey_configs.emplace_back(
@@ -889,6 +880,14 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       std::vector<std::string>{}, signin_string_psd_fields);
 
 #endif  // #if !BUILDFLAG(IS_ANDROID)
+
+  survey_configs.emplace_back(
+      &::autofill::features::kAutofillAiFillingSurvey,
+      kHatsSurveyTriggerAutofillAiFilling,
+      /*presupplied_trigger_id=*/std::nullopt,
+      std::vector<std::string>{"User accepted suggestion"},
+      std::vector<std::string>{"Entity type", "Triggering field types",
+                               "Saved entities"});
 
   survey_configs.emplace_back(
       &omnibox_feature_configs::HappinessTrackingSurveyForOmniboxOnFocusZps::

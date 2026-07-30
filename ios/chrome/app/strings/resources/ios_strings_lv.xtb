@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Esat pierakstījies kā <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Atvērt konta izvēlni.</translation>
 <translation id="1397144142234474689">Paslēpt vienumu “Vēsture”</translation>
 <translation id="1399268420835656394">Ja neesat bērns, ieteicams pārbaudīt vecumu Apple kontā šajā ierīcē. <ph name="BEGIN_LINK" />Uzzināt vairāk<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Iepriekš aizpildīts</translation>
 <translation id="1407135791313364759">Atvērt visas</translation>
 <translation id="1408847409015257906">Pieskarieties vienumam “Konfidencialitāte un drošība”.</translation>
 <translation id="1411386976162024013">Lens vizuālā meklēšana</translation>
 <translation id="1417474386970818917">Izrakstīties un dzēst</translation>
 <translation id="1426410128494586442">Jā</translation>
-<translation id="1429187656584513419">Atveriet sadaļu Paroles</translation>
 <translation id="1430915738399379752">Drukāt</translation>
 <translation id="1433478348197382180">Lasīšanas režīms</translation>
 <translation id="1435271730600332883">Atveriet sadaļu “Automātiskā aizpilde un paroles”.</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Jūsu kontu pārvalda viens no vecākiem.
 <ph name="BEGIN_LINK" />Uzzināt vairāk<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Mainīta</translation>
+<translation id="1481450969185702334">Atrašana un aizpildīšana</translation>
 <translation id="1483493594462132177">Sūtīt</translation>
 <translation id="1486096554574027028">Meklēt paroles</translation>
 <translation id="1486593497476255523">Ciļņu grupēšana ir pabeigta.</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Lai aizsargātu jūsu konfidencialitāti, Chrome neveiks šī lauka automātisko aizpildi ar jūsu paroli.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 vietne (vairāk sinhronizētajās ierīcēs)}zero{# vietņu (vairāk sinhronizētajās ierīcēs)}one{# vietne (vairāk sinhronizētajās ierīcēs)}other{# vietnes (vairāk sinhronizētajās ierīcēs)}}</translation>
+<translation id="2865392654629180917">Uzdodiet jautājumus un saņemiet MI nodrošinātas atbildes.</translation>
 <translation id="2870560284913253234">Vietne</translation>
 <translation id="2876369937070532032">Nosūta Google serveriem dažu apmeklēto lapu vietrāžus URL, ja jūsu drošība ir apdraudēta</translation>
 <translation id="2883151425485251736">Skatiet un rediģējiet no konta paslēptās tēmas</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Notiek cenas izsekošana</translation>
 <translation id="3038136505713492417">Apstipriniet savu identitāti, lai varētu izmantot piekļuves atslēgas šajā ierīcē</translation>
 <translation id="3039671569659952257">Dzēst mapi</translation>
+<translation id="3050988301648974170">Atvērt paroļu pārbaudi</translation>
 <translation id="3053332585453689122">Uz funkciju “Google droša pārlūkošana” tiek sūtīti jūsu apmeklētie vietrāži URL, nelieli lapu satura paraugi, informācija par lejupielādēm un paplašinājumu darbību, kā arī sistēmas informācija, lai pārbaudītu, vai šie vietrāži, lejupielādes un paplašinājumi nav kaitīgi.</translation>
 <translation id="3055102495753300780">Informācijas glabāšana</translation>
 <translation id="3059270601560379555">Jauns meklējums</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Jauna ciļņu grupa…</translation>
 <translation id="3185760469172949183">Meklēšana ar kameru ir pabeigta.</translation>
 <translation id="3186796054637504691">Clear History and Website Data (Notīrīt vēsturi un vietņu datus)</translation>
+<translation id="3190558889382726167">Parole ir saglabāta</translation>
 <translation id="3190736958609431397">Atcelt izsekošanu</translation>
 <translation id="3208260410153224535">Jūsu organizācija izslēdza pierakstīšanos. Jaunas grāmatzīmes, paroles un citi dati tiks saglabāti tikai šajā ierīcē.</translation>
 <translation id="3211969308836412674">Atspraust vietni</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">Pēdējās 15 minūtes</translation>
 <translation id="5020732097997376541">Pieskarieties Lens ikonai.</translation>
 <translation id="5021500396464456616">Sazinieties ar personu, kura nosūtīja šo saiti</translation>
+<translation id="503173149952522259">Nospiediet un turiet, lai piespraustu šo cilni</translation>
 <translation id="5039804452771397117">Atļaut</translation>
 <translation id="5050042263972837708">Grupas nosaukums</translation>
 <translation id="5050810143224996149">Paroles kopīgošana</translation>
@@ -1800,7 +1805,7 @@ Lai turpinātu datorā, pārslēdzieties uz kontu <ph name="OTHER_EMAIL" />. Jū
 <translation id="693761253105515415">Iestatiet piekļuves kodu</translation>
 <translation id="6945221475159498467">Atlasīt</translation>
 <translation id="6946722113367118030">Domāšana</translation>
-<translation id="6950522403736391608">Paslēpta</translation>
+<translation id="6950522403736391608">Paslēptas</translation>
 <translation id="6962809930976936328">Gūt ieskatus, izmantojot Gemini</translation>
 <translation id="6964300328304469089">Pašlaik ir atlasīts šāds konts: <ph name="NAME" />, <ph name="EMAIL" />. Izvēlieties kontu.</translation>
 <translation id="6964760285928603117">Noņemt no grupas</translation>
@@ -2427,6 +2432,7 @@ Lai turpinātu datorā, pārslēdzieties uz kontu <ph name="OTHER_EMAIL" />. Jū
 <translation id="9013605037177245304">Ieslēgt paziņojumus</translation>
 <translation id="9029650858822697271">Jūs tikāt izrakstīts</translation>
 <translation id="9032405509996909363">Apstiprināt pārlūkošanas datu dzēšanu</translation>
+<translation id="9035699147763101514">Nodrošina funkcija “Personīgais intelekts” ar Gemini. Pārvaldiet savas izvēles iestatījumos.</translation>
 <translation id="9039373489628511875">Joslas platums</translation>
 <translation id="9042893549633094279">Konfidencialitāte un drošība</translation>
 <translation id="9055291197094969722">Izveidojiet ciļņu grupas, lai kārtotu atvērtās cilnes un saglabātu produktivitāti</translation>
@@ -2438,6 +2444,7 @@ Lai turpinātu datorā, pārslēdzieties uz kontu <ph name="OTHER_EMAIL" />. Jū
 <translation id="9070824521421603770">Jūs tiksiet izrakstīts, un cilnes tiks aizvērtas</translation>
 <translation id="9072837124205571418">Ciļņu grupas no visām ierīcēm</translation>
 <translation id="9081058212938299310">Vai atjaunināt lietotājvārda <ph name="USERNAME" /> paroli?</translation>
+<translation id="908365381820697818">Tagad varat atrast un aizpildīt informāciju no pakalpojuma Gmail un citiem avotiem</translation>
 <translation id="9083838294503912307">Lai sinhronizētu un personalizētu saturu dažādās ierīcēs, ieslēdziet sinhronizāciju.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Jums ir {count} nedroša parole, kas var apdraudēt jūsu drošību. Labojiet to tūlīt, lai gādātu par savu drošību.}zero{Jums ir {count} nedrošas paroles, kas var apdraudēt jūsu drošību. Labojiet tās tūlīt, lai gādātu par savu drošību.}one{Jums ir {count} nedroša parole, kas var apdraudēt jūsu drošību. Labojiet tās tūlīt, lai gādātu par savu drošību.}other{Jums ir {count} nedrošas paroles, kas var apdraudēt jūsu drošību. Labojiet tās tūlīt, lai gādātu par savu drošību.}}</translation>
 <translation id="9084369964545892485">Jauna inkognito cilne grupā</translation>

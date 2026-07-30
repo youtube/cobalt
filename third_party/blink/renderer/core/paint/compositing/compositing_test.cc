@@ -1147,7 +1147,117 @@ TEST_P(CompositingTest, MergeStickyLayers) {
                                 1);
 }
 
-TEST_P(CompositingTest, DontCompositedStickyAlongNonScrollableAxis) {
+TEST_P(CompositingTest, MergeStickyLayersWithCullRectVerticalScrollRange) {
+  InitializeWithHTML(*WebView()->MainFrameImpl()->GetFrame(), R"HTML(
+    <style>
+      #scroller { width: 400px; height: 400px; overflow-y: scroll; }
+      .sticky { position: sticky; width: 20px; height: 20px; }
+    </style>
+    <div id="scroller">
+      <div style="height: 15000px">
+        <div id="d1" class="sticky" style="top: 0"></div>
+        <div style="height: 4000px"></div>
+        <div id="d2" class="sticky" style="top: 0"></div>
+        <div id="d3" class="sticky" style="top: 20px"></div>
+      </div>
+      <div style="height: 10000px"></div>
+    </div>
+  )HTML");
+
+  // In the initial painted scroll range (0,0 to 0,4000), d1 is always
+  // sticky.
+  EXPECT_TRUE(CcLayerByDOMElementId("d1"));
+  // d2 and d3 are both non-sticky in the range, so they are merged.
+  EXPECT_TRUE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+
+  // After scrolling far enough, d1, d2, d3 exhibit the same sticky behavior
+  // within the new painted scroll range (0,5000 to 0,13000), so they can
+  // merge.
+  GetElementById("scroller")->scrollToForTesting(0, 9000);
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("d1"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+
+  // Scroll further. In the new painted scroll range (0,9000 to 0,17000),
+  // d2, d3 start to be constrained by the containing block at different scroll
+  // positions, so they can't merge.
+  GetElementById("scroller")->scrollToForTesting(0, 13000);
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("d1"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d2"));
+  EXPECT_TRUE(CcLayerByDOMElementId("d3"));
+}
+
+TEST_P(CompositingTest, MergeStickyLayersWithCullRectBothAxesScrollRange) {
+  InitializeWithHTML(*WebView()->MainFrameImpl()->GetFrame(), R"HTML(
+    <style>
+      #scroller { width: 400px; height: 400px; overflow: scroll; }
+      .sticky { position: sticky; width: 20px; height: 20px; }
+    </style>
+    <div id="scroller">
+      <div style="width: 8000px; height: 8000px">
+        <div id="d1" class="sticky" style="top: 0"></div>
+        <div style="height: 2000px"></div>
+        <div id="d2" class="sticky" style="top: 0"></div>
+        <div id="d3" class="sticky" style="top: 20px"></div>
+        <div id="d4" class="sticky" style="top: 20px; left: 0"></div>
+        <div id="d5" class="sticky" style="top: 20px; left: 20px"></div>
+      </div>
+      <div style="width: 13000px; height: 5000px"></div>
+    </div>
+  )HTML");
+
+  // In the initial painted scroll range (0,0 to 2000,2000), d1 is always
+  // sticky.
+  EXPECT_TRUE(CcLayerByDOMElementId("d1"));
+  // d2 and d3 are both non-sticky in the range, so they are merged.
+  EXPECT_TRUE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+  // d4 and d5 have horizontal sticky behavior and are merged separately from
+  // previous elements.
+  EXPECT_TRUE(CcLayerByDOMElementId("d4"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d5"));
+
+  // After scrolling far enough, d1, d2, d3 exhibit the same sticky behavior
+  // within the new painted scroll range (0,3000 to 2000,7000), so they can
+  // merge.
+  GetElementById("scroller")->scrollToForTesting(0, 5000);
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(CcLayerByDOMElementId("d1"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+  // Same as before, d4 and d5 are merged separately.
+  EXPECT_TRUE(CcLayerByDOMElementId("d4"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d5"));
+
+  // Scroll horizontally with a large distance. d1, d2, d3 have no horizontal
+  // sticky behavior and is out of the cull rect, so are not painted.
+  // d4 and d5 exhibit the same behavior within the painted scroll range
+  // (3000,3000 to 7000,7000), so they can merge.
+  GetElementById("scroller")->scrollToForTesting(5000, 5000);
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(CcLayerByDOMElementId("d1"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+  EXPECT_TRUE(CcLayerByDOMElementId("d4"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d5"));
+
+  // Scroll in both direction further. d1, d2, d3 are still not painted.
+  // In the new painted scroll range (5000,5000 to 9000,9000), d4 and d5 can
+  // start to be constrained by the containing block at different scroll
+  // positions, so they can't merge.
+  GetElementById("scroller")->scrollToForTesting(9000, 9000);
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(CcLayerByDOMElementId("d1"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d2"));
+  EXPECT_FALSE(CcLayerByDOMElementId("d3"));
+  EXPECT_TRUE(CcLayerByDOMElementId("d4"));
+  EXPECT_TRUE(CcLayerByDOMElementId("d5"));
+}
+
+TEST_P(CompositingTest, DontCompositeStickyAlongNonScrollableAxis) {
   InitializeWithHTML(*WebView()->MainFrameImpl()->GetFrame(), R"HTML(
     <style>
       .scroll { width: 100px; height: 100px; overflow: scroll; }
@@ -1893,6 +2003,93 @@ TEST_P(CompositingSimTest, FastPathOpacityUpdateFromStyle) {
   // After a frame the |opacity_changed| value should be reset.
   Compositor().BeginFrame();
   EXPECT_FALSE(effect_node.effect_changed);
+}
+
+TEST_P(CompositingSimTest,
+       BackdropFilterWithMultipleMaskImagesWaitsForAllLoads) {
+  SimRequest slow_mask_image("https://example.com/slow-mask.svg",
+                             "image/svg+xml");
+
+  InitializeWithHTML(R"HTML(
+      <!DOCTYPE html>
+      <style>
+        body { background: yellow; }
+        #target {
+          width: 100px;
+          height: 100px;
+          backdrop-filter: invert(1);
+          background-color: rgba(255, 255, 255, 0.5);
+          mask-image: linear-gradient(black, black),
+                      url('https://example.com/slow-mask.svg');
+        }
+      </style>
+      <div id='target'></div>
+  )HTML");
+
+  auto* target = GetElementById("target");
+  auto* target_properties =
+      target->GetLayoutObject()->FirstFragment().PaintProperties();
+  ASSERT_TRUE(target_properties);
+  ASSERT_TRUE(target_properties->Effect());
+  EXPECT_NEAR(0.f, target_properties->Effect()->Opacity(), 0.001);
+
+  slow_mask_image.Complete(R"SVG(
+    <svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'>
+      <rect width='4' height='4' fill='white'/>
+    </svg>
+  )SVG");
+  test::RunPendingTasks();
+  UpdateAllLifecyclePhases();
+
+  target_properties =
+      target->GetLayoutObject()->FirstFragment().PaintProperties();
+  ASSERT_TRUE(target_properties);
+  ASSERT_TRUE(target_properties->Effect());
+  EXPECT_NEAR(1.f, target_properties->Effect()->Opacity(), 0.001);
+}
+
+TEST_P(CompositingSimTest,
+       BackdropFilterWithMultipleMaskImagesRendersAfterLoadError) {
+  SimRequestBase::Params error_params;
+  error_params.response_http_status = 404;
+  SimSubresourceRequest failing_mask_image("https://example.com/bad-mask.png",
+                                           "image/png", error_params);
+
+  InitializeWithHTML(R"HTML(
+      <!DOCTYPE html>
+      <style>
+        body { background: yellow; }
+        #target {
+          width: 100px;
+          height: 100px;
+          backdrop-filter: invert(1);
+          background-color: rgba(255, 255, 255, 0.5);
+          mask-image: linear-gradient(black, black),
+                      url('https://example.com/bad-mask.png');
+        }
+      </style>
+      <div id='target'></div>
+  )HTML");
+
+  auto* target = GetElementById("target");
+  auto* target_properties =
+      target->GetLayoutObject()->FirstFragment().PaintProperties();
+  ASSERT_TRUE(target_properties);
+  ASSERT_TRUE(target_properties->Effect());
+  EXPECT_NEAR(0.f, target_properties->Effect()->Opacity(), 0.001);
+
+  // Complete the request with a 404 and no body. The load finishes in the
+  // error state, which is terminal: the element must render again, with the
+  // errored layer treated as transparent black.
+  failing_mask_image.Complete();
+  test::RunPendingTasks();
+  UpdateAllLifecyclePhases();
+
+  target_properties =
+      target->GetLayoutObject()->FirstFragment().PaintProperties();
+  ASSERT_TRUE(target_properties);
+  ASSERT_TRUE(target_properties->Effect());
+  EXPECT_NEAR(1.f, target_properties->Effect()->Opacity(), 0.001);
 }
 
 TEST_P(CompositingSimTest, DirectSVGTransformPropertyUpdate) {

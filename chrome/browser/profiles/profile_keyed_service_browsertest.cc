@@ -537,6 +537,8 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "StatefulSSLHostStateDelegate",
     "StorageAccessAPIService",
     "SubresourceFilterProfileContext",
+    "V5GetHashProtocolManager",
+    "V5SearchHashesCache",
     "VerdictCacheManager",
     "WebRequestProxyingURLLoaderFactory",
     "captive_portal::CaptivePortalService",
@@ -575,7 +577,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #if BUILDFLAG(IS_CHROMEOS)
   EXPECT_TRUE(user_manager::UserManager::Get()->IsLoggedInAsGuest());
   // ChromeOS Guest mode starts with the guest otr profile.
-  Profile* guest_otr_profile = browser()->profile();
+  Profile* guest_otr_profile = browser()->GetProfile();
   // Some key services are created asynchronosly. Wait util they're ready.
 #else
   Browser* guest_browser = CreateGuestBrowser();
@@ -651,7 +653,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
     "BrowserBoundKeyDeleterService",
 #endif
-    "BrowsingTopicsService",
     "ChildAccountService",
     "ChromeSigninClient",
     "CommandService",
@@ -832,6 +833,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "RulesRegistryService",
     "RuntimeAPI",
     "SafeBrowsingMetricsCollector",
+    "SafeBrowsingNetworkContextService",
 
     "SafeBrowsingPrivateEventRouter",
     "SafeBrowsingTailoredSecurityService",
@@ -979,7 +981,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #if BUILDFLAG(IS_CHROMEOS)
   EXPECT_TRUE(user_manager::UserManager::Get()->IsLoggedInAsGuest());
   // ChromeOS Guest mode starts with the guest otr profile.
-  Profile* guest_otr_profile = browser()->profile();
+  Profile* guest_otr_profile = browser()->GetProfile();
   Profile* guest_parent_profile = guest_otr_profile->GetOriginalProfile();
   // Some key services are created asynchronosly. Wait util they're ready.
 #else

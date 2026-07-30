@@ -475,22 +475,6 @@ base::TimeDelta GetGeminiSessionValidityDuration() {
       kGeminiSessionValidityDurationDefault));
 }
 
-BASE_FEATURE(kPageStabilityMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// The length of time after an interaction we will track mutations before
-// reporting UMA.
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kPageStabilityIntervalDuration,
-                   &kPageStabilityMetrics,
-                   base::Milliseconds(4000));
-
-bool IsPageStabilityMetricsEnabled() {
-  return base::FeatureList::IsEnabled(kPageStabilityMetrics);
-}
-
-base::TimeDelta GetPageStabilityIntervalDuration() {
-  return kPageStabilityIntervalDuration.Get();
-}
 
 BASE_FEATURE(kActorTools, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -721,6 +705,12 @@ bool IsPageContextIPCOptimizationActionableEnabled() {
          kPageContextIPCOptimizationActionable.Get();
 }
 
+BASE_FEATURE(kPageContextPdf, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPageContextPDFEnabled() {
+  return base::FeatureList::IsEnabled(kPageContextPdf);
+}
+
 BASE_FEATURE(kGeminiClientMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiClientMigrationEnabled() {
@@ -733,13 +723,13 @@ bool IsGeminiClientMigrationEnabled() {
 BASE_FEATURE(kGeminiMultiTabContext, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiMultiTabContextEnabled() {
-  if (!IsPageActionMenuEnabled()) {
+  if (!IsPageActionMenuEnabled() || !IsGeminiScreenContextMigrationEnabled()) {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiMultiTabContext);
 }
 
-BASE_FEATURE(kGeminiScreenContextMigration, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiScreenContextMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiScreenContextMigrationEnabled() {
   if (!IsPageActionMenuEnabled()) {

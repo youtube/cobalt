@@ -28,6 +28,7 @@
 #import "ios/chrome/app/main_controller.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
+#import "ios/chrome/app/profile/profile_state_test_utils.h"
 #import "ios/chrome/app/spotlight/actions_spotlight_manager.h"
 #import "ios/chrome/app/spotlight/spotlight_util.h"
 #import "ios/chrome/browser/flags/chrome_switches.h"
@@ -114,7 +115,7 @@ class UserActivityBrowserAgentTest : public PlatformTest {
     profile_ = TestProfileIOS::Builder().Build();
 
     scene_state_ = [[FakeSceneState alloc] initWithProfile:profile_.get()];
-    InstallMockProfileState(ProfileInitStage::kFinal);
+    InstallProfileState(ProfileInitStage::kFinal);
 
     scene_state_.activationLevel = SceneActivationLevelForegroundActive;
     scene_controller_ =
@@ -156,9 +157,9 @@ class UserActivityBrowserAgentTest : public PlatformTest {
 
   // Mock & stub a ProfileState object with a given `init_stage` and install
   // as the SceneState's ProfileState.
-  void InstallMockProfileState(ProfileInitStage init_stage) {
-    profile_state_ = OCMClassMock([ProfileState class]);
-    OCMStub([profile_state_ initStage]).andReturn(init_stage);
+  void InstallProfileState(ProfileInitStage init_stage) {
+    profile_state_ = [[ProfileState alloc] initWithAppState:nil];
+    SetProfileStateInitStage(profile_state_, init_stage);
     scene_state_.profileState = profile_state_;
   }
 
@@ -539,7 +540,7 @@ TEST_F(UserActivityBrowserAgentTest, HandleStartupParamsWithExternalFile) {
   EXPECT_EQ(external_url,
             scene_controller_.urlLoadParams.web_params.virtual_url);
   [connection_information_.startupParameters
-      requestApplicationModeWithBlock:^(
+      fetchAppSwitcherParamsWithBlock:^(
           ApplicationModeForTabOpening applicationMode) {
         EXPECT_EQ(applicationMode, ApplicationModeForTabOpening::INCOGNITO);
       }];
@@ -594,7 +595,7 @@ TEST_F(UserActivityBrowserAgentTest,
             ? ApplicationModeForTabOpening::INCOGNITO
             : ApplicationModeForTabOpening::NORMAL;
     [connection_information_.startupParameters
-        requestApplicationModeWithBlock:^(
+        fetchAppSwitcherParamsWithBlock:^(
             ApplicationModeForTabOpening applicationMode) {
           EXPECT_EQ(applicationMode, app_mode);
         }];
@@ -609,7 +610,7 @@ TEST_F(UserActivityBrowserAgentTest,
 TEST_F(UserActivityBrowserAgentTest,
        PerformActionForShortcutItemWithFirstRunUI) {
   // Setup.
-  InstallMockProfileState(static_cast<ProfileInitStage>(
+  InstallProfileState(static_cast<ProfileInitStage>(
       std::to_underlying(ProfileInitStage::kFinal) - 1));
   UIApplicationShortcutItem* shortcut =
       [[UIApplicationShortcutItem alloc] initWithType:kShortcutNewSearch
@@ -648,7 +649,7 @@ TEST_F(UserActivityBrowserAgentTest, ContinueUserActivityBookmarks) {
 // due to still being in first run.
 TEST_F(UserActivityBrowserAgentTest,
        ContinueUserActivityBookmarksFailsFirstRun) {
-  InstallMockProfileState(static_cast<ProfileInitStage>(
+  InstallProfileState(static_cast<ProfileInitStage>(
       std::to_underlying(ProfileInitStage::kFinal) - 1));
   NSUserActivity* user_activity = [[NSUserActivity alloc]
       initWithActivityType:kSiriShortcutAddBookmarkToChrome];
@@ -675,7 +676,7 @@ TEST_F(UserActivityBrowserAgentTest,
             connection_information_.startupParameters.externalURL);
 
   [connection_information_.startupParameters
-      requestApplicationModeWithBlock:^(
+      fetchAppSwitcherParamsWithBlock:^(
           ApplicationModeForTabOpening applicationMode) {
         EXPECT_EQ(applicationMode, ApplicationModeForTabOpening::NORMAL);
       }];
@@ -741,7 +742,7 @@ TEST_F(UserActivityBrowserAgentTest, ContinueUserActivityAddToReadingList) {
 // items intent due to still being in first run.
 TEST_F(UserActivityBrowserAgentTest,
        ContinueUserActivityAddToReadingListFailsFirstRun) {
-  InstallMockProfileState(static_cast<ProfileInitStage>(
+  InstallProfileState(static_cast<ProfileInitStage>(
       std::to_underlying(ProfileInitStage::kFinal) - 1));
   NSUserActivity* user_activity = [[NSUserActivity alloc]
       initWithActivityType:kSiriShortcutAddReadingListItemToChrome];
@@ -946,7 +947,7 @@ TEST_F(UserActivityBrowserAgentTest,
   user_activity_browser_agent_->ContinueUserActivity(mock_user_activity, YES);
 
   [connection_information_.startupParameters
-      requestApplicationModeWithBlock:^(
+      fetchAppSwitcherParamsWithBlock:^(
           ApplicationModeForTabOpening applicationMode) {
         EXPECT_EQ(applicationMode, ApplicationModeForTabOpening::INCOGNITO);
       }];
@@ -971,7 +972,7 @@ TEST_F(UserActivityBrowserAgentTest, ContinueUserActivityIntentSearchInChrome) {
   user_activity_browser_agent_->ContinueUserActivity(mock_user_activity, YES);
 
   [connection_information_.startupParameters
-      requestApplicationModeWithBlock:^(
+      fetchAppSwitcherParamsWithBlock:^(
           ApplicationModeForTabOpening applicationMode) {
         EXPECT_EQ(applicationMode, ApplicationModeForTabOpening::NORMAL);
       }];

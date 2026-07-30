@@ -317,7 +317,6 @@ source_set("settings") {
 
 source_set("host_extension") {
   sources = [
-    "client_session_details.h",
     "host_extension.h",
     "host_extension_session.h",
   ]
@@ -490,6 +489,9 @@ static_library("common") {
     "pairing_registry_delegate.h",
     "passthrough_register_support_host_request.cc",
     "passthrough_register_support_host_request.h",
+    "peer_session.h",
+    "peer_session_impl.cc",
+    "peer_session_impl.h",
     "persistent_display_layout_manager.cc",
     "pin_hash.cc",
     "pin_hash.h",
@@ -914,6 +916,7 @@ source_set("unit_tests") {
     "mouse_shape_pump_unittest.cc",
     "native_messaging/native_messaging_reader_unittest.cc",
     "native_messaging/native_messaging_writer_unittest.cc",
+    "peer_session_impl_unittest.cc",
     "pin_hash_unittest.cc",
     "policy_watcher_unittest.cc",
     "register_support_host_request_base_unittest.cc",

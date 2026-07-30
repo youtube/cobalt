@@ -204,7 +204,7 @@ void ManifestBrokerState::OnManifestUpdated() {
   // for a manifest.
   auto factory = std::make_unique<ManifestSolutionFactory>(
       *manifest_monitor_.manifest(), model_broker_impl_, usage_tracker_,
-      service_client_, access_controller_,
+      service_client_, access_controller_, performance_classifier_,
       base::BindOnce(&ManifestBrokerState::OnInitComplete,
                      weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(
@@ -287,6 +287,7 @@ void ManifestBrokerState::OnServiceDisconnected(
 void ManifestBrokerState::GetStateInfo(
     mojom::ModelBrokerDebug::GetStateInfoCallback callback) {
   auto result = mojom::BrokerStateInfo::New();
+  result->is_asset_manager_initialized = asset_manager_ != nullptr;
   result->properties.push_back(
       mojom::BrokerPropertyInfo::New("Broker Type", "ManifestBrokerState"));
   base::Extend(result->properties,
@@ -331,7 +332,10 @@ void ManifestBrokerState::SetUseCaseRequested(const std::string& use_case,
 }
 
 void ManifestBrokerState::UninstallModels() {
-  asset_manager_->UninstallModels();
+  if (asset_manager_) {
+    asset_manager_->UninstallModels();
+    OnManifestUpdated();
+  }
 }
 
 void ManifestBrokerState::ResetModelCrashCount() {

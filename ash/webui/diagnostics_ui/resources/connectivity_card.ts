@@ -85,21 +85,23 @@ export class ConnectivityCardElement extends ConnectivityCardElementBase {
     };
   }
 
-  testSuiteStatus: TestSuiteStatus;
-  activeGuid: string;
-  isActive: boolean;
-  network: Network;
-  protected macAddress: string;
-  private networkType: string;
-  private networkState: string;
-  private routineGroups: RoutineGroup[];
+  declare testSuiteStatus: TestSuiteStatus;
+  declare activeGuid: string;
+  declare isActive: boolean;
+  declare network: Network;
+  declare protected macAddress: string;
+  declare private networkType: string;
+  declare private networkState: string;
+  declare private routineGroups: RoutineGroup[];
   private networkHealthProvider: NetworkHealthProviderInterface =
       getNetworkHealthProvider();
   private networkStateObserverReceiver: NetworkStateObserverReceiver|null =
       null;
 
   private getRoutineSectionElem(): RoutineSectionElement {
-    const routineSection = this.shadowRoot!.querySelector('routine-section');
+    const routineSection =
+        this.shadowRoot!.querySelector<RoutineSectionElement>(
+            'routine-section');
     assert(routineSection);
     return routineSection;
   }

@@ -19,10 +19,14 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/personal_context_metrics.h"
 #include "components/autofill/core/browser/manual_testing_import.h"
 #include "components/autofill/core/browser/network/autofill_ai/personal_context_conversion_util.h"
+#include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
+#include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_personal_context_enablement_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/personal_context/core/context_memory_error.h"
@@ -33,6 +37,7 @@
 #include "components/personal_context/proto/context_memory_service.pb.h"
 #include "components/personal_context/proto/features/ambient_autofill.pb.h"
 #include "components/prefs/pref_service.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "net/base/backoff_entry.h"
 
 namespace autofill {
@@ -53,6 +58,13 @@ constexpr net::BackoffEntry::Policy kBackoffPolicy = {
     // manager.
     .entry_lifetime_ms = -1,
     .always_use_initial_delay = false};
+
+// Delay before logging the non-eligibility reason on startup. Instead of
+// reporting immediately at startup (which would incorrectly report non-eligible
+// before preferences are loaded from disk), this delay ensures initial
+// preference and device state have been populated.
+constexpr base::TimeDelta kNonEligibilityLoggingDelayOnStartup =
+    base::Seconds(30);
 
 bool IsPersonalContextEligible(
     personal_context::PersonalContextEligibilityState state) {
@@ -83,17 +95,27 @@ bool IsPersonalContextSpiiType(EntityType type) {
          EntityInstance::PersonalContextSpiiType::kSpii;
 }
 
-// Logs the unique prefetch trigger outcomes present in a batch of requested
-// entity types to UMA. Each outcome type is logged at most once per prefetch
-// request.
-void LogPersonalContextPrefetchTriggerResults(
-    const DenseSet<
-        AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult>&
-        unique_trigger_results) {
-  for (AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult
-           trigger_result : unique_trigger_results) {
-    base::UmaHistogramEnumeration(
-        "Autofill.Ai.PersonalContext.Prefetch.TriggerResult", trigger_result);
+// Logs the request latency of a personal context network request.
+void LogRequestLatency(
+    AutofillAiPersonalContextAccessManagerImpl::RequestType request_type,
+    base::TimeDelta latency) {
+  switch (request_type) {
+    using enum AutofillAiPersonalContextAccessManagerImpl::RequestType;
+    case kNonSpiiAndPresence:
+      base::UmaHistogramMediumTimes(
+          "Autofill.Ai.PersonalContext.RequestLatency."
+          "PrefetchNonSpiiAndPresence",
+          latency);
+      break;
+    case kSpiiMasked:
+      base::UmaHistogramMediumTimes(
+          "Autofill.Ai.PersonalContext.RequestLatency.PrefetchSpiiMasked",
+          latency);
+      break;
+    case kSpiiUnmasking:
+      base::UmaHistogramMediumTimes(
+          "Autofill.Ai.PersonalContext.RequestLatency.SpiiUnmasking", latency);
+      break;
   }
 }
 
@@ -118,7 +140,28 @@ AutofillAiPersonalContextAccessManagerImpl::
         base::BindRepeating(&AutofillAiPersonalContextAccessManagerImpl::
                                 OnPersonalContextSettingsToggleChanged,
                             base::Unretained(this)));
+    pref_registrar_.Add(
+        subscription_eligibility::prefs::kAiSubscriptionTier,
+        base::BindRepeating(&AutofillAiPersonalContextAccessManagerImpl::
+                                ComputeAndMaybeLogNonEligibilityReason,
+                            base::Unretained(this)));
   }
+
+  // Called after the startup delay (`kNonEligibilityLoggingDelayOnStartup`)
+  // has elapsed to enable non-eligibility UMA logging and record the initial
+  // reason.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<AutofillAiPersonalContextAccessManagerImpl> self) {
+            if (!self) {
+              return;
+            }
+            self->is_non_eligibility_startup_delay_elapsed_ = true;
+            self->ComputeAndMaybeLogNonEligibilityReason();
+          },
+          weak_factory_.GetWeakPtr()),
+      kNonEligibilityLoggingDelayOnStartup);
 }
 
 AutofillAiPersonalContextAccessManagerImpl::
@@ -135,12 +178,13 @@ void AutofillAiPersonalContextAccessManagerImpl::PrefetchContext(
   std::vector<EntityType> spii_to_request;
   spii_to_request.reserve(requested_types.size());
 
-  DenseSet<PrefetchTriggerResult> unique_trigger_results;
+  DenseSet<PersonalContextPrefetchTriggerResult> unique_trigger_results;
   for (const EntityType& type : requested_types) {
-    PrefetchTriggerResult trigger_result = DeterminePrefetchTriggerResult(type);
+    PersonalContextPrefetchTriggerResult trigger_result =
+        DeterminePrefetchTriggerResult(type);
     unique_trigger_results.insert(trigger_result);
 
-    if (trigger_result == PrefetchTriggerResult::kInitiated) {
+    if (trigger_result == PersonalContextPrefetchTriggerResult::kInitiated) {
       non_spii_and_presence_to_request.push_back(type);
       SetTypeStatus(type, RequestStatus::kPending);
 
@@ -199,7 +243,7 @@ void AutofillAiPersonalContextAccessManagerImpl::
         RequestType request_type,
         base::TimeTicks request_start_time,
         personal_context::FetchContextResult result) {
-  LogRequestLatency(request_type, request_start_time);
+  LogRequestLatency(request_type, base::TimeTicks::Now() - request_start_time);
 
   if (!result.response.has_value()) {
     HandleFailedResponse(requested_types, request_type);
@@ -225,6 +269,7 @@ void AutofillAiPersonalContextAccessManagerImpl::
   }
 
   ProcessPrefetchedEntities(std::move(prefetched_types),
+                            std::move(requested_types),
                             std::move(*parsed_entities));
 }
 
@@ -296,7 +341,8 @@ void AutofillAiPersonalContextAccessManagerImpl::OnFetchPiiEntitiesComplete(
     GetUnmaskedSpiiEntityCallback callback,
     base::TimeTicks request_start_time,
     personal_context::FetchPiiEntitiesResult result) {
-  LogRequestLatency(RequestType::kSpiiUnmasking, request_start_time);
+  LogRequestLatency(RequestType::kSpiiUnmasking,
+                    base::TimeTicks::Now() - request_start_time);
   using enum AutofillAiUnmaskResult;
   if (!result.response.has_value()) {
     using ExecutionError = personal_context::ContextMemoryError::ExecutionError;
@@ -359,7 +405,7 @@ AutofillAiPersonalContextAccessManagerImpl::GetPrefetchStatusByEntityType(
   return RequestStatus::kNotStarted;
 }
 
-bool AutofillAiPersonalContextAccessManagerImpl::ServerHasDataAvailable(
+bool AutofillAiPersonalContextAccessManagerImpl::ServerHasSpiiPresenceSignal(
     EntityType type) const {
   return spii_presence_signal_cache_.contains(type);
 }
@@ -382,10 +428,11 @@ void AutofillAiPersonalContextAccessManagerImpl::ResetStateForType(
 }
 
 void AutofillAiPersonalContextAccessManagerImpl::ProcessPrefetchedEntities(
+    std::vector<EntityType> prefetched_types,
     std::vector<EntityType> requested_types,
     std::vector<ParsedEntity> parsed_entities) {
-  // Evict existing entities for the `requested_types`.
-  for (const EntityType& type : requested_types) {
+  // Evict existing entities for the `prefetched_types`.
+  for (const EntityType& type : prefetched_types) {
     LogPrefetchTotalLatency(type);
     ResetStateForType(type);
     SetTypeStatus(type, RequestStatus::kSuccess);
@@ -405,11 +452,17 @@ void AutofillAiPersonalContextAccessManagerImpl::ProcessPrefetchedEntities(
   for (ParsedEntity& entity : parsed_entities) {
     if (const EntityInstance* e_instance =
             std::get_if<EntityInstance>(&entity.instance)) {
-      prefetched_proto_cache_.emplace(e_instance->guid(),
-                                      std::move(entity.proto));
-      entities.push_back(std::move(*e_instance));
+      if (std::ranges::contains(requested_types, e_instance->type())) {
+        prefetched_proto_cache_.emplace(e_instance->guid(),
+                                        std::move(entity.proto));
+        entities.push_back(std::move(*e_instance));
+      }
     } else {
-      CachePresenceSignal(std::get<SpiiEntityPresenceSignal>(entity.instance));
+      const SpiiEntityPresenceSignal signal =
+          std::get<SpiiEntityPresenceSignal>(entity.instance);
+      if (std::ranges::contains(requested_types, signal)) {
+        CachePresenceSignal(signal);
+      }
     }
   }
 
@@ -479,6 +532,7 @@ void AutofillAiPersonalContextAccessManagerImpl::WipeCache() {
 
 void AutofillAiPersonalContextAccessManagerImpl::OnEligibilityStateChanged(
     personal_context::PersonalContextEligibilityState new_state) {
+  ComputeAndMaybeLogNonEligibilityReason();
   if (!IsPersonalContextEligible(new_state)) {
     WipeCache();
   }
@@ -494,31 +548,62 @@ void AutofillAiPersonalContextAccessManagerImpl::
   }
 }
 
-AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult
+void AutofillAiPersonalContextAccessManagerImpl::
+    ComputeAndMaybeLogNonEligibilityReason() {
+  using personal_context::PersonalContextNonEligibilityReason;
+  if (!pref_service_ || !is_non_eligibility_startup_delay_elapsed_) {
+    return;
+  }
+
+  // TODO(crbug.com/537686190): Consolidate this non-eligibility logic with the
+  // permission checks in `autofill_ai_permission_utils.cc`.
+  std::optional<PersonalContextNonEligibilityReason> non_eligibility_reason =
+      personal_context_eligibility_service_->GetNonEligibilityReason();
+  const int32_t tier = pref_service_->GetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier);
+
+  if (non_eligibility_reason ==
+          PersonalContextNonEligibilityReason::kEligible &&
+      !GetAutofillAmbientAutofillEligibleTiers().contains(tier) &&
+      !IsAndroidDeviceEligibleForAmbientAutofill()) {
+    non_eligibility_reason = PersonalContextNonEligibilityReason::
+        kNotG1SubscriberOrAndroidPremiumDevice;
+  }
+
+  if (last_non_eligibility_reason_ == non_eligibility_reason) {
+    return;
+  }
+  last_non_eligibility_reason_ = non_eligibility_reason;
+  if (last_non_eligibility_reason_) {
+    LogPersonalContextNonEligibilityReason(*last_non_eligibility_reason_);
+  }
+}
+
+PersonalContextPrefetchTriggerResult
 AutofillAiPersonalContextAccessManagerImpl::DeterminePrefetchTriggerResult(
     EntityType type) const {
   const RequestState* request_state = base::FindOrNull(prefetch_state_, type);
   if (!request_state) {
-    return PrefetchTriggerResult::kInitiated;
+    return PersonalContextPrefetchTriggerResult::kInitiated;
   }
 
   using enum RequestStatus;
   switch (request_state->status) {
     case kPending:
-      return PrefetchTriggerResult::kSkippedInFlight;
+      return PersonalContextPrefetchTriggerResult::kSkippedInFlight;
     case kSuccess:
       if (base::TimeTicks::Now() - request_state->last_update_time >
           features::kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL
               .Get()) {
-        return PrefetchTriggerResult::kInitiated;
+        return PersonalContextPrefetchTriggerResult::kInitiated;
       }
-      return PrefetchTriggerResult::kSkippedFreshCache;
+      return PersonalContextPrefetchTriggerResult::kSkippedFreshCache;
     case kFailure:
       return ShouldRetryAfterFailure(*request_state)
-                 ? PrefetchTriggerResult::kInitiated
-                 : PrefetchTriggerResult::kSkippedBackoff;
+                 ? PersonalContextPrefetchTriggerResult::kInitiated
+                 : PersonalContextPrefetchTriggerResult::kSkippedBackoff;
     case kNotStarted:
-      return PrefetchTriggerResult::kInitiated;
+      return PersonalContextPrefetchTriggerResult::kInitiated;
   }
 }
 
@@ -565,38 +650,13 @@ void AutofillAiPersonalContextAccessManagerImpl::HandleFailedResponse(
   NotifyPrefetchStatusObservers({});
 }
 
-void AutofillAiPersonalContextAccessManagerImpl::LogRequestLatency(
-    RequestType request_type,
-    base::TimeTicks start_time) {
-  const base::TimeDelta latency = base::TimeTicks::Now() - start_time;
-  switch (request_type) {
-    case RequestType::kNonSpiiAndPresence:
-      base::UmaHistogramMediumTimes(
-          "Autofill.Ai.PersonalContext.RequestLatency."
-          "PrefetchNonSpiiAndPresence",
-          latency);
-      break;
-    case RequestType::kSpiiMasked:
-      base::UmaHistogramMediumTimes(
-          "Autofill.Ai.PersonalContext.RequestLatency.PrefetchSpiiMasked",
-          latency);
-      break;
-    case RequestType::kSpiiUnmasking:
-      base::UmaHistogramMediumTimes(
-          "Autofill.Ai.PersonalContext.RequestLatency.SpiiUnmasking", latency);
-      break;
-  }
-}
-
 void AutofillAiPersonalContextAccessManagerImpl::LogPrefetchTotalLatency(
     EntityType type) {
   if (const RequestState* state = base::FindOrNull(prefetch_state_, type)) {
     if (state->status == RequestStatus::kPending &&
         !state->last_update_time.is_null()) {
-      base::UmaHistogramMediumTimes(
-          base::StrCat({"Autofill.Ai.PersonalContext.Prefetch.TotalLatency.",
-                        EntityTypeToMetricsString(type)}),
-          base::TimeTicks::Now() - state->last_update_time);
+      LogPersonalContextPrefetchTotalLatency(
+          type, base::TimeTicks::Now() - state->last_update_time);
     }
   }
 }

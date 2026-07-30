@@ -156,8 +156,9 @@
 #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
 #include "third_party/blink/public/common/context_menu_data/untrustworthy_context_menu_params.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
+#include "third_party/blink/public/common/global_privacy_control/global_privacy_control_util.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
-#include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/loader/loader_constants.h"
 #include "third_party/blink/public/common/loader/record_load_histograms.h"
 #include "third_party/blink/public/common/loader/resource_type_util.h"
@@ -1137,7 +1138,7 @@ void FillMiscNavigationParams(
       const auto& nested_urn_config_pairs_value =
           commit_params.fenced_frame_properties->nested_urn_config_pairs()
               ->potentially_opaque_value.value();
-      DCHECK_EQ(blink::MaxAdAuctionAdComponents(),
+      DCHECK_EQ(blink::kMaxAdAuctionAdComponents,
                 nested_urn_config_pairs_value.size());
       navigation_params->ad_auction_components.emplace();
       for (const auto& nested_urn_config_pair : nested_urn_config_pairs_value) {
@@ -4608,7 +4609,12 @@ void RenderFrameImpl::FinalizeRequestInternal(
     request.SetHttpHeaderField(
         blink::WebString::FromUtf8(blink::kDoNotTrackHeader), "1");
   }
-
+  if (blink::IsGlobalPrivacyControlEnabled()) {
+    request.SetHttpHeaderField(
+        blink::WebString::FromUtf8(blink::kGlobalPrivacyControlHeader), "1");
+    blink::MaybeRecordGlobalPrivacyControlSourceMetric(
+        blink::GPCSignalSourceType::kSubresourceFetch);
+  }
   // The request's extra data may indicate that we should set a custom user
   // agent. This needs to be done here, after WebKit is through with setting the
   // user agent on its own.

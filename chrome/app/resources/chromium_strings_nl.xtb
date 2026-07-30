@@ -23,6 +23,7 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="1203500561924088507">Bedankt voor het installeren. Je moet de browser opnieuw opstarten voordat je <ph name="BUNDLE_NAME" /> kunt gebruiken.</translation>
 <translation id="1232234696885483911">Als je Afbeeldingen zoeken opent, worden de paginatitel, URL en content, waaronder pdf's, automatisch naar de server gestuurd. <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">Terwijl je bent ingelogd, kun je onder andere de wachtwoorden uit je Google-account gebruiken in Chromium. Als je dit wilt wijzigen, ga je naar Je account in Chromium.</translation>
+<translation id="1244381985120794049">Gemini in Chromium tonen in de Mac-menubalk</translation>
 <translation id="1257483544893909270">Gebruik de sneltoets om een deel van het scherm te selecteren in Gemini in Chromium.</translation>
 <translation id="1262876892872089030">Terwijl dit tabblad inactief was, is er geheugen vrijgemaakt om Chromium snel te houden. Je kunt ervoor kiezen deze site altijd uit te sluiten van inactiviteit.</translation>
 <translation id="1265577313130862557">Chromium heeft deze download geblokkeerd, omdat het bestand gevaarlijk is</translation>
@@ -40,7 +41,6 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="1383876407941801731">Zoeken</translation>
 <translation id="1388276868779258475">Gebruik de Chromium-app om onderweg te blijven browsen</translation>
 <translation id="1397530502368084401">&amp;Chromium-profielen beheren</translation>
-<translation id="1404026649028693342">AI-modus altijd tonen</translation>
 <translation id="141901961143729572">Geef je mening</translation>
 <translation id="1465192221147974788">Als je je venster wilt delen, sta je schermopname voor Chromium toe in Systeeminstellingen.</translation>
 <translation id="1478370723027452770">Hulp bij Chrome for Testing</translation>
@@ -96,7 +96,6 @@ Sommige functies zijn wellicht niet beschikbaar en wijzigingen in voorkeuren wor
 <translation id="2049376729098081731">Kies of je de Chromium-geschiedenis wilt opnemen voor meer gepersonaliseerde functies in Google-services</translation>
 <translation id="2050698962207788467">Geïntegreerd in Chromium om je te helpen sterke wachtwoorden te maken, op te slaan en automatisch in te vullen. Voeg de snelkoppeling toe voor makkelijke toegang.</translation>
 <translation id="2064856577282482477">Klik op de knop Chromium aanpassen op de pagina Nieuw tabblad om Chromium een nieuwe look te geven</translation>
-<translation id="2066690553719545730">AI-modus altijd tonen</translation>
 <translation id="2086476982681781442">Chromium heeft deze download geblokkeerd, omdat het bestand misleidend is en onverwachte wijzigingen kan aanbrengen op je apparaat</translation>
 <translation id="208726765006323911">De volgende keer dat je Chromium iOS opent, zie je een prompt om <ph name="FEATURE_NAME" /> te proberen.</translation>
 <translation id="2099452623287920103">Je wachtwoorden en andere Chromium-gegevens die je hebt opgeslagen in je Google-account, worden verwijderd van dit apparaat. Log opnieuw in om ze weer te gebruiken in Chromium.</translation>
@@ -437,7 +436,6 @@ Als deze pagina niet werkt zoals verwacht, kun je optimalisatie toestaan.</trans
 <translation id="5949225980829865667">Log in bij Chromium om onder andere deze bookmark te gebruiken op al je apparaten</translation>
 <translation id="5953657885167112863">Chromium personaliseren</translation>
 <translation id="5960071705175224773">Je instellingen zijn gewijzigd door een onbekende app</translation>
-<translation id="5968400720580217226">AI-modus</translation>
 <translation id="5977420883993828287">Vastgezet. Gebruik Contextuele taken opnieuw via de werkbalk</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Je organisatie sluit Chromium automatisch als deze 1 minuut niet wordt gebruikt.}other{Je organisatie sluit Chromium automatisch als deze # minuten niet wordt gebruikt.}}</translation>
 <translation id="5987687638152509985">Chromium updaten om de synchronisatie te starten</translation>
@@ -596,6 +594,7 @@ Chromium kan je instellingen niet herstellen.</translation>
 <translation id="7368826207863345663">Als je toekomstige Chromium-updates wilt krijgen, heb je macOS 13 of hoger nodig. Deze computer gebruikt macOS 12.</translation>
 <translation id="7376384068949534168">Je bent hier niet recent geweest. Chromium heeft <ph name="PERMISSION_1" /> en <ph name="PERMISSION_2" /> verwijderd.</translation>
 <translation id="73786666777299047">Open de Chrome Web Store</translation>
+<translation id="7394275517973019558">Gemini in Chromium tonen in het systeemvak</translation>
 <translation id="7407655596887111931">Chromium is nu je standaardbrowser</translation>
 <translation id="7413153308467572558">Ga verder waar je gebleven was: Chromium herstelt je tabbladen elke keer dat je opnieuw opstart. Als je dit wilt uitzetten, ga je naar</translation>
 <translation id="7427879960656355200">Wachtwoorden importeren in Chromium</translation>

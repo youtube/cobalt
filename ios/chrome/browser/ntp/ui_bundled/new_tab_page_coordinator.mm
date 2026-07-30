@@ -50,6 +50,8 @@
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_coordinator.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_delegate.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_mediator.h"
+#import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_collection_view.h"
+#import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_smart_stack_layout.h"
 #import "ios/chrome/browser/content_suggestions/ui/content_suggestions_collection_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui/content_suggestions_view_controller.h"
 #import "ios/chrome/browser/context_menu/ui_bundled/link_preview/link_preview_coordinator.h"
@@ -173,7 +175,7 @@
                                      FeedWrapperViewControllerDelegate,
                                      HomeCustomizationDelegate,
                                      HomeStartDataSource,
-                                     IdentityManagerObserverBridgeDelegate,
+                                     IdentityManagerObserving,
                                      NewTabPageActionsDelegate,
                                      NewTabPageContentDelegate,
                                      NewTabPageDelegate,
@@ -912,6 +914,12 @@
     self.NTPRedesignViewController.feedViewController = self.feedViewController;
     self.NTPRedesignViewController.mostVisitedViewController =
         self.contentSuggestionsCoordinator.viewController;
+    self.NTPRedesignViewController.magicStackViewController =
+        self.contentSuggestionsCoordinator.magicStackCollectionView;
+    MagicStackSmartStackLayout* customLayout =
+        [[MagicStackSmartStackLayout alloc] init];
+    [self.contentSuggestionsCoordinator.magicStackCollectionView
+        updateCollectionViewLayout:customLayout];
     self.NTPRedesignViewController.NTPShortcutsHandler = self;
     feature_engagement::Tracker* tracker =
         feature_engagement::TrackerFactory::GetForProfile(self.profile);
@@ -1640,11 +1648,11 @@
   }
 }
 
-#pragma mark - IdentityManagerObserverBridgeDelegate
+#pragma mark - IdentityManagerObserving
 
 // TODO(crbug.com/346756363): Remove this method as it is replaced with
 // `onIsSubjectToParentalControlsCapabilityChanged`.
-- (void)onPrimaryAccountChanged:
+- (void)primaryAccountDidChange:
     (const signin::PrimaryAccountChangeEvent&)event {
   // An account change may trigger after the coordinator has been stopped.
   // In this case do not process the event.
@@ -1743,9 +1751,8 @@
 }
 
 - (void)showAccountMenu:(UIView*)identityDisc {
-  UIViewController* baseVC = [self activeViewController];
   _accountMenuCoordinator = [[AccountMenuCoordinator alloc]
-      initWithBaseViewController:baseVC
+      initWithBaseViewController:self.baseViewController
                          browser:self.browser
                       anchorView:identityDisc
                      accessPoint:AccountMenuAccessPoint::kNewTabPage
@@ -1973,7 +1980,11 @@
 // Restores the saved scroll position of the NTP associated with `self.webState`
 // if necessary.
 - (void)restoreNTPScrollPosition {
-  [self.NTPMediator restoreNTPScrollPositionForWebState:self.webState];
+  if ([self isStartSurface]) {
+    [self.NTPMediator.consumer restoreScrollPosition:-CGFLOAT_MAX];
+  } else {
+    [self.NTPMediator restoreNTPScrollPositionForWebState:self.webState];
+  }
 }
 
 // Opens the Home customization menu at a specific `page`.

@@ -47,6 +47,7 @@
 #include "chrome/browser/download/insecure_download_blocking.h"
 #include "chrome/browser/download/save_package_file_picker.h"
 #include "chrome/browser/enterprise/connectors/common.h"
+#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -643,6 +644,11 @@ ChromeDownloadManagerDelegate::ChromeDownloadManagerDelegate(Profile* profile)
 ChromeDownloadManagerDelegate::~ChromeDownloadManagerDelegate() {
   // If a DownloadManager was set for this, Shutdown() must be called.
   DCHECK(!download_manager_);
+}
+
+bool ChromeDownloadManagerDelegate::SupportsHistoryLoading() {
+  return HistoryServiceFactory::GetForProfile(
+             profile_, ServiceAccessType::EXPLICIT_ACCESS) != nullptr;
 }
 
 void ChromeDownloadManagerDelegate::SetDownloadManager(DownloadManager* dm) {
@@ -1510,7 +1516,10 @@ void ChromeDownloadManagerDelegate::RequestConfirmation(
 #if BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents =
       content::DownloadItemUtils::GetWebContents(download);
-  if (reason == DownloadConfirmationReason::SAVE_AS) {
+
+  bool is_save_as_enabled = base::FeatureList::IsEnabled(
+      download::features::kEnableDownloadSaveAsContextMenu);
+  if (reason == DownloadConfirmationReason::SAVE_AS && !is_save_as_enabled) {
     // If this is a 'Save As' download, just run without confirmation.
     std::move(callback).Run(
         DownloadConfirmationResult::CONTINUE_WITHOUT_CONFIRMATION,
@@ -1561,7 +1570,12 @@ void ChromeDownloadManagerDelegate::RequestConfirmation(
       download::RecordDuplicatePdfDownloadTriggered(/*open_inline=*/false);
     }
 
-    if (!download_prefs_->PromptForDownload()) {
+    bool is_save_as_prompt =
+        (download->GetTargetDisposition() ==
+         download::DownloadItem::TARGET_DISPOSITION_PROMPT) &&
+        base::FeatureList::IsEnabled(
+            download::features::kEnableDownloadSaveAsContextMenu);
+    if (!download_prefs_->PromptForDownload() && !is_save_as_prompt) {
       DuplicateDownloadDialogBridgeDelegate::GetInstance()->CreateDialog(
           download, suggested_path, web_contents, std::move(callback));
       return;
@@ -1582,6 +1596,10 @@ void ChromeDownloadManagerDelegate::RequestConfirmation(
   DownloadLocationDialogType dialog_type = DownloadLocationDialogType::DEFAULT;
 
   switch (reason) {
+    case DownloadConfirmationReason::SAVE_AS:
+      dialog_type = DownloadLocationDialogType::FORCE_PROMPT;
+      break;
+
     case DownloadConfirmationReason::TARGET_NO_SPACE:
       dialog_type = DownloadLocationDialogType::LOCATION_FULL;
       break;
@@ -1704,9 +1722,15 @@ void ChromeDownloadManagerDelegate::GenerateUniqueFileNameDone(
   // with the filename automatically set to be the unique filename.
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (download::IsPathValidationSuccessful(result)) {
-    if (download_prefs_->PromptForDownload()) {
-      download::DownloadItem* download =
-          download_manager_->GetDownloadByGuid(download_guid);
+    download::DownloadItem* download =
+        download_manager_->GetDownloadByGuid(download_guid);
+    bool is_save_as_enabled =
+        download &&
+        (download->GetTargetDisposition() ==
+         download::DownloadItem::TARGET_DISPOSITION_PROMPT) &&
+        base::FeatureList::IsEnabled(
+            download::features::kEnableDownloadSaveAsContextMenu);
+    if (download_prefs_->PromptForDownload() || is_save_as_enabled) {
       content::WebContents* web_contents =
           download ? content::DownloadItemUtils::GetWebContents(download)
                    : nullptr;

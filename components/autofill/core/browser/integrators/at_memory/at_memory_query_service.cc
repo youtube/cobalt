@@ -24,14 +24,13 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type_util.h"
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/at_memory/autofill_data_provider.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
-#include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type_util.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/personal_context/core/personal_context_debug_features.h"
@@ -47,264 +46,7 @@ namespace autofill {
 
 namespace {
 
-using ::accessibility_annotator::EntryMetadata;
-using ::accessibility_annotator::MemoryDataType;
-using ::accessibility_annotator::MemoryEntrySource;
-using ::accessibility_annotator::MemoryEntrySourceType;
-using ::accessibility_annotator::MemorySearchResult;
-using ::accessibility_annotator::MemorySearchResults;
-using ::accessibility_annotator::MemorySearchStatus;
 using ::personal_context::proto::AtMemoryQueryResponse;
-
-MemoryDataType ToMemoryDataType(
-    personal_context::proto::MemoryDataType data_type) {
-  switch (data_type) {
-    case personal_context::proto::MEMORY_DATA_TYPE_UNSPECIFIED:
-      return MemoryDataType::kUnknown;
-    case personal_context::proto::MEMORY_DATA_TYPE_NAME_FULL:
-      return MemoryDataType::kNameFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_FULL:
-      return MemoryDataType::kAddressFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_STREET_ADDRESS:
-      return MemoryDataType::kAddressStreetAddress;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_CITY:
-      return MemoryDataType::kAddressCity;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_STATE:
-      return MemoryDataType::kAddressState;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_ZIP:
-      return MemoryDataType::kAddressZip;
-    case personal_context::proto::MEMORY_DATA_TYPE_ADDRESS_COUNTRY:
-      return MemoryDataType::kAddressCountry;
-    case personal_context::proto::MEMORY_DATA_TYPE_PHONE:
-      return MemoryDataType::kPhone;
-    case personal_context::proto::MEMORY_DATA_TYPE_EMAIL:
-      return MemoryDataType::kEmail;
-    case personal_context::proto::MEMORY_DATA_TYPE_COMPANY_NAME:
-      return MemoryDataType::kCompanyName;
-    case personal_context::proto::MEMORY_DATA_TYPE_IBAN:
-      return MemoryDataType::kIban;
-    case personal_context::proto::MEMORY_DATA_TYPE_IBAN_NICKNAME:
-      return MemoryDataType::kIbanNickname;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE:
-      return MemoryDataType::kVehicle;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_MAKE:
-      return MemoryDataType::kVehicleMake;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_MODEL:
-      return MemoryDataType::kVehicleModel;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_YEAR:
-      return MemoryDataType::kVehicleYear;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_OWNER:
-      return MemoryDataType::kVehicleOwner;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_PLATE_NUMBER:
-      return MemoryDataType::kVehiclePlateNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_PLATE_STATE:
-      return MemoryDataType::kVehiclePlateState;
-    case personal_context::proto::MEMORY_DATA_TYPE_VEHICLE_VIN:
-      return MemoryDataType::kVehicleVin;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_FULL:
-      return MemoryDataType::kPassportFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_NAME:
-      return MemoryDataType::kPassportName;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_COUNTRY:
-      return MemoryDataType::kPassportCountry;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_NUMBER:
-      return MemoryDataType::kPassportNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_ISSUE_DATE:
-      return MemoryDataType::kPassportIssueDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_PASSPORT_EXPIRATION_DATE:
-      return MemoryDataType::kPassportExpirationDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_FLIGHT_RESERVATION_FULL:
-      return MemoryDataType::kFlightReservationFull;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_FLIGHT_NUMBER:
-      return MemoryDataType::kFlightReservationFlightNumber;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_TICKET_NUMBER:
-      return MemoryDataType::kFlightReservationTicketNumber;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_CONFIRMATION_CODE:
-      return MemoryDataType::kFlightReservationConfirmationCode;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_PASSENGER_NAME:
-      return MemoryDataType::kFlightReservationPassengerName;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_DEPARTURE_AIRPORT:
-      return MemoryDataType::kFlightReservationDepartureAirport;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_ARRIVAL_AIRPORT:
-      return MemoryDataType::kFlightReservationArrivalAirport;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_DEPARTURE_DATE:
-      return MemoryDataType::kFlightReservationDepartureDate;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_FLIGHT_RESERVATION_ARRIVAL_DATE:
-      return MemoryDataType::kFlightReservationArrivalDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_FULL:
-      return MemoryDataType::kShipmentFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_TRACKING_NUMBER:
-      return MemoryDataType::kShipmentTrackingNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_ASSOCIATED_ORDER_ID:
-      return MemoryDataType::kShipmentAssociatedOrderId;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_DELIVERY_ADDRESS:
-      return MemoryDataType::kShipmentDeliveryAddress;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_DELIVERY_ZIP_CODE:
-      return MemoryDataType::kShipmentDeliveryZipCode;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_CARRIER_NAME:
-      return MemoryDataType::kShipmentCarrierName;
-    case personal_context::proto::MEMORY_DATA_TYPE_SHIPMENT_CARRIER_DOMAIN:
-      return MemoryDataType::kShipmentCarrierDomain;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_SHIPMENT_ESTIMATED_DELIVERY_DATE:
-      return MemoryDataType::kShipmentEstimatedDeliveryDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_NATIONAL_ID_CARD_FULL:
-      return MemoryDataType::kNationalIdCardFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_NATIONAL_ID_CARD_NAME:
-      return MemoryDataType::kNationalIdCardName;
-    case personal_context::proto::MEMORY_DATA_TYPE_NATIONAL_ID_CARD_COUNTRY:
-      return MemoryDataType::kNationalIdCardCountry;
-    case personal_context::proto::MEMORY_DATA_TYPE_NATIONAL_ID_CARD_NUMBER:
-      return MemoryDataType::kNationalIdCardNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_NATIONAL_ID_CARD_ISSUE_DATE:
-      return MemoryDataType::kNationalIdCardIssueDate;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_NATIONAL_ID_CARD_EXPIRATION_DATE:
-      return MemoryDataType::kNationalIdCardExpirationDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_REDRESS_NUMBER_FULL:
-      return MemoryDataType::kRedressNumberFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_REDRESS_NUMBER_NAME:
-      return MemoryDataType::kRedressNumberName;
-    case personal_context::proto::MEMORY_DATA_TYPE_REDRESS_NUMBER_NUMBER:
-      return MemoryDataType::kRedressNumberNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_FULL:
-      return MemoryDataType::kKnownTravelerNumberFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_NAME:
-      return MemoryDataType::kKnownTravelerNumberName;
-    case personal_context::proto::MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_NUMBER:
-      return MemoryDataType::kKnownTravelerNumberNumber;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
-      return MemoryDataType::kKnownTravelerNumberExpirationDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_DRIVERS_LICENSE_FULL:
-      return MemoryDataType::kDriversLicenseFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_DRIVERS_LICENSE_NAME:
-      return MemoryDataType::kDriversLicenseName;
-    case personal_context::proto::MEMORY_DATA_TYPE_DRIVERS_LICENSE_STATE:
-      return MemoryDataType::kDriversLicenseState;
-    case personal_context::proto::MEMORY_DATA_TYPE_DRIVERS_LICENSE_NUMBER:
-      return MemoryDataType::kDriversLicenseNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_DRIVERS_LICENSE_ISSUE_DATE:
-      return MemoryDataType::kDriversLicenseIssueDate;
-    case personal_context::proto::
-        MEMORY_DATA_TYPE_DRIVERS_LICENSE_EXPIRATION_DATE:
-      return MemoryDataType::kDriversLicenseExpirationDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_FULL:
-      return MemoryDataType::kOrderFull;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_ID:
-      return MemoryDataType::kOrderId;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_ACCOUNT:
-      return MemoryDataType::kOrderAccount;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_DATE:
-      return MemoryDataType::kOrderDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_MERCHANT_NAME:
-      return MemoryDataType::kOrderMerchantName;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_MERCHANT_DOMAIN:
-      return MemoryDataType::kOrderMerchantDomain;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_PRODUCT_NAMES:
-      return MemoryDataType::kOrderProductNames;
-    case personal_context::proto::MEMORY_DATA_TYPE_ORDER_GRAND_TOTAL:
-      return MemoryDataType::kOrderGrandTotal;
-    case personal_context::proto::MEMORY_DATA_TYPE_CREDIT_CARD_NUMBER:
-      return MemoryDataType::kCreditCardNumber;
-    case personal_context::proto::MEMORY_DATA_TYPE_CREDIT_CARD_EXPIRATION_DATE:
-      return MemoryDataType::kCreditCardExpirationDate;
-    case personal_context::proto::MEMORY_DATA_TYPE_CREDIT_CARD_SECURITY_CODE:
-      return MemoryDataType::kCreditCardSecurityCode;
-    case personal_context::proto::MEMORY_DATA_TYPE_CREDIT_CARD_NAME_ON_CARD:
-      return MemoryDataType::kCreditCardNameOnCard;
-    case personal_context::proto::MEMORY_DATA_TYPE_CREDIT_CARD_NICKNAME:
-      return MemoryDataType::kCreditCardNickname;
-  }
-}
-
-std::vector<MemoryEntrySource> ExtractSources(
-    const personal_context::proto::AtMemorySearchResult& proto_result) {
-  std::vector<MemoryEntrySource> sources;
-  for (const personal_context::proto::SourceReference& proto_source :
-       proto_result.sources()) {
-    if (proto_source.has_gmail()) {
-      std::string_view message_url = proto_source.gmail().message_url();
-      sources.emplace_back(MemoryEntrySourceType::kGmail,
-                           message_url.empty()
-                               ? std::nullopt
-                               : std::make_optional<std::string>(message_url));
-    } else if (proto_source.has_photos()) {
-      std::string_view photos_url = proto_source.photos().photos_url();
-      sources.emplace_back(MemoryEntrySourceType::kPhotos,
-                           photos_url.empty()
-                               ? std::nullopt
-                               : std::make_optional<std::string>(photos_url));
-    }
-  }
-  return sources;
-}
-
-std::vector<EntryMetadata> ExtractMetadata(
-    const personal_context::proto::AtMemorySearchResult& proto_result) {
-  std::vector<EntryMetadata> metadata_list;
-  for (const personal_context::proto::Attribute& secondary :
-       proto_result.secondary_attributes()) {
-    MemoryDataType other_type = MemoryDataType::kUnknown;
-    std::u16string other_type_name;
-    if (secondary.has_schemaful_key()) {
-      other_type = ToMemoryDataType(secondary.schemaful_key());
-    } else if (secondary.has_schemaless_key()) {
-      other_type_name = base::UTF8ToUTF16(secondary.schemaless_key());
-    }
-    metadata_list.emplace_back(other_type, other_type_name,
-                               base::UTF8ToUTF16(secondary.value()));
-  }
-  return metadata_list;
-}
-
-MemorySearchResult ConvertToMemorySearchResult(
-    const personal_context::proto::AtMemorySearchResult& proto_result) {
-  MemoryDataType memory_data_type = MemoryDataType::kUnknown;
-  std::u16string type_name;
-  std::u16string primary_value;
-  if (proto_result.has_primary_attribute()) {
-    const personal_context::proto::Attribute& primary =
-        proto_result.primary_attribute();
-    if (primary.has_schemaful_key()) {
-      memory_data_type = ToMemoryDataType(primary.schemaful_key());
-    } else if (primary.has_schemaless_key()) {
-      type_name = base::UTF8ToUTF16(primary.schemaless_key());
-    }
-    primary_value = base::UTF8ToUTF16(primary.value());
-  }
-
-  MemorySearchResult pcontext_result(memory_data_type, type_name, primary_value,
-                                     proto_result.relevance_score());
-  pcontext_result.sources = ExtractSources(proto_result);
-  pcontext_result.metadata_list = ExtractMetadata(proto_result);
-  pcontext_result.is_obfuscated = IsSpiiMemoryDataType(memory_data_type);
-  return pcontext_result;
-}
-
-std::vector<MemorySearchResult> ExtractRemoteResults(
-    const personal_context::proto::AtMemoryQueryResponse& response) {
-  std::vector<MemorySearchResult> remote_results;
-  for (int32_t i = 0; i < response.results_size(); ++i) {
-    const personal_context::proto::AtMemorySearchResult& proto_result =
-        response.results(i);
-    MemorySearchResult pcontext_result =
-        ConvertToMemorySearchResult(proto_result);
-    pcontext_result.remote_response_index = i;
-    if (!pcontext_result.value.empty()) {
-      remote_results.push_back(std::move(pcontext_result));
-    }
-  }
-  return remote_results;
-}
 
 std::vector<personal_context::proto::MemoryDataType>
 GetSupportedLocalDataTypes() {
@@ -397,7 +139,8 @@ std::optional<std::u16string_view> GetValueForMemoryDataType(
 // entity by checking if they satisfy "merge constraints" from the entity schema
 // (e.g. if both search results belong to passports with the same passport
 // number). If they do and their `value`s match, we deduplicate them so we
-// don't show the user two identical suggestions.
+// don't show the user two identical suggestions. If they don't, they fall back
+// to the regular deduplication flow.
 //
 // For other Autofill data types (Addresses, CreditCards, Ibans) and unknown
 // types, determining if they come from the same real-world entity is done by
@@ -411,7 +154,7 @@ bool AreResultsDuplicates(const MemorySearchResult& a,
       (a.type_name != b.type_name || a.type_name.empty())) {
     return false;
   }
-  if (a.value != b.value) {
+  if (base::i18n::FoldCase(a.value) != base::i18n::FoldCase(b.value)) {
     return false;
   }
 
@@ -440,12 +183,12 @@ bool AreResultsDuplicates(const MemorySearchResult& a,
                 GetValueForMemoryDataType(a, mem_type);
             std::optional<std::u16string_view> val_b =
                 GetValueForMemoryDataType(b, mem_type);
-            return val_a && val_b && *val_a == *val_b;
+            return val_a && val_b &&
+                   base::i18n::FoldCase(*val_a) == base::i18n::FoldCase(*val_b);
           })) {
         return true;
       }
     }
-    return false;
   }
 
   auto has_contradicting_metadata = [](const MemorySearchResult& result,
@@ -454,7 +197,8 @@ bool AreResultsDuplicates(const MemorySearchResult& a,
         result.metadata_list, [&meta](const EntryMetadata& result_meta) {
           return result_meta.type == meta.type &&
                  result_meta.type_name == meta.type_name &&
-                 result_meta.value != meta.value;
+                 base::i18n::FoldCase(result_meta.value) !=
+                     base::i18n::FoldCase(meta.value);
         });
   };
 
@@ -1003,8 +747,8 @@ void AtMemoryQueryService::AuthenticateAndFetchPiiEntity(
     const AutofillClient& client,
     const std::u16string& auth_message,
     std::u16string_view masked_value,
-    accessibility_annotator::MemoryDataType data_type,
-    base::span<const accessibility_annotator::EntryMetadata> metadata_list,
+    MemoryDataType data_type,
+    base::span<const EntryMetadata> metadata_list,
     FetchUnmaskedPiiEntitiesCallback callback) {
   if (device_authenticator_) {
     RunCallbackAsync(
@@ -1081,7 +825,7 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
   }
 
   std::vector<MemorySearchResult> remote_results =
-      ExtractRemoteResults(response);
+      ExtractRemoteResults(response, locale_);
 
   std::vector<MemoryDataType> local_data_types;
   base::flat_set<std::u16string> filter_words;
@@ -1143,8 +887,8 @@ void AtMemoryQueryService::OnLocalDataRetrieved(
 
 void AtMemoryQueryService::OnAuthenticationCompleted(
     std::u16string masked_value,
-    accessibility_annotator::MemoryDataType data_type,
-    std::vector<accessibility_annotator::EntryMetadata> metadata_list,
+    MemoryDataType data_type,
+    std::vector<EntryMetadata> metadata_list,
     FetchUnmaskedPiiEntitiesCallback callback,
     bool auth_succeeded) {
   device_authenticator_.reset();

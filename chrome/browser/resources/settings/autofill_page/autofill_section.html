@@ -1,17 +1,5 @@
   <style include="cr-shared-style settings-shared passwords-shared
       your-saved-info-shared">
-    #autofillSyncToggleWrapper {
-      align-items: center;
-      cursor: pointer;
-      display: flex;
-      min-height: var(--cr-section-two-line-min-height);
-      padding: 0 var(--cr-section-padding);
-    }
-
-    #autofillSyncToggleWrapper:hover {
-      background-color: var(--cr-hover-background-color);
-    }
-
     #addressList .start {
       display: flex;
       overflow: hidden;
@@ -21,10 +9,6 @@
       display: flex;
       flex: 1;
       overflow: hidden;
-    }
-
-    #plusAddressSettingsButton {
-      margin-top: 16px;
     }
 
     #noEmailsLabel {
@@ -71,17 +55,6 @@
             pref="{{prefs.autofill.gmail_otp_filling.enabled}}">
         </settings-toggle-button>
       </template>
-      <div id="autofillSyncToggleWrapper"
-          hidden$="[[!isAutofillSyncToggleVisible_(accountInfo_)]]">
-        <div class="flex">
-          <div class="label">$i18n{autofillSyncToggleLabel}</div>
-          <div class="label cr-secondary-text">[[accountInfo_.email]]</div>
-        </div>
-        <cr-toggle id="autofillSyncToggle"
-            checked="[[accountInfo_.isAutofillSyncToggleEnabled]]"
-            on-change="onAutofillSyncEnabledChange_">
-        </cr-toggle>
-      </div>
       <template is="dom-if"
           if="[[prefs.autofill.profile_enabled.extensionId]]">
         <div class="cr-row continuation">
@@ -188,15 +161,6 @@
             confirm-text="$i18n{remove}"
             on-close="onEmailRemoveConfirmationDialogClose_">
         </settings-simple-confirmation-dialog>
-      </template>
-      <template is="dom-if" if="[[isPlusAddressEnabled_]]">
-        <cr-link-row class="cr-row" id="plusAddressSettingsButton"
-            label="$i18n{plusAddressSettings}"
-            sub-label="$i18n{plusAddressSettingsSublabel}"
-            on-click="onPlusAddressClick_"
-            role-description="$i18n{subpageArrowRoleDescription}"
-            external>
-        </cr-link-row>
       </template>
     </div>
     <div class="card">

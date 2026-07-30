@@ -22,7 +22,6 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/graphics/flush_for_image_listener.h"
-#include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_recorder.h"
@@ -213,7 +212,6 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
   void SetDelegate(CanvasResourceProviderDelegate* delegate) {
     delegate_ = delegate;
   }
-  bool IsPrinting() const { return delegate_ && delegate_->IsPrinting(); }
 
   viz::SharedImageFormat GetSharedImageFormat() const { return format_; }
   const gfx::ColorSpace& GetColorSpace() const { return color_space_; }
@@ -224,6 +222,7 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
   size_t max_recorded_op_bytes() const { return max_recorded_op_bytes_; }
   size_t max_pinned_image_bytes() const { return max_pinned_image_bytes_; }
   bool clear_frame() const { return clear_frame_; }
+  void set_clear_frame(bool clear_frame) { clear_frame_ = clear_frame; }
 
   int NumInflightResourcesForTesting() const { return num_inflight_resources_; }
   base::ByteSize EstimatedSizeInBytes() const;
@@ -234,9 +233,11 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
   bool IsValid() const;
   virtual scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault);
-  std::optional<cc::PaintRecord> Flush(FlushReason = FlushReason::kOther);
   void ReleaseImageProviderImages();
   const std::optional<cc::PaintRecord>& LastRecording();
+  void SetLastRecording(cc::PaintRecord recording) {
+    last_recording_ = std::move(recording);
+  }
   void ClearLastRecording() { last_recording_ = std::nullopt; }
 
   void SetAnimatedImageFrameIndexes(
@@ -261,10 +262,8 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
   // token.
   void TransferBackFromWebGPU(const gpu::SyncToken& webgpu_write_sync_token);
 
-  void AlwaysEnableRasterTimersForTesting(bool value) {
-    always_enable_raster_timers_for_testing_ = value;
-  }
   virtual void RasterRecord(cc::PaintRecord last_recording);
+  gpu::raster::RasterInterface* RasterInterface() const;
   MemoryManagedPaintCanvas& GetCanvasForTesting();
   void RestoreBackBuffer(const cc::PaintImage&);
 
@@ -346,7 +345,6 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
 
   SkSurfaceProps GetSkSurfaceProps() const;
   virtual sk_sp<SkSurface> CreateSkSurface() const;
-  gpu::raster::RasterInterface* RasterInterface() const;
 
   base::WeakPtr<Canvas2DResourceProvider> CreateWeakPtr();
 
@@ -420,7 +418,6 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
 
   bool clear_frame_ = true;
   std::optional<cc::PaintRecord> last_recording_;
-  bool always_enable_raster_timers_for_testing_ = false;
 
   base::WeakPtrFactory<Canvas2DResourceProvider> weak_ptr_factory_{this};
 };

@@ -25,7 +25,6 @@
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
-#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/model_broker_state.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -459,7 +458,7 @@ TEST_F(OnDeviceModelServiceControllerTest,
   feature_list.InitWithFeaturesAndParameters(
       {{features::kOptimizationGuideOnDeviceModel,
         {{"on_device_model_topk", "1"}, {"on_device_model_temperature", "0"}}},
-       {on_device_model::features::kOnDeviceModelGpuCache, {}}},
+       {on_device_model::features::kOnDeviceModelGpuProgramCache, {}}},
       {});
 
   broker_.InstallBaseModel(std::make_unique<FakeBaseModelAsset>(

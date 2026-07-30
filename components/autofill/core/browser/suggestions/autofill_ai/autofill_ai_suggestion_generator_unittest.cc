@@ -1513,8 +1513,8 @@ TEST_F(AutofillAiSuggestionGeneratorTest, ShowFetchingSuggestionWhenPending) {
   SetEntities({});
 
   using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
-  EXPECT_CALL(access_manager,
-              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
                                   EntityType(EntityTypeName::kPassport)))
@@ -1534,8 +1534,8 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   SetEntities({});
 
   using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
-  EXPECT_CALL(access_manager,
-              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(false));
   // We mock pending to ensure the test fails if the existence check is missing.
   EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
@@ -1553,8 +1553,8 @@ TEST_F(AutofillAiSuggestionGeneratorTest, NoFetchingSuggestionWhenNotPending) {
   SetEntities({});
 
   using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
-  EXPECT_CALL(access_manager,
-              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
                                   EntityType(EntityTypeName::kPassport)))
@@ -1575,15 +1575,15 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   SetEntities({test::GetPassportEntityInstance()});
 
   using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
-  EXPECT_CALL(access_manager,
-              ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
                                   EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(RequestStatus::kSuccess));
 
   // National ID is fetching, but the focused field (Passport) is not pending.
-  EXPECT_CALL(access_manager, ServerHasDataAvailable(
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
                                   EntityType(EntityTypeName::kNationalIdCard)))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
@@ -1801,6 +1801,81 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
       res, SuggestionsAre(HasMainText(u"TR_RECENT"), HasMainText(u"TR_OLD")));
 }
 
+// Test that fallback suggestions (second-level children) follow the same
+// ordering logic as primary suggestions. Specifically, PersonalContext Order
+// entities in the fallback menu are sorted descending by order date, even if
+// the older order has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_FallbackSuggestions_Ordering) {
+  // Set the site domain to something that does not match either order domain,
+  // so that both orders appear in the fallback menu.
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://random.com"));
+  EntityInstance order_recent = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"ORD_RECENT",
+       .date = u"2026-07-01",
+       .merchant_domain = u"example.com",
+       .use_date = test::kJune2017 - base::Days(10),
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance order_old = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"ORD_OLD",
+       .date = u"2025-01-01",
+       .merchant_domain = u"example.com",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({order_old, order_recent});
+  SetForm({ORDER_ID});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      res, SuggestionsAre(AllOf(
+               SuggestionTypeHasTextAndAcceptability(
+                   SuggestionType::kAutofillAiOtherOrders,
+                   l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_ORDERS),
+                   Suggestion::Acceptability::kUnacceptable),
+               ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                               SuggestionType::kFillAutofillAi, u"ORD_RECENT",
+                               Suggestion::Acceptability::kAcceptable),
+                           SuggestionTypeHasTextAndAcceptability(
+                               SuggestionType::kFillAutofillAi, u"ORD_OLD",
+                               Suggestion::Acceptability::kAcceptable)))));
+}
+
+// Test that fallback suggestions (second-level children) follow the same
+// deduplication logic as primary suggestions. When two fallback order entities
+// would fill identical values, the higher-priority suggestion is kept and
+// the lower-priority one is deduplicated.
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_FallbackSuggestions_Deduplication) {
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://random.com"));
+  EntityInstance order_server = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"123",
+       .merchant_domain = u"example.com",
+       .record_type = EntityInstance::RecordType::kServerWallet});
+  EntityInstance order_local = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"123",
+       .merchant_domain = u"example.com",
+       .record_type = EntityInstance::RecordType::kLocal});
+
+  SetEntities({order_local, order_server});
+  SetForm({ORDER_ID});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  // Since `order_local` is a subset/duplicate of `order_server`, only one child
+  // suggestion should be generated in the fallback menu.
+  EXPECT_THAT(
+      res, SuggestionsAre(
+               AllOf(SuggestionTypeHasTextAndAcceptability(
+                         SuggestionType::kAutofillAiOtherOrders,
+                         l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_ORDERS),
+                         Suggestion::Acceptability::kUnacceptable),
+                     ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                         SuggestionType::kFillAutofillAi, u"123",
+                         Suggestion::Acceptability::kAcceptable)))));
+}
+
 class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
     : public AutofillAiSuggestionGeneratorTest {
  public:
@@ -1874,6 +1949,69 @@ TEST_F(
                           EqualsSuggestion(SuggestionType::kFillAutofillAi),
                           EqualsSuggestion(SuggestionType::kSeparator),
                           EqualsSuggestion(SuggestionType::kManageAutofillAi)));
+}
+
+TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+       ShowFetchingSuggestionWhenPending) {
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  SetForm({PASSPORT_NUMBER});
+  SetEntities({});
+
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      ElementsAre(
+          EqualsSuggestion(SuggestionType::kFetchingAmbientData),
+          EqualsSuggestion(SuggestionType::kSeparator),
+          EqualsSuggestion(SuggestionType::kManageAutofillAiIdentityDocs)));
+}
+
+TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
+       ShowFetchingSuggestionWhenMultiplePending) {
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
+  client().set_personal_context_access_manager(&access_manager);
+
+  SetForm({PASSPORT_NUMBER, VEHICLE_LICENSE_PLATE, NAME_FULL});
+  SetEntities({});
+
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
+  // The triggering field (`NAME_FULL`) is compatible with multiple entity
+  // types. The suggestion generator checks the status of all compatible
+  // types, so we define catch-all default expectations first to prevent
+  // GMock from reporting unexpected call failures on other types.
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal)
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType)
+      .WillRepeatedly(Return(RequestStatus::kNotStarted));
+
+  EXPECT_CALL(access_manager, ServerHasSpiiPresenceSignal(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kPassport)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  EXPECT_CALL(access_manager,
+              ServerHasSpiiPresenceSignal(EntityType(EntityTypeName::kVehicle)))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(access_manager, GetPrefetchStatusByEntityType(
+                                  EntityType(EntityTypeName::kVehicle)))
+      .WillRepeatedly(Return(RequestStatus::kPending));
+
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(2)),
+      ElementsAre(EqualsSuggestion(SuggestionType::kFetchingAmbientData),
+                  EqualsSuggestion(SuggestionType::kSeparator),
+                  EqualsSuggestion(SuggestionType::kManageAutofillAi)));
 }
 
 class AutofillAiSuggestionGeneratorPolicyTest

@@ -253,10 +253,6 @@
     "META": {"sizes": {"includes": [10],}},
     "includes": [2920],
   },
-  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/browsing_topics/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
-    "includes": [2940],
-  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/certificate_manager/resources.grd": {
     "META": {"sizes": {"includes": [50],}},
     "includes": [2950],
@@ -706,7 +702,7 @@
     "includes": [4665],
   },
    "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_toolbar/resources.grd": {
-    "META": {"sizes": {"includes": [170]}},
+    "META": {"sizes": {"includes": [100]}},
     "includes": [4670],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/sandbox_internals/resources.grd": {
@@ -1351,9 +1347,13 @@
     "META": {"sizes": {"includes": [5]}},
     "includes": [7385],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/components/notebooks/internals/webui/resources/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [7390],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/components/ntp_tiles/webui/resources/resources.grd": {
     "META": {"sizes": {"includes": [5]}},
-    "includes": [7390],
+    "includes": [7395],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/optimization_guide/optimization_guide_internals/resources/resources.grd": {
     "META": {"sizes": {"includes": [10]}},
@@ -1794,7 +1794,7 @@
   },
 
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_toolbar_shared/resources.grd": {
-    "META": {"sizes": {"includes": [20]}},
+    "META": {"sizes": {"includes": [100]}},
     "includes": [10140],
   },
 

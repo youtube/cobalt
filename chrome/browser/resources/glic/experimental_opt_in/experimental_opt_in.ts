@@ -57,6 +57,7 @@ export class ExperimentalOptInApp {
 
   private hasError_: boolean = false;
   private transitioned_: boolean = false;
+  private isInitialLoad_: boolean = true;
   private loadingTimeoutId_: number|null = null;
 
   constructor() {
@@ -104,6 +105,13 @@ export class ExperimentalOptInApp {
     this.webview_.addEventListener(
         'loadstop', () => this.transitionToWebview_());
 
+    window.addEventListener(
+        'message',
+        (_e: MessageEvent) => {
+            // Intentionally no-op: heading title updates are handled inside
+            // guest DOM.
+        });
+
     this.webview_.addEventListener('loadstart', () => {
       this.hasError_ = false;
       this.errorPanel_.hidden = true;
@@ -147,6 +155,92 @@ export class ExperimentalOptInApp {
       this.errorPanel_.hidden = true;
       this.webview_.classList.add('autosized');
       this.webview_.hidden = false;
+
+      if (loadTimeData.getBoolean('glicOptInDialogLinkA11yFixEnabled')) {
+        // Inject script to add aria-labels to the links for accessibility.
+        const safelyLabel = loadTimeData.getString('safelyLinkLabel');
+        const unexpectedResultsLabel =
+            loadTimeData.getString('unexpectedResultsLinkLabel');
+        const reviewRisksLabel = loadTimeData.getString('reviewRisksLinkLabel');
+
+        const code = `
+          (function() {
+            const safelyLabel = ${JSON.stringify(safelyLabel)};
+            const unexpectedResultsLabel = ${
+            JSON.stringify(unexpectedResultsLabel)};
+            const reviewRisksLabel = ${JSON.stringify(reviewRisksLabel)};
+
+            // We match against default substrings from URL feature parameters defined in
+            // chrome/common/chrome_features.cc (kGlicWebActuationToggleConsiderSafelyURL,
+            // kGlicWebActuationToggleConsiderUnexpectedResultsURL, and
+            // kGlicExperimentalTriggeringSafetyURL). If those URLs are overridden to different
+            // domains, this matching logic will need to be updated.
+            function updateLink(link) {
+              const href = link.getAttribute('href');
+              if (href) {
+                if (href.includes('use-policy')) {
+                  link.setAttribute('aria-label', safelyLabel);
+                } else if (href.includes('unexpected_results')) {
+                  link.setAttribute('aria-label', unexpectedResultsLabel);
+                } else if (href.includes('gemini_spark_safety')) {
+                  link.setAttribute('aria-label', reviewRisksLabel);
+                }
+              }
+            }
+
+            // Update existing links immediately.
+            const links = document.querySelectorAll('a');
+            for (const link of links) {
+              updateLink(link);
+            }
+
+            // Observe future changes for dynamic content.
+            const observer = new MutationObserver((mutations) => {
+              for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                  for (const node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                      if (node.tagName === 'A') {
+                        updateLink(node);
+                      } else {
+                        const childLinks = node.querySelectorAll('a');
+                        for (const link of childLinks) {
+                          updateLink(link);
+                        }
+                      }
+                    }
+                  }
+                } else if (
+                    mutation.type === 'attributes' &&
+                    mutation.target.tagName === 'A') {
+                  updateLink(mutation.target);
+                }
+              }
+            });
+
+            observer.observe(document.documentElement, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              attributeFilter: ['href']
+            });
+          })();
+        `;
+        this.webview_.executeScript({code}, () => {
+          if (chrome.runtime.lastError) {
+            console.warn(
+                'Failed to inject accessibility labels: ' +
+                chrome.runtime.lastError.message);
+          }
+        });
+      }
+
+      if (this.isInitialLoad_) {
+        this.isInitialLoad_ = false;
+        this.scheduleInstantHeadingChecks_();
+      } else if (loadTimeData.getBoolean('glicOptInDialogA11yFixEnabled')) {
+        this.scheduleInstantHeadingChecks_();
+      }
       handler.onWebviewLoaded();
     });
 
@@ -185,11 +279,20 @@ export class ExperimentalOptInApp {
                         const urlHash = urlObj.hash;
 
                         if (urlHash === '#continue') {
+                          if (loadTimeData.getBoolean(
+                                  'glicOptInDialogA11yFixEnabled')) {
+                            this.focusGuestHeading_();
+                          }
                           handler.accept();
                         } else if (urlHash.startsWith('#noThanks')) {
                           handler.reject();
                         }
                       }) as EventListener);
+
+    this.webview_.addEventListener(
+        'pointerdown', () => this.scheduleInstantHeadingChecks_());
+    this.webview_.addEventListener(
+        'click', () => this.scheduleInstantHeadingChecks_());
 
     this.webview_.addEventListener(
         'newwindow', (e: Event) => this.onNewWindow_(e));
@@ -219,6 +322,9 @@ export class ExperimentalOptInApp {
     // correctly.
     this.webview_.offsetHeight;
     this.webview_.classList.add('visible');
+    if (loadTimeData.getBoolean('glicOptInDialogA11yFixEnabled')) {
+      this.scheduleInstantHeadingChecks_();
+    }
 
     setTimeout(() => {
       if (skeleton) {
@@ -226,6 +332,108 @@ export class ExperimentalOptInApp {
         skeleton.classList.remove('fade-out');
       }
     }, TRANSITION_DURATION_MS);
+  }
+
+  private scheduleInstantHeadingChecks_() {
+    this.focusGuestHeading_();
+  }
+
+  private focusGuestHeading_() {
+    if (!loadTimeData.getBoolean('glicOptInDialogA11yFixEnabled')) {
+      return;
+    }
+    const code = `
+      (function() {
+        function focusVisibleDialog() {
+          const selectors = 'h1, h2, h3, h4, [role="heading"], .title, .headline, .header';
+          const candidates = document.querySelectorAll(selectors);
+          for (const el of candidates) {
+            if (el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).visibility !== 'hidden') {
+              const text = el.textContent ? el.textContent.trim() : '';
+              if (text && text === window.__lastHeadingText) {
+                return true;
+              }
+              let target = document.getElementById('a11y-dialog-announcer');
+              if (target && document.activeElement === target && target.getAttribute('aria-label') === text) {
+                return true;
+              }
+              if (!target) {
+                target = document.createElement('div');
+                target.id = 'a11y-dialog-announcer';
+                target.style.position = 'absolute';
+                target.style.opacity = '0';
+                target.style.pointerEvents = 'none';
+                (document.body || document.documentElement).appendChild(target);
+              }
+              target.setAttribute('role', 'dialog');
+              target.setAttribute('tabindex', '-1');
+              if (text) {
+                target.setAttribute('aria-label', text);
+              }
+              window.__lastHeadingText = text;
+              target.focus();
+              try {
+                if (text && window.parent) {
+                  window.parent.postMessage({ type: 'a11y-heading-update', title: text }, '*');
+                }
+              } catch(e) {}
+              return true;
+            }
+          }
+          return false;
+        }
+
+        focusVisibleDialog();
+
+        if (!window.__a11yObserverActive) {
+          window.__a11yObserverActive = true;
+          const observer = new MutationObserver(() => {
+            const selectors = 'h1, h2, h3, h4, [role="heading"], .title, .headline, .header';
+            const candidates = document.querySelectorAll(selectors);
+            for (const el of candidates) {
+              if (el.offsetWidth > 0 && el.offsetHeight > 0 && window.getComputedStyle(el).visibility !== 'hidden') {
+                const text = el.textContent ? el.textContent.trim() : '';
+                if (text && text !== window.__lastHeadingText) {
+                  window.__lastHeadingText = text;
+                  let target = document.getElementById('a11y-dialog-announcer');
+                  if (!target) {
+                    target = document.createElement('div');
+                    target.id = 'a11y-dialog-announcer';
+                    target.style.position = 'absolute';
+                    target.style.opacity = '0';
+                    target.style.pointerEvents = 'none';
+                    (document.body || document.documentElement).appendChild(target);
+                  }
+                  target.setAttribute('role', 'dialog');
+                  target.setAttribute('tabindex', '-1');
+                  if (text) {
+                    target.setAttribute('aria-label', text);
+                  }
+                  target.focus();
+                  try {
+                    if (text && window.parent) {
+                      window.parent.postMessage({ type: 'a11y-heading-update', title: text }, '*');
+                    }
+                  } catch(e) {}
+                }
+                break;
+              }
+            }
+          });
+          observer.observe(document.body || document.documentElement, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+          });
+        }
+      })();
+    `;
+    try {
+      this.webview_.executeScript({code: code});
+    } catch (e) {
+      console.warn('Failed executeScript:', e);
+    }
   }
 
   private clearWatchdog_() {

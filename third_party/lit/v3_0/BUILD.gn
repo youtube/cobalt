@@ -116,6 +116,7 @@ ts_library("build_ts") {
     "//chrome/browser/resources/updater:build_ts",
     "//chrome/browser/resources/user_education_internals:build_ts",
     "//chrome/browser/resources/watermark:build_ts",
+    "//chrome/browser/resources/web_app_internals:build_ts",
     "//chrome/browser/resources/webnn_internals:build_ts",
     "//chrome/browser/resources/webui_browser:build_ts",
     "//chrome/browser/resources/webui_browser/internal:build_ts",
@@ -140,6 +141,7 @@ ts_library("build_ts") {
     "//chrome/test/data/webui/cr_elements:build_ts",
     "//chrome/test/data/webui/extensions:build_ts",
     "//chrome/test/data/webui/history:build_ts",
+    "//chrome/test/data/webui/notebooks_internals:build_ts",
     "//chrome/test/data/webui/print_preview:build_ts",
     "//chrome/test/data/webui/settings:build_ts",
     "//chrome/test/data/webui/signin:build_ts",
@@ -148,6 +150,7 @@ ts_library("build_ts") {
     "//components/commerce/core/internals/resources:build_ts",
     "//components/download/resources/download_internals:build_ts",
     "//components/neterror/resources:build_ts",
+    "//components/notebooks/internals/webui/resources:build_ts",
     "//components/ntp_tiles/webui/resources:build_ts",
     "//components/policy/resources/webui:build_ts",
     "//components/signin/core/browser/resources:build_ts",
@@ -176,8 +179,9 @@ ts_library("build_ts") {
   tsconfig_base = "tsconfig_base.json"
   composite = true
   in_files = [
-    "lit.ts",
     "cr_lit_element.ts",
+    "deduping_mixin.ts",
+    "lit.ts",
   ]
 
   node_modules = "//third_party/node/node_modules"

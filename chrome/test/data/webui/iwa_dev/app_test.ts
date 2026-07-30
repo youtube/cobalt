@@ -5,20 +5,89 @@
 import 'chrome://iwa-dev/app.js';
 
 import type {IwaDevAppElement} from 'chrome://iwa-dev/app.js';
+import type {InstalledAppListItemElement} from 'chrome://iwa-dev/installed_app_list_item.js';
+import type {IwaDevModeAppInfo, PageCallbackRouter} from 'chrome://iwa-dev/iwa_dev.mojom-webui.js';
+import {browserProxyFactory, PageHandlerRemote} from 'chrome://iwa-dev/iwa_dev.mojom-webui.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 suite('<iwa-dev-app>', () => {
   let app: IwaDevAppElement;
+  let handler: TestMock<PageHandlerRemote>&PageHandlerRemote;
+
+  let installedListener: ((appInfo: IwaDevModeAppInfo) => void)|undefined =
+      undefined;
+  let updatedListener: ((appInfo: IwaDevModeAppInfo) => void)|undefined =
+      undefined;
+  let uninstalledListener: ((appId: string) => void)|undefined = undefined;
 
   setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    app = document.createElement('iwa-dev-app');
-    document.body.appendChild(app);
+    handler = TestMock.fromClass(PageHandlerRemote);
+    browserProxyFactory.setInstance({
+      handler: handler,
+      callbackRouter: {
+        onAppInstalled: {
+          addListener: (listener: (appInfo: IwaDevModeAppInfo) => void) => {
+            installedListener = listener;
+            return 1;
+          },
+        },
+        onAppUpdated: {
+          addListener: (listener: (appInfo: IwaDevModeAppInfo) => void) => {
+            updatedListener = listener;
+            return 2;
+          },
+        },
+        onAppUninstalled: {
+          addListener: (listener: (appId: string) => void) => {
+            uninstalledListener = listener;
+            return 3;
+          },
+        },
+        removeListener: () => {},
+      } as unknown as PageCallbackRouter,
+    });
   });
 
+  teardown(() => {
+    installedListener = undefined;
+    updatedListener = undefined;
+    uninstalledListener = undefined;
+  });
+
+  function createApp(devModeEnabled: boolean = true) {
+    loadTimeData.overrideValues({isIwaDevModeEnabled: devModeEnabled});
+    app = document.createElement('iwa-dev-app');
+    document.body.appendChild(app);
+  }
+
+  function createProxyInstalledAppInfo(): IwaDevModeAppInfo {
+    return {
+      appId: 'test-app-id',
+      webBundleId: 'test-bundle-id',
+      name: 'Test App',
+      installedVersion: '1.0.0',
+      source: {
+        proxyOrigin: {
+          scheme: 'https',
+          host: 'example.com',
+          port: 443,
+          nonceIfOpaque: null,
+        },
+      },
+    };
+  }
+
+  function getListItems(): NodeListOf<InstalledAppListItemElement> {
+    return app.shadowRoot.querySelectorAll<InstalledAppListItemElement>(
+        'installed-app-list-item');
+  }
+
   test('display error message when IWA dev mode is disabled', async () => {
-    app.devModeEnabled = false;
+    createApp(/*devModeEnabled=*/ false);
     await microtasksFinished();
 
     const heading = app.shadowRoot.querySelector('h1');
@@ -35,7 +104,10 @@ suite('<iwa-dev-app>', () => {
   });
 
   test('display content when IWA dev mode is enabled', async () => {
-    app.devModeEnabled = true;
+    handler.setResultFor('getInstalledAppsInfo', Promise.resolve({apps: []}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
     await microtasksFinished();
 
     const heading = app.shadowRoot.querySelector('h1');
@@ -43,5 +115,134 @@ suite('<iwa-dev-app>', () => {
     assertEquals('Isolated Web App Developer Tool', heading.textContent.trim());
 
     assertFalse(!!app.shadowRoot.querySelector('#error-message'));
+  });
+
+  test('display message when no IWAs installed', async () => {
+    handler.setResultFor('getInstalledAppsInfo', Promise.resolve({apps: []}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    const message = app.shadowRoot.querySelector('#iwa-list-message');
+    assertTrue(!!message);
+    assertTrue(message.textContent.includes(
+        'No Isolated Web Apps installed in developer mode.'));
+  });
+
+  test('display list of installed apps', async () => {
+    const apps: IwaDevModeAppInfo[] = [
+      {
+        appId: 'test-app-id',
+        webBundleId: 'test-bundle-id',
+        name: 'Test App',
+        installedVersion: '1.0.0',
+        source: {
+          proxyOrigin: {
+            scheme: 'https',
+            host: 'example.com',
+            port: 443,
+            nonceIfOpaque: null,
+          },
+        },
+      },
+    ];
+
+    handler.setResultFor('getInstalledAppsInfo', Promise.resolve({apps}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    const items = getListItems();
+    assertEquals(1, items.length);
+  });
+
+  test('updates list when app is installed', async () => {
+    handler.setResultFor('getInstalledAppsInfo', Promise.resolve({apps: []}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    let items = getListItems();
+    assertEquals(0, items.length);
+
+    assertTrue(installedListener !== undefined);
+    const appInfo = createProxyInstalledAppInfo();
+    installedListener(appInfo);
+
+    await microtasksFinished();
+
+    items = getListItems();
+    assertEquals(1, items.length);
+    assertEquals(appInfo, items[0]!.app);
+  });
+
+  test('updates list when app is updated', async () => {
+    const appInfo = createProxyInstalledAppInfo();
+    handler.setResultFor(
+        'getInstalledAppsInfo', Promise.resolve({apps: [appInfo]}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    let items = getListItems();
+    assertEquals(1, items.length);
+    assertEquals(appInfo, items[0]!.app);
+
+    assertTrue(updatedListener !== undefined);
+
+    const updatedAppInfo = {...appInfo, installedVersion: '2.0.0'};
+    updatedListener(updatedAppInfo);
+
+    await microtasksFinished();
+
+    items = getListItems();
+    assertEquals(1, items.length);
+    assertEquals(updatedAppInfo, items[0]!.app);
+  });
+
+  test('updates list when app is uninstalled', async () => {
+    handler.setResultFor(
+        'getInstalledAppsInfo',
+        Promise.resolve({apps: [createProxyInstalledAppInfo()]}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    let items = getListItems();
+    assertEquals(1, items.length);
+
+    assertTrue(uninstalledListener !== undefined);
+    uninstalledListener('test-app-id');
+
+    await microtasksFinished();
+
+    items = getListItems();
+    assertEquals(0, items.length);
+  });
+
+  test('calls uninstallApp when uninstall button is clicked', async () => {
+    const appInfo = createProxyInstalledAppInfo();
+    handler.setResultFor(
+        'getInstalledAppsInfo', Promise.resolve({apps: [appInfo]}));
+    createApp(/*devModeEnabled=*/ true);
+
+    await handler.whenCalled('getInstalledAppsInfo');
+    await microtasksFinished();
+
+    const items = getListItems();
+    assertEquals(1, items.length);
+
+    const uninstallButton =
+        items[0]!.shadowRoot.querySelector<HTMLElement>('#uninstall-btn');
+    assertTrue(!!uninstallButton);
+    uninstallButton.click();
+
+    const appId = await handler.whenCalled('uninstallApp');
+    assertEquals('test-app-id', appId);
   });
 });

@@ -130,6 +130,7 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   static IndigoPageActionController* From(tabs::TabInterface* tab);
 
   void InvokeAction(EntryPoint entry_point);
+  void DeleteOriginalPhoto();
 
   // Resets all image replacements and hides the toolbar.
   void Reset(ResetType reset_type);
@@ -164,6 +165,11 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
                              content::RenderViewHost* new_host) override;
   void FrameSizeChanged(content::RenderFrameHost* render_frame_host,
                         const gfx::Size& frame_size) override;
+
+  // tabs::ContentsObservingTabFeature:
+  void OnDiscardContents(tabs::TabInterface* tab,
+                         content::WebContents* old_contents,
+                         content::WebContents* new_contents) override;
 
   // content::TrackedElementObserver:
   void OnTrackedElementRectsChanged(const viz::TrackedElementRects& rects,
@@ -205,6 +211,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   };
 
  private:
+  // Resets the page triggering and classification state.
+  void ResetTriggeringState();
+
   // Updates the visibility and states of all entry points.
   void UpdateEntryPointsState();
 
@@ -320,6 +329,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // Remote to the Blink-side metadata extraction service.
   mojo::Remote<blink::mojom::DocumentMetadata> metadata_remote_;
+
+  // True if a delete original photo request is currently in flight.
+  bool delete_photo_in_flight_ = false;
 
   // Weak pointer factory used for the invocation flow. This is invalidated on
   // navigation to ensure that if a user starts an action (like onboarding) and

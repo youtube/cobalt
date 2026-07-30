@@ -8,27 +8,32 @@
  */
 
 import 'chrome://resources/js/action_link.js';
-import 'chrome://resources/cr_elements/action_link.css.js';
-import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import 'chrome://resources/cr_elements/action_link_lit.css.js';
+import 'chrome://resources/cr_elements/cr_infinite_list/cr_infinite_list.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
-import '../settings_shared.css.js';
 import './startup_url_dialog.js';
 import './startup_url_entry.js';
 
-import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {PrefServiceObserverMixinLit} from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js';
+import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-
-import {ScrollableMixin} from '../scrollable_mixin.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {EDIT_STARTUP_URL_EVENT} from './startup_url_entry.js';
-import {getTemplate} from './startup_urls_page.html.js';
+import {getCss} from './startup_urls_page.css.js';
+import {getHtml} from './startup_urls_page.html.js';
 import type {StartupPageInfo, StartupUrlsPageBrowserProxy} from './startup_urls_page_browser_proxy.js';
 import {StartupUrlsPageBrowserProxyImpl} from './startup_urls_page_browser_proxy.js';
 
+export interface SettingsStartupUrlsPageElement {
+  $: {
+    container: HTMLElement,
+  };
+}
 
 const SettingsStartupUrlsPageElementBase =
-    ScrollableMixin(WebUiListenerMixin(PolymerElement));
+    PrefServiceObserverMixinLit(WebUiListenerMixinLit(CrLitElement));
 
 export class SettingsStartupUrlsPageElement extends
     SettingsStartupUrlsPageElementBase {
@@ -36,47 +41,43 @@ export class SettingsStartupUrlsPageElement extends
     return 'settings-startup-urls-page';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      prefs: Object,
-
-      /**
-       * Pages to load upon browser startup.
-       */
-      startupPages_: Array,
-
-      showStartupUrlDialog_: Boolean,
-      startupUrlDialogModel_: Object,
-      lastFocused_: Object,
-      listBlurred_: Boolean,
+      startupUrlsPref_: {type: Object},
+      startupPages_: {type: Array},
+      showStartupUrlDialog_: {type: Boolean},
+      startupUrlDialogModel_: {type: Object},
+      lastFocused_: {type: Object},
+      listBlurred_: {type: Boolean},
+      scrollTarget_: {type: Object},
     };
   }
 
-  declare prefs: Object;
-  declare private startupPages_: StartupPageInfo[];
-  declare private showStartupUrlDialog_: boolean;
-  declare private startupUrlDialogModel_: StartupPageInfo|null;
-  declare private lastFocused_: HTMLElement;
-  declare private listBlurred_: boolean;
+  protected accessor startupUrlsPref_:
+      chrome.settingsPrivate.PrefObject<string[]>|undefined;
+  protected accessor startupPages_: StartupPageInfo[] = [];
+  protected accessor showStartupUrlDialog_: boolean = false;
+  protected accessor startupUrlDialogModel_: StartupPageInfo|null = null;
+  protected accessor lastFocused_: HTMLElement|null = null;
+  protected accessor listBlurred_: boolean = false;
+  protected accessor scrollTarget_: HTMLElement = document.documentElement;
+
   private browserProxy_: StartupUrlsPageBrowserProxy =
       StartupUrlsPageBrowserProxyImpl.getInstance();
-  private startupUrlDialogAnchor_: HTMLElement|null;
-
-  constructor() {
-    super();
-
-    /**
-     * The element to return focus to, when the startup-url-dialog is closed.
-     */
-    this.startupUrlDialogAnchor_ = null;
-  }
+  private startupUrlDialogAnchor_: HTMLElement|null = null;
 
   override connectedCallback() {
     super.connectedCallback();
+
+    this.mirrorPref('session.startup_urls', 'startupUrlsPref_');
 
     this.addWebUiListener(
         'update-startup-pages', (startupPages: StartupPageInfo[]) => {
@@ -84,10 +85,9 @@ export class SettingsStartupUrlsPageElement extends
           // page might have just been removed (and model indices have changed
           // anyway).
           if (this.startupUrlDialogModel_) {
-            this.destroyUrlDialog_();
+            this.onDialogClose_();
           }
           this.startupPages_ = startupPages;
-          this.updateScrollableContents();
         });
     this.browserProxy_.loadStartupPages();
 
@@ -101,14 +101,27 @@ export class SettingsStartupUrlsPageElement extends
     });
   }
 
-  private onAddPageClick_(e: Event) {
+  override firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+    this.scrollTarget_ = this.$.container;
+  }
+
+  protected onLastFocusedChanged_(e: CustomEvent<{value: HTMLElement | null}>) {
+    this.lastFocused_ = e.detail.value;
+  }
+
+  protected onListBlurredChanged_(e: CustomEvent<{value: boolean}>) {
+    this.listBlurred_ = e.detail.value;
+  }
+
+  protected onAddPageClick_(e: Event) {
     e.preventDefault();
     this.showStartupUrlDialog_ = true;
     this.startupUrlDialogAnchor_ =
-        this.shadowRoot!.querySelector('#addPage a[is=action-link]');
+        this.shadowRoot.querySelector('#addPage a[is=action-link]');
   }
 
-  private destroyUrlDialog_() {
+  protected onDialogClose_() {
     this.showStartupUrlDialog_ = false;
     this.startupUrlDialogModel_ = null;
     if (this.startupUrlDialogAnchor_) {
@@ -117,15 +130,15 @@ export class SettingsStartupUrlsPageElement extends
     }
   }
 
-  private onUseCurrentPagesClick_() {
+  protected onUseCurrentPagesClick_() {
     this.browserProxy_.useCurrentPages();
   }
 
   /**
    * @return Whether "Add new page" and "Use current pages" are allowed.
    */
-  private shouldAllowUrlsEdit_(): boolean {
-    return this.get('prefs.session.startup_urls.enforcement') !==
+  protected shouldAllowUrlsEdit_(): boolean {
+    return this.startupUrlsPref_?.enforcement !==
         chrome.settingsPrivate.Enforcement.ENFORCED;
   }
 }

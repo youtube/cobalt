@@ -13,6 +13,8 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "components/origin_gating/core/actor_container_config.h"
+#include "components/origin_gating/core/actor_container_config_slot.h"
 #include "components/origin_gating/core/origin_gating_configuration.h"
 #include "components/origin_gating/core/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -519,6 +521,150 @@ TEST_F(OriginGatingCheckerTest,
   EXPECT_EQ(decision.attribution, DecisionSource::kNoVerdict);
 }
 
+TEST_F(OriginGatingCheckerTest,
+       BuiltInPredicate_ActorContainerConfig_NoConfigFallsBack) {
+  OriginGatingChecker checker(
+      delegate_,
+      OriginGatingConfiguration(
+          {{DecisionSource::kActorContainerConfig, GateableEventSet::All()}},
+          /*use_site_keyed_cache=*/false));
+
+  GURL source("https://example.com");
+  GURL destination("https://foo.com");
+
+  SetUpDelegateExpectations(source, destination,
+                            /*requires_user_confirmation=*/false,
+                            /*is_allowed=*/true,
+                            /*did_prompt_user=*/false);
+
+  GatingDecision decision = ComputeGatingDecisionAndVerifyAsynchrony(
+      checker, nullptr, source, destination);
+
+  EXPECT_TRUE(decision.is_allowed);
+  EXPECT_EQ(decision.attribution, DecisionSource::kNoVerdict);
+}
+
+TEST_F(OriginGatingCheckerTest,
+       BuiltInPredicate_ActorContainerConfig_NavigationAllowed) {
+  OriginGatingChecker checker(
+      delegate_,
+      OriginGatingConfiguration(
+          {{DecisionSource::kActorContainerConfig, GateableEventSet::All()}},
+          /*use_site_keyed_cache=*/false));
+
+  // Configure the slot on the checker.
+  checker.actor_container_config_slot().Assign(ActorContainerConfig({{
+      {ActorContainerConfig::Location(ActorContainerConfig::Wildcard()),
+       ActorContainerConfig::Rule(
+           /*navigation_sources=*/{},
+           /*resources=*/{ActorContainerConfig::Rule::Resource::kSession},
+           /*capabilities=*/{ActorContainerConfig::Rule::Capability::kAll})},
+  }}));
+
+  GURL source("https://example.com");
+  GURL destination("https://foo.com");
+
+  // Since it is explicitly allowed, we don't query the delegate for user
+  // confirmation or no-verdict (it does not fall back).
+  EXPECT_CALL(delegate_, DoesOriginRequireUserConfirmation(_, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(delegate_, OnNoVerdict(_, _, _, _, _, _)).Times(0);
+
+  GatingDecision decision = ComputeGatingDecisionAndVerifyAsynchrony(
+      checker, nullptr, source, destination);
+
+  EXPECT_TRUE(decision.is_allowed);
+  EXPECT_EQ(decision.attribution, DecisionSource::kActorContainerConfig);
+}
+
+TEST_F(OriginGatingCheckerTest,
+       BuiltInPredicate_ActorContainerConfig_NavigationBlocked) {
+  OriginGatingChecker checker(
+      delegate_,
+      OriginGatingConfiguration(
+          {{DecisionSource::kActorContainerConfig, GateableEventSet::All()}},
+          /*use_site_keyed_cache=*/false));
+
+  // Set an empty config which blocks all navigations.
+  checker.actor_container_config_slot().Assign(ActorContainerConfig());
+
+  GURL source("https://example.com");
+  GURL destination("https://foo.com");
+
+  EXPECT_CALL(delegate_, DoesOriginRequireUserConfirmation(_, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(delegate_, OnNoVerdict(_, _, _, _, _, _)).Times(0);
+
+  GatingDecision decision = ComputeGatingDecisionAndVerifyAsynchrony(
+      checker, nullptr, source, destination);
+
+  EXPECT_FALSE(decision.is_allowed);
+  EXPECT_EQ(decision.attribution, DecisionSource::kActorContainerConfig);
+}
+
+TEST_F(OriginGatingCheckerTest,
+       BuiltInPredicate_ActorContainerConfig_PageActionAllowed) {
+  OriginGatingChecker checker(
+      delegate_,
+      OriginGatingConfiguration(
+          {{DecisionSource::kActorContainerConfig, GateableEventSet::All()}},
+          /*use_site_keyed_cache=*/false));
+
+  // Configure the slot to allow actuation.
+  checker.actor_container_config_slot().Assign(ActorContainerConfig({{
+      {ActorContainerConfig::Location(ActorContainerConfig::Wildcard()),
+       ActorContainerConfig::Rule(
+           /*navigation_sources=*/{},
+           /*resources=*/{ActorContainerConfig::Rule::Resource::kSession},
+           /*capabilities=*/{ActorContainerConfig::Rule::Capability::kAll})},
+  }}));
+
+  GURL source("https://example.com");
+  GURL destination("https://foo.com");
+
+  EXPECT_CALL(delegate_, DoesOriginRequireUserConfirmation(_, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(delegate_, OnNoVerdict(_, _, _, _, _, _)).Times(0);
+
+  // Use page action event.
+  base::test::TestFuture<std::unique_ptr<GatingDecisionContext>, GatingDecision>
+      future;
+  checker.ComputeGatingDecision(nullptr, GateableEvent::kPageAction, source,
+                                destination, future.GetCallback());
+
+  GatingDecision decision = future.Get<1>();
+  EXPECT_TRUE(decision.is_allowed);
+  EXPECT_EQ(decision.attribution, DecisionSource::kActorContainerConfig);
+}
+
+TEST_F(OriginGatingCheckerTest,
+       BuiltInPredicate_ActorContainerConfig_PageActionBlocked) {
+  OriginGatingChecker checker(
+      delegate_,
+      OriginGatingConfiguration(
+          {{DecisionSource::kActorContainerConfig, GateableEventSet::All()}},
+          /*use_site_keyed_cache=*/false));
+
+  // Set an empty config which blocks all actuations.
+  checker.actor_container_config_slot().Assign(ActorContainerConfig());
+
+  GURL source("https://example.com");
+  GURL destination("https://foo.com");
+
+  EXPECT_CALL(delegate_, DoesOriginRequireUserConfirmation(_, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(delegate_, OnNoVerdict(_, _, _, _, _, _)).Times(0);
+
+  base::test::TestFuture<std::unique_ptr<GatingDecisionContext>, GatingDecision>
+      future;
+  checker.ComputeGatingDecision(nullptr, GateableEvent::kPageAction, source,
+                                destination, future.GetCallback());
+
+  GatingDecision decision = future.Get<1>();
+  EXPECT_FALSE(decision.is_allowed);
+  EXPECT_EQ(decision.attribution, DecisionSource::kActorContainerConfig);
+}
+
 TEST_F(OriginGatingCheckerTest, BuiltInPredicate_EnterprisePolicy_Allowed) {
   OriginGatingChecker checker(
       delegate_, OriginGatingConfiguration({{DecisionSource::kEnterprisePolicy,
@@ -624,8 +770,7 @@ TEST_F(OriginGatingCheckerTest,
 TEST_F(OriginGatingCheckerTest, CustomPredicate_Allowed_ShortCircuits) {
   CustomPredicate custom(
       base::BindRepeating([](const GatingDecisionContext* context,
-                             GateableEvent event, const GURL& source,
-                             const GURL& destination,
+                             const GURL& source, const GURL& destination,
                              base::OnceCallback<void(Decision)> callback) {
         EXPECT_EQ(source, GURL("https://example.com"));
         EXPECT_EQ(destination, GURL("https://foo.com"));
@@ -655,8 +800,7 @@ TEST_F(OriginGatingCheckerTest,
        CustomPredicate_NoDecision_FallsBackToDelegate) {
   CustomPredicate custom(
       base::BindRepeating([](const GatingDecisionContext* context,
-                             GateableEvent event, const GURL& source,
-                             const GURL& destination,
+                             const GURL& source, const GURL& destination,
                              base::OnceCallback<void(Decision)> callback) {
         std::move(callback).Run(Decision::kNoDecision);
       }),
@@ -775,8 +919,7 @@ TEST_F(OriginGatingCheckerTest, PredicateSkipped_WhenEventNotApplicable) {
   // A custom predicate that would allow, but is restricted to kPageAction only.
   CustomPredicate page_action_only(
       base::BindRepeating([](const GatingDecisionContext* context,
-                             GateableEvent event, const GURL& source,
-                             const GURL& destination,
+                             const GURL& source, const GURL& destination,
                              base::OnceCallback<void(Decision)> callback) {
         std::move(callback).Run(Decision::kAllowed);
       }),
@@ -814,8 +957,7 @@ TEST_F(OriginGatingCheckerTest, PredicateSkipped_WhenEventNotApplicable) {
 TEST_F(OriginGatingCheckerTest, PredicateRuns_WhenEventApplicable) {
   CustomPredicate page_action_only(
       base::BindRepeating([](const GatingDecisionContext* context,
-                             GateableEvent event, const GURL& source,
-                             const GURL& destination,
+                             const GURL& source, const GURL& destination,
                              base::OnceCallback<void(Decision)> callback) {
         std::move(callback).Run(Decision::kAllowed);
       }),
@@ -849,10 +991,8 @@ TEST_F(OriginGatingCheckerTest, EventReachesPredicateAndDelegate) {
   // delegate, allowing us to assert the event is threaded through both hops.
   CustomPredicate observing_predicate(
       base::BindRepeating([](const GatingDecisionContext* context,
-                             GateableEvent event, const GURL& source,
-                             const GURL& destination,
+                             const GURL& source, const GURL& destination,
                              base::OnceCallback<void(Decision)> callback) {
-        EXPECT_EQ(event, GateableEvent::kPageAction);
         std::move(callback).Run(Decision::kNoDecision);
       }),
       "observing_predicate");

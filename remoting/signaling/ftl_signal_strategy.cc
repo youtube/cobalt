@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/lru_cache.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -41,6 +42,18 @@ GetNotFoundRetryPolicy() {
   return policy;
 }
 
+enum class SignalingFormat { XML, PROTOBUF, BOTH };
+
+void SetIqStanza(ftl::ChromotingXmppMessage* xmpp,
+                 const JingleMessage& message) {
+  *xmpp->mutable_iq_stanza() = JingleMessageToProto(message);
+}
+
+void SetIqStanza(ftl::ChromotingXmppMessage* xmpp,
+                 const JingleMessageReply& reply) {
+  *xmpp->mutable_iq_stanza() = JingleMessageReplyToProto(reply);
+}
+
 }  // namespace
 
 class FtlSignalStrategy::Core {
@@ -65,6 +78,7 @@ class FtlSignalStrategy::Core {
   bool SendReply(JingleMessageReply&& message);
   void AddFtlListener(FtlListener* listener);
   void RemoveFtlListener(FtlListener* listener);
+  void SetSendProtobufInInitiate(bool send);
   bool SendFtlMessage(const SignalingAddress& destination_address,
                       ftl::ChromotingMessage&& message);
   void OnMessageReceived(const SignalingAddress& sender_address,
@@ -111,9 +125,28 @@ class FtlSignalStrategy::Core {
 
   Error error_ = OK;
   bool is_sign_in_error_ = false;
+  bool send_protobuf_in_initiate_ = false;
 
   base::ObserverList<Listener, true> listeners_;
   base::ObserverList<FtlListener, true> ftl_listeners_;
+
+  SignalingFormat GetFormatForMessage(const JingleMessage& message);
+  SignalingFormat GetFormatForMessage(const JingleMessageReply& reply);
+  bool IsSessionPending(const std::string& sid) const;
+
+  // Tracks the format (XML or Proto) of incoming requests by their message ID,
+  // so we can reply using the same format. Uses LRUCache to prevent leaks.
+  base::LRUCache<std::string, SignalingFormat> incoming_request_formats_{
+      /*max_size=*/1000};
+  // Tracks the negotiated format for active sessions by their session ID (sid).
+  // Uses LRUCache to prevent leaks.
+  base::LRUCache<std::string, SignalingFormat> session_formats_{
+      /*max_size=*/100};
+  // Maps outbound session-initiate message IDs to their session IDs (sid),
+  // so we can determine the session format when the reply arrives.
+  // Uses LRUCache to prevent leaks.
+  base::LRUCache<std::string, std::string> outbound_request_to_sid_{
+      /*max_size=*/100};
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -170,6 +203,11 @@ void FtlSignalStrategy::Core::Disconnect() {
     receive_message_subscription_ = {};
     messaging_client_->StopReceivingMessages();
 
+    // Clear negotiation state on disconnect as all sessions are terminated.
+    session_formats_.Clear();
+    incoming_request_formats_.Clear();
+    outbound_request_to_sid_.Clear();
+
     for (auto& observer : listeners_) {
       observer.OnSignalingStateChanged(DISCONNECTED);
     }
@@ -219,15 +257,38 @@ void FtlSignalStrategy::Core::RemoveFtlListener(FtlListener* listener) {
   ftl_listeners_.RemoveObserver(listener);
 }
 
+void FtlSignalStrategy::Core::SetSendProtobufInInitiate(bool send) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  send_protobuf_in_initiate_ = send;
+}
+
 bool FtlSignalStrategy::Core::SendMessage(JingleMessage&& message) {
+  if (message.action() == JingleMessage::ActionType::kSessionInitiate) {
+    // Track outbound initiate to correlate the reply's format to the session.
+    outbound_request_to_sid_.Put(message.message_id, message.sid);
+  }
+
+  JingleMessage::ActionType action = message.action();
+  std::string sid = message.sid;
+
   // Note that duplicate messages may be sent, but the client and host are
   // responsible for filtering out duplicates.
   scoped_refptr<const ProtobufHttpRequestConfig::RetryPolicy> policy;
-  if (message.action() == JingleMessage::ActionType::kSessionAccept) {
+  if (action == JingleMessage::ActionType::kSessionAccept) {
     policy = GetNotFoundRetryPolicy();
   }
 
-  return Send(std::move(message), "message", std::move(policy));
+  bool result = Send(std::move(message), "message", std::move(policy));
+
+  if (result && action == JingleMessage::ActionType::kSessionTerminate) {
+    // Clean up session format when the session is terminated.
+    auto it = session_formats_.Peek(sid);
+    if (it != session_formats_.end()) {
+      session_formats_.Erase(it);
+    }
+  }
+
+  return result;
 }
 
 bool FtlSignalStrategy::Core::SendReply(JingleMessageReply&& message) {
@@ -257,11 +318,20 @@ bool FtlSignalStrategy::Core::Send(
   SignalingAddress destination_address = message.to;
   ftl::ChromotingMessage crd_message;
   auto* xmpp = crd_message.mutable_xmpp();
-  // TODO: joedow - Stop populating the `stanza` proto field once all clients
-  // in the field have been updated to handle `iq_stanza`.
-  xmpp->set_stanza(message.ToSerializedXml());
-  // TODO: crbug.com/504910955 - Re-enable iq_stanza once parsing issues are
-  // resolved.
+  SignalingFormat format = GetFormatForMessage(message);
+
+  switch (format) {
+    case SignalingFormat::BOTH:
+      xmpp->set_stanza(message.ToSerializedXml());
+      SetIqStanza(xmpp, message);
+      break;
+    case SignalingFormat::PROTOBUF:
+      SetIqStanza(xmpp, message);
+      break;
+    case SignalingFormat::XML:
+      xmpp->set_stanza(message.ToSerializedXml());
+      break;
+  }
 
   auto done_callback =
       base::BindOnce(&Core::OnSendMessageResponse, weak_factory_.GetWeakPtr(),
@@ -398,12 +468,32 @@ void FtlSignalStrategy::Core::OnMessageReceived(
   }
 
   std::optional<SignalStrategy::Message> parsed_message;
-  // We prefer the structured iq_stanza if it is present.
-  // TODO: crbug.com/504910955 - Re-enable iq_stanza parsing once the issues
-  // with missing fields are resolved.
+  SignalingFormat incoming_format = SignalingFormat::XML;
+
+  if (message.xmpp().has_iq_stanza()) {
+    JingleMessage jingle_message;
+    std::string error;
+    if (JingleMessageFromProto(message.xmpp().iq_stanza(), &jingle_message,
+                               &error)) {
+      parsed_message = SignalStrategy::Message(std::move(jingle_message));
+      incoming_format = SignalingFormat::PROTOBUF;
+    } else {
+      JingleMessageReply jingle_reply;
+      if (JingleMessageReplyFromProto(message.xmpp().iq_stanza(),
+                                      &jingle_reply)) {
+        parsed_message = SignalStrategy::Message(std::move(jingle_reply));
+        incoming_format = SignalingFormat::PROTOBUF;
+      } else {
+        LOG(WARNING) << "Failed to parse iq_stanza: " << error;
+      }
+    }
+  }
 
   if (!parsed_message && message.xmpp().has_stanza()) {
     parsed_message = SignalStrategy::ParseStanzaXml(message.xmpp().stanza());
+    if (parsed_message) {
+      incoming_format = SignalingFormat::XML;
+    }
   }
 
   if (!parsed_message) {
@@ -434,6 +524,30 @@ void FtlSignalStrategy::Core::OnMessageReceived(
     LOG(WARNING) << "Expected receiver: " << local_address_.id()
                  << ", but received: " << to.id();
     return;
+  }
+
+  if (const auto* jm = std::get_if<JingleMessage>(&*parsed_message)) {
+    if (jm->action() == JingleMessage::ActionType::kSessionInitiate) {
+      // Record format chosen by the initiator.
+      session_formats_.Put(jm->sid, incoming_format);
+    } else if (jm->action() == JingleMessage::ActionType::kSessionTerminate) {
+      // Clean up session format on terminate.
+      auto it = session_formats_.Peek(jm->sid);
+      if (it != session_formats_.end()) {
+        session_formats_.Erase(it);
+      }
+    }
+    // Track the format of the incoming request so we can match it in the reply.
+    incoming_request_formats_.Put(jm->message_id, incoming_format);
+  } else if (const auto* jmr =
+                 std::get_if<JingleMessageReply>(&*parsed_message)) {
+    // Correlate the reply to the outbound initiate request to set session
+    // format.
+    auto it = outbound_request_to_sid_.Peek(jmr->message_id);
+    if (it != outbound_request_to_sid_.end()) {
+      session_formats_.Put(it->second, incoming_format);
+      outbound_request_to_sid_.Erase(it);
+    }
   }
 
   for (auto& listener : listeners_) {
@@ -565,6 +679,59 @@ void FtlSignalStrategy::Core::HandleHttpStatusError(
   Disconnect();
 }
 
+bool FtlSignalStrategy::Core::IsSessionPending(const std::string& sid) const {
+  for (const auto& pair : outbound_request_to_sid_) {
+    if (pair.second == sid) {
+      return true;
+    }
+  }
+  return false;
+}
+
+SignalingFormat FtlSignalStrategy::Core::GetFormatForMessage(
+    const JingleMessage& message) {
+  // For outbound session-initiate, we determine if we want to start
+  // negotiation. Gated by send_protobuf_in_initiate_.
+  if (message.action() == JingleMessage::ActionType::kSessionInitiate) {
+    return send_protobuf_in_initiate_ ? SignalingFormat::BOTH
+                                      : SignalingFormat::XML;
+  }
+  // For other messages, use the negotiated format for the session.
+  auto it = session_formats_.Get(message.sid);
+  if (it != session_formats_.end()) {
+    return it->second;
+  }
+
+  if (IsSessionPending(message.sid)) {
+    // If the session is pending negotiation, we don't know the format yet.
+    // Return BOTH if we initiated with BOTH, otherwise XML.
+    VLOG(1) << "Session " << message.sid
+            << " is pending negotiation. Defaulting to "
+            << (send_protobuf_in_initiate_ ? "BOTH" : "XML");
+    return send_protobuf_in_initiate_ ? SignalingFormat::BOTH
+                                      : SignalingFormat::XML;
+  }
+
+  LOG(WARNING) << "No signaling format negotiated for session " << message.sid
+               << ". Defaulting to XML.";
+  return SignalingFormat::XML;
+}
+
+SignalingFormat FtlSignalStrategy::Core::GetFormatForMessage(
+    const JingleMessageReply& reply) {
+  // Use the same format as the incoming request we are replying to, and
+  // erase the entry to prevent leaks.
+  auto it = incoming_request_formats_.Peek(reply.message_id);
+  if (it != incoming_request_formats_.end()) {
+    SignalingFormat format = it->second;
+    incoming_request_formats_.Erase(it);
+    return format;
+  }
+  LOG(WARNING) << "No signaling format recorded for incoming request "
+               << reply.message_id << ". Defaulting to XML.";
+  return SignalingFormat::XML;
+}
+
 FtlSignalStrategy::FtlSignalStrategy(
     std::unique_ptr<OAuthTokenGetter> oauth_token_getter,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -631,6 +798,10 @@ void FtlSignalStrategy::AddFtlListener(FtlListener* listener) {
 
 void FtlSignalStrategy::RemoveFtlListener(FtlListener* listener) {
   core_->RemoveFtlListener(listener);
+}
+
+void FtlSignalStrategy::SetSendProtobufInInitiate(bool send) {
+  core_->SetSendProtobufInInitiate(send);
 }
 
 bool FtlSignalStrategy::SendMessage(JingleMessage&& message) {

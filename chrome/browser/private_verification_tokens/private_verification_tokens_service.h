@@ -22,13 +22,16 @@ namespace url {
 class Origin;
 }
 
+class HostContentSettingsMap;
+
 class PrivateVerificationTokensService
     : public KeyedService,
       public private_verification_tokens::mojom::
           PrivateVerificationTokensProvider {
  public:
   static std::unique_ptr<PrivateVerificationTokensService> Create(
-      const base::FilePath& data_directory);
+      const base::FilePath& data_directory,
+      HostContentSettingsMap* host_content_settings_map = nullptr);
   ~PrivateVerificationTokensService() override;
   void Shutdown() override;
   void BindReceiver(
@@ -73,20 +76,30 @@ class PrivateVerificationTokensService
           storage_key_filter,
       base::OnceClosure callback);
 
+  // Store tokens asynchronously.
+  void StoreTokens(
+      std::vector<private_verification_tokens::PrivateVerificationTokensToken>
+          tokens,
+      base::OnceClosure callback);
+
   base::WeakPtr<PrivateVerificationTokensService> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
 
  private:
-  PrivateVerificationTokensService();
+  explicit PrivateVerificationTokensService(
+      HostContentSettingsMap* host_content_settings_map);
 
   void OnStoreInitialized();
+
+  bool IsAntiAbuseEnabled(const url::Origin& issuer) const;
 
   mojo::ReceiverSet<
       private_verification_tokens::mojom::PrivateVerificationTokensProvider>
       receivers_;
   std::unique_ptr<private_verification_tokens::PrivateVerificationTokensStore>
       store_;
+  raw_ptr<HostContentSettingsMap> host_content_settings_map_ = nullptr;
   bool is_shutting_down_ = false;
 
   base::ObserverList<Observer, /*check_empty=*/true> observers_;

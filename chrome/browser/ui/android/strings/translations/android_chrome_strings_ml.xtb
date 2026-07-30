@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">നിങ്ങൾ ഇത് ഇല്ലാതാക്കുകയാണെങ്കിൽ, എല്ലാവർക്കും ഉടൻ തന്നെ "<ph name="GROUP_NAME" />" ടാബ് ഗ്രൂപ്പിലേക്കുള്ള ആക്‌സസ് നഷ്‌ടമാകും, അത് എല്ലാ ഉപകരണങ്ങളിൽ നിന്നും ഇല്ലാതാക്കുകയും ചെയ്യും.</translation>
 <translation id="1142732900304639782">ഈ സൈറ്റുകൾ വിവർത്തനം ചെയ്യേണ്ട</translation>
 <translation id="1143193470214071120">ഒരു വിൻഡോ അടയ്ക്കുക അല്ലെങ്കിൽ വിൻഡോകൾ മാനേജ് ചെയ്യുക</translation>
+<translation id="1143486892058798649">ലിങ്ക് ഇതായി സംരക്ഷിക്കുക…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> സ്‌കാൻ ചെയ്യുന്നു</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" />, Chrome-ൽ തുറക്കും. തുടരുന്നതിലൂടെ, നിങ്ങൾ <ph name="BEGIN_LINK1" />Google സേവന നിബന്ധനകളും<ph name="END_LINK1" /> <ph name="BEGIN_LINK2" />Google Chrome, ChromeOS അധിക സേവന നിബന്ധനകളും<ph name="END_LINK2" /> അംഗീകരിക്കുന്നു.</translation>
 <translation id="1154555449933432029">Google Password Manager-ൽ നിങ്ങൾ പാസ്‌വേഡുകൾ സംരക്ഷിച്ചിട്ടില്ല.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">നിങ്ങളുടെ Google Account മാനേജ് ചെയ്യാൻ, "അക്കൗണ്ട് മാനേജ് ചെയ്യുക" ബട്ടണിൽ ടാപ്പ് ചെയ്യുക</translation>
 <translation id="1549000191223877751">മറ്റൊരു വിൻഡോയിലേക്ക് നീക്കുക</translation>
 <translation id="1553358976309200471">Chrome അപ്‌ഡേറ്റുചെയ്യുക</translation>
+<translation id="1554352084785952638">"<ph name="SEARCH_TERMS" />" എന്നതിന് <ph name="SEARCH_ENGINE" /></translation>
 <translation id="1554532453982918912">നിങ്ങളെപ്പോലെ Chrome ഉപയോഗിക്കുന്ന ആളുകൾക്കായി Chrome മെച്ചപ്പെടുത്താൻ സഹായിക്കുന്നു</translation>
 <translation id="1568636008098739136">ഈ പേജ് കേൾക്കുക. ഈ കുറുക്കുവഴി എഡിറ്റ് ചെയ്യാൻ, സ്‌പർശിച്ചുപിടിക്കുക.</translation>
 <translation id="1571041387761170095">ദുർബലമായതോ ആവർത്തിച്ച് ഉപയോഗിക്കുന്നതോ ആയ പാസ്‌വേഡുകളൊന്നും കണ്ടെത്തിയില്ല</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{ഈ ഉപകരണത്തിൽ അപഹരിക്കപ്പെട്ട ഒരു പാസ്‌വേഡുണ്ട്}other{ഈ ഉപകരണത്തിൽ അപഹരിക്കപ്പെട്ട # പാസ്‌വേഡുകളുണ്ട്}}</translation>
 <translation id="1594635596540195766">ചുവടെയുള്ള ലിസ്റ്റിൽ <ph name="SUGGESTIONS_COUNT" /> ഇനങ്ങൾ നിർദ്ദേശിച്ചിരിക്കുന്നു.</translation>
+<translation id="159689249463841786">ഫോൾഡർ തിരഞ്ഞെടുക്കുക, നിലവിൽ <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> എന്ന അക്കൗണ്ട് നൽകി <ph name="SITE_ETLD_PLUS_ONE" /> ഉപയോഗിക്കുക</translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത, മീഡിയ റെക്കോർഡ് ചെയ്യുന്ന ടാബ്</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, ഉള്ളടക്കം പങ്കിടുന്ന ടാബ്</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(ശൂന്യം)</translation>
 <translation id="219283042927675668">ഗ്രൂപ്പിലെ ടാബുകൾ</translation>
 <translation id="2194856509914051091">പരിഗണിക്കേണ്ട കാര്യങ്ങൾ</translation>
+<translation id="2196695604589508993">ചരിത്രം തുറക്കുക</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത, ഉള്ളടക്കം പങ്കിടുന്ന ടാബ്</translation>
 <translation id="22091350895006575">ഉപയോക്തൃനാമം ചേർക്കുക</translation>
 <translation id="221494669172414749">പ്രൊഫൈൽ ലോക്ക് ഇല്ലാതെ Chrome തുറക്കുന്നത്, നിങ്ങളുടെ സംരക്ഷിച്ച പാസ്‌വേഡുകളും പേയ്‌മെന്റ് രീതികളും കാറിൽ നിന്ന് നീക്കം ചെയ്യും. പ്രൊഫൈൽ ലോക്ക് ഉപയോഗിക്കുന്നത്, ഈ ഡാറ്റ സുരക്ഷിതമാക്കി നിലനിർത്തുന്നു.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">കൂടുതൽ ബുക്ക്‌മാർക്കുകൾ</translation>
 <translation id="2332515770639153015">മെച്ചപ്പെടുത്തിയ സുരക്ഷിത ബ്രൗസിംഗ് ഓണാണ്</translation>
 <translation id="233375395665273385">ഇല്ലാതാക്കിയ ശേഷം സൈൻ ഔട്ട് ചെയ്യുക</translation>
+<translation id="2334275697832662087">Chrome-ന്റെ AI ലഭ്യമാക്കുന്ന സുരക്ഷ, ഓൺലൈൻ ഭീഷണികളിൽ നിന്ന് നിങ്ങളെ പരിരക്ഷിക്കാൻ സഹായിക്കുന്നു, ബ്രൗസ് ചെയ്യുമ്പോൾ നിങ്ങൾക്ക് ആത്മവിശ്വാസം നൽകുന്നു</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ഇൻസ്‌റ്റാൾ ചെയ്യാനായില്ല.</translation>
 <translation id="2349710944427398404">അക്കൗണ്ടുകളും ബുക്ക്‌മാർക്കുകളും സംരക്ഷിച്ച ക്രമീകരണവും ഉൾപ്പെടെ Chrome ഉപയോഗിക്കുന്ന മൊത്തം വിവരങ്ങൾ</translation>
 <translation id="2354001756790975382">മറ്റ് ബുക്‌മാര്‍ക്കുകള്‍</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">എന്തോ കുഴപ്പമുണ്ടായി. വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="3577558748185201054">നിങ്ങളുടെ താൽപ്പര്യങ്ങളും മുൻഗണനകളും മാനേജ് ചെയ്യുക</translation>
 <translation id="3587482841069643663">എല്ലാം</translation>
+<translation id="3598421953808879451">വീഡിയോ ഇതായി സംരക്ഷിക്കുക…</translation>
 <translation id="3602290021589620013">പ്രിവ്യൂ</translation>
 <translation id="3614126103057878858">നിരക്ക് ഉൾക്കാഴ്‌ചകൾ</translation>
 <translation id="3616113530831147358">ഓഡിയോ</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">ബോട്ടം ഷീറ്റ്</translation>
 <translation id="4045441967987592849">വീണ്ടും തുറക്കുക</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" /> എന്നതിനുള്ള കൂടുതൽ ഓപ്ഷനുകൾ</translation>
+<translation id="4051548576872472315">നിങ്ങൾ അടുത്തിടെ അടച്ച ടാബുകളും വിൻഡോകളും ഇവിടെ കണ്ടെത്തുക</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{അദൃശ്യ വിൻഡോയിൽ തുറക്കുക}other{എല്ലാം (#) അദൃശ്യ വിൻഡോയിൽ തുറക്കുക}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{പങ്കിട്ട ടാബ് ഗ്രൂപ്പുകളിൽ പുതിയ ആക്റ്റിവിറ്റിയുള്ള <ph name="TABS_COUNT_ONE" /> സ്റ്റാൻഡേർഡ് ടാബ്}other{പങ്കിട്ട ടാബ് ഗ്രൂപ്പുകളിൽ പുതിയ ആക്റ്റിവിറ്റിയുള്ള <ph name="TABS_COUNT_MANY" /> സ്റ്റാൻഡേർഡ് ടാബുകൾ}}</translation>
 <translation id="405365679581583349">Google Play സേവനങ്ങൾ അപ്‌ഡേറ്റ് ചെയ്യുക</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">Chrome-ലേക്ക് സൈൻ ഇൻ ചെയ്യാൻ "<ph name="EXTENSION_NAME" />" എന്ന വിപുലീകരണം നിങ്ങളോട് ആവശ്യപ്പെടുന്നു</translation>
 <translation id="6324916366299863871">കുറുക്കുവഴി എഡിറ്റ് ചെയ്യുക</translation>
 <translation id="6324977638108296054">ഹൈലൈറ്റിലേക്കുള്ള ലിങ്ക് സൃഷ്‌ടിക്കാനാകുന്നില്ല</translation>
+<translation id="6331836477476466332">നിങ്ങൾക്കായി കൂടുതൽ സുരക്ഷിതവും കൂടുതൽ കരുത്തുറ്റതുമായ ബ്രൗസർ</translation>
 <translation id="6333140779060797560"><ph name="APPLICATION" /> വഴി പങ്കിടുക</translation>
 <translation id="6335454563754888572">ഇനിപ്പറയുന്നതിലെ പേജിലേക്ക് പോയിന്റ് ചെയ്യുന്ന URL എഡിറ്റ് ചെയ്യുക: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">എന്‍ക്രിപ്ഷന്‍</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">പുതിയ അദൃശ്യ ടാബ്</translation>
 <translation id="686899695320434745">വിലാസങ്ങൾ നിങ്ങളുടെ പാസ്‌ഫ്രെയ്‌സ് ഉപയോഗിച്ച് എൻക്രിപ്റ്റ് ചെയ്തിട്ടില്ല. അതിനാൽ നിങ്ങൾക്ക് അവ മറ്റ് Google സേവനങ്ങളിൽ ഉപയോഗിക്കാം.</translation>
 <translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> ആയി സൈൻ ഇൻ ചെയ്‌തിരിക്കുന്നു</translation>
+<translation id="6871397658902960384">ബ്രൗസിംഗ് ആരംഭിക്കുക</translation>
 <translation id="687838958001010630">ലിങ്കുള്ള ആർക്ക് വേണമെങ്കിലും എല്ലാ ടാബുകളും എഡിറ്റ് ചെയ്യാം</translation>
 <translation id="6880903702195291049">അനുമതികൾ നല്ല നിലയിലാണെന്ന് തോന്നുന്നു</translation>
 <translation id="6883204995689174413">പങ്കിടുക</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">പാസ്ഫ്രെയ്‌സ് എൻക്രിപ്ഷനിൽ Google Pay-ൽ നിന്നുള്ള പേയ്മെന്റ് രീതികളും വിലാസങ്ങളും ഉൾപ്പെടുന്നില്ല.
 
 ഈ ക്രമീകരണം മാറ്റാൻ, <ph name="BEGIN_LINK" />നിങ്ങളുടെ അക്കൗണ്ടിലെ Chrome ഡാറ്റ ഇല്ലാതാക്കുക<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">ചിത്രം ഇതായി സംരക്ഷിക്കുക…</translation>
 <translation id="7165972437814027679">എന്തുകൊണ്ടാണ് Chrome ചില ഫയലുകൾ ബ്ലോക്ക് ചെയ്യുന്നത് എന്നതിനെക്കുറിച്ച് കൂടുതലറിയുക</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> എന്നയാളായി സൈൻ ഇൻ ചെയ്‌തു. ക്രമീകരണം തുറക്കുന്നു.</translation>
 <translation id="7170930892977483182">നിങ്ങളുടെ ഉപകരണത്തിലും Google Wallet-ലും സംരക്ഷിച്ചിരിക്കുന്ന എല്ലാ സുരക്ഷാ കോഡുകളും ഇല്ലാതാക്കും</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">പേയ്മെന്റ് രീതികൾ ആക്‌സസ് ചെയ്യുക</translation>
 <translation id="7363349185727752629">നിങ്ങളുടെ സ്വകാര്യതാ ചോയ്‌സുകളെ കുറിച്ചുള്ള ഗൈഡ്</translation>
 <translation id="7364103838544876661">ബ്രൗസിംഗ് ഡാറ്റ ഇല്ലാതാക്കുന്നതിനുള്ള കൂടുതൽ ഓപ്ഷനുകൾ</translation>
+<translation id="736435710397109878">കാർഡിന്റെ വിളിപ്പേര്, പരമാവധി 25 പ്രതീകങ്ങൾ</translation>
 <translation id="7365073365123878797">Google Password Manager ഉപയോഗിച്ച് പാസ്‌വേഡുകൾ സംരക്ഷിക്കാനും ഉപയോഗിക്കാനും തുടങ്ങുന്നതിന്, Google Play സേവനങ്ങൾ അപ്‌ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="7368009310682364976">അടുത്തിടെ തുറന്ന ടാബുകൾ കാണുക</translation>
 <translation id="7368927539449986686">സൈറ്റ് തിരയൽ എഡിറ്റ് ചെയ്യുക</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">നിങ്ങളുടെ സ്ഥാപനം സുരക്ഷിത ബ്രൗസിംഗ് ഓഫാക്കി</translation>
 <translation id="7825973332242257878">ടാബ് ഗ്രൂപ്പുകൾ</translation>
 <translation id="7826342993930002256">നിങ്ങളുടെ Chrome, എല്ലായിടത്തും</translation>
+<translation id="7845155831233417403">നിങ്ങൾക്ക് <ph name="MAX_INSTANCE_COUNT" /> വിൻഡോകൾ വരെ തുറക്കാനാകും. തുടരാൻ ഒരു വിൻഡോ അടയ്ക്കുക.</translation>
 <translation id="7846161022626028328">ഒരു പിശകുണ്ടായി. വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="7846296061357476882">Google സേവനങ്ങൾ</translation>
 <translation id="784652447248278262">നിലവിലെ വിൻഡോ</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">സമീപമുള്ള ആളുകളുമായി പങ്കിടുന്നതിന്, അവരെ ഈ QR കോഡ് സ്‌കാൻ ചെയ്യാൻ അനുവദിക്കുക</translation>
 <translation id="8090732854597034573">നിങ്ങൾക്ക് സഹായം ആവശ്യമുണ്ടെങ്കിൽ രക്ഷിതാവിനോട് ചോദിക്കുക</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" /> കാലയളവിൽ ടാബുകളൊന്നുമില്ല</translation>
-<translation id="8103578431304235997">അദൃശ്യ ടാബ്</translation>
 <translation id="810433609302852">'നുറുങ്ങുകളെ കുറിച്ചുള്ള അറിയിപ്പുകൾ' ഫീച്ചർ പ്രമോയും ഉപയോഗ ഘട്ടങ്ങളും കാണിക്കുന്ന ബോട്ടം ഷീറ്റ്</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">അവർ ഈ ഉപകരണത്തിൽ സംരക്ഷിച്ചിട്ടുള്ള വിപുലീകരണങ്ങളും ഡാറ്റയും നീക്കം ചെയ്യുക</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">സാധ്യമാകുമ്പോൾ, സൈറ്റിന് ഡാർക്ക് തീം ബാധകമാക്കൂ</translation>
 <translation id="8282950411412455249">സുരക്ഷാ ക്രമീകരണത്തിലേക്ക് പോകുക</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{ഒരു അദൃശ്യ വിൻഡോ അടയ്ക്കുക}other{# അദൃശ്യ വിൻഡോകൾ അടയ്ക്കുക}}</translation>
+<translation id="8289602658021943461">വീഡിയോ ഫ്രെയിം സംരക്ഷിക്കൂ…</translation>
 <translation id="8313599942510782709">നിങ്ങളുടെ ടാസ്‌ക് ഇപ്പോഴും പുരോഗമിക്കുകയാണ്</translation>
 <translation id="8317318757008452355">പ്രിന്റ് ചെയ്യാനുള്ള ഓപ്ഷനുകൾ തുറക്കുക</translation>
 <translation id="8320212361750431956">സമീപകാല ആക്റ്റിവിറ്റി</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />പുതിയത്<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">ബുക്ക്‌മാർക്കും ലിസ്റ്റും</translation>
 <translation id="8342727528718219152">നിരവധി അറിയിപ്പുകൾ അയച്ചേക്കാവുന്ന സൈറ്റുകളെക്കുറിച്ച് Chrome നിങ്ങളെ അറിയിക്കും</translation>
 <translation id="834313815369870491">സൈറ്റുകൾ ഒരിക്കലും വിവർത്തനം ചെയ്യരുത്</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, മൾട്ടിസെലക്റ്റ് ചെയ്ത, പിൻ ചെയ്ത, മീഡിയ റെക്കോർഡ് ചെയ്യുന്ന അദൃശ്യ ടാബ്</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">പാസ്ഫ്രെയ്‍സ് നല്‍കുക</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, പിൻ ചെയ്ത 'പിക്ച്ചർ-ഇൻ-പിക്ച്ചർ' അദൃശ്യ ടാബ്</translation>
 <translation id="945522503751344254">ഫീഡ്‌ബാക്ക് അയയ്‌ക്കുക</translation>
+<translation id="948276827484905248">QR കോഡ് സൃഷ്‌ടിക്കുക</translation>
 <translation id="95817756606698420"><ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ഉപയോഗിച്ച് Chrome-ന് ചൈനയിൽ തിരയാനാവും. നിങ്ങൾക്കിത്‌ <ph name="BEGIN_LINK" />ക്രമീകരണത്തിൽ<ph name="END_LINK" /> മാറ്റാനാവും.</translation>
 <translation id="961856697154696964">ബ്രൗസിംഗ് ഡാറ്റ ഇല്ലാതാക്കൂ</translation>
 <translation id="963246339335003378">ടാസ്‌ക് മാനേജർ തുറക്കുക</translation>

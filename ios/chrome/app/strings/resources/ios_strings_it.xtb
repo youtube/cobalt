@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Accesso eseguito come <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Apri il menu dell'account.</translation>
 <translation id="1397144142234474689">Nascondi Cronologia</translation>
 <translation id="1399268420835656394">Se non sei un bambino, ti consigliamo di controllare l'età nell'Apple Account su questo dispositivo. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Compilato in precedenza</translation>
 <translation id="1407135791313364759">Apri tutte</translation>
 <translation id="1408847409015257906">Tocca l'opzione "Privacy e sicurezza".</translation>
 <translation id="1411386976162024013">Ricerca visiva di Lens</translation>
 <translation id="1417474386970818917">Esci ed elimina</translation>
 <translation id="1426410128494586442">Sì</translation>
-<translation id="1429187656584513419">Apri Password</translation>
 <translation id="1430915738399379752">Stampa</translation>
 <translation id="1433478348197382180">Modalità Lettura</translation>
 <translation id="1435271730600332883">Apri Compilazione automatica e password</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Il tuo account è gestito da un genitore.
 <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Modificata</translation>
+<translation id="1481450969185702334">Trova e compila</translation>
 <translation id="1483493594462132177">Invia</translation>
 <translation id="1486096554574027028">Cerca password</translation>
 <translation id="1486593497476255523">Gruppi di schede completati.</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Per tutelare la tua privacy, Chrome non compilerà automaticamente questo campo con la tua password.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 sito (altro sui dispositivi sincronizzati)}other{# siti (altro sui dispositivi sincronizzati)}}</translation>
+<translation id="2865392654629180917">Chiedi qualsiasi cosa e ricevi risposte basate sull'AI</translation>
 <translation id="2870560284913253234">Sito</translation>
 <translation id="2876369937070532032">Invia a Google gli URL di alcune pagine che visiti quando la tua sicurezza è a rischio</translation>
 <translation id="2883151425485251736">Visualizza e modifica gli argomenti che hai nascosto dal tuo account</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Monitoraggio del prezzo</translation>
 <translation id="3038136505713492417">Verifica la tua identità per usare le tue passkey su questo dispositivo</translation>
 <translation id="3039671569659952257">Elimina cartella</translation>
+<translation id="3050988301648974170">Apri Controllo password</translation>
 <translation id="3053332585453689122">Invia a Google Navigazione sicura gli URL che visiti e un piccolo campione di contenuti di pagine, download, attività delle estensioni e informazioni di sistema per controllare se questi URL sono dannosi.</translation>
 <translation id="3055102495753300780">Archiviazione delle informazioni</translation>
 <translation id="3059270601560379555">Nuova ricerca</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Nuovo gruppo di schede...</translation>
 <translation id="3185760469172949183">Ricerca con la fotocamera completata.</translation>
 <translation id="3186796054637504691">Cancella dati siti web e cronologia</translation>
+<translation id="3190558889382726167">Password salvata</translation>
 <translation id="3190736958609431397">Annulla monitoraggio</translation>
 <translation id="3208260410153224535">La tua organizzazione ha disattivato l'accesso. I nuovi preferiti, le nuove password e altri dati verranno salvati solo su questo dispositivo.</translation>
 <translation id="3211969308836412674">Stacca sito</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">Ultimi 15 minuti</translation>
 <translation id="5020732097997376541">Tocca l'icona di "Lens"</translation>
 <translation id="5021500396464456616">Contatta la persona che ha inviato questo link</translation>
+<translation id="503173149952522259">Tieni premuto per fissare questa scheda</translation>
 <translation id="5039804452771397117">Consenti</translation>
 <translation id="5050042263972837708">Nome del gruppo</translation>
 <translation id="5050810143224996149">Condividi password</translation>
@@ -2427,6 +2432,7 @@ Per continuare dal computer, passa a <ph name="OTHER_EMAIL" />. Potrai usare le 
 <translation id="9013605037177245304">Attiva le notifiche</translation>
 <translation id="9029650858822697271">Il tuo account è stato disconnesso</translation>
 <translation id="9032405509996909363">Conferma eliminazione dei dati di navigazione</translation>
+<translation id="9035699147763101514">Basato su Personal Intelligence con Gemini. Gestisci le tue scelte nelle impostazioni.</translation>
 <translation id="9039373489628511875">Larghezza di banda</translation>
 <translation id="9042893549633094279">Privacy e sicurezza</translation>
 <translation id="9055291197094969722">Crea gruppi di schede per organizzare le schede aperte e mantenere la produttività</translation>
@@ -2438,6 +2444,7 @@ Per continuare dal computer, passa a <ph name="OTHER_EMAIL" />. Potrai usare le 
 <translation id="9070824521421603770">Il tuo account verrà disconnesso e le schede verranno chiuse</translation>
 <translation id="9072837124205571418">Gruppi di schede da tutti i dispositivi</translation>
 <translation id="9081058212938299310">Aggiornare la password per <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Ora puoi trovare e inserire informazioni da Gmail e altro</translation>
 <translation id="9083838294503912307">Attiva la sincronizzazione per sincronizzare e personalizzare tutti i dispositivi.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Hai {count} password inefficace che potrebbe mettere a rischio la tua sicurezza. Sistemala subito per rimanere al sicuro.}other{Hai {count} password inefficaci che potrebbero mettere a rischio la tua sicurezza. Sistemale subito per rimanere al sicuro.}}</translation>
 <translation id="9084369964545892485">Nuova scheda Incognito nel gruppo</translation>

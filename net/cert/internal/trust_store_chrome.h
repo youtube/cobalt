@@ -5,6 +5,7 @@
 #ifndef NET_CERT_INTERNAL_TRUST_STORE_CHROME_H_
 #define NET_CERT_INTERNAL_TRUST_STORE_CHROME_H_
 
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -18,6 +19,7 @@
 #include "net/cert/root_store_proto_lite/signer_set.pb.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/boringssl/src/pki/path_builder.h"
+#include "third_party/boringssl/src/pki/signature_algorithm.h"
 #include "third_party/boringssl/src/pki/trust_store.h"
 #include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
@@ -167,7 +169,7 @@ struct NET_EXPORT Signer {
   std::vector<ChromeRootCertConstraints> constraints;
   std::optional<int32_t> crs_root_id;
   int32_t min_log_number;
-  chrome_root_store::SignatureAlgorithm signature_algorithm;
+  bssl::SignatureAlgorithm signature_algorithm;
 };
 
 class NET_EXPORT ChromeRootStoreSignerSet {
@@ -187,15 +189,19 @@ class NET_EXPORT ChromeRootStoreSignerSet {
   const base::Time& timestamp() const { return timestamp_; }
   const std::string& version() const { return version_; }
   const std::vector<SignerOperator>& operators() const { return operators_; }
-  const std::vector<Signer>& issuers() const { return issuers_; }
-  const std::vector<Signer>& mirrors() const { return mirrors_; }
+  const std::vector<Signer>& trusted_issuers() const {
+    return trusted_issuers_;
+  }
+  const std::vector<Signer>& trusted_mirrors() const {
+    return trusted_mirrors_;
+  }
 
  private:
   base::Time timestamp_;
   std::string version_;
   std::vector<SignerOperator> operators_;
-  std::vector<Signer> issuers_;
-  std::vector<Signer> mirrors_;
+  std::vector<Signer> trusted_issuers_;
+  std::vector<Signer> trusted_mirrors_;
 };
 
 // ChromeRootStoreData is a container class that stores the Chrome Root Store
@@ -277,6 +283,12 @@ class NET_EXPORT ChromeRootStoreData {
   void SetSignerSet(ChromeRootStoreSignerSet signer_set) {
     signer_set_ = std::move(signer_set);
   }
+  bool disable_mtc_mirroring_requirements() const {
+    return disable_mtc_mirroring_requirements_;
+  }
+  void SetDisableMtcMirroringRequirements(bool disable) {
+    disable_mtc_mirroring_requirements_ = disable;
+  }
   int64_t version() const { return version_; }
 
  private:
@@ -291,6 +303,7 @@ class NET_EXPORT ChromeRootStoreData {
   std::vector<Anchor> eutl_certs_;
   std::vector<MtcAnchor> mtc_trust_anchors_;
   std::optional<ChromeRootStoreSignerSet> signer_set_;
+  bool disable_mtc_mirroring_requirements_ = false;
   int64_t version_;
 };
 
@@ -321,6 +334,26 @@ class NET_EXPORT ChromeRootStoreMtcMetadata {
     base::flat_map<uint64_t, uint64_t> revoked_indices;
   };
 
+  struct NET_EXPORT Plants05AnchorData {
+    Plants05AnchorData();
+    ~Plants05AnchorData();
+    Plants05AnchorData(const Plants05AnchorData& other);
+    Plants05AnchorData(Plants05AnchorData&& other);
+    Plants05AnchorData& operator=(const Plants05AnchorData& other);
+    Plants05AnchorData& operator=(Plants05AnchorData&& other);
+
+    std::map<uint16_t, std::vector<bssl::TrustedSubtree>> trusted_subtrees;
+
+    struct LogLandmarkRange {
+      uint16_t log_number;
+      uint64_t landmark_min_inclusive;
+      uint64_t landmark_max_inclusive;
+    };
+    std::vector<LogLandmarkRange> trusted_landmark_ranges;
+
+    base::flat_map<uint64_t, uint64_t> revoked_serials;
+  };
+
   // CreateFromMtcMetadataProto converts |proto| into a usable
   // ChromeRootStoreMtcMetadata object. Returns std::nullopt if the passed in
   // proto has errors in it.
@@ -339,13 +372,21 @@ class NET_EXPORT ChromeRootStoreMtcMetadata {
   mtc_anchor_data() const {
     return mtc_anchor_data_;
   }
+  const absl::flat_hash_map<std::vector<uint8_t>, Plants05AnchorData>&
+  plants05_anchor_data() const {
+    return plants05_anchor_data_;
+  }
   base::Time update_time() const { return update_time_; }
 
  private:
   ChromeRootStoreMtcMetadata();
 
   // Map from a Merkle Tree Anchor log_id to the data for that anchor.
+  // Used only for the MTC experiment logs.
   absl::flat_hash_map<std::vector<uint8_t>, MtcAnchorData> mtc_anchor_data_;
+  // Map from a CA ID to the Plants05AnchorData for that anchor.
+  absl::flat_hash_map<std::vector<uint8_t>, Plants05AnchorData>
+      plants05_anchor_data_;
   base::Time update_time_;
 };
 

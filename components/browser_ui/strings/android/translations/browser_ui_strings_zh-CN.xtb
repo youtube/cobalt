@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">请求使用移动视图</translation>
 <translation id="2870560284913253234">网站</translation>
 <translation id="2874939134665556319">上一首</translation>
+<translation id="2890412325133442491">Chrome 默认选项</translation>
 <translation id="2891975107962658722">禁止某个网站将数据保存在您的设备上</translation>
 <translation id="2903493209154104877">地址</translation>
 <translation id="2903764741244499151">网站可以自动进入画中画模式。这样，您就可以继续观看视频，同时腾出屏幕空间来处理其他任务。</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">更改密码</translation>
 <translation id="3797520601150691162">不对特定网站应用深色主题</translation>
 <translation id="3803367742635802571">您访问的网站可能会停止按预期运行</translation>
-<translation id="3816118180265633665">Chrome 颜色</translation>
 <translation id="381841723434055211">电话号码</translation>
 <translation id="3823453485268218808">字体：Mono</translation>
 <translation id="3826050100957962900">第三方登录</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">退出全屏模式</translation>
 <translation id="640163077447496506">今天过期</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">主题集合</translation>
 <translation id="6439114592976064011">禁止网站使用您的虚拟现实设备和数据</translation>
 <translation id="6447842834002726250">Cookie</translation>
 <translation id="6452138246455930388">您打开的标签页中有降价，原价为 <ph name="OLD_PRICE" />，现价为 <ph name="NEW_PRICE" />”，<ph name="PRODUCT_NAME" />，<ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">先询问</translation>
 <translation id="7423538860840206698">已阻止读取剪贴板中的内容</translation>
 <translation id="7425915948813553151">为网站开启深色主题</translation>
+<translation id="7429767477925996803">Chrome 颜色</translation>
 <translation id="746412105358554870">JavaScript 优化和安全性</translation>
 <translation id="7478658909253570368">不允许网站连接到串行端口</translation>
 <translation id="7488573225650545859">隐藏“查看应用列表中的标签页”</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">下载失败</translation>
 <translation id="8033047164036749181">订阅来自此网站的通知</translation>
 <translation id="8051193500142930381">所有需要使用摄像头的功能都将无法正常运行</translation>
-<translation id="8056330801132235235">Chrome 默认选项</translation>
 <translation id="8067883171444229417">播放视频</translation>
 <translation id="8068648041423924542">无法选择证书。</translation>
 <translation id="8077120325605624147">您访问的任何网站都可向您展示任何广告</translation>

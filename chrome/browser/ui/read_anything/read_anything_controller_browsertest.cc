@@ -71,7 +71,7 @@ class MockReadAnythingLifecycleObserver : public ReadAnythingLifecycleObserver {
   MOCK_METHOD(void,
               Activate,
               (bool active,
-               std::optional<ReadAnythingOpenTrigger>,
+               ReadAnythingOpenTrigger,
                std::optional<base::TimeDelta>),
               (override));
   MOCK_METHOD(void, OnDestroyed, (), (override));
@@ -107,7 +107,7 @@ class ReadAnythingControllerBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    browser()->profile()->GetPrefs()->ClearPref(
+    browser()->GetProfile()->GetPrefs()->ClearPref(
         prefs::kAccessibilityReadAnythingLastOpenedPresentationState);
     embedded_test_server()->ServeFilesFromSourceDirectory("chrome/test/data");
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -317,7 +317,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   base::RunLoop run_loop;
   EXPECT_CALL(observer, Activate(false, testing::_, testing::_))
       .WillOnce([&run_loop](
-                    bool active, std::optional<ReadAnythingOpenTrigger> trigger,
+                    bool active, ReadAnythingOpenTrigger trigger,
                     std::optional<base::TimeDelta> completed_session_duration) {
         EXPECT_TRUE(completed_session_duration.has_value());
         run_loop.Quit();
@@ -2752,7 +2752,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
                        RemembersLastOpenedPresentation) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   auto* controller = ReadAnythingController::From(tab);
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
 
   // 1. Initial state should be immersive (default).
@@ -2833,7 +2833,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
                        AutomaticToggleDoesNotUpdatePreference) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   auto* controller = ReadAnythingController::From(tab);
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   controller->UnlockDistillationStateForTesting();
 
   // 1. Initial state should be immersive.
@@ -2881,7 +2881,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
                        ToggleUI_RespectsPreference) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   auto* controller = ReadAnythingController::From(tab);
-  PrefService* prefs = browser()->profile()->GetPrefs();
+  PrefService* prefs = browser()->GetProfile()->GetPrefs();
   auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
 
   // Set preference to Side Panel.

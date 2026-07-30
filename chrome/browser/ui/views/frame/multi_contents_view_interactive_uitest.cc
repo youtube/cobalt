@@ -12,6 +12,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_highlight_controller.h"
 #include "chrome/browser/ui/toolbar/bookmark_sub_menu_model.h"
@@ -46,6 +48,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
+#include "ui/actions/actions.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/interaction/state_observer.h"
 #include "ui/events/base_event_utils.h"
@@ -101,14 +104,14 @@ class MultiContentsViewUiTest
 
   void SetUpOnMainThread() override {
     SplitViewInteractiveTestMixin::SetUpOnMainThread();
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         prefs::kTabSearchPinnedToTabstrip, true);
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
   }
 
   void TearDownOnMainThread() override {
-    browser()->profile()->GetPrefs()->ClearPref(
+    browser()->GetProfile()->GetPrefs()->ClearPref(
         prefs::kTabSearchPinnedToTabstrip);
     SplitViewInteractiveTestMixin::TearDownOnMainThread();
   }
@@ -280,8 +283,12 @@ class MultiContentsViewUiTest
                                         kSidePanelViewObserver);
 
     return Steps(Do(base::BindLambdaForTesting([this]() {
-                   chrome::ExecuteCommand(browser(),
-                                          IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
+                   chrome::ExecuteCommandWithContext(
+                       browser(), IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
+                       actions::ActionInvocationContext::Builder()
+                           .SetProperty(kSidePanelOpenTriggerKey,
+                                        SidePanelOpenTrigger::kToolbarButton)
+                           .Build());
                  })),
                  PollView(kSidePanelViewObserver, kSidePanelElementId,
                           [](const SidePanel* side_panel) -> bool {
@@ -1301,7 +1308,7 @@ class MultiContentsViewBookmarkDragEntrypointsUiTest
 
   void SetUpOnMainThread() override {
     MultiContentsViewDragEntrypointsUiTest::SetUpOnMainThread();
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         bookmarks::prefs::kShowBookmarkBar, true);
   }
 

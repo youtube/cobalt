@@ -5,13 +5,13 @@
 // META: --block-new-web-contents
 // META: --disable-popup-blocking
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {session, dp} = await testRunner.startBlank(
       'Tests that --block-new-web-contents blocks new web contents creation.');
 
   const {sessionId} =
       (await testRunner.browserP().Target.attachToBrowserTarget({})).result;
-  const bp = (new TestRunner.Session(testRunner, sessionId)).protocol;
+  const bp = (testRunner.createSessionFor(sessionId)).protocol;
 
   const HttpInterceptor =
       await testRunner.loadScriptAbsolute('../resources/http-interceptor.js');

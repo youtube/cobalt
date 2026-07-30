@@ -36,6 +36,7 @@
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_autofill_driver_injector.h"
 #include "components/autofill/content/browser/test_content_autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
@@ -45,6 +46,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/manage_passwords_referrer.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -302,7 +304,7 @@ class BaseAutofillContextMenuManagerTest : public InProcessBrowserTest {
     return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  virtual Profile* profile() { return browser()->profile(); }
+  virtual Profile* profile() { return browser()->GetProfile(); }
 
   ChromePasswordManagerClient* password_manager_client() {
     return ChromePasswordManagerClient::FromWebContents(web_contents());
@@ -365,8 +367,9 @@ class BaseAutofillContextMenuManagerTest : public InProcessBrowserTest {
     TestAutofillManagerSingleEventWaiter wait_for_forms_seen(
         autofill_manager(), &AutofillManager::Observer::OnAfterFormsSeen,
         ElementsAre(form.global_id()), IsEmpty());
-    autofill_manager().OnFormsSeen(/*updated_forms=*/{form},
-                                   /*removed_forms=*/{});
+    autofill_manager().OnFormsSeen(
+        /*updated_forms=*/{form},
+        /*removed_forms=*/{}, autofill::AutofillManagerTestApi::pass_key());
     ASSERT_TRUE(std::move(wait_for_forms_seen).Wait());
   }
 
@@ -1086,9 +1089,9 @@ class AtMemoryContextMenuManagerTest
   void SetUpOnMainThread() override {
     BaseAutofillContextMenuManagerTest::SetUpOnMainThread();
     autofill_client()->GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings,
-        std::to_underlying(
-            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
+        optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+        std::to_underlying(optimization_guide::model_execution::prefs::
+                               ModelExecutionEnterprisePolicyValue::kAllow));
     autofill_client()->GetPrefs()->SetBoolean(
         personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
         true);
@@ -1139,7 +1142,7 @@ IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
   // Add a saved credential so "Select password" fallback item is shown.
   auto* password_store =
       ProfilePasswordStoreFactory::GetForProfile(
-          browser()->profile(), ServiceAccessType::IMPLICIT_ACCESS)
+          browser()->GetProfile(), ServiceAccessType::IMPLICIT_ACCESS)
           .get();
   password_manager::PasswordStoreWaiter add_waiter(password_store);
   password_manager::PasswordForm form;

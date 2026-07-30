@@ -55,6 +55,7 @@ import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIdentityUtils;
@@ -512,28 +513,33 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         List<ModelList> groupedItems = new ArrayList<>();
 
         if (mParams.isPage() && shouldShowEmptySpaceContextMenu()) {
-            ModelList pageGroup = new ModelList();
+            ModelList pageNavigationGroup = new ModelList();
             if (mMode == ContextMenuMode.THIN_WEB_VIEW) {
-                pageGroup.add(createListItem(Item.RELOAD));
+                pageNavigationGroup.add(createListItem(Item.RELOAD));
                 if (mItemDelegate.isPrintSupported()) {
-                    pageGroup.add(createListItem(Item.PRINT_PAGE));
+                    pageNavigationGroup.add(createListItem(Item.PRINT_PAGE));
                 }
             } else {
                 if (mItemDelegate instanceof TabContextMenuItemDelegate) {
                     TabContextMenuItemDelegate tabDelegate =
                             (TabContextMenuItemDelegate) mItemDelegate;
-                    pageGroup.add(
+                    pageNavigationGroup.add(
                             createListItem(
                                     Item.BACK,
                                     /* showInProductHelp= */ false,
                                     tabDelegate.canCurrentTabGoBack()));
-                    pageGroup.add(
+                    pageNavigationGroup.add(
                             createListItem(
                                     Item.FORWARD,
                                     /* showInProductHelp= */ false,
                                     tabDelegate.canCurrentTabGoForward()));
                 }
-                pageGroup.add(createListItem(Item.RELOAD));
+                pageNavigationGroup.add(createListItem(Item.RELOAD));
+            }
+            groupedItems.add(pageNavigationGroup);
+
+            if (mMode != ContextMenuMode.THIN_WEB_VIEW) {
+                ModelList pageGroup = new ModelList();
                 if (UrlUtilities.isDownloadableScheme(mParams.getPageUrl())) {
                     pageGroup.add(
                             createListItem(
@@ -541,11 +547,11 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                     /* showInProductHelp= */ false,
                                     !mIsDownloadRestrictedByPolicy));
                 }
-                if (enableShareFromContextMenu()) {
-                    pageGroup.add(createShareListItem(Item.SHARE_PAGE, Item.DIRECT_SHARE_LINK));
-                }
                 if (mItemDelegate.isPrintSupported()) {
                     pageGroup.add(createListItem(Item.PRINT_PAGE));
+                }
+                if (enableShareFromContextMenu()) {
+                    pageGroup.add(createShareListItem(Item.SHARE_PAGE, Item.DIRECT_SHARE_LINK));
                 }
                 if (shouldShowLensOverlay()) {
                     Tab tab = getTab();
@@ -567,17 +573,20 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                         && !DomDistillerUrlUtils.isDistilledPage(mParams.getPageUrl())) {
                     pageGroup.add(createListItem(Item.READING_MODE));
                 }
+                groupedItems.add(pageGroup);
+
+                ModelList shareGroup = new ModelList();
                 Integer sendTabToSelfDisplayReason =
                         SendTabToSelfAndroidBridge.getEntryPointDisplayReason(
                                 getProfile(), mParams.getPageUrl().getSpec());
                 if (sendTabToSelfDisplayReason != null) {
-                    pageGroup.add(createListItem(Item.SEND_TAB_TO_SELF));
+                    shareGroup.add(createListItem(Item.SEND_TAB_TO_SELF));
                 }
                 if (!isEmptyUrl(mParams.getPageUrl())) {
-                    pageGroup.add(createListItem(Item.CREATE_QR_CODE));
+                    shareGroup.add(createListItem(Item.CREATE_QR_CODE));
                 }
+                groupedItems.add(shareGroup);
             }
-            groupedItems.add(pageGroup);
             if (mMode != ContextMenuMode.THIN_WEB_VIEW && shouldShowTranslateItem()) {
                 ModelList utilGroup = new ModelList();
                 utilGroup.add(createListItem(Item.TRANSLATE));
@@ -590,15 +599,21 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                     && !isEmptyUrl(mParams.getUrl())
                     && UrlUtilities.isAcceptedScheme(mParams.getUrl())) {
                 if (mMode == ContextMenuMode.NORMAL) {
-                    linkGroup.add(createListItem(Item.OPEN_IN_NEW_TAB));
-                    linkGroup.add(createListItem(Item.OPEN_IN_NEW_TAB_IN_GROUP));
+                    boolean isIncognitoForced = IncognitoUtils.isIncognitoModeForced(getProfile());
+                    ListItem openInNewTabItem = createManagedListItem(Item.OPEN_IN_NEW_TAB, isIncognitoForced);
+                    ListItem openInNewTabInGroupItem =
+                            createManagedListItem(Item.OPEN_IN_NEW_TAB_IN_GROUP, isIncognitoForced);
+                    linkGroup.add(openInNewTabItem);
+                    linkGroup.add(openInNewTabInGroupItem);
                     if (!mItemDelegate.isIncognito()
                             && mItemDelegate.isIncognitoSupported()
                             && !shouldOpenIncognitoAsWindow()) {
                         linkGroup.add(createListItem(Item.OPEN_IN_INCOGNITO_TAB));
                     }
                     if (MultiWindowUtils.isLinkNavigationToNewWindowSupported()) {
-                        linkGroup.add(createListItem(Item.OPEN_IN_NEW_WINDOW));
+                        ListItem openInNewWindowItem =
+                                createManagedListItem(Item.OPEN_IN_NEW_WINDOW, isIncognitoForced);
+                        linkGroup.add(openInNewWindowItem);
                     } else if (mItemDelegate.isOpenInOtherWindowSupported()) {
                         linkGroup.add(createListItem(Item.OPEN_IN_OTHER_WINDOW));
                     }
@@ -1667,6 +1682,14 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         CharSequence title =
                 ChromeContextMenuItem.getTitle(mContext, getProfile(), item, showInProductHelp);
         return createListItem(item, title, enabled);
+    }
+
+    private ListItem createManagedListItem(@Item int item, boolean isIncognitoForced) {
+        ListItem listItem = createListItem(item, /* showInProductHelp= */ false, /* enabled= */ !isIncognitoForced);
+        if (isIncognitoForced) {
+            listItem.model.set(ListMenuItemProperties.START_ICON_ID, R.drawable.ic_domain);
+        }
+        return listItem;
     }
 
     private ListItem createListItem(@Item int item, CharSequence title, boolean enabled) {

@@ -893,10 +893,8 @@ TEST_F(SimpleFeatureTest, CommandLineSwitch) {
 }
 
 TEST_F(SimpleFeatureTest, FeatureFlags) {
-  static BASE_FEATURE(kStubFeature1, "StubFeature1",
-                      base::FEATURE_ENABLED_BY_DEFAULT);
-  static BASE_FEATURE(kStubFeature2, "StubFeature2",
-                      base::FEATURE_DISABLED_BY_DEFAULT);
+  static BASE_FEATURE(kStubFeature1, base::FEATURE_ENABLED_BY_DEFAULT);
+  static BASE_FEATURE(kStubFeature2, base::FEATURE_DISABLED_BY_DEFAULT);
   const base::Feature* kOverriddenFeatures[] = {&kStubFeature1, &kStubFeature2};
   auto scoped_feature_override =
       CreateScopedFeatureFlagsOverrideForTesting(kOverriddenFeatures);
@@ -1132,7 +1130,9 @@ TEST(SimpleFeatureUnitTest, TestRequiresDelegatedAvailabilityCheck) {
   feature.set_contexts({mojom::ContextType::kWebPage});
 
   const GURL kTestPage = GURL("https://www.example.com");
-  feature.set_matches({kTestPage.spec().c_str()});
+  static constexpr auto kMatches =
+      std::to_array<std::string_view>({"https://www.example.com/"});
+  feature.set_matches(StaticSpan(kMatches));
   {
     // Test a feature that requires a delegated availability check but is
     // missing the check handler.
@@ -1220,7 +1220,9 @@ TEST(SimpleFeatureUnitTest, TestChannelsWithoutExtension) {
   // Create a webui feature available on trunk.
   SimpleFeature feature;
   feature.set_contexts({mojom::ContextType::kWebUi});
-  feature.set_matches({content::GetWebUIURLString("settings/*").c_str()});
+  static constexpr auto kMatches =
+      std::to_array<std::string_view>({"chrome://settings/*"});
+  feature.set_matches(StaticSpan(kMatches));
   feature.set_channel(version_info::Channel::UNKNOWN);
 
   const GURL kAllowlistedUrl(content::GetWebUIURL("settings/foo"));
@@ -1246,6 +1248,80 @@ TEST(SimpleFeatureUnitTest, TestChannelsWithoutExtension) {
                                         TestContextData())
                   .result());
   }
+}
+
+// Verifies matches are evaluated correctly and that repeated checks against the
+// same feature are stable (patterns are parsed transiently per check).
+TEST(SimpleFeatureUnitTest, MatchesEvaluation) {
+  SimpleFeature feature;
+  feature.set_contexts({mojom::ContextType::kWebPage});
+  static constexpr auto kMatches =
+      std::to_array<std::string_view>({"https://example.com/*"});
+  feature.set_matches(StaticSpan(kMatches));
+
+  const GURL kMatch("https://example.com/path");
+  const GURL kNoMatch("https://other.example/path");
+
+  // Repeated checks must be stable across matching and non-matching URLs.
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_EQ(
+        Feature::AvailabilityResult::kIsAvailable,
+        feature
+            .IsAvailableToContext(nullptr, mojom::ContextType::kWebPage, kMatch,
+                                  kUnspecifiedContextId, TestContextData())
+            .result());
+    EXPECT_EQ(Feature::AvailabilityResult::kInvalidUrl,
+              feature
+                  .IsAvailableToContext(nullptr, mojom::ContextType::kWebPage,
+                                        kNoMatch, kUnspecifiedContextId,
+                                        TestContextData())
+                  .result());
+  }
+}
+
+// A web-exposed feature with no matches set is never available to a web
+// context, regardless of URL (default-deny), whether matches is left unset or
+// explicitly cleared.
+TEST(SimpleFeatureUnitTest, MatchesEmptyDenies) {
+  for (bool call_empty : {false, true}) {
+    SimpleFeature feature;
+    feature.set_contexts({mojom::ContextType::kWebPage});
+    if (call_empty) {
+      feature.set_matches(StaticSpan<std::string_view>());
+    }
+    EXPECT_EQ(
+        Feature::AvailabilityResult::kInvalidUrl,
+        feature
+            .IsAvailableToContext(nullptr, mojom::ContextType::kWebPage,
+                                  GURL("https://example.com/"),
+                                  kUnspecifiedContextId, TestContextData())
+            .result());
+  }
+}
+
+// The last set_matches() call wins (a later call replaces earlier patterns).
+TEST(SimpleFeatureUnitTest, MatchesOverride) {
+  SimpleFeature feature;
+  feature.set_contexts({mojom::ContextType::kWebPage});
+  static constexpr auto kFirstMatches =
+      std::to_array<std::string_view>({"https://first.example/*"});
+  static constexpr auto kSecondMatches =
+      std::to_array<std::string_view>({"https://second.example/*"});
+  feature.set_matches(StaticSpan(kFirstMatches));
+  feature.set_matches(StaticSpan(kSecondMatches));
+
+  EXPECT_EQ(Feature::AvailabilityResult::kInvalidUrl,
+            feature
+                .IsAvailableToContext(nullptr, mojom::ContextType::kWebPage,
+                                      GURL("https://first.example/x"),
+                                      kUnspecifiedContextId, TestContextData())
+                .result());
+  EXPECT_EQ(Feature::AvailabilityResult::kIsAvailable,
+            feature
+                .IsAvailableToContext(nullptr, mojom::ContextType::kWebPage,
+                                      GURL("https://second.example/x"),
+                                      kUnspecifiedContextId, TestContextData())
+                .result());
 }
 
 TEST(SimpleFeatureUnitTest, TestAvailableToEnvironment) {

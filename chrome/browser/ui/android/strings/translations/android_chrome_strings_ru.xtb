@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Тогда группа вкладок "<ph name="GROUP_NAME" />" сразу станет недоступна всем пользователям и будет удалена с каждого устройства.</translation>
 <translation id="1142732900304639782">Не предлагать перевести эти сайты</translation>
 <translation id="1143193470214071120">Закройте одно из окон или измените настройки.</translation>
+<translation id="1143486892058798649">Сохранить ссылку как…</translation>
 <translation id="1149725087019908252">Сканирование файла "<ph name="FILE_NAME" />"</translation>
 <translation id="1150263420752757504">Приложение "<ph name="APP_NAME" />" откроется в Chrome. Продолжая, вы принимаете <ph name="BEGIN_LINK1" />Условия использования Google<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />Дополнительные условия использования Chrome и Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">У вас нет сохраненных паролей.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">Чтобы перейти к управлению аккаунтом Google, нажмите кнопку "Настройки аккаунта"</translation>
 <translation id="1549000191223877751">Перейти к другому окну</translation>
 <translation id="1553358976309200471">Обновить Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" />: "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">Вы помогаете нам делать Chrome удобнее для всех пользователей браузера.</translation>
 <translation id="1568636008098739136">Озвучить эту страницу. Чтобы изменить функцию кнопки, нажмите и удерживайте ее.</translation>
 <translation id="1571041387761170095">Нет простых или повторяющихся паролей</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{На устройстве найден 1 раскрытый пароль}one{На устройстве найден # раскрытый пароль}few{На устройстве найдено # раскрытых пароля}many{На устройстве найдено # раскрытых паролей}other{На устройстве найдено # раскрытого пароля}}</translation>
 <translation id="1594635596540195766">Предложенных объектов в списке: <ph name="SUGGESTIONS_COUNT" /></translation>
+<translation id="159689249463841786">Выбрать папку (сейчас: <ph name="FOLDER_NAME" />)</translation>
 <translation id="1598163867407640634">Вход на сайт <ph name="SITE_ETLD_PLUS_ONE" /> с аккаунтом <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677">Закрепленная вкладка "<ph name="TAB_TITLE" />", на которой ведется запись</translation>
 <translation id="1600756129506222718">Вкладка "<ph name="TAB_TITLE" />" с доступом к экрану</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(пусто)</translation>
 <translation id="219283042927675668">Вкладки в группе</translation>
 <translation id="2194856509914051091">Важная информация</translation>
+<translation id="2196695604589508993">Открыть историю</translation>
 <translation id="2205701497928406883">Закрепленная вкладка "<ph name="TAB_TITLE" />" с доступом к экрану</translation>
 <translation id="22091350895006575">Добавить имя пользователя</translation>
 <translation id="221494669172414749">Если вы откроете Chrome без блокировки профиля, сохраненные пароли и способы оплаты будут удалены с автомобиля. Используйте блокировку профиля, чтобы защитить данные.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">Ещё закладки</translation>
 <translation id="2332515770639153015">Включен улучшенный Безопасный просмотр</translation>
 <translation id="233375395665273385">Удалить и выйти</translation>
+<translation id="2334275697832662087">С системой безопасности Chrome на основе искусственного интеллекта вы можете пользоваться интернетом, не опасаясь онлайн-угроз.</translation>
 <translation id="2341410551640223969">Не удалось установить приложение "<ph name="WEBAPK_NAME" />"</translation>
 <translation id="2349710944427398404">Общее количество данных Chrome, включая аккаунты, закладки и сохраненные настройки</translation>
 <translation id="2354001756790975382">Другие закладки</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">Произошла ошибка. Повторите попытку.</translation>
 <translation id="3577558748185201054">Вы сможете настроить рекомендации и указать, что вам интересно.</translation>
 <translation id="3587482841069643663">Все</translation>
+<translation id="3598421953808879451">Сохранить видео как…</translation>
 <translation id="3602290021589620013">Предварительный просмотр</translation>
 <translation id="3614126103057878858">Информация о ценах</translation>
 <translation id="3616113530831147358">Аудио</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">Нижний экран</translation>
 <translation id="4045441967987592849">Открыть</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" />: другие действия</translation>
+<translation id="4051548576872472315">Здесь можно найти недавно закрытые вкладки и окна</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Открыть в окне инкогнито}one{Открыть все (#) в окне инкогнито}few{Открыть все (#) в окне инкогнито}many{Открыть все (#) в окне инкогнито}other{Открыть все (#) в окне инкогнито}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> стандартная вкладка с новым действием. Она помещена в группу вкладок с общим доступом.}one{<ph name="TABS_COUNT_MANY" /> стандартная вкладка с новым действием. Они помещены в группу вкладок с общим доступом.}few{<ph name="TABS_COUNT_MANY" /> стандартные вкладки с новым действием. Они помещены в группу вкладок с общим доступом.}many{<ph name="TABS_COUNT_MANY" /> стандартных вкладок с новым действием. Они помещены в группу вкладок с общим доступом.}other{<ph name="TABS_COUNT_MANY" /> стандартной вкладки с новым действием. Они помещены в группу вкладок с общим доступом.}}</translation>
 <translation id="405365679581583349">Обновите сервисы Google Play</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">Расширение "<ph name="EXTENSION_NAME" />" запрашивает вход в Chrome</translation>
 <translation id="6324916366299863871">Изменить ярлык</translation>
 <translation id="6324977638108296054">Невозможно создать ссылку на выделенный текст.</translation>
+<translation id="6331836477476466332">Быстрый и безопасный браузер, созданный для вас</translation>
 <translation id="6333140779060797560">Отправить с помощью <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Изменить URL страницы на сайте: <ph name="PAGE_URL" />.</translation>
 <translation id="6337234675334993532">Шифрование</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">Новая вкладка инкогнито</translation>
 <translation id="686899695320434745">Адреса не шифруются кодовой фразой. Поэтому вы можете использовать их в других сервисах Google.</translation>
 <translation id="6870625088374152862">Вы вошли как <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Начать</translation>
 <translation id="687838958001010630">Все, у кого есть ссылка, могут изменять любые вкладки.</translation>
 <translation id="6880903702195291049">С разрешениями все в порядке</translation>
 <translation id="6883204995689174413">Отправка</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">Шифрование кодовой фразой не применяется к способам оплаты и адресам из Google Pay.
 
 Чтобы это изменить, <ph name="BEGIN_LINK" />удалите данные Chrome из аккаунта<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Сохранить изображение как…</translation>
 <translation id="7165972437814027679">Подробнее о том, почему Chrome блокирует некоторые файлы</translation>
 <translation id="7168323970702333693">Вы вошли как <ph name="USER_NAME" />. Открывает настройки.</translation>
 <translation id="7170930892977483182">Все защитные коды, сохраненные на вашем устройстве и в Google Кошельке, будут удалены.</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">Доступ к способам оплаты</translation>
 <translation id="7363349185727752629">Все о настройках конфиденциальности</translation>
 <translation id="7364103838544876661">Дополнительные варианты удаления данных о работе в браузере</translation>
+<translation id="736435710397109878">Название карты, не более 25 символов</translation>
 <translation id="7365073365123878797">Чтобы начать пользоваться Google Менеджером паролей, обновите сервисы Google Play.</translation>
 <translation id="7368009310682364976">Посмотрите их.</translation>
 <translation id="7368927539449986686">Настроить поиск по сайту</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">В вашей организации отключен Безопасный просмотр</translation>
 <translation id="7825973332242257878">Группы вкладок</translation>
 <translation id="7826342993930002256">Синхронизация Chrome на всех устройствах</translation>
+<translation id="7845155831233417403">Максимальное количество открытых окон: <ph name="MAX_INSTANCE_COUNT" />. Чтобы продолжить, закройте одно из них.</translation>
 <translation id="7846161022626028328">Произошла ошибка. Повторите попытку.</translation>
 <translation id="7846296061357476882">Сервисы Google</translation>
 <translation id="784652447248278262">Текущее окно</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">Чтобы предоставить доступ пользователю рядом с вами, попросите его отсканировать этот QR-код.</translation>
 <translation id="8090732854597034573">Если потребуется помощь, можно обратиться к родителю</translation>
 <translation id="8101414242770404289">0 вкладок <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Вкладка инкогнито</translation>
 <translation id="810433609302852">Нижний экран с уведомлением для продвижения функции и инструкцией по ее настройке</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Удалить расширения и их данные, сохраненные на этом устройстве</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">Использовать тёмную тему для сайтов, если возможно</translation>
 <translation id="8282950411412455249">Открыть настройки безопасности</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Закрыть 1 окно в режиме инкогнито}one{Закрыть # окно в режиме инкогнито}few{Закрыть # окна в режиме инкогнито}many{Закрыть # окон в режиме инкогнито}other{Закрыть # окна в режиме инкогнито}}</translation>
+<translation id="8289602658021943461">Сохранить кадр видео как…</translation>
 <translation id="8313599942510782709">Задача ещё не выполнена.</translation>
 <translation id="8317318757008452355">Открыть параметры печати</translation>
 <translation id="8320212361750431956">Недавние действия</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Новая функция<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Закладки и списки</translation>
 <translation id="8342727528718219152">Chrome будет предупреждать о сайтах, которые могут отправлять слишком много уведомлений</translation>
 <translation id="834313815369870491">Никогда не переводить сайты</translation>
 <translation id="8348215005712416247">Выбранная вместе с несколькими другими и закрепленная вкладка инкогнито "<ph name="TAB_TITLE" />", на которой ведется запись</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">Ввести кодовую фразу</translation>
 <translation id="94161319503679839">Закрепленная вкладка инкогнито "<ph name="TAB_TITLE" />" в режиме "Картинка в картинке"</translation>
 <translation id="945522503751344254">Отправить отзыв</translation>
+<translation id="948276827484905248">Создать QR-код</translation>
 <translation id="95817756606698420">В Китае Chrome может использовать для поиска <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" />. Это можно изменить в <ph name="BEGIN_LINK" />Настройках<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Удалить данные о работе в браузере</translation>
 <translation id="963246339335003378">Открыть диспетчер задач</translation>

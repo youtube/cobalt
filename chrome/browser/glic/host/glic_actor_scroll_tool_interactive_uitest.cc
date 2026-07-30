@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(crbug.com/537847546): Migrate this test suite to GlicBrowserTest.
+
 #include "base/feature_list.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/glic/host/glic_actor_interactive_uitest_common.h"
@@ -239,7 +241,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorScrollToolUiTest, BrowserZoomWithNodeId) {
   const std::string kElementLabel = "scroller";
 
   double level = blink::ZoomFactorToZoomLevel(1.5);
-  browser()->profile()->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(level);
+  browser()->GetProfile()->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(level);
 
   // 60 physical pixels translates to 40 CSS pixels when the zoom factor is 1.5
   // (3 physical pixels : 2 CSS Pixels)

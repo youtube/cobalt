@@ -187,10 +187,10 @@
       setCanGoForward:self.navigationBrowserAgent->CanGoForward(webState)
              animated:animated];
 
-  const GURL visibleURL = webState->GetVisibleURL();
-  [self.consumer setShareEnabled:!visibleURL.is_empty()];
-
   BOOL isNtp = IsVisibleURLNewTabPage(webState);
+  const GURL visibleURL = webState->GetVisibleURL();
+  [self.consumer setShareEnabled:!visibleURL.is_empty() && !isNtp];
+
   BOOL isStartSurface = NO;
   if (isNtp) {
     NewTabPageTabHelper* NTPHelper =
@@ -312,13 +312,16 @@
 }
 
 - (void)assistantButtonTapped {
-  GeminiStartupState* startupState = [[GeminiStartupState alloc]
-      initWithEntryPoint:gemini::EntryPoint::Toolbar];
+  if (_geminiBrowserAgent && _geminiBrowserAgent->is_floaty_invoked()) {
+    // Gemini floaty already started.
+    [self.geminiHandler dismissGeminiFlowWithCompletion:nil];
+    return;
+  }
   [self.geminiHandler
-      startGeminiEntryFlowWithStartupState:startupState
+      startGeminiEntryFlowWithStartupState:
+          [[GeminiStartupState alloc]
+              initWithEntryPoint:gemini::EntryPoint::Toolbar]
                         baseViewController:self.baseViewController
-                               accessPoint:signin_metrics::AccessPoint::
-                                               kIosGeminiButtonToolbar
                   showSnackbarOnCompletion:YES
                                 completion:nil];
 }
@@ -489,11 +492,11 @@
 // Updates the position of the toolbar by updating its visibility.
 - (void)updateToolbarPosition {
   if (IsBottomOmniboxAvailable()) {
-    [self.consumer setVisible:_bottomOmniboxEnabled.value == !_topPosition];
+    [self.consumer setHasOmnibox:_bottomOmniboxEnabled.value == !_topPosition];
   } else {
     // When the bottom omnibox is not available, only the top toolbar is
     // available.
-    [self.consumer setVisible:_topPosition];
+    [self.consumer setHasOmnibox:_topPosition];
   }
 }
 

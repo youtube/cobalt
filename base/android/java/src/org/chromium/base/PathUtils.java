@@ -96,25 +96,6 @@ public abstract class PathUtils {
         }
     }
 
-    // TODO(crbug.com/41484704): Merge the Chrome and WebView implementations
-    // of isPathUnderAppDir into one.
-    public static boolean isPathUnderAppDir(String path, Context context) {
-        // Assume path is malicious and return true if path is not absolute or references parent.
-        FilePath file = FilePath.from(path);
-        if (!file.isAbsolute() || file.referencesParent()) {
-            return true;
-        }
-        String fileRealPath = file.value();
-        File dataDir = context.getDataDir();
-        File externalDir = ContextUtils.getApplicationContext().getExternalFilesDir(null);
-        // Assume that dataDir and externalDir are already canonical paths and do simple
-        // String.startsWith() checks.  Also assume that the path input is not a symlink that clank
-        // will resolve to an internal file. Avoid File.getCanonicalPath() which blocks, or
-        // Path.getRealPath() which blocks and throws for non-existent paths.
-        return fileRealPath.startsWith(dataDir.toString())
-                || (externalDir != null && fileRealPath.startsWith(externalDir.toString()));
-    }
-
     /**
      * Fetch the path of the directory where private data is to be stored by the application. This
      * is meant to be called in an FutureTask in setPrivateDataDirectorySuffix(), but if we need the

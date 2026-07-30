@@ -17,17 +17,20 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/autofill/actor/one_time_tokens/actor_login_context.h"
 #include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service_metrics.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/actor/core/actor_switches.h"
+#include "components/affiliations/core/browser/fake_affiliation_service.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_autofill_driver_injector.h"
 #include "components/autofill/content/browser/test_content_autofill_client.h"
 #include "components/autofill/content/browser/test_content_autofill_driver.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_suggestion.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
@@ -36,6 +39,7 @@
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 #include "components/one_time_tokens/core/browser/one_time_token_retrieval_error.h"
 #include "components/one_time_tokens/core/browser/one_time_token_service.h"
+#include "components/one_time_tokens/core/browser/util/expiring_subscription_manager.h"
 #include "components/security_state/content/security_state_tab_helper.h"
 #include "components/security_state/core/security_state.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -58,32 +62,63 @@ using ::one_time_tokens::OneTimeTokenRetrievalError;
 
 namespace {
 
+using ::affiliations::AffiliatedFacets;
+using ::affiliations::Facet;
+using ::affiliations::FacetURI;
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-class MockOneTimeTokenService : public one_time_tokens::OneTimeTokenService {
+class FakeOneTimeTokenService : public one_time_tokens::OneTimeTokenService {
  public:
-  MOCK_METHOD(void,
-              GetRecentOneTimeTokens,
-              (one_time_tokens::OneTimeTokenService::Callback),
-              (override));
-  MOCK_METHOD(std::vector<one_time_tokens::OneTimeToken>,
-              GetCachedOneTimeTokens,
-              (),
-              (const, override));
-  MOCK_METHOD(one_time_tokens::ExpiringSubscription,
-              Subscribe,
-              (one_time_tokens::OneTimeTokenSource,
-               base::Time,
-               one_time_tokens::OneTimeTokenService::Callback),
-              (override));
-  MOCK_METHOD(
-      void,
-      RequestOneTimeToken,
-      (base::TimeDelta,
-       base::OnceCallback<void(std::optional<one_time_tokens::OneTimeToken>)>),
-      (override));
+  FakeOneTimeTokenService() = default;
+  ~FakeOneTimeTokenService() override = default;
+
+  void GetRecentOneTimeTokens(
+      one_time_tokens::OneTimeTokenService::Callback callback) override {}
+
+  std::vector<one_time_tokens::OneTimeToken> GetCachedOneTimeTokens()
+      const override {
+    get_cached_tokens_call_count_++;
+    return cached_tokens_;
+  }
+
+  one_time_tokens::ExpiringSubscription Subscribe(
+      one_time_tokens::OneTimeTokenSource source,
+      base::Time expiration,
+      one_time_tokens::OneTimeTokenService::Callback callback,
+      base::OnceClosure expiration_callback) override {
+    subscribe_call_count_++;
+    return subscription_manager_.Subscribe(expiration, std::move(callback),
+                                           std::move(expiration_callback));
+  }
+
+  void RequestOneTimeToken(
+      base::TimeDelta timeout,
+      base::OnceCallback<void(std::optional<one_time_tokens::OneTimeToken>)>
+          callback) override {}
+
+  void SetCachedTokens(std::vector<one_time_tokens::OneTimeToken> tokens) {
+    cached_tokens_ = std::move(tokens);
+  }
+
+  template <typename... Args>
+  void NotifySubscribers(Args&&... args) {
+    subscription_manager_.Notify(std::forward<Args>(args)...);
+  }
+
+  int subscribe_call_count() const { return subscribe_call_count_; }
+  int get_cached_tokens_call_count() const {
+    return get_cached_tokens_call_count_;
+  }
+
+ private:
+  one_time_tokens::ExpiringSubscriptionManager<
+      one_time_tokens::OneTimeTokenService::CallbackSignature>
+      subscription_manager_;
+  std::vector<one_time_tokens::OneTimeToken> cached_tokens_;
+  mutable int subscribe_call_count_ = 0;
+  mutable int get_cached_tokens_call_count_ = 0;
 };
 
 class TestActorContentAutofillDriver : public TestContentAutofillDriver {
@@ -157,10 +192,15 @@ class ActorOneTimeTokenFillingServiceImplTest
           return filled_fields;
         });
 
+    AffiliationServiceFactory::GetInstance()->SetTestingFactory(
+        profile(), base::BindRepeating([](content::BrowserContext* context)
+                                           -> std::unique_ptr<KeyedService> {
+          return std::make_unique<affiliations::FakeAffiliationService>();
+        }));
     OneTimeTokenServiceFactory::GetInstance()->SetTestingFactory(
         profile(), base::BindRepeating([](content::BrowserContext* context)
                                            -> std::unique_ptr<KeyedService> {
-          return std::make_unique<NiceMock<MockOneTimeTokenService>>();
+          return std::make_unique<FakeOneTimeTokenService>();
         }));
 
     service_ = std::make_unique<ActorOneTimeTokenFillingServiceImpl>(profile());
@@ -171,9 +211,14 @@ class ActorOneTimeTokenFillingServiceImplTest
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
-  MockOneTimeTokenService& otp_service() {
-    return *static_cast<MockOneTimeTokenService*>(
+  FakeOneTimeTokenService& otp_service() {
+    return *static_cast<FakeOneTimeTokenService*>(
         OneTimeTokenServiceFactory::GetForProfile(profile()));
+  }
+
+  affiliations::FakeAffiliationService* affiliation_service() {
+    return static_cast<affiliations::FakeAffiliationService*>(
+        AffiliationServiceFactory::GetForProfile(profile()));
   }
 
   ActorOneTimeTokenFillingServiceImpl& service() { return *service_; }
@@ -204,6 +249,10 @@ class ActorOneTimeTokenFillingServiceImplTest
     return last_filled_values_;
   }
 
+  const url::Origin& main_rfh_origin() {
+    return main_rfh()->GetLastCommittedOrigin();
+  }
+
   tabs::TabInterface& tab() { return mock_tab; }
 
  private:
@@ -228,16 +277,15 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_MockOtpSwitchSet) {
   scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
       ::actor::switches::kAttemptOtpFillingMockGmailOtpValue, kMockOtp);
 
-  // The OTP service is not expected to be queried for cached tokens or
-  // subscription since RetrieveOtp returns early.
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens).Times(0);
-  EXPECT_CALL(otp_service(), Subscribe).Times(0);
-
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
   EXPECT_EQ(future.Get().value(), kMockOtp);
+  EXPECT_EQ(otp_service().get_cached_tokens_call_count(), 0);
+  EXPECT_EQ(otp_service().subscribe_call_count(), 0);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
       ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 1);
@@ -249,28 +297,37 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_MockOtpSwitchSet) {
 // Tests that `RetrieveOtp` correctly returns an available OTP from the
 // underlying service.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_Success) {
+  NavigateAndCommit(GURL("https://example.com"));
   const std::string kOtp = "123456";
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{
-          {one_time_tokens::OneTimeTokenType::kGmail, kOtp,
-           base::TimeTicks::Now(), "sender@example.com"}}));
+  otp_service().SetCachedTokens(
+      {{one_time_tokens::OneTimeTokenType::kGmail, kOtp, base::TimeTicks::Now(),
+        "sender@example.com"}});
 
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
   EXPECT_EQ(future.Get().value(), kOtp);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
       ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 1);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kCacheHit, 1);
+      ActorOneTimeTokenFillingServiceRetrieveOtp::kSuccessCacheMatchFound, 1);
+  histogram_tester_.ExpectBucketCount(
+      kActorOtpRetrieveOtpCallbackSupersededHistogram,
+      ActorOtpRetrieveOtpCallbackSuperseded::kRetrieveOtpStarted, 1);
+  histogram_tester_.ExpectBucketCount(
+      kActorOtpRetrieveOtpCallbackSupersededHistogram,
+      ActorOtpRetrieveOtpCallbackSuperseded::kCallbackSuperseded, 0);
 }
 
 // Tests that `RetrieveOtp` correctly selects the most recent Gmail OTP when
 // multiple tokens of different types and arrival times are cached.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_MultipleTokens) {
+  NavigateAndCommit(GURL("https://example.com"));
   const std::string kSmsOtp = "111111";
   const std::string kOldGmailOtp = "222222";
   const std::string kRecentGmailOtp = "333333";
@@ -288,48 +345,36 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_MultipleTokens) {
       // Correct type, most recent valid
   };
 
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillOnce(Return(cached_tokens));
+  otp_service().SetCachedTokens(cached_tokens);
 
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
   EXPECT_EQ(future.Get().value(), kRecentGmailOtp);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
       ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 1);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kCacheHit, 1);
+      ActorOneTimeTokenFillingServiceRetrieveOtp::kSuccessCacheMatchFound, 1);
 }
 
 // Tests that `RetrieveOtp` returns an empty string when no OTPs are available.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_NoTokens) {
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{}));
-
-  EXPECT_CALL(otp_service(), Subscribe)
-      .WillOnce([](one_time_tokens::OneTimeTokenSource source,
-                   base::Time expiration,
-                   one_time_tokens::OneTimeTokenService::Callback callback) {
-        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE,
-            base::BindOnce(
-                [](one_time_tokens::OneTimeTokenService::Callback callback,
-                   one_time_tokens::OneTimeTokenSource source) {
-                  callback.Run(
-                      source,
-                      base::unexpected(OneTimeTokenRetrievalError::kUnknown));
-                },
-                std::move(callback), source));
-        return one_time_tokens::ExpiringSubscription();
-      });
-
+  NavigateAndCommit(GURL("https://example.com"));
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/false,
+                        future.GetCallback());
+
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      base::unexpected(OneTimeTokenRetrievalError::kUnknown));
   EXPECT_EQ(future.Get().error(), OneTimeTokenRetrievalError::kUnknown);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
@@ -344,7 +389,9 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_TabNull) {
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tabs::TabHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tabs::TabHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
   EXPECT_EQ(future.Get().error(), OneTimeTokenRetrievalError::kGmailOtpUnknown);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
@@ -356,6 +403,7 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_TabNull) {
 
 // Tests that `RetrieveOtp` fails gracefully when the OTP service is null.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_ServiceNull) {
+  NavigateAndCommit(GURL("https://example.com"));
   OneTimeTokenServiceFactory::GetInstance()->SetTestingFactory(
       profile(), base::BindRepeating(
                      [](content::BrowserContext* context)
@@ -364,7 +412,9 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_ServiceNull) {
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future;
-  service().RetrieveOtp(tab().GetHandle(), {}, future.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
   EXPECT_EQ(future.Get().error(),
             OneTimeTokenRetrievalError::kGmailOtpBackendApiNotAvailable);
   histogram_tester_.ExpectBucketCount(
@@ -378,8 +428,7 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_ServiceNull) {
 // Tests that multiple sequential `RetrieveOtp` calls supersede previous ones,
 // running previous callbacks with an empty string.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_Superseded) {
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillRepeatedly(Return(std::vector<one_time_tokens::OneTimeToken>{}));
+  NavigateAndCommit(GURL("https://example.com"));
 
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
@@ -388,113 +437,24 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, RetrieveOtp_Superseded) {
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future2;
 
-  service().RetrieveOtp(tab().GetHandle(), {}, future1.GetCallback());
-  service().RetrieveOtp(tab().GetHandle(), {}, future2.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future1.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future2.GetCallback());
 
   EXPECT_EQ(future1.Get().error(),
             OneTimeTokenRetrievalError::kGmailOtpUnknown);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
       ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 2);
-}
-
-// Tests that a pending subscription request is superseded when a subsequent
-// request hits the cache.
-TEST_F(ActorOneTimeTokenFillingServiceImplTest,
-       RetrieveOtp_SupersededByCacheHit) {
-  const std::string kOtp = "123456";
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{}))
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{
-          {one_time_tokens::OneTimeTokenType::kGmail, kOtp,
-           base::TimeTicks::Now(), "sender@example.com"}}));
-
-  base::test::TestFuture<
-      base::expected<std::string, OneTimeTokenRetrievalError>>
-      future1;
-  base::test::TestFuture<
-      base::expected<std::string, OneTimeTokenRetrievalError>>
-      future2;
-
-  service().RetrieveOtp(tab().GetHandle(), {}, future1.GetCallback());
-  service().RetrieveOtp(tab().GetHandle(), {}, future2.GetCallback());
-
-  EXPECT_EQ(future1.Get().error(),
-            OneTimeTokenRetrievalError::kGmailOtpUnknown);
-  EXPECT_EQ(future2.Get().value(), kOtp);
-
   histogram_tester_.ExpectBucketCount(
-      kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 2);
+      kActorOtpRetrieveOtpCallbackSupersededHistogram,
+      ActorOtpRetrieveOtpCallbackSuperseded::kRetrieveOtpStarted, 2);
   histogram_tester_.ExpectBucketCount(
-      kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kCacheHit, 1);
-}
-
-// Tests that OnOneTimeTokenReceived handles the case where
-// retrieve_otp_callback_ has already been cleared (e.g. because the request was
-// resolved or superseded).
-TEST_F(ActorOneTimeTokenFillingServiceImplTest,
-       RetrieveOtp_OnOneTimeTokenReceived_NoCallback) {
-  one_time_tokens::OneTimeTokenService::Callback sub_callback1;
-  one_time_tokens::OneTimeTokenService::Callback sub_callback2;
-
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillRepeatedly(Return(std::vector<one_time_tokens::OneTimeToken>{}));
-
-  EXPECT_CALL(otp_service(), Subscribe)
-      .WillOnce([&](one_time_tokens::OneTimeTokenSource source,
-                    base::Time expiration,
-                    one_time_tokens::OneTimeTokenService::Callback callback) {
-        sub_callback1 = std::move(callback);
-        return one_time_tokens::ExpiringSubscription();
-      })
-      .WillOnce([&](one_time_tokens::OneTimeTokenSource source,
-                    base::Time expiration,
-                    one_time_tokens::OneTimeTokenService::Callback callback) {
-        sub_callback2 = std::move(callback);
-        return one_time_tokens::ExpiringSubscription();
-      });
-
-  base::test::TestFuture<
-      base::expected<std::string, OneTimeTokenRetrievalError>>
-      future1;
-  base::test::TestFuture<
-      base::expected<std::string, OneTimeTokenRetrievalError>>
-      future2;
-
-  // Call 1: subscribes, saves sub_callback1.
-  service().RetrieveOtp(tab().GetHandle(), {}, future1.GetCallback());
-
-  // Call 2: supersedes Call 1, subscribes, saves sub_callback2.
-  service().RetrieveOtp(tab().GetHandle(), {}, future2.GetCallback());
-
-  EXPECT_EQ(future1.Get().error(),
-            OneTimeTokenRetrievalError::kGmailOtpUnknown);
-
-  // Resolve Call 2 successfully.
-  const std::string kOtp = "123456";
-  sub_callback2.Run(one_time_tokens::OneTimeTokenSource::kGmail,
-                    one_time_tokens::OneTimeToken(
-                        one_time_tokens::OneTimeTokenType::kGmail, kOtp,
-                        base::TimeTicks::Now(), "sender@example.com"));
-
-  EXPECT_EQ(future2.Get().value(), kOtp);
-
-  // At this point, retrieve_otp_callback_ is null.
-  // Run sub_callback1 (the old subscription callback).
-  sub_callback1.Run(one_time_tokens::OneTimeTokenSource::kGmail,
-                    base::unexpected(OneTimeTokenRetrievalError::kUnknown));
-
-  histogram_tester_.ExpectBucketCount(
-      kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 2);
-  histogram_tester_.ExpectBucketCount(
-      kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kSuccess, 1);
-  histogram_tester_.ExpectBucketCount(
-      kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kNoCallback, 1);
+      kActorOtpRetrieveOtpCallbackSupersededHistogram,
+      ActorOtpRetrieveOtpCallbackSuperseded::kCallbackSuperseded, 1);
 }
 
 // Tests that multiple sequential `RetrieveOtp` calls supersede previous ones,
@@ -502,12 +462,8 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest,
 // token.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest,
        RetrieveOtp_SupersededByCachedToken) {
+  NavigateAndCommit(GURL("https://example.com"));
   const std::string kOtp = "123456";
-  EXPECT_CALL(otp_service(), GetCachedOneTimeTokens())
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{}))
-      .WillOnce(Return(std::vector<one_time_tokens::OneTimeToken>{
-          {one_time_tokens::OneTimeTokenType::kGmail, kOtp,
-           base::TimeTicks::Now(), "sender@example.com"}}));
 
   base::test::TestFuture<
       base::expected<std::string, OneTimeTokenRetrievalError>>
@@ -516,8 +472,17 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest,
       base::expected<std::string, OneTimeTokenRetrievalError>>
       future2;
 
-  service().RetrieveOtp(tab().GetHandle(), {}, future1.GetCallback());
-  service().RetrieveOtp(tab().GetHandle(), {}, future2.GetCallback());
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/false,
+                        future1.GetCallback());
+
+  otp_service().SetCachedTokens(
+      {{one_time_tokens::OneTimeTokenType::kGmail, kOtp, base::TimeTicks::Now(),
+        "sender@example.com"}});
+
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/false,
+                        future2.GetCallback());
 
   EXPECT_EQ(future1.Get().error(),
             OneTimeTokenRetrievalError::kGmailOtpUnknown);
@@ -528,7 +493,56 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest,
       ActorOneTimeTokenFillingServiceRetrieveOtp::kStart, 2);
   histogram_tester_.ExpectBucketCount(
       kActorOneTimeTokenFillingServiceRetrieveOtpHistogram,
-      ActorOneTimeTokenFillingServiceRetrieveOtp::kCacheHit, 1);
+      ActorOneTimeTokenFillingServiceRetrieveOtp::kSuccessCacheMatchFound, 1);
+}
+
+// Tests that a pending cached token check from a previous `RetrieveOtp` call is
+// cancelled and does not run the callback of a subsequent `RetrieveOtp` call.
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_Superseded_OngoingCheckCancelled) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  const std::string kFirstOtp = "111111";
+  const std::string kSecondOtp = "222222";
+
+  // The first call returns a matching token in the cache.
+  otp_service().SetCachedTokens(
+      {{one_time_tokens::OneTimeTokenType::kGmail, kFirstOtp,
+        base::TimeTicks::Now(), "sender@example.com"}});
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future1;
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future2;
+
+  // Start the first retrieve call. This will post a task to check the matching
+  // token.
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/false,
+                        future1.GetCallback());
+
+  // Clear cached tokens so second call subscribes.
+  otp_service().SetCachedTokens({});
+
+  // Before running the message loop, start the second retrieve call.
+  // This should cancel the ongoing check from the first call.
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/false,
+                        future2.GetCallback());
+
+  // The first call should immediately be rejected as superseded.
+  EXPECT_EQ(future1.Get().error(),
+            OneTimeTokenRetrievalError::kGmailOtpUnknown);
+
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kSecondOtp, base::TimeTicks::Now(),
+                                    "sender@example.com"));
+
+  EXPECT_EQ(future2.Get().value(), kSecondOtp);
 }
 
 // Tests that `FillOtp` fails gracefully when the tab is null.
@@ -627,7 +641,8 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_ConcurrentCalls) {
 // empty.
 TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_EmptyTriggerFields) {
   base::test::TestFuture<bool> future;
-  service().FillOtp(tab().GetHandle(), {}, "123456", future.GetCallback());
+  service().FillOtp(tab().GetHandle(), /*trigger_field_ids=*/{}, "123456",
+                    future.GetCallback());
 
   EXPECT_FALSE(future.Get());
   histogram_tester_.ExpectBucketCount(
@@ -863,7 +878,8 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest,
   // Simulate dynamic removal of the form from the DOM by notifying
   // `BrowserAutofillManager` via `OnFormsSeen` that the form was removed.
   manager().OnFormsSeen(/*updated_forms=*/{},
-                        /*removed_forms=*/{form.global_id()});
+                        /*removed_forms=*/{form.global_id()},
+                        autofill::AutofillManagerTestApi::pass_key());
 
   EXPECT_EQ(service().ValidateFormFillingContext(tab().GetHandle(), {field_id}),
             FormFillingContextStatus::kFormNotFound);
@@ -874,6 +890,235 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest,
   EXPECT_EQ(service().ValidateFormFillingContext(tabs::TabHandle::Null(),
                                                  {test::MakeFieldGlobalId()}),
             FormFillingContextStatus::kTabNotAvailable);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_CachedToken_ExactMatch) {
+  NavigateAndCommit(GURL("https://example.com"));
+  const std::string kOtp = "123456";
+  otp_service().SetCachedTokens(
+      {{one_time_tokens::OneTimeTokenType::kGmail, kOtp, base::TimeTicks::Now(),
+        "sender@example.com"}});
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+  EXPECT_EQ(future.Get().value(), kOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_CachedToken_AffiliatedMatch) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  AffiliatedFacets group = {
+      Facet(FacetURI::FromCanonicalSpec("https://example.com")),
+      Facet(FacetURI::FromCanonicalSpec("https://affiliated.com"))};
+  affiliation_service()->AddAffiliationGroup(group, /*add_to_cache=*/false);
+
+  const std::string kNonMatchingOtp = "000000";
+  const std::string kMatchingOtp = "111111";
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  std::vector<one_time_tokens::OneTimeToken> cached_tokens = {
+      {one_time_tokens::OneTimeTokenType::kGmail, kNonMatchingOtp, now,
+       "sender@unrelated.com"},
+      {one_time_tokens::OneTimeTokenType::kGmail, kMatchingOtp,
+       now - base::Minutes(1), "sender@affiliated.com"}};
+
+  otp_service().SetCachedTokens(cached_tokens);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+  EXPECT_EQ(future.Get().value(), kMatchingOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_CachedToken_NoMatch_FallsBackToSubscription) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  const std::string kUnrelatedOtp = "000000";
+  const std::string kNewIncomingOtp = "999999";
+
+  std::vector<one_time_tokens::OneTimeToken> cached_tokens = {
+      {one_time_tokens::OneTimeTokenType::kGmail, kUnrelatedOtp,
+       base::TimeTicks::Now(), "sender@unrelated.com"}};
+
+  otp_service().SetCachedTokens(cached_tokens);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+
+  // Since no cached tokens matched, future should not be ready yet.
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate receiving a new OTP from the subscription.
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kNewIncomingOtp, base::TimeTicks::Now(),
+                                    "sender@example.com"));
+
+  EXPECT_EQ(future.Get().value(), kNewIncomingOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_PslMatchRejected_FallsBackToSubscription) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  const std::string kPslOtp = "123456";
+  const std::string kNewMatchingOtp = "999999";
+
+  // sub.example.com is a PSL match for example.com.
+  std::vector<one_time_tokens::OneTimeToken> cached_tokens = {
+      {one_time_tokens::OneTimeTokenType::kGmail, kPslOtp,
+       base::TimeTicks::Now(), "sender@sub.example.com"}};
+
+  otp_service().SetCachedTokens(cached_tokens);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+
+  // Simulate receiving a PSL matched token from subscription. It should be
+  // ignored.
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    "000000", base::TimeTicks::Now(),
+                                    "sender@sub.example.com"));
+
+  // The callback should not be fulfilled because the PSL match is rejected.
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate receiving a matching token from subscription. It should be
+  // accepted.
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kNewMatchingOtp, base::TimeTicks::Now(),
+                                    "sender@example.com"));
+
+  EXPECT_EQ(future.Get().value(), kNewMatchingOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_SubscriptionToken_AffiliatedMatch_SkipsNonMatching) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  AffiliatedFacets group = {
+      Facet(FacetURI::FromCanonicalSpec("https://example.com")),
+      Facet(FacetURI::FromCanonicalSpec("https://affiliated.com"))};
+  affiliation_service()->AddAffiliationGroup(group, /*add_to_cache=*/false);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate receiving an OTP from an unrelated domain.
+  const std::string kUnrelatedOtp = "000000";
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kUnrelatedOtp, base::TimeTicks::Now(),
+                                    "sender@unrelated.com"));
+
+  // The callback should not be fulfilled because the domain doesn't match.
+  EXPECT_FALSE(future.IsReady());
+
+  // Simulate receiving an OTP from an affiliated domain.
+  const std::string kAffiliatedOtp = "111111";
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kAffiliatedOtp, base::TimeTicks::Now(),
+                                    "sender@affiliated.com"));
+
+  EXPECT_EQ(future.Get().value(), kAffiliatedOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_OpaqueFrameOrigin_NoMatch) {
+  NavigateAndCommit(GURL("data:text/html,<html></html>"));
+  ASSERT_TRUE(main_rfh()->GetLastCommittedOrigin().opaque());
+
+  EXPECT_EQ(otp_service().get_cached_tokens_call_count(), 0);
+  EXPECT_EQ(otp_service().subscribe_call_count(), 0);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{},
+                        /*is_login_flow=*/false, future.GetCallback());
+
+  EXPECT_EQ(future.Get(),
+            base::unexpected(OneTimeTokenRetrievalError::kGmailOtpUnknown));
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_CachedToken_PslMatchAllowedForLoginFlow) {
+  NavigateAndCommit(GURL("https://example.com"));
+  const std::string kPslOtp = "123456";
+
+  // sub.example.com is a PSL match for example.com.
+  std::vector<one_time_tokens::OneTimeToken> cached_tokens = {
+      {one_time_tokens::OneTimeTokenType::kGmail, kPslOtp,
+       base::TimeTicks::Now(), "sender@sub.example.com"}};
+
+  otp_service().SetCachedTokens(cached_tokens);
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/true,
+                        future.GetCallback());
+
+  EXPECT_EQ(future.Get().value(), kPslOtp);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest,
+       RetrieveOtp_SubscriptionToken_PslMatchAllowedForLoginFlow) {
+  NavigateAndCommit(GURL("https://example.com"));
+
+  const std::string kPslOtp = "654321";
+
+  otp_service().SetCachedTokens({});
+
+  base::test::TestFuture<
+      base::expected<std::string, OneTimeTokenRetrievalError>>
+      future;
+  service().RetrieveOtp(tab().GetHandle(), main_rfh_origin(),
+                        /*trigger_field_ids=*/{}, /*is_login_flow=*/true,
+                        future.GetCallback());
+
+  // Simulate receiving a PSL matched token from subscription.
+  otp_service().NotifySubscribers(
+      one_time_tokens::OneTimeTokenSource::kGmail,
+      one_time_tokens::OneTimeToken(one_time_tokens::OneTimeTokenType::kGmail,
+                                    kPslOtp, base::TimeTicks::Now(),
+                                    "sender@sub.example.com"));
+
+  EXPECT_EQ(future.Get().value(), kPslOtp);
 }
 
 }  // namespace

@@ -40,6 +40,7 @@
 #include "components/autofill/content/browser/test_content_autofill_driver.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
@@ -55,15 +56,16 @@
 #include "components/safe_browsing/content/browser/client_side_detection_feature_cache.h"
 #include "components/safe_browsing/content/browser/client_side_detection_service.h"
 #include "components/safe_browsing/content/browser/content_unsafe_resource_util.h"
-#include "components/safe_browsing/content/browser/credit_card_form_event.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/content/browser/url_checker_holder.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom-shared.h"
+#include "components/safe_browsing/core/browser/credit_card_form_event.h"
 #include "components/safe_browsing/core/browser/csd_model_type.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/safe_browsing/core/browser/db/test_database_manager.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/intelligent_scan_delegate.h"
+#include "components/safe_browsing/core/browser/safe_browsing_token_fetcher.h"
 #include "components/safe_browsing/core/browser/sync/sync_utils.h"
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -497,7 +499,8 @@ class ClientSideDetectionHostTestBase : public ChromeRenderViewHostTestHarness {
 
     csd_host_ =
         ChromeClientSideDetectionHostDelegate::CreateHost(web_contents());
-    csd_host_->set_client_side_detection_service(csd_service_->GetWeakPtr());
+    csd_host_->set_client_side_detection_service_for_testing(
+        csd_service_->GetWeakPtr());
     csd_host_->set_ui_manager(ui_manager_.get());
     csd_host_->set_database_manager(database_manager_.get());
     csd_host_->set_tick_clock_for_testing(&clock_);
@@ -621,7 +624,8 @@ class ClientSideDetectionHostTestBase : public ChromeRenderViewHostTestHarness {
     content::WebContentsTester::For(web_contents())
         ->TestDidFirstVisuallyNonEmptyPaint();
     if (csd_host_) {
-      csd_host_->OnFirstContentfulPaintInPrimaryMainFrame();
+      csd_host_->OnFirstContentfulPaintInPrimaryMainFrame(
+          base::TimeTicks::Now());
     }
   }
 
@@ -635,7 +639,8 @@ class ClientSideDetectionHostTestBase : public ChromeRenderViewHostTestHarness {
         NotifyClientSideDetectionObservers();
       } else {
         if (csd_host_) {
-          csd_host_->OnFirstContentfulPaintInPrimaryMainFrame();
+          csd_host_->OnFirstContentfulPaintInPrimaryMainFrame(
+              base::TimeTicks::Now());
         }
         content::WebContentsTester::For(web_contents())
             ->TestDidFirstVisuallyNonEmptyPaint();
@@ -2273,27 +2278,15 @@ TEST_F(ClientSideDetectionHostTest,
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
 
-  // Check that the clipboard histograms haven't been recorded yet.
+  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"test");
+
+  // The feature hasn't been triggered, so nothing will be recorded.
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.MatchCSDAllowlistOnClipboardCopyApi", 0);
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.MatchHighConfidenceAllowlist.ClipboardCopyApi", 0);
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.PreClassificationCheckResult.ClipboardCopyApi", 0);
-
-  ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
-  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"test");
-  WaitAndCheckPreClassificationChecks();
-
-  // The feature to send CSP pings is disabled, so nothing will be classified
-  // (or included in the HC allowlist).
-  histogram_tester.ExpectTotalCount(
-      "SBClientPhishing.MatchCSDAllowlistOnClipboardCopyApi", 1);
-  histogram_tester.ExpectTotalCount(
-      "SBClientPhishing.MatchHighConfidenceAllowlist.ClipboardCopyApi", 1);
-  histogram_tester.ExpectBucketCount(
-      "SBClientPhishing.PreClassificationCheckResult.ClipboardCopyApi",
-      PreClassificationCheckResult::NO_CLASSIFY_ALLOWLIST_METRIC, 1);
 }
 
 TEST_F(ClientSideDetectionHostTest,
@@ -2306,7 +2299,7 @@ TEST_F(ClientSideDetectionHostTest,
   base::HistogramTester histogram_tester;
 
   GURL url("http://host.com/");
-  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
+  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/false);
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
@@ -2320,7 +2313,7 @@ TEST_F(ClientSideDetectionHostTest,
       "SBClientPhishing.PreClassificationCheckResult.ClipboardCopyApi", 0);
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
-  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"test");
+  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"curl example.com");
   WaitAndCheckPreClassificationChecks();
 
   // The feature to send CSP pings is enabled and the host is not included in
@@ -2360,7 +2353,7 @@ TEST_F(
       "SBClientPhishing.PreClassificationCheckResult.ClipboardCopyApi", 0);
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
-  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"test");
+  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"curl example.com");
   WaitAndCheckPreClassificationChecks();
 
   // The feature to send CSP pings is enabled, but the host is included in the
@@ -2376,12 +2369,14 @@ TEST_F(
 
 TEST_F(ClientSideDetectionHostTest,
        ClipboardCopyApiCallDoesNotProceedWithClassificationWithZeroSampleRate) {
-  SetFeatures({kClientSideDetectionClipboardCopyApi}, {});
+  feature_list_.InitAndEnableFeatureWithParameters(
+      kClientSideDetectionClipboardCopyApi,
+      {{kCsdClipboardCopyApiSampleRate.name, "0.0"}});
   SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
   base::HistogramTester histogram_tester;
 
   GURL url("http://host.com/");
-  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
+  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/false);
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
@@ -2395,7 +2390,7 @@ TEST_F(ClientSideDetectionHostTest,
       "SBClientPhishing.PreClassificationCheckResult.ClipboardCopyApi", 0);
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
-  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"test");
+  csd_host_->OnTextCopiedToClipboard(main_rfh(), u"curl example.com");
   WaitAndCheckPreClassificationChecks();
 
   // The feature to send CSP pings is enabled, but the sampling rate is set to
@@ -2444,7 +2439,7 @@ TEST_F(
   base::HistogramTester histogram_tester;
 
   GURL url("http://host.com/");
-  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
+  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/false);
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   NavigateAndCommit(url);
   WaitAndCheckPreClassificationChecks();
@@ -2661,7 +2656,7 @@ class ClientSideDetectionHostCreditCardFormTest
       ADD_FAILURE();
     }
 
-    csd_host_->set_history_service_for_testing(history_service_.get());
+    csd_host_->SetAndObserveHistoryServiceForTesting(history_service_.get());
   }
 
   void TearDown() override {
@@ -2770,7 +2765,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   autofill_manager()->AddSeenForm(form_data, {autofill::EMAIL_ADDRESS});
 
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
 
   EXPECT_FALSE(future.IsReady());
 
@@ -2800,7 +2796,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   autofill_manager()->AddSeenForm(form_data, {autofill::UNKNOWN_TYPE});
 
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
 
   EXPECT_FALSE(future.IsReady());
 
@@ -2830,7 +2827,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   auto form_data = CreateCreditCardForm();
 
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
 
   EXPECT_FALSE(future.IsReady());
 
@@ -2867,7 +2865,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -2915,7 +2914,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest, DoesNotProceedDueToSampling) {
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -2966,7 +2966,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -3019,7 +3020,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   base::StatisticsRecorder::HistogramWaiter event_waiter(
       "SBClientPhishing.CreditCardFormEvent3");
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   event_waiter.Wait();
 
   // The Autofill field detection event should not have resulted in
@@ -3075,7 +3077,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
     base::StatisticsRecorder::HistogramWaiter event_waiter(
         "SBClientPhishing.CreditCardFormEvent3");
     autofill_manager()->OnFocusOnFormField(
-        form_data, form_data.fields().begin()->global_id());
+        form_data, form_data.fields().begin()->global_id(),
+        autofill::AutofillManagerTestApi::pass_key());
     event_waiter.Wait();
     WaitAndCheckPreClassificationChecks();
 
@@ -3109,7 +3112,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
     base::StatisticsRecorder::HistogramWaiter event_waiter(
         "SBClientPhishing.CreditCardFormEvent3");
     autofill_manager()->OnFocusOnFormField(
-        form_data2, form_data2.fields().begin()->global_id());
+        form_data2, form_data2.fields().begin()->global_id(),
+        autofill::AutofillManagerTestApi::pass_key());
     event_waiter.Wait();
 
     EXPECT_FALSE(future.IsReady());
@@ -3152,7 +3156,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -3198,7 +3203,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   base::StatisticsRecorder::HistogramWaiter event_waiter(
       "SBClientPhishing.CreditCardFormEvent3");
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   event_waiter.Wait();
 
   // The Autofill field detection event should not have resulted in
@@ -3237,7 +3243,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   // Trigger form field interaction, waiting for the event to be logged.
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -3254,7 +3261,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   csd_host_->set_preclassification_started_callback_for_testing(
       future.GetRepeatingCallback());
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   EXPECT_FALSE(future.IsReady());
 
   ExpectOnlyBucketCount(
@@ -3381,7 +3389,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   csd_host_->set_preclassification_started_callback_for_testing(
       future.GetRepeatingCallback());
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
 
   EXPECT_FALSE(future.IsReady());
 
@@ -3498,7 +3507,8 @@ TEST_P(ClientSideDetectionHostCreditCardFormReferringAppTest,
 
   ExpectPreClassificationChecks(url, &kFalse, &kFalse, nullptr, nullptr);
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   WaitUntilHighConfidenceAllowlistCheckDone();
   WaitAndCheckPreClassificationChecks();
 
@@ -3557,7 +3567,8 @@ TEST_P(ClientSideDetectionHostCreditCardFormReferringAppTest,
   base::StatisticsRecorder::HistogramWaiter event_waiter(
       "SBClientPhishing.CreditCardFormEvent3");
   autofill_manager()->OnFocusOnFormField(
-      form_data, form_data.fields().begin()->global_id());
+      form_data, form_data.fields().begin()->global_id(),
+      autofill::AutofillManagerTestApi::pass_key());
   event_waiter.Wait();
 
   // The Autofill field detection event should not have resulted in
@@ -3636,9 +3647,15 @@ TEST_P(ClientSideDetectionHostSkipImageClassificationScoringTest,
   // Phishing detection should have been done (not skipped).
   EXPECT_TRUE(fake_phishing_detector_.phishing_detection_started());
 
+  ClientSideDetectionType expected_logged_type = request_type;
+  if (request_type == ClientSideDetectionType::TRIGGER_MODELS &&
+      base::FeatureList::IsEnabled(kClientSideDetectionImageEmbeddingMatch)) {
+    expected_logged_type = ClientSideDetectionType::IMAGE_EMBEDDING_MATCH;
+  }
+
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.PhishingDetectorResult." +
-          GetRequestTypeName(request_type),
+          GetRequestTypeName(expected_logged_type),
       mojom::PhishingDetectorResult::SUCCESS, 1);
 }
 
@@ -3677,9 +3694,15 @@ TEST_P(ClientSideDetectionHostSkipImageClassificationScoringTest,
   // Phishing detection should have been done (not skipped).
   EXPECT_TRUE(fake_phishing_detector_.phishing_detection_started());
 
+  ClientSideDetectionType expected_logged_type = request_type;
+  if (request_type == ClientSideDetectionType::TRIGGER_MODELS &&
+      base::FeatureList::IsEnabled(kClientSideDetectionImageEmbeddingMatch)) {
+    expected_logged_type = ClientSideDetectionType::IMAGE_EMBEDDING_MATCH;
+  }
+
   histogram_tester.ExpectUniqueSample(
       "SBClientPhishing.PhishingDetectorResult." +
-          GetRequestTypeName(request_type),
+          GetRequestTypeName(expected_logged_type),
       mojom::PhishingDetectorResult::SUCCESS, 1);
 }
 
@@ -3957,7 +3980,9 @@ class ClientSideDetectionRTLookupResponseForceRequestTest
         /*hash_realtime_selection=*/
         hash_realtime_utils::HashRealTimeSelection::kNone,
         /*is_async_check=*/true, /*check_allowlist_before_hash_database=*/false,
-        SessionID::InvalidValue(), /*referring_app_info=*/std::nullopt);
+        /*tab_id=*/SessionID::InvalidValue(),
+        /*referring_app_info=*/std::nullopt,
+        /*v5_get_hash_protocol_manager=*/nullptr);
     tracker->TransferUrlChecker(std::move(checker));
     // all_checks_completed must be set to true to notify
     // ClientSideDetectionHost.
@@ -5378,14 +5403,6 @@ TEST_F(ClientSideDetectionHostClipboardDataTest, SingleSusCommandAtBeginning) {
   EXPECT_FALSE(data.is_overall_suspicious());
 }
 
-TEST_F(ClientSideDetectionHostClipboardDataTest, EchoAndPipe) {
-  ClipboardExtractedData data = ExtractFromPayload(u"echo hello | bash");
-  EXPECT_THAT(data.suspicious_tokens(), ::testing::ElementsAre("bash"));
-  EXPECT_FALSE(data.is_first_token_suspicious());
-  EXPECT_TRUE(data.is_last_token_suspicious());
-  EXPECT_FALSE(data.is_overall_suspicious());
-}
-
 TEST_F(ClientSideDetectionHostClipboardDataTest, SingleSusCommandAtEnd) {
   ClipboardExtractedData data = ExtractFromPayload(u"some text with wget");
   EXPECT_THAT(data.suspicious_tokens(), ::testing::ElementsAre("wget"));
@@ -5416,7 +5433,9 @@ TEST_F(ClientSideDetectionHostClipboardDataTest, MissingRunner) {
 TEST_F(ClientSideDetectionHostClipboardDataTest, MissingURL) {
   // Loader + Runner, but no URL.
   ClipboardExtractedData data = ExtractFromPayload(u"echo hello | bash");
-  EXPECT_EQ(1, data.suspicious_tokens_size());
+  EXPECT_THAT(data.suspicious_tokens(), ::testing::ElementsAre("echo", "bash"));
+  EXPECT_TRUE(data.is_first_token_suspicious());
+  EXPECT_TRUE(data.is_last_token_suspicious());
   EXPECT_FALSE(data.is_overall_suspicious());
 }
 
@@ -5576,7 +5595,7 @@ TEST_F(ClientSideDetectionHostPriorityTest, SameTierTriggerBlocked) {
   std::u16string copied_text =
       u"This string is definitely long enough to pass the length checks for "
       u"the clipboard copy API trigger. We need this string to be quite long "
-      u"indeed to pass the minimum threshold.";
+      u"indeed to pass the minimum threshold. ssh";
   csd_host_->OnTextCopiedToClipboard(web_contents()->GetPrimaryMainFrame(),
                                      copied_text);
 
@@ -5615,7 +5634,7 @@ TEST_F(ClientSideDetectionHostPriorityTest, BypassTiers) {
   std::u16string copied_text =
       u"This string is definitely long enough to pass the length checks for "
       u"the clipboard copy API trigger. We need this string to be quite long "
-      u"indeed to pass the minimum threshold.";
+      u"indeed to pass the minimum threshold. ssh";
   csd_host_->OnTextCopiedToClipboard(web_contents()->GetPrimaryMainFrame(),
                                      copied_text);
 

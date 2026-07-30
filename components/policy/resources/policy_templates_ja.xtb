@@ -1320,6 +1320,18 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
         |TIME_LIMITS| を指定した場合、1 日の使用上限が適用されます。ユーザーは上限に達すると、その日はアプリを使用できません。使用制限は |daily_limit_mins| で指定し、毎日 |reset_at| で渡された UTC 時間になると制限はリセットされます。
         このポリシーは子どものユーザーにのみ使用します。
         このポリシーは、「UsageTimeLimit」を補完するものです。「UsageTimeLimit」で指定された制限（利用時間、おやすみ時間など）は、「PerAppTimeLimits」の設定に関係なく適用されます。</translation>
+<translation id="19133869326547269">このポリシーは非推奨となり、Chrome から Click-to-Call 機能が削除されたため、無視されます。
+
+元の説明:
+Click-to-Call 機能を有効にします。この機能により、ログインしているユーザーは Chrome デスクトップから Android デバイスに電話番号を送信できます。詳しくは、ヘルプセンター記事 https://support.google.com/chrome/answer/9430554?hl=ja をご覧ください。
+
+このポリシーを有効に設定した場合は、該当の Chrome ユーザーに対して、Android デバイスへの電話番号の送信機能が有効になります。
+
+このポリシーを無効に設定した場合は、該当の Chrome ユーザーに対して、Android デバイスへの電話番号の送信機能は無効になります。
+
+このポリシーを設定した場合、ユーザーが設定を変更またはオーバーライドすることはできません。
+
+このポリシーを設定しない場合、Click-to-Call 機能はデフォルトで有効になります。</translation>
 <translation id="1913629775420987861">ユーザーが終了しようとしたときに警告ダイアログを表示する</translation>
 <translation id="1915242485679279502">拡張の企業ツールバー バッジを表示する</translation>
 <translation id="1916266055944569995">このポリシーでは、特定のオリジンに対する Managed Configuration API の戻り値を定義します。
@@ -2141,17 +2153,6 @@ ServiceWorkerAutoPreload 機能では、ServiceWorker ブートストラップ �
 このポリシーは機能を制御するための一時的な措置で、M154 で削除される予定です。</translation>
 <translation id="2467181864598429837">デフォルトのブラウザの動作</translation>
 <translation id="2467896267442150508">1 週間を上限とする時間間隔です。開始時間を終了時間よりも遅い時間に指定すると、時間間隔は日をまたいで適用されます。</translation>
-<translation id="2475594733565572760">このポリシーでは、対象となるすべての生成 AI 機能のデフォルト設定を定義します。たとえば、このポリシーを値 1 に設定した場合、対象となるすべての生成 AI 機能のデフォルト設定は 1 になります。この設定は、手動で設定したポリシー値には影響しません。この設定は、Chrome で対象となる生成 AI 機能でデフォルトとして定義されます。対象となる機能の一覧については、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。
-
-一部のポリシー（<ph name="GEMINI_SETTINGS_POLICY_NAME" /> など）では、「許可する」と「許可しない」の状態のみがサポートされます。この場合、<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> を 0 または 1 に設定すると、この機能が有効になります。<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> を 2 に設定した場合、この機能は無効になります。各機能のドキュメントには、このポリシーの値で各機能がどのように動作するかについて、より詳しい情報が記載されています（例: Gemini in Chrome - https://support.google.com/chrome/a/?p=gemini_in_chrome）。このポリシーは、Gemini in Chrome、Google レンズ、AI モードに適用されます。これらの機能には、それぞれ独自の保証と利用規約が適用されます（https://support.google.com/chrome/a/?p=genai_features_chrome）。
-
-0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。AI モデルを改善するため、人間のレビュアーが確認する場合もあります。以下に記載している場合を除き、0 がデフォルト値です。
-
-1 = この機能の使用を許可しますが、Google がモデルを改善する目的でユーザーのコンテンツ（プロンプト、入力内容、出力内容、ソース資料、フィードバックの文面など）を使用することは許可しません。1 は、<ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> で管理されている企業ユーザーと、<ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> で管理されている教育機関向けアカウントのデフォルト値です。
-
-2 = この機能を許可しません。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="2476249479201711962">デフォルトの検索プロバイダのコンテキスト メニューへのアクセスを有効にする</translation>
 <translation id="2478756867046106663">不正なコンテンツを提供するサイトが新しいウィンドウやタブで開くことを許可する</translation>
 <translation id="2479760962196319822">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> ユーザーがデータをローカルに保存できるかどうかを管理します。
@@ -3619,15 +3620,6 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 特定の最上位のオリジンに対してサードパーティのストレージ パーティションを無効にするには、<ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> を使用します。サードパーティのストレージ パーティションについて詳しくは、https://developers.google.com/privacy-sandbox/cookies/storage-partitioning をご覧ください。
 
 このメソッドは Chrome 145 で削除されたため、代わりに requestStorageAccess メソッドを使用することをおすすめします。詳しくは、https://developer.mozilla.org/ja/docs/Web/API/Document/requestStorageAccess をご参照ください。フィードバックは https://crbug.com/425248669 で送信できます。</translation>
-<translation id="3405361833556012520">このポリシーはブラウザのトラフィック（Google Play ストア、Android アプリのウェブ ナビゲーション、その他 Linux VM トラフィックや印刷ジョブなどのユーザー トラフィック）にのみ適用され、常時接続 VPN による制限は引き続き適用されます。このポリシーは、VPN に接続されていないときに、ユーザーのブラウザ トラフィックにのみ適用されます。このポリシーを適用した場合、システム トラフィックは常時接続 VPN をバイパスして、ポリシーの取得やシステム クロックの同期などのタスクを実行することもできます。
-
-このポリシーは、特定のスキームや、他のドメインのサブドメイン、ポート、特定のパスに例外を設定する場合に使用します。設定の際は、https://support.google.com/chrome/a?p=url_blocklist_filter_format で指定された形式を使用します。URL のブロックや許可は、最も具体的なフィルタによって決定されます。
-
-<ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> を設定した場合、常時接続 VPN が設定済みで、接続されていないときは、すべてのホストへのナビゲーションがブロックされます（ただし、<ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> ポリシーで許可されているホストを除きます）。このデバイス状態では、<ph name="URL_BLOCKLIST_POLICY_NAME" /> と <ph name="URL_ALLOWLIST_POLICY_NAME" /> は無視されます。常時接続 VPN に接続されているときは、<ph name="URL_BLOCKLIST_POLICY_NAME" /> と <ph name="URL_ALLOWLIST_POLICY_NAME" /> ポリシーが適用され、<ph name="ALWAYSON_VPN_PRE_CONNECT_URL_ALLOWLIST_POLICY_NAME" /> ポリシーは無視されます。
-
-このポリシーで指定できる URL は最大 1,000 件です。
-
-このポリシーを未設定のままにした場合、厳格モードの常時接続 VPN が有効で接続されていないとき、ブラウザ ナビゲーションはブロックされます。</translation>
 <translation id="3405997282295704902">ユーザーに <ph name="PRODUCT_NAME" /> の使用を許可しない</translation>
 <translation id="3406122462682235653">ユーザーに確認しない（すぐにダウンロードを開始する）</translation>
 <translation id="3410534959501660670">テキスト キャプチャ機能の設定</translation>
@@ -4864,6 +4856,7 @@ URL パターンは、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" /> 
 ドメインの形式が正しくない場合は無視されます。</translation>
 <translation id="4238777612788632629">バージョンが古い場合に再起動を促す</translation>
 <translation id="4239720644496144453">キャッシュは Android アプリには使用されません。複数のユーザーが同じ Android アプリをインストールする場合、アプリはユーザーごとに新しくダウンロードされます。</translation>
+<translation id="4239949495354048254">Gemini in Chrome へのファイルのアップロードを許可する。</translation>
 <translation id="4242583077375244471">このポリシーを有効に設定した場合、<ph name="PRODUCT_NAME" /> は組み込みの証明書確認機能を使用してサーバー証明書の確認を行います。その際、Chrome Root Store がパブリック トラストのソースとして使用されます。
 
 このポリシーを無効に設定した場合、<ph name="PRODUCT_NAME" /> はシステムの証明書確認機能とシステムのルート証明書を使用します。
@@ -7616,16 +7609,6 @@ URL が <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> と <ph n
 <translation id="6016304107003486747">このポリシーでは、[キーの割り当て変更] サブページ内での Delete キーの割り当て変更の動作を指定します。[キーの割り当て変更] サブページでは、ユーザーがキーボードのキーをカスタマイズできます。このポリシーを有効にした場合、ユーザーはこれらの特定の割り当て変更をカスタマイズできなくなります。このポリシーを未設定のままにした場合、検索キーを使用したショートカットがデフォルトとして機能し、ユーザーはショートカットを設定できます。</translation>
 <translation id="6019162469732742754">自動モードを使用する</translation>
 <translation id="6019606564278029236">リモート ユーザーがリモート アシスタンス セッションで権限昇格ウィンドウとやり取りできるようにする</translation>
-<translation id="602038990586229155">このポリシーでは、ユーザーが Google 管理コンソールに <ph name="PRODUCT_NAME" /> 拡張機能のインストールの承認リクエストを送信できるようにするかどうかを管理します。
-
-ポリシー <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> を未設定のままにするか無効にすると、このポリシーは無視され、拡張機能のインストールのリクエストは作成およびアップロードされません。
-このポリシーを未設定のままにするか無効にすると、拡張機能のインストールのリクエストは作成およびアップロードされません。
-このポリシーを有効にすると、拡張機能のインストールのリクエストが作成され、Google 管理コンソールにアップロードされます。
-
-拡張機能のインストールのリクエストは、<ph name="EXTENSION_INSTALL_ALLOWLIST" /> または <ph name="EXTENSION_SETTINGS" /> で許可されていない拡張機能をユーザーがインストールしようとしたときに作成されます。
-
-<ph name="PRODUCT_NAME" /> の場合、このポリシーは <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> で登録されたマシンでのみ有効です。
-<ph name="PRODUCT_OS_NAME" /> の場合、このポリシーは常に有効です。</translation>
 <translation id="6020795917180493154">M119 以降、このポリシーを false に設定するか未設定のままにした場合、WebSQL は無効になりますが、Chrome フラグ「web-sql-access」を使用して有効にできます。このポリシーを true に設定した場合、WebSQL アクセスが有効になります。
 このポリシーは M124 で非推奨になりました。</translation>
 <translation id="6022948604095165524">起動時の操作</translation>
@@ -7771,6 +7754,14 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 
 このポリシーを無効にした場合、キー ショートカット アプリは読み取り専用になり、カスタマイズできません。</translation>
 <translation id="6150320133676152520">ロック画面とログイン画面で PIN の自動送信を無効にする</translation>
+<translation id="6152224988699207920">管理者がデータ損失防止（DLP）ルールで適用される透かしのデザインをカスタマイズできるようにします。カスタマイズできる設定には、塗りつぶしや輪郭の不透明度、フォントサイズ、タイムスタンプのタイムゾーンがあります。
+このポリシーまたは一部の値が設定されていない場合、Chrome ではデフォルトの透かし設定が使用されます。
+デフォルト値は、塗りつぶしの不透明度が 4、輪郭の不透明度が 6、フォントサイズが 24、タイムスタンプのタイムゾーンが 'user_device'（ユーザーのローカル デバイスのタイムゾーン）です。
+
+[塗りつぶしの不透明度] は、0（完全に透明）〜100（完全に不透明）のパーセント値で指定します。
+[輪郭の不透明度] は、0（完全に透明）〜100（完全に不透明）のパーセント値で指定します。
+[フォントサイズ] はポイントで指定します。
+[タイムスタンプのタイムゾーン] には、透かしのタイムスタンプの書式設定に使用する IANA タイムゾーン識別子（例: 'America/Toronto'）（Chrome 152 以降でサポート）を指定します。これは、IANA タイムゾーン データベース（https://www.iana.org/time-zones）の名前に準拠しています。</translation>
 <translation id="6155350825868160236">スペルミスの解決に Google のウェブサービスを使用するかどうかをユーザーが選択できるようにする</translation>
 <translation id="6155936611791017817">ログイン画面での大きいカーソルのデフォルト状態を設定する</translation>
 <translation id="6157537876488211233">プロキシ バイパス ルールのカンマ区切りリスト</translation>
@@ -8028,6 +8019,7 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
 
 <ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
+<translation id="6279539269393750872">Gemini in Chrome へのファイルのアップロードの設定</translation>
 <translation id="628084107912717806">WebAssembly モジュールをクロスオリジンで送信できるかどうかを指定する</translation>
 <translation id="6280973140313576289">起動時にプロフィール選択画面を強制的に有効にする</translation>
 <translation id="6282524907402492171"><ph name="CLOUD_PRINT_NAME" /> のサポート終了の警告を表示する</translation>
@@ -9979,15 +9971,6 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 
       このポリシーを設定しない場合や false に設定した場合は、TLS の RC4 暗号スイートは有効になりません。また、true に設定して古いサーバーとの互換性を維持できます。これは暫定的な措置であり、サーバーの再設定が必要です。</translation>
 <translation id="751615601677744094">無効: ミューテーション イベントの通常の動作です。削除日以降にイベントは発生しません。</translation>
-<translation id="7518736413346509172">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、<ph name="LOCAL_NETWORK_ACCESS" /> チェックが失敗となり、<ph name="CHROME_DEVTOOLS_NAME" /> に警告のみが表示されます。
-
-このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
-
-<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
-
-このエンタープライズ ポリシーは一時的なものであり、M152 以降で削除される予定です。
-
-長期的には、ポリシー <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> を使用して、<ph name="LOCAL_NETWORK_ACCESS" /> 権限を自動的に付与する URL パターンの許可リストを指定するという方法があります。</translation>
 <translation id="7519218194072744342">プロトコル ハンドラの URL です。</translation>
 <translation id="7519251620064708155">指定サイトでのキー生成を許可する</translation>
 <translation id="7521864460386999758">サードパーティのコードを Chrome に設定できないようにする</translation>
@@ -10851,6 +10834,7 @@ Topics API のサポート終了により、このポリシーは <ph name="PROD
 <translation id="8102913158860568230">デフォルトのメディアストリームの設定</translation>
 <translation id="8104962233214241919">これらのサイトのクライアント証明書を自動的に選択する</translation>
 <translation id="8109762054721090517"><ph name="CLIENT_NAME_IPP_ATTRIBUTE" /> <ph name="INTERNET_PRINTING_PROTOCOL" /> <ph name="IPP_ATTRIBUTE" />のテンプレート</translation>
+<translation id="811012672754800797">Gemini in Chrome へのファイルのアップロードを許可しない。</translation>
 <translation id="8111331908123507719">デバイスがアイドル状態になってからロック画面にスクリーンセーバーを表示するまでの時間を秒単位で設定します。
 
 有効な値の範囲は 1〜9,999 秒です。このポリシーを未設定のままにした場合、<ph name="PRODUCT_OS_NAME" /> ではデフォルト値である 7 秒が使用されます。
@@ -12316,6 +12300,14 @@ M119 よりデフォルトで無効になります）。
 <translation id="9087652369391570821">OnFileTransfer Chrome Enterprise コネクタの設定ポリシー</translation>
 <translation id="9088433379343318874">監視対象ユーザーのコンテンツ プロバイダを有効にする</translation>
 <translation id="9088444059179765143">タイムゾーン自動検出の方法を設定する</translation>
+<translation id="9091741086777905807">透かしのタイムスタンプの書式設定に使用する IANA タイムゾーン識別子（例: 'America/Toronto'）（Chrome 152 以降でサポート）。デフォルトは 'user_device' です。</translation>
+<translation id="9094681501120769194"><ph name="PRODUCT_NAME" /> の PDF ビューアでプロセス外の iframe（OOPIF）を使用するかどうかを制御します。よりシンプルで新機能の追加が容易なため、将来的にはこれが新しい PDF ビューア アーキテクチャになります。既存の GuestView PDF ビューアは、古い複雑なアーキテクチャであり、非推奨となります。
+
+このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> で OOPIF PDF ビューア アーキテクチャを使用できるようになります。有効にするか未設定のままにした場合、デフォルトの動作は <ph name="PRODUCT_NAME" /> によって決定されます。
+
+このポリシーを無効に設定した場合、<ph name="PRODUCT_NAME" /> では既存の GuestView PDF ビューアのみが使用されます。個別のフレームツリーを持つウェブページは別のウェブページに埋め込まれます。
+
+このポリシーは M152 でサポートが終了し、M155 で削除される予定です。GuestView PDF ビューアは削除され、プロセス外の iframe（OOPIF）PDF ビューア アーキテクチャが常に使用されるようになります。</translation>
 <translation id="9095599826504830315">タブ比較を許可しない。</translation>
 <translation id="9096772739225230999">ネットワーク設定を報告しない</translation>
 <translation id="9098409326885953506">背面にあるウィンドウを検出して、描画を一時停止する</translation>

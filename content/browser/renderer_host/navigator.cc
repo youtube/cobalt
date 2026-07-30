@@ -15,7 +15,6 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
-#include "content/browser/interest_group/interest_group_features.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -564,8 +563,9 @@ void Navigator::DidNavigate(
   // Allow main frame paint holding in the following cases:
   //  - We don't have an animated transition. See crbug.com/360844863.
   //  - At least one of the following conditions is true:
-  //    - This is a navigation from the initial document. This part helps with
-  //      tests. See crbug.com/367623929.
+  //    - This is a navigation from the initial document (in cases where this is
+  //      a brand new tab that didn't inherit another origin from an opener).
+  //      This part helps with tests. See crbug.com/367623929.
   //    - This is a same origin navigation (or we're not limiting cross-origin
   //      paint holding)
   //    - There is a user activation. This means that the user interacted with
@@ -578,9 +578,12 @@ void Navigator::DidNavigate(
   // See https://issues.chromium.org/40942531 for reasons we limit paint
   // holding.
   ContentBrowserClient* client = GetContentClient()->browser();
+  const bool allow_paint_holding_for_initial_empty_document =
+      was_on_initial_empty_document && old_frame_origin.opaque() &&
+      !old_frame_origin.GetTupleOrPrecursorTupleIfOpaque().IsValid();
   const bool allow_main_frame_paint_holding =
       !navigation_request->was_initiated_by_animated_transition() &&
-      (was_on_initial_empty_document ||
+      (allow_paint_holding_for_initial_empty_document ||
        old_frame_origin.IsSameOriginWith(params.origin) ||
        old_frame_host->HasStickyUserActivation() ||
        client->AllowNonActivatedCrossOriginPaintHolding() ||
@@ -615,13 +618,6 @@ void Navigator::DidNavigate(
       view_transition_commit_info, navigation_request->GetURL(),
       is_backward_navigation);
 
-  // Reset the old frame host's weak pointer to auction initiator page when it
-  // is a cross-document navigation and the frame does not go into bfcache.
-  if ((base::FeatureList::IsEnabled(features::kDetectInconsistentPageImpl)) &&
-      !was_within_same_document && old_frame_host &&
-      !old_frame_host->IsInBackForwardCache()) {
-    old_frame_host->set_auction_initiator_page(nullptr);
-  }
 
   // The main frame, same site, and cross-site navigation checks for user
   // activation mirror the checks in DocumentLoader::CommitNavigation() (note:

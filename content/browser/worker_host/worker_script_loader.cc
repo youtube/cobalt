@@ -12,7 +12,10 @@
 #include "content/browser/service_worker/service_worker_main_resource_loader_interceptor.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/url_utils.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/load_timing_info.h"
+#include "net/base/net_errors.h"
 #include "net/url_request/redirect_util.h"
 #include "services/network/public/cpp/record_ontransfersizeupdate_utils.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -221,6 +224,25 @@ void WorkerScriptLoader::OnReceiveResponse(
     mojo::ScopedDataPipeConsumerHandle body,
     std::optional<mojo_base::BigBuffer> cached_metadata) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (resource_request_.url.SchemeIsBlob() && response_head) {
+    // A blob URL is loaded by a renderer-hosted BlobURLLoader. A blob URL
+    // request is never handled by a service worker or a network socket.
+    // Sanitize service worker and network address space fields to ensure
+    // robustness against invalid input and maintain expected specifications.
+    response_head->was_fetched_via_service_worker = false;
+    response_head->url_list_via_service_worker.clear();
+    response_head->service_worker_response_source =
+        network::mojom::FetchResponseSource::kUnspecified;
+    response_head->initial_service_worker_status.reset();
+    response_head->service_worker_router_info.reset();
+    response_head->client_address_space =
+        network::mojom::IPAddressSpace::kUnknown;
+    response_head->response_address_space =
+        network::mojom::IPAddressSpace::kUnknown;
+    response_head->remote_endpoint = net::IPEndPoint();
+    response_head->was_fetched_via_cache = false;
+    response_head->is_validated = false;
+  }
   client_->OnReceiveResponse(std::move(response_head), std::move(body),
                              std::move(cached_metadata));
 }
@@ -229,6 +251,22 @@ void WorkerScriptLoader::OnReceiveRedirect(
     const net::RedirectInfo& redirect_info,
     network::mojom::URLResponseHeadPtr response_head) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  if (resource_request_.url.SchemeIsBlob()) {
+    // Loading a blob URL never produces a redirect.
+    complete_status_ =
+        network::URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT);
+    CommitCompleted();
+    return;
+  }
+
+  if (!IsSafeRedirectTarget(resource_request_.url, redirect_info.new_url)) {
+    complete_status_ =
+        network::URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT);
+    CommitCompleted();
+    return;
+  }
+
   if (--redirect_limit_ == 0) {
     complete_status_ =
         network::URLLoaderCompletionStatus(net::ERR_TOO_MANY_REDIRECTS);

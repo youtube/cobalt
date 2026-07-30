@@ -4,53 +4,17 @@
 
 #include "components/passage_embeddings/core/passage_embeddings_test_util.h"
 
-#include "base/path_service.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/optimization_guide/core/optimization_guide_proto_util.h"
-#include "components/optimization_guide/proto/passage_embeddings_model_metadata.pb.h"
 
 namespace passage_embeddings {
 
 namespace {
-
-inline constexpr uint32_t kEmbeddingsModelInputWindowSize = 256u;
 
 EmbedderMetadata GetValidEmbedderMetadata() {
   return EmbedderMetadata(kEmbeddingsModelVersion, 3ul);
 }
 
 }  // namespace
-
-optimization_guide::TestModelInfoBuilder GetBuilderWithValidModelInfo() {
-  // Get file paths to the test model files.
-  base::FilePath test_data_dir;
-  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir);
-  test_data_dir = test_data_dir.AppendASCII("components")
-                      .AppendASCII("test")
-                      .AppendASCII("data")
-                      .AppendASCII("passage_embeddings");
-
-  // The files only exist to appease the mojo run-time check for null arguments,
-  // and they are not read by the fake embedder.
-  base::FilePath embeddings_path = test_data_dir.AppendASCII("fake_model_file");
-  base::FilePath sp_path = test_data_dir.AppendASCII("fake_model_file");
-
-  // Create serialized metadata.
-  optimization_guide::proto::PassageEmbeddingsModelMetadata model_metadata;
-  model_metadata.set_input_window_size(kEmbeddingsModelInputWindowSize);
-  model_metadata.set_output_size(3ul);
-
-  // Load a model info builder.
-  optimization_guide::TestModelInfoBuilder builder;
-  builder.SetModelFilePath(embeddings_path);
-  builder.SetAdditionalFiles({sp_path});
-  builder.SetVersion(kEmbeddingsModelVersion);
-  builder.SetModelMetadata(optimization_guide::AnyWrapProto(model_metadata));
-
-  return builder;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 TestEmbedder::TestEmbedder() = default;
 TestEmbedder::~TestEmbedder() = default;

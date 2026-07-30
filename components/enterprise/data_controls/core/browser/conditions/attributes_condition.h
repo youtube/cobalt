@@ -6,6 +6,7 @@
 #define COMPONENTS_ENTERPRISE_DATA_CONTROLS_CORE_BROWSER_CONDITIONS_ATTRIBUTES_CONDITION_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/values.h"
 #include "components/enterprise/data_controls/core/browser/conditions/condition.h"
@@ -16,6 +17,10 @@
 
 #include "components/enterprise/data_controls/core/browser/component.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+namespace re2 {
+class RE2;
+}  // namespace re2
 
 namespace data_controls {
 
@@ -50,6 +55,7 @@ class AttributesCondition {
   explicit AttributesCondition(const base::DictValue& value);
   AttributesCondition(AttributesCondition&& other);
   ~AttributesCondition();
+  bool is_size_condition() const;
 
   // Returns true if at least one of the internal values is non-null/empty, aka
   // if the JSON represented a valid condition. This should only be checked
@@ -72,6 +78,7 @@ class AttributesCondition {
   bool OsClipboardMatches(bool os_clipboard) const;
   bool OtherProfileMatches(bool other_profile) const;
   bool GeminiInChromeMatches(bool gemini_in_chrome) const;
+  bool SizeMatches(std::optional<int64_t> size) const;
 
   // Helpers to help check which attributes are meaningful to the condition.
   bool is_os_clipboard_condition() const;
@@ -85,6 +92,7 @@ class AttributesCondition {
   // corresponding attribute was not set in the JSON initializing this
   // `AttributesCondition`, and such attributes are ignored.
   std::unique_ptr<url_matcher::URLMatcher> url_matcher_;
+  std::vector<std::unique_ptr<re2::RE2>> url_regexprs_;
   std::optional<bool> incognito_;
 
   // This attribute indicates the destination/source condition must/mustn't be
@@ -99,6 +107,12 @@ class AttributesCondition {
   // the integrated Gemini browser agent (Glic). It is always null for
   // conditions not involving the agent.
   std::optional<bool> gemini_in_chrome_;
+
+  // This attribute indicates the source condition must be larger/smaller than
+  // a certain size. Size is  exclusive. It is always null for conditions not
+  // involving size.
+  std::optional<int64_t> min_size_;
+  std::optional<int64_t> max_size_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   // A destination/source must be in this set to pass the condition, unless the

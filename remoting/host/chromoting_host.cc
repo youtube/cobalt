@@ -33,9 +33,8 @@
 #include "remoting/host/ipc_constants.h"
 #include "remoting/host/mojo_caller_security_checker.h"
 #include "remoting/protocol/client_stub.h"
-#include "remoting/protocol/host_stub.h"
+#include "remoting/protocol/ice_config_fetcher.h"
 #include "remoting/protocol/input_stub.h"
-#include "remoting/protocol/transport_context.h"
 #include "remoting/protocol/webrtc_connection_to_client.h"
 #include "remoting/signaling/signaling_id_util.h"
 
@@ -82,19 +81,15 @@ const net::BackoffEntry::Policy kDefaultBackoffPolicy = {
 }  // namespace
 
 ChromotingHost::ChromotingHost(
-    DesktopEnvironmentFactory* desktop_environment_factory,
+    std::unique_ptr<PeerSessionFactory> peer_session_factory,
     std::unique_ptr<protocol::SessionManager> session_manager,
     std::unique_ptr<protocol::SessionManager> secondary_session_manager,
-    scoped_refptr<protocol::TransportContext> transport_context,
-    scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner,
     const DesktopEnvironmentOptions& options,
     const SessionPoliciesValidator& per_session_policies_validator,
     const LocalSessionPoliciesProvider* local_session_policies_provider)
-    : desktop_environment_factory_(desktop_environment_factory),
-      session_manager_(std::move(session_manager)),
+    : session_manager_(std::move(session_manager)),
       secondary_session_manager_(std::move(secondary_session_manager)),
-      transport_context_(transport_context),
-      audio_task_runner_(audio_task_runner),
+      peer_session_factory_(std::move(peer_session_factory)),
       status_monitor_(new HostStatusMonitor()),
       login_backoff_(&kDefaultBackoffPolicy),
       desktop_environment_options_(options),
@@ -211,7 +206,7 @@ void ChromotingHost::OnSessionAuthenticated(ClientSession* client) {
   std::string client_id;
   SplitSignalingIdResource(client->client_jid(), &client_id, nullptr);
 
-  // Disconnect all clients with the same client ID, except |client|.
+  // Disconnect all clients with the same client ID, except `client`.
   base::WeakPtr<ChromotingHost> self = weak_factory_.GetWeakPtr();
   auto [it, end] = clients_.equal_range(client_id);
   while (it != end) {
@@ -337,11 +332,6 @@ void ChromotingHost::OnIncomingSession(
 
   HOST_LOG << "Client connected: " << session->jid();
 
-  // Create a WebrtcConnectionToClient.
-  std::unique_ptr<protocol::ConnectionToClient> connection =
-      std::make_unique<protocol::WebrtcConnectionToClient>(
-          base::WrapUnique(session), transport_context_, audio_task_runner_);
-
   // Create a ClientSession object.
   std::vector<raw_ptr<HostExtension, VectorExperimental>> extension_ptrs;
   for (const auto& extension : extensions_) {
@@ -352,8 +342,8 @@ void ChromotingHost::OnIncomingSession(
   SplitSignalingIdResource(session->jid(), &client_id, nullptr);
   clients_.emplace(
       client_id, std::make_unique<ClientSession>(
-                     this, std::move(connection), desktop_environment_factory_,
-                     desktop_environment_options_, pairing_registry_,
+                     this, base::WrapUnique(session),
+                     peer_session_factory_.get(), desktop_environment_options_,
                      extension_ptrs, local_session_policies_provider_));
 }
 

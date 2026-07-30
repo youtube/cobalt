@@ -6,12 +6,12 @@ import 'chrome://resources/cr_components/help_bubble/help_bubble.js';
 import './help_bubble_mixin_lit_test_element.js';
 import './help_bubble_mixin_test_element.js';
 
+import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
 import type {TrackedElementProxy} from '//resources/js/tracked_element/tracked_element_proxy.js';
 import {TrackedElementProxyImpl} from '//resources/js/tracked_element/tracked_element_proxy.js';
 import type {HelpBubbleClientRemote, HelpBubbleHandlerInterface, HelpBubbleParams} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import {browserProxyFactory, HelpBubbleArrowPosition, HelpBubbleClosedReason} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import {ANCHOR_HIGHLIGHT_CLASS} from 'chrome://resources/cr_components/help_bubble/help_bubble_controller.js';
-import type {HelpBubbleController} from 'chrome://resources/cr_components/help_bubble/help_bubble_controller.js';
 import {assert, assertNotReachedCase} from 'chrome://resources/js/assert.js';
 import {TrackedElementManagerCallbackRouter} from 'chrome://resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
 import type {TrackedElementHandlerInterface, TrackedElementHandlerPendingReceiver, TrackedElementIdentifier, TrackedElementManagerRemote} from 'chrome://resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
@@ -34,6 +34,7 @@ const CLOSE_BUTTON_ALT_TEXT: string = 'Close help bubble.';
 const BODY_ICON_ALT_TEXT: string = 'Icon help bubble.';
 const CUSTOM_CONTAINER_NATIVE_ID: string =
     'kHelpBubbleMixinTestCustomContainerElementId';
+const UNKNOWN_SECONDARY_ID: string = '0';
 
 class TestTrackedElementHandler extends TestBrowserProxy implements
     TrackedElementHandlerInterface {
@@ -92,12 +93,13 @@ class TestHelpBubbleHandler extends TestBrowserProxy implements
     this.methodCalled('bindTrackedElementHandler', handler);
   }
 
-  helpBubbleButtonPressed(nativeIdentifier: string, button: number) {
-    this.methodCalled('helpBubbleButtonPressed', nativeIdentifier, button);
+  helpBubbleButtonPressed(id: TrackedElementIdentifier, button: number) {
+    this.methodCalled('helpBubbleButtonPressed', id, button);
   }
 
-  helpBubbleClosed(nativeIdentifier: string, reason: HelpBubbleClosedReason) {
-    this.methodCalled('helpBubbleClosed', nativeIdentifier, reason);
+  helpBubbleClosed(
+      id: TrackedElementIdentifier, reason: HelpBubbleClosedReason) {
+    this.methodCalled('helpBubbleClosed', id, reason);
   }
 }
 
@@ -132,26 +134,49 @@ enum Version {
     let testTrackedElementHandler: TestTrackedElementHandler;
     let container: HelpBubbleMixinTestElement|HelpBubbleMixinLitTestElement;
 
-    let titleBubble: HelpBubbleController;
-    let p1Bubble: HelpBubbleController;
-    let bulletListBubble: HelpBubbleController;
-    let spanBubble: HelpBubbleController;
-    let nestedChildBubble: HelpBubbleController;
-    let customContainerBubble: HelpBubbleController;
+    function getId(nativeIdentifier: string): TrackedElementIdentifier {
+      const elements: HTMLElement[] =
+          TrackedElementManager.getInstance().getAllElementsWithId(
+              nativeIdentifier);
+      let secondaryIdentifier = UNKNOWN_SECONDARY_ID;
+      if (elements.length) {
+        const element: HTMLElement = elements[0]!;
+        const tempSecondaryId = element.dataset['secondaryId'];
+        if (!tempSecondaryId) {
+          console.warn(
+              'Invalid or missing secondary ID for element "', nativeIdentifier,
+              '"');
+        } else {
+          secondaryIdentifier = tempSecondaryId;
+        }
+      } else {
+        console.warn('No matching HTML element for "', nativeIdentifier, '"');
+      }
+      return {nativeIdentifier, secondaryIdentifier};
+    }
 
-    const defaultParams: HelpBubbleParams = {
-      nativeIdentifier: PARAGRAPH_NATIVE_ID,
-      closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-      position: HelpBubbleArrowPosition.BOTTOM_CENTER,
-      bodyText: 'This is a help bubble.',
-      bodyIconName: 'lightbulb_outline',
-      bodyIconAltText: BODY_ICON_ALT_TEXT,
-      buttons: [],
-      focusOnShowHint: null,
-      titleText: null,
-      progress: null,
-      timeout: null,
-    };
+    // Makes a default set of help bubble params with the given overrides (if
+    // specified).
+    function makeParams(overrides: Partial<HelpBubbleParams> = {}) {
+      return Object.assign(
+          {
+            id: {
+              nativeIdentifier: PARAGRAPH_NATIVE_ID,
+              secondaryIdentifier: UNKNOWN_SECONDARY_ID,
+            },
+            closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
+            position: HelpBubbleArrowPosition.BOTTOM_CENTER,
+            bodyText: 'This is a help bubble.',
+            bodyIconName: 'lightbulb_outline',
+            bodyIconAltText: BODY_ICON_ALT_TEXT,
+            buttons: [],
+            focusOnShowHint: null,
+            titleText: null,
+            progress: null,
+            timeout: null,
+          },
+          overrides);
+    }
 
     /**
      * Waits for the current frame to render, which queues intersection events,
@@ -244,24 +269,23 @@ enum Version {
       const spanEl = container.shadowRoot!.querySelector('span');
       assertTrue(spanEl !== null, 'connectedCallback: span element exists');
 
-      titleBubble = container.registerHelpBubble(TITLE_NATIVE_ID, '#title')!;
-      p1Bubble = container.registerHelpBubble(PARAGRAPH_NATIVE_ID, '#p1')!;
-      bulletListBubble =
-          container.registerHelpBubble(LIST_NATIVE_ID, '#bulletList')!;
-      spanBubble = container.registerHelpBubble(SPAN_NATIVE_ID, spanEl)!;
+      assertTrue(container.registerHelpBubble(TITLE_NATIVE_ID, '#title'));
+      assertTrue(container.registerHelpBubble(PARAGRAPH_NATIVE_ID, '#p1'));
+      assertTrue(container.registerHelpBubble(LIST_NATIVE_ID, '#bulletList'));
+      assertTrue(container.registerHelpBubble(SPAN_NATIVE_ID, spanEl));
 
       // using different types of selectors to test query mechanism
-      nestedChildBubble = container.registerHelpBubble(
-          NESTED_CHILD_NATIVE_ID, ['#container-element', '.child-element'])!;
+      assertTrue(container.registerHelpBubble(
+          NESTED_CHILD_NATIVE_ID, ['#container-element', '.child-element']));
 
       const customContainer =
           container.shadowRoot!.querySelector<HTMLElement>('#custom-container');
       assertTrue(
           customContainer !== null,
           'connectedCallback: custom container exists');
-      customContainerBubble = container.registerHelpBubble(
+      assertTrue(container.registerHelpBubble(
           CUSTOM_CONTAINER_NATIVE_ID, '#custom-anchor',
-          {containerElement: customContainer})!;
+          {containerElement: customContainer}));
 
       return waitForVisibilityEvents();
     });
@@ -273,25 +297,25 @@ enum Version {
     test('shows bubble when called directly', () => {
       assertFalse(container.isHelpBubbleShowing());
       assertFalse(container.isHelpBubbleShowingForTesting('p1'));
-      container.showHelpBubble(p1Bubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowing());
       assertTrue(container.isHelpBubbleShowingForTesting('p1'));
     });
 
     test('shows bubble anchored to arbitrary HTMLElment', () => {
       assertFalse(container.isHelpBubbleShowing());
-      assertFalse(spanBubble.isBubbleShowing());
-      container.showHelpBubble(spanBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(SPAN_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowing());
-      assertTrue(spanBubble.isBubbleShowing());
+      assertTrue(container.isHelpBubbleShowingForTesting(SPAN_NATIVE_ID));
     });
 
     test('shows bubble attached to custom containerElement', () => {
       assertFalse(container.isHelpBubbleShowing());
-      assertFalse(customContainerBubble.isBubbleShowing());
-      container.showHelpBubble(customContainerBubble, defaultParams);
+      container.showHelpBubble(
+          makeParams({id: getId(CUSTOM_CONTAINER_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowing());
-      assertTrue(customContainerBubble.isBubbleShowing());
+      assertTrue(
+          container.isHelpBubbleShowingForTesting(CUSTOM_CONTAINER_NATIVE_ID));
       const bubble = container.getHelpBubbleForTesting('custom-anchor');
       assertTrue(!!bubble, 'bubble exists');
       assertEquals(
@@ -302,7 +326,8 @@ enum Version {
     test('can pierce shadow dom to anchor to deep query', () => {
       const containerElement =
           container.shadowRoot!.querySelector('#container-element');
-      let childElement = container.shadowRoot!.querySelector('.child-element');
+      let childElement: HTMLElement|null =
+          container.shadowRoot!.querySelector('.child-element');
 
       assertTrue(containerElement !== null, 'container element is found');
       assertTrue(
@@ -313,15 +338,13 @@ enum Version {
       assertTrue(
           childElement !== null, 'child element is rendered in shadow dom');
 
-      assertTrue(
-          childElement === nestedChildBubble.getAnchor(),
-          'help bubble anchors to correct element in shadow dom');
-
       assertFalse(container.isHelpBubbleShowing());
-      assertFalse(nestedChildBubble.isBubbleShowing());
-      container.showHelpBubble(nestedChildBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(NESTED_CHILD_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowing());
-      assertTrue(nestedChildBubble.isBubbleShowing());
+      const bubble = container.getHelpBubbleForTesting(childElement);
+      assert(bubble);
+      assert(bubble.getAnchorElement());
+      assertEquals(childElement, bubble.getAnchorElement());
     });
 
     test('reports not open for other elements', () => {
@@ -332,41 +355,41 @@ enum Version {
     });
 
     test('hides bubble when called directly', () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
-      assertTrue(container.hideHelpBubble(p1Bubble.getNativeId()));
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
+      assertTrue(container.hideHelpBubble(PARAGRAPH_NATIVE_ID));
       assertFalse(container.isHelpBubbleShowing());
     });
 
     test('called directly doesn\'t hide wrong bubble', () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
-      assertFalse(container.hideHelpBubble(titleBubble.getNativeId()));
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
+      assertFalse(container.hideHelpBubble(TITLE_NATIVE_ID));
       assertTrue(container.isHelpBubbleShowing());
     });
 
     test('show and hide multiple bubbles directly', () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowingForTesting('p1'));
       assertFalse(container.isHelpBubbleShowingForTesting('title'));
       assertTrue(container.isHelpBubbleShowing());
 
-      container.showHelpBubble(titleBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(TITLE_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowingForTesting('p1'));
       assertTrue(container.isHelpBubbleShowingForTesting('title'));
       assertTrue(container.isHelpBubbleShowing());
 
-      container.hideHelpBubble(p1Bubble.getNativeId());
+      container.hideHelpBubble(PARAGRAPH_NATIVE_ID);
       assertFalse(container.isHelpBubbleShowingForTesting('p1'));
       assertTrue(container.isHelpBubbleShowingForTesting('title'));
       assertTrue(container.isHelpBubbleShowing());
 
-      container.hideHelpBubble(titleBubble.getNativeId());
+      container.hideHelpBubble(TITLE_NATIVE_ID);
       assertFalse(container.isHelpBubbleShowingForTesting('p1'));
       assertFalse(container.isHelpBubbleShowingForTesting('title'));
       assertFalse(container.isHelpBubbleShowing());
     });
 
     test('shows help bubble when called via proxy', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing(), 'a bubble is showing');
       const bubble = container.getHelpBubbleForTesting('p1');
@@ -378,7 +401,7 @@ enum Version {
     });
 
     test('uses close button alt text', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
       const bubble = container.getHelpBubbleForTesting('p1')!;
@@ -391,22 +414,23 @@ enum Version {
     });
 
     test('uses body icon', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      const params = makeParams();
+      callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
       const bubble = container.getHelpBubbleForTesting('p1')!;
       assert(bubble);
-      assertEquals(bubble.bodyIconName, defaultParams.bodyIconName);
+      assertEquals(bubble.bodyIconName, params.bodyIconName);
       const bodyIcon =
           bubble.shadowRoot.querySelector<HTMLElement>('#bodyIcon');
       assertTrue(!!bodyIcon);
       const ironIcon = bodyIcon.querySelector('cr-icon');
       assertTrue(!!ironIcon);
-      assertEquals(`iph:${defaultParams.bodyIconName}`, ironIcon.icon);
+      assertEquals(`iph:${params.bodyIconName}`, ironIcon.icon);
     });
 
     test('does not use body icon when not defined', async () => {
-      const noIconParams = {...defaultParams, bodyIconName: null};
+      const noIconParams = makeParams({bodyIconName: null});
       callbackRouterRemote.showHelpBubble(noIconParams);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
@@ -420,44 +444,37 @@ enum Version {
     });
 
     test('hides help bubble when called via proxy', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      const params = makeParams();
+      callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
-      callbackRouterRemote.hideHelpBubble(defaultParams.nativeIdentifier);
+      callbackRouterRemote.hideHelpBubble(params.id);
       await microtasksFinished();
       assertFalse(container.isHelpBubbleShowing());
     });
 
     test('adds class to element on external help bubble shown', async () => {
-      callbackRouterRemote.externalHelpBubbleUpdated(TITLE_NATIVE_ID, true);
+      callbackRouterRemote.externalHelpBubbleUpdated(
+          getId(TITLE_NATIVE_ID), true);
       await microtasksFinished();
       assertTrue(container.$.title.classList.contains(ANCHOR_HIGHLIGHT_CLASS));
-      callbackRouterRemote.externalHelpBubbleUpdated(TITLE_NATIVE_ID, false);
+      callbackRouterRemote.externalHelpBubbleUpdated(
+          getId(TITLE_NATIVE_ID), false);
       await microtasksFinished();
       assertFalse(container.$.title.classList.contains(ANCHOR_HIGHLIGHT_CLASS));
     });
 
     test('doesn\'t hide help bubble when called with wrong id', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
-      callbackRouterRemote.hideHelpBubble(LIST_NATIVE_ID);
+      callbackRouterRemote.hideHelpBubble(getId(LIST_NATIVE_ID));
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
     });
 
     test('ignores unregistered ID in ShowHelpBubble call', async () => {
-      const params: HelpBubbleParams = {
-        nativeIdentifier: 'This is an unregistered identifier',
-        closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-        bodyIconAltText: BODY_ICON_ALT_TEXT,
-        position: HelpBubbleArrowPosition.BOTTOM_CENTER,
-        bodyText: 'This is a help bubble.',
-        buttons: [],
-        bodyIconName: null,
-        focusOnShowHint: null,
-        progress: null,
-        timeout: null,
-        titleText: null,
-      };
+      const params = makeParams({
+        id: getId('This is an unregistered identifier'),
+      });
 
       callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
@@ -465,18 +482,19 @@ enum Version {
     });
 
     test('ignores unregistered ID in HideHelpBubble call', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
-      callbackRouterRemote.hideHelpBubble('This is an unregistered identifier');
+      callbackRouterRemote.hideHelpBubble(
+          getId('This is an unregistered identifier'));
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
     });
 
     test('ignores unregistered ID in focus call', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
       callbackRouterRemote.toggleFocusForAccessibility(
-          'This is an unregistered identifier');
+          getId('This is an unregistered identifier'));
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
     });
@@ -512,11 +530,11 @@ enum Version {
     });
 
     test('sends event on element activated', async () => {
-      container.showHelpBubble(titleBubble, defaultParams);
-      container.showHelpBubble(bulletListBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(TITLE_NATIVE_ID)}));
+      container.showHelpBubble(makeParams({id: getId(LIST_NATIVE_ID)}));
       await microtasksFinished();
-      container.notifyHelpBubbleAnchorActivated(bulletListBubble.getNativeId());
-      container.notifyHelpBubbleAnchorActivated(titleBubble.getNativeId());
+      container.notifyHelpBubbleAnchorActivated(LIST_NATIVE_ID);
+      container.notifyHelpBubbleAnchorActivated(TITLE_NATIVE_ID);
       assertEquals(
           2, testTrackedElementHandler.getCallCount('trackedElementActivated'));
       assertDeepEquals(
@@ -525,13 +543,12 @@ enum Version {
     });
 
     test('sends custom events', async () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
-      container.showHelpBubble(titleBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
+      container.showHelpBubble(makeParams({id: getId(TITLE_NATIVE_ID)}));
       await microtasksFinished();
       container.notifyHelpBubbleAnchorCustomEvent(
-          p1Bubble.getNativeId(), EVENT1_NAME);
-      container.notifyHelpBubbleAnchorCustomEvent(
-          titleBubble.getNativeId(), EVENT2_NAME);
+          PARAGRAPH_NATIVE_ID, EVENT1_NAME);
+      container.notifyHelpBubbleAnchorCustomEvent(TITLE_NATIVE_ID, EVENT2_NAME);
       assertEquals(
           2,
           testTrackedElementHandler.getCallCount('trackedElementCustomEvent'));
@@ -544,21 +561,22 @@ enum Version {
     });
 
     test('sends event on closed due to anchor losing visibility', async () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
+      const id = getId(PARAGRAPH_NATIVE_ID);
+      container.showHelpBubble(makeParams({id}));
 
       // Hiding the container will cause the bubble to be closed.
       container.$.p1.style.display = 'none';
       await waitForVisibilityEvents();
 
       assertEquals(1, mockHandler.getCallCount('helpBubbleClosed'));
-      assertDeepEquals(
-          [[PARAGRAPH_NATIVE_ID, HelpBubbleClosedReason.kPageChanged]],
-          mockHandler.getArgs('helpBubbleClosed'));
+      const expected = [[id, HelpBubbleClosedReason.kPageChanged]];
+      const actual = mockHandler.getArgs('helpBubbleClosed');
+      assertDeepEquals(expected, actual);
       assertFalse(container.isHelpBubbleShowing());
     });
 
     test('does not send event when non-anchor loses visibility', async () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
 
       // This is not the current bubble anchor, so should not send an event.
       container.$.title.style.display = 'none';
@@ -568,7 +586,7 @@ enum Version {
     });
 
     test('does not timeout by default', async () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(PARAGRAPH_NATIVE_ID)}));
 
       // This is not the current bubble anchor, so should not send an event.
       container.$.title.style.display = 'none';
@@ -581,13 +599,14 @@ enum Version {
     });
 
     test('reshow bubble', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      const params = makeParams();
+      callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
-      callbackRouterRemote.hideHelpBubble(defaultParams.nativeIdentifier);
+      callbackRouterRemote.hideHelpBubble(params.id);
       await microtasksFinished();
       assertFalse(container.isHelpBubbleShowing());
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
       const bubble = container.getHelpBubbleForTesting('p1');
@@ -596,24 +615,14 @@ enum Version {
       assertTrue(isVisible(bubble));
     });
 
-    const paramsWithTitle: HelpBubbleParams = {
-      nativeIdentifier: TITLE_NATIVE_ID,
-      closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-      bodyIconAltText: BODY_ICON_ALT_TEXT,
-      position: HelpBubbleArrowPosition.TOP_CENTER,
-      bodyText: 'This is another help bubble.',
-      titleText: 'This is a title',
-      buttons: [],
-      bodyIconName: null,
-      focusOnShowHint: null,
-      progress: null,
-      timeout: null,
-    };
-
     test('shows multiple bubbles', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
-      callbackRouterRemote.showHelpBubble(paramsWithTitle);
+      callbackRouterRemote.showHelpBubble(makeParams({
+        id: getId(TITLE_NATIVE_ID),
+        titleText: 'This is a title',
+        position: HelpBubbleArrowPosition.TOP_CENTER,
+      }));
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
       const bubble1 = container.getHelpBubbleForTesting('title');
@@ -627,8 +636,13 @@ enum Version {
     });
 
     test('shows bubbles with and without title', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
+      const paramsWithTitle = makeParams({
+        id: getId(TITLE_NATIVE_ID),
+        titleText: 'This is a title',
+        position: HelpBubbleArrowPosition.TOP_CENTER,
+      });
       callbackRouterRemote.showHelpBubble(paramsWithTitle);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
@@ -641,22 +655,14 @@ enum Version {
       assertEquals(paramsWithTitle.titleText, titleBubble.titleText);
     });
 
-    const paramsWithProgress: HelpBubbleParams = {
-      nativeIdentifier: LIST_NATIVE_ID,
-      closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-      bodyIconAltText: BODY_ICON_ALT_TEXT,
-      position: HelpBubbleArrowPosition.TOP_CENTER,
-      bodyText: 'This is another help bubble.',
-      progress: {current: 1, total: 3},
-      buttons: [],
-      bodyIconName: null,
-      focusOnShowHint: null,
-      timeout: null,
-      titleText: null,
-    };
-
     test('shows bubbles with and without progress', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      const paramsWithProgress = makeParams({
+        id: getId(LIST_NATIVE_ID),
+        position: HelpBubbleArrowPosition.TOP_CENTER,
+        progress: {current: 1, total: 3},
+      });
+
+      callbackRouterRemote.showHelpBubble(makeParams());
       await microtasksFinished();
       callbackRouterRemote.showHelpBubble(paramsWithProgress);
       await microtasksFinished();
@@ -667,16 +673,22 @@ enum Version {
       // correctly is present in help_bubble_test.ts, so it is sufficient to
       // verify that the property is set correctly.
       assertFalse(!!paragraphBubble.progress);
-      assertDeepEquals({current: 1, total: 3}, progressBubble.progress);
+      assertDeepEquals(paramsWithProgress.progress, progressBubble.progress);
     });
 
     test('hides multiple bubbles', async () => {
-      callbackRouterRemote.showHelpBubble(defaultParams);
+      const params = makeParams();
+      callbackRouterRemote.showHelpBubble(params);
       await microtasksFinished();
+      const paramsWithTitle = makeParams({
+        id: getId(TITLE_NATIVE_ID),
+        titleText: 'This is a title',
+        position: HelpBubbleArrowPosition.TOP_CENTER,
+      });
       callbackRouterRemote.showHelpBubble(paramsWithTitle);
       await microtasksFinished();
 
-      callbackRouterRemote.hideHelpBubble(defaultParams.nativeIdentifier);
+      callbackRouterRemote.hideHelpBubble(params.id);
       await microtasksFinished();
       assertTrue(container.isHelpBubbleShowing());
       assertEquals(
@@ -684,7 +696,7 @@ enum Version {
           container.getHelpBubbleForTesting('title')?.getAnchorElement());
       assertEquals(null, container.getHelpBubbleForTesting('p1'));
 
-      callbackRouterRemote.hideHelpBubble(paramsWithTitle.nativeIdentifier);
+      callbackRouterRemote.hideHelpBubble(paramsWithTitle.id);
       await microtasksFinished();
       assertFalse(container.isHelpBubbleShowing());
       assertEquals(null, container.getHelpBubbleForTesting('title'));
@@ -692,43 +704,37 @@ enum Version {
     });
 
     test('sends event on closed via button', async () => {
-      container.showHelpBubble(p1Bubble, defaultParams);
+      const id = getId(PARAGRAPH_NATIVE_ID);
+      container.showHelpBubble(makeParams({id}));
 
       // Click the close button.
       container.shadowRoot!.querySelector('help-bubble')!.$.close.click();
       await waitForVisibilityEvents();
       assertEquals(1, mockHandler.getCallCount('helpBubbleClosed'));
       assertDeepEquals(
-          [[PARAGRAPH_NATIVE_ID, HelpBubbleClosedReason.kDismissedByUser]],
+          [[id, HelpBubbleClosedReason.kDismissedByUser]],
           mockHandler.getArgs('helpBubbleClosed'));
       assertFalse(container.isHelpBubbleShowing());
     });
 
-    const buttonParams: HelpBubbleParams = {
-      nativeIdentifier: PARAGRAPH_NATIVE_ID,
-      closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-      bodyIconAltText: BODY_ICON_ALT_TEXT,
-      position: HelpBubbleArrowPosition.TOP_CENTER,
-      bodyIconName: null,
-      bodyText: 'This is another help bubble.',
-      titleText: 'This is a title',
-      buttons: [
-        {
-          text: 'button1',
-          isDefault: false,
-        },
-        {
-          text: 'button2',
-          isDefault: true,
-        },
-      ],
-      focusOnShowHint: null,
-      progress: null,
-      timeout: null,
-    };
-
     test('sends action button clicked event', async () => {
-      container.showHelpBubble(p1Bubble, buttonParams);
+      const id = getId(PARAGRAPH_NATIVE_ID);
+      const buttonParams = makeParams({
+        id,
+        position: HelpBubbleArrowPosition.TOP_CENTER,
+        buttons: [
+          {
+            text: 'button1',
+            isDefault: false,
+          },
+          {
+            text: 'button2',
+            isDefault: true,
+          },
+        ],
+      });
+
+      container.showHelpBubble(buttonParams);
       await microtasksFinished();
 
       // Click one of the action buttons.
@@ -740,24 +746,9 @@ enum Version {
       await waitForVisibilityEvents();
       assertEquals(1, mockHandler.getCallCount('helpBubbleButtonPressed'));
       assertDeepEquals(
-          [[PARAGRAPH_NATIVE_ID, 1]],
-          mockHandler.getArgs('helpBubbleButtonPressed'));
+          [[id, 1]], mockHandler.getArgs('helpBubbleButtonPressed'));
       assertFalse(container.isHelpBubbleShowing());
     });
-
-    const timeoutParams: HelpBubbleParams = {
-      nativeIdentifier: PARAGRAPH_NATIVE_ID,
-      closeButtonAltText: CLOSE_BUTTON_ALT_TEXT,
-      bodyIconName: null,
-      bodyIconAltText: BODY_ICON_ALT_TEXT,
-      position: HelpBubbleArrowPosition.TOP_CENTER,
-      bodyText: 'This is another help bubble.',
-      titleText: 'This is a title',
-      buttons: [],
-      focusOnShowHint: null,
-      progress: null,
-      timeout: null,
-    };
 
     // It is hard to guarantee the correct timing on various test systems,
     // so the 'before timeout' and 'after timeout' tests are split
@@ -767,14 +758,13 @@ enum Version {
     // Use a long timeout to test base state that a timeout will
     // not be accidentally triggered when a timeout is set
     test('does not immediately timeout', async () => {
-      const longTimeoutParams = {
-        ...timeoutParams,
+      const longTimeoutParams = makeParams({
         timeout: {
           microseconds: BigInt(10 * 1000 * 1000),  // 10s
         },
-      };
+      });
 
-      container.showHelpBubble(p1Bubble, longTimeoutParams);
+      container.showHelpBubble(longTimeoutParams);
       await microtasksFinished();
       assertEquals(
           0, mockHandler.getCallCount('helpBubbleClosed'),
@@ -785,15 +775,16 @@ enum Version {
     // After timeout
     // Use a short timeout and a retry loop to
     test('sends timeout event', async () => {
+      const id = getId(PARAGRAPH_NATIVE_ID);
       const timeoutMs = 100;
-      const shortTimeoutParams = {
-        ...timeoutParams,
+      const shortTimeoutParams = makeParams({
+        id,
         timeout: {
           microseconds: BigInt(timeoutMs * 1000),  // 100ms
         },
-      };
+      });
 
-      container.showHelpBubble(p1Bubble, shortTimeoutParams);
+      container.showHelpBubble(shortTimeoutParams);
       await microtasksFinished();
       await waitForSuccess({
         retryIntervalMs: 50,
@@ -803,7 +794,7 @@ enum Version {
             'helpBubbleClosed has been called'),
       }) as number;
       assertDeepEquals(
-          [[PARAGRAPH_NATIVE_ID, HelpBubbleClosedReason.kTimedOut]],
+          [[id, HelpBubbleClosedReason.kTimedOut]],
           mockHandler.getArgs('helpBubbleClosed'),
           'helpBubbleClosed is called with correct arguments');
       assertFalse(container.isHelpBubbleShowing(), 'no bubbles are showing');
@@ -814,7 +805,7 @@ enum Version {
           container.registerHelpBubble(LIST_ITEM_NATIVE_ID, '#bulletList');
       assertTrue(listItemBubble !== null, 'help bubble is registered');
       assertTrue(
-          container.canShowHelpBubble(listItemBubble),
+          container.canShowHelpBubble(LIST_ITEM_NATIVE_ID),
           'help bubble can be shown');
 
       // re-register when help bubble is not showing
@@ -824,17 +815,18 @@ enum Version {
           listItemBubble !== null,
           'help bubble can be re-registered with same nativeId');
       assertTrue(
-          container.canShowHelpBubble(listItemBubble),
+          container.canShowHelpBubble(LIST_ITEM_NATIVE_ID),
           'help bubble can be shown after re-registering');
 
       // un-register directly when help bubble is not showing
       container.unregisterHelpBubble(LIST_ITEM_NATIVE_ID);
       assertFalse(
-          container.canShowHelpBubble(listItemBubble),
+          container.canShowHelpBubble(LIST_ITEM_NATIVE_ID),
           'help bubble cannot be shown');
       // unregisterHelpBubble clears out the nativeIds
       assertThrows(
-          () => container.showHelpBubble(listItemBubble, defaultParams),
+          () => container.showHelpBubble(
+              makeParams({id: getId(LIST_ITEM_NATIVE_ID)})),
           'Can\'t show help bubble',
       );
     });
@@ -844,20 +836,18 @@ enum Version {
           container.registerHelpBubble(LIST_ITEM_NATIVE_ID, '#list-item');
       assertTrue(listItemBubble !== null, 'help bubble is registered');
       assertTrue(
-          container.canShowHelpBubble(listItemBubble),
+          container.canShowHelpBubble(LIST_ITEM_NATIVE_ID),
           'help bubble can be shown');
       assertFalse(container.isHelpBubbleShowing());
       assertFalse(container.isHelpBubbleShowingForTesting('list-item'));
 
-      container.showHelpBubble(listItemBubble, defaultParams);
+      container.showHelpBubble(makeParams({id: getId(LIST_ITEM_NATIVE_ID)}));
       assertTrue(container.isHelpBubbleShowing());
       assertTrue(container.isHelpBubbleShowingForTesting('list-item'));
 
       // re-register when help bubble is shown
-      const result =
-          container.registerHelpBubble(LIST_ITEM_NATIVE_ID, '#list-item');
-      assertTrue(
-          result === null,
+      assertFalse(
+          container.registerHelpBubble(LIST_ITEM_NATIVE_ID, '#list-item'),
           'registerHelpBubble fails when help bubble is shown');
       assertTrue(
           container.isHelpBubbleShowing(),

@@ -1196,8 +1196,10 @@ inline constexpr char kSuppressDifferentOriginSubframeJSDialogs[] =
 inline constexpr char kUserAgentReduction[] = "user_agent_reduction";
 
 #if !BUILDFLAG(IS_ANDROID)
-// Boolean determining whether the projects panel entrypoint is displayed in the
-// tab strip.
+// Boolean determining whether the organizer panel entrypoint is displayed in
+// the tab strip.
+inline constexpr char kOrganizerPanelEntrypointEnabled[] =
+    "organizer_panel.entrypoint_enabled";
 inline constexpr char kProjectsPanelEntrypointEnabled[] =
     "projects_panel.entrypoint_enabled";
 
@@ -1223,8 +1225,10 @@ inline constexpr char kGoogleSearchSidePanelEnabled[] =
 inline constexpr char kTabSearchPinnedToTabstrip[] =
     "tab_search.pinned_to_tabstrip";
 
-// Boolean determining whether the projects panel button is pinned to the tab
+// Boolean determining whether the organizer panel button is pinned to the tab
 // strip.
+inline constexpr char kOrganizerPanelPinnedToTabstrip[] =
+    "organizer_panel.pinned_to_tabstrip";
 inline constexpr char kProjectsPanelPinnedToTabstrip[] =
     "projects_panel.pinned_to_tabstrip";
 
@@ -2266,6 +2270,9 @@ inline constexpr char kTabCaptureAllowedByOrigins[] =
 inline constexpr char kSameOriginTabCaptureAllowedByOrigins[] =
     "hardware.same_origin_tab_capture_allowed_by_origins";
 
+// Boolean determining whether the glass frame is enabled.
+inline constexpr char kGlassFrameEnabled[] = "glass_frame.enabled";
+
 #if BUILDFLAG(IS_CHROMEOS)
 // An any-api scoped refresh token for enterprise-enrolled devices.  Allows
 // for connection to Google APIs when the user isn't logged in.  Currently used
@@ -2332,9 +2339,6 @@ inline constexpr char kRelaunchHeadsUpPeriod[] =
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
-// Boolean determining whether the glass frame is enabled.
-inline constexpr char kGlassFrameEnabled[] = "glass_frame.enabled";
-
 // Counts how many times prominent call-to-actions have occurred as part of the
 // Mac restore permissions experiment. https://crbug.com/1211052
 inline constexpr char kMacRestoreLocationPermissionsExperimentCount[] =

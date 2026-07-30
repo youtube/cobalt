@@ -22,7 +22,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/testing_profile.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
 #include "components/browsing_data/core/pref_names.h"
 #include "components/history/core/browser/download_row.h"
@@ -48,15 +47,21 @@ class DownloadsCounterTest : public InProcessBrowserTest,
   void SetUpOnMainThread() override {
     time_ = base::Time::Now();
     items_count_ = 0;
-    manager_ = browser()->profile()->GetDownloadManager();
+    manager_ = browser()->GetProfile()->GetDownloadManager();
     WaitForInitialization(manager_);
-    history_ = DownloadCoreServiceFactory::GetForBrowserContext(
-                   browser()->GetProfile())
-                   ->GetDownloadHistory();
-    history_->AddObserver(this);
+    DownloadCoreService* service =
+        DownloadCoreServiceFactory::GetForBrowserContext(
+            browser()->GetProfile());
+    if (service) {
+      service->InitializeHistory();
+      history_ = service->GetDownloadHistory();
+    }
+    if (history_) {
+      history_->AddObserver(this);
+    }
 
     otr_manager_ = browser()
-                       ->profile()
+                       ->GetProfile()
                        ->GetPrimaryOTRProfile(/*create_if_needed=*/true)
                        ->GetDownloadManager();
     WaitForInitialization(otr_manager_);
@@ -65,8 +70,10 @@ class DownloadsCounterTest : public InProcessBrowserTest,
   }
 
   void TearDownOnMainThread() override {
-    history_->RemoveObserver(this);
-    history_ = nullptr;
+    if (history_) {
+      history_->RemoveObserver(this);
+      history_ = nullptr;
+    }
     otr_manager_ = nullptr;
     manager_ = nullptr;
   }
@@ -158,12 +165,12 @@ class DownloadsCounterTest : public InProcessBrowserTest,
   // Miscellaneous. ------------------------------------------------------------
 
   void SetDownloadsDeletionPref(bool value) {
-    browser()->profile()->GetPrefs()->SetBoolean(
+    browser()->GetProfile()->GetPrefs()->SetBoolean(
         browsing_data::prefs::kDeleteDownloadHistory, value);
   }
 
   void SetDeletionPeriodPref(browsing_data::TimePeriod period) {
-    browser()->profile()->GetPrefs()->SetInteger(
+    browser()->GetProfile()->GetPrefs()->SetInteger(
         browsing_data::prefs::kDeleteTimePeriod, static_cast<int>(period));
   }
 
@@ -266,7 +273,7 @@ class DownloadsCounterTest : public InProcessBrowserTest,
     }
   }
 
- private:
+ protected:
   base::OnceClosure quit_closure_;
   std::unique_ptr<base::RunLoop> run_loop_;
 
@@ -293,7 +300,7 @@ class DownloadsCounterTest : public InProcessBrowserTest,
 
 // Tests that we count the total number of downloads correctly.
 IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, Count) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DownloadsCounter counter(profile);
   counter.Init(profile->GetPrefs(),
                base::BindRepeating(&DownloadsCounterTest::ResultCallback,
@@ -323,24 +330,25 @@ IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, Count) {
 // Tests that the counter correctly counts downloads asynchronously when the
 // manager is initialized after the count is requested.
 IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, AsynchronousInitialization) {
-  std::unique_ptr<TestingProfile> testing_profile =
-      std::make_unique<TestingProfile>();
+  Profile* profile = browser()->GetProfile();
+  manager_ = nullptr;
 
   auto mock_download_manager =
       std::make_unique<testing::NiceMock<content::MockDownloadManager>>();
   content::MockDownloadManager* mock_manager_ptr = mock_download_manager.get();
+  EXPECT_CALL(*mock_manager_ptr, GetBrowserContext())
+      .WillRepeatedly(testing::Return(profile));
 
-  testing_profile->SetDownloadManagerForTesting(
-      std::move(mock_download_manager));
+  profile->SetDownloadManagerForTesting(std::move(mock_download_manager));
 
-  DownloadsCounter counter(testing_profile.get());
-  counter.Init(testing_profile->GetPrefs(),
+  DownloadsCounter counter(profile);
+  counter.Init(profile->GetPrefs(),
                base::BindRepeating(&DownloadsCounterTest::ResultCallback,
                                    base::Unretained(this)));
 
   // 1. Set up expectations to start as uninitialized.
   content::DownloadManager::Observer* observer = nullptr;
-  EXPECT_CALL(*mock_manager_ptr, AddObserver(testing::_))
+  EXPECT_CALL(*mock_manager_ptr, AddObserver(&counter))
       .WillOnce(testing::SaveArg<0>(&observer));
   EXPECT_CALL(*mock_manager_ptr, IsManagerInitialized())
       .WillRepeatedly(testing::Return(false));
@@ -363,7 +371,7 @@ IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, AsynchronousInitialization) {
 
 // Tests that not just standard complete downloads are counted.
 IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, Types) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DownloadsCounter counter(profile);
   counter.Init(profile->GetPrefs(),
                base::BindRepeating(&DownloadsCounterTest::ResultCallback,
@@ -393,7 +401,7 @@ IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, Types) {
 
 // Tests that downloads not persisted by DownloadHistory are not counted.
 IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, NotPersisted) {
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DownloadsCounter counter(profile);
   counter.Init(profile->GetPrefs(),
                base::BindRepeating(&DownloadsCounterTest::ResultCallback,
@@ -448,7 +456,7 @@ IN_PROC_BROWSER_TEST_F(DownloadsCounterTest, MAYBE_TimeRanges) {
 
   WaitForDownloadHistory();
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
   DownloadsCounter counter(profile);
   counter.Init(profile->GetPrefs(),
                base::BindRepeating(&DownloadsCounterTest::ResultCallback,

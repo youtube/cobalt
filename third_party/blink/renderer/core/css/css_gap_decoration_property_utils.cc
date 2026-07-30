@@ -221,6 +221,7 @@ RuleVisibilityItems CSSGapDecorationUtils::ResolveRuleVisibilityItemsValue(
   // https://drafts.csswg.org/css-gaps-1/#visibility-rules.
   switch (container_type) {
     case GapGeometry::ContainerType::kGrid:
+    case GapGeometry::ContainerType::kGridLanes:
       return RuleVisibilityItems::kAll;
     case GapGeometry::ContainerType::kFlex:
     case GapGeometry::ContainerType::kMultiColumn:

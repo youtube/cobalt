@@ -43,6 +43,7 @@
 
 class BrowserWindowInterface;
 class ExtensionsContainerViews;
+class MediaToolbarButton;
 class WebUILocationBar;
 class WebUIToolbarUI;
 class WebUIToolbarInternalWebView;
@@ -156,6 +157,7 @@ class WebUIToolbarWebView
     return &pinned_toolbar_actions_;
   }
   AvatarToolbarButtonInterface* GetAvatarToolbarButtonInterface();
+  MediaToolbarButton* GetMediaToolbarButton();
   WebUIAppMenuControl* GetAppMenuControl() { return &app_menu_control_; }
   ExtensionsContainerViews* extensions_container_views();
   const WebUIAppMenuControl* GetAppMenuControl() const {
@@ -170,6 +172,7 @@ class WebUIToolbarWebView
   WebUILocationBar* GetLocationBar() { return location_bar_.get(); }
 
   // WebUIToolbarUI::DependencyProvider:
+  base::WeakPtr<DependencyProvider> GetWeakPtr() override;
   browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*
   GetBrowserControlsDelegate() override;
   toolbar_ui_api::ToolbarUIService::ToolbarUIServiceDelegate*
@@ -207,6 +210,10 @@ class WebUIToolbarWebView
   void MovePinnedToolbarActionBy(
       toolbar_ui_api::mojom::PinnedToolbarAction action_id,
       int32_t delta) override;
+  void MoveExtensionAction(const std::string& extension_id,
+                           int32_t target_index) override;
+  void MoveExtensionActionBy(const std::string& extension_id,
+                             int32_t delta) override;
   void OnLhsChipMousePressed(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnLhsChipClicked(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
@@ -576,6 +583,8 @@ class WebUIToolbarWebView
   //
   // See GetFlexSpecification() for more information.
   bool location_bar_takes_priority_ = false;
+
+  base::WeakPtrFactory<DependencyProvider> weak_factory_{this};
 
   // This WeakPtrFactory is used to keep tabs on pending state pushes, and then
   // used to cancel them if the state is later updated again before we post a

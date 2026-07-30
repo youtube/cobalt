@@ -15,7 +15,6 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -34,14 +33,6 @@
 
 namespace autofill {
 
-bool IsAcceptableSuggestionType(SuggestionType id) {
-  using enum SuggestionType;
-  static constexpr auto kUnacceptableItemIds =
-      DenseSet({kSeparator, kInsecureContextPaymentDisabledMessage,
-                kMixedFormMessage, kTitle});
-  return !kUnacceptableItemIds.contains(id);
-}
-
 SuggestionSection GetSuggestionSection(SuggestionType type) {
   switch (type) {
     // Structural items.
@@ -53,6 +44,7 @@ SuggestionSection GetSuggestionSection(SuggestionType type) {
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
     case SuggestionType::kAtMemoryAiDisclosure:
+    case SuggestionType::kAtMemorySourceAttribution:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kFreeformFooter:

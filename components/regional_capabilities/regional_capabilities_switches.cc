@@ -12,15 +12,24 @@ namespace switches {
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kTaiyakiAllSurfaces, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSearchEngineChoiceScreenSnackbar,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsSearchEngineChoiceScreenSnackbarEnabled() {
+  return base::FeatureList::IsEnabled(kSearchEngineChoiceScreenSnackbar);
+}
 #endif  // BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kDynamicProfileCountry,
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+bool IsDynamicProfileCountryEnabled() {
+  return base::FeatureList::IsEnabled(kDynamicProfileCountry);
+}
 #endif
-);
+
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kDynamicProfileCountry, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kCurrentDseHighlightOnChoiceScreenSupport,
              base::FEATURE_ENABLED_BY_DEFAULT);

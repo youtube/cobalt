@@ -225,16 +225,14 @@ int HTMLTextAreaElement::scrollHeight() {
 }
 
 double HTMLTextAreaElement::scrollLeft() {
-  if (RuntimeEnabledFeatures::TextAreaScrollTopPreviewEnabled() &&
-      !SuggestedValue().empty()) {
+  if (!SuggestedValue().empty()) {
     return 0;
   }
   return TextControlElement::scrollLeft();
 }
 
 double HTMLTextAreaElement::scrollTop() {
-  if (RuntimeEnabledFeatures::TextAreaScrollTopPreviewEnabled() &&
-      !SuggestedValue().empty()) {
+  if (!SuggestedValue().empty()) {
     return 0;
   }
   return TextControlElement::scrollTop();
@@ -704,8 +702,8 @@ void HTMLTextAreaElement::setDefaultValue(const String& default_value) {
 
 void HTMLTextAreaElement::SetSuggestedValue(const String& value) {
   String sanitized_value = value;
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
-      IsInCanvasSubtree()) {
+  if (IsInCanvasSubtree() &&
+      RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext())) {
     // Hide suggested values when under canvas, to prevent leaking this
     // information to javascript.
     sanitized_value = String();
@@ -718,10 +716,10 @@ void HTMLTextAreaElement::SetSuggestedValue(const String& value) {
       StyleChangeReasonForTracing::Create(style_change_reason::kControlValue));
 }
 
-void HTMLTextAreaElement::DidChangeIsCanvasOrInCanvasSubtree() {
-  TextControlElement::DidChangeIsCanvasOrInCanvasSubtree();
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
-      IsInCanvasSubtree()) {
+void HTMLTextAreaElement::DidChangeIsInCanvasSubtree() {
+  TextControlElement::DidChangeIsInCanvasSubtree();
+  if (IsInCanvasSubtree() &&
+      RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext())) {
     // Hide suggested values when under canvas, to prevent leaking this
     // information to javascript.
     SetSuggestedValue(String());

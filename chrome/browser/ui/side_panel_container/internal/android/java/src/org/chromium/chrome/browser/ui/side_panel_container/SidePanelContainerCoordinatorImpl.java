@@ -33,6 +33,7 @@ import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.HeightType;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiId;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs.SideUiSize;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.UiUpdateRequest;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.ViewUtils;
@@ -83,6 +84,8 @@ final class SidePanelContainerCoordinatorImpl
      * @see #mIsPreparingForAutoClose
      */
     private boolean mIsPreparingForAutoRestore;
+
+    private boolean mEnableDeferredViewReplacementForTesting;
 
     /**
      * Constructs a concrete implementation of the SidePanelContainerCoordinator interface.
@@ -155,13 +158,6 @@ final class SidePanelContainerCoordinatorImpl
         // TODO(crbug.com/513302000): assert the side panel is currently open.
         // TODO(crbug.com/513302000): assert the side panel isn't preparing for auto-restore/close.
 
-        if (mPendingReplaceRunnable != null) {
-            mPendingReplaceRunnable.run();
-            // Explicitly set to null for readability, though it is also handled
-            // internally by the runnable's run() method.
-            mPendingReplaceRunnable = null;
-        }
-
         assert mCurrentContent != null : "no content to replace";
         View oldContentView = mCurrentContent.mView;
         mCurrentContent = newContent;
@@ -213,14 +209,31 @@ final class SidePanelContainerCoordinatorImpl
 
         mPendingReplaceRunnable = removeOldViewRunnable;
         ThinWebView thinWebView = findThinWebView(newContent.mView);
-        if (thinWebView == null || BuildConfig.IS_FOR_TEST) {
-            mPendingReplaceRunnable.run();
-            // Explicitly set to null for readability, though it is also handled
-            // internally by the runnable's run() method.
-            mPendingReplaceRunnable = null;
-        } else {
-            thinWebView.runOnNextFrame(removeOldViewRunnable);
+
+        // If there is no ThinWebView, immediately complete the content View replacement since this
+        // won't cause UI flickers.
+        if (thinWebView == null) {
+            completePendingContentReplacementInternal();
+            return;
         }
+
+        // If there is a ThinWebView, but we are in a test that doesn't explicitly enable the
+        // deferred View removal, also complete the View replacement immediately.
+        if (BuildConfig.IS_FOR_TEST && !mEnableDeferredViewReplacementForTesting) {
+            completePendingContentReplacementInternal();
+            return;
+        }
+
+        // Otherwise, remove the old content View when ThinWebView has rendered the first frame.
+        // This is to prevent UI flickers.
+        thinWebView.runOnNextFrame(removeOldViewRunnable);
+    }
+
+    @Override
+    public void completePendingContentReplacement() {
+        log(TAG, "completePendingContentReplacement");
+        ThreadUtils.assertOnUiThread();
+        completePendingContentReplacementInternal();
     }
 
     @Override
@@ -253,6 +266,11 @@ final class SidePanelContainerCoordinatorImpl
         // (2) a crash when the content View is added to another container instance.
         getContentContainer().removeAllViews();
         mCurrentContent = null;
+    }
+
+    @Override
+    public void configDeferredViewReplacementForTesting(boolean enable) {
+        mEnableDeferredViewReplacementForTesting = enable;
     }
 
     @Override
@@ -307,8 +325,12 @@ final class SidePanelContainerCoordinatorImpl
         int showableWidthDp =
                 determineShowableWidthDp(
                         availableWidthDp, windowWidthDp, minSidePanelContainerWidthDp);
-        return new SideUiSize(
-                ViewUtils.dpToPx(mParentActivity, showableWidthDp), HeightType.TOOLBAR);
+        @HeightType
+        int heightType =
+                VerticalTabUtils.isVerticalTabsEnabled(mParentActivity)
+                        ? HeightType.WEB_CONTENTS
+                        : HeightType.TOOLBAR;
+        return new SideUiSize(ViewUtils.dpToPx(mParentActivity, showableWidthDp), heightType);
     }
 
     @Override
@@ -351,22 +373,18 @@ final class SidePanelContainerCoordinatorImpl
             @Px int newWidth,
             @HeightType int oldHeightType,
             @HeightType int newHeightType) {
-        // The side panel is fully opened.
-        if (oldWidth == 0 && newWidth > 0 && mSidePanelCoordinatorAndroid != null) {
-            mSidePanelCoordinatorAndroid.onPanelOpened();
+        if (mSidePanelCoordinatorAndroid != null) {
+            mSidePanelCoordinatorAndroid.onPanelContainerUpdated(oldWidth, newWidth);
+        }
 
+        // Accessibility support for opening/closing the panel.
+        if (oldWidth == 0 && newWidth > 0) {
             CharSequence paneTitle = mCurrentContent != null ? mCurrentContent.mTitle : null;
             notifyAccessibilityStateChanged(
                     AccessibilityEvent.CONTENT_CHANGE_TYPE_PANE_APPEARED,
                     paneTitle,
                     /* requestFocus= */ true);
-            return;
-        }
-
-        // The side panel is fully closed.
-        if (oldWidth > 0 && newWidth == 0 && mSidePanelCoordinatorAndroid != null) {
-            mSidePanelCoordinatorAndroid.onPanelClosed();
-
+        } else if (oldWidth > 0 && newWidth == 0) {
             notifyAccessibilityStateChanged(
                     AccessibilityEvent.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED,
                     /* title= */ null,
@@ -493,6 +511,16 @@ final class SidePanelContainerCoordinatorImpl
         }
         View headerView = mContainerView.findViewById(R.id.side_panel_header);
         headerView.setVisibility(vis);
+    }
+
+    private void completePendingContentReplacementInternal() {
+        if (mPendingReplaceRunnable != null) {
+            mPendingReplaceRunnable.run();
+
+            // Explicitly set to null for readability, though it is also handled
+            // internally by the runnable's run() method.
+            mPendingReplaceRunnable = null;
+        }
     }
 
     private ViewGroup getContentContainer() {

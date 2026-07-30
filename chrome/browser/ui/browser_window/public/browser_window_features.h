@@ -13,7 +13,6 @@
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
 class ActorBorderViewController;
-class ActorTaskListBubbleController;
 class ActorUiWindowController;
 class BookmarkBarController;
 class BookmarksSidePanelCoordinator;
@@ -32,6 +31,7 @@ class BrowserSelectFileDialogController;
 class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
 class BrowserView;
+class BrowserWebContentsDelegate;
 class BrowserWindowFullscreenController;
 class BrowserWindowInterface;
 class BrowserWindowModalDialogDelegate;
@@ -67,7 +67,7 @@ class LocationBarModel;
 class MemorySaverOptInIPHController;
 class PinnedToolbarActions;
 class ProfileMenuCoordinator;
-class ProjectsPanelStateController;
+class OrganizerPanelStateController;
 class ReadingListSidePanelCoordinator;
 class RecentActivityBubbleCoordinator;
 class ScrimViewController;
@@ -160,10 +160,9 @@ class ExtensionSidePanelManager;
 }  // namespace extensions
 
 namespace glic {
-class GlicActorNudgeController;
-class GlicButtonController;
 class GlicIphController;
 class GlicNudgeController;
+class GlicSplitButtonController;
 }  // namespace glic
 
 namespace lens {
@@ -353,9 +352,7 @@ class BrowserWindowFeatures {
     return glic_iph_controller_.get();
   }
 
-  glic::GlicNudgeController* glic_nudge_controller() {
-    return glic_nudge_controller_.get();
-  }
+  glic::GlicNudgeController* glic_nudge_controller();
 
   // Returns true if a FindBarController exists for this browser window.
   bool HasFindBarController() const;
@@ -538,6 +535,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<BrowserFocusController> browser_focus_controller_;
   std::unique_ptr<BrowserSelectFileDialogController>
       browser_select_file_dialog_controller_;
+  std::unique_ptr<BrowserWebContentsDelegate> browser_web_contents_delegate_;
   std::unique_ptr<BrowserWindowModalDialogDelegate>
       browser_window_modal_dialog_delegate_;
   std::unique_ptr<BrowserWindowThemeObserver> browser_window_theme_observer_;
@@ -595,7 +593,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<FindBarOwner> find_bar_owner_;
   std::unique_ptr<BrowserWindowFullscreenController> fullscreen_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
-  std::unique_ptr<glic::GlicNudgeController> glic_nudge_controller_;
+  std::unique_ptr<glic::GlicSplitButtonController>
+      glic_split_button_controller_;
   std::unique_ptr<HistoryClustersSidePanelCoordinator>
       history_clusters_side_panel_coordinator_;
   std::unique_ptr<HistorySidePanelCoordinator> history_side_panel_coordinator_;
@@ -625,8 +624,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<tab_groups::MostRecentSharedTabUpdateStore>
       most_recent_shared_tab_update_store_;
   std::unique_ptr<ProfileMenuCoordinator> profile_menu_coordinator_;
-  std::unique_ptr<ProjectsPanelStateController>
-      projects_panel_state_controller_;
+  std::unique_ptr<OrganizerPanelStateController>
+      organizer_panel_state_controller_;
   std::unique_ptr<qrcode_generator::QRCodeWindowController>
       qrcode_window_controller_;
   std::unique_ptr<ReadingListSidePanelCoordinator>
@@ -679,8 +678,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
 
   // Members owned only when a BrowserView is attached.
-  std::unique_ptr<ActorTaskListBubbleController>
-      actor_task_list_bubble_controller_;
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
   std::unique_ptr<omnibox::AiModePageActionController>
       ai_mode_page_action_controller_;
@@ -697,8 +694,6 @@ class BrowserWindowFeatures {
       extension_side_panel_manager_;
 
   std::unique_ptr<FullscreenControlHost> fullscreen_control_host_;
-  std::unique_ptr<glic::GlicActorNudgeController> glic_actor_nudge_controller_;
-  std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<MemorySaverOptInIPHController>
       memory_saver_opt_in_iph_controller_;
   std::unique_ptr<new_tab_footer::NewTabFooterController>

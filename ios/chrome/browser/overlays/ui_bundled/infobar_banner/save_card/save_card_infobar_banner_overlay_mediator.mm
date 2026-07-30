@@ -84,16 +84,25 @@ enum class VoiceOverOverrideForTesting {
   return DefaultInfobarOverlayRequestConfig::RequestSupport();
 }
 
+#pragma mark - InfobarBannerOverlayMediator
+
+- (void)disconnect {
+  self.snackbarCommandsHandler = nil;
+  [super disconnect];
+}
+
 #pragma mark - Private
 
 - (void)showSnackbarAndDismissBanner {
+  if (!self.snackbarCommandsHandler) {
+    return;
+  }
   SnackbarMessage* message = [self createCardSavedSnackbarMessage];
   if (message) {
     DCHECK(self.accessibilityNotificationPoster);
     self.accessibilityNotificationPoster(
         UIAccessibilityScreenChangedNotification, nil);
     // Show the snackbar.
-    DCHECK(self.snackbarCommandsHandler);
     [self.snackbarCommandsHandler showSnackbarMessage:message];
   }
   // Dismiss the infobar banner after showing the snackbar.
@@ -214,8 +223,8 @@ enum class VoiceOverOverrideForTesting {
           : delegate->GetButtonLabel(ConfirmInfoBarDelegate::BUTTON_OK);
   [self.consumer setButtonText:base::SysUTF16ToNSString(buttonLabelText)];
 
-  UIImage* iconImage = DefaultSymbolTemplateWithPointSize(
-      kCreditCardSymbol, kInfobarSymbolPointSize);
+  UIImage* iconImage =
+      SymbolTemplateWithPointSize(SymbolCreditCard, kInfobarSymbolPointSize);
   [self.consumer setIconImage:iconImage];
 
   [self.consumer

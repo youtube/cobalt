@@ -125,13 +125,19 @@ ToolbarActionsModelTestObserver::~ToolbarActionsModelTestObserver() {
 class ToolbarActionsModelUnitTest
     : public extensions::ExtensionServiceTestWithInstall {
  public:
-  ToolbarActionsModelUnitTest() = default;
+  ToolbarActionsModelUnitTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kExtensionsPinnedByDefault);
+  }
 
   ToolbarActionsModelUnitTest(const ToolbarActionsModelUnitTest&) = delete;
   ToolbarActionsModelUnitTest& operator=(const ToolbarActionsModelUnitTest&) =
       delete;
 
   ~ToolbarActionsModelUnitTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 
  protected:
   // Initialize the ExtensionService, ToolbarActionsModel, and ExtensionSystem.
@@ -244,11 +250,16 @@ void ToolbarActionsModelUnitTest::TearDown() {
 
 void ToolbarActionsModelUnitTest::RunEmitUserHistogramsTest(
     int incremented_histogram_count) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+
   base::HistogramTester histograms;
 
   InitToolbarModelAndObserver();
 
   histograms.ExpectTotalCount("Extension.Toolbar.BrowserActionsCount2",
+                              incremented_histogram_count);
+  histograms.ExpectTotalCount("Extensions.Settings.DefaultPinningStartupState",
                               incremented_histogram_count);
 }
 
@@ -383,6 +394,7 @@ TEST_F(ToolbarActionsModelUnitTest, BasicToolbarActionsModelTest) {
 // feature is enabled.
 TEST_F(ToolbarActionsModelUnitTest,
        NewExtensionsArePinnedWhenPinnedByDefaultEnabled) {
+  base::HistogramTester histogram_tester;
   base::test::ScopedFeatureList feature_list(
       features::kExtensionsPinnedByDefault);
   Init();
@@ -426,12 +438,16 @@ TEST_F(ToolbarActionsModelUnitTest,
   EXPECT_EQ(3u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
               ::testing::ElementsAre(extension_b->id(), extension_c->id()));
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      0 /* kPinnedByDefault */, 3);
 }
 
 // Test that new extension actions are pinned on installation when the
 // feature is enabled and the preference is enabled.
 TEST_F(ToolbarActionsModelUnitTest,
        NewExtensionsArePinnedWhenPinnedByDefaultEnabledAndPrefEnabled) {
+  base::HistogramTester histogram_tester;
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
   Init();
@@ -447,12 +463,19 @@ TEST_F(ToolbarActionsModelUnitTest,
   EXPECT_EQ(1u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
               ::testing::ElementsAre(extension->id()));
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      0 /* kPinnedByDefault */, 1);
+  EXPECT_EQ(std::make_optional(true),
+            extensions::ExtensionPrefs::Get(profile())->WasPinnedByDefault(
+                extension->id()));
 }
 
 // Test that new extension actions are NOT pinned on installation when the
 // feature is enabled but the preference is disabled.
 TEST_F(ToolbarActionsModelUnitTest,
        NewExtensionsAreUnpinnedWhenPinnedByDefaultEnabledButPrefDisabled) {
+  base::HistogramTester histogram_tester;
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
   Init();
@@ -467,12 +490,19 @@ TEST_F(ToolbarActionsModelUnitTest,
 
   EXPECT_EQ(1u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      1 /* kNotPinnedToggleOff */, 1);
+  EXPECT_EQ(std::make_optional(false),
+            extensions::ExtensionPrefs::Get(profile())->WasPinnedByDefault(
+                extension->id()));
 }
 
 // Test that new extension actions are NOT pinned on installation when the
 // feature is disabled.
 TEST_F(ToolbarActionsModelUnitTest,
        NewExtensionsAreUnpinnedWhenPinnedByDefaultDisabled) {
+  base::HistogramTester histogram_tester;
   Init();
 
   base::test::ScopedFeatureList feature_list;
@@ -486,6 +516,45 @@ TEST_F(ToolbarActionsModelUnitTest,
 
   EXPECT_EQ(1u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      2 /* kNotPinnedFeatureDisabled */, 1);
+  EXPECT_EQ(std::make_optional(false),
+            extensions::ExtensionPrefs::Get(profile())->WasPinnedByDefault(
+                extension->id()));
+}
+
+// Test that new extension actions are NOT pinned on installation when the
+// extension has no action (e.g., installed by default).
+TEST_F(ToolbarActionsModelUnitTest, NewExtensionsAreUnpinnedWhenNoAction) {
+  base::HistogramTester histogram_tester;
+  Init();
+
+  auto default_installed_manifest =
+      base::DictValue()
+          .Set("name", "default installed")
+          .Set("description", "A default installed extension")
+          .Set("manifest_version", 2)
+          .Set("version", "1.0.0.0");
+  scoped_refptr<const extensions::Extension> default_installed_extension =
+      extensions::ExtensionBuilder()
+          .SetManifest(std::move(default_installed_manifest))
+          .SetID(crx_file::id_util::GenerateId("default"))
+          .SetLocation(ManifestLocation::kInternal)
+          .AddFlags(extensions::Extension::WAS_INSTALLED_BY_DEFAULT)
+          .Build();
+  EXPECT_TRUE(AddExtension(default_installed_extension.get()));
+
+  // Simulate installation to trigger metrics.
+  static_cast<extensions::ExtensionRegistryObserver*>(toolbar_model())
+      ->OnExtensionInstalled(profile(), default_installed_extension.get(),
+                             false);
+
+  EXPECT_FALSE(ModelHasActionForId(default_installed_extension->id()));
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      4 /* kNotPinnedNoAction */, 1);
 }
 
 // Test that the model contains all types of extensions, except those which
@@ -1087,6 +1156,7 @@ TEST_F(ToolbarActionsModelUnitTest, PinStateErasedOnUninstallation) {
 }
 
 TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
+  base::HistogramTester histogram_tester;
   Init();
 
   // Set the extension to force-pin via enterprise policy.
@@ -1116,10 +1186,18 @@ TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
   // Add an extension. It should auto-pin because of the ExtensionSettings
   // policy.
   EXPECT_TRUE(AddExtension(extension));
+
+  // Simulate installation to trigger metrics.
+  static_cast<extensions::ExtensionRegistryObserver*>(toolbar_model())
+      ->OnExtensionInstalled(profile(), extension.get(), false);
+
   EXPECT_TRUE(toolbar_model()->IsActionPinned(extension->id()));
   auto* prefs = extensions::ExtensionPrefs::Get(profile());
   EXPECT_FALSE(
       std::ranges::contains(prefs->GetPinnedExtensions(), extension_id));
+
+  histogram_tester.ExpectBucketCount("Extensions.Install.PinReason",
+                                     3 /* kOverriddenByPolicy */, 1);
 
   // Pin all other extensions, to allow moving them around.
   ASSERT_TRUE(AddBrowserActionExtensions());
@@ -1187,6 +1265,10 @@ TEST_F(ToolbarActionsModelUnitTest, ForcePinnedByPolicy) {
 }
 
 TEST_F(ToolbarActionsModelUnitTest, DefaultPinnedByPolicy) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+
   Init();
 
   extensions::TestExtensionDir dir;
@@ -1233,6 +1315,11 @@ TEST_F(ToolbarActionsModelUnitTest, DefaultPinnedByPolicy) {
   EXPECT_TRUE(toolbar_model()->IsActionPinned(extension->id()));
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
               ::testing::ElementsAre(extension->id()));
+  EXPECT_FALSE(extensions::ExtensionPrefs::Get(profile())->WasPinnedByDefault(
+      extension->id()));
+
+  histogram_tester.ExpectUniqueSample("Extensions.Install.PinReason",
+                                      3 /* kOverriddenByPolicy */, 1);
 
   // Now, the user unpins the extension.
   toolbar_model()->SetActionVisibility(extension->id(), false);
@@ -1436,6 +1523,50 @@ TEST_F(ToolbarActionsModelUnitTest, InitActionList_NonUserEmitHistograms) {
   ASSERT_NO_FATAL_FAILURE(MaybeSetUpTestUser(
       /*is_guest=*/true));
   RunEmitUserHistogramsTest(/*incremented_histogram_count=*/0);
+}
+
+TEST_F(ToolbarActionsModelUnitTest,
+       InitActionList_DefaultPinningStartupStateHistogram_True) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+
+  InitializeEmptyExtensionService();
+  ASSERT_NO_FATAL_FAILURE(MaybeSetUpTestUser(/*is_guest=*/false));
+  profile()->GetPrefs()->SetBoolean(prefs::kExtensionsPinnedByDefault, true);
+
+  base::HistogramTester histograms;
+  InitToolbarModelAndObserver();
+  histograms.ExpectUniqueSample(
+      "Extensions.Settings.DefaultPinningStartupState", true, 1);
+}
+
+TEST_F(ToolbarActionsModelUnitTest,
+       InitActionList_DefaultPinningStartupStateHistogram_False) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+
+  InitializeEmptyExtensionService();
+  ASSERT_NO_FATAL_FAILURE(MaybeSetUpTestUser(/*is_guest=*/false));
+  profile()->GetPrefs()->SetBoolean(prefs::kExtensionsPinnedByDefault, false);
+
+  base::HistogramTester histograms;
+  InitToolbarModelAndObserver();
+  histograms.ExpectUniqueSample(
+      "Extensions.Settings.DefaultPinningStartupState", false, 1);
+}
+
+TEST_F(ToolbarActionsModelUnitTest,
+       InitActionList_DefaultPinningStartupStateHistogram_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kExtensionsPinnedByDefault);
+
+  InitializeEmptyExtensionService();
+  ASSERT_NO_FATAL_FAILURE(MaybeSetUpTestUser(/*is_guest=*/false));
+
+  base::HistogramTester histograms;
+  InitToolbarModelAndObserver();
+  histograms.ExpectTotalCount("Extensions.Settings.DefaultPinningStartupState",
+                              0);
 }
 
 TEST_F(ToolbarActionsModelUnitTest,

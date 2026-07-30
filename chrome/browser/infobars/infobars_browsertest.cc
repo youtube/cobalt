@@ -79,11 +79,7 @@
 #include "chrome/browser/ui/cocoa/keystone_infobar_delegate.h"
 #endif
 
-#if !defined(USE_AURA)
-#include "chrome/browser/translate/chrome_translate_client.h"
-#include "components/translate/core/browser/translate_infobar_delegate.h"
-#include "components/translate/core/browser/translate_manager.h"
-#endif
+using extensions::InstallPromptData;
 
 class InfoBarsTest : public InProcessBrowserTest {
  public:
@@ -97,7 +93,9 @@ class InfoBarsTest : public InProcessBrowserTest {
         extensions::ExtensionRegistry::Get(browser()->GetProfile()));
 
     std::unique_ptr<ExtensionInstallPrompt> client(new ExtensionInstallPrompt(
-        browser()->tab_strip_model()->GetActiveWebContents()));
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        std::make_unique<InstallPromptData>(
+            InstallPromptData::UNSET_PROMPT_TYPE)));
     scoped_refptr<extensions::CrxInstaller> installer(
         extensions::CrxInstaller::Create(browser()->GetProfile(),
                                          std::move(client)));
@@ -161,12 +159,18 @@ IN_PROC_BROWSER_TEST_F(InfoBarsTest, TestInfoBarsCloseOnNewTheme) {
   }
 }
 
-class InfoBarUiTest : public TestInfoBar {
+class InfoBarUiTest : public TestInfoBar,
+                      public testing::WithParamInterface<bool> {
  public:
   InfoBarUiTest() {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        infobars::kCentralizedInfoBarFramework,
-        {{"Migrated", "collected_cookies,page_info"}});
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeatureWithParameters(
+          infobars::kCentralizedInfoBarFramework,
+          {{"MigratedCollectedCookies", "true"}, {"MigratedPageInfo", "true"}});
+    } else {
+      feature_list_.InitAndDisableFeature(
+          infobars::kCentralizedInfoBarFramework);
+    }
   }
 
   InfoBarUiTest(const InfoBarUiTest&) = delete;
@@ -210,7 +214,6 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
           {"oscryptasync_availability",
            IBD::OSCRYPTASYNC_AVAILABILITY_INFOBAR_DELEGATE},
           {"page_info", IBD::PAGE_INFO_INFOBAR_DELEGATE},
-          {"translate", IBD::TRANSLATE_INFOBAR_DELEGATE_NON_AURA},
           {"automation", IBD::AUTOMATION_INFOBAR_DELEGATE},
           {"tab_sharing", IBD::TAB_SHARING_INFOBAR_DELEGATE},
 
@@ -310,7 +313,7 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
       ADD_FAILURE() << "This infobar is not supported on this OS.";
 #else
       DefaultBrowserInfoBarDelegate::Create(GetInfoBarManager(),
-                                            browser()->profile(),
+                                            browser()->GetProfile(),
                                             /*can_pin_to_taskbar=*/false);
 #endif
       break;
@@ -342,23 +345,6 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
         PageInfoInfoBarDelegate::Create(GetInfoBarManager());
       }
       break;
-
-    case IBD::TRANSLATE_INFOBAR_DELEGATE_NON_AURA: {
-#if defined(USE_AURA) || BUILDFLAG(IS_MAC)
-      ADD_FAILURE() << "This infobar is not supported on this toolkit.";
-#else
-      // The translate infobar is only used on Android and iOS, neither of
-      // which currently runs browser_tests. So this is currently dead code.
-      ChromeTranslateClient::CreateForWebContents(GetWebContents());
-      ChromeTranslateClient* translate_client =
-          ChromeTranslateClient::FromWebContents(GetWebContents());
-      translate::TranslateInfoBarDelegate::Create(
-          false, translate_client->GetTranslateManager()->GetWeakPtr(),
-          GetInfoBarManager(), translate::TRANSLATE_STEP_BEFORE_TRANSLATE, "ja",
-          "en", translate::TranslateErrors::NONE, false);
-#endif
-      break;
-    }
 
     case IBD::AUTOMATION_INFOBAR_DELEGATE:
       AutomationInfoBarDelegate::Create();
@@ -404,7 +390,7 @@ bool InfoBarUiTest::VerifyUi() {
 #else
 #define MAYBE_InvokeUi_dev_tools InvokeUi_dev_tools
 #endif
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_dev_tools) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, MAYBE_InvokeUi_dev_tools) {
   ShowAndVerifyUi();
 }
 
@@ -415,73 +401,67 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_dev_tools) {
 #else
 #define MAYBE_InvokeUi_extension_dev_tools InvokeUi_extension_dev_tools
 #endif
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_extension_dev_tools) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, MAYBE_InvokeUi_extension_dev_tools) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_incognito_connectability) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_incognito_connectability) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_theme_installed) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_theme_installed) {
   ShowAndVerifyUi();
 }
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_reload_plugin) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_reload_plugin) {
   ShowAndVerifyUi();
 }
 #endif  // BUILDFLAG(ENABLE_PLUGINS)
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_file_access_disabled) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_file_access_disabled) {
   ShowAndVerifyUi();
 }
 
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(ENABLE_UPDATER)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_keystone_promotion) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_keystone_promotion) {
   ShowAndVerifyUi();
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_collected_cookies) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_collected_cookies) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_installation_error) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_installation_error) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_bad_flags) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_bad_flags) {
   ShowAndVerifyUi();
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_default_browser) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_default_browser) {
   ShowAndVerifyUi();
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_google_api_keys) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_google_api_keys) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_obsolete_system) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_obsolete_system) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_oscryptasync_availability) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_oscryptasync_availability) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_page_info) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, InvokeUi_page_info) {
   ShowAndVerifyUi();
 }
-
-#if !defined(USE_AURA) && !BUILDFLAG(IS_MAC)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_translate) {
-  ShowAndVerifyUi();
-}
-#endif
 
 #if BUILDFLAG(IS_WIN)
 // TODO(crbug.com/40261456): This test case has been frequently failing on
@@ -490,7 +470,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_translate) {
 #else
 #define MAYBE_InvokeUi_automation InvokeUi_automation
 #endif
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_automation) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, MAYBE_InvokeUi_automation) {
   ShowAndVerifyUi();
 }
 
@@ -500,7 +480,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_automation) {
 #else
 #define MAYBE_InvokeUi_tab_sharing InvokeUi_tab_sharing
 #endif
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_tab_sharing) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, MAYBE_InvokeUi_tab_sharing) {
   ShowAndVerifyUi();
 }
 
@@ -510,6 +490,13 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_tab_sharing) {
 #else
 #define MAYBE_InvokeUi_multiple_infobars InvokeUi_multiple_infobars
 #endif
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, MAYBE_InvokeUi_multiple_infobars) {
+IN_PROC_BROWSER_TEST_P(InfoBarUiTest, MAYBE_InvokeUi_multiple_infobars) {
   ShowAndVerifyUi();
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         InfoBarUiTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Migrated" : "Legacy";
+                         });

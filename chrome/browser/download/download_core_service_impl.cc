@@ -108,11 +108,10 @@ void DownloadCoreServiceImpl::InitializeHistory() {
   DownloadManager* manager = profile_->GetDownloadManager();
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile_, ServiceAccessType::EXPLICIT_ACCESS);
-  if (!history) {
-    return;
+  if (history) {
+    download_history_ = std::make_unique<DownloadHistory>(
+        manager, std::make_unique<DownloadHistory::HistoryAdapter>(history));
   }
-  download_history_ = std::make_unique<DownloadHistory>(
-      manager, std::make_unique<DownloadHistory::HistoryAdapter>(history));
 }
 
 DownloadHistory* DownloadCoreServiceImpl::GetDownloadHistory() {

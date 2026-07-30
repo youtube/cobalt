@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Solicitar vista para móvil</translation>
 <translation id="2870560284913253234">Sitio</translation>
 <translation id="2874939134665556319">Pista anterior</translation>
+<translation id="2890412325133442491">Predeterminado en Chrome</translation>
 <translation id="2891975107962658722">Impide que un sitio guarde datos en tu dispositivo</translation>
 <translation id="2903493209154104877">Direcciones</translation>
 <translation id="2903764741244499151">Los sitios pueden activar la función Imagen en imagen automáticamente. De esta forma, puedes seguir viendo un vídeo y liberar espacio en la pantalla para hacer otras tareas.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Cambiar contraseñas</translation>
 <translation id="3797520601150691162">El tema oscuro no se aplica a un sitio específico</translation>
 <translation id="3803367742635802571">Es posible que los sitios que visites dejen de funcionar como deben</translation>
-<translation id="3816118180265633665">Colores de Chrome</translation>
 <translation id="381841723434055211">Números de teléfono</translation>
 <translation id="3823453485268218808">Fuente Mono</translation>
 <translation id="3826050100957962900">Inicio de sesión de terceros</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Salir del modo de pantalla completa</translation>
 <translation id="640163077447496506">Caduca hoy</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Colecciones de temas</translation>
 <translation id="6439114592976064011">No permitir que los sitios usen tu dispositivo y tus datos de realidad virtual</translation>
 <translation id="6447842834002726250">Cookies</translation>
 <translation id="6452138246455930388">Bajada de precio en tu pestaña abierta de <ph name="OLD_PRICE" /> a <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Protección Avanzada controla estos ajustes de Chrome:</translation>
 <translation id="7423098979219808738">Preguntar antes</translation>
 <translation id="7423538860840206698">Se ha bloqueado la lectura del portapapeles</translation>
 <translation id="7425915948813553151">Tema oscuro para sitios</translation>
+<translation id="7429767477925996803">Colores de Chrome</translation>
 <translation id="746412105358554870">Optimización y seguridad de JavaScript</translation>
 <translation id="7478658909253570368">No permitir que los sitios se conecten a puertos serie</translation>
 <translation id="7488573225650545859">Ocultar Ver pestañas en tu lista de aplicaciones</translation>
@@ -676,7 +676,6 @@ Protección Avanzada controla estos ajustes de Chrome:</translation>
 <translation id="802154636333426148">No se ha podido descargar el archivo</translation>
 <translation id="8033047164036749181">Suscribirse a las notificaciones de este sitio</translation>
 <translation id="8051193500142930381">Las funciones que necesiten una cámara no se podrán utilizar</translation>
-<translation id="8056330801132235235">Predeterminado en Chrome</translation>
 <translation id="8067883171444229417">Reproducir vídeo</translation>
 <translation id="8068648041423924542">No se puede seleccionar el certificado.</translation>
 <translation id="8077120325605624147">Cualquier sitio que visites puede mostrarte cualquier anuncio</translation>

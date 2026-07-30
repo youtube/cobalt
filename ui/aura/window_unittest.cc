@@ -407,6 +407,43 @@ void OffsetBounds(Window* window, int horizontal, int vertical) {
   window->SetBounds(bounds);
 }
 
+TEST_F(WindowTest, ScopedDeleteBlocker) {
+  std::unique_ptr<Window> w1 = CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 100}, .window_id = 1});
+  std::unique_ptr<Window> w2 = CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 100}, .window_id = 2});
+
+  // Test single window blocker.
+  {
+    Window::ScopedDeleteBlocker blocker(w1.get());
+    EXPECT_DEATH(w1.reset(), "");
+    // w2 is not blocked.
+    w2.reset();
+  }
+  // w1 is allowed to be deleted now.
+  w1.reset();
+
+  // Re-create windows for list blocker test.
+  w1 = CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 100}, .window_id = 1});
+  w2 = CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 100}, .window_id = 2});
+
+  Window::Windows windows;
+  windows.push_back(w1.get());
+  windows.push_back(w2.get());
+
+  {
+    Window::ScopedDeleteBlocker blocker(windows);
+    EXPECT_DEATH(w1.reset(), "");
+    EXPECT_DEATH(w2.reset(), "");
+  }
+
+  // Deletion is allowed again.
+  w1.reset();
+  w2.reset();
+}
+
 TEST_F(WindowTest, GetChildById) {
   std::unique_ptr<Window> w1 = CreateTestWindow(
       {.parent = root_window(), .bounds = {100, 100}, .window_id = 1});
@@ -1801,6 +1838,30 @@ TEST_F(WindowTest, GetBoundsInRootWindowWithLayersAndTranslations) {
   transform3.Translate(-30, -120);
   child->SetTransform(transform3);
   EXPECT_EQ("0,0 100x100", child->GetBoundsInRootWindow().ToString());
+}
+
+TEST_F(WindowTest, GetBoundsInScreenWithoutTransform) {
+  std::unique_ptr<Window> viewport(CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 50, 200, 200}}));
+
+  std::unique_ptr<Window> child(CreateTestWindow(
+      {.parent = viewport.get(), .bounds = {25, 25, 100, 100}}));
+
+  // Sanity check.
+  EXPECT_EQ(gfx::Rect(125, 75, 100, 100), child->GetBoundsInScreen());
+  EXPECT_EQ(gfx::Rect(125, 75, 100, 100),
+            child->GetBoundsInScreenWithoutTransform());
+
+  gfx::Transform transform;
+  transform.Translate(50, 50);
+  viewport->SetTransform(transform);
+
+  // GetBoundsInScreen should include the transform in the calculations.
+  EXPECT_EQ(gfx::Rect(175, 125, 100, 100), child->GetBoundsInScreen());
+
+  // GetBoundsInScreenWithoutTransforms should completely skip the transform.
+  EXPECT_EQ(gfx::Rect(125, 75, 100, 100),
+            child->GetBoundsInScreenWithoutTransform());
 }
 
 // TODO(tdanderson): Remove this class and use
@@ -3569,6 +3630,53 @@ TEST_F(WindowDeathTest, DeleteWindowInBoundsChange) {
   EXPECT_DEATH(window->SetBounds(gfx::Rect(10, 10, 300, 300)), "");
   // Deletion fails with CHECK.
   EXPECT_TRUE(weak_window);
+}
+
+// WindowObserver implementation that deletes the observed window in
+// OnWindowHierarchyChanging().
+class DeleteOnHierarchyChangingObserver : public WindowObserver {
+ public:
+  explicit DeleteOnHierarchyChangingObserver(Window* window) : window_(window) {
+    window_->AddObserver(this);
+  }
+
+  DeleteOnHierarchyChangingObserver(const DeleteOnHierarchyChangingObserver&) =
+      delete;
+  DeleteOnHierarchyChangingObserver& operator=(
+      const DeleteOnHierarchyChangingObserver&) = delete;
+
+  ~DeleteOnHierarchyChangingObserver() override {
+    CHECK(window_);
+    window_->RemoveObserver(this);
+  }
+
+  // WindowObserver:
+  void OnWindowHierarchyChanging(const HierarchyChangeParams& params) override {
+    Window* window = window_;
+    window_ = nullptr;
+    window->RemoveObserver(this);
+    // This will fail with CHECK.
+    delete window;
+  }
+
+ private:
+  raw_ptr<Window> window_;
+};
+
+TEST_F(WindowDeathTest, DeleteReceiverInOnWindowHierarchyChanging) {
+  std::unique_ptr<Window> parent = std::make_unique<Window>(nullptr);
+  parent->Init(ui::LAYER_NOT_DRAWN);
+  std::unique_ptr<Window> child = std::make_unique<Window>(nullptr);
+  child->Init(ui::LAYER_NOT_DRAWN);
+  Window* grandchild = new Window(nullptr);
+  grandchild->Init(ui::LAYER_NOT_DRAWN);
+  child->AddChild(grandchild);
+
+  // |grandchild| is notified as a receiver while recursing down through the
+  // subtree rooted at |child|; deleting it from within the notification must
+  // not be allowed.
+  DeleteOnHierarchyChangingObserver observer(grandchild);
+  EXPECT_DEATH(parent->AddChild(child.get()), "");
 }
 
 // WindowObserver implementation that deletes a window in

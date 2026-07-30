@@ -101,6 +101,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tabstrip.TabStripSceneLayerHolder;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.TabHoverCardView;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -730,7 +731,7 @@ public class StripLayoutHelperManager
 
         tabHoverCardViewStub.setOnInflateListener(
                 (viewStub, view) -> {
-                    var hoverCardView = (StripTabHoverCardView) view;
+                    var hoverCardView = (TabHoverCardView) view;
                     hoverCardView.initialize(
                             assumeNonNull(mTabModelSelector), tabContentManagerSupplier);
                     mNormalHelper.setTabHoverCardView(hoverCardView);
@@ -1154,6 +1155,7 @@ public class StripLayoutHelperManager
         //   Tablet Base: 2 * minTabWidth(108) - tabOverlap(28) + newTabButton (48) = 236dp
         //   Desktop Base: 2 * minTabWidth(76) - tabOverlap(28) + newTabButton (32) = 156dp
         // Optional Additions:
+        //   + Tab Search Button: 48dp (Tablet) / 32dp (Desktop)
         //   + Trailing Buttons (Glic, Glic actor): Dynamic (e.g. ~109dp in default state with only
         //     Glic showing, ~96dp in collapsed state with both Glic and Glic actor showing)
         //   + Model Selector Button (MSB): 48dp (Tablet) / 32dp (Desktop)
@@ -1162,6 +1164,7 @@ public class StripLayoutHelperManager
                 (2 * MIN_TAB_WIDTH_DP)
                         - TAB_OVERLAP_WIDTH_DP
                         + BUTTON_TOUCH_TARGET_SIZE_DP
+                        + getActiveStripLayoutHelper().getTabSearchButtonWidth()
                         + mTrailingButtonsCoordinator.getTrailingButtonsWidthWithPadding()
                         + (shouldShowMsb ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f);
         return Math.round(thresholdDp);
@@ -1870,7 +1873,11 @@ public class StripLayoutHelperManager
      * @return Whether the context menu was successfully opened.
      */
     public boolean openKeyboardFocusedContextMenu() {
-        return getActiveStripLayoutHelper().openKeyboardFocusedContextMenu();
+        if (getActiveStripLayoutHelper().openKeyboardFocusedContextMenu()) {
+            return true;
+        }
+        var activity = assertNonNull(mWindowAndroid.getActivity().get());
+        return mTrailingButtonsCoordinator.openKeyboardFocusedContextMenu(activity);
     }
 
     /**

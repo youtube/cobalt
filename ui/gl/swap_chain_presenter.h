@@ -9,6 +9,7 @@
 
 #include <d3d11_1.h>
 #include <dcomp.h>
+#include <dxgi1_4.h>
 #include <wrl/client.h>
 
 #include "base/compiler_specific.h"
@@ -57,7 +58,7 @@ class SwapChainPresenter : public base::PowerStateObserver {
       DCLayerOverlayParams& overlay,
       std::optional<OverlayPositionAdjustment>& overlay_position_adjustment);
 
-  const Microsoft::WRL::ComPtr<IDXGISwapChain1>& swap_chain() const {
+  const Microsoft::WRL::ComPtr<IDXGISwapChain3>& swap_chain() const {
     return swap_chain_;
   }
 
@@ -156,7 +157,8 @@ class SwapChainPresenter : public base::PowerStateObserver {
   // This changes over time based on stats recorded in |presentation_history|.
   DXGI_FORMAT GetSwapChainFormat(gfx::ProtectedVideoType protected_video_type,
                                  bool use_hdr_swap_chain,
-                                 bool use_p010_for_sdr_swap_chain);
+                                 bool use_p010_for_sdr_swap_chain,
+                                 const gfx::ColorSpace& input_color_space);
 
   // Perform a blit using video processor from given input texture to swap chain
   // backbuffer. |input_texture| is the input texture (array), and |input_level|
@@ -229,7 +231,6 @@ class SwapChainPresenter : public base::PowerStateObserver {
       Microsoft::WRL::ComPtr<ID3D11VideoProcessor> video_processor,
       Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator>
           video_processor_enumerator,
-      Microsoft::WRL::ComPtr<IDXGISwapChain3> swap_chain3,
       Microsoft::WRL::ComPtr<ID3D11VideoContext1> context1,
       const gfx::ColorSpace& input_color_space);
 
@@ -300,7 +301,7 @@ class SwapChainPresenter : public base::PowerStateObserver {
 
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_;
   Microsoft::WRL::ComPtr<IDCompositionDesktopDevice> dcomp_device_;
-  Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain_;
+  Microsoft::WRL::ComPtr<IDXGISwapChain3> swap_chain_;
 
   // Video processor output view created from swap chain back buffer.  Must be
   // cached for performance reasons.
@@ -318,6 +319,28 @@ class SwapChainPresenter : public base::PowerStateObserver {
   bool enable_vp_super_resolution_ = false;
 
   UINT gpu_vendor_id_ = 0;
+
+  // Cache key for DirectCompositionColorSpaceOverlaySupported(). Keyed on
+  // (format, color_space, output), invalidated when any changes.
+  struct ColorSpaceSupportedKey {
+    ColorSpaceSupportedKey(DXGI_FORMAT format,
+                           DXGI_COLOR_SPACE_TYPE color_space,
+                           IDXGIOutput* dxgi_output);
+    ColorSpaceSupportedKey(const ColorSpaceSupportedKey&);
+    ~ColorSpaceSupportedKey();
+    bool operator==(const ColorSpaceSupportedKey& other) const;
+    DXGI_FORMAT format;
+    DXGI_COLOR_SPACE_TYPE color_space;
+    // Holds a reference to the IDXGIOutput so the object remains alive while
+    // this cache entry exists. Without this, the output could be freed and its
+    // address recycled for a new IDXGIOutput, causing a false cache hit on
+    // pointer comparison.
+    Microsoft::WRL::ComPtr<IDXGIOutput> output;
+  };
+  // Cache for the result of DirectCompositionColorSpaceOverlaySupported().
+  // Avoids querying the driver for color space overlay support every frame.
+  std::optional<std::pair<ColorSpaceSupportedKey, bool>>
+      color_space_supported_cache_;
 };
 
 }  // namespace gl

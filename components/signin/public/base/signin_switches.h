@@ -554,6 +554,16 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFirstRunDesktopRevampSurvey);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// This feature controls whether Gemini step can be shown in the feature
+// showcase. This feature is no-op if IsFirstRunDesktopRevamp() equals false.
+//
+// Note: This flag can be bypassed via the command line switch
+// --force-fre-feature-showcase-steps (which should be used only for testing).
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kFirstRunFeatureShowcaseGeminiStep);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kForceHistoryOptInScreen);
@@ -644,6 +654,25 @@ BASE_DECLARE_FEATURE(kNoAccountWebSignin);
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kNonDefaultGaiaOriginCheck);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// It enables the pre first run desktop refresh (changes to the onboarding flow
+// prior to the core first run).
+//
+// No-op if previous milestone flags are disabled (see
+// `kFirstRunDesktopRefresh`, `kFirstRunDesktopChoiceScreenRefresh`,
+// `kFirstRunDesktopRevamp`).
+//
+// Clients should never use this feature directly to determine if the
+// refresh is enabled, they should use `IsPreFirstRunDesktopRefreshEnabled`
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kPreFirstRunDesktopRefresh);
+// A helper function to determine if the pre first run desktop refresh is
+// enabled (see `kPreFirstRunDesktopRefresh`, `kFirstRunDesktopRevamp`,
+// `kFirstRunDesktopRefresh` and `kFirstRunDesktopChoiceScreenRefresh` flags).
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+bool IsPreFirstRunDesktopRefreshEnabled(bool is_in_search_engine_choice_region);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Experimenting with changing the secondary CTA for FRE and new profile
@@ -802,6 +831,13 @@ BASE_DECLARE_FEATURE(kUndoChromeOsUseConsentLevelSignin);
 // primary - tonal button class pattern.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kUsePrimaryAndTonalButtonsForPromos);
+
+#if BUILDFLAG(IS_ANDROID)
+// Additional gate for user policy registration and download based on user
+// accepting account management.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kUserPolicyFetchRequiresAcceptance);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 enum class SeamlessSigninStringType {

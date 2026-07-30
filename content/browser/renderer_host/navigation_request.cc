@@ -54,7 +54,6 @@
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
-#include "content/browser/browsing_topics/header_util.h"
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/connection_allowlist_utils.h"
 #include "content/browser/declarative_performance_observer/declarative_performance_observer.h"
@@ -62,7 +61,6 @@
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
-#include "content/browser/interest_group/ad_auction_headers_util.h"
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -172,6 +170,7 @@
 #include "net/http/http_status_code.h"
 #include "net/storage_access_api/status.h"
 #include "net/url_request/redirect_info.h"
+#include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -879,83 +878,6 @@ void PersistOriginTrialsFromHeaders(
       GetOriginTrialHeaderValues(response->headers.get());
   origin_trials_delegate->PersistTrialsFromTokens(
       origin, partition_origin, tokens, base::Time::Now(), source_id);
-}
-
-struct TopicsHeaderValueResult {
-  bool topics_eligible = false;
-  std::optional<std::string> header_value;
-};
-
-// Returns the topics header for a navigation request. Returns std::nullopt if
-// the request isn't eligible for topics. This should align with the handling in
-// `GetTopicsHeaderValueForSubresourceRequest()`.
-TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
-    FrameTreeNode* frame_tree_node,
-    const GURL& url) {
-  // Skip if the <iframe> does not have the "browsingtopics" opt-in attribute.
-  if (!frame_tree_node->browsing_topics()) {
-    return TopicsHeaderValueResult{};
-  }
-
-  RenderFrameHostImpl* rfh = frame_tree_node->current_frame_host();
-
-  // Skip top frame navigation.
-  // TODO(crbug.com/40260337): This should be checked at the mojom boundary of
-  // RenderFrameHostImpl::DidChangeIframeAttributes, and should be a CHECK
-  // here.
-  if (rfh->is_main_frame()) {
-    return {};
-  }
-
-  // Skip fenced frames.
-  if (rfh->IsNestedWithinFencedFrame()) {
-    return {};
-  }
-
-  // Skip inactive pages (e.g. prerendered pages).
-  if (!rfh->GetPage().IsPrimary()) {
-    return {};
-  }
-
-  url::Origin origin = url::Origin::Create(url);
-  if (origin.opaque()) {
-    return {};
-  }
-
-  if (!network::IsOriginPotentiallyTrustworthy(origin)) {
-    return {};
-  }
-
-  const network::PermissionsPolicy* parent_policy =
-      rfh->GetParent()->GetPermissionsPolicy();
-
-  CHECK(parent_policy);
-
-  if (!parent_policy->IsFeatureEnabledForOrigin(
-          network::mojom::PermissionsPolicyFeature::kBrowsingTopics, origin) ||
-      !parent_policy->IsFeatureEnabledForOrigin(
-          network::mojom::PermissionsPolicyFeature::
-              kBrowsingTopicsBackwardCompatible,
-          origin)) {
-    return {};
-  }
-
-  std::vector<blink::mojom::EpochTopicPtr> topics;
-  bool topics_eligible = GetContentClient()->browser()->HandleTopicsWebApi(
-      origin, rfh->GetMainFrame(),
-      browsing_topics::ApiCallerSource::kIframeAttribute,
-      /*get_topics=*/true,
-      /*observe=*/false, topics);
-
-  int num_versions_in_epochs =
-      topics_eligible
-          ? GetContentClient()->browser()->NumVersionsInTopicsEpochs(
-                rfh->GetMainFrame())
-          : 0;
-
-  return {
-      .topics_eligible = topics_eligible,
-      .header_value = DeriveTopicsHeaderValue(topics, num_versions_in_epochs)};
 }
 
 ukm::SourceId GetPageUkmSourceId(FrameTreeNode* frame_tree_node) {
@@ -1823,7 +1745,6 @@ NavigationRequest::NavigationRequest(
               ? std::make_optional(FencedFrameProperties(common_params_->url))
               : std::nullopt),
       embedder_shared_storage_context_(embedder_shared_storage_context),
-      has_ad_auction_headers_attribute_(frame_tree_node->ad_auction_headers()),
       request_method_(common_params_->method),
       original_url_(common_params_->url),
       prerender_host_id_(
@@ -2211,24 +2132,6 @@ NavigationRequest::NavigationRequest(
           content_type) {
         commit_params_->post_content_type = std::move(content_type).value();
       }
-    }
-
-    TopicsHeaderValueResult topics_header_value_result =
-        GetTopicsHeaderValueForNavigationRequest(frame_tree_node,
-                                                 common_params_->url);
-
-    topics_eligible_ = topics_header_value_result.topics_eligible;
-
-    if (topics_header_value_result.header_value) {
-      headers.SetHeader(kBrowsingTopicsRequestHeaderKey,
-                        *topics_header_value_result.header_value);
-    }
-
-    if (has_ad_auction_headers_attribute_ &&
-        IsAdAuctionHeadersEligibleForNavigation(
-            *frame_tree_node_, url::Origin::Create(common_params_->url))) {
-      ad_auction_headers_eligible_ = true;
-      headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
   }
 
@@ -4255,15 +4158,38 @@ void NavigationRequest::AddOriginAgentClusterStateIfNecessary(
         OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
   }
 
+  if (!oac_isolation_state.has_value() && response() && is_ad_tagged() &&
+      SiteIsolationPolicy::AreOriginAgentClustersEnabledByDefault(
+          isolation_context.browser_context()) &&
+      SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault(
+          isolation_context.browser_context()) &&
+      base::FeatureList::IsEnabled(features::kExcludeAdsFromOriginIsolation)) {
+    // If it's an ad frame, OAC is on by default, and we know that there isn't
+    // an OAC response header, force the eventual process to be site-keyed for
+    // process isolation for this BrowsingInstance, bypassing the default
+    // origin-keyed behavior. Note that we leave the origin agent cluster
+    // logically origin-keyed to avoid web-visible changes to the OAC state.
+    oac_isolation_state =
+        OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+            /*had_oac_request=*/false,
+            /*requires_origin_keyed_process=*/false);
+  }
+
   if (!oac_isolation_state.has_value()) {
     return;
   }
 
-  // We never register isolation state here unless it's explicitly requested.
-  CHECK(oac_isolation_state->logical_oac_status() ==
-            AgentClusterKey::OACStatus::kSiteKeyedByHeader ||
-        oac_isolation_state->logical_oac_status() ==
-            AgentClusterKey::OACStatus::kOriginKeyedByHeader);
+  // We never register isolation state for default states, only for states
+  // explicitly requested by the document or decided by browser policy (e.g. for
+  // ad frames).
+  CHECK(
+      oac_isolation_state->logical_oac_status() ==
+          AgentClusterKey::OACStatus::kSiteKeyedByHeader ||
+      oac_isolation_state->logical_oac_status() ==
+          AgentClusterKey::OACStatus::kOriginKeyedByHeader ||
+      (base::FeatureList::IsEnabled(features::kExcludeAdsFromOriginIsolation) &&
+       oac_isolation_state->logical_oac_status() ==
+           AgentClusterKey::OACStatus::kOriginKeyedByDefault));
 
   // Note: we don't handle IsIsolationImplied() cases here, since those only
   // occur when OAC-by-default is enabled, and in that case we only proactively
@@ -4666,7 +4592,8 @@ UrlInfo NavigationRequest::GetUrlInfo() {
   url_info_init.WithOACHeaderRequest(oac_header_request)
       .WithCOOPSiteIsolation(ShouldRequestSiteIsolationForCOOP())
       .WithWebExposedIsolationInfo(web_exposed_isolation_info)
-      .WithEmbedderIsolationInfo(embedder_isolation_info_);
+      .WithEmbedderIsolationInfo(embedder_isolation_info_)
+      .WithMatchesAdFilterWithHost(response() && is_ad_tagged());
 
   // Compute the CrossOriginIsolationKey for the navigation.
   std::optional<AgentClusterKey::CrossOriginIsolationKey>
@@ -6384,51 +6311,6 @@ void NavigationRequest::OnRedirectChecksComplete(
     nav_entry->SetRemoveExtraHeadersOnCrossOriginRedirect(false);
   }
 
-  // The topics a request is allowed to see can change within its redirect
-  // chain thus we need to recalculate them. For example, different caller
-  // origins (i.e. navigation URL's origin) may receive different topics, as the
-  // callers can only get the topics about the sites they were on. Besides,
-  // regardless of cross-origin-ness, the timestamp can also affect the
-  // candidate epochs where the topics are derived from, thus resulting in
-  // different topics across redirects.
-  if (topics_eligible_) {
-    topics_eligible_ = false;
-
-    // At this point we may not have a valid `GetRenderFrameHost()` if the
-    // navigation is during a cross-site redirect. Thus, pass in the current/old
-    // RenderFrameHost here. This is fine, because it should still give us the
-    // desired IsPrimary() status and the desired top-level frame that
-    // `HandleTopicsEligibleResponse()` is interested in knowing.
-    HandleTopicsEligibleResponse(
-        commit_params_->redirect_params.back()->response_head->parsed_headers,
-        url::Origin::Create(commit_params_->redirects.back()),
-        *frame_tree_node_->current_frame_host(),
-        browsing_topics::ApiCallerSource::kIframeAttribute);
-  }
-
-  // Removes the topics header. This will effectively be a no-op if the topics
-  // header wasn't sent for the previous request.
-  headers_update_params.removed_headers.push_back(
-      kBrowsingTopicsRequestHeaderKey);
-
-  TopicsHeaderValueResult topics_header_value_result =
-      GetTopicsHeaderValueForNavigationRequest(frame_tree_node_,
-                                               common_params_->url);
-
-  topics_eligible_ = topics_header_value_result.topics_eligible;
-
-  if (topics_header_value_result.header_value) {
-    headers_update_params.modified_headers.SetHeader(
-        kBrowsingTopicsRequestHeaderKey,
-        *topics_header_value_result.header_value);
-  }
-
-  if (ad_auction_headers_eligible_) {
-    // Redirects are ineligible for ad auction headers.
-    ad_auction_headers_eligible_ = false;
-    headers_update_params.removed_headers.push_back(kAdAuctionRequestHeaderKey);
-  }
-
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
     // request's Shared Storage eligibility, so we need to re-compute it.
@@ -6878,10 +6760,6 @@ void NavigationRequest::CommitErrorPage(
 
   ReuseRequestNavigationClientForCommitIfNeeded();
 
-  topics_eligible_ = false;
-
-  ad_auction_headers_eligible_ = false;
-
   base::WeakPtr<NavigationRequest> weak_self(weak_factory_.GetWeakPtr());
   ReadyToCommitNavigation(true /* is_error */);
   // The caller above might result in the deletion of `this`. Return immediately
@@ -7058,24 +6936,6 @@ void NavigationRequest::CommitNavigation() {
 
   commit_params_->storage_key = GetRenderFrameHost()->CalculateStorageKey(
       origin_to_commit, base::OptionalToPtr(nonce));
-
-  if (topics_eligible_) {
-    topics_eligible_ = false;
-
-    if (response()) {
-      HandleTopicsEligibleResponse(
-          response_head_->parsed_headers, url::Origin::Create(GetURL()),
-          *GetRenderFrameHost(),
-          browsing_topics::ApiCallerSource::kIframeAttribute);
-    }
-  }
-
-  if (ad_auction_headers_eligible_) {
-    ProcessAdAuctionResponseHeaders(origin_to_commit, *GetRenderFrameHost(),
-                                    response() ? response()->headers : nullptr);
-  } else if (has_ad_auction_headers_attribute_) {
-    RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
-  }
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();
@@ -7893,8 +7753,7 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
 
   // `initiator_frame_token_` not being set implies this is not a
   // renderer-initiated navigation, which is out of the scope of connection
-  // allowlist anyway, even though at this point the origin trial status has not
-  // been checked yet.
+  // allowlist.
   if (!initiator_frame_token_) {
     return true;
   }
@@ -9305,6 +9164,12 @@ void NavigationRequest::DidCommitNavigation(
     base::UmaHistogramCounts100(
         "Navigation.DuplicateNavigationsIgnoredCountPerNavigation",
         ignored_duplicate_navigation_count_);
+    ukm::builders::Navigation_DuplicateNavigationsIgnored builder(
+        GetNextPageUkmSourceId());
+    builder.SetIgnoredDuplicateNavigationCount(
+        ukm::GetExponentialBucketMinForCounts1000(
+            ignored_duplicate_navigation_count_));
+    builder.Record(ukm::UkmRecorder::Get());
   }
 
   if (!IsSameDocument() && IsInOutermostMainFrame() &&
@@ -11364,18 +11229,12 @@ void NavigationRequest::ComputePoliciesToCommit() {
   }
 
   if (ResponseContainsConnectionAllowlist(response_head_.get()) &&
-      base::FeatureList::IsEnabled(network::features::kConnectionAllowlists) &&
-      ResponseEnablesConnectionAllowlistsOriginTrial(
-          common_params_->url, response_head_->headers.get())) {
+      base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     // Connection allowlist needs to be enforced once the allowlist response
-    // header is received. The origin trial token for this feature is received
-    // within the same response. The token is parsed here to query the trial
-    // status, instead of waiting for the response sent to renderer process,
-    // where the trial status is first available for most other web platform
-    // features. See https://wicg.github.io/connection-allowlists/.
+    // header is received.
     //
-    // The allowlist is stored in the policy container only if both origin trial
-    // and base::Feature are enabled.
+    // The allowlist is stored in the policy container if the base::Feature is
+    // enabled.
     policy_container_builder_->SetConnectionAllowlists(
         std::move(response_head_->parsed_headers->connection_allowlists));
   }

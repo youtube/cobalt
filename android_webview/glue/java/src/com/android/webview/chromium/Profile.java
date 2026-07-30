@@ -193,7 +193,10 @@ public class Profile {
             throw new IllegalArgumentException("URL cannot be null for enqueuePreconnect.");
         }
         validatePreconnectUrl(url);
-        mAwInit.getRunQueue().addTask(() -> preconnect(url));
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.Profile.ApiCall.ENQUEUE_PRECONNECT", mTraceArgs)) {
+            mAwInit.getRunQueue().addTask(() -> preconnect(url));
+        }
     }
 
     /**
@@ -549,5 +552,19 @@ public class Profile {
         return getInitializedState(CallSite.PROFILE_GET_HTTP_CACHE_MANAGER)
                 .browserContext
                 .getHttpCacheManager();
+    }
+
+    @UiThread
+    public void setCrossOriginIsolatedAllowList(@NonNull Set<String> originPatterns) {
+        getInitializedState(CallSite.PROFILE_SET_CROSS_ORIGIN_ISOLATED_ALLOW_LIST)
+                .browserContext
+                .setCrossOriginIsolatedAllowList(originPatterns);
+    }
+
+    @UiThread
+    public @NonNull Set<String> getCrossOriginIsolatedAllowList() {
+        return getInitializedState(CallSite.PROFILE_GET_CROSS_ORIGIN_ISOLATED_ALLOW_LIST)
+                .browserContext
+                .getCrossOriginIsolatedAllowList();
     }
 }

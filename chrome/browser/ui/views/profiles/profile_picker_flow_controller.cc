@@ -95,6 +95,7 @@ GURL GetInitialURL(ProfilePicker::EntryPoint entry_point) {
       return base_url.Resolve("new-profile");
     case ProfilePicker::EntryPoint::kFirstRun:
     case ProfilePicker::EntryPoint::kGlicManager:
+    case ProfilePicker::EntryPoint::kOmniboxEverywhere:
       // Should not be used for this entry point.
       NOTREACHED();
   }
@@ -299,6 +300,12 @@ class ReauthFlowStepController : public ProfileManagementStepController {
 
   void OnHidden() override {
     host()->SetNativeToolbarSigninButtonsVisible(false);
+  }
+
+  bool CanNavigateBack() const override {
+    return reauth_provider_
+               ? CanNavigateBackInternal(reauth_provider_->contents())
+               : false;
   }
 
   void OnNavigateBackRequested() override {
@@ -641,6 +648,7 @@ void ProfilePickerFlowController::CancelSigninFlow() {
     }
     case ProfilePicker::EntryPoint::kFirstRun:
     case ProfilePicker::EntryPoint::kGlicManager:
+    case ProfilePicker::EntryPoint::kOmniboxEverywhere:
       NOTREACHED() << "CancelSigninFlow() is not reachable from "
                       "this entry point";
   }
@@ -893,7 +901,7 @@ void ProfilePickerFlowController::OnProfileLoadedForPicking(
   ProfileManagementDisclaimerService* disclaimer_service =
       ProfileManagementDisclaimerServiceFactory::GetForProfile(profile);
   if (disclaimer_service &&
-      disclaimer_service->IsDeviceSignalsDisclaimerRequired()) {
+      disclaimer_service->IsDeviceSignalsDisclaimerRequired(nullptr)) {
     // Cleanup the step controller if already initialized.
     if (IsStepInitialized(Step::kDeviceSignalsDisclaimer)) {
       UnregisterStep(Step::kDeviceSignalsDisclaimer);

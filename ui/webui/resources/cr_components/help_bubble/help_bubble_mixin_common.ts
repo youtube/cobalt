@@ -13,6 +13,7 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
 import type {RectF} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
+import type {TrackedElementIdentifier} from '//resources/mojo/ui/webui/resources/js/tracked_element/tracked_element.mojom-webui.js';
 
 import {HELP_BUBBLE_DISMISSED_EVENT, HELP_BUBBLE_TIMED_OUT_EVENT} from './help_bubble.js';
 import type {HelpBubbleDismissedEvent, HelpBubbleElement} from './help_bubble.js';
@@ -86,11 +87,11 @@ export class HelpBubbleMixinCommon {
 
   registerHelpBubble(
       nativeId: string, trackable: Trackable,
-      options: HelpBubbleOptions = {}): HelpBubbleController|null {
+      options: HelpBubbleOptions = {}): boolean {
     if (this.helpBubbleControllerById_.has(nativeId)) {
       const ctrl = this.helpBubbleControllerById_.get(nativeId);
       if (ctrl && ctrl.isBubbleShowing()) {
-        return null;
+        return false;
       }
       this.unregisterHelpBubble(nativeId);
     }
@@ -104,7 +105,7 @@ export class HelpBubbleMixinCommon {
     if (this.isConnected_) {
       this.observeControllerAnchor_(controller, options);
     }
-    return controller;
+    return true;
   }
 
   unregisterHelpBubble(nativeId: string): void {
@@ -134,22 +135,34 @@ export class HelpBubbleMixinCommon {
     return this.controllers.some(ctrl => ctrl.isBubbleShowing());
   }
 
-  isHelpBubbleShowingForTesting(id: string): boolean {
+  isHelpBubbleShowingForTesting(target: string|HTMLElement): boolean {
     const controllers =
-        this.controllers.filter(this.filterMatchingIdForTesting_(id));
+        this.controllers.filter(this.filterControllersForTesting_(target));
     return !!controllers[0];
   }
 
-  getHelpBubbleForTesting(id: string): HelpBubbleElement|null {
+  getHelpBubbleForTesting(target: string|HTMLElement): HelpBubbleElement|null {
     const controllers =
-        this.controllers.filter(this.filterMatchingIdForTesting_(id));
+        this.controllers.filter(this.filterControllersForTesting_(target));
     return controllers[0] ? controllers[0].getBubble() : null;
   }
 
-  private filterMatchingIdForTesting_(anchorId: string):
+  private static matchesAnchor_(
+      ctrl: HelpBubbleController, target: string|HTMLElement): boolean {
+    const anchor = ctrl.getAnchor();
+    if (!anchor) {
+      return false;
+    }
+    if (target instanceof HTMLElement) {
+      return anchor === target;
+    }
+    return anchor.id === target || ctrl.getNativeId() === target;
+  }
+
+  private filterControllersForTesting_(target: string|HTMLElement):
       (ctrl: HelpBubbleController) => boolean {
-    return ctrl => ctrl.isBubbleShowing() && ctrl.getAnchor() !== null &&
-        ctrl.getAnchor()!.id === anchorId;
+    return ctrl => ctrl.isBubbleShowing() &&
+        HelpBubbleMixinCommon.matchesAnchor_(ctrl, target);
   }
 
   getSortedAnchorStatusesForTesting(): Array<[string, boolean]> {
@@ -158,8 +171,9 @@ export class HelpBubbleMixinCommon {
         .map(ctrl => ([ctrl.getNativeId(), ctrl.hasAnchor()]));
   }
 
-  canShowHelpBubble(controller: HelpBubbleController): boolean {
-    if (!this.helpBubbleControllerById_.has(controller.getNativeId())) {
+  canShowHelpBubble(anchorId: string): boolean {
+    const controller = this.helpBubbleControllerById_.get(anchorId);
+    if (!controller) {
       return false;
     }
     if (!controller.canShowBubble()) {
@@ -173,11 +187,13 @@ export class HelpBubbleMixinCommon {
     return !anchorIsUsed;
   }
 
-  showHelpBubble(controller: HelpBubbleController, params: HelpBubbleParams):
-      void {
-    assert(this.canShowHelpBubble(controller), 'Can\'t show help bubble');
+  showHelpBubble(params: HelpBubbleParams): void {
+    assert(
+        this.canShowHelpBubble(params.id.nativeIdentifier),
+        'Can\'t show help bubble');
+    const controller =
+        this.helpBubbleControllerById_.get(params.id.nativeIdentifier)!;
     const bubble = controller.createBubble(params);
-
     this.helpBubbleDismissedEventTracker_.add(
         bubble, HELP_BUBBLE_DISMISSED_EVENT,
         this.onHelpBubbleDismissed_.bind(this));
@@ -233,14 +249,15 @@ export class HelpBubbleMixinCommon {
    */
   private onAnchorVisibilityChanged_(
       target: HTMLElement, isVisible: boolean, bounds: RectF) {
-    const nativeId = target.dataset['nativeId']!;
-    assert(nativeId);
-    const ctrl = this.helpBubbleControllerById_.get(nativeId);
+    const nativeIdentifier = target.dataset['nativeId']!;
+    const secondaryIdentifier = target.dataset['secondaryId']!;
+    const ctrl = this.helpBubbleControllerById_.get(nativeIdentifier);
     if (!isVisible) {
-      const hidden = this.hideHelpBubble(nativeId);
+      const hidden = this.hideHelpBubble(nativeIdentifier);
       if (hidden) {
         this.helpBubbleProxy_.handler.helpBubbleClosed(
-            nativeId, HelpBubbleClosedReason.kPageChanged);
+            {nativeIdentifier, secondaryIdentifier},
+            HelpBubbleClosedReason.kPageChanged);
       }
     }
     if (ctrl) {
@@ -252,24 +269,24 @@ export class HelpBubbleMixinCommon {
    * This event is emitted by the mojo router
    */
   private onShowHelpBubble_(params: HelpBubbleParams): void {
-    if (!this.helpBubbleControllerById_.has(params.nativeIdentifier)) {
+    if (!this.helpBubbleControllerById_.has(params.id.nativeIdentifier)) {
       // Identifier not handled by this mixin.
       return;
     }
-    const ctrl = this.helpBubbleControllerById_.get(params.nativeIdentifier)!;
-    this.showHelpBubble(ctrl, params);
+    this.showHelpBubble(params);
   }
 
   /**
    * This event is emitted by the mojo router
    */
-  private onToggleHelpBubbleFocusForAccessibility_(nativeId: string) {
-    if (!this.helpBubbleControllerById_.has(nativeId)) {
+  private onToggleHelpBubbleFocusForAccessibility_(
+      id: TrackedElementIdentifier) {
+    if (!this.helpBubbleControllerById_.has(id.nativeIdentifier)) {
       // Identifier not handled by this mixin.
       return;
     }
 
-    const ctrl = this.helpBubbleControllerById_.get(nativeId)!;
+    const ctrl = this.helpBubbleControllerById_.get(id.nativeIdentifier)!;
     if (ctrl) {
       const anchor = ctrl.getAnchor();
       if (anchor) {
@@ -281,23 +298,24 @@ export class HelpBubbleMixinCommon {
   /**
    * This event is emitted by the mojo router
    */
-  private onHideHelpBubble_(nativeId: string): void {
+  private onHideHelpBubble_(id: TrackedElementIdentifier): void {
     // This may be called with nativeId not handled by this mixin
     // Ignore return value to silently fail
-    this.hideHelpBubble(nativeId);
+    this.hideHelpBubble(id.nativeIdentifier);
   }
 
   /**
    * This event is emitted by the mojo router.
    */
-  private onExternalHelpBubbleUpdated_(nativeId: string, shown: boolean) {
-    if (!this.helpBubbleControllerById_.has(nativeId)) {
+  private onExternalHelpBubbleUpdated_(
+      id: TrackedElementIdentifier, shown: boolean) {
+    if (!this.helpBubbleControllerById_.has(id.nativeIdentifier)) {
       // Identifier not handled by this mixin.
       return;
     }
 
     // Get the associated bubble and update status
-    const ctrl = this.helpBubbleControllerById_.get(nativeId)!;
+    const ctrl = this.helpBubbleControllerById_.get(id.nativeIdentifier)!;
     ctrl.updateExternalShowingStatus(shown);
   }
 
@@ -305,18 +323,19 @@ export class HelpBubbleMixinCommon {
    * This event is emitted by the help-bubble component
    */
   private onHelpBubbleDismissed_(e: HelpBubbleDismissedEvent) {
-    const nativeId = e.detail.nativeId;
-    assert(nativeId);
-    const hidden = this.hideHelpBubble(nativeId);
+    const nativeIdentifier = e.detail.nativeId;
+    const secondaryIdentifier = e.detail.secondaryId;
+    assert(nativeIdentifier);
+    assert(secondaryIdentifier);
+    const hidden = this.hideHelpBubble(nativeIdentifier);
     assert(hidden);
-    if (nativeId) {
-      if (e.detail.fromActionButton) {
-        this.helpBubbleProxy_.handler.helpBubbleButtonPressed(
-            nativeId, e.detail.buttonIndex!);
-      } else {
-        this.helpBubbleProxy_.handler.helpBubbleClosed(
-            nativeId, HelpBubbleClosedReason.kDismissedByUser);
-      }
+    if (e.detail.fromActionButton) {
+      this.helpBubbleProxy_.handler.helpBubbleButtonPressed(
+          {nativeIdentifier, secondaryIdentifier}, e.detail.buttonIndex!);
+    } else {
+      this.helpBubbleProxy_.handler.helpBubbleClosed(
+          {nativeIdentifier, secondaryIdentifier},
+          HelpBubbleClosedReason.kDismissedByUser);
     }
   }
 
@@ -324,13 +343,14 @@ export class HelpBubbleMixinCommon {
    * This event is emitted by the help-bubble component
    */
   private onHelpBubbleTimedOut_(e: HelpBubbleDismissedEvent) {
-    const nativeId = e.detail.nativeId;
-    assert(nativeId);
-    const hidden = this.hideHelpBubble(nativeId);
+    const nativeIdentifier = e.detail.nativeId;
+    const secondaryIdentifier = e.detail.secondaryId;
+    assert(nativeIdentifier);
+    assert(secondaryIdentifier);
+    const hidden = this.hideHelpBubble(nativeIdentifier);
     assert(hidden);
-    if (nativeId) {
-      this.helpBubbleProxy_.handler.helpBubbleClosed(
-          nativeId, HelpBubbleClosedReason.kTimedOut);
-    }
+    this.helpBubbleProxy_.handler.helpBubbleClosed(
+        {nativeIdentifier, secondaryIdentifier},
+        HelpBubbleClosedReason.kTimedOut);
   }
 }

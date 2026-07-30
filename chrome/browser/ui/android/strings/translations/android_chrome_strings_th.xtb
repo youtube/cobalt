@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">หากลบกลุ่มนี้ ทุกคนจะเสียสิทธิ์เข้าถึงกลุ่มแท็บ "<ph name="GROUP_NAME" />" ทันที และระบบจะลบกลุ่มนี้ออกจากอุปกรณ์ทุกเครื่อง</translation>
 <translation id="1142732900304639782">ไม่ต้องเสนอการแปลเว็บไซต์เหล่านี้</translation>
 <translation id="1143193470214071120">โปรดปิดหรือจัดการหน้าต่าง</translation>
+<translation id="1143486892058798649">บันทึกลิงก์เป็น…</translation>
 <translation id="1149725087019908252">กำลังสแกน <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> จะเปิดใน Chrome การดำเนินการต่อหมายความว่า คุณยอมรับ<ph name="BEGIN_LINK1" />ข้อกำหนดในการให้บริการของ Google<ph name="END_LINK1" /> และ<ph name="BEGIN_LINK2" />ข้อกำหนดในการให้บริการเพิ่มเติมของ Google Chrome และ Chrome OS<ph name="END_LINK2" /></translation>
 <translation id="1154555449933432029">คุณไม่มีรหัสผ่านที่บันทึกไว้ในเครื่องมือจัดการรหัสผ่านบน Google</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">หากต้องการจัดการบัญชี Google ให้แตะปุ่ม "จัดการบัญชี"</translation>
 <translation id="1549000191223877751">ย้ายไปยังหน้าต่างอื่น</translation>
 <translation id="1553358976309200471">อัปเดต Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> สำหรับ "<ph name="SEARCH_TERMS" />"</translation>
 <translation id="1554532453982918912">ช่วยปรับปรุง Chrome ให้ดีขึ้นสำหรับคนที่ใช้งานในลักษณะเดียวกับคุณ</translation>
 <translation id="1568636008098739136">ฟังหน้านี้ หากต้องการแก้ไขแป้นพิมพ์ลัดนี้ ให้แตะค้างไว้</translation>
 <translation id="1571041387761170095">ไม่มีรหัสผ่านที่ไม่รัดกุมหรือรหัสผ่านที่ใช้ซ้ำ</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{มีรหัสผ่านที่ถูกละเมิด 1 รายการในอุปกรณ์นี้}other{มีรหัสผ่านที่ถูกละเมิด # รายการในอุปกรณ์นี้}}</translation>
 <translation id="1594635596540195766">มี <ph name="SUGGESTIONS_COUNT" /> รายการที่แนะนำในลิสต์ด้านล่าง</translation>
+<translation id="159689249463841786">เลือกโฟลเดอร์ ซึ่งปัจจุบันคือ <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">ใช้ <ph name="SITE_ETLD_PLUS_ONE" /> ด้วย <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, แท็บการบันทึกเสียงที่ปักหมุด</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, แท็บการแชร์</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(ว่างเปล่า)</translation>
 <translation id="219283042927675668">แท็บในกลุ่ม</translation>
 <translation id="2194856509914051091">สิ่งที่ควรพิจารณา</translation>
+<translation id="2196695604589508993">เปิดประวัติการเข้าชม</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, แท็บการแชร์ที่ปักหมุด</translation>
 <translation id="22091350895006575">เพิ่มชื่อผู้ใช้</translation>
 <translation id="221494669172414749">การเปิด Chrome โดยไม่ใช้การล็อกโปรไฟล์จะนำรหัสผ่านและวิธีการชำระเงินที่บันทึกไว้ออกจากรถ การใช้การล็อกโปรไฟล์จะช่วยให้ข้อมูลนี้ปลอดภัย</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">บุ๊กมาร์กเพิ่มเติม</translation>
 <translation id="2332515770639153015">Google Safe Browsing พร้อมการปกป้องที่ดียิ่งขึ้นเปิดอยู่</translation>
 <translation id="233375395665273385">ลบและออกจากระบบ</translation>
+<translation id="2334275697832662087">การรักษาความปลอดภัยที่ทำงานด้วยระบบ AI ของ Chrome ช่วยปกป้องคุณจากภัยคุกคามออนไลน์ ซึ่งช่วยให้คุณท่องเว็บได้อย่างมั่นใจ</translation>
 <translation id="2341410551640223969">ติดตั้ง <ph name="WEBAPK_NAME" /> ไม่สำเร็จ</translation>
 <translation id="2349710944427398404">ข้อมูลทั้งหมดที่ Chrome ใช้ รวมถึงบัญชี บุ๊กมาร์ก และการตั้งค่าที่บันทึกไว้</translation>
 <translation id="2354001756790975382">บุ๊กมาร์กอื่นๆ</translation>
@@ -376,7 +381,7 @@
 <translation id="2566471851103108967">{FILE_COUNT,plural, =1{บล็อกการดาวน์โหลดที่เป็นอันตรายแล้ว}other{บล็อกการดาวน์โหลดที่เป็นอันตราย # รายการแล้ว}}</translation>
 <translation id="2569733278091928697">คุณสามารถจัดการการควบคุมสื่อ เซสชันไม่ระบุตัวตน การดาวน์โหลด และอื่นๆ ได้โดยง่าย</translation>
 <translation id="257088987046510401">ธีม</translation>
-<translation id="2571711316400087311">เสนอการส่งหน้าในภาษาอื่นๆ ไปยัง Google แปลภาษา</translation>
+<translation id="2571711316400087311">เสนอให้แปลหน้าเว็บที่เป็นภาษาอื่นด้วย Google แปลภาษา</translation>
 <translation id="2571834852878229351">สร้างของฉันเอง</translation>
 <translation id="2574249610672786438">ลงชื่อเข้าใช้ในอุปกรณ์ทุกเครื่องเพื่อดูแท็บที่เปิดไว้จากอุปกรณ์ที่คุณใช้ Chrome</translation>
 <translation id="2577981599306533385"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) จะเสียสิทธิ์เข้าถึงกลุ่มแท็บ "<ph name="GROUP_NAME" />" ทันที และจะไม่สามารถโต้ตอบกับคุณในบริการของ Google ได้อีกต่อไป</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">เกิดข้อผิดพลาด ลองใหม่</translation>
 <translation id="3577558748185201054">จัดการความสนใจและความต้องการของคุณ</translation>
 <translation id="3587482841069643663">ทั้งหมด</translation>
+<translation id="3598421953808879451">บันทึกวิดีโอเป็น…</translation>
 <translation id="3602290021589620013">ดูตัวอย่าง</translation>
 <translation id="3614126103057878858">ข้อมูลเชิงลึกด้านราคา</translation>
 <translation id="3616113530831147358">เสียง</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">Bottom Sheet</translation>
 <translation id="4045441967987592849">เปิดอีกครั้ง</translation>
 <translation id="4049920046559074950">ตัวเลือกเพิ่มเติมสำหรับ <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">ดูแท็บและหน้าต่างที่เพิ่งปิดไปที่นี่</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{เปิดในหน้าต่างที่ไม่ระบุตัวตน}other{เปิดทั้งหมด (#) ในหน้าต่างที่ไม่ระบุตัวตน}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_ONE" /> แท็บ}other{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="405365679581583349">อัปเดตบริการ Google Play</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">ส่วนขยาย "<ph name="EXTENSION_NAME" />" ต้องการให้คุณลงชื่อเข้าใช้ Chrome</translation>
 <translation id="6324916366299863871">แก้ไขทางลัด</translation>
 <translation id="6324977638108296054">สร้างลิงก์ไปยังไฮไลต์ไม่ได้</translation>
+<translation id="6331836477476466332">เบราว์เซอร์ที่ปลอดภัยและทรงพลังมากขึ้นสำหรับคุณ</translation>
 <translation id="6333140779060797560">แชร์ผ่าน <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">แก้ไข URL ที่ชี้ไปยังหน้าเว็บ: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">การเข้ารหัส</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">แท็บใหม่ที่ไม่ระบุตัวตน</translation>
 <translation id="686899695320434745">ที่อยู่ไม่ได้เข้ารหัสด้วยพาสเฟรส คุณจึงนำไปใช้ในบริการอื่นๆ ของ Google ได้</translation>
 <translation id="6870625088374152862">ลงชื่อเข้าใช้ด้วย <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">เริ่มท่องเว็บ</translation>
 <translation id="687838958001010630">ทุกคนที่มีลิงก์จะแก้ไขแท็บทั้งหมดได้</translation>
 <translation id="6880903702195291049">สิทธิ์ไม่มีปัญหา</translation>
 <translation id="6883204995689174413">แชร์</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">การเข้ารหัสด้วยพาสเฟรสไม่รวมถึงวิธีการชำระเงินและที่อยู่จาก Google Pay
 
 หากต้องการเปลี่ยนการตั้งค่านี้ ให้<ph name="BEGIN_LINK" />ลบข้อมูล Chrome ในบัญชี<ph name="END_LINK" /></translation>
+<translation id="7159399361248977424">บันทึกรูปภาพเป็น…</translation>
 <translation id="7165972437814027679">ดูข้อมูลเพิ่มเติมเกี่ยวกับสาเหตุที่ Chrome บล็อกบางไฟล์</translation>
 <translation id="7168323970702333693">ลงชื่อเข้าใช้ด้วย <ph name="USER_NAME" /> เปิดการตั้งค่า</translation>
 <translation id="7170930892977483182">ระบบจะลบรหัสความปลอดภัยทั้งหมดที่บันทึกไว้ในอุปกรณ์และใน Google Wallet ของคุณ</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">เข้าถึงวิธีการชำระเงิน</translation>
 <translation id="7363349185727752629">คู่มือแนะนำตัวเลือกด้านความเป็นส่วนตัวของคุณ</translation>
 <translation id="7364103838544876661">ตัวเลือกเพิ่มเติมในการลบข้อมูลการท่องเว็บ</translation>
+<translation id="736435710397109878">ชื่อเล่นของบัตร สูงสุด 25 อักขระ</translation>
 <translation id="7365073365123878797">หากต้องการเริ่มบันทึกและใช้รหัสผ่านด้วยเครื่องมือจัดการรหัสผ่านบน Google ให้อัปเดตบริการ Google Play</translation>
 <translation id="7368009310682364976">ดูแท็บที่เพิ่งเปิด</translation>
 <translation id="7368927539449986686">แก้ไขการค้นหาเว็บไซต์</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">องค์กรปิด Google Safe Browsing ไว้</translation>
 <translation id="7825973332242257878">กลุ่มแท็บ</translation>
 <translation id="7826342993930002256">Chrome ของคุณในทุกๆ ที่</translation>
+<translation id="7845155831233417403">คุณมีหน้าต่างได้ไม่เกิน <ph name="MAX_INSTANCE_COUNT" /> รายการ ปิดหน้าต่างเพื่อดำเนินการต่อ</translation>
 <translation id="7846161022626028328">เกิดข้อผิดพลาด โปรดลองอีกครั้ง</translation>
 <translation id="7846296061357476882">บริการของ Google</translation>
 <translation id="784652447248278262">หน้าต่างปัจจุบัน</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">หากต้องการแชร์กับผู้คนที่อยู่ใกล้ๆ ให้สแกนคิวอาร์โค้ดนี้</translation>
 <translation id="8090732854597034573">โปรดขอความช่วยเหลือจากผู้ปกครองหากต้องการ</translation>
 <translation id="8101414242770404289">ไม่มีแท็บจาก <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">แท็บที่ไม่ระบุตัวตน</translation>
 <translation id="810433609302852">Bottom Sheet การโปรโมตและขั้นตอนการใช้งานฟีเจอร์แจ้งเตือนเคล็ดลับ</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">นําส่วนขยายและข้อมูลที่ส่วนขยายบันทึกไว้ในอุปกรณ์นี้ออก</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">ใช้ธีมมืดกับเว็บไซต์เมื่อทำได้</translation>
 <translation id="8282950411412455249">ไปที่การตั้งค่าความปลอดภัย</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{ปิดหน้าต่างที่ไม่ระบุตัวตน 1 หน้าต่าง}other{ปิดหน้าต่างที่ไม่ระบุตัวตน # หน้าต่าง}}</translation>
+<translation id="8289602658021943461">บันทึกเฟรมวิดีโอเป็น…</translation>
 <translation id="8313599942510782709">งานของคุณยังอยู่ระหว่างดำเนินการ</translation>
 <translation id="8317318757008452355">เปิดตัวเลือกในการพิมพ์</translation>
 <translation id="8320212361750431956">กิจกรรมล่าสุด</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />ใหม่<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">บุ๊กมาร์กและรายการ</translation>
 <translation id="8342727528718219152">Chrome จะแจ้งให้คุณทราบเกี่ยวกับเว็บไซต์ที่อาจส่งการแจ้งเตือนมากเกินไป</translation>
 <translation id="834313815369870491">ไม่ต้องแปลเว็บไซต์</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, แท็บการบันทึกเสียงที่ไม่ระบุตัวตนที่ปักหมุดซึ่งเลือกไว้หลายแท็บ</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">ป้อนพาสเฟรส</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" /> แท็บในโหมดการแสดงภาพซ้อนภาพแบบไม่ระบุตัวตนที่ปักหมุดไว้</translation>
 <translation id="945522503751344254">ส่งความคิดเห็น</translation>
+<translation id="948276827484905248">สร้างคิวอาร์โค้ด</translation>
 <translation id="95817756606698420">Chrome สามารถใช้ <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> สำหรับการค้นหาในประเทศจีน คุณสามารถเปลี่ยนเครื่องมือค้นหาเริ่มต้นนี้ได้ใน<ph name="BEGIN_LINK" />การตั้งค่า<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">ลบข้อมูลการท่องเว็บ</translation>
 <translation id="963246339335003378">เปิดตัวจัดการงาน</translation>

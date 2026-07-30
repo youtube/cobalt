@@ -90,6 +90,7 @@ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
   void OnWidgetInitDone() override;
   void OnWidgetThemeChanged(views::Widget* widget) override;
   void OnWindowDestroying(gfx::NativeWindow window) override;
+  void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 
   // Overridden from CommandObserver:
   void EnabledStateChangedForCommand(int id, bool enabled) override;
@@ -103,6 +104,7 @@ class BrowserNativeWidgetMac : public views::NativeWidgetMac,
   raw_ptr<BrowserView> browser_view_;  // Weak. Our ClientView.
   BrowserWindowTouchBarViewsDelegate* __strong touch_bar_delegate_;
   NSView* __strong background_view_;
+  NSView* __strong tint_view_;
 
   std::optional<ui::NativeTheme::PreferredColorScheme>
       last_preferred_color_scheme_;

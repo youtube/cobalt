@@ -32,10 +32,12 @@ class PanelFocusDependentHotkeyManagerBrowserTest : public GlicBrowserTest {
 IN_PROC_BROWSER_TEST_F(PanelFocusDependentHotkeyManagerBrowserTest,
                        CloseHotkeyEscKey) {
   ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+  // Wait for the webview client to load to verify that hotkeys work with the
+  // webview.
+  ASSERT_OK(WaitForGlicClient(instance));
+  ASSERT_OK(FocusGlic(instance));
 
-  // When Glic has focus, Escape closes it.
-  EXPECT_TRUE(instance->GetActiveEmbedder()->HasFocus());
-  ASSERT_TRUE(TriggerHotkey(LocalHotkeyManager::Command::kClose));
+  TriggerHotkey(LocalHotkeyManager::Command::kClose);
 
   // Verify Glic is closed.
   ASSERT_TRUE(WaitForGlicClose(instance).has_value());
@@ -44,29 +46,31 @@ IN_PROC_BROWSER_TEST_F(PanelFocusDependentHotkeyManagerBrowserTest,
 IN_PROC_BROWSER_TEST_F(PanelFocusDependentHotkeyManagerBrowserTest,
                        ZoomHotkeys) {
   ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+  // Wait for the webview client to load to verify that hotkeys work with the
+  // webview.
   ASSERT_OK(WaitForGlicClient(instance));
   ASSERT_OK(FocusGlic(instance));
 
   const double initial_zoom = GetZoomLevel(instance);
 
   // Trigger Zoom In.
-  ASSERT_TRUE(TriggerHotkey(LocalHotkeyManager::Command::kZoomIn));
+  TriggerHotkey(LocalHotkeyManager::Command::kZoomIn);
   ASSERT_TRUE(RunUntil([&]() { return GetZoomLevel(instance) > initial_zoom; },
                        "Zoom level did not increase"));
 
   const double zoomed_in = GetZoomLevel(instance);
 
   // Trigger Zoom Out.
-  ASSERT_TRUE(TriggerHotkey(LocalHotkeyManager::Command::kZoomOut));
+  TriggerHotkey(LocalHotkeyManager::Command::kZoomOut);
   ASSERT_TRUE(RunUntil([&]() { return GetZoomLevel(instance) < zoomed_in; },
                        "Zoom level did not decrease"));
 
   // Trigger Zoom In again, then Zoom Reset.
-  ASSERT_TRUE(TriggerHotkey(LocalHotkeyManager::Command::kZoomIn));
+  TriggerHotkey(LocalHotkeyManager::Command::kZoomIn);
   ASSERT_TRUE(RunUntil([&]() { return GetZoomLevel(instance) > initial_zoom; },
                        "Zoom level did not increase again"));
 
-  ASSERT_TRUE(TriggerHotkey(LocalHotkeyManager::Command::kZoomReset));
+  TriggerHotkey(LocalHotkeyManager::Command::kZoomReset);
   ASSERT_OK(RunUntilEqual<double>([&]() { return GetZoomLevel(instance); },
                                   initial_zoom,
                                   "Zoom level did not reset to initial"));
@@ -87,14 +91,18 @@ class PanelFocusDependentHotkeyManagerZoomDisabledBrowserTest
 IN_PROC_BROWSER_TEST_F(PanelFocusDependentHotkeyManagerZoomDisabledBrowserTest,
                        ZoomHotkeysDisabledByFlag) {
   ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
-  ASSERT_TRUE(WaitForGlicClient(instance));
+  // Wait for the webview client to load to verify that hotkeys work with the
+  // webview.
+  ASSERT_OK(WaitForGlicClient(instance));
+  ASSERT_OK(FocusGlic(instance));
 
   EXPECT_DOUBLE_EQ(GetZoomLevel(instance), 1.0);
 
   // Triggering the shortcut should not zoom the Glic panel itself.
   TriggerHotkey(LocalHotkeyManager::Command::kZoomIn);
 
-  EXPECT_DOUBLE_EQ(GetZoomLevel(instance), 1.0);
+  ASSERT_OK(RunUntilEqual<double>([&]() { return GetZoomLevel(instance); }, 1.0,
+                                  "Zoom level should remain 1.0"));
 }
 
 }  // namespace

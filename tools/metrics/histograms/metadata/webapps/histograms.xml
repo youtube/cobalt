@@ -36,6 +36,9 @@ chromium-metrics-reviews@google.com.
   <variant name=".InstallFromInfo"
       summary="an install via a custom WebAppInstallInfo object, which is
                usually a backup install, but can occur for other reasons."/>
+  <variant name=".InstallFromManifestUrl"
+      summary="a manifest-first install triggered by the user via the Web
+               Install API."/>
   <variant name=".InstallIsolatedWebApp"
       summary="an isolated web app install."/>
   <variant name=".NavigateAndTriggerInstallDialog"
@@ -362,10 +365,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.AppSettingsPage.EntryPoints"
-    enum="AppSettingsPageEntryPoints" expires_after="2023-08-08">
+    enum="AppSettingsPageEntryPoints" expires_after="2027-06-13">
   <owner>phillis@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-08-08 to 2026-07; data may be
+    missing.
+
     Records the source of certain navigations to chrome://app-settings.
     Recording happens at the given entry point, and not during the loading of
     chrome://app-settings, so direct visits to the URL are not recorded.
@@ -827,7 +833,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.FileHandlersUnregistration.Result"
-    enum="BooleanSuccess" expires_after="2026-11-15">
+    enum="BooleanSuccess" expires_after="2027-01-17">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -839,40 +845,52 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.GeneratedIconFix.AttemptCount" units="attempts"
-    expires_after="2024-06-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-06-01 to 2026-07; data may be
+    missing.
+
     Records the number of generated icon fixes already attempted for each web
     app that had an icon fix scheduled at start up. Recorded at start up.
   </summary>
 </histogram>
 
 <histogram name="WebApp.GeneratedIconFix.Result" enum="GeneratedIconFixResult"
-    expires_after="2024-06-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-06-01 to 2026-07; data may be
+    missing.
+
     Records the result of attempting to fix a web app's generated icon. Recorded
     during start up and for all follow up daily retry events.
   </summary>
 </histogram>
 
 <histogram name="WebApp.GeneratedIconFix.ScheduleDecision"
-    enum="GeneratedIconFixScheduleDecision" expires_after="2024-06-01">
+    enum="GeneratedIconFixScheduleDecision" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-06-01 to 2026-07; data may be
+    missing.
+
     Records the decision made for whether to fix a web app's generated icon.
     Recorded during start up and for all follow up daily retry events.
   </summary>
 </histogram>
 
 <histogram name="WebApp.GeneratedIconFix.StartUpAttemptCount"
-    units="start up attempts" expires_after="2024-06-01">
+    units="start up attempts" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-06-01 to 2026-07; data may be
+    missing.
+
     Records the number of background generated icon fix attempts initiated
     during start up. Recorded at start up.
   </summary>
@@ -891,10 +909,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.AppsWithEmptyIconBitmap" units="web apps"
-    expires_after="2023-08-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-08-01 to 2026-07; data may be
+    missing.
+
     Records the number of web apps that have missing icon bitmap data. This gets
     recorded at browser profile start up in both the Lacros and Ash processes.
   </summary>
@@ -911,10 +932,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.AppsWithGeneratedIconBitmap" units="web apps"
-    expires_after="2023-08-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-08-01 to 2026-07; data may be
+    missing.
+
     Records the number of web apps that have a generated letter icon bitmap
     (distinct from the is_generated_icon flag). This gets recorded at browser
     profile start up in both the Lacros and Ash processes.
@@ -934,10 +958,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.AppsWithGeneratedIconFlagFalseNegative"
-    units="web apps" expires_after="2023-08-01">
+    units="web apps" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-08-01 to 2026-07; data may be
+    missing.
+
     Records the number of web apps that have their WebApp::is_generated_icon
     field unset but actually have a generated icon bitmap. This indicates a
     letter icon was generated during installation instead of using a real app
@@ -958,11 +985,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.DownloadedHttpStatusCodeOnCreate"
-    enum="HttpResponseCode" expires_after="2024-01-01">
+    enum="HttpResponseCode" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The HTTP status code returned for a list of icons when installing single
     WebApp. Recorded when WebAppInstallTask finishes downloading icons for
     non-sync installs. Icon download attempts with identical codes produce only
@@ -971,11 +1001,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.DownloadedHttpStatusCodeOnSync"
-    enum="HttpResponseCode" expires_after="2024-01-01">
+    enum="HttpResponseCode" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The HTTP status code returned for a list of icons when installing single
     WebApp. Recorded when WebAppInstallTask finishes downloading icons for web
     apps from sync. Icon download attempts with identical codes produce only one
@@ -998,22 +1031,28 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.DownloadedResultOnCreate"
-    enum="WebAppIconsDownloadedResult" expires_after="2024-01-01">
+    enum="WebAppIconsDownloadedResult" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The overall result returned by WebAppIconDownloader. Recorded when
     WebAppInstallTask finishes downloading icons for non-sync installs.
   </summary>
 </histogram>
 
 <histogram name="WebApp.Icon.DownloadedResultOnSync"
-    enum="WebAppIconsDownloadedResult" expires_after="2024-01-01">
+    enum="WebAppIconsDownloadedResult" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The overall result returned by WebAppIconDownloader. Recorded when
     WebAppInstallTask finishes downloading icons for web aps from sync.
   </summary>
@@ -1032,22 +1071,28 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Icon.HttpStatusCodeClassOnCreate"
-    enum="HttpStatusCodeClass" expires_after="2024-01-01">
+    enum="HttpStatusCodeClass" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The HTTP status code class returned for each icon loaded during a WebApp's
     creation. Recorded when WebAppInstallTask finishes downloading icons.
   </summary>
 </histogram>
 
 <histogram name="WebApp.Icon.HttpStatusCodeClassOnSync"
-    enum="HttpStatusCodeClass" expires_after="2024-01-01">
+    enum="HttpStatusCodeClass" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>mgiuca@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-01 to 2026-07; data may be
+    missing.
+
     The HTTP status code class returned for each icon loaded when syncing a
     WebApp. Recorded when WebAppInstallTask finishes downloading icons on sync.
   </summary>
@@ -1066,10 +1111,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.IconDownloader.HttpResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2024-01-14">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2027-06-13">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-14 to 2026-07; data may be
+    missing.
+
     Records the http error code returned from downloading icons from the
     WebAppIconDownloader. This is recorded during any type of web app install
     (user/sync/preinstall/policy/etc), manifest update checking which can occur
@@ -1175,10 +1223,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Install.SyncFallbackInstallInitiated"
-    enum="WebAppInstallResultCode" expires_after="2024-01-15">
+    enum="WebAppInstallResultCode" expires_after="2027-06-13">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-01-15 to 2026-07; data may be
+    missing.
+
     This is recorded when a web app install from the sync system fails and the
     fallback install is initiated. Sync installations happen when the sync
     system tells the local client that a web app has been installed on the
@@ -1250,7 +1301,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUserInMultipleProfiles" units="count"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>mek@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1604,7 +1655,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="WebApp.Isolated.KeyDistributionComponent.KeyRotationInfoSource"
-    enum="KeyDistributionComponentSource" expires_after="2026-11-15">
+    enum="KeyDistributionComponentSource" expires_after="2027-01-17">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -1703,7 +1754,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.KeyDistributionComponent.UpdateSource"
-    enum="IwaComponentUpdateSource" expires_after="2026-11-15">
+    enum="IwaComponentUpdateSource" expires_after="2027-01-17">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -2226,7 +2277,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.NavigationCapturing.FinalDisplay.Result"
-    enum="NavigationCapturingDisplayMode" expires_after="2026-11-15">
+    enum="NavigationCapturingDisplayMode" expires_after="2027-01-17">
   <owner>dibyapal@chromium.org</owner>
   <owner>desktop-pwas-team@google.com</owner>
   <summary>
@@ -2413,10 +2464,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.AppToReplaceStillDefaultInstalledCount"
-    units="apps" expires_after="2023-12-01">
+    units="apps" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Preinstalled web app configs can specify a set of apps to uninstall after
     the preinstalled web app is installed.
 
@@ -2429,10 +2483,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.AppToReplaceStillInstalledCount"
-    units="apps" expires_after="2024-02-04">
+    units="apps" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-02-04 to 2026-07; data may be
+    missing.
+
     Preinstalled web app configs can specify a set of apps to uninstall after
     the preinstalled web app is installed.
 
@@ -2446,10 +2503,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.AppToReplaceStillInstalledInShelfCount"
-    units="apps" expires_after="2023-12-01">
+    units="apps" expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Preinstalled web app configs can specify a set of apps to uninstall after
     the preinstalled web app is installed.
 
@@ -2518,10 +2578,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.ConfigErrorCount" units="apps"
-    expires_after="2023-12-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Records how many preinstalled web app config files failed to parse as valid
     JSON with valid fields. See preinstalled_web_app_utils.cc ParseConfig().
     This is recorded at start up.
@@ -2542,20 +2605,26 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.DisabledCount" units="apps"
-    expires_after="2023-12-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Records how many preinstalled web apps configs were disabled for the device.
     This is recorded at start up.
   </summary>
 </histogram>
 
 <histogram name="WebApp.Preinstalled.DisabledReason"
-    enum="PreinstalledAppDisabledReason" expires_after="2023-12-01">
+    enum="PreinstalledAppDisabledReason" expires_after="2027-06-13">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Records the reason a preinstalled installation was disabled. This is
     recorded at startup for every app in the preinstalled apps list, before it
     is sent to the ExternallyManagedAppManger for synchronization.
@@ -2563,10 +2632,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.EnabledCount" units="apps"
-    expires_after="2023-12-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Records how many preinstalled web apps configs were enabled for the device.
     This is recorded at start up.
   </summary>
@@ -2584,10 +2656,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Preinstalled.UninstallAndReplaceCount" units="apps"
-    expires_after="2023-12-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2023-12-01 to 2026-07; data may be
+    missing.
+
     Records how many preinstalled web app installations uninstalled and replaced
     an old default app (web app or Chrome app). This corresponds to the
     &quot;uninstall_and_replace&quot; field in preinstalled web app configs.
@@ -2894,7 +2969,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.SyncInitiatedUninstallResult" enum="BooleanSuccess"
-    expires_after="2024-01-01">
+    expires_after="2027-06-13">
   <owner>alancutter@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2907,7 +2982,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.SystemApps.FreshInstallDuration" units="ms"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>renkens@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>
@@ -2957,7 +3032,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.TrustedIcons.ReadResult" enum="BooleanSuccess"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2970,10 +3045,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Uninstall.NonSyncIncompleteCount"
-    units="Partially uninstalled webapps" expires_after="2024-03-17">
+    units="Partially uninstalled webapps" expires_after="2027-06-13">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
+    Warning: this histogram was expired from 2024-03-17 to 2026-07; data may be
+    missing.
+
     Records the number of incomplete uninstalls that were found on startup.
     These web apps are immediately scheduled for uninstall again. This does NOT
     include webapps that uninstalled from sync - any incomplete uninstalls from
@@ -3008,7 +3086,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Update.ApplyPendingManifestUpdateResult"
-    enum="WebAppApplyPendingManifestUpdateResult" expires_after="2026-11-15">
+    enum="WebAppApplyPendingManifestUpdateResult" expires_after="2027-01-17">
   <owner>msiem@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -3022,7 +3100,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.Update.ManifestSilentUpdateCheckResult"
-    enum="WebAppManifestSilentUpdateCheckResult" expires_after="2026-11-15">
+    enum="WebAppManifestSilentUpdateCheckResult" expires_after="2027-01-17">
   <owner>msiem@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>

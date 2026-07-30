@@ -8,6 +8,8 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/actor/ui/actor_overlay_ui.h"
 #include "chrome/browser/chrome_browser_interface_binders_webui_parts.h"
+#include "chrome/browser/contextual_cueing/internals/contextual_cueing_internals.mojom.h"
+#include "chrome/browser/contextual_cueing/internals/contextual_cueing_internals_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
@@ -50,6 +52,8 @@
 #include "chrome/browser/ui/webui/history/history_ui.h"
 #include "chrome/browser/ui/webui/infobar_internals/infobar_internals.mojom.h"
 #include "chrome/browser/ui/webui/infobar_internals/infobar_internals_ui.h"
+#include "chrome/browser/ui/webui/iwa_dev/iwa_dev.mojom.h"
+#include "chrome/browser/ui/webui/iwa_dev/iwa_dev_ui.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/multistep_filter_internals/multistep_filter_internals.mojom.h"
 #include "chrome/browser/ui/webui/multistep_filter_internals/multistep_filter_internals_ui.h"
@@ -117,9 +121,6 @@
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/search/ntp_features.h"
 #include "components/signin/public/base/signin_buildflags.h"
-#include "components/surface_embed/browser/surface_embed_host.h"
-#include "components/surface_embed/common/features.h"
-#include "components/surface_embed/common/surface_embed.mojom.h"
 #include "components/sync/base/features.h"
 #include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/render_frame_host.h"
@@ -208,6 +209,7 @@
 #include "chrome/browser/ui/webui/feature_showcase/default_browser.mojom.h"
 #include "chrome/browser/ui/webui/feature_showcase/feature_showcase.mojom.h"
 #include "chrome/browser/ui/webui/feature_showcase/feature_showcase_ui.h"
+#include "chrome/browser/ui/webui/feature_showcase/gemini.mojom.h"
 #include "chrome/browser/ui/webui/feature_showcase/google_lens.mojom.h"
 #include "chrome/browser/ui/webui/feature_showcase/password_manager.mojom.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation_ui.h"
@@ -377,6 +379,9 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
       feature_showcase::mojom::ThemesAndCustomizationPageHandlerFactory,
       FeatureShowcaseUI>(map);
   RegisterWebUIControllerInterfaceBinder<
+      feature_showcase::mojom::GeminiPageHandlerFactory, FeatureShowcaseUI>(
+      map);
+  RegisterWebUIControllerInterfaceBinder<
       feature_showcase::mojom::GoogleLensPageHandlerFactory, FeatureShowcaseUI>(
       map);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -532,22 +537,10 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   map->Add<metrics_reporter::mojom::PageMetricsHost>(
       &BindMetricsReporterService);
 
-  if (base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed)) {
-    map->Add<surface_embed::mojom::SurfaceEmbedHost>(base::BindRepeating(
-        [](content::RenderFrameHost* render_frame_host,
-           mojo::PendingReceiver<surface_embed::mojom::SurfaceEmbedHost>
-               receiver) {
-          auto* web_ui = render_frame_host->GetWebUI();
-          if (!web_ui || !web_ui->GetController()->GetAs<WebUIBrowserUI>()) {
-            return;
-          }
-          surface_embed::SurfaceEmbedHost::Create(render_frame_host,
-                                                  std::move(receiver));
-        }));
-  }
-
-  RegisterWebUIControllerInterfaceBinder<::mojom::WebAppInternalsHandler,
+  RegisterWebUIControllerInterfaceBinder<::mojom::PageHandlerFactory,
                                          WebAppInternalsUI>(map);
+  RegisterWebUIControllerInterfaceBinder<::iwa_dev::mojom::PageHandlerFactory,
+                                         IwaDevUI>(map);
   if (base::FeatureList::IsEnabled(multistep_filter::kMultistepFilter)) {
     RegisterWebUIControllerInterfaceBinder<
         multistep_filter_internals::mojom::PageHandlerFactory,
@@ -654,6 +647,10 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
   RegisterWebUIControllerInterfaceBinder<
       feedback::report_unsafe_site::mojom::PageHandlerFactory, FeedbackUI>(map);
+
+  RegisterWebUIControllerInterfaceBinder<
+      contextual_cueing_internals::mojom::PageHandler,
+      contextual_cueing_internals::ContextualCueingInternalsUI>(map);
 }
 
 void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(

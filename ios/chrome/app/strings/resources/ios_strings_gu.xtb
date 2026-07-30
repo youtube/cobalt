@@ -126,12 +126,12 @@
 <translation id="1396260204083880024"><ph name="USER_NAME" /> તરીકે સાઇન ઇન થયા. <ph name="USER_EMAIL" />. એકાઉન્ટ મેનૂ ખોલો.</translation>
 <translation id="1397144142234474689">ઇતિહાસ છુપાવો</translation>
 <translation id="1399268420835656394">જો તમે બાળક ન હો, તો તમે આ ડિવાઇસ પર Apple એકાઉન્ટમાં ઉંમર ચેક કરી શકો છો. <ph name="BEGIN_LINK" />વધુ જાણો<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">અગાઉ ભરવામાં આવેલું</translation>
 <translation id="1407135791313364759">બધું ખોલો</translation>
 <translation id="1408847409015257906">"પ્રાઇવસી અને સુરક્ષા" પર ટૅપ કરો.</translation>
 <translation id="1411386976162024013">Lens દ્વારા વિઝ્યુઅલ શોધ</translation>
 <translation id="1417474386970818917">સાઇન આઉટ કરો અને ડિલીટ કરો</translation>
 <translation id="1426410128494586442">હા</translation>
-<translation id="1429187656584513419">પાસવર્ડ ખોલો</translation>
 <translation id="1430915738399379752">પ્રિન્ટ</translation>
 <translation id="1433478348197382180">વાંચન મોડ</translation>
 <translation id="1435271730600332883">ઑટોમૅટિક રીતે ભરવાની સુવિધા અને પાસવર્ડ ખોલો</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">તમારું એકાઉન્ટ તમારા માતાપિતા દ્વારા મેનેજ કરવામાં આવે છે.
 <ph name="BEGIN_LINK" />વધુ જાણો<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">બદલવામાં આવ્યું</translation>
+<translation id="1481450969185702334">શોધો અને ભરો</translation>
 <translation id="1483493594462132177">મોકલો</translation>
 <translation id="1486096554574027028">પાસવર્ડ શોધો</translation>
 <translation id="1486593497476255523">ટૅબના ગ્રૂપ બનાવવાનું કાર્ય પૂર્ણ થયું!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">તમારી પ્રાઇવસીની સુરક્ષા કરવા માટે, Chrome આ ફીલ્ડમાં તમારો પાસવર્ડ સ્વતઃ નહીં ભરે.</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 સાઇટ (સિંક કરેલા ડિવાઇસ પર બીજી ઘણી બધી)}one{# સાઇટ (સિંક કરેલા ડિવાઇસ પર બીજી ઘણી બધી)}other{# સાઇટ (સિંક કરેલા ડિવાઇસ પર બીજી ઘણી બધી)}}</translation>
+<translation id="2865392654629180917">કંઈ પણ પૂછો અને AI-સંચાલિત જવાબો મેળવો</translation>
 <translation id="2870560284913253234">સાઇટ</translation>
 <translation id="2876369937070532032">તમારી સુરક્ષા જોખમમાં હોય ત્યારે, તમે મુલાકાત લેતા હો તે કેટલાક પેજના URLs Googleને મોકલે છે</translation>
 <translation id="2883151425485251736">તમે તમારા એકાઉન્ટમાંથી છુપાવેલા વિષયો જુઓ અને તેમાં ફેરફાર કરો</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">કિંમત ટ્રૅક કરી રહ્યાં છીએ</translation>
 <translation id="3038136505713492417">આ ડિવાઇસ પર તમારી પાસકીનો ઉપયોગ કરવા માટે આ તમે જ હોવાની ચકાસણી કરો</translation>
 <translation id="3039671569659952257">ફોલ્ડર કાઢી નાખો</translation>
+<translation id="3050988301648974170">પાસવર્ડની તપાસ ખોલો</translation>
 <translation id="3053332585453689122">તમે મુલાકાત લો છો તે URL અને પેજ કન્ટેન્ટનો નાનો નમૂનો, ડાઉનલોડ, એક્સ્ટેન્શન પ્રવૃત્તિ અને સિસ્ટમ સંબંધી માહિતી Google Safe Browsingને મોકલે છે એ ચેક કરવા કે તે નુકસાનદાયક છે કે કેમ.</translation>
 <translation id="3055102495753300780">માહિતીનો સ્ટોરેજ</translation>
 <translation id="3059270601560379555">નવી શોધ</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">ટૅબનું નવું ગ્રૂપ...</translation>
 <translation id="3185760469172949183">કૅમેરા વડે શોધનું કાર્ય પૂર્ણ થયું!</translation>
 <translation id="3186796054637504691">ઇતિહાસ અને વેબસાઇટનો ડેટા સાફ કરો</translation>
+<translation id="3190558889382726167">પાસવર્ડ સાચવ્યો</translation>
 <translation id="3190736958609431397">ટ્રૅક કરવાનું બંધ કરો</translation>
 <translation id="3208260410153224535">તમારી સંસ્થાએ સાઇન ઇન કરવાનું બંધ કર્યું છે. નવા બુકમાર્ક, પાસવર્ડ વગેરે માત્ર આ ડિવાઇસમાં સાચવવામાં આવશે.</translation>
 <translation id="3211969308836412674">સાઇટને અનપિન કરો</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">છેલ્લી 15 મિનિટ</translation>
 <translation id="5020732097997376541">"Lens આઇકન" પર ટૅપ કરો</translation>
 <translation id="5021500396464456616">આ લિંક મોકલનારી વ્યક્તિનો સંપર્ક કરો</translation>
+<translation id="503173149952522259">આ ટૅબને પિન કરવા માટે દબાવી રાખો</translation>
 <translation id="5039804452771397117">મંજૂરી આપો</translation>
 <translation id="5050042263972837708">જૂથનું નામ</translation>
 <translation id="5050810143224996149">પાસવર્ડ શેર કરો</translation>
@@ -2427,6 +2432,7 @@
 <translation id="9013605037177245304">નોટિફિકેશન ચાલુ કરો</translation>
 <translation id="9029650858822697271">તમને સાઇન આઉટ કરવામાં આવ્યા</translation>
 <translation id="9032405509996909363">બ્રાઉઝિંગ ડેટા ડિલીટ કરવાનું કન્ફર્મ કરો</translation>
+<translation id="9035699147763101514">Gemini સાથે પર્સનલ ઇન્ટેલિજન્સ દ્વારા સંચાલિત. સેટિંગમાં તમારી પસંદગીઓ મેનેજ કરો.</translation>
 <translation id="9039373489628511875">બેન્ડવિડ્થ</translation>
 <translation id="9042893549633094279">પ્રાઇવસી અને સુરક્ષા</translation>
 <translation id="9055291197094969722">તમારા ખુલ્લા ટૅબ ગોઠવવા અને કાર્યક્ષમ રહેવા માટે ટૅબના ગ્રૂપ બનાવો</translation>
@@ -2438,6 +2444,7 @@
 <translation id="9070824521421603770">તમને સાઇન આઉટ કરવામાં આવશે અને ટૅબ બંધ કરવામાં આવશે</translation>
 <translation id="9072837124205571418">બધા ડિવાઇસના ટૅબના ગ્રૂપ</translation>
 <translation id="9081058212938299310"><ph name="USERNAME" /> માટેનો પાસવર્ડ અપડેટ કરીએ?</translation>
+<translation id="908365381820697818">હવે તમે Gmail અને વધુમાંથી માહિતી શોધી અને ભરી શકો છો</translation>
 <translation id="9083838294503912307">એકથી વધુ ડિવાઇસને સિંક અને વ્યક્તિગત કરવા માટે સિંક ચાલુ કરો.</translation>
 <translation id="9084367296493549256">{count,plural, =1{તમે {count} નબળો પાસવર્ડ ધરાવો છો, જે તમારી સુરક્ષાને જોખમમાં મૂકી શકે છે. સલામત રહેવા માટે હમણાં જ તેને ઠીક કરો.}one{તમે {count} નબળો પાસવર્ડ ધરાવો છો, જે તમારી સુરક્ષાને જોખમમાં મૂકી શકે છે. સલામત રહેવા માટે હમણાં જ તેને ઠીક કરો.}other{તમે {count} નબળા પાસવર્ડ ધરાવો છો, જે તમારી સુરક્ષાને જોખમમાં મૂકી શકે છે. સલામત રહેવા માટે હમણાં જ તેને ઠીક કરો.}}</translation>
 <translation id="9084369964545892485">ટૅબમાં નવું છૂપું ટૅબ</translation>

@@ -242,20 +242,20 @@ export class KeyboardTesterElement extends KeyboardTesterElementBase {
     this.boardName = systemInfo.boardName;
   }
 
-  keyboard: KeyboardInfo;
-  isLoggedIn: boolean;
-  protected diagramTopRightKey: DiagramTopRightKey|null;
-  private lostFocusToastLingerMs: number;
-  private shouldDisplayDiagram: boolean;
-  private diagramMechanicalLayout: DiagramMechanicalLayout|null;
-  private diagramPhysicalLayout: DiagramPhysicalLayout|null;
-  private showNumberPad: boolean;
-  private showAssistantKey: boolean;
+  declare keyboard: KeyboardInfo;
+  declare isLoggedIn: boolean;
+  declare protected diagramTopRightKey: DiagramTopRightKey|null;
+  declare private lostFocusToastLingerMs: number;
+  declare private shouldDisplayDiagram: boolean;
+  declare private diagramMechanicalLayout: DiagramMechanicalLayout|null;
+  declare private diagramPhysicalLayout: DiagramPhysicalLayout|null;
+  declare private showNumberPad: boolean;
+  declare private showAssistantKey: boolean;
   private boardName: string = '';
-  private topRowKeys: KeyboardDiagramTopRowKey[];
-  private bottomLeftLayout: string;
-  private bottomRightLayout: string;
-  private numberPadLayout: string;
+  declare private topRowKeys: KeyboardDiagramTopRowKey[];
+  declare private bottomLeftLayout: string;
+  declare private bottomRightLayout: string;
+  declare private numberPadLayout: string;
   private receiver: KeyboardObserverReceiver|null = null;
   private inputDataProvider: InputDataProviderInterface =
       getInputDataProvider();
@@ -434,8 +434,8 @@ export class KeyboardTesterElement extends KeyboardTesterElementBase {
     this.inputDataProvider.observeKeyEvents(
         this.keyboard.id, this.receiver.$.bindNewPipeAndPassRemote());
     this.addEventListeners();
-    const title: HTMLElement|null =
-        this.shadowRoot!.querySelector('div[slot="title"]');
+    const title =
+        this.shadowRoot!.querySelector<HTMLElement>('div[slot="title"]');
     this.$.dialog.getNative().removeAttribute('aria-describedby');
     this.$.dialog.showModal();
     title?.focus();
@@ -465,8 +465,8 @@ export class KeyboardTesterElement extends KeyboardTesterElementBase {
 
   close(): void {
     if (this.shouldDisplayDiagram) {
-      const diagram: KeyboardDiagramElement|null =
-          this.shadowRoot!.querySelector('#diagram');
+      const diagram =
+          this.shadowRoot!.querySelector<KeyboardDiagramElement>('#diagram');
       assert(diagram);
       diagram.resetAllKeys();
     }

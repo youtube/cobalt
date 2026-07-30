@@ -2924,10 +2924,6 @@ void Document::UpdateStyleAndLayoutForNode(const Node* node,
   UpdateStyleAndLayout(reason);
 }
 
-RouteMap* Document::routeMap() {
-  DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
-  return &RouteMap::Ensure(*this);
-}
 
 void Document::ApplyScrollRestorationLogic() {
   DCHECK(View());
@@ -8853,12 +8849,13 @@ ScriptedAnimationController& Document::GetScriptedAnimationController() {
   return *scripted_animation_controller_;
 }
 
-int Document::RequestAnimationFrame(FrameCallback* callback) {
-  return scripted_animation_controller_->RegisterFrameCallback(callback);
+int Document::RequestAnimationFrame(FrameCallback* callback,
+                                    FrameCallbackType type) {
+  return scripted_animation_controller_->RegisterFrameCallback(callback, type);
 }
 
-void Document::CancelAnimationFrame(int id) {
-  scripted_animation_controller_->CancelFrameCallback(id);
+void Document::CancelAnimationFrame(int id, FrameCallbackType type) {
+  scripted_animation_controller_->CancelFrameCallback(id, type);
 }
 
 DocumentLoader* Document::Loader() const {

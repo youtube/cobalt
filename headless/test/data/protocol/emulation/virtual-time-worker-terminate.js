@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank('Tests virtual time' +
       ' is unpaused when a worker is terminated before start.');
 
@@ -10,7 +10,7 @@
       '../fetch/resources/fetch-test.js');
   const { result: { sessionId } } =
       await testRunner.browserP().Target.attachToBrowserTarget({});
-  const { protocol: bp } = new TestRunner.Session(testRunner, sessionId);
+  const {protocol: bp} = testRunner.createSessionFor(sessionId);
   const fetcher = new FetchHelper(testRunner, bp);
 
   await fetcher.enable();

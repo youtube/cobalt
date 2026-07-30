@@ -89,6 +89,10 @@ content::WebContents* ContextualTasksPanelHostAndroid::GetWebContents() {
   return web_contents_.get();
 }
 
+content::WebContents* ContextualTasksPanelHostAndroid::GetToolbarWebContents() {
+  return GetWebContents();
+}
+
 void ContextualTasksPanelHostAndroid::SetWebContents(
     content::WebContents* web_contents) {
   if (web_contents_ == web_contents) {
@@ -165,7 +169,8 @@ ContextualTasksPanelHostAndroid::GetOrCreateBridge() {
         *tab_android,
         context_sharing::TabBottomSheetClientType::kContextualTasks,
         context_sharing::CoBrowseContainerType::kBottomSheet,
-        CreateBottomSheetContentProvider());
+        CreateBottomSheetContentProvider(),
+        /*enable_pinch_to_zoom=*/true);
     tab_bottom_sheet_bridge_ =
         std::make_unique<context_sharing::TabBottomSheetBridge>(this,
                                                                 tab_android);

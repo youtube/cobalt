@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   testRunner.log('Tests that headless session can configure proxy.\n');
   const { result: { sessionId } } =
   await testRunner.browserP().Target.attachToBrowserTarget({});
-  const { protocol: bProtocol } = new TestRunner.Session(testRunner, sessionId);
+  const {protocol: bProtocol} = testRunner.createSessionFor(sessionId);
 
   async function dumpWithProxyServer(proxyServer) {
     const { result: { browserContextId } } =
@@ -19,8 +19,7 @@
 
     const { result: { sessionId } } =
         await bProtocol.Target.attachToTarget({ targetId, flatten: true });
-    const { protocol: pProtocol } =
-        new TestRunner.Session(testRunner, sessionId);
+    const {protocol: pProtocol} = testRunner.createSessionFor(sessionId);
     await pProtocol.Page.enable({});
     await pProtocol.Page.navigate({
       url: testRunner._testBaseURL + 'resources/title.html'

@@ -18,6 +18,7 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/prefs/pref_service.h"
+#include "components/strike_database/strike_database.h"
 
 namespace autofill::payments {
 
@@ -27,6 +28,10 @@ PaymentsChurnedUsersManager::PaymentsChurnedUsersManager(
   autofill_managers_observation_.Observe(
       autofill_client, ScopedAutofillManagersObservation::InitializationPolicy::
                            kObservePreexistingManagers);
+  if (autofill_client->GetStrikeDatabase()) {
+    strike_database_ = std::make_unique<PaymentsChurnedUsersStrikeDatabase>(
+        autofill_client->GetStrikeDatabase());
+  }
 }
 
 PaymentsChurnedUsersManager::~PaymentsChurnedUsersManager() = default;
@@ -38,6 +43,10 @@ void PaymentsChurnedUsersManager::OnFieldTypesDetermined(
     bool small_forms_were_parsed) {
   const FormStructure* form_structure = manager.FindCachedFormById(form);
   if (!form_structure) {
+    return;
+  }
+
+  if (strike_database_ && strike_database_->ShouldBlockFeature()) {
     return;
   }
 
@@ -65,24 +74,38 @@ void PaymentsChurnedUsersManager::OnFieldTypesDetermined(
     if (payments::PaymentsAutofillClient* payments_client =
             client_->GetPaymentsAutofillClient()) {
       payments_client->ShowPaymentsChurnedUsersUI(
-          base::BindOnce(&PaymentsChurnedUsersManager::OnBubbleAccepted,
-                         weak_factory_.GetWeakPtr()),
-          base::BindOnce(&PaymentsChurnedUsersManager::OnBubbleCancelled,
-                         weak_factory_.GetWeakPtr()));
+          base::BindOnce(&PaymentsChurnedUsersManager::OnUiClosed,
+                         weak_factory_.GetWeakPtr(),
+                         PaymentsUiClosedReason::kAccepted),
+          base::BindOnce(&PaymentsChurnedUsersManager::OnUiClosed,
+                         weak_factory_.GetWeakPtr(),
+                         PaymentsUiClosedReason::kCancelled),
+          base::BindOnce(&PaymentsChurnedUsersManager::OnUiClosed,
+                         weak_factory_.GetWeakPtr(),
+                         PaymentsUiClosedReason::kUnknown));
     }
   }
 }
 
-void PaymentsChurnedUsersManager::OnBubbleAccepted() {
-  if (PrefService* prefs = client_->GetPrefs()) {
-    prefs->SetBoolean(prefs::kAutofillCreditCardEnabled, true);
-  }
-}
+void PaymentsChurnedUsersManager::OnUiClosed(
+    PaymentsUiClosedReason closed_reason) {
+  if (closed_reason == PaymentsUiClosedReason::kAccepted) {
+    if (PrefService* prefs = client_->GetPrefs()) {
+      prefs->SetBoolean(prefs::kAutofillCreditCardEnabled, true);
+    }
 
-void PaymentsChurnedUsersManager::OnBubbleCancelled() {
-  // TODO(crbug.com/524740910): Implement cancel callback for the payments
-  // churned users UI.
-  NOTIMPLEMENTED();
+    if (strike_database_) {
+      strike_database_->ClearStrikes();
+    }
+  } else if (closed_reason == PaymentsUiClosedReason::kCancelled) {
+    if (strike_database_) {
+      strike_database_->AddStrikes(strike_database_->GetMaxStrikesLimit());
+    }
+  } else {
+    if (strike_database_) {
+      strike_database_->AddStrike();
+    }
+  }
 }
 
 }  // namespace autofill::payments

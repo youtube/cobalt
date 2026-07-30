@@ -542,6 +542,7 @@ MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
 void CanvasRenderingContext2D::WillDraw(
     const gfx::Rect& dirty_rect,
     CanvasPerformanceMonitor::DrawType draw_type) {
+  CHECK(shared_image_provider_ || bitmap_provider_);
   if (ShouldAntialias()) {
     gfx::Rect inflated_dirty_rect = dirty_rect;
     inflated_dirty_rect.Outset(1);
@@ -563,8 +564,7 @@ void CanvasRenderingContext2D::WillDraw(
 
 void CanvasRenderingContext2D::FlushIfRecordingLimitExceeded() {
   if (shared_image_provider_) {
-    if (shared_image_provider_->IsPrinting() &&
-        shared_image_provider_->clear_frame()) {
+    if (Host()->IsPrinting() && shared_image_provider_->clear_frame()) {
       return;
     }
     const MemoryManagedPaintRecorder* recorder = Recorder();
@@ -576,7 +576,7 @@ void CanvasRenderingContext2D::FlushIfRecordingLimitExceeded() {
       FlushCanvas(FlushReason::kOther);
     }
   } else if (bitmap_provider_) {
-    if (bitmap_provider_->IsPrinting() && bitmap_provider_->clear_frame()) {
+    if (Host()->IsPrinting() && bitmap_provider_->clear_frame()) {
       return;
     }
     const MemoryManagedPaintRecorder* recorder = Recorder();

@@ -1,0 +1,58 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module iwa_dev.mojom;
+
+import "mojo/public/mojom/base/file_path.mojom";
+import "url/mojom/origin.mojom";
+import "url/mojom/url.mojom";
+
+// Describes how a manifest-installed app should perform update checks.
+struct UpdateInfo {
+  url.mojom.Url update_manifest_url;
+  string update_channel;
+};
+
+// Represents the installation source and configuration of a dev mode IWA.
+union IwaDevModeSource {
+  url.mojom.Origin proxy_origin;         // Local proxy install source
+  mojo_base.mojom.FilePath bundle_path;  // Local bundle file install source
+  UpdateInfo update_info;                // Manifest install source
+};
+
+struct IwaDevModeAppInfo {
+  string app_id;
+  string web_bundle_id;
+  string name;
+  IwaDevModeSource source;
+  string installed_version;
+};
+
+// Interface for the WebUI page to communicate with the browser.
+interface PageHandler {
+  // Returns information about installed dev mode IWAs.
+  GetInstalledAppsInfo() => (array<IwaDevModeAppInfo> apps);
+
+  // Uninstalls an IWA with a given ID.
+  UninstallApp(string app_id) => (bool success);
+};
+
+// Interface for the browser to push events to the WebUI page.
+interface Page {
+  // Notifies the page that an app has been installed.
+  OnAppInstalled(IwaDevModeAppInfo app_info);
+
+  // Notifies the page that an app's manifest has been updated.
+  OnAppUpdated(IwaDevModeAppInfo app_info);
+
+  // Notifies the page that an app has been uninstalled.
+  OnAppUninstalled(string app_id);
+};
+
+// Factory interface to create the handler.
+interface PageHandlerFactory {
+  // Creates a PageHandler and binds it to the given receiver.
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};

@@ -98,7 +98,7 @@ async function createAppearancePage() {
       value: true,
     },
     {
-      key: 'projects_panel.pinned_to_tabstrip',
+      key: 'organizer_panel.pinned_to_tabstrip',
       type: chrome.settingsPrivate.PrefType.BOOLEAN,
       value: true,
     },
@@ -106,6 +106,11 @@ async function createAppearancePage() {
       key: 'everything_menu.pinned_to_tabstrip',
       type: chrome.settingsPrivate.PrefType.BOOLEAN,
       value: true,
+    },
+    {
+      key: 'glass_frame.enabled',
+      type: chrome.settingsPrivate.PrefType.BOOLEAN,
+      value: false,
     },
     {
       key: 'vertical_tabs.enabled',
@@ -601,7 +606,7 @@ suite('AppearancePage', function() {
 
   test('ShowSavedTabGroupsHiddenWithProjectsPanel', async function() {
     loadTimeData.overrideValues({
-      showProjectsPanelEnabled: true,
+      showOrganizerPanelEnabled: true,
     });
     await createAppearancePage();
 
@@ -839,7 +844,7 @@ suite('TabStripComboButtonSettings', () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
     loadTimeData.overrideValues({
-      showProjectsPanelEnabled: true,
+      showOrganizerPanelEnabled: true,
     });
 
     appearanceBrowserProxy = new TestAppearanceBrowserProxy();
@@ -854,8 +859,9 @@ suite('TabStripComboButtonSettings', () => {
   test('Toggles update correct prefs', async function() {
     assertTrue(
         prefService.getPref<boolean>('tab_search.pinned_to_tabstrip').value);
-    assertTrue(prefService.getPref<boolean>('projects_panel.pinned_to_tabstrip')
-                   .value);
+    assertTrue(
+        prefService.getPref<boolean>('organizer_panel.pinned_to_tabstrip')
+            .value);
 
     const tabSearchToggle =
         appearancePage.shadowRoot.querySelector<SettingsToggleButtonElement>(
@@ -865,7 +871,7 @@ suite('TabStripComboButtonSettings', () => {
 
     const projectsToggle =
         appearancePage.shadowRoot.querySelector<SettingsToggleButtonElement>(
-            '#showProjectsPanelButton');
+            '#showOrganizerPanelButton');
     assertTrue(!!projectsToggle);
     assertTrue(projectsToggle.checked);
 
@@ -877,7 +883,7 @@ suite('TabStripComboButtonSettings', () => {
     projectsToggle.click();
     await microtasksFinished();
     assertFalse(
-        prefService.getPref<boolean>('projects_panel.pinned_to_tabstrip')
+        prefService.getPref<boolean>('organizer_panel.pinned_to_tabstrip')
             .value);
   });
 
@@ -897,17 +903,17 @@ suite('TabStripComboButtonSettings', () => {
 
     const projectsToggle =
         appearancePage.shadowRoot.querySelector<SettingsToggleButtonElement>(
-            '#showProjectsPanelButton');
+            '#showOrganizerPanelButton');
     assertTrue(!!projectsToggle);
     metricsBrowserProxy.resetResolver('recordAction');
     projectsToggle.click();
     action = await metricsBrowserProxy.whenCalled('recordAction');
-    assertEquals('TabStripComboButton.ProjectsPanel.Unpinned', action);
+    assertEquals('TabStripComboButton.OrganizerPanel.Unpinned', action);
   });
 
   test('Everything menu toggle updates correct pref', async function() {
     loadTimeData.overrideValues({
-      showProjectsPanelEnabled: false,
+      showOrganizerPanelEnabled: false,
       showEverythingMenuEnabled: true,
     });
     await createAppearancePage();
@@ -931,7 +937,7 @@ suite('TabStripComboButtonSettings', () => {
 
   test('Everything menu toggle records metrics', async function() {
     loadTimeData.overrideValues({
-      showProjectsPanelEnabled: false,
+      showOrganizerPanelEnabled: false,
       showEverythingMenuEnabled: true,
     });
     await createAppearancePage();
@@ -953,14 +959,57 @@ suite('TabStripComboButtonSettings', () => {
 
   test('Toggles hidden when disabled', async function() {
     loadTimeData.overrideValues({
-      showProjectsPanelEnabled: false,
+      showOrganizerPanelEnabled: false,
       showEverythingMenuEnabled: false,
     });
     await createAppearancePage();
 
     assertFalse(
-        !!appearancePage.shadowRoot.querySelector('#showProjectsPanelButton'));
+        !!appearancePage.shadowRoot.querySelector('#showOrganizerPanelButton'));
     assertFalse(
         !!appearancePage.shadowRoot.querySelector('#showEverythingMenuButton'));
   });
 });
+
+// <if expr="is_macosx">
+suite('GlassFrameSettings', () => {
+  setup(async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    loadTimeData.overrideValues({
+      showGlassEffectEnabled: true,
+    });
+    appearanceBrowserProxy = new TestAppearanceBrowserProxy();
+    AppearanceBrowserProxyImpl.setInstance(appearanceBrowserProxy);
+
+    await createAppearancePage();
+    await prefService.setPrefValue('glass_frame.enabled', true);
+    await microtasksFinished();
+  });
+
+  test('Glass frame dropdown records metric', async () => {
+    const dropdown =
+        appearancePage.shadowRoot.querySelector<SettingsDropdownMenuElement>(
+            '#glassEffect');
+    assertTrue(!!dropdown);
+
+    const selectElement = dropdown.$.dropdownMenu;
+    assertTrue(!!selectElement);
+    assertEquals('true', selectElement.value);
+
+    selectElement.value = 'false';
+    selectElement.dispatchEvent(new Event('change'));
+    const glassDisabled = await appearanceBrowserProxy.whenCalled(
+        'recordGlassFrameEnabledChanged');
+    assertFalse(glassDisabled);
+
+    appearanceBrowserProxy.reset();
+
+    selectElement.value = 'true';
+    selectElement.dispatchEvent(new Event('change'));
+    const glassEnabled = await appearanceBrowserProxy.whenCalled(
+        'recordGlassFrameEnabledChanged');
+    assertTrue(glassEnabled);
+  });
+});
+// </if>

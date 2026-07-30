@@ -90,6 +90,7 @@ constexpr TestAccount kEnterpriseAccount = {"foo@testenterprise.com",
                                             "testenterprise.com"};
 }  // namespace
 
+// TODO(crbug.com/537849136): Simplify this test suite to GlicBrowserTest.
 class GlicActorPolicyCheckerBrowserTestBase : public NonInteractiveGlicTest {
  public:
   GlicActorPolicyCheckerBrowserTestBase() {
@@ -1090,8 +1091,8 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     ActorPolicyCheckerBrowserTestWithManagedAccountWithPolicy,
     InvalidPolicyValueFallsSafeAndDoesNotCrash) {
-  browser()->profile()->GetPrefs()->SetInteger(glic::prefs::kGlicActuationOnWeb,
-                                               2);
+  browser()->GetProfile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicActuationOnWeb, 2);
   EXPECT_FALSE(GetPolicyChecker().CanActOnWeb());
   EXPECT_EQ(GetPolicyChecker().CannotActOnWebReason(),
             CannotActReason::kDisabledByPolicy);

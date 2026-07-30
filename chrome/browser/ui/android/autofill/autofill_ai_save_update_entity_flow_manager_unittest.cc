@@ -44,16 +44,11 @@ class AutofillAiSaveUpdateEntityFlowManagerTest
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
             ChromeRenderViewHostTestHarness::profile());
     flow_manager_ = std::make_unique<AutofillAiSaveUpdateEntityFlowManager>(
-        web_contents(), &autofill_message_controller_, "en-US");
-    auto autofill_dialog_controller =
-        std::make_unique<NiceMock<MockAutofillDialogController>>();
-    autofill_dialog_controller_ = autofill_dialog_controller.get();
-    flow_manager_->SetAutofillDialogControllerForTest(
-        std::move(autofill_dialog_controller));
+        web_contents(), &autofill_message_controller_,
+        &autofill_dialog_controller_, "en-US");
   }
 
   void TearDown() override {
-    autofill_dialog_controller_ = nullptr;
     identity_test_env_adaptor_.reset();
     flow_manager_.reset();
     ChromeRenderViewHostTestHarness::TearDown();
@@ -67,8 +62,8 @@ class AutofillAiSaveUpdateEntityFlowManagerTest
     return *flow_manager_;
   }
 
-  NiceMock<MockAutofillDialogController>& autofill_dialog_controller() {
-    return *autofill_dialog_controller_;
+  MockAutofillDialogController& autofill_dialog_controller() {
+    return autofill_dialog_controller_;
   }
 
   base::MockCallback<AutofillClient::EntityImportPromptResultCallback>&
@@ -103,7 +98,7 @@ class AutofillAiSaveUpdateEntityFlowManagerTest
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
   MockAutofillMessageController autofill_message_controller_;
-  raw_ptr<NiceMock<MockAutofillDialogController>> autofill_dialog_controller_;
+  MockAutofillDialogController autofill_dialog_controller_;
   base::MockCallback<AutofillClient::EntityImportPromptResultCallback>
       prompt_closed_callback_;
   std::unique_ptr<AutofillAiSaveUpdateEntityFlowManager> flow_manager_;
@@ -320,7 +315,7 @@ TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest, ShowLocalSaveNotification) {
       IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_DESCRIPTION,
       google_wallet);
   const std::u16string button = l10n_util::GetStringUTF16(
-      IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_CONFIRMATION_BUTTON_LABEL);
+      IDS_AUTOFILL_AI_SNACK_BAR_CONFIRMATION_BUTTON_LABEL);
 
   EXPECT_CALL(autofill_dialog_controller(),
               Show(title, description, button, _));

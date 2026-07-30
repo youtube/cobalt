@@ -9,6 +9,7 @@ import {type Range as MojomRange} from '//resources/mojo/ui/gfx/range/mojom/rang
 import type {AdjustOmniboxTextForCopyResult} from '/shared/toolbar_ui_api.mojom-webui.js';
 import type {OmniboxTextPortion, OmniboxViewState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 import {FocusRequestTarget, OmniboxTextColor} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import {getFaviconUrl} from 'chrome://resources/js/icon.js';
 
 import {BrowserProxyImpl, INVALID_FOCUS_REQUEST_HANDLE} from './browser_proxy.js';
 import type {BrowserProxy, FocusRequestHandle} from './browser_proxy.js';
@@ -19,6 +20,7 @@ import {getEventDispositionFlags} from './toolbar_button.js';
 export interface ReadonlyOmniboxElement {
   $: {
     additionalText: HTMLElement,
+    dragTemplate: HTMLElement,
     inlineAutocomplete: HTMLElement,
     textContainer: HTMLElement,
     textContainerWrap: HTMLElement,
@@ -68,6 +70,11 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
       // Current state on this side.
       omniboxViewState: {type: Object},
+
+      // True if the IME is currently active.
+      isComposing: {type: Boolean},
+
+      adjustedCopyResult: {type: Object},
     };
   }
 
@@ -88,6 +95,9 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
   accessor omniboxViewState: OmniboxViewState =
       Object.assign(this.browserOmniboxState);
+
+  accessor isComposing: boolean = false;
+  accessor adjustedCopyResult: AdjustOmniboxTextForCopyResult|null = null;
 
   private focusRequestHandle_: FocusRequestHandle =
       INVALID_FOCUS_REQUEST_HANDLE;
@@ -113,7 +123,6 @@ export class ReadonlyOmniboxElement extends CrLitElement {
   // immediately before. `null` if there is no focus.
   private lastFocusAcquisition_: number|null = null;
   private isDraggingFromSelf_: boolean = false;
-  private adjustedCopyResult_: AdjustOmniboxTextForCopyResult|null = null;
   private onSelectionChangeBound_ = this.onSelectionChange_.bind(this);
 
   // Bitmap of mouse buttons down. This is using `event.button` as bit position,
@@ -193,6 +202,11 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     textInput.addEventListener('keydown', this.onInputKeyDown.bind(this));
     textInput.addEventListener('keyup', this.onInputKeyUp.bind(this));
     textInput.addEventListener('copy', this.onInputCopy_.bind(this));
+    textInput.addEventListener('cut', this.onInputCut_.bind(this));
+    textInput.addEventListener(
+        'compositionstart', this.onInputCompositionstart_.bind(this));
+    textInput.addEventListener(
+        'compositionend', this.onInputCompositionend_.bind(this));
 
     this.addEventListener('contextmenu', this.onContextMenu_.bind(this));
     this.addEventListener('dragstart', this.onDragStart_.bind(this));
@@ -214,9 +228,8 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
       // If there is an inline autocompletion, render it as selected text
       // after the input.
-      // TODO(crbug.com/500653057): We will likely need to do something
-      // different when IME is popped up.
-      if (this.omniboxViewState.inlineAutocompletion.length > 0) {
+      if (this.omniboxViewState.inlineAutocompletion.length > 0 &&
+          !this.isComposing) {
         selection = {
           start: this.userText.length,
           end: this.userText.length +
@@ -224,8 +237,8 @@ export class ReadonlyOmniboxElement extends CrLitElement {
         };
       }
 
-      const allText =
-          this.userText + this.omniboxViewState.inlineAutocompletion;
+      const allText = this.userText +
+          (this.isComposing ? '' : this.omniboxViewState.inlineAutocompletion);
       if (this.$.textInput.value !== allText) {
         this.$.textInput.value = allText;
       }
@@ -482,6 +495,7 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     });
 
     this.selectAllOnMouseRelease_ = false;
+    this.updateAdjustedCopyResult_();
   }
 
   private onInputMouseMove_(event: MouseEvent): void {
@@ -510,15 +524,23 @@ export class ReadonlyOmniboxElement extends CrLitElement {
   // Update our `omniboxViewState` to match what got entered into `textInput`.
   // Also bumps the version.
   private updateStateFromTextInput(): void {
-    this.userText = this.$.textInput.value;
+    const newValue = this.$.textInput.value;
+    const oldValue = this.userText;
+    const oldInline = this.omniboxViewState.inlineAutocompletion;
+    const oldAll = oldValue + oldInline;
 
-    // Sync up the read-only view to have the right text.
+    this.userText = newValue;
     ++this.omniboxViewState.uiVersion;
-    // If we got here (rather than blocking things in onInputKeyDown),
-    // there is no longer any inline completion.
-    this.omniboxViewState.inlineAutocompletion = '';
+
+    if (this.isComposing && oldInline.length > 0 &&
+        newValue.length > oldValue.length && oldAll.startsWith(newValue)) {
+      this.omniboxViewState.inlineAutocompletion =
+          oldAll.substring(newValue.length);
+    } else {
+      this.omniboxViewState.inlineAutocompletion = '';
+    }
+
     this.omniboxViewState.selection = this.getMojoSelection();
-    // Sync up the read-only view to have the right text.
     this.updateTextPiecesFromUserText();
   }
 
@@ -541,7 +563,7 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
 
     const inlineAutocompletion = this.omniboxViewState.inlineAutocompletion;
-    if (inlineAutocompletion.length > 0) {
+    if (inlineAutocompletion.length > 0 && !this.isComposing) {
       // If the current input state (its value and selection) matches its last
       // state (text and inline autocompletion) and the user types the next
       // character in the inline autocompletion, stop the keydown event. Just
@@ -666,17 +688,31 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     return this.getSelection();
   }
 
+  protected getDragFaviconUrl_(): string {
+    if (this.adjustedCopyResult?.adjustedUrl) {
+      return getFaviconUrl(this.adjustedCopyResult.adjustedUrl, {
+        size: 16,
+        scaleFactor: `${window.devicePixelRatio}x`,
+      });
+    }
+    return '';
+  }
+
+  protected getDragTitle_(): string {
+    return this.adjustedCopyResult?.pageTitle || '';
+  }
+
   private populateDataTransfer_(dataTransfer: DataTransfer): boolean {
     const input = this.$.textInput;
     const selectionStart = input.selectionStart!;
     const selectionEnd = input.selectionEnd!;
 
-    if (selectionStart !== selectionEnd && this.adjustedCopyResult_) {
-      dataTransfer.setData('text/plain', this.adjustedCopyResult_.adjustedText);
+    if (selectionStart !== selectionEnd && this.adjustedCopyResult) {
+      dataTransfer.setData('text/plain', this.adjustedCopyResult.adjustedText);
 
-      if (this.adjustedCopyResult_.adjustedUrl) {
+      if (this.adjustedCopyResult.adjustedUrl) {
         dataTransfer.setData(
-            'text/uri-list', this.adjustedCopyResult_.adjustedUrl);
+            'text/uri-list', this.adjustedCopyResult.adjustedUrl);
       }
       return true;
     }
@@ -688,6 +724,14 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
     if (e.dataTransfer && this.populateDataTransfer_(e.dataTransfer)) {
       e.dataTransfer.effectAllowed = 'copy';
+
+      if (this.adjustedCopyResult?.adjustedUrl) {
+        const template = this.$.dragTemplate;
+        const xOffset = template.clientWidth / 2;
+        const yOffset = template.clientHeight / 2;
+
+        e.dataTransfer.setDragImage(template, xOffset, yOffset);
+      }
     }
   }
 
@@ -697,7 +741,24 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     }
   }
 
-  private onSelectionChange_(): void {
+  private onInputCut_(e: ClipboardEvent): void {
+    if (e.clipboardData && this.populateDataTransfer_(e.clipboardData)) {
+      e.preventDefault();
+      // Go via execCommand to keep Ctrl-Z happy.
+      document.execCommand('delete');
+      this.onInputInput();
+    }
+  }
+
+  private onInputCompositionstart_(): void {
+    this.isComposing = true;
+  }
+
+  private onInputCompositionend_(): void {
+    this.isComposing = false;
+  }
+
+  private updateAdjustedCopyResult_(): void {
     const input = this.$.textInput;
     const start = input.selectionStart!;
     const end = input.selectionEnd!;
@@ -706,14 +767,21 @@ export class ReadonlyOmniboxElement extends CrLitElement {
       this.browserProxy_.toolbarUIHandler
           .adjustOmniboxTextForCopy(selectedText, start)
           .then(response => {
-            this.adjustedCopyResult_ = response || null;
+            this.adjustedCopyResult = response || null;
           })
           .catch(() => {
-            this.adjustedCopyResult_ = null;
+            this.adjustedCopyResult = null;
           });
     } else {
-      this.adjustedCopyResult_ = null;
+      this.adjustedCopyResult = null;
     }
+  }
+
+  private onSelectionChange_(): void {
+    if (this.mouseButtonDown_ !== 0) {
+      return;
+    }
+    this.updateAdjustedCopyResult_();
   }
 
   private onDragEnd_(): void {

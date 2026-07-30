@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 
+#include "base/functional/callback_helpers.h"
+#include "base/test/mock_callback.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
@@ -76,26 +78,58 @@ TEST_F(OmniboxAutofillPageActionControllerTest, FromReturnsController) {
             OmniboxAutofillPageActionController::From(tab()));
 }
 
-TEST_F(OmniboxAutofillPageActionControllerTest, ShowCallsPageActionController) {
+TEST_F(OmniboxAutofillPageActionControllerTest,
+       OnPageActionChipShownTriggersFeaturePromo) {
+  EXPECT_CALL(user_education(), MaybeShowFeaturePromo(_))
+      .WillOnce(Return(true));
+
+  page_actions::PageActionState state;
+  omnibox_autofill_page_action_controller().OnPageActionChipShown(state);
+}
+
+TEST_F(OmniboxAutofillPageActionControllerTest,
+       OnPageActionChipShownInvokesOnChipShownCallback) {
+  base::MockCallback<base::OnceClosure> mock_callback;
+  EXPECT_CALL(mock_callback, Run()).Times(1);
+
+  omnibox_autofill_page_action_controller().ShowExpandedChip(
+      mock_callback.Get());
+
+  page_actions::PageActionState state;
+  omnibox_autofill_page_action_controller().OnPageActionChipShown(state);
+}
+
+TEST_F(OmniboxAutofillPageActionControllerTest,
+       ShowExpandedChipCallsPageActionController) {
   InSequence s;
   EXPECT_CALL(page_action_controller(), Show(kActionAutofillPayment)).Times(1);
   EXPECT_CALL(page_action_controller(),
               ShowSuggestionChip(kActionAutofillPayment, _))
       .Times(1);
-  EXPECT_CALL(user_education(), MaybeShowFeaturePromo(_))
-      .WillOnce(Return(true));
 
-  omnibox_autofill_page_action_controller().Show();
+  omnibox_autofill_page_action_controller().ShowExpandedChip(base::DoNothing());
 }
 
-TEST_F(OmniboxAutofillPageActionControllerTest, HideCallsPageActionController) {
+TEST_F(OmniboxAutofillPageActionControllerTest,
+       ShowCollapsedChipCallsPageActionController) {
+  InSequence s;
+  EXPECT_CALL(page_action_controller(), Show(kActionAutofillPayment)).Times(1);
+  EXPECT_CALL(page_action_controller(),
+              HideSuggestionChip(kActionAutofillPayment))
+      .Times(1);
+
+  omnibox_autofill_page_action_controller().ShowCollapsedChip();
+}
+
+TEST_F(OmniboxAutofillPageActionControllerTest,
+       HideChipCallsPageActionController) {
   InSequence s;
   EXPECT_CALL(page_action_controller(),
               HideSuggestionChip(kActionAutofillPayment))
       .Times(1);
   EXPECT_CALL(page_action_controller(), Hide(kActionAutofillPayment)).Times(1);
 
-  omnibox_autofill_page_action_controller().Hide();
+  omnibox_autofill_page_action_controller().HideChip();
 }
 
 }  // namespace autofill

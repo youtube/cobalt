@@ -3363,7 +3363,8 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
     # <selectlist> shouldn't fail.
     self._driver.Load('about:blank')
     self._driver.ExecuteScript(
-        "document.body.innerHTML = '<selectlist tabindex=0><option>1</option></selectlist>';")
+        "document.body.innerHTML ="
+        " '<selectlist tabindex=0><option>1</option></selectlist>';")
     selectlist = self._driver.FindElement('tag name', 'selectlist')
     selectlist.SendKeys('\uE00C')  # ESC
 
@@ -3372,7 +3373,8 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
     # <selectlist> should fail.
     self._driver.Load('about:blank')
     self._driver.ExecuteScript(
-        "document.body.innerHTML = '<selectlist><option>1</option></selectlist>';")
+        "document.body.innerHTML ="
+        " '<selectlist><option>1</option></selectlist>';")
     selectlist = self._driver.FindElement('tag name', 'selectlist')
     with self.assertRaises(chromedriver.ElementNotInteractable):
       selectlist.SendKeys('\uE00C')  # ESC
@@ -5070,7 +5072,7 @@ class ChromeDriverSecureContextTest(ChromeDriverBaseTestWithWebServer):
       let done = arguments[0];
       getCredential({
         type: "public-key",
-        id: new TextEncoder().encode("cred-1"),
+        id: new Uint8Array([0xfb, 0xff, 0xff]),
         transports: ["usb"],
       }).then(done);
     """
@@ -5084,7 +5086,8 @@ class ChromeDriverSecureContextTest(ChromeDriverBaseTestWithWebServer):
         hasUserVerification = True,
         isUserVerified = True,
     )
-    credentialId = self.URLSafeBase64Encode("cred-1")
+    raw_credential_id = bytes([0xfb, 0xff, 0xff])
+    credentialId = self.URLSafeBase64Encode(raw_credential_id)
 
     # Create a credential with default backup flags.
     self._driver.AddCredential(
@@ -5999,7 +6002,7 @@ class ChromeDriverFencedFrame(ChromeDriverBaseTestWithWebServer):
         chrome_switches=['--site-per-process',
           '--enable-features=FencedFrames,PrivacySandboxAdsAPIsOverride,'
           'FencedFramesAPIChanges,FencedFramesDefaultMode,'
-          'FencedFramesEnforceFocus'])
+          'FencedFramesEnforceFocus,SharedStorageAPI'])
 
   @staticmethod
   def GetHttpsUrlForFile(file_path):

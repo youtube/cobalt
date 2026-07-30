@@ -805,7 +805,7 @@ chromium-metrics-reviews@google.com.
   <int value="100369" label="PinContextualTaskButton"/>
   <int value="100370" label="AccessibilityReadAnythingOmniboxChipIgnoredCount"/>
   <int value="100371" label="AccessibilityReadAnythingLineFocus"/>
-  <int value="100372" label="ProjectsPanelEntrypointEnabled"/>
+  <int value="100372" label="OrganizerPanelEntrypointEnabled"/>
   <int value="100373" label="iOSTabGroupsPromoLastImpressionTimestamp"/>
   <int value="100374" label="iOSTabGroupsPromoImpressionsCounter"/>
   <int value="100375" label="iOSTabGroupsPromoOptOut"/>
@@ -843,6 +843,10 @@ chromium-metrics-reviews@google.com.
   <int value="200014" label="LevelUpCompletedTasks"/>
   <int value="200015" label="LevelUpHighestLevel"/>
   <int value="200016" label="LevelUpUIEnabled"/>
+  <int value="200017" label="LevelUpTabsDeclutteredStat"/>
+  <int value="200018" label="LevelUpTypingSavedStat"/>
+  <int value="200019" label="LevelUpPasswordsVerifiedStat"/>
+  <int value="200020" label="LevelUpPhotoSearchesPerformedStat"/>
 <!-- LINT.ThenChange(/ios/chrome/browser/sync/model/prefs/ios_chrome_syncable_prefs_database.cc:IosSyncablePref)-->
 
 </enum>
@@ -1493,6 +1497,18 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="No keystore key"/>
   <int value="1" label="Unknown reason"/>
 </enum>
+
+<!-- LINT.IfChange(SyncMetadataConsistency) -->
+
+<enum name="SyncMetadataConsistency">
+  <int value="0" label="Metadata consistent"/>
+  <int value="1" label="Cache GUID mismatch"/>
+  <int value="2" label="Data type ID mismatch"/>
+  <int value="3" label="Empty persisted authenticated Gaia ID"/>
+  <int value="4" label="Authenticated Gaia ID mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/sync/model/client_tag_based_data_type_processor.cc:SyncMetadataConsistency) -->
 
 <!-- LINT.IfChange(SyncModelError) -->
 

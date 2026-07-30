@@ -1676,10 +1676,9 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
   auto client_remote = client_receiver.InitWithNewEndpointAndPassRemote();
 
   widget->RegisterActiveUnboundedElement(this, std::move(client_receiver),
-                                         std::move(host_remote));
+                                         std::move(host_remote), resolver);
   frame->GetLocalFrameHostRemote().RequestUnboundedSurface(
       std::move(host_receiver), std::move(client_remote), bounds);
-  resolver->Resolve();
   return promise;
 }
 
@@ -4386,6 +4385,13 @@ void HTMLElement::OnContainerTimingAttrChanged(
     SetSelfOrAncestorHasContainerTiming();
     UpdateDescendantHasContainerTiming(true /* has_container_timing */);
   }
+
+  if (RuntimeEnabledFeatures::ContainerTimingPrepaintTraversalEnabled(
+          GetExecutionContext())) {
+    if (auto* layout_object = GetLayoutObject()) {
+      layout_object->MarkContainerTimingChanged();
+    }
+  }
 }
 
 void HTMLElement::OnContainerTimingIgnoreAttrChanged(
@@ -4415,6 +4421,13 @@ void HTMLElement::OnContainerTimingIgnoreAttrChanged(
     // the tree if the node has ignore only
     ClearSelfOrAncestorHasContainerTiming();
     UpdateDescendantHasContainerTiming(false /* has_container_timing */);
+  }
+
+  if (RuntimeEnabledFeatures::ContainerTimingPrepaintTraversalEnabled(
+          GetExecutionContext())) {
+    if (auto* layout_object = GetLayoutObject()) {
+      layout_object->MarkContainerTimingChanged();
+    }
   }
 }
 

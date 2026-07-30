@@ -9,6 +9,22 @@
    > SPEC: project.magi.json RULESET: [persona_file_path] OUTPUT: JSON object
    > conforming to magi_schema.json#definitions/ReviewFeedback TARGET:
    > review.[persona].magi.[iteration].json TONE: Zero Preamble. Artifacts only.
+3. **Refactoring Audit Path:** If `project.magi.json#task_type` is
+   `REFACTORING`:
+   - **Low/Medium Complexity:** The Orchestrator MUST include the
+     `Refactoring Auditor` (`personas/core/refactoring_auditor.json`) in the
+     selected Scanners.
+   - **High Complexity:** The Orchestrator MUST spawn the specialized
+     `Refactoring Reviewer` subagent (see [SKILL.md](../SKILL.md) for role
+     definition) to perform an exhaustive diff audit. The subagent's report MUST
+     be saved to the configured temporary directory and presented to the user
+     for verification.
+4. **Internal Scanners (G3 Overlay):** If `project.magi.json#routing_overlay` is
+   specified and the Orchestrator is running in a G3-capable environment, it
+   MUST check for the overlay file at the resolved path. If present and
+   readable, the Orchestrator MUST parse it and merge its definitions with the
+   public `ROUTING.md`. If not present or not running in G3, it MUST be silently
+   ignored.
 
 ## Step 2: Consolidate (The Orchestrator / Consolidation)
 
@@ -55,5 +71,6 @@
    `core/security.json` into `core/security/memory.json` and
    `core/security/network.json`). Do not use flat files with underscores. The
    directory depth MUST NOT exceed 5 levels (counting from `/personas`). Migrate
-   the relevant checks and update [ROUTING.md](../ROUTING.md). If manually invoked prior to
-   release, Training MUST signal `next_stage: VALIDATION` upon completion.
+   the relevant checks and update [ROUTING.md](../ROUTING.md). If manually
+   invoked prior to release, Training MUST signal `next_stage: VALIDATION` upon
+   completion.

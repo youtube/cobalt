@@ -272,11 +272,32 @@ chromium-metrics-reviews@google.com.
   <int value="393228" label="6.12"/>
 </enum>
 
+<!-- LINT.IfChange(AndroidPdfHyperlinkClickResult) -->
+
+<enum name="AndroidPdfHyperlinkClickResult">
+  <int value="0" label="Success: Load initiated"/>
+  <int value="1" label="Blocked: Invalid scheme"/>
+  <int value="2" label="Ignored: V2 disabled"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfUtils.java:PdfHyperlinkClickResult) -->
+
 <enum name="AndroidPdfLoadResult">
   <int value="0" label="Success"/>
   <int value="1" label="Error"/>
   <int value="2" label="Abort"/>
 </enum>
+
+<!-- LINT.IfChange(AndroidPdfSelectionMenuItem) -->
+
+<enum name="AndroidPdfSelectionMenuItem">
+  <int value="0" label="Other"/>
+  <int value="1" label="Share"/>
+  <int value="2" label="Web Search"/>
+  <int value="3" label="Translate"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfUtils.java:PdfSelectionMenuItem) -->
 
 <!-- LINT.IfChange(AndroidPdfToolbarAction) -->
 
@@ -365,6 +386,18 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//android_webview/glue/java/src/com/android/webview/chromium/WebViewChromiumFactoryProvider.java:UidType)-->
+
+<!-- LINT.IfChange(AndroidVerticalTabsDragDropResult) -->
+
+<enum name="AndroidVerticalTabsDragDropResult">
+  <int value="0" label="Reordered"/>
+  <int value="1" label="Grouped"/>
+  <int value="2" label="Ungrouped"/>
+  <int value="3" label="Aborted (No Change)"/>
+  <int value="4" label="Dragged Out"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/vertical_tabs/VerticalTabListItemTouchHelperCallback.java:AndroidVerticalTabsDragDropResult) -->
 
 <enum name="AndroidWebViewCrashCollectionState">
   <int value="0" label="ENABLED_BY_COMMANDLINE">
@@ -809,6 +842,8 @@ chromium-metrics-reviews@google.com.
   <int value="201" label="HttpCache.getQuotaBytes"/>
   <int value="202" label="HttpCache.setQuotaBytes"/>
   <int value="203" label="Profile.enqueuePreconnect"/>
+  <int value="204" label="Profile.setCrossOriginIsolatedAllowList"/>
+  <int value="205" label="Profile.getCrossOriginIsolatedAllowList"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -2985,6 +3020,8 @@ chromium-metrics-reviews@google.com.
   <int value="140" label="profileClearAllOriginMatchedHeaders"/>
   <int value="141" label="profileAddQuicHints"/>
   <int value="142" label="profileGetHttpCacheManager"/>
+  <int value="143" label="profileSetCrossOriginIsolatedAllowList"/>
+  <int value="144" label="profileGetCrossOriginIsolatedAllowList"/>
 </enum>
 
 <!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:WebViewStartup) -->

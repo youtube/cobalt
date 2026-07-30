@@ -10,12 +10,19 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 
+namespace supervised_user {
 // static
-supervised_user::ListFamilyMembersService*
-ListFamilyMembersServiceFactory::GetForProfile(ProfileIOS* profile) {
-  return GetInstance()
-      ->GetServiceForProfileAs<supervised_user::ListFamilyMembersService>(
-          profile, /*create=*/true);
+ListFamilyMembersService* ListFamilyMembersServiceFactory::GetForProfile(
+    ProfileIOS* profile) {
+  return GetInstance()->GetServiceForProfileAs<ListFamilyMembersService>(
+      profile, /*create=*/true);
+}
+
+// static
+ListFamilyMembersService*
+ListFamilyMembersServiceFactory::GetForProfileIfExists(ProfileIOS* profile) {
+  return GetInstance()->GetServiceForProfileAs<ListFamilyMembersService>(
+      profile, /*create=*/false);
 }
 
 // static
@@ -26,14 +33,28 @@ ListFamilyMembersServiceFactory::GetInstance() {
 }
 
 ListFamilyMembersServiceFactory::ListFamilyMembersServiceFactory()
-    : ProfileKeyedServiceFactoryIOS("ListFamilyMembersService") {
+    : ProfileKeyedServiceFactoryIOS(
+          "ListFamilyMembersService",
+          ServiceCreation::kCreateWithProfile,
+          // Note: this is a leaf service that is not automatically created in
+          // tests that use TestProfileIOS (i.e. unit tests). It is however
+          // created integration tests that bootstrap a real profile.
+          TestingCreation::kNoServiceForTests) {
   DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 std::unique_ptr<KeyedService>
 ListFamilyMembersServiceFactory::BuildServiceInstanceFor(
     ProfileIOS* profile) const {
-  return std::make_unique<supervised_user::ListFamilyMembersService>(
-      IdentityManagerFactory::GetForProfile(profile),
-      profile->GetSharedURLLoaderFactory(), CHECK_DEREF(profile->GetPrefs()));
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    // Match lifecycle of the identity manager. No identity means no family.
+    return nullptr;
+  }
+  return std::make_unique<ListFamilyMembersService>(
+      CHECK_DEREF(identity_manager), profile->GetSharedURLLoaderFactory(),
+      CHECK_DEREF(profile->GetPrefs()));
 }
+
+}  // namespace supervised_user

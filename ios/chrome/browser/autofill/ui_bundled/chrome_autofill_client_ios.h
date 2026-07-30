@@ -47,6 +47,7 @@ class WebState;
 
 namespace autofill {
 
+class AtMemoryQueryService;
 class AutofillAiSaveEntityInfoBarDelegateIOS;
 class AutofillSuggestionDelegate;
 class LogRouter;
@@ -102,6 +103,7 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   GetPasswordManagerFieldClassificationModelHandler() override;
   SingleFieldFillRouter& GetSingleFieldFillRouter() override;
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() override;
+  AtMemoryQueryService* GetAtMemoryQueryService() override;
   void GetAiPageContent(GetAiPageContentCallback callback) override;
   AutofillAiManager* GetAutofillAiManager() override;
   AutofillAiPersonalContextAccessManager*
@@ -174,8 +176,11 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   void CloseEntityImportBubble() override;
   void ShowAutofillAiLocalSaveNotification() override;
   void ShowAutofillAiSaveToWalletFailureNotification() override;
-  void ShowAutofillAiFetchFromWalletFailureNotification() override;
+  void ShowAutofillAiFetchEntityFailureNotification() override;
   void ShowAutofillAiPreFetchFailureNotification() override;
+  void ShowAutofillAiPrivateInferenceNotice() override;
+  bool ShouldShowPersonalContextAmbientAutofillNotice() const override;
+  void MarkPersonalContextAmbientAutofillNoticeAsAcknowledged() override;
 
   // Searches infobars managed by the infobar_manager_ for infobar of the type
   // AutofillSaveCardInfoBarDelegateIOS and returns it if found else returns a

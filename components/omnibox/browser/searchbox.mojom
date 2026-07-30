@@ -136,6 +136,11 @@ struct FileAttachment {
   // from a trusted Google domain by DrivePickerSanitizer in the trusted
   // browser process before being populated here.
   url.mojom.Url? icon_url;
+  // The URL of the file thumbnail, if available. This is currently only
+  // populated for Google Drive files. The URL is validated to originate
+  // from a trusted Google domain by DrivePickerSanitizer in the trusted
+  // browser process before being populated here.
+  url.mojom.Url? thumbnail_url;
 };
 
 // Represents a tab attachment chosen browser-side and communicated to WebUI.
@@ -179,6 +184,11 @@ struct SelectedFileInfo {
   bool is_deletable;
   // Time that the file was selected at.
   mojo_base.mojom.JSTime selection_time;
+  // The URL of the file thumbnail, if available. This is currently only
+  // populated for Google Drive files. The URL is validated to originate
+  // from a trusted Google domain by DrivePickerSanitizer in the trusted
+  // browser process before being populated here.
+  url.mojom.Url? thumbnail_url;
 };
 
 // Indicates whether a suggestion group is in the primary or the secondary
@@ -227,6 +237,7 @@ enum SelectionLineState {
   kFocusedButtonRemoveSuggestion = 4,
   kFocusedButtonAim = 5,
   kFocusedButtonContextEntrypoint = 6,
+  kCtrlEnter = 7,
 };
 
 // See components/omnibox/browser/omnibox_popup_selection.h
@@ -234,6 +245,14 @@ struct OmniboxPopupSelection {
   uint8 line;
   SelectionLineState state;
   uint8 action_index;
+};
+
+// Modifier keys pressed when the action was triggered.
+struct ActionModifiers {
+  bool alt_key = false;
+  bool ctrl_key = false;
+  bool meta_key = false;
+  bool shift_key = false;
 };
 
 // Directions for stepping through selections. These may apply for going
@@ -335,15 +354,8 @@ interface PageHandler {
                     mojo_base.mojom.String16 input,
                     bool prevent_inline_autocomplete,
                     uint32 cursor_position,
+                    SuggestInventory suggest_inventory,
                     bool is_on_focus);
-
-  // Queries autocomplete matches from the browser with preferred SuggestInventory.
-  QueryAutocompleteWithSuggestInventory(int32 query_id,
-                                        mojo_base.mojom.String16 input,
-                                        bool prevent_inline_autocomplete,
-                                        uint32 cursor_position,
-                                        SuggestInventory suggest_inventory,
-                                        bool is_on_focus);
 
   // Cancels the current autocomplete query. Clears the result set if
   // |clear_result| is true.
@@ -358,10 +370,7 @@ interface PageHandler {
                         url.mojom.Url url,
                         bool are_matches_showing,
                         uint8 mouse_button,
-                        bool alt_key,
-                        bool ctrl_key,
-                        bool meta_key,
-                        bool shift_key,
+                        ActionModifiers modifiers,
                         bool via_keyboard);
 
   // Sets the Smart Compose stats to be passed during the next navigation.

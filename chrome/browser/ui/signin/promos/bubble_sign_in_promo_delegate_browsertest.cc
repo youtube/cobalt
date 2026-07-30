@@ -43,7 +43,7 @@ class BubbleSignInPromoDelegateTest : public InProcessBrowserTest {
   BubbleSignInPromoDelegateTest& operator=(
       const BubbleSignInPromoDelegateTest&) = delete;
 
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
 
   signin::IdentityManager* identity_manager() {
     return IdentityManagerFactory::GetForProfile(profile());
@@ -218,7 +218,8 @@ IN_PROC_BROWSER_TEST_F(BubbleSignInPromoDelegateTest,
       identity_manager(), "test@email.com", signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
       identity_manager(), info.account_id,
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
   ASSERT_TRUE(signin_util::IsSigninPending(identity_manager()));
 
   base::test::TestFuture<void> future;

@@ -1131,10 +1131,7 @@ public class AwContents implements SmartClipProvider {
             setScrollBarStyle(mInternalAccessAdapter.super_getScrollBarStyle());
 
             mAwDarkMode = new AwDarkMode(this);
-            mStylusWritingController =
-                    new StylusWritingController(
-                            context.getApplicationContext(),
-                            /* lazyFetchHandWritingIconFeatureEnabled= */ true);
+            mStylusWritingController = new StylusWritingController(context.getApplicationContext());
 
             setNewAwContents(
                     AwContentsJni.get().init(mBrowserContext.getNativeBrowserContextPointer()));
@@ -4754,9 +4751,6 @@ public class AwContents implements SmartClipProvider {
             if (isDestroyed(NO_WARN)) return false;
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 mSettings.setSpatialNavigationEnabled(false);
-                RecordHistogram.recordBooleanHistogram(
-                        "Android.WebView.NestedScrollingEnabled",
-                        mContainerView.isNestedScrollingEnabled());
             }
 
             AwContentsJni.get().onInputEvent(mNativeAwContents);

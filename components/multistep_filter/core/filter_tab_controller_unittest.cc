@@ -61,6 +61,7 @@ class MockMultistepFilterService : public MultistepFilterService {
               (SuggestionUserDecision),
               (override));
   MOCK_METHOD(RetentionStateSnapshot, GetRetentionState, (), (const, override));
+  MOCK_METHOD(bool, CanUseModelExecutionFeatures, (), (const, override));
 };
 
 class MockMultistepFilterUiDelegate : public MultistepFilterUiDelegate {
@@ -147,6 +148,8 @@ class FilterTabControllerTest : public testing::Test {
             NewAnonymizedDataCollectionConsentHelper(&pref_service_);
     mock_service_ = std::make_unique<StrictMock<MockMultistepFilterService>>(
         std::move(params));
+    EXPECT_CALL(*mock_service_, CanUseModelExecutionFeatures())
+        .WillRepeatedly(Return(true));
     mock_delegate_ =
         std::make_unique<StrictMock<MockMultistepFilterUiDelegate>>();
     controller_ = std::make_unique<FilterTabController>(
@@ -284,10 +287,14 @@ class FilterTabControllerTest : public testing::Test {
     }
   }
 
-  void TearDown() override {
+  void DestroyController() {
     mock_generator_ = nullptr;
     mock_extractor_ = nullptr;
     controller_.reset();
+  }
+
+  void TearDown() override {
+    DestroyController();
     mock_delegate_.reset();
     filter_store_ = nullptr;
     mock_annotation_client_ = nullptr;
@@ -421,6 +428,23 @@ TEST_F(FilterTabControllerTest, SuppressExtractionAndGenerationOnConsentFalse) {
 
   EXPECT_CALL(*mock_service_, HasUserProvidedConsent(metadata.navigation_id,
                                                      metadata.url.GetHost()))
+      .WillOnce(Return(false));
+
+  controller_->OnNavigationFinished(metadata);
+}
+
+// Tests that FilterTabController aborts immediately when model execution is
+// disabled.
+TEST_F(FilterTabControllerTest,
+       SuppressExtractionAndGenerationOnModelExecutionDisabled) {
+  FilterNavigationMetadata metadata =
+      CreateMetadata(3, GURL("https://example.com"));
+  metadata.prev_url = GURL("https://different.com");
+  metadata.has_user_gesture = true;
+
+  ExpectNoExtractionOrSuggestion();
+
+  EXPECT_CALL(*mock_service_, CanUseModelExecutionFeatures())
       .WillOnce(Return(false));
 
   controller_->OnNavigationFinished(metadata);
@@ -673,6 +697,7 @@ TEST_F(FilterTabControllerTest, BackgroundRedirectDoesNotResetLatencyBase) {
 
   ASSERT_FALSE(captured_callbacks.on_suggestion_shown.is_null());
   std::move(captured_callbacks.on_suggestion_shown).Run();
+  DestroyController();
 
   histogram_tester.ExpectUniqueTimeSample(
       kMultistepFilterTimeNavigationToSuggestionShownHistogram,
@@ -1129,9 +1154,7 @@ TEST_F(FilterTabControllerTest,
   std::move(captured_callbacks.on_suggestion_reopened).Run();
 
   // 3. Destroy controller (simulates tab closure).
-  mock_extractor_ = nullptr;
-  mock_generator_ = nullptr;
-  controller_.reset();
+  DestroyController();
 
   histogram_tester.ExpectUniqueSample(
       kMultistepFilterAcceptanceInitialCueHistogram,
@@ -1323,6 +1346,7 @@ TEST_F(FilterTabControllerTest, SuccessfulApplicationLogsSuccess) {
                               base::Time::Now(), {attr});
 
   RunSuggestionApplicationFlow(metadata, annotation);
+  DestroyController();
 
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   kMultistepFilterApplicationOutcomeHistogram),
@@ -1592,6 +1616,7 @@ TEST_F(FilterTabControllerTest,
                               base::Time::Now(), {attr});
 
   RunSuggestionApplicationFlow(apply_metadata, annotation);
+  DestroyController();
 
   // Verify application outcome histograms:
   EXPECT_THAT(histogram_tester.GetAllSamples(
@@ -1681,10 +1706,10 @@ TEST_F(FilterTabControllerTest, ApplicationInterruptedByNewNavigation) {
   // Trigger interrupt navigation finish.
   controller_->OnNavigationFinished(interrupt_metadata);
 
-  // Verify that the application outcome was logged as failure (interrupted).
+  // Verify that the application outcome was logged as abandoned.
   histogram_tester.ExpectUniqueSample(
       kMultistepFilterApplicationOutcomeHistogram,
-      MultistepFilterApplicationOutcome::kNotAllFiltersApplied, 1);
+      MultistepFilterApplicationOutcome::kAbandonedBeforeVerification, 1);
 }
 
 }  // namespace

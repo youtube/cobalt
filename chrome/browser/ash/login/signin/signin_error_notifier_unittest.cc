@@ -22,6 +22,7 @@
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -56,13 +57,16 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
     // Required to initialize TokenHandleUtil.
     ash::UserDataAuthClient::InitializeFake();
 
+    token_handle_store_factory_ = std::make_unique<TokenHandleStoreFactory>(
+        TestingBrowserProcess::GetGlobal()->local_state());
+    token_handle_store_ = TokenHandleStoreFactory::Get()->GetTokenHandleStore();
+
     SigninErrorNotifierFactory::GetForProfile(GetProfile());
     display_service_ =
         std::make_unique<NotificationDisplayServiceTester>(profile());
 
     identity_test_env_profile_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(GetProfile());
-    token_handle_store_ = TokenHandleStoreFactory::Get()->GetTokenHandleStore();
   }
 
   void TearDown() override {
@@ -73,7 +77,7 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
     token_handle_store_ = nullptr;
     ash::UserDataAuthClient::Shutdown();
     SigninErrorNotifierFactory::GetForProfile(GetProfile())->Shutdown();
-    TokenHandleStoreFactory::Get()->DestroyTokenHandleStore();
+    token_handle_store_factory_.reset();
     BrowserWithTestWindowTest::TearDown();
   }
 
@@ -96,6 +100,7 @@ class SigninErrorNotifierTest : public BrowserWithTestWindowTest {
   std::unique_ptr<NotificationDisplayServiceTester> display_service_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_profile_adaptor_;
+  std::unique_ptr<TokenHandleStoreFactory> token_handle_store_factory_;
   raw_ptr<TokenHandleStore> token_handle_store_;
 };
 

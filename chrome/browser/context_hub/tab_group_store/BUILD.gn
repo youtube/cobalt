@@ -10,6 +10,7 @@ source_set("tab_group_store") {
 
   public_deps = [
     "//base",
+    "//url",
   ]
 }
 
@@ -22,6 +23,10 @@ source_set("impl") {
   public_deps = [
     ":tab_group_store",
     "//base",
+  ]
+
+  deps = [
+    "//chrome/browser/context_hub:features",
   ]
 }
 

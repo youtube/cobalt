@@ -2065,13 +2065,18 @@ void RenderViewContextMenu::AppendLinkItems() {
 
     menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
 
+    // Send-Tab-To-Self (user's other devices), link level.
+    if (GetBrowser() && send_tab_to_self::ShouldDisplayEntryPoint(
+                            embedder_web_contents_, params_.link_url)) {
+      AppendSendTabToSelfItem(/*add_separator=*/false);
+    }
+
     // Place QR Generator close to send-tab-to-self feature for link images.
     if (params_.has_image_contents) {
       AppendQRCodeGeneratorItem(/*for_image=*/true, /*draw_icon=*/true,
-                                /*add_separator*/ false);
+                                /*add_separator=*/false);
     }
 
-    menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
     menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_SAVELINKAS,
                                     IDS_CONTENT_CONTEXT_SAVELINKAS);
   }
@@ -3215,6 +3220,7 @@ void RenderViewContextMenu::AppendLiveCaptionItem() {
 // Menu delegate functions -----------------------------------------------------
 
 bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
+#if BUILDFLAG(IS_CHROMEOS)
   // Disable context menu in locked fullscreen mode to prevent users from
   // exiting this mode (the menu is not really disabled as the user can still
   // open it, but all the individual context menu entries are disabled / greyed
@@ -3226,13 +3232,12 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
   // NOTE: If new commands are being added, please disable them by default and
   // notify the ChromeOS team by filing a bug under this component --
   // b/?q=componentid:1389107.
-  BrowserWindowInterface* const browser_window = GetBrowser();
   bool should_disable_command_for_locked_fullscreen_or_on_task = false;
+  BrowserWindowInterface* const browser_window = GetBrowser();
   if (browser_window &&
       platform_util::IsBrowserLockedFullscreen(browser_window)) {
     should_disable_command_for_locked_fullscreen_or_on_task = true;
   }
-#if BUILDFLAG(IS_CHROMEOS)
   if (browser_window && ash::boca::OnTaskLockedController::From(browser_window)
                             ->is_locked_for_on_task()) {
     bool is_page_nav_command =
@@ -3244,10 +3249,10 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
         !is_page_nav_command && !is_allowed_content_context_command &&
         !ContextMenuMatcher::IsExtensionsCustomCommandId(id);
   }
-#endif
   if (should_disable_command_for_locked_fullscreen_or_on_task) {
     return false;
   }
+#endif
 
   bool enabled = false;
   if (RenderViewContextMenuBase::IsCommandIdKnown(id, &enabled)) {
@@ -4568,25 +4573,56 @@ bool RenderViewContextMenu::AppendQRCodeGeneratorItem(
 }
 
 void RenderViewContextMenu::AppendSendTabToSelfItem(bool add_separator) {
+  if (!embedder_web_contents_) {
+    return;
+  }
+
+  // Determine the target URL to share based on what element was right-clicked:
+  // if the context menu was triggered on a valid link, offer to share the
+  // link destination URL; otherwise, offer to share the active page URL.
+  const bool is_link = params_.link_url.is_valid();
+  if (is_link && !base::FeatureList::IsEnabled(
+                     send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2)) {
+    return;
+  }
+  const GURL target_url = is_link
+                              ? params_.link_url
+                              : embedder_web_contents_->GetLastCommittedURL();
+
+  // Only returns nullopt when unshareable (e.g., incognito, invalid scheme,
+  // policy disabled). Signed-out or zero-device states still return a valid
+  // display reason (`kOfferSignIn` or `kInformNoTargetDevice`) to show promos.
+  std::optional<send_tab_to_self::EntryPointDisplayReason> display_reason =
+      send_tab_to_self::GetEntryPointDisplayReason(embedder_web_contents_,
+                                                   target_url);
+  if (!display_reason.has_value()) {
+    return;
+  }
+
   if (add_separator) {
     menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
   }
 
-  std::optional<send_tab_to_self::EntryPointDisplayReason> reason =
-      send_tab_to_self::GetEntryPointDisplayReason(embedder_web_contents_);
-  if (!reason) {
-    return;
-  }
+  const bool should_offer_submenu =
+      (base::FeatureList::IsEnabled(
+           send_tab_to_self::kSendTabToSelfEnhancedDesktopUI) ||
+       base::FeatureList::IsEnabled(
+           send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2)) &&
+      (*display_reason ==
+       send_tab_to_self::EntryPointDisplayReason::kOfferFeature);
 
-  if (base::FeatureList::IsEnabled(
-          send_tab_to_self::kSendTabToSelfEnhancedDesktopUI) &&
-      *reason == send_tab_to_self::EntryPointDisplayReason::kOfferFeature) {
+  if (should_offer_submenu) {
+    // TODO(crbug.com/530097533): Investigate improved title handling when the
+    // user interacts with the right-click flow on a hyperlink (e.g., fetching
+    // the destination page title or using a domain fallback if anchor text is
+    // empty).
     send_tab_to_self_submenu_delegate_ =
         std::make_unique<send_tab_to_self::SendTabToSelfContextMenuDelegate>(
             embedder_web_contents_,
-            params_.link_url.is_valid()
-                ? send_tab_to_self::ShareEntryPoint::kLinkMenu
-                : send_tab_to_self::ShareEntryPoint::kContentMenu);
+            is_link ? send_tab_to_self::ShareEntryPoint::kLinkMenu
+                    : send_tab_to_self::ShareEntryPoint::kContentMenu,
+            target_url,
+            is_link ? base::UTF16ToUTF8(params_.link_text) : std::string());
     send_tab_to_self_submenu_ = std::make_unique<ui::SimpleMenuModel>(
         send_tab_to_self_submenu_delegate_.get());
     send_tab_to_self_submenu_delegate_->PopulateSubmenu(
@@ -4615,12 +4651,17 @@ void RenderViewContextMenu::AppendSendTabToSelfItem(bool add_separator) {
                                            : kDevicesOldIcon));
 #endif
 
+    const base::Feature& stts_feature =
+        (is_link || base::FeatureList::IsEnabled(
+                        send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2))
+            ? send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2
+            : send_tab_to_self::kSendTabToSelfEnhancedDesktopUI;
+
     // TODO(crbug.com/516708776): Remove new feature tag when no longer new.
     menu_model_.SetIsNewFeatureAt(
         menu_model_.GetItemCount() - 1,
-        UserEducationService::MaybeShowNewBadge(
-            GetBrowserContext(),
-            send_tab_to_self::kSendTabToSelfEnhancedDesktopUI));
+        UserEducationService::MaybeShowNewBadge(GetBrowserContext(),
+                                                stts_feature));
     return;
   }
 

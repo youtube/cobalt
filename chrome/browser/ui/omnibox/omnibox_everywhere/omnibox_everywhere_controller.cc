@@ -4,15 +4,20 @@
 
 #include "chrome/browser/ui/omnibox/omnibox_everywhere/omnibox_everywhere_controller.h"
 
+#include "base/check.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/omnibox/omnibox_everywhere/omnibox_everywhere_prefs.h"
 #include "chrome/browser/ui/omnibox/omnibox_everywhere/omnibox_everywhere_ui_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_everywhere_service_factory.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+#include "components/prefs/pref_service.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/base_window.h"
 #include "ui/events/event_constants.h"
@@ -21,22 +26,37 @@
 namespace omnibox_everywhere {
 
 OmniboxEverywhereController::OmniboxEverywhereController(
-    OmniboxEverywhereUIManager::ContentsWrapperFactory contents_wrapper_factory)
+    OmniboxEverywhereUIManager::ContentsWrapperFactory contents_wrapper_factory,
+    ui::GlobalAcceleratorListener* listener)
     : ui_manager_(std::make_unique<OmniboxEverywhereUIManager>(
-          std::move(contents_wrapper_factory))) {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxEverywhere)) {
-    if (auto* listener = ui::GlobalAcceleratorListener::GetInstance()) {
-      listener->RegisterAccelerator(
-          ui::Accelerator(ui::VKEY_SPACE,
-                          ui::EF_SHIFT_DOWN | ui::EF_PLATFORM_ACCELERATOR),
-          this);
-    }
+          std::move(contents_wrapper_factory))),
+      listener_(listener ? listener
+                         : ui::GlobalAcceleratorListener::GetInstance()) {
+  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxEverywhere));
+  if (g_browser_process && g_browser_process->local_state()) {
+    hotkey_pref_member_.Init(
+        prefs::kHotkeyEnabled, g_browser_process->local_state(),
+        base::BindRepeating(
+            &OmniboxEverywhereController::UpdateHotkeyRegistration,
+            base::Unretained(this)));
   }
+  UpdateHotkeyRegistration();
 }
 
 OmniboxEverywhereController::~OmniboxEverywhereController() {
-  if (auto* listener = ui::GlobalAcceleratorListener::GetInstance()) {
-    listener->UnregisterAccelerators(this);
+  listener_->UnregisterAccelerators(this);
+}
+
+void OmniboxEverywhereController::UpdateHotkeyRegistration() {
+  listener_->UnregisterAccelerators(this);
+
+  const bool is_enabled =
+      hotkey_pref_member_.prefs() && hotkey_pref_member_.GetValue();
+  if (is_enabled) {
+    listener_->RegisterAccelerator(
+        ui::Accelerator(ui::VKEY_SPACE,
+                        ui::EF_SHIFT_DOWN | ui::EF_PLATFORM_ACCELERATOR),
+        this);
   }
 }
 
@@ -51,6 +71,9 @@ void OmniboxEverywhereController::OnInvoke(InvocationSource source,
         ui_manager_->ShowForProfile(profile, context);
       }
       break;
+    case InvocationSource::kProfilePicker:
+      ui_manager_->ShowForProfile(profile, context);
+      break;
   }
 }
 
@@ -60,6 +83,23 @@ void OmniboxEverywhereController::Close() {
 
 bool OmniboxEverywhereController::IsVisible() const {
   return ui_manager_->IsVisible();
+}
+
+void OmniboxEverywhereController::ShowProfilePicker() {
+  Close();
+
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+  ProfilePicker::Show(ProfilePicker::Params::ForOmniboxEverywhere(
+      base::BindOnce(&OmniboxEverywhereController::OnProfilePicked,
+                     weak_factory_.GetWeakPtr())));
+#endif
+}
+
+void OmniboxEverywhereController::OnProfilePicked(Profile* new_profile) {
+  if (!new_profile) {
+    return;
+  }
+  OnInvoke(InvocationSource::kProfilePicker, new_profile);
 }
 
 void OmniboxEverywhereController::ShutdownForProfile(Profile* profile) {

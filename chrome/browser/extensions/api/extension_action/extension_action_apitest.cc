@@ -12,6 +12,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/with_feature_override.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/extension_action/extension_action_api.h"
 #include "chrome/browser/extensions/api/extension_action/test_icon_image_observer.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/version_info/channel.h"
 #include "content/public/browser/render_frame_host.h"
@@ -41,8 +43,10 @@
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/api/extension_action/action_info_test_util.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest_constants.h"
+#include "extensions/common/manifest_handlers/description_info.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
@@ -222,10 +226,24 @@ void FlushStateStore(Profile* profile) {
 
 }  // namespace
 
+class ExtensionActionSetBadgeTextApiTest
+    : public ExtensionApiTest,
+      public base::test::WithFeatureOverride {
+ public:
+  ExtensionActionSetBadgeTextApiTest()
+      : base::test::WithFeatureOverride(
+            extensions_features::kApiActionSetBadgeTextByteLimit) {}
+};
+
 // Test that the histogram for determining maximum badge text lengths counts
 // the length of the badge text in each successful call.
 // TODO(crbug.com/491158086, crbug.com/492555224): Remove this histogram test.
-IN_PROC_BROWSER_TEST_F(ExtensionApiTest, ActionSetBadgeTextLengthHistogram) {
+IN_PROC_BROWSER_TEST_P(ExtensionActionSetBadgeTextApiTest,
+                       TextLengthHistogram) {
+  // Propagate kApiActionSetBadgeTextByteLimit feature state to extension
+  // background.
+  SetCustomArg(IsParamFeatureEnabled() ? "true" : "false");
+
   base::HistogramTester histogram;
 
   // Run extension which modifies the badge text a few times.
@@ -251,10 +269,15 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, ActionSetBadgeTextLengthHistogram) {
   histogram.ExpectBucketCount("Extensions.Action.SetBadgeTextLength",
                               /*sample=*/4,
                               /*expected_count=*/0);
+  // Histogram always logs the call, even if it exceeds the limit and fails.
   histogram.ExpectBucketCount("Extensions.Action.SetBadgeTextLength",
                               /*sample=*/150,
                               /*expected_count=*/1);
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ExtensionActionSetBadgeTextApiTest,
+                         testing::Bool());
 
 // A class that allows for cross-origin navigations with embedded test server.
 class ExtensionActionAPITest : public ExtensionApiTest {
@@ -498,7 +521,7 @@ IN_PROC_BROWSER_TEST_P(MultiActionAPITest, TitleLocalization) {
   ASSERT_TRUE(action);
 
   EXPECT_EQ(base::WideToUTF8(L"Hreggvi\u00F0ur: l10n action"),
-            extension->description());
+            DescriptionInfo::GetDescription(*extension));
   EXPECT_EQ(base::WideToUTF8(L"Hreggvi\u00F0ur is my name"), extension->name());
   content::WebContents* web_contents = GetActiveWebContents();
   int tab_id = sessions::SessionTabHelper::IdForTab(web_contents).id();
@@ -1786,7 +1809,16 @@ IN_PROC_BROWSER_TEST_F(ExtensionActionAPITest, IsEnabledIgnoreDeclarative) {
   EXPECT_FALSE(script_result.GetBool());
 }
 
-using ActionAPITest = ExtensionApiTest;
+class ActionAPITest : public ExtensionApiTest {
+ public:
+  ActionAPITest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kExtensionsPinnedByDefault);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
 
 IN_PROC_BROWSER_TEST_F(ActionAPITest, TestGetUserSettings) {
   constexpr char kManifest[] =

@@ -662,13 +662,13 @@ void RenderWidgetHostImpl::SendScreenRects() {
     return;
   }
 
-  if (last_view_screen_rect_ == view_->GetViewBounds() &&
-      last_window_screen_rect_ == view_->GetBoundsInScreen()) {
+  if (last_view_screen_rect_ == view_->GetViewBoundsWithoutTransform() &&
+      last_window_screen_rect_ == view_->GetBoundsInScreenWithoutTransform()) {
     return;
   }
 
-  last_view_screen_rect_ = view_->GetViewBounds();
-  last_window_screen_rect_ = view_->GetBoundsInScreen();
+  last_view_screen_rect_ = view_->GetViewBoundsWithoutTransform();
+  last_window_screen_rect_ = view_->GetBoundsInScreenWithoutTransform();
   blink_widget_->UpdateScreenRects(
       last_view_screen_rect_, last_window_screen_rect_,
       base::BindOnce(&RenderWidgetHostImpl::OnUpdateScreenRectsAck,
@@ -1082,6 +1082,7 @@ blink::VisualProperties RenderWidgetHostImpl::GetVisualProperties() {
 
   if (is_frame_widget) {
     visual_properties.display_mode = delegate_->GetDisplayMode();
+    visual_properties.application_context = delegate_->GetApplicationContext();
   } else {
     visual_properties.display_mode = blink::mojom::DisplayMode::kBrowser;
   }
@@ -2940,8 +2941,8 @@ void RenderWidgetHostImpl::OnUpdateScreenRectsAck() {
 
   view_->SendInitialPropertiesIfNeeded();
 
-  if (view_->GetViewBounds() == last_view_screen_rect_ &&
-      view_->GetBoundsInScreen() == last_window_screen_rect_) {
+  if (view_->GetViewBoundsWithoutTransform() == last_view_screen_rect_ &&
+      view_->GetBoundsInScreenWithoutTransform() == last_window_screen_rect_) {
     return;
   }
 
@@ -3248,6 +3249,8 @@ bool RenderWidgetHostImpl::StoredVisualPropertiesNeedsUpdate(
              new_visual_properties.is_fullscreen_granted ||
          old_visual_properties->display_mode !=
              new_visual_properties.display_mode ||
+         old_visual_properties->application_context !=
+             new_visual_properties.application_context ||
          old_visual_properties->window_show_state !=
              new_visual_properties.window_show_state ||
          old_visual_properties->resizable != new_visual_properties.resizable ||

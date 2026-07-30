@@ -299,10 +299,10 @@ std::optional<size_t> AXPlatformNodeBase::GetIndexInParent() {
 
   // Ask the delegate for the index in parent, and return it if it's plausible.
   //
-  // Delegates are allowed to not implement this (ViewsAXPlatformNodeDelegate
-  // returns -1). Also, delegates may not know the correct answer if this
-  // node is the root of a tree that's embedded in another tree, in which
-  // case the delegate should return -1 and we'll compute it.
+  // A delegate returns nothing both when it cannot know the index, which is
+  // the case when this node is the root of a tree embedded in another tree,
+  // and when there is genuinely no index to report. The two are not
+  // distinguishable here, so the search below runs for either.
   auto index = delegate->GetIndexInParent();
   if (index.has_value() && index.value() < child_count)
     return index;
@@ -319,8 +319,11 @@ std::optional<size_t> AXPlatformNodeBase::GetIndexInParent() {
     return std::nullopt;
   }
 
-  DCHECK(false)
-      << "Unable to find the child in the list of its parent's children.";
+  // An ignored node is not among the children its parent exposes.
+  DCHECK(delegate->IsIgnored())
+      << "Unable to find the unignored child in the list of its parent's "
+         "children.\n* Child: "
+      << *this << "\n* Parent's subtree: " << parent->SubtreeToString();
   return std::nullopt;
 }
 
@@ -982,6 +985,19 @@ std::optional<float> AXPlatformNodeBase::GetFontSizeInPoints() const {
 
 bool AXPlatformNodeBase::HasVisibleCaretOrSelection() const {
   return GetDelegate()->HasVisibleCaretOrSelection();
+}
+
+bool AXPlatformNodeBase::HasSelectionFocusInSubtree() {
+  const AXSelection selection = GetDelegate()->GetUnignoredSelection();
+  return HasSelectionFocusInSubtree(&selection);
+}
+
+bool AXPlatformNodeBase::HasSelectionFocusInSubtree(
+    const AXSelection* selection) {
+  DCHECK(selection);
+  auto* focus_object = static_cast<AXPlatformNodeBase*>(
+      GetDelegate()->GetFromNodeID(selection->focus_object_id));
+  return focus_object && focus_object->IsDescendantOf(this);
 }
 
 bool AXPlatformNodeBase::IsLeaf() const {
@@ -2016,6 +2032,11 @@ void AXPlatformNodeBase::GetSelectionOffsets(const AXSelection* selection,
 }
 
 int AXPlatformNodeBase::GetCaretOffset() {
+  // TODO(crbug.com/537461426): Windows IA2's caretOffset and setCaretOffset
+  // use this method. Unlike the AuraLinux override, it does not return -1 for
+  // an object that lacks the selection focus, so a fully selected descendant
+  // still reports a caret offset. It is unknown whether returning -1 here,
+  // as AuraLinux does, would be a fix or a regression for Windows ATs.
   if (IsAtomicTextField()) {
     return GetIntAttribute(ax::mojom::IntAttribute::kTextSelEnd);
   }
@@ -2053,7 +2074,10 @@ void AXPlatformNodeBase::GetSelectionOffsetsFromTree(
   // outside this object in their entirety.
   // Selections that span more than one character are by definition inside
   // this object, so checking them is not necessary.
-  if (*selection_start == *selection_end && !HasVisibleCaretOrSelection()) {
+  // A collapsed selection, i.e. a caret, is inside this object if this object
+  // contains the selection focus, whether or not the caret is rendered.
+  if (*selection_start == *selection_end && !HasVisibleCaretOrSelection() &&
+      !HasSelectionFocusInSubtree(selection)) {
     *selection_start = -1;
     *selection_end = -1;
     return;
@@ -2251,7 +2275,12 @@ int AXPlatformNodeBase::FindTextBoundary(
       position->CreatePositionAtTextBoundary(boundary, direction, options);
   if (boundary_position->IsNullPosition())
     return -1;
-  DCHECK_EQ(boundary_position->GetAnchor(), position->GetAnchor());
+  DCHECK_EQ(boundary_position->GetAnchor(), position->GetAnchor())
+      << "The text boundary search moved to a different object."
+      << "\n  start position:    " << *position
+      << "\n  start anchor:      " << position->GetAnchor()
+      << "\n  boundary position: " << *boundary_position
+      << "\n  boundary anchor:   " << boundary_position->GetAnchor();
   DCHECK_GE(boundary_position->text_offset(), 0);
   return boundary_position->text_offset();
 }

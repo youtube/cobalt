@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">আপনি এটি মুছে দিলে, প্রত্যেক ব্যক্তি, সঙ্গে সঙ্গে "<ph name="GROUP_NAME" />" ট্যাব গ্রুপের অ্যাক্সেস হারাবেন এবং এটি সব ডিভাইস থেকেই মুছে দেওয়া হবে।</translation>
 <translation id="1142732900304639782">এইসব সাইট অনুবাদ হবে না</translation>
 <translation id="1143193470214071120">কোনও একটি উইন্ডো বন্ধ করুন অথবা উইন্ডো ম্যানেজ করুন</translation>
+<translation id="1143486892058798649">এইভাবে লিঙ্ক সেভ করুন…</translation>
 <translation id="1149725087019908252"><ph name="FILE_NAME" /> স্ক্যান করা হচ্ছে</translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> Chrome-এ খুলবে। চালিয়ে যাওয়ার মাধ্যমে, আপনি <ph name="BEGIN_LINK1" />Google-এর পরিষেবার শর্তাবলী<ph name="END_LINK1" /> এবং <ph name="BEGIN_LINK2" />Google Chrome ও ChromeOS-এর পরিষেবার অতিরিক্ত শর্তাবলী<ph name="END_LINK2" /> মেনে নিচ্ছেন।</translation>
 <translation id="1154555449933432029">Google Password Manager-এ আপনার সেভ করা পাসওয়ার্ড নেই।</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">আপনার Google অ্যাকাউন্ট ম্যানেজ করতে, "অ্যাকাউন্ট ম্যানেজ করুন" বোতামে ট্যাপ করুন</translation>
 <translation id="1549000191223877751">অন্য উইন্ডোতে সরান</translation>
 <translation id="1553358976309200471">Chrome আপডেট করুন</translation>
+<translation id="1554352084785952638">"<ph name="SEARCH_TERMS" />"-এর জন্য <ph name="SEARCH_ENGINE" /></translation>
 <translation id="1554532453982918912">আপনি যেভাবে ব্যবহার করেন অন্যেরাও যাতে সেভাবে ব্যবহার করতে পারে তার জন্য Chrome-কে উন্নত করতে সাহায্য করুন</translation>
 <translation id="1568636008098739136">এই পৃষ্ঠার কন্টেন্ট শুনুন। এই শর্টকার্ট এডিট করতে, টাচ করে ধরে রাখুন।</translation>
 <translation id="1571041387761170095">দুর্বল বা একই পাসওয়ার্ড আবার ব্যবহার করা যাবে না</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{এই ডিভাইসে চুরি হয়ে যাওয়া ১টি পাসওয়ার্ড আছে}one{এই ডিভাইসে চুরি হয়ে যাওয়া #টি পাসওয়ার্ড আছে}other{এই ডিভাইসে চুরি হয়ে যাওয়া #টি পাসওয়ার্ড আছে}}</translation>
 <translation id="1594635596540195766">নিচে তালিকাতে সাজেস্ট করা <ph name="SUGGESTIONS_COUNT" />টি আইটেম।</translation>
+<translation id="159689249463841786">ফোল্ডার বেছে নিন, বর্তমানে <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />-এর সাথে <ph name="SITE_ETLD_PLUS_ONE" /> ব্যবহার করুন</translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, পিন করা রেকর্ডিং ট্যাব</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, শেয়ারিং ট্যাব</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(খালি)</translation>
 <translation id="219283042927675668">গ্রুপে থাকা ট্যাব</translation>
 <translation id="2194856509914051091">যা যা দেখে নেওয়া প্রয়োজন</translation>
+<translation id="2196695604589508993">ইতিহাস খুলুন</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, পিন করা শেয়ারিং ট্যাব</translation>
 <translation id="22091350895006575">ইউজারনেম যোগ করুন</translation>
 <translation id="221494669172414749">প্রোফাইল লক ছাড়া Chrome খুললে, আপনার সেভ করা পাসওয়ার্ড ও পেমেন্ট পদ্ধতি গাড়ি থেকে মুছে ফেলা হবে। প্রোফাইল লক ব্যবহার করা হলে এই ডেটা সুরক্ষিত থাকবে।</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">আরও বুকমার্ক</translation>
 <translation id="2332515770639153015">উন্নত Safe Browsing চালু আছে</translation>
 <translation id="233375395665273385">মুছুন ও সাইন-আউট করুন</translation>
+<translation id="2334275697832662087">Chrome-এর AI দ্বারা পরিচালিত নিরাপত্তা আপনাকে অনলাইন ঝুঁকি থেকে সুরক্ষিত থাকতে সাহায্য করে এবং ব্রাউজ করার সময় আপনাকে আত্মবিশ্বাস দেয়</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ইনস্টল করা যায়নি।</translation>
 <translation id="2349710944427398404">অ্যাকাউন্ট, ​​বুকমার্ক এবং স্টোর করা সেটিংসসহ Chrome-এর ব্যবহার করা মোট ডেটা</translation>
 <translation id="2354001756790975382">অন্য বুকমার্ক</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">কোনও সমস্যা হয়েছে। আবার চেষ্টা করুন।</translation>
 <translation id="3577558748185201054">আপনার আগ্রহের বিষয় ও পছন্দ ম্যানেজ করুন</translation>
 <translation id="3587482841069643663">সকল</translation>
+<translation id="3598421953808879451">এইভাবে ভিডিও সেভ করুন…</translation>
 <translation id="3602290021589620013">প্রিভিউ</translation>
 <translation id="3614126103057878858">প্রাইস ইনসাইট</translation>
 <translation id="3616113530831147358">অডিও</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">স্ক্রিনের নিচে অ্যাটাচ করা শিট</translation>
 <translation id="4045441967987592849">আবার খুলুন</translation>
 <translation id="4049920046559074950"><ph name="INSTANCE_TITLE" />-এর জন্য আরও বিকল্প</translation>
+<translation id="4051548576872472315">সম্প্রতি বন্ধ করা ট্যাব ও উইন্ডো এখানে খুঁজে দেখুন</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{ছদ্মবেশী উইন্ডোতে খুলুন}one{সবকটি (#) ছদ্মবেশী উইন্ডোতে খুলুন}other{সবকটি (#) ছদ্মবেশী উইন্ডোতে খুলুন}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{শেয়ার করা ট্যাব গ্রুপে নতুন অ্যাক্টিভিটি সহ <ph name="TABS_COUNT_ONE" />টি স্ট্যান্ডার্ড ট্যাব}one{শেয়ার করা ট্যাব গ্রুপে নতুন অ্যাক্টিভিটি সহ <ph name="TABS_COUNT_MANY" />টি স্ট্যান্ডার্ড ট্যাব}other{শেয়ার করা ট্যাব গ্রুপে নতুন অ্যাক্টিভিটি সহ <ph name="TABS_COUNT_MANY" />টি স্ট্যান্ডার্ড ট্যাব}}</translation>
 <translation id="405365679581583349">Google Play পরিষেবা আপডেট করুন</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" এক্সটেনশন ব্যবহার করতে Chrome-এ সাইন-ইন করতে হবে</translation>
 <translation id="6324916366299863871">শর্টকার্ট এডিট করুন</translation>
 <translation id="6324977638108296054">হাইলাইট করা টেক্সটের লিঙ্ক কপি করা যাচ্ছে না</translation>
+<translation id="6331836477476466332">আপনার জন্য আরও নিরাপদ ও শক্তিশালী ব্রাউজার</translation>
 <translation id="6333140779060797560"><ph name="APPLICATION" /> এর মাধ্যমে শেয়ার করুন</translation>
 <translation id="6335454563754888572">এখানে গিয়ে পৃষ্ঠায় URL পয়েন্টিং এডিট করুন: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">এনক্রিপশন</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">নতুন ছদ্মবেশী ট্যাব</translation>
 <translation id="686899695320434745">আপনার পাসফ্রেজের সাথে অ্যাড্রেস এনক্রিপটেড নয়। এটি আপনাকে অন্যান্য Google পরিষেবায় এগুলি ব্যবহার করতে দেয়।</translation>
 <translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> হিসেবে সাইন-ইন করেছেন</translation>
+<translation id="6871397658902960384">ব্রাউজ করা শুরু করুন</translation>
 <translation id="687838958001010630">যেসব ব্যক্তির কাছে এই লিঙ্ক আছে, তারা প্রত্যেকে সব ট্যাব এডিট করতে পারবেন</translation>
 <translation id="6880903702195291049">অনুমতি সঠিক বলে মনে হচ্ছে</translation>
 <translation id="6883204995689174413">শেয়ার করুন</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">পাসফ্রেজ এনক্রিপশনে Google Pay থেকে পাওয়া পেমেন্ট পদ্ধতি ও ঠিকানা অন্তর্ভুক্ত থাকে না।
 
 এই সেটিং পরিবর্তন করতে, <ph name="BEGIN_LINK" />আপনার অ্যাকাউন্টে থাকা Chrome ডেটা মুছে দিন<ph name="END_LINK" />।</translation>
+<translation id="7159399361248977424">এইভাবে ইমেজ সেভ করুন…</translation>
 <translation id="7165972437814027679">Chrome কিছু ফাইল কেন ব্লক করে, সেই সম্পর্কে জানুন</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> হিসেবে সাইন-ইন করেছেন। সেটিংস খোলে।</translation>
 <translation id="7170930892977483182">আপনার ডিভাইস ও Google Wallet-এ সেভ করা সব নিরাপত্তা কোড মুছে যাবে</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">পেমেন্টের পদ্ধতি অ্যাক্সেস করুন</translation>
 <translation id="7363349185727752629">আপনার গোপনীয়তা পছন্দ গাইড</translation>
 <translation id="7364103838544876661">ব্রাউজ করা ডেটা মুছে দেওয়ার আরও বিকল্প</translation>
+<translation id="736435710397109878">কার্ডের ডাকনাম, সর্বাধিক ২৫টি অক্ষর</translation>
 <translation id="7365073365123878797">Google Password Manager-এর সাহায্যে পাসওয়ার্ড সেভ করা শুরু এবং ব্যবহার করতে, Google Play পরিষেবা আপডেট করুন</translation>
 <translation id="7368009310682364976">সম্প্রতি খোলা ট্যাব দেখুন</translation>
 <translation id="7368927539449986686">সাইট সার্চ করার সুবিধা এডিট করুন</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">আপনার সংগঠন Safe Browsing ফিচারটি বন্ধ করে দিয়েছে</translation>
 <translation id="7825973332242257878">ট্যাব গ্রুপ</translation>
 <translation id="7826342993930002256">যেকোনও জায়গায় আপনার পছন্দের ব্রাউজার Chrome ব্যবহার করুন</translation>
+<translation id="7845155831233417403">সর্বাধিক <ph name="MAX_INSTANCE_COUNT" />টি উইন্ডো খুলতে পারবেন। চালিয়ে যেতে উইন্ডো বন্ধ করুন।</translation>
 <translation id="7846161022626028328">কোনও সমস্যা হয়েছে। আবার চেষ্টা করুন।</translation>
 <translation id="7846296061357476882">Google পরিষেবা</translation>
 <translation id="784652447248278262">বর্তমান উইন্ডো</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">কাছাকাছি আছেন এমন ব্যক্তির সাথে শেয়ার করতে তাকে এই QR কোড স্ক্যান করতে দিন</translation>
 <translation id="8090732854597034573">সাহায্যের প্রয়োজন হলে, অভিভাবককে জিজ্ঞাসা করো</translation>
 <translation id="8101414242770404289"><ph name="TIME_PERIOD" />-এ কোনও ট্যাব নেই</translation>
-<translation id="8103578431304235997">ছদ্মবেশী ট্যাব</translation>
 <translation id="810433609302852">পরামর্শ বিজ্ঞপ্তি ফিচার প্রোমো ও ব্যবহারের ধাপ নিচে দেওয়া শিট</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">সব এক্সটেনশন ও এই ডিভাইসে তাদের সেভ করা ডেটা সরান</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">সম্ভব হলে সাইটে ডার্ক থিম রাখুন</translation>
 <translation id="8282950411412455249">নিরাপত্তা সেটিংসে যান</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{১টি ছদ্মবেশী উইন্ডো বন্ধ করুন}one{#টি ছদ্মবেশী উইন্ডো বন্ধ করুন}other{#টি ছদ্মবেশী উইন্ডো বন্ধ করুন}}</translation>
+<translation id="8289602658021943461">এইভাবে ভিডিও ফ্রেম সেভ করুন…</translation>
 <translation id="8313599942510782709">আপনার টাস্ক এখনও চলছে</translation>
 <translation id="8317318757008452355">প্রিন্ট করার বিকল্প খুলুন</translation>
 <translation id="8320212361750431956">সাম্প্রতিক অ্যাক্টিভিটি</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />নতুন<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">বুকমার্ক ও তালিকা</translation>
 <translation id="8342727528718219152">যেসব সাইট অনেক বেশি বিজ্ঞপ্তি পাঠাতে পারে, Chrome আপনাকে তার সম্পর্কে জানাবে</translation>
 <translation id="834313815369870491">সাইট কখনও অনুবাদ করবেন না</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, একাধিক বেছে নেওয়া পিন করা রেকর্ডিং ছদ্মবেশী ট্যাব</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">পাসফ্রেজ প্রবেশ করান</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, পিন করা ছবির-মধ্যে-ছবি ছদ্মবেশী ট্যাব</translation>
 <translation id="945522503751344254">মতামত জানান</translation>
+<translation id="948276827484905248">QR কোড তৈরি করুন</translation>
 <translation id="95817756606698420">Chrome, চীনে সার্চের জন্য <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> কে ব্যবহার করতে পারে। আপনি <ph name="BEGIN_LINK" />সেটিংস<ph name="END_LINK" /> থেকে এটি পরিবর্তন করতে পারেন।</translation>
 <translation id="961856697154696964">ব্রাউজ করা ডেটা মুছে দিন</translation>
 <translation id="963246339335003378">Task Manager খুলুন</translation>

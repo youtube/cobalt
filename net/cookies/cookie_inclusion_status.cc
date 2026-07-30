@@ -94,16 +94,6 @@ void CookieInclusionStatus::MaybeClearSameSiteWarning() {
 
   if (!ShouldRecordDowngradeMetrics()) {
     RemoveWarningReason(
-        WarningReason::WARN_STRICT_LAX_DOWNGRADE_STRICT_SAMESITE);
-    RemoveWarningReason(
-        WarningReason::WARN_STRICT_CROSS_DOWNGRADE_STRICT_SAMESITE);
-    RemoveWarningReason(
-        WarningReason::WARN_STRICT_CROSS_DOWNGRADE_LAX_SAMESITE);
-    RemoveWarningReason(
-        WarningReason::WARN_LAX_CROSS_DOWNGRADE_STRICT_SAMESITE);
-    RemoveWarningReason(WarningReason::WARN_LAX_CROSS_DOWNGRADE_LAX_SAMESITE);
-
-    RemoveWarningReason(
         WarningReason::WARN_CROSS_SITE_REDIRECT_DOWNGRADE_CHANGES_INCLUSION);
   }
 }
@@ -141,76 +131,12 @@ bool CookieInclusionStatus::HasWarningReason(WarningReason reason) const {
   return warning_reasons_.Has(reason);
 }
 
-bool CookieInclusionStatus::HasSchemefulDowngradeWarning(
-    WarningReason* reason) const {
-  if (!ShouldWarn())
-    return false;
-
-  const WarningReason kDowngradeWarnings[] = {
-      WarningReason::WARN_STRICT_LAX_DOWNGRADE_STRICT_SAMESITE,
-      WarningReason::WARN_STRICT_CROSS_DOWNGRADE_STRICT_SAMESITE,
-      WarningReason::WARN_STRICT_CROSS_DOWNGRADE_LAX_SAMESITE,
-      WarningReason::WARN_LAX_CROSS_DOWNGRADE_STRICT_SAMESITE,
-      WarningReason::WARN_LAX_CROSS_DOWNGRADE_LAX_SAMESITE,
-  };
-
-  for (auto warning : kDowngradeWarnings) {
-    if (!HasWarningReason(warning))
-      continue;
-
-    if (reason)
-      *reason = warning;
-
-    return true;
-  }
-
-  return false;
-}
-
 void CookieInclusionStatus::AddWarningReason(WarningReason reason) {
   warning_reasons_.Put(reason);
 }
 
 void CookieInclusionStatus::RemoveWarningReason(WarningReason reason) {
   warning_reasons_.Remove(reason);
-}
-
-CookieInclusionStatus::ContextDowngradeMetricValues
-CookieInclusionStatus::GetBreakingDowngradeMetricsEnumValue(
-    const GURL& url) const {
-  bool url_is_secure = url.SchemeIsCryptographic();
-
-  // Start the |reason| as something other than the downgrade warnings.
-  WarningReason reason = WarningReason::MAX_WARNING_REASON;
-
-  // Don't bother checking the return value because the default switch case
-  // will handle if no reason was found.
-  HasSchemefulDowngradeWarning(&reason);
-
-  switch (reason) {
-    case WarningReason::WARN_STRICT_LAX_DOWNGRADE_STRICT_SAMESITE:
-      return url_is_secure
-                 ? ContextDowngradeMetricValues::kStrictLaxStrictSecure
-                 : ContextDowngradeMetricValues::kStrictLaxStrictInsecure;
-    case WarningReason::WARN_STRICT_CROSS_DOWNGRADE_STRICT_SAMESITE:
-      return url_is_secure
-                 ? ContextDowngradeMetricValues::kStrictCrossStrictSecure
-                 : ContextDowngradeMetricValues::kStrictCrossStrictInsecure;
-    case WarningReason::WARN_STRICT_CROSS_DOWNGRADE_LAX_SAMESITE:
-      return url_is_secure
-                 ? ContextDowngradeMetricValues::kStrictCrossLaxSecure
-                 : ContextDowngradeMetricValues::kStrictCrossLaxInsecure;
-    case WarningReason::WARN_LAX_CROSS_DOWNGRADE_STRICT_SAMESITE:
-      return url_is_secure
-                 ? ContextDowngradeMetricValues::kLaxCrossStrictSecure
-                 : ContextDowngradeMetricValues::kLaxCrossStrictInsecure;
-    case WarningReason::WARN_LAX_CROSS_DOWNGRADE_LAX_SAMESITE:
-      return url_is_secure ? ContextDowngradeMetricValues::kLaxCrossLaxSecure
-                           : ContextDowngradeMetricValues::kLaxCrossLaxInsecure;
-    default:
-      return url_is_secure ? ContextDowngradeMetricValues::kNoDowngradeSecure
-                           : ContextDowngradeMetricValues::kNoDowngradeInsecure;
-  }
 }
 
 std::string CookieInclusionStatus::GetDebugString() const {
@@ -287,16 +213,6 @@ std::string CookieInclusionStatus::GetDebugString() const {
        "WARN_SAMESITE_NONE_INSECURE"},
       {WarningReason::WARN_SAMESITE_UNSPECIFIED_LAX_ALLOW_UNSAFE,
        "WARN_SAMESITE_UNSPECIFIED_LAX_ALLOW_UNSAFE"},
-      {WarningReason::WARN_STRICT_LAX_DOWNGRADE_STRICT_SAMESITE,
-       "WARN_STRICT_LAX_DOWNGRADE_STRICT_SAMESITE"},
-      {WarningReason::WARN_STRICT_CROSS_DOWNGRADE_STRICT_SAMESITE,
-       "WARN_STRICT_CROSS_DOWNGRADE_STRICT_SAMESITE"},
-      {WarningReason::WARN_STRICT_CROSS_DOWNGRADE_LAX_SAMESITE,
-       "WARN_STRICT_CROSS_DOWNGRADE_LAX_SAMESITE"},
-      {WarningReason::WARN_LAX_CROSS_DOWNGRADE_STRICT_SAMESITE,
-       "WARN_LAX_CROSS_DOWNGRADE_STRICT_SAMESITE"},
-      {WarningReason::WARN_LAX_CROSS_DOWNGRADE_LAX_SAMESITE,
-       "WARN_LAX_CROSS_DOWNGRADE_LAX_SAMESITE"},
       {WarningReason::WARN_SECURE_ACCESS_GRANTED_NON_CRYPTOGRAPHIC,
        "WARN_SECURE_ACCESS_GRANTED_NON_CRYPTOGRAPHIC"},
       {WarningReason::WARN_CROSS_SITE_REDIRECT_DOWNGRADE_CHANGES_INCLUSION,

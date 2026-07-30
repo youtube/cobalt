@@ -22,7 +22,8 @@ extern NSString* const kTabGridIncognitoTabsPageButtonIdentifier;
 extern NSString* const kTabGridRegularTabsPageButtonIdentifier;
 extern NSString* const kTabGridRemoteTabsPageButtonIdentifier;
 extern NSString* const kTabGridTabGroupsPageButtonIdentifier;
-extern NSString* const kTabGridDoneButtonIdentifier;
+extern NSString* const kTabGridExitTabGridButtonIdentifier;
+extern NSString* const kTabGridExitSelectionButtonIdentifier;
 extern NSString* const kTabGridSearchButtonIdentifier;
 extern NSString* const kTabGridCancelButtonIdentifier;
 extern NSString* const kTabGridIncognitoTabsEmptyStateIdentifier;
@@ -33,7 +34,6 @@ extern NSString* const kIncognitoTabGridIdentifier;
 extern NSString* const kInactiveTabGridIdentifier;
 extern NSString* const kInactiveTabGridCloseAllButtonIdentifier;
 
-extern NSString* const kTabGridEditButtonIdentifier;
 extern NSString* const kTabGridEditCloseTabsButtonIdentifier;
 extern NSString* const kTabGridEditSelectAllButtonIdentifier;
 extern NSString* const kTabGridEditAddToButtonIdentifier;

@@ -37,98 +37,6 @@ namespace blink {
 
 namespace {
 
-// Maps a MonkeyPatchableApi enum value to the corresponding property path
-// to access that API, starting from the context's global object.
-base::span<const char* const> GetApiPropertyPath(
-    AdTracker::MonkeyPatchableApi api) {
-  switch (api) {
-    case AdTracker::MonkeyPatchableApi::kHistoryPushState: {
-      static const char* const kPath[] = {"history", "pushState"};
-      return kPath;
-    }
-    case AdTracker::MonkeyPatchableApi::kHistoryReplaceState: {
-      static const char* const kPath[] = {"history", "replaceState"};
-      return kPath;
-    }
-    case AdTracker::MonkeyPatchableApi::kNodeAppendChild: {
-      static const char* const kPath[] = {"Node", "prototype", "appendChild"};
-      return kPath;
-    }
-    case AdTracker::MonkeyPatchableApi::kNone:
-      NOTREACHED();
-  }
-  NOTREACHED();
-}
-
-// A struct to hold the results from `GetApiFunctionInfo`.
-struct ApiFunctionInfo {
-  v8::MaybeLocal<v8::Function> function;
-
-  // True if the API appears to be monkey patched. False if the API appears to
-  // be the native implementation or if an error occurred during the check.
-  bool is_monkey_patched = false;
-};
-
-// Finds the V8 function for a given API, checks if it has been monkey patched,
-// and returns both pieces of information.
-ApiFunctionInfo GetApiFunctionInfo(v8::Isolate* isolate,
-                                   AdTracker::MonkeyPatchableApi api) {
-  v8::EscapableHandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  if (context.IsEmpty()) {
-    return {};
-  }
-
-  v8::Context::Scope context_scope(context);
-
-  // Start with the global object.
-  v8::Local<v8::Value> current_value = context->Global();
-  const base::span<const char* const> property_path = GetApiPropertyPath(api);
-
-  // Prevent script execution (e.g., via author-defined getters or proxy traps)
-  // during prototype chain traversal to avoid evasion, side effects, or DOM
-  // mutation re-entrancy crashes.
-  v8::Isolate::DisallowJavascriptExecutionScope disallow_js(
-      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
-  v8::TryCatch try_catch(isolate);
-
-  // Traverse the property path (e.g., global object -> `history` ->
-  // `pushState`).
-  for (const char* property_name : property_path) {
-    // Each intermediate value in the path must be an object.
-    if (!current_value->IsObject()) {
-      return {};
-    }
-
-    v8::Local<v8::Object> current_object = current_value.As<v8::Object>();
-    v8::Local<v8::String> property_key = V8AtomicString(isolate, property_name);
-
-    v8::MaybeLocal<v8::Value> maybe_next_value =
-        current_object->Get(context, property_key);
-
-    // If the property doesn't exist, the chain is broken.
-    if (maybe_next_value.IsEmpty()) {
-      return {};
-    }
-    current_value = maybe_next_value.ToLocalChecked();
-  }
-
-  // At the end of the path, we expect a function. If it's not a function,
-  // it has been tampered with, and we can't perform our check.
-  if (!current_value->IsFunction()) {
-    return {};
-  }
-
-  v8::Local<v8::Function> api_function = current_value.As<v8::Function>();
-
-  // Native functions will have an invalid script ID. User-defined functions
-  // (monkey patches) will have a valid one.
-  bool is_monkey_patched =
-      api_function->ScriptId() != v8::Message::kNoScriptIdInfo;
-
-  return {handle_scope.Escape(api_function), is_monkey_patched};
-}
-
 bool IsKnownAdExecutionContext(ExecutionContext* execution_context) {
   // TODO(jkarlin): Do the same check for worker contexts.
   if (auto* window = DynamicTo<LocalDOMWindow>(execution_context)) {
@@ -354,21 +262,13 @@ void AdTracker::DidFinishAsyncTask(probe::AsyncTaskContext* task_context) {
   DCHECK(task_context);
   async_script_stack_.pop_back();
 }
-void AdTracker::WillPrepareRequest(
-    Document* document,
-    const ResourceRequestHead& request,
-    std::optional<KURL> alias_url,
+std::optional<AdProvenance> AdTracker::CalculateIfAdSubresource(
+    ExecutionContext* execution_context,
+    const KURL& request_url,
     ResourceType resource_type,
     const FetchInitiatorInfo& initiator_info,
     std::optional<AdProvenance> known_ad_provenance,
-    bool scan_javascript_stack,
-    LazyStackTrace& stack_trace) {
-  const KURL& request_url =
-      alias_url.has_value() ? alias_url.value() : request.Url();
-
-  ExecutionContext* execution_context =
-      document ? document->GetExecutionContext() : nullptr;
-
+    bool scan_javascript_stack) {
   // Check if the document loading the resource is an ad.
   const bool is_ad_execution_context =
       IsKnownAdExecutionContext(execution_context);
@@ -377,73 +277,42 @@ void AdTracker::WillPrepareRequest(
     known_ad_provenance = NoProvenance{};
   }
 
-  // If the request was already marked as an ad (e.g. from redirects or service
-  // worker), propagate the existing provenance.
-  if (!known_ad_provenance && request.IsAdResource()) {
-    known_ad_provenance = request.GetAdProvenance();
-  }
-
   // We skip script checking for stylesheet-initiated resource requests as the
   // stack may represent the cause of a style recalculation rather than the
   // actual resources themselves. Instead, the ad bit is set according to the
   // CSSParserContext when the request is made. See crbug.com/1051605.
   if (initiator_info.name == fetch_initiator_type_names::kCSS ||
       initiator_info.name == fetch_initiator_type_names::kUacss) {
-    cached_provenance_url_ = request_url.GetString();
-    cached_provenance_ = known_ad_provenance;
-    has_cached_provenance_ = true;
-    return;
+    return known_ad_provenance;
   }
 
   // Check if any executing script is an ad.
   if (!known_ad_provenance && scan_javascript_stack) {
-    std::optional<AdScriptIdentifier> ancestor_ad_script;
-    if (IsAdScriptInStackHelper(
-            StackType::kTopOnly,
-            /*ignore_monkey_patch=*/MonkeyPatchableApi::kNodeAppendChild,
-            stack_trace, &ancestor_ad_script)) {
-      known_ad_provenance = ancestor_ad_script
-                                ? AdProvenance(ancestor_ad_script->id)
-                                : AdProvenance(NoProvenance{});
+    v8::Isolate* isolate =
+        execution_context ? execution_context->GetIsolate() : nullptr;
+    if (isolate) {
+      LazyStackTrace stack_trace(isolate);
+      std::optional<AdScriptIdentifier> ancestor_ad_script;
+      if (IsAdScriptInStackHelper(
+              StackType::kTopOnly,
+              /*ignore_monkey_patch=*/MonkeyPatchableApi::kNodeAppendChild,
+              stack_trace, &ancestor_ad_script)) {
+        known_ad_provenance = ancestor_ad_script
+                                  ? AdProvenance(ancestor_ad_script->id)
+                                  : AdProvenance(NoProvenance{});
+      }
     }
   }
 
   // If it is a script marked as an ad and it's not in an ad context, append it
-  // to the known ad script set. We don't need to keep track of ad scripts in ad
-  // contexts, because any script executed inside an ad context is considered an
-  // ad script by IsKnownAdScript.
+  // to the known ad script set.
   if (resource_type == ResourceType::kScript && known_ad_provenance &&
       execution_context && !is_ad_execution_context) {
     AppendToKnownAdScripts(*execution_context, request_url.GetString(),
                            *known_ad_provenance);
   }
 
-  cached_provenance_url_ = request_url.GetString();
-  cached_provenance_ = known_ad_provenance;
-  has_cached_provenance_ = true;
-}
-
-std::optional<AdProvenance> AdTracker::CalculateIfAdSubresource(
-    ExecutionContext* execution_context,
-    const KURL& request_url,
-    ResourceType resource_type,
-    const FetchInitiatorInfo& initiator_info,
-    std::optional<AdProvenance> known_ad_provenance,
-    bool scan_javascript_stack) {
-  if (!has_cached_provenance_) {
-    // If monitor was null (detached frame/tests), fall back to passed
-    // provenance.
-    return known_ad_provenance;
-  }
-  if (cached_provenance_url_ != request_url.GetString()) {
-    DCHECK(false) << "Stale ad tracker provenance cache. Expected: "
-                  << cached_provenance_url_
-                  << ", Got: " << request_url.GetString();
-    return known_ad_provenance;
-  }
-  std::optional<AdProvenance> result = cached_provenance_;
-  has_cached_provenance_ = false;
-  return result;
+  return known_ad_provenance;
 }
 
 void AdTracker::DidRegisterDynamicScript(v8::Local<v8::Context> v8_context,
@@ -671,7 +540,8 @@ bool AdTracker::IsFirstCallOfApiFromNonAdScript(v8::Isolate* isolate,
 
 bool AdTracker::WasApiCalledByNonAdScript(v8::Isolate* isolate,
                                           MonkeyPatchableApi api) const {
-  ApiFunctionInfo api_info = GetApiFunctionInfo(isolate, api);
+  MonkeyPatchableApiFunctionInfo api_info =
+      GetMonkeyPatchableApiFunctionInfo(isolate, api);
   if (!api_info.is_monkey_patched) {
     return false;
   }
@@ -719,24 +589,6 @@ bool AdTracker::WasApiCalledByNonAdScript(v8::Isolate* isolate,
   return false;
 }
 
-bool AdTracker::IsFunctionAMonkeyPatch(v8::Isolate* isolate,
-                                       const v8::Local<v8::Function>& function,
-                                       MonkeyPatchableApi api) const {
-  // 1. Get the implementation of `api` from the v8 context.
-  ApiFunctionInfo api_info = GetApiFunctionInfo(isolate, api);
-  if (!api_info.is_monkey_patched) {
-    return false;
-  }
-
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Function> api_function;
-  if (!api_info.function.ToLocal(&api_function)) {
-    return false;
-  }
-
-  // 2. If the `api` is monkeypatched, see if it matches `function`.
-  return function == api_function;
-}
 
 bool AdTracker::IsKnownAdScript(ExecutionContext* execution_context,
                                 const String& url) {

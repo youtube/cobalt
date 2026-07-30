@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Mobiilivaate taotlemine</translation>
 <translation id="2870560284913253234">Sait</translation>
 <translation id="2874939134665556319">Eelmine lugu</translation>
+<translation id="2890412325133442491">Chrome'i vaikevalik</translation>
 <translation id="2891975107962658722">Teatud saidi puhul teie seadmesse andmete salvestamise blokeerimine</translation>
 <translation id="2903493209154104877">Aadressid</translation>
 <translation id="2903764741244499151">Saidid saavad automaatselt pilt pildis režiimi siseneda. See võimaldab teil video vaatamist jätkata, vabastades ekraanikuval ruumi muude toimingute jaoks.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Muuda paroole</translation>
 <translation id="3797520601150691162">Tumedat teemat ei rakendata konkreetsele saidile</translation>
 <translation id="3803367742635802571">Külastatavad saidid võivad lõpetada ootuspäraselt toimimise</translation>
-<translation id="3816118180265633665">Chrome'i värvid</translation>
 <translation id="381841723434055211">Telefoninumbrid</translation>
 <translation id="3823453485268218808">Monofont</translation>
 <translation id="3826050100957962900">Kolmanda osapoole sisselogimisviibad</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Välju täisekraanilt</translation>
 <translation id="640163077447496506">Aegub täna</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Teema kogud</translation>
 <translation id="6439114592976064011">Blokeeri saitidel virtuaalreaalsuse seadme ja andmete kasutamine</translation>
 <translation id="6447842834002726250">Küpsised</translation>
 <translation id="6452138246455930388">Hinnalangus avatud vahelehel, hinnalt <ph name="OLD_PRICE" /> hinnale <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:</translation>
 <translation id="7423098979219808738">Esmalt küsib</translation>
 <translation id="7423538860840206698">Lõikelaua lugemine on blokeeritud</translation>
 <translation id="7425915948813553151">Tume teema saitide jaoks</translation>
+<translation id="7429767477925996803">Chrome'i värvid</translation>
 <translation id="746412105358554870">JavaScripti optimeerimine ja turvalisus</translation>
 <translation id="7478658909253570368">Ära luba saitidel jadaportidega ühendust luua</translation>
 <translation id="7488573225650545859">Peida kaart Vahelehtede kuvamine teie rakenduste loendis</translation>
@@ -676,7 +676,6 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:</translation>
 <translation id="802154636333426148">Allalaadimine ebaõnnestus</translation>
 <translation id="8033047164036749181">Selle saidi märguannete tellimine</translation>
 <translation id="8051193500142930381">Kaamerat vajavad funktsioonid ei tööta</translation>
-<translation id="8056330801132235235">Chrome (vaikevalik)</translation>
 <translation id="8067883171444229417">Esita video</translation>
 <translation id="8068648041423924542">Sertifikaati ei saa valida.</translation>
 <translation id="8077120325605624147">Mis tahes külastatav sait saab teile kuvada mis tahes reklaami</translation>

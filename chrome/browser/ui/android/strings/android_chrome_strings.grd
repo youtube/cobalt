@@ -679,6 +679,9 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_NICKNAME" desc="Label for text input field containing the nickname on a credit card. [CHAR_LIMIT=25]">
         Card nickname
       </message>
+      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_NICKNAME_CONTENT_DESCRIPTION" desc="Accessible content description and label for text input field containing a credit card nickname, mentioning the character limit. [CHAR_LIMIT=64]">
+        Card nickname, maximum 25 characters
+      </message>
       <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_EXPIRATION_DATE_HINT" desc="Hint for text input field containing the expiration date on a credit card. [CHAR_LIMIT=25]">
         MM / YY
       </message>
@@ -954,6 +957,9 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <!-- Appearance settings -->
       <message name="IDS_APPEARANCE_SETTINGS" desc="Title for Appearance settings.">
         Appearance
+      </message>
+      <message name="IDS_BOOKMARK_BAR_SETTINGS_TITLE" desc="Title for the bookmarks bar settings page." translateable="false">
+        Bookmarks Bar
       </message>
       <message name="IDS_BOOKMARK_BAR_SETTING" desc="Title for the bookmark bar setting.">
         Show bookmarks bar
@@ -1436,15 +1442,6 @@ Your Google account may have other forms of browsing history like searches and a
       </message>
       <message name="IDS_PRIVACY_GUIDE_DONE_DESCRIPTION" desc="Subtitle on the final page of the privacy guide">
         Explore more settings below or finish now
-      </message>
-      <message name="IDS_PRIVACY_GUIDE_PRIVACY_SANDBOX_HEADING" desc="Title for the Privacy Sandbox item on the final page of the privacy guide">
-        Ad privacy
-      </message>
-      <message name="IDS_PRIVACY_GUIDE_PRIVACY_SANDBOX_DESCRIPTION" desc="Description for the Privacy Sandbox item on the final page of the privacy guide">
-        Chrome gives you more control over the ads you see and limits what sites can learn about you when they show you personalized ads.
-      </message>
-      <message name="IDS_PRIVACY_GUIDE_PRIVACY_SANDBOX_DESCRIPTION_AD_TOPICS" desc="Description for the Privacy Sandbox item on the final page of the privacy guide - This text is used when the ad topics card is added.">
-        Manage your ad topics and other settings to limit what sites can learn about you to show you personalized ads
       </message>
       <message name="IDS_PRIVACY_GUIDE_WEB_APP_ACTIVITY_HEADING" desc="Title for the Web and App Activity item on the final page of the privacy guide">
         Web &amp; App Activity
@@ -3006,8 +3003,14 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_SAVE_LINK" desc="Context sensitive menu item for saving the target of a link [CHAR_LIMIT=30]">
         Download link
       </message>
+      <message name="IDS_CONTEXTMENU_SAVE_LINK_AS" desc="Context sensitive menu item for saving the target of a link [CHAR_LIMIT=30]">
+        Save link as…
+      </message>
       <message name="IDS_CONTEXTMENU_SAVE_IMAGE" desc="Context sensitive menu item for saving the selected image. [CHAR_LIMIT=30]">
         Download image
+      </message>
+      <message name="IDS_CONTEXTMENU_SAVE_IMAGE_AS" desc="Context sensitive menu item for saving the selected image. [CHAR_LIMIT=30]">
+        Save image as…
       </message>
       <message name="IDS_CONTEXTMENU_OPEN_IMAGE" desc="Context sensitive menu item for opening/viewing the selected image. [CHAR_LIMIT=30]">
         Open image
@@ -3045,14 +3048,23 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_SHARE_LINK" desc="Context sensitive menu item for sharing a link via the Android system share action. [CHAR_LIMIT=30]">
         Share link
       </message>
+      <message name="IDS_CONTEXTMENU_COPY_LINK_TO_HIGHLIGHT" desc="This string is shown in the context menu for copying the link-to-text.">
+        Copy link to highlight
+      </message>
       <message name="IDS_CONTEXTMENU_SAVE_VIDEO" desc="Context sensitive menu item for saving the selected video. [CHAR_LIMIT=30]">
         Download video
+      </message>
+      <message name="IDS_CONTEXTMENU_SAVE_VIDEO_AS" desc="Context sensitive menu item for saving the selected video. [CHAR_LIMIT=30]">
+        Save video as…
       </message>
       <message name="IDS_CONTEXTMENU_COPY_VIDEO_FRAME" desc="The context menu item to copy the current video frame as an image. [CHAR_LIMIT=30]">
         Copy video frame
       </message>
       <message name="IDS_CONTEXTMENU_DOWNLOAD_VIDEO_FRAME" desc="The context menu item to download the current video frame as an image. [CHAR_LIMIT=30]">
         Download video frame
+      </message>
+      <message name="IDS_CONTEXTMENU_SAVE_VIDEO_FRAME_AS" desc="The context menu item to save the current video frame as an image. [CHAR_LIMIT=30]">
+        Save video frame as…
       </message>
       <message name="IDS_CONTEXTMENU_PICTURE_IN_PICTURE" desc="The context menu item to enter picture-in-picture mode for a video. [CHAR_LIMIT=30]">
         Picture in Picture
@@ -6343,16 +6355,16 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         <ph name="DOMAIN">%1$s<ex>www.google.com</ex></ph> - Sent from <ph name="DEVICE_NAME">%2$s<ex>Tanya's Pixel 2XL</ex></ph>
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_CONTENT_DESCRIPTION" desc="Accessibility string read when the bottom sheet is opened. It describes the bottom sheet where a user can pick a device to share the tab with.">
-        List of devices to share a tab with.
+        Choose a device.
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SHEET_HALF_HEIGHT" desc="Accessibility string read when the bottom sheet showing a list of the user's devices is opened at half height. The sheet will occupy the bottom half the screen.">
-        List of devices to share a tab with opened at half height.
+        "Choose a device" opened at half height.
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SHEET_FULL_HEIGHT" desc="Accessibility string read when the bottom sheet showing a list of the user's devices is opened at full height. The sheet will occupy the entire screen.">
-        List of devices to share a tab with opened at full height.
+        "Choose a device" opened at full height.
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SHEET_CLOSED" desc="Accessibility string read when the bottom sheet showing a list of the user's devices is closed.">
-        List of devices to share a tab with is closed.
+        "Choose a device" is closed.
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SHEET_TOOLBAR" desc="Header for device picker sheet where users can pick a device to send a tab to.">
         Send to

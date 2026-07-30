@@ -32,7 +32,8 @@ _XCRESULT_SUFFIX = '.xcresult'
 IPS_REGEX = re.compile(r'ios_.*chrome.+\.ips')
 
 # Messages checked for in EG test logs to determine if the app crashed
-# see: https://github.com/google/EarlGrey/blob/earlgrey2/TestLib/DistantObject/GREYTestApplicationDistantObject.m
+# see: https://github.com/google/EarlGrey/blob/earlgrey2/TestLib/
+# DistantObject/GREYTestApplicationDistantObject.m
 CRASH_REGEX = re.compile(
     r'(App crashed and disconnected\.)|'
     r'(App process is hanging\.)|'
@@ -490,18 +491,11 @@ class XcodeLogParser(object):
           '\n'.join(output))
       return overall_collected_result
 
-    # During a run `xcodebuild .. -resultBundlePath %output_path%`
-    # that generates output_path folder,
-    # but Xcode 11+ generates `output_path.xcresult` and `output_path`
-    # where output_path.xcresult is a folder with results and `output_path`
-    # is symlink to the `output_path.xcresult` folder.
-    # `xcresulttool` with folder/symlink behaves in different way on laptop and
-    # on bots. This piece of code uses .xcresult folder.
     xcresult = output_path + _XCRESULT_SUFFIX
 
     # |output_path|.xcresult folder is created at the end of tests. If
-    # |output_path| folder exists but |output_path|.xcresult folder doesn't
-    # exist, it means xcodebuild exited or was killed half way during tests.
+    # |output_path|.xcresult folder doesn't exist, it means xcodebuild exited
+    # or was killed halfway during tests.
     if not os.path.exists(xcresult):
       overall_collected_result.crashed = True
       overall_collected_result.crash_message = (
@@ -509,6 +503,7 @@ class XcodeLogParser(object):
           '\n'.join(output))
       overall_collected_result.add_result_collection(
           parse_passed_failed_tests_for_interrupted_run(output))
+      file_util.zip_and_remove_folder(output_path)
       return overall_collected_result
 
     # See XCRESULT_ROOT in xcode_log_parser_test.py for an example of |root|.
@@ -546,8 +541,11 @@ class XcodeLogParser(object):
     """
     xcresult = output_path + _XCRESULT_SUFFIX
     if not os.path.exists(xcresult):
-      LOGGER.warn('%s does not exist.' % xcresult)
-      return
+      if os.path.isdir(output_path):
+        xcresult = output_path
+      else:
+        LOGGER.warn('%s does not exist.' % xcresult)
+        return
 
     root = json.loads(XcodeLogParser._xcresulttool_get(xcresult))
     if 'testFailureSummaries' not in root.get('issues', {}):
@@ -596,8 +594,11 @@ class XcodeLogParser(object):
     """
     xcresult = output_path + _XCRESULT_SUFFIX
     if not os.path.exists(xcresult):
-      LOGGER.warn('%s does not exist.' % xcresult)
-      return
+      if os.path.isdir(output_path):
+        xcresult = output_path
+      else:
+        LOGGER.warn('%s does not exist.' % xcresult)
+        return
     root = json.loads(XcodeLogParser._xcresulttool_get(xcresult))
     try:
       diagnostics_ref = root['actions']['_values'][0]['actionResult'][
@@ -804,6 +805,21 @@ class Xcode16LogParser(object):
     return subprocess.check_output(xcresult_command).decode('utf-8').strip()
 
   @staticmethod
+  def _find_test_cases(node):
+    """Recursively searches for and returns all 'Test Case' nodes."""
+    test_cases = []
+    if isinstance(node, dict):
+      if node.get('nodeType') == 'Test Case':
+        test_cases.append(node)
+      elif 'children' in node:
+        for child in node['children']:
+          test_cases.extend(Xcode16LogParser._find_test_cases(child))
+    elif isinstance(node, list):
+      for item in node:
+        test_cases.extend(Xcode16LogParser._find_test_cases(item))
+    return test_cases
+
+  @staticmethod
   def _get_test_statuses(output_path):
     """Returns test results from xcresult.
 
@@ -819,52 +835,45 @@ class Xcode16LogParser(object):
     xcresult = output_path + _XCRESULT_SUFFIX
     result = ResultCollection()
     root = json.loads(Xcode16LogParser._xcresulttool_get_tests(xcresult))
-    # testNodes -> Test Plan -> Test Module -> Test Suites
-    for test_suite in root['testNodes'][0]['children'][0]['children']:
-      if test_suite['nodeType'] != 'Test Suite':
-        # Unsure if there are other node types, but just to be safe
+    for test in Xcode16LogParser._find_test_cases(root.get('testNodes', [])):
+      test_name = test['nodeIdentifier']
+      # crashed tests don't have duration in the test results
+      duration = None
+      if 'duration' in test:
+        duration = duration_to_milliseconds(test['duration'])
+      if any(
+          test_name.endswith(suffix)
+          for suffix in SYSTEM_ERROR_TEST_NAME_SUFFIXES):
+        result.crashed = True
+        result.crash_message += 'System error in %s: %s\n' % (xcresult,
+                                                              test_name)
         continue
-      for test in test_suite['children']:
-        if test['nodeType'] != 'Test Case':
-          # Unsure if there are other node types, but just to be safe
-          continue
-        test_name = test['nodeIdentifier']
-        # crashed tests don't have duration in the test results
-        duration = None
-        if 'duration' in test:
-          duration = duration_to_milliseconds(test['duration'])
-        if any(
-            test_name.endswith(suffix)
-            for suffix in SYSTEM_ERROR_TEST_NAME_SUFFIXES):
-          result.crashed = True
-          result.crash_message += 'System error in %s: %s\n' % (xcresult,
-                                                                test_name)
-          continue
-        # If a test case was executed multiple times, there will be multiple
-        # |test| objects of it. Each |test| corresponds to an execution of the
-        # test case.
-        test_status_value = test['result']
-        if test_status_value == 'Passed':
-          result.add_test_result(
-              TestResult(test_name, TestStatus.PASS, duration=duration))
-        elif test_status_value == 'Expected Failure':
-          result.add_test_result(
-              TestResult(
-                  test_name,
-                  TestStatus.FAIL,
-                  expected_status=TestStatus.FAIL,
-                  duration=duration))
-        elif test_status_value == 'Skipped':
-          result.add_test_result(
-              TestResult(
-                  test_name,
-                  TestStatus.SKIP,
-                  expected_status=TestStatus.SKIP,
-                  duration=duration))
-        else:
-          result.add_test_result(
-              Xcode16LogParser._create_failed_test_result(
-                  test_name, duration, test, output_path, xcresult))
+      # If a test case was executed multiple times, there will be multiple
+      # |test| objects of it. Each |test| corresponds to an execution of the
+      # test case.
+      test_status_value = test['result']
+      if test_status_value == 'Passed':
+        result.add_test_result(
+            TestResult(test_name, TestStatus.PASS, duration=duration))
+      elif test_status_value == 'Expected Failure':
+        result.add_test_result(
+            TestResult(
+                test_name,
+                TestStatus.FAIL,
+                expected_status=TestStatus.FAIL,
+                duration=duration))
+      elif test_status_value == 'Skipped':
+        result.add_test_result(
+            TestResult(
+                test_name,
+                TestStatus.SKIP,
+                expected_status=TestStatus.SKIP,
+                duration=duration))
+      else:
+        result.add_test_result(
+            Xcode16LogParser._create_failed_test_result(test_name, duration,
+                                                        test, output_path,
+                                                        xcresult))
     return result
 
   def _create_failed_test_result(test_name, duration, test, output_path,
@@ -920,9 +929,9 @@ class Xcode16LogParser(object):
 
     xcresult = output_path + _XCRESULT_SUFFIX
 
-    # |output_path|.xcresult folder is created at the end of tests. If
-    # |output_path| folder exists but |output_path|.xcresult folder doesn't
-    # exist, it means xcodebuild exited or was killed half way during tests.
+    # |xcresult| folder is created at the end of tests. If
+    # |output_path|.xcresult folder doesn't exist, it means xcodebuild exited
+    # or was killed halfway during tests.
     if not os.path.exists(xcresult):
       overall_collected_result.crashed = True
       overall_collected_result.crash_message = (
@@ -930,6 +939,7 @@ class Xcode16LogParser(object):
           '\n'.join(output))
       overall_collected_result.add_result_collection(
           parse_passed_failed_tests_for_interrupted_run(output))
+      file_util.zip_and_remove_folder(output_path)
       return overall_collected_result
 
     summary = json.loads(Xcode16LogParser._xcresulttool_get_summary(xcresult))
@@ -965,16 +975,9 @@ class Xcode16LogParser(object):
       return
 
     root = json.loads(Xcode16LogParser._xcresulttool_get_tests(xcresult))
-    for test_suite in root['testNodes'][0]['children'][0]['children']:
-      if test_suite['nodeType'] != 'Test Suite':
-        # Unsure if there are other node types, but just to be safe
-        continue
-      for test in test_suite['children']:
-        if test['nodeType'] != 'Test Case':
-          # Unsure if there are other node types, but just to be safe
-          continue
-        test_name = test['nodeIdentifier']
-        Xcode16LogParser._extract_artifacts_for_test(test_name, xcresult)
+    for test in Xcode16LogParser._find_test_cases(root.get('testNodes', [])):
+      test_name = test['nodeIdentifier']
+      Xcode16LogParser._extract_artifacts_for_test(test_name, xcresult)
 
   @staticmethod
   def export_diagnostic_data(output_path):

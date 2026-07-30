@@ -64,10 +64,7 @@ export function getHtml(this: SettingsAppearancePageElement) {
       ` : ''}
     </div>
     <div id="colorSchemeModeRow" class="cr-row"
-<if expr="is_linux">
-        ?hidden="${!this.showColorSchemeMode_()}"
-</if>
-    >
+        ?hidden="${!this.showColorSchemeMode_()}">
       <div id="colorSchemeModeLabel" class="flex cr-padded-text"
           aria-hidden="true">
         $i18n{colorSchemeMode}
@@ -156,7 +153,8 @@ export function getHtml(this: SettingsAppearancePageElement) {
           <settings-dropdown-menu id="glassEffect"
               label="$i18n{glassEffect}"
               pref-key="glass_frame.enabled"
-              .menuOptions="${this.glassEffectOptions_}">
+              .menuOptions="${this.glassEffectOptions_}"
+              @settings-control-change="${this.onGlassFrameSettingsControlChange_}">
           </settings-dropdown-menu>
         </div>
       ` : ''}
@@ -185,11 +183,11 @@ export function getHtml(this: SettingsAppearancePageElement) {
           </settings-toggle-button>
         ` : ''}
 
-        ${this.showProjectsPanelEnabled_ ? html`
-          <settings-toggle-button id="showProjectsPanelButton"
-            pref-key="projects_panel.pinned_to_tabstrip"
-            label="$i18n{showProjectsPanelButton}"
-            @change="${this.onShowProjectsPanelButtonChange_}">
+        ${this.showOrganizerPanelEnabled_ ? html`
+          <settings-toggle-button id="showOrganizerPanelButton"
+            pref-key="organizer_panel.pinned_to_tabstrip"
+            label="$i18n{showOrganizerPanelButton}"
+            @change="${this.onShowOrganizerPanelButtonChange_}">
           </settings-toggle-button>
         ` : ''}
 
@@ -212,13 +210,13 @@ export function getHtml(this: SettingsAppearancePageElement) {
     <settings-toggle-button class="hr" id="showSavedTabGroups"
         pref-key="bookmark_bar.show_tab_groups"
         label="$i18n{showTabGroupsInBookmarksBar}"
-        ?hidden="${this.showProjectsPanelEnabled_}">
+        ?hidden="${this.showOrganizerPanelEnabled_}">
     </settings-toggle-button>
 
     <settings-toggle-button class="hr" id="autoPinNewTabGroups"
         pref-key="auto_pin_new_tab_groups"
         label="$i18n{autoPinNewTabGroups}"
-        ?hidden="${this.showProjectsPanelEnabled_}">
+        ?hidden="${this.showOrganizerPanelEnabled_}">
     </settings-toggle-button>
 
     ${this.showCtrlTabMru_ ? html`

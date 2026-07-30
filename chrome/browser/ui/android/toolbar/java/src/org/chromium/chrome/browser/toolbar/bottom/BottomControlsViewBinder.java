@@ -26,6 +26,9 @@ class BottomControlsViewBinder {
         /** A handle to the composited bottom controls layer. */
         public ScrollingBottomViewSceneLayer sceneLayer;
 
+        /** Whether the binder is waiting for a dynamic resource capture callback. */
+        public boolean isWaitingForBitmapCapture;
+
         /**
          * @param bottomControlsRootView The Android View based bottom controls.
          */
@@ -37,21 +40,36 @@ class BottomControlsViewBinder {
         }
     }
 
+    private static void hideSceneLayerUntilBitmapCapture(ViewHolder view, PropertyModel model) {
+        if (!model.get(BottomControlsProperties.ANDROID_VIEW_VISIBLE)) {
+            return;
+        }
+        view.isWaitingForBitmapCapture = true;
+        view.sceneLayer.setIsVisible(false);
+        DynamicResourceReadyOnceCallback.onNext(
+                view.root.getResourceAdapter(),
+                (resource) -> {
+                    view.isWaitingForBitmapCapture = false;
+                    view.sceneLayer.setIsVisible(
+                            model.get(BottomControlsProperties.COMPOSITED_VIEW_VISIBLE));
+                });
+    }
+
     static void bind(PropertyModel model, ViewHolder view, PropertyKey propertyKey) {
         if (BottomControlsProperties.ANDROID_VIEW_HEIGHT_NO_PADDING == propertyKey) {
             View bottomControlsView = view.root.findViewById(R.id.bottom_container_slot);
-            bottomControlsView.getLayoutParams().height =
-                    model.get(BottomControlsProperties.ANDROID_VIEW_HEIGHT_NO_PADDING);
-            // Temporarily hide the composited view until a new snapshot is captured to avoid
-            // an incorrectly sized cc-layer displaying, particularly when view height is
-            // decreasing.
-            // TODO(twellington): Move logic to Coordinator/Mediator.
-            view.sceneLayer.setIsVisible(false);
-            DynamicResourceReadyOnceCallback.onNext(
-                    view.root.getResourceAdapter(),
-                    (resource) ->
-                            view.sceneLayer.setIsVisible(
-                                    model.get(BottomControlsProperties.COMPOSITED_VIEW_VISIBLE)));
+            int height = model.get(BottomControlsProperties.ANDROID_VIEW_HEIGHT_NO_PADDING);
+            if (bottomControlsView.getLayoutParams().height != height) {
+                boolean isInitialSetup = bottomControlsView.getLayoutParams().height <= 0;
+                bottomControlsView.getLayoutParams().height = height;
+                // Temporarily hide the composited view until a new snapshot is captured to avoid
+                // an incorrectly sized cc-layer displaying, particularly when view height is
+                // decreasing.
+                // TODO(twellington): Move logic to Coordinator/Mediator.
+                if (!isInitialSetup) {
+                    hideSceneLayerUntilBitmapCapture(view, model);
+                }
+            }
         } else if (BottomControlsProperties.Y_OFFSET == propertyKey) {
             view.sceneLayer.setYOffset(model.get(BottomControlsProperties.Y_OFFSET));
         } else if (BottomControlsProperties.ANDROID_VIEW_TRANSLATE_Y == propertyKey) {
@@ -63,7 +81,11 @@ class BottomControlsViewBinder {
             final boolean showCompositedView =
                     model.get(BottomControlsProperties.COMPOSITED_VIEW_VISIBLE);
             view.root.setVisibility(showAndroidView ? View.VISIBLE : View.INVISIBLE);
-            view.sceneLayer.setIsVisible(showCompositedView);
+            final boolean isCapturingVisibleAndroidView =
+                    view.isWaitingForBitmapCapture && showAndroidView;
+            if (!isCapturingVisibleAndroidView) {
+                view.sceneLayer.setIsVisible(showCompositedView);
+            }
             if (!showAndroidView && !showCompositedView) {
                 view.root.getResourceAdapter().dropCachedBitmap();
             }
@@ -83,12 +105,16 @@ class BottomControlsViewBinder {
             shadow.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
         } else if (BottomControlsProperties.BOTTOM_PADDING == propertyKey) {
             int padding = model.get(BottomControlsProperties.BOTTOM_PADDING);
-            view.root.setPadding(
-                    view.root.getPaddingLeft(),
-                    view.root.getPaddingTop(),
-                    view.root.getPaddingRight(),
-                    padding);
-            view.sceneLayer.setBottomPadding(padding);
+            if (view.root.getPaddingBottom() != padding) {
+                view.root.setPadding(
+                        view.root.getPaddingLeft(),
+                        view.root.getPaddingTop(),
+                        view.root.getPaddingRight(),
+                        padding);
+                view.sceneLayer.setBottomPadding(padding);
+                view.root.onModelTokenChange(new Object());
+                hideSceneLayerUntilBitmapCapture(view, model);
+            }
         } else {
             assert false : "Unhandled property detected in BottomControlsViewBinder!";
         }

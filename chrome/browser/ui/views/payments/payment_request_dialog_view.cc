@@ -87,9 +87,8 @@ std::unique_ptr<views::View> CreateViewAndInstallController(
 
 // static
 base::WeakPtr<PaymentRequestDialogView> PaymentRequestDialogView::Create(
-    base::WeakPtr<PaymentRequest> request,
-    base::WeakPtr<PaymentRequestDialogView::ObserverForTest> observer) {
-  return (new PaymentRequestDialogView(request, observer))
+    base::WeakPtr<PaymentRequest> request) {
+  return (new PaymentRequestDialogView(request, /*observer=*/nullptr))
       ->weak_ptr_factory_.GetWeakPtr();
 }
 
@@ -232,6 +231,12 @@ void PaymentRequestDialogView::ShowLoadingView() {
       request_->state()->GetTopOrigin(),
       base::BindRepeating(&PaymentRequestDialogView::CloseDialog,
                           weak_ptr_factory_.GetWeakPtr())));
+  // loading_view_overlay_ paints to a layer, and currently layers don't clip to
+  // the bounds of the window opaque layer. Until this is fixed, we have to set
+  // rounded corners directly here.
+  // TODO(crbug.com/358379367): Remove once layers obey the clip by default.
+  loading_view_overlay_->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(GetCornerRadius()));
 
   if (observer_for_testing_) {
     observer_for_testing_->OnLoadingViewShown();
@@ -602,6 +607,14 @@ void PaymentRequestDialogView::HideProcessingSpinner() {
 }
 
 void PaymentRequestDialogView::HideLoadingView() {
+  if (loading_view_overlay_) {
+    loading_view_overlay_->Hide(
+        base::BindOnce(&PaymentRequestDialogView::RemoveLoadingView,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
+void PaymentRequestDialogView::RemoveLoadingView() {
   if (loading_view_overlay_) {
     RemoveChildViewT(std::exchange(loading_view_overlay_, nullptr));
     if (observer_for_testing_) {

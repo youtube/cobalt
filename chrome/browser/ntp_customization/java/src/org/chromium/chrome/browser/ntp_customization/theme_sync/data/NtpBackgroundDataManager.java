@@ -11,18 +11,20 @@ import org.json.JSONException;
 
 import org.chromium.base.Log;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
-import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /** Centralizes management of NTP background preference data. */
 @NullMarked
 public class NtpBackgroundDataManager {
+    public static final int MAXIMUM_LOCAL_HISTORY = 3;
+
     private static final String TAG = "NtpBackgroundData";
-    private static final int MAXIMUM_LOCAL_HISTORY = 3;
     private static final int MAXIMUM_REMOTE_HISTORY = 2;
 
     private final Context mContext;
@@ -36,7 +38,6 @@ public class NtpBackgroundDataManager {
 
     /**
      * Saves the NTP's background types from cross device sync to the shared preference.
-     * TODO(https://crbug.com/488439751): Saves the sync data in a background thread.
      *
      * @param backgroundDataGroup The group of background data to save.
      */
@@ -53,6 +54,12 @@ public class NtpBackgroundDataManager {
      * @param backgroundData The background data to save.
      */
     public void saveRemoteSyncDataToSharedPreference(NtpBackgroundDataBase backgroundData) {
+        PostTask.postTask(
+                TaskTraits.USER_VISIBLE_MAY_BLOCK,
+                () -> saveRemoteSyncDataToSharedPreferenceImpl(backgroundData));
+    }
+
+    private void saveRemoteSyncDataToSharedPreferenceImpl(NtpBackgroundDataBase backgroundData) {
         try {
             @PlatformType int platformType = backgroundData.getPlatformType();
             NtpBackgroundDataGroup currentGroup =
@@ -123,13 +130,16 @@ public class NtpBackgroundDataManager {
                 currentGroup.remove(index);
             }
             currentGroup.add(0, backgroundData);
+            NtpBackgroundDataBase dataToRemove = null;
             if (currentGroup.size() > MAXIMUM_LOCAL_HISTORY) {
                 int indexToRemove = currentGroup.size() - 1;
-                NtpBackgroundDataBase dataToRemove = currentGroup.get(indexToRemove);
-                cleanUpForBackgroundData(dataToRemove);
+                dataToRemove = currentGroup.get(indexToRemove);
                 currentGroup.remove(indexToRemove);
             }
             writeToSharedPreference(currentGroup.toJsonArray(), platformTypeToSave);
+            if (dataToRemove != null) {
+                cleanUpForBackgroundData(dataToRemove);
+            }
         } catch (JSONException e) {
             Log.i(
                     TAG,

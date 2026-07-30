@@ -178,6 +178,7 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
         when(profileProvider.getOriginalProfile()).thenReturn(mProfile);
         when(profileProvider.getOffTheRecordProfile(eq(true))).thenReturn(mIncognitoProfile);
         when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
+        when(webContents.getLastCommittedUrl()).thenReturn(JUnitTestGURLs.INITIAL_URL);
         when(verifier.verify(any())).thenReturn(Promise.fulfilled(true));
         when(currentPageVerifier.getState())
                 .thenReturn(
@@ -212,7 +213,8 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
                 activity.getWindowAndroid(),
                 tabModelInitializer,
                 cipherFactory,
-                lifecycleDispatcher);
+                lifecycleDispatcher,
+                null);
     }
 
     public CustomTabActivityNavigationController createNavigationController(

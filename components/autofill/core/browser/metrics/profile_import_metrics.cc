@@ -22,7 +22,7 @@
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_comparator.h"
 #include "components/autofill/core/browser/data_model/transliterator.h"
-#include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
+#include "components/autofill/core/browser/data_quality/addresses/address_import_requirement_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -208,6 +208,12 @@ void LogAddressFormImportRequirementMetric(
     AddressProfileImportRequirementMetric metric) {
   base::UmaHistogramEnumeration("Autofill.AddressProfileImportRequirements",
                                 metric);
+}
+
+void LogAddressFormImportCountrySource(
+    const ProfileImportMetadata& profile_import_metadata) {
+  base::UmaHistogramEnumeration("Autofill.AddressProfileImportCountrySource",
+                                profile_import_metadata.country_source);
 }
 
 void LogAddressFormImportRequirementMetric(const AutofillProfile& profile) {

@@ -215,6 +215,19 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface personalProfileName];
 }
 
+- (void)waitForCurrentProfileName:(NSString*)profileName {
+  ConditionBlock condition = ^{
+    return [self.currentProfileName isEqualToString:profileName];
+  };
+  bool success = base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForActionTimeout, condition);
+  NSString* errorString =
+      [NSString stringWithFormat:
+                    @"Timed out waiting for current profile name to become %@",
+                    profileName];
+  EG_TEST_HELPER_ASSERT_TRUE(success, errorString);
+}
+
 #pragma mark - History Utilities (EG2)
 
 - (void)clearBrowsingHistory {
@@ -259,6 +272,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   [self waitForPageToFinishLoading];
 }
 
+- (void)startGoingForward {
+  [ChromeEarlGreyAppInterface startGoingForward];
+}
+
 - (void)goForward {
   [ChromeEarlGreyAppInterface startGoingForward];
   [self waitForPageToFinishLoading];
@@ -274,7 +291,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
     [self waitForPageToFinishLoading];
   }
 }
-
 
 - (void)dismissSettings {
   [ChromeEarlGreyAppInterface dismissSettings];
@@ -449,13 +465,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   if (webStateAppearanceTimeout.is_zero() && pageLoadTimeout.is_zero()) {
     return nil;
   }
-  // TODO(crbug.com/530841942): On iOS 27, tests frequently fail without this
-  // wait. This is a temporary fix until we find a better solution. It's
-  // possible this is a iOS 27 beta bug, or that we need a new wait for the
-  // compositor state, but so far the wait is the best approach we've found.
-  if (@available(iOS 27, *)) {
-    base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(2));
-  }
   NSError* webStateError = [self
       waitForWebStateVisibleWithTimeout:webStateAppearanceTimeout.is_zero()
                                             ? kWaitForUIElementTimeout
@@ -470,9 +479,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   if (pageLoadError) {
     return pageLoadError;
   }
-    // Loading URL (especially the first time) can trigger alerts.
-    [SystemAlertHandler handleSystemAlertIfVisible];
-    return nil;
+  // Loading URL (especially the first time) can trigger alerts.
+  [SystemAlertHandler handleSystemAlertIfVisible];
+  return nil;
 }
 
 - (void)loadURL:(const GURL&)URL withTimeout:(base::TimeDelta)timeout {
@@ -1588,6 +1597,11 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface isTestFeatureEnabled];
 }
 
+- (BOOL)isOverflowMenuHomeCustomizationEntrypointEnabled {
+  return [ChromeEarlGreyAppInterface
+      isOverflowMenuHomeCustomizationEntrypointEnabled];
+}
+
 - (BOOL)isFullscreenSmoothScrollingSupported {
   return [ChromeEarlGreyAppInterface isFullscreenSmoothScrollingSupported];
 }
@@ -2018,6 +2032,8 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   // Dismiss the Activity View by tapping outside its bounds.
   [[EarlGrey selectElementWithMatcher:grey_keyWindow()]
       performAction:grey_tap()];
+
+  [self verifyActivitySheetNotVisible];
 }
 
 #pragma mark - Unified consent utilities

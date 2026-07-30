@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">Skráð(ur) inn sem <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Opnaðu reikningsvalmyndina.</translation>
 <translation id="1397144142234474689">Fela „Ferill“</translation>
 <translation id="1399268420835656394">Ef þú ert ekki barn væri ráðlegt að athuga aldurinn á Apple-reikningnum í þessu tæki. <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">Áður fyllt út</translation>
 <translation id="1407135791313364759">Opna alla</translation>
 <translation id="1408847409015257906">Ýttu á „Persónuvernd og öryggi“.</translation>
 <translation id="1411386976162024013">Myndleit Linsu</translation>
 <translation id="1417474386970818917">Skrá út og eyða</translation>
 <translation id="1426410128494586442">Já</translation>
-<translation id="1429187656584513419">Opnaðu aðgangsorð</translation>
 <translation id="1430915738399379752">Prenta</translation>
 <translation id="1433478348197382180">Lesstilling</translation>
 <translation id="1435271730600332883">Opna sjálfvirka útfyllingu og aðgangsorð</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">Foreldri þitt stjórnar reikningnum þínum.
 <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Breytt</translation>
+<translation id="1481450969185702334">Finna og fylla út</translation>
 <translation id="1483493594462132177">Senda</translation>
 <translation id="1486096554574027028">Leita að aðgangsorðum</translation>
 <translation id="1486593497476255523">Flipahópum lokið!</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">Til að tryggja persónuvernd þína fyllir Chrome ekki sjálfkrafa út aðgangsorðið þitt í þennan reit.</translation>
 <translation id="2858951819750638913">Raunspjall við Gemini</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{Eitt vefsvæði (fleiri í samstilltum tækjum)}one{# vefsvæði (fleiri í samstilltum tækjum)}other{# vefsvæði (fleiri í samstilltum tækjum)}}</translation>
+<translation id="2865392654629180917">Spurðu að hverju sem er og fáðu svör frá gervigreind</translation>
 <translation id="2870560284913253234">Vefsvæði</translation>
 <translation id="2876369937070532032">Sendir vefslóð sumra síðna sem þú skoðar til Google, þegar öryggi þitt er í hættu</translation>
 <translation id="2883151425485251736">Skoðaðu og breyttu umfjöllunarefnum sem þú hefur falið á reikningnum þínum</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">Vaktar verð</translation>
 <translation id="3038136505713492417">Staðfestu að þetta sért þú til að nota aðgangslyklana þína í þessu tæki</translation>
 <translation id="3039671569659952257">Eyða möppu</translation>
+<translation id="3050988301648974170">Opna aðgangsorðatékk</translation>
 <translation id="3053332585453689122">Sendir vefslóðirnar sem þú heimsækir og sýnishorn af efni á síðu, niðurhal, virkni viðbótar og kerfisupplýsingum til öruggrar vefskoðunar Google til að athuga hvort þær séu skaðlegar.</translation>
 <translation id="3055102495753300780">Upplýsingageymsla</translation>
 <translation id="3059270601560379555">Ný leit</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">Nýr flipahópur</translation>
 <translation id="3185760469172949183">Leit með myndavél lokið!</translation>
 <translation id="3186796054637504691">Hreinsa feril og gögn vefsvæðis</translation>
+<translation id="3190558889382726167">Aðgangsorð vistað</translation>
 <translation id="3190736958609431397">Hætta að vakta</translation>
 <translation id="3208260410153224535">Fyrirtækið þitt slökkti á innskráningu. Ný bókamerki, aðgangsorð og fleira verður aðeins vistað í þessu tæki.</translation>
 <translation id="3211969308836412674">Losa vefsvæði</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">Síðustu 15 mínútur</translation>
 <translation id="5020732097997376541">Ýttu á táknið fyrir linsu</translation>
 <translation id="5021500396464456616">Hafðu samband við einstaklinginn sem sendi þennan tengil</translation>
+<translation id="503173149952522259">Haltu inni til að festa þennan flipa</translation>
 <translation id="5039804452771397117">Leyfa</translation>
 <translation id="5050042263972837708">Heiti hóps</translation>
 <translation id="5050810143224996149">Deila aðgangsorði</translation>
@@ -2427,6 +2432,7 @@ Til að halda áfram í tölvunni skaltu skipta í <ph name="OTHER_EMAIL" />. Þ
 <translation id="9013605037177245304">Kveikja á tilkynningum</translation>
 <translation id="9029650858822697271">Þú skráðist út</translation>
 <translation id="9032405509996909363">Staðfesta eyðingu vefskoðunargagna</translation>
+<translation id="9035699147763101514">Knúið af persónulegri greind með Gemini. Þú getur stjórnað valkostunum þínum í stillingunum.</translation>
 <translation id="9039373489628511875">Bandvídd</translation>
 <translation id="9042893549633094279">Persónuvernd og öryggi</translation>
 <translation id="9055291197094969722">Búðu til flipahópa til að flokka opnu flipana þína og afkasta meiru</translation>
@@ -2438,6 +2444,7 @@ Til að halda áfram í tölvunni skaltu skipta í <ph name="OTHER_EMAIL" />. Þ
 <translation id="9070824521421603770">Þú verður skráð(ur) út og flipum verður lokað</translation>
 <translation id="9072837124205571418">Flipahópar úr öllum tækjum</translation>
 <translation id="9081058212938299310">Uppfæra aðgangsorð fyrir <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Nú geturðu fundið og fyllt út upplýsingar úr Gmail og fleiru</translation>
 <translation id="9083838294503912307">Kveiktu á samstillingu til að hafa allt samstillt og sérsniðið í tækjunum þínum.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Þú ert með {count} lélegt aðgangsorð sem gæti stefnt öryggi þínu í hættu. Lagfærðu það núna til að gæta öryggis.}one{Þú ert með {count} lélegt aðgangsorð sem gæti stefnt öryggi þínu í hættu. Lagfærðu þau núna til að gæta öryggis.}other{Þú ert með {count} léleg aðgangsorð sem gætu stefnt öryggi þínu í hættu. Lagfærðu þau núna til að gæta öryggis.}}</translation>
 <translation id="9084369964545892485">Nýr huliðsflipi í hópi</translation>

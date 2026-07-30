@@ -8,11 +8,17 @@
  * and manage their saved info.
  */
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import './account_card.js';
 import './category_reference_card.js';
 import './collapsible_autofill_settings_card.js';
 import '/shared/settings/prefs/prefs.js';
 import '../settings_page/settings_section.js';
+import '../icons.html.js';
+// <if expr="_google_chrome">
+import '../internal/icons.html.js';
+
+// </if>
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
@@ -31,7 +37,7 @@ import {PaymentsManagerImpl} from '../autofill_page/payments_manager_proxy.js';
 import type {PaymentsManagerProxy} from '../autofill_page/payments_manager_proxy.js';
 import {loadTimeData} from '../i18n_setup.js';
 import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
-import {MetricsBrowserProxyImpl, YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from '../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl, SuggestionsFromGeminiEntryPoint, YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from '../metrics_browser_proxy.js';
 import {routes} from '../route.js';
 import {Router} from '../router.js';
 import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
@@ -115,6 +121,19 @@ export class SettingsYourSavedInfoPageElement extends
           return loadTimeData.getBoolean('showSuggestionsFromGeminiSettings');
         },
       },
+      spark_: {
+        type: String,
+        value: () => {
+          // <if expr="_google_chrome">
+          return loadTimeData.getBoolean('glicAssetsV2Enabled') ?
+              'settings-internal:sparkv2' :
+              'settings-internal:spark';
+          // </if>
+          // <if expr="not _google_chrome">
+          return 'settings20:lightbulb';
+          // </if>
+        },
+      },
     };
   }
 
@@ -141,6 +160,7 @@ export class SettingsYourSavedInfoPageElement extends
   private setPersonalDataListener_: PersonalDataChangedListener|null = null;
   private onAutofillAiEntitiesChangedListener_: EntityInstancesChangedListener|
       null = null;
+  declare private spark_: string;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -179,7 +199,7 @@ export class SettingsYourSavedInfoPageElement extends
           {
             id: YourSavedInfoDataChip.IBANS,
             label: this.i18n('ibanTitle'),
-            icon: 'settings20:iban',
+            icon: 'settings20:iban-custom',
             isVisibleWhenNoEntitiesOfTypeExists: () =>
                 loadTimeData.getBoolean('showIbansSettings'),
           },
@@ -204,7 +224,7 @@ export class SettingsYourSavedInfoPageElement extends
           {
             id: YourSavedInfoDataChip.ADDRESSES,
             label: this.i18n('addresses'),
-            icon: 'settings:email',
+            icon: 'settings:mail-filled',
             isVisibleWhenNoEntitiesOfTypeExists: () => true,
           },
         ],
@@ -564,7 +584,8 @@ export class SettingsYourSavedInfoPageElement extends
   }
 
   private onSuggestionsFromGeminiClick_() {
-    // TODO(crbug.com/512204278): Add metrics.
+    this.metricsBrowserProxy_.recordSuggestionsFromGeminiEntryPointClick(
+        SuggestionsFromGeminiEntryPoint.YOUR_SAVED_INFO);
     Router.getInstance().navigateTo(routes.SUGGESTIONS_FROM_GEMINI);
   }
 

@@ -248,6 +248,22 @@ std::vector<browser::context_hub::mojom::TabInfoPtr> ToMojoTabs(
   return mojo_tabs;
 }
 
+std::vector<browser::context_hub::mojom::ChatMessagePtr> ToMojoChatHistory(
+    const std::vector<optimization_guide::proto::ChatHistoryTurn>& history) {
+  std::vector<browser::context_hub::mojom::ChatMessagePtr> mojo_history;
+  mojo_history.reserve(history.size());
+  for (const auto& turn : history) {
+    auto mojo_msg = browser::context_hub::mojom::ChatMessage::New();
+    mojo_msg->role =
+        turn.role() == optimization_guide::proto::ChatHistoryTurn::ROLE_USER
+            ? browser::context_hub::mojom::ChatRole::kUser
+            : browser::context_hub::mojom::ChatRole::kAssistant;
+    mojo_msg->content = turn.message_content();
+    mojo_history.push_back(std::move(mojo_msg));
+  }
+  return mojo_history;
+}
+
 }  // namespace
 
 void ContextHubPageHandler::GetTabs(GetTabsCallback callback) {
@@ -261,7 +277,7 @@ void ContextHubPageHandler::RetrieveAndGroupTabs(
   context_hub::ContextHubService* service =
       ContextHubServiceFactory::GetForProfile(profile_);
   if (!service || !tab_provider_) {
-    std::move(callback).Run({}, {});
+    std::move(callback).Run({}, {}, /*llm_response=*/nullptr);
     return;
   }
 
@@ -269,7 +285,7 @@ void ContextHubPageHandler::RetrieveAndGroupTabs(
       GetOpenTabs(tab_provider_.get(), web_contents_), user_command,
       base::BindOnce(
           [](RetrieveAndGroupTabsCallback callback,
-             std::vector<context_hub::TabGroupData> groups,
+             std::vector<context_hub::TabGroupEntry> groups,
              std::vector<context_hub::TabData> ungrouped_tabs) {
             std::vector<browser::context_hub::mojom::TabGroupPtr> mojo_groups;
             for (const auto& group : groups) {
@@ -279,14 +295,102 @@ void ContextHubPageHandler::RetrieveAndGroupTabs(
               mojo_groups.push_back(std::move(mojo_group));
             }
 
+            // TODO(crbug.com/535675010): Add LLM Response.
             std::move(callback).Run(std::move(mojo_groups),
-                                    ToMojoTabs(ungrouped_tabs));
+                                    ToMojoTabs(ungrouped_tabs),
+                                    /*llm_response=*/nullptr);
           },
           std::move(callback)));
+}
+
+void ContextHubPageHandler::GetExistingTabGroupsAndChats(
+    GetExistingTabGroupsAndChatsCallback callback) {
+  context_hub::ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(profile_);
+  if (!service || !tab_provider_) {
+    std::move(callback).Run({}, {}, {});
+    return;
+  }
+
+  std::vector<context_hub::TabData> open_tabs =
+      GetOpenTabs(tab_provider_.get(), web_contents_);
+  std::vector<browser::context_hub::mojom::ChatMessagePtr> mojo_history =
+      ToMojoChatHistory(service->GetTabGroupChatHistory());
+
+  if (open_tabs.empty()) {
+    std::move(callback).Run({}, {}, std::move(mojo_history));
+    return;
+  }
+
+  service->GetTabGroups(base::BindOnce(
+      [](std::vector<context_hub::TabData> open_tabs,
+         std::vector<browser::context_hub::mojom::ChatMessagePtr> mojo_history,
+         GetExistingTabGroupsAndChatsCallback callback,
+         std::vector<context_hub::TabGroupEntry> stored_groups) {
+        base::flat_map<int32_t, size_t> tab_index_map;
+        for (size_t i = 0; i < open_tabs.size(); ++i) {
+          // Populate the map with tab ID to index.
+          tab_index_map.emplace(open_tabs[i].id, i);
+        }
+
+        std::vector<browser::context_hub::mojom::TabGroupPtr> mojo_groups;
+        // For each stored group, go through each tab in the group and find
+        // the corresponding tab by ID in the open tabs list. Delete the tab ID from
+        // the map once added to a group.
+        for (const auto& entry : stored_groups) {
+          std::vector<context_hub::TabData> group_tabs;
+          for (int64_t tab_id_64 : entry.tab_ids) {
+            int32_t tab_id = static_cast<int32_t>(tab_id_64);
+            auto it = tab_index_map.find(tab_id);
+            if (it != tab_index_map.end()) {
+              group_tabs.push_back(open_tabs[it->second]);
+              tab_index_map.erase(it);
+            }
+          }
+          auto mojo_group = browser::context_hub::mojom::TabGroup::New();
+          mojo_group->label = entry.label;
+          mojo_group->tabs = ToMojoTabs(group_tabs);
+          mojo_groups.push_back(std::move(mojo_group));
+        }
+
+        // Any remaining tab IDs in the map are ungrouped tabs.
+        std::vector<context_hub::TabData> ungrouped_tabs;
+        for (const auto& tab : open_tabs) {
+          if (tab_index_map.contains(tab.id)) {
+            ungrouped_tabs.push_back(tab);
+          }
+        }
+
+        std::move(callback).Run(std::move(mojo_groups),
+                                ToMojoTabs(ungrouped_tabs),
+                                std::move(mojo_history));
+      },
+      std::move(open_tabs), std::move(mojo_history), std::move(callback)));
 }
 
 void ContextHubPageHandler::SwitchToTab(int32_t tab_id) {
   if (tab_provider_) {
     tab_provider_->SwitchToTab(web_contents_, tab_id);
   }
+}
+
+void ContextHubPageHandler::ClearTabGroups(ClearTabGroupsCallback callback) {
+  context_hub::ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(profile_);
+  if (!service) {
+    std::move(callback).Run();
+    return;
+  }
+
+  service->DeleteAllTabGroups(std::move(callback));
+}
+
+void ContextHubPageHandler::ClearTabGroupChatHistory(
+    ClearTabGroupChatHistoryCallback callback) {
+  context_hub::ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(profile_);
+  if (service) {
+    service->ClearTabGroupChatHistory();
+  }
+  std::move(callback).Run();
 }

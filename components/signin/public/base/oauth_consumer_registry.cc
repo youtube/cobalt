@@ -804,6 +804,12 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kRemoteActorLoginCredentialsServiceName,
           /*scopes=*/{kPassboxCredentialOAuth2Scope});
+    case OAuthConsumerId::kBrowserActuator:
+      return GetOAuthConsumerForBrowserActuator();
+    case OAuthConsumerId::kTabContextContainersService:
+      return OAuthConsumer(
+          /*name=*/oauth_consumer_name::kTabContextContainersServiceName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
   }
 }
 

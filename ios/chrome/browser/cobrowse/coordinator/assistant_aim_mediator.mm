@@ -176,6 +176,18 @@
     [self loadAIMURL];
   }
 }
+- (void)updateContext {
+  if (_cobrowseBrowserAgent) {
+    CobrowseContext* newContext = _cobrowseBrowserAgent->GetCobrowseContext();
+    if (newContext && newContext != _context) {
+      BOOL urlChanged = (!_context || newContext.url != _context.url);
+      _context = newContext;
+      if (urlChanged && _context.url.is_valid()) {
+        [self loadAIMURL];
+      }
+    }
+  }
+}
 
 - (void)disconnect {
   _policyDeciderBridge.reset();
@@ -272,6 +284,9 @@
 
 // Loads the URL defined in the cobrowse context.
 - (void)loadAIMURL {
+  if (!_context || !_context.url.is_valid()) {
+    return;
+  }
   AssistantContainerDetent detent;
   if (IsAssistantAimMinimizedStateEnabled()) {
     detent = AssistantContainerDetent::kMinimized;
@@ -519,8 +534,10 @@
     VLOG(1) << "AimCobrowse: Received RestoreInput";
   } else if (message.has_enter_basic_mode()) {
     VLOG(1) << "AimCobrowse: Received EnterBasicMode";
+    [_consumer setInputPlateForceHidden:YES];
   } else if (message.has_exit_basic_mode()) {
     VLOG(1) << "AimCobrowse: Received ExitBasicMode";
+    [_consumer setInputPlateForceHidden:NO];
   } else if (message.has_update_thread_context_library()) {
     VLOG(1) << "AimCobrowse: Received UpdateThreadContextLibrary";
     if (!_hasProcessedInitialContextLibrary) {
@@ -575,8 +592,16 @@
 
 - (void)webState:(web::WebState*)webState
     didFinishNavigation:(web::NavigationContext*)navigationContext {
-  CobrowseContext* context =
-      [[CobrowseContext alloc] initWithURL:webState->GetVisibleURL()];
+  GURL url = webState->GetVisibleURL();
+  CobrowseContext* context = [[CobrowseContext alloc] initWithURL:url];
+
+  if (IsAimURL(url) || IsAimZeroStateURL(url)) {
+    _context = context;
+    if (_cobrowseBrowserAgent) {
+      _cobrowseBrowserAgent->SetCobrowseContext(_context);
+    }
+  }
+
   if (context.searchQuery) {
     [_consumer setHeaderTitle:context.searchQuery];
   } else {

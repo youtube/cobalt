@@ -124,9 +124,40 @@ BASE_FEATURE(kCryptographyComplianceCnsa, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kImprovedStartupBestEffortDelay,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<bool> kSessionRestoreDelaysBestEffort{
-    &kImprovedStartupBestEffortDelay, "session_restore_delays_best_effort",
-    true};
+// Sets the timeout until startup is declared "finished" even if not all
+// StartupInProgressRefs have been dropped.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kStartupDelayFailsafeTimeout,
+                   &kImprovedStartupBestEffortDelay,
+                   base::Minutes(3));
+
+// Sets the timeout until the startup observer stops waiting for a visible tab.
+// This can happen if a dialog is shown on start (eg. the profile picker), or in
+// Mac's zero-window mode. If a tab appears before this timeout, the observer
+// waits for it to fully load. If this is 0, the startup observer won't wait for
+// tabs to become loaded/idle.
+//
+// The default matches kWaitingForNavigationTimeout because before the
+// kImprovedStartupBestEffortDelay feature, many startups were marked "finished"
+// at that point.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kStartupDelayVisibleTabTimeout,
+                   &kImprovedStartupBestEffortDelay,
+                   base::Seconds(5));
+
+// If true, the startup observer will consider a tab "finished" if it reaches
+// the kLoadingTimedOut state, instead of just kLoadedIdle.
+BASE_FEATURE_PARAM(bool,
+                   kStartupDelayStopOnLoadingTimedOut,
+                   &kImprovedStartupBestEffortDelay,
+                   false);
+
+// If true, session restore will create a StartupInProgressRef, and drop it when
+// restore is finished.
+BASE_FEATURE_PARAM(bool,
+                   kStartupDelayIncludesSessionRestore,
+                   &kImprovedStartupBestEffortDelay,
+                   true);
 
 #if !BUILDFLAG(IS_ANDROID)
 // Whether to allow installed-by-default web apps to be installed or not.
@@ -440,6 +471,11 @@ const base::FeatureParam<bool>
         &kGlicActorIncrementalTyping,
         "glic-actor-incremental-typing-wait-for-editable-element", true};
 
+// Whether to clear auto-selection when typing subsequent characters.
+const base::FeatureParam<bool> kGlicActorIncrementalTypingClearAutoSelection{
+    &kGlicActorIncrementalTyping,
+    "glic-actor-incremental-typing-clear-auto-selection", false};
+
 // If the TypeTool is invoked with followed_by_enter, the enter key is
 // dispatched with this delay.
 const base::FeatureParam<base::TimeDelta> kGlicActorTypeToolEnterDelay{
@@ -479,6 +515,11 @@ BASE_FEATURE(kGlicActorRejectInteractionDisallowedTargets,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorToctouValidation, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Allows normal DOM-ID clicks on targets with no non-empty client rects by
+// using an unoccluded visible descendant as the interaction point.
+BASE_FEATURE(kGlicActorDomIdClicksOnZeroAreaTargets,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the explicit actor path that directly activates an observed DOM node
 // when its interaction point is covered by an eligible modeless panel.
@@ -549,6 +590,9 @@ const base::FeatureParam<int> kGlicMinRequiredRamMb{
 
 const base::FeatureParam<bool> kGlicAdaptiveToolbarAutoPin{
     &kGlic, "adaptive-toolbar-auto-pin", true};
+
+const base::FeatureParam<bool> kGlicBottomSheetPromo{
+    &kGlic, "glic-bottom-sheet-promo", true};
 
 // Controls whether the Glic feature uses multiple instances or not.
 BASE_FEATURE(kGlicMultiInstance, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -735,6 +779,9 @@ BASE_FEATURE_PARAM(std::string,
                    &kGlicLearnMoreURLConfig,
                    "glic-experimental-triggering-toggle-learn-more-url",
                    "https://support.google.com/chrome?p=gemini_spark");
+// WARNING: If this URL is changed, update the substring match check in the
+// accessibility script injected in
+// chrome/browser/resources/glic/experimental_opt_in/experimental_opt_in.ts
 BASE_FEATURE_PARAM(std::string,
                    kGlicExperimentalTriggeringSafetyURL,
                    &kGlicLearnMoreURLConfig,
@@ -745,12 +792,18 @@ BASE_FEATURE_PARAM(std::string,
 // ("use-policy" and "unexpected_results") to apply accessibility labels.
 // Finch configurations overriding these URLs should retain these substrings
 // or update the WebUI logic accordingly.
+// WARNING: If this URL is changed, update the substring match check in the
+// accessibility script injected in
+// chrome/browser/resources/glic/experimental_opt_in/experimental_opt_in.ts
 BASE_FEATURE_PARAM(
     std::string,
     kGlicWebActuationToggleConsiderSafelyURL,
     &kGlicLearnMoreURLConfig,
     "glic-actuation-on-web-toggle-things-to-consider-safely-url",
     "https://policies.google.com/terms/generative-ai/use-policy");
+// WARNING: If this URL is changed, update the substring match check in the
+// accessibility script injected in
+// chrome/browser/resources/glic/experimental_opt_in/experimental_opt_in.ts
 BASE_FEATURE_PARAM(
     std::string,
     kGlicWebActuationToggleConsiderUnexpectedResultsURL,
@@ -988,6 +1041,8 @@ const base::FeatureParam<bool> kGlicButtonPressedForceSolidIcon{
     &kGlicButtonPressedState, "glic-button-pressed-force-solid-icon", true};
 
 BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicShareImageNoNewConversation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicWebActuationSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1374,7 +1429,6 @@ const base::FeatureParam<std::string> kIndigoComponentAttribute{
 // If enabled, the initial WebUI skips spell check initialization on startup for
 // NTP.
 BASE_FEATURE(kInitialWebUIWithoutSpellCheckForNtp,
-             "InitialWebUIWithoutSpellCheckForNtp",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSystemNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1863,6 +1917,11 @@ BASE_FEATURE(kWebUIToolbarProcessOverheadExperiment,
 // Switches location bar over to a WebUI implementation.
 // See crbug.com/470042732
 BASE_FEATURE(kWebUILocationBar, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When this is enabled, all the checks for enabled individual WebUI toolbar
+// controls in chrome/browser/ui/ui_features.h will return true.
+BASE_FEATURE(kWebUIToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // The following feature params control the crash recovery behavior of the Web
 // UI reload button. If the renderer crashes, we will try to recover it by
 // reloading the contents until the number of crashes reaches

@@ -38,7 +38,7 @@
 #include "chrome/browser/ui/lens/lens_query_flow_router.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -124,7 +124,7 @@ class LocalContextualSearchboxHandlerTestHarness : public InProcessBrowserTest {
 
   // Helper methods to access protected members
   content::WebContents* web_contents() { return web_contents_; }
-  Profile* profile() { return browser()->profile(); }
+  Profile* profile() { return browser()->GetProfile(); }
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory() {
     return profile()
         ->GetDefaultStoragePartition()
@@ -295,8 +295,10 @@ class ContextualTasksComposeboxHandlerTest
 
   explicit ContextualTasksComposeboxHandlerTest(
       const std::map<std::string, std::string>& parameters) {
-    feature_list_.InitAndEnableFeatureWithParameters(
-        contextual_tasks::kContextualTasks, parameters);
+    feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_tasks::kContextualTasks, parameters},
+         {contextual_tasks::kContextualTasksForceEntryPointEligibility, {}}},
+        {});
   }
   ~ContextualTasksComposeboxHandlerTest() override = default;
 
@@ -1443,6 +1445,19 @@ class ContextualTasksComposeboxHandlerToolModeTest
 IN_PROC_BROWSER_TEST_P(ContextualTasksComposeboxHandlerToolModeTest,
                        SetsToolModeFlags) {
   const auto& param = GetParam();
+  // Setting active tool should send `exit_tool_info` to AIM webpage (on client
+  // side).
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce([&](std::unique_ptr<
+                    contextual_search::ContextualSearchContextController::
+                        CreateClientToAimRequestInfo> info) {
+        EXPECT_TRUE(info->exit_tool_info.has_value());
+        EXPECT_EQ(info->exit_tool_info->tool_mode,
+                  omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+        EXPECT_EQ(info->exit_tool_info->new_tool_mode, param.tool_mode);
+        return lens::ClientToAimMessage();
+      });
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(1);
 
   handler_->SetActiveToolMode(param.tool_mode);
   handler_->RecordToolSelectionAction(param.tool_mode);
@@ -1454,7 +1469,7 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksComposeboxHandlerToolModeTest,
         EXPECT_EQ(info->active_tool, param.tool_mode);
         return lens::ClientToAimMessage();
       });
-  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(1);
 
   handler_->CreateAndSendQueryMessage("test query", /*is_voice_search=*/false);
 }
@@ -1467,6 +1482,42 @@ INSTANTIATE_TEST_SUITE_P(
         ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH},
         ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN},
         ToolModeTestParam{omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD}));
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksComposeboxHandlerTest,
+                       SetActiveToolMode_SendsExitToolMessage) {
+  // Setting active tool should send `exit_tool_info` to AIM webpage (on client
+  // side).
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce([&](std::unique_ptr<
+                    contextual_search::ContextualSearchContextController::
+                        CreateClientToAimRequestInfo> info) {
+        EXPECT_TRUE(info->exit_tool_info.has_value());
+        EXPECT_EQ(info->exit_tool_info->tool_mode,
+                  omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+        EXPECT_EQ(info->exit_tool_info->new_tool_mode,
+                  omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+        return lens::ClientToAimMessage();
+      });
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(1);
+
+  handler_->SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+
+  // Clearing active tool should also send `exit_tool_info`.
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce([&](std::unique_ptr<
+                    contextual_search::ContextualSearchContextController::
+                        CreateClientToAimRequestInfo> info) {
+        EXPECT_TRUE(info->exit_tool_info.has_value());
+        EXPECT_EQ(info->exit_tool_info->tool_mode,
+                  omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+        EXPECT_EQ(info->exit_tool_info->new_tool_mode,
+                  omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+        return lens::ClientToAimMessage();
+      });
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_)).Times(1);
+
+  handler_->SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
+}
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksComposeboxHandlerTest,
                        AddTabContext_Delayed) {
@@ -3843,6 +3894,43 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_NE(handler_, nullptr);
 
   // Clean up session handle from mock UI.
+  mock_ui_->SetSessionHandle(nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    ContextualTasksComposeboxHandlerTestWithContextManagementEnabled,
+    CacheSubmittedTabsOnInit_UnmappedClosedTab) {
+  auto mock_session = std::make_unique<testing::NiceMock<
+      contextual_search::MockContextualSearchSessionHandle>>();
+
+  std::vector<contextual_search::FileInfo> submitted_file_infos;
+  const SessionID closed_tab_session_id = SessionID::FromSerializedValue(9999);
+
+  contextual_search::FileInfo closed_tab_info;
+  closed_tab_info.tab_url = GURL("https://example.com/closed");
+  closed_tab_info.tab_title = "Closed Tab";
+  closed_tab_info.tab_session_id = closed_tab_session_id;
+  closed_tab_info.mime_type = lens::MimeType::kHtml;
+  closed_tab_info.selection_time = base::Time::Now();
+  submitted_file_infos.push_back(closed_tab_info);
+
+  EXPECT_CALL(*mock_session, GetSubmittedContextFileInfos())
+      .WillRepeatedly(testing::Return(submitted_file_infos));
+
+  mock_ui_->SetSessionHandle(mock_session.get());
+
+  EXPECT_CALL(mock_searchbox_page_, SetAimThreadRestoredTabs(testing::_))
+      .WillOnce([&](const std::vector<searchbox::mojom::TabInfoPtr>& tabs) {
+        ASSERT_EQ(tabs.size(), 1u);
+        EXPECT_EQ(tabs[0]->url, GURL("https://example.com/closed"));
+        EXPECT_EQ(tabs[0]->title, "Closed Tab");
+        // Verify fallback to raw SessionID integer when tab is unmapped.
+        EXPECT_EQ(tabs[0]->tab_id, 9999);
+      });
+
+  SetUpHandler();
+  ASSERT_NE(handler_, nullptr);
+
   mock_ui_->SetSessionHandle(nullptr);
 }
 

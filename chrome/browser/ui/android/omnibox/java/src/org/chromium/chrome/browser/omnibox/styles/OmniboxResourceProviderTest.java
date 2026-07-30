@@ -492,4 +492,72 @@ public class OmniboxResourceProviderTest {
                 defaultTextColorSecondary,
                 OmniboxResourceProvider.getAdditionalTextColor(mContext));
     }
+
+    @Test
+    public void testInstanceMethods() {
+        OmniboxResourceProvider provider =
+                new OmniboxResourceProvider(mContext, BrandedColorScheme.LIGHT_BRANDED_THEME);
+
+        // Test getDrawable.
+        Drawable drawable = provider.getDrawable(R.drawable.btn_suggestion_refine_up);
+        assertNotNull(drawable);
+
+        // Test getString.
+        String string = provider.getString(R.string.copy_link);
+        assertEquals(mContext.getString(R.string.copy_link), string);
+
+        // Test color resolution.
+        assertEquals(
+                OmniboxResourceProvider.getUrlBarPrimaryTextColor(
+                        mContext, BrandedColorScheme.LIGHT_BRANDED_THEME),
+                provider.getUrlBarPrimaryTextColor());
+
+        assertEquals(
+                OmniboxResourceProvider.getSuggestionPrimaryTextColor(
+                        mContext, BrandedColorScheme.LIGHT_BRANDED_THEME),
+                provider.getSuggestionPrimaryTextColor());
+
+        // Test dynamic update (setter).
+        provider.setBrandedColorScheme(BrandedColorScheme.INCOGNITO);
+        assertEquals(
+                OmniboxResourceProvider.getUrlBarPrimaryTextColor(
+                        mContext, BrandedColorScheme.INCOGNITO),
+                provider.getUrlBarPrimaryTextColor());
+
+        // Test constructor that resolves scheme.
+        OmniboxResourceProvider provider2 =
+                new OmniboxResourceProvider(mContext, /* isIncognitoBranded= */ false, Color.WHITE);
+        @BrandedColorScheme
+        int expectedScheme =
+                OmniboxResourceProvider.getBrandedColorScheme(mContext, false, Color.WHITE);
+        assertEquals(
+                OmniboxResourceProvider.getUrlBarPrimaryTextColor(mContext, expectedScheme),
+                provider2.getUrlBarPrimaryTextColor());
+    }
+
+    @Test
+    public void getPopoverSuggestionBackgroundColor_incognito() {
+        final int incognitoColor = mContext.getColor(R.color.gm3_baseline_surface_container_dark);
+        assertEquals(
+                incognitoColor,
+                OmniboxResourceProvider.getPopoverSuggestionBackgroundColor(
+                        mContext, BrandedColorScheme.INCOGNITO));
+    }
+
+    @Test
+    public void getPopoverSuggestionBackgroundColor_light() {
+        assertEquals(
+                MaterialColors.getColor(mContext, R.attr.colorSurface, TAG),
+                OmniboxResourceProvider.getPopoverSuggestionBackgroundColor(
+                        mContext, BrandedColorScheme.APP_DEFAULT));
+    }
+
+    @Test
+    @Config(qualifiers = "night")
+    public void getPopoverSuggestionBackgroundColor_dark() {
+        assertEquals(
+                SemanticColorUtils.getColorSurfaceContainer(mContext),
+                OmniboxResourceProvider.getPopoverSuggestionBackgroundColor(
+                        mContext, BrandedColorScheme.APP_DEFAULT));
+    }
 }

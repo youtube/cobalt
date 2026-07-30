@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">მობილურის ხედის მოთხოვნა</translation>
 <translation id="2870560284913253234">საიტი</translation>
 <translation id="2874939134665556319">წინა ჩანაწერი</translation>
+<translation id="2890412325133442491">Chrome-ის ნაგულისხმევი</translation>
 <translation id="2891975107962658722">საიტისთვის თქვენს მოწყობილობაზე მონაცემთა შენახვის შესაძლებლობის დაბლოკვა</translation>
 <translation id="2903493209154104877">მისამართები</translation>
 <translation id="2903764741244499151">საიტებს შეუძლია რეჟიმში „ეკრანი ეკრანში“ ავტომატურად შესვლა. ეს საშუალებას მოგცემთ, გააგრძელოთ ვიდეოს ყურება, როცა ეკრანის სივრცე სხვა ამოცანებისთვის გჭირდებათ.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">პაროლების შეცვლა</translation>
 <translation id="3797520601150691162">არ მსურს მუქი თემის გამოყენება კონკრეტულ საიტზე</translation>
 <translation id="3803367742635802571">საიტებმა, რომლებსაც სტუმრობთ, შესაძლოა, აღარ იმუშაოს დანიშნულებისამებრ</translation>
-<translation id="3816118180265633665">Chrome-ის ფერები</translation>
 <translation id="381841723434055211">ტელეფონის ნომრები</translation>
 <translation id="3823453485268218808">Font Mono</translation>
 <translation id="3826050100957962900">სისტემაში შესვლა მესამე მხარის მეშვეობით</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">სრულეკრანიანი რეჟიმიდან გამოსვლა</translation>
 <translation id="640163077447496506">მოქმედების ვადა იწურება დღეს</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">თემების კოლექციები</translation>
 <translation id="6439114592976064011">საიტებისთვის თქვენი ვირტუალური რეალობის მოწყობილობების/მონაცემების გამოყენების დაბლოკვა</translation>
 <translation id="6447842834002726250">ქუქი ფაილები</translation>
 <translation id="6452138246455930388">ფასის კლება თქვენს გახსნილ ჩანართში, <ph name="OLD_PRICE" />-დან <ph name="NEW_PRICE" />-მდე, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">წინასწარ კითხვა</translation>
 <translation id="7423538860840206698">გაცვლის ბუფერზე წვდომა დაბლოკილია</translation>
 <translation id="7425915948813553151">მუქი თემა საიტებისთვის</translation>
+<translation id="7429767477925996803">Chrome-ის ფერები</translation>
 <translation id="746412105358554870">JavaScript ოპტიმიზაცია და უსაფრთხოება</translation>
 <translation id="7478658909253570368">საიტებისთვის თანმიმდევრულ პორტებთან დაკავშირების აკრძალვა</translation>
 <translation id="7488573225650545859">ჩანართების ნახვის დამალვა აპების სიაში</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">ჩამოტვირთვა ვერ მოხერხდა</translation>
 <translation id="8033047164036749181">გამოიწერეთ ამ საიტის შეტყობინებები</translation>
 <translation id="8051193500142930381">ფუნქციები, რომლებიც კამერას საჭიროებს, არ იმუშავებს</translation>
-<translation id="8056330801132235235">Chrome-ის ნაგულისხმევი</translation>
 <translation id="8067883171444229417">ვიდეოს დაკვრა</translation>
 <translation id="8068648041423924542">სერტიფიკატის არჩევა შეუძლებელია.</translation>
 <translation id="8077120325605624147">თქვენთვის რეკლამის ჩვენება შეუძლია ნებისმიერ საიტს, რომელსაც სტუმრობთ</translation>

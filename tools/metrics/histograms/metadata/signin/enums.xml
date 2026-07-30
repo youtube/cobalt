@@ -493,6 +493,16 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/signin/dice_response_handler.h:TokenBindingOutcome) -->
 
+<!-- LINT.IfChange(ExplicitSigninDatatypeMigrationState) -->
+
+<enum name="ExplicitSigninDatatypeMigrationState">
+  <int value="0" label="SignedIn"/>
+  <int value="1" label="SignedInWithExplicitBookmarks"/>
+  <int value="2" label="SignedInWithExplicitExtensions"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/internal/identity_manager/primary_account_manager.h:ExplicitSigninDatatypeMigrationState) -->
+
 <enum name="FRESigninEvents">
   <int value="0" label="Checking managed status"/>
   <int value="1" label="Signing in - unmanaged"/>
@@ -894,6 +904,8 @@ chromium-metrics-reviews@google.com.
   <int value="103" label="Fpop Service"/>
   <int value="104" label="Notebooks Service"/>
   <int value="105" label="Remote Actor Login Credentials Service"/>
+  <int value="106" label="Browser Actuator"/>
+  <int value="107" label="Tab Context Containers Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1264,6 +1276,7 @@ chromium-metrics-reviews@google.com.
   <int value="21"
       label="Abort: not the first account but there is no primary account."/>
   <int value="22" label="Abort: management disclaimer service in progress"/>
+  <int value="23" label="Abort: account connected to primary"/>
 </enum>
 
 <enum name="SigninInterceptionDismissReason">

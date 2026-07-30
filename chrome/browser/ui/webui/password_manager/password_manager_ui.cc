@@ -12,6 +12,7 @@
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate_factory.h"
 #include "chrome/browser/password_manager/chrome_password_change_service.h"
+#include "chrome/browser/password_manager/password_change/features.h"
 #include "chrome/browser/password_manager/password_change_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -150,6 +151,8 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_SETTINGS_TITLE},
       {"automatedPasswordChangeDescription",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_SETTINGS_DESCRIPTION},
+      {"passwordChangeSettingToggleLabel",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_SETTINGS_TOGGLE_LABEL},
       {"autosigninLabel", IDS_PASSWORD_MANAGER_UI_AUTOSIGNIN_TOGGLE_LABEL},
       {"backToCheckup",
        IDS_PASSWORD_MANAGER_UI_BACK_TO_CHECKUP_ARIA_DESCRIPTION},
@@ -184,7 +187,7 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"checkupTitle", IDS_PASSWORD_MANAGER_UI_CHECKUP_TITLE},
       {"clearSearch", IDS_CLEAR_SEARCH},
       {"close", IDS_CLOSE},
-      {"closePromoCardButtonAriaLabel",
+      {"closeNotificationCardButtonAriaLabel",
        IDS_PASSWORD_MANAGER_UI_CLOSE_PROMO_CARD_BUTTON_ARIA_LABEL},
       {"columnHeadingConsider", IDS_SETTINGS_COLUMN_HEADING_CONSIDER},
       {"columnHeadingWhenUsed", IDS_SETTINGS_COLUMN_HEADING_WHEN_USED},
@@ -422,7 +425,8 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"phishedAndLeakedPassword",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_PHISHED_AND_LEAKED},
       {"phishedPassword", IDS_PASSWORD_MANAGER_UI_PASSWORD_PHISHED},
-      {"promoCardAriaLabel", IDS_PASSWORD_MANAGER_UI_PROMO_CARD_ARIA_LABEL},
+      {"notificationCardAriaLabel",
+       IDS_PASSWORD_MANAGER_UI_PROMO_CARD_ARIA_LABEL},
       {"removeBlockedAriaDescription",
        IDS_PASSWORD_MANAGER_UI_REMOVE_BLOCKED_SITE_ARIA_DESCRIPTION},
       {"reload", IDS_RELOAD},
@@ -682,6 +686,11 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
   source->AddBoolean("passwordChangeAvailable",
                      PasswordChangeServiceFactory::GetForProfile(profile)
                          ->UserIsActivePasswordChangeUser());
+
+  source->AddBoolean("isPasswordChangeWithPrivateInferenceLoginCheckEnabled",
+                     base::FeatureList::IsEnabled(
+                         password_change::features::
+                             kPasswordChangeWithPrivateInferenceLoginCheck));
 
   source->AddBoolean(
       "enablePasswordManagerMojoApi",

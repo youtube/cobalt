@@ -30,6 +30,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_personal_context_enablement_utils.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
@@ -81,34 +82,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case PersonalContextEligibilityState::kDisabledNotEligible:
       return false;
   }
-}
-
-base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
-  const std::string tier_list =
-      features::kAutofillAmbientAutofillEligibleTiers.Get();
-  const std::vector<std::string_view> tier_pieces = base::SplitStringPiece(
-      tier_list, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  base::flat_set<int32_t> eligible_tiers;
-  eligible_tiers.reserve(tier_pieces.size());
-  for (std::string_view piece : tier_pieces) {
-    int32_t tier_id = 0;
-    if (base::StringToInt(piece, &tier_id)) {
-      eligible_tiers.insert(tier_id);
-    }
-  }
-  return eligible_tiers;
-}
-
-[[nodiscard]] bool IsAndroidDeviceEligibleForAmbientAutofill() {
-#if BUILDFLAG(IS_ANDROID)
-  const std::string model_name = base::SysInfo::HardwareModelName();
-  const base::flat_set<std::string> enabled_devices =
-      base::SplitString(features::kAutofillAmbientAutofillEnabledDevices.Get(),
-                        ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  return enabled_devices.contains(model_name);
-#else
-  return false;
-#endif
 }
 
 // Checks whether `country_code` belongs to a country where Wallet is
@@ -342,26 +315,6 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
   NOTREACHED();
 }
 
-// Checks whether `kGeminiSettings` enterprise policy is enabled.
-[[nodiscard]] bool IsGeminiSettingsAllowedByEnterprisePolicy(
-    const PrefService& prefs,
-    std::string* debug_message) {
-  constexpr int kGeminiSettingsEnabled = std::to_underlying(
-      optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled);
-  static_assert(kGeminiSettingsEnabled == 0);
-
-  const bool gemini_settings_allowed =
-      prefs.GetInteger(optimization_guide::prefs::kGeminiSettings) ==
-      kGeminiSettingsEnabled;
-
-  if (!gemini_settings_allowed) {
-    MaybeOutputReason(debug_message,
-                      "Disallowed by GeminiSettings enterprise policy.");
-  }
-
-  return gemini_settings_allowed;
-}
-
 // Checks whether preference-related requirements are satisfied.
 [[nodiscard]] bool SatisfiesPreferenceRequirements(
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -419,22 +372,10 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
       return EntityTypeIsEnabledInSettings(*prefs, *entity_type) &&
              is_allowed_by_opt_in_or_default;
     case AutofillAiAction::kShowAmbientAutofillInSettings:
-      if (!IsGeminiSettingsAllowedByEnterprisePolicy(*prefs, debug_message)) {
-        return false;
-      }
       return is_allowed_by_opt_in_or_default;
     case AutofillAiAction::kAmbientAutofill:
-      if (!personal_context_pref_enabled) {
-        return false;
-      }
-      if (!IsGeminiSettingsAllowedByEnterprisePolicy(*prefs, debug_message)) {
-        return false;
-      }
-      return is_allowed_by_opt_in_or_default;
+      return personal_context_pref_enabled && is_allowed_by_opt_in_or_default;
     case AutofillAiAction::kTypeSupportsAmbientAutofillData: {
-      if (!IsGeminiSettingsAllowedByEnterprisePolicy(*prefs, debug_message)) {
-        return false;
-      }
       if (!entity_type) {
         return false;
       }
@@ -536,23 +477,23 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
       const AccountCapabilities& capabilities =
           account_info.GetAccountCapabilities();
       if (base::FeatureList::IsEnabled(
-              features::kAutofillAiWalletPrivatePassesCapability)) {
-        if (capabilities.supports_wallet_private_passes_in_autofill() !=
-            signin::Tribool::kTrue) {
-          MaybeOutputReason(
-              debug_message,
-              "Account doesn't support private passes in Autofill.");
-          return false;
-        }
-      } else {
-        // Prior to AutofillAiWalletPrivatePassesCapability age requirements
-        // were hackily enforced via an unrelated capability that happened to
-        // have this definition.
-        if (capabilities.can_use_model_execution_features() !=
-            signin::Tribool::kTrue) {
-          MaybeOutputReason(debug_message, "User is underaged.");
-          return false;
-        }
+              features::kAutofillAiWalletPrivatePassesCapability) &&
+          capabilities.supports_wallet_private_passes_in_autofill() !=
+              signin::Tribool::kTrue) {
+        MaybeOutputReason(
+            debug_message,
+            "Account doesn't support private passes in Autofill.");
+        return false;
+      }
+      // For private passes, underaged users are not allowed to save.
+      // TODO(crbug.com/495779639): Using can_use_model_execution_features() is
+      // a very hacky way to check whether the user is underaged. Instead, the
+      // minor check should be integrated into
+      // supports_wallet_private_passes_in_autofill().
+      if (capabilities.can_use_model_execution_features() !=
+          signin::Tribool::kTrue) {
+        MaybeOutputReason(debug_message, "User is underaged.");
+        return false;
       }
       break;
     }

@@ -42,6 +42,7 @@ android_library("chrome_test_java_helper") {
     "src/org/chromium/chrome/browser/permissions/PermissionTestRule.java",
     "src/org/chromium/chrome/browser/permissions/RuntimePermissionTestUtils.java",
     "src/org/chromium/chrome/browser/search_engines/DefaultSearchEngineDialogHelperUtils.java",
+    "src/org/chromium/chrome/browser/site_settings/SiteSettingsTestHelper.java",
     "src/org/chromium/chrome/browser/site_settings/SiteSettingsTestUtils.java",
     "src/org/chromium/chrome/browser/sync/SyncTestRule.java",
     "src/org/chromium/chrome/browser/test/CommandLineInitRule.java",
@@ -566,7 +567,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.app") {
 android_library("chrome_test_java_org.chromium.chrome.browser.appearance") {
   resources_package = "org.chromium.chrome"
 
-  sources = [ "src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragmentTest.java" ]
+  sources = [
+    "src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragmentTest.java",
+    "src/org/chromium/chrome/browser/appearance/settings/BookmarkBarSettingsFragmentTest.java",
+  ]
 
   deps = [
     ":chrome_test_java_helper",
@@ -1354,6 +1358,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.site_settings") {
     "src/org/chromium/chrome/browser/site_settings/ManageSpaceActivityTest.java",
     "src/org/chromium/chrome/browser/site_settings/PermissionInfoTest.java",
     "src/org/chromium/chrome/browser/site_settings/SingleWebsiteSettingsTest.java",
+    "src/org/chromium/chrome/browser/site_settings/SiteSettingsCookiesTest.java",
+    "src/org/chromium/chrome/browser/site_settings/SiteSettingsLocationTest.java",
+    "src/org/chromium/chrome/browser/site_settings/SiteSettingsMenuTest.java",
+    "src/org/chromium/chrome/browser/site_settings/SiteSettingsRenderTest.java",
     "src/org/chromium/chrome/browser/site_settings/SiteSettingsTest.java",
     "src/org/chromium/chrome/browser/site_settings/TwoActionSwitchPreferenceTest.java",
     "src/org/chromium/chrome/browser/site_settings/WebsitePermissionsFetcherTest.java",
@@ -1709,8 +1717,6 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/net/connectivitydetector/ConnectivityDetectorTest.java",
     "src/org/chromium/chrome/browser/omaha/UpdateMenuItemHelperTest.java",
     "src/org/chromium/chrome/browser/paint_preview/StartupPaintPreviewHelperTest.java",
-    "src/org/chromium/chrome/browser/personal_context/first_run/PersonalContextFirstRunBottomSheetTest.java",
-    "src/org/chromium/chrome/browser/personal_context/first_run/PersonalContextFirstRunServiceBridgeTest.java",
     "src/org/chromium/chrome/browser/policy/CombinedPolicyProviderTest.java",
     "src/org/chromium/chrome/browser/policy/PolicyAuditorBridgeTest.java",
     "src/org/chromium/chrome/browser/previewtab/PreviewTabTest.java",
@@ -1775,6 +1781,7 @@ android_library("chrome_test_java_various") {
     "//chrome/browser/ui/android/toolbar:optional_button_java",
     "//chrome/browser/ui/side_panel_container/public:java",
     "//components/browser_ui/http_auth/android:java",
+    "//components/variations:variations_java",
     "//third_party/androidx:androidx_test_ext_junit_java",
     "//third_party/blink/public/mojom:authenticator_mojo_bindings_java",
     "//third_party/blink/public/mojom:credentialmanagement_mojo_bindings_java",

@@ -6,6 +6,7 @@
 #import "base/test/scoped_feature_list.h"
 #import "components/webauthn/ios/features.h"
 #import "components/webauthn/ios/passkey_java_script_feature.h"
+#import "components/webauthn/ios/passkey_request_params.h"
 #import "components/webauthn/ios/passkey_types.h"
 #import "ios/web/public/test/javascript_test.h"
 #import "ios/web/public/test/js_test_util.h"
@@ -43,6 +44,12 @@ const char kNavigatorCredentialsConditionalGetUrl[] =
     "/credentialsConditionalGet";
 const char kNavigatorCredentialsCreateMissingRpIdUrl[] =
     "/credentialsCreateMissingRpId";
+const char kNavigatorCredentialsGetWithUserHandleUrl[] =
+    "/credentialsGetWithUserHandle";
+const char kNavigatorCredentialsCreateWithResultUrl[] =
+    "/credentialsCreateWithResult";
+const char kNavigatorCredentialsGetWithResultUrl[] =
+    "/credentialsGetWithResult";
 const char kAnotherPageUrl[] = "/anotherPage";
 
 const char kNavigatorCredentialsCreatePageHtml[] =
@@ -71,7 +78,202 @@ const char kNavigatorCredentialsCreateMissingRpIdPageHtml[] =
     "rp: { name: 'My Website' },"
     "user: { id: new ArrayBuffer(0), name: '', displayName: '' } } });"
     "</script></body></html>";
+const char kNavigatorCredentialsGetWithUserHandlePageHtml[] =
+    "<html><body><script>"
+    "window.onload = () => {"
+    "  window.getPromise = navigator.credentials.get({ "
+    "    mediation: 'conditional', "
+    "    publicKey: { challenge: new ArrayBuffer(0) } "
+    "  }).then(cred => { "
+    "    window.credentialResult = cred; "
+    "  }).catch(err => { "
+    "    window.credentialError = err; "
+    "  });"
+    "};"
+    "</script></body></html>";
+const char kNavigatorCredentialsCreateWithResultPageHtml[] =
+    "<html><body><script>"
+    "window.onload = () => {"
+    "  navigator.credentials.create({ publicKey: { "
+    "    challenge: new ArrayBuffer(0), "
+    "    rp: { id: 'example.com', name: 'Example' },"
+    "    user: { id: new ArrayBuffer(0), name: '', displayName: '' } } "
+    "  }).then(cred => { "
+    "    window.credentialResult = cred; "
+    "  }).catch(err => { "
+    "    window.credentialError = err; "
+    "  });"
+    "};"
+    "</script></body></html>";
+const char kNavigatorCredentialsGetWithResultPageHtml[] =
+    "<html><body><script>"
+    "window.onload = () => {"
+    "  navigator.credentials.get({ "
+    "    publicKey: { challenge: new ArrayBuffer(0) } "
+    "  }).then(cred => { "
+    "    window.credentialResult = cred; "
+    "  }).catch(err => { "
+    "    window.credentialError = err; "
+    "  });"
+    "};"
+    "</script></body></html>";
 const char kAnotherPageHtml[] = "<html><body>Another Page</body></html>";
+
+NSString* const kDisableNativeCapabilitiesJs =
+    @"if (typeof PublicKeyCredential !== 'undefined') {"
+    @"  Object.defineProperty(PublicKeyCredential, "
+    @"'isConditionalMediationAvailable', {"
+    @"    value: async () => false,"
+    @"    configurable: true,"
+    @"    writable: true"
+    @"  });"
+    @"  if (PublicKeyCredential.getClientCapabilities) {"
+    @"    Object.defineProperty(PublicKeyCredential, "
+    @"'getClientCapabilities', {"
+    @"      value: async () => ({"
+    @"        conditionalGet: false,"
+    @"        conditionalCreate: false,"
+    @"        userVerifyingPlatformAuthenticator: true"
+    @"      }),"
+    @"      configurable: true,"
+    @"      writable: true"
+    @"    });"
+    @"  }"
+    @"}";
+
+NSString* const kRejectPasskeyRequestFormat =
+    @"__gCrWeb.getRegisteredApi('passkey')."
+    @"getFunction('rejectPasskeyRequest')('%@', '%s', '%s')";
+
+NSString* const kResolveAssertionRequestWithEmptyUserHandleFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAssertionRequest')('%@', 'AQ', '', '', '', '', {})";
+
+// Note: 'AQ==' is base64 of 0x01.
+NSString* const kResolveAssertionRequestWithUserHandleFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAssertionRequest')('%@', 'AQ', '', '', 'AQ==', '', {})";
+
+NSString* const kTriggerConditionalGetJs =
+    @"window.resultReceived = false;"
+    @"window.promiseResult = undefined;"
+    @"window.promiseError = undefined;"
+    @"navigator.credentials.get({"
+    @"  mediation: 'conditional',"
+    @"  publicKey: { challenge: new ArrayBuffer(0) }"
+    @"}).then("
+    @"  (res) => {"
+    @"    window.promiseResult = res;"
+    @"    window.resultReceived = true;"
+    @"  },"
+    @"  (err) => {"
+    @"    window.promiseError = err;"
+    @"    window.resultReceived = true;"
+    @"  }"
+    @");";
+
+NSString* const kTriggerConditionalCreateJs =
+    @"window.resultReceived = false;"
+    @"window.promiseResult = undefined;"
+    @"window.promiseError = undefined;"
+    @"navigator.credentials.create({"
+    @"  mediation: 'conditional',"
+    @"  publicKey: {"
+    @"    challenge: new ArrayBuffer(0),"
+    @"    rp: { id: 'example.com', name: 'Example' },"
+    @"    user: { id: new ArrayBuffer(0), name: 'user', "
+    @"displayName: 'User' },"
+    @"    pubKeyCredParams: []"
+    @"  }"
+    @"}).then("
+    @"  (res) => {"
+    @"    window.promiseResult = res;"
+    @"    window.resultReceived = true;"
+    @"  },"
+    @"  (err) => {"
+    @"    window.promiseError = err;"
+    @"    window.resultReceived = true;"
+    @"  }"
+    @");";
+
+NSString* const kDeferToRendererFormat =
+    @"__gCrWeb.getRegisteredApi('passkey')."
+    @"getFunction('deferToRenderer')('%@', %d)";
+
+NSString* const kCheckCredentialResultDefinedJs =
+    @"window.credentialResult !== undefined";
+
+NSString* const kCheckUserHandleIsNullJs =
+    @"window.credentialResult.response.userHandle === null";
+
+NSString* const kCheckUserHandleByteLengthJs =
+    @"window.credentialResult.response.userHandle.byteLength";
+
+NSString* const kGetFirstByteOfUserHandleJs =
+    @"new Uint8Array(window.credentialResult.response.userHandle)[0]";
+
+NSString* const kCheckCredentialResultInstanceOfPublicKeyCredentialJs =
+    @"window.credentialResult instanceof PublicKeyCredential";
+
+NSString* const kCheckResponseInstanceOfAuthenticatorAttestationResponseJs =
+    @"window.credentialResult.response instanceof "
+    @"AuthenticatorAttestationResponse";
+
+NSString* const kCheckResponseInstanceOfAuthenticatorAssertionResponseJs =
+    @"window.credentialResult.response instanceof "
+    @"AuthenticatorAssertionResponse";
+
+NSString* const kCheckPublicKeyIsNullJs =
+    @"window.credentialResult.response.getPublicKey() === null";
+
+NSString* const kCheckPublicKeyByteLengthJs =
+    @"window.credentialResult.response.getPublicKey().byteLength";
+
+NSString* const kGetFirstByteOfPublicKeyJs =
+    @"new Uint8Array(window.credentialResult.response.getPublicKey())[0]";
+
+NSString* const kResolveAttestationRequestWithEmptyPublicKeyFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAttestationRequest')('%@', 'AQ', '', '', '', '', {})";
+
+NSString* const kResolveAttestationRequestWithPublicKeyFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAttestationRequest')('%@', 'AQ', '', '', 'AQ==', '', {})";
+
+NSString* const kResolveAttestationRequestFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAttestationRequest')('%@', 'AQ', 'AQ==', 'AQ==', 'AQ==', '{}', "
+    @"{})";
+
+NSString* const kResolveAssertionRequestFormat =
+    @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
+    @"resolveAssertionRequest')('%@', 'AQ', 'AQ==', 'AQ==', 'AQ==', '{}', {})";
+
+NSString* const kCheckResultReceivedJs = @"window.resultReceived";
+NSString* const kGetPromiseResultJs = @"window.promiseResult";
+NSString* const kGetPromiseErrorJs = @"window.promiseError";
+
+const char kModalTestNameSubstring[] = "Modal";
+const char kConditionalTestNameSubstring[] = "Conditional";
+const char kUnsupportedResolvesWithNullTestNameSubstring[] =
+    "UnsupportedResolvesWithNull";
+
+NSString* const kEventKey = @"event";
+NSString* const kFrameIdKey = @"frameId";
+NSString* const kRequestIdKey = @"requestId";
+NSString* const kRequestKey = @"request";
+NSString* const kRpEntityKey = @"rpEntity";
+NSString* const kUserEntityKey = @"userEntity";
+NSString* const kExcludeCredentialsKey = @"excludeCredentials";
+NSString* const kExtensionsKey = @"extensions";
+NSString* const kRemoteFrameIdKey = @"remoteFrameId";
+NSString* const kAllowCredentialsKey = @"allowCredentials";
+NSString* const kIdKey = @"id";
+
+NSString* const kLogCreateRequestEvent = @"logCreateRequest";
+NSString* const kLogGetRequestEvent = @"logGetRequest";
+NSString* const kHandleCreateRequestEvent = @"handleCreateRequest";
+NSString* const kHandleGetRequestEvent = @"handleGetRequest";
 
 // Provides responses for initial page and destination URLs.
 std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
@@ -89,6 +291,13 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
     http_response->set_content(kNavigatorCredentialsGetPageHtml);
   } else if (request.relative_url == kNavigatorCredentialsConditionalGetUrl) {
     http_response->set_content(kNavigatorCredentialsConditionalGetPageHtml);
+  } else if (request.relative_url ==
+             kNavigatorCredentialsGetWithUserHandleUrl) {
+    http_response->set_content(kNavigatorCredentialsGetWithUserHandlePageHtml);
+  } else if (request.relative_url == kNavigatorCredentialsCreateWithResultUrl) {
+    http_response->set_content(kNavigatorCredentialsCreateWithResultPageHtml);
+  } else if (request.relative_url == kNavigatorCredentialsGetWithResultUrl) {
+    http_response->set_content(kNavigatorCredentialsGetWithResultPageHtml);
   } else if (request.relative_url == kAnotherPageUrl) {
     http_response->set_content(kAnotherPageHtml);
   } else {
@@ -123,19 +332,29 @@ class PasskeyControllerJavaScriptTest : public web::JavascriptTest {
     std::vector<base::test::FeatureRef> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
 
-    if (test_name.find("Modal") != std::string::npos) {
+    if (test_name.find(kModalTestNameSubstring) != std::string::npos) {
       enabled_features.push_back(kIOSPasskeyModalLoginWithShim);
     } else {
       disabled_features.push_back(kIOSPasskeyModalLoginWithShim);
     }
 
-    if (test_name.find("Conditional") != std::string::npos) {
+    if (test_name.find(kConditionalTestNameSubstring) != std::string::npos) {
       enabled_features.push_back(kIOSPasskeyConditionalLoginWithShim);
     } else {
       disabled_features.push_back(kIOSPasskeyConditionalLoginWithShim);
     }
 
     feature_list_.InitWithFeatures(enabled_features, disabled_features);
+
+    if (test_name.find(kUnsupportedResolvesWithNullTestNameSubstring) !=
+        std::string::npos) {
+      WKUserScript* disableScript = [[WKUserScript alloc]
+            initWithSource:kDisableNativeCapabilitiesJs
+             injectionTime:WKUserScriptInjectionTimeAtDocumentStart
+          forMainFrameOnly:NO];
+      [web_view().configuration.userContentController
+          addUserScript:disableScript];
+    }
 
     // Get the script string directly from PasskeyJavaScriptFeature so that
     // it contains the feature based placeholder replacements.
@@ -176,9 +395,9 @@ TEST_F(PasskeyControllerJavaScriptTest,
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
   EXPECT_EQ(allKeys.count, 1ul);
-  EXPECT_TRUE([allKeys containsObject:@"event"]);
+  EXPECT_TRUE([allKeys containsObject:kEventKey]);
 
-  EXPECT_NSEQ(@"logCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kLogCreateRequestEvent, body[kEventKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -194,9 +413,9 @@ TEST_F(PasskeyControllerJavaScriptTest,
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
   EXPECT_EQ(allKeys.count, 1ul);
-  EXPECT_TRUE([allKeys containsObject:@"event"]);
+  EXPECT_TRUE([allKeys containsObject:kEventKey]);
 
-  EXPECT_NSEQ(@"logGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kLogGetRequestEvent, body[kEventKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -212,16 +431,16 @@ TEST_F(PasskeyControllerJavaScriptTest,
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
   EXPECT_EQ(allKeys.count, 8ul);
-  EXPECT_TRUE([allKeys containsObject:@"event"]);
-  EXPECT_TRUE([allKeys containsObject:@"frameId"]);
-  EXPECT_TRUE([allKeys containsObject:@"requestId"]);
-  EXPECT_TRUE([allKeys containsObject:@"request"]);
-  EXPECT_TRUE([allKeys containsObject:@"rpEntity"]);
-  EXPECT_TRUE([allKeys containsObject:@"userEntity"]);
-  EXPECT_TRUE([allKeys containsObject:@"excludeCredentials"]);
-  EXPECT_TRUE([allKeys containsObject:@"extensions"]);
+  EXPECT_TRUE([allKeys containsObject:kEventKey]);
+  EXPECT_TRUE([allKeys containsObject:kFrameIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestKey]);
+  EXPECT_TRUE([allKeys containsObject:kRpEntityKey]);
+  EXPECT_TRUE([allKeys containsObject:kUserEntityKey]);
+  EXPECT_TRUE([allKeys containsObject:kExcludeCredentialsKey]);
+  EXPECT_TRUE([allKeys containsObject:kExtensionsKey]);
 
-  EXPECT_NSEQ(@"handleCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -237,20 +456,20 @@ TEST_F(PasskeyControllerJavaScriptTest,
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
   EXPECT_EQ(allKeys.count, 8ul);
-  EXPECT_TRUE([allKeys containsObject:@"event"]);
-  EXPECT_TRUE([allKeys containsObject:@"frameId"]);
-  EXPECT_TRUE([allKeys containsObject:@"requestId"]);
-  EXPECT_TRUE([allKeys containsObject:@"request"]);
-  EXPECT_TRUE([allKeys containsObject:@"rpEntity"]);
-  EXPECT_TRUE([allKeys containsObject:@"userEntity"]);
-  EXPECT_TRUE([allKeys containsObject:@"excludeCredentials"]);
-  EXPECT_TRUE([allKeys containsObject:@"extensions"]);
+  EXPECT_TRUE([allKeys containsObject:kEventKey]);
+  EXPECT_TRUE([allKeys containsObject:kFrameIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestKey]);
+  EXPECT_TRUE([allKeys containsObject:kRpEntityKey]);
+  EXPECT_TRUE([allKeys containsObject:kUserEntityKey]);
+  EXPECT_TRUE([allKeys containsObject:kExcludeCredentialsKey]);
+  EXPECT_TRUE([allKeys containsObject:kExtensionsKey]);
 
-  EXPECT_NSEQ(@"handleCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
 
-  NSDictionary* rpEntity = body[@"rpEntity"];
+  NSDictionary* rpEntity = body[kRpEntityKey];
   EXPECT_TRUE(rpEntity != nil);
-  EXPECT_NSEQ(@"127.0.0.1", rpEntity[@"id"]);
+  EXPECT_NSEQ(@"127.0.0.1", rpEntity[kIdKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -266,20 +485,20 @@ TEST_F(PasskeyControllerJavaScriptTest,
   NSDictionary* body = message_handler().lastReceivedMessage.body;
   NSArray* allKeys = body.allKeys;
   EXPECT_EQ(allKeys.count, 8ul);
-  EXPECT_TRUE([allKeys containsObject:@"event"]);
-  EXPECT_TRUE([allKeys containsObject:@"frameId"]);
-  EXPECT_TRUE([allKeys containsObject:@"remoteFrameId"]);
-  EXPECT_TRUE([allKeys containsObject:@"requestId"]);
-  EXPECT_TRUE([allKeys containsObject:@"request"]);
-  EXPECT_TRUE([allKeys containsObject:@"rpEntity"]);
-  EXPECT_TRUE([allKeys containsObject:@"allowCredentials"]);
-  EXPECT_TRUE([allKeys containsObject:@"extensions"]);
+  EXPECT_TRUE([allKeys containsObject:kEventKey]);
+  EXPECT_TRUE([allKeys containsObject:kFrameIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRemoteFrameIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestIdKey]);
+  EXPECT_TRUE([allKeys containsObject:kRequestKey]);
+  EXPECT_TRUE([allKeys containsObject:kRpEntityKey]);
+  EXPECT_TRUE([allKeys containsObject:kAllowCredentialsKey]);
+  EXPECT_TRUE([allKeys containsObject:kExtensionsKey]);
 
-  EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
 
-  NSDictionary* rpEntity = body[@"rpEntity"];
+  NSDictionary* rpEntity = body[kRpEntityKey];
   EXPECT_TRUE(rpEntity != nil);
-  EXPECT_NSEQ(@"127.0.0.1", rpEntity[@"id"]);
+  EXPECT_NSEQ(@"127.0.0.1", rpEntity[kIdKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -294,7 +513,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"logCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kLogCreateRequestEvent, body[kEventKey]);
 
   message_handler().lastReceivedMessage = nil;
 
@@ -305,7 +524,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
   // Since it is a passthrough request, it finishes immediately (rejects) in the
   // test environment, so it shouldn't trigger reload on back navigation.
   base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1));
-  EXPECT_TRUE(message_handler().lastReceivedMessage == nil);
+  EXPECT_NSEQ(nil, message_handler().lastReceivedMessage);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -320,7 +539,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
 
   message_handler().lastReceivedMessage = nil;
 
@@ -334,7 +553,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
       }));
 
   body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -349,7 +568,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"logGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kLogGetRequestEvent, body[kEventKey]);
 
   message_handler().lastReceivedMessage = nil;
 
@@ -360,7 +579,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
   // Since it is a passthrough request, it finishes immediately (rejects) in the
   // test environment, so it shouldn't trigger reload on back navigation.
   base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1));
-  EXPECT_TRUE(message_handler().lastReceivedMessage == nil);
+  EXPECT_NSEQ(nil, message_handler().lastReceivedMessage);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -375,7 +594,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
 
   message_handler().lastReceivedMessage = nil;
 
@@ -389,7 +608,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
       }));
 
   body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -404,17 +623,15 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleCreateRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
 
-  NSString* requestId = body[@"requestId"];
+  NSString* requestId = body[kRequestIdKey];
   ASSERT_TRUE(requestId != nil);
 
   // Reject the request to simulate finishing it.
-  NSString* rejectJs = [NSString
-      stringWithFormat:@"__gCrWeb.getRegisteredApi('passkey')."
-                       @"getFunction('rejectPasskeyRequest')('%@', '%s', '%s')",
-                       requestId, kNotAllowedErrorName,
-                       kNotAllowedErrorMessage];
+  NSString* rejectJs =
+      [NSString stringWithFormat:kRejectPasskeyRequestFormat, requestId,
+                                 kNotAllowedErrorName, kNotAllowedErrorMessage];
   web::test::ExecuteJavaScriptInWebView(web_view(), rejectJs);
 
   message_handler().lastReceivedMessage = nil;
@@ -425,7 +642,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
 
   // Since it finished, it should NOT reload.
   base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1));
-  EXPECT_TRUE(message_handler().lastReceivedMessage == nil);
+  EXPECT_NSEQ(nil, message_handler().lastReceivedMessage);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -440,19 +657,17 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
 
-  NSString* requestId = body[@"requestId"];
+  NSString* requestId = body[kRequestIdKey];
   ASSERT_TRUE(requestId != nil);
 
   // Resolve the request to simulate a successful request.
   // Note: we pass "AQ" as the id64 so that it has rawId.byteLength > 0 and
   // counts as a valid credential.
   NSString* resolveJs = [NSString
-      stringWithFormat:
-          @"__gCrWeb.getRegisteredApi('passkey').getFunction('"
-          @"resolveAssertionRequest')('%@', 'AQ', '', '', '', '', {})",
-          requestId];
+      stringWithFormat:kResolveAssertionRequestWithEmptyUserHandleFormat,
+                       requestId];
   web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
 
   message_handler().lastReceivedMessage = nil;
@@ -463,7 +678,7 @@ TEST_F(PasskeyControllerJavaScriptTest,
 
   // Since it succeeded, it should NOT reload.
   base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1));
-  EXPECT_TRUE(message_handler().lastReceivedMessage == nil);
+  EXPECT_NSEQ(nil, message_handler().lastReceivedMessage);
 }
 
 TEST_F(PasskeyControllerJavaScriptTest,
@@ -478,16 +693,14 @@ TEST_F(PasskeyControllerJavaScriptTest,
         return message_handler().lastReceivedMessage != nil;
       }));
   NSDictionary* body = message_handler().lastReceivedMessage.body;
-  EXPECT_NSEQ(@"handleGetRequest", body[@"event"]);
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
 
-  NSString* requestId = body[@"requestId"];
+  NSString* requestId = body[kRequestIdKey];
   ASSERT_TRUE(requestId != nil);
 
-  NSString* rejectJs = [NSString
-      stringWithFormat:@"__gCrWeb.getRegisteredApi('passkey')."
-                       @"getFunction('rejectPasskeyRequest')('%@', '%s', '%s')",
-                       requestId, kNotAllowedErrorName,
-                       kNotAllowedErrorMessage];
+  NSString* rejectJs =
+      [NSString stringWithFormat:kRejectPasskeyRequestFormat, requestId,
+                                 kNotAllowedErrorName, kNotAllowedErrorMessage];
   web::test::ExecuteJavaScriptInWebView(web_view(), rejectJs);
 
   message_handler().lastReceivedMessage = nil;
@@ -498,7 +711,338 @@ TEST_F(PasskeyControllerJavaScriptTest,
 
   // Since it finished (rejected), it should NOT reload.
   base::test::ios::SpinRunLoopWithMinDelay(base::Seconds(1));
-  EXPECT_TRUE(message_handler().lastReceivedMessage == nil);
+  EXPECT_NSEQ(nil, message_handler().lastReceivedMessage);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsConditionalGetWithEmptyUserHandleReturnsNull) {
+  GURL get_url = server().GetURL(kNavigatorCredentialsGetWithUserHandleUrl);
+
+  ASSERT_TRUE(LoadUrl(get_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request with userHandle64 as empty string "".
+  NSString* resolveJs = [NSString
+      stringWithFormat:kResolveAssertionRequestWithEmptyUserHandleFormat,
+                       requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult.response.userHandle is null.
+  id isNull =
+      web::test::ExecuteJavaScript(web_view(), kCheckUserHandleIsNullJs);
+  EXPECT_NSEQ(@YES, isNull);
+}
+
+TEST_F(
+    PasskeyControllerJavaScriptTest,
+    NavigatorCredentialsConditionalGetWithNonEmptyUserHandleReturnsArrayBuffer) {
+  GURL get_url = server().GetURL(kNavigatorCredentialsGetWithUserHandleUrl);
+
+  ASSERT_TRUE(LoadUrl(get_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request.
+  NSString* resolveJs = [NSString
+      stringWithFormat:kResolveAssertionRequestWithUserHandleFormat, requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult.response.userHandle is not null and has
+  // length 1.
+  id isNull =
+      web::test::ExecuteJavaScript(web_view(), kCheckUserHandleIsNullJs);
+  EXPECT_NSEQ(@NO, isNull);
+
+  id byteLength =
+      web::test::ExecuteJavaScript(web_view(), kCheckUserHandleByteLengthJs);
+  EXPECT_NSEQ(@1, byteLength);
+
+  id firstByte =
+      web::test::ExecuteJavaScript(web_view(), kGetFirstByteOfUserHandleJs);
+  EXPECT_NSEQ(@1, firstByte);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsConditionalGetUnsupportedResolvesWithNull) {
+  GURL another_url = server().GetURL(kAnotherPageUrl);
+  ASSERT_TRUE(LoadUrl(another_url));
+
+  // Run script to trigger conditional get and record results.
+  web::test::ExecuteJavaScriptInWebView(web_view(), kTriggerConditionalGetJs);
+
+  // Wait for handleGetRequest to be received.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Call deferToRenderer, simulating unsupported conditional get capability.
+  NSString* deferJs = [NSString
+      stringWithFormat:kDeferToRendererFormat, requestId,
+                       static_cast<int>(
+                           PasskeyRequestParams::RequestType::kConditionalGet)];
+  web::test::ExecuteJavaScriptInWebView(web_view(), deferJs);
+
+  // Wait for promise resolution.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result =
+            web::test::ExecuteJavaScript(web_view(), kCheckResultReceivedJs);
+        return [result isKindOfClass:[NSNumber class]] && [result boolValue];
+      }));
+
+  // Assert that promiseResult is null (and not undefined or error).
+  id promiseResult =
+      web::test::ExecuteJavaScript(web_view(), kGetPromiseResultJs);
+  EXPECT_NSEQ([NSNull null], promiseResult);
+
+  id promiseError =
+      web::test::ExecuteJavaScript(web_view(), kGetPromiseErrorJs);
+  EXPECT_NSEQ(nil, promiseError);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsConditionalCreateUnsupportedResolvesWithNull) {
+  GURL another_url = server().GetURL(kAnotherPageUrl);
+  ASSERT_TRUE(LoadUrl(another_url));
+
+  // Run script to trigger conditional create and record results.
+  web::test::ExecuteJavaScriptInWebView(web_view(),
+                                        kTriggerConditionalCreateJs);
+
+  // Wait for handleCreateRequest to be received.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Call deferToRenderer, simulating unsupported conditional create capability.
+  NSString* deferJs = [NSString
+      stringWithFormat:kDeferToRendererFormat, requestId,
+                       static_cast<int>(PasskeyRequestParams::RequestType::
+                                            kConditionalCreate)];
+  web::test::ExecuteJavaScriptInWebView(web_view(), deferJs);
+
+  // Wait for promise resolution.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result =
+            web::test::ExecuteJavaScript(web_view(), kCheckResultReceivedJs);
+        return [result isKindOfClass:[NSNumber class]] && [result boolValue];
+      }));
+
+  // Assert that promiseResult is null (and not undefined or error).
+  id promiseResult =
+      web::test::ExecuteJavaScript(web_view(), kGetPromiseResultJs);
+  EXPECT_NSEQ([NSNull null], promiseResult);
+
+  id promiseError =
+      web::test::ExecuteJavaScript(web_view(), kGetPromiseErrorJs);
+  EXPECT_NSEQ(nil, promiseError);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsModalCreateReturnsCorrectPrototype) {
+  GURL create_url = server().GetURL(kNavigatorCredentialsCreateWithResultUrl);
+
+  ASSERT_TRUE(LoadUrl(create_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request with valid dummy attestation parameters.
+  NSString* resolveJs =
+      [NSString stringWithFormat:kResolveAttestationRequestFormat, requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult is an instance of PublicKeyCredential.
+  id isPublicKeyCredential = web::test::ExecuteJavaScript(
+      web_view(), kCheckCredentialResultInstanceOfPublicKeyCredentialJs);
+  EXPECT_NSEQ(@YES, isPublicKeyCredential);
+
+  // Verify that window.credentialResult.response is an instance of
+  // AuthenticatorAttestationResponse.
+  id isAttestationResponse = web::test::ExecuteJavaScript(
+      web_view(), kCheckResponseInstanceOfAuthenticatorAttestationResponseJs);
+  EXPECT_NSEQ(@YES, isAttestationResponse);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsModalGetReturnsCorrectPrototype) {
+  GURL get_url = server().GetURL(kNavigatorCredentialsGetWithResultUrl);
+
+  ASSERT_TRUE(LoadUrl(get_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleGetRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request with valid dummy assertion parameters.
+  NSString* resolveJs =
+      [NSString stringWithFormat:kResolveAssertionRequestFormat, requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult is an instance of PublicKeyCredential.
+  id isPublicKeyCredential = web::test::ExecuteJavaScript(
+      web_view(), kCheckCredentialResultInstanceOfPublicKeyCredentialJs);
+  EXPECT_NSEQ(@YES, isPublicKeyCredential);
+
+  // Verify that window.credentialResult.response is an instance of
+  // AuthenticatorAssertionResponse.
+  id isAssertionResponse = web::test::ExecuteJavaScript(
+      web_view(), kCheckResponseInstanceOfAuthenticatorAssertionResponseJs);
+  EXPECT_NSEQ(@YES, isAssertionResponse);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsModalCreateWithEmptyPublicKeyReturnsNull) {
+  GURL create_url = server().GetURL(kNavigatorCredentialsCreateWithResultUrl);
+
+  ASSERT_TRUE(LoadUrl(create_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request with publicKeySpkiDer64 as empty string "".
+  NSString* resolveJs = [NSString
+      stringWithFormat:kResolveAttestationRequestWithEmptyPublicKeyFormat,
+                       requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult.response.getPublicKey() is null.
+  id isNull = web::test::ExecuteJavaScript(web_view(), kCheckPublicKeyIsNullJs);
+  EXPECT_NSEQ(@YES, isNull);
+}
+
+TEST_F(PasskeyControllerJavaScriptTest,
+       NavigatorCredentialsModalCreateWithNonEmptyPublicKeyReturnsArrayBuffer) {
+  GURL create_url = server().GetURL(kNavigatorCredentialsCreateWithResultUrl);
+
+  ASSERT_TRUE(LoadUrl(create_url));
+
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return message_handler().lastReceivedMessage != nil;
+      }));
+  NSDictionary* body = message_handler().lastReceivedMessage.body;
+  EXPECT_NSEQ(kHandleCreateRequestEvent, body[kEventKey]);
+
+  NSString* requestId = body[kRequestIdKey];
+  ASSERT_TRUE(requestId != nil);
+
+  // Resolve the request.
+  NSString* resolveJs =
+      [NSString stringWithFormat:kResolveAttestationRequestWithPublicKeyFormat,
+                                 requestId];
+  web::test::ExecuteJavaScriptInWebView(web_view(), resolveJs);
+
+  // Wait until window.credentialResult is set.
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        id result = web::test::ExecuteJavaScript(
+            web_view(), kCheckCredentialResultDefinedJs);
+        return [result boolValue];
+      }));
+
+  // Verify that window.credentialResult.response.getPublicKey() is not null and
+  // has length 1.
+  id isNull = web::test::ExecuteJavaScript(web_view(), kCheckPublicKeyIsNullJs);
+  EXPECT_NSEQ(@NO, isNull);
+
+  id byteLength =
+      web::test::ExecuteJavaScript(web_view(), kCheckPublicKeyByteLengthJs);
+  EXPECT_NSEQ(@1, byteLength);
+
+  id firstByte =
+      web::test::ExecuteJavaScript(web_view(), kGetFirstByteOfPublicKeyJs);
+  EXPECT_NSEQ(@1, firstByte);
 }
 
 }  // namespace webauthn

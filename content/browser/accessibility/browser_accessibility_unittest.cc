@@ -11,6 +11,7 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_node_position.h"
+#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/accessibility/platform/test_ax_node_id_delegate.h"
 #include "ui/accessibility/platform/test_ax_platform_tree_manager_delegate.h"
@@ -120,6 +121,66 @@ TEST_F(BrowserAccessibilityTest, TestCanFireEvents) {
       manager->RetargetBrowserAccessibilityForEvents(
           text_obj, RetargetEventType::RetargetEventTypeBlinkHover);
   EXPECT_TRUE(retarget->CanFireEvents());
+
+  manager.reset();
+}
+
+TEST_F(BrowserAccessibilityTest, CaretBrowsingVisibleCaretIsWhereSelectionIs) {
+  ui::AXNodeData text1;
+  text1.id = 111;
+  text1.role = ax::mojom::Role::kStaticText;
+  text1.SetName("Paragraph one text.");
+
+  ui::AXNodeData para1;
+  para1.id = 11;
+  para1.role = ax::mojom::Role::kParagraph;
+  para1.child_ids.push_back(text1.id);
+
+  ui::AXNodeData text2;
+  text2.id = 222;
+  text2.role = ax::mojom::Role::kStaticText;
+  text2.SetName("Paragraph two text.");
+
+  ui::AXNodeData para2;
+  para2.id = 22;
+  para2.role = ax::mojom::Role::kParagraph;
+  para2.child_ids.push_back(text2.id);
+
+  ui::AXNodeData root;
+  root.id = 1;
+  root.role = ax::mojom::Role::kRootWebArea;
+  root.child_ids = {para1.id, para2.id};
+
+  ui::AXTreeUpdate update =
+      MakeAXTreeUpdateForTesting(root, para1, text1, para2, text2);
+  // A collapsed selection, i.e. a caret, in the first paragraph.
+  update.has_tree_data = true;
+  update.tree_data.sel_anchor_object_id = text1.id;
+  update.tree_data.sel_anchor_offset = 5;
+  update.tree_data.sel_focus_object_id = text1.id;
+  update.tree_data.sel_focus_offset = 5;
+
+  std::unique_ptr<ui::BrowserAccessibilityManager> manager(
+      CreateBrowserAccessibilityManager(
+          update, node_id_delegate_,
+          test_browser_accessibility_delegate_.get()));
+
+  ui::BrowserAccessibility* para1_obj = manager->GetFromID(para1.id);
+  ui::BrowserAccessibility* para2_obj = manager->GetFromID(para2.id);
+  ASSERT_NE(nullptr, para1_obj);
+  ASSERT_NE(nullptr, para2_obj);
+
+  // Without Caret Browsing, a collapsed selection in non-editable content is
+  // not visible anywhere.
+  EXPECT_FALSE(para1_obj->HasVisibleCaretOrSelection());
+  EXPECT_FALSE(para2_obj->HasVisibleCaretOrSelection());
+
+  // With Caret Browsing, it is visible, but only in the paragraph which
+  // actually contains it.
+  ui::AXPlatform::GetInstance().SetCaretBrowsingState(true);
+  EXPECT_TRUE(para1_obj->HasVisibleCaretOrSelection());
+  EXPECT_FALSE(para2_obj->HasVisibleCaretOrSelection());
+  ui::AXPlatform::GetInstance().SetCaretBrowsingState(false);
 
   manager.reset();
 }
@@ -258,6 +319,81 @@ TEST_F(BrowserAccessibilityTest,
   EXPECT_EQ(web_widget, web_root_obj->GetTargetForNativeAccessibilityEvent());
   EXPECT_EQ(web_widget,
             inner_web_root_obj->GetTargetForNativeAccessibilityEvent());
+}
+
+TEST_F(BrowserAccessibilityTest,
+       GetDelegateForNativeViewUsesRootFrameOnlyForWebContent) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kAccessibilityTreeForViews);
+
+  ui::AXTreeID views_tree_id = ui::AXTreeID::CreateNewAXTreeID();
+  ui::AXTreeID web_tree_id = ui::AXTreeID::CreateNewAXTreeID();
+  ui::AXTreeID inner_web_tree_id = ui::AXTreeID::CreateNewAXTreeID();
+
+  ui::AXNodeData views_root;
+  views_root.id = 1;
+  views_root.role = ax::mojom::Role::kWindow;
+
+  ui::AXTreeUpdate views_update = MakeAXTreeUpdateForTesting(views_root);
+  views_update.tree_data.tree_id = views_tree_id;
+  views_update.root_id = views_root.id;
+  views_update.has_tree_data = true;
+
+  ui::AXNodeData web_root;
+  web_root.id = 10;
+  web_root.role = ax::mojom::Role::kRootWebArea;
+  web_root.child_ids = {11};
+
+  ui::AXNodeData web_child_host;
+  web_child_host.id = 11;
+  web_child_host.role = ax::mojom::Role::kGenericContainer;
+  web_child_host.AddChildTreeId(inner_web_tree_id);
+
+  ui::AXTreeUpdate web_update =
+      MakeAXTreeUpdateForTesting(web_root, web_child_host);
+  web_update.tree_data.tree_id = web_tree_id;
+  web_update.root_id = web_root.id;
+  web_update.has_tree_data = true;
+
+  ui::AXNodeData inner_web_root;
+  inner_web_root.id = 20;
+  inner_web_root.role = ax::mojom::Role::kRootWebArea;
+
+  ui::AXTreeUpdate inner_web_update =
+      MakeAXTreeUpdateForTesting(inner_web_root);
+  inner_web_update.tree_data.tree_id = inner_web_tree_id;
+  inner_web_update.tree_data.parent_tree_id = web_tree_id;
+  inner_web_update.root_id = inner_web_root.id;
+  inner_web_update.has_tree_data = true;
+
+  auto views_delegate =
+      std::make_unique<ui::TestAXPlatformTreeManagerDelegate>();
+  views_delegate->is_root_frame_ = false;
+  views_delegate->is_web_content_source_ = false;
+
+  auto web_delegate = std::make_unique<ui::TestAXPlatformTreeManagerDelegate>();
+  web_delegate->is_root_frame_ = true;
+  web_delegate->is_web_content_source_ = true;
+
+  auto inner_web_delegate =
+      std::make_unique<ui::TestAXPlatformTreeManagerDelegate>();
+  inner_web_delegate->is_root_frame_ = false;
+  inner_web_delegate->is_web_content_source_ = true;
+
+  std::unique_ptr<ui::BrowserAccessibilityManager> views_manager(
+      CreateBrowserAccessibilityManager(views_update, node_id_delegate_,
+                                        views_delegate.get()));
+  std::unique_ptr<ui::BrowserAccessibilityManager> web_manager(
+      CreateBrowserAccessibilityManager(web_update, node_id_delegate_,
+                                        web_delegate.get()));
+  std::unique_ptr<ui::BrowserAccessibilityManager> inner_web_manager(
+      CreateBrowserAccessibilityManager(inner_web_update, node_id_delegate_,
+                                        inner_web_delegate.get()));
+
+  EXPECT_EQ(views_delegate.get(), views_manager->GetDelegateForNativeView());
+  EXPECT_EQ(web_delegate.get(), web_manager->GetDelegateForNativeView());
+  EXPECT_EQ(web_delegate.get(), inner_web_manager->GetDelegateForNativeView());
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(USE_ATK)

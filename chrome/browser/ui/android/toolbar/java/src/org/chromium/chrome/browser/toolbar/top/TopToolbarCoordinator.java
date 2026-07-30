@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.toolbar.top;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import android.animation.Animator;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.view.View;
@@ -48,7 +47,6 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
-import org.chromium.chrome.browser.layouts.toolbar.ToolbarWidthConsumer;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -93,7 +91,6 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.TokenHolder;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -102,6 +99,7 @@ import java.util.function.Supplier;
 public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private static final int UNSPECIFIED_TOOLBAR_OFFSET = -1234;
     private static final String TAG = "TopToolbarCoord";
+    private View.@Nullable OnLongClickListener mGlicLongClickListener;
 
     /** Observes toolbar color or expanding state change. */
     public interface ToolbarColorObserver {
@@ -1211,16 +1209,21 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
      *
      * @param isVerticalTabsActiveSupplier Supplier of whether vertical tab is active.
      * @param isGlicPinnedSupplier Supplier of whether glic is pinned.
+     * @param incognitoStateProvider Provider for observing incognito state changes.
+     * @param glicLongClickListener Listener invoked when the Glic action chip is long-pressed or
+     *     right-clicked.
      */
     public void observeGlicVerticalTabs(
             NonNullObservableSupplier<Boolean> isVerticalTabsActiveSupplier,
             NonNullObservableSupplier<Boolean> isGlicPinnedSupplier,
-            IncognitoStateProvider incognitoStateProvider) {
+            IncognitoStateProvider incognitoStateProvider,
+            View.OnLongClickListener glicLongClickListener) {
         if (!(mToolbarLayout instanceof ToolbarTablet tabletLayout)) return;
 
         mIsVerticalTabsActiveSupplier = isVerticalTabsActiveSupplier;
         mIsGlicPinnedSupplier = isGlicPinnedSupplier;
         mIncognitoStateProvider = incognitoStateProvider;
+        mGlicLongClickListener = glicLongClickListener;
 
         mGlicVerticalTabsObserver = this::onGlicVisibilityNeedsUpdate;
         mIncognitoStateObserver = this::onGlicVisibilityNeedsUpdate;
@@ -1229,44 +1232,39 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         mIsGlicPinnedSupplier.addSyncObserver(mGlicVerticalTabsObserver);
         mIncognitoStateProvider.addIncognitoStateObserverAndTrigger(mIncognitoStateObserver);
 
-        int glicButtonWidth =
-                mToolbarLayout.getResources().getDimensionPixelSize(R.dimen.min_touch_target_size);
-        tabletLayout.setGlicToolbarWidthConsumer(
-                new ToolbarWidthConsumer() {
-                    @Override
-                    public boolean isVisible() {
-                        return shouldShowGlicToolbarButton();
-                    }
-
-                    @Override
-                    public boolean hasSpaceToShow() {
-                        return shouldShowGlicToolbarButton();
-                    }
-
-                    @Override
-                    public int updateVisibility(int availableWidth) {
-                        return shouldShowGlicToolbarButton() ? glicButtonWidth : 0;
-                    }
-
-                    @Override
-                    public int updateVisibilityWithAnimation(
-                            int availableWidth, Collection<Animator> animators) {
-                        return updateVisibility(availableWidth);
-                    }
-                });
+        tabletLayout.ensureGlicToolbarWidthConsumer();
     }
 
-    private boolean shouldShowGlicToolbarButton() {
-        return assumeNonNull(mIsVerticalTabsActiveSupplier).get()
-                && assumeNonNull(mIsGlicPinnedSupplier).get()
-                && !assumeNonNull(mIncognitoStateProvider).isIncognitoSelected();
+    /** Returns whether the Glic button should be shown on the toolbar. */
+    public boolean shouldShowGlicToolbarButton() {
+        if (!(mToolbarLayout instanceof ToolbarTablet)) return false;
+        if (mIsVerticalTabsActiveSupplier == null
+                || mIsGlicPinnedSupplier == null
+                || mIncognitoStateProvider == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(mIsVerticalTabsActiveSupplier.get())
+                && Boolean.TRUE.equals(mIsGlicPinnedSupplier.get())
+                && !mIncognitoStateProvider.isIncognitoSelected();
+    }
+
+    /**
+     * @return The {@link View} representing the Glic action chip on the toolbar.
+     */
+    public @Nullable View getGlicActionChipView() {
+        if (mToolbarLayout instanceof ToolbarTablet tabletLayout) {
+            return tabletLayout.getGlicActionChipView();
+        }
+        return null;
     }
 
     private void onGlicVisibilityNeedsUpdate(boolean state) {
-        ((ToolbarTablet) mToolbarLayout)
-                .setGlicActionChipVisibility(
-                        shouldShowGlicToolbarButton(),
-                        v -> assumeNonNull(mToggleGlicCallback).run());
+        if (mToolbarLayout instanceof ToolbarTablet tabletLayout) {
+            tabletLayout.setGlicActionChipVisibility(
+                    shouldShowGlicToolbarButton(),
+                    v -> assumeNonNull(mToggleGlicCallback).run(),
+                    assumeNonNull(mGlicLongClickListener));
+        }
     }
 
     void setOverlayCoordinatorForTesting(TopToolbarOverlayCoordinator overlayCoordinator) {

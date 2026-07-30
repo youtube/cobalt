@@ -7,13 +7,16 @@
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/layout/base_layout_algorithm_test.h"
+#include "third_party/blink/renderer/core/layout/gap/gap_geometry.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_item.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_layout_utils.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_sizing_tree.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_collection.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
+#include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_break_token_data.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_running_positions.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -116,6 +119,34 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   void SetAutoPlacementCursor(wtf_size_t cursor,
                               GridLanesRunningPositions& running_positions) {
     running_positions.SetAutoPlacementCursorForTesting(cursor);
+  }
+
+  GridLanesDataVector GetFragmentedGridLanesData() {
+    // Run the grid-lanes algorithm directly in a fragmentation context. The
+    // fragmentation pass currently only collects initial item offsets into the
+    // break token and does not add child layout results, so advancing to
+    // pre-paint would fail its layout-state checks.
+    //
+    // TODO(almaher): Once grid-lanes item fragmentation is supported, test this
+    // with a multicolumn container through a normal full lifecycle.
+    AdvanceToLayoutPhase();
+    BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+    const auto space = ConstructBlockLayoutTestConstraintSpace(
+        {WritingMode::kHorizontalTb, TextDirection::kLtr},
+        LogicalSize(LayoutUnit(300), kIndefiniteSize),
+        /*stretch_inline_size_if_auto=*/true,
+        node.CreatesNewFormattingContext(),
+        /*fragmentainer_space_available=*/LayoutUnit(30));
+    const auto fragment_geometry =
+        CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+
+    GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+    const LayoutResult* result = algorithm.Layout();
+    const auto* fragment =
+        To<PhysicalBoxFragment>(&result->GetPhysicalFragment());
+    const BlockBreakToken* break_token = fragment->GetBreakToken();
+    CHECK(break_token);
+    return To<GridLanesBreakTokenData>(break_token->TokenData())->grid_lanes;
   }
 
   const GridLayoutTrackCollection& TrackCollection() {
@@ -2639,6 +2670,730 @@ TEST_F(GridLanesLayoutAlgorithmTest, ResolvedGridAxisFlipMarksPlacementDirty) {
   GetDocument().UpdateStyleAndLayoutTree();
 
   EXPECT_TRUE(GetLayoutBoxByElementId("grid-lanes")->IsGridPlacementDirty());
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryColumn) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 80px 120px 90px;
+      column-gap: 14px;
+      column-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      height: 400px;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      height: 40px;
+      outline: 1px solid blue;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div>Item 1</div>
+      <div>Item 2</div>
+      <div>Item 3</div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(400)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  EXPECT_EQ(gap_geometry->GetContainerType(),
+            GapGeometry::ContainerType::kGridLanes);
+  EXPECT_EQ(gap_geometry->GetMainDirection(), kForColumns);
+  EXPECT_EQ(gap_geometry->GetInlineGapSize(), LayoutUnit(14));
+  EXPECT_EQ(gap_geometry->CrossGapCount(), 0u);
+
+  const auto& main_gaps = gap_geometry->GetMainGaps();
+  ASSERT_EQ(main_gaps.size(), 2u);
+  EXPECT_EQ(main_gaps[0].GetGapOffset(), LayoutUnit(92));
+  EXPECT_EQ(main_gaps[1].GetGapOffset(), LayoutUnit(226));
+  EXPECT_EQ(gap_geometry->GetContentInlineStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentInlineEnd(), LayoutUnit(323));
+  EXPECT_EQ(gap_geometry->GetContentBlockStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentBlockEnd(), LayoutUnit(395));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryRow) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-rows: 90px 130px 110px;
+      row-gap: 12px;
+      row-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      width: 500px;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      outline: 1px solid blue;
+      width: 40px;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div>Item 1</div>
+      <div>Item 2</div>
+      <div>Item 3</div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(500), LayoutUnit(1000)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  EXPECT_EQ(gap_geometry->GetMainDirection(), kForRows);
+  EXPECT_EQ(gap_geometry->GetBlockGapSize(), LayoutUnit(12));
+  EXPECT_EQ(gap_geometry->CrossGapCount(), 0u);
+
+  const auto& main_gaps = gap_geometry->GetMainGaps();
+  ASSERT_EQ(main_gaps.size(), 2u);
+  EXPECT_EQ(main_gaps[0].GetGapOffset(), LayoutUnit(101));
+  EXPECT_EQ(main_gaps[1].GetGapOffset(), LayoutUnit(243));
+  EXPECT_EQ(gap_geometry->GetContentInlineStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentInlineEnd(), LayoutUnit(495));
+  EXPECT_EQ(gap_geometry->GetContentBlockStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentBlockEnd(), LayoutUnit(359));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryEmptyExplicitTracks) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(3, 50px);
+      column-gap: 10px;
+      column-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      height: 100px;
+    }
+    </style>
+    <div id="grid-lanes"></div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(100)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  EXPECT_EQ(gap_geometry->MainGapCount(), 2u);
+  EXPECT_EQ(gap_geometry->CrossGapCount(), 0u);
+  EXPECT_EQ(gap_geometry->GetMainGaps()[0].GetGapOffset(), LayoutUnit(60));
+  EXPECT_EQ(gap_geometry->GetMainGaps()[1].GetGapOffset(), LayoutUnit(120));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometrySingleTrack) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 100px;
+      column-gap: 10px;
+      column-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      height: 100px;
+    }
+    </style>
+    <div id="grid-lanes"></div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(100)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  EXPECT_EQ(algorithm.GetGapGeometry(), nullptr);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryRequiresGapRule) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 100px 100px;
+      column-gap: 20px;
+      border: 5px solid black;
+      box-sizing: border-box;
+      height: 100px;
+    }
+    </style>
+    <div id="grid-lanes"></div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(100)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  EXPECT_EQ(algorithm.GetGapGeometry(), nullptr);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryCollapsedAutoFitTracks) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: repeat(auto-fit, 100px);
+      column-gap: 10px;
+      column-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      height: 100px;
+      outline: 1px solid blue;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div>Item 1</div>
+      <div>Item 2</div>
+      <div>Item 3</div>
+      <div>Item 4</div>
+      <div>Item 5</div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(200)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  ASSERT_EQ(gap_geometry->MainGapCount(), 4u);
+  EXPECT_EQ(gap_geometry->CrossGapCount(), 0u);
+  for (const auto& main_gap : gap_geometry->GetMainGaps()) {
+    EXPECT_NE(main_gap.GetGapOffset(), LayoutUnit::Max());
+  }
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryGridAxisAlignment) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 100px 100px;
+      column-gap: 20px;
+      column-rule: 2px solid black;
+      justify-content: center;
+      border: 5px solid black;
+      box-sizing: border-box;
+      width: 300px;
+      height: 100px;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      height: 40px;
+      outline: 1px solid blue;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div>Item 1</div>
+      <div>Item 2</div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(300), LayoutUnit(100)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  ASSERT_EQ(gap_geometry->MainGapCount(), 1u);
+  EXPECT_EQ(gap_geometry->GetMainGaps()[0].GetGapOffset(), LayoutUnit(150));
+  EXPECT_EQ(gap_geometry->GetContentInlineStart(), LayoutUnit(40));
+  EXPECT_EQ(gap_geometry->GetContentInlineEnd(), LayoutUnit(260));
+  EXPECT_EQ(gap_geometry->GetContentBlockStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentBlockEnd(), LayoutUnit(95));
+}
+
+// Main-gap geometry includes block-end overflow from placed items.
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryColumnStackingAxisOverflow) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-columns: 80px 80px;
+      column-gap: 10px;
+      row-gap: 6px;
+      column-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      height: 60px;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      height: 40px;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div style="grid-column: 1"></div>
+      <div style="grid-column: 1"></div>
+      <div style="grid-column: 2"></div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(1000), LayoutUnit(60)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  ASSERT_EQ(gap_geometry->MainGapCount(), 1u);
+
+  // The second item extends past the 55px content-box end.
+  EXPECT_EQ(gap_geometry->GetContentBlockStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentBlockEnd(), LayoutUnit(91));
+}
+
+// Main-gap geometry includes inline-end overflow from placed items.
+TEST_F(GridLanesLayoutAlgorithmTest, GapGeometryRowStackingAxisOverflow) {
+  ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+    #grid-lanes {
+      display: grid-lanes;
+      grid-template-rows: 80px 80px;
+      row-gap: 10px;
+      column-gap: 6px;
+      row-rule: 2px solid black;
+      border: 5px solid black;
+      box-sizing: border-box;
+      width: 60px;
+    }
+    #grid-lanes > div {
+      background: lightblue;
+      width: 40px;
+    }
+    </style>
+    <div id="grid-lanes">
+      <div style="grid-row: 1"></div>
+      <div style="grid-row: 1"></div>
+      <div style="grid-row: 2"></div>
+    </div>
+  )HTML");
+
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
+  const auto space = ConstructBlockLayoutTestConstraintSpace(
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      LogicalSize(LayoutUnit(60), LayoutUnit(1000)),
+      /*stretch_inline_size_if_auto=*/true,
+      /*is_new_formatting_context=*/true);
+  const auto fragment_geometry =
+      CalculateInitialFragmentGeometry(space, node, /*break_token=*/nullptr);
+  GridLanesLayoutAlgorithm algorithm({node, fragment_geometry, space});
+  algorithm.Layout();
+
+  const GapGeometry* gap_geometry = algorithm.GetGapGeometry();
+  ASSERT_NE(gap_geometry, nullptr);
+  ASSERT_EQ(gap_geometry->MainGapCount(), 1u);
+
+  // The second item extends past the 55px content-box end.
+  EXPECT_EQ(gap_geometry->GetContentInlineStart(), LayoutUnit(5));
+  EXPECT_EQ(gap_geometry->GetContentInlineEnd(), LayoutUnit(91));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, PopulateGridLanesBreakTokenData) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(3, 100px); flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 20px; position: relative;
+          top: 10%;"></div>
+      <div style="grid-column: 2; height: 30px;"></div>
+      <div style="grid-column: 1; height: 20px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // The output has one entry for each track. The unused third lane remains
+  // null.
+  ASSERT_EQ(grid_lanes.size(), 3u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 2u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 1u);
+  EXPECT_FALSE(grid_lanes[2]);
+
+  // Items are stored in placement order within each lane.
+  EXPECT_EQ(grid_lanes[0]->item_data[0]->placement_data.offset,
+            LogicalOffset());
+  EXPECT_EQ(grid_lanes[1]->item_data[0]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit()}));
+  EXPECT_EQ(grid_lanes[0]->item_data[1]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(20)}));
+
+  // Grid-lanes leaves relative positioning to the fragment builder.
+  EXPECT_FALSE(grid_lanes[0]->item_data[0]->placement_data.relative_offset);
+
+  // Every entry represents the start of its single-lane item.
+  EXPECT_TRUE(grid_lanes[0]->item_data[0]->is_item_start);
+  EXPECT_TRUE(grid_lanes[1]->item_data[0]->is_item_start);
+  EXPECT_TRUE(grid_lanes[0]->item_data[1]->is_item_start);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, PopulateRowGridLanesBreakTokenData) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-lanes-direction: row; grid-template-rows: repeat(2, 50px);
+        flow-tolerance: 0;">
+      <div style="grid-row: 1; width: 20px;"></div>
+      <div style="grid-row: 2; width: 30px;"></div>
+      <div style="grid-row: 1; width: 20px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // The output has one entry for each row lane.
+  ASSERT_EQ(grid_lanes.size(), 2u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 2u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 1u);
+
+  // The item in the second row advances in the block axis, while the second
+  // item in the first row advances in the inline axis.
+  EXPECT_EQ(grid_lanes[0]->item_data[0]->placement_data.offset,
+            LogicalOffset());
+  EXPECT_EQ(grid_lanes[1]->item_data[0]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(50)}));
+  EXPECT_EQ(grid_lanes[0]->item_data[1]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(20), LayoutUnit()}));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, PopulateSpannerBreakTokenData) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(3, 100px); flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 20px;"></div>
+      <div style="grid-column: 1 / span 2; height: 20px;"></div>
+      <div style="grid-column: 1 / span 3; height: 20px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // The first lane contains every item, the second contains both spanners, and
+  // the third contains only the three-lane spanner.
+  ASSERT_EQ(grid_lanes.size(), 3u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 3u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 2u);
+  ASSERT_EQ(grid_lanes[2]->item_data.size(), 1u);
+
+  EXPECT_EQ(grid_lanes[0]->item_data[0]->placement_data.offset,
+            LogicalOffset());
+
+  // Each lane spanned by the two-lane item has a distinct entry that references
+  // the same grid item and placement offset.
+  EXPECT_NE(grid_lanes[0]->item_data[0]->item.Get(),
+            grid_lanes[0]->item_data[1]->item.Get());
+  EXPECT_EQ(grid_lanes[0]->item_data[1]->item.Get(),
+            grid_lanes[1]->item_data[0]->item.Get());
+  EXPECT_EQ(grid_lanes[0]->item_data[1]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(20)}));
+  EXPECT_EQ(grid_lanes[1]->item_data[0]->placement_data.offset,
+            grid_lanes[0]->item_data[1]->placement_data.offset);
+
+  // The three-lane item is likewise shared by all of its lane entries.
+  EXPECT_EQ(grid_lanes[0]->item_data[2]->item.Get(),
+            grid_lanes[1]->item_data[1]->item.Get());
+  EXPECT_EQ(grid_lanes[1]->item_data[1]->item.Get(),
+            grid_lanes[2]->item_data[0]->item.Get());
+  EXPECT_EQ(grid_lanes[0]->item_data[2]->placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(40)}));
+  EXPECT_EQ(grid_lanes[1]->item_data[1]->placement_data.offset,
+            grid_lanes[0]->item_data[2]->placement_data.offset);
+  EXPECT_EQ(grid_lanes[2]->item_data[0]->placement_data.offset,
+            grid_lanes[0]->item_data[2]->placement_data.offset);
+
+  // The single-lane item is a start. Only the first lane entry for each spanner
+  // is its start.
+  EXPECT_TRUE(grid_lanes[0]->item_data[0]->is_item_start);
+  EXPECT_TRUE(grid_lanes[0]->item_data[1]->is_item_start);
+  EXPECT_FALSE(grid_lanes[1]->item_data[0]->is_item_start);
+  EXPECT_TRUE(grid_lanes[0]->item_data[2]->is_item_start);
+  EXPECT_FALSE(grid_lanes[1]->item_data[1]->is_item_start);
+  EXPECT_FALSE(grid_lanes[2]->item_data[0]->is_item_start);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, PopulateDensePackedBreakTokenData) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(3, 100px); grid-auto-flow: dense;
+        grid-lanes-pack: dense; flow-tolerance: 0;">
+      <div style="grid-column: 2; height: 20px;"></div>
+      <div style="grid-column: 1 / span 2; height: 20px;"></div>
+      <div style="grid-column: 1; height: 10px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // The packed item is nested in lane 1, the first item remains direct in lane
+  // 2, and the unused third lane remains null.
+  ASSERT_EQ(grid_lanes.size(), 3u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 1u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 2u);
+  EXPECT_FALSE(grid_lanes[2]);
+
+  // The packed item is stored under the spanner below its selected opening.
+  const auto& spanner = *grid_lanes[0]->item_data[0];
+  ASSERT_EQ(spanner.items_packed_above.size(), 1u);
+  const auto& packed_item = *spanner.items_packed_above[0];
+
+  // The packed item fills the opening above the spanner.
+  EXPECT_EQ(spanner.placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(20)}));
+  EXPECT_EQ(packed_item.placement_data.offset, LogicalOffset());
+  EXPECT_TRUE(packed_item.is_item_start);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest, PopulateDensePackedSpannerBreakTokenData) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(3, 100px); grid-auto-flow: dense;
+        grid-lanes-pack: dense; flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 20px;"></div>
+      <div style="grid-column: 1 / span 2; height: 20px;"></div>
+      <div style="grid-column: span 2; height: 10px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // The packed spanner is nested under the lane 2 spanner, but remains a direct
+  // entry in lane 3 because that opening has no spanner below it.
+  ASSERT_EQ(grid_lanes.size(), 3u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 2u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 1u);
+  ASSERT_EQ(grid_lanes[2]->item_data.size(), 1u);
+
+  // Both entries for the packed spanner reference the same grid item and
+  // placement offset.
+  const auto& spanner = *grid_lanes[1]->item_data[0];
+  ASSERT_EQ(spanner.items_packed_above.size(), 1u);
+  const auto& packed_spanner_start = *spanner.items_packed_above[0];
+  const auto& packed_spanner_continuation = *grid_lanes[2]->item_data[0];
+
+  EXPECT_EQ(packed_spanner_start.item.Get(),
+            packed_spanner_continuation.item.Get());
+  EXPECT_EQ(packed_spanner_start.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit()}));
+  EXPECT_EQ(packed_spanner_continuation.placement_data.offset,
+            packed_spanner_start.placement_data.offset);
+  EXPECT_TRUE(packed_spanner_start.is_item_start);
+  EXPECT_FALSE(packed_spanner_continuation.is_item_start);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest,
+       PopulateDenseSpannerWithDifferentParentsPerLane) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(4, 100px); grid-auto-flow: dense;
+        grid-lanes-pack: dense; flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 30px;"></div>
+      <div style="grid-column: 4; height: 30px;"></div>
+      <div style="grid-column: 1 / span 2; height: 20px;"></div>
+      <div style="grid-column: 3 / span 2; height: 20px;"></div>
+      <div style="grid-column: 2 / span 2; height: 10px;"></div>
+      <div style="grid-column: 2 / span 2; height: 5px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // Each outer lane contains its initial item and parent spanner. Each inner
+  // lane contains one direct parent spanner; the packed spanners are nested.
+  ASSERT_EQ(grid_lanes.size(), 4u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 2u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 1u);
+  ASSERT_EQ(grid_lanes[2]->item_data.size(), 1u);
+  ASSERT_EQ(grid_lanes[3]->item_data.size(), 2u);
+
+  // Each packed spanner is stored under a different parent in each occupied
+  // lane.
+  const auto& first_parent = *grid_lanes[1]->item_data[0];
+  const auto& second_parent = *grid_lanes[2]->item_data[0];
+  ASSERT_EQ(first_parent.items_packed_above.size(), 2u);
+  ASSERT_EQ(second_parent.items_packed_above.size(), 2u);
+
+  const auto& first_packed_spanner_start = *first_parent.items_packed_above[0];
+  const auto& first_packed_spanner_continuation =
+      *second_parent.items_packed_above[0];
+
+  const auto& second_packed_spanner_start = *first_parent.items_packed_above[1];
+  const auto& second_packed_spanner_continuation =
+      *second_parent.items_packed_above[1];
+
+  // The first packed spanner starts at the top of both openings.
+  EXPECT_NE(first_parent.item.Get(), second_parent.item.Get());
+  EXPECT_EQ(first_packed_spanner_start.item.Get(),
+            first_packed_spanner_continuation.item.Get());
+  EXPECT_EQ(first_packed_spanner_start.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit()}));
+  EXPECT_EQ(first_packed_spanner_continuation.placement_data.offset,
+            first_packed_spanner_start.placement_data.offset);
+  EXPECT_TRUE(first_packed_spanner_start.is_item_start);
+  EXPECT_FALSE(first_packed_spanner_continuation.is_item_start);
+
+  // The second packed spanner follows it and remains associated with the same
+  // per-lane parents.
+  EXPECT_EQ(second_packed_spanner_start.item.Get(),
+            second_packed_spanner_continuation.item.Get());
+  EXPECT_EQ(second_packed_spanner_start.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit(10)}));
+  EXPECT_EQ(second_packed_spanner_continuation.placement_data.offset,
+            second_packed_spanner_start.placement_data.offset);
+  EXPECT_TRUE(second_packed_spanner_start.is_item_start);
+  EXPECT_FALSE(second_packed_spanner_continuation.is_item_start);
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest,
+       PopulateDenseItemAboveDenseSpannerUsesRootSpanner) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(4, 100px); grid-auto-flow: dense;
+        grid-lanes-pack: dense; flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 30px;"></div>
+      <div style="grid-column: 3; height: 10px;"></div>
+      <div style="grid-column: 4; height: 30px;"></div>
+      <div style="grid-column: 1 / span 2; height: 20px;"></div>
+      <div style="grid-column: 3 / span 2; height: 20px;"></div>
+      <div style="grid-column: 2 / span 2; height: 10px;"></div>
+      <div style="grid-column: 2; height: 5px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // Lane 2 has one direct root spanner with both packed items nested under it.
+  ASSERT_EQ(grid_lanes.size(), 4u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 1u);
+  const auto& root_spanner = *grid_lanes[1]->item_data[0];
+  ASSERT_EQ(root_spanner.items_packed_above.size(), 2u);
+  const auto& packed_spanner = *root_spanner.items_packed_above[0];
+  const auto& packed_item = *root_spanner.items_packed_above[1];
+
+  // The single-lane item uses the opening above the packed spanner but remains
+  // a sibling under the original root instead of nesting under that spanner.
+  EXPECT_EQ(packed_spanner.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit(10)}));
+  EXPECT_TRUE(packed_spanner.items_packed_above.empty());
+  EXPECT_EQ(packed_item.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit()}));
+}
+
+TEST_F(GridLanesLayoutAlgorithmTest,
+       PopulateDenseItemsUseCorrectSpannerForMultipleOpenings) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="grid-lanes" style="display: grid-lanes; height: 200px;
+        grid-template-columns: repeat(2, 100px); grid-auto-flow: dense;
+        grid-lanes-pack: dense; flow-tolerance: 0;">
+      <div style="grid-column: 1; height: 20px;"></div>
+      <div style="grid-column: 1 / span 2; height: 10px;"></div>
+      <div style="grid-column: 1; height: 30px;"></div>
+      <div style="grid-column: 1 / span 2; height: 10px;"></div>
+      <div style="grid-column: 2; height: 15px;"></div>
+      <div style="grid-column: 2; height: 25px;"></div>
+    </div>
+  )HTML");
+
+  const auto grid_lanes = GetFragmentedGridLanesData();
+
+  // Lane 1 contains its two single-lane items and both spanners. Lane 2 has the
+  // two spanners, each of which created a distinct opening.
+  ASSERT_EQ(grid_lanes.size(), 2u);
+  ASSERT_EQ(grid_lanes[0]->item_data.size(), 4u);
+  ASSERT_EQ(grid_lanes[1]->item_data.size(), 2u);
+
+  const auto& first_spanner = *grid_lanes[1]->item_data[0];
+  const auto& second_spanner = *grid_lanes[1]->item_data[1];
+  ASSERT_EQ(first_spanner.items_packed_above.size(), 1u);
+  ASSERT_EQ(second_spanner.items_packed_above.size(), 1u);
+
+  const auto& first_packed_item = *first_spanner.items_packed_above[0];
+  const auto& second_packed_item = *second_spanner.items_packed_above[0];
+
+  // Each packed item is associated with the spanner below the opening it
+  // selected.
+  EXPECT_EQ(first_spanner.placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(20)}));
+  EXPECT_EQ(first_packed_item.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit()}));
+  EXPECT_EQ(second_spanner.placement_data.offset,
+            (LogicalOffset{LayoutUnit(), LayoutUnit(60)}));
+  EXPECT_EQ(second_packed_item.placement_data.offset,
+            (LogicalOffset{LayoutUnit(100), LayoutUnit(30)}));
 }
 
 }  // namespace blink

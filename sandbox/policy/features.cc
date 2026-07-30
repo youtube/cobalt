@@ -38,7 +38,6 @@ BASE_FEATURE(kNetworkServiceFileAllowlist, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_WIN)
 // Enables the Windows speech recognition sandbox hardening.
 BASE_FEATURE(kSpeechRecognitionSandboxHardening,
-             "SpeechRecognitionSandboxHardening",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Experiment for Windows sandbox security mitigation,
@@ -98,7 +97,7 @@ BASE_FEATURE(kWinSboxStrictHandleChecks, base::FEATURE_ENABLED_BY_DEFAULT);
 // Raise the job memory limit for the GPU process sandbox to 1TB. When disabled,
 // the GPU process will use a physical-memory-based scaling heuristic with a
 // maximum of 64GB.
-BASE_FEATURE(kWinSboxHighGPUJobMemoryLimits, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWinSboxHighGPUJobMemoryLimits, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables Module Tampering Protection for CIG processes. When enabled, the
 // loader remaps a clean main image if IAT tampering is detected, preventing

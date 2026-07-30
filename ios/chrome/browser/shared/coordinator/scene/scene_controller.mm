@@ -1331,6 +1331,7 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
     reason = ChangeProfileReason::kSwitchAccountsFromWidget;
   }
 
+  // TODO(crbug.com/462018636): Refactor to use AuthenticationFlow.
   [changeProfileHandler
       changeProfile:*profileName
            forScene:self.sceneState
@@ -1739,7 +1740,9 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
 
   // The UI should be stopped before the models they observe are stopped.
   [_mainCoordinator stop];
-  _mainCoordinator = nil;
+  if (IsAlertCrashFixKillSwitchEnabled()) {
+    _mainCoordinator = nil;
+  }
 
   _incognitoWebStateObserver.reset();
   _mainWebStateObserver.reset();
@@ -1753,6 +1756,12 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
 
   [self.browserLifecycleManager shutdown];
   self.browserLifecycleManager = nil;
+
+  if (!IsAlertCrashFixKillSwitchEnabled()) {
+    // Keep _mainCoordinator alive until shutdown completes so that any late
+    // command invocations during UI teardown do not hit a deallocated target.
+    _mainCoordinator = nil;
+  }
 
   [self.sceneState.profileState removeObserver:self];
   [_sceneState.uiBlockerState removeObserver:self];
@@ -2626,8 +2635,6 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
     [geminiHandler
         startGeminiEntryFlowWithStartupState:startupState
                           baseViewController:self.activeViewController
-                                 accessPoint:signin_metrics::AccessPoint::
-                                                 kDeepLinkDefault
                     showSnackbarOnCompletion:YES
                                   completion:nil];
   } else {
@@ -2662,8 +2669,6 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
   [geminiHandler
       startGeminiEntryFlowWithStartupState:startupState
                         baseViewController:self.activeViewController
-                               accessPoint:signin_metrics::AccessPoint::
-                                               kDeepLinkDefault
                   showSnackbarOnCompletion:YES
                                 completion:nil];
 }

@@ -17,9 +17,7 @@
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_notice_confirmation.h"
 #include "chrome/browser/privacy_sandbox/profile_bucket_metrics.h"
 #include "chrome/browser/profiles/profile.h"
-#include "components/browsing_topics/browsing_topics_service.h"
 #include "components/browsing_topics/common/common_types.h"
-#include "components/browsing_topics/common/semantic_tree.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -31,7 +29,6 @@
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
-#include "content/public/browser/interest_group_manager.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/first_party_set_entry.h"
@@ -174,11 +171,6 @@ std::string GetTopicsSettingsText(bool did_consent,
                          });
 }
 
-void RecordProtectedAudienceJoiningTopFrameDisplayedHistogram(bool value) {
-  base::UmaHistogramBoolean(
-      "PrivacySandbox.ProtectedAudience.JoiningTopFrameDisplayed", value);
-}
-
 // Emits startup histograms relating to the user's topics enabled status on
 // both client and profile level.
 void RecordTopicsEnabledHistograms(Profile* profile, bool enabled) {
@@ -230,22 +222,18 @@ PrivacySandboxServiceImpl::PrivacySandboxServiceImpl(
     privacy_sandbox::PrivacySandboxSettings* privacy_sandbox_settings,
     scoped_refptr<content_settings::CookieSettings> cookie_settings,
     PrefService* pref_service,
-    content::InterestGroupManager* interest_group_manager,
     profile_metrics::BrowserProfileType profile_type,
     content::BrowsingDataRemover* browsing_data_remover,
     HostContentSettingsMap* host_content_settings_map,
-    browsing_topics::BrowsingTopicsService* browsing_topics_service,
     first_party_sets::FirstPartySetsPolicyService* first_party_sets_service,
     PrivacySandboxCountries* privacy_sandbox_countries)
     : profile_(profile),
       privacy_sandbox_settings_(privacy_sandbox_settings),
       cookie_settings_(cookie_settings),
       pref_service_(pref_service),
-      interest_group_manager_(interest_group_manager),
       profile_type_(profile_type),
       browsing_data_remover_(browsing_data_remover),
       host_content_settings_map_(host_content_settings_map),
-      browsing_topics_service_(browsing_topics_service),
       first_party_sets_policy_service_(first_party_sets_service),
       privacy_sandbox_countries_(privacy_sandbox_countries) {
   static constexpr int kFakeTaxonomyVersion = 1;
@@ -313,10 +301,8 @@ void PrivacySandboxServiceImpl::Shutdown() {
   user_prefs_registrar_.RemoveAll();
   privacy_sandbox_countries_ = nullptr;
   first_party_sets_policy_service_ = nullptr;
-  browsing_topics_service_ = nullptr;
   host_content_settings_map_ = nullptr;
   browsing_data_remover_ = nullptr;
-  interest_group_manager_ = nullptr;
   pref_service_ = nullptr;
   cookie_settings_ = nullptr;
   privacy_sandbox_settings_ = nullptr;
@@ -389,14 +375,7 @@ bool PrivacySandboxServiceImpl::IsPartOfManagedRelatedWebsiteSet(
 
 void PrivacySandboxServiceImpl::GetFledgeJoiningEtldPlusOneForDisplay(
     base::OnceCallback<void(std::vector<std::string>)> callback) {
-  if (!interest_group_manager_) {
-    std::move(callback).Run({});
-    return;
-  }
-
-  interest_group_manager_->GetAllInterestGroupDataKeys(base::BindOnce(
-      &PrivacySandboxServiceImpl::ConvertInterestGroupDataKeysForDisplay,
-      weak_factory_.GetWeakPtr(), std::move(callback)));
+  std::move(callback).Run({});
 }
 
 std::vector<std::string>
@@ -473,49 +452,6 @@ void PrivacySandboxServiceImpl::LogPrivacySandboxState() {
   RecordAdMeasurementEnabledHistograms(profile_, ad_measurement_enabled);
 }
 
-void PrivacySandboxServiceImpl::ConvertInterestGroupDataKeysForDisplay(
-    base::OnceCallback<void(std::vector<std::string>)> callback,
-    std::vector<content::InterestGroupManager::InterestGroupDataKey>
-        data_keys) {
-  std::set<std::string> display_entries;
-  for (const auto& data_key : data_keys) {
-    // When displaying interest group information in settings, the joining
-    // origin is the relevant origin.
-    const auto& origin = data_key.joining_origin;
-
-    // Prefer to display the associated eTLD+1, if there is one.
-    auto etld_plus_one = net::registry_controlled_domains::GetDomainAndRegistry(
-        origin, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
-    if (etld_plus_one.length() > 0) {
-      display_entries.emplace(std::move(etld_plus_one));
-      RecordProtectedAudienceJoiningTopFrameDisplayedHistogram(true);
-      continue;
-    }
-
-    // The next best option is a host, which may be an IP address or an eTLD
-    // itself (e.g. github.io).
-    if (origin.host().length() > 0) {
-      display_entries.emplace(origin.host());
-      RecordProtectedAudienceJoiningTopFrameDisplayedHistogram(true);
-      continue;
-    }
-
-    // By design, each interest group should have a joining site or host, and
-    // so this could ideally be a NOTREACHED(). However, following
-    // crbug.com/40933994, it is apparent that this is not always true.
-    // A host or site is expected in other parts of the UI, so we cannot
-    // simply display the origin directly (it may also be empty). Instead, we
-    // elide it but record a metric to understand how widespread this is.
-    // TODO(crbug.com/40283983) - Investigate how much of an issue this is.
-    RecordProtectedAudienceJoiningTopFrameDisplayedHistogram(false);
-  }
-
-  // Entries should be displayed alphabetically, as |display_entries| is a
-  // std::set<std::string>, entries are already ordered correctly.
-  std::move(callback).Run(
-      std::vector<std::string>{display_entries.begin(), display_entries.end()});
-}
-
 std::vector<privacy_sandbox::CanonicalTopic>
 PrivacySandboxServiceImpl::GetCurrentTopTopics() const {
   if (pref_service_->GetBoolean(prefs::kPrivacySandboxM1TopicsEnabled) &&
@@ -523,14 +459,7 @@ PrivacySandboxServiceImpl::GetCurrentTopTopics() const {
     return {fake_current_topics_.begin(), fake_current_topics_.end()};
   }
 
-  if (!browsing_topics_service_) {
-    return {};
-  }
-
-  auto topics = browsing_topics_service_->GetTopTopicsForDisplay();
-  SortAndDeduplicateTopicsForDisplay(topics);
-
-  return topics;
+  return {};
 }
 
 std::vector<privacy_sandbox::CanonicalTopic>
@@ -557,53 +486,13 @@ PrivacySandboxServiceImpl::GetBlockedTopics() const {
 
 std::vector<privacy_sandbox::CanonicalTopic>
 PrivacySandboxServiceImpl::GetFirstLevelTopics() const {
-  static const base::NoDestructor<std::vector<privacy_sandbox::CanonicalTopic>>
-      kFirstLevelTopics([]() -> std::vector<privacy_sandbox::CanonicalTopic> {
-        browsing_topics::SemanticTree semantic_tree;
-
-        auto topics = semantic_tree.GetFirstLevelTopicsInCurrentTaxonomy();
-        std::vector<privacy_sandbox::CanonicalTopic> first_level_topics;
-        first_level_topics.reserve(topics.size());
-        std::transform(
-            topics.begin(), topics.end(),
-            std::back_inserter(first_level_topics),
-            [&](const browsing_topics::Topic& topic) {
-              return privacy_sandbox::CanonicalTopic(
-                  topic, blink::features::kBrowsingTopicsTaxonomyVersion.Get());
-            });
-
-        SortAndDeduplicateTopicsForDisplay(first_level_topics);
-
-        return first_level_topics;
-      }());
-
-  return *kFirstLevelTopics;
+  return {};
 }
 
 std::vector<privacy_sandbox::CanonicalTopic>
 PrivacySandboxServiceImpl::GetChildTopicsCurrentlyAssigned(
     const privacy_sandbox::CanonicalTopic& parent_topic) const {
-  browsing_topics::SemanticTree semantic_tree;
-
-  auto descendant_topics =
-      semantic_tree.GetDescendantTopics(parent_topic.topic_id());
-  auto current_assigned_topics = GetCurrentTopTopics();
-
-  std::set<privacy_sandbox::CanonicalTopic> descendant_topics_set;
-  std::transform(
-      std::begin(descendant_topics), std::end(descendant_topics),
-      std::inserter(descendant_topics_set, descendant_topics_set.begin()),
-      [](browsing_topics::Topic topic) {
-        return privacy_sandbox::CanonicalTopic(
-            topic, blink::features::kBrowsingTopicsTaxonomyVersion.Get());
-      });
-  std::vector<privacy_sandbox::CanonicalTopic> child_topics_assigned;
-  for (const auto topic : current_assigned_topics) {
-    if (descendant_topics_set.contains(topic)) {
-      child_topics_assigned.push_back(topic);
-    }
-  }
-  return child_topics_assigned;
+  return {};
 }
 
 void PrivacySandboxServiceImpl::SetTopicAllowed(
@@ -620,21 +509,12 @@ void PrivacySandboxServiceImpl::SetTopicAllowed(
     return;
   }
 
-  if (!allowed && browsing_topics_service_) {
-    browsing_topics_service_->ClearTopic(topic);
-  }
-
   privacy_sandbox_settings_->SetTopicAllowed(topic, allowed);
 }
 
 PrivacySandboxCountries*
 PrivacySandboxServiceImpl::GetPrivacySandboxCountries() {
   return privacy_sandbox_countries_;
-}
-
-bool PrivacySandboxServiceImpl::
-    PrivacySandboxPrivacyGuideShouldShowAdTopicsCard() {
-  return GetPrivacySandboxCountries()->IsConsentCountry();
 }
 
 bool PrivacySandboxServiceImpl::ShouldUsePrivacyPolicyChinaDomain() {
@@ -729,15 +609,7 @@ void PrivacySandboxServiceImpl::RecordUpdatedTopicsConsent(
 }
 
 void PrivacySandboxServiceImpl::OnTopicsPrefChanged() {
-  // If the user has disabled the preference, any related data stored should
-  // be cleared.
-  if (pref_service_->GetBoolean(prefs::kPrivacySandboxM1TopicsEnabled)) {
-    return;
-  }
-
-  if (browsing_topics_service_) {
-    browsing_topics_service_->ClearAllTopicsData();
-  }
+  // TODO(crbug.com/461709147): Remove method since Topics API is deprecated.
 }
 
 void PrivacySandboxServiceImpl::OnFledgePrefChanged() {

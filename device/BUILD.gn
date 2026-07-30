@@ -56,6 +56,7 @@ test("device_unittests") {
     "gamepad/gamepad_id_list_unittest.cc",
     "gamepad/gamepad_provider_unittest.cc",
     "gamepad/gamepad_service_unittest.cc",
+    "gamepad/gamepad_standard_mappings_unittest.cc",
     "gamepad/hid_haptic_gamepad_unittest.cc",
     "gamepad/public/cpp/gamepad_mojom_traits_unittest.cc",
     "gamepad/xbox_hid_controller_unittest.cc",
@@ -186,6 +187,7 @@ test("device_unittests") {
       "fido/ctap_response_unittest.cc",
       "fido/enclave/attestation_unittest.cc",
       "fido/enclave/enclave_protocol_utils_unittest.cc",
+      "fido/enclave/enclave_websocket_client_unittest.cc",
       "fido/fake_fido_discovery_unittest.cc",
       "fido/fido_device_authenticator_unittest.cc",
       "fido/fido_device_discovery_unittest.cc",
@@ -455,7 +457,11 @@ test("device_unittests") {
     ]
 
     if (enable_openxr) {
-      sources += [ "vr/openxr/openxr_hand_utils_unittest.cc" ]
+      sources += [
+        "vr/openxr/openxr_hand_utils_unittest.cc",
+        "vr/openxr/openxr_view_configuration_unittest.cc",
+      ]
+      deps += [ "//third_party/openxr:openxr_core_headers" ]
     }
 
     defines = [ "DEVICE_VR_IMPLEMENTATION" ]

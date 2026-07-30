@@ -65,6 +65,10 @@ std::string InvocationSourceToString(
       return "CobrowseToolbarButton";
     case LensOverlayInvocationSource::kCobrowsePinnedToolbarButton:
       return "CobrowsePinnedToolbarButton";
+    case LensOverlayInvocationSource::kNtpActionChips:
+      return "NtpActionChips";
+    case LensOverlayInvocationSource::kAppBarAimButton:
+      return "AppBarAimButton";
   }
 }
 
@@ -501,9 +505,11 @@ void RecordTimeToFirstInteraction(
       // first interaction in this case is essentially zero.
       break;
     case lens::LensOverlayInvocationSource::kNtpContextualQuery:
+    case lens::LensOverlayInvocationSource::kNtpActionChips:
     case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
     case lens::LensOverlayInvocationSource::kCobrowseToolbarButton:
     case lens::LensOverlayInvocationSource::kCobrowsePinnedToolbarButton:
+    case lens::LensOverlayInvocationSource::kAppBarAimButton:
       // Not recorded since the ntp and omnibox contextual query flows and the
       // cobrowse toolbar button flow do not use the Lens Overlay Controller.
       break;

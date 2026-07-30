@@ -96,7 +96,6 @@
 #include "chrome/browser/ui/blocked_content/chrome_popup_navigation_delegate.h"
 #include "chrome/browser/ui/blocked_content/framebust_block_tab_helper.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
-#include "chrome/browser/ui/bookmarks/bookmark_tab_helper.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -108,6 +107,7 @@
 #include "chrome/browser/ui/browser_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_ui_prefs.h"
+#include "chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -696,11 +696,11 @@ std::vector<StatusBubble*> Browser::GetStatusBubblesForTesting() {
 }
 
 Profile* Browser::GetProfile() {
-  return profile();
+  return profile_;
 }
 
 const Profile* Browser::GetProfile() const {
-  return profile();
+  return profile_;
 }
 
 bool Browser::IsDeleteScheduled() const {
@@ -810,7 +810,7 @@ void Browser::SynchronouslyDestroyBrowser() {
   // TODO(crbug.com/413168662): Eliminate the need for BrowserCloseManager to
   // call this directly, instead allow Browsers to be destroyed by their owning
   // BrowserManagerService at shutdown.
-  BrowserManagerServiceFactory::GetForProfile(profile())->DeleteBrowser(this);
+  BrowserManagerServiceFactory::GetForProfile(profile_)->DeleteBrowser(this);
   // `this` is no longer valid from this point forward.
 }
 
@@ -1085,115 +1085,85 @@ void Browser::TabStripEmpty() {
 
 void Browser::SetTopControlsShownRatio(content::WebContents* web_contents,
                                        float ratio) {
-  window_->SetTopControlsShownRatio(web_contents, ratio);
+  BrowserWebContentsDelegate::From(this)->SetTopControlsShownRatio(web_contents,
+                                                                   ratio);
 }
 
 int Browser::GetTopControlsHeight() {
-  return window_->GetTopControlsHeight();
+  return BrowserWebContentsDelegate::From(this)->GetTopControlsHeight();
 }
 
 bool Browser::DoBrowserControlsShrinkRendererSize(
     content::WebContents* contents) {
-  return window_->DoBrowserControlsShrinkRendererSize(contents);
+  return BrowserWebContentsDelegate::From(this)
+      ->DoBrowserControlsShrinkRendererSize(contents);
 }
 
 int Browser::GetVirtualKeyboardHeight(content::WebContents* contents) {
-  // This API is currently only used by View Transitions when the virtual
-  // keyboard resizes content.  On desktop platforms, the virtual keyboard can
-  // only inset the visual viewport so it shouldn't ever be called.
-  NOTIMPLEMENTED();
-  return 0;
+  return BrowserWebContentsDelegate::From(this)->GetVirtualKeyboardHeight(
+      contents);
 }
 
 void Browser::SetTopControlsGestureScrollInProgress(bool in_progress) {
-  window_->SetTopControlsGestureScrollInProgress(in_progress);
+  BrowserWebContentsDelegate::From(this)->SetTopControlsGestureScrollInProgress(
+      in_progress);
 }
 
 bool Browser::CanOverscrollContent() {
-#if defined(USE_AURA)
-  return GetFeatures().overscroll_pref_manager()->CanOverscrollContent();
-#else
-  return false;
-#endif
+  return BrowserWebContentsDelegate::From(this)->CanOverscrollContent();
 }
 
 bool Browser::ShouldPreserveAbortedURLs(WebContents* source) {
-  // Allow failed URLs to stick around in the omnibox on the NTP, but not when
-  // other pages have committed.
-  Profile* profile = Profile::FromBrowserContext(source->GetBrowserContext());
-  if (!profile || !source->GetController().GetLastCommittedEntry()) {
-    return false;
-  }
-  GURL committed_url(source->GetController().GetLastCommittedEntry()->GetURL());
-  return search::IsNTPOrRelatedURL(committed_url, profile);
+  return BrowserWebContentsDelegate::From(this)->ShouldPreserveAbortedURLs(
+      source);
 }
 
 void Browser::SetFocusToLocationBar() {
-  // Two differences between this and FocusLocationBar():
-  // (1) This doesn't get recorded in user metrics, since it's called
-  //     internally.
-  // (2) This is called with |is_user_initiated| == false, because this is a
-  //     renderer initiated focus (this method is a WebContentsDelegate
-  //     override).
-  window_->SetFocusToLocationBar(false);
+  BrowserWebContentsDelegate::From(this)->SetFocusToLocationBar();
 }
 
 void Browser::PreHandleDragUpdate(const content::DropData& drop_data,
                                   const gfx::PointF& client_pt) {
-  window_->PreHandleDragUpdate(drop_data, client_pt);
+  BrowserWebContentsDelegate::From(this)->PreHandleDragUpdate(drop_data,
+                                                              client_pt);
 }
 
 void Browser::PreHandleDragExit() {
-  window_->PreHandleDragExit();
+  BrowserWebContentsDelegate::From(this)->PreHandleDragExit();
 }
 
 void Browser::HandleDragEnded() {
-  window_->HandleDragEnded();
+  BrowserWebContentsDelegate::From(this)->HandleDragEnded();
 }
 
 content::KeyboardEventProcessingResult Browser::PreHandleKeyboardEvent(
     content::WebContents* source,
     const NativeWebKeyboardEvent& event) {
-  // Forward keyboard events to the manager for fullscreen / mouse lock. This
-  // may consume the event (e.g., Esc exits fullscreen mode).
-  // TODO(koz): Write a test for this http://crbug.com/40647724.
-  if (browser_window_features()->exclusive_access_manager()->HandleUserKeyEvent(
-          event)) {
-    return content::KeyboardEventProcessingResult::HANDLED;
-  }
-
-  return window_->PreHandleKeyboardEvent(event);
+  return BrowserWebContentsDelegate::From(this)->PreHandleKeyboardEvent(source,
+                                                                        event);
 }
 
 bool Browser::HandleKeyboardEvent(content::WebContents* source,
                                   const NativeWebKeyboardEvent& event) {
-  DevToolsWindow* devtools_window =
-      DevToolsWindow::GetInstanceForInspectedWebContents(source);
-  return (devtools_window && devtools_window->ForwardKeyboardEvent(event)) ||
-         window_->HandleKeyboardEvent(event);
+  return BrowserWebContentsDelegate::From(this)->HandleKeyboardEvent(source,
+                                                                     event);
 }
 
 bool Browser::CanDragEnter(content::WebContents* source,
                            const content::DropData& data,
                            blink::DragOperationsMask operations_allowed) {
-#if BUILDFLAG(IS_CHROMEOS)
-  // Disallow drag-and-drop navigation for Settings windows which do not support
-  // external navigation.
-  if ((operations_allowed & blink::kDragOperationLink) &&
-      chrome::SettingsWindowManager::GetInstance()->IsSettingsBrowser(this)) {
-    return false;
-  }
-#endif
-  return true;
+  return BrowserWebContentsDelegate::From(this)->CanDragEnter(
+      source, data, operations_allowed);
 }
 
-void Browser::CreateSmsPrompt(content::RenderFrameHost*,
-                              const std::vector<url::Origin>&,
+void Browser::CreateSmsPrompt(content::RenderFrameHost* host,
+                              const std::vector<url::Origin>& origin_list,
                               const std::string& one_time_code,
                               base::OnceClosure on_confirm,
                               base::OnceClosure on_cancel) {
-  // TODO(crbug.com/40103792): implementation left pending deliberately.
-  std::move(on_confirm).Run();
+  BrowserWebContentsDelegate::From(this)->CreateSmsPrompt(
+      host, origin_list, one_time_code, std::move(on_confirm),
+      std::move(on_cancel));
 }
 
 bool Browser::ShouldAllowRunningInsecureContent(
@@ -1201,19 +1171,9 @@ bool Browser::ShouldAllowRunningInsecureContent(
     bool allowed_per_prefs,
     const url::Origin& origin,
     const GURL& resource_url) {
-  // Note: this implementation is a mirror of
-  // ContentSettingsObserver::allowRunningInsecureContent.
-  if (allowed_per_prefs) {
-    return true;
-  }
-
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  HostContentSettingsMap* content_settings =
-      HostContentSettingsMapFactory::GetForProfile(profile);
-  return content_settings->GetContentSetting(
-             web_contents->GetLastCommittedURL(), GURL(),
-             ContentSettingsType::MIXEDSCRIPT) == CONTENT_SETTING_ALLOW;
+  return BrowserWebContentsDelegate::From(this)
+      ->ShouldAllowRunningInsecureContent(web_contents, allowed_per_prefs,
+                                          origin, resource_url);
 }
 
 void Browser::OnDidBlockNavigation(
@@ -1222,34 +1182,23 @@ void Browser::OnDidBlockNavigation(
     const GURL& initiator_url,
     const url::Origin& initiator_origin,
     blink::mojom::NavigationBlockedReason reason) {
-  if (reason ==
-      blink::mojom::NavigationBlockedReason::kRedirectWithNoUserGesture) {
-    if (auto* framebust_helper =
-            FramebustBlockTabHelper::FromWebContents(web_contents)) {
-      auto on_click = [](const GURL& url, size_t index, size_t total_elements) {
-        UMA_HISTOGRAM_ENUMERATION(
-            "WebCore.Framebust.ClickThroughPosition",
-            blocked_content::GetListItemPositionFromDistance(index,
-                                                             total_elements));
-      };
-      framebust_helper->AddBlockedUrl(blocked_url, initiator_origin,
-                                      base::BindOnce(on_click));
-    }
-  }
+  BrowserWebContentsDelegate::From(this)->OnDidBlockNavigation(
+      web_contents, blocked_url, initiator_url, initiator_origin, reason);
 }
 
 content::PictureInPictureResult Browser::EnterPictureInPicture(
     content::WebContents* web_contents) {
-  return PictureInPictureWindowManager::GetInstance()
-      ->EnterVideoPictureInPicture(web_contents);
+  return BrowserWebContentsDelegate::From(this)->EnterPictureInPicture(
+      web_contents);
 }
 
 void Browser::ExitPictureInPicture() {
-  PictureInPictureWindowManager::GetInstance()->ExitPictureInPicture();
+  BrowserWebContentsDelegate::From(this)->ExitPictureInPicture();
 }
 
 bool Browser::IsBackForwardCacheSupported(content::WebContents& web_contents) {
-  return true;
+  return BrowserWebContentsDelegate::From(this)->IsBackForwardCacheSupported(
+      web_contents);
 }
 
 content::PreloadingEligibility Browser::IsPrerender2Supported(
@@ -1284,7 +1233,7 @@ void Browser::OnWindowDidShow() {
 
   // Show any pending global error bubble.
   GlobalErrorService* service =
-      GlobalErrorServiceFactory::GetForProfile(profile());
+      GlobalErrorServiceFactory::GetForProfile(profile_);
   GlobalError* error = service->GetFirstGlobalErrorWithBubbleView();
   if (error) {
     error->ShowBubbleView(this);
@@ -2008,6 +1957,13 @@ blink::mojom::DisplayMode Browser::GetDisplayMode(
   return blink::mojom::DisplayMode::kBrowser;
 }
 
+blink::mojom::ApplicationContext Browser::GetApplicationContext(
+    const WebContents* /*web_contents*/) {
+  return web_app::AppBrowserController::IsWebApp(this)
+             ? blink::mojom::ApplicationContext::kApplication
+             : blink::mojom::ApplicationContext::kNone;
+}
+
 blink::ProtocolHandlerSecurityLevel Browser::GetProtocolHandlerSecurityLevel(
     content::RenderFrameHost* requesting_frame) {
   content::BrowserContext* context = requesting_frame->GetBrowserContext();
@@ -2133,44 +2089,33 @@ void Browser::FindReply(WebContents* web_contents,
 void Browser::RequestPointerLock(WebContents* web_contents,
                                  bool user_gesture,
                                  bool last_unlocked_by_target) {
-  browser_window_features()
-      ->exclusive_access_manager()
-      ->pointer_lock_controller()
-      ->RequestToLockPointer(web_contents, user_gesture,
-                             last_unlocked_by_target);
+  BrowserWebContentsDelegate::From(this)->RequestPointerLock(
+      web_contents, user_gesture, last_unlocked_by_target);
 }
 
 void Browser::LostPointerLock() {
-  browser_window_features()
-      ->exclusive_access_manager()
-      ->pointer_lock_controller()
-      ->ExitExclusiveAccessToPreviousState();
+  BrowserWebContentsDelegate::From(this)->LostPointerLock();
 }
 
 bool Browser::IsWaitingForPointerLockPrompt(WebContents* web_contents) {
-  return browser_window_features()
-      ->exclusive_access_manager()
-      ->pointer_lock_controller()
-      ->IsWaitingForPointerLockPrompt(web_contents);
+  return BrowserWebContentsDelegate::From(this)->IsWaitingForPointerLockPrompt(
+      web_contents);
 }
 
 bool Browser::AllowKeyboardLockForInnerContents(WebContents* web_contents) {
-  return capabilities()->AllowKeyboardLockForInnerContents(web_contents);
+  return BrowserWebContentsDelegate::From(this)
+      ->AllowKeyboardLockForInnerContents(web_contents);
 }
 
 void Browser::RequestKeyboardLock(WebContents* web_contents,
                                   bool esc_key_locked) {
-  browser_window_features()
-      ->exclusive_access_manager()
-      ->keyboard_lock_controller()
-      ->RequestKeyboardLock(web_contents, esc_key_locked);
+  BrowserWebContentsDelegate::From(this)->RequestKeyboardLock(web_contents,
+                                                              esc_key_locked);
 }
 
 void Browser::CancelKeyboardLockRequest(WebContents* web_contents) {
-  browser_window_features()
-      ->exclusive_access_manager()
-      ->keyboard_lock_controller()
-      ->CancelKeyboardLockRequest(web_contents);
+  BrowserWebContentsDelegate::From(this)->CancelKeyboardLockRequest(
+      web_contents);
 }
 
 void Browser::RequestMediaAccessPermission(
@@ -2264,15 +2209,6 @@ void Browser::CapturePaintPreviewOfSubframe(
 }
 #endif
 
-///////////////////////////////////////////////////////////////////////////////
-// Browser, BookmarkTabHelperObserver implementation:
-
-void Browser::URLStarredChanged(content::WebContents* web_contents,
-                                bool starred) {
-  if (web_contents == tab_strip_model_->GetActiveWebContents()) {
-    window_->SetStarredState(starred);
-  }
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Browser, Command and state updating (private):
@@ -2720,10 +2656,8 @@ void Browser::SetAsDelegate(WebContents* web_contents, bool set_delegate) {
       ->SetDelegate(set_delegate ? BrowserWindowModalDialogDelegate::From(this)
                                  : nullptr);
   if (delegate) {
-    BookmarkTabHelper::FromWebContents(web_contents)->AddObserver(this);
     web_contents_collection_.StartObserving(web_contents);
   } else {
-    BookmarkTabHelper::FromWebContents(web_contents)->RemoveObserver(this);
     web_contents_collection_.StopObserving(web_contents);
   }
 }

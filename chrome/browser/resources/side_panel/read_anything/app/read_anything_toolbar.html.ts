@@ -65,6 +65,14 @@ export function getHtml(this: ReadAnythingToolbarElement) {
         </cr-button>
       ` : ''}
     </span>
+    ${this.isLineFocusShowing ? html`
+    <cr-button class="toolbar-button" id="line-focus-off"
+      tabindex="-1"
+      @click="${this.onLineFocusOffClick_}">
+      ${this.i18n('turnLineFocusOffTitle')}
+    </cr-button>
+    ` : ''}
+
   ${!this.isImmersiveEnabled_ ? html`
     <cr-button class="toolbar-button" id="rate"
           tabindex="${this.getRateTabIndex_()}"
@@ -266,6 +274,7 @@ export function getHtml(this: ReadAnythingToolbarElement) {
       .nonModal="${this.isImmersiveEnabled_}"
       .settingsPrefs="${this.settingsPrefs}"
       .lineFocusStyle="${this.lineFocusStyle}"
+      .lineFocusEnabled="${this.lineFocusEnabled}"
       .lineFocusMovement="${this.lineFocusMovement}"
       @close-all-menus="${this.onCloseAllMenus_}">
   </line-focus-menu>

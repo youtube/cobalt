@@ -5,7 +5,8 @@
 #ifndef COMPONENTS_VIZ_SERVICE_DISPLAY_FRAME_DEADLINE_DECIDER_H_
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_FRAME_DEADLINE_DECIDER_H_
 
-#include "base/memory/raw_ref.h"
+#include <optional>
+
 #include "base/time/time.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/service/viz_service_export.h"
@@ -27,12 +28,12 @@ class VIZ_SERVICE_EXPORT FrameDeadlineDecider {
   // Queries the best deadline index for the given parameters without modifying
   // any internal state of the decider. This is safe to call multiple times or
   // from const methods.
-  size_t QueryDeadline(
-      const PossibleDeadlines& possible_deadlines,
-      base::TimeDelta vsync_interval,
-      int max_allowed_buffers,
-      base::TimeTicks frame_time,
-      std::optional<base::TimeTicks> earliest_input_time) const;
+  size_t QueryDeadline(const PossibleDeadlines& possible_deadlines,
+                       base::TimeDelta vsync_interval,
+                       int max_allowed_buffers,
+                       base::TimeTicks frame_time,
+                       std::optional<base::TimeTicks> earliest_input_time,
+                       bool is_handling_interaction) const;
 
   // Selects the best deadline index and updates the internal state of the
   // decider to lock to the selected deadline for the current sequence.
@@ -43,19 +44,29 @@ class VIZ_SERVICE_EXPORT FrameDeadlineDecider {
                         base::TimeDelta vsync_interval,
                         int max_allowed_buffers,
                         base::TimeTicks frame_time,
-                        std::optional<base::TimeTicks> earliest_input_time);
+                        std::optional<base::TimeTicks> earliest_input_time,
+                        bool is_handling_interaction);
 
-  // Called when the display scheduler goes idle or invisible, to reset sequence
-  // state.
-  void OnGoIdle();
+  // Called when the display becomes invisible.
+  void OnDisplayInvisible();
 
  private:
+  bool IsPartOfOngoingFrameSequence(base::TimeTicks frame_time,
+                                    bool is_handling_interaction) const;
+
   size_t FindClosestDeadlineByPresentation(
       const PossibleDeadlines& possible_deadlines) const;
 
-  bool in_frame_sequence_ = false;
-  base::TimeDelta curr_sequence_present_delta_;
-  size_t curr_sequence_deadline_index_ = 0;
+  struct FrameSequenceState {
+    base::TimeDelta present_delta;
+    size_t deadline_index = 0;
+    base::TimeTicks last_frame_time;
+    bool is_interaction_active = false;
+  };
+
+  std::optional<FrameSequenceState> frame_sequence_state_;
+  const base::TimeDelta max_non_interactive_idle_duration_;
+  const base::TimeDelta max_interactive_idle_duration_;
   const bool use_platform_preferred_deadlines_;
 };
 

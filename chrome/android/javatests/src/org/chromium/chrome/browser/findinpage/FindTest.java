@@ -4,6 +4,10 @@
 
 package org.chromium.chrome.browser.findinpage;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -17,9 +21,6 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import androidx.test.espresso.Espresso;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
@@ -45,6 +46,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.KeyUtils;
+import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
@@ -59,6 +61,7 @@ import org.chromium.chrome.test.util.MenuUtils;
 import org.chromium.content_public.browser.test.util.TouchCommon;
 import org.chromium.content_public.browser.test.util.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.DeviceInput;
 
 /** Find in page tests. */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -75,6 +78,8 @@ public class FindTest {
 
     @Before
     public void setUp() throws Exception {
+        DeviceInput.setSupportsKeyboardForTesting(false);
+        DeviceInput.setSupportsPrecisionPointerForTesting(false);
         mActivityTestRule.waitForActivityNativeInitializationComplete();
         mPage = mActivityTestRule.startOnBlankPage();
 
@@ -295,6 +300,7 @@ public class FindTest {
     @Test
     @MediumTest
     @Feature({"FindInPage"})
+    @RequiresRestart("crbug.com/539532908")
     public void testResultsBarVisibleAfterTypingText() {
         mActivityTestRule.loadUrl(mActivityTestRule.getTestServer().getURL(FILEPATH));
         findInPageFromMenu();

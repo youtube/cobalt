@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">Be om mobilvisning</translation>
 <translation id="2870560284913253234">Nettsted</translation>
 <translation id="2874939134665556319">Forrige spor</translation>
+<translation id="2890412325133442491">Standard Chrome</translation>
 <translation id="2891975107962658722">Blokker et nettsted fra å lagre data på enheten din</translation>
 <translation id="2903493209154104877">Adresser</translation>
 <translation id="2903764741244499151">Nettsteder kan bruke bilde-i-bilde automatisk. Da kan du fortsette å se på videoer, samtidig som du frigjør skjermen til andre oppgaver.</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">Endre passordene</translation>
 <translation id="3797520601150691162">Ikke bruk mørkt tema for et bestemt nettsted</translation>
 <translation id="3803367742635802571">Nettsteder du besøker, kan slutte å fungere som de skal</translation>
-<translation id="3816118180265633665">Chrome i farger</translation>
 <translation id="381841723434055211">Telefonnumre</translation>
 <translation id="3823453485268218808">Skrifttype: Mono</translation>
 <translation id="3826050100957962900">Tredjepartspålogging</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">Avslutt fullskjerm</translation>
 <translation id="640163077447496506">Utløper i dag</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">Temasamlinger</translation>
 <translation id="6439114592976064011">Blokkér nettsteder fra å bruke virtuell virkelighet-enheten din og -dataene dine</translation>
 <translation id="6447842834002726250">Informasjonskapsler</translation>
 <translation id="6452138246455930388">Avslag på den åpne fanen din, fra <ph name="OLD_PRICE" /> til <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -625,6 +624,7 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:</translation>
 <translation id="7423098979219808738">Spør først</translation>
 <translation id="7423538860840206698">Blokkert fra å lese utklippstavlen</translation>
 <translation id="7425915948813553151">Mørkt tema for nettsteder</translation>
+<translation id="7429767477925996803">Chrome-farger</translation>
 <translation id="746412105358554870">JavaScript-optimalisering og -sikkerhet</translation>
 <translation id="7478658909253570368">Ikke la nettsteder koble til serielle porter</translation>
 <translation id="7488573225650545859">Skjul Vis faner på applisten</translation>
@@ -676,7 +676,6 @@ Avansert beskyttelse styrer disse Chrome-innstillingene:</translation>
 <translation id="802154636333426148">Nedlastingen mislyktes</translation>
 <translation id="8033047164036749181">Abonner på varsler fra dette nettstedet</translation>
 <translation id="8051193500142930381">Funksjoner som krever kamera, kommer ikke til å virke</translation>
-<translation id="8056330801132235235">Standard Chrome</translation>
 <translation id="8067883171444229417">Spill av videoen</translation>
 <translation id="8068648041423924542">Kan ikke velge sertifikat.</translation>
 <translation id="8077120325605624147">Alle nettsteder du besøker, kan vise deg alle slags annonser</translation>

@@ -16,6 +16,7 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
@@ -30,8 +31,8 @@ const CGFloat kLabelVerticalSpacing = 2.0;
 UIImage* GetEnterpriseIcon() {
   UIColor* color = [UIColor colorNamed:kTextSecondaryColor];
   return SymbolWithPalette(
-      CustomSymbolWithConfiguration(
-          kEnterpriseSymbol,
+      SymbolWithConfiguration(
+          SymbolEnterprise,
           [UIImageSymbolConfiguration
               configurationWithFont:
                   [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote]]),
@@ -46,9 +47,9 @@ UIImage* GetEnterpriseIcon() {
   // corners.
   UIImage* _avatarImage;
   // Name displayed in main label.
-  NSString* _title;
+  NSString* _name;
   // Email subtitle displayed in secondary label.
-  NSString* _subtitle;
+  NSString* _email;
   // The account avatar.
   UIImageView* _imageView;
   // Whether to use large margin.
@@ -70,8 +71,8 @@ UIImage* GetEnterpriseIcon() {
     CHECK(avatarImage);
     CHECK(email);
     _avatarImage = avatarImage;
-    _title = name ? name : email;
-    _subtitle = name ? email : nil;
+    _name = name ? name : email;
+    _email = name ? email : nil;
     _useLargeMargins = useLargeMargins;
     self.isAccessibilityElement = YES;
     self.accessibilityTraits |= UIAccessibilityTraitHeader;
@@ -86,29 +87,29 @@ UIImage* GetEnterpriseIcon() {
     _imageView.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_imageView];
 
-    UILabel* titleLabel = [[UILabel alloc] init];
-    titleLabel.text = _title;
-    titleLabel.textAlignment = NSTextAlignmentCenter;
-    titleLabel.numberOfLines = 1;
-    titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-    titleLabel.adjustsFontForContentSizeCategory = YES;
-    titleLabel.font =
+    UILabel* nameLabel = [[UILabel alloc] init];
+    nameLabel.text = _name;
+    nameLabel.textAlignment = NSTextAlignmentCenter;
+    nameLabel.numberOfLines = 1;
+    nameLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    nameLabel.adjustsFontForContentSizeCategory = YES;
+    nameLabel.font =
         [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
-    titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
-    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self addSubview:titleLabel];
+    nameLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
+    nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:nameLabel];
 
-    UILabel* subtitleLabel = [[UILabel alloc] init];
-    subtitleLabel.text = _subtitle;
-    subtitleLabel.textAlignment = NSTextAlignmentCenter;
-    subtitleLabel.numberOfLines = 1;
-    subtitleLabel.adjustsFontForContentSizeCategory = YES;
-    subtitleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-    subtitleLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
-    subtitleLabel.font =
+    UILabel* emailLabel = [[UILabel alloc] init];
+    emailLabel.text = _email;
+    emailLabel.textAlignment = NSTextAlignmentCenter;
+    emailLabel.numberOfLines = 1;
+    emailLabel.adjustsFontForContentSizeCategory = YES;
+    emailLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    emailLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
+    emailLabel.font =
         [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
-    subtitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self addSubview:subtitleLabel];
+    emailLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:emailLabel];
     CGFloat bottomMargin =
         _useLargeMargins
             ? (2 * kTableViewLargeVerticalSpacing)
@@ -160,7 +161,7 @@ UIImage* GetEnterpriseIcon() {
 
       [NSLayoutConstraint activateConstraints:@[
         [horizontalStack.topAnchor
-            constraintEqualToAnchor:subtitleLabel.bottomAnchor
+            constraintEqualToAnchor:emailLabel.bottomAnchor
                            constant:kLabelVerticalSpacing],
         [horizontalStack.centerXAnchor
             constraintEqualToAnchor:self.centerXAnchor],
@@ -175,7 +176,7 @@ UIImage* GetEnterpriseIcon() {
       ]];
 
     } else {
-      [self.bottomAnchor constraintEqualToAnchor:subtitleLabel.bottomAnchor
+      [self.bottomAnchor constraintEqualToAnchor:emailLabel.bottomAnchor
                                         constant:bottomMargin]
           .active = YES;
     }
@@ -193,21 +194,21 @@ UIImage* GetEnterpriseIcon() {
                                         .width],
       [_imageView.heightAnchor constraintEqualToAnchor:_imageView.widthAnchor],
 
-      [titleLabel.topAnchor constraintEqualToAnchor:_imageView.bottomAnchor
+      [nameLabel.topAnchor constraintEqualToAnchor:_imageView.bottomAnchor
                                            constant:kTableViewVerticalSpacing],
-      [titleLabel.leadingAnchor
+      [nameLabel.leadingAnchor
           constraintEqualToAnchor:self.leadingAnchor
                          constant:kTableViewHorizontalSpacing],
-      [titleLabel.trailingAnchor
+      [nameLabel.trailingAnchor
           constraintEqualToAnchor:self.trailingAnchor
                          constant:-kTableViewHorizontalSpacing],
 
-      [subtitleLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor
+      [emailLabel.topAnchor constraintEqualToAnchor:nameLabel.bottomAnchor
                                               constant:kLabelVerticalSpacing],
-      [subtitleLabel.leadingAnchor
-          constraintEqualToAnchor:titleLabel.leadingAnchor],
-      [subtitleLabel.trailingAnchor
-          constraintEqualToAnchor:titleLabel.trailingAnchor],
+      [emailLabel.leadingAnchor
+          constraintEqualToAnchor:nameLabel.leadingAnchor],
+      [emailLabel.trailingAnchor
+          constraintEqualToAnchor:nameLabel.trailingAnchor],
     ]];
     [self updateFrame];
   }
@@ -217,15 +218,27 @@ UIImage* GetEnterpriseIcon() {
 #pragma mark - UIAccessibility
 
 - (NSString*)accessibilityLabel {
-  NSMutableString* accessibilityLabel =
-      [NSMutableString stringWithString:_title];
-  if (_subtitle) {
-    [accessibilityLabel appendFormat:@", %@", _subtitle];
+  if (_name) {
+    if ([self managed]) {
+      return l10n_util::GetNSStringF(
+          IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME_MANAGED_STATUS,
+          base::SysNSStringToUTF16(_name), base::SysNSStringToUTF16(_email),
+          base::SysNSStringToUTF16([self managementDescription]));
+    } else {
+      return l10n_util::GetNSStringF(
+          IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME,
+          base::SysNSStringToUTF16(_name), base::SysNSStringToUTF16(_email));
+    }
+  } else {
+    if ([self managed]) {
+      return l10n_util::GetNSStringF(
+          IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_MANAGED_STATUS,
+          base::SysNSStringToUTF16(_email),
+          base::SysNSStringToUTF16([self managementDescription]));
+    } else {
+      return _email;
+    }
   }
-  if ([self managed]) {
-    [accessibilityLabel appendFormat:@". %@", [self managementDescription]];
-  }
-  return accessibilityLabel;
 }
 
 // Updates the frame size.
@@ -243,12 +256,12 @@ UIImage* GetEnterpriseIcon() {
   return _avatarImage;
 }
 
-- (NSString*)title {
-  return _title;
+- (NSString*)name {
+  return _name;
 }
 
-- (NSString*)subtitle {
-  return _subtitle;
+- (NSString*)email {
+  return _email;
 }
 
 - (BOOL)managed {

@@ -4,12 +4,14 @@
 
 #include "chrome/browser/glic/host/context/glic_share_image_handler.h"
 
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
 #include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/common/chrome_features.h"
 #include "content/public/browser/clipboard_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -192,7 +194,11 @@ void GlicShareImageHandler::OnReceivedImage(
   PolicyCheck policy_check =
       do_policy_checks ? PolicyCheck::kClipboard : PolicyCheck::kNone;
 
-  GlicInvokeOptions invoke_options(Target(*tab, NewConversation()),
+  Target target =
+      base::FeatureList::IsEnabled(features::kGlicShareImageNoNewConversation)
+          ? Target(*tab, DefaultConversation())
+          : Target(*tab, NewConversation());
+  GlicInvokeOptions invoke_options(std::move(target),
                                    mojom::InvocationSource::kSharedImage);
   invoke_options.additional_context = AdditionalTabContext(
       std::move(additional_context), render_frame_host_id_, policy_check);
@@ -201,9 +207,8 @@ void GlicShareImageHandler::OnReceivedImage(
   invoke_options.on_error = base::BindOnce(
       &GlicShareImageHandler::OnInvokeError, weak_ptr_factory_.GetWeakPtr());
   invoke_options.on_success = base::BindOnce(
-      &GlicShareImageHandler::ShareComplete, weak_ptr_factory_.GetWeakPtr(),
-      ShareImageResult::kSentImageToClient);
-  service_->Invoke(std::move(invoke_options));
+      &GlicShareImageHandler::OnInvokeSuccess, weak_ptr_factory_.GetWeakPtr());
+  current_invocation_instance_ = service_->Invoke(std::move(invoke_options));
   StopObservingNavigation();
 }
 
@@ -254,10 +259,20 @@ void GlicShareImageHandler::OnInvokeError(GlicInvokeError error) {
     case GlicInvokeError::kInstanceNotFound:
       ShareComplete(ShareImageResult::kFailedLostInstance);
       break;
-    default:
-      ShareComplete(ShareImageResult::kFailedUnknown);
+    case GlicInvokeError::kCancelled:
+      ShareComplete(ShareImageResult::kFailedCancelled);
+      break;
+    case GlicInvokeError::kProfileNotEnabled:
+      ShareComplete(ShareImageResult::kFailedProfileNotEnabled);
+      break;
+    case GlicInvokeError::kSuperseded:
+      ShareComplete(ShareImageResult::kFailedSuperseded);
       break;
   }
+}
+
+void GlicShareImageHandler::OnInvokeSuccess() {
+  ShareComplete(ShareImageResult::kSentImageToClient);
 }
 
 void GlicShareImageHandler::ShareComplete(ShareImageResult result) {
@@ -394,6 +409,14 @@ void GlicShareImageHandler::Reset() {
   frame_url_ = GURL();
   frame_origin_ = url::Origin();
   StopObservingNavigation();
+
+  if (is_share_in_progress_ && current_invocation_instance_) {
+    // Since we invalidate the weak pointers below, the invoke callbacks will
+    // not work. I.e., we should not see GlicInvokeError::kCancelled due to
+    // the following.
+    current_invocation_instance_->CancelInvoke();
+    current_invocation_instance_.reset();
+  }
 
   // Ensure that async callbacks aren't invoked.
   weak_ptr_factory_.InvalidateWeakPtrs();

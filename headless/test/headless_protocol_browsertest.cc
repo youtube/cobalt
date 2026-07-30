@@ -301,19 +301,13 @@ HEADLESS_PROTOCOL_TEST(Geolocation, "emulation/geolocation-crash.js")
 
 HEADLESS_PROTOCOL_TEST(DragStarted, "input/dragIntercepted.js")
 
-// https://crbug.com/1414190
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-#define MAYBE_InputClipboardOps DISABLED_InputClipboardOps
-#else
-#define MAYBE_InputClipboardOps InputClipboardOps
-#endif
-HEADLESS_PROTOCOL_TEST(MAYBE_InputClipboardOps, "input/input-clipboard-ops.js")
+HEADLESS_PROTOCOL_TEST(InputClipboardOps, "shared/input-clipboard-ops.js")
 
 HEADLESS_PROTOCOL_TEST(ClipboardApiCopyPaste,
                        "input/clipboard-api-copy-paste.js")
 
 HEADLESS_PROTOCOL_TEST(FocusBlurNotifications,
-                       "input/focus-blur-notifications.js")
+                       "shared/focus-blur-notifications.js")
 
 HEADLESS_PROTOCOL_TEST(HeadlessSessionBasicsTest,
                        "sessions/headless-session-basics.js")

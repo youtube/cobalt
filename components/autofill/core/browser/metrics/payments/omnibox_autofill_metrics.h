@@ -59,8 +59,54 @@ enum class OmniboxAutofillShowChipDecisionPart1 {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:OmniboxAutofillShowChipDecisionPart1)
 
+// This enum represents the second chunk of the decision of whether to show the
+// omnibox autofill chip or not.
+//
+// Note that this histogram is recorded once per Omnibox Autofill flow (either
+// when `OnFieldBecameVisible()` or `Reset()` is called), *not* necessarily once
+// per page load.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(OmniboxAutofillShowChipDecisionPart2)
+enum class OmniboxAutofillShowChipDecisionPart2 {
+  // IntersectionObserver never reported that the field became visible.
+  kIntersectionObserverNeverReportedVisibility = 0,
+
+  // IntersectionObserver reported that the field became visible, and the
+  // omnibox chip can be shown.
+  kSuccess = 1,
+
+  kMaxValue = kSuccess,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:OmniboxAutofillShowChipDecisionPart2)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(OmniboxAutofillEvents)
+enum class OmniboxAutofillEvents {
+  kChipShown = 0,
+  kChipShownOnce = 1,
+  kChipClicked = 2,
+  kChipClickedOnce = 3,
+  kSuggestionAccepted = 4,
+  kSuggestionAcceptedOnce = 5,
+  kFormFilled = 6,
+  kFormFilledOnce = 7,
+  kFormSubmittedOnce = 8,
+  kMaxValue = kFormSubmittedOnce,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:OmniboxAutofillEvents)
+
 void LogOmniboxAutofillShowChipDecisionPart1(
     OmniboxAutofillShowChipDecisionPart1 metric);
+
+void LogOmniboxAutofillShowChipDecisionPart2(
+    OmniboxAutofillShowChipDecisionPart2 metric);
+
+void LogOmniboxAutofillEvents(OmniboxAutofillEvents metric);
 
 }  // namespace autofill::autofill_metrics
 

@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/global_media_controls/media_toolbar_button.h"
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
@@ -60,6 +61,7 @@
 #include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_drag_state.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -366,6 +368,8 @@ WebUIToolbarWebView::WebUIToolbarWebView(
 
   content::WebContents* web_contents = web_view->GetWebContents();
   if (web_contents) {
+    WebUIToolbarUIDependencyProviderUserData::CreateForWebContents(web_contents,
+                                                                   this);
     scoped_accessibility_mode_ =
         content::BrowserAccessibilityState::GetInstance()
             ->CreateScopedModeForWebContents(
@@ -387,7 +391,12 @@ WebUIToolbarWebView::WebUIToolbarWebView(
   }
 }
 
-WebUIToolbarWebView::~WebUIToolbarWebView() = default;
+WebUIToolbarWebView::~WebUIToolbarWebView() {
+  if (web_contents()) {
+    web_contents()->RemoveUserData(
+        WebUIToolbarUIDependencyProviderUserData::UserDataKey());
+  }
+}
 
 int WebUIToolbarWebView::GetLocationBarWidthForTesting() const {
   CHECK(location_bar_);
@@ -669,6 +678,16 @@ void WebUIToolbarWebView::MovePinnedToolbarActionBy(
   }
 }
 
+void WebUIToolbarWebView::MoveExtensionAction(const std::string& extension_id,
+                                              int32_t target_index) {
+  extensions_container_.MoveExtension(extension_id, target_index);
+}
+
+void WebUIToolbarWebView::MoveExtensionActionBy(const std::string& extension_id,
+                                                int32_t delta) {
+  extensions_container_.MoveExtensionBy(extension_id, delta);
+}
+
 base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
 WebUIToolbarWebView::OnOmniboxAction(
     toolbar_ui_api::mojom::OmniboxActionPtr action) {
@@ -733,8 +752,21 @@ WebUIToolbarWebView::AdjustOmniboxTextForCopy(const std::u16string& text,
   result->adjusted_text = text16;
   if (write_url) {
     result->adjusted_url = url;
+
+    std::u16string page_title;
+    if (location_bar) {
+      content::WebContents* web_contents = location_bar->GetWebContents();
+      if (web_contents) {
+        page_title = web_contents->GetTitle();
+      }
+    }
+    if (page_title.empty()) {
+      page_title = base::UTF8ToUTF16(url.spec());
+    }
+    result->page_title = std::move(page_title);
   } else {
     result->adjusted_url = std::nullopt;
+    result->page_title = std::nullopt;
   }
   return result;
 }
@@ -746,6 +778,10 @@ ReloadControl* WebUIToolbarWebView::GetReloadControl() {
 AvatarToolbarButtonInterface*
 WebUIToolbarWebView::GetAvatarToolbarButtonInterface() {
   return &avatar_control_;
+}
+
+MediaToolbarButton* WebUIToolbarWebView::GetMediaToolbarButton() {
+  return nullptr;
 }
 
 ExtensionsContainerViews* WebUIToolbarWebView::extensions_container_views() {
@@ -783,6 +819,11 @@ void WebUIToolbarWebView::OnPreferredSizeChanged() {
 const toolbar_ui_api::mojom::NavigationControlsState&
 WebUIToolbarWebView::GetState() const {
   return last_queued_state_;
+}
+
+base::WeakPtr<WebUIToolbarUI::DependencyProvider>
+WebUIToolbarWebView::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*

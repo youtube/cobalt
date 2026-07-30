@@ -95,7 +95,8 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/wm/window_pin_util.h"
-#include "chrome/browser/ash/boca/on_task/locked_quiz_session_manager_factory.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/ui/browser.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -120,12 +121,6 @@ constexpr char kCannotUpdateMuteCaptured[] =
     "being captured";
 
 namespace {
-
-#if BUILDFLAG(IS_CHROMEOS)
-constexpr char kWindowCreateLockedFullscreenUrlCountMismatchError[] =
-    "When creating a new window in locked fullscreen mode, exactly one URL "
-    "should be supplied.";
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 constexpr char kInvalidWindowTypeError[] = "Invalid value for type";
 constexpr char kNoHighlightedTabError[] = "No highlighted tab";
@@ -335,13 +330,11 @@ bool MatchesBool(const std::optional<bool>& boolean, bool value) {
 // window).
 // TODO(https://crbug.com/432056907): Determine if we need locked-fullscreen
 // support on desktop android.
-bool IsLockedFullscreen(BrowserWindowInterface* browser) {
 #if BUILDFLAG(IS_CHROMEOS)
+bool IsLockedFullscreen(BrowserWindowInterface* browser) {
   return platform_util::IsBrowserLockedFullscreen(browser);
-#else
-  return false;
-#endif
 }
+#endif
 
 // Returns the tab group ID for the tab at `index`. Returns nullopt if the index
 // is out of range, the tab is not found, or the tab is not part of a group.
@@ -358,33 +351,34 @@ std::optional<tab_groups::TabGroupId> GetTabGroupForTab(
 
 // Places the window in a special type of fullscreen where the user is locked
 // into one browser window based on `is_locked_fullscreen`.
+#if BUILDFLAG(IS_CHROMEOS)
 void MaybeSetLockedFullscreenState(const api::windows::Update::Params& params,
                                    BrowserWindowInterface* browser,
                                    bool is_locked_fullscreen) {
-#if BUILDFLAG(IS_CHROMEOS)
   // State will be WINDOW_STATE_NONE if the state parameter wasn't passed from
   // the JS side, and in that case we don't want to change the locked state.
   Browser* const target_browser = browser->GetBrowserForMigrationOnly();
   if (target_browser) {
-    Profile* const browser_profile = target_browser->GetProfile();
     if (is_locked_fullscreen &&
         params.update_info.state != windows::WindowState::kLockedFullscreen &&
         params.update_info.state != windows::WindowState::kNone) {
-      ash::boca::LockedQuizSessionManagerFactory::GetInstance()
-          ->GetForBrowserContext(browser_profile)
-          ->SetLockedFullscreenState(target_browser,
-                                     /*pinned=*/false);
+      auto* delegate =
+          ash::BrowserController::GetInstance()->GetDelegate(target_browser);
+      if (delegate && delegate->IsLockedFullscreen()) {
+        delegate->LeaveLockedFullscreen();
+      }
     } else if (!is_locked_fullscreen &&
                params.update_info.state ==
                    windows::WindowState::kLockedFullscreen) {
-      ash::boca::LockedQuizSessionManagerFactory::GetInstance()
-          ->GetForBrowserContext(browser_profile)
-          ->SetLockedFullscreenState(target_browser,
-                                     /*pinned=*/true);
+      auto* delegate =
+          ash::BrowserController::GetInstance()->GetDelegate(target_browser);
+      if (delegate && !delegate->IsLockedFullscreen()) {
+        delegate->EnterLockedFullscreen(/*focus_toolbar=*/false);
+      }
     }
   }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Updates `window_bounds` from `params`. Returns true if bounds were set.
 bool UpdateWindowBoundsFromParams(const api::windows::Update::Params& params,
@@ -1034,25 +1028,6 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
       return RespondNow(
           Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
     }
-
-#if BUILDFLAG(IS_CHROMEOS)
-    // Set up and launch the OnTask system web app if applicable. The legacy
-    // setup leverages a regular browser instance today.
-    if (ash::features::IsBocaOnTaskLockedQuizMigrationEnabled()) {
-      if (urls_.size() != 1) {
-        return RespondNow(
-            Error(kWindowCreateLockedFullscreenUrlCountMismatchError));
-      }
-      ash::boca::LockedQuizSessionManagerFactory::GetInstance()
-          ->GetForBrowserContext(calling_profile)
-          ->OpenLockedQuiz(
-              urls_.front(),
-              base::BindOnce(
-                  &WindowsCreateFunction::OnBocaWindowCreatedAsynchronously,
-                  this));
-      return RespondLater();
-    }
-#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   BrowserWindowInterface::Type window_type =
@@ -1397,10 +1372,14 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
   if (create_data_ &&
       create_data_->state == windows::WindowState::kLockedFullscreen) {
 #if BUILDFLAG(IS_CHROMEOS)
-    ash::boca::LockedQuizSessionManagerFactory::GetInstance()
-        ->GetForBrowserContext(Profile::FromBrowserContext(browser_context()))
-        ->SetLockedFullscreenState(new_window->GetBrowserForMigrationOnly(),
-                                   /*pinned=*/true);
+    Browser* const target_browser = new_window->GetBrowserForMigrationOnly();
+    if (target_browser) {
+      auto* delegate =
+          ash::BrowserController::GetInstance()->GetDelegate(target_browser);
+      if (delegate) {
+        delegate->EnterLockedFullscreen(/*focus_toolbar=*/false);
+      }
+    }
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
@@ -1453,16 +1432,6 @@ base::expected<void, std::string> WindowsCreateFunction::ValidateTab(
   if (DevToolsWindow::IsDevToolsWindow(web_contents)) {
     return base::unexpected(tabs_constants::kNotAllowedForDevToolsError);
   }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Tabs cannot be moved to the OnTask system web app. Only relevant for
-  // locked fullscreen on ChromeOS.
-  if (is_locked_fullscreen &&
-      ash::features::IsBocaOnTaskLockedQuizMigrationEnabled()) {
-    return base::unexpected(
-        ExtensionTabUtil::kCanOnlyMoveTabsWithinNormalWindowsError);
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   return {};
 }
@@ -1542,6 +1511,7 @@ ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
   }
   ui::BaseWindow* browser_window = browser->GetWindow();
 
+#if BUILDFLAG(IS_CHROMEOS)
   // Don't allow locked fullscreen operations on a window without the proper
   // permission (also don't allow any operations on a locked window if the
   // extension doesn't have the permission).
@@ -1552,6 +1522,7 @@ ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
     return RespondNow(
         Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
   }
+#endif
 
   // Before changing any of a window's state, validate the update parameters.
   // This prevents Chrome from performing "half" an update.
@@ -1608,7 +1579,9 @@ ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
 #endif
 
   // Parameters are valid. Now to perform the actual updates.
+#if BUILDFLAG(IS_CHROMEOS)
   MaybeSetLockedFullscreenState(*params, browser, is_locked_fullscreen);
+#endif
 
   UpdateWindowState(*params, browser, window_controller, show_state,
                     set_window_bounds, window_bounds);
@@ -1687,10 +1660,9 @@ ExtensionFunction::ResponseAction WindowsRemoveFunction::Run() {
 
   // TODO(https://crbug.com/432056907): Determine if we need locked-fullscreen
   // support on desktop android.
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS)
   if (window_controller->GetBrowserWindowInterface() &&
-      platform_util::IsBrowserLockedFullscreen(
-          window_controller->GetBrowserWindowInterface()) &&
+      IsLockedFullscreen(window_controller->GetBrowserWindowInterface()) &&
       !tabs_internal::ExtensionHasLockedFullscreenPermission(extension())) {
     return RespondNow(
         Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));

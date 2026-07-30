@@ -192,6 +192,7 @@
 <translation id="2850913818900871965">موبائل منظر کی درخواست کریں</translation>
 <translation id="2870560284913253234">سائٹ</translation>
 <translation id="2874939134665556319">پچھلا ٹریک</translation>
+<translation id="2890412325133442491">‏‫Chrome ڈیفالٹ</translation>
 <translation id="2891975107962658722">کسی سائٹ کو اپنے آلے پر ڈیٹا محفوظ کرنے سے مسدود کریں</translation>
 <translation id="2903493209154104877">پتے</translation>
 <translation id="2903764741244499151">سائٹس خودکار طور پر تصویر میں تصویر داخل کر سکتی ہیں۔ اس سے آپ کو دیگر ٹاسکس کے لیے اپنی اسکرین خالی رکھتے ہوئے ویڈیو دیکھنا جاری رکھنے کی سہولت حاصل ہوتی ہے۔</translation>
@@ -280,7 +281,6 @@
 <translation id="3779154269823594982">پاس ورڈز تبدیل کریں</translation>
 <translation id="3797520601150691162">کسی مخصوص سائٹ کیلئے گہری تھیم لاگو نہ کریں</translation>
 <translation id="3803367742635802571">جو سائٹس آپ دیکھتے ہیں وہ ڈیزائن کے مطابق کام کرنا بند کر سکتی ہیں</translation>
-<translation id="3816118180265633665">‏Chrome کے رنگ</translation>
 <translation id="381841723434055211">فون نمبرز</translation>
 <translation id="3823453485268218808">فونٹ مونو</translation>
 <translation id="3826050100957962900">فریق ثالث سائن ان</translation>
@@ -530,7 +530,6 @@
 <translation id="6398765197997659313">پوری سکرین سے خارج ہوں</translation>
 <translation id="640163077447496506">میعاد آج ختم ہوگی</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
-<translation id="6413980879783180524">تھیم کے مجموعے</translation>
 <translation id="6439114592976064011">سائٹس کو اپنا ورچوئل ریئلٹی آلہ اور ڈیٹا استعمال کرنے سے مسدود کریں</translation>
 <translation id="6447842834002726250">کوکیز</translation>
 <translation id="6452138246455930388"><ph name="PRODUCT_NAME" />، <ph name="DOMAIN_NAME" /> پر آپ کے کھلے ٹیب پر <ph name="OLD_PRICE" /> سے <ph name="NEW_PRICE" /> تک قیمت میں کمی</translation>
@@ -625,6 +624,7 @@
 <translation id="7423098979219808738">پہلے پوچھیں</translation>
 <translation id="7423538860840206698">کلپ بورڈ پڑھنے سے مسدود کیا گیا</translation>
 <translation id="7425915948813553151">سائٹس کیلئے گہری تھیم</translation>
+<translation id="7429767477925996803">‏‫Chrome کے رنگ</translation>
 <translation id="746412105358554870">‏‫JavaScript کی آپٹیمائزیشن اور سیکیورٹی</translation>
 <translation id="7478658909253570368">سائٹس کو سیریل پورٹس سے منسلک ہونے کی اجازت نہ دیں</translation>
 <translation id="7488573225650545859">'اپنی ایپس کی فہرست میں ٹیبز دیکھیں' کو چھپائیں</translation>
@@ -676,7 +676,6 @@
 <translation id="802154636333426148">ڈاؤن لوڈ ناکام ہوگیا</translation>
 <translation id="8033047164036749181">اس سائٹ سے اطلاعات کے لیے سبسکرائب کریں</translation>
 <translation id="8051193500142930381">وہ خصوصیات کام نہیں کریں گی جن کے لیے کیمرا کی ضرورت ہوتی ہے</translation>
-<translation id="8056330801132235235">‏‫Chrome ڈیفالٹ</translation>
 <translation id="8067883171444229417">ویڈیو چلائیں</translation>
 <translation id="8068648041423924542">سرٹیفکیٹ منتخب کرنے سے قاصر ہے۔</translation>
 <translation id="8077120325605624147">آپ کی ملاحظہ کردہ کوئی بھی سائٹ آپ کو کوئی بھی اشتہار دکھا سکتی ہے</translation>

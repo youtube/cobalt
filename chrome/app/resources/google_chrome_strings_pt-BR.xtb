@@ -39,7 +39,6 @@
 <translation id="137466361146087520">Google Chrome Beta</translation>
 <translation id="1383876407941801731">Pesquise</translation>
 <translation id="1399397803214730675">Este computador já tem uma versão mais recente do Google Chrome. Caso o software não esteja funcionando, desinstale-o e tente novamente.</translation>
-<translation id="1404026649028693342">Sempre mostrar o Modo IA</translation>
 <translation id="141901961143729572">Envie feedback</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{O Chrome foi atualizado. Reinicie para usar a versão mais recente. Depois disso, as guias atuais serão reabertas.}=1{O Chrome foi atualizado. Reinicie para usar a versão mais recente. Depois disso, as guias atuais serão reabertas. Sua janela anônima não será aberta novamente.}one{O Chrome foi atualizado. Reinicie para usar a versão mais recente. Depois disso, as guias atuais serão reabertas. Sua # janela anônima não será aberta novamente.}other{O Chrome foi atualizado. Reinicie para usar a versão mais recente. Depois disso, as guias atuais serão reabertas. Suas # janelas anônimas não serão abertas novamente.}}</translation>
 <translation id="1434626383986940139">Aplicativos Canary do Google Chrome</translation>
@@ -107,7 +106,6 @@
 <translation id="2039417478970545937">configurações.</translation>
 <translation id="2040220733769034247">Leia o QR code com o celular para baixar o Chrome e fazer login na sua Conta do Google.</translation>
 <translation id="2050189601866423230">Você pode fixar o Modo IA da Pesquisa Google para fazer perguntas com facilidade enquanto navega</translation>
-<translation id="2066690553719545730">Sempre mostrar o Modo IA</translation>
 <translation id="2091012649849228750">Para receber as futuras atualizações do Google Chrome, você precisa do Windows 10 ou versão mais recente. Este computador está usando o Windows 8.</translation>
 <translation id="2094648590148273905">Termos do ChromeOS Flex</translation>
 <translation id="2094919256425865063">Sair do Chrome mesmo assim?</translation>
@@ -198,6 +196,7 @@ Se esta página não funcionar como o esperado, ative a otimização.</translati
 <translation id="2969728957078202736"><ph name="PAGE_TITLE" /> - Login na rede - Chrome</translation>
 <translation id="2970681950995291301">Para remover sua Conta do Google do Chrome, saia dela na página "Configurações"</translation>
 <translation id="2976869732253036751">Receba alertas de Monitoramento de Preços no seu celular com o Chrome</translation>
+<translation id="2985091279808606502">O Chrome precisa da permissão de acesso à rede local para este site</translation>
 <translation id="2991167882679440829">As senhas e outros dados do Chrome salvos na sua Conta do Google serão removidos deste dispositivo. Para usá-los de novo, faça login outra vez.</translation>
 <translation id="2994465299455873643">Oferece serviços de criptografia e uma maneira segura de recuperar o <ph name="BROWSER_NAME" /> se ele ficar desatualizado. Se esse serviço for desativado, o <ph name="BROWSER_NAME" /> poderá perder o acesso aos dados criptografados. Talvez o <ph name="BROWSER_NAME" /> não se recupere dessa ação.</translation>
 <translation id="3003694935412297923">Todas as tarefas</translation>
@@ -260,6 +259,7 @@ Se esta página não funcionar como o esperado, ative a otimização.</translati
 <translation id="3595784445906693824">Fazer login no Chrome em um novo perfil?</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{Seu administrador exige que você reinicie o Chrome para que uma atualização seja feita.}=1{Seu administrador exige que você reinicie o Chrome para que uma atualização seja feita. Sua janela anônima não será aberta novamente.}one{Seu administrador exige que você reinicie o Chrome para que uma atualização seja feita. Sua janela anônima não será aberta novamente.}other{Seu administrador exige que você reinicie o Chrome para que uma atualização seja feita. Suas # janelas anônimas não serão abertas novamente.}}</translation>
 <translation id="3597003331831379823">Falha ao executar a configuração com privilégios elevados. <ph name="METAINSTALLER_ERROR" /></translation>
+<translation id="3598673391539778844">Mostrar o Gemini no Chrome na bandeja do sistema</translation>
 <translation id="3622716124581627104">Identifique itens ou lugares e copie ou traduza textos. Quando você usa o Lens, uma captura de tela da página é enviada ao Google. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">Agora ficou mais fácil usar o Chrome com sua Conta do Google e em computadores compartilhados.</translation>
 <translation id="3635073343384702370">O Chrome poderá verificar suas senhas quando elas forem salvas</translation>
@@ -478,7 +478,6 @@ Se esta página não funcionar como o esperado, ative a otimização.</translati
 <translation id="5941830788786076944">Fazer do Google Chrome o navegador padrão</translation>
 <translation id="5947104538377036631">Atalho do Chrome</translation>
 <translation id="5960071705175224773">Suas configurações foram alteradas por um app desconhecido</translation>
-<translation id="5968400720580217226">Modo IA</translation>
 <translation id="5980111191913430208">Extensões, apps e temas de fontes desconhecidas podem danificar o dispositivo. O Chrome recomenda a instalação apenas pela <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Fazendo o download… <ph name="HOURS" /> hora(s) restante(s)</translation>
 <translation id="6008161919456049856">As senhas, as formas de pagamento e os endereços salvos na sua Conta do Google serão removidos deste dispositivo. Para usá-los de novo no Chrome, faça login novamente.</translation>
@@ -718,6 +717,7 @@ Se esta página não funcionar como o esperado, ative a otimização.</translati
 <translation id="8113883687556086139">Confirme sua identidade para usar e salvar os dados do Chrome na sua conta <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8115695070094288807">Deixe o Chrome do seu jeito</translation>
 <translation id="8118331347066725040">Enviar feedback sobre a pesquisa com o Lens</translation>
+<translation id="812930250799242837">Login feito como <ph name="USER_NAME" />, assinatura do Google. Abrir menu da conta</translation>
 <translation id="8129812357326543296">Sobre o Google Chrome</translation>
 <translation id="813913629614996137">Inicializando…</translation>
 <translation id="8162006532256575008">Usar o Chrome sem uma conta</translation>
@@ -751,6 +751,7 @@ Se esta página não funcionar como o esperado, ative a otimização.</translati
 
 Exclua alguns dos favoritos da sua conta para poder salvar novos. Se você sair agora, os favoritos que não foram salvos serão excluídos.</translation>
 <translation id="8458117863387545390">Instale o Chrome no seu smartphone</translation>
+<translation id="848851325211467878">Login feito como <ph name="USER_NAME" />, <ph name="USER_EMAIL" />, assinatura do Google. Abrir menu da conta</translation>
 <translation id="8496177819998570653">Gerenciador de senhas do Google</translation>
 <translation id="8498858610309223613">Uma atualização especial de segurança para o Google Chrome acabou de ser aplicada. Reinicie agora, e suas guias serão restauradas.</translation>
 <translation id="8521348052903287641">Regra interna do Google Chrome Dev que permite o tráfego mDNS.</translation>
@@ -786,6 +787,7 @@ Exclua alguns dos favoritos da sua conta para poder salvar novos. Se você sair 
 <translation id="8821043148920470810">Para receber as futuras atualizações do Google Chrome, você precisa do Windows 10 ou versão mais recente. Este computador está usando o Windows 7.</translation>
 <translation id="8823341990149967727">O Google Chrome está desatualizado</translation>
 <translation id="8834965163890861871">O Google Chrome está tentando editar senhas. Digite a senha do Windows para permitir essa ação.</translation>
+<translation id="8841151363570555833">Mostrar o Gemini no Chrome na barra de menus do Mac</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{O Chrome recomenda a remoção dela.}one{O Chrome recomenda a remoção dela.}other{O Chrome recomenda a remoção delas.}}</translation>
 <translation id="8862326446509486874">Você não tem os direitos adequados para instalação no nível do sistema. Tente executar o instalador novamente como administrador.</translation>
 <translation id="8865415417596392024">Dados do Chrome na sua conta</translation>

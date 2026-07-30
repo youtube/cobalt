@@ -46,7 +46,6 @@ class OmniboxAutofillBubbleView : public AutofillLocationBarBubble {
   std::u16string GetWindowTitle() const override;
   void WindowClosing() override;
   void AddedToWidget() override;
-  views::View* GetInitiallyFocusedView() override;
 
  protected:
   // LocationBarBubbleDelegateView:
@@ -58,7 +57,6 @@ class OmniboxAutofillBubbleView : public AutofillLocationBarBubble {
   void OnSuggestionDeselected();
 
   base::WeakPtr<OmniboxAutofillBubbleController> controller_;
-  raw_ptr<views::View> initially_focused_view_ = nullptr;
   base::WeakPtrFactory<OmniboxAutofillBubbleView> weak_ptr_factory_{this};
 };
 

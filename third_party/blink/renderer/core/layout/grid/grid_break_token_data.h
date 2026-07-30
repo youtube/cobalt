@@ -5,26 +5,37 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_GRID_BREAK_TOKEN_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GRID_GRID_BREAK_TOKEN_DATA_H_
 
+#include <optional>
+
 #include "base/check.h"
 #include "third_party/blink/renderer/core/layout/break_token_algorithm_data.h"
 #include "third_party/blink/renderer/core/layout/gap/gap_geometry.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
+class GridItems;
+class GridLayoutSubtree;
+class LayoutBox;
+
 struct GridItemPlacementData {
   GridItemPlacementData(
       LogicalOffset offset,
-      LogicalOffset relative_offset,
-      bool has_descendant_that_depends_on_percentage_block_size)
+      bool has_descendant_that_depends_on_percentage_block_size,
+      std::optional<LogicalOffset> relative_offset = std::nullopt)
       : offset(offset),
         relative_offset(relative_offset),
         has_descendant_that_depends_on_percentage_block_size(
             has_descendant_that_depends_on_percentage_block_size) {}
 
   LogicalOffset offset;
-  LogicalOffset relative_offset;
+  // Grid computes this because percentage offsets resolve against the grid
+  // area. Other layout modes leave it unset so the fragment builder computes
+  // relative positioning normally when the result is added.
+  std::optional<LogicalOffset> relative_offset;
   bool has_descendant_that_depends_on_percentage_block_size;
 };
 
@@ -72,7 +83,8 @@ struct GridBreakTokenData final : BreakTokenAlgorithmData {
     return full_gap_geometry->GetMainGaps().size();
   }
 
-  wtf_size_t GetFirstUnprocessedRowGapIndex() const override {
+  wtf_size_t GetFirstUnprocessedRowGapIndex(
+      std::optional<wtf_size_t> line_index) const override {
     return first_unprocessed_row_gap_idx;
   }
 

@@ -109,7 +109,7 @@ export class OmniboxEverywhereOmniboxElement extends
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
   accessor contextManagementInComposeboxEnabled: boolean = false;
   protected accessor searchboxIcon_: string =
-      loadTimeData.getString('searchboxDefaultIcon');
+      '//resources/cr_components/searchbox/icons/google_g.svg';
   protected accessor searchboxVoiceSearchEnabled_: boolean =
       loadTimeData.getBoolean('searchboxVoiceSearch');
   protected accessor searchboxLensSearchEnabled_: boolean =
@@ -205,27 +205,6 @@ export class OmniboxEverywhereOmniboxElement extends
 
   override pageHandler(): PageHandlerInterface {
     return this.pageHandler_;
-  }
-
-  isInputEmpty(): boolean {
-    // If this is called before first render, the input element will not exist.
-    if (!this.shadowRoot?.querySelector('#input') || !this.$.input ||
-        !this.$.input.lastInput()) {
-      return true;
-    }
-    return !this.$.input.lastInput()!.text.trim();
-  }
-
-  protected shouldShowVoiceLens_(isEnabled: boolean): boolean {
-    if (!isEnabled) {
-      return false;
-    }
-
-    if (!this.isInputEmpty()) {
-      return false;
-    }
-
-    return true;
   }
 
   //========================================================================

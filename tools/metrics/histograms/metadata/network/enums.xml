@@ -432,6 +432,17 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Failure"/>
 </enum>
 
+<!-- LINT.IfChange(GPCSignalSourceType) -->
+
+<enum name="GPCSignalSourceType">
+  <int value="0" label="WorkerNavigation"/>
+  <int value="1" label="FrameNavigation"/>
+  <int value="2" label="SubresourceFetch"/>
+  <int value="3" label="WorkerSubresourceFetch"/>
+</enum>
+
+<!-- LINT.ThenChange(//third_party/blink/public/common/global_privacy_control/global_privacy_control_util.h:GPCSignalSourceType) -->
+
 <enum name="HermesResponseStatus">
   <summary>
     Statuses returned by Hermes, the Chrome OS daemon process which configures
@@ -1440,7 +1451,7 @@ chromium-metrics-reviews@google.com.
   <int value="26" label="request_body"/>
   <int value="27" label="keepalive"/>
   <int value="28" label="browsing_topics"/>
-  <int value="29" label="ad_auction_headers"/>
+  <int value="29" label="ad_auction_headers (deprecated)"/>
   <int value="30" label="shared_storage_writable_eligible"/>
   <int value="31" label="has_user_gesture"/>
   <int value="32" label="enable_load_timing"/>

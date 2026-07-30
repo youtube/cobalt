@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_test_base.h"
 #include "chrome/browser/ui/autofill/test_autofill_popup_controller_autofill_client.h"
 #include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
@@ -74,7 +75,7 @@ class AutofillPopupControllerImplTest
     // 1. Set the trigger source inside the delegate.
     manager().external_delegate().OnQuery(
         FormData(), FormFieldData(), gfx::Rect(),
-        AutofillSuggestionTriggerSource::kAtMemory);
+        AutofillSuggestionTriggerSource::kAtMemoryTriggerString);
 
     // 2. Setup the bridge so the mock delegate executes real initialization
     // logic.
@@ -92,7 +93,7 @@ class AutofillPopupControllerImplTest
     // 3. Actually show the suggestions, which triggers the search session
     // initialization in AtMemoryController.
     ShowSuggestions(manager(), {SuggestionType::kAtMemorySearchResult},
-                    AutofillSuggestionTriggerSource::kAtMemory);
+                    AutofillSuggestionTriggerSource::kAtMemoryTriggerString);
   }
 
   // Simulates a user typing a query into the @memory search bar and explicitly
@@ -101,14 +102,12 @@ class AutofillPopupControllerImplTest
   void SimulateAtMemoryQuery(const std::u16string& query,
                              const std::vector<std::u16string>& results) {
     // 1. Prepare the backend mock results.
-    std::vector<accessibility_annotator::MemorySearchResult> entries;
+    std::vector<MemorySearchResult> entries;
     for (const auto& value : results) {
-      entries.emplace_back(accessibility_annotator::MemoryDataType::kNameFull,
-                           u"Name", value);
+      entries.emplace_back(MemoryDataType::kNameFull, u"Name", value);
     }
-    accessibility_annotator::MemorySearchResults search_results(
-        accessibility_annotator::MemorySearchStatus::kFinalResponseSuccess,
-        std::move(entries));
+    MemorySearchResults search_results(
+        MemorySearchStatus::kFinalResponseSuccess, std::move(entries));
 
     // 2. Setup the backend expectation if the query is non-empty.
     if (!query.empty()) {
@@ -579,10 +578,12 @@ TEST_P(AutofillPopupControllerImplTestWithTriggerSource,
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    All, AutofillPopupControllerImplTestWithTriggerSource,
+    All,
+    AutofillPopupControllerImplTestWithTriggerSource,
     ::testing::Values(
         AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess,
-        AutofillSuggestionTriggerSource::kAtMemory,
+        AutofillSuggestionTriggerSource::kAtMemoryTriggerString,
+        AutofillSuggestionTriggerSource::kAtMemoryKeyboardShortcut,
         AutofillSuggestionTriggerSource::kAtMemoryContextMenu,
         AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge));
 
@@ -1030,7 +1031,7 @@ TEST_F(AutofillPopupControllerImplTest,
 TEST_F(AutofillPopupControllerImplTest,
        AtMemory_NoFilter_NoSuggestionsMessageNotShown) {
   ShowSuggestions(manager(), {SuggestionType::kAtMemorySearchResult},
-                  AutofillSuggestionTriggerSource::kAtMemory);
+                  AutofillSuggestionTriggerSource::kAtMemoryTriggerString);
   EXPECT_FALSE(client().suggestion_controller(manager())
                    .ShouldShowNoSuggestionsMessage());
 }
@@ -1169,7 +1170,7 @@ TEST_F(AutofillPopupControllerImplTest,
 TEST_F(AutofillPopupControllerImplTest,
        RemoveLastSuggestion_DoesNotHidePopupForAtMemory) {
   ShowSuggestions(manager(), {SuggestionType::kAtMemorySearchResult},
-                  AutofillSuggestionTriggerSource::kAtMemory);
+                  AutofillSuggestionTriggerSource::kAtMemoryTriggerString);
 
   test::GenerateTestAutofillPopup(&manager().external_delegate());
   EXPECT_CALL(manager().external_delegate(),

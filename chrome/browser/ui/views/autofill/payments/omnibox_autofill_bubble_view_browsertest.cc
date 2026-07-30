@@ -184,34 +184,6 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
-                       FocusesFirstSuggestion) {
-  auto* controller = GetBubbleController();
-  ASSERT_TRUE(controller);
-
-  // Add two suggestions.
-  std::vector<Suggestion> suggestions;
-  suggestions.emplace_back(u"Visa •••• 1111", SuggestionType::kCreditCardEntry);
-  suggestions.emplace_back(u"Visa •••• 1112", SuggestionType::kCreditCardEntry);
-
-  controller->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
-                         base::DoNothing(), base::DoNothing(),
-                         base::DoNothing());
-
-  controller->QueueOrShowBubble();
-
-  auto* bubble_view = GetBubbleView();
-  ASSERT_TRUE(bubble_view);
-
-  // Verify suggestions are shown.
-  std::vector<views::Button*> buttons = GetSuggestions(bubble_view);
-  ASSERT_EQ(buttons.size(), 2u);
-
-  // Verify the first button has focus.
-  EXPECT_TRUE(buttons[0]->HasFocus());
-  EXPECT_FALSE(buttons[1]->HasFocus());
-}
-
-IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
                        CloseBubbleTriggersOnSuggestionsHidden) {
   OmniboxAutofillBubbleController* controller = GetBubbleController();
   ASSERT_TRUE(controller);
@@ -260,6 +232,10 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
   // Verify one suggestion is shown.
   std::vector<views::Button*> buttons = GetSuggestions(bubble_view);
   ASSERT_EQ(buttons.size(), 1u);
+
+  // Select the suggestion.
+  buttons[0]->RequestFocus();
+  ASSERT_TRUE(buttons[0]->HasFocus());
 
   // Expect the callback to run once when the bubble is hidden.
   EXPECT_CALL(did_deselect_suggestion_callback, Run()).Times(1);

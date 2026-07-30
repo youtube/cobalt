@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/payments/editor_view_controller.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
+#include "chrome/browser/ui/views/payments/payment_request_dialog_view_test_api.h"
 #include "chrome/browser/ui/views/payments/validating_combobox.h"
 #include "chrome/browser/ui/views/payments/validating_textfield.h"
 #include "chrome/browser/ui/views/payments/view_stack.h"
@@ -58,6 +59,8 @@
 namespace payments {
 
 namespace {
+
+using IconInstall = test::PaymentAppInstallUtil::IconInstall;
 
 // This is preferred to SelectValue, since only SetSelectedRow fires the events
 // as if done by a user.
@@ -335,9 +338,9 @@ void PaymentRequestBrowserTestBase::InstallPaymentApp(
     const std::string& hostname,
     const std::string& service_worker_filename,
     std::string* url_method_output) {
-  *url_method_output = PaymentAppInstallUtil::InstallPaymentApp(
-      *GetActiveWebContents(), *https_server(), hostname,
-      service_worker_filename, PaymentAppInstallUtil::IconInstall::kWithIcon);
+  *url_method_output = test::PaymentAppInstallUtil::InstallPaymentApp(
+      *GetActiveWebContents()->GetPrimaryMainFrame(), *https_server(), hostname,
+      service_worker_filename, IconInstall::kWithIcon);
   ASSERT_FALSE(url_method_output->empty()) << "Failed to install payment app";
 }
 
@@ -345,10 +348,9 @@ void PaymentRequestBrowserTestBase::InstallPaymentAppWithoutIcon(
     const std::string& hostname,
     const std::string& service_worker_filename,
     std::string* url_method_output) {
-  *url_method_output = PaymentAppInstallUtil::InstallPaymentApp(
-      *GetActiveWebContents(), *https_server(), hostname,
-      service_worker_filename,
-      PaymentAppInstallUtil::IconInstall::kWithoutIcon);
+  *url_method_output = test::PaymentAppInstallUtil::InstallPaymentApp(
+      *GetActiveWebContents()->GetPrimaryMainFrame(), *https_server(), hostname,
+      service_worker_filename, IconInstall::kWithoutIcon);
   ASSERT_FALSE(url_method_output->empty()) << "Failed to install payment app";
 }
 
@@ -699,7 +701,7 @@ void PaymentRequestBrowserTestBase::PayWithCreditCard(
 void PaymentRequestBrowserTestBase::RetryPaymentRequest(
     const std::string& validation_errors,
     PaymentRequestDialogView* dialog_view) {
-  EXPECT_EQ(2U, dialog_view->view_stack_for_testing()->GetSize());
+  EXPECT_EQ(2U, test_api(dialog_view).view_stack()->GetSize());
   ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_HIDDEN,
                                DialogEvent::SPEC_DONE_UPDATING,
                                DialogEvent::PROCESSING_SPINNER_HIDDEN,
@@ -715,7 +717,7 @@ void PaymentRequestBrowserTestBase::RetryPaymentRequest(
     const std::string& validation_errors,
     const DialogEvent& dialog_event,
     PaymentRequestDialogView* dialog_view) {
-  EXPECT_EQ(2U, dialog_view->view_stack_for_testing()->GetSize());
+  EXPECT_EQ(2U, test_api(dialog_view).view_stack()->GetSize());
   ResetEventWaiterForSequence(
       {DialogEvent::PROCESSING_SPINNER_HIDDEN, DialogEvent::SPEC_DONE_UPDATING,
        DialogEvent::PROCESSING_SPINNER_HIDDEN,
@@ -825,7 +827,7 @@ void PaymentRequestBrowserTestBase::WaitForAnimation() {
 void PaymentRequestBrowserTestBase::WaitForAnimation(
     PaymentRequestDialogView* dialog_view) {
   base::RunLoop loop;
-  ViewStack* view_stack = dialog_view->view_stack_for_testing();
+  ViewStack* view_stack = test_api(dialog_view).view_stack();
   if (view_stack->slide_in_animator_->IsAnimating()) {
     view_stack->slide_in_animator_->SetAnimationDuration(base::Milliseconds(1));
     view_stack->slide_in_animator_->SetAnimationDelegate(

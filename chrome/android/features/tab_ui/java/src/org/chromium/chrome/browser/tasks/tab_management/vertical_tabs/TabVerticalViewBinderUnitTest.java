@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.view.InputDevice;
@@ -91,10 +92,17 @@ public class TabVerticalViewBinderUnitTest {
     public void setUp() {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
+        Configuration config = mActivity.getResources().getConfiguration();
+        config.smallestScreenWidthDp = 600;
+        mActivity
+                .getResources()
+                .updateConfiguration(config, mActivity.getResources().getDisplayMetrics());
+
         mItemView =
                 (ViewGroup)
                         LayoutInflater.from(mActivity)
                                 .inflate(R.layout.vertical_tab_item, null, false);
+        mActivity.setContentView(mItemView);
         mTitleView = mItemView.findViewById(R.id.tab_title);
         mFaviconView = mItemView.findViewById(R.id.tab_favicon);
         mCloseButton = mItemView.findViewById(R.id.action_button);
@@ -390,6 +398,10 @@ public class TabVerticalViewBinderUnitTest {
     @Test
     @SmallTest
     public void testTabHover_ExitToActionButton_DoesNotClearHover() {
+        // Lay out item view and close button so child bounds are valid
+        mItemView.layout(0, 0, 100, 50);
+        mCloseButton.layout(80, 10, 95, 40);
+
         TabActionButtonData actionButtonData =
                 new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
         mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
@@ -398,7 +410,7 @@ public class TabVerticalViewBinderUnitTest {
 
         // Enter hover on tab row
         MotionEvent hoverEnterEvent =
-                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 10f, 10f, 0);
         hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
         mItemView.dispatchGenericMotionEvent(hoverEnterEvent);
 
@@ -414,7 +426,7 @@ public class TabVerticalViewBinderUnitTest {
         mCloseButton.setHovered(true);
 
         MotionEvent hoverExitEvent =
-                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, 0f, 0f, 0);
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, 85f, 25f, 0);
         hoverExitEvent.setSource(InputDevice.SOURCE_MOUSE);
         mItemView.dispatchGenericMotionEvent(hoverExitEvent);
 
@@ -457,6 +469,139 @@ public class TabVerticalViewBinderUnitTest {
         assertNotNull(bgTint);
         assertEquals(Color.TRANSPARENT, bgTint.getDefaultColor());
         assertEquals(View.INVISIBLE, mCloseButton.getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    public void testActionButtonTouchDelegate_SetAndCleared() {
+        mItemView.layout(0, 0, 100, 32);
+        mCloseButton.layout(80, 8, 96, 24);
+
+        TabActionButtonData actionButtonData =
+                new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
+        mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
+
+        // Touch delegate is set when action button is wanted
+        mModel.set(TabProperties.IS_SELECTED, true);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+        ShadowLooper.idleMainLooper();
+        assertNotNull(mItemView.getTouchDelegate());
+
+        // Touch delegate is cleared when action button is not wanted
+        mModel.set(TabProperties.IS_SELECTED, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+        ShadowLooper.idleMainLooper();
+        assertNull(mItemView.getTouchDelegate());
+    }
+
+    @Test
+    @SmallTest
+    public void testActionButtonTouchDelegate_SetOnHover() {
+        mItemView.layout(0, 0, 100, 32);
+        mCloseButton.layout(80, 8, 96, 24);
+
+        TabActionButtonData actionButtonData =
+                new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
+        mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
+        mModel.set(TabProperties.IS_SELECTED, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+        ShadowLooper.idleMainLooper();
+
+        // Before hover, touch delegate is null
+        assertNull(mItemView.getTouchDelegate());
+
+        // Hover over the tab row
+        MotionEvent hoverEnterEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+        hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverEnterEvent);
+        ShadowLooper.idleMainLooper();
+
+        // Touch delegate is set when hovered
+        assertNotNull(mItemView.getTouchDelegate());
+    }
+
+    @Test
+    @SmallTest
+    public void testActionButtonTouchDelegate_CollapsedRail() {
+        mItemView.layout(0, 0, 100, 32);
+        mCloseButton.layout(80, 8, 96, 24);
+
+        TabActionButtonData actionButtonData =
+                new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
+        mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
+        mModel.set(TabProperties.RAIL_COLLAPSE_STATE, RailCollapseState.COLLAPSED);
+        mModel.set(TabProperties.IS_SELECTED, true);
+
+        // In collapsed rail mode, selected tab without hover does not show action button
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+        ShadowLooper.idleMainLooper();
+        assertNull(mItemView.getTouchDelegate());
+
+        // Hover over tab row while selected in collapsed mode shows action button
+        MotionEvent hoverEnterEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+        hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mItemView.dispatchGenericMotionEvent(hoverEnterEvent);
+        ShadowLooper.idleMainLooper();
+        assertNotNull(mItemView.getTouchDelegate());
+    }
+
+    @Test
+    @SmallTest
+    public void testActionButtonTouchDelegate_UnattachedToWindow() {
+        ViewGroup unattachedView =
+                (ViewGroup)
+                        LayoutInflater.from(mActivity)
+                                .inflate(R.layout.vertical_tab_item, null, false);
+        View closeButton = unattachedView.findViewById(R.id.action_button);
+        unattachedView.layout(0, 0, 100, 32);
+        closeButton.layout(80, 8, 96, 24);
+
+        TabActionButtonData actionButtonData =
+                new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
+        mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
+        mModel.set(TabProperties.IS_SELECTED, true);
+
+        TabVerticalViewBinder.bindTab(mModel, unattachedView, TabProperties.IS_SELECTED);
+        ShadowLooper.idleMainLooper();
+
+        assertNull(unattachedView.getTouchDelegate());
+    }
+
+    @Test
+    @SmallTest
+    public void testActionButtonHover_EnterAndMove_HighlightsRowBackground() {
+        TabActionButtonData actionButtonData =
+                new TabActionButtonData(TabActionButtonType.CLOSE, mCloseListener);
+        mModel.set(TabProperties.TAB_ACTION_BUTTON_DATA, actionButtonData);
+        mModel.set(TabProperties.IS_SELECTED, false);
+        TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.IS_SELECTED);
+
+        // Directly enter hover on close button without triggering enter on row
+        MotionEvent hoverEnterEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_ENTER, 0f, 0f, 0);
+        hoverEnterEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mCloseButton.dispatchGenericMotionEvent(hoverEnterEvent);
+
+        ColorStateList hoveredTint = mItemView.getBackgroundTintList();
+        assertNotNull(hoveredTint);
+        assertEquals(
+                TabUiThemeUtil.getHoveredTabContainerColor(
+                        mItemView.getContext(), /* isIncognito= */ false),
+                hoveredTint.getDefaultColor());
+        assertEquals(View.VISIBLE, mCloseButton.getVisibility());
+
+        // Dispatch hover move on close button
+        MotionEvent hoverMoveEvent =
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_MOVE, 0f, 0f, 0);
+        hoverMoveEvent.setSource(InputDevice.SOURCE_MOUSE);
+        mCloseButton.dispatchGenericMotionEvent(hoverMoveEvent);
+
+        ColorStateList tintAfterMove = mItemView.getBackgroundTintList();
+        assertNotNull(tintAfterMove);
+        assertEquals(hoveredTint.getDefaultColor(), tintAfterMove.getDefaultColor());
+        assertEquals(View.VISIBLE, mCloseButton.getVisibility());
     }
 
     @Test

@@ -7,6 +7,7 @@ import("//components/guest_view/buildflags/buildflags.gni")
 import("//components/signin/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
+import("//pdf/features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/webui/webui_features.gni")
 
@@ -272,6 +273,8 @@ source_set("ui") {
       "//chrome/browser/ui/side_panel",
       "//chrome/browser/ui/side_panel:side_panel_views_dependent",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/views/bubble",
+      "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/side_panel",
     ]
   }
@@ -422,13 +425,18 @@ source_set("ui_impl") {
     deps += [
       "//chrome/browser/pdf",
       "//chrome/browser/resources/contextual_tasks:resources",
+      "//chrome/browser/resources/webui_toolbar_shared:resources",
       "//chrome/browser/tab_list",
       "//chrome/browser/ui:browser_actions",
+      "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/bubble",
       "//chrome/browser/ui/views/interaction",
+      "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/webui",
+      "//chrome/browser/ui/webui/webui_toolbar:impl",
       "//components/contextual_tasks/public:feature_list",
       "//components/embedder_support:user_agent",
       "//components/zoom",
@@ -570,6 +578,10 @@ if (!is_android) {
       "//testing/gmock",
       "//testing/gtest",
     ]
+
+    if (enable_pdf) {
+      deps += [ "//chrome/browser/pdf:pdf_extension_test_base" ]
+    }
   }
 }
 

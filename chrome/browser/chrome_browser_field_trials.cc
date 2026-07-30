@@ -47,6 +47,7 @@
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/features.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_switches.h"
 #endif
@@ -60,12 +61,6 @@
 #include "base/nix/xdg_util.h"
 #include "ui/base/ui_base_features.h"
 #endif  // BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#include "base/check_deref.h"
-#include "chrome/browser/first_run/first_run.h"
-#include "chrome/browser/signin/before_fre_refresh_hats_field_trial.h"
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 ChromeBrowserFieldTrials::ChromeBrowserFieldTrials(PrefService* local_state)
     : local_state_(local_state) {
@@ -96,16 +91,6 @@ void ChromeBrowserFieldTrials::SetUpClientSideFieldTrials(
     ash::multidevice_setup::CreateFirstRunFieldTrial(feature_list);
   }
 #endif
-
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  // This trial is client controlled on Mac and Linux because the survey is
-  // triggered on the very first run of Chrome. These platforms do not support
-  // variations seed on the first run.
-  if (first_run::IsChromeFirstRun()) {
-    signin::CreateBeforeFreRefreshHatsFieldTrial(
-        CHECK_DEREF(feature_list), entropy_providers.default_entropy());
-  }
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 }
 
 void ChromeBrowserFieldTrials::RegisterSyntheticTrials() {
@@ -161,6 +146,10 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/531944280): Remove when rollout is complete to all form
   // factors.
   feature_overrides.EnableFeature(download::features::kOpenDownloadInNewTab);
+
+  // Enable`save as`context menu.
+  feature_overrides.EnableFeature(
+      download::features::kEnableDownloadSaveAsContextMenu);
 
   // Enable background media capturing on desktop devices.
   // TODO(crbug.com/426461170): Remove once we enable this feature for all form
@@ -254,6 +243,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   feature_overrides.EnableFeature(features::kLazyBrowserInterfaceBroker);
   feature_overrides.EnableFeature(chrome::android::kLoadAllTabsAtStartup);
 
+  // Enable the ability for extensions to override chrome pages.
+  // TODO(crbug.com/404069963): Remove flag when the feature is verified to be
+  // stable on desktop Android.
+  feature_overrides.EnableFeature(chrome::android::kChromeNativeUrlOverriding);
+
   // Enable desktop full screen to a screen feature flag by default for desktop
   // platforms.
   // TODO(crbug.com/417426218) Remove once feature is launched to 100% on all
@@ -273,6 +267,9 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // Enable graceful tab shutdown.
   // TODO(crbug.com/532514154): Remove when experiment is complete.
   feature_overrides.EnableFeature(chrome::android::kTabAndroidGracefulShutdown);
+
+  // Enable desktop fling curve.
+  feature_overrides.EnableFeature(features::kDesktopFlingCurveOnAndroid);
 
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,

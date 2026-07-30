@@ -43,6 +43,7 @@ class SqlPersistentStore::BackendShard {
       ShardId shard_id,
       const base::FilePath& path,
       net::CacheType type,
+      bool shared_cache_enabled,
       scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner,
       SqlAsyncTaskManager& async_task_manager,
@@ -103,6 +104,10 @@ class SqlPersistentStore::BackendShard {
                      int64_t body_end,
                      bool sparse_reading,
                      SqlPersistentStore::ReadResultOrErrorCallback callback);
+  void MoveBlobsToSharedCache(const CacheEntryKey& key,
+                              ResId res_id,
+                              SqlSharedCacheResourceId shared_cache_resource_id,
+                              ErrorCallback callback);
 
   void GetEntryAvailableRange(const CacheEntryKey& key,
                               ResId res_id,

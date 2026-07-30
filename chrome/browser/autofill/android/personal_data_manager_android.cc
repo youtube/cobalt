@@ -129,7 +129,7 @@ PersonalDataManagerAndroid::CreateJavaCreditCardFromNative(
   const data_util::PaymentRequestData& payment_request_data =
       data_util::GetPaymentRequestData(card.network());
   return Java_CreditCard_create(
-      env, card.guid(), card.origin(),
+      env, card.guid(), card.is_user_confirmed(),
       card.record_type() == CreditCard::RecordType::kLocalCard,
       card.record_type() == CreditCard::RecordType::kVirtualCard,
       card.GetRawInfo(CREDIT_CARD_NAME_FULL),
@@ -154,7 +154,7 @@ void PersonalDataManagerAndroid::PopulateNativeCreditCardFromJava(
     const JavaRef<jobject>& jcard,
     JNIEnv* env,
     CreditCard* card) {
-  card->set_origin(Java_CreditCard_getOrigin(env, jcard));
+  card->set_is_user_confirmed(Java_CreditCard_getIsUserConfirmed(env, jcard));
   card->SetRawInfo(CREDIT_CARD_NAME_FULL, Java_CreditCard_getName(env, jcard));
   card->SetRawInfo(CREDIT_CARD_NUMBER, Java_CreditCard_getNumber(env, jcard));
   card->SetRawInfo(CREDIT_CARD_EXP_MONTH, Java_CreditCard_getMonth(env, jcard));
@@ -362,7 +362,7 @@ ScopedJavaLocalRef<jobject> PersonalDataManagerAndroid::GetCreditCardForNumber(
     JNIEnv* env,
     const std::u16string& card_number) {
   // A local card with empty GUID.
-  CreditCard card("", "");
+  CreditCard card("");
   card.SetNumber(card_number);
   return PersonalDataManagerAndroid::CreateJavaCreditCardFromNative(env, card);
 }

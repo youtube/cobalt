@@ -3253,12 +3253,6 @@ component("ash") {
     "wm/workspace/workspace_window_resizer.h",
     "wm/workspace_controller.cc",
     "wm/workspace_controller.h",
-    "wm_mode/pie_menu_view.cc",
-    "wm_mode/pie_menu_view.h",
-    "wm_mode/wm_mode_button_tray.cc",
-    "wm_mode/wm_mode_button_tray.h",
-    "wm_mode/wm_mode_controller.cc",
-    "wm_mode/wm_mode_controller.h",
   ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -3277,7 +3271,6 @@ component("ash") {
     "//chromeos/ash/services/hotspot_config/public/mojom",
     "//chromeos/ash/services/multidevice_setup/public/mojom",
     "//chromeos/ash/services/nearby/public/mojom",
-    "//chromeos/crosapi/mojom",
     "//chromeos/services/machine_learning/public/mojom",
     "//chromeos/services/network_config/public/cpp",
     "//chromeos/ui/vector_icons",
@@ -3460,6 +3453,7 @@ component("ash") {
     "//components/feedback",
     "//components/fullscreen_control",
     "//components/global_media_controls",
+    "//components/global_media_controls/public/mojom:device_service",
     "//components/history/core/browser",
     "//components/language/core/browser",
     "//components/language/core/common",
@@ -3534,6 +3528,7 @@ component("ash") {
     "//ui/base/ime/ash",
     "//ui/base/ime/init",
     "//ui/base/interaction",
+    "//ui/base/mojom",
     "//ui/chromeos",
     "//ui/chromeos/resources",
     "//ui/chromeos/styles:cros_styles_views",
@@ -4547,7 +4542,6 @@ test("ash_unittests") {
     "wm/workspace/workspace_layout_manager_unittest.cc",
     "wm/workspace/workspace_window_resizer_unittest.cc",
     "wm/workspace_controller_unittest.cc",
-    "wm_mode/wm_mode_unittest.cc",
   ]
   configs += [ "//build/config:precompiled_headers" ]
 

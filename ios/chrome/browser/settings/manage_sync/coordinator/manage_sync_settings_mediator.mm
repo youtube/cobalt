@@ -86,7 +86,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
 }  // namespace
 
 @interface ManageSyncSettingsMediator () <AuthenticationServiceObserving,
-                                          IdentityManagerObserverBridgeDelegate>
+                                          IdentityManagerObserving>
 
 // Model item for each data types.
 @property(nonatomic, strong) NSArray<TableViewItem*>* syncSwitchItems;
@@ -608,8 +608,8 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
       initWithType:BatchUploadRecommendationItemType];
   item.selectionStyle = UITableViewCellSelectionStyleNone;
   item.detailText = [self itemsToUploadRecommendationString];
-  item.image = CustomSymbolWithPointSize(kCloudAndArrowUpSymbol,
-                                         kBatchUploadSymbolPointSize);
+  item.image =
+      SymbolWithPointSize(SymbolCloudAndArrowUp, kBatchUploadSymbolPointSize);
   item.imageViewTintColor = [UIColor colorNamed:kBlueColor];
   item.accessibilityIdentifier =
       kBatchUploadRecommendationItemAccessibilityIdentifier;
@@ -1040,9 +1040,9 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   [self fetchLocalDataDescriptionsForBatchUploadWithFirstLoad:NO];
 }
 
-#pragma mark - IdentityManagerObserverBridgeDelegate
+#pragma mark - IdentityManagerObserving
 
-- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
+- (void)extendedAccountInfoDidUpdate:(const AccountInfo&)info {
   id<SystemIdentity> identity =
       _chromeAccountManagerService->GetIdentityOnDeviceWithGaiaID(info.gaia);
   if ([_signedInIdentity isEqual:identity]) {
@@ -1057,7 +1057,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   }
 }
 
-- (void)onEndBatchOfPrimaryAccountChanges {
+- (void)batchOfPrimaryAccountChangesDidEnd {
   if (!_authenticationService->HasPrimaryIdentity()) {
     return;
   }
@@ -1168,7 +1168,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   syncErrorItem.selectionStyle = UITableViewCellSelectionStyleNone;
   syncErrorItem.detailText = l10n_util::GetNSString(messageID);
   syncErrorItem.image =
-      DefaultSymbolWithPointSize(kErrorCircleFillSymbol, kErrorSymbolPointSize);
+      SymbolWithPointSize(SymbolErrorCircleFill, kErrorSymbolPointSize);
   syncErrorItem.imageViewTintColor = [UIColor colorNamed:kRed500Color];
   syncErrorItem.accessibilityElementsHidden = YES;
   return syncErrorItem;

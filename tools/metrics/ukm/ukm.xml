@@ -15363,6 +15363,187 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="MultistepFilter.ApplicationSession">
+  <owner>adigupt@google.com</owner>
+  <owner>chrome-multistep-filter-eng@google.com</owner>
+  <summary>
+    Recorded when a Multistep Filter suggestion application session is
+    concluded. The session starts when a suggestion is accepted. If the
+    application is unsuccessful, the session ends immediately. If successful,
+    the session continues to track post-application user engagement, ending when
+    the user navigates away or closes the tab. This event records the final
+    application outcome (AllApplied, NotAllApplied, or Abandoned) and any
+    post-application engagement metrics.
+  </summary>
+  <metric name="ApplicationOutcome" enum="MultistepFilterApplicationOutcome">
+    <summary>
+      The overall technical filter application outcome after a user accepts a
+      Multistep Filter suggestion.
+    </summary>
+  </metric>
+  <metric name="NumOfFilterFacetsAppliedSuccessfully">
+    <summary>
+      The number of filter facets successfully applied (clamped to
+      multistep_filter::kMultistepFilterMaxFacetsShownUkmClampingLimit). Logged
+      only if outcome is AllApplied.
+    </summary>
+  </metric>
+  <metric name="PostApplicationUserEngagement"
+      enum="MultistepFilterPostSuggestionApplicationUserEngagement">
+    <summary>
+      The user's engagement after the filters were applied (e.g. further
+      navigation, tab close, omnibox navigation) distinguished by whether it
+      happened within the
+      multistep_filter::kMultistepFilterPostApplicationSessionDuration window.
+    </summary>
+  </metric>
+  <metric name="RetentionState" enum="MultistepFilterRetentionState">
+    <summary>
+      The user's retention history state at the time the suggestion was shown
+      (must match the UI session).
+    </summary>
+  </metric>
+  <metric name="SessionId">
+    <summary>
+      A transient, randomly generated identifier used to correlate the UI
+      session event (MultistepFilter.UiSession) with the subsequent landing page
+      application session event (MultistepFilter.ApplicationSession).
+    </summary>
+  </metric>
+  <metric name="SuggestedFilterFacetTypes">
+    <summary>
+      A bitmask representing the types of filter facets in the accepted
+      suggestion. Each bit N corresponds to a filter facet type with enum value
+      N defined in MultistepFilterFacetType enum (e.g. Bit 1 is kAgeChild (1),
+      Bit 11 is kDateCheckin (11), Bit 0 is unused). This must match the UI
+      session.
+    </summary>
+  </metric>
+  <metric name="SuggestionAcceptedToAppliedTimeInMs">
+    <summary>
+      Time from the user accepting the suggestion to when the filters are
+      successfully applied on the landing page (in milliseconds, exponentially
+      bucketed). Logged only if outcome is AllApplied.
+    </summary>
+  </metric>
+  <metric name="TaskType" enum="MultistepFilterTaskType">
+    <summary>
+      The task type of the applied suggestion (must match the UI session).
+    </summary>
+  </metric>
+</event>
+
+<event name="MultistepFilter.UiSession">
+  <owner>adigupt@google.com</owner>
+  <owner>chrome-multistep-filter-eng@google.com</owner>
+  <summary>
+    Recorded when a Multistep Filter suggestion UI session is flushed
+    (concluded). This event captures the full lifecycle of the UI session,
+    including whether the suggestion was accepted, dismissed, or ignored, and
+    the associated latencies and age of the suggestion.
+  </summary>
+  <metric name="AcceptedAgeInMinutes">
+    <summary>
+      Measures the time elapsed (in minutes, clamped to
+      multistep_filter::kMultistepFilterSessionDuration) from when the potential
+      suggestion was extracted to when the user accepted it. Logged only if the
+      suggestion was accepted.
+    </summary>
+  </metric>
+  <metric name="IsSameDomain" enum="Boolean">
+    <summary>
+      True if the suggestion was shown on the same eTLD+1 as the page from which
+      it was extracted.
+    </summary>
+  </metric>
+  <metric name="NavigationToSuggestionAcceptedTimeInMs">
+    <summary>
+      Time from the end of the navigation that triggered the suggestion
+      generation to when the user accepted it (in milliseconds, exponentially
+      bucketed). Logged only if accepted.
+    </summary>
+  </metric>
+  <metric name="NavigationToSuggestionShownTimeInMs">
+    <summary>
+      Time from the end of the navigation that triggered the suggestion
+      generation to when it was first shown (in milliseconds, exponentially
+      bucketed).
+    </summary>
+  </metric>
+  <metric name="NumOfFilterFacetsShown">
+    <summary>
+      The number of filter facets which were part of the suggestion which was
+      shown (clamped to
+      multistep_filter::kMultistepFilterMaxFacetsShownUkmClampingLimit).
+    </summary>
+  </metric>
+  <metric name="ReopenedCueShown" enum="Boolean">
+    <summary>
+      True if the suggestion cue was reopened from the Omnibox.
+    </summary>
+  </metric>
+  <metric name="RetentionState" enum="MultistepFilterRetentionState">
+    <summary>
+      The user's retention history state at the time the suggestion was shown.
+    </summary>
+  </metric>
+  <metric name="SessionId">
+    <summary>
+      A transient, randomly generated identifier used to correlate the UI
+      session event (MultistepFilter.UiSession) with the subsequent landing page
+      application session event (MultistepFilter.ApplicationSession).
+    </summary>
+  </metric>
+  <metric name="ShownAgeInMinutes">
+    <summary>
+      Measures the time elapsed (in minutes, clamped to
+      multistep_filter::kMultistepFilterSessionDuration) from when the potential
+      suggestion was extracted to when it was first shown to the user.
+    </summary>
+  </metric>
+  <metric name="SuggestedFilterFacetTypes">
+    <summary>
+      A bitmask representing the types of filter facets in the suggestion shown
+      to the user. Each bit N corresponds to a filter facet type with enum value
+      N defined in MultistepFilterFacetType enum (e.g. Bit 1 is kAgeChild (1),
+      Bit 11 is kDateCheckin (11), Bit 0 is unused).
+    </summary>
+  </metric>
+  <metric name="SuggestionShownToAcceptedTimeInMs">
+    <summary>
+      Time from when the suggestion was first shown to when the user accepted it
+      (in milliseconds, exponentially bucketed). Logged only if accepted.
+    </summary>
+  </metric>
+  <metric name="TaskType" enum="MultistepFilterTaskType">
+    <summary>
+      The task type of the suggestion (e.g. Flight, Accommodation, etc).
+    </summary>
+  </metric>
+  <metric name="UserDecision" enum="SuggestionUserDecision">
+    <summary>
+      The user's final decision on the suggestion (Accepted, Dismissed, Settings
+      Opened, Ignored).
+    </summary>
+  </metric>
+</event>
+
+<event name="Navigation.DuplicateNavigationsIgnored">
+  <owner>annasato@chromium.org</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    Records the number of subsequent duplicate navigation requests that were
+    ignored in favor of an ongoing navigation. This is caused by
+    IgnoreDuplicateNavs.
+  </summary>
+  <metric name="IgnoredDuplicateNavigationCount">
+    <summary>
+      The number of duplicate navigations that were ignored.
+      ukm::GetExponentialBucketMinForCounts1000() is applied.
+    </summary>
+  </metric>
+</event>
+
 <event name="Navigation.FromGoogleSearch.Abandoned">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -21689,32 +21870,6 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="SchemefulSameSiteContextDowngrade">
-  <owner>bingler@chromium.org</owner>
-  <metric name="RequestPerCookie"
-      enum="SameSiteCookieContextBreakingDowngradeWithSecureness">
-    <summary>
-      An enum which records the type of schemeful same-site downgrade applied to
-      a cookie which is being sent on a request along with the secureness of the
-      origin the cookie is attempting to be sent to. This is recorded once per
-      cookie when the cookie is included in the request or if the cookie
-      excluded due to insufficient same-site context only. Cookies that meet the
-      above conditions but without a downgrade warning are not recorded.
-    </summary>
-  </metric>
-  <metric name="ResponsePerCookie"
-      enum="SameSiteCookieContextBreakingDowngradeWithSecureness">
-    <summary>
-      An enum which records the type of schemeful same-site downgrade applied to
-      a cookie which is being set by a response along with the secureness of the
-      origin that is attempting to set the cookie. This is recorded once per
-      cookie when the cookie is allowed to be set or if the cookie is ignored
-      due to insufficient same-site context only. Cookies that meet the above
-      conditions but without a downgrade warning are not recorded.
-    </summary>
-  </metric>
-</event>
-
 <event name="ScreenBrightness">
   <owner>pdyson@chromium.org</owner>
   <summary>
@@ -22436,6 +22591,40 @@ be describing additional metrics about the same event.
       The OptimizationTarget of the last selected segment before UKM is
       recorded. Some features might have several ML models with them. This
       metric records which model is currently selected for the feature.
+    </summary>
+  </metric>
+</event>
+
+<event name="ServiceWorker.MainResource.FetchHandlerError">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Recorded when a Service Worker fetch handler fails to load a main resource
+    due to a network error (such as &quot;failed to fetch&quot; errors occurring
+    in fetch() inside the fetch handler) or timing out during
+    race-network-and-fetch or normal fetch handler execution.
+  </summary>
+  <metric name="InitiatorType" enum="ServiceWorkerFetchHandlerInitiatorType">
+    <summary>
+      Indicates how the fetch handler was invoked.
+    </summary>
+  </metric>
+  <metric name="RaceFetchNetworkErrorCode">
+    <summary>
+      The specific net::ERR_ code indicating the reason for the failure.
+      (possible values are listed in net_error_list.h). Records the network
+      error that occurred when the Service Worker static routing API's
+      'race-network-and-fetch' handler deduplicates the network fetch with the
+      fetch() API call to the navigation URL. This metric is only populated when
+      this static routing strategy is active.
+    </summary>
+  </metric>
+  <metric name="RegularFetchNetworkErrorCode">
+    <summary>
+      The specific net::ERR_ code indicating the reason for the failure.
+      (possible values are listed in net_error_list.h). Records the network
+      error of the initial fetch() API call in cases where the deduplication
+      mentioned above does not apply.
     </summary>
   </metric>
 </event>

@@ -250,7 +250,7 @@ class ReadAnythingUntrustedPageHandler :
   void OnDestroyed() override;
   void Activate(
       bool active,
-      std::optional<ReadAnythingOpenTrigger> open_trigger,
+      ReadAnythingOpenTrigger open_trigger,
       std::optional<base::TimeDelta> completed_session_duration) override;
   void OnReadingModePresenterChanged() override;
 
@@ -353,6 +353,9 @@ class ReadAnythingUntrustedPageHandler :
   // Logs the current visual settings values.
   void LogTextStyle();
 
+  void LogDistillationQualityMetrics(
+      const reading_mode::mojom::DistillationMetricsPtr& metrics);
+
   // Restores settings from preferences.
   void RestoreSettingsFromPrefs();
 
@@ -422,7 +425,8 @@ class ReadAnythingUntrustedPageHandler :
   const mojo::Receiver<read_anything::mojom::UntrustedPageHandler> receiver_;
   const mojo::Remote<read_anything::mojom::UntrustedPage> page_;
 
-  std::optional<ReadAnythingOpenTrigger> last_open_trigger_;
+  ReadAnythingOpenTrigger last_open_trigger_ =
+      ReadAnythingOpenTrigger::kUnknown;
 
   // Whether the Read Anything feature is currently active. The feature is
   // active when it is currently shown in the Side Panel.

@@ -52,6 +52,7 @@ class Profile;
 class ContextualSearchboxTabFaviconHelper;
 class SkBitmap;
 class DrivePickerHostController;
+class OmniboxPopupDeactivationBlocker;
 
 namespace contextual_tasks {
 class ActiveTaskContextProvider;
@@ -125,6 +126,8 @@ class ContextualSearchboxHandler
 
   ~ContextualSearchboxHandler() override;
 
+  virtual void SetAimButtonVisible(bool visible) {}
+
   // searchbox::mojom::PageHandler:
   void NotifySessionStarted() override;
   void NotifySessionAbandoned() override;
@@ -158,28 +161,24 @@ class ContextualSearchboxHandler
                              const GURL& url,
                              bool are_matches_showing,
                              uint8_t mouse_button,
-                             bool alt_key,
-                             bool ctrl_key,
-                             bool meta_key,
-                             bool shift_key,
+                             searchbox::mojom::ActionModifiersPtr modifiers,
                              bool via_keyboard) override;
   void SetSmartComposeStats(
       searchbox::mojom::SmartComposeStatsPtr smart_compose_stats) override;
   void GetDriveDisclaimerStatus(
       GetDriveDisclaimerStatusCallback callback) override;
   void OnDriveDisclaimerAccepted() override;
+#if !BUILDFLAG(IS_ANDROID)
+  bool has_drive_picker_deactivation_blocker_for_testing() const {
+    return drive_picker_deactivation_blocker_ != nullptr;
+  }
+#endif
   void QueryAutocomplete(int32_t query_id,
                          const std::u16string& input,
                          bool prevent_inline_autocomplete,
                          uint32_t cursor_position,
+                         omnibox::SuggestInventory suggest_inventory,
                          bool is_on_focus) override;
-  void QueryAutocompleteWithSuggestInventory(
-      int32_t query_id,
-      const std::u16string& input,
-      bool prevent_inline_autocomplete,
-      uint32_t cursor_position,
-      omnibox::SuggestInventory suggest_inventory,
-      bool is_on_focus) override;
 
 #if !BUILDFLAG(IS_ANDROID)
   // drive_picker_host::mojom::DrivePickerResultHandler:
@@ -475,6 +474,10 @@ class ContextualSearchboxHandler
 
   std::unique_ptr<drive_picker::DriveDisclaimerController>
       drive_disclaimer_controller_;
+
+  // Keeps the AIM popup open while the Google Drive picker is active.
+  std::unique_ptr<OmniboxPopupDeactivationBlocker>
+      drive_picker_deactivation_blocker_;
 #endif
 
   OnDriveUploadClickedCallback drive_upload_click_callback_;

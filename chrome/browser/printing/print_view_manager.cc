@@ -581,8 +581,8 @@ void PrintViewManager::OnScriptedPrintPreviewCallback(
   auto* dialog_controller = PrintPreviewDialogController::GetInstance();
   CHECK(dialog_controller);
   mojom::RequestPrintPreviewParams params;
-  params.is_modifiable = !print_preview_rfh_->GetProcess()->IsPdf();
-  dialog_controller->PrintPreview(web_contents(), params);
+  dialog_controller->PrintPreview(web_contents(), params,
+                                  print_preview_rfh_->GetProcess()->IsPdf());
 
   PrintPreviewAllowedForTesting();
 }
@@ -632,7 +632,8 @@ void PrintViewManager::OnRequestPrintPreviewCallback(
 
   auto* dialog_controller = PrintPreviewDialogController::GetInstance();
   CHECK(dialog_controller);
-  dialog_controller->PrintPreview(web_contents(), *params);
+  dialog_controller->PrintPreview(web_contents(), *params,
+                                  render_frame_host->GetProcess()->IsPdf());
 
   PrintPreviewAllowedForTesting();
 }

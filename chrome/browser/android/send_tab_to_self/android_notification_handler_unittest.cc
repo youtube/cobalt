@@ -11,7 +11,6 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/android/send_tab_to_self/android_notification_handler_test_util.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_test_helper.h"
@@ -127,8 +126,6 @@ TEST_F(AndroidNotificationHandlerTest,
                                 PageContext(), NavigationHistory());
   const std::string guid = entry->GetGUID();
 
-  EntryOpenedWaiter waiter(model());
-
   // Ensure no system notification is shown since Chrome is active.
   EXPECT_CALL(*handler(), ShowNotification).Times(0);
   // Expect the message banner to be displayed on the active WebContents.
@@ -136,10 +133,7 @@ TEST_F(AndroidNotificationHandlerTest,
 
   // Trigger the addition of a new entry using the public ReceivingUiHandler
   // interface.
-  static_cast<ReceivingUiHandler*>(handler())->DisplayNewEntries({entry});
-
-  // Wait for the asynchronous UI thread task and OnTabNavigated to complete.
-  waiter.Wait();
+  handler()->DisplayNewEntries({entry});
 
   // Verify that the model was notified to mark the entry as opened.
   EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
@@ -161,18 +155,14 @@ TEST_F(AndroidNotificationHandlerTest, ShouldNotAutoOpenNewEntriesIfNotActive) {
                                 PageContext(), NavigationHistory());
   const std::string guid = entry->GetGUID();
 
-  base::RunLoop run_loop;
   // Expect a standard system notification to be shown with the correct GUID.
-  EXPECT_CALL(*handler(), ShowNotification(
-                              Property(&SendTabToSelfEntry::GetGUID, Eq(guid))))
-      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+  EXPECT_CALL(*handler(), ShowNotification(Property(
+                              &SendTabToSelfEntry::GetGUID, Eq(guid))));
   // Ensure no in-app message banner is displayed.
   EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
 
   // Trigger the addition of a new entry.
-  static_cast<ReceivingUiHandler*>(handler())->DisplayNewEntries({entry});
-  // Wait for the posted task to execute and show the notification.
-  run_loop.Run();
+  handler()->DisplayNewEntries({entry});
 
   // Verify that the entry is NOT marked as opened yet.
   EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
@@ -195,8 +185,6 @@ TEST_F(AndroidNotificationHandlerTest,
   const std::string guid1 = entry1->GetGUID();
   const std::string guid2 = entry2->GetGUID();
 
-  EntryOpenedWaiter waiter(model(), /*expected_count=*/2);
-
   // Ensure no new system notifications are shown during activation.
   EXPECT_CALL(*handler(), ShowNotification).Times(0);
   // Expect existing system notifications for both pending entries to be hidden.
@@ -208,8 +196,6 @@ TEST_F(AndroidNotificationHandlerTest,
   // Adding the tab model triggers OnTabModelAdded which executes auto-open on
   // all unread entries.
   TabModelList::AddTabModel(tab_model_.get());
-
-  waiter.Wait();
 
   // Verify that both entries are marked as opened.
   EXPECT_TRUE(model()->GetEntryByGUID(guid1)->IsOpened());
@@ -240,19 +226,15 @@ TEST_F(AndroidNotificationHandlerTest,
                                 PageContext(), NavigationHistory());
   const std::string guid = entry->GetGUID();
 
-  base::RunLoop run_loop;
   // Expect a system notification because OTR tab models are ignored for
   // auto-open.
-  EXPECT_CALL(*handler(), ShowNotification(
-                              Property(&SendTabToSelfEntry::GetGUID, Eq(guid))))
-      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+  EXPECT_CALL(*handler(), ShowNotification(Property(
+                              &SendTabToSelfEntry::GetGUID, Eq(guid))));
   // Ensure no message banner is shown in the OTR WebContents.
   EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
 
   // Trigger the addition of a new entry.
-  static_cast<ReceivingUiHandler*>(handler())->DisplayNewEntries({entry});
-  // Wait for the notification task to complete.
-  run_loop.Run();
+  handler()->DisplayNewEntries({entry});
 
   // Verify that the entry is NOT marked as opened.
   EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
@@ -274,15 +256,11 @@ TEST_F(AndroidNotificationHandlerTest, ShouldEnqueueMessageBannerOnAutoOpen) {
                                 PageContext(), NavigationHistory());
   const std::string guid = entry->GetGUID();
 
-  EntryOpenedWaiter waiter(model());
-
   // Expect the message banner to be shown upon auto-opening the entry.
   EXPECT_CALL(*handler(), ShowMessageBanner(kRemoteDeviceName, web_contents()));
 
   // Trigger the addition of a new entry.
-  static_cast<ReceivingUiHandler*>(handler())->DisplayNewEntries({entry});
-
-  waiter.Wait();
+  handler()->DisplayNewEntries({entry});
 
   // Verify that the entry is marked as opened.
   EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
@@ -323,8 +301,6 @@ TEST_F(AndroidNotificationHandlerModelNotReadyTest,
   const std::string guid = entry->GetGUID();
   EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
 
-  EntryOpenedWaiter waiter(model());
-
   // Ensure no system notification is shown since Chrome is active.
   EXPECT_CALL(*handler(), ShowNotification).Times(0);
   // Expect the message banner to be displayed on the active WebContents.
@@ -334,7 +310,6 @@ TEST_F(AndroidNotificationHandlerModelNotReadyTest,
   // entry.
   model()->SetIsReady(true);
 
-  waiter.Wait();
   // Verify that the model was notified to mark the entry as opened.
   EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
 
@@ -343,6 +318,250 @@ TEST_F(AndroidNotificationHandlerModelNotReadyTest,
       AutoOpenOutcome::kTabsOpenedInBackgroundUponActivation, 1);
 
   // Clean up the tab model from the global list.
+  TabModelList::RemoveTabModel(tab_model_.get());
+}
+
+TEST_F(AndroidNotificationHandlerTest,
+       ShouldAutoOpenPendingEntriesOnDelayedTabInitialization) {
+  base::HistogramTester histogram_tester;
+  // Simulate pending entries.
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  // Create an EMPTY owning tab model. It automatically adds itself to
+  // TabModelList.
+  auto empty_tab_model = std::make_unique<OwningTestTabModel>(profile());
+  empty_tab_model->SetIsActiveModel(true);
+
+  // Expect NOT to open immediately because model is empty.
+  EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
+  EXPECT_CALL(*handler(), HideNotification).Times(0);
+
+  // Verify it didn't open.
+  EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
+  histogram_tester.ExpectTotalCount("Sharing.SendTabToSelf.AutoOpenOutcome2",
+                                    0);
+
+  // Create a new WebContents to simulate tab initialization.
+  std::unique_ptr<content::WebContents> new_web_contents =
+      CreateTestWebContents();
+  content::WebContents* raw_web_contents = new_web_contents.get();
+  tabs::TabLookupFromWebContents::CreateForWebContents(raw_web_contents,
+                                                       &mock_tab_interface_);
+
+  // Expect it to be opened eventually.
+  EXPECT_CALL(*handler(), HideNotification(guid));
+  EXPECT_CALL(*handler(),
+              ShowMessageBanner(kRemoteDeviceName, raw_web_contents));
+
+  // Now simulate tab initialization (adding WebContents).
+  empty_tab_model->AddTabFromWebContents(std::move(new_web_contents), 0,
+                                         /*select=*/true);
+
+  EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      AutoOpenOutcome::kTabsOpenedInBackgroundUponActivation, 1);
+}
+
+TEST_F(AndroidNotificationHandlerTest,
+       ShouldNotAutoOpenIfTabModelRemovedBeforeTabAdded) {
+  // Simulate pending entries.
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  // Create an EMPTY owning tab model.
+  auto empty_tab_model = std::make_unique<OwningTestTabModel>(profile());
+  empty_tab_model->SetIsActiveModel(true);
+
+  // Expect NOT to open.
+  EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
+  EXPECT_CALL(*handler(), HideNotification).Times(0);
+
+  // Destroy the empty tab model.
+  empty_tab_model.reset();
+
+  // Verify it didn't open.
+  EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
+}
+
+TEST_F(AndroidNotificationHandlerTest,
+       ShouldAutoOpenOnFirstTabAddedWithMultipleEmptyModels) {
+  // Simulate pending entries.
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  // Create two EMPTY owning tab models.
+  auto empty_model1 = std::make_unique<OwningTestTabModel>(profile());
+  empty_model1->SetIsActiveModel(true);
+  auto empty_model2 = std::make_unique<OwningTestTabModel>(profile());
+
+  // Expect NOT to open immediately.
+  EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
+  EXPECT_CALL(*handler(), HideNotification).Times(0);
+  EXPECT_FALSE(model()->GetEntryByGUID(guid)->IsOpened());
+
+  // Create a new WebContents to simulate tab initialization.
+  std::unique_ptr<content::WebContents> new_web_contents =
+      CreateTestWebContents();
+  content::WebContents* raw_web_contents = new_web_contents.get();
+  tabs::TabLookupFromWebContents::CreateForWebContents(raw_web_contents,
+                                                       &mock_tab_interface_);
+
+  // Expect it to be opened eventually.
+  EXPECT_CALL(*handler(), HideNotification(guid));
+  EXPECT_CALL(*handler(),
+              ShowMessageBanner(kRemoteDeviceName, raw_web_contents));
+
+  // Now simulate tab initialization on the first model.
+  empty_model1->AddTabFromWebContents(std::move(new_web_contents), 0,
+                                      /*select=*/true);
+
+  EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
+}
+
+TEST_F(AndroidNotificationHandlerTest,
+       ShouldPreferActiveModelOverInactiveModelWithTabs) {
+  // Create an INACTIVE model with a tab FIRST so it appears earlier in
+  // TabModelList.
+  auto inactive_model = std::make_unique<OwningTestTabModel>(profile());
+  inactive_model->SetIsActiveModel(false);
+  std::unique_ptr<content::WebContents> inactive_web_contents =
+      CreateTestWebContents();
+  tabs::TabLookupFromWebContents::CreateForWebContents(
+      inactive_web_contents.get(), &mock_tab_interface_);
+  inactive_model->AddTabFromWebContents(std::move(inactive_web_contents), 0,
+                                        /*select=*/true);
+
+  // Add the ACTIVE tab_model_ to TabModelList.
+  TabModelList::AddTabModel(tab_model_.get());
+
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  // Expect message banner to be shown on active web_contents(), NOT on
+  // inactive_model's tab.
+  EXPECT_CALL(*handler(), ShowNotification).Times(0);
+  EXPECT_CALL(*handler(), ShowMessageBanner(kRemoteDeviceName, web_contents()));
+
+  handler()->DisplayNewEntries({entry});
+
+  EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
+
+  TabModelList::RemoveTabModel(tab_model_.get());
+}
+
+TEST_F(AndroidNotificationHandlerTest,
+       ShouldFallbackToInactiveModelWithActiveWebContentsIfNoActiveModel) {
+  auto inactive_model = std::make_unique<OwningTestTabModel>(profile());
+  inactive_model->SetIsActiveModel(false);
+  std::unique_ptr<content::WebContents> inactive_web_contents =
+      CreateTestWebContents();
+  content::WebContents* raw_web_contents = inactive_web_contents.get();
+  tabs::TabLookupFromWebContents::CreateForWebContents(raw_web_contents,
+                                                       &mock_tab_interface_);
+  inactive_model->AddTabFromWebContents(std::move(inactive_web_contents), 0,
+                                        /*select=*/true);
+
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  EXPECT_CALL(*handler(), ShowNotification).Times(0);
+  EXPECT_CALL(*handler(),
+              ShowMessageBanner(kRemoteDeviceName, raw_web_contents));
+
+  handler()->DisplayNewEntries({entry});
+
+  EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
+}
+
+class AndroidNotificationHandlerWithoutTabGridAutoOpenSupportTest
+    : public AndroidNotificationHandlerTest {
+ public:
+  AndroidNotificationHandlerWithoutTabGridAutoOpenSupportTest() {
+    feature_list_.InitWithFeatureState(kSendTabToSelfSupportAutoOpenInTabGrid,
+                                       false);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class AndroidNotificationHandlerWithTabGridAutoOpenSupportTest
+    : public AndroidNotificationHandlerTest {
+  base::test::ScopedFeatureList feature_list_{
+      kSendTabToSelfSupportAutoOpenInTabGrid};
+};
+
+TEST_F(AndroidNotificationHandlerWithoutTabGridAutoOpenSupportTest,
+       ShouldNotAutoOpenInTabSwitcher) {
+  base::HistogramTester histogram_tester;
+  TabModelList::AddTabModel(tab_model_.get());
+
+  // Hide the active WebContents (simulating tab switcher open).
+  web_contents()->WasHidden();
+  ASSERT_EQ(content::Visibility::HIDDEN, web_contents()->GetVisibility());
+
+  // Should fallback to notification.
+  EXPECT_CALL(*handler(), ShowNotification(Property(&SendTabToSelfEntry::GetURL,
+                                                    Eq(GURL(kExampleUrl)))));
+  EXPECT_CALL(*handler(), ShowMessageBanner).Times(0);
+
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+
+  handler()->DisplayNewEntries({entry});
+
+  EXPECT_FALSE(model()->GetEntryByGUID(entry->GetGUID())->IsOpened());
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome2",
+                                      AutoOpenOutcome::kUnopenedImmediately, 1);
+
+  TabModelList::RemoveTabModel(tab_model_.get());
+}
+
+TEST_F(AndroidNotificationHandlerWithTabGridAutoOpenSupportTest,
+       ShouldAutoOpenInTabSwitcher) {
+  base::HistogramTester histogram_tester;
+  // Attach the tab model.
+  TabModelList::AddTabModel(tab_model_.get());
+
+  // Hide the active WebContents (simulating tab switcher open).
+  web_contents()->WasHidden();
+  ASSERT_EQ(content::Visibility::HIDDEN, web_contents()->GetVisibility());
+
+  // Ensure application status is foreground.
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
+      base::android::APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
+  base::RunLoop().RunUntilIdle();
+
+  const SendTabToSelfEntry* entry =
+      model()->AddEntryRemotely(GURL(kExampleUrl), "Title", kDeviceId,
+                                PageContext(), NavigationHistory());
+  const std::string guid = entry->GetGUID();
+
+  EXPECT_CALL(*handler(), ShowNotification).Times(0);
+  EXPECT_CALL(*handler(), ShowMessageBanner(kRemoteDeviceName, web_contents()));
+
+  handler()->DisplayNewEntries({entry});
+
+  EXPECT_TRUE(model()->GetEntryByGUID(guid)->IsOpened());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      AutoOpenOutcome::kTabsOpenedImmediatelyInBackground, 1);
+
   TabModelList::RemoveTabModel(tab_model_.get());
 }
 

@@ -4,7 +4,10 @@
 
 package org.chromium.chrome.browser.contextmenu;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -528,11 +531,21 @@ public class ContextMenuTest {
         // Allow DiskWrites temporarily in main thread to avoid
         // violation during copying under emulator environment.
         try (CloseableOnMainThread ignored = CloseableOnMainThread.StrictMode.allowDiskWrites()) {
-            ContextMenuUtils.selectContextMenuItem(
+            ContextMenuCoordinator menu = ContextMenuUtils.openContextMenu(tab, "testTel");
+            Assert.assertNotNull("Context menu failed to open for testTel", menu);
+            Assert.assertEquals(
+                    "Touch target missed testTel element (url was "
+                            + menu.getParams().getLinkUrl().getSpec()
+                            + ")",
+                    "tel:10000000000",
+                    menu.getParams().getLinkUrl().getSpec());
+            Assert.assertNotNull(
+                    "Copy menu item (R.id.contextmenu_copy) not generated for tel: link",
+                    menu.findItem(R.id.contextmenu_copy));
+            ContextMenuUtils.selectOpenContextMenuItem(
                     InstrumentationRegistry.getInstrumentation(),
                     mActivityTestRule.getActivity(),
-                    tab,
-                    "testTel",
+                    menu,
                     R.id.contextmenu_copy);
         }
 
@@ -1399,12 +1412,20 @@ public class ContextMenuTest {
         // Select "save [image/video]" in that menu.
         Tab tab = mActivityTestRule.getActivityTab();
         int callCount = mDownloadTestRule.getChromeDownloadCallCount();
+        boolean isSaveAsEnabled =
+                ChromeFeatureList.isEnabled(ChromeFeatureList.ENABLE_DOWNLOAD_SAVE_AS_CONTEXT_MENU);
         ContextMenuUtils.selectContextMenuItem(
                 InstrumentationRegistry.getInstrumentation(),
-                mActivityTestRule.getActivity(),
+                isSaveAsEnabled ? null : mActivityTestRule.getActivity(),
                 tab,
                 mediaDOMElement,
                 saveMenuID);
+
+        if (isSaveAsEnabled) {
+            CriteriaHelper.pollUiThread(
+                    () -> mActivityTestRule.getActivity().getModalDialogManager().isShowing());
+            onView(withId(R.id.positive_button)).perform(click());
+        }
 
         // Wait for the download to complete and see if we got the right file
         Assert.assertTrue(mDownloadTestRule.waitForChromeDownloadToFinish(callCount));

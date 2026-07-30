@@ -107,6 +107,9 @@ gpu.ci.linux_builder(
         ],
         mixins = [
             "chromium_pixel_2_q",
+            # TODO(crbug.com/538273327): Return these tests to CQ after device
+            # pool stabalizes (or we increase its size?)
+            "ci_only",
         ],
     ),
     targets_settings = targets.settings(
@@ -700,6 +703,7 @@ ci.thin_tester(
         mixins = [
             "mac_arm64_apple_m2_retina_gpu_stable",
             "puppet_production",
+            "isolate_profile_data",
         ],
     ),
     targets_settings = targets.settings(

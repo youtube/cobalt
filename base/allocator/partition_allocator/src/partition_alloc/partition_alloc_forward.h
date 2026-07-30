@@ -5,12 +5,13 @@
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_FORWARD_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_FORWARD_H_
 
+#include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 #include "partition_alloc/buildflags.h"
-#include "partition_alloc/partition_alloc_base/bits.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
 #include "partition_alloc/partition_alloc_base/cxx_wrapper/algorithm.h"
@@ -32,13 +33,13 @@ namespace internal {
 constexpr inline size_t kAlignment =
     std::max(alignof(max_align_t),
              static_cast<size_t>(__STDCPP_DEFAULT_NEW_ALIGNMENT__));
-static_assert(base::bits::HasSingleBit(kAlignment),
+static_assert(std::has_single_bit(kAlignment),
               "Alignment must be power of two.");
 static_assert(kAlignment <= 16,
               "PartitionAlloc doesn't support a fundamental alignment larger "
               "than 16 bytes.");
 
-constexpr inline size_t kAlignmentIndex = base::bits::CountrZero(kAlignment);
+constexpr inline size_t kAlignmentIndex = std::countr_zero(kAlignment);
 static_assert(kAlignment == (1 << kAlignmentIndex));
 
 static constexpr size_t kBitsPerSizeT = std::numeric_limits<size_t>::digits;

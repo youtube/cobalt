@@ -6,6 +6,9 @@ package org.chromium.chrome.browser.settings;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.settings.SettingsIntentUtil.EXTRA_SHOW_FRAGMENT;
+import static org.chromium.chrome.browser.settings.SettingsIntentUtil.EXTRA_SHOW_FRAGMENT_ARGUMENTS;
+import static org.chromium.chrome.browser.settings.SettingsIntentUtil.EXTRA_SHOW_FRAGMENT_STANDALONE;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
@@ -94,7 +97,6 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -127,16 +129,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     // Key used to store activity start time in the Bundle to have it survive activity re-creation.
     private static final String KEY_START_TIME = "start_time";
-
-    private static final String KEY_INITIAL_BREADCRUMB_PATH = "initial_breadcrumb_path";
-
-    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-    public static final String EXTRA_SHOW_FRAGMENT = "show_fragment";
-
-    static final String EXTRA_SHOW_FRAGMENT_ARGUMENTS = "show_fragment_args";
-    static final String EXTRA_SHOW_FRAGMENT_STANDALONE = "show_fragment_standalone";
-    static final String EXTRA_ADD_TO_BACK_STACK = "add_to_back_stack";
-    static final String EXTRA_FRAGMENT_TAG = "fragment_tag";
 
     /** The current instance of SettingsActivity in the resumed state, if any. */
     private static @Nullable SettingsActivity sResumedInstance;
@@ -235,32 +227,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 .setIsTablet(DeviceFormFactor.isNonMultiDisplayContextOnTablet(this));
 
         if (savedInstanceState == null && isMultiColumnSettingEnabled()) {
-            String fragmentName = getIntent().getStringExtra(EXTRA_SHOW_FRAGMENT);
-
-            if (fragmentName != null) {
-                SettingsIndexData indexData =
-                        SettingsSearchCoordinator.ensureIndexBuilt(this, assertNonNull(mProfile));
-
-                List<SettingsIndexData.Entry> path =
-                        indexData.getBreadcrumbEntries(
-                                fragmentName,
-                                getIntent().getBundleExtra(EXTRA_SHOW_FRAGMENT_ARGUMENTS));
-
-                if (path != null && path.size() > 1) {
-                    mInitialBreadcrumbPath = path;
-                }
-            }
+            mInitialBreadcrumbPath =
+                    SettingsBreadcrumbUtil.getInitialBreadcrumbPath(
+                            /* context= */ this,
+                            assertNonNull(mProfile),
+                            getIntent().getStringExtra(EXTRA_SHOW_FRAGMENT),
+                            getIntent().getBundleExtra(EXTRA_SHOW_FRAGMENT_ARGUMENTS));
         } else if (savedInstanceState != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                mInitialBreadcrumbPath =
-                        savedInstanceState.getParcelableArrayList(
-                                KEY_INITIAL_BREADCRUMB_PATH, SettingsIndexData.Entry.class);
-            } else {
-                @SuppressWarnings("deprecation")
-                ArrayList<SettingsIndexData.Entry> legacyList =
-                        savedInstanceState.getParcelableArrayList(KEY_INITIAL_BREADCRUMB_PATH);
-                mInitialBreadcrumbPath = legacyList;
-            }
+            mInitialBreadcrumbPath =
+                    SettingsBreadcrumbUtil.getInitialBreadcrumbPath(savedInstanceState);
         }
 
         // Register fragment lifecycle callbacks before calling super.onCreate() because it may
@@ -1079,10 +1054,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             mStartTimeSaved = true;
         }
 
-        if (mInitialBreadcrumbPath != null) {
-            outState.putParcelableArrayList(
-                    KEY_INITIAL_BREADCRUMB_PATH, new ArrayList<>(mInitialBreadcrumbPath));
-        }
+        SettingsBreadcrumbUtil.saveInitialBreadcrumbPath(outState, mInitialBreadcrumbPath);
     }
 
     // TODO(crbug.com/521895796): Extract to a shared class so it can be reused by

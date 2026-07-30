@@ -228,7 +228,9 @@ enum class AccountLinkingFlowExitedReason {
   kActionTokenNotAvailable = 17,
   kUserLoggedOut = 18,
   kApiClientNotAvailable = 19,
-  kMaxValue = kApiClientNotAvailable
+  kUserCanceledInGmsCore = 20,
+  kGmsCoreFlowFailed = 21,
+  kMaxValue = kGmsCoreFlowFailed
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/facilitated_payments/enums.xml:FacilitatedPayments.AccountLinking.FlowExitedReason)
 
@@ -508,6 +510,15 @@ void LogAccountLinkingPromptUserAction(
     FacilitatedPaymentsType payment_type,
     AccountLinkingPromptUserAction user_action);
 
+// Logs that the account linking prompt failed to show.
+void LogAccountLinkingPromptFailedToShow(FacilitatedPaymentsType payment_type);
+
+// Logs the user interaction duration for the account linking prompt.
+void LogAccountLinkingPromptInteractionDuration(
+    FacilitatedPaymentsType payment_type,
+    AccountLinkingPromptUserAction user_action,
+    base::TimeDelta duration);
+
 // Logs that the Pix account linking prompt was shown.
 void LogPixAccountLinkingPromptShown();
 
@@ -530,6 +541,9 @@ void LogAccountLinkingGetDetailsForCreatePaymentInstrumentResultAndLatency(
 // Log the reason for the account linking flow was exited early.
 void LogAccountLinkingFlowExitedReason(std::string_view fop_suffix,
                                        AccountLinkingFlowExitedReason reason);
+
+// Logs the final result (success/failure) of the account linking flow.
+void LogAccountLinkingResult(std::string_view fop_suffix, bool is_successful);
 
 }  // namespace payments::facilitated
 

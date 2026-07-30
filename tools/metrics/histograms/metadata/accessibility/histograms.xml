@@ -1281,7 +1281,7 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Whether enhanced network TTS voices were enabled when Select-to-Speak was
-    activated.
+    activated. Enhanced network voices were forced off in M152.
   </summary>
 </histogram>
 
@@ -1382,7 +1382,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosSelectToSpeak.TtsEngineUsed"
-    enum="CrosSelectToSpeakTtsEngineUsed" expires_after="2026-10-04">
+    enum="CrosSelectToSpeakTtsEngineUsed" expires_after="2027-01-17">
   <owner>ajitnarayanan@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -1992,80 +1992,6 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
-<histogram name="Accessibility.LanguageDetection.CountDetectionAttempted"
-    units="count" expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The number of nodes on this page for which language detection was attempted.
-    Warning: this histogram was expired 2023-11-30 to 2024-02-29, data might be
-    missing.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.LanguageDetection.CountLabelled" units="count"
-    expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The number of nodes on this page for which a detected language was
-    successfully assigned. Warning: this histogram was expired 2023-11-30 to
-    2024-02-29, data might be missing.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.LanguageDetection.LangsPerPage" units="count"
-    expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    The number of unique languages which were detected to be the most probable
-    language for at least one node on the page, regardless of whether a detected
-    language was assigned for that node. Warning: this histogram was expired
-    2023-11-30 to 2024-02-29, data might be missing.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.LanguageDetection.PercentageLabelledWithTop"
-    units="%" expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Of the nodes which had a detected language assigned, the percentage for
-    which the assigned language was the language detected as having the highest
-    probability. Warning: this histogram was expired 2023-11-30 to 2024-02-29,
-    data might be missing.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.LanguageDetection.PercentageLanguageDetected"
-    units="%" expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Of the nodes for which language detection was attempted, the percentage for
-    which a language was successfully assigned.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.LanguageDetection.PercentageOverridden"
-    units="%" expires_after="2027-06-01">
-  <owner>chrishall@chromium.org</owner>
-  <owner>dtseng@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Of the nodes for which a detected language was successfully assigned, the
-    percentage where the assigned language differs from the author-provided
-    language. Warning: this histogram was expired 2023-11-30 to 2024-02-29, data
-    might be missing.
-  </summary>
-</histogram>
-
 <histogram name="Accessibility.LiveCaption.AudioPropertyChanged"
     enum="BooleanEnabled" expires_after="2027-04-20">
   <owner>evliu@google.com</owner>
@@ -2249,7 +2175,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.Ash.Boca.Babelorca.TargetLanguage"
-    enum="LocaleCodeBCP47" expires_after="2026-12-01">
+    enum="LocaleCodeBCP47" expires_after="2027-01-27">
   <owner>caott@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -2470,7 +2396,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.PDF.IsPDFTagged" enum="BooleanExists"
-    expires_after="2026-11-15">
+    expires_after="2027-01-17">
   <owner>dtseng@chromium.org</owner>
   <owner>kyungjunlee@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -3083,6 +3009,26 @@ even if they fit the naming pattern. -->
     failures, as well as final evaluation successes. Recorded once for every
     evaluation attempt.
   </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.DistillationQuality.{Metric}"
+    units="%" expires_after="2027-01-01">
+  <owner>alfredohiguera@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the {Metric} metric for Reading Mode distillation quality. Recorded
+    as a percentage after multiplying the original 0.0-1.0 value by 100.
+    Recorded after a successful distillation quality evaluation on a page.
+  </summary>
+  <token key="Metric">
+    <variant name="FormatScore" summary="Format Score"/>
+    <variant name="LinkDensityRatio" summary="Link Density Ratio"/>
+    <variant name="RougeLF1" summary="ROUGE-L F1 Score"/>
+    <variant name="RougeLF2" summary="ROUGE-L F2 Score"/>
+    <variant name="RougeLPrecision" summary="ROUGE-L Precision"/>
+    <variant name="RougeLRecall" summary="ROUGE-L Recall"/>
+    <variant name="StructScore" summary="Struct Score"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.DistillationScheme"
@@ -3781,15 +3727,27 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram
+    name="Accessibility.ReadAnything.TimeFromActiveAXTreeIDChangedToAXTreeReady"
+    units="ms" expires_after="2027-06-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the time elapsed from when the browser triggers
+    OnActiveAXTreeIDChanged (due to page navigation, or sidebar opening) to when
+    the AXTree is ready in the Read Anything App model.
+  </summary>
+</histogram>
+
+<histogram
     name="Accessibility.ReadAnything.TimeFromActiveAXTreeIDChangedToRenderedTextBlocks"
     units="ms" expires_after="2027-06-01">
   <owner>martinglopez@google.com</owner>
   <owner>chrome-irm-devs@google.com</owner>
   <summary>
     Records the time elapsed from when the browser triggers
-    OnActiveAXTreeIDChanged (due to tab switch, page navigation, or sidebar
-    opening) to when the WebUI finishes layout and renders the distilled text
-    content in the viewport.
+    OnActiveAXTreeIDChanged (due to page navigation, or sidebar opening) to when
+    the WebUI finishes layout and renders the distilled text content in the
+    viewport.
   </summary>
 </histogram>
 
@@ -4130,6 +4088,19 @@ even if they fit the naming pattern. -->
   <summary>
     Records when ScreenAI service does not get a reply from the library in one
     minute after a request. Records if the request was for OCR or not.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ScreenAI.VulnerableToTlsDtvCrash" enum="Boolean"
+    expires_after="2027-06-01">
+  <owner>rhalavati@chromium.org</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records true if the system environment is vulnerable to glibc DTV TLS
+    allocation races (glibc &lt; 2.35 with Static TLS pool exhausted) when
+    Screen AI OCR initialization is attempted, or false otherwise. This metric
+    is recorded during Screen AI OCR initialization, only on Linux and when
+    glibc is used.
   </summary>
 </histogram>
 

@@ -18,6 +18,7 @@ browser_exposed_mojom_targets = [
   "//cc/mojom:mojom_browser_controls",
   "//cc/mojom:mojom_layer_trees",
   "//chrome/browser/actor/ui:mojo_bindings",
+  "//chrome/browser/contextual_cueing/internals:mojo_bindings",
   "//chrome/browser/contextual_tasks:mojo_bindings",
   "//chrome/browser/glic:mojo_bindings",
   "//chrome/browser/lens/core/mojom:mojo_bindings",
@@ -98,7 +99,6 @@ browser_exposed_mojom_targets = [
   "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
   "//components/autofill/core/common/mojom:mojo_types",
   "//components/browser_apis/tab_strip:mojom",
-  "//components/browsing_topics/mojom:mojo_bindings",
   "//components/commerce/core/internals/mojom:mojo_bindings",
   "//components/commerce/core/mojom:mojo_bindings",
   "//components/compose/core/browser:mojo_bindings",
@@ -353,8 +353,10 @@ browser_exposed_mojom_targets = [
 ]
 
 if (!is_android) {
-  browser_exposed_mojom_targets +=
-      [ "//chrome/browser/ui/webui/feedback/report_unsafe_site:mojo_bindings" ]
+  browser_exposed_mojom_targets += [
+    "//chrome/browser/ui/webui/feedback/report_unsafe_site:mojo_bindings",
+    "//chrome/browser/ui/webui/iwa_dev:mojo_bindings",
+  ]
 }
 
 if (enable_webui_ntp) {

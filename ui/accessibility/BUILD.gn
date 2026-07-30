@@ -177,8 +177,6 @@ component("accessibility_internal") {
     "ax_export.h",
     "ax_hypertext.cc",
     "ax_hypertext.h",
-    "ax_language_detection.cc",
-    "ax_language_detection.h",
     "ax_node.cc",
     "ax_node.h",
     "ax_node_position.cc",
@@ -320,7 +318,6 @@ test("accessibility_unittests") {
     "ax_enum_util_unittest.cc",
     "ax_event_generator_unittest.cc",
     "ax_generated_tree_unittest.cc",
-    "ax_language_detection_unittest.cc",
     "ax_mode_histogram_logger_unittest.cc",
     "ax_mode_unittest.cc",
     "ax_node_data_unittest.cc",
@@ -591,11 +588,23 @@ if (is_android) {
     ]
   }
 
+  robolectric_library("ui_accessibility_junit_test_support") {
+    testonly = true
+    sources = [ "android/javatests/src/org/chromium/ui/accessibility/AccessibilityStateTestHelper.java" ]
+    deps = [
+      ":ax_base_java",
+      "//base:base_java",
+      "//base:base_junit_test_support",
+      "//third_party/mockito:mockito_java",
+    ]
+  }
+
   robolectric_library("ui_accessibility_junit_tests") {
     testonly = true
     sources = [ "android/javatests/src/org/chromium/ui/accessibility/AccessibilityStateTest.java" ]
     deps = [
       ":ax_base_java",
+      ":ui_accessibility_junit_test_support",
       "//base:activity_state_java",
       "//base:base_java_test_support",
       "//base:base_junit_test_support",

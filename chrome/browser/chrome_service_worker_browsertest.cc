@@ -48,6 +48,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/service_worker_context.h"
@@ -149,7 +150,7 @@ class ChromeServiceWorkerTest : public InProcessBrowserTest {
 
   content::ServiceWorkerContext* GetServiceWorkerContext() {
     return browser()
-        ->profile()
+        ->GetProfile()
         ->GetDefaultStoragePartition()
         ->GetServiceWorkerContext();
   }
@@ -238,6 +239,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest,
       blink::StorageKey::CreateFirstParty(url::Origin::Create(options.scope));
   GetServiceWorkerContext()->RegisterServiceWorker(
       embedded_test_server()->GetURL("/service_worker.js"), key, options,
+      content::GlobalRenderFrameHostId(),
       base::BindOnce(&ExpectResultAndRun<blink::ServiceWorkerStatusCode>,
                      blink::ServiceWorkerStatusCode::kOk,
                      run_loop.QuitClosure()));
@@ -268,6 +270,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest,
       blink::StorageKey::CreateFirstParty(url::Origin::Create(options.scope));
   GetServiceWorkerContext()->RegisterServiceWorker(
       embedded_test_server()->GetURL("/service_worker.js"), key, options,
+      content::GlobalRenderFrameHostId(),
       base::BindOnce(&ExpectResultAndRun<blink::ServiceWorkerStatusCode>,
                      blink::ServiceWorkerStatusCode::kOk,
                      run_loop.QuitClosure()));
@@ -298,6 +301,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest,
       blink::StorageKey::CreateFirstParty(url::Origin::Create(options.scope));
   GetServiceWorkerContext()->RegisterServiceWorker(
       embedded_test_server()->GetURL("/service_worker.js"), key, options,
+      content::GlobalRenderFrameHostId(),
       base::BindOnce(&ExpectResultAndRun<blink::ServiceWorkerStatusCode>,
                      blink::ServiceWorkerStatusCode::kErrorDisallowed,
                      run_loop.QuitClosure()));
@@ -996,6 +1000,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerNavigationHintTest,
       blink::StorageKey::CreateFirstParty(url::Origin::Create(options.scope));
   GetServiceWorkerContext()->RegisterServiceWorker(
       embedded_test_server()->GetURL("/sw.js"), key, options,
+      content::GlobalRenderFrameHostId(),
       base::BindOnce(&ExpectResultAndRun<blink::ServiceWorkerStatusCode>,
                      blink::ServiceWorkerStatusCode::kOk,
                      run_loop.QuitClosure()));
@@ -1107,7 +1112,7 @@ class ChromeServiceWorkerNavigationPreloadTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerNavigationPreloadTest,
                        TopFrameWithThirdPartyBlocking) {
   // Enable third-party cookie blocking.
-  browser()->profile()->GetPrefs()->SetInteger(
+  browser()->GetProfile()->GetPrefs()->SetInteger(
       prefs::kCookieControlsMode,
       static_cast<int>(content_settings::CookieControlsMode::kBlockThirdParty));
 
@@ -1141,7 +1146,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerNavigationPreloadTest,
 IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerNavigationPreloadTest,
                        SubFrameWithThirdPartyBlocking) {
   // Enable third-party cookie blocking.
-  browser()->profile()->GetPrefs()->SetInteger(
+  browser()->GetProfile()->GetPrefs()->SetInteger(
       prefs::kCookieControlsMode,
       static_cast<int>(content_settings::CookieControlsMode::kBlockThirdParty));
 

@@ -172,14 +172,6 @@ BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
 BASE_FEATURE(kSyncPreferencesUseSelectedTypes,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSyncDetermineAccountManagedStatus,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kSyncDetermineAccountManagedStatusTimeout,
-                   &kSyncDetermineAccountManagedStatus,
-                   "account_managed_status_timeout",
-                   base::Seconds(5));
-
 BASE_FEATURE(kSyncEnableNewSyncDashboardUrl, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncRecordDeviceStatisticsMetrics,
@@ -217,7 +209,7 @@ BASE_FEATURE(kEstimateNewSignInUsersWithFinchAvailablePopulation,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 BASE_FEATURE(kSyncFixWebSigninSessionDurationForShortLivedSessions,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncSimplifyDeviceNaming, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -226,5 +218,7 @@ BASE_FEATURE(kSyncUseServerDeterminedDeviceName,
 
 BASE_FEATURE(kSyncCopyPreferencesToTransportModeOnServerForcedDisable,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncNigoriAuthenticateIV, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace syncer

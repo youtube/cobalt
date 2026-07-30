@@ -116,6 +116,9 @@ BASE_DECLARE_FEATURE(kUrlScoringModel);
 // suggestions and only controls whether the signal is sent.
 BASE_DECLARE_FEATURE(kOmniboxTouchDownTriggerForPrefetch);
 
+// Enables simultaneous prefetch and navigation on Enter KeyDown in Omnibox.
+BASE_DECLARE_FEATURE(kOmniboxSearchPrefetchOnEnterKeyDown);
+
 // Site search/Keyword mode related features.
 BASE_DECLARE_FEATURE(kOmniboxSiteSearch);
 BASE_DECLARE_FEATURE(kStarterPackExpansion);
@@ -134,7 +137,6 @@ BASE_DECLARE_FEATURE(kUseFusedLocationProvider);
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdate);
 BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
 BASE_DECLARE_FEATURE(kOmniboxXGeoPermissionGranularity);
-BASE_DECLARE_FEATURE(kOmniboxItemDecoration);
 BASE_DECLARE_FEATURE(kExactMatchFavicons);
 BASE_DECLARE_FEATURE(kOmniboxAimImageDownscaling);
 
@@ -249,6 +251,20 @@ extern const base::FeatureParam<InlineLocationSignalingDisplayOrder>
 extern const base::FeatureParam<InlineLocationSignalingWording>
     kInlineLocationSignalingWording;
 
+// If enabled, the "Ask Google about this page" action will route to cobrowse.
+BASE_DECLARE_FEATURE(kWebUIOmniboxAskGAboutThisPage);
+// Whether to open the next panel with cobrowse.
+extern const base::FeatureParam<bool> kAskGCoBrowse;
+// Whether to open the next panel with cobrowse and visual selection.
+extern const base::FeatureParam<bool> kAskGCoBrowseWithVisualSelection;
+// Whether to open the composebox for AskG.
+extern const base::FeatureParam<bool> kAskGComposeBox;
+// Determines how to route the lens chip.
+extern const base::FeatureParam<bool> kAskGLensChipRoute;
+// Whether to swap the icon to spark loupe for the AskG button.
+extern const base::FeatureParam<bool> kAskGSwapIcon;
+// Whether to show the current tab chip.
+extern const base::FeatureParam<bool> kAskGCurrentTabChip;
 // Note: no new flags beyond this point.
 
 namespace flag_descriptions {

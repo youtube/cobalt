@@ -1262,8 +1262,9 @@ ChromePaymentsAutofillClient::GetOmniboxAutofillDelegate() {
   return omnibox_autofill_delegate_.get();
 }
 
-void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
+void ChromePaymentsAutofillClient::ShowExpandedOmniboxAutofillChip(
     std::vector<Suggestion> suggestions,
+    base::OnceClosure on_chip_shown,
     base::RepeatingCallback<void(base::span<const Suggestion>)>
         on_suggestions_shown,
     base::RepeatingCallback<void(SuggestionHidingReason)> on_suggestions_hidden,
@@ -1287,16 +1288,16 @@ void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
   }
   if (OmniboxAutofillPageActionController* page_action_controller =
           OmniboxAutofillPageActionController::From(*tab_interface)) {
-    page_action_controller->Show();
+    page_action_controller->ShowExpandedChip(std::move(on_chip_shown));
   }
 }
 
 void ChromePaymentsAutofillClient::HideOmniboxAutofillChip() {
   if (tabs::TabInterface* tab_interface =
           tabs::TabInterface::MaybeGetFromContents(web_contents())) {
-    if (OmniboxAutofillPageActionController* controller =
+    if (OmniboxAutofillPageActionController* page_action_controller =
             OmniboxAutofillPageActionController::From(*tab_interface)) {
-      controller->Hide();
+      page_action_controller->HideChip();
     }
   }
 }
@@ -1305,7 +1306,8 @@ void ChromePaymentsAutofillClient::HideOmniboxAutofillChip() {
 
 void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI(
     base::OnceClosure accept_callback,
-    base::OnceClosure cancel_callback) {
+    base::OnceClosure cancel_callback,
+    base::OnceClosure closed_callback) {
 #if !BUILDFLAG(IS_ANDROID)
   tabs::TabInterface* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
@@ -1314,7 +1316,8 @@ void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI(
   }
   if (PaymentsChurnedUsersBubbleController* controller =
           PaymentsChurnedUsersBubbleController::From(*tab_interface)) {
-    controller->Show(std::move(accept_callback), std::move(cancel_callback));
+    controller->Show(std::move(accept_callback), std::move(cancel_callback),
+                     std::move(closed_callback));
   }
 #endif
 }

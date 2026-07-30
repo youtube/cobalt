@@ -161,29 +161,29 @@ NSDictionary<NSString*, UIColor*>* StandardColorProvider(
     switch (self.type) {
       case BestFeaturesItemType::kLensSearch:
         return MakeSymbolMulticolor(
-            CustomSymbolWithConfiguration(kCameraLensSymbol, configuration));
+            SymbolWithConfiguration(SymbolCameraLens, configuration));
       case BestFeaturesItemType::kEnhancedSafeBrowsing:
         return SymbolWithPalette(
-            CustomSymbolWithConfiguration(kSafetyCheckSymbol, configuration),
+            SymbolWithConfiguration(SymbolSafetyCheck, configuration),
             @[ [UIColor whiteColor] ]);
       case BestFeaturesItemType::kLockedIncognitoTabs:
       case BestFeaturesItemType::kIncognitoBrowsing:
         return SymbolWithPalette(
-            CustomSymbolWithConfiguration(kIncognitoSymbol, configuration),
+            SymbolWithConfiguration(SymbolIncognito, configuration),
             @[ [UIColor whiteColor] ]);
       case BestFeaturesItemType::kSaveAndAutofillPasswords:
       case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
       case BestFeaturesItemType::kSharePasswordsWithFamily:
-        return MakeSymbolMulticolor(CustomSymbolWithConfiguration(
-            kPasswordManagerSymbol, configuration));
+        return MakeSymbolMulticolor(
+            SymbolWithConfiguration(SymbolPasswordManager, configuration));
       case BestFeaturesItemType::kTabGroups:
         return SymbolWithPalette(
-            DefaultSymbolWithConfiguration(kTabGroupsSymbol, configuration),
+            SymbolWithConfiguration(SymbolTabGroups, configuration),
             @[ [UIColor whiteColor] ]);
       case BestFeaturesItemType::kPriceTrackingAndInsights:
         return SymbolWithPalette(
-            DefaultSymbolWithConfiguration(kChartLineDowntrendXYAxisSymbol,
-                                           configuration),
+            SymbolWithConfiguration(SymbolChartLineDowntrendXYAxis,
+                                    configuration),
             @[ [UIColor whiteColor] ]);
     }
 }
@@ -341,28 +341,15 @@ NSDictionary<NSString*, UIColor*>* StandardColorProvider(
           l10n_util::GetNSString(IDS_IOS_BEST_FEATURES_PRICE_TRACKING_STEP_3),
         ];
       case BestFeaturesItemType::kAutofillPasswordsInOtherApps:
-        // Add the correct strings depending on the device OS.
-        if (@available(iOS 18, *)) {
-          return @[
-            l10n_util::GetNSString(
-                IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_1),
-            l10n_util::GetNSString(
-                IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_2_GENERAL),
-            l10n_util::GetNSString(
-                IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_3_AUTOFILL_SETTINGS),
-            l10n_util::GetNSString(
-                IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_4_TOGGLE),
-          ];
-        }
         return @[
           l10n_util::GetNSString(
               IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_1),
           l10n_util::GetNSString(
-              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_2_PASSWORDS),
+              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_2_GENERAL),
           l10n_util::GetNSString(
-              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_3_PASSWORD_OPTIONS),
+              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_3_AUTOFILL_SETTINGS),
           l10n_util::GetNSString(
-              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_4_SELECT),
+              IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_4_TOGGLE),
         ];
       case BestFeaturesItemType::kSharePasswordsWithFamily:
         return @[

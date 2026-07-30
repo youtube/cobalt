@@ -19,9 +19,7 @@
 class LocationBar;
 class OmniboxController;
 
-namespace ai_mode_button_config {
-struct AiModeButtonConfig;
-}  // namespace ai_mode_button_config
+struct AiModeButtonUiConfig;
 
 namespace content {
 struct ContextMenuParams;
@@ -96,6 +94,9 @@ class OmniboxContextMenuMixinBase {
       int command_id,
       const content::ContextMenuParams& menu_params) const;
 
+  bool HandleGetAcceleratorForCommandId(int command_id,
+                                        ui::Accelerator* accelerator) const;
+
   // Asynchronously calls `closure` once preparations to show the context
   // menu (examining the clipboard) have been done.
   void PrepareToShowContextMenu(base::OnceClosure closure);
@@ -122,7 +123,7 @@ class OmniboxContextMenuMixinBase {
   void BuildSendTabToSelfSimpleItem(ui::SimpleMenuModel* menu_contents,
                                     size_t index);
 
-  const ai_mode_button_config::AiModeButtonConfig* GetAiModeConfig() const;
+  const AiModeButtonUiConfig* GetAiModeUiConfig() const;
 
   raw_ptr<LocationBar> location_bar_;
   raw_ptr<OmniboxController> controller_;

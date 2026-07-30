@@ -36,11 +36,6 @@ using ::testing::UnorderedElementsAre;
 
 class V4StoreTest : public PlatformTest {
  public:
-  V4StoreTest() {
-    feature_list_.InitAndEnableFeature(
-        kAllowSafeBrowsingV4StoreDiskMigrationChanges);
-  }
-
   void SetUp() override {
     PlatformTest::SetUp();
 
@@ -137,8 +132,8 @@ class V4StoreTest : public PlatformTest {
     return HashPrefixMapView(map.begin(), map.end());
   }
 
-  std::string ExtensionV4IdToV5Hash(std::string_view v4_id) {
-    return SBStore::ExtensionV4IdToV5Hash(v4_id);
+  std::string ExtensionIdToHash(std::string_view extension_id) {
+    return SBStore::ExtensionIdToHash(extension_id);
   }
 
   StoreReadResult ReadFromDisk(V4Store& store) { return store.ReadFromDisk(); }
@@ -209,10 +204,8 @@ class V4StoreTest : public PlatformTest {
     list_details->set_version("v5_version");
 
     std::string v5_hash_data;
-    v5_hash_data.append(
-        ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
-    v5_hash_data.append(
-        ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
+    v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
+    v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
 
     if (override_checksum.has_value()) {
       list_details->mutable_checksum()->set_sha256(override_checksum.value());
@@ -297,7 +290,6 @@ class V4StoreTest : public PlatformTest {
   base::FilePath v5_store_path_;
   base::test::TaskEnvironment task_environment_;
   SBStorePtr updated_store_{nullptr, SBStoreDeleter(nullptr)};
-  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(V4StoreTest, TestReadFromEmptyFile) {
@@ -383,45 +375,6 @@ TEST_F(V4StoreTest, TestReadFromNoHashPrefixesFile) {
   EXPECT_TRUE(store.hash_prefix_map_->view().empty());
   EXPECT_EQ(14, store.file_size_);
   EXPECT_FALSE(store.HasValidData());
-}
-
-TEST_F(V4StoreTest, TestMigrationDisabled) {
-  base::test::ScopedFeatureList local_feature_list;
-  local_feature_list.InitAndDisableFeature(
-      kAllowSafeBrowsingV4StoreDiskMigrationChanges);
-
-  V5StoreFileFormat file_format;
-  file_format.set_magic_number(0x600D71FE);
-  file_format.set_file_version(10);
-  ListDetails* list_details = file_format.mutable_list_details();
-  list_details->set_version("v5_version");
-  list_details->mutable_checksum()->set_sha256("v5_checksum");
-  V5HashFile* hash_file = list_details->mutable_hash_file();
-  hash_file->set_extension("foo");
-  hash_file->set_file_size(4);
-
-  // Write V5 store file.
-  base::WriteFile(v5_store_path_, file_format.SerializeAsString());
-  // Write V5 hash file.
-  base::WriteFile(v5_store_path_.AddExtensionASCII("foo"), "abcd");
-
-  base::HistogramTester histograms;
-
-  V4Store store(task_runner(), store_path_, /*v5_prefix_size=*/4,
-                /*is_eligible_for_migration=*/true,
-                /*is_extensions_blocklist=*/false);
-  EXPECT_EQ(FILE_UNREADABLE_FAILURE, store.ReadFromDisk());
-
-  // Verify V4 files not created.
-  EXPECT_FALSE(base::PathExists(store_path_));
-  EXPECT_FALSE(base::PathExists(store_path_.AddExtensionASCII("4_foo")));
-
-  // Verify V5 files not deleted.
-  EXPECT_TRUE(base::PathExists(v5_store_path_));
-  EXPECT_TRUE(base::PathExists(v5_store_path_.AddExtensionASCII("foo")));
-
-  // Verify no migration histogram logged.
-  histograms.ExpectTotalCount("SafeBrowsing.V4Store.V5ToV4MigrationResult", 0);
 }
 
 TEST_F(V4StoreTest, TestMigrationAlreadyV4) {
@@ -869,10 +822,8 @@ TEST_F(V4StoreTest, TestExtensionMigrationCleanupOnLateFailure) {
   list_details->set_version("v5_version");
 
   std::string v5_hash_data;
-  v5_hash_data.append(
-      ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
-  v5_hash_data.append(
-      ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
+  v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
+  v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
 
   std::array<uint8_t, crypto::hash::kSha256Size> v5_checksum;
   crypto::hash::Hash(crypto::hash::HashKind::kSha256,
@@ -921,10 +872,8 @@ TEST_F(V4StoreTest, TestExtensionMigrationSuccess) {
 
   // We will write V5 hashes.
   std::string v5_hash_data;
-  v5_hash_data.append(
-      ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
-  v5_hash_data.append(
-      ExtensionV4IdToV5Hash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
+  v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllcleb"));
+  v5_hash_data.append(ExtensionIdToHash("aapbdbdomjkkjkaonfhkkikfgjllclec"));
 
   V5HashFile* hash_file = list_details->mutable_hash_file();
   hash_file->set_extension("foo");

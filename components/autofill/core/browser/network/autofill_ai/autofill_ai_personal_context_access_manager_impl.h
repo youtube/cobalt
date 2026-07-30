@@ -21,6 +21,7 @@
 #include "base/types/expected.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/personal_context_metrics.h"
 #include "components/autofill/core/browser/network/autofill_ai/autofill_ai_personal_context_access_manager.h"
 #include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_types.h"
@@ -49,23 +50,15 @@ class AutofillAiPersonalContextAccessManagerImpl
     : public AutofillAiPersonalContextAccessManager,
       public personal_context::PersonalContextEligibilityService::Observer {
  public:
-
-  // LINT.IfChange(AutofillAiPersonalContextPrefetchTriggerResult)
-  // Represents the outcome when a prefetch trigger is evaluated for a requested
-  // entity type. Logged to UMA.
-  enum class PrefetchTriggerResult {
-    // A new network request to the backend service is initiated (Cache Miss).
-    kInitiated = 0,
-    // The fetch is skipped because the cached data is still fresh.
-    kSkippedFreshCache = 1,
-    // The fetch is skipped because a recent fetch failed and the retry delay
-    // configured in exponential backoff has not yet expired.
-    kSkippedBackoff = 2,
-    // The fetch is skipped because a request for the type is already in-flight.
-    kSkippedInFlight = 3,
-    kMaxValue = kSkippedInFlight,
+  // Represents the type of personal context network request sent to the server.
+  enum class RequestType {
+    // Request for non-sensitive data and presence signals for sensitive data.
+    kNonSpiiAndPresence,
+    // Request for masked sensitive data.
+    kSpiiMasked,
+    // Request for unmasking sensitive data.
+    kSpiiUnmasking,
   };
-  // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiPersonalContextPrefetchTriggerResult)
 
   AutofillAiPersonalContextAccessManagerImpl(
       personal_context::PersonalContextService* personal_context_service,
@@ -86,7 +79,7 @@ class AutofillAiPersonalContextAccessManagerImpl
   void GetUnmaskedSpiiEntity(const EntityInstance::EntityId& id,
                              GetUnmaskedSpiiEntityCallback callback) override;
   bool IsTypePrefetched(EntityType type) const override;
-  bool ServerHasDataAvailable(EntityType type) const override;
+  bool ServerHasSpiiPresenceSignal(EntityType type) const override;
   void AddObserver(
       AutofillAiPersonalContextAccessManager::Observer* observer) override;
   void RemoveObserver(
@@ -99,16 +92,6 @@ class AutofillAiPersonalContextAccessManagerImpl
  private:
   friend class AutofillAiPersonalContextAccessManagerImplTestApi;
   using SpiiEntityPresenceSignal = EntityType;
-
-  // Represents the type of personal context network request sent to the server.
-  enum class RequestType {
-    // Request for non-sensitive data and presence signals for sensitive data.
-    kNonSpiiAndPresence,
-    // Request for masked sensitive data.
-    kSpiiMasked,
-    // Request for unmasking sensitive data.
-    kSpiiUnmasking,
-  };
 
   // Results of parsing the server response during prefetch requests. It bundles
   // the internal `EntityInstance` representation with its original
@@ -164,11 +147,12 @@ class AutofillAiPersonalContextAccessManagerImpl
   // - Scheduling eviction of the prefetched types.
   // - Scheduling eviction of spii presence signals.
   // - Notifying observers.
-  void ProcessPrefetchedEntities(std::vector<EntityType> requested_types,
+  void ProcessPrefetchedEntities(std::vector<EntityType> prefetched_types,
+                                 std::vector<EntityType> requested_types,
                                  std::vector<ParsedEntity> parsed_entities);
 
-  // Evaluates the prefetch trigger outcome for a requested entity type.
-  PrefetchTriggerResult DeterminePrefetchTriggerResult(EntityType type) const;
+  PersonalContextPrefetchTriggerResult DeterminePrefetchTriggerResult(
+      EntityType type) const;
 
   // Evaluates whether enough time has elapsed since the last failure to
   // attempt fetching the type again, taking backoff delays into account.
@@ -199,13 +183,20 @@ class AutofillAiPersonalContextAccessManagerImpl
   void HandleFailedResponse(base::span<const EntityType> requested_types,
                             RequestType request_type);
 
-  // Logs the request latency of a personal context network request.
-  void LogRequestLatency(RequestType request_type, base::TimeTicks start_time);
-
   // Logs the total latency for a prefetch request of a specific `type`.
   // Latency is only logged if the previous status was `kPending` and the
   // request start time is valid.
   void LogPrefetchTotalLatency(EntityType type);
+
+  // Computes the non-eligibility reason specific to personal context in
+  // Autofill AI (e.g. G1 subscription status or Android premium device status)
+  // and logs it to UMA if the reason has changed and the startup delay has
+  // elapsed.
+  void ComputeAndMaybeLogNonEligibilityReason();
+
+  // Indicates whether `kNonEligibilityLoggingDelayOnStartup` has elapsed,
+  // preventing premature UMA logging during browser startup.
+  bool is_non_eligibility_startup_delay_elapsed_ = false;
 
   const raw_ref<personal_context::PersonalContextService>
       personal_context_service_;
@@ -242,6 +233,11 @@ class AutofillAiPersonalContextAccessManagerImpl
   // this signal after
   // `kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL`.
   base::flat_set<SpiiEntityPresenceSignal> spii_presence_signal_cache_;
+
+  // The last reported non-eligibility reason for personal context in Autofill
+  // AI.
+  std::optional<personal_context::PersonalContextNonEligibilityReason>
+      last_non_eligibility_reason_;
 
   base::ObserverList<AutofillAiPersonalContextAccessManager::Observer>
       observers_;

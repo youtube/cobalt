@@ -9,7 +9,16 @@
 #include <string>
 #include <vector>
 
+#include "base/time/time.h"
+#include "url/gurl.h"
+
 namespace context_hub {
+
+struct TabData {
+  int32_t id;
+  std::string title;
+  GURL url;
+};
 
 // Represents stored tab group data within Context Hub.
 struct TabGroupEntry {
@@ -21,6 +30,15 @@ struct TabGroupEntry {
 
   // IDs of tabs belonging to this group.
   std::vector<int64_t> tab_ids;
+
+  // Fully resolved tab objects for UI presentation.
+  std::vector<TabData> tabs;
+
+  // Timestamp when a tab within this group was activated or when created/modified.
+  base::Time last_accessed_timestamp;
+
+  // Timestamp when the group was initially created.
+  base::Time created_timestamp;
 };
 
 }  // namespace context_hub

@@ -290,6 +290,27 @@
       <message name="IDS_IOS_ACCOUNT_UNIFIED_CONSENT_TITLE" desc="Title on the sync consent dialog to explain why sync can be useful for the user. [iOS only]">
         Turn on sync?
       </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_AI_TIER" desc="The accessibility label for the cell containing the user’s email and AI tier.">
+        <ph name="EMAIL">$1<ex>jessica@gmail.com</ex></ph>. <ph name="AI_TIER">$2<ex>Google AI Foo membership</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_MANAGED_STATUS" desc="The accessibility label for the cell containing the user’s email and managed status.">
+        <ph name="EMAIL">$1<ex>jessica@gmail.com</ex></ph>. <ph name="MANAGED_STATUS">$2<ex>Your account is managed</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_MANAGED_STATUS_AI_TIER" desc="The accessibility label for the cell containing the user’s email, managed status and AI tier.">
+       <ph name="EMAIL">$1<ex>jessica@gmail.com</ex></ph>. <ph name="MANAGED_STATUS">$2<ex>Your account is managed</ex></ph>. <ph name="AI_TIER">$3<ex>Google AI Foo membership</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME" desc="The accessibility label for the cell containing user’s name and email.">
+        <ph name="USER_NAME">$1<ex>Jessica</ex></ph>, <ph name="EMAIL">$2<ex>jessica@gmail.com</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME_AI_TIER" desc="The accessibility label for the cell containing user’s name, email and AI tier.">
+        <ph name="USER_NAME">$1<ex>Jessica</ex></ph>, <ph name="EMAIL">$2<ex>jessica@gmail.com</ex></ph>. <ph name="AI_TIER">$3<ex>Google AI Foo membership</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME_MANAGED_STATUS" desc="The accessibility label for the cell containing user’s name, email and managed status.">
+        <ph name="USER_NAME">$1<ex>Jessica</ex></ph>, <ph name="EMAIL">$2<ex>jessica@gmail.com</ex></ph>. <ph name="MANAGED_STATUS">$3<ex>Your account is managed</ex></ph>.
+      </message>
+      <message name="IDS_IOS_ACCOUNT_VIEW_ACCESSIBILITY_LABEL_NAME_MANAGED_STATUS_AI_TIER" desc="The accessibility label for the cell containing user’s name, email, managed status and AI tier.">
+        <ph name="USER_NAME">$1<ex>Jessica</ex></ph>, <ph name="EMAIL">$2<ex>jessica@gmail.com</ex></ph>. <ph name="MANAGED_STATUS">$3<ex>Your account is managed</ex></ph>. <ph name="AI_TIER">$4<ex>Google AI Foo membership</ex></ph>.
+      </message>
       <message name="IDS_IOS_ADDRESSES_NOT_ENCRYPTED_DIALOG_TEXT" desc="Text of a dialog shown to users when they turn on the ability to use and save addresses in their Google Account. This is shown to users who encrypt their data with their own passphrase in order to explain that addresses they will save in the future will not be encrypted. [iOS only]">
         Addresses aren't encrypted with your passphrase. This lets you use them in other Google services.
       </message>
@@ -1037,14 +1058,8 @@
       <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_2_GENERAL" desc="The second step to enable Passwords in other apps. OS must be iOS 18 or later.">
         Open General
       </message>
-      <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_2_PASSWORDS" desc="The second step to enable Passwords in other apps. OS must be below iOS 18.">
-        Open Passwords
-      </message>
       <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_3_AUTOFILL_SETTINGS" desc="The third step to enable Passwords in other apps. OS must be iOS 18 or later.">
         Open AutoFill &amp; Passwords
-      </message>
-      <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_STEP_3_PASSWORD_OPTIONS" desc="The third step to enable Passwords in other apps. OS must be below iOS 18.">
-        Open Password Options
       </message>
       <message name="IDS_IOS_BEST_FEATURES_PASSWORDS_IN_OTHER_APPS_TITLE" desc="Title for the Passwords in other apps Chrome iOS Best Features Promo">
         Passwords in other apps
@@ -4452,6 +4467,9 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       <message name="IDS_IOS_LEVEL_UP_MAXIMUM_LEVEL" desc="Progress message displaying that all tasks have been completed and the user is all set. [iOS only]">
         You’re all set! Get notified when new tasks arrive.
       </message>
+      <message name="IDS_IOS_LEVEL_UP_PIN_TABS_IPH" desc="IPH bubble message highlighting how to pin a tab in the Tab Grid. [iOS only]">
+        Press and hold to pin this tab
+      </message>
       <message name="IDS_IOS_LEVEL_UP_SEE_ALL" desc="Link button to open all available level-up tasks. [iOS only]">
         See All
       </message>
@@ -4542,6 +4560,9 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       </message>
       <message name="IDS_IOS_LEVEL_UP_TURN_ON_PROGRESS_UPDATES" desc="The context menu item to turn on Level Up progress updates. [iOS only]">
         Turn on progress updates
+      </message>
+      <message name="IDS_IOS_LEVEL_UP_WALKTHROUGH_DELETE_BROWSING_DATA" desc="Text of the bubble for the Level Up walkthrough prompting the user to select Delete Browsing Data. [iOS only]">
+        Select Delete Browsing Data
       </message>
       <message name="IDS_IOS_LEVEL_UP_WALKTHROUGH_OPEN_PASSWORD_CHECKUP" desc="Text of the bubble for the Level Up walkthrough prompting the user to open Password Checkup. [iOS only]">
         Open Password Checkup
@@ -4890,6 +4911,12 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL">$2<ex>john.doe@
       </message>
       <message name="IDS_IOS_NEW_FEATURE_ACCESSIBILITY_HINT" desc="Accessibility hint spoken by VoiceOver to let the user know there is a new feature. This string will be appended to an existing accesibility label when the UI is showing a 'new' badge to attract the user's attention. For example, the label 'Default Browser' would become 'Default Browser, new feature', which is why the string is not capitalized at its start. [iOS/iPadOS only]">
         new feature
+      </message>
+      <message name="IDS_IOS_NEW_IA_PROMO_IPH_BOTTOM_OMNIBOX_TEXT" desc="Main text of the in-product help informing the user that the address bar moved to the bottom and they can revert this change from the settings [iOS only]">
+        You can now change the position of the address bar in "Settings" and then "Address bar"
+      </message>
+      <message name="IDS_IOS_NEW_IA_PROMO_IPH_BOTTOM_OMNIBOX_TITLE" desc="Title of the in-product help informing the user that the address bar moved to the bottom of the screen [iOS only]">
+        Your controls, where you need them
       </message>
       <message name="IDS_IOS_NEW_IA_PROMO_IPH_GEMINI_TEXT" desc="Main text for the second in-product help bubble suggesting Gemini built-in. [Length: unlimited] [iOS only]">
         Get help with your tabs and tasks
@@ -5646,6 +5673,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_PASSWORD_MOVE_CONFLICT_ACTION_SHEET_TITLE" desc="Action sheet title to inform the user that the password they want to move to their google account store already exists. [iOS only]">
         Password already exists
+      </message>
+      <message name="IDS_IOS_PASSWORD_SAVED_INFOBAR_TITLE" desc="Title for the password saved confirmation infobar banner. [iOS only]">
+        Password saved
+      </message>
+      <message name="IDS_IOS_PASSWORD_SAVED_INFOBAR_VIEW_BUTTON" desc="Label for the action button on the password saved confirmation infobar to view the details of the saved password. [iOS only]">
+        View
       </message>
       <message name="IDS_IOS_PASSWORD_SAVED_TO_ACCOUNT_SNACKBAR_MESSAGE" desc="Message briefly displayed at the bottom of the screen to inform the user that the password had successfully been moved to their google account store. [iOS only]">
         Password saved in your Google Account, <ph name="EMAIL">$1<ex>johndoe@gmail.com</ex></ph>

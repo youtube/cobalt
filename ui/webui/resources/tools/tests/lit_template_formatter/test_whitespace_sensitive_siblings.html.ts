@@ -10,7 +10,6 @@ export function getHtml(this: DummyTestElement) {
 <div class="wrapper">
   <span>Name: </span><span>${this.name}</span>
 </div>
-<!--_html_template_end_-->
-`;
+<!--_html_template_end_-->`;
   // clang-format on
 }

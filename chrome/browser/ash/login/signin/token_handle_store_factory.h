@@ -10,9 +10,11 @@
 
 #include "ash/public/cpp/token_handle_store.h"
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "base/no_destructor.h"
 #include "chromeos/ash/components/login/auth/auth_factor_editor.h"
+
+class PrefService;
 
 namespace ash {
 
@@ -25,14 +27,16 @@ namespace ash {
 // TokenHandleStoreImpl.
 class TokenHandleStoreFactory {
  public:
+  // `local_state` must be non-null and must outlive `this`.
+  explicit TokenHandleStoreFactory(PrefService* local_state);
+  ~TokenHandleStoreFactory();
+
   TokenHandleStoreFactory(const TokenHandleStoreFactory&) = delete;
   TokenHandleStoreFactory& operator=(const TokenHandleStoreFactory&) = delete;
 
   static TokenHandleStoreFactory* Get();
 
   TokenHandleStore* GetTokenHandleStore();
-
-  void DestroyTokenHandleStore();
 
  private:
   // Functor that determines if a given `account_id` has a gaia password.
@@ -70,13 +74,9 @@ class TokenHandleStoreFactory {
     base::WeakPtrFactory<DoesUserHaveGaiaPassword> weak_factory_{this};
   };
 
-  friend class base::NoDestructor<TokenHandleStoreFactory>;
-
   std::unique_ptr<TokenHandleStore> CreateTokenHandleStoreImpl();
 
-  TokenHandleStoreFactory();
-  ~TokenHandleStoreFactory();
-
+  const raw_ref<PrefService> local_state_;
   std::unique_ptr<DoesUserHaveGaiaPassword> does_user_have_gaia_password_;
   std::unique_ptr<TokenHandleStore> token_handle_store_;
 };

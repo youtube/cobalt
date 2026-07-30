@@ -386,9 +386,6 @@ class BrowsingDataModelBrowserTest
         {features::kIsolatedWebApps, {}},
         {features::kIsolatedWebAppDevMode, {}},
         {network::features::kSharedStorageAPI, {}},
-        {network::features::kInterestGroupStorage, {}},
-        {blink::features::kAdInterestGroupAPI, {}},
-        {blink::features::kFledge, {}},
         {blink::features::kFencedFrames, {}},
         {network::features::kBrowsingTopics, {}},
         {net::features::kThirdPartyStoragePartitioning, {}},
@@ -487,7 +484,7 @@ class BrowsingDataModelBrowserTest
   }
 
   content::StoragePartition* default_storage_partition() {
-    return browser()->profile()->GetDefaultStoragePartition();
+    return browser()->GetProfile()->GetDefaultStoragePartition();
   }
 
   content::WebContents* web_contents() {
@@ -558,7 +555,7 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataModelBrowserTest, TrustTokenIssuance) {
   EXPECT_EQ(true, EvalJs(web_contents(), command));
 
   browser()
-      ->profile()
+      ->GetProfile()
       ->GetDefaultStoragePartition()
       ->FlushNetworkInterfaceForTesting();
 
@@ -590,7 +587,7 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataModelBrowserTest,
   ValidateBrowsingDataEntries(browsing_data_model.get(), {});
   ASSERT_EQ(browsing_data_model->size(), 0u);
 
-  Profile* profile = browser()->profile();
+  Profile* profile = browser()->GetProfile();
 
   std::unique_ptr<web_app::ScopedBundledIsolatedWebApp> app1 =
       web_app::IsolatedWebAppBuilder(web_app::ManifestBuilder()).BuildBundle();
@@ -684,7 +681,8 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataModelBrowserTest,
   SetDataForType("LocalStorage", web_contents());
 
   //  Flush storage size to disk.
-  auto* storage_partition = browser()->profile()->GetDefaultStoragePartition();
+  auto* storage_partition =
+      browser()->GetProfile()->GetDefaultStoragePartition();
   storage_partition->Flush();
 
   // To ensure that flushing is completed.
@@ -944,7 +942,8 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataModelBrowserTest,
   SetDataForType("LocalStorage", content::ChildFrameAt(web_contents(), 0));
 
   //  Flush storage size to disk.
-  auto* storage_partition = browser()->profile()->GetDefaultStoragePartition();
+  auto* storage_partition =
+      browser()->GetProfile()->GetDefaultStoragePartition();
   storage_partition->Flush();
 
   // To ensure that flushing is completed.

@@ -126,12 +126,12 @@
 <translation id="1396260204083880024">目前登录的用户名是<ph name="USER_NAME" />，账号是 <ph name="USER_EMAIL" />。打开账号菜单。</translation>
 <translation id="1397144142234474689">隐藏历史记录</translation>
 <translation id="1399268420835656394">如果您不是儿童，建议检查一下此设备上的 Apple 账号中的年龄设置。<ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
+<translation id="140486444381639942">之前填写的内容</translation>
 <translation id="1407135791313364759">全部打开</translation>
 <translation id="1408847409015257906">点按“隐私与安全”。</translation>
 <translation id="1411386976162024013">智能镜头视觉搜索</translation>
 <translation id="1417474386970818917">退出账号并删除</translation>
 <translation id="1426410128494586442">是</translation>
-<translation id="1429187656584513419">打开“密码”</translation>
 <translation id="1430915738399379752">打印</translation>
 <translation id="1433478348197382180">阅读模式</translation>
 <translation id="1435271730600332883">打开“自动填充与密码”</translation>
@@ -148,6 +148,7 @@
 <translation id="1469381646033328562">你的账号由家长管理。
 <ph name="BEGIN_LINK" />了解详情<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">已更改</translation>
+<translation id="1481450969185702334">查找并填充</translation>
 <translation id="1483493594462132177">发送</translation>
 <translation id="1486096554574027028">搜索密码</translation>
 <translation id="1486593497476255523">“标签页分组”任务已完成！</translation>
@@ -575,6 +576,7 @@
 <translation id="2858204748079866344">为保护您的隐私，Chrome 不会在此字段中自动填充您的密码。</translation>
 <translation id="2858951819750638913">Gemini Live</translation>
 <translation id="286382692684806520">{COUNT,plural, =1{1 个网站（在已同步的设备上还有更多网站）}other{# 个网站（在已同步的设备上还有更多网站）}}</translation>
+<translation id="2865392654629180917">随心提问，获得 AI 生成的回答</translation>
 <translation id="2870560284913253234">网站</translation>
 <translation id="2876369937070532032">当您面临安全风险时，将您所访问的部分网页的网址发送给 Google</translation>
 <translation id="2883151425485251736">查看和修改您已在账号中设为隐藏的主题</translation>
@@ -614,6 +616,7 @@
 <translation id="3037177537145227281">正在跟踪价格</translation>
 <translation id="3038136505713492417">如需在此设备上使用通行密钥，请先验证身份</translation>
 <translation id="3039671569659952257">删除文件夹</translation>
+<translation id="3050988301648974170">打开“密码安全检查”</translation>
 <translation id="3053332585453689122">将您访问过的网址以及网页内容、下载内容、扩展程序活动和系统信息的少量样本发送至“Google 安全浏览”功能，以检查这些内容是否有害。</translation>
 <translation id="3055102495753300780">信息存储空间</translation>
 <translation id="3059270601560379555">新搜索</translation>
@@ -659,6 +662,7 @@
 <translation id="3183362380688692618">新标签页分组…</translation>
 <translation id="3185760469172949183">“拍照搜索”任务已完成！</translation>
 <translation id="3186796054637504691">清除历史记录和网站数据</translation>
+<translation id="3190558889382726167">密码已保存</translation>
 <translation id="3190736958609431397">取消跟踪</translation>
 <translation id="3208260410153224535">您的组织关闭了登录功能。新的书签、密码等信息将会仅保存到此设备上。</translation>
 <translation id="3211969308836412674">取消固定网站</translation>
@@ -1193,6 +1197,7 @@
 <translation id="5017529052065664584">过去 15 分钟</translation>
 <translation id="5020732097997376541">点按“智能镜头图标”</translation>
 <translation id="5021500396464456616">请与发送此链接的人联系</translation>
+<translation id="503173149952522259">按住即可固定此标签页</translation>
 <translation id="5039804452771397117">允许</translation>
 <translation id="5050042263972837708">群组名称</translation>
 <translation id="5050810143224996149">分享密码</translation>
@@ -2427,6 +2432,7 @@
 <translation id="9013605037177245304">开启通知</translation>
 <translation id="9029650858822697271">您已退出账号</translation>
 <translation id="9032405509996909363">确认删除浏览数据</translation>
+<translation id="9035699147763101514">由 Gemini 中的个性化智能服务提供支持。您可以在设置中管理自己的选择。</translation>
 <translation id="9039373489628511875">带宽</translation>
 <translation id="9042893549633094279">隐私与安全</translation>
 <translation id="9055291197094969722">创建标签页分组，可以整理打开的标签页，畅享清爽高效的浏览体验</translation>
@@ -2438,6 +2444,7 @@
 <translation id="9070824521421603770">您将退出账号，而且标签页将被关闭</translation>
 <translation id="9072837124205571418">来自所有设备的标签页分组</translation>
 <translation id="9081058212938299310">更新 <ph name="USERNAME" /> 的密码？</translation>
+<translation id="908365381820697818">现在，您可以查找和填充 Gmail 等来源的信息</translation>
 <translation id="9083838294503912307">要在您的所有设备上保持同步并获享个性化体验，请开启同步功能。</translation>
 <translation id="9084367296493549256">{count,plural, =1{您有 {count} 个安全系数低的密码，这可能会给您带来安全风险。请立即修改以确保安全。}other{您有 {count} 个安全系数低的密码，这可能会给您带来安全风险。请立即修改以确保安全。}}</translation>
 <translation id="9084369964545892485">在分组内打开新的无痕式标签页</translation>

@@ -565,14 +565,8 @@ void HttpCache::Transaction::SetPriority(RequestPriority priority) {
 
 void HttpCache::Transaction::SetWebSocketHandshakeStreamCreateHelper(
     WebSocketHandshakeStreamBase::CreateHelper* create_helper) {
+  CHECK(!network_transaction());
   websocket_handshake_stream_base_create_helper_ = create_helper;
-
-  // TODO(shivanisha). Since this function must be invoked before Start() as
-  // per the API header, a network transaction should not exist at that point.
-  HttpTransaction* transaction = network_transaction();
-  if (transaction) {
-    transaction->SetWebSocketHandshakeStreamCreateHelper(create_helper);
-  }
 }
 
 void HttpCache::Transaction::SetConnectedCallback(
@@ -2816,6 +2810,7 @@ void HttpCache::Transaction::SetRequest(const NetLogWithSource& net_log) {
   external_validation_.reset();
   range_requested_ = false;
   partial_.reset();
+  done_headers_create_new_entry_ = false;
   // SetRequest() runs on transaction restarts via DoHeadersPhaseCannotProceed.
   // That state is reachable from DoCacheDispatchValidation (line 1850) when
   // the entry vanishes mid-flow — and crucially, that's *after* decompressor_
@@ -3831,6 +3826,7 @@ int HttpCache::Transaction::OnCacheReadError(int result, bool restart) {
   if (restart) {
     DCHECK(!reading_);
     DCHECK(!network_trans_.get());
+    done_headers_create_new_entry_ = false;
 
     // Since we are going to add this to a new entry, not recording histograms
     // or setting mode to NONE at this point by invoking the wrapper

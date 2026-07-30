@@ -14,6 +14,8 @@ namespace extensions_features {
 // API Features
 ///////////////////////////////////////////////////////////////////////////////
 
+BASE_FEATURE(kApiActionSetBadgeTextByteLimit, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kApiAlarmsCreateLengthLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApiContentSettingsClipboard, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -104,6 +106,9 @@ BASE_FEATURE(kEnableWebHidInWebView, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableExtensionsForCorpDesktopAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+BASE_FEATURE(kExtensionAutoRejectIncognitoConnectability,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionDisableUnsupportedDeveloper,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -227,7 +232,7 @@ BASE_FEATURE(kExtensionContentVerificationUsesExtensionRoot,
 BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSearchEngineExplicitChoiceDialog,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(bool,
                    kSearchEngineExplicitChoiceDialogEscapable,
@@ -239,10 +244,10 @@ BASE_FEATURE_PARAM(bool,
                    kSearchEngineExplicitChoiceDialogUnlimitedShows,
                    &kSearchEngineExplicitChoiceDialog,
                    "unlimited_shows",
-                   true);
+                   false);
 
 BASE_FEATURE(kSearchEngineUnconditionalDialog,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOptimizeWebRequestProxy, base::FEATURE_ENABLED_BY_DEFAULT);
 

@@ -336,7 +336,8 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestLockedFullscreen,
       IDC_BACK, IDC_FORWARD, IDC_RELOAD, IDC_RELOAD_BYPASSING_CACHE,
       IDC_RELOAD_CLEARING_CACHE, IDC_STOP,
       // Tab navigation commands.
-      IDC_SELECT_NEXT_TAB, IDC_SELECT_PREVIOUS_TAB,
+      IDC_SELECT_NEXT_TAB, IDC_SELECT_PREVIOUS_TAB, IDC_CYCLE_TO_NEXT_TAB,
+      IDC_CYCLE_TO_PREV_TAB,
       // Find content commands.
       IDC_FIND, IDC_FIND_NEXT, IDC_FIND_PREVIOUS, IDC_CLOSE_FIND_OR_STOP};
 
@@ -411,7 +412,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTest,
   auto params = Browser::CreateParams::CreateForApp(
       "abcdefghaghpphfffooibmlghaeopach", true /* trusted_source */,
       gfx::Rect(), /* window_bounts */
-      browser()->profile(), true /* user_gesture */);
+      browser()->GetProfile(), true /* user_gesture */);
   Browser* browser = Browser::Create(params);
 
   chrome::BrowserCommandController* commandController =
@@ -424,7 +425,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTest,
   auto params = Browser::CreateParams::CreateForAppPopup(
       "abcdefghaghpphfffooibmlghaeopach", true /* trusted_source */,
       gfx::Rect(), /* window_bounts */
-      browser()->profile(), true /* user_gesture */);
+      browser()->GetProfile(), true /* user_gesture */);
   Browser* browser = Browser::Create(params);
 
   chrome::BrowserCommandController* commandController =
@@ -732,7 +733,7 @@ class BrowserCommandControllerBrowserTestGlic
 
 IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestGlic,
                        ExecuteGlicTogglePin) {
-  PrefService* profile_prefs = browser()->profile()->GetPrefs();
+  PrefService* profile_prefs = browser()->GetProfile()->GetPrefs();
   profile_prefs->SetBoolean(glic::prefs::kGlicPinnedToTabstrip, false);
 
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_GLIC_TOGGLE_PIN));
@@ -774,7 +775,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestGlic,
 IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestGlic,
                        ExecuteGlicThreeDotMenuItem) {
   // Bypass glic eligibility check.
-  PrefService* profile_prefs = browser()->profile()->GetPrefs();
+  PrefService* profile_prefs = browser()->GetProfile()->GetPrefs();
   profile_prefs->SetInteger(
       optimization_guide::prefs::kGeminiSettings,
       std::to_underlying(

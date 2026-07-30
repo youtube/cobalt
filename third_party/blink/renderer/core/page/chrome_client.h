@@ -566,7 +566,13 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
     return gfx::Transform();
   }
 
-  virtual void OnMouseDown(Node&) {}
+  // Called immediately before initiating DOM event dispatch for a pointerdown
+  // event on `frame`.
+  virtual void WillDispatchPointerDown(LocalFrame&) {}
+
+  // Called immediately after a mousedown event or gesture tap has been
+  // dispatched to `mouse_down_node`.
+  virtual void DidDispatchMouseDown(Node&) {}
 
   virtual void DidUpdateBrowserControls() const {}
 
@@ -624,7 +630,16 @@ class CORE_EXPORT ChromeClient : public GarbageCollected<ChromeClient> {
 
   virtual float ZoomFactorForViewportLayout() { return 1; }
 
-  virtual void OnFirstContentfulPaint(const base::TimeDelta& duration) {}
+  // Called when a first contentful paint is observed. `presentation_time` is
+  // the renderer-side presentation timestamp of the paint.
+  virtual void OnFirstContentfulPaint(
+      const base::TimeTicks& presentation_time) {}
+
+  // Called when the outermost main frame's largest contentful paint candidate
+  // changed. `presentation_time` is the renderer-side presentation timestamp of
+  // the current candidate.
+  virtual void OnLargestContentfulPaint(
+      const base::TimeTicks& presentation_time) {}
 
  protected:
   ChromeClient() = default;

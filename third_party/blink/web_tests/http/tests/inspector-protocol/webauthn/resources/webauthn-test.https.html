@@ -104,6 +104,12 @@ async function registerCredential(options = {}) {
     if ('prf' in extensions) {
       result.prf = parsePRF(extensions);
     }
+    if ('cmtgKey' in extensions) {
+      result.cmtgKey = {
+        cmtgKey: arrayBufferToBase64(extensions.cmtgKey.cmtgKey),
+        signature: arrayBufferToBase64(extensions.cmtgKey.signature),
+      };
+    }
     result.flags = parseAuthenticatorFlags(
       new Uint8Array(credential.response.getAuthenticatorData())[32]);
     return result;
@@ -133,8 +139,16 @@ async function getCredential(credential, options = {}) {
     if ('prf' in extensions) {
       result.prf = parsePRF(extensions);
     }
+    if ('cmtgKey' in extensions) {
+      result.cmtgKey = {
+        cmtgKey: arrayBufferToBase64(extensions.cmtgKey.cmtgKey),
+        signature: arrayBufferToBase64(extensions.cmtgKey.signature),
+      };
+    }
     result.flags = parseAuthenticatorFlags(
       new Uint8Array(attestation.response.authenticatorData)[32]);
+    const authData = new Uint8Array(attestation.response.authenticatorData);
+    result.signCount = (authData[33] << 24) | (authData[34] << 16) | (authData[35] << 8) | authData[36];
     return result;
   } catch (error) {
     return {status: error.toString()};

@@ -65,3 +65,12 @@ source_set("frame") {
     "//ui/views",
   ]
 }
+
+source_set("app_menu_button_observer") {
+  sources = [ "app_menu_button_observer.h" ]
+}
+
+source_set("top_controls_slide_controller") {
+  sources = [ "top_controls_slide_controller.h" ]
+}
+

@@ -89,7 +89,6 @@
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
-#include "third_party/blink/public/mojom/browsing_topics/browsing_topics.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_cloud_identifier.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_error.mojom.h"
 #include "third_party/blink/public/mojom/origin_trials/origin_trials_settings.mojom.h"
@@ -361,7 +360,8 @@ bool ContentBrowserClient::ShouldSwapBrowsingInstancesForNavigation(
 }
 
 bool ContentBrowserClient::ShouldIsolateErrorPage(bool in_main_frame) {
-  return in_main_frame;
+  return in_main_frame ||
+         base::FeatureList::IsEnabled(features::kIsolateSubframeErrorPages);
 }
 
 std::unique_ptr<media::AudioManager> ContentBrowserClient::CreateAudioManager(
@@ -438,6 +438,11 @@ bool ContentBrowserClient::ShouldAllowMojoJsBindingsForSite(
 
 bool ContentBrowserClient::IsMultiCaptureAllowed(
     content::RenderFrameHost* render_frame_host) {
+  return false;
+}
+
+bool ContentBrowserClient::IsVideoCaptureAllowedWhileScreenLocked(
+    const url::Origin& origin) {
   return false;
 }
 
@@ -603,6 +608,12 @@ void ContentBrowserClient::RequestFilesAccess(
       .Run(file_access::ScopedFileAccess::Allowed());
 }
 
+void ContentBrowserClient::RequestPlatformLocalNetworkPermission(
+    WebContents& web_contents,
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(/*granted=*/false);
+}
+
 void ContentBrowserClient::AllowWorkerFileSystem(
     const GURL& url,
     BrowserContext* browser_context,
@@ -636,15 +647,6 @@ bool ContentBrowserClient::AllowWorkerWebLocks(
   return true;
 }
 
-bool ContentBrowserClient::IsInterestGroupAPIAllowed(
-    content::BrowserContext* browser_context,
-    content::RenderFrameHost* render_frame_host,
-    InterestGroupApiOperation operation,
-    const url::Origin& top_frame_origin,
-    const url::Origin& api_origin) {
-  return false;
-}
-
 bool ContentBrowserClient::IsPrivacySandboxReportingDestinationAttested(
     content::BrowserContext* browser_context,
     const url::Origin& destination_origin,
@@ -652,13 +654,6 @@ bool ContentBrowserClient::IsPrivacySandboxReportingDestinationAttested(
   return false;
 }
 
-void ContentBrowserClient::OnAuctionComplete(
-    RenderFrameHost* render_frame_host,
-    std::optional<content::InterestGroupManager::InterestGroupDataKey>
-        winner_data_key,
-    bool is_server_auction,
-    bool is_on_device_auction,
-    AuctionResult result) {}
 
 bool ContentBrowserClient::IsSharedStorageAllowed(
     content::BrowserContext* browser_context,
@@ -677,21 +672,6 @@ bool ContentBrowserClient::IsSharedStorageSelectURLAllowed(
     std::string* out_debug_message,
     bool* out_block_is_site_setting_specific) {
   return false;
-}
-
-bool ContentBrowserClient::IsPrivateAggregationAllowed(
-    content::BrowserContext* browser_context,
-    const url::Origin& top_frame_origin,
-    const url::Origin& reporting_origin,
-    bool* out_block_is_site_setting_specific) {
-  return true;
-}
-
-bool ContentBrowserClient::IsPrivateAggregationDebugModeAllowed(
-    content::BrowserContext* browser_context,
-    const url::Origin& top_frame_origin,
-    const url::Origin& reporting_origin) {
-  return true;
 }
 
 bool ContentBrowserClient::IsFullCookieAccessAllowed(
@@ -1508,21 +1488,6 @@ void ContentBrowserClient::AugmentNavigationDownloadPolicy(
     bool user_gesture,
     blink::NavigationDownloadPolicy* download_policy) {}
 
-bool ContentBrowserClient::HandleTopicsWebApi(
-    const url::Origin& context_origin,
-    content::RenderFrameHost* main_frame,
-    browsing_topics::ApiCallerSource caller_source,
-    bool get_topics,
-    bool observe,
-    std::vector<blink::mojom::EpochTopicPtr>& topics) {
-  return true;
-}
-
-int ContentBrowserClient::NumVersionsInTopicsEpochs(
-    content::RenderFrameHost* main_frame) const {
-  return 0;
-}
-
 void ContentBrowserClient::GetMediaDeviceIDSalt(
     content::RenderFrameHost* rfh,
     const net::SiteForCookies& site_for_cookies,
@@ -1886,7 +1851,8 @@ void ContentBrowserClient::MaybePrewarmHttpDiskCache(
 void ContentBrowserClient::NotifyMultiCaptureStateChanged(
     GlobalRenderFrameHostId capturer_rfh_id,
     const std::string& label,
-    MultiCaptureChanged state) {}
+    MultiCaptureChanged state,
+    base::OnceClosure stop_callback) {}
 
 bool ContentBrowserClient::ShouldEnableBtm(BrowserContext* browser_context) {
   return true;

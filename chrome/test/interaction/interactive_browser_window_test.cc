@@ -873,6 +873,70 @@ InteractiveBrowserWindowTestApi::ClickElement(
       .SetDescription("ClickElement()");
 }
 
+InteractiveBrowserWindowTestApi::StepBuilder
+InteractiveBrowserWindowTestApi::DumpWebContents(
+    ui::ElementIdentifier web_contents) {
+  return std::move(
+      WithElement(
+          web_contents,
+          [web_contents](ui::InteractionSequence* sequence,
+                         ui::TrackedElement* el) {
+            std::string error_msg;
+            std::string function = base::StringPrintf(
+                "function() { %s; return dumpHtmlContent(document.body, "
+                "document.activeElement); }",
+                internal::InteractiveBrowserTestPrivate::kDumpElementsScript);
+            base::Value result =
+                el->AsA<TrackedElementWebContents>()->owner()->Evaluate(
+                    function, &error_msg);
+            if (!error_msg.empty()) {
+              LOG(ERROR) << "DumpWebContents() failed: " << error_msg;
+              sequence->FailForTesting();
+              return;
+            }
+            LOG(INFO) << "Contents of " << web_contents << ":\n"
+                      << result.GetString();
+          })
+          .SetContext(kDefaultWebContentsContextMode)
+          .SetDescription("DumpWebContents()"));
+}
+
+InteractiveBrowserWindowTestApi::StepBuilder
+InteractiveBrowserWindowTestApi::DumpWebContentsAt(
+    ui::ElementIdentifier web_contents,
+    const DeepQuery& where) {
+  return std::move(
+      WithElement(
+          web_contents,
+          [where, web_contents](ui::InteractionSequence* sequence,
+                                ui::TrackedElement* el) {
+            std::string error_msg;
+            const auto function = base::StringPrintf(
+                R"(
+            (el, err) => {
+              if (err) {
+                throw err;
+              }
+              %s;
+              return dumpHtmlContent(el, undefined);
+            }
+          )",
+                internal::InteractiveBrowserTestPrivate::kDumpElementsScript);
+            base::Value result =
+                el->AsA<TrackedElementWebContents>()->owner()->EvaluateAt(
+                    where, function, &error_msg);
+            if (!error_msg.empty()) {
+              LOG(ERROR) << "DumpWebElement() failed: " << error_msg;
+              sequence->FailForTesting();
+              return;
+            }
+            LOG(INFO) << "Contents of " << web_contents << ":\n"
+                      << result.GetString();
+          })
+          .SetContext(kDefaultWebContentsContextMode)
+          .SetDescription("DumpWebElement()"));
+}
+
 // static
 InteractiveBrowserWindowTestApi::RelativePositionCallback
 InteractiveBrowserWindowTestApi::DeepQueryToRelativePosition(

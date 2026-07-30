@@ -143,6 +143,14 @@ BASE_FEATURE(kWebViewForceWebAuthn, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebViewGateTextSizeAdjustOnTextAutosizing,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, memory is aggressively purged when WebView apps go to the
+// background.
+BASE_FEATURE(kWebViewPurgeMemoryInBackground,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kWebViewPurgeMemoryInBackgroundDelay{
+    &kWebViewPurgeMemoryInBackground, "purge_delay", base::Minutes(4)};
+
 // Partial kill switch for the HTTP Cache Quota API.
 //
 // When enabled, HTTP Cache quota can be configured by the WebView embedder.
@@ -388,6 +396,10 @@ BASE_FEATURE(kWebViewUseMetricsUploadServiceOnlySdkRuntime,
 // arrive without the intermediate I/O thread hop.
 BASE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, eagerly warms up the Network Service during early native
+// browser process startup in WebView.
+BASE_FEATURE(kWebViewWarmupNetworkService, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for reporting web performance metrics.
 BASE_FEATURE(kWebViewWebPerformanceMetricsReporting,

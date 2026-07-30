@@ -31,8 +31,11 @@
 #include "extensions/buildflags/buildflags.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "components/user_manager/scoped_user_manager.h"
+
+namespace ash {
+class ScopedCrosSettingsTestHelper;
+}  // namespace ash
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -251,6 +254,8 @@ class TestingProfile : public Profile {
 #endif
 
     const base::FilePath& GetPath() const { return path_; }
+    const std::string& profile_name() const { return profile_name_; }
+    bool is_supervised_profile() const { return is_supervised_profile_; }
 
    private:
     // If true, Build() has already been called.

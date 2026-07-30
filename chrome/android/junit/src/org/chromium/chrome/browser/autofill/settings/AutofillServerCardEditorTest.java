@@ -59,6 +59,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeStringConstants;
@@ -94,6 +95,7 @@ import org.chromium.url.GURL;
     ChromeFeatureList.AUTOFILL_ENABLE_WALLET_BRANDING_V2,
     ChromeFeatureList.SETTINGS_MULTI_COLUMN
 })
+@EnableFeatures(ChromeFeatureList.CCT_DONT_OVERRIDE_INTENT_MIME_TYPE)
 public class AutofillServerCardEditorTest {
 
     private static final long NATIVE_AUTOFILL_PAYMENTS_METHODS_DELEGATE = 100L;
@@ -113,7 +115,7 @@ public class AutofillServerCardEditorTest {
     private static final CreditCard SAMPLE_VIRTUAL_CARD_ENROLLED_CARD =
             new CreditCard(
                     /* guid= */ "1",
-                    /* origin= */ "",
+                    /* isUserConfirmed= */ false,
                     /* isLocal= */ false,
                     /* isVirtual= */ false,
                     /* name= */ "John Doe",
@@ -141,7 +143,7 @@ public class AutofillServerCardEditorTest {
     private static final CreditCard SAMPLE_VIRTUAL_CARD_UNENROLLED_AND_ELIGIBLE_CARD =
             new CreditCard(
                     /* guid= */ "2",
-                    /* origin= */ "",
+                    /* isUserConfirmed= */ false,
                     /* isLocal= */ false,
                     /* isVirtual= */ false,
                     /* name= */ "John Doe",
@@ -170,7 +172,7 @@ public class AutofillServerCardEditorTest {
     private static final CreditCard SAMPLE_VIRTUAL_CARD_UNENROLLED_AND_NOT_ELIGIBLE_CARD =
             new CreditCard(
                     /* guid= */ "3",
-                    /* origin= */ "",
+                    /* isUserConfirmed= */ false,
                     /* isLocal= */ false,
                     /* isVirtual= */ false,
                     /* name= */ "John Doe",

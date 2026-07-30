@@ -369,22 +369,16 @@
       "http/tests/inspector-protocol/issues/connection-allowlists"
     ],
     "exclusive_tests": "ALL",
-    "args": [ "--enable-features=ConnectionAllowlists:ConnectionAllowlistsEarlyHints/true,OverrideConnectionAllowlistOriginTrial" ],
+    "args": [ "--enable-features=ConnectionAllowlists" ],
     "expires": "Dec 1, 2026"
   },
   {
-    "prefix": "connection-allowlist-origin-trial",
-    "owners": [
-      "mkwst@chromium.org",
-      "shivanisha@chromium.org"
-    ],
-    "platforms": [ "Linux" ],
-    "bases": [
-      "wpt_internal/connection-allowlist"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [ "--enable-features=ConnectionAllowlists" ],
-    "expires": "Dec 1, 2026"
+    "prefix": "container-timing-pre-paint-traversal",
+    "owners": [ "jdapena@igalia.com" ],
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [ "external/wpt/container-timing/" ],
+    "args": [ "--enable-features=ContainerTimingPrepaintTraversal" ],
+    "expires": "Nov 1, 2026"
   },
   {
     "prefix": "controls-refresh-hc",
@@ -467,25 +461,6 @@
       "--enable-threaded-compositing"
     ],
     "expires": "never"
-  },
-  {
-    "prefix": "cpu-performance",
-    "owners": [
-      "nikolaos@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/cpu-performance"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=CpuPerformance"
-    ],
-    "expires": "Sep 30, 2026"
   },
   {
     "prefix": "declarative-performance-observer",
@@ -597,6 +572,20 @@
     ],
     "owners": [
       "abotella@igalia.com"
+    ]
+  },
+  {
+    "prefix": "disable-table-cell-border-color-inherit",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "external/wpt/html/rendering/non-replaced-elements/tables/table-border-color-not-inherited.html"
+    ],
+    "args": [
+      "--disable-blink-features=TableCellBorderColorInherit"
+    ],
+    "expires": "Jun 30, 2027",
+    "owners": [
+      "navoda.munasinha@codimite.com"
     ]
   },
   "This never expires because it tests rendering of form controls when the",
@@ -1502,6 +1491,25 @@
     ],
     "expires": "never"
   },
+  {
+    "prefix": "global-privacy-control-force",
+    "owners": [
+      "arichiv@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "wpt_internal/global-privacy-control"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=GlobalPrivacyControlForce"
+    ],
+    "expires": "Nov 7, 2026"
+  },
   "This never expires because it tests a shipping configuration",
   {
     "prefix": "gpu",
@@ -1599,7 +1607,7 @@
     "args": [
       "--enable-features=DiskCacheBackendExperiment:backend/default"
     ],
-    "expires": "Jul 25, 2026",
+    "expires": "Jul 25, 2027",
     "owners": [
       "horo@chromium.org"
     ]
@@ -1618,7 +1626,7 @@
     "args": [
       "--enable-features=DiskCacheBackendExperiment:backend/sql"
     ],
-    "expires": "Jul 25, 2026",
+    "expires": "Jul 25, 2027",
     "owners": [
       "horo@chromium.org"
     ]
@@ -2777,7 +2785,8 @@
       "svg/dom/getCTM-zoom-invariance.html",
       "svg/zoom/page/zoom-getbbox-invariance.html",
       "svg/zoom/page/zoom-getctm-invariance.html",
-      "svg/zoom/page/zoom-getscreenctm-getboundingclientrect-parity.html"
+      "svg/zoom/page/zoom-getscreenctm-getboundingclientrect-parity.html",
+      "external/wpt/css/css-overflow/scroll-axis-lock.html"
     ],
     "exclusive_tests": [
       "fast/hidpi/static"
@@ -3022,6 +3031,27 @@
       "yoichio@chromium.org"
     ],
     "expires": "Apr 1, 2027"
+  },
+  {
+    "prefix": "speculation-rules-renderer-side-heuristics",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/speculation-rules/prefetch",
+      "external/wpt/speculation-rules/speculation-tags"
+    ],
+    "exclusive_tests": [],
+    "args": [
+      "--enable-features=SpeculationRulesRendererSideHeuristics"
+    ],
+    "owners": [
+      "yoavweiss@chromium.org",
+      "chrome-prerendering@google.com"
+    ],
+    "expires": "Jul 1, 2027"
   },
   {
     "prefix": "prerender-cross-origin-iframe-scroll",
@@ -4772,7 +4802,8 @@
       "http/tests/xsl/xslt",
       "inspector-protocol/debugger/unpause-after-xslt-commit.js",
       "http/tests/origin_trials/xslt-deprecation-trial-disabled.html",
-      "http/tests/origin_trials/xslt-deprecation-trial-enabled.html"
+      "http/tests/origin_trials/xslt-deprecation-trial-enabled.html",
+      "fast/parser/xml-cap-alert-xslt-use-counter.html"
     ],
     "exclusive_tests": [
       "http/tests/xsl/xslt/xsltpi-issue.js",

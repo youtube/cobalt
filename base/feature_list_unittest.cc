@@ -111,7 +111,6 @@ BASE_FEATURE(kLateFeature, FEATURE_DISABLED_BY_DEFAULT);
 
 // Features for testing runtime mutable features.
 BASE_RUNTIME_MUTABLE_FEATURE(kRuntimeMutableFeature3Args,
-                             "RuntimeMutableFeature3Args",
                              FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_RUNTIME_MUTABLE_FEATURE(kRuntimeMutableFeature,
@@ -370,7 +369,7 @@ TEST_F(FeatureListTest, InitFromCommandLineWithFeatureParams) {
   // this.
   base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
 
-  static BASE_FEATURE(kFeature, "Feature", FEATURE_DISABLED_BY_DEFAULT);
+  static BASE_FEATURE(kFeature, FEATURE_DISABLED_BY_DEFAULT);
   for (const auto& test_case : test_cases) {
     SCOPED_TRACE(test_case.enable_features);
 
@@ -1764,6 +1763,158 @@ TEST_F(FeatureListTest, RuntimeMutability_GetOverrideStateWithoutActivation) {
 
   // The trial MUST NOW be active!
   EXPECT_TRUE(FieldTrialList::IsTrialActive(trial->trial_name()));
+}
+
+TEST_F(FeatureListTest,
+       RuntimeMutability_GetControllingTrialInfoByFeatureName) {
+  int callback_calls = 0;
+  RuntimeMutabilityCallbackData callback_data;
+  test::ScopedFeatureList scoped_feature_list;
+  {
+    auto feature_list = std::make_unique<FeatureList>();
+
+    FieldTrial* trial =
+        FieldTrialList::CreateFieldTrial("StaticStudy", "StaticGroup");
+    ASSERT_TRUE(trial);
+    feature_list->RegisterFieldTrialOverride(
+        "StaticFeature", FeatureList::OVERRIDE_ENABLE_FEATURE, trial);
+
+    FieldTrial* runtime_mutable_static_trial = FieldTrialList::CreateFieldTrial(
+        "StaticStudyForRuntimeMutable", "StaticGroup");
+    ASSERT_TRUE(runtime_mutable_static_trial);
+    feature_list->RegisterFieldTrialOverride(
+        kRuntimeMutableFeature3Args.name, FeatureList::OVERRIDE_ENABLE_FEATURE,
+        runtime_mutable_static_trial);
+
+    feature_list->EnableRuntimeMutability(
+        kRuntimeMutableFeature,
+        base::BindRepeating(RuntimeMutabilityCallback,
+                            base::Unretained(&callback_calls),
+                            base::Unretained(&callback_data)));
+
+    feature_list->EnableRuntimeMutability(
+        kRuntimeMutableFeature3Args,
+        base::BindRepeating(RuntimeMutabilityCallback,
+                            base::Unretained(&callback_calls),
+                            base::Unretained(&callback_data)));
+
+    scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+  }
+
+  const auto* const feature_list = FeatureList::GetInstance();
+
+  // For a feature with no field trial associated, trial_name should be empty
+  // and is_runtime_override should be false.
+  auto info = feature_list->GetControllingTrialInfoByFeatureName(
+      kFeatureOnByDefault.name);
+  EXPECT_TRUE(info.trial_name.empty());
+  EXPECT_FALSE(info.is_runtime_override);
+
+  // For a feature with a static field trial associated, trial_name should match
+  // the static trial and is_runtime_override should be false.
+  info = feature_list->GetControllingTrialInfoByFeatureName("StaticFeature");
+  EXPECT_EQ("StaticStudy", info.trial_name);
+  EXPECT_FALSE(info.is_runtime_override);
+
+  // For a runtime mutable feature with no static trial associated, before any
+  // runtime override is applied, trial_name should be empty and
+  // is_runtime_override should be false.
+  info = feature_list->GetControllingTrialInfoByFeatureName(
+      kRuntimeMutableFeature.name);
+  EXPECT_TRUE(info.trial_name.empty());
+  EXPECT_FALSE(info.is_runtime_override);
+
+  // For a runtime mutable feature with a static field trial associated, before
+  // any runtime override is applied, trial_name should match the static trial
+  // and is_runtime_override should be false.
+  info = feature_list->GetControllingTrialInfoByFeatureName(
+      kRuntimeMutableFeature3Args.name);
+  EXPECT_EQ("StaticStudyForRuntimeMutable", info.trial_name);
+  EXPECT_FALSE(info.is_runtime_override);
+
+  // Apply runtime overrides to both features.
+  FeatureList::GetInstance()->UpdateRuntimeMutableFeatureState(
+      variations::VariationsService::CreatePassKeyForTesting(), "RuntimeStudy1",
+      "RuntimeGroup", kRuntimeMutableFeature.name,
+      FeatureList::OVERRIDE_DISABLE_FEATURE);
+  FeatureList::GetInstance()->UpdateRuntimeMutableFeatureState(
+      variations::VariationsService::CreatePassKeyForTesting(), "RuntimeStudy2",
+      "RuntimeGroup", kRuntimeMutableFeature3Args.name,
+      FeatureList::OVERRIDE_DISABLE_FEATURE);
+
+  // Now GetControllingTrialInfoByFeatureName should return the runtime trial
+  // name and indicate that it is a runtime override for both features.
+  info = feature_list->GetControllingTrialInfoByFeatureName(
+      kRuntimeMutableFeature.name);
+  EXPECT_EQ("RuntimeStudy1", info.trial_name);
+  EXPECT_TRUE(info.is_runtime_override);
+
+  info = feature_list->GetControllingTrialInfoByFeatureName(
+      kRuntimeMutableFeature3Args.name);
+  EXPECT_EQ("RuntimeStudy2", info.trial_name);
+  EXPECT_TRUE(info.is_runtime_override);
+}
+
+TEST_F(FeatureListTest, GetFeaturesAssociatedWithTrial) {
+  auto feature_list = std::make_unique<FeatureList>();
+
+  // Register some regular features with field trials.
+  FieldTrial* trial_a = FieldTrialList::CreateFieldTrial("TrialA", "GroupA");
+  ASSERT_TRUE(trial_a);
+  feature_list->RegisterFieldTrialOverride(
+      "Feature1", FeatureList::OVERRIDE_ENABLE_FEATURE, trial_a);
+  feature_list->RegisterFieldTrialOverride(
+      "Feature2", FeatureList::OVERRIDE_DISABLE_FEATURE, trial_a);
+
+  // Enable runtime mutability for some other features.
+  feature_list->EnableRuntimeMutability(
+      kRuntimeMutableFeature,
+      base::BindRepeating(
+          [](std::reference_wrapper<const base::Feature> feature,
+             std::string_view trial, std::string_view group,
+             base::FeatureList::OverrideState state) {}));
+
+  test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  const auto* active_feature_list = FeatureList::GetInstance();
+
+  // Test regular field trials.
+  base::flat_set<std::string> features_a =
+      active_feature_list->GetFeaturesAssociatedWithTrial(
+          FeatureList::ControllingTrialInfo{.trial_name = "TrialA",
+                                            .is_runtime_override = false});
+  EXPECT_EQ(2u, features_a.size());
+  EXPECT_TRUE(features_a.contains("Feature1"));
+  EXPECT_TRUE(features_a.contains("Feature2"));
+
+  // Check returns empty for runtime query when they are regular trials.
+  EXPECT_TRUE(
+      active_feature_list
+          ->GetFeaturesAssociatedWithTrial(FeatureList::ControllingTrialInfo{
+              .trial_name = "TrialA", .is_runtime_override = true})
+          .empty());
+
+  // Update runtime feature to trial 'TrialB'.
+  FeatureList::GetInstance()->UpdateRuntimeMutableFeatureState(
+      variations::VariationsService::CreatePassKeyForTesting(), "TrialB",
+      "GroupB", kRuntimeMutableFeature.name,
+      FeatureList::OVERRIDE_DISABLE_FEATURE);
+
+  // Test runtime field trial overrides.
+  base::flat_set<std::string> features_b =
+      active_feature_list->GetFeaturesAssociatedWithTrial(
+          FeatureList::ControllingTrialInfo{.trial_name = "TrialB",
+                                            .is_runtime_override = true});
+  EXPECT_EQ(1u, features_b.size());
+  EXPECT_TRUE(features_b.contains(kRuntimeMutableFeature.name));
+
+  // Check returns empty for regular query when they are runtime trials.
+  EXPECT_TRUE(
+      active_feature_list
+          ->GetFeaturesAssociatedWithTrial(FeatureList::ControllingTrialInfo{
+              .trial_name = "TrialB", .is_runtime_override = false})
+          .empty());
 }
 
 }  // namespace base

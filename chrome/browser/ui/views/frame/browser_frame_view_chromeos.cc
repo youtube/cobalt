@@ -170,8 +170,7 @@ BrowserFrameViewChromeOS::BrowserFrameViewChromeOS(BrowserWidget* widget,
 }
 
 BrowserFrameViewChromeOS::~BrowserFrameViewChromeOS() {
-  if (auto* immersive_controller =
-          ImmersiveModeController::From(GetBrowserView()->browser())) {
+  if (auto* immersive_controller = GetImmersiveModeController()) {
     immersive_controller->RemoveObserver(this);
   }
 
@@ -235,7 +234,7 @@ void BrowserFrameViewChromeOS::Init() {
     UpdateUnframedModeEnabled();
   }
 
-  ImmersiveModeController::From(GetBrowserView()->browser())->AddObserver(this);
+  GetImmersiveModeController()->AddObserver(this);
 }
 
 BrowserLayoutParams BrowserFrameViewChromeOS::GetBrowserLayoutParams() const {
@@ -278,8 +277,7 @@ int BrowserFrameViewChromeOS::GetTopInset(bool restored) const {
   if (!GetShouldPaint()) {
     // When immersive fullscreen unrevealed, tabstrip is offscreen with normal
     // tabstrip bounds, the top inset should reach this topmost edge.
-    const auto* const immersive_controller =
-        ImmersiveModeController::From(GetBrowserView()->browser());
+    const auto* const immersive_controller = GetImmersiveModeController();
     if (immersive_controller->IsEnabled() &&
         !immersive_controller->IsRevealed()) {
       return (-1) * GetClientFrameElementInfo().top_area_height();
@@ -616,8 +614,9 @@ void BrowserFrameViewChromeOS::OnDisplayMetricsChanged(
 }
 
 void BrowserFrameViewChromeOS::OnTabletModeToggled(bool enabled) {
-  if (!enabled && ImmersiveModeController::From(GetBrowserView()->browser())
-                      ->IsRevealed()) {
+  auto* const immersive_mode_controller = GetImmersiveModeController();
+
+  if (!enabled && immersive_mode_controller->IsRevealed()) {
     // Before updating the caption buttons state below (which triggers a
     // relayout), we want to move the caption buttons from the
     // TopContainerView back to this view.
@@ -628,8 +627,6 @@ void BrowserFrameViewChromeOS::OnTabletModeToggled(bool enabled) {
   caption_button_container_->SetVisible(should_show_caption_buttons);
   caption_button_container_->UpdateCaptionButtonState(true /*=animate*/);
 
-  auto* const immersive_mode_controller =
-      ImmersiveModeController::From(GetBrowserView()->browser());
   const bool was_immersive = immersive_mode_controller->IsEnabled();
 
   // Set the immersive mode to what it should be because an immersive mode may
@@ -735,8 +732,8 @@ void BrowserFrameViewChromeOS::OnWindowPropertyChanged(aura::Window* window,
     // fullscreen states (fullscreen <> pinneed), the immersive mode is updated
     // in `BrowserView::FullscreenStateChanged`.
     if (!is_fullscreen && !was_fullscreen) {
-      ImmersiveModeController::From(GetBrowserView()->browser())
-          ->SetEnabled(ShouldEnableImmersiveModeController());
+      GetImmersiveModeController()->SetEnabled(
+          ShouldEnableImmersiveModeController());
     }
 
     return;
@@ -759,11 +756,17 @@ void BrowserFrameViewChromeOS::OnImmersiveFullscreenEntered() {
   ResetWindowControls();
   auto* container = GetBrowserView()->top_container();
   container->AddChildViewAt(caption_button_container_.get(), 0);
+  if (profile_indicator_icon_) {
+    container->AddChildView(profile_indicator_icon_.get());
+  }
 }
 
 void BrowserFrameViewChromeOS::OnImmersiveFullscreenExited() {
   ResetWindowControls();
   AddChildViewAt(caption_button_container_.get(), 0);
+  if (profile_indicator_icon_) {
+    AddChildView(profile_indicator_icon_.get());
+  }
 
   OnImmersiveRevealEnded();
 }
@@ -921,8 +924,7 @@ int BrowserFrameViewChromeOS::GetTabStripRightInset() const {
 bool BrowserFrameViewChromeOS::GetShouldPaint() const {
   // We need to paint when the top-of-window views are revealed in immersive
   // fullscreen.
-  auto* const immersive_mode_controller =
-      ImmersiveModeController::From(GetBrowserView()->browser());
+  auto* const immersive_mode_controller = GetImmersiveModeController();
   if (immersive_mode_controller->IsEnabled()) {
     return immersive_mode_controller->IsRevealed();
   }
@@ -961,8 +963,7 @@ BrowserFrameViewChromeOS::CreateFrameHeader() {
 
 void BrowserFrameViewChromeOS::UpdateTopViewInset() {
   // In immersive fullscreen mode, the top view inset property should be 0.
-  const bool immersive =
-      ImmersiveModeController::From(GetBrowserView()->browser())->IsEnabled();
+  const bool immersive = GetImmersiveModeController()->IsEnabled();
   const bool tab_strip_visible = GetBrowserView()->GetTabStripVisible();
   const int inset = (tab_strip_visible || immersive ||
                      (AppIsPwaWithUnframedDisplayMode() &&
@@ -990,16 +991,26 @@ bool BrowserFrameViewChromeOS::GetShowProfileIndicatorIcon() const {
 }
 
 void BrowserFrameViewChromeOS::UpdateProfileIcons() {
-  View* root_view = browser_widget()->GetRootView();
+  // `profile_indicator_icon_` is parented to browser's top container in
+  // immersive-view.
+  auto profile_icon_parent = [this]() -> views::View* {
+    auto* immersive_controller = GetImmersiveModeController();
+    if (immersive_controller && immersive_controller->IsEnabled()) {
+      return GetBrowserView()->top_container();
+    }
+
+    return this;
+  };
+
   if (GetShowProfileIndicatorIcon()) {
     bool needs_layout = !profile_indicator_icon_;
     if (!profile_indicator_icon_) {
-      profile_indicator_icon_ =
-          AddChildView(std::make_unique<ProfileIndicatorIcon>());
+      profile_indicator_icon_ = profile_icon_parent()->AddChildView(
+          std::make_unique<ProfileIndicatorIcon>());
     }
 
     gfx::Image image(
-        GetAvatarImageForContext(GetBrowserView()->browser()->profile()));
+        GetAvatarImageForContext(GetBrowserView()->browser()->GetProfile()));
     profile_indicator_icon_->SetSize(image.Size());
     profile_indicator_icon_->SetPreferredSize(image.Size());
     profile_indicator_icon_->SetIcon(image);
@@ -1009,31 +1020,19 @@ void BrowserFrameViewChromeOS::UpdateProfileIcons() {
       window_icon_->SetVisible(false);
     }
 
-    if (needs_layout && root_view) {
+    if (needs_layout) {
       // Adding a child does not invalidate the layout.
-      InvalidateLayout();
-      if (GetBrowserView()->GetIsWebAppType()) {
-        // We must invalidate the BrowserView layout as it is responsible for
-        // painting the window title in web apps (See
-        // `BrowserView::web_app_window_title_`).
-        GetBrowserView()->InvalidateLayout();
-      }
-      root_view->DeprecatedLayoutImmediately();
+      RelayoutBrowserWindow();
     }
   } else if (profile_indicator_icon_) {
-    RemoveChildViewT(std::exchange(profile_indicator_icon_, nullptr));
+    profile_icon_parent()->RemoveChildViewT(
+        std::exchange(profile_indicator_icon_, nullptr));
 
     frame_header_->SetLeftHeaderView(window_icon_);
     if (window_icon_) {
       window_icon_->SetVisible(true);
     }
-    InvalidateLayout();
-    if (GetBrowserView()->GetIsWebAppType()) {
-      GetBrowserView()->InvalidateLayout();
-    }
-    if (root_view) {
-      root_view->DeprecatedLayoutImmediately();
-    }
+    RelayoutBrowserWindow();
   }
 }
 
@@ -1086,7 +1085,7 @@ void BrowserFrameViewChromeOS::MaybeAddAppIconToLayoutParams(
 }
 
 void BrowserFrameViewChromeOS::LayoutProfileIndicator() {
-  DCHECK(profile_indicator_icon_);
+  CHECK(profile_indicator_icon_);
   const int frame_height =
       GetBrowserView()->ShouldDrawVerticalTabStrip() &&
               GetBrowserView()->toolbar()
@@ -1095,8 +1094,8 @@ void BrowserFrameViewChromeOS::LayoutProfileIndicator() {
                 GetClientFrameElementInfo().tabstrip_preferred_height;
 
   if (frame_height == 0) {
-    // In fullscreen, the height can be zero so hide the profile indicator.
-    profile_indicator_icon_->SetVisible(false);
+    // When transitioning into immersive-fullscreen, frame height is zero for
+    // initial layout passes.
     return;
   }
   profile_indicator_icon_->SetPosition(
@@ -1119,8 +1118,7 @@ bool BrowserFrameViewChromeOS::GetHideCaptionButtonsForFullscreen() const {
     return false;
   }
 
-  auto* const immersive_controller =
-      ImmersiveModeController::From(GetBrowserView()->browser());
+  auto* const immersive_controller = GetImmersiveModeController();
 
   // In fullscreen view, but not in immersive mode. Hide the caption buttons.
   return !immersive_controller || !immersive_controller->IsEnabled();
@@ -1152,6 +1150,24 @@ const aura::Window* BrowserFrameViewChromeOS::GetFrameWindow() const {
 
 aura::Window* BrowserFrameViewChromeOS::GetFrameWindow() {
   return browser_widget()->GetNativeWindow();
+}
+
+ImmersiveModeController* BrowserFrameViewChromeOS::GetImmersiveModeController()
+    const {
+  return ImmersiveModeController::From(GetBrowserView()->browser());
+}
+
+void BrowserFrameViewChromeOS::RelayoutBrowserWindow() {
+  InvalidateLayout();
+  if (GetBrowserView()->GetIsWebAppType()) {
+    // We must invalidate the BrowserView layout as it is responsible for
+    // painting the window title in web apps (See
+    // `BrowserView::web_app_window_title_`).
+    GetBrowserView()->InvalidateLayout();
+  }
+  if (views::View* root_view = browser_widget()->GetRootView()) {
+    root_view->DeprecatedLayoutImmediately();
+  }
 }
 
 BEGIN_METADATA(BrowserFrameViewChromeOS)

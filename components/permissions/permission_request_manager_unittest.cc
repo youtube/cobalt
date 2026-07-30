@@ -144,7 +144,7 @@ class PermissionRequestManagerTest : public content::RenderViewHostTestHarness {
     task_environment()->RunUntilIdle();
   }
 
-  void Closing() {
+  void Dismiss() {
     manager_->Dismiss(/*prompt_options=*/std::monostate());
     task_environment()->RunUntilIdle();
   }
@@ -841,7 +841,7 @@ TEST_F(PermissionRequestManagerTest, MainFrameNoRequestIFrameRequest) {
   WaitForFrameLoad();
 
   EXPECT_TRUE(prompt_factory_->is_visible());
-  Closing();
+  Dismiss();
   EXPECT_TRUE(iframe_request_same_domain_state.finished);
 }
 
@@ -861,7 +861,7 @@ TEST_F(PermissionRequestManagerTest, MainFrameAndIFrameRequestSameDomain) {
 
   EXPECT_TRUE(prompt_factory_->is_visible());
   ASSERT_EQ(1, prompt_factory_->request_count());
-  Closing();
+  Dismiss();
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(iframe_request_same_domain_state.finished);
     EXPECT_FALSE(request1_state.finished);
@@ -874,7 +874,7 @@ TEST_F(PermissionRequestManagerTest, MainFrameAndIFrameRequestSameDomain) {
   EXPECT_TRUE(prompt_factory_->is_visible());
   ASSERT_EQ(1, prompt_factory_->request_count());
 
-  Closing();
+  Dismiss();
   EXPECT_FALSE(prompt_factory_->is_visible());
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(request1_state.finished);
@@ -898,7 +898,7 @@ TEST_F(PermissionRequestManagerTest, MainFrameAndIFrameRequestOtherDomain) {
   WaitForBubbleToBeShown();
 
   EXPECT_TRUE(prompt_factory_->is_visible());
-  Closing();
+  Dismiss();
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(iframe_request_other_domain_state.finished);
     EXPECT_FALSE(request1_state.finished);
@@ -908,7 +908,7 @@ TEST_F(PermissionRequestManagerTest, MainFrameAndIFrameRequestOtherDomain) {
   }
 
   EXPECT_TRUE(prompt_factory_->is_visible());
-  Closing();
+  Dismiss();
   EXPECT_TRUE(iframe_request_other_domain_state.finished);
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(request1_state.finished);
@@ -933,7 +933,7 @@ TEST_F(PermissionRequestManagerTest, IFrameRequestWhenMainRequestVisible) {
                     iframe_request_other_domain_state.GetWeakPtr()));
   WaitForFrameLoad();
   ASSERT_EQ(prompt_factory_->request_count(), 1);
-  Closing();
+  Dismiss();
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(iframe_request_other_domain_state.finished);
     EXPECT_FALSE(request1_state.finished);
@@ -944,7 +944,7 @@ TEST_F(PermissionRequestManagerTest, IFrameRequestWhenMainRequestVisible) {
 
   EXPECT_TRUE(prompt_factory_->is_visible());
   ASSERT_EQ(prompt_factory_->request_count(), 1);
-  Closing();
+  Dismiss();
   EXPECT_TRUE(iframe_request_other_domain_state.finished);
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(request1_state.finished);
@@ -969,7 +969,7 @@ TEST_F(PermissionRequestManagerTest,
       CreateRequest(iframe_request_other_domain_,
                     iframe_request_other_domain_state.GetWeakPtr()));
   WaitForFrameLoad();
-  Closing();
+  Dismiss();
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(iframe_request_other_domain_state.finished);
     EXPECT_FALSE(request1_state.finished);
@@ -979,7 +979,7 @@ TEST_F(PermissionRequestManagerTest,
   }
 
   EXPECT_TRUE(prompt_factory_->is_visible());
-  Closing();
+  Dismiss();
   if (PermissionUtil::DoesPlatformSupportChip()) {
     EXPECT_TRUE(request1_state.finished);
   } else {
@@ -2250,7 +2250,7 @@ TEST_F(PermissionRequestManagerTest, ReentrantPermissionRequestCancelled) {
 
   EXPECT_TRUE(prompt_factory_->is_visible());
   EXPECT_EQ(prompt_factory_->request_count(), 1);
-  Closing();
+  Dismiss();
   EXPECT_TRUE(request1_state.cancelled);
   EXPECT_FALSE(request_mic_state.cancelled);
   WaitForBubbleToBeShown();
@@ -2784,6 +2784,114 @@ struct GestureGatedTestcase {
   bool mute_geolocation;
   std::optional<std::string> warning_message;
 };
+
+class PermissionRequestManagerSameOriginGestureTest
+    : public PermissionRequestManagerTest {
+ public:
+  void SetUp() override {
+    PermissionRequestManagerTest::SetUp();
+    manager_->clear_permission_ui_selector_for_testing();
+    manager_->add_permission_ui_selector_for_testing(
+        std::make_unique<MockNotificationGeolocationPermissionUiSelector>(
+            Decision::UseNormalUiAndShowNoWarning(),
+            /*prediction_likelihood=*/std::nullopt,
+            /*async_delay=*/std::nullopt));
+  }
+};
+
+TEST_F(PermissionRequestManagerSameOriginGestureTest,
+       ExcludeSameOriginNavigationsEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kPermissionsGestureGatedPrompts,
+      {{"mute_geolocation", "true"},
+       {"exclude_same_origin_navigations", "true"}});
+
+  // 1. Initial navigation (not same-origin): gestureless prompt is muted.
+  {
+    MockPermissionRequest::MockPermissionRequestState request_state;
+    auto request = std::make_unique<MockPermissionRequest>(
+        RequestType::kGeolocation, PermissionRequestGestureType::NO_GESTURE,
+        request_state.GetWeakPtr());
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(),
+                         std::move(request));
+    WaitForBubbleToBeShown();
+
+    EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
+    EXPECT_EQ(manager_->ReasonForUsingQuietUi(),
+              QuietUiReason::kTriggeredDueToLackOfGesture);
+
+    Accept();
+    EXPECT_TRUE(request_state.granted);
+  }
+
+  // 2. Same-origin navigation: gestureless prompt is NOT muted when exclude
+  // param is true.
+  NavigateAndCommit(GURL("https://www.google.com/foo"));
+  {
+    MockPermissionRequest::MockPermissionRequestState request_state;
+    auto request = std::make_unique<MockPermissionRequest>(
+        RequestType::kGeolocation, PermissionRequestGestureType::NO_GESTURE,
+        request_state.GetWeakPtr());
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(),
+                         std::move(request));
+    WaitForBubbleToBeShown();
+
+    EXPECT_FALSE(manager_->ShouldCurrentRequestUseQuietUI());
+    EXPECT_EQ(manager_->ReasonForUsingQuietUi(), std::nullopt);
+
+    Accept();
+    EXPECT_TRUE(request_state.granted);
+  }
+
+  // 3. Cross-origin navigation: gestureless prompt is muted again.
+  NavigateAndCommit(GURL("https://www.youtube.com/foo"));
+  {
+    MockPermissionRequest::MockPermissionRequestState request_state;
+    auto request = std::make_unique<MockPermissionRequest>(
+        RequestType::kGeolocation, PermissionRequestGestureType::NO_GESTURE,
+        request_state.GetWeakPtr());
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(),
+                         std::move(request));
+    WaitForBubbleToBeShown();
+
+    EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
+    EXPECT_EQ(manager_->ReasonForUsingQuietUi(),
+              QuietUiReason::kTriggeredDueToLackOfGesture);
+
+    Accept();
+    EXPECT_TRUE(request_state.granted);
+  }
+}
+
+TEST_F(PermissionRequestManagerSameOriginGestureTest,
+       ExcludeSameOriginNavigationsDisabledByDefault) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kPermissionsGestureGatedPrompts,
+      {{"mute_geolocation", "true"},
+       {"exclude_same_origin_navigations", "false"}});
+
+  // Same-origin navigation still mutes gestureless prompt when exclude param is
+  // false.
+  NavigateAndCommit(GURL("https://www.google.com/foo"));
+  {
+    MockPermissionRequest::MockPermissionRequestState request_state;
+    auto request = std::make_unique<MockPermissionRequest>(
+        RequestType::kGeolocation, PermissionRequestGestureType::NO_GESTURE,
+        request_state.GetWeakPtr());
+    manager_->AddRequest(web_contents()->GetPrimaryMainFrame(),
+                         std::move(request));
+    WaitForBubbleToBeShown();
+
+    EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
+    EXPECT_EQ(manager_->ReasonForUsingQuietUi(),
+              QuietUiReason::kTriggeredDueToLackOfGesture);
+
+    Accept();
+    EXPECT_TRUE(request_state.granted);
+  }
+}
 
 class PermissionRequestManagerEnforceGestureTest
     : public PermissionRequestManagerTest,

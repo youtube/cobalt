@@ -574,7 +574,7 @@ TEST_F(FieldLogUkmMetricTest, AutofillFieldInfoMetricsFieldType) {
        FormGlobalIdToHash64Bit(form.global_id())},
       {UFST::kFormSignatureName,
        Collapse(CalculateFormSignature(form)).value()},
-      {UFST::kAutofillFormEventsName, 0},
+      {UFST::kAutofillFormEventsName, 1LL << FORM_EVENT_DID_PARSE_FORM},
       {UFST::kAutofillFormEvents2Name, 0},
       {UFST::kSampleRateName, 1},
       {UFST::kWasSubmittedName, true},
@@ -1503,7 +1503,8 @@ TEST_P(LogFocusedComplexFormAtFormRemoveTest, TestEmittedUKM) {
 
   if (GetParam().step_0_focus) {
     task_environment_.FastForwardBy(base::Milliseconds(1000));
-    autofill_manager().OnFocusOnFormFieldImpl(form, first_field.global_id());
+    autofill_manager().OnFocusOnFormField(form, first_field.global_id(),
+                                          AutofillManagerTestApi::pass_key());
   }
   if (GetParam().step_1_click) {
     task_environment_.FastForwardBy(base::Milliseconds(1000));

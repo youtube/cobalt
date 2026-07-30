@@ -44,14 +44,12 @@ void TextPaintTimingDetector::SendRectsToHud() {
     return;
   }
 
-  bool is_recording_lcp = IsRecordingLargestTextPaint();
-
   for (const auto& record : texts_queued_for_paint_time_) {
     if (record->FrameIndex() == frame_index_) {
       cc::WebVitalMetricType type;
       if (record->GetSoftNavigationContext()) {
         type = cc::WebVitalMetricType::kInteractionContentfulPaint;
-      } else if (is_recording_lcp) {
+      } else if (record->IsNeededForLargestContentfulPaint()) {
         type = cc::WebVitalMetricType::kNavigationContentfulPaint;
       } else {
         continue;
@@ -124,44 +122,26 @@ void TextPaintTimingDetector::RecordAggregatedText(
       CreateTextRecord(aggregator, effective_visual_size, property_tree_state,
                        aggregated_visual_rect, mapped_visual_rect);
 
-  if (LargestContentfulPaintManager* manager =
-          GetLargestContentfulPaintManager()) {
-    manager->InitializePaintTracking(record);
-  }
-
-  CHECK_LE(IgnorePaintTimingScope::IgnoreDepth(), 1);
-  // Record the largest aggregated text that is hidden due to documentElement
-  // being invisible but by no other reason (i.e. IgnoreDepth() needs to be 1).
-  if (IgnorePaintTimingScope::IgnoreDepth() == 1) {
-    if (IgnorePaintTimingScope::IsDocumentElementInvisible() &&
-        record->IsNeededForLargestContentfulPaint()) {
-      ltp_manager_.MaybeUpdateLargestIgnoredText(aggregator, record);
+  if (IgnorePaintTimingScope::IgnoreDepth()) {
+    if (auto* manager = GetLargestContentfulPaintManager()) {
+      manager->MaybeUpdateLargestIgnoredText(aggregator, record);
     }
     return;
   }
 
-  // Mark the text as recorded regardless of if this is needed for any
+  ElementPaintStatus status = recorded_set_.Contains(&aggregator)
+                                  ? ElementPaintStatus::kRepaint
+                                  : ElementPaintStatus::kFirstPaint;
+  // Mark the image as recorded regardless of if this is needed for any
   // PaintTiming clients so the text isn't reconsidered as a candidate.
-  auto result = recorded_set_.Set(&aggregator, TextPaintStatus::kPainted);
-  bool is_repaint = !result.is_new_entry;
+  recorded_set_.Set(&aggregator, TextPaintStatus::kPainted);
 
-  // Update `record` with other possible clients.
-  LocalDOMWindow* window = aggregator.GetDocument().domWindow();
-  CHECK(window);
-  if (SoftNavigationHeuristics* heuristics =
-          window->GetSoftNavigationHeuristics()) {
-    heuristics->InitializePaintTracking(record);
-    if (auto* context = record->GetSoftNavigationContext()) {
-      context->AddPaintedArea(record);
-    }
-  }
-  record->SetIsNeededForElementTiming(
-      !is_repaint && TextElementTiming::NeededForTiming(*record->GetNode()));
-
-  // If any client needs this `record`, register for presentation time.
-  if (record->IsNeededForLargestContentfulPaint() ||
-      record->IsNeededForInteractionContentfulPaint() ||
-      record->IsNeededForElementTiming()) {
+  // If any client needs this `record`, notify them of the paint and register
+  // for presentation time.
+  ForEachPaintTimingClient([&](PaintTimingClient* client) {
+    client->OnElementLastContentfulPaint(record, status);
+  });
+  if (record->IsNeededForPaintTiming()) {
     QueueToMeasurePaintTime(record);
   }
 
@@ -173,12 +153,12 @@ void TextPaintTimingDetector::RecordAggregatedText(
   }
 }
 
-bool TextPaintTimingDetector::IsRecordingLargestTextPaint() const {
-  return !!GetLargestContentfulPaintManager();
-}
-
 void TextPaintTimingDetector::ReportLargestIgnoredText() {
-  TextRecord* record = ltp_manager_.TakeLargestIgnoredText();
+  auto* lcp_manager = GetLargestContentfulPaintManager();
+  if (!lcp_manager) {
+    return;
+  }
+  TextRecord* record = lcp_manager->TakeLargestIgnoredText();
   if (!record) {
     return;
   }
@@ -186,6 +166,11 @@ void TextPaintTimingDetector::ReportLargestIgnoredText() {
   // Trigger FCP if it's not already set.
   paint_timing_detector_->GetPaintTiming().MarkFirstContentfulPaint();
 
+  // Notify clients of the contentful paint and set up presentation feedback.
+  ForEachPaintTimingClient([&](PaintTimingClient* client) {
+    client->OnElementLastContentfulPaint(record,
+                                         ElementPaintStatus::kFirstPaint);
+  });
   recorded_set_.insert(record->GetNode()->GetLayoutObject(),
                        TextPaintStatus::kPainted);
   QueueToMeasurePaintTime(record);
@@ -194,24 +179,7 @@ void TextPaintTimingDetector::ReportLargestIgnoredText() {
 void TextPaintTimingDetector::Trace(Visitor* visitor) const {
   visitor->Trace(recorded_set_);
   visitor->Trace(texts_queued_for_paint_time_);
-  visitor->Trace(ltp_manager_);
   visitor->Trace(paint_timing_detector_);
-}
-
-LargestTextPaintManager::LargestTextPaintManager() = default;
-
-void LargestTextPaintManager::MaybeUpdateLargestIgnoredText(
-    const LayoutObject& object,
-    TextRecord* record) {
-  CHECK_GT(record->EffectiveVisualSize(), 0u);
-  if (record->IsEffectiveSizeLargerThan(GetLargestIgnoredTextIfNotRemoved())) {
-    largest_ignored_text_.key = &object;
-    largest_ignored_text_.value = record;
-  }
-}
-
-void LargestTextPaintManager::Trace(Visitor* visitor) const {
-  visitor->Trace(largest_ignored_text_);
 }
 
 void TextPaintTimingDetector::AssignPaintTimeToQueuedRecords(
@@ -260,6 +228,11 @@ LargestContentfulPaintManager*
 TextPaintTimingDetector::GetLargestContentfulPaintManager() const {
   return paint_timing_detector_->GetPaintTiming()
       .GetLargestContentfulPaintManager();
+}
+
+void TextPaintTimingDetector::ForEachPaintTimingClient(
+    base::FunctionRef<void(PaintTimingClient*)> callback) {
+  paint_timing_detector_->GetPaintTiming().ForEachClient(std::move(callback));
 }
 
 }  // namespace blink

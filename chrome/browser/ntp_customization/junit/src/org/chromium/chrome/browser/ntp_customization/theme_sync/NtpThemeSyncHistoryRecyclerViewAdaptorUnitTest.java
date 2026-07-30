@@ -26,6 +26,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.core.app.ApplicationProvider;
 
@@ -40,8 +41,9 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.ntp_customization.R;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.NtpThemeSyncHistoryRecyclerViewAdaptor.OnItemClickCallback;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase;
-import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.PlatformType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,7 +54,7 @@ import java.util.List;
 public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock private Callback<NtpBackgroundDataBase> mOnItemClickCallback;
+    @Mock private OnItemClickCallback mOnItemClickCallback;
     @Mock private View.OnClickListener mOnClickListener;
     @Mock private View mItemView;
     @Mock private ImageView mBackgroundView;
@@ -119,7 +121,7 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
         int selectedPosition = 0;
         int bindingAdaptorPosition = 0;
 
-        // Test selected item case, ANDROID_LOCAL (no badge).
+        // Test selected item case, ANDROID (no badge).
         mViewHolder.bindImpl(mData1, mOnClickListener, selectedPosition, bindingAdaptorPosition);
         assertTrue(mViewHolder.itemView.isActivated());
         assertTrue(mViewHolder.itemView.isSelected());
@@ -133,7 +135,7 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
         assertFalse(mViewHolder.itemView.isSelected());
         assertEquals(View.VISIBLE, badgeView.getVisibility());
 
-        // Test recycling: bind back to ANDROID_LOCAL and verify badge is hidden.
+        // Test recycling: bind back to ANDROID and verify badge is hidden.
         mViewHolder.bindImpl(mData1, mOnClickListener, selectedPosition, bindingAdaptorPosition);
         assertEquals(View.GONE, badgeView.getVisibility());
     }
@@ -166,14 +168,20 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
 
     @Test
     public void testClickHandler() {
-        ViewGroup parent = new FrameLayout(mContext);
-        NtpThemeSyncHistoryRecyclerViewAdaptor.ImageViewHolder viewHolder =
-                mAdapter.onCreateViewHolder(parent, /* viewType= */ 0);
+        RecyclerView recyclerView = new RecyclerView(mContext);
+        recyclerView.setLayoutManager(new LinearLayoutManager(mContext));
+        recyclerView.setAdapter(mAdapter);
+        // Measure and layout so RecyclerView creates and binds ViewHolders.
+        recyclerView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        recyclerView.layout(0, 0, 1000, 1000);
+
         int position = 1;
-        mAdapter.onBindViewHolder(viewHolder, position);
+        RecyclerView.ViewHolder viewHolder =
+                recyclerView.findViewHolderForAdapterPosition(position);
+        assertNotNull(viewHolder);
 
         viewHolder.itemView.performClick();
-        verify(mOnItemClickCallback).onResult(mDataList.get(position));
+        verify(mOnItemClickCallback).onClicked(mDataList.get(position), position);
     }
 
     @Test
@@ -186,7 +194,7 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
 
         // Verify the new selected position and that the callback was invoked.
         assertEquals(selectedPosition, mAdapter.getSelectedPositionForTesting());
-        verify(mOnItemClickCallback).onResult(mDataList.get(selectedPosition));
+        verify(mOnItemClickCallback).onClicked(mDataList.get(selectedPosition), selectedPosition);
 
         // Verify the new selected position and that the callback was not invoke if the selected
         // position is not from a click event.
@@ -194,7 +202,8 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
         mAdapter.setSelectedPosition(selectedPosition, /* isFromClick= */ false);
 
         assertEquals(selectedPosition, mAdapter.getSelectedPositionForTesting());
-        verify(mOnItemClickCallback, never()).onResult(mDataList.get(selectedPosition));
+        verify(mOnItemClickCallback, never())
+                .onClicked(mDataList.get(selectedPosition), selectedPosition);
     }
 
     @Test
@@ -203,12 +212,12 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
         mAdapter.setSelectedPosition(mDataList.size() + 1, /* isFromClick= */ false);
         // Verify the selected position is RecyclerView.NO_POSITION and no callback.
         assertEquals(RecyclerView.NO_POSITION, mAdapter.getSelectedPositionForTesting());
-        verify(mOnItemClickCallback, never()).onResult(any());
+        verify(mOnItemClickCallback, never()).onClicked(any(), any(Integer.class));
 
         // Set another invalid position (negative).
         mAdapter.setSelectedPosition(-5, /* isFromClick= */ false);
         assertEquals(RecyclerView.NO_POSITION, mAdapter.getSelectedPositionForTesting());
-        verify(mOnItemClickCallback, never()).onResult(any());
+        verify(mOnItemClickCallback, never()).onClicked(any(), any(Integer.class));
     }
 
     @Test
@@ -221,7 +230,7 @@ public class NtpThemeSyncHistoryRecyclerViewAdaptorUnitTest {
 
         // Verify the selected position is NO_POSITION and callback is not invoked.
         assertEquals(RecyclerView.NO_POSITION, mAdapter.getSelectedPositionForTesting());
-        verify(mOnItemClickCallback, never()).onResult(any());
+        verify(mOnItemClickCallback, never()).onClicked(any(), any(Integer.class));
     }
 
     @Test

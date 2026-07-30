@@ -198,12 +198,15 @@ class SimulatorXCTestUnitTestsAppTest(test_runner_test.TestCase):
                     '__PLATFORMS__/iPhoneSimulator.platform/Developer/usr/lib/'
                     'libXCTestBundleInject.dylib',
                 'DYLD_LIBRARY_PATH':
+                    '__TESTHOST__/Frameworks:'
                     '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library',
                 'DYLD_FRAMEWORK_PATH':
+                    '__TESTHOST__/Frameworks:'
                     '__PLATFORMS__/iPhoneSimulator.platform/Developer/'
-                    'Library/Frameworks',
-                'XCInjectBundleInto':
-                    '__TESTHOST__/%s' % _MODULE_NAME
+                    'Library/Frameworks:'
+                    '__PLATFORMS__/iPhoneSimulator.platform/Developer/'
+                    'Library/PrivateFrameworks',
+                'XCInjectBundleInto': '__TESTHOST__/%s' % _MODULE_NAME
             }
         }
     }
@@ -235,12 +238,15 @@ class SimulatorXCTestUnitTestsAppTest(test_runner_test.TestCase):
                     '__PLATFORMS__/AppleTVSimulator.platform/Developer/usr/lib/'
                     'libXCTestBundleInject.dylib',
                 'DYLD_LIBRARY_PATH':
+                    '__TESTHOST__/Frameworks:'
                     '__PLATFORMS__/AppleTVSimulator.platform/Developer/Library',
                 'DYLD_FRAMEWORK_PATH':
+                    '__TESTHOST__/Frameworks:'
                     '__PLATFORMS__/AppleTVSimulator.platform/Developer/'
-                    'Library/Frameworks',
-                'XCInjectBundleInto':
-                    '__TESTHOST__/%s' % _MODULE_NAME
+                    'Library/Frameworks:'
+                    '__PLATFORMS__/AppleTVSimulator.platform/Developer/'
+                    'Library/PrivateFrameworks',
+                'XCInjectBundleInto': '__TESTHOST__/%s' % _MODULE_NAME
             }
         }
     }
@@ -313,7 +319,9 @@ class GTestsAppTest(test_runner_test.TestCase):
     self.assertEqual(
         env['DYLD_FRAMEWORK_PATH'],
         '/path/to:__PLATFORMS__/iPhoneSimulator.platform/'
-        'Developer/Library/Frameworks')
+        'Developer/Library/Frameworks:'
+        '__PLATFORMS__/iPhoneSimulator.platform/'
+        'Developer/Library/PrivateFrameworks')
 
 
 
@@ -343,7 +351,8 @@ class EgtestsAppTest(test_runner_test.TestCase):
     expected_cmd = [
         'arch', '-arch', 'arm64', 'xcodebuild', 'test-without-building',
         '-xctestrun', 'xctestrun', '-destination', 'id=UUID',
-        '-resultBundlePath', 'outdir', '-test-iterations', '2'
+        '-resultBundlePath', 'outdir', '-collect-test-diagnostics', 'never',
+        '-test-iterations', '2'
     ]
     self.assertEqual(cmd, expected_cmd)
 
@@ -465,7 +474,9 @@ class EgtestsAppTest(test_runner_test.TestCase):
         '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library')
     self.assertEqual(
         env['DYLD_FRAMEWORK_PATH'], '/path/to:/path/to/test_app.app/Frameworks:'
-        '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks')
+        '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/Frameworks:'
+        '__PLATFORMS__/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks'
+    )
 
   def test_get_all_tests_fallback_when_all_eg_test_names_empty(self):
     egtest = test_apps.EgtestsApp(

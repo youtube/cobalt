@@ -373,7 +373,7 @@ void HTMLSelectElement::SetSuggestedValue(const String& value) {
 
 void HTMLSelectElement::SetSuggestedOption(HTMLOptionElement* option) {
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
-      IsInCanvasSubtree()) {
+      IsCanvasOrInCanvasSubtree()) {
     // Hide suggested values when under canvas, to prevent leaking this
     // information to javascript.
     option = nullptr;
@@ -887,10 +887,10 @@ int HTMLSelectElement::SelectedListIndex() const {
   return -1;
 }
 
-void HTMLSelectElement::DidChangeIsCanvasOrInCanvasSubtree() {
-  HTMLFormControlElementWithState::DidChangeIsCanvasOrInCanvasSubtree();
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext()) &&
-      IsInCanvasSubtree()) {
+void HTMLSelectElement::DidChangeIsInCanvasSubtree() {
+  HTMLFormControlElementWithState::DidChangeIsInCanvasSubtree();
+  if (IsInCanvasSubtree() &&
+      RuntimeEnabledFeatures::CanvasDrawElementEnabled(GetExecutionContext())) {
     // Hide suggested values when under canvas, to prevent leaking this
     // information to javascript.
     SetSuggestedOption(nullptr);
@@ -1369,9 +1369,14 @@ void HTMLSelectElement::DefaultEventHandler(Event& event) {
   if (!GetLayoutObject())
     return;
 
+  auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
+  const bool is_repeat_keyboard_event =
+      keyboard_event && keyboard_event->repeat();
+
   if (event.type() == event_type_names::kClick ||
       event.type() == event_type_names::kChange ||
-      event.type() == event_type_names::kKeydown) {
+      (event.type() == event_type_names::kKeydown &&
+       !is_repeat_keyboard_event)) {
     SetUserHasEditedTheField();
   }
 
@@ -1380,18 +1385,21 @@ void HTMLSelectElement::DefaultEventHandler(Event& event) {
     return;
   }
 
-  if (select_type_->DefaultEventHandler(event)) {
-    event.SetDefaultHandled();
-    return;
-  }
-
-  if (auto* keyboard_event = DynamicTo<KeyboardEvent>(event)) {
-    if (TypeAhead::ShouldHandleKeyboardEvent(*keyboard_event)) {
-      TypeAheadFind(*keyboard_event);
+  if (!is_repeat_keyboard_event) {
+    if (select_type_->DefaultEventHandler(event)) {
       event.SetDefaultHandled();
       return;
     }
+
+    if (keyboard_event) {
+      if (TypeAhead::ShouldHandleKeyboardEvent(*keyboard_event)) {
+        TypeAheadFind(*keyboard_event);
+        event.SetDefaultHandled();
+        return;
+      }
+    }
   }
+
   HTMLFormControlElementWithState::DefaultEventHandler(event);
 }
 

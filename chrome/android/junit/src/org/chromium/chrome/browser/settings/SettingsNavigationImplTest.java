@@ -23,6 +23,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.settings.FinancialAccountsManagementFragment;
 import org.chromium.chrome.browser.autofill.settings.NonCardPaymentMethodsManagementFragment;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
@@ -67,7 +68,7 @@ public class SettingsNavigationImplTest {
     /** Subclass SettingsHostFragment to mock initial fragment instantiation. */
     public static class TestSettingsHostFragment extends SettingsHostFragment {
         @Override
-        protected Fragment createInitialFragment() {
+        protected Fragment createInitialFragment(@Nullable Intent intent) {
             return new FirstFakeSettingsFragment();
         }
     }
@@ -85,7 +86,7 @@ public class SettingsNavigationImplTest {
                         SettingsNavigation.SettingsFragment.FINANCIAL_ACCOUNTS,
                         /* fragmentArgs= */ null);
         assertEquals(
-                intent.getStringExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT),
+                intent.getStringExtra(SettingsIntentUtil.EXTRA_SHOW_FRAGMENT),
                 FinancialAccountsManagementFragment.class.getName());
     }
 
@@ -97,7 +98,7 @@ public class SettingsNavigationImplTest {
                         SettingsNavigation.SettingsFragment.NON_CARD_PAYMENT_METHODS,
                         /* fragmentArgs= */ null);
         assertEquals(
-                intent.getStringExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT),
+                intent.getStringExtra(SettingsIntentUtil.EXTRA_SHOW_FRAGMENT),
                 NonCardPaymentMethodsManagementFragment.class.getName());
     }
 
@@ -114,7 +115,7 @@ public class SettingsNavigationImplTest {
         assertEquals(ChromeLauncherActivity.class.getName(), intent.getComponent().getClassName());
         assertEquals(
                 FakeEmbeddableSettingsFragment.class.getName(),
-                intent.getStringExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT));
+                intent.getStringExtra(SettingsIntentUtil.EXTRA_SHOW_FRAGMENT));
     }
 
     @Test
@@ -127,7 +128,8 @@ public class SettingsNavigationImplTest {
                         mContext, FirstFakeSettingsFragment.class);
 
         assertEquals(SettingsActivity.class.getName(), intent.getComponent().getClassName());
-        assertTrue(intent.getBooleanExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT_STANDALONE, false));
+        assertTrue(
+                intent.getBooleanExtra(SettingsIntentUtil.EXTRA_SHOW_FRAGMENT_STANDALONE, false));
     }
 
     @Test

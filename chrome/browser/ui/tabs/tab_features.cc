@@ -15,7 +15,6 @@
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
-#include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
 #include "chrome/browser/commerce/in_stock_notification/in_stock_notification_manager.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -309,14 +308,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         SyncServiceFactory::GetForProfile(profile),
         ThemeServiceFactory::GetForProfile(profile));
 
-    // Each time a new tab is created, validate the topics calculation schedule
-    // to help investigate a scheduling bug (crbug.com/343750866).
-    if (browsing_topics::BrowsingTopicsService* browsing_topics_service =
-            browsing_topics::BrowsingTopicsServiceFactory::GetForProfile(
-                profile)) {
-      browsing_topics_service->ValidateCalculationSchedule();
-    }
-
     permission_indicators_tab_data_ =
         std::make_unique<permissions::PermissionIndicatorsTabData>(
             tab.GetContents());
@@ -466,9 +457,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                 tab, tab, tab.GetContents());
   }
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableResurrectingPaymentsUsers) &&
-      page_action_controller_->ActionExists(
+  if (page_action_controller_->ActionExists(
           kActionShowPaymentsChurnedUsersBubble)) {
     payments_churned_users_page_action_controller_ =
         std::make_unique<autofill::PaymentsChurnedUsersPageActionController>(

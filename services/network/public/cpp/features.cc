@@ -353,14 +353,6 @@ BASE_FEATURE(kDocumentIsolationPolicy, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConnectionAllowlists, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// TODO(crbug.com/526636731): Enable this by default when connection allowlist
-// ships.
-BASE_FEATURE_PARAM(bool,
-                   kConnectionAllowlistsEarlyHints,
-                   &kConnectionAllowlists,
-                   /*name=*/"ConnectionAllowlistsEarlyHints",
-                   /*default_value=*/false);
-
 // This feature enables the Prefetch() method on the NetworkContext, and makes
 // the PrefetchMatchingURLLoaderFactory check the match quality.
 BASE_FEATURE(kNetworkContextPrefetch, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -377,13 +369,6 @@ BASE_FEATURE(kNetworkContextPrefetchUseMatches,
 BASE_FEATURE(kCloneDevToolsConnectionOnlyIfRequested,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAdAuctionEventRegistration, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// See https://github.com/WICG/turtledove/blob/main/FLEDGE.md
-// Changes default Permissions Policy for features join-ad-interest-group and
-// run-ad-auction to a more restricted EnableForSelf.
-BASE_FEATURE(kAdInterestGroupAPIRestrictedPolicyByDefault,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables unload handler deprecation via Permissions-Policy.
 // https://crbug.com/1324111
@@ -515,35 +500,6 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kSharedStorageTransactionalBatchUpdate,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Kill switch for the Interest Group API, i.e. if disabled, the
-// API exposure will be disabled regardless of the OT config.
-BASE_FEATURE(kInterestGroupStorage, base::FEATURE_ENABLED_BY_DEFAULT);
-// TODO(crbug.com/40176812): Adjust these limits in response to usage.
-BASE_FEATURE_PARAM(int,
-                   kInterestGroupStorageMaxOwners,
-                   &kInterestGroupStorage,
-                   "max_owners",
-                   1000);
-BASE_FEATURE_PARAM(int,
-                   kInterestGroupStorageMaxStoragePerOwner,
-                   &kInterestGroupStorage,
-                   "max_storage_per_owner",
-                   10 * 1024 * 1024);
-BASE_FEATURE_PARAM(int,
-                   kInterestGroupStorageMaxGroupsPerOwner,
-                   &kInterestGroupStorage,
-                   "max_groups_per_owner",
-                   2000);
-BASE_FEATURE_PARAM(int,
-                   kInterestGroupStorageMaxNegativeGroupsPerOwner,
-                   &kInterestGroupStorage,
-                   "max_negative_groups_per_owner",
-                   20000);
-BASE_FEATURE_PARAM(int,
-                   kInterestGroupStorageMaxOpsBeforeMaintenance,
-                   &kInterestGroupStorage,
-                   "max_ops_before_maintenance",
-                   1000);
 
 BASE_FEATURE(kIncreaseCookieAccessCacheSize, base::FEATURE_ENABLED_BY_DEFAULT);
 

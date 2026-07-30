@@ -18,6 +18,9 @@
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/tab_list/mock_tab_list_interface.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#endif
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
@@ -155,6 +158,9 @@ class RealboxHandlerTest : public SearchboxHandlerTest {
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<RealboxHandler> handler_;
   testing::NiceMock<MockBrowserWindowInterface> browser_window_interface_;
+#if !BUILDFLAG(IS_ANDROID)
+  BrowserWindowFeatures browser_window_features_;
+#endif
   ui::UnownedUserDataHost unowned_user_data_host_;
 
   void SetUp() override {
@@ -167,6 +173,10 @@ class RealboxHandlerTest : public SearchboxHandlerTest {
         .WillByDefault(testing::Return(profile()));
     ON_CALL(browser_window_interface_, GetUnownedUserDataHost())
         .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+#if !BUILDFLAG(IS_ANDROID)
+    ON_CALL(browser_window_interface_, GetFeatures())
+        .WillByDefault(testing::ReturnRef(browser_window_features_));
+#endif
     webui::SetBrowserWindowInterface(web_contents_.get(),
                                      &browser_window_interface_);
 
@@ -301,8 +311,10 @@ TEST_F(RealboxHandlerTest, AutocompleteController_Start) {
         .Times(1)
         .WillOnce(SaveArg<0>(&input));
 
-    handler_->QueryAutocomplete(0, u"", /*prevent_inline_autocomplete=*/false,
-                                0, /*is_on_focus=*/true);
+    handler_->QueryAutocomplete(
+        0, u"", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/true);
 
     EXPECT_EQ(input_text, u"");
     EXPECT_EQ(input.text(), u"");
@@ -328,8 +340,10 @@ TEST_F(RealboxHandlerTest, AutocompleteController_Start) {
         .Times(1)
         .WillOnce(SaveArg<0>(&input));
 
-    handler_->QueryAutocomplete(0, u"a", /*prevent_inline_autocomplete=*/false,
-                                0, /*is_on_focus=*/false);
+    handler_->QueryAutocomplete(
+        0, u"a", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/false);
 
     EXPECT_EQ(input_text, u"a");
     EXPECT_EQ(input.text(), u"a");
@@ -374,7 +388,7 @@ TEST_F(RealboxHandlerTest, AutocompleteController_StartWithSuggestInventory) {
         .Times(1)
         .WillOnce(SaveArg<0>(&input));
 
-    handler_->QueryAutocompleteWithSuggestInventory(
+    handler_->QueryAutocomplete(
         0, u"a", /*prevent_inline_autocomplete=*/false, 0,
         omnibox::SuggestInventory::SUGGEST_INVENTORY_TRAVEL,
         /*is_on_focus=*/false);
@@ -427,7 +441,7 @@ TEST_F(RealboxHandlerTest, SetInputMethodTest) {
 
     handler_->SetInputMethod(searchbox::mojom::InputMethod::kSmartCompose);
 
-    handler_->QueryAutocompleteWithSuggestInventory(
+    handler_->QueryAutocomplete(
         0, u"test query", /*prevent_inline_autocomplete=*/false, 10,
         omnibox::SuggestInventory::SUGGEST_INVENTORY_TRAVEL,
         /*is_on_focus=*/false);
@@ -455,7 +469,7 @@ TEST_F(RealboxHandlerTest, SetInputMethodTest) {
 
     // No SetInputMethod call - should default to KEYBOARD.
 
-    handler_->QueryAutocompleteWithSuggestInventory(
+    handler_->QueryAutocomplete(
         0, u"another query", /*prevent_inline_autocomplete=*/false, 13,
         omnibox::SuggestInventory::SUGGEST_INVENTORY_TRAVEL,
         /*is_on_focus=*/false);
@@ -685,8 +699,10 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
     EXPECT_CALL(*lens_searchbox_client_, GetLensSuggestInputs())
         .WillRepeatedly(Return(suggest_inputs));
 
-    handler_->QueryAutocomplete(0, u"", /*prevent_inline_autocomplete=*/false,
-                                0, /*is_on_focus=*/true);
+    handler_->QueryAutocomplete(
+        0, u"", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/true);
 
     EXPECT_EQ(input_text, u"");
     EXPECT_EQ(input.text(), u"");
@@ -738,8 +754,10 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
     EXPECT_CALL(*lens_searchbox_client_, GetLensSuggestInputs())
         .WillRepeatedly(Return(suggest_inputs));
 
-    handler_->QueryAutocomplete(0, u"a", /*prevent_inline_autocomplete=*/false,
-                                0, /*is_on_focus=*/false);
+    handler_->QueryAutocomplete(
+        0, u"a", /*prevent_inline_autocomplete=*/false, 0,
+        omnibox::SuggestInventory::SUGGEST_INVENTORY_DEFAULT,
+        /*is_on_focus=*/false);
 
     EXPECT_EQ(input_text, u"a");
     EXPECT_EQ(input.text(), u"a");
@@ -939,8 +957,7 @@ TEST_F(WebuiOmniboxHandlerTest,
   bookmark_model->LoadEmptyForTest();
 
   auto mojom_match = handler_->CreateAutocompleteMatch(
-      match, 0, omnibox_controller_->edit_model(), bookmark_model,
-      omnibox::GroupConfigMap(),
+      match, 0, bookmark_model, omnibox::GroupConfigMap(),
       omnibox_controller_->client()->GetTemplateURLService());
 
   ASSERT_TRUE(mojom_match.has_value());
@@ -971,11 +988,11 @@ TEST_F(WebuiOmniboxHandlerTest, OpenAutocompleteMatch_KeyboardModifiers) {
                                    _, _, _, _, _, _, _))
       .Times(1);
 
-  handler_->OpenAutocompleteMatch(0, GURL("https://example.com"), false, 0,
-                                  /*alt_key=*/false,
-                                  /*ctrl_key=*/false,
-                                  /*meta_key=*/false,
-                                  /*shift_key=*/true,
+  auto modifiers = searchbox::mojom::ActionModifiers::New();
+  modifiers->shift_key = true;
+  handler_->OpenAutocompleteMatch(0, GURL("https://example.com"),
+                                  /*are_matches_showing=*/false,
+                                  /*mouse_button=*/0, std::move(modifiers),
                                   /*via_keyboard=*/true);
 }
 

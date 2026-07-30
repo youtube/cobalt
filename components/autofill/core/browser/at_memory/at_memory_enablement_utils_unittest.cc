@@ -16,6 +16,7 @@
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/personal_context/core/mock_personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
@@ -88,9 +89,9 @@ class AtMemoryEnablementUtilsTest : public testing::Test {
     feature_list_.InitAndEnableFeatureWithParameters(
         features::kAutofillAtMemory, {{"at_memory_eligible_tiers", ""}});
     autofill_client().GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings,
-        std::to_underlying(
-            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
+        optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+        std::to_underlying(optimization_guide::model_execution::prefs::
+                               ModelExecutionEnterprisePolicyValue::kAllow));
     // Enable the toggle by default in tests since it represents the default
     // active state.
     autofill_client().GetPrefs()->SetUserPref(
@@ -139,45 +140,23 @@ TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_AtMemoryDisabled) {
       AtMemoryAction::kAllowCustomizeAtMemoryShortcut, autofill_client()));
 }
 
-// Tests that `MayPerformAtMemoryAction` returns false when the Gemini settings
-// enterprise policy disables Gemini.
-TEST_F(AtMemoryEnablementUtilsTest,
-       MayPerformAtMemoryAction_GeminiPolicyDisabled) {
-  EXPECT_CALL(personal_context_service_, GetEligibilityState)
-      .WillRepeatedly(
-          Return(personal_context::PersonalContextEligibilityState::kEligible));
-
-  autofill_client().GetPrefs()->SetInteger(
-      optimization_guide::prefs::kGeminiSettings,
-      std::to_underlying(
-          optimization_guide::prefs::GeminiSettingsPolicyState::kDisabled));
-
-  EXPECT_FALSE(MayPerformAtMemoryAction(
-      AtMemoryAction::kTriggerSearchUI, autofill_client(),
-      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
-  EXPECT_FALSE(MayPerformAtMemoryAction(AtMemoryAction::kShowAtMemoryInSettings,
-                                        autofill_client()));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
-      AtMemoryAction::kAllowCustomizeAtMemoryShortcut, autofill_client()));
-}
-
 // Tests that `MayPerformAtMemoryAction` returns false when
 // `personal_context_service` is null.
 TEST_F(AtMemoryEnablementUtilsTest,
        MayPerformAtMemoryAction_NullPersonalContextService) {
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, nullptr,
       autofill_client().GetSubscriptionEligibilityService(),
       autofill_client().GetPrefs(), nullptr, nullptr,
-      GURL("https://example.com")));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+      /*url=*/GURL("https://example.com")));
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kShowAtMemoryInSettings, nullptr,
       autofill_client().GetSubscriptionEligibilityService(),
-      autofill_client().GetPrefs(), nullptr, nullptr));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+      autofill_client().GetPrefs(), nullptr, nullptr, /*url=*/std::nullopt));
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kAllowCustomizeAtMemoryShortcut, nullptr,
       autofill_client().GetSubscriptionEligibilityService(),
-      autofill_client().GetPrefs(), nullptr, nullptr));
+      autofill_client().GetPrefs(), nullptr, nullptr, /*url=*/std::nullopt));
 }
 
 // Tests that `MayPerformAtMemoryAction` returns false when
@@ -192,10 +171,10 @@ TEST_F(AtMemoryEnablementUtilsTest,
   feature_list.InitAndEnableFeatureWithParameters(
       features::kAutofillAtMemory, {{"at_memory_eligible_tiers", "1"}});
 
-  EXPECT_FALSE(MayPerformAtMemoryAction(AtMemoryAction::kTriggerSearchUI,
-                                        &personal_context_service_, nullptr,
-                                        autofill_client().GetPrefs(), nullptr,
-                                        nullptr, GURL("https://example.com")));
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
+      AtMemoryAction::kTriggerSearchUI, &personal_context_service_, nullptr,
+      autofill_client().GetPrefs(), nullptr, nullptr,
+      /*url=*/GURL("https://example.com")));
 }
 
 // Tests `MayPerformAtMemoryAction` when `pref_service` is null.
@@ -204,20 +183,21 @@ TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_NullPrefService) {
       .WillRepeatedly(
           Return(personal_context::PersonalContextEligibilityState::kEligible));
 
-  // IsPersonalContextToggleOn returns false if pref_service is null.
-  EXPECT_FALSE(MayPerformAtMemoryAction(
-      AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
-      autofill_client().GetSubscriptionEligibilityService(), nullptr, nullptr,
-      nullptr, GURL("https://example.com")));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+  EXPECT_TRUE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kShowAtMemoryInSettings, &personal_context_service_,
       autofill_client().GetSubscriptionEligibilityService(), nullptr, nullptr,
-      nullptr));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+      nullptr, /*url=*/std::nullopt));
+
+  // IsPersonalContextToggleOn returns false if pref_service is null.
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
+      AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
+      autofill_client().GetSubscriptionEligibilityService(), nullptr, nullptr,
+      nullptr, /*url=*/GURL("https://example.com")));
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kAllowCustomizeAtMemoryShortcut,
       &personal_context_service_,
       autofill_client().GetSubscriptionEligibilityService(), nullptr, nullptr,
-      nullptr));
+      nullptr, /*url=*/std::nullopt));
 }
 
 // Tests `MayPerformAtMemoryAction` under various Personal Context states.
@@ -347,11 +327,11 @@ TEST_F(AtMemoryEnablementUtilsTest,
       features::kAutofillAtMemory, {{"at_memory_eligible_tiers", ""}});
 
   // The user is eligible even if SubscriptionEligibilityService is null.
-  EXPECT_TRUE(MayPerformAtMemoryAction(
+  EXPECT_TRUE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, &personal_context_service_, nullptr,
       autofill_client().GetPrefs(), nullptr,
       autofill_client().GetAutofillOptimizationGuideDecider(),
-      GURL("https://example.com")));
+      /*url=*/GURL("https://example.com")));
 
   // The user is eligible for any tier value.
   autofill_client().GetPrefs()->SetInteger(
@@ -373,11 +353,11 @@ TEST_F(AtMemoryEnablementUtilsTest,
   feature_list.InitAndEnableFeature(features::kAutofillAtMemory);
 
   // The user is eligible even if `SubscriptionEligibilityService` is null.
-  EXPECT_TRUE(MayPerformAtMemoryAction(
+  EXPECT_TRUE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, &personal_context_service_, nullptr,
       autofill_client().GetPrefs(), nullptr,
       autofill_client().GetAutofillOptimizationGuideDecider(),
-      GURL("https://example.com")));
+      /*url=*/GURL("https://example.com")));
 
   // The user is eligible for any tier value.
   autofill_client().GetPrefs()->SetInteger(
@@ -479,9 +459,9 @@ class AtMemoryEnablementUtilsFeatureCheckedLastTest : public testing::Test {
         personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
         true);
     registry_->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings,
-        std::to_underlying(
-            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
+        optimization_guide::prefs::kFindAndFillWithGeminiSettings,
+        std::to_underlying(optimization_guide::model_execution::prefs::
+                               ModelExecutionEnterprisePolicyValue::kAllow));
     pref_service_ = std::make_unique<TestPrefService>(pref_store_, registry_);
 
     autofill_client_.set_last_committed_primary_main_frame_url(
@@ -514,12 +494,12 @@ TEST_F(AtMemoryEnablementUtilsFeatureCheckedLastTest, ToggleOff) {
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
       false);
 
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
       /*subscription_eligibility_service=*/nullptr, pref_service_.get(),
       /*google_groups_manager=*/nullptr,
       autofill_client().GetAutofillOptimizationGuideDecider(),
-      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
+      /*url=*/autofill_client().GetLastCommittedPrimaryMainFrameURL()));
   EXPECT_EQ(pref_store_->call_count(), 1);
 }
 
@@ -533,12 +513,12 @@ TEST_F(AtMemoryEnablementUtilsFeatureCheckedLastTest, ToggleOn) {
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
       true);
 
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
       /*subscription_eligibility_service=*/nullptr, pref_service_.get(),
       /*google_groups_manager=*/nullptr,
       autofill_client().GetAutofillOptimizationGuideDecider(),
-      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
+      /*url=*/autofill_client().GetLastCommittedPrimaryMainFrameURL()));
   EXPECT_EQ(pref_store_->call_count(), 1);
 }
 
@@ -553,12 +533,12 @@ TEST_F(AtMemoryEnablementUtilsFeatureCheckedLastTest, NotEligible) {
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
       true);
 
-  EXPECT_FALSE(MayPerformAtMemoryAction(
+  EXPECT_FALSE(MayPerformAtMemoryActionBase(
       AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
       /*subscription_eligibility_service=*/nullptr, pref_service_.get(),
       /*google_groups_manager=*/nullptr,
       autofill_client().GetAutofillOptimizationGuideDecider(),
-      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
+      /*url=*/autofill_client().GetLastCommittedPrimaryMainFrameURL()));
   EXPECT_EQ(pref_store_->call_count(), 0);
 }
 

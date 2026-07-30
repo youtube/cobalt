@@ -160,15 +160,15 @@ public class FuseboxPopupUnitTest {
         competingChild.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         competingChild.setAccessibilityDelegate(mAccessibilityDelegate);
 
-        View cameraButton = mContentView.findViewById(R.id.fusebox_camera_button);
-        cameraButton.setVisibility(View.VISIBLE);
-        cameraButton.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
-        cameraButton.setAccessibilityDelegate(mAccessibilityDelegate);
+        View galleryButton = mContentView.findViewById(R.id.fusebox_pick_picture_button);
+        galleryButton.setVisibility(View.VISIBLE);
+        galleryButton.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        galleryButton.setAccessibilityDelegate(mAccessibilityDelegate);
 
         mFuseboxPopup.focusFirstViewForAccessibility();
 
         verify(mAccessibilityDelegate, atLeastOnce())
-                .sendAccessibilityEvent(cameraButton, AccessibilityEvent.TYPE_VIEW_FOCUSED);
+                .sendAccessibilityEvent(galleryButton, AccessibilityEvent.TYPE_VIEW_FOCUSED);
         verify(mAccessibilityDelegate, never())
                 .sendAccessibilityEvent(competingChild, AccessibilityEvent.TYPE_VIEW_FOCUSED);
     }
@@ -232,6 +232,7 @@ public class FuseboxPopupUnitTest {
     @Test
     public void testSetPopupState_Bottom() {
         mFuseboxPopup.setPopupState(PopupState.BOTTOM);
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
         verify(mDynamicRectProvider).setPopupState(PopupState.BOTTOM);
         verify(mPopupWindow).show();
     }

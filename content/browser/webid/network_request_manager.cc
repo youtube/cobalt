@@ -6,13 +6,19 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "base/json/json_reader.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/types/optional_ref.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/webid/flags.h"
+#include "content/public/browser/connection_allowlist_util.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/weak_document_ptr.h"
+#include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/schemeful_site.h"
 #include "net/base/url_util.h"
@@ -141,12 +147,14 @@ NetworkRequestManager::NetworkRequestManager(
     scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
     network::mojom::ClientSecurityStatePtr client_security_state,
     network::mojom::RequestDestination destination,
-    FrameTreeNodeId frame_tree_node_id)
+    FrameTreeNodeId frame_tree_node_id,
+    WeakDocumentPtr initiator_document)
     : relying_party_origin_(relying_party_origin),
       loader_factory_(loader_factory),
       client_security_state_(std::move(client_security_state)),
       destination_(destination),
-      frame_tree_node_id_(frame_tree_node_id) {}
+      frame_tree_node_id_(frame_tree_node_id),
+      initiator_document_(std::move(initiator_document)) {}
 
 NetworkRequestManager::~NetworkRequestManager() = default;
 
@@ -167,10 +175,83 @@ void NetworkRequestManager::DownloadUrl(
     DownloadCallback callback,
     size_t max_download_size,
     bool allow_http_error_results) {
+  const RenderFrameHost* render_frame_host =
+      initiator_document_.AsRenderFrameHostIfValid();
+
+  if (!render_frame_host) {
+    // If the initiator frame of the invoking API has gone (e.g. user closes the
+    // tab). The request is aborted. This is because:
+    // 1. The connection allowlist is stored in the initiator frame's policy
+    //    container. Since the frame has been destroyed, there is no connection
+    //    allowlist to check.
+    // 2. It is safe to abort the requests because they are no longer useful
+    //    as the initiator frame owning the API that requires the requests has
+    //    been destroyed.
+    if (callback) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(&NetworkRequestManager::OnRequestBlocked,
+                                    weak_ptr_factory_.GetWeakPtr(),
+                                    std::move(callback), net::ERR_ABORTED));
+    }
+
+    return;
+  }
+
   if (url_encoded_post_data) {
     resource_request->method = net::HttpRequestHeaders::kPostMethod;
     resource_request->headers.SetHeader(net::HttpRequestHeaders::kContentType,
                                         kUrlEncodedContentType);
+  }
+
+  // Prepare DevTools instrumentation for the request upfront.
+  auto request_id = base::UnguessableToken::Create();
+  devtools_instrumentation::MaybeAssignResourceRequestId(
+      frame_tree_node_id_, request_id.ToString(), *resource_request);
+  if (resource_request->devtools_request_id.has_value()) {
+    devtools_instrumentation::WillSendFedCmNetworkRequest(
+        frame_tree_node_id_, *resource_request, url_encoded_post_data);
+  }
+
+  if (!content::FrameConnectionAllowlistAllowsRequestAndReportIfNeeded(
+          render_frame_host, resource_request->url,
+          /*is_redirect=*/false)) {
+    // The request URL is not allowed by the initiator frame's connection
+    // allowlist. See: https://github.com/WICG/connection-allowlists.
+
+    if (resource_request->devtools_request_id.has_value()) {
+      // Notify the dev tools that the request is blocked with network error:
+      // `net::ERR_NETWORK_ACCESS_REVOKED`.
+      devtools_instrumentation::DidReceiveFedCmNetworkResponse(
+          frame_tree_node_id_, request_id.ToString(), resource_request->url,
+          /*response_head=*/nullptr, /*response_body=*/"",
+          network::URLLoaderCompletionStatus(net::ERR_NETWORK_ACCESS_REVOKED));
+    }
+
+    if (callback) {
+      // Run the download callback asynchronously.
+      //
+      // The callback must not be run synchronously. This is because
+      // `ConfigFetcher::Start()` initiates multiple network requests in a loop
+      // iterating over its member `fetch_results_`.
+      // If the download callback is run synchronously here:
+      // 1. The download callback, which is the completion handler (either
+      //    `OnWellKnownFetched` or `OnConfigFetched`), runs immediately.
+      // 2. Assume this is the last request which is a config request and it is
+      //    blocked by the connection allowlist. In `OnConfigFetched`,
+      //    `ConfigFetcher::RunCallbackIfDone()` will be called and triggers
+      //    `AccountsFetcher::OnAllConfigAndWellKnownFetched()`.
+      // 3. That function deletes the `ConfigFetcher` object because there are
+      //    no pending requests.
+      // 4. When the stack unwinds back to `ConfigFetcher::Start()`, the loop
+      //    tries to continue but the `ConfigFetcher` has already been deleted.
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&NetworkRequestManager::OnRequestBlocked,
+                         weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                         net::ERR_NETWORK_ACCESS_REVOKED));
+    }
+
+    return;
   }
 
   network::ResourceRequest* resource_request_ptr = resource_request.get();
@@ -180,16 +261,9 @@ void NetworkRequestManager::DownloadUrl(
                                        CreateTrafficAnnotation());
 
   network::SimpleURLLoader* url_loader_ptr = url_loader.get();
-  // Notify DevTools about the request
-  auto request_id = base::UnguessableToken::Create();
-  devtools_instrumentation::MaybeAssignResourceRequestId(
-      frame_tree_node_id_, request_id.ToString(), *resource_request_ptr);
 
   if (resource_request_ptr->devtools_request_id.has_value()) {
     urlloader_devtools_request_id_map_[url_loader_ptr] = request_id;
-
-    devtools_instrumentation::WillSendFedCmNetworkRequest(
-        frame_tree_node_id_, *resource_request_ptr, url_encoded_post_data);
   }
 
   if (url_encoded_post_data) {
@@ -262,6 +336,14 @@ void NetworkRequestManager::OnDownloadedUrl(
                           std::move(mime_type), cors_error);
 }
 
+void NetworkRequestManager::OnRequestBlocked(DownloadCallback callback,
+                                             int response_code) {
+  if (callback) {
+    std::move(callback).Run(/*response_body=*/std::nullopt, response_code,
+                            /*mime_type=*/"", /*cors_error=*/false);
+  }
+}
+
 std::unique_ptr<network::ResourceRequest>
 NetworkRequestManager::CreateUncredentialedResourceRequest(
     const GURL& target_url,
@@ -281,7 +363,23 @@ NetworkRequestManager::CreateUncredentialedResourceRequest(
                                         relying_party_origin_.Serialize());
     DCHECK(!follow_redirects);
   }
-  if (follow_redirects) {
+  if (follow_redirects &&
+      content::FrameConnectionAllowlistAllowsRequestAndReportIfNeeded(
+          initiator_document_.AsRenderFrameHostIfValid(), resource_request->url,
+          /*is_redirect=*/true)) {
+    // Only follow redirects if the initiator frame's connection allowlist
+    // allows redirects. Otherwise, set the `redirect_mode` to `kError` so that
+    // redirects will not be followed.
+    // TODO(crbug.com/482728970): The connection allowlist check on redirect for
+    // `NetworkRequestManager` is implemented in a different way compared with
+    // the usual approach used for most other network requests. Instead of
+    // checking the connection allowlists redirect directive when the redirect
+    // takes place, `NetworkRequestManager` decides whether the resource request
+    // follows the redirect during request initiation. This is because the
+    // request will use the URLLoaderFactory associated with the browser
+    // process, which makes it difficult to retrieve the connection allowlist
+    // during the redirect. For connection allowlists reporting, special
+    // handling may be required.
     resource_request->redirect_mode = network::mojom::RedirectMode::kFollow;
   } else {
     resource_request->redirect_mode = network::mojom::RedirectMode::kError;

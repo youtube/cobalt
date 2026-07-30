@@ -46,10 +46,6 @@
 class LocationBarView;
 class IconLabelBubbleView;
 
-namespace ai_mode_button_config {
-struct AiModeButtonConfig;
-}
-
 namespace content {
 class WebContents;
 }  // namespace content
@@ -404,9 +400,6 @@ class OmniboxViewViews
   // Helper for updating placeholder color depending on whether its a keyword or
   // DSE placeholder.
   void UpdatePlaceholderTextColor();
-
-  // Helper to get the current `AiModeButtonConfig` if available.
-  const ai_mode_button_config::AiModeButtonConfig* GetAiModeConfig() const;
 
   // Returns the AI Mode page action icon view, if present, or nullptr if the
   // view doesn't exist.

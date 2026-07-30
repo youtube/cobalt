@@ -79,6 +79,7 @@
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_config.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
@@ -371,6 +372,8 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
 
     signin::IdentityManager* identityManager =
         _profile ? IdentityManagerFactory::GetForProfile(_profile) : nullptr;
+    scoped_refptr<network::SharedURLLoaderFactory> urlLoaderFactory =
+        _profile ? _profile->GetSharedURLLoaderFactory() : nullptr;
     _stateManager = [[ComposeboxInputStateManager alloc]
          initWithWebStateList:_webStateList
                    modeHolder:_modeHolder
@@ -380,7 +383,8 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
            templateURLService:_templateURLService
                 sessionHandle:_contextualSearchSession.get()
                    entrypoint:_entrypoint
-                  isIncognito:_isIncognito];
+                  isIncognito:_isIncognito
+             urlLoaderFactory:urlLoaderFactory];
     _stateManager.delegate = self;
     _stateManager.items = _items;
 
@@ -468,6 +472,31 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   return [_stateManager remainingNumberOfImagesAllowed];
 }
 
+- (NSArray<NSString*>*)attachedImageAssetIDs {
+  NSMutableArray<NSString*>* assetIDs = [[NSMutableArray alloc] init];
+  for (ComposeboxInputItem* item in _items.containedItems) {
+    if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeImage &&
+        item.assetID.length > 0) {
+      [assetIDs addObject:item.assetID];
+    }
+  }
+  return [assetIDs copy];
+}
+
+- (void)removeImageWithAssetID:(NSString*)assetID {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  if (!assetID.length) {
+    return;
+  }
+  for (ComposeboxInputItem* item in [_items.containedItems copy]) {
+    if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeImage &&
+        [item.assetID isEqualToString:assetID]) {
+      [self removeItem:item];
+      break;
+    }
+  }
+}
+
 - (ComposeboxAttachmentSelection*)currentAttachmentSelection {
   std::set<web::WebStateID> tabIDs;
   NSMutableArray<ComposeboxPickerImageResult*>* images =
@@ -527,11 +556,28 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     return;
   }
 
-  for (ComposeboxPickerImageResult* item in attachments.images) {
-    [self processImageItemProvider:item.imageProvider
-                           assetID:item.assetID
-                            source:item.source
-                        completion:nil];
+  if (attachments.images) {
+    NSMutableSet<NSString*>* newAssetIDs = [[NSMutableSet alloc] init];
+    for (ComposeboxPickerImageResult* item in attachments.images) {
+      if (item.assetID.length > 0) {
+        [newAssetIDs addObject:item.assetID];
+      }
+    }
+
+    for (ComposeboxInputItem* item in [_items.containedItems copy]) {
+      if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeImage &&
+          item.assetID.length > 0 &&
+          ![newAssetIDs containsObject:item.assetID]) {
+        [self removeItem:item];
+      }
+    }
+
+    for (ComposeboxPickerImageResult* item in attachments.images) {
+      [self processImageItemProvider:item.imageProvider
+                             assetID:item.assetID
+                              source:item.source
+                          completion:nil];
+    }
   }
 
   for (NSURL* url in attachments.files) {
@@ -883,7 +929,18 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   BOOL unableToLoadUIImage =
       ![itemProvider canLoadObjectOfClass:[UIImage class]];
 
-  BOOL assetAlreadyLoaded = [_items assetAlreadyLoaded:assetID];
+  BOOL assetAlreadyLoaded = NO;
+  if (assetID.length > 0) {
+    assetAlreadyLoaded = [_items assetAlreadyLoaded:assetID];
+  } else if (itemProvider) {
+    for (ComposeboxInputItem* item in _items.containedItems) {
+      if (item.imageProvider == itemProvider) {
+        assetAlreadyLoaded = YES;
+        break;
+      }
+    }
+  }
+
   if (unableToLoadUIImage || assetAlreadyLoaded) {
     if (completion) {
       completion();
@@ -917,18 +974,18 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                 }];
 
   // Concurrently load the full image.
-  [itemProvider loadObjectOfClass:[UIImage class]
-                completionHandler:^(__kindof id<NSItemProviderReading> object,
-                                    NSError* error) {
-                  dispatch_async(dispatch_get_main_queue(), ^{
-                    [weakSelf didLoadFullImage:(UIImage*)object
-                         forItemWithIdentifier:identifier];
-                    requiredNumberOfLoads--;
-                    if (requiredNumberOfLoads == 0 && completion) {
-                      completion();
-                    }
-                  });
-                }];
+  [itemProvider
+      loadDataRepresentationForTypeIdentifier:UTTypeImage.identifier
+                            completionHandler:^(NSData* data, NSError* error) {
+                              dispatch_async(dispatch_get_main_queue(), ^{
+                                [weakSelf didLoadFullImage:data
+                                     forItemWithIdentifier:identifier];
+                                requiredNumberOfLoads--;
+                                if (requiredNumberOfLoads == 0 && completion) {
+                                  completion();
+                                }
+                              });
+                            }];
 }
 
 - (void)setModelOption:(ComposeboxModelOption)modelOption
@@ -1023,8 +1080,17 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     return;
   }
 
+  bool use_apc_v2 = IsComposeboxAimRichAPCExtractionEnabled();
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetGraftCrossOriginFrameContent(use_apc_v2)
+          .SetUseRichExtraction(use_apc_v2)
+          .SetExtractPaidContent(use_apc_v2)
+          .Build();
+
   PageContextWrapper* pageContextWrapper = [[PageContextWrapper alloc]
         initWithWebState:webState
+                  config:config
       completionCallback:base::BindOnce(^(
                              PageContextWrapperCallbackResponse response) {
         if (response.has_value()) {
@@ -1614,7 +1680,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
 }
 
 // Handles the loaded full `image` for the item with the given `identifier`.
-- (void)didLoadFullImage:(UIImage*)image
+- (void)didLoadFullImage:(NSData*)data
     forItemWithIdentifier:(base::UnguessableToken)identifier {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   ComposeboxInputItem* item = [_items itemForIdentifier:identifier];
@@ -1622,7 +1688,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     return;
   }
 
-  if (!image) {
+  if (!data) {
     [self setState:ComposeboxInputItemState::kError onItem:item];
     [self.consumer updateState:item.state
          forItemWithIdentifier:item.identifier];
@@ -1632,7 +1698,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   __weak __typeof(self) weakSelf = self;
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, base::BindOnce(^{
-        [weakSelf didFinishSimulatedLoadForImage:image
+        [weakSelf didFinishSimulatedLoadForImage:data
                                   itemIdentifier:identifier];
       }),
       GetImageLoadDelay());
@@ -1640,7 +1706,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
 
 // Called after the simulated image load delay for the item with the given
 // `identifier`. This simulates a network delay for development purposes.
-- (void)didFinishSimulatedLoadForImage:(UIImage*)image
+- (void)didFinishSimulatedLoadForImage:(NSData*)data
                         itemIdentifier:(base::UnguessableToken)identifier {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   ComposeboxInputItem* item = [_items itemForIdentifier:identifier];
@@ -1652,6 +1718,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   [self.consumer updateState:item.state forItemWithIdentifier:item.identifier];
 
   if (!item.previewImage) {
+    UIImage* image = [UIImage imageWithData:data];
     item.previewImage =
         ResizeImage(image, composeboxAttachments::kImageInputItemSize,
                     ProjectionMode::kAspectFill);
@@ -1675,7 +1742,9 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     });
   } else {
     task = base::BindOnce(^{
-      [weakSelf uploadImage:image itemIdentifier:identifier];
+      [weakSelf handleImageUploadWithData:data
+                        forItemIdentifier:identifier
+                                  options:GetDefaultImageEncodingOptions()];
     });
   }
 
@@ -1708,29 +1777,6 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
       serverToken, fileName, kPortableNetworkGraphicMimeType, std::move(buffer),
       options);
   [self notifyContextChanged];
-}
-
-// Uploads the `image` for the item with the given `identifier`.
-- (void)uploadImage:(UIImage*)image
-     itemIdentifier:(base::UnguessableToken)identifier {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  ComposeboxInputItem* item = [_items itemForIdentifier:identifier];
-  if (!item || !_contextualSearchSession) {
-    return;
-  }
-
-  // UIImagePNGRepresentation is an expensive operation. We execute this on a
-  // background thread to prevent blocking the UI, especially during batch
-  // processing.
-  __weak __typeof(self) weakSelf = self;
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&UIImagePNGRepresentation, image),
-      base::BindOnce(^(NSData* data) {
-        [weakSelf handleImageUploadWithData:data
-                          forItemIdentifier:identifier
-                                    options:GetDefaultImageEncodingOptions()];
-      }));
 }
 
 // Handles uploading the context after the snapshot is generated.
@@ -1880,6 +1926,13 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   BOOL forceExpansionOnFocus = self.isCobrowse && _omniboxFocused;
   if (forceExpansionOnFocus) {
     return NO;
+  }
+
+  // Cobrowse keeps the input plate expanded when files or images are attached.
+  if (self.isCobrowse) {
+    if (_items.hasFile || _items.hasImage) {
+      return NO;
+    }
   }
 
   std::set<ComposeboxMode> modesAllowingCompact;

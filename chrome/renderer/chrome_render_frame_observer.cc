@@ -25,6 +25,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/open_search_description_document_handler.mojom.h"
@@ -189,6 +190,17 @@ void UpdateLoadedOriginCrashKeys() {
   }
 }
 
+bool ShouldForceTranslateAgentCreation(const GURL& url) {
+#if !BUILDFLAG(IS_ANDROID)
+  // The Reading Mode side panel is a Top Chrome WebUI, but it exceptionally
+  // requires a TranslateAgent to support PDF translation.
+  return url.SchemeIs("chrome-untrusted") &&
+         url.host() == chrome::kChromeUIUntrustedReadAnythingSidePanelHost;
+#else
+  return false;
+#endif
+}
+
 }  // namespace
 
 ChromeRenderFrameObserver::ChromeRenderFrameObserver(
@@ -253,6 +265,16 @@ void ChromeRenderFrameObserver::ReadyToCommitNavigation(
   // event (including tab reload).
   if (render_frame()->IsMainFrame() && web_cache_impl_)
     web_cache_impl_->ExecutePendingClearCache();
+
+  // Dynamically instantiate TranslateAgent on-the-fly if this WebUI
+  // exceptionally requires it.
+  if (!translate_agent_ && render_frame()->IsMainFrame() && document_loader) {
+    GURL url = GURL(document_loader->GetUrl());
+    if (ShouldForceTranslateAgentCreation(url)) {
+      translate_agent_ = new translate::TranslateAgent(
+          render_frame(), ISOLATED_WORLD_ID_TRANSLATE);
+    }
+  }
 
   // Let translate_agent do any preparatory work before the new document loads.
   if (translate_agent_) {
@@ -703,11 +725,19 @@ void ChromeRenderFrameObserver::CreatePageStabilityMonitor(
         monitor,
     const actor::TaskId& task_id,
     bool supports_paint_stability) {
-  page_stability_monitor_ =
-      std::make_unique<page_content_annotations::PageStabilityMonitor>(
-          *render_frame(), supports_paint_stability,
-          std::make_unique<actor::PageStabilityMonitorDelegate>(
-              task_id, *actor_journal_));
+  page_stability_monitor_ = std::make_unique<
+      page_content_annotations::PageStabilityMonitor>(
+      *render_frame(), supports_paint_stability,
+      std::make_unique<actor::PageStabilityMonitorDelegate>(
+          task_id, *actor_journal_,
+          actor::PageStabilityMonitorDelegate::Thresholds{
+              .timeout_delay = features::kGlicActorPageStabilityTimeout.Get(),
+              .min_wait = features::kGlicActorPageStabilityMinWait.Get(),
+              .initial_paint_timeout =
+                  features::kActorPaintStabilityIntialPaintTimeout.Get(),
+              .subsequent_paint_timeout =
+                  features::kActorPaintStabilitySubsequentPaintTimeout.Get(),
+          }));
   page_stability_monitor_->Bind(std::move(monitor));
 }
 

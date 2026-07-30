@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.omnibox.suggestions;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.AttributeSet;
@@ -32,6 +31,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.KeyNavigationUtil;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -65,6 +66,7 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
     private final SuggestionLayoutScrollListener mLayoutScrollListener;
     private final RecyclerViewSelectionController mSelectionController;
     private final Handler mHandler;
+    private final OmniboxResourceProvider mResourceProvider;
     private final OmniboxViewHolderFactory mViewHolderFactory;
     private @Nullable PreWarmingRecycledViewPool mRecycledViewPool;
 
@@ -129,9 +131,7 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             super.onInitializeAccessibilityNodeInfoForItem(recycler, state, host, info);
             // Suppress the default "X of Y" announcement for the entire list for TalkBack to
             // avoid verbosity. Announcement of position within its group is already provided.
-            if (OmniboxFeatures.sOmniboxItemDecoration.isEnabled()) {
-                info.setCollectionItemInfo(null);
-            }
+            info.setCollectionItemInfo(null);
         }
 
         @Override
@@ -321,10 +321,8 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             setItemAnimator(null);
             addItemDecoration(new SuggestionHorizontalDivider(context));
 
-            if (OmniboxFeatures.sOmniboxItemDecoration.isEnabled()) {
-                addItemDecoration(new GroupSeparatorDecoration(context));
-                addItemDecoration(new HeaderDecoration(context));
-            }
+            addItemDecoration(new GroupSeparatorDecoration(context));
+            addItemDecoration(new HeaderDecoration(context));
 
             mLayoutScrollListener = suggestionLayoutScrollListener;
             setLayoutManager(mLayoutScrollListener);
@@ -333,24 +331,31 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             mSelectionController =
                     new RecyclerViewSelectionController(mLayoutScrollListener, mSelectionMode);
             addOnChildAttachStateChangeListener(mSelectionController);
+            mResourceProvider =
+                    new OmniboxResourceProvider(context, BrandedColorScheme.APP_DEFAULT);
 
-            final Resources resources = context.getResources();
-            mBaseBottomPadding =
-                    resources.getDimensionPixelOffset(
-                            R.dimen.omnibox_suggestion_list_padding_bottom);
-            mBaseTopPadding =
-                    resources.getDimensionPixelOffset(R.dimen.omnibox_suggestion_list_padding_top);
+            mBaseBottomPadding = mResourceProvider.getDropdownBottomPadding();
+            mBaseTopPadding = mResourceProvider.getDropdownTopPadding();
             this.setPaddingRelative(0, mBaseTopPadding, 0, mBaseBottomPadding);
 
             // Disable the scrollbar since it causes the hover events happening near the
             // scrollbar not dispatched to the underlying views.
             setVerticalScrollBarEnabled(false);
 
-            mViewHolderFactory = new OmniboxViewHolderFactory();
+            mViewHolderFactory = new OmniboxViewHolderFactory(mResourceProvider);
             if (OmniboxFeatures.sAsyncViewInflation.isEnabled()) {
                 mRecycledViewPool = new PreWarmingRecycledViewPool(mViewHolderFactory, context);
             }
         }
+    }
+
+    /**
+     * Sets the branded color scheme for the dropdown.
+     *
+     * @param scheme The {@link BrandedColorScheme} to use.
+     */
+    public void setBrandedColorScheme(@BrandedColorScheme int scheme) {
+        mResourceProvider.setBrandedColorScheme(scheme);
     }
 
     /**
@@ -578,7 +583,11 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             handleSelectionChange();
             return true;
         } else if (KeyNavigationUtil.isEnter(event)) {
-            if (selectedView != null && !hasAdditionalModifiers) {
+            if (selectedView != null) {
+                if (selectedView instanceof ActivatableSuggestionView) {
+                    return ((ActivatableSuggestionView) selectedView)
+                            .activate(event.getMetaState());
+                }
                 return selectedView.performClick();
             }
         }

@@ -109,6 +109,10 @@ static_library("safe_browsing") {
 
   if (enable_extensions) {
     deps += [ "//chrome/browser/ui/web_applications" ]
+
+    if (is_chromeos) {
+      deps += [ "//chromeos/ash/components/system" ]
+    }
   }
 
   # Note: is_android is not equivalent to safe_browsing_mode == 2.
@@ -600,6 +604,7 @@ static_library("safe_browsing") {
         "android/safe_browsing_referring_app_bridge_android.h",
         "android/safe_browsing_settings_navigation_android.h",
         "android/services_delegate_android.h",
+        "android/suspicious_site_controller_android.h",
         "download_protection/download_protection_delegate_android.h",
         "download_protection/rate_limiting_key_manager.h",
         "tailored_security/consented_message_android.h",
@@ -613,6 +618,7 @@ static_library("safe_browsing") {
         "android/safe_browsing_referring_app_bridge_android.cc",
         "android/safe_browsing_settings_navigation_android.cc",
         "android/services_delegate_android.cc",
+        "android/suspicious_site_controller_android.cc",
         "download_protection/download_protection_delegate_android.cc",
         "download_protection/rate_limiting_key_manager.cc",
         "tailored_security/consented_message_android.cc",
@@ -627,6 +633,8 @@ static_library("safe_browsing") {
         "//components/safe_browsing:buildflags",
         "//components/safe_browsing/android:remote_database_manager",
         "//components/safe_browsing/android:safe_browsing_mobile",
+        "//components/safe_browsing/core/browser:suspicious_site_warning_allowlist",
+        "//content/public/browser",
         "//google_apis/common:request_util",
         "//ui/android",
 
@@ -799,7 +807,6 @@ source_set("unit_tests") {
       "//components/safe_browsing/content/browser",
       "//components/safe_browsing/content/browser:client_side_detection_images_cache",
       "//components/safe_browsing/content/browser:client_side_detection_service",
-      "//components/safe_browsing/content/browser:credit_card_form_event",
       "//components/safe_browsing/content/browser:safe_browsing_blocking_page",
       "//components/safe_browsing/content/browser:safe_browsing_service",
       "//components/safe_browsing/content/browser/notification_content_detection",
@@ -810,12 +817,14 @@ source_set("unit_tests") {
       "//components/safe_browsing/content/common:file_type_policies",
       "//components/safe_browsing/content/common:file_type_policies_test_support",
       "//components/safe_browsing/content/common:interfaces",
+      "//components/safe_browsing/core/browser",
       "//components/safe_browsing/core/browser:client_side_detection_service_base",
       "//components/safe_browsing/core/browser:intelligent_scan_delegate",
       "//components/safe_browsing/core/browser:referring_app_info",
       "//components/safe_browsing/core/browser:token_fetcher",
       "//components/safe_browsing/core/browser:token_fetcher_testing_helper",
       "//components/safe_browsing/core/browser:verdict_cache_manager",
+      "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
       "//components/safe_browsing/core/browser/sync",
       "//components/safe_browsing/core/common/proto:csd_proto",
       "//components/ukm:test_support",
@@ -862,6 +871,9 @@ source_set("unit_tests") {
       "cloud_content_scanning/cloud_binary_upload_service_unittest.cc",
       "cloud_content_scanning/deep_scanning_utils_unittest.cc",
       "cloud_content_scanning/file_analysis_request_unittest.cc",
+      "download_protection/download_feedback_service_unittest.cc",
+      "download_protection/download_feedback_unittest.cc",
+      "download_protection/path_sanitizer_unittest.cc",
       "extension_telemetry/activity_log_ingester_unittest.cc",
       "extension_telemetry/cookies_get_all_signal_processor_unittest.cc",
       "extension_telemetry/cookies_get_all_signal_unittest.cc",
@@ -972,6 +984,8 @@ source_set("unit_tests") {
     sources += [
       "android/client_side_detection_intelligent_scan_delegate_android_unittest.cc",
       "android/password_reuse_controller_android_unittest.cc",
+      "android/suspicious_site_controller_android_unittest.cc",
+      "download_protection/rate_limiting_key_manager_unittest.cc",
       "safe_browsing_pref_change_handler_android_unittest.cc",
       "tailored_security/chrome_tailored_security_service_android_unittest.cc",
       "tailored_security/consented_message_android_unittest.cc",
@@ -980,7 +994,27 @@ source_set("unit_tests") {
     deps += [
       "//chrome/browser/ui/android/tab_model:test_support",
       "//components/messages/android:test_support",
+      "//components/safe_browsing/android:real_time_url_checks_allowlist",
+      "//components/safe_browsing/android:safe_browsing_api_handler",
+      "//components/safe_browsing/android:safe_browsing_api_handler_util",
     ]
+  }
+  if (enterprise_cloud_content_analysis || is_android) {
+    sources += [ "download_protection/deep_scanning_request_unittest.cc" ]
+    deps += [
+      "//chrome/browser/enterprise/connectors/reporting:unit_tests",
+      "//chrome/browser/enterprise/connectors/test:test_support",
+      "//chrome/browser/interstitials:unit_tests",
+      "//components/enterprise/common/proto:browser_events_proto",
+      "//components/enterprise/common/proto:chrome_reporting_entity",
+      "//components/enterprise/connectors/core",
+      "//components/enterprise/connectors/core:cloud_content_scanning",
+      "//components/enterprise/connectors/core:test_support",
+      "//components/enterprise/obfuscation/core:enterprise_obfuscation",
+    ]
+    if (is_chromeos) {
+      deps += [ "//chromeos/ash/components/system" ]
+    }
   }
   if (is_win || is_mac || is_linux || is_chromeos) {
     sources += [
@@ -1069,5 +1103,77 @@ source_set("test_support") {
       "//chrome/common/extensions/api",
       "//extensions:test_support",
     ]
+  }
+}
+
+source_set("test_database_helper") {
+  testonly = true
+
+  sources = [
+    "test_safe_browsing_database_helper.cc",
+    "test_safe_browsing_database_helper.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/safe_browsing/core/browser/db:util",
+  ]
+
+  deps = [
+    ":safe_browsing",
+    ":test_support",
+    "//components/safe_browsing/core/browser/db:sb_database",
+    "//components/safe_browsing/core/browser/db:v4_protocol_manager_util",
+    "//components/safe_browsing/core/browser/db:v4_test_util",
+    "//components/security_interstitials/core:unsafe_resource",
+    "//content/test:test_support",
+  ]
+}
+
+if (safe_browsing_mode != 0) {
+  # Separate leaf target because this browser-test helper depends on
+  # //chrome/test:test_support, which reaches safe_browsing:test_support via
+  # //chrome/browser:test_support and would form a cycle.
+  source_set("blocking_page_platform_test_support") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    public = [ "safe_browsing_blocking_page_platform_test_helper.h" ]
+
+    sources = [ "safe_browsing_blocking_page_platform_test_helper.cc" ]
+
+    public_deps = [
+      ":safe_browsing",
+      "//chrome/test:test_support",
+      "//components/safe_browsing:buildflags",
+      "//components/safe_browsing/content/browser",
+    ]
+
+    if (is_android) {
+      public_deps += [ "//chrome/test:test_support_ui_android" ]
+    } else {
+      public_deps += [ "//chrome/test:test_support_ui" ]
+    }
+
+    deps = [
+      "//base",
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/enterprise",
+      "//chrome/browser/history",
+      "//chrome/browser/policy:test_support",
+      "//chrome/browser/safe_browsing:metrics_collector",
+      "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+      "//components/safe_browsing/core/browser:verdict_cache_manager",
+      "//components/security_interstitials/content:security_interstitial_page",
+      "//content/test:test_support",
+    ]
+
+    # mock_trust_safety_sentiment_service.h is only included under
+    # BUILDFLAG(FULL_SAFE_BROWSING) (safe_browsing_mode == 1), and
+    # ui/hats:test_support only exists on non-Android.
+    if (safe_browsing_mode == 1) {
+      public_deps += [ "//chrome/browser/ui/hats:test_support" ]
+    }
   }
 }

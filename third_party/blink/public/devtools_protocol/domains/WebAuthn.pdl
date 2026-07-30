@@ -66,6 +66,11 @@ experimental domain WebAuthn
       # https://fidoalliance.org/specs/fido-v2.2-rd-20241003/fido-client-to-authenticator-protocol-v2.2-rd-20241003.html#sctn-hmac-secret-make-cred-extension
       # Defaults to false.
       optional boolean hasHmacSecretMc
+      # If set to true, the authenticator will support the cmtgKey (Credential
+      # Manager Trust Group Key) extension.
+      # https://github.com/w3c/webauthn/pull/2377
+      # Defaults to false.
+      optional boolean hasCmtgKey
       # If set to true, tests of user presence will succeed immediately.
       # Otherwise, they will not be resolved. Defaults to true.
       optional boolean automaticPresenceSimulation
@@ -93,10 +98,11 @@ experimental domain WebAuthn
       # An opaque byte sequence with a maximum size of 64 bytes mapping the
       # credential to a specific user.
       optional binary userHandle
-      # Signature counter. This is incremented by one for each successful
-      # assertion.
+      # Signature counter. Must be equal to or greater than -1.
+      # If -1, the credential won't have an associated signature counter, and
+      # every assertion operation will report a value of 0.
       # See https://w3c.github.io/webauthn/#signature-counter
-      integer signCount
+      optional integer signCount
       # The large blob associated with the credential.
       # See https://w3c.github.io/webauthn/#sctn-large-blob-extension
       optional binary largeBlob
@@ -115,6 +121,12 @@ experimental domain WebAuthn
       # not set.
       # https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-displayname
       optional string userDisplayName
+      # The CMTG keys associated with the credential.
+      optional array of binary cmtgKeys
+      # The 0-based index of the active key in cmtgKeys.
+      optional integer activeCmtgKeyIndex
+      # If true, the authenticator will generate a new CMTG key on the next operation.
+      optional boolean generateCmtgKeyOnNextOperation
 
   # Enable the WebAuthn domain and start intercepting credential storage and
   # retrieval with a virtual authenticator.
@@ -211,6 +223,13 @@ experimental domain WebAuthn
       binary credentialId
       optional boolean backupEligibility
       optional boolean backupState
+      optional integer activeCmtgKeyIndex
+      optional boolean generateCmtgKeyOnNextOperation
+      # Must be equal to or greater than -1.
+      # If -1, the signature counter is removed from the credential, and every
+      # assertion operation will report a value of 0.
+      # See https://w3c.github.io/webauthn/#signature-counter
+      optional integer signCount
 
   # Triggered when a credential is added to an authenticator.
   event credentialAdded

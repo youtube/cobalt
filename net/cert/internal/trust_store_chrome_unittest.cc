@@ -15,10 +15,12 @@
 #include "crypto/sha2.h"
 #include "net/base/features.h"
 #include "net/cert/root_store_proto_lite/root_store.pb.h"
+#include "net/cert/root_store_proto_lite/signer_set.pb.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/test/cert_builder.h"
 #include "net/test/cert_test_util.h"
+#include "net/test/chrome_root_store_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1483,41 +1485,343 @@ TEST(TrustStoreChromeTestNoFixture, SignerSetUpdates) {
   auto compiled_key_it = kSignerKeys.begin();
   base::span<const uint8_t> compiled_key_bytes = compiled_key_it->second;
 
-  auto* issuer1 = proto.add_issuers();
+  std::vector<uint8_t> expected_base_id1 = {0x01, 0x02, 0x03};
+  auto* issuer1 = AddSignerSetIssuer(proto, expected_base_id1, "op1", 1);
   issuer1->set_friendly_name("compiled_key_issuer_with_bytes");
   issuer1->set_key(base::as_string_view(compiled_key_bytes));
-  issuer1->set_base_id("1.2.3");
 
   // Add an issuer with a new key.
+  std::vector<uint8_t> expected_base_id2 = {0x04, 0x05, 0x06, 0x07};
   std::vector<uint8_t> new_key_bytes = {0x01, 0x02, 0x03, 0x04};
-  auto* issuer2 = proto.add_issuers();
+  auto* issuer2 = AddSignerSetIssuer(proto, expected_base_id2, "op2", 2);
   issuer2->set_friendly_name("new_key_issuer");
   issuer2->set_key(base::as_string_view(new_key_bytes));
-  issuer2->set_base_id("4.5.6.7");
 
   std::optional<ChromeRootStoreSignerSet> parsed_set =
       ChromeRootStoreSignerSet::CreateFromProto(proto);
   ASSERT_TRUE(parsed_set.has_value());
   EXPECT_EQ(parsed_set->version(), "2.0.0");
-  ASSERT_EQ(parsed_set->issuers().size(), 2U);
+  ASSERT_EQ(parsed_set->trusted_issuers().size(), 2U);
 
   // issuer1 should have the compiled key bytes.
-  ASSERT_TRUE(parsed_set->issuers()[0].key);
+  ASSERT_TRUE(parsed_set->trusted_issuers()[0].key);
   EXPECT_EQ(base::ToVector(x509_util::CryptoBufferAsSpan(
-                parsed_set->issuers()[0].key.get())),
+                parsed_set->trusted_issuers()[0].key.get())),
             base::ToVector(compiled_key_bytes));
 
   // issuer2 should have the new key bytes.
-  ASSERT_TRUE(parsed_set->issuers()[1].key);
+  ASSERT_TRUE(parsed_set->trusted_issuers()[1].key);
   EXPECT_EQ(base::ToVector(x509_util::CryptoBufferAsSpan(
-                parsed_set->issuers()[1].key.get())),
+                parsed_set->trusted_issuers()[1].key.get())),
             new_key_bytes);
 
   // Check base_id parsing matches expected relative OID DER.
-  std::vector<uint8_t> expected_base_id1 = {0x01, 0x02, 0x03};
-  std::vector<uint8_t> expected_base_id2 = {0x04, 0x05, 0x06, 0x07};
-  EXPECT_EQ(parsed_set->issuers()[0].base_id, expected_base_id1);
-  EXPECT_EQ(parsed_set->issuers()[1].base_id, expected_base_id2);
+  EXPECT_EQ(parsed_set->trusted_issuers()[0].base_id, expected_base_id1);
+  EXPECT_EQ(parsed_set->trusted_issuers()[1].base_id, expected_base_id2);
+}
+
+// Tests the filtering during SignerSet proto parsing that removes issuers
+// which are untrusted or retired.
+TEST(TrustStoreChromeTestNoFixture, SignerSetCreationIssuerFiltering) {
+  chrome_root_store::SignerSet proto;
+  proto.mutable_timestamp()->set_seconds(123456);
+
+  const std::vector<uint8_t> kIssuerUsable = {0x01};
+  AddSignerSetIssuer(proto, kIssuerUsable, "op", std::nullopt);
+
+  const std::vector<uint8_t> kIssuerNoRealm = {0x02};
+  AddSignerSetIssuer(proto, kIssuerNoRealm, "op", std::nullopt)->clear_realm();
+
+  const std::vector<uint8_t> kIssuerUntrustedRealm = {0x03};
+  AddSignerSetIssuer(proto, kIssuerUntrustedRealm, "op", std::nullopt)
+      ->set_realm(chrome_root_store::REALM_UNTRUSTED_VALIDATION_ONLY);
+
+  const std::vector<uint8_t> kIssuerStateUnset = {0x04};
+  AddSignerSetIssuer(proto, kIssuerStateUnset, "op", std::nullopt)
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_UNSET);
+
+  const std::vector<uint8_t> kIssuerStateCandidate = {0x05};
+  AddSignerSetIssuer(proto, kIssuerStateCandidate, "op", std::nullopt)
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_CANDIDATE);
+
+  const std::vector<uint8_t> kIssuerStateRemoved = {0x06};
+  AddSignerSetIssuer(proto, kIssuerStateRemoved, "op", std::nullopt)
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_REMOVED);
+
+  const std::vector<uint8_t> kIssuerStateQualified = {0x07};
+  AddSignerSetIssuer(proto, kIssuerStateQualified, "op", std::nullopt)
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_QUALIFIED);
+
+  const std::vector<uint8_t> kIssuerStateFrozen = {0x08};
+  AddSignerSetIssuer(proto, kIssuerStateFrozen, "op", std::nullopt)
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_FROZEN);
+
+  const std::vector<uint8_t> kIssuerNoSignatureAlgorithm = {0x09};
+  AddSignerSetIssuer(proto, kIssuerNoSignatureAlgorithm, "op", std::nullopt)
+      ->clear_signature_algorithm();
+
+  const std::vector<uint8_t> kIssuerUnknownSignatureAlgorithm = {0x0a};
+  AddSignerSetIssuer(proto, kIssuerUnknownSignatureAlgorithm, "op",
+                     std::nullopt)
+      ->set_signature_algorithm(
+          static_cast<chrome_root_store::SignatureAlgorithm>(999999));
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({features::kVerifyMTCs},
+                                  {features::kTestRootStore});
+    std::optional<ChromeRootStoreSignerSet> parsed_set =
+        ChromeRootStoreSignerSet::CreateFromProto(proto);
+    ASSERT_TRUE(parsed_set.has_value());
+    std::vector<std::vector<uint8_t>> usable_issuer_ids;
+    for (const auto& issuer : parsed_set->trusted_issuers()) {
+      usable_issuer_ids.push_back(issuer.base_id);
+    }
+    EXPECT_THAT(usable_issuer_ids,
+                testing::UnorderedElementsAre(
+                    kIssuerUsable, kIssuerStateQualified, kIssuerStateFrozen));
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        {features::kVerifyMTCs, features::kTestRootStore}, {});
+    std::optional<ChromeRootStoreSignerSet> parsed_set =
+        ChromeRootStoreSignerSet::CreateFromProto(proto);
+    ASSERT_TRUE(parsed_set.has_value());
+    std::vector<std::vector<uint8_t>> usable_issuer_ids;
+    for (const auto& issuer : parsed_set->trusted_issuers()) {
+      usable_issuer_ids.push_back(issuer.base_id);
+    }
+    // If the kTestRootStore flag was set, then the usable list should be the
+    // same as before, plus the signers that have a realm of
+    // realm_untrusted_validation_only.
+    EXPECT_THAT(usable_issuer_ids,
+                testing::UnorderedElementsAre(
+                    kIssuerUsable, kIssuerStateQualified, kIssuerStateFrozen,
+                    kIssuerUntrustedRealm));
+  }
+}
+
+// Tests the filtering during SignerSet proto parsing that removes mirrors
+// which are untrusted or retired.
+TEST(TrustStoreChromeTestNoFixture, SignerSetCreationMirrorFiltering) {
+  chrome_root_store::SignerSet proto;
+  proto.mutable_timestamp()->set_seconds(123456);
+
+  const std::vector<uint8_t> kMirrorUsable = {0x01};
+  AddSignerSetMirror(proto, kMirrorUsable, "op");
+
+  const std::vector<uint8_t> kMirrorNoRealm = {0x02};
+  AddSignerSetMirror(proto, kMirrorNoRealm, "op")->clear_realm();
+
+  const std::vector<uint8_t> kMirrorUntrustedRealm = {0x03};
+  AddSignerSetMirror(proto, kMirrorUntrustedRealm, "op")
+      ->set_realm(chrome_root_store::REALM_UNTRUSTED_VALIDATION_ONLY);
+
+  const std::vector<uint8_t> kMirrorStateUnset = {0x04};
+  AddSignerSetMirror(proto, kMirrorStateUnset, "op")
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_UNSET);
+
+  const std::vector<uint8_t> kMirrorStateCandidate = {0x05};
+  AddSignerSetMirror(proto, kMirrorStateCandidate, "op")
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_CANDIDATE);
+
+  const std::vector<uint8_t> kMirrorStateRemoved = {0x06};
+  AddSignerSetMirror(proto, kMirrorStateRemoved, "op")
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_REMOVED);
+
+  const std::vector<uint8_t> kMirrorStateQualified = {0x07};
+  AddSignerSetMirror(proto, kMirrorStateQualified, "op")
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_QUALIFIED);
+
+  const std::vector<uint8_t> kMirrorStateFrozen = {0x08};
+  AddSignerSetMirror(proto, kMirrorStateFrozen, "op")
+      ->mutable_state_history(0)
+      ->set_state(chrome_root_store::STATE_FROZEN);
+
+  const std::vector<uint8_t> kMirrorNoSignatureAlgorithm = {0x09};
+  AddSignerSetMirror(proto, kMirrorNoSignatureAlgorithm, "op")
+      ->clear_signature_algorithm();
+
+  const std::vector<uint8_t> kMirrorUnknownSignatureAlgorithm = {0x0a};
+  AddSignerSetMirror(proto, kMirrorUnknownSignatureAlgorithm, "op")
+      ->set_signature_algorithm(
+          static_cast<chrome_root_store::SignatureAlgorithm>(999999));
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({features::kVerifyMTCs},
+                                  {features::kTestRootStore});
+    std::optional<ChromeRootStoreSignerSet> parsed_set =
+        ChromeRootStoreSignerSet::CreateFromProto(proto);
+    ASSERT_TRUE(parsed_set.has_value());
+    std::vector<std::vector<uint8_t>> usable_mirror_ids;
+    for (const auto& mirror : parsed_set->trusted_mirrors()) {
+      usable_mirror_ids.push_back(mirror.base_id);
+    }
+    EXPECT_THAT(usable_mirror_ids,
+                testing::UnorderedElementsAre(
+                    kMirrorUsable, kMirrorStateQualified, kMirrorStateFrozen));
+  }
+
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        {features::kVerifyMTCs, features::kTestRootStore}, {});
+    std::optional<ChromeRootStoreSignerSet> parsed_set =
+        ChromeRootStoreSignerSet::CreateFromProto(proto);
+    ASSERT_TRUE(parsed_set.has_value());
+    std::vector<std::vector<uint8_t>> usable_mirror_ids;
+    for (const auto& mirror : parsed_set->trusted_mirrors()) {
+      usable_mirror_ids.push_back(mirror.base_id);
+    }
+    // If the kTestRootStore flag was set, then the usable list should be the
+    // same as before, plus the signers that have a realm of
+    // realm_untrusted_validation_only.
+    EXPECT_THAT(usable_mirror_ids,
+                testing::UnorderedElementsAre(
+                    kMirrorUsable, kMirrorStateQualified, kMirrorStateFrozen,
+                    kMirrorUntrustedRealm));
+  }
+}
+
+TEST(TrustStoreChromeTestNoFixture, ParseMtcMetadataProtoBothFormats) {
+  chrome_root_store::MtcMetadata proto;
+  proto.set_update_time_seconds(987654321);
+
+  // 1. Add experiment format MtcAnchorData.
+  {
+    auto* anchor = proto.add_mtc_anchor_data();
+    anchor->set_log_id("\x01\x03\x06\x01\x04\x01");
+    auto* range = anchor->mutable_trusted_landmark_ids_range();
+    range->set_base_id(std::string("\x01\x03\x06\x01\x04\x01\x00\x02", 8));
+    range->set_min_active_landmark_inclusive(10);
+    range->set_last_landmark_inclusive(20);
+
+    auto* subtree = anchor->add_trusted_subtrees();
+    subtree->set_start_inclusive(100);
+    subtree->set_end_exclusive(200);
+    subtree->set_hash(std::string(32, '\xaa'));
+  }
+
+  // 2. Add plants format MtcAnchorData.
+  {
+    auto* anchor = proto.add_mtc_anchor_data();
+    anchor->set_ca_id("\x01\x03\x06\x01\x04\x02");
+
+    // Add revoked indices
+    auto* revoked = anchor->add_revoked_indices();
+    revoked->set_start_inclusive(500);
+    revoked->set_end_exclusive(600);
+
+    // Add log 1 (log number 5)
+    {
+      auto* log = anchor->add_mtc_log_data();
+      log->set_log_number(5);
+      auto* range = log->mutable_trusted_landmark_ids_range();
+      range->set_base_id(std::string("\x01\x03\x06\x01\x04\x02\x00\x05", 8));
+      range->set_min_active_landmark_inclusive(30);
+      range->set_last_landmark_inclusive(40);
+
+      auto* subtree = log->add_trusted_subtrees();
+      subtree->set_start_inclusive(300);
+      subtree->set_end_exclusive(400);
+      subtree->set_hash(std::string(32, '\xbb'));
+    }
+
+    // Add log 2 (log number 8)
+    {
+      auto* log = anchor->add_mtc_log_data();
+      log->set_log_number(8);
+      auto* range = log->mutable_trusted_landmark_ids_range();
+      range->set_base_id(std::string("\x01\x03\x06\x01\x04\x02\x00\x08", 8));
+      range->set_min_active_landmark_inclusive(50);
+      range->set_last_landmark_inclusive(60);
+
+      auto* subtree = log->add_trusted_subtrees();
+      subtree->set_start_inclusive(700);
+      subtree->set_end_exclusive(800);
+      subtree->set_hash(std::string(32, '\xcc'));
+    }
+  }
+
+  auto mtc_metadata =
+      ChromeRootStoreMtcMetadata::CreateFromMtcMetadataProto(proto);
+  ASSERT_TRUE(mtc_metadata.has_value());
+  EXPECT_EQ(mtc_metadata->update_time(),
+            base::Time::UnixEpoch() + base::Seconds(987654321));
+
+  const auto& anchor_map = mtc_metadata->mtc_anchor_data();
+  ASSERT_EQ(anchor_map.size(), 1U);
+
+  // Check experiment format anchor.
+  std::vector<uint8_t> old_log_id = {0x01, 0x03, 0x06, 0x01, 0x04, 0x01};
+  auto old_it = anchor_map.find(old_log_id);
+  ASSERT_NE(old_it, anchor_map.end());
+  EXPECT_EQ(old_it->second.log_id, old_log_id);
+  EXPECT_EQ(
+      old_it->second.landmark_base_id,
+      std::vector<uint8_t>({0x01, 0x03, 0x06, 0x01, 0x04, 0x01, 0x00, 0x02}));
+  EXPECT_EQ(old_it->second.landmark_min_inclusive, 10U);
+  EXPECT_EQ(old_it->second.landmark_max_inclusive, 20U);
+  ASSERT_EQ(old_it->second.trusted_subtrees.size(), 1U);
+  EXPECT_EQ(old_it->second.trusted_subtrees[0].range.start, 100U);
+  EXPECT_EQ(old_it->second.trusted_subtrees[0].range.end, 200U);
+  EXPECT_EQ(base::ToVector(old_it->second.trusted_subtrees[0].hash),
+            std::vector<uint8_t>(32, 0xaa));
+  EXPECT_TRUE(old_it->second.revoked_indices.empty());
+
+  const auto& plants05_map = mtc_metadata->plants05_anchor_data();
+  ASSERT_EQ(plants05_map.size(), 1U);
+
+  // Check newer format logs.
+  // CA_ID (\x01\x03\x06\x01\x04\x02)
+  std::vector<uint8_t> ca_id = {0x01, 0x03, 0x06, 0x01, 0x04, 0x02};
+  auto new_it = plants05_map.find(ca_id);
+  ASSERT_NE(new_it, plants05_map.end());
+
+  ASSERT_EQ(new_it->second.revoked_serials.size(), 1U);
+  EXPECT_EQ(new_it->second.revoked_serials.begin()->first, 600U);
+  EXPECT_EQ(new_it->second.revoked_serials.begin()->second, 500U);
+
+  ASSERT_EQ(new_it->second.trusted_landmark_ranges.size(), 2U);
+  // Log 1: 5
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[0].log_number, 5U);
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[0].landmark_min_inclusive,
+            30U);
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[0].landmark_max_inclusive,
+            40U);
+  // Log 2: 8
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[1].log_number, 8U);
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[1].landmark_min_inclusive,
+            50U);
+  EXPECT_EQ(new_it->second.trusted_landmark_ranges[1].landmark_max_inclusive,
+            60U);
+
+  ASSERT_EQ(new_it->second.trusted_subtrees.size(), 2U);
+  ASSERT_TRUE(new_it->second.trusted_subtrees.contains(5));
+  ASSERT_EQ(new_it->second.trusted_subtrees.at(5).size(), 1U);
+  EXPECT_EQ(new_it->second.trusted_subtrees.at(5)[0].range.start, 300U);
+  EXPECT_EQ(new_it->second.trusted_subtrees.at(5)[0].range.end, 400U);
+  EXPECT_EQ(base::ToVector(new_it->second.trusted_subtrees.at(5)[0].hash),
+            std::vector<uint8_t>(32, 0xbb));
+
+  ASSERT_TRUE(new_it->second.trusted_subtrees.contains(8));
+  ASSERT_EQ(new_it->second.trusted_subtrees.at(8).size(), 1U);
+  EXPECT_EQ(new_it->second.trusted_subtrees.at(8)[0].range.start, 700U);
+  EXPECT_EQ(new_it->second.trusted_subtrees.at(8)[0].range.end, 800U);
+  EXPECT_EQ(base::ToVector(new_it->second.trusted_subtrees.at(8)[0].hash),
+            std::vector<uint8_t>(32, 0xcc));
 }
 
 }  // namespace

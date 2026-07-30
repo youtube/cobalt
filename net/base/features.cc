@@ -63,6 +63,10 @@ const base::FeatureParam<base::TimeDelta> kDnsMinTransactionTimeout{
     &kDnsTransactionDynamicTimeouts, "DnsMinTransactionTimeout",
     base::Seconds(12)};
 
+BASE_FEATURE(kDnsPlatformFailFastAndRetry, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kDnsPlatformCancelPreviousAttemptOnRetry{
+    &kDnsPlatformFailFastAndRetry, "cancel_previous_attempt_on_retry", false};
+
 BASE_FEATURE(kUseDnsHttpsSvcb, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kUseDnsHttpsSvcbEnforceSecureResponse{
@@ -105,6 +109,8 @@ BASE_FEATURE(kHappyEyeballsV2,
 );
 
 BASE_FEATURE(kHappyEyeballsV3, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableIntermediateDnsResults, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAdjustIPv6FallbackTime, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -452,6 +458,9 @@ BASE_FEATURE(kDeviceBoundSessionsClientCertSelection,
 BASE_FEATURE(kDeviceBoundSessionsForSingleSignOn,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDeviceBoundSessionsPersistExpiryOnRefresh,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSpdySessionForProxyAdditionalChecks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -500,6 +509,11 @@ const base::FeatureParam<DiskCacheBackend> kDiskCacheBackendParam{
     DiskCacheBackend::kDefault,
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
     &kDiskCacheBackendOptions};
+
+BASE_FEATURE_PARAM(bool,
+                   kDiskCacheBackendResetCacheOnGroupChange,
+                   &kDiskCacheBackendExperiment,
+                   false);
 
 #if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
 BASE_FEATURE_PARAM(int,
@@ -552,6 +566,14 @@ BASE_FEATURE_PARAM(int,
                    &kDiskCacheBackendExperiment,
                    "SqlDiskCacheMaxReadBufferTotalSize",
                    32 * 1024 * 1024);
+BASE_FEATURE_PARAM(int,
+                   kSqlDiskCacheMaxSharedCacheCopyEntrySize,
+                   &kDiskCacheBackendExperiment,
+                   1024 * 1024);
+BASE_FEATURE_PARAM(int,
+                   kSqlDiskCacheSharedCacheReadBufferSize,
+                   &kDiskCacheBackendExperiment,
+                   512 * 1024);
 BASE_FEATURE_PARAM(bool,
                    kSqlDiskCacheSerialCheckpoint,
                    &kDiskCacheBackendExperiment,
@@ -777,7 +799,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Seconds(quic::kInitialIdleTimeoutSecs));
 
 BASE_FEATURE(kQuicIgnoreRedundantOnNetworkMadeDefault,
-             "QuicIgnoreRedundantOnNetworkMadeDefault",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kQuicLongerIdleConnectionTimeout,
@@ -791,6 +812,8 @@ BASE_FEATURE_PARAM(size_t,
                    quic::kDefaultMaxPacketSize);
 
 BASE_FEATURE(kQuicUseReadMultiple, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableUdpGro, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConfigureQuicHints, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
@@ -815,7 +838,13 @@ BASE_FEATURE_PARAM(size_t,
 
 BASE_FEATURE(kTryQuicByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCloseQuicSessionsOnPreFreeze, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCloseQuicSessionsOnPreFreeze,
+#if BUILDFLAG(CRONET_BUILD)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE_PARAM(std::string,
                    kQuicOptions,
@@ -855,6 +884,8 @@ BASE_FEATURE(kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLogicalClearHttpCache, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kLogicalClearHttpCacheUserVisiblePriority{
+    &kLogicalClearHttpCache, "UserVisiblePriority", true};
 
 BASE_FEATURE(kSQLitePersistentCookieStoreEarlyInit,
              base::FEATURE_DISABLED_BY_DEFAULT);

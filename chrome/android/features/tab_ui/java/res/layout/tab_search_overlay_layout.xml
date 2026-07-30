@@ -25,15 +25,45 @@ found in the LICENSE file.
         android:clipToOutline="true"
         android:elevation="8dp"
         android:clickable="true"
-        android:focusable="true"
-        android:paddingTop="48dp">
+        android:focusable="true">
 
-        <include
-            android:id="@+id/search_activity_container"
-            layout="@layout/search_activity"
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="42dp">
+
+            <ImageButton
+                android:id="@+id/tab_search_close_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="end|top"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/material_ic_close_24dp"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:background="@drawable/tile_view_highlight"
+                android:contentDescription="@string/close" />
+        </FrameLayout>
+
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1">
+
+            <include
+                android:id="@+id/search_activity_container"
+                layout="@layout/search_activity"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <include
+                android:id="@+id/empty_state_container"
+                layout="@layout/empty_state_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="@dimen/toolbar_height_no_shadow"
+                android:visibility="gone" />
+        </FrameLayout>
 
     </LinearLayout>
 

@@ -21,8 +21,6 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/types/optional_ref.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/at_memory/at_memory_utils.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
@@ -32,13 +30,15 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
-#include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
 #include "components/autofill/core/browser/data_model/form_group.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_model/usage_history_information.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type_util.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_search_result.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/autofill/core/browser/ui/addresses/autofill_address_util.h"
 #include "components/strings/grit/components_strings.h"
@@ -48,12 +48,6 @@
 namespace autofill {
 
 namespace {
-
-using ::accessibility_annotator::EntryMetadata;
-using ::accessibility_annotator::MemoryDataType;
-using ::accessibility_annotator::MemoryEntrySource;
-using ::accessibility_annotator::MemoryEntrySourceType;
-using ::accessibility_annotator::MemorySearchResult;
 
 constexpr size_t kVisibleSuffixLength = 4;
 

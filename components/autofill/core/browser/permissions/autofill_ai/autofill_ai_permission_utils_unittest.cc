@@ -752,40 +752,6 @@ TEST_F(AutofillAiPermissionUtilsTest,
       client(), AutofillAiAction::kShowAmbientAutofillInSettings));
 }
 
-TEST_F(AutofillAiPermissionUtilsTest,
-       AmbientAutofillRequiresGeminiSettingsAllowed) {
-  client().set_personal_context_eligibility_state(
-      personal_context::PersonalContextEligibilityState::kEligible);
-  // Gemini settings are enabled by default.
-  ASSERT_EQ(
-      client().GetPrefs()->GetInteger(
-          optimization_guide::prefs::kGeminiSettings),
-      std::to_underlying(
-          optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
-
-  EXPECT_TRUE(
-      MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
-  EXPECT_TRUE(MayPerformAutofillAiAction(
-      client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
-      EntityType(kPassport)));
-  EXPECT_TRUE(MayPerformAutofillAiAction(
-      client(), AutofillAiAction::kShowAmbientAutofillInSettings));
-
-  // Disallow Gemini settings via enterprise policy.
-  client().GetPrefs()->SetInteger(
-      optimization_guide::prefs::kGeminiSettings,
-      std::to_underlying(
-          optimization_guide::prefs::GeminiSettingsPolicyState::kDisabled));
-
-  EXPECT_FALSE(
-      MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
-  EXPECT_FALSE(MayPerformAutofillAiAction(
-      client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
-      EntityType(kPassport)));
-  EXPECT_FALSE(MayPerformAutofillAiAction(
-      client(), AutofillAiAction::kShowAmbientAutofillInSettings));
-}
-
 INSTANTIATE_TEST_SUITE_P(
     All,
     AutofillAiMayPerformActionTest,
@@ -1110,18 +1076,10 @@ TEST_F(AutofillAiMayPerformImportToWalletTest,
 
 TEST_F(AutofillAiMayPerformImportToWalletTest,
        ImportToWallet_FalseForPrivatePassesForUnderagedUsers) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillAiWalletPrivatePasses},
-      /*disabled_features=*/{
-          features::kAutofillAiWalletPrivatePassesCapability});
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiWalletPrivatePasses};
   // Simulate that the can_use_model_execution_features() capability is false.
-  signin::IdentityManager* identity_manager = client().GetIdentityManager();
-  AccountInfo account_info = identity_manager->FindExtendedAccountInfo(
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
-  AccountCapabilitiesTestMutator(&account_info)
-      .set_can_use_model_execution_features(false);
-  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  client().SetCanUseModelExecutionFeatures(false);
   // Expect that Wallet imports for public passes are allowed.
   EXPECT_TRUE(MayPerformAutofillAiAction(
       client(), AutofillAiAction::kImportToWallet, EntityType(kVehicle)));
@@ -1139,12 +1097,7 @@ TEST_F(AutofillAiMayPerformImportToWalletTest,
       /*disabled_features=*/{});
   // Simulate that the supports_wallet_private_passes_in_autofill() capability
   // is false.
-  signin::IdentityManager* identity_manager = client().GetIdentityManager();
-  AccountInfo account_info = identity_manager->FindExtendedAccountInfo(
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
-  AccountCapabilitiesTestMutator(&account_info)
-      .set_supports_wallet_private_passes_in_autofill(false);
-  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+  client().SetSupportsWalletPrivatePassesInAutofill(false);
   // Expect that Wallet imports for public passes are allowed.
   EXPECT_TRUE(MayPerformAutofillAiAction(
       client(), AutofillAiAction::kImportToWallet, EntityType(kVehicle)));

@@ -31,8 +31,24 @@
 namespace net {
 
 namespace {
+
 #include "net/data/ssl/chrome_root_store/chrome-root-store-inc.cc"
 #include "net/data/ssl/chrome_root_store/signer-set-inc.cc"
+
+std::optional<bssl::SignatureAlgorithm>
+SignerSignatureAlgorithmToBsslSignatureAlgorithm(
+    chrome_root_store::SignatureAlgorithm signature_algorithm) {
+  switch (signature_algorithm) {
+    case chrome_root_store::SIGNATURE_ALGORITHM_ML_DSA44:
+      return bssl::SignatureAlgorithm::kMldsa44;
+    case chrome_root_store::SIGNATURE_ALGORITHM_ML_DSA65:
+      return bssl::SignatureAlgorithm::kMldsa65;
+    case chrome_root_store::SIGNATURE_ALGORITHM_ML_DSA87:
+      return bssl::SignatureAlgorithm::kMldsa87;
+    default:
+      return std::nullopt;
+  }
+}
 
 }  // namespace
 
@@ -783,7 +799,8 @@ int64_t CompiledSignerSetTimestampSeconds() {
 
 namespace {
 
-std::optional<ChromeRootStoreMtcMetadata::MtcAnchorData> CreateMtcAnchorData(
+std::optional<ChromeRootStoreMtcMetadata::MtcAnchorData>
+CreateMtcAnchorDataForExperiment(
     const chrome_root_store::MtcAnchorData& proto_mtc_anchor_data) {
   if (!proto_mtc_anchor_data.has_log_id() ||
       proto_mtc_anchor_data.log_id().empty() ||
@@ -864,8 +881,30 @@ std::optional<std::vector<uint8_t>> RelativeOidBytesFromText(
       UNSAFE_BUFFERS(base::span(CBB_data(cbb.get()), CBB_len(cbb.get()))));
 }
 
-bool ParseSigner(const chrome_root_store::Signer& signer_proto,
-                 std::vector<Signer>& out_signers) {
+// Returns false if `signer` can never be usable in the current configuration,
+// and thus is safe to drop completely.
+bool IsSignerTrustedAndUsable(const chrome_root_store::Signer& signer) {
+  if (!(signer.realm() == chrome_root_store::REALM_PUBLICLY_TRUSTED ||
+        (signer.realm() == chrome_root_store::REALM_UNTRUSTED_VALIDATION_ONLY &&
+         base::FeatureList::IsEnabled(features::kTestRootStore)))) {
+    return false;
+  }
+  if (signer.state_history().empty()) {
+    return false;
+  }
+  auto latest_state = signer.state_history(0).state();
+  if (latest_state != chrome_root_store::STATE_QUALIFIED &&
+      latest_state != chrome_root_store::STATE_USABLE &&
+      latest_state != chrome_root_store::STATE_FROZEN) {
+    return false;
+  }
+  return true;
+}
+
+// Parses the `signer_proto` into a `Signer` object, and if it is trusted and
+// usable, adds it to `out_signers`. Returns false if parsing failed.
+bool ParseAndFilterSigner(const chrome_root_store::Signer& signer_proto,
+                          std::vector<Signer>& out_signers) {
   Signer signer;
   signer.friendly_name = signer_proto.friendly_name();
 
@@ -876,6 +915,9 @@ bool ParseSigner(const chrome_root_store::Signer& signer_proto,
   }
   signer.base_id = std::move(*oid_bytes);
 
+  if (signer_proto.state_history().empty()) {
+    return false;
+  }
   for (const auto& state : signer_proto.state_history()) {
     if (!state.has_state_start()) {
       return false;
@@ -884,6 +926,9 @@ bool ParseSigner(const chrome_root_store::Signer& signer_proto,
         state.state(), ProtoTimestampToTime(state.state_start()));
   }
 
+  if (signer_proto.operator_history().empty()) {
+    return false;
+  }
   for (const auto& op : signer_proto.operator_history()) {
     if (!op.has_operator_start()) {
       return false;
@@ -911,7 +956,6 @@ bool ParseSigner(const chrome_root_store::Signer& signer_proto,
     signer.crs_root_id = signer_proto.crs_root_id();
   }
   signer.min_log_number = signer_proto.min_log_number();
-  signer.signature_algorithm = signer_proto.signature_algorithm();
 
   // For component updates, key bytes may be included directly in the proto.
   // We parse them into a bssl::UniquePtr<CRYPTO_BUFFER>.
@@ -951,8 +995,102 @@ bool ParseSigner(const chrome_root_store::Signer& signer_proto,
     signer.key = x509_util::CreateCryptoBufferFromStaticDataUnsafe(it->second);
   }
 
+  std::optional<bssl::SignatureAlgorithm> sigalg =
+      SignerSignatureAlgorithmToBsslSignatureAlgorithm(
+          signer_proto.signature_algorithm());
+  if (!sigalg) {
+    // An unknown signature algorithm causes the signer to be ignored, and is
+    // not considered a parsing failure. We may want to add new signature
+    // algorithms in the future, and this gives us more flexibility in how to
+    // handle that. (We can still cause clients to fail the whole update by
+    // bumping compatibility version if we want that behavior.)
+    // This is done after all the other parsing is done to ensure that any
+    // parsing errors still cause the proto parsing to fail, rather than being
+    // ignored if the error was in a signer with an unknown signature
+    // algorithm.
+    return true;
+  }
+  signer.signature_algorithm = *sigalg;
+
+  if (!IsSignerTrustedAndUsable(signer_proto)) {
+    // If the signer is not trusted or is retired, don't save it in the output
+    // list. Return true to indicate success since it is not an error for the
+    // list to contain untrusted signers. This is done after all parsing is
+    // done to ensure that any parsing errors still cause the proto parsing to
+    // fail, rather than being ignored if the error was in a signer that is
+    // filtered out.
+    return true;
+  }
+
   out_signers.push_back(std::move(signer));
   return true;
+}
+
+std::optional<ChromeRootStoreMtcMetadata::Plants05AnchorData>
+CreatePlants05AnchorData(
+    const chrome_root_store::MtcAnchorData& proto_mtc_anchor_data) {
+  if (!proto_mtc_anchor_data.has_ca_id() ||
+      proto_mtc_anchor_data.ca_id().empty()) {
+    return std::nullopt;
+  }
+
+  std::vector<std::pair<uint64_t, uint64_t>> revoked_indices_storage;
+  revoked_indices_storage.reserve(proto_mtc_anchor_data.revoked_indices_size());
+  for (const auto& revoked_range : proto_mtc_anchor_data.revoked_indices()) {
+    if (!revoked_range.has_end_exclusive() ||
+        !revoked_range.has_start_inclusive()) {
+      return std::nullopt;
+    }
+    revoked_indices_storage.emplace_back(revoked_range.end_exclusive(),
+                                         revoked_range.start_inclusive());
+  }
+
+  ChromeRootStoreMtcMetadata::Plants05AnchorData anchor_data;
+  anchor_data.revoked_serials =
+      base::flat_map<uint64_t, uint64_t>(std::move(revoked_indices_storage));
+
+  for (const auto& proto_mtc_log_data : proto_mtc_anchor_data.mtc_log_data()) {
+    if (!proto_mtc_log_data.has_log_number() ||
+        !proto_mtc_log_data.has_trusted_landmark_ids_range() ||
+        !proto_mtc_log_data.trusted_landmark_ids_range()
+             .has_min_active_landmark_inclusive() ||
+        !proto_mtc_log_data.trusted_landmark_ids_range()
+             .has_last_landmark_inclusive() ||
+        proto_mtc_log_data.trusted_subtrees_size() == 0) {
+      return std::nullopt;
+    }
+
+    uint16_t log_number = proto_mtc_log_data.log_number();
+
+    ChromeRootStoreMtcMetadata::Plants05AnchorData::LogLandmarkRange
+        landmark_range;
+    landmark_range.log_number = log_number;
+    landmark_range.landmark_min_inclusive =
+        proto_mtc_log_data.trusted_landmark_ids_range()
+            .min_active_landmark_inclusive();
+    landmark_range.landmark_max_inclusive =
+        proto_mtc_log_data.trusted_landmark_ids_range()
+            .last_landmark_inclusive();
+    anchor_data.trusted_landmark_ranges.push_back(landmark_range);
+
+    std::vector<bssl::TrustedSubtree> trusted_subtrees;
+    for (const auto& subtree : proto_mtc_log_data.trusted_subtrees()) {
+      if (!subtree.has_start_inclusive() || !subtree.has_end_exclusive() ||
+          !subtree.has_hash() ||
+          subtree.hash().size() != crypto::kSHA256Length) {
+        return std::nullopt;
+      }
+      bssl::TrustedSubtree trusted_subtree;
+      trusted_subtree.range.start = subtree.start_inclusive();
+      trusted_subtree.range.end = subtree.end_exclusive();
+      base::span(trusted_subtree.hash)
+          .copy_from(base::as_byte_span(subtree.hash()));
+      trusted_subtrees.push_back(std::move(trusted_subtree));
+    }
+    anchor_data.trusted_subtrees[log_number] = std::move(trusted_subtrees);
+  }
+
+  return anchor_data;
 }
 
 }  // namespace
@@ -970,6 +1108,20 @@ ChromeRootStoreMtcMetadata::MtcAnchorData::operator=(
 ChromeRootStoreMtcMetadata::MtcAnchorData&
 ChromeRootStoreMtcMetadata::MtcAnchorData::operator=(
     ChromeRootStoreMtcMetadata::MtcAnchorData&& other) = default;
+
+ChromeRootStoreMtcMetadata::Plants05AnchorData::Plants05AnchorData() = default;
+ChromeRootStoreMtcMetadata::Plants05AnchorData::~Plants05AnchorData() = default;
+
+ChromeRootStoreMtcMetadata::Plants05AnchorData::Plants05AnchorData(
+    const ChromeRootStoreMtcMetadata::Plants05AnchorData& other) = default;
+ChromeRootStoreMtcMetadata::Plants05AnchorData::Plants05AnchorData(
+    ChromeRootStoreMtcMetadata::Plants05AnchorData&& other) = default;
+ChromeRootStoreMtcMetadata::Plants05AnchorData&
+ChromeRootStoreMtcMetadata::Plants05AnchorData::operator=(
+    const ChromeRootStoreMtcMetadata::Plants05AnchorData& other) = default;
+ChromeRootStoreMtcMetadata::Plants05AnchorData&
+ChromeRootStoreMtcMetadata::Plants05AnchorData::operator=(
+    ChromeRootStoreMtcMetadata::Plants05AnchorData&& other) = default;
 
 ChromeRootStoreMtcMetadata::ChromeRootStoreMtcMetadata() = default;
 ChromeRootStoreMtcMetadata::~ChromeRootStoreMtcMetadata() = default;
@@ -996,13 +1148,27 @@ ChromeRootStoreMtcMetadata::CreateFromMtcMetadataProto(
       base::Time::UnixEpoch() + base::Seconds(proto.update_time_seconds());
 
   for (const auto& proto_mtc_anchor_data : proto.mtc_anchor_data()) {
-    std::optional<ChromeRootStoreMtcMetadata::MtcAnchorData> mtc_anchor_data =
-        CreateMtcAnchorData(proto_mtc_anchor_data);
-    if (!mtc_anchor_data) {
-      return std::nullopt;
+    if (proto_mtc_anchor_data.mtc_log_data_size() > 0) {
+      std::optional<ChromeRootStoreMtcMetadata::Plants05AnchorData>
+          plants05_anchor_data =
+              CreatePlants05AnchorData(proto_mtc_anchor_data);
+      if (!plants05_anchor_data) {
+        return std::nullopt;
+      }
+      std::vector<uint8_t> ca_id =
+          base::ToVector(base::as_byte_span(proto_mtc_anchor_data.ca_id()));
+      mtc_metadata.plants05_anchor_data_[ca_id] =
+          std::move(plants05_anchor_data).value();
+    } else {
+      std::optional<ChromeRootStoreMtcMetadata::MtcAnchorData> mtc_anchor_data =
+          CreateMtcAnchorDataForExperiment(proto_mtc_anchor_data);
+      if (!mtc_anchor_data) {
+        return std::nullopt;
+      }
+      std::vector<uint8_t> log_id = mtc_anchor_data->log_id;
+      mtc_metadata.mtc_anchor_data_[log_id] =
+          std::move(mtc_anchor_data).value();
     }
-    std::vector<uint8_t> log_id = mtc_anchor_data->log_id;
-    mtc_metadata.mtc_anchor_data_[log_id] = std::move(mtc_anchor_data).value();
   }
 
   return mtc_metadata;
@@ -1087,13 +1253,13 @@ ChromeRootStoreSignerSet::CreateFromProto(
   }
 
   for (const auto& issuer : proto.issuers()) {
-    if (!ParseSigner(issuer, signer_set.issuers_)) {
+    if (!ParseAndFilterSigner(issuer, signer_set.trusted_issuers_)) {
       return std::nullopt;
     }
   }
 
   for (const auto& mirror : proto.mirrors()) {
-    if (!ParseSigner(mirror, signer_set.mirrors_)) {
+    if (!ParseAndFilterSigner(mirror, signer_set.trusted_mirrors_)) {
       return std::nullopt;
     }
   }

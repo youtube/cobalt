@@ -54,15 +54,23 @@ const TabGroup* GetTabGroupFromNode(TabCollectionNode* node) {
 }  // namespace
 
 TabGroupView::TabGroupView(TabCollectionNode* collection_node)
-    : DraggedTabsContainer(static_cast<views::View&>(*this),
-                           collection_node,
-                           DragAxes::kVerticalOnly,
-                           DragLayout::kVertical),
+    : DraggedTabsContainer(
+          static_cast<views::View&>(*this),
+          collection_node,
+          collection_node && collection_node->orientation() ==
+                                 TabStripOrientation::kHorizontal
+              ? DragAxes::kHorizontalOnly
+              : DragAxes::kVerticalOnly,
+          collection_node && collection_node->orientation() ==
+                                 TabStripOrientation::kHorizontal
+              ? DragLayout::kHorizontal
+              : DragLayout::kVertical),
       collection_node_(collection_node),
       tab_group_visual_data_(
           *GetTabGroupFromNode(collection_node_)->visual_data()),
       group_header_(AddChildView(std::make_unique<TabGroupHeaderView>(
           *this,
+          collection_node_->orientation(),
           collection_node_->GetController()->GetStateController(),
           &tab_group_visual_data_))),
       group_line_(AddChildView(std::make_unique<views::View>())),
@@ -133,8 +141,9 @@ std::unique_ptr<views::Widget> TabGroupView::ShowGroupEditorBubble(
   // When the tab strip is collapsed, anchor to the group header, otherwise
   // anchor to the editor bubble button.
   views::View* anchor_view =
-      GetTabStripCollapseState() !=
-              tabs::VerticalTabStripCollapseState::kExpanded
+      (GetTabStripCollapseState() !=
+           tabs::VerticalTabStripCollapseState::kExpanded ||
+       !group_header_->editor_bubble_button())
           ? views::AsViewClass<views::View>(group_header_)
           : views::AsViewClass<views::View>(
                 group_header_->editor_bubble_button());
@@ -292,13 +301,21 @@ std::optional<BrowserRootView::DropIndex> TabGroupView::GetLinkDropIndex(
   if (!collection_node_) {
     return std::nullopt;
   }
-  // Use the vertical position to find the child view being dragged over.
-  if (loc_in_group.y() < group_header_->bounds().bottom()) {
-    // Determine whether the drop is on the leading (top) or trailing
-    // (bottom) half of the header. If in the top half, then we the drag
-    // is considered to be above the group.
-    const bool is_leading =
-        loc_in_group.y() < group_header_->bounds().CenterPoint().y();
+  const bool is_horizontal =
+      collection_node_->orientation() == TabStripOrientation::kHorizontal;
+
+  // Use the position along drag axis to find the child view being dragged over.
+  const int header_end = is_horizontal ? group_header_->bounds().right()
+                                       : group_header_->bounds().bottom();
+  const int loc_coord = is_horizontal ? loc_in_group.x() : loc_in_group.y();
+  const int header_center = is_horizontal
+                                ? group_header_->bounds().CenterPoint().x()
+                                : group_header_->bounds().CenterPoint().y();
+
+  if (loc_coord < header_end) {
+    // Determine whether the drop is on the leading or trailing half of the
+    // header.
+    const bool is_leading = loc_coord < header_center;
     return GetDragHandler().GetLinkDropIndexForNode(
         *collection_node_, is_leading
                                ? std::make_optional(DragPositionHint::kBefore)
@@ -308,7 +325,9 @@ std::optional<BrowserRootView::DropIndex> TabGroupView::GetLinkDropIndex(
   for (const auto& child_node : collection_node_->children()) {
     auto* view = child_node->view();
     CHECK(view);
-    if (loc_in_group.y() > view->bounds().bottom()) {
+    const int view_end =
+        is_horizontal ? view->bounds().right() : view->bounds().bottom();
+    if (loc_coord > view_end) {
       continue;
     }
 
@@ -319,9 +338,11 @@ std::optional<BrowserRootView::DropIndex> TabGroupView::GetLinkDropIndex(
     // consider this drag as a before/after rather than over.
     constexpr double kDragOverMargins = 0.2;
     std::optional<DragPositionHint> hint;
-    if (loc_in_child.y() < view->height() * kDragOverMargins) {
+    const int child_coord = is_horizontal ? loc_in_child.x() : loc_in_child.y();
+    const int child_size = is_horizontal ? view->width() : view->height();
+    if (child_coord < child_size * kDragOverMargins) {
       hint = DragPositionHint::kBefore;
-    } else if (loc_in_child.y() > view->height() * (1 - kDragOverMargins)) {
+    } else if (child_coord > child_size * (1 - kDragOverMargins)) {
       hint = DragPositionHint::kAfter;
     } else if (child_node->type() == TabCollectionNode::Type::SPLIT) {
       // If landing in the middle of the split, let the split view decide which

@@ -31,8 +31,8 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarStatePredictor;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
-import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.BottomBarTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
@@ -47,8 +47,8 @@ import org.chromium.ui.modelutil.PropertyModel;
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public final class ShareButtonControllerTest {
-    private final FreshCtaTransitTestRule mActivityTestRule =
-            ChromeTransitTestRules.freshChromeTabbedActivityRule();
+    private final AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.autoResetCtaActivityRule();
 
     private final SigninTestRule mSigninTestRule = new SigninTestRule();
 
@@ -64,6 +64,19 @@ public final class ShareButtonControllerTest {
     @Before
     public void setUp() {
         AdaptiveToolbarStatePredictor.setToolbarStateForTesting(AdaptiveToolbarButtonVariant.SHARE);
+
+        if (mActivityTestRule.getActivity() != null) {
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        mActivityTestRule
+                                .getActivity()
+                                .getRootUiCoordinatorForTesting()
+                                .getAdaptiveToolbarUiCoordinatorForTesting()
+                                .getAdaptiveToolbarButtonControllerForTesting()
+                                .recomputeUiState();
+                    });
+        }
+
         mInitialPage = mActivityTestRule.startOnBlankPage();
 
         int deviceWidth =

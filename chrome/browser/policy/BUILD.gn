@@ -155,6 +155,44 @@ if (enable_extensions) {
   }
 }
 
+if (enable_extensions) {
+  source_set("extension_force_install_mixin") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    public = [ "extension_force_install_mixin.h" ]
+
+    sources = [ "extension_force_install_mixin.cc" ]
+
+    public_deps = [
+      "//base",
+      "//chrome/test:test_support",
+      "//components/policy/core/common:test_support",
+      "//extensions/common",
+    ]
+
+    deps = [
+      "//chrome/browser:browser_process",
+      "//chrome/browser/profiles:profile",
+      "//components/crx_file",
+      "//components/policy/core/common",
+      "//components/policy/core/common:common_constants",
+      "//components/prefs",
+      "//extensions/browser",
+      "//extensions/browser:test_support",
+    ]
+
+    if (is_chromeos) {
+      deps += [
+        "//chrome/browser/ash/login/test:test_support",
+        "//chrome/browser/ash/policy/core:test_support",
+        "//chrome/browser/ash/policy/test_support",
+      ]
+    }
+  }
+}
+
 source_set("test_support_fakes") {
   testonly = true
 
@@ -179,6 +217,16 @@ source_set("test_support") {
   sources = [
     "cloud/cloud_policy_test_utils.cc",
     "cloud/cloud_policy_test_utils.h",
+    "messaging_layer/public/report_client_test_util.cc",
+    "messaging_layer/public/report_client_test_util.h",
+    "messaging_layer/upload/file_upload_job_test_util.cc",
+    "messaging_layer/upload/file_upload_job_test_util.h",
+    "messaging_layer/util/reporting_server_connector_test_util.cc",
+    "messaging_layer/util/reporting_server_connector_test_util.h",
+    "messaging_layer/util/test_request_payload.cc",
+    "messaging_layer/util/test_request_payload.h",
+    "messaging_layer/util/test_response_payload.cc",
+    "messaging_layer/util/test_response_payload.h",
     "policy_test_utils.cc",
     "policy_test_utils.h",
     "safe_browsing_policy_test.cc",
@@ -188,9 +236,19 @@ source_set("test_support") {
   deps = [
     "//base",
     "//chrome/browser/lifetime:termination_notification",
+    "//chrome/browser/policy:impl",
+    "//chrome/browser/policy/messaging_layer/storage_selector",
     "//chrome/test:test_support",
     "//components/policy/core/common",
     "//components/policy/core/common:common_constants",
+    "//components/policy/core/common:test_support",
+    "//components/reporting/proto:record_constants",
+    "//components/reporting/proto:record_proto",
+    "//components/reporting/storage:storage_module",
+    "//components/reporting/storage:test_support",
+    "//components/reporting/util:status",
+    "//components/reporting/util:status_macros",
+    "//components/reporting/util:test_callbacks_support",
     "//components/safe_search_api",
     "//components/security_interstitials/content:security_interstitial_page",
     "//url",
@@ -204,6 +262,7 @@ source_set("test_support") {
     deps += [
       "//ash",
       "//ash/public/cpp",
+      "//chromeos/ash/components/system",
     ]
   }
 
@@ -303,6 +362,7 @@ source_set("policy_specific_browser_tests") {
     "//components/safe_browsing/core/common",
     "//components/security_interstitials/content:security_interstitial_page",
     "//components/site_isolation",
+    "//components/skills/public",
     "//components/unified_consent",
     "//content/test:test_support",
     "//media",
@@ -758,6 +818,7 @@ source_set("unit_tests") {
   deps = [
     ":impl",
     ":test_support",
+    "//chrome/browser/policy:test_support",
     "//chrome/browser/prefs",
     "//chrome/test:test_support",
     "//components/account_id:test_support",
@@ -772,6 +833,7 @@ source_set("unit_tests") {
     "//components/reporting/util:status_macros",
     "//components/reporting/util:test_callbacks_support",
     "//components/site_isolation",
+    "//components/skills/public",
     "//extensions/buildflags",
     "//testing/gmock",
     "//testing/gtest",
@@ -1183,6 +1245,7 @@ source_set("impl") {
     "//chrome/browser/ui/toolbar/chrome_labs",
     "//chrome/browser/ui/webui/version",
     "//chrome/browser/webauthn",
+    "//components/autofill/core/browser/at_memory/policy",
     "//components/blocked_content",
     "//components/bookmarks/managed",
     "//components/certificate_transparency",
@@ -1223,6 +1286,8 @@ source_set("impl") {
     "//components/reporting/util:task_runner_context",
     "//components/safe_browsing/core/common:safe_browsing_policy_handler",
     "//components/site_isolation",
+    "//components/skills/internal",
+    "//components/skills/public",
     "//components/spellcheck:buildflags",
     "//components/spellcheck/browser",
     "//components/unified_consent",
@@ -1316,7 +1381,10 @@ source_set("impl") {
         "cloud/user_policy_signin_service.cc",
         "file_selection_dialogs_policy_handler.cc",
       ]
-      deps += [ "//chrome/browser/enterprise:browser_launch_reporting" ]
+      deps += [
+        "//chrome/browser/enterprise:browser_launch_reporting",
+        "//chrome/browser/ui:enterprise_startup_dialog",
+      ]
     }
   }
 

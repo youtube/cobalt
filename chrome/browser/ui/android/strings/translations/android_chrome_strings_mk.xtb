@@ -41,6 +41,7 @@
 <translation id="1140317858355046628">Ако ја избришете, сите веднаш ќе го изгубат пристапот до групата картички „<ph name="GROUP_NAME" />“, а групата картички ќе се избрише од сите уреди.</translation>
 <translation id="1142732900304639782">Не нуди превод за овие сајтови</translation>
 <translation id="1143193470214071120">Затворете прозорец или управувајте со прозорците</translation>
+<translation id="1143486892058798649">Зачувај го линкот како…</translation>
 <translation id="1149725087019908252">Се скенира <ph name="FILE_NAME" /></translation>
 <translation id="1150263420752757504"><ph name="APP_NAME" /> ќе се отвори во Chrome. Ако продолжите, се согласувате со <ph name="BEGIN_LINK1" />Условите за користење на Google<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />Дополнителните услови за користење на Google Chrome и Chrome OS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Немате лозинки зачувани во Google Password Manager.</translation>
@@ -142,11 +143,13 @@
 <translation id="1544826120773021464">За да управувате со сметката на Google, допрете на копчето „Управувајте со сметката“</translation>
 <translation id="1549000191223877751">Премести во друг прозорец</translation>
 <translation id="1553358976309200471">Ажурирај го Chrome</translation>
+<translation id="1554352084785952638"><ph name="SEARCH_ENGINE" /> за „<ph name="SEARCH_TERMS" />“</translation>
 <translation id="1554532453982918912">Помогнете да го подобриме Chrome за тие што го користат исто како вас</translation>
 <translation id="1568636008098739136">Слушајте ја страницава. За да ја измените кратенкава, допрете и задржете.</translation>
 <translation id="1571041387761170095">Нема слаби или повторно употребени лозинки</translation>
 <translation id="1578591621182011812">{NUM_PASSWORDS,plural, =1{1 компромитирана лозинка на уредов}one{# компромитирана лозинка на уредов}other{# компромитирани лозинки на уредов}}</translation>
 <translation id="1594635596540195766"><ph name="SUGGESTIONS_COUNT" /> предложени ставки во списокот долу.</translation>
+<translation id="159689249463841786">Изберете папка, во моментов <ph name="FOLDER_NAME" /></translation>
 <translation id="1598163867407640634">Користете <ph name="SITE_ETLD_PLUS_ONE" /> со <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
 <translation id="1598770407402123677"><ph name="TAB_TITLE" />, прикачена картичка за снимање</translation>
 <translation id="1600756129506222718"><ph name="TAB_TITLE" />, картичка за споделување</translation>
@@ -277,6 +280,7 @@
 <translation id="2190355936436201913">(празно)</translation>
 <translation id="219283042927675668">Картички во група</translation>
 <translation id="2194856509914051091">Нешта што треба да се земат предвид</translation>
+<translation id="2196695604589508993">Отвори ја историјата</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, прикачена картичка за споделување</translation>
 <translation id="22091350895006575">Додај корисничко име</translation>
 <translation id="221494669172414749">Ако го отворите Chrome без „Заклучување на профилот“, ќе се отстранат вашите лозинки и начини на плаќање од автомобилот. „Заклучување на профилот“ ги штити овие податоци.</translation>
@@ -311,6 +315,7 @@
 <translation id="2330186936255788117">Повеќе обележувачи</translation>
 <translation id="2332515770639153015">„Подобреното безбедно прелистување“ е вклучено</translation>
 <translation id="233375395665273385">Избриши и одјави се</translation>
+<translation id="2334275697832662087">Безбедноста овозможена од AI на Chrome ви помага да се заштитите од онлајн закани, влевајќи ви самодоверба додека прелистувате</translation>
 <translation id="2341410551640223969">Не можеше да се инсталира <ph name="WEBAPK_NAME" />.</translation>
 <translation id="2349710944427398404">Вкупен сообраќај искористен од Chrome, вклучувајќи сметки, обележувачи и зачувани поставки</translation>
 <translation id="2354001756790975382">Други обележувачи</translation>
@@ -612,6 +617,7 @@
 <translation id="3577473026931028326">Нешто тргна наопаку. Обидете се повторно.</translation>
 <translation id="3577558748185201054">Управувајте со вашите интереси и поставки</translation>
 <translation id="3587482841069643663">Сите</translation>
+<translation id="3598421953808879451">Зачувај го видеото како…</translation>
 <translation id="3602290021589620013">Преглед</translation>
 <translation id="3614126103057878858">Увиди во цените</translation>
 <translation id="3616113530831147358">Аудио</translation>
@@ -722,6 +728,7 @@
 <translation id="4044708993631234325">Долен лист</translation>
 <translation id="4045441967987592849">Отвори повторно</translation>
 <translation id="4049920046559074950">Повеќе опции за <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051548576872472315">Најдете ги неодамна затворените картички и прозорци тука</translation>
 <translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Отвори во прозорец „Инкогнито“}one{Отвори ги сите (#) во прозорец „Инкогнито“}other{Отвори ги сите (#) во прозорец „Инкогнито“}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> стандардна картичка со нова активност во споделените групи картички}one{<ph name="TABS_COUNT_MANY" /> стандардна картичка со нова активност во споделените групи картички}other{<ph name="TABS_COUNT_MANY" /> стандардни картички со нова активност во споделените групи картички}}</translation>
 <translation id="405365679581583349">Ажурирајте ги „Услугите на Google Play“</translation>
@@ -1278,6 +1285,7 @@
 <translation id="6321592572353357376">Екстензијата „<ph name="EXTENSION_NAME" />“ сака да се најавите на Chrome</translation>
 <translation id="6324916366299863871">Изменете ја кратенката</translation>
 <translation id="6324977638108296054">Не може да се создаде линк до нагласената ставка</translation>
+<translation id="6331836477476466332">Побезбеден и помоќен прелистувач за вас</translation>
 <translation id="6333140779060797560">Сподели преку <ph name="APPLICATION" /></translation>
 <translation id="6335454563754888572">Изменете ја URL-адресата што покажува кон страницата на: <ph name="PAGE_URL" /></translation>
 <translation id="6337234675334993532">Шифрирање</translation>
@@ -1435,6 +1443,7 @@
 <translation id="6867400383614725881">Нова картичка „Инкогнито“</translation>
 <translation id="686899695320434745">Адресите не се шифрирани со вашата лозинка. Тоа ви овозможува да ги користите на други услуги на Google.</translation>
 <translation id="6870625088374152862">Најавени сте како <ph name="USER_EMAIL_ADDRESS" /></translation>
+<translation id="6871397658902960384">Започнете со прелистување</translation>
 <translation id="687838958001010630">Секој што го има линкот може да ги изменува сите картички</translation>
 <translation id="6880903702195291049">Нема дозволи што треба да се прегледаат</translation>
 <translation id="6883204995689174413">Сподели</translation>
@@ -1520,6 +1529,7 @@
 <translation id="71503698506017927">Шифрирањето со лозинка не опфаќа начини на плаќање и адреси од Google Pay.
 
 За да ја промените поставкава, <ph name="BEGIN_LINK" />избришете ги податоците од Chrome во вашата сметка<ph name="END_LINK" />.</translation>
+<translation id="7159399361248977424">Зачувај ја сликата како…</translation>
 <translation id="7165972437814027679">Дознајте повеќе за тоа зошто Chrome ги блокира некои од датотеките</translation>
 <translation id="7168323970702333693">Најавени сте како: <ph name="USER_NAME" />. Ги отвора поставките.</translation>
 <translation id="7170930892977483182">Ќе се избришат сите безбедносни кодови што се зачувани на уредот и во Google Wallet</translation>
@@ -1575,6 +1585,7 @@
 <translation id="7359002509206457351">Пристап до начините на плаќање</translation>
 <translation id="7363349185727752629">Упатство за вашите опции за приватноста</translation>
 <translation id="7364103838544876661">Повеќе опции за бришење на податоците од прелистување</translation>
+<translation id="736435710397109878">Прекар на картичката, најмногу 25 знака</translation>
 <translation id="7365073365123878797">За да започнете со зачувување и користење лозинки со Google Password Manager, ажурирајте ја „Услуги на Google Play“</translation>
 <translation id="7368009310682364976">Прегледајте ги неодамна отворените картички</translation>
 <translation id="7368927539449986686">Изменете го пребарувањето сајтови</translation>
@@ -1693,6 +1704,7 @@
 <translation id="7824665136384946951">Вашата организација го исклучи „Безбедното прелистување“</translation>
 <translation id="7825973332242257878">Групи картички</translation>
 <translation id="7826342993930002256">Вашиот Chrome, насекаде</translation>
+<translation id="7845155831233417403">Може да имате најмногу <ph name="MAX_INSTANCE_COUNT" /> прозорци. Затворете некој од прозорците за да продолжите.</translation>
 <translation id="7846161022626028328">Се јави грешка. Обидете се повторно.</translation>
 <translation id="7846296061357476882">Услуги на Google</translation>
 <translation id="784652447248278262">Тековен прозорец</translation>
@@ -1759,7 +1771,6 @@
 <translation id="8088176524274673045">За да споделувате со луѓе во близина, дозволете им да го скенираат QR-кодов</translation>
 <translation id="8090732854597034573">Ако ти треба помош, прашај го родителот</translation>
 <translation id="8101414242770404289">Нема картички од <ph name="TIME_PERIOD" /></translation>
-<translation id="8103578431304235997">Инкогнито-картичка</translation>
 <translation id="810433609302852">Долен лист со промоција на функцијата „Известувања за совети“ и чекори за користење</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
 <translation id="8109802255973641442">Отстрани ги екстензиите и податоците што ги зачувале на уредов</translation>
@@ -1817,10 +1828,12 @@
 <translation id="8282297628636750033">Ако е можно, примени темна тема на сајтовите</translation>
 <translation id="8282950411412455249">Одете во „Поставки за безбедност“</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Затвори 1 прозорец „Инкогнито“}one{Затвори # прозорец „Инкогнито“}other{Затвори # прозорци „Инкогнито“}}</translation>
+<translation id="8289602658021943461">Зачувај го видеокадарот како…</translation>
 <translation id="8313599942510782709">Вашата задача сѐ уште е во тек</translation>
 <translation id="8317318757008452355">Отвори ги опциите за печатење</translation>
 <translation id="8320212361750431956">Последна активност</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Ново<ph name="END_NEW" /></translation>
+<translation id="8333026248928723981">Обележувачи и списоци</translation>
 <translation id="8342727528718219152">Chrome ќе ве извести за сајтови што можеби испраќаат премногу известувања</translation>
 <translation id="834313815369870491">Никогаш не преведувај сајтови</translation>
 <translation id="8348215005712416247"><ph name="TAB_TITLE" />, повеќекратно избрана прикачена картичка „Инкогнито“ за снимање</translation>
@@ -2062,6 +2075,7 @@
 <translation id="939598580284253335">Внеси пристапна фраза</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, закачена картичка „Инкогнито“ со слика во слика</translation>
 <translation id="945522503751344254">Испратете повратни информации</translation>
+<translation id="948276827484905248">Создај QR-код</translation>
 <translation id="95817756606698420">Chrome може да го користи <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> за пребарување во Кина. Тоа може да го промените во <ph name="BEGIN_LINK" />Поставки<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Избришете го прелистувањето</translation>
 <translation id="963246339335003378">Отвори „Управник со задачи“</translation>

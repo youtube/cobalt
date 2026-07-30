@@ -26,6 +26,8 @@
 #import "ios/chrome/browser/variations/model/ios_chrome_variations_seed_fetcher.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_variations_service.h"
+#import "ios/chrome/test/scoped_key_window.h"
+#import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
@@ -66,8 +68,8 @@ class VariationsAppStateAgentTest : public PlatformTest {
     mock_fetcher_ =
         OCMPartialMock([[IOSChromeVariationsSeedFetcher alloc] init]);
     OCMStub([mock_fetcher_ startSeedFetch]);
-    // Set up scene state from the mock app state.
-    scene_state_ = [[SceneState alloc] initWithAppState:mock_app_state_];
+    // Set up scene state.
+    scene_state_ = [[SceneState alloc] init];
   }
 
   ~VariationsAppStateAgentTest() override {
@@ -386,24 +388,29 @@ TEST_F(VariationsAppStateAgentTest, ReassignGroupOnSecondFirstRun) {
 // Tests that if the seed fetch does not complete before the scene transitions
 // to foreground, the LaunchScreenViewController would be displayed.
 TEST_F(VariationsAppStateAgentTest, LaunchScreenDisplaysIfSeedIsNotFetched) {
-  // Sets expectation.
-  id mock_scene_state = OCMPartialMock(GetSceneState());
-  id mock_window = [OCMockObject mockForClass:[UIWindow class]];
-  OCMExpect([mock_window
-      setRootViewController:[OCMArg checkWithBlock:^BOOL(UIViewController* vc) {
-        return vc.view.accessibilityIdentifier ==
-               first_run::kLaunchScreenAccessibilityIdentifier;
-      }]]);
-  OCMExpect([mock_window makeKeyAndVisible]);
-  OCMStub([mock_scene_state window]).andReturn(mock_window);
+  SceneState* scene_state = GetSceneState();
+
+  // Ensure there is a UIWindow connected to the SceneState with a non-nil
+  // -rootViewController (as the VariationsAppStateAgent will install some
+  // sub-views).
+  ScopedKeyWindow scoped_key_window;
+  UIWindow* window = scoped_key_window.Get();
+  scene_state.window = window;
+
+  ASSERT_NE(window.rootViewController, nil);
+  ASSERT_NSNE(window.rootViewController.view.accessibilityIdentifier,
+              first_run::kLaunchScreenAccessibilityIdentifier);
+
   // Starts an agent that fetches the seed.
   VariationsAppStateAgent* agent = CreateAgentThatFetches();
   // Simulate that the seed fetch has completed right before
   // AppInitStage::kVariationsSeed is reached.
   TransitionAgentToStage(agent, AppInitStage::kVariationsSeed);
-  [agent sceneState:mock_scene_state
+  [agent sceneState:scene_state
       transitionedToActivationLevel:SceneActivationLevelForegroundInactive];
-  EXPECT_OCMOCK_VERIFY(mock_window);
+
+  EXPECT_NSEQ(window.rootViewController.view.accessibilityIdentifier,
+              first_run::kLaunchScreenAccessibilityIdentifier);
 }
 
 // Tests that the fetch time from last launch will be saved when the app goes to

@@ -211,29 +211,34 @@ std::vector<Suggestion> GetFooterSuggestions(
   if (trigger_field.is_autofilled_according_to_renderer()) {
     suggestions.emplace_back(CreateUndoSuggestion());
   }
-  if (base::FeatureList::IsEnabled(
-          features::kSuggestionManageButtonSplitForEnhancedAutofill) &&
-      base::FeatureList::IsEnabled(features::kYourSavedInfoSettingsPage)) {
-    CHECK(!ui_sections.empty());
 
-    if (ui_sections.size() > 1) {
-      suggestions.emplace_back(CreateManageAutofillAiSuggestion());
-    } else {
+  const bool is_split_manage_enabled =
+      base::FeatureList::IsEnabled(
+          features::kSuggestionManageButtonSplitForEnhancedAutofill) &&
+      base::FeatureList::IsEnabled(features::kYourSavedInfoSettingsPage);
+
+  if (is_split_manage_enabled) {
+    CHECK(!ui_sections.empty());
+    if (ui_sections.size() == 1) {
       switch (*ui_sections.begin()) {
         case AutofillAiUiSection::kTravel:
           suggestions.emplace_back(CreateManageTravelSuggestion());
-          break;
+          return suggestions;
         case AutofillAiUiSection::kIdentityDocs:
           suggestions.emplace_back(CreateManageIdentityDocsSuggestion());
-          break;
+          return suggestions;
         case AutofillAiUiSection::kShopping:
           suggestions.emplace_back(CreateManageShoppingSuggestion());
-          break;
+          return suggestions;
       }
     }
-  } else {
-    suggestions.emplace_back(CreateManageAutofillAiSuggestion());
   }
+
+  // Graceful fallback for everything else:
+  // - Features disabled
+  // - ui_sections has multiple items
+  // - Unhandled AutofillAiUiSection enums
+  suggestions.emplace_back(CreateManageAutofillAiSuggestion());
   return suggestions;
 }
 
@@ -752,29 +757,6 @@ std::vector<const EntityInstance*> GetEntitiesForSuggestion(
       app_locale);
 }
 
-// Returns true if the `field` is of an entity type that is currently being
-// prefetched. This is used to decide if pre-fetching suggestion should be
-// shown for a specific field.
-bool IsFetchingFillableEntity(const AutofillField& field,
-                              AutofillClient& client) {
-  AutofillAiPersonalContextAccessManager* access_manager =
-      client.GetAutofillAiPersonalContextAccessManager();
-  if (!access_manager) {
-    return false;
-  }
-  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
-  for (EntityType entity_type : DenseSet<EntityType>::all()) {
-    if (field.Type().GetAutofillAiType(entity_type) != UNKNOWN_TYPE) {
-      if (access_manager->ServerHasDataAvailable(entity_type) &&
-          access_manager->GetPrefetchStatusByEntityType(entity_type) ==
-              RequestStatus::kPending) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 std::vector<Suggestion> CreateFetchingAmbientSuggestions() {
   Suggestion suggestion(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_FETCHING_AMBIENT_DATA),
@@ -936,7 +918,7 @@ std::optional<Suggestion> CreateDomainFallbackSuggestion(
     return std::nullopt;
   }
 
-  std::vector<EntityInstance> fallback_entities;
+  std::vector<const EntityInstance*> fallback_entities;
   for (const EntityInstance& entity : all_entities) {
     if (entity.type() != entity_type || IsAllowedForPageUrl(entity, page_url)) {
       continue;
@@ -962,22 +944,29 @@ std::optional<Suggestion> CreateDomainFallbackSuggestion(
         std::string(client.GetAppLocale()),
         trigger_field_with_type->field->format_string());
     if (!trigger_value.empty()) {
-      fallback_entities.push_back(entity);
+      fallback_entities.push_back(&entity);
     }
   }
+
+  fallback_entities = DedupedEntitiesForSuggestions(
+      OrderedEntitiesForSuggestion(std::move(fallback_entities)), assignment,
+      std::string(client.GetAppLocale()));
 
   if (fallback_entities.empty()) {
     return std::nullopt;
   }
 
   std::vector<Suggestion> children = CreateSuggestionsForEntities(
-      form, trigger_field, fallback_entities, all_entities, assignment, client);
+      form, trigger_field,
+      base::ToVector(fallback_entities,
+                     [](const EntityInstance* entity) { return *entity; }),
+      all_entities, assignment, client);
   if (children.empty()) {
     return std::nullopt;
   }
 
-  for (const EntityInstance& entity : fallback_entities) {
-    ui_sections->insert(GetAutofillAiUiSection(entity.type()));
+  for (const EntityInstance* entity : fallback_entities) {
+    ui_sections->insert(GetAutofillAiUiSection(entity->type()));
   }
 
   return CreateParentFallbackSuggestion(entity_type, has_primary_suggestions,
@@ -1030,8 +1019,10 @@ std::vector<Suggestion> CreateAutofillAiFillingSuggestions(
     base::span<const EntityInstance> all_entities,
     const AttributeTypeAssignment& assignment,
     AutofillClient& client) {
-  bool should_show_fetching_suggestions =
-      IsFetchingFillableEntity(trigger_field, client);
+  const DenseSet<EntityType> entity_types_being_fetched =
+      GetEntityTypesBeingFetched(trigger_field, client);
+  const bool should_show_fetching_suggestions =
+      !entity_types_being_fetched.empty();
 
   std::vector<Suggestion> suggestions;
   DenseSet<AutofillAiUiSection> ui_sections;
@@ -1064,6 +1055,9 @@ std::vector<Suggestion> CreateAutofillAiFillingSuggestions(
 
   if (should_show_fetching_suggestions) {
     base::Extend(suggestions, CreateFetchingAmbientSuggestions());
+    for (EntityType entity_type : entity_types_being_fetched) {
+      ui_sections.insert(GetAutofillAiUiSection(entity_type));
+    }
   }
 
   base::Extend(suggestions, GetFooterSuggestions(trigger_field, ui_sections));
@@ -1106,7 +1100,7 @@ void AutofillAiSuggestionGenerator::GenerateSuggestions(
       GetFieldsFillableByAutofillAi(*form_structure, client)
           .contains(trigger_field.global_id());
   const bool is_fetching_data_for_field =
-      IsFetchingFillableEntity(*trigger_autofill_field, client);
+      !GetEntityTypesBeingFetched(*trigger_autofill_field, client).empty();
 
   if ((!is_fillable && !is_fetching_data_for_field) ||
       SuppressSuggestionsForAutocompleteUnrecognizedField(

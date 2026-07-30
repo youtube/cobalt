@@ -48,6 +48,7 @@
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
+#include "chrome/browser/ui/views/frame/glass_frame_service.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_accessibility.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
@@ -203,12 +204,24 @@ void BrowserTabStripController::InitFromModel(TabStrip* tabstrip) {
   }
 
   tabstrip_->StopAnimating();
+
+  if (GlassFrameService* service = GlassFrameService::GetInstance()) {
+    glass_frame_service_subscription_ =
+        service->RegisterGlassFrameEligibilityChangedCallback(
+            browser_view_->browser(),
+            base::BindRepeating(
+                &BrowserTabStripController::OnGlassFrameEligibilityChanged,
+                base::Unretained(this)));
+    OnGlassFrameEligibilityChanged(
+        service->IsBrowserWindowEligible(browser_view_->browser()));
+  }
 }
 
 void BrowserTabStripController::Reset() {
   // Stop observing.
   model_->RemoveObserver(this);
   tabstrip_ = nullptr;
+  glass_frame_service_subscription_ = {};
 }
 
 // TODO(crbug.com/435178910): Change this to return a
@@ -461,13 +474,6 @@ void BrowserTabStripController::ToggleTabGroupCollapsedState(
           active_index, TabStripUserGestureDetails(
                             TabStripUserGestureDetails::GestureType::kOther));
     }
-  }
-
-  // Under the kTabGroupsFocusingAutoClose feature, switching the active tab or
-  // adding a new tab can cause the group to be automatically closed and
-  // synchronously destroyed. We must check that the group still exists.
-  if (!model_->group_model()->ContainsTabGroup(group)) {
-    return;
   }
 
   if (origin != ToggleTabGroupCollapsedStateOrigin::kMenuAction ||
@@ -934,4 +940,9 @@ bool BrowserTabStripController::GetContextMenuAccelerator(
   return TabStripModel::ContextMenuCommandToBrowserCommand(command_id,
                                                            &browser_cmd) &&
          tabstrip_->GetWidget()->GetAccelerator(browser_cmd, accelerator);
+}
+
+void BrowserTabStripController::OnGlassFrameEligibilityChanged(
+    bool is_eligible) {
+  browser_view_->tab_strip_view()->OnGlassFrameEligibilityChanged(is_eligible);
 }

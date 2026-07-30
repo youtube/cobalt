@@ -38,6 +38,7 @@
 #import "ios/web/navigation/wk_navigation_action_util.h"
 #import "ios/web/navigation/wk_navigation_util.h"
 #import "ios/web/public/browser_state.h"
+#import "ios/web/public/content_type_util.h"
 #import "ios/web/public/download/download_controller.h"
 #import "ios/web/public/navigation/form_warning_type.h"
 #import "ios/web/public/web_client.h"
@@ -45,7 +46,6 @@
 #import "ios/web/security/crw_cert_verification_controller.h"
 #import "ios/web/security/wk_web_view_security_util.h"
 #import "ios/web/session/session_certificate_policy_cache_impl.h"
-#import "ios/web/util/content_type_util.h"
 #import "ios/web/util/error_translation_util.h"
 #import "ios/web/util/wk_security_origin_util.h"
 #import "ios/web/util/wk_web_view_util.h"
@@ -1193,10 +1193,25 @@ void LogPresentingErrorPageFailedWithError(NSError* error) {
 - (void)webView:(WKWebView*)webView
      navigationAction:(WKNavigationAction*)navigationAction
     didBecomeDownload:(WKDownload*)WKDownload {
-  // As Chromium never return WKNavigationResponsePolicyDownload
-  // when deciding the policy for an action, WebKit should never
-  // invoke this delegate method.
-  NOTREACHED();
+  // Send navigation callback if the download occurs in the main frame.
+  if (navigationAction.targetFrame.mainFrame) {
+    const GURL actionURL = net::GURLWithNSURL(navigationAction.request.URL);
+    web::NavigationContextImpl* context =
+        [self contextForPendingMainFrameNavigationWithURL:actionURL];
+    if (context) {
+      context->SetIsDownload(true);
+      context->ReleaseItem();
+      self.webStateImpl->OnNavigationFinished(context);
+    }
+  }
+
+  // Since the navigation became a download, it will never commit as a webpage.
+  // Discard any pending navigation items to prevent a stale loading state.
+  self.navigationManagerImpl->DiscardNonCommittedItems();
+
+  [_nativeTaskBridges
+      addObject:[[DownloadNativeTaskBridge alloc] initWithDownload:WKDownload
+                                                          delegate:self]];
 }
 
 - (void)webView:(WKWebView*)webView
@@ -1731,6 +1746,15 @@ void LogPresentingErrorPageFailedWithError(NSError* error) {
 
   if (policyDecision.ShouldCancelNavigation()) {
     decisionHandler(WKNavigationActionPolicyCancel);
+    return;
+  }
+
+  // Check the scheme directly on NSURL to avoid constructing a full GURL for
+  // potentially large data: URLs.
+  if (action.shouldPerformDownload &&
+      [action.request.URL.scheme caseInsensitiveCompare:@"data"] ==
+          NSOrderedSame) {
+    decisionHandler(WKNavigationActionPolicyDownload);
     return;
   }
 

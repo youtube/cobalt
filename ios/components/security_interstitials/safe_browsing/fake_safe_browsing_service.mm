@@ -75,7 +75,10 @@ void RunCheckUrlCallback(
     security_interstitials::UnsafeResource resource;
     resource.url = url;
     resource.threat_type = GetThreatTypeForUrl(url);
-    resource.threat_source = safe_browsing::ThreatSource::LOCAL_PVER4;
+    resource.threat_source =
+        base::FeatureList::IsEnabled(safe_browsing::kLocalListsUseSBv5)
+            ? safe_browsing::ThreatSource::LOCAL_PVER5_LOCAL_BLOCKLIST
+            : safe_browsing::ThreatSource::LOCAL_PVER4;
     resource.callback = base::BindRepeating(
         &CheckUrlCallbackRunner::MaybeRunCallback,
         std::make_unique<CheckUrlCallbackRunner>(std::move(callback)));
@@ -127,11 +130,13 @@ class FakeSafeBrowsingUrlCheckerImpl
             web::GetUIThreadTaskRunner({}),
             /*url_lookup_service_on_ui=*/nullptr,
             /*hash_realtime_service_on_ui=*/nullptr,
+            /*hash_realtime_selection=*/
             safe_browsing::hash_realtime_utils::HashRealTimeSelection::kNone,
             /*is_async_check=*/false,
             /*check_allowlist_before_hash_database=*/false,
-            SessionID::InvalidValue(),
-            /*referring_app_info=*/std::nullopt) {}
+            /*tab_id=*/SessionID::InvalidValue(),
+            /*referring_app_info=*/std::nullopt,
+            /*v5_get_hash_protocol_manager=*/nullptr) {}
 
   FakeSafeBrowsingUrlCheckerImpl(
       network::mojom::RequestDestination request_destination,

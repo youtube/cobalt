@@ -5,27 +5,32 @@
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 
 #include <optional>
+#include <variant>
 
-#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
+#include "base/notreached.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
+#include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/integrators/at_memory/memory_data_type.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace autofill {
 
 std::optional<AtMemoryDataType> ToAtMemoryDataType(
-    accessibility_annotator::MemoryDataType memory_data_type) {
-#define INTENT_TO_FIELD_TYPE(intent, field_type)        \
-  case accessibility_annotator::MemoryDataType::intent: \
+    MemoryDataType memory_data_type) {
+#define INTENT_TO_FIELD_TYPE(intent, field_type) \
+  case MemoryDataType::intent:                   \
     return field_type
-#define INTENT_TO_ENTITY_TYPE(intent, entity_type)      \
-  case accessibility_annotator::MemoryDataType::intent: \
+#define INTENT_TO_ENTITY_TYPE(intent, entity_type) \
+  case MemoryDataType::intent:                     \
     return EntityType(EntityTypeName::entity_type)
-#define INTENT_TO_ATTRIBUTE_TYPE(intent_and_attribute_type)                \
-  case accessibility_annotator::MemoryDataType::intent_and_attribute_type: \
+#define INTENT_TO_ATTRIBUTE_TYPE(intent_and_attribute_type) \
+  case MemoryDataType::intent_and_attribute_type:           \
     return AttributeType(AttributeTypeName::intent_and_attribute_type)
 #define INTENT_TO_ATTRIBUTE_TYPE_WITH_NAME(intent, attribute_type) \
-  case accessibility_annotator::MemoryDataType::intent:            \
+  case MemoryDataType::intent:                                     \
     return AttributeType(AttributeTypeName::attribute_type)
 
   switch (memory_data_type) {
@@ -102,21 +107,77 @@ std::optional<AtMemoryDataType> ToAtMemoryDataType(
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentCarrierDomain);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentShippedDate);
     INTENT_TO_ATTRIBUTE_TYPE(kShipmentDeliveryZipCode);
-    case accessibility_annotator::MemoryDataType::
-        kShipmentEstimatedDeliveryDate:
-    case accessibility_annotator::MemoryDataType::kUnknown:
-    case accessibility_annotator::MemoryDataType::kIbanNickname:
-    case accessibility_annotator::MemoryDataType::kCreditCardNickname:
-    case accessibility_annotator::MemoryDataType::kFlightReservationArrivalDate:
-    case accessibility_annotator::MemoryDataType::kOrderGrandTotal:
-    case accessibility_annotator::MemoryDataType::kShipmentDeliveryAddress:
+    case MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case MemoryDataType::kUnknown:
+    case MemoryDataType::kIbanNickname:
+    case MemoryDataType::kCreditCardNickname:
+    case MemoryDataType::kFlightReservationArrivalDate:
+    case MemoryDataType::kOrderGrandTotal:
+    case MemoryDataType::kShipmentDeliveryAddress:
       return std::nullopt;
   }
+  NOTREACHED();
 
 #undef INTENT_TO_ATTRIBUTE_TYPE
 #undef INTENT_TO_ENTITY_TYPE
 #undef INTENT_TO_FIELD_TYPE
 #undef INTENT_TO_ATTRIBUTE_TYPE_WITH_NAME
+}
+
+std::optional<AutofillClient::AutofillPolicyDataCategory>
+ToAutofillPolicyDataCategory(const AtMemoryDataType& type) {
+  return std::visit(
+      absl::Overload{
+          [](FieldType field_type)
+              -> std::optional<AutofillClient::AutofillPolicyDataCategory> {
+            switch (GroupTypeOfFieldType(field_type)) {
+              case FieldTypeGroup::kCreditCard:
+              case FieldTypeGroup::kStandaloneCvcField:
+              case FieldTypeGroup::kIban:
+                return AutofillClient::AutofillPolicyDataCategory::kPayments;
+              case FieldTypeGroup::kName:
+              case FieldTypeGroup::kEmail:
+              case FieldTypeGroup::kCompany:
+              case FieldTypeGroup::kAddress:
+              case FieldTypeGroup::kPhone:
+                return AutofillClient::AutofillPolicyDataCategory::kContactInfo;
+              case FieldTypeGroup::kNoGroup:
+              case FieldTypeGroup::kPasswordField:
+              case FieldTypeGroup::kTransaction:
+              case FieldTypeGroup::kUsernameField:
+              case FieldTypeGroup::kUnfillable:
+              case FieldTypeGroup::kAutofillAi:
+              case FieldTypeGroup::kLoyaltyCard:
+              case FieldTypeGroup::kOneTimePassword:
+                return std::nullopt;
+            }
+            NOTREACHED();
+          },
+          [](const EntityType& entity_type)
+              -> std::optional<AutofillClient::AutofillPolicyDataCategory> {
+            switch (entity_type.name()) {
+              case EntityTypeName::kNationalIdCard:
+              case EntityTypeName::kPassport:
+              case EntityTypeName::kDriversLicense:
+                return AutofillClient::AutofillPolicyDataCategory::
+                    kIdentityDocs;
+              case EntityTypeName::kVehicle:
+              case EntityTypeName::kFlightReservation:
+              case EntityTypeName::kRedressNumber:
+              case EntityTypeName::kKnownTravelerNumber:
+                return AutofillClient::AutofillPolicyDataCategory::kTravel;
+              case EntityTypeName::kOrder:
+              case EntityTypeName::kShipment:
+                return AutofillClient::AutofillPolicyDataCategory::kShopping;
+            }
+            NOTREACHED();
+          },
+          [](const AttributeType& attribute_type)
+              -> std::optional<AutofillClient::AutofillPolicyDataCategory> {
+            return ToAutofillPolicyDataCategory(
+                AtMemoryDataType(attribute_type.entity_type()));
+          }},
+      type);
 }
 
 }  // namespace autofill

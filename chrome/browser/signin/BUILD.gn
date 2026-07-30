@@ -175,10 +175,6 @@ source_set("signin") {
       ]
     }
   }
-
-  if (is_mac || is_linux) {
-    public += [ "before_fre_refresh_hats_field_trial.h" ]
-  }
 }
 
 source_set("impl") {
@@ -227,6 +223,7 @@ source_set("impl") {
     "//chrome/browser/ui/dialogs:browser_dialogs",
     "//chrome/browser/webdata_services",
     "//components/application_locale_storage",
+    "//components/browser_actuator/public:feature_list",
     "//components/contextual_tasks/public:feature_list",
     "//components/embedder_support:user_agent",
     "//components/plus_addresses/core/common:features",
@@ -385,7 +382,10 @@ source_set("impl") {
       "accounts_policy_manager.cc",
       "accounts_policy_manager_factory.cc",
     ]
-    deps += [ "//chrome/browser/ui/startup" ]
+    deps += [
+      "//chrome/browser/ui/startup",
+      "//chrome/browser/ui/webui:profile_helper",
+    ]
   }
 
   if (enable_dice_support && is_win) {
@@ -429,10 +429,6 @@ source_set("impl") {
         "bound_session_credentials/dice_bound_session_cookie_service_factory.cc",
       ]
     }
-  }
-
-  if (is_mac || is_linux) {
-    sources += [ "before_fre_refresh_hats_field_trial.cc" ]
   }
 }
 
@@ -488,6 +484,23 @@ source_set("test_support") {
       "//content/test:test_support",
     ]
   }
+
+  if (enable_bound_session_credentials) {
+    public += [
+      "bound_session_credentials/fake_bound_session_cookie_refresh_service.h",
+      "bound_session_credentials/fake_bound_session_refresh_cookie_fetcher.h",
+      "bound_session_credentials/mock_bound_session_cookie_refresh_service.h",
+    ]
+    sources += [
+      "bound_session_credentials/fake_bound_session_cookie_refresh_service.cc",
+      "bound_session_credentials/fake_bound_session_refresh_cookie_fetcher.cc",
+      "bound_session_credentials/mock_bound_session_cookie_refresh_service.cc",
+    ]
+    deps += [
+      "//chrome/common",
+      "//testing/gmock",
+    ]
+  }
 }
 
 if (enable_bound_session_credentials) {
@@ -497,6 +510,33 @@ if (enable_bound_session_credentials) {
       "bound_session_credentials/rotation_debug_info.proto",
     ]
   }
+}
+
+source_set("identity_test_support") {
+  testonly = true
+
+  sources = [
+    "identity_test_environment_profile_adaptor.cc",
+    "identity_test_environment_profile_adaptor.h",
+    "test_signin_client_builder.cc",
+    "test_signin_client_builder.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//chrome/test/base:testing_profile",
+    "//components/signin/public/identity_manager:test_support",
+    "//components/sync_preferences:test_support",
+  ]
+
+  deps = [
+    ":signin",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:browser_process_platform_part",
+    "//chrome/browser/metrics",
+    "//chrome/browser/profiles:profile",
+    "//components/signin/public/base:test_support",
+  ]
 }
 
 source_set("unit_tests") {

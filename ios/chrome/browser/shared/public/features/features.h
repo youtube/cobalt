@@ -96,10 +96,6 @@ BASE_DECLARE_FEATURE(kLensSearchHeadersCheckEnabled);
 // Variations of Composebox.
 extern const char kComposeboxParam[];
 extern const char kComposeboxParamAllOmniboxEntrypoints[];
-
-// Feature for the DRS prototype.
-BASE_DECLARE_FEATURE(kOmniboxDRSPrototype);
-
 // Feature flag to enable UITraitCollection workaround for fixing incorrect
 // trait propagation.
 BASE_DECLARE_FEATURE(kEnableTraitCollectionWorkAround);
@@ -129,6 +125,9 @@ extern const base::FeatureParam<int>
 // Feature flag the "Hide Toolbar" button in the overflow menu.
 BASE_DECLARE_FEATURE(kHideToolbarsInOverflowMenu);
 
+// Returns true if the "Hide Toolbar" button is enabled.
+bool IsHideToolbarEnabled();
+
 // Flag to hide voice and lens actions in fusebox.
 BASE_DECLARE_FEATURE(kHideFuseboxVoiceLensActions);
 
@@ -151,9 +150,6 @@ BASE_DECLARE_FEATURE(kIOSChooseFromDriveSignedOut);
 // Feature flag enabling dates long press to enter the Create Calendar event
 // ExperienceKit for signed out users.
 BASE_DECLARE_FEATURE(kIOSDateToCalendarSignedOut);
-
-// Feature flag enabling a fix for the Download manager mediator.
-BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 
 // Feature flag enabling the save to drive feature for signed out users.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveSignedOut);
@@ -716,6 +712,12 @@ BASE_DECLARE_FEATURE(kOmniboxCrashFixKillSwitch);
 // Returns true if the OmniboxCrashFixKillSwitch feature is enabled.
 bool IsOmniboxCrashFixKillSwitchEnabled();
 
+// Enables the AlertCrashFixKillSwitch feature.
+BASE_DECLARE_FEATURE(kAlertCrashFixKillSwitch);
+
+// Returns true if the AlertCrashFixKillSwitch feature is enabled.
+bool IsAlertCrashFixKillSwitchEnabled();
+
 // Enables the AIMEligibilityServiceStartWithProfile feature.
 BASE_DECLARE_FEATURE(kAIMEligibilityServiceStartWithProfile);
 
@@ -739,6 +741,12 @@ BASE_DECLARE_FEATURE(kIOSWebContextMenuNewTitle);
 
 // Returns true if the IOSWebContextMenuNewTitle feature is enabled.
 bool IsIOSWebContextMenuNewTitleEnabled();
+
+// Enables the AtMemoryContextMenuEntryPoint feature.
+BASE_DECLARE_FEATURE(kAtMemoryContextMenuEntryPoint);
+
+// Returns true if the AtMemoryContextMenuEntryPoint feature is enabled.
+bool IsAtMemoryContextMenuEntryPointEnabled();
 
 // Feature flag to enable the Assistant Container.
 BASE_DECLARE_FEATURE(kAssistantContainer);
@@ -878,6 +886,12 @@ BASE_DECLARE_FEATURE(kDisableFeedbackForIneligibleUsers);
 
 // Returns true if the DisableFeedbackForIneligibleUsers feature is enabled.
 bool IsDisableFeedbackForIneligibleUsersEnabled();
+
+// Feature flag to include system log in user feedback reports.
+BASE_DECLARE_FEATURE(kIncludeSystemLogInFeedback);
+
+// Returns true if system log should be included in user feedback reports.
+bool IsIncludeSystemLogInFeedbackEnabled();
 
 // Enables the FullscreenRefactoring feature.
 BASE_DECLARE_FEATURE(kFullscreenRefactoring);
@@ -1028,16 +1042,16 @@ BASE_DECLARE_FEATURE(kAppBarHideInFullscreen);
 // Returns true if the App Bar should be completely hidden when in fullscreen.
 bool IsAppBarHiddenInFullscreen();
 
-// Feature flag for SearchEngineChoiceScreenSnackbar.
-BASE_DECLARE_FEATURE(kSearchEngineChoiceScreenSnackbar);
-
-// Returns true if SearchEngineChoiceScreenSnackbar is enabled.
-bool IsSearchEngineChoiceScreenSnackbarEnabled();
-
 // Enables the DefaultBottomOmniboxOnIOS feature.
 BASE_DECLARE_FEATURE(kDefaultBottomOmniboxOnIOS);
 
 // Returns true if the DefaultBottomOmniboxOnIOS feature is enabled.
 bool IsDefaultBottomOmniboxOnIOSEnabled();
+
+// Enables the GlassToolbar feature.
+BASE_DECLARE_FEATURE(kGlassToolbar);
+
+// Returns true if the GlassToolbar feature is enabled.
+bool IsGlassToolbarEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_
