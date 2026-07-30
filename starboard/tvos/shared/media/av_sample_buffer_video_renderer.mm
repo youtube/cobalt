@@ -694,10 +694,12 @@ void AVSBVideoRenderer::CheckIfStreamEnded() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(eos_written_);
 
+  if (ended_cb_called_) {
+    return;
+  }
+
   if (GetCurrentMediaTime() >= pts_of_last_output_buffer_) {
-    if (!ended_cb_called_) {
-      Schedule(ended_cb_);
-    }
+    Schedule(ended_cb_);
     ended_cb_called_ = true;
   } else {
     Schedule(std::bind(&AVSBVideoRenderer::CheckIfStreamEnded, this),
