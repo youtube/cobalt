@@ -22,23 +22,21 @@
 
 namespace base {
 
-<<<<<<< HEAD
 namespace {
 
 // Include 7-bit encodings
 constexpr bool kIgnore7bitEncodings = false;
 
+#if !BUILDFLAG(IS_COBALT)
 // Plain text
 constexpr CompactEncDet::TextCorpusType kPlainTextCorpus =
     CompactEncDet::QUERY_CORPUS;
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
 bool DetectEncoding(std::string_view text, std::string* encoding) {
-=======
-bool DetectEncoding(const std::string& text, std::string* encoding) {
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 22bbd190c0f (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int consumed_bytes;
   bool is_reliable;
   Encoding enc = CompactEncDet::DetectEncoding(
