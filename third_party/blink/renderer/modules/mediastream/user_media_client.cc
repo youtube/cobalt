@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/mediastream/user_media_client.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <stddef.h>
 
@@ -22,7 +23,9 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/modules/mediastream/apply_constraints_processor.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
-#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/mediastream/webrtc_uma_histograms.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -355,6 +358,7 @@ void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
 
   // TODO(crbug.com/787254): Communicate directly with the
   // PeerConnectionTrackerHost mojo object once it is available from Blink.
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   if (auto* window = user_media_request->GetWindow()) {
     if (user_media_request->MediaRequestType() ==
         UserMediaRequestType::kUserMedia) {
@@ -365,6 +369,7 @@ void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
           user_media_request);
     }
   }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   user_media_request->set_has_transient_user_activation(
       has_transient_user_activation);

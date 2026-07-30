@@ -4,6 +4,7 @@
 
 #include "content/public/test/scoped_time_zone.h"
 
+#include "base/functional/callback_helpers.h"
 #include "services/device/device_service.h"
 
 namespace content {

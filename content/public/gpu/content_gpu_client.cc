@@ -30,4 +30,11 @@ ContentGpuClient::GetGrContextOptionsProvider() {
 }
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+cobalt::media::VideoGeometrySetterService*
+ContentGpuClient::GetVideoGeometrySetterService() {
+  return nullptr;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace content

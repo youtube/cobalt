@@ -208,6 +208,12 @@ template("single_gcc_toolchain") {
       toolchain_use_clang_coverage = use_clang_coverage
     }
 
+    if (defined(toolchain_args.is_clang)) {
+      toolchain_is_clang = toolchain_args.is_clang
+    } else {
+      toolchain_is_clang = is_clang
+    }
+
     coverage_wrapper = ""
 
     # For a coverage build, we use the wrapper script globally so that it can
@@ -321,7 +327,7 @@ template("single_gcc_toolchain") {
 
     # -fmodule-name is not supported by gcc.
     module_name_flag = ""
-    if (is_clang) {
+    if (toolchain_is_clang) {
       module_name_flag = " -fmodule-name=\"{{cc_module_name}}_Private\""
     }
 
@@ -407,8 +413,12 @@ template("single_gcc_toolchain") {
         command = "cmd /s /c \"\"$python_path\" $tool_wrapper_path delete-file {{output}} && $command\""
       } else {
         command = "rm -f {{output}} && $command"
-        inputs =
-            [ get_path_info(rebase_path(ar, ".", root_out_dir), "abspath") ]
+
+        # Add ar to inputs if it's not from $PATH.
+        if (get_path_info(ar, "file") != ar) {
+          inputs =
+              [ get_path_info(rebase_path(ar, ".", root_out_dir), "abspath") ]
+        }
       }
 
       # Almost all targets build with //build/config/compiler:thin_archive which

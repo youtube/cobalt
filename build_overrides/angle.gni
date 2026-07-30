@@ -19,3 +19,4 @@ angle_spirv_tools_dir = "//third_party/spirv-tools/src"
 angle_vulkan_memory_allocator_dir = "//third_party/vulkan_memory_allocator"
 angle_wayland_dir = "//third_party/wayland/src"
 angle_dawn_dir = "//third_party/dawn"
+angle_enable_vulkan_validation_layers = !is_starboard

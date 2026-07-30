@@ -398,8 +398,13 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReduceGpuPriorityOnBackground);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSmartZoom);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kUserMediaScreenCapturing);
+<<<<<<< HEAD
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextClassifierTimeout);
 CONTENT_EXPORT extern const base::FeatureParam<int> kTextClassifierTimeoutMs;
+=======
+// TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotGenerateChromiumA11yTree);
+>>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

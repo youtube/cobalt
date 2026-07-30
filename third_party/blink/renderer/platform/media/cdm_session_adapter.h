@@ -118,6 +118,10 @@ class PLATFORM_EXPORT CdmSessionAdapter : public RefCounted<CdmSessionAdapter> {
   // Returns the CdmConfig used in creation of CDM.
   const media::CdmConfig& GetCdmConfig() const;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetMetrics(std::unique_ptr<media::GetMetricsCdmPromise> promise);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   friend class RefCounted<CdmSessionAdapter>;
 

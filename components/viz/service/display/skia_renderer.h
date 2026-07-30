@@ -29,6 +29,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/latency/latency_info.h"
 
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/timer/timer.h"
+#endif
+
 class SkColorFilter;
 
 namespace viz {
@@ -585,6 +589,11 @@ class VIZ_SERVICE_EXPORT SkiaRenderer : public DirectRenderer {
   // SkiaRenderer directly and does not require tracking in this manner.
   base::circular_deque<base::flat_set<AggregatedRenderPassId>>
       pending_render_pass_buffer_queue_swaps_;
+
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  void DestroyPrimaryPlaneBuffers();
+  base::OneShotTimer destroy_buffers_timer_;
+#endif
 
 #if BUILDFLAG(ENABLE_VULKAN) && BUILDFLAG(IS_CHROMEOS) && \
     BUILDFLAG(USE_V4L2_CODEC)

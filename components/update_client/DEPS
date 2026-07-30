@@ -13,12 +13,19 @@ include_rules = [
   "+third_party/zlib",
 ]
 
-# Allow the unit tests to depend on the network for testing purposes.
 specific_include_rules = {
+<<<<<<< HEAD
   "(test_configurator|.*_unittest\\.(cc|h))" : [
+=======
+  # Allow the unit tests to depend on the network for testing purposes.
+  "(test_configurator|.*_unittest\.(cc|h))" : [
+>>>>>>> parent of a835b09de27 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     "+net",
     "+services/network/public/cpp",
     "+services/network/public/mojom",
     "+services/network/test",
-  ]
+  ],
+  "op_download\.cc": [
+    "+cobalt/browser/features.h",
+  ],
 }

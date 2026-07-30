@@ -1,0 +1,132 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rdkcentral/rdkservices/main/Tools/json_generator/schemas/plugin.schema.json",
+  "info": {
+    "title": "Cobalt Plugin",
+    "callsign": "Cobalt",
+    "locator": "libWPEFrameworkCobalt.so",
+    "status": "beta",
+    "description": "The `Cobalt` plugin provides web browsing functionality based on the Cobalt engine.",
+    "version": "1.0"
+  },
+  "definitions": {
+    "systemproperties": {
+      "description": "Configure some properties queried with Starboard System API",
+      "type": "object",
+      "required": [],
+      "properties": {
+        "modelname": {
+          "type": "string",
+          "description": "The production model number of the device"
+        },
+        "brandname": {
+          "type": "string",
+          "description": "The name of the brand under which the device is being sold"
+        },
+        "modelyear": {
+          "type": "string",
+          "description": "The year the device was launched"
+        },
+        "chipsetmodelnumber": {
+          "type": "string",
+          "description": "The full model number of the main platform chipset"
+        },
+        "firmwareversion": {
+          "type": "string",
+          "description": "The production firmware version number which the device is currently running"
+        },
+        "integratorname": {
+          "type": "string",
+          "description": "The original manufacture of the device"
+        },
+        "friendlyname": {
+          "type": "string",
+          "description": "A friendly name for this actual device"
+        },
+        "devicetype": {
+          "type": "string",
+          "description": "The type of the device.",
+          "enum":[
+            "SetTopBox",
+            "OverTheTopBox",
+            "TV"
+          ]
+        }
+      }
+    },
+    "advertisingid": {
+      "description": "Configure Identifier For Advertising",
+      "type": "object",
+      "required": [],
+      "properties": {
+        "ifa": {
+          "type": "string",
+          "description": "Advertising ID or IFA"
+        },
+        "lmt": {
+          "type": "string",
+          "description": "Limit advertising tracking, treated as boolean"
+        }
+      }
+    }
+  },
+  "configuration": {
+    "type": "object",
+    "properties": {
+      "configuration": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL that is loaded upon starting the browser"
+          },
+          "language": {
+            "type": "string",
+            "description": "POSIX-style Language(Locale) ID. Example: 'en_US'"
+          },
+          "preload": {
+            "type": "boolean",
+            "description": "Enable pre-loading of application"
+          },
+          "autosuspenddelay": {
+            "type": "number",
+            "description": "Applicable when pre-loading. Number of seconds to wait before suspending the app"
+          },
+          "gstdebug": {
+            "type": "string",
+            "description": "Configure GST_DEBUG environment variable, default: 'gstplayer:4,2'"
+          },
+          "closurepolicy": {
+            "type": "string",
+            "description": "Configures how to handle window close request. Accepted values: [suspend, quit]. Default: 'quit'."
+          },
+          "systemproperties": {
+            "$ref": "#/definitions/systemproperties"
+          },
+          "fireboltendpoint": {
+            "type": "string",
+            "description": "A URL that specifies access point to Firebolt Riple. Should include session id in the query."
+          },
+          "advertisingid": {
+            "$ref": "#/definitions/advertisingid"
+          },
+          "sbmainargs": {
+            "type": "array",
+            "description": "A list of additional arguments to pass to StarboardMain.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "required": [
+      "callsign",
+      "classname",
+      "locator"
+    ]
+  },
+  "interface": {
+    "$ref": "interfaces/json/Cobalt.json#"
+  }
+}

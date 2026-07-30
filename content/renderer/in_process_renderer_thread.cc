@@ -4,8 +4,11 @@
 
 #include "content/renderer/in_process_renderer_thread.h"
 
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/message_loop/message_pump.h"
 #include "base/task/current_thread.h"
+#include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "content/public/common/content_client.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -83,7 +86,21 @@ void InProcessRendererThread::ThreadDelegate::BindToCurrentThread() {
   // Make sure we aren't somehow reinitialising the inprocess renderer thread on
   // Android. Temporary CHECK() to debug http://crbug.com/514141
   CHECK(!outer_->render_process_);
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Mirror renderer_main.cc: in multi-process mode CrRendererMain is display
+  // critical, but single-process mode never runs that code, so the renderer
+  // main thread stayed at default priority behind the compositor/GPU threads.
+  // Gated behind kCobaltAndroidDisplayCriticalInProcessRenderer for controlled
+  // Finch experimentation. On Starboard/Linux, this is turned off because
+  // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
+    base::PlatformThread::SetCurrentThreadType(
+        base::ThreadType::kPresentation);
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   blink::Platform::InitializeBlink();
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler =
       blink::scheduler::WebThreadScheduler::CreateInProcessMainThreadScheduler(

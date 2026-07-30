@@ -167,7 +167,7 @@ source_set("impl") {
       "//url",
     ]
 
-    if (enable_print_preview) {
+    if (enable_printing) {
       deps += [ "//chrome/browser/printing" ]
     }
   }
