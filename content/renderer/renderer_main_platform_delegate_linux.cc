@@ -30,6 +30,11 @@ void RendererMainPlatformDelegate::PlatformUninitialize() {
 }
 
 bool RendererMainPlatformDelegate::EnableSandbox() {
+// TODO: (cobalt b/409757032) Try to instead remove this entire source from
+// the hermetic build.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  return false;
+#else
   // The setuid sandbox is started in the zygote process: zygote_main_linux.cc
   // https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox.md
   //
@@ -67,6 +72,7 @@ bool RendererMainPlatformDelegate::EnableSandbox() {
 #endif  // __x86_64__
 
   return true;
+#endif
 }
 
 }  // namespace content

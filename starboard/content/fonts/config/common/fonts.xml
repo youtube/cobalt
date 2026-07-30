@@ -1,0 +1,568 @@
+<!--
+ | Copyright 2024 The Cobalt Authors. All Rights Reserved.
+ |
+ |==============================================================================
+ | OVERVIEW
+ | The font configuration files specify the local fonts available to Cobalt.
+ | They come in two flavors:
+ |   1. A required configuration file that Cobalt provides; it is loaded first
+ |      and specifies the fonts that are included in the Cobalt font content.
+ |   2. An optional configuration file that porters provide; it is loaded second
+ |      and specifies the platform's system fonts available for use.
+ |
+ | This master configuration is a superset of all fonts that could be included
+ | in the Cobalt font content. It is filtered at build time to generate a new
+ | configuration file that includes only those fonts in packages that are
+ | designated to be included in Cobalt content. The <package> elements are
+ | stripped out in the final generated configuration.
+ |
+ | There are two types of font families that the configurations can define:
+ | named families and fallback families.
+ |==============================================================================
+ | NAMED FAMILIES
+ | Named families are families that can be retrieved by name during font
+ | matching. Providing a family with the optional "name" attribute makes it a
+ | named family.
+ |
+ | Additionally, the alias tag can be used when more than one name needs to be
+ | mapped to the same same family. The alias's "name" attribute specifies an
+ | alternate name for the family and its "to" attribute specifies the specific
+ | family that it maps to. There is no limit to the number of aliases that can
+ | map to the same family. However, it is important to note that duplicate names
+ | are not allowed between aliases and families; they must all be unique.
+ |
+ | As an example, see the alias mapping "fantasy" to "serif" below. Because of
+ | the alias, whenever the font-family "fantasy" is encountered, the "serif"
+ | family is returned.
+ |
+ | System fonts shouldn't duplicate any family, alias, or font names contained
+ | within Cobalt's font configuration, unless the corresponding font files are
+ | stripped from Cobalt's font package.
+ |
+ | For example: if any of Cobalt's "sans-serif" font files are included in the
+ | selected Cobalt font package, then the system font configuration cannot
+ | contain a family named "sans-serif"; however, if Cobalt's "sans-serif" font
+ | files are entirely stripped from the package, then the system may provide its
+ | own "sans-serif" family without issues.
+ |==============================================================================
+ | FALLBACK FAMILIES
+ | Fallback families are used when none of the named families within a
+ | "font-family" property are found to support a character. When this occurs,
+ | Cobalt searches the fallback families for a font that supports the character.
+ |
+ | Families are included as fallback families if one of two conditions are met:
+ |  1. They do not have a "name" attribute.
+ |  2. They have a "fallback_priority" attribute.
+ | This allows named families to also be fallback families when they are
+ | explicitly given a fallback priority.
+ |
+ | When the optional family attribute "fallback_priority" is included, then its
+ | value, which is an integer, dictates the fallback priority of the family.
+ | When it is not present, then the family is given the default priority of 0.
+ |
+ | Fallback families are chosen based on a match: full BCP-47 language tag
+ | including script, then just language with no script, and then all fonts are
+ | considered regardless of language. Within each of these, the highest priority
+ | family that satisfies the constraints and supports the character is chosen.
+ | If more than one family has the same fallback priority, then order of
+ | appearance within the xml document is the final tiebreaker.
+ |
+ | Cobalt families are loaded before system families and, as a result, always
+ | win the order of appearance fallback tiebreaker with system families.
+ | However, Cobalt fallback families all have the default fallback priority of
+ | 0; if it is desired that a system family be chosen before a Cobalt family
+ | during fallback, then this can be accomplished by giving it a priority
+ | greater than 0.
+ |
+ | The optional family attribute "pages" indicates which character pages are
+ | contained within the family. It is used with character fallback to allow the
+ | system to quickly determine that a character cannot appear in a font without
+ | requiring the full character map to be loaded into memory. Character pages
+ | are zero-indexed, and each page contains 256 characters, so character 1000
+ | would be contained within page 3.
+ |
+ | For system families, it is safer not including "pages". When "pages" is
+ | included, the correct family may potentially be skipped if there is an error
+ | in the "pages" value. When "pages" is not included the correct fallback
+ | family is always selected. The cost of not including "pages" is that more
+ | full character maps will likely be loaded, which is a one-time performance
+ | hit per family, and results in a small increase in total memory usage.
+ |==============================================================================
+ | FONT ATTRIBUTES
+ | The optional font attributes "weight" and "style" are used to specify the
+ | weight and style that will be used during font matching within a family.
+ | "weight" must be a multiple of 100, between 100 and 900 inclusive; it
+ | defaults to 400 when not defined.
+ | "style" must have a value of either "normal" or "italic"; it defaults to
+ | "normal" when not defined.
+ |
+ | The optional font attributes "font_name" and "postscript_name" are used to
+ | allow the font to be matched during local src lookup with @font-face rules.
+ | https://www.w3.org/TR/css-fonts-3/#descdef-src
+ |
+ | The optional font attribute "disable_synthetic_bolding" prevents the font
+ | from being synthetically bolded. By default synthetic bolding is done when
+ | there is no bold font available and a bold weight (>500) is specified.
+ |==============================================================================
+ -->
+<familyset version="1">
+    <!-- first family is default -->
+    <package name="sans-serif">
+        <family name="sans-serif">
+            <font weight="100" style="normal" font_name="Roboto Thin" postscript_name="Roboto-Thin">Roboto-Thin.woff2</font>
+            <font weight="100" style="italic" font_name="Roboto Thin Italic" postscript_name="Roboto-Thin-Italic">Roboto-ThinItalic.woff2</font>
+            <font weight="300" style="normal" font_name="Roboto Light" postscript_name="Roboto-Light">Roboto-Light.woff2</font>
+            <font weight="300" style="italic" font_name="Roboto Light Italic" postscript_name="Roboto-Light-Italic">Roboto-LightItalic.woff2</font>
+            <font weight="400" style="normal" font_name="Roboto Regular" postscript_name="Roboto-Regular">Roboto-Regular.woff2</font>
+            <font weight="400" style="italic" font_name="Roboto Regular Italic" postscript_name="Roboto-Italic">Roboto-Italic.woff2</font>
+            <font weight="500" style="normal" font_name="Roboto Medium" postscript_name="Roboto-Medium">Roboto-Medium.woff2</font>
+            <font weight="500" style="italic" font_name="Roboto Medium Italic" postscript_name="Roboto-Medium-Italic">Roboto-MediumItalic.woff2</font>
+            <font weight="700" style="normal" font_name="Roboto Bold" postscript_name="Roboto-Bold">Roboto-Bold.woff2</font>
+            <font weight="700" style="italic" font_name="Roboto Bold Italic" postscript_name="Roboto-BoldItalic">Roboto-BoldItalic.woff2</font>
+            <font weight="900" style="normal" font_name="Roboto Black" postscript_name="Roboto-Black">Roboto-Black.woff2</font>
+            <font weight="900" style="italic" font_name="Roboto Black Italic" postscript_name="Roboto-Black-Italic">Roboto-BlackItalic.woff2</font>
+        </family>
+        <!-- Note that aliases must come after the fonts they reference. -->
+        <alias name="roboto" to="sans-serif" />
+    </package>
+    <!-- The package name prefixed with '!' is used when that package is excluded. -->
+    <package name="!sans-serif">
+        <!-- This is the default font when Roboto is unavailable. -->
+        <family pages="0">
+            <font weight="400" style="normal">Roboto-Regular-Subsetted.woff2</font>
+        </family>
+    </package>
+    <package name="serif">
+        <family name="serif">
+            <font weight="400" style="normal" font_name="Noto Serif" postscript_name="NotoSerif">NotoSerif-Regular.woff2</font>
+            <font weight="400" style="italic" font_name="Noto Serif Italic" postscript_name="NotoSerif-Italic">NotoSerif-Italic.woff2</font>
+            <font weight="700" style="normal" font_name="Noto Serif Bold" postscript_name="NotoSerif-Bold">NotoSerif-Bold.woff2</font>
+            <font weight="700" style="italic" font_name="Noto Serif Bold Italic" postscript_name="NotoSerif-BoldItalic">NotoSerif-BoldItalic.woff2</font>
+        </family>
+        <alias name="fantasy" to="serif" />
+    </package>
+    <package name="fcc-captions">
+        <family name="monospace">
+            <font weight="400" style="normal" font_name="Droid Sans Mono" postscript_name="DroidSansMono">DroidSansMono.woff2</font>
+        </family>
+        <alias name="sans-serif-monospace" to="monospace" />
+        <family name="serif-monospace">
+            <font weight="400" style="normal" font_name="Cutive Mono" postscript_name="CutiveMono-Regular">CutiveMono.woff2</font>
+        </family>
+        <family name="casual">
+            <font weight="400" style="normal" font_name="Coming Soon" postscript_name="ComingSoon">ComingSoon.woff2</font>
+        </family>
+        <family name="cursive">
+            <font weight="400" style="normal" font_name="Dancing Script" postscript_name="DancingScript">DancingScript-Regular.woff2</font>
+            <font weight="700" style="normal" font_name="Dancing Script Bold" postscript_name="DancingScript-Bold">DancingScript-Bold.woff2</font>
+        </family>
+        <family name="sans-serif-smallcaps">
+            <font weight="400" style="normal" font_name="Carrois Gothic SC" postscript_name="CarroisGothicSC-Regular">CarroisGothicSC-Regular.woff2</font>
+        </family>
+    </package>
+
+    <!-- fallback fonts -->
+    <package name="fallback-lang-non-cjk">
+        <!-- "Noto Naskh Arabic UI" is given a fallback priority so that, in spite
+             of having a name, it will still be included as a fallback font.
+        -->
+        <family lang="und-Arab" fallback_priority="0" name="Noto Naskh Arabic UI" pages="0,6-8,32,37,46,251-254">
+            <font weight="400" style="normal">NotoNaskhArabicUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoNaskhArabicUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Ethi" pages="0,18-19,45,171,254">
+            <font weight="400" style="normal">NotoSansEthiopic-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansEthiopic-Bold.woff2</font>
+        </family>
+        <family lang="und-Hebr" pages="0,5,32,37,251,254">
+            <font weight="400" style="normal">NotoSansHebrew-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansHebrew-Bold.woff2</font>
+        </family>
+        <family lang="und-Thai" pages="0,2-3,14,32,37,254">
+            <font weight="400" style="normal">NotoSansThaiUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansThaiUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Armn" pages="0,5,32,251">
+            <font weight="400" style="normal">NotoSansArmenian-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansArmenian-Bold.woff2</font>
+        </family>
+        <family lang="und-Geor,und-Geok" pages="0,5,16,28,45,254">
+            <font weight="400" style="normal">NotoSansGeorgian-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansGeorgian-Bold.woff2</font>
+        </family>
+        <family lang="und-Deva" pages="0,2,9,28,32,34,37,168,254">
+            <font weight="400" style="normal">NotoSansDevanagariUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansDevanagariUI-Bold.woff2</font>
+        </family>
+        <!-- Gujarati should come after Devanagari -->
+        <family lang="und-Gujr" pages="0,9-10,32,34,37,168,254">
+            <font weight="400" style="normal">NotoSansGujaratiUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansGujaratiUI-Bold.woff2</font>
+        </family>
+        <!-- Gurmukhi should come after Devanagari -->
+        <family lang="und-Guru" pages="0,9-10,32,34,37-38,168,254">
+            <font weight="400" style="normal">NotoSansGurmukhiUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansGurmukhiUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Taml" pages="0,9,11,32,34,37,254">
+            <font weight="400" style="normal">NotoSansTamilUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansTamilUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Mlym" pages="0,3,9,13,32,34,37,254">
+            <font weight="400" style="normal">NotoSansMalayalamUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansMalayalamUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Beng" pages="0,9,32,34,37,254">
+            <font weight="400" style="normal">NotoSansBengaliUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansBengaliUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Telu" pages="0,9,12,32,34,37,254">
+            <font weight="400" style="normal">NotoSansTeluguUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansTeluguUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Knda" pages="0,9,12,32,34,37,254">
+            <font weight="400" style="normal">NotoSansKannadaUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansKannadaUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Orya" pages="0,9,11,32,34,37,254">
+            <font weight="400" style="normal">NotoSansOriyaUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansOriyaUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Sinh" pages="0,9,13,32,34,37,254">
+            <font weight="400" style="normal">NotoSansSinhala-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansSinhala-Bold.woff2</font>
+        </family>
+        <family lang="und-Khmr" pages="0,23,25,32,37">
+            <font weight="400" style="normal">NotoSansKhmerUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansKhmerUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Laoo" pages="0,3,14,32,37">
+            <font weight="400" style="normal">NotoSansLaoUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansLaoUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Mymr" pages="0,16,32,37,169-170,254">
+            <font weight="400" style="normal">NotoSansMyanmarUI-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansMyanmarUI-Bold.woff2</font>
+        </family>
+        <family lang="und-Thaa" pages="0,6-7,32,37,253-254">
+            <font weight="400" style="normal">NotoSansThaana-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansThaana-Bold.woff2</font>
+        </family>
+        <family lang="und-Cham" pages="0,3,170">
+            <font weight="400" style="normal">NotoSansCham-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansCham-Bold.woff2</font>
+        </family>
+        <family lang="und-Adlm" pages="0,6,32,46,489">
+            <font weight="400" style="normal">NotoSansAdlam-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Avst" pages="0,32,46,254,267">
+            <font weight="400" style="normal">NotoSansAvestan-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Bali" pages="0,27,32,37,254">
+            <font weight="400" style="normal">NotoSansBalinese-Regular.woff2</font>
+        </family>
+        <family lang="und-Bamu" pages="0,166,254,360-362">
+            <font weight="400" style="normal">NotoSansBamum-Regular.woff2</font>
+        </family>
+        <family lang="und-Batk" pages="0,27,254">
+            <font weight="400" style="normal">NotoSansBatak-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Brah" pages="0,254,272">
+            <font weight="400" style="normal">NotoSansBrahmi-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Bugi" pages="0,26,32,37,169,254">
+            <font weight="400" style="normal">NotoSansBuginese-Regular.woff2</font>
+        </family>
+        <family lang="und-Buhd" pages="0,23,254">
+            <font weight="400" style="normal">NotoSansBuhid-Regular.woff2</font>
+        </family>
+        <family lang="und-Cans" pages="0-3,20-22,24,254">
+            <font weight="400" style="normal">NotoSansCanadianAboriginal-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Cari" pages="0,254,258">
+            <font weight="400" style="normal">NotoSansCarian-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Cher" pages="0,3,19,171">
+            <font weight="400" style="normal">NotoSansCherokee-Regular.woff2</font>
+        </family>
+        <family lang="und-Copt" pages="0,3,29,37,44,254">
+            <font weight="400" style="normal">NotoSansCoptic-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Xsux" pages="0,254,288-292">
+            <font weight="400" style="normal">NotoSansCuneiform-Regular.woff2</font>
+        </family>
+        <family lang="und-Cprt" pages="0,254,264">
+            <font weight="400" style="normal">NotoSansCypriot-Regular.woff2</font>
+        </family>
+        <family lang="und-Dsrt" pages="0,254,260">
+            <font weight="400" style="normal">NotoSansDeseret-Regular.woff2</font>
+        </family>
+        <family lang="und-Egyp" pages="0,254,304-308">
+            <font weight="400" style="normal">NotoSansEgyptianHieroglyphs-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Glag" pages="0,44,254">
+            <font weight="400" style="normal">NotoSansGlagolitic-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Goth" pages="0,3,254,259">
+            <font weight="400" style="normal">NotoSansGothic-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Hano" pages="0,23,254">
+            <font weight="400" style="normal">NotoSansHanunoo-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Armi" pages="0,254,264">
+            <font weight="400" style="normal">NotoSansImperialAramaic-Regular.woff2</font>
+        </family>
+        <family lang="und-Phli" pages="0,254,267">
+            <font weight="400" style="normal">NotoSansInscriptionalPahlavi-Regular.woff2</font>
+        </family>
+        <family lang="und-Prti" pages="0,254,267">
+            <font weight="400" style="normal">NotoSansInscriptionalParthian-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Java" pages="0,32,37,169,254">
+            <font weight="400" style="normal">NotoSansJavanese-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Kthi" pages="0,9,168,254,272">
+            <font weight="400" style="normal">NotoSansKaithi-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Kali" pages="0,169,254">
+            <font weight="400" style="normal">NotoSansKayahLi-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Khar" pages="0,254,266">
+            <font weight="400" style="normal">NotoSansKharoshthi-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Lepc" pages="0,28,37,254">
+            <font weight="400" style="normal">NotoSansLepcha-Regular.woff2</font>
+        </family>
+        <family lang="und-Limb" pages="0,9,25,254">
+            <font weight="400" style="normal">NotoSansLimbu-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Linb" pages="0,254,256-257">
+            <font weight="400" style="normal">NotoSansLinearB-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Lisu" pages="0,2,164,254">
+            <font weight="400" style="normal">NotoSansLisu-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Lyci" pages="0,254,258">
+            <font weight="400" style="normal">NotoSansLycian-Regular.woff2</font>
+        </family>
+        <family lang="und-Lydi" pages="0,254,265">
+            <font weight="400" style="normal">NotoSansLydian-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Mand" pages="0,6,8,254">
+            <font weight="400" style="normal">NotoSansMandaic-Regular.woff2</font>
+        </family>
+        <family lang="und-Mtei" pages="0,170-171,254">
+            <font weight="400" style="normal">NotoSansMeeteiMayek-Regular.woff2</font>
+        </family>
+        <family lang="und-Talu" pages="0,25,254">
+            <font weight="400" style="normal">NotoSansNewTaiLue-Regular.woff2</font>
+        </family>
+        <family lang="und-Nkoo" pages="0,6-7,32,46,253-254">
+            <font weight="400" style="normal">NotoSansNKo-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Ogam" pages="0,22,254">
+            <font weight="400" style="normal">NotoSansOgham-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Olck" pages="0,28,254">
+            <font weight="400" style="normal">NotoSansOlChiki-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Ital" pages="0,254,259">
+            <font weight="400" style="normal">NotoSansOldItalic-Regular.woff2</font>
+        </family>
+        <family lang="und-Xpeo" pages="0,254,259">
+            <font weight="400" style="normal">NotoSansOldPersian-Regular.woff2</font>
+        </family>
+        <family lang="und-Sarb" pages="0,254,266">
+            <font weight="400" style="normal">NotoSansOldSouthArabian-Regular.woff2</font>
+        </family>
+        <family lang="und-Orkh" pages="0,254,268">
+            <font weight="400" style="normal">NotoSansOldTurkic-Regular.woff2</font>
+        </family>
+        <family lang="und-Osma" pages="0,254,260">
+            <font weight="400" style="normal">NotoSansOsmanya-Regular.woff2</font>
+        </family>
+        <family lang="und-Phnx" pages="0,254,265">
+            <font weight="400" style="normal">NotoSansPhoenician-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Rjng" pages="0,169,254">
+            <font weight="400" style="normal">NotoSansRejang-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Runr" pages="0,22,254">
+            <font weight="400" style="normal">NotoSansRunic-Regular.woff2</font>
+        </family>
+        <family lang="und-Samr" pages="0,8,46,254">
+            <font weight="400" style="normal">NotoSansSamaritan-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Saur" pages="0,32,37,168,254">
+            <font weight="400" style="normal">NotoSansSaurashtra-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Shaw" pages="0,254,260">
+            <font weight="400" style="normal">NotoSansShavian-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <family lang="und-Sund" pages="0,27-28,254">
+            <font weight="400" style="normal">NotoSansSundanese-Regular.woff2</font>
+        </family>
+        <family lang="und-Sylo" pages="0,9,32,37,168,254">
+            <font weight="400" style="normal">NotoSansSylotiNagri-Regular.woff2</font>
+        </family>
+        <!-- Estrangela should precede Eastern and Western Syriac, since it's our default form. -->
+        <family lang="und-Syre" pages="0,3,6-7,32,34,37-38,254">
+            <font weight="400" style="normal">NotoSansSyriacEstrangela-Regular.woff2</font>
+        </family>
+        <family lang="und-Syrn" pages="0,3,6-7,32,34,37-38,254">
+            <font weight="400" style="normal">NotoSansSyriacEastern-Regular.woff2</font>
+        </family>
+        <family lang="und-Syrj" pages="0,3,6-7,32,34,37-38,254">
+            <font weight="400" style="normal">NotoSansSyriacWestern-Regular.woff2</font>
+        </family>
+        <family lang="und-Tglg" pages="0,23,254">
+            <font weight="400" style="normal">NotoSansTagalog-Regular.woff2</font>
+        </family>
+        <family lang="und-Tagb" pages="0,23,254">
+            <font weight="400" style="normal">NotoSansTagbanwa-Regular.woff2</font>
+        </family>
+        <family lang="und-Lana" pages="0,26,32,34,37,254">
+            <font weight="400" style="normal">NotoSansTaiTham-Regular.woff2</font>
+        </family>
+        <family lang="und-Tavt" pages="0,32,37,167,170,254">
+            <font weight="400" style="normal">NotoSansTaiViet-Regular.woff2</font>
+        </family>
+        <family lang="und-Tibt" pages="0,15,32,37,254">
+            <font weight="400" style="normal">NotoSansTibetan-Regular.woff2</font>
+            <font weight="700" style="normal">NotoSansTibetan-Bold.woff2</font>
+        </family>
+        <family lang="und-Tfng" pages="0,3,32,45,254">
+            <font weight="400" style="normal">NotoSansTifinagh-Regular.woff2</font>
+        </family>
+    </package>
+    <package lang="und-Ugar" name="fallback-historic">
+        <family pages="0,254,259">
+            <font weight="400" style="normal">NotoSansUgaritic-Regular.woff2</font>
+        </family>
+    </package>
+    <package lang="und-Vaii" name="fallback-lang-non-cjk">
+        <family pages="0,165-166,254">
+            <font weight="400" style="normal">NotoSansVai-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-symbols">
+        <family pages="32-43,77,257,464-471,496-498,503">
+            <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-cjk">
+        <family lang="zh-Hans" pages="0-4,17,30,32-39,41,43,46-159,169,172-215,249-251,254-255,497-498,512-658,660-682,685,687,689,691-696,698-702,704-718,760-761">
+            <font weight="400" style="normal" index="2">NotoSansCJK-Regular.woff2</font>
+        </family>
+        <family lang="zh-Hant" pages="0-4,17,30,32-39,41,43,46-159,169,172-215,249-251,254-255,497-498,512-658,660-682,685,687,689,691-696,698-702,704-718,760-761">
+            <font weight="400" style="normal" index="3">NotoSansCJK-Regular.woff2</font>
+        </family>
+        <family lang="ja" pages="0-4,17,30,32-39,41,43,46-159,169,172-215,249-251,254-255,497-498,512-658,660-682,685,687,689,691-696,698-702,704-718,760-761">
+            <font weight="400" style="normal" index="0">NotoSansCJK-Regular.woff2</font>
+        </family>
+        <family lang="ko" pages="0-4,17,30,32-39,41,43,46-159,169,172-215,249-251,254-255,497-498,512-658,660-682,685,687,689,691-696,698-702,704-718,760-761">
+            <font weight="400" style="normal" index="1">NotoSansCJK-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-color-emoji">
+        <family lang="und-Zsye" pages="0,32-33,35-39,41,43,48,50,496-502,505,3584,4068,4072">
+            <font weight="400" style="normal" disable_synthetic_bolding="true">NotoColorEmoji.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-emoji">
+        <family pages="0,32-33,35-39,41,43,48,50,254,496-502,4068,4072">
+            <font weight="400" style="normal">NotoEmoji-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-symbols">
+        <family lang="und-Zsym" pages="35,37-39,43,496-498">
+            <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted2.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-cjk-low-quality">
+        <!--
+            Synthetic bolding is explicitly disabled for DroidSansFallback. The
+            quality of its synthetically bolded glyphs are not good enough to meet
+            Cobalt's standards.
+        -->
+        <family pages="0,14,17,32,48-51,77-159,172-215,249-250,254-255,260">
+            <font weight="400" style="normal" disable_synthetic_bolding="true">DroidSansFallback.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-lang-non-cjk">
+        <!--
+            Tai Le, Yi, Mongolian, and Phags-pa are intentionally kept last, to make sure they don't
+            override the East Asian punctuation for Chinese.
+        -->
+        <family lang="und-Tale" pages="0,3,16,25,48,254">
+            <font weight="400" style="normal">NotoSansTaiLe-Regular.woff2</font>
+        </family>
+        <family lang="und-Yiii" pages="0,48,160-164,254-255">
+            <font weight="400" style="normal">NotoSansYi-Regular.woff2</font>
+        </family>
+        <family lang="und-Mong" pages="0,24,32,36-37,48,254">
+            <font weight="400" style="normal">NotoSansMongolian-Regular.woff2</font>
+        </family>
+    </package>
+    <package name="fallback-historic">
+        <family lang="und-Phag" pages="0,24,32,37,48,168,254">
+            <font weight="400" style="normal">NotoSansPhagsPa-Regular.woff2</font>
+        </family>
+    </package>
+</familyset>
