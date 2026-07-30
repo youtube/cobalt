@@ -1,0 +1,4 @@
+import("//cobalt/build/configs/tvos_common.gn")
+
+target_cpu = "arm64"
+target_environment = "simulator"

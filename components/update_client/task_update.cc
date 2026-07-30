@@ -5,6 +5,8 @@
 
 #include <utility>
 
+#include "build/build_config.h"
+
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
@@ -53,7 +55,15 @@ void TaskUpdate::Run() {
 void TaskUpdate::Cancel() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   cancelled_ = true;
+#if BUILDFLAG(IS_STARBOARD)
+  if (cancel_callback_) {
+    cancel_callback_.Run();
+  } else {
+    TaskComplete(Error::UPDATE_CANCELED);
+  }
+#else
   cancel_callback_.Run();
+#endif
 }
 
 std::vector<std::string> TaskUpdate::GetIds() const {

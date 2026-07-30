@@ -869,6 +869,109 @@ TEST_F(NetworkContextTest, UserAgentAndLanguage) {
                                  ->GetAcceptLanguage());
 }
 
+#if BUILDFLAG(IS_COBALT)
+constexpr char kCobaltExtraHeaderName[] = "X-Cobalt-Test";
+constexpr char kCobaltExtraHeaderValue[] = "cobalt-value";
+
+TEST_F(NetworkContextTest, CobaltExtraRequestHeaders) {
+  net::EmbeddedTestServer test_server;
+  net::test_server::RegisterDefaultHandlers(&test_server);
+  ASSERT_TRUE(test_server.Start());
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  params->cobalt_extra_request_headers = {
+      {kCobaltExtraHeaderName, kCobaltExtraHeaderValue}};
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  ResourceRequest request;
+  request.url = test_server.GetURL(
+      base::StrCat({"/echoheader?", kCobaltExtraHeaderName}));
+  std::unique_ptr<TestURLLoaderClient> client =
+      FetchRequest(request, network_context.get());
+  ASSERT_EQ(net::OK, client->completion_status().error_code);
+
+  std::string response;
+  EXPECT_TRUE(
+      mojo::BlockingCopyToString(client->response_body_release(), &response));
+  EXPECT_EQ(kCobaltExtraHeaderValue, response);
+}
+
+TEST_F(NetworkContextTest, CobaltExtraRequestHeadersAddedAfterRedirect) {
+  net::EmbeddedTestServer test_server;
+  net::test_server::RegisterDefaultHandlers(&test_server);
+  ASSERT_TRUE(test_server.Start());
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  params->cobalt_extra_request_headers = {
+      {kCobaltExtraHeaderName, kCobaltExtraHeaderValue}};
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+  mojom::URLLoaderFactoryParamsPtr factory_params =
+      mojom::URLLoaderFactoryParams::New();
+  factory_params->process_id = mojom::kBrowserProcessId;
+  factory_params->is_orb_enabled = false;
+  network_context->CreateURLLoaderFactory(
+      loader_factory.BindNewPipeAndPassReceiver(), std::move(factory_params));
+
+  const GURL final_url = test_server.GetURL(
+      base::StrCat({"/echoheader?", kCobaltExtraHeaderName}));
+  ResourceRequest request;
+  request.url = test_server.GetURL(
+      "/server-redirect?" + base::EscapeAllExceptUnreserved(final_url.spec()));
+
+  TestURLLoaderClient client;
+  mojo::Remote<mojom::URLLoader> loader;
+  loader_factory->CreateLoaderAndStart(
+      loader.BindNewPipeAndPassReceiver(), /*request_id=*/0,
+      mojom::kURLLoadOptionNone, request, client.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+  client.RunUntilRedirectReceived();
+  ASSERT_EQ(final_url, client.redirect_info().new_url);
+
+  // Remove the header on redirect, as MaybeRemoveSecHeaders() does for
+  // Sec-CH-* headers on a secure-to-insecure redirect. The network service
+  // adds it back for the new hop.
+  loader->FollowRedirect({kCobaltExtraHeaderName}, {}, {}, std::nullopt);
+  client.RunUntilComplete();
+  ASSERT_EQ(net::OK, client.completion_status().error_code);
+
+  std::string response;
+  EXPECT_TRUE(
+      mojo::BlockingCopyToString(client.response_body_release(), &response));
+  EXPECT_EQ(kCobaltExtraHeaderValue, response);
+}
+
+TEST_F(NetworkContextTest, CobaltExtraRequestHeadersOnlyForURLLoaders) {
+  net::EmbeddedTestServer test_server;
+  net::test_server::RegisterDefaultHandlers(&test_server);
+  ASSERT_TRUE(test_server.Start());
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  params->cobalt_extra_request_headers = {
+      {kCobaltExtraHeaderName, kCobaltExtraHeaderValue}};
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  // Requests made directly on the URLRequestContext (e.g. DoH probes, PAC
+  // fetches and reporting uploads) don't get the headers.
+  net::TestDelegate delegate;
+  std::unique_ptr<net::URLRequest> url_request =
+      network_context->url_request_context()->CreateRequest(
+          test_server.GetURL(
+              base::StrCat({"/echoheader?", kCobaltExtraHeaderName})),
+          net::DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS);
+  url_request->Start();
+  delegate.RunUntilComplete();
+  EXPECT_EQ("None", delegate.data_received());
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 TEST_F(NetworkContextTest, EnableBrotli) {
   for (bool enable_brotli : {true, false}) {
     mojom::NetworkContextParamsPtr context_params =

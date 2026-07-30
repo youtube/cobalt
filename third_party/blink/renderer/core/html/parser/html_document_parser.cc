@@ -174,6 +174,11 @@ bool BackgroundScanMainFrameOnly() {
 }
 
 bool IsPreloadScanningEnabled(Document* document) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltBypassHTMLPreloadScanner)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame()) {
     return false;
   }
@@ -1797,6 +1802,11 @@ ALWAYS_INLINE bool HTMLDocumentParser::ShouldCheckTimeBudget(
 }
 
 bool HTMLDocumentParser::ShouldSkipPreloadScan() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltBypassHTMLPreloadScanner)) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   // Check if Document-Policy has Expect-No-Linked-Resources hint.
   auto* document = GetDocument();
   if (const auto* context = document->GetExecutionContext()) {
