@@ -32,10 +32,6 @@ constexpr base::CommandLine::StringViewType kDefaultSwitchPrefix = "--";
 constexpr base::CommandLine::CharType kSwitchValueSeparator[] =
     FILE_PATH_LITERAL("=");
 
-inline bool IsSwitch(const base::CommandLine::StringType& string) {
-  return string.starts_with(kDefaultSwitchPrefix);
-}
-
 void MergeFeatures(base::CommandLine* cmd_line,
                    std::string_view switch_name,
                    const base::CommandLine::SwitchMap& switch_defaults) {
@@ -104,17 +100,12 @@ CommandLinePreprocessor::CommandLinePreprocessor(
   const auto initial_url = switches::GetInitialURL(cmd_line_);
 
   // Collect all non-switch arguments.
-  base::CommandLine::StringVector nonswitch_args;
-  for (const auto& arg : cmd_line_.argv()) {
-    if (!IsSwitch(arg)) {
-      nonswitch_args.push_back(arg);
-    }
-  }
+  const auto nonswitch_args = cmd_line_.GetArgs();
 
-  if (nonswitch_args.size() == 1) {
+  if (nonswitch_args.empty()) {
     startup_url_ = initial_url;
   } else {
-    const auto first_arg = nonswitch_args.at(1);
+    const auto& first_arg = nonswitch_args.front();
     if (first_arg != initial_url) {
       LOG(INFO) << "First argument differs from initial URL: \"" << first_arg
                 << "\" vs. \"" << initial_url << "\"";
