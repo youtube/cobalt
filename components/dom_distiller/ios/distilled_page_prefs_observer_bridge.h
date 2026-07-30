@@ -13,8 +13,10 @@
 @protocol DistilledPagePrefsObserving <NSObject>
 @optional
 - (void)onChangeFontFamily:(dom_distiller::mojom::FontFamily)font;
-- (void)onChangeTheme:(dom_distiller::mojom::Theme)theme;
+- (void)onChangeTheme:(dom_distiller::mojom::Theme)theme
+           withSource:(dom_distiller::ThemeSettingsUpdateSource)source;
 - (void)onChangeFontScaling:(float)scaling;
+- (void)onChangeLinksEnabled:(BOOL)enabled;
 @end
 
 // Observer that bridges DistilledPagePrefs events to an Objective-C observer.
@@ -36,6 +38,7 @@ class DistilledPagePrefsObserverBridge
       dom_distiller::mojom::Theme theme,
       dom_distiller::ThemeSettingsUpdateSource source) override;
   void OnChangeFontScaling(float scaling) override;
+  void OnChangeLinksEnabled(bool enabled) override;
 
  private:
   __weak id<DistilledPagePrefsObserving> observer_ = nil;

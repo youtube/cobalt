@@ -305,12 +305,13 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
   new_request->load_flags = load_flags;
 
   new_request->request_body = request_info.common_params->post_data.get();
-  new_request->has_user_gesture = request_info.common_params->has_user_gesture;
+  new_request->has_user_gesture =
+      request_info.common_params->has_possibly_filtered_user_gesture;
 
   if (ui::PageTransitionIsWebTriggerable(
           ui::PageTransitionFromInt(request_info.common_params->transition))) {
     new_request->trusted_params->has_user_activation =
-        request_info.common_params->has_user_gesture;
+        request_info.common_params->has_possibly_filtered_user_gesture;
   } else {
     new_request->trusted_params->has_user_activation = true;
   }
@@ -2472,7 +2473,7 @@ NavigationURLLoaderImpl::CreateURLLoaderFactoryWithHeaderClient(
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
   params->header_client = std::move(header_client);
-  params->process_id = network::mojom::kBrowserProcessId;
+  params->process_id = network::OriginatingProcess::browser();
   params->is_trusted = true;
   params->is_orb_enabled = false;
   params->disable_web_security =

@@ -333,6 +333,7 @@
 <translation id="2184272387334793084">Барлық құрылғыда құпия сөздер және т.б. алу үшін аккаунтқа кіріңіз</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2188993354115194873"><ph name="BEGIN_BOLD" />Жүктеп алынғандарға сақтау<ph name="END_BOLD" /> түймесін түртіңіз.</translation>
+<translation id="2191406283620379491">Бірдеңе дұрыс болмады. iOS нұсқасын жаңартыңыз.</translation>
 <translation id="219283042927675668">Топтағы қойындылар</translation>
 <translation id="2194856509914051091">Ескеретін жайттар</translation>
 <translation id="2196428379625389579">Интернеттен іздеу</translation>
@@ -936,6 +937,7 @@
 <translation id="4565377596337484307">Құпия сөзді жасыру</translation>
 <translation id="4568230126482344545">Соңғы қойындыларды жасыру</translation>
 <translation id="4578835633387306383">Қосу…</translation>
+<translation id="4580621046861724270">Кейбір бетбелгілер сақталмады</translation>
 <translation id="4580716718466706433">"Password Manager" бөліміне өтіңіз.</translation>
 <translation id="4585751637295612750">Оны сұрағыңызға қосу үшін жаңа қойынды ашыңыз</translation>
 <translation id="4587589328781138893">Сайттар</translation>
@@ -1019,6 +1021,7 @@
 <translation id="483689884442613745">Сақтау…</translation>
 <translation id="4840495572919996524">Бетбелгілер, тарих, құпия сөздер және тағы басқа мәліметтер Google аккаунтымен синхрондалмайды.</translation>
 <translation id="484280513275854557">Аккаунттан шығарылдыңыз; браузерді пайдалану деректері жойылды</translation>
+<translation id="484462545196658690">Авто</translation>
 <translation id="4850886885716139402">Көрініс</translation>
 <translation id="4854068532375923088">Gemini-ға камераны пайдалануға рұқсат беріңіз</translation>
 <translation id="4860895144060829044">Қоңырау шалу</translation>
@@ -1163,6 +1166,7 @@
 <translation id="5318298563956633672">Бұл өнімді бұрыннан бақылап жатырсыз.</translation>
 <translation id="5327248766486351172">Аты</translation>
 <translation id="5329451663851195956">Жаңарту үшін төмен қарай тартсаңыз болады.</translation>
+<translation id="5336910966955551309">Таңдаулы сайттарды бекіту үшін түртіп, ұстап тұрыңыз.</translation>
 <translation id="5338512273860059533">Аккаунтқа кіріп жатырсыз.</translation>
 <translation id="5343472494710226394">Қызығушылықтарыңызға негізделген жаңалықтар, спорттық ойындар және контент.</translation>
 <translation id="5352128922772839949">Файлды сақтау</translation>
@@ -1897,6 +1901,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="7958575506592576831">Беттің қауіпсіздік ақпараты</translation>
 <translation id="7961015016161918242">Ешқашан</translation>
 <translation id="7971136598759319605">1 күн бұрын қосылған.</translation>
+<translation id="7972837668077967426">Canvas</translation>
 <translation id="7975036700432177008">Қолданып көру</translation>
 <translation id="797588153137233716">Мәзір → Тарих → Браузерді пайдалану деректерін жою</translation>
 <translation id="7977451675950311423">Деректер қолды болған кезде ұрланған құпия сөзді пайдалансаңыз, сізге ескертеді.</translation>
@@ -2004,6 +2009,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8319282042900445670">Еске салғыш орнатылған уақыт: <ph name="TIME" />, <ph name="DATE" />.</translation>
 <translation id="8320212361750431956">Соңғы іс-әрекеттер</translation>
 <translation id="8325455175867928593">"Қызығушылықтарға сай пікірлер" опциясын жасыру</translation>
+<translation id="8328777765163860529">Барлығын жабу</translation>
 <translation id="833647236762414178">Сайттар мен қолданбаларда аккаунтқа оңай кіру үшін құпия сөздер мен кіру кілттерін жасаңыз, сақтаңыз және басқарыңыз. <ph name="BEGIN_LINK" />Толық ақпарат<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Деректердің сақтық көшірмесін жасап, оларды кез келген құрылғыда пайдаланыңыз.</translation>
 <translation id="8348530355586151720">Үш нүктелі мәзірді түртіңіз.</translation>

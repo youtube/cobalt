@@ -169,7 +169,7 @@ class ComponentLoaderTest : public testing::Test {
 };
 
 TEST_F(ComponentLoaderTest, ParseManifest) {
-  std::optional<base::Value::Dict> manifest;
+  std::optional<base::DictValue> manifest;
 
   // Test invalid JSON.
   manifest = component_loader_->ParseManifest("{ 'test': 3 } invalid");
@@ -283,10 +283,9 @@ TEST_F(ComponentLoaderTest, LoadAll) {
 class ComponentLoaderExtensionServiceTest
     : public ExtensionServiceUserTestBase {
  public:
-  // testing::Test:
   void SetUp() override {
-    ExtensionServiceUserTestBase::InitializeEmptyExtensionService();
     ExtensionServiceUserTestBase::SetUp();
+    ExtensionServiceUserTestBase::InitializeEmptyExtensionService();
   }
 
   // Test that certain histograms are emitted for user and non-user profiles

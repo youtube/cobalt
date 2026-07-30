@@ -36,8 +36,8 @@ constexpr CGFloat kDefaultSymbolPointSize = 22;
 
 - (ToolbarButton*)makeReloadButton {
   ToolbarButton* button = [[ToolbarButton alloc] initWithImageLoader:^UIImage* {
-    return DefaultSymbolWithPointSize(kArrowClockWiseSymbol,
-                                      kDefaultSymbolPointSize);
+    return CustomSymbolWithPointSize(kArrowClockWiseSymbol,
+                                     kDefaultSymbolPointSize);
   }];
   button.visibilityMask = ToolbarButtonVisibility::kRegularRegular;
   button.accessibilityIdentifier = kToolbarReloadButtonIdentifier;
@@ -93,12 +93,6 @@ constexpr CGFloat kDefaultSymbolPointSize = 22;
   }];
   button.visibilityMask = ToolbarButtonVisibility::kRegularRegular;
   button.accessibilityIdentifier = kToolbarAssistantButtonIdentifier;
-  return button;
-}
-
-- (UIButton*)makeOmniboxButton {
-  UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
-  button.accessibilityIdentifier = kToolbarOmniboxButtonIdentifier;
   return button;
 }
 

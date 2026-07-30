@@ -88,7 +88,7 @@ base::Value DecodeStringProto(const em::StringPolicyProto& proto) {
 // Convert a StringListPolicyProto to a List base::Value, where each list value
 // is of Type::STRING.
 base::Value DecodeStringListProto(const em::StringListPolicyProto& proto) {
-  base::Value::List list_value;
+  base::ListValue list_value;
   for (const auto& entry : proto.value().entries())
     list_value.Append(entry);
   return base::Value(std::move(list_value));
@@ -144,7 +144,7 @@ bool UseExternalDataFetcher(const char* policy_name,
 }  // namespace
 
 ExtensionInstallDecision ConvertToExtensionInstallDecision(
-    const enterprise_management::ExtensionInstallPolicies& policies,
+    const em::ExtensionInstallPolicies& policies,
     const ExtensionIdAndVersion& extension_id_and_version) {
   for (em::ExtensionInstallPolicy policy : policies.policies()) {
     if (!policy.has_extension_id()) {
@@ -170,11 +170,9 @@ ExtensionInstallDecision ConvertToExtensionInstallDecision(
     if (policy.extension_id() == extension_id_and_version.extension_id &&
         policy.extension_version() ==
             extension_id_and_version.extension_version) {
-      std::set<enterprise_management::ExtensionInstallPolicy::Reason> reasons;
+      std::set<em::ExtensionInstallPolicy::Reason> reasons;
       for (const auto& reason : policy.reasons()) {
-        reasons.insert(
-            static_cast<enterprise_management::ExtensionInstallPolicy::Reason>(
-                reason));
+        reasons.insert(static_cast<em::ExtensionInstallPolicy::Reason>(reason));
       }
       return ExtensionInstallDecision(policy.action(), std::move(reasons));
     }
@@ -186,10 +184,13 @@ ExtensionInstallDecision ConvertToExtensionInstallDecision(
   return ExtensionInstallDecision();
 }
 
-void DecodeProtoFields(const em::ExtensionInstallPolicies& policies,
-                       PolicySource source,
-                       PolicyScope scope,
-                       PolicyMap* map) {
+void DecodeProtoFields(
+    const em::ExtensionInstallPolicies& policies,
+    base::WeakPtr<CloudExternalDataManager> external_data_manager,
+    PolicySource source,
+    PolicyScope scope,
+    PolicyMap* map,
+    PolicyPerProfileFilter per_profile) {
   std::map<std::string, base::Value> extension_id_to_policy_value;
   for (const em::ExtensionInstallPolicy& policy : policies.policies()) {
     if (!policy.has_extension_id()) {
@@ -211,7 +212,7 @@ void DecodeProtoFields(const em::ExtensionInstallPolicies& policies,
       continue;
     }
     base::Value action(policy.action());
-    base::Value::List reasons;
+    base::ListValue reasons;
     for (const auto& reason : policy.reasons()) {
       reasons.Append(reason);
     }
@@ -328,7 +329,7 @@ void DecodeProtoFields(
   }
 }
 
-bool ParseComponentPolicy(base::Value::Dict json_dict,
+bool ParseComponentPolicy(base::DictValue json_dict,
                           PolicyScope scope,
                           PolicySource source,
                           PolicyMap* policy,
@@ -344,7 +345,7 @@ bool ParseComponentPolicy(base::Value::Dict json_dict,
       return false;
     }
 
-    base::Value::Dict& description_dict = description.GetDict();
+    base::DictValue& description_dict = description.GetDict();
     std::optional<base::Value> value = description_dict.Extract(kValue);
     if (!value.has_value()) {
       *error = base::StrCat(

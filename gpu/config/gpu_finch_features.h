@@ -33,9 +33,6 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebViewSurfaceControl);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebViewSurfaceControlForTV);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kLimitAImageReaderMaxSizeToOne);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebViewThreadSafeMediaDefault);
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kUseHardwareBufferUsageFlagsFromVulkan);
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(
-    kAllowHardwareBufferUsageFlagsFromVulkanForScanout);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kDefaultEnableGpuRasterization);
@@ -57,6 +54,7 @@ GPU_CONFIG_EXPORT bool IsShaderDiskCacheEnabled(
     const base::CommandLine* command_line);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVulkan);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kForceEnableWebGpuInterop);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphite);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphitePrecompilation);
@@ -102,11 +100,9 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kPruneOldTransferCacheEntries);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kRemoveGPULegacyIPC);
 
-#if BUILDFLAG(IS_ANDROID)
-// This flag is use additionally with kEnableDrDc to enable the feature for
-// vulkan enabled android devices.
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kEnableDrDcVulkan);
-#endif  // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSharedImageStubHighPriority);
+#endif
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebGPUService);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kAAPMBlocksWebGPU);
@@ -144,6 +140,7 @@ GPU_CONFIG_EXPORT extern const base::FeatureParam<int>
     kGPUDriverBugListTestGroupId;
 
 GPU_CONFIG_EXPORT bool IsUsingVulkan();
+GPU_CONFIG_EXPORT bool IsForceEnableWebGpuInterop();
 GPU_CONFIG_EXPORT bool IsDrDcEnabled(
     const gpu::GpuFeatureInfo& gpu_feature_info);
 GPU_CONFIG_EXPORT bool ShouldEnableDrDc();

@@ -19,6 +19,7 @@
 #include "net/base/backoff_entry.h"
 #include "url/gurl.h"
 
+class AimEligibilityService;
 class BrowserWindowInterface;
 class ContextualTasksUI;
 class GoogleServiceAuthError;
@@ -55,10 +56,14 @@ class ContextualTasksUiService : public KeyedService {
   ContextualTasksUiService(
       Profile* profile,
       contextual_tasks::ContextualTasksService* contextual_tasks_service,
-      signin::IdentityManager* identity_manager);
+      signin::IdentityManager* identity_manager,
+      AimEligibilityService* aim_eligibility_service);
   ContextualTasksUiService(const ContextualTasksUiService&) = delete;
   ContextualTasksUiService operator=(const ContextualTasksUiService&) = delete;
   ~ContextualTasksUiService() override;
+
+  // KeyedService:
+  void Shutdown() override;
 
   // A notification that the browser attempted to navigate to the AI page. If
   // this method is being called, it means the navigation was blocked and it
@@ -138,7 +143,7 @@ class ContextualTasksUiService : public KeyedService {
           session_handle);
 
   // Returns whether the provided URL is to an AI page.
-  bool IsAiUrl(const GURL& url);
+  virtual bool IsAiUrl(const GURL& url);
 
   // Returns whether the provided URL is to a contextual tasks WebUI page.
   bool IsContextualTasksUrl(const GURL& url);
@@ -171,9 +176,19 @@ class ContextualTasksUiService : public KeyedService {
 
   // Called when a tab in the sources menu is clicked. Switches to the tab or
   // reopens the tab depending on whether the tab is already open on tab strip.
-  void OnTabClickedFromSourcesMenu(int32_t tab_id,
-                                   const GURL& url,
-                                   BrowserWindowInterface* browser);
+  virtual void OnTabClickedFromSourcesMenu(int32_t tab_id,
+                                           const GURL& url,
+                                           BrowserWindowInterface* browser);
+
+  // Called when a file in the sources menu is clicked. Opens the file in a new
+  // foreground tab.
+  virtual void OnFileClickedFromSourcesMenu(const GURL& url,
+                                            BrowserWindowInterface* browser);
+
+  // Called when an image in the sources menu is clicked. Opens the image in a
+  // new foreground tab.
+  virtual void OnImageClickedFromSourcesMenu(const GURL& url,
+                                             BrowserWindowInterface* browser);
 
   void set_auto_tab_context_suggestion_enabled(bool enabled) {
     auto_tab_context_suggestion_enabled_ = enabled;
@@ -235,9 +250,12 @@ class ContextualTasksUiService : public KeyedService {
 
   const raw_ptr<Profile> profile_;
 
-  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
+  const raw_ptr<contextual_tasks::ContextualTasksService>
+      contextual_tasks_service_;
 
-  raw_ptr<signin::IdentityManager> identity_manager_;
+  const raw_ptr<signin::IdentityManager> identity_manager_;
+
+  const raw_ptr<AimEligibilityService> aim_eligibility_service_;
 
   // The access token fetcher for the current request.
   std::unique_ptr<signin::AccessTokenFetcher> access_token_fetcher_;

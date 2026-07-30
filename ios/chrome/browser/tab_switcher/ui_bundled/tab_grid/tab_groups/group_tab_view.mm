@@ -8,6 +8,7 @@
 #import "base/check_op.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
+#import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/grid_empty_thumbnail_view.h"
@@ -262,6 +263,18 @@ const CGFloat kFaviconCornerRadius = 8;
   _emptyView.layoutType = layoutType;
 }
 
+- (void)setTabGroupColorPalette:(TabGroupColorPalette*)tabGroupColorPalette {
+  _tabGroupColorPalette = tabGroupColorPalette;
+  for (UIView* view in _viewList) {
+    view.backgroundColor = _tabGroupColorPalette.snapshotBackgroundColor;
+  }
+  _emptyView.backgroundColor = _tabGroupColorPalette.snapshotBackgroundColor;
+  // This setting refreshes the bars' empty thumbnail if the color is
+  // different.
+  _emptyView.barColor = _tabGroupColorPalette.barColor;
+  [self updateFaviconBackground];
+}
+
 #pragma mark - Private
 
 // Configures the views from `_viewList` with their associated image views from
@@ -299,8 +312,12 @@ const CGFloat kFaviconCornerRadius = 8;
 // Updates the favicon background based on whether the empty thumbnail is
 // showing.
 - (void)updateFaviconBackground {
-    _snapshotFaviconView.backgroundColor =
-        _emptyView.hidden ? [UIColor whiteColor] : [UIColor clearColor];
+  if (IsTabGroupColorOnSurfaceEnabled() && !_emptyView.hidden) {
+    _snapshotFaviconView.backgroundColor = _tabGroupColorPalette.barColor;
+    return;
+  }
+  _snapshotFaviconView.backgroundColor =
+      _emptyView.hidden ? [UIColor whiteColor] : [UIColor clearColor];
 }
 
 @end

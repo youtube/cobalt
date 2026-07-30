@@ -274,7 +274,6 @@ void SetUpSyncInTransportMode(Profile* profile) {
                 return std::make_unique<syncer::TestSyncService>();
               })));
   sync_service->SetSignedIn(signin::ConsentLevel::kSignin);
-  ASSERT_FALSE(sync_service->IsSyncFeatureEnabled());
 }
 
 class PasswordEventObserver
@@ -584,7 +583,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, AddPassword) {
   std::unique_ptr<content::WebContents> web_contents = CreateWebContents();
   auto* client =
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
   auto delegate = CreateDelegate();
   // Spin the loop to allow PasswordStore tasks posted on the creation of
@@ -643,7 +642,7 @@ TEST_F(PasswordsPrivateDelegateImplTest,
   auto* fake_porter_ptr = fake_porter.get();
   delegate->SetPorterForTesting(std::move(fake_porter));
 
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
@@ -674,7 +673,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestReauthFailedOnImport) {
   auto fake_porter = std::make_unique<FakePasswordManagerPorter>();
   auto* fake_porter_ptr = fake_porter.get();
   delegate->SetPorterForTesting(std::move(fake_porter));
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
@@ -710,7 +709,7 @@ TEST_F(PasswordsPrivateDelegateImplTest,
   auto* fake_porter_ptr = fake_porter.get();
   delegate->SetPorterForTesting(std::move(fake_porter));
 
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
 
   const auto kExpectedStatus =
@@ -956,11 +955,11 @@ TEST_F(PasswordsPrivateDelegateImplTest, CopyPlaintextBackupPassword) {
   EXPECT_EQ(result, form.GetPasswordBackup());
 }
 
-TEST_F(PasswordsPrivateDelegateImplTest, TestShouldEnableAccountStorage) {
+TEST_F(PasswordsPrivateDelegateImplTest, TestShouldActivateAccountStorage) {
   std::unique_ptr<content::WebContents> web_contents = CreateWebContents();
   auto* client =
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(false));
   sync_service()->GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kPasswords, false);
@@ -978,8 +977,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestShouldDisableAccountStorage) {
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
   password_manager::MockPasswordFeatureManager* feature_manager =
       client->GetPasswordFeatureManager();
-  ON_CALL(*feature_manager, IsAccountStorageEnabled)
-      .WillByDefault(Return(true));
+  ON_CALL(*feature_manager, IsAccountStorageActive).WillByDefault(Return(true));
   sync_service()->GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kPasswords, true);
 
@@ -1218,7 +1216,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestMovePasswordsToAccountStore) {
   std::unique_ptr<content::WebContents> web_contents = CreateWebContents();
   auto* client =
       MockPasswordManagerClient::CreateForWebContentsAndGet(web_contents.get());
-  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageEnabled)
+  ON_CALL(*(client->GetPasswordFeatureManager()), IsAccountStorageActive)
       .WillByDefault(Return(true));
 
   auto delegate = CreateDelegate();
@@ -2012,8 +2010,8 @@ class PasswordsPrivateDelegateImplFetchFamilyMembersTest
             version_info::Channel::DEFAULT,
             profile_url_loader_factory().GetSafeWeakWrapper(),
             identity_test_env_.identity_manager()));
-    identity_test_env_.MakePrimaryAccountAvailable("test@email.com",
-                                                   signin::ConsentLevel::kSync);
+    identity_test_env_.MakePrimaryAccountAvailable(
+        "test@email.com", signin::ConsentLevel::kSignin);
     identity_test_env_.SetAutomaticIssueOfAccessTokens(true);
   }
 
@@ -2191,6 +2189,9 @@ TEST_F(PasswordsPrivateDelegateImplFetchFamilyMembersTest,
   task_environment()->RunUntilIdle();
 }
 
+// TODO(crbug.com/40066949): Remove this test after kSync users are migrated to
+// kSignin in phase 3. As it will be identical to GetCredentialGroups_Butter.
+// See ConsentLevel::kSync documentation for details.
 TEST_F(PasswordsPrivateDelegateImplTest, GetCredentialGroups_SyncOn) {
   sync_service()->SetSignedIn(signin::ConsentLevel::kSync);
 

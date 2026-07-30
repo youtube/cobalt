@@ -65,6 +65,10 @@
   width: 100%;
 }
 
+#appFlexParent.immersive {
+  background-color: var(--background-color);
+}
+
 #appFlexParent #containerParent {
   background: var(--background-color);
   display: flex;
@@ -130,6 +134,8 @@
   max-width: var(--max-width);
   overflow-wrap: break-word;
   padding-left: 20px;
+  padding-top: var(--line-focus-padding);
+  padding-bottom: var(--line-focus-padding);
   width: 100%; /* Wrap text to width even with horizontal scroll bar */
 }
 
@@ -189,4 +195,16 @@
   color: var(--cr-primary-text-color);
   display: flex;
   justify-content: center;
+}
+
+img.distilled-inline-img {
+  display: inline;
+  vertical-align: middle;
+  width: auto;
+}
+
+img.distilled-full-width-img {
+  display: block;
+  width: 100%;
+  height: auto;
 }

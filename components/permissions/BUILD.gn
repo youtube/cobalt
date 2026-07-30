@@ -142,14 +142,14 @@ source_set("permissions") {
     "//components/favicon/core",
     "//components/guest_view/buildflags",
     "//components/keyed_service/content",
-    "//components/passage_embeddings",
+    "//components/passage_embeddings/core",
     "//components/permissions/vector_icons",
     "//components/pref_registry",
     "//components/prefs",
     "//components/safety_check",
     "//components/strings:components_branded_strings_grit",
     "//components/strings:components_strings_grit",
-    "//components/tabs:public",
+    "//components/tabs",
     "//components/ukm/content",
     "//components/unified_consent",
     "//components/url_formatter",
@@ -372,6 +372,7 @@ source_set("unit_tests") {
   }
   if (is_android) {
     sources += [
+      "android/android_permission_util_unittest.cc",
       "android/bluetooth_chooser_android_unittest.cc",
       "android/bluetooth_scanning_prompt_android_unittest.cc",
       "android/permission_prompt/permission_dialog_delegate_unittest.cc",

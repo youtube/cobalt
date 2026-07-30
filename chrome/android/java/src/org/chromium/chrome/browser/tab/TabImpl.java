@@ -93,6 +93,7 @@ import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.security_state.SecurityStateModel;
 import org.chromium.components.sensitive_content.SensitiveContentClient;
 import org.chromium.components.sensitive_content.SensitiveContentFeatures;
+import org.chromium.components.tabs.DetachReason;
 import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.ChildProcessImportance;
@@ -119,7 +120,6 @@ import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 /**
  * Implementation of the interface {@link Tab}. Contains and manages a {@link ContentView}. This
@@ -401,7 +401,6 @@ class TabImpl implements Tab {
     TabImpl(int id, Profile profile, @TabLaunchType int launchType, boolean isArchived) {
         mId = TabIdManager.getInstance().generateValidId(id);
         mProfile = profile;
-        assert mProfile != null;
         mRootId = mId;
         mIsArchived = isArchived;
 
@@ -516,7 +515,7 @@ class TabImpl implements Tab {
             // tab is not held by another tab model. For unclear reasons, removeTab() doesn't
             // always get invoked on the previous tab model before the tab is attached to the new
             // tab model (at least in tests).
-            mCurrentTabSupplier = null;
+            clearCurrentTabSupplier(DetachReason.INSERT_INTO_OTHER_WINDOW);
         }
 
         // Notify the event to observers only when we do the reparenting task, not when we simply
@@ -1714,8 +1713,7 @@ class TabImpl implements Tab {
      * @return iff the AutofillProvider should provide a ViewStructure when prompted.
      */
     boolean providesAutofillStructure() {
-
-        if (mProfile == null || !mProfile.isNativeInitialized()) {
+        if (!mProfile.isNativeInitialized()) {
             return false;
         }
         @Nullable PrefService prefs = UserPrefs.get(mProfile);
@@ -1782,6 +1780,7 @@ class TabImpl implements Tab {
                     // Wait until the content/ draws the transition.
                     CompositorViewHolder viewHolder =
                             assumeNonNull(getActivity()).getCompositorViewHolderSupplier().get();
+                    assumeNonNull(viewHolder);
                     viewHolder.requestRender(
                             () -> {
                                 var currView = getView();
@@ -2454,9 +2453,9 @@ class TabImpl implements Tab {
                     failedRestoreUrl = mWebContentsState.getFallbackUrlForRestorationFailure();
                 }
             }
-            Supplier<CompositorViewHolder> compositorViewHolderSupplier =
-                    assumeNonNull(getActivity()).getCompositorViewHolderSupplier();
-            View compositorView = compositorViewHolderSupplier.get();
+            View compositorView =
+                    assumeNonNull(getActivity()).getCompositorViewHolderSupplier().get();
+            assumeNonNull(compositorView);
             webContents.setSize(compositorView.getWidth(), compositorView.getHeight());
 
             mWebContentsState.destroy();
@@ -2953,19 +2952,15 @@ class TabImpl implements Tab {
     }
 
     @Override
-    public void onRemovedFromTabModel(LookAheadObservableSupplier<Tab> currentTabSupplier) {
+    public void onRemovedFromTabModel(
+            LookAheadObservableSupplier<Tab> currentTabSupplier, @DetachReason int detachReason) {
         // Usually mCurrentTabSupplier should equal currentTabSupplier when it's removed from the
         // TabModel. However, during reparenting it appears there are situations where the tab is
         // not removed from the original TabModel before being added to the new TabModel. In these
         // cases, mCurrentTabSupplier will be null as a result of the logic in updateAttachment().
         assert mCurrentTabSupplier == null || mCurrentTabSupplier == currentTabSupplier;
 
-        if (mCurrentTabSupplier != null) {
-            mCurrentTabSupplier.removeObserver(mActiveTabObserver);
-            mCurrentTabSupplier.removeLookAheadObserver(mActiveTabLookAheadObserver);
-        }
-
-        mCurrentTabSupplier = null;
+        clearCurrentTabSupplier(detachReason);
         mSelectionStateSupplier = null;
         mWasLastActive = null;
     }
@@ -2999,6 +2994,16 @@ class TabImpl implements Tab {
                 .closeTabs(
                         TabClosureParams.closeTab(tab).allowUndo(false).build(),
                         /* allowDialog= */ false);
+    }
+
+    private void clearCurrentTabSupplier(@DetachReason int detachReason) {
+        if (mCurrentTabSupplier == null) return;
+        if (mNativeTabAndroid != 0) {
+            TabImplJni.get().sendWillDetachUpdate(mNativeTabAndroid, detachReason);
+        }
+        mCurrentTabSupplier.removeObserver(mActiveTabObserver);
+        mCurrentTabSupplier.removeLookAheadObserver(mActiveTabLookAheadObserver);
+        mCurrentTabSupplier = null;
     }
 
     void setNativePtrForTesting(long nativePtr) {
@@ -3065,6 +3070,8 @@ class TabImpl implements Tab {
         void sendWillDeactivateUpdate(long nativeTabAndroid);
 
         void sendDidInsertUpdate(long nativeTabAndroid);
+
+        void sendWillDetachUpdate(long nativeTabAndroid, @DetachReason int detachReason);
     }
 
     @VisibleForTesting

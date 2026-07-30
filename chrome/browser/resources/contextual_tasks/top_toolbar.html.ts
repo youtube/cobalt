@@ -24,27 +24,30 @@ export function getHtml(this: TopToolbarElement) {
     ${this.title}
   </div>
   <div class="top-toolbar-action-buttons">
+    <cr-icon-button @click="${this.onNewThreadClick_}"
+        iron-icon="contextual_tasks:edit_square"
+        class="no-overlap" title="New Thread">
+    </cr-icon-button>
+    <cr-icon-button @click="${this.onThreadHistoryClick_}"
+        iron-icon="contextual_tasks:schedule_auto"
+        class="no-overlap" title="Thread History">
+    </cr-icon-button>
     <contextual-tasks-favicon-group id="sources"
-        .urls="${this.attachedTabs.map(t => t.url.url)}"
+        .urls="${this.attachedTabs.map(t => t.url)}"
         title="Sources" @click="${this.onSourcesClick_}"
         ?hidden="${!this.shouldShowSourcesMenuButton_()}">
     </contextual-tasks-favicon-group>
-    <cr-icon-button @click="${this.onNewThreadClick_}"
-        iron-icon="contextual_tasks:edit_square"
-        title="New Thread">
-    </cr-icon-button>
-    <cr-icon-button @click="${this.onThreadHistoryClick_}"
-        iron-icon="contextual_tasks:schedule_auto" title="Thread History">
-    </cr-icon-button>
     <cr-icon-button id="more" iron-icon="cr:more-vert"
-        title="More" @click="${this.onMoreClick_}">
+        class="no-overlap" title="More" @click="${this.onMoreClick_}">
     </cr-icon-button>
     <cr-icon-button @click="${this.onCloseButtonClick_}" iron-icon="cr:close"
         title="Close">
     </cr-icon-button>
   </div>
   <cr-lazy-render-lit id="sourcesMenu" .template="${() => html`
-    <contextual-tasks-sources-menu .attachedTabs="${this.attachedTabs}">
+    <contextual-tasks-sources-menu .attachedTabs="${this.attachedTabs}"
+      .attachedFiles="${this.attachedFiles}"
+      .attachedImages="${this.attachedImages}">
     </contextual-tasks-sources-menu>`}">
   </cr-lazy-render-lit>
   <cr-lazy-render-lit id="menu" .template="${() => html`

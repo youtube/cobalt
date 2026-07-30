@@ -34,9 +34,7 @@ import org.mockito.quality.Strictness;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -59,10 +57,7 @@ import java.util.Set;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
-@EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
 public class BookmarkPersonalizedSigninPromoTest {
-    private static final String CONTINUED_HISTOGRAM_NAME =
-            "Signin.SyncPromo.Continued.Count.Bookmarks";
     private static final String SHOWN_HISTOGRAM_NAME = "Signin.SyncPromo.Shown.Count.Bookmarks";
 
     private final AccountManagerTestRule mAccountManagerTestRule = new AccountManagerTestRule();
@@ -98,7 +93,8 @@ public class BookmarkPersonalizedSigninPromoTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/372858049
+    @DisableIf.Device(
+            DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/372858049, https://crbug.com/446934111
     public void shouldHideBookmarksSigninPromoIfDataTypesAreManagedByPolicy() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(true);
@@ -121,7 +117,8 @@ public class BookmarkPersonalizedSigninPromoTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/372858049
+    @DisableIf.Device(
+            DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/372858049, crbug.com/394674606
     public void shouldHideBookmarksSigninPromoIfDataTypesSyncing() {
         SyncServiceFactory.setInstanceForTesting(mSyncService);
         when(mSyncService.isTypeManagedByPolicy(UserSelectableType.BOOKMARKS)).thenReturn(false);

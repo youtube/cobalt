@@ -174,11 +174,6 @@ public class RecentTabsSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    boolean isSeamlessSigninAllowed() {
-        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
-    }
-
-    @Override
     boolean shouldHideSecondaryButton() {
         if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
             return mPromoState != PromoState.SIGNIN;
@@ -224,13 +219,19 @@ public class RecentTabsSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    boolean shouldOverridePrimaryButtonClick() {
-        return !isSeamlessSigninAllowed();
+    String getHistorySyncOptInTitle() {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+            return mContext.getString(R.string.history_sync_recent_tabs_title);
+        }
+        return super.getHistorySyncOptInTitle();
     }
 
     @Override
-    boolean shouldOverrideSecondaryButtonClick() {
-        return !isSeamlessSigninAllowed();
+    String getHistorySyncOptInSubtitle() {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+            return mContext.getString(R.string.history_sync_recent_tabs_subtitle);
+        }
+        return super.getHistorySyncOptInSubtitle();
     }
 
     private @PromoState int computePromoState() {

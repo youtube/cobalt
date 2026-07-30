@@ -101,10 +101,6 @@ class TextPaintTimingDetectorTest : public testing::Test {
         .texts_queued_for_paint_time_.size();
   }
 
-  wtf_size_t ContainerTotalSize() {
-    return CountRecordedSize() + TextQueuedForPaintTimeSize(GetFrameView());
-  }
-
   bool HasLargestIgnoredText() {
     return !!GetLargestTextPaintManager().LargestIgnoredText();
   }
@@ -337,7 +333,7 @@ TEST_F(TextPaintTimingDetectorTest, LargestTextPaint_TraceEvent_Candidate) {
   EXPECT_TRUE(events[0]->HasStringArg("frame"));
 
   ASSERT_TRUE(events[0]->HasDictArg("data"));
-  base::Value::Dict arg_dict = events[0]->GetKnownArgAsDict("data");
+  base::DictValue arg_dict = events[0]->GetKnownArgAsDict("data");
   EXPECT_GT(arg_dict.FindInt("DOMNodeId").value_or(-1), 0);
   EXPECT_GT(arg_dict.FindInt("size").value_or(-1), 0);
   EXPECT_EQ(arg_dict.FindInt("candidateIndex").value_or(-1), 1);
@@ -390,7 +386,7 @@ TEST_F(TextPaintTimingDetectorTest,
   EXPECT_TRUE(events[0]->HasStringArg("frame"));
 
   ASSERT_TRUE(events[0]->HasDictArg("data"));
-  base::Value::Dict arg_dict = events[0]->GetKnownArgAsDict("data");
+  base::DictValue arg_dict = events[0]->GetKnownArgAsDict("data");
   EXPECT_GT(arg_dict.FindInt("DOMNodeId").value_or(-1), 0);
   EXPECT_GT(arg_dict.FindInt("size").value_or(-1), 0);
   EXPECT_EQ(arg_dict.FindInt("candidateIndex").value_or(-1), 1);
@@ -574,44 +570,6 @@ TEST_F(TextPaintTimingDetectorTest, LargestTextPaint_RemovedText) {
   // LCP values should remain unchanged.
   EXPECT_EQ(LargestPaintSize(), size_before_remove);
   EXPECT_EQ(LargestPaintTime(), time_before_remove);
-}
-
-TEST_F(TextPaintTimingDetectorTest,
-       RemoveRecordFromAllContainerAfterTextRemoval) {
-  SetBodyInnerHTML(R"HTML(
-  )HTML");
-  Element* text = AppendDivElementToBody("text");
-  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
-  EXPECT_EQ(ContainerTotalSize(), 1u);
-
-  RemoveElement(text);
-  EXPECT_EQ(ContainerTotalSize(), 0u);
-}
-
-TEST_F(TextPaintTimingDetectorTest,
-       RemoveRecordFromAllContainerAfterRepeatedAttachAndDetach) {
-  SetBodyInnerHTML(R"HTML(
-  )HTML");
-  Element* text1 = AppendDivElementToBody("text");
-  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
-  EXPECT_EQ(ContainerTotalSize(), 1u);
-
-  Element* text2 = AppendDivElementToBody("text2");
-  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
-  EXPECT_EQ(ContainerTotalSize(), 2u);
-
-  RemoveElement(text1);
-  EXPECT_EQ(ContainerTotalSize(), 1u);
-
-  GetDocument().body()->AppendChild(text1);
-  UpdateAllLifecyclePhasesAndSimulatePresentationTime();
-  EXPECT_EQ(ContainerTotalSize(), 2u);
-
-  RemoveElement(text1);
-  EXPECT_EQ(ContainerTotalSize(), 1u);
-
-  RemoveElement(text2);
-  EXPECT_EQ(ContainerTotalSize(), 0u);
 }
 
 TEST_F(TextPaintTimingDetectorTest,

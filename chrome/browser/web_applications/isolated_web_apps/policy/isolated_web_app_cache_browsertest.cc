@@ -299,7 +299,7 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
     }
     std::visit(absl::Overload{
                    [&](ManagedGuestSessionMixin& mgs_mixin) {
-                     base::Value::List config;
+                     base::ListValue config;
                      for (auto& iwa : apps_to_configure_in_session) {
                        config.Append(iwa_test_update_server_
                                          .CreateForceInstallPolicyEntry(
@@ -490,7 +490,9 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
   }
 
   void DiscoverUpdatesNow() {
-    EXPECT_THAT(provider().iwa_update_manager().DiscoverUpdatesNow(), Eq(1ul));
+    EXPECT_THAT(
+        provider().isolated_web_app_update_manager().DiscoverUpdatesNow(),
+        Eq(1ul));
   }
 
   void DestroyCacheDir() { cache_root_dir_override_.reset(); }
@@ -510,12 +512,13 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
                                              const std::string& result) {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_TRUE(base::test::RunUntil([&]() {
-      base::Value debug_value = provider().iwa_cache_manager().GetDebugValue();
-      base::Value::List* operations_results =
+      base::Value debug_value =
+          provider().isolated_web_app_cache_manager().GetDebugValue();
+      base::ListValue* operations_results =
           debug_value.GetDict().FindList(kOperationsResults);
       return operations_results &&
              operations_results->contains(
-                 base::Value::Dict().Set(operation_name, result));
+                 base::DictValue().Set(operation_name, result));
     }));
   }
 
@@ -581,7 +584,7 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
       const SignedWebBundleId& bundle_id) {
     std::vector<IwaVersion> versions;
 
-    base::Value::Dict manifest_dict =
+    base::DictValue manifest_dict =
         iwa_test_update_server_.GetUpdateManifest(bundle_id);
     for (auto& version_value :
          CHECK_DEREF(manifest_dict.FindList("versions"))) {
@@ -594,11 +597,8 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
   }
 
   const WebApp* GetIsolatedWebApp(const SignedWebBundleId& bundle_id) {
-    ASSIGN_OR_RETURN(const WebApp& iwa,
-                     GetIsolatedWebAppById(provider().registrar_unsafe(),
-                                           GetAppId(bundle_id)),
-                     [](const std::string&) { return nullptr; });
-    return &iwa;
+    return provider().registrar_unsafe().GetAppById(
+        GetAppId(bundle_id), WebAppFilter::IsIsolatedApp());
   }
 
   SessionMixin CreateSessionMixin(SessionType session_type) {
@@ -798,7 +798,8 @@ IN_PROC_BROWSER_TEST_P(IwaCacheOneAppTest, GetDebugValue) {
   AssertAppInstalledAtVersion(kWebBundleId1, GetBaseVersion());
   WaitUntilPathExists(GetCachedBundlePath(kWebBundleId1, GetBaseVersion()));
 
-  base::Value debug_value = provider().iwa_cache_manager().GetDebugValue();
+  base::Value debug_value =
+      provider().isolated_web_app_cache_manager().GetDebugValue();
   EXPECT_EQ(debug_value.GetDict().FindBool(kBundleCacheIsEnabled), true);
   EXPECT_NE(debug_value.GetDict().Find(kOperationsResults), nullptr);
 }

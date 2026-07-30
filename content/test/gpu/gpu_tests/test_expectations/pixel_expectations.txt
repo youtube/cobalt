@@ -478,6 +478,11 @@ crbug.com/372055518 [ angle-metal asan intel-0x3e9b mac ] Pixel_WebGLReadPixelsT
 crbug.com/40277254 [ mac angle-opengl asan ] Pixel_WebGPUDisplayP3 [ Failure ]
 
 
+# Win/AMD RX 5500 failures
+crbug.com/479032532 [ win11 amd-0x7340 passthrough ] Pixel_WebGPUDestroyed_OffscreenCanvas_DrawImage [ RetryOnFailure ]
+crbug.com/479032532 [ win11 amd-0x7340 passthrough ] Pixel_WebGPUDestroyed_OffscreenCanvas_CopyExternalImageToTexture [ RetryOnFailure ]
+crbug.com/479032532 [ win11 amd-0x7340 passthrough ] Pixel_WebGPUDestroyed_OffscreenCanvas_GlTexImage2D [ RetryOnFailure ]
+
 # Win/AMD RX 7600 failures
 crbug.com/402171652 [ win11 amd-0x7480 ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
 crbug.com/402171652 [ win11 amd-0x7480 ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
@@ -551,7 +556,6 @@ crbug.com/415830130 [ android-16 android-chromium android-pixel-10 angle-opengle
 crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl target-cpu-32 ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ fuchsia ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl target-cpu-32 ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
-crbug.com/446950282 [ angle-metal graphite-disabled intel-0x3e9b no-asan no-clang-coverage release sequoia ] Pixel_ViewTransitionsCapture_TreesInViz [ Failure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
 crbug.com/415830130 [ angle-swiftshader fuchsia fuchsia-board-qemu-x64 google-0xc0de ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
 crbug.com/415830130 [ angle-vulkan arm fuchsia fuchsia-board-sherlock no-asan no-clang-coverage ] Pixel_SolidColorBackground_TreesInViz [ Failure ]

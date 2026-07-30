@@ -29,6 +29,7 @@ import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.TaskVisibilityListener;
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.JniOnceCallback;
 import org.chromium.base.Log;
@@ -41,6 +42,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -185,16 +187,16 @@ final class ChromeAndroidTaskImpl
 
     private final @BrowserWindowType int mBrowserWindowType;
 
-    private final AndroidBrowserWindow mAndroidBrowserWindow;
     // TODO(crbug.com/475200706): Support regular + OTR for mobile.
     private final Profile mInitialProfile;
+    private final AndroidBrowserWindow mAndroidBrowserWindow;
 
     /**
      * Contains all {@link ChromeAndroidTaskFeature}s associated with this {@link
      * ChromeAndroidTask}.
      */
-    private final Map<Class<? extends ChromeAndroidTaskFeature>, ChromeAndroidTaskFeature>
-            mFeatures = new ArrayMap<>();
+    private final Map<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature> mFeatures =
+            new ArrayMap<>();
 
     /**
      * All {@link ActivityScopedObjects} instances associated with this Task.
@@ -207,6 +209,31 @@ final class ChromeAndroidTaskImpl
      * @see #removeActivityScopedObjects
      */
     private final Deque<ActivityScopedObjects> mActivityScopedObjectsDeque = new ArrayDeque<>();
+
+    /**
+     * Observer for profile removal. This is attached to the {@link ProfileManager} in the
+     * constructor and is removed when the {@link ChromeAndroidTask} is destroyed.
+     */
+    private final ProfileManager.Observer mProfileObserver =
+            new ProfileManager.Observer() {
+                @Override
+                public void onProfileAdded(Profile profile) {}
+
+                @Override
+                public void onProfileDestroyed(Profile profile) {
+                    var iterator = mFeatures.entrySet().iterator();
+                    while (iterator.hasNext()) {
+                        var entry = iterator.next();
+                        var key = entry.getKey();
+                        if (profile.equals(key.mProfile)) {
+                            entry.getValue().onFeatureRemoved();
+                            iterator.remove();
+                        }
+                    }
+                }
+            };
+
+    private final Callback<TabModel> mOnTabModelSelectedCallback = this::onTabModelSelected;
 
     private @Nullable TabModelSelectorTabModelObserver mPreventAddTabToOtherModelObserver;
 
@@ -338,13 +365,17 @@ final class ChromeAndroidTaskImpl
             @BrowserWindowType int browserWindowType, ActivityScopedObjects activityScopedObjects) {
         mBrowserWindowType = browserWindowType;
         mId = getActivity(activityScopedObjects.mActivityWindowAndroid).getTaskId();
-        mAndroidBrowserWindow = new AndroidBrowserWindow(/* chromeAndroidTask= */ this);
 
         Profile initialProfile =
                 activityScopedObjects.mTabModelSelector.getCurrentModel().getProfile();
         assert initialProfile != null
                 : "ChromeAndroidTask must be initialized with a non-null profile";
         mInitialProfile = initialProfile;
+
+        // TODO(crbug.com/475200706): Support regular + OTR for mobile.
+        mAndroidBrowserWindow =
+                new AndroidBrowserWindow(/* chromeAndroidTask= */ this, initialProfile);
+        ProfileManager.addObserver(mProfileObserver);
 
         mState = State.IDLE;
         addActivityScopedObjectsInternal(activityScopedObjects);
@@ -354,8 +385,11 @@ final class ChromeAndroidTaskImpl
         mPendingTaskInfo = pendingTaskInfo;
 
         mBrowserWindowType = pendingTaskInfo.mCreateParams.getWindowType();
-        mAndroidBrowserWindow = new AndroidBrowserWindow(/* chromeAndroidTask= */ this);
         mInitialProfile = pendingTaskInfo.mCreateParams.getProfile();
+        mAndroidBrowserWindow =
+                new AndroidBrowserWindow(/* chromeAndroidTask= */ this, mInitialProfile);
+        ProfileManager.addObserver(mProfileObserver);
+
         mState = State.PENDING_CREATE;
         mPendingActionManager.updateFutureStates(mPendingTaskInfo);
     }
@@ -450,18 +484,33 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public <T extends ChromeAndroidTaskFeature> void addFeature(
-            Class<T> featureClazz, Supplier<@Nullable T> featureSupplier) {
+            ChromeAndroidTaskFeatureKey featureKey, Supplier<@Nullable T> featureSupplier) {
         ThreadUtils.assertOnUiThread();
         assertPendingCreateOrIdle();
 
-        if (mFeatures.containsKey(featureClazz)) {
+        if (mFeatures.containsKey(featureKey)) {
             return;
         }
 
+        // TODO(crbug.com/475200706): Support regular + OTR for mobile.
+        if (featureKey.mProfile != null && !featureKey.mProfile.equals(mInitialProfile)) {
+            throw new IllegalArgumentException(
+                    "Feature is profile-scoped but the profile doesn't match the task's profile.");
+        }
+
+        var topActivityScopedObjects = mActivityScopedObjectsDeque.peekFirst();
+        var tabModelSelector =
+                topActivityScopedObjects == null
+                        ? null
+                        : topActivityScopedObjects.mTabModelSelector;
+
         var feature = featureSupplier.get();
         if (feature != null) {
-            mFeatures.put(featureClazz, feature);
+            mFeatures.put(featureKey, feature);
             feature.onAddedToTask();
+            if (tabModelSelector != null) {
+                feature.onTabModelSelected(tabModelSelector.getCurrentModel());
+            }
         }
     }
 
@@ -504,10 +553,10 @@ final class ChromeAndroidTaskImpl
         // One case where the "DESTROYING" state is crucial:
         //
         // If a ChromeAndroidTaskFeature ("Feature") holds a ChromeAndroidTask ("Task") reference,
-        // the Feature could call the Task's APIs during Feature#onTaskRemoved(). Since mState won't
-        // become "DESTROYED" until after Feature#onTaskRemoved(), we need the "DESTROYING" state to
-        // prevent the Feature from accessing the Task's APIs that should only be called when mState
-        // is "ALIVE".
+        // the Feature could call the Task's APIs during Feature#onFeatureRemoved(). Since mState
+        // won't become "DESTROYED" until after Feature#onFeatureRemoved(), we need the "DESTROYING"
+        // state to prevent the Feature from accessing the Task's APIs that should only be called
+        // when mState is "ALIVE".
         mState = State.DESTROYING;
 
         if (mPendingTaskInfo != null) {
@@ -517,6 +566,7 @@ final class ChromeAndroidTaskImpl
 
         removeAllActivityScopedObjects();
         destroyFeatures();
+        ProfileManager.removeObserver(mProfileObserver);
 
         mAndroidBrowserWindow.destroy();
         mState = State.DESTROYED;
@@ -610,12 +660,6 @@ final class ChromeAndroidTaskImpl
     public long getLastActivatedTimeMillis() {
         ThreadUtils.assertOnUiThread();
         return assertNonNull(mLastActivatedTimeMillis);
-    }
-
-    @Override
-    public Profile getProfile() {
-        ThreadUtils.assertOnUiThread();
-        return mInitialProfile;
     }
 
     @Override
@@ -883,9 +927,9 @@ final class ChromeAndroidTaskImpl
 
     @Override
     public @Nullable ChromeAndroidTaskFeature getFeatureForTesting(
-            Class<? extends ChromeAndroidTaskFeature> featureClazz) {
+            ChromeAndroidTaskFeatureKey featureKey) {
         ThreadUtils.assertOnUiThread();
-        return mFeatures.get(featureClazz);
+        return mFeatures.get(featureKey);
     }
 
     @Override
@@ -986,6 +1030,9 @@ final class ChromeAndroidTaskImpl
         // TODO(crbug.com/475200706): Associate both models in MIXED state.
         TabModel currentTabModel = tabModelSelector.getCurrentModel();
         currentTabModel.associateWithBrowserWindow(mAndroidBrowserWindow.getOrCreateNativePtr());
+
+        tabModelSelector.getCurrentTabModelSupplier().addObserver(mOnTabModelSelectedCallback);
+        onTabModelSelected(tabModelSelector.getCurrentModel());
     }
 
     private void unregisterListenersForTopActivity() {
@@ -1013,6 +1060,13 @@ final class ChromeAndroidTaskImpl
         if (mPreventAddTabToOtherModelObserver != null) {
             mPreventAddTabToOtherModelObserver.destroy();
             mPreventAddTabToOtherModelObserver = null;
+        }
+
+        var tabModelSelector = topActivityScopedObjects.mTabModelSelector;
+        if (tabModelSelector != null) {
+            tabModelSelector
+                    .getCurrentTabModelSupplier()
+                    .removeObserver(mOnTabModelSelectedCallback);
         }
     }
 
@@ -1122,7 +1176,7 @@ final class ChromeAndroidTaskImpl
 
     private void destroyFeatures() {
         for (var feature : mFeatures.values()) {
-            feature.onTaskRemoved();
+            feature.onFeatureRemoved();
         }
         mFeatures.clear();
     }
@@ -1346,6 +1400,12 @@ final class ChromeAndroidTaskImpl
             }
         }
         mState = State.IDLE;
+    }
+
+    private void onTabModelSelected(TabModel tabModel) {
+        for (var feature : mFeatures.values()) {
+            feature.onTabModelSelected(tabModel);
+        }
     }
 
     @VisibleForTesting

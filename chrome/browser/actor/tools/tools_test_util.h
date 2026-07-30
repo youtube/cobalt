@@ -53,6 +53,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
       const actor_login::Credential& credential,
       bool should_store_permission,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
+      base::TimeTicks attempt_login_tool_start_time,
       actor_login::LoginStatusResultOrErrorReply callback) override;
 
   void SetCredentials(const actor_login::CredentialsOrError& credentials);
@@ -99,10 +100,6 @@ class ActorToolsTest : public InProcessBrowserTest {
  protected:
   virtual std::unique_ptr<ExecutionEngine> CreateExecutionEngine(
       Profile* profile);
-
-  // Returns true if actuation should always be enabled for the test (regardless
-  // of policy / opt-in status).
-  virtual bool ShouldForceActOnWeb();
 
   TaskId CreateNewTask();
 

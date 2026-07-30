@@ -488,6 +488,10 @@
       status: "stable",
     },
     {
+      name: "AllImagesPaintedSentToElementTiming",
+      status: "experimental",
+    },
+    {
       name: "AllowContentInitiatedDataUrlNavigations",
       base_feature: "none",
     },
@@ -559,7 +563,7 @@
     {
       // https://drafts.csswg.org/web-animations-2/#triggers
       name: "AnimationTrigger",
-      status: "experimental",
+      status: "stable",
       implied_by: ["EventTrigger", "TimelineTrigger"],
     },
     {
@@ -631,6 +635,13 @@
       public: true,
     },
     {
+      // The transition to "running" after construction happens asynchronously.
+      // Same for the transition to "suspended" after suspend() is called.
+      // https://webaudio.github.io/web-audio-api/#AudioContext-constructors
+      name: "AudioContextAsyncStateTransitions",
+      status: "experimental",
+    },
+    {
       // AudioContext.playoutStats interface.
       // https://chromestatus.com/feature/5172818344148992
       name: "AudioContextPlayoutStats",
@@ -671,6 +682,7 @@
     {
       name: "AutofillEvent",
       status: "experimental",
+      public: true,
     },
     {
       name: "AutomationControlled",
@@ -1360,10 +1372,6 @@
       status: "stable",
     },
     {
-      name: "CSSColorContrast",
-      status: "experimental",
-    },
-    {
       name: "CSSColorTypedOM",
       status: "experimental",
     },
@@ -1382,6 +1390,11 @@
       // https://drafts.csswg.org/css-conditional-5/#typedef-style-range
       name: "CSSContainerStyleQueriesRange",
       status: "stable",
+    },
+    {
+      // https://drafts.csswg.org/css-color-5/#contrast-color
+      name: "CSSContrastColor",
+      status: "experimental",
     },
     {
       // https://drafts.csswg.org/css-borders-4/#corner-shaping
@@ -1428,6 +1441,10 @@
       // crbug.com/417306102
       name: "CssFitWidthText",
       status: "experimental",
+    },
+    {
+      // crbug.com/417306102
+      name: "CssFitWidthTextReshaping",
     },
     {
       name: "CSSFontSizeAdjust",
@@ -1741,7 +1758,7 @@
     {
       // crbug.com/434361099
       name: "CssTextIndent",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CssTextIndentAsPrimitive",
@@ -1769,6 +1786,12 @@
       // https://drafts.csswg.org/scroll-animations-1/#timeline-scope
       name: "CSSTimelineScopeAll",
       status: "experimental",
+    },
+    {
+      // Makes timeline names global by default.
+      //
+      // https://github.com/w3c/csswg-drafts/issues/12581
+      name: "CSSTimelineScopeGlobal",
     },
     {
       name: "CSSTypedArithmetic",
@@ -2142,11 +2165,6 @@
       // (object/embed elements). Fixes drag and drop from text inputs/textareas
       // to elements inside object frames.
       name: "DragAndDropPluginElementSupport",
-      status: "stable",
-    },
-    {
-      // See https://crbug.com/447446858
-      name: "EditContextConvertLocalFrameBoundsToRootFrame",
       status: "stable",
     },
     {
@@ -4091,6 +4109,7 @@
       name: "PrerenderUntilScript",
       public: true,
       origin_trial_feature_name: "PrerenderUntilScript",
+      origin_trial_allows_third_party: true,
       status: "experimental",
     },
     {
@@ -4244,14 +4263,6 @@
     {
       name: "ReduceAcceptLanguage",
       base_feature: "none",
-    },
-    {
-      // If enabled, the deviceModel will be reduced to "K" and the
-      // androidVersion will be reduced to a static "10" string in android
-      // User-Agent string.
-      name: "ReduceUserAgentAndroidVersionDeviceModel",
-      depends_on: ["ReduceUserAgentMinorVersion"],
-      status: {"Android": "stable"},
     },
     // If enabled, the platform version in User-Agent Data will be removed.
     // This feature is limited to Linux only.
@@ -4519,7 +4530,7 @@
       // Spec: https://wicg.github.io/sanitizer-api/
       // Tracking bug: crbug.com/356601280
       name: "SanitizerAPI",
-      status: "stable",
+      status: "experimental",
     },
     {
       // https://wicg.github.io/webcomponents/proposals/Scoped-Custom-Element-Registries
@@ -4952,11 +4963,6 @@
       status: "stable",
     },
     {
-      // crbug.com/403617975
-      name: "SkipSetNeedsCollectInlines",
-      status: "stable",
-    },
-    {
       // Skips the browser touch event filter, ensuring that events that reach
       // the queue and would otherwise be filtered out will instead be passed
       // onto the renderer compositor process as long as the page hasn't timed
@@ -4997,6 +5003,10 @@
       // on it.
       name: "SoftNavigationDetection",
       status: "stable",
+    },
+    {
+      name: "SoftNavigationEagerIcpEntryEmission",
+      status: "test",
     },
     {
       name: "SoftNavigationHeuristics",
@@ -5125,11 +5135,6 @@
       status: "stable",
     },
     {
-      // Disable "external" XSLT stylesheets in SVGImage.
-      name: "SvgImageNoExternalXslt",
-      status: "stable",
-    },
-    {
       name: "SvgInlineRootPixelSnappingScaleAdjustment",
       status: "test",
     },
@@ -5156,6 +5161,10 @@
     {
       name: "SvgSmilPruneInstanceTimes",
       status: "stable",
+    },
+    {
+      name: "SvgTextPathPathAttribute",
+      status: "experimental"
     },
     {
       name: "SvgTransformOnNestedSvgElement",
@@ -5198,10 +5207,6 @@
     },
     {
       name: "TabSizeWithSpacing",
-      status: "stable",
-    },
-    {
-      name: "TabWidthNegativePosition",
       status: "stable",
     },
     {
@@ -5326,7 +5331,7 @@
     },
     {
       name: "TextScaleMetaTag",
-      status: "experimental",
+      status: "stable",
     },
     {
       // crbug.com/431660829
@@ -5357,7 +5362,7 @@
     {
       // https://drafts.csswg.org/web-animations-2/#triggers
       name: "TimelineTrigger",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "TimerThrottlingForBackgroundTabs",
@@ -5615,6 +5620,7 @@
       name: "UserMediaElement",
       status: "experimental",
       origin_trial_feature_name: "UserMediaElement",
+      public: true,
       origin_trial_os: ["win", "mac", "linux", "fuchsia", "chromeos", "android"],
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -5806,6 +5812,8 @@
     {
       // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-renderquantumsize
       name: "WebAudioConfigurableRenderQuantum",
+      origin_trial_feature_name: "WebAudioConfigurableRenderQuantum",
+      status: "experimental",
     },
     // WebAuth is disabled on Android versions prior to N (7.0) due to lack of
     // supporting APIs, see runtime_features.cc.
@@ -5840,18 +5848,12 @@
       name: "WebAuthenticationChallengeUrl",
       status: "experimental",
     },
-    // https://w3c.github.io/webauthn/#dom-clientcapability-conditionalcreate
-    {
-      name: "WebAuthenticationConditionalCreate",
-      status: "test",
-      base_feature: "none",
-      public: true,
-    },
-    // Prototyping https://github.com/w3c/webauthn/issues/2228
+    // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
+    // and `get()` requests with `uiMode: 'immediate'`.
+    // See https://github.com/w3c/webauthn/issues/2228.
     {
       name: "WebAuthenticationImmediateGet",
-      origin_trial_feature_name: "WebAuthenticationImmediateGet",
-      origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      status: "experimental",
       base_feature: "none",
       public: true,
     },
@@ -5865,13 +5867,7 @@
       name: "WebAuthenticationSupplementalPubKeys",
       status: "experimental",
     },
-    // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
-    // This is an alternate API shape for `WebAuthenticationImmediateGet`.
-    // See https://github.com/w3c/webauthn/issues/2228.
-    {
-      name: "WebAuthenticationUiMode",
-      status: "experimental",
-    },
+
     // WebBluetooth is enabled by default on Android, ChromeOS, iOS, macOS and
     // Windows.
     {
@@ -5993,8 +5989,7 @@
     },
     {
       name: "WebGPUTransientAttachment",
-      status: "experimental",
-      implied_by: ["WebGPUExperimentalFeatures"],
+      status: "stable",
     },
     {
       name: "WebHID",

@@ -16,6 +16,8 @@ void TabModelObserver::DidSelectTab(TabAndroid* tab,
 
 void TabModelObserver::WillCloseTab(TabAndroid* tab) {}
 
+void TabModelObserver::DidRemoveTabForClosure(TabAndroid* tab) {}
+
 void TabModelObserver::OnFinishingTabClosure(
     TabAndroid* tab,
     TabModel::TabClosingSource source) {}
@@ -53,3 +55,6 @@ void TabModelObserver::OnTabGroupRemoving(tab_groups::TabGroupId group_id) {}
 
 void TabModelObserver::OnTabGroupMoved(tab_groups::TabGroupId group_id,
                                        int old_index) {}
+
+void TabModelObserver::OnTabGroupVisualsChanged(
+    tab_groups::TabGroupId group_id) {}

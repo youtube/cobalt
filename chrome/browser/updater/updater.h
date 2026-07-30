@@ -50,6 +50,9 @@ void SetUpSystemUpdater();
 // calls `prompt` on the same sequence.
 void SchedulePeriodicTasks(base::RepeatingClosure prompt);
 
+// Communicates to the updater that the browser is active.
+void SetActive();
+
 std::optional<mojom::UpdateState> GetLastOnDemandUpdateState();
 
 std::optional<mojom::AppState> GetLastKnownBrowserRegistration();
@@ -68,6 +71,12 @@ void GetUserUpdaterState(
 void GetSystemPoliciesJson(
     base::OnceCallback<void(const std::string&)> callback);
 void GetUserPoliciesJson(base::OnceCallback<void(const std::string&)> callback);
+
+// Queries the per-application metadata maintained by the updater.
+void GetSystemUpdaterAppStates(
+    base::OnceCallback<void(const std::vector<mojom::AppState>&)> callback);
+void GetUserUpdaterAppStates(
+    base::OnceCallback<void(const std::vector<mojom::AppState>&)> callback);
 
 }  // namespace updater
 

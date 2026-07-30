@@ -23,7 +23,7 @@
     --diagnostics-card-bg-color: var(--cros-bg-color);
     --diagnostics-chip-bg-color: var(--cros-bg-color-dropped-elevation-2);
 
-    --diagnostics-google-sans-font-family: "Google Sans", sans-serif;
+    --diagnostics-google-sans-font-family: 'Google Sans', sans-serif;
     --diagnostics-roboto-font-family: Roboto, sans-serif;
 
     --diagnostics-regular-font-weight: 400;
@@ -48,6 +48,7 @@
 
   :host-context(body.jelly-enabled) .diagnostics-chip {
     color: var(--cros-sys-on_surface_variant);
+    font: var(--cros-body-2-font);
   }
 
   :host-context(body.jelly-enabled) .grey-container {
@@ -145,9 +146,6 @@
     width: var(--container-max-width-nav);
   }
 
-  :host-context(body.jelly-enabled) .diagnostics-chip {
-    font: var(--cros-body-2-font);
-  }
 
   .diagnostics-chip {
     background-color: var(--diagnostics-chip-bg-color);

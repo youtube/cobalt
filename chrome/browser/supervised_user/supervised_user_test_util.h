@@ -9,13 +9,14 @@
 #include <string>
 #include <string_view>
 
+#include "base/check_deref.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/android/supervised_user_service_platform_delegate.h"
+#include "chrome/browser/supervised_user/family_link_settings_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/keyed_service/core/keyed_service_factory.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
@@ -90,17 +91,19 @@ std::unique_ptr<KeyedService> BuildSupervisedUserService(
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory =
       profile->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess();
+  supervised_user::FamilyLinkSettingsService& settings_service = CHECK_DEREF(
+      supervised_user::FamilyLinkSettingsServiceFactory::GetInstance()
+          ->GetForKey(profile->GetProfileKey()));
 
   return std::make_unique<supervised_user::SupervisedUserService>(
       IdentityManagerFactory::GetForProfile(profile),
       profile->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess(),
-      *profile->GetPrefs(),
-      *SupervisedUserSettingsServiceFactory::GetInstance()->GetForKey(
-          profile->GetProfileKey()),
+      *profile->GetPrefs(), settings_service,
       SyncServiceFactory::GetInstance()->GetForProfile(profile),
       std::make_unique<URLFilter>(
-          *profile->GetPrefs(), std::make_unique<URLFilterDelegate>(),
+          settings_service, *profile->GetPrefs(),
+          std::make_unique<URLFilterDelegate>(),
           std::make_unique<
               supervised_user::KidsChromeManagementURLCheckerClient>(
               identity_manager, url_loader_factory, *profile->GetPrefs(),

@@ -95,7 +95,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AppBanners.DisplayEvent" enum="AppBannersDisplayEvent"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>pjmclachlan@google.com</owner>
   <owner>pcovell@google.com</owner>
   <summary>
@@ -216,7 +216,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.WebApp.DiyOrCrafted" enum="LaunchedAppType"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -226,7 +226,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Launch.WebAppDisplayMode" enum="WebAppDisplayMode"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>peter@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -762,7 +762,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.FileHandlersRegistration.Result" enum="BooleanSuccess"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1143,7 +1143,8 @@ chromium-metrics-reviews@google.com.
   <owner>sunggch@microsoft.com</owner>
   <summary>
     Records the mechanism and source from which a web app uninstallation was
-    triggered, regardless of whether the uninstallation was successful.
+    triggered, regardless of whether the uninstallation was successful. Warning:
+    this histogram was expired from 2024 to 2026-01-21; data may be missing.
   </summary>
 </histogram>
 
@@ -1208,7 +1209,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.InstalledCount.ByUserNotLocallyInstalled" units="count"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1906,6 +1907,20 @@ chromium-metrics-reviews@google.com.
     controls is enabled. The control events (like next) are only fired if the
     request comes from system media controls (and the OS) not when the media is
     directly interacted.
+  </summary>
+</histogram>
+
+<histogram name="WebApp.Migration.ApplyResult"
+    enum="WebAppApplyManifestMigrationResult" expires_after="2027-01-27">
+  <owner>dibyapal@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the result of applying the final step of an app migration, where the
+    source app is removed, and the migrated app is fully installed with OS
+    integration. The migration is triggered only if the user confirms the
+    changes through the web app identity update dialog. This operation will
+    result in the web app's origin being updated, with name and icon also being
+    updated if needed.
   </summary>
 </histogram>
 
@@ -2631,14 +2646,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Creation.Result"
-    enum="ShortcutsCreationResult" expires_after="2026-05-24">
+    enum="ShortcutsCreationResult" expires_after="2026-07-26">
   <owner>phillis@chromium.org</owner>
   <owner>dmurph@chromium.org</owner>
   <summary>Records the result of shortcut creation for PWA.</summary>
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Delete.Result" enum="BooleanSuccess"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>dmurph@google.com</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2652,7 +2667,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Shortcuts.Update.Result" enum="BooleanSuccess"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>camdenking@google.com</owner>
   <owner>pwa-team@google.com</owner>
   <summary>

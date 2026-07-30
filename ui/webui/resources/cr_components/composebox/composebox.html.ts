@@ -41,7 +41,8 @@ export function getHtml(this: ComposeboxElement) {
   <ntp-error-scrim id="errorScrim" part="error-scrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
                      this.contextFilesSize_ === 0}"
-    @error-scrim-visibility-changed="${this.onErrorScrimVisibilityChanged_}">
+    .errorMessage="${this.errorMessage_}"
+    @dismiss-error-scrim="${this.onErrorScrimDismissed_}">
   </ntp-error-scrim>
   <div id="composebox" @keydown="${this.onKeydown_}"
       @focusin="${this.handleComposeboxFocusIn_}"
@@ -107,14 +108,19 @@ export function getHtml(this: ComposeboxElement) {
           @on-file-validation-error="${this.onFileValidationError_}"
           @set-deep-search-mode="${this.setDeepSearchMode_}"
           @set-create-image-mode="${this.setCreateImageMode_}"
+          @set-canvas-mode="${this.setCanvasMode_}"
+          @model-click="${this.onModelClick_}"
           @get-tab-preview="${this.getTabPreview_}"
           @open-file-dialog="${this.onOpenFileDialog_}"
           @context-menu-container-click="${this.searchboxLayoutMode === 'Compact' ?  nothing : this.focusInput}"
           ?show-dropdown="${this.showDropdown_}"
           ?show-recent-tab-chip="${false}"
+          .inputState="${this.inputState_}"
           searchbox-layout-mode="${this.searchboxLayoutMode}"
           ?carousel-on-top_="${this.carouselOnTop_}"
           ?show-voice-search="${this.shouldShowVoiceSearch_()}"
+          ?show-canvas="${this.showCanvas}"
+          ?show-model-picker="${this.showModelPicker_}"
           .submitButtonShown="${this.searchboxNextEnabled && this.submitEnabled_ && this.showSubmit_}">
         <cr-composebox-dropdown
             id="matches"

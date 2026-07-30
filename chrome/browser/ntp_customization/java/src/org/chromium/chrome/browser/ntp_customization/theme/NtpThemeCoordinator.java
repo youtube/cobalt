@@ -185,9 +185,15 @@ public class NtpThemeCoordinator {
 
             @Override
             public void onThemeCollectionsClicked(
-                    Runnable onDailyRefreshCancelledCallback,
+                    Runnable resetCustomizedThemeRunnable,
                     List<BackgroundCollection> themeCollectionsList) {
                 if (mNtpThemeCollectionsCoordinator == null) {
+                    Runnable onDailyRefreshCancelledCallback =
+                            () -> {
+                                resetCustomizedThemeRunnable.run();
+                                initializeBottomSheetContent(
+                                        BottomSheetType.SINGLE_THEME_COLLECTION);
+                            };
                     mNtpThemeCollectionsCoordinator =
                             new NtpThemeCollectionsCoordinator(
                                     mContext,
@@ -207,14 +213,19 @@ public class NtpThemeCoordinator {
         mNtpThemeBottomSheetView.destroy();
         if (mUploadPreviewCoordinator != null) {
             mUploadPreviewCoordinator.destroy();
+            mUploadPreviewCoordinator = null;
         }
         if (mNtpThemeCollectionsCoordinator != null) {
             mNtpThemeCollectionsCoordinator.destroy();
+            mNtpThemeCollectionsCoordinator = null;
         }
         if (mNtpChromeColorsCoordinator != null) {
             mNtpChromeColorsCoordinator.destroy();
+            mNtpChromeColorsCoordinator = null;
         }
         mNtpThemeCollectionManager.destroy();
+        mNtpThemeCollectionsCoordinator = null;
+
         mCallbackController.destroy();
     }
 

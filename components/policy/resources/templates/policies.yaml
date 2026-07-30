@@ -1403,7 +1403,7 @@ policies:
   1402: GeminiActOnWebSettings
   1403: LocalAuthFactorsComplexity
   1404: ProxyOverrideRules
-  1405: LocalAuthFactors
+  1405: AllowedLocalAuthFactors
   1406: EnableProxyOverrideRulesForAllUsers
   1407: DefaultIdleDetectionSetting
   1408: IdleDetectionAllowedForUrls
@@ -1421,6 +1421,8 @@ policies:
   1420: GeminiActOnWebAllowedForURLs
   1421: GeminiActOnWebBlockedForURLs
   1422: WebAppInstallByUserEnabled
+  1423: LocalNetworkAccessIpAddressSpaceOverrides
+  1424: RestrictPdfSaveToGoogleDriveAccountsToPattern
 
 atomic_groups:
   1: Homepage

@@ -22,6 +22,7 @@
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 namespace {
 constexpr int kRegionVeritcalInteriorMargin = 8;
@@ -55,6 +56,9 @@ VerticalTabStripView::VerticalTabStripView(TabCollectionNode* collection_node) {
 
   collection_node->set_add_child_to_node(base::BindRepeating(
       &VerticalTabStripView::AddScrollViewContents, base::Unretained(this)));
+
+  collection_node->set_remove_child_from_node(base::BindRepeating(
+      &VerticalTabStripView::RemoveScrollViewContents, base::Unretained(this)));
 }
 
 VerticalTabStripView::~VerticalTabStripView() = default;
@@ -131,7 +135,19 @@ views::ProposedLayout VerticalTabStripView::CalculateProposedLayout(
 
   layouts.host_size =
       gfx::Size(size_bounds.width().value(), size_bounds.height().value());
+  layouts.host_size.SetToMax(GetMinimumSize());
   return layouts;
+}
+
+gfx::Size VerticalTabStripView::GetMinimumSize() const {
+  // The minimum height of the tabstrip should be enough to show a tab and a
+  // half, showing a partial overflow so that the user knows the container can
+  // be scrolled.
+  return gfx::Size(
+      GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth),
+      GetLayoutConstant(LayoutConstant::kVerticalTabStripUncollapsedPadding) +
+          base::ClampCeil(
+              1.5 * GetLayoutConstant(LayoutConstant::kVerticalTabHeight)));
 }
 
 VerticalPinnedTabContainerView* VerticalTabStripView::GetPinnedTabsContainer() {
@@ -150,6 +166,46 @@ void VerticalTabStripView::SetCollapsedState(bool is_collapsed) {
   }
 }
 
+bool VerticalTabStripView::IsPositionInWindowCaption(const gfx::Point& point) {
+  for (views::View* child : children()) {
+    if (!child->GetVisible()) {
+      continue;
+    }
+
+    gfx::Point point_in_child = point;
+    ConvertPointToTarget(this, child, &point_in_child);
+    if (!child->HitTestPoint(point_in_child)) {
+      continue;
+    }
+
+    auto* scroll_view = views::AsViewClass<views::ScrollView>(child);
+    if (!scroll_view) {
+      return true;
+    }
+
+    if (scroll_view->vertical_scroll_bar()->GetVisible()) {
+      gfx::Point point_in_sb = point_in_child;
+      ConvertPointToTarget(scroll_view, scroll_view->vertical_scroll_bar(),
+                           &point_in_sb);
+      if (scroll_view->vertical_scroll_bar()->HitTestPoint(point_in_sb)) {
+        return false;
+      }
+    }
+
+    if (scroll_view->contents()) {
+      gfx::Point point_in_content = point_in_child;
+      ConvertPointToTarget(scroll_view, scroll_view->contents(),
+                           &point_in_content);
+      if (scroll_view->contents()->HitTestPoint(point_in_content)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return true;
+}
+
 views::View* VerticalTabStripView::AddScrollViewContents(
     std::unique_ptr<views::View> view) {
   if (auto* container =
@@ -164,6 +220,22 @@ views::View* VerticalTabStripView::AddScrollViewContents(
   CHECK(container);
   pinned_tabs_container_view_ = container;
   return pinned_tabs_scroll_view_->SetContents(std::move(view));
+}
+
+void VerticalTabStripView::RemoveScrollViewContents(views::View* view) {
+  if (views::IsViewClass<VerticalUnpinnedTabContainerView>(view)) {
+    unpinned_tabs_container_view_ = nullptr;
+    unpinned_tabs_scroll_view_->SetContents(nullptr);
+    return;
+  }
+  if (views::IsViewClass<VerticalPinnedTabContainerView>(view)) {
+    pinned_tabs_container_view_ = nullptr;
+    pinned_tabs_scroll_view_->SetContents(nullptr);
+    return;
+  }
+  // |view| should only ever be VerticalUnpinnedTabContainerView or
+  // VerticalPinnedTabContainerView.
+  NOTREACHED();
 }
 
 BEGIN_METADATA(VerticalTabStripView)

@@ -41,6 +41,7 @@
 <translation id="1150263420752757504">‏<ph name="APP_NAME" /> Chrome میں کھلے گی۔ جاری رکھ کر آپ، <ph name="BEGIN_LINK1" />Google کی سروس کی شرائط<ph name="END_LINK1" /> اور <ph name="BEGIN_LINK2" />Google Chrome اور ChromeOS کی اضافی سروس کی شرائط سے اتفاق کرتے ہیں<ph name="END_LINK2" />۔</translation>
 <translation id="1154555449933432029">‏آپ کے پاس Google پاس ورڈ مینیجر میں پاس ورڈز محفوظ نہیں ہیں۔</translation>
 <translation id="115483310321669804">پاس ورڈ <ph name="PASSWORD" /> استعمال کریں</translation>
+<translation id="1161065531352634524">ٹیبز اور سرگزشت کو مطابقت پذیر بنائیں</translation>
 <translation id="1165109137568919258">تلاش کرنے کے لیے ایک تصویر لیں یا اپنی تصویری گیلری سے ایک تصویر شامل کریں</translation>
 <translation id="1173894706177603556">نام بدلیں</translation>
 <translation id="1174479719160874822">‏اسکرین تنگ ہونے پر Chrome موبائل سائٹ سے درخواست کرے گا۔</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">تبدیل کر دیا گیا</translation>
 <translation id="1480287803138246127">‏ہو سکتا ہے آپ کی کچھ سرگزشت یہاں ظاہر نہ ہو۔ اپنی تمام Chrome کی سرگزشت دیکھنے کے لیے، مکمل Chrome کی سرگزشت کھولیں۔</translation>
 <translation id="1493287004536771723">آپ <ph name="SITE_NAME" /> کی پیروی کر رہے ہیں</translation>
+<translation id="1495677929897281669">ٹیب پر واپس جائیں</translation>
 <translation id="1496514951988037011">صارف نام</translation>
 <translation id="1501480321619201731">گروپ حذف کریں</translation>
 <translation id="1506061864768559482">تلاش انجن</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">ایڈریس بار پر جائیں</translation>
 <translation id="2888126860611144412">‏Chrome کے بارے میں</translation>
 <translation id="2891154217021530873">صفحہ لوڈ کرنا بند کریں</translation>
+<translation id="2893168226686371498">ڈیفالٹ براؤزر</translation>
 <translation id="2894821468041866720">آپ کے براؤزر یا آلے کو واضح طور پر سست نہیں کرتا ہے۔</translation>
 <translation id="2895521649038438824">آپ اس صفحے کو سن سکتے ہیں</translation>
 <translation id="289596984386220317">‫<ph name="TAB_TITLE" />، پن کردہ قابل سماعت ٹیب</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">پچھلے ٹیب پر جائیں</translation>
 <translation id="5210365745912300556">ٹیب بند کریں</translation>
 <translation id="5212800876504289412">اس تبدیلی کو مکمل کرنے کے لیے کروم کو دوبارہ شروع کریں۔ جب آپ دوبارہ شروع کرتے ہیں تو ٹیبز خودکار طور پر دوبارہ کھل جاتے ہیں۔</translation>
+<translation id="5213114823401215820">بند گروپ دوبارہ کھولیں</translation>
 <translation id="5215957675041756913">اپنے ڈیٹا اور اکاؤنٹ کو کنٹرول کریں</translation>
 <translation id="5218324087477576825">کارڈ نمبر درکار</translation>
 <translation id="5221437554987713282">‏<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" /> اور مزید <ph name="SEPARATOR" />، Chrome نے یہ اجازتیں ہٹا دی ہیں کیوں کہ آپ حال ہی میں ان کا ملاحظہ نہیں کیا ہے</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">تفصیل:</translation>
 <translation id="5776970333778123608">غیر اہم ڈیٹا</translation>
 <translation id="5793665092639000975"><ph name="SPACE_AVAILABLE" /> میں سے <ph name="SPACE_USED" /> استعمال کرنا</translation>
-<translation id="5795872532621730126">تلاش اور براؤز کریں</translation>
 <translation id="5797949256525811424">مسدود کردہ موضوع</translation>
 <translation id="580893287573699959">ان عنوانات اور سائٹس کا نظم کریں جن میں آپ کی دلچسپی ہے</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# گھنٹہ پہلے}other{# گھنٹے پہلے}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">ذاتی نوعیت سازی اور لنک کرنا</translation>
 <translation id="6937876069006524083">عرفی نام (اختیاری)</translation>
 <translation id="6942665639005891494">ترتیبات کا مینیو اختیار استعمال کر کے ڈاؤن لوڈ کا ڈیفالٹ مقام کسی بھی وقت تبدیل کریں</translation>
-<translation id="694267552845942083">آپ فی الحال اپنی مطابقت پذیری کی ترتیبات کو حسب ضرورت بنا رہے ہیں۔ مطابقت پذیری آن کرنے کا عمل مکمل کرنے کیلئے، اسکرین کے نچلے حصے کے پاس موجود 'تصدیق کریں' بٹن پر تھپتھپائیں۔ اوپر نیویگیٹ کریں</translation>
 <translation id="6945221475159498467">منتخب کریں</translation>
 <translation id="6955535239952325894">یہ ترتیب نظم کردہ براؤزرز پر غیر فعال ہے</translation>
 <translation id="6963766334940102469">بُک مارکس حذف کریں</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">پڑھنے کی فہرست میں شامل کریں<ph name="BEGIN_NEW" />نئی<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">براؤزر میں کھولیں</translation>
 <translation id="7029809446516969842">پاس ورڈز</translation>
+<translation id="7037994709569287156">‏‫Chrome کو ڈیفالٹ بنائیں</translation>
 <translation id="7053256416619638731">اس آلہ پر اپنے پاس ورڈز کو مضبوط بنائیں</translation>
 <translation id="7053983685419859001">مسدود کریں</translation>
 <translation id="7054588988317389591">تصویری تفصیلات حاصل کریں؟</translation>
@@ -1469,6 +1472,7 @@
 اس ترتیب کو تبدیل کرنے کے لیے، <ph name="BEGIN_LINK" />اپنے اکاؤنٹ میں موجود Chrome ڈیٹا کو حذف کریں<ph name="END_LINK" />۔</translation>
 <translation id="7165972437814027679">‏اس بارے میں مزید جانیں کہ Chrome کچھ فائلوں کو کیوں بلاک کرتا ہے</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> کے بطور سائن ان کردہ۔ ترتیبات کھولتا ہے۔</translation>
+<translation id="7170930892977483182">‏آپ کے آلے اور Google والٹ میں محفوظ کردہ تمام سیکیورٹی کوڈز کو حذف کر دیا جائے گا</translation>
 <translation id="7173114856073700355">ترتیبات کھولیں</translation>
 <translation id="7173338713290252554">ویب پر قیمت کی سرگزشت</translation>
 <translation id="7177466738963138057">آپ بعد میں ترتیبات میں اسے تبدیل کر سکتے ہیں</translation>
@@ -1641,6 +1645,7 @@
 <translation id="784652447248278262">موجودہ ونڈو</translation>
 <translation id="784934925303690534">وقت کی حد</translation>
 <translation id="7851858861565204677">دیگر آلات</translation>
+<translation id="78527117619130387">‏پن کردہ ٹیب کو بند کرنے کے لیے دوبارہ ‎^W دبائیں</translation>
 <translation id="7853202427316060426">سرگرمی</translation>
 <translation id="7859988229622350291">کبھی بھی ترجمہ نہ کریں</translation>
 <translation id="7866213166286285359">یہاں صفحات کا ترجمہ کریں</translation>
@@ -1654,6 +1659,7 @@
 <translation id="7919123827536834358">خودکار طور پر ان زبانوں کا ترجمہ کریں</translation>
 <translation id="7921782882718083488">اس صفحہ کا خلاصہ کریں</translation>
 <translation id="7926975587469166629">کارڈ کا عرفی نام</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">‏‫Chrome خودکار طور پر ان سائٹس سے اجازتوں کو ہٹا دیتا ہے جو اطلاعات کا بیجا استعمال کرتی ہیں یا جنہیں آپ نے حال ہی میں ملاحظہ نہیں کیا ہے</translation>
 <translation id="7934668619883965330">فائل ڈاؤن لوڈ نہیں ہو سکتی۔ فائل فارمیٹ تعاون یافتہ نہیں ہے۔</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> پرانا ہے۔</translation>
@@ -1799,6 +1805,7 @@
 <translation id="8458413889418591446">تیزی سے اپنی ملاحظہ کردہ سائٹس پر واپس جانے کے لیے، اپنی سرگزشت اور ٹیبز کو مطابقت پذیر بنائیں</translation>
 <translation id="84594714173170813">‏اپنے Google اکاؤنٹ میں Chrome ڈیٹا استعمال کرتے رہیں</translation>
 <translation id="8460448946170646641">کلیدی رازداری اور سیکیورٹی کنٹرولز کا جائزہ لیں</translation>
+<translation id="8460932807646981183">سرچ انجنز اور سائٹ کی تلاش کا نظم کریں</translation>
 <translation id="8473863474539038330">پتے وغیرہ</translation>
 <translation id="847433688444405067">آلات پر براؤز کریں</translation>
 <translation id="8477178913400731244">ڈیٹا حذف کریں</translation>
@@ -1934,7 +1941,6 @@
 <translation id="9073805459138993880">‫<ph name="TAB_TITLE" />، متعدد منتخب کردہ اشتراک کا ٹیب</translation>
 <translation id="9074739597929991885">بلوٹوتھ</translation>
 <translation id="9081543426177426948">جو سائٹس آپ ملاحظہ کرتے ہیں وہ پوشیدگی وضع میں محفوظ نہیں ہوتی ہیں</translation>
-<translation id="9086302186042011942">مطابقت پذیری کی جا رہی ہے</translation>
 <translation id="9086455579313502267">نیٹ ورک تک رسائی حاصل کرنے سے قاصر</translation>
 <translation id="9093915805850895575">‏‫Chrome ونڈو میں کھولیں</translation>
 <translation id="909756639352028172">‏انتہائی ذاتی نوعیت کا تجربہ حاصل کرنے کے لیے، Chrome کو ویب اور ایپ سرگرمی اور لنک کردہ Google سروسز میں شامل کریں</translation>

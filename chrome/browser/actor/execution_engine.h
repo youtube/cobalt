@@ -18,6 +18,7 @@
 #include "base/sequence_checker.h"
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/origin_checker.h"
@@ -29,6 +30,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
@@ -107,6 +109,9 @@ class ExecutionEngine : public ToolDelegate {
   };
 
   explicit ExecutionEngine(Profile* profile);
+  ExecutionEngine(base::PassKey<ExecutionEngine>,
+                  Profile* profile,
+                  std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher);
   ExecutionEngine(const ExecutionEngine&) = delete;
   ExecutionEngine& operator=(const ExecutionEngine&) = delete;
   ~ExecutionEngine() override;
@@ -168,11 +173,13 @@ class ExecutionEngine : public ToolDelegate {
   using NavigationDecisionCallback =
       base::OnceCallback<void(bool may_continue)>;
 
-  // Returns a boolean indicating if ActorNavigationThrottle should defer a
-  // navigation until the decision callback is invoked. This method can only
-  // be called on the primary main frame or a prerendered main frame.
-  bool ShouldDeferNavigation(content::NavigationHandle& navigation_handle,
-                             NavigationDecisionCallback callback);
+  // Returns a value indicating how the given navigation should be handled
+  // (proceed, cancel and ignore, defer, etc.). This method must only be called
+  // on the primary main frame or a prerendered main frame. `callback` will be
+  // invoked iff this function returns `content::NavigationThrottle::DEFER`.
+  content::NavigationThrottle::ThrottleAction ShouldDeferNavigation(
+      content::NavigationHandle& navigation_handle,
+      NavigationDecisionCallback callback);
 
   static std::string StateToString(State state);
 
@@ -213,9 +220,6 @@ class ExecutionEngine : public ToolDelegate {
 
  private:
   class NewTabWebContentsObserver;
-  // Used by tests only.
-  ExecutionEngine(Profile* profile,
-                  std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher);
 
   void SetState(State state);
 

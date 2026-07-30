@@ -8,9 +8,6 @@ import "chromeos/components/in_session_auth/mojom/in_session_auth.mojom";
 import "chromeos/components/payments/mojom/payment_app.mojom";
 import "chromeos/components/sensors/mojom/cros_sensor_service.mojom";
 import "chromeos/crosapi/mojom/account_manager.mojom";
-import "chromeos/crosapi/mojom/guest_os_sk_forwarder.mojom";
-import "chromeos/crosapi/mojom/chrome_app_kiosk_service.mojom";
-import "chromeos/crosapi/mojom/clipboard_history.mojom";
 import "chromeos/crosapi/mojom/cros_display_config.mojom";
 import "chromeos/crosapi/mojom/diagnostics_service.mojom";
 import "chromeos/crosapi/mojom/document_scan.mojom";
@@ -18,7 +15,6 @@ import "chromeos/crosapi/mojom/keystore_service.mojom";
 import "chromeos/crosapi/mojom/local_printer.mojom";
 import "chromeos/crosapi/mojom/print_preview_cros.mojom";
 import "chromeos/crosapi/mojom/probe_service.mojom";
-import "chromeos/crosapi/mojom/remoting.mojom";
 import "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_event_service.mojom";
 import "chromeos/crosapi/mojom/telemetry_management_service.mojom";
@@ -139,13 +135,8 @@ interface Crosapi {
 
   // BindNetworkSettingsService@46 was removed.
   // BindKerberosInBrowser@111 was removed.
-
-  // Binds the KeystoreService interface for challenging keys.
-  // Added in M87.
-  BindKeystoreService@2(pending_receiver<KeystoreService> receiver);
-
+  // BindKeystoreService@2 was removed.
   // BindLacrosShelfItemTracker@128 was removed.
-
   // BindLacrosAppPublisher@119 was removed.
 
   // Binds the LocalPrinter interface for printing.
@@ -277,12 +268,7 @@ interface Crosapi {
   // BindWebPageInfoFactory@39 was removed.
   // BindWebAppPublisher@27 was removed.
   // BindWebAppService@72 was removed.
-
-  // Binds the GuestOS security key forwarding service.
-  // Added in M120.
-  [MinVersion=121] BindGuestOsSkForwarderFactory@123(
-      pending_receiver<GuestOsSkForwarderFactory> receiver);
-
+  // BindGuestOsSkForwarderFactory@123 was removed.
   // OnBrowserStartup@6 was removed.
   // BindInputMethods@139 was removed.
 };

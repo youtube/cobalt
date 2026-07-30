@@ -20,6 +20,10 @@ namespace syncer {
 class DataTypeControllerDelegate;
 }  // namespace syncer
 
+namespace optimization_guide {
+class OptimizationGuideDecider;
+}  // namespace optimization_guide
+
 namespace skills {
 
 class SkillsSyncBridge;
@@ -29,10 +33,16 @@ class SkillsSyncBridge;
 // It also notifies observers when skills are changed.
 class SkillsServiceImpl : public SkillsService {
  public:
-  SkillsServiceImpl(version_info::Channel channel,
-                    syncer::OnceDataTypeStoreFactory create_store_callback);
+  SkillsServiceImpl(
+      optimization_guide::OptimizationGuideDecider* optimization_guide,
+      version_info::Channel channel,
+      syncer::OnceDataTypeStoreFactory create_store_callback);
   ~SkillsServiceImpl() override;
 
+  // SkillsService implementation.
+  bool IsInitialized() const override;
+  void LoadInitialSkills(
+      std::vector<std::unique_ptr<Skill>> initial_skills) override;
   // TODO(crbug.com/475863107) Add strong typing to help caller avoid swapping
   // order of arguments.
   const Skill* AddSkill(const std::string& name,
@@ -54,8 +64,6 @@ class SkillsServiceImpl : public SkillsService {
 
   void DeleteSkill(std::string_view skill_id,
                    UpdateSource update_source) override;
-  void LoadInitialSkills(
-      std::vector<std::unique_ptr<Skill>> initial_skills) override;
   const Skill* GetSkillById(std::string_view skill_id) const override;
   const std::vector<std::unique_ptr<Skill>>& GetSkills() const override;
   void AddObserver(Observer* observer) override;
@@ -64,7 +72,7 @@ class SkillsServiceImpl : public SkillsService {
       override;
 
  private:
-  void NotifySkillChanged(const std::string& skill_id,
+  void NotifySkillChanged(std::string_view skill_id,
                           UpdateSource update_source);
 
   // Adds a skill to the service and returns the created skill.

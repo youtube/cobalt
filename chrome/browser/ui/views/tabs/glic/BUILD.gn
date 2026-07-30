@@ -4,7 +4,7 @@
 
 import("//chrome/common/features.gni")
 
-assert(enable_glic || enable_glic_android)
+assert(enable_glic)
 
 source_set("glic") {
   sources = [ "glic_actor_constants.h" ]
@@ -18,7 +18,6 @@ source_set("glic") {
     deps = [
       "//base",
       "//chrome/browser/glic",
-      "//chrome/browser/glic/fre:mojo_bindings",
       "//chrome/browser/ui:layout_constants",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",

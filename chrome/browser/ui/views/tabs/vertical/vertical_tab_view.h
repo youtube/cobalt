@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_VIEW_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
 #include "chrome/common/buildflags.h"
 #include "components/tabs/public/tab_interface.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/views/context_menu_controller.h"
@@ -55,14 +57,20 @@ class VerticalTabView : public views::View,
   void StepLoadingAnimation(const base::TimeDelta& elapsed_time);
   void UpdateHovered(bool hovered);
 
-  void OnTabDragOver();
+  std::optional<SkColor> GetBackgroundColor();
+
+  const TabCollectionNode* collection_node() const { return collection_node_; }
   const TabStyle* tab_style() { return tab_style_; }
   const TabRendererData& tab_data() const { return tab_data_; }
-  TabCloseButton* close_button_for_testing() { return close_button_; }
   float radial_highlight_opacity() { return radial_highlight_opacity_; }
+
+  TabCloseButton* close_button_for_testing() { return close_button_; }
+  bool collapsed_for_testing() { return collapsed_; }
+  SkPath GetPath() const;
 
  private:
   // views::View
+  void Layout(PassKey) override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   bool OnKeyReleased(const ui::KeyEvent& event) override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
@@ -89,6 +97,9 @@ class VerticalTabView : public views::View,
                            const TabChildConfig& config,
                            const bool center) const;
 
+  // Calculates the visibilities of child views based on various states.
+  absl::flat_hash_map<views::View*, bool> CalculateChildVisibilities() const;
+
   // views::LayoutDelegate
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
@@ -112,11 +123,8 @@ class VerticalTabView : public views::View,
 
   void OnDataChanged();
 
+  void UpdateTitle();
   void UpdateBorder();
-
-  void UpdateAlertIndicatorVisibility();
-  void UpdateCloseButtonVisibility();
-
   void UpdateColors();
   void UpdateContrastRatioValues();
 
@@ -125,8 +133,6 @@ class VerticalTabView : public views::View,
   bool IsHoverAnimationActive() const;
   double GetHoverAnimationValue() const;
   float GetHoverOpacity() const;
-
-  SkPath GetPath() const;
 
   bool IsFrameActive() const;
   TabStyle::TabSelectionState GetSelectionState() const;
@@ -157,6 +163,7 @@ class VerticalTabView : public views::View,
   bool selected_ = false;
   bool hovered_ = false;
   bool split_ = false;
+  bool collapsed_ = false;
   bool pinned_ = false;
   bool shift_pressed_on_mouse_down_ = false;
 

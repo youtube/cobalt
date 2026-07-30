@@ -5,7 +5,7 @@ import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js'
 
 import type {AppElement, LanguageToastElement, SpEmptyStateElement} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {BrowserProxy, ContentController, ContentType, LineFocusController, LineFocusMovement, LineFocusStyle, NodeStore, ReadAloudNode, setInstance, SpeechBrowserProxyImpl, SpeechController, ToolbarEvent, VoiceClientSideStatusCode, VoiceLanguageController, VoiceNotificationManager} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {assertEquals, assertFalse, assertStringContains, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertStringContains, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {keyDownOn} from 'chrome-untrusted://webui-test/keyboard_mock_interactions.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
@@ -112,6 +112,58 @@ suite('AppContent', () => {
 
     assertEquals('10px', app.style.getPropertyValue('--line-focus-y'));
   });
+
+  test('new content updates padding for line focus', async () => {
+    chrome.readingMode.isLineFocusEnabled = true;
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS_MOVEMENT,
+        {detail: {data: LineFocusMovement.CURSOR}});
+    emitEvent(
+        app, ToolbarEvent.LINE_FOCUS_STYLE,
+        {detail: {data: LineFocusStyle.UNDERLINE}});
+    assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
+
+    app.updateContent();
+    await microtasksFinished();
+
+    assertNotEquals('', app.style.getPropertyValue('--line-focus-padding'));
+  });
+
+  test(
+      'new content does not update padding for line focus with flag disabled',
+      async () => {
+        chrome.readingMode.isLineFocusEnabled = false;
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS_MOVEMENT,
+            {detail: {data: LineFocusMovement.CURSOR}});
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS_STYLE,
+            {detail: {data: LineFocusStyle.UNDERLINE}});
+        assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
+
+        app.updateContent();
+        await microtasksFinished();
+
+        assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
+      });
+
+  test(
+      'new content does not update padding for line focus with line focus off',
+      async () => {
+        chrome.readingMode.isLineFocusEnabled = true;
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS_MOVEMENT,
+            {detail: {data: LineFocusMovement.STATIC}});
+        emitEvent(
+            app, ToolbarEvent.LINE_FOCUS_STYLE,
+            {detail: {data: LineFocusStyle.OFF}});
+        assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
+
+        app.updateContent();
+        await microtasksFinished();
+
+        assertEquals('', app.style.getPropertyValue('--line-focus-padding'));
+      });
 
   test('line focus shortcut toggles line focus', async () => {
     chrome.readingMode.isLineFocusEnabled = true;
@@ -550,6 +602,110 @@ suite('AppContent', () => {
     });
   });
 
+  suite('on image toggle with readability', () => {
+    setup(() => {
+      contentController.configureTrustedTypes();
+      chrome.readingMode.isReadabilityEnabled = true;
+    });
+
+    test('shows and hides images when toggled', async () => {
+      readingMode.imagesFeatureEnabled = true;
+
+      readingMode.htmlContent = '<img src="foo.png">;';
+
+      app.updateContent();
+      await microtasksFinished();
+      assertTrue(contentController.hasContent());
+
+      const img = app.$.container.querySelector('img')!;
+
+      readingMode.imagesEnabled = true;
+      emitEvent(app, ToolbarEvent.IMAGES);
+      await microtasksFinished();
+
+      assertTrue(!!img);
+      assertEquals('', img.style.display);  // Visible
+
+      // Verify toggle off.
+      readingMode.imagesEnabled = false;
+      emitEvent(app, ToolbarEvent.IMAGES);
+      await microtasksFinished();
+      assertEquals('none', img.style.display);
+    });
+
+    test(
+        'does not show images when images feature flag is disabled',
+        async () => {
+          readingMode.imagesFeatureEnabled = false;
+          readingMode.htmlContent = '<img src="foo.png">;';
+          app.updateContent();
+          await microtasksFinished();
+
+          const img = app.$.container.querySelector('img')!;
+
+          readingMode.imagesEnabled = true;
+          emitEvent(app, ToolbarEvent.IMAGES);
+          await microtasksFinished();
+
+          assertTrue(!!img);
+          assertEquals('none', img.style.display);
+        });
+
+    suite('figure with caption', () => {
+      const caption = 'That\'s ancient history';
+
+      test('shows figures and captions when enabled', async () => {
+        readingMode.imagesFeatureEnabled = true;
+
+        readingMode.htmlContent = '<figure><img src="foo.png"><figcaption>' +
+            caption + '</figcaption></figure>';
+
+        app.updateContent();
+        await microtasksFinished();
+        assertTrue(contentController.hasContent());
+
+        const figure = app.$.container.querySelector('figure')!;
+        const figcaption = app.$.container.querySelector('figcaption')!;
+
+        readingMode.imagesEnabled = true;
+        emitEvent(app, ToolbarEvent.IMAGES);
+        await microtasksFinished();
+
+        assertEquals('', figure.style.display);  // Figure should be visible
+        assertEquals(
+            caption, figcaption.textContent);  // Caption text should be there
+
+        // Verify toggle off.
+        readingMode.imagesEnabled = false;
+        emitEvent(app, ToolbarEvent.IMAGES);
+        await microtasksFinished();
+        assertEquals(
+            'none', figure.style.display);  // figcaption will also be hidden if
+                                            // it's parent is hidden.
+      });
+
+      test('does not show figures or captions when flag disabled', async () => {
+        readingMode.imagesFeatureEnabled = false;
+
+        readingMode.htmlContent = '<figure><img src="foo.png"><figcaption>' +
+            caption + '</figcaption></figure>';
+
+        app.updateContent();
+        await microtasksFinished();
+        assertTrue(contentController.hasContent());
+
+        const figure = app.$.container.querySelector('figure')!;
+
+        readingMode.imagesEnabled = true;
+        emitEvent(app, ToolbarEvent.IMAGES);
+        await microtasksFinished();
+        assertEquals(
+            'none', figure.style.display);  // figcaption will also be hidden if
+                                            // it's parent is hidden.
+      });
+    });
+  });
+
   suite('on speech active change', () => {
     test('selection allowed by default', () => {
       assertEquals(
@@ -582,6 +738,42 @@ suite('AppContent', () => {
           'user-select-disabled-when-speech-active-false',
           app.$.container.className);
       assertEquals('auto', window.getComputedStyle(app.$.container).userSelect);
+    });
+
+    test('toggles links with Readability', async () => {
+      const url = 'https://www.google.com/';
+      const text = 'the best link ever';
+      chrome.readingMode.isReadabilityEnabled = true;
+      contentController.configureTrustedTypes();
+      readingMode.htmlContent = `<a href="${url}">${text}</a>`;
+      app.updateContent();
+      await microtasksFinished();
+
+      // By default, links are enabled.
+      chrome.readingMode.linksEnabled = true;
+
+      let link = app.$.container.querySelector('a');
+      assertTrue(!!link, '<a> should be present before speech');
+
+      // When speech becomes active, the link should be converted to a `<span>`.
+      emitEvent(app, ToolbarEvent.PLAY_PAUSE);
+      await microtasksFinished();
+
+      link = app.$.container.querySelector('a');
+      assertFalse(!!link, '<a> should be gone after speech starts');
+      let span = app.$.container.querySelector<HTMLElement>('span[data-link]');
+      assertTrue(!!span, '<span> should be present after speech starts');
+      assertEquals(url, span.dataset['link']);
+
+      // Stop speech, which should show the link again.
+      emitEvent(app, ToolbarEvent.PLAY_PAUSE);
+      await microtasksFinished();
+
+      link = app.$.container.querySelector('a');
+      assertTrue(!!link, '<a> should be back after speech stops');
+      span = app.$.container.querySelector('span[data-link]');
+      assertFalse(!!span, '<span> should be gone after speech stops');
+      assertEquals(url, link.href);
     });
   });
 

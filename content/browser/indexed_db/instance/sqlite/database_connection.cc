@@ -13,12 +13,15 @@
 #include "base/check.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/to_vector.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
@@ -28,6 +31,7 @@
 #include "content/browser/indexed_db/indexed_db_reporting.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
+#include "content/browser/indexed_db/instance/blob_reader.h"
 #include "content/browser/indexed_db/instance/record.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_cursor_impl.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_database_impl.h"
@@ -40,6 +44,7 @@
 #include "sql/recovery.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key_path.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_metadata.h"
@@ -108,6 +113,18 @@ std::optional<base::ByteSize> g_max_blob_size_override;
 // https://www.sqlite.org/limits.html
 base::ByteSize GetMaxBlobSize() {
   return g_max_blob_size_override.value_or(base::MiBU(5));
+}
+
+// For a given path, extracts the blob ID if the path matches the pattern for
+// legacy blob files ("<path>_/<0xblob_id>"). Returns nullopt otherwise.
+std::optional<int64_t> GetBlobIdFromLegacyFilePath(
+    const base::FilePath& file_path) {
+  int64_t blob_number;
+  if (base::HexStringToInt64(file_path.BaseName().MaybeAsASCII(),
+                             &blob_number)) {
+    return blob_number;
+  }
+  return std::nullopt;
 }
 
 // The separator used to join the strings when encoding an `IndexedDBKeyPath` of
@@ -875,11 +892,14 @@ DatabaseConnection::~DatabaseConnection() {
       !sql::IsSqliteSuccessCode(sql::ToSqliteResultCode(db_->GetErrorCode()));
 
   // When the database never finished initializing, it will be zygotic. This
-  // could happen if version change transaction was aborted/rolled back. In this
-  // case the newly created database should be deleted.
+  // could happen if version change transaction was aborted/rolled back. In
+  // this case the newly created database should be deleted.
   if (marked_for_permanent_deletion_ || (IsZygotic() && !had_sql_error)) {
     db_.reset();
     sql::Database::Delete(path_);
+    if (!base::DeletePathRecursively(GetLegacyBlobDirectory())) {
+      LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
+    }
   } else if (had_sql_error) {
     LogEvent(SpecificEvent::kDatabaseHadSqlError);
 
@@ -894,6 +914,9 @@ DatabaseConnection::~DatabaseConnection() {
     if (db_->is_open() && sql::IsErrorCatastrophic(db_->GetErrorCode())) {
       db_.reset();
       sql::Database::Delete(path_);
+      if (!base::DeletePathRecursively(GetLegacyBlobDirectory())) {
+        LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
+      }
     }
 #else
     // `RecoverIfPossible` will no-op for several reasons including if the error
@@ -902,6 +925,25 @@ DatabaseConnection::~DatabaseConnection() {
         db_.get(), db_->GetErrorCode(),
         sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
 #endif
+  } else if (legacy_blob_files_) {
+    // Delete any leftover legacy blobs which may have been left behind due to
+    // a past failed recovery or other errors. `legacy_blob_files_` are the
+    // ones still referenced by the DB, so keep those.
+    // TODO(crbug.com/419264073): since this requires reading from disk to
+    // enumerate directory contents, consider combining it with other
+    // potentially slow cleanup steps such as vacuuming, and/or skipping
+    // altogether for non-migrated DBs.
+    base::FileEnumerator(GetLegacyBlobDirectory(), /*recursive=*/false,
+                         base::FileEnumerator::FILES)
+        .ForEach([&](const base::FilePath& blob_path) {
+          std::optional<int64_t> blob_number =
+              GetBlobIdFromLegacyFilePath(blob_path);
+          if (blob_number && !legacy_blob_files_->contains(*blob_number)) {
+            if (!base::DeleteFile(blob_path)) {
+              LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
+            }
+          }
+        });
   }
 }
 
@@ -1013,13 +1055,10 @@ int64_t DatabaseConnection::GetCommittedVersion() const {
   return metadata_snapshot_ ? metadata_snapshot_->version : metadata_.version;
 }
 
-uint64_t DatabaseConnection::GetInMemorySize() const {
-  CHECK(in_memory());
-  // TODO(crbug.com/419203257): For consistency, consider using this logic while
-  // reporting usage of on-disk databases too.
-  //
+uint64_t DatabaseConnection::GetSize() const {
   // The maximum page count is ~2^32: https://www.sqlite.org/limits.html.
   uint32_t page_count = 0;
+  uint32_t freelist_count = 0;
   // The maximum page size is 65536 bytes.
   uint16_t page_size = 0;
   {
@@ -1031,6 +1070,17 @@ uint64_t DatabaseConnection::GetInMemorySize() const {
     page_count = static_cast<uint32_t>(statement.ColumnInt(0));
   }
   {
+    sql::Statement statement(
+        db_->GetReadonlyStatement("PRAGMA freelist_count"));
+    if (!statement.Step()) {
+      // The rate of failure for this PRAGMA is not expected to be different
+      // from `page_count`, so count failures under the same event type.
+      LogEvent(SpecificEvent::kPragmaPageCountFailed);
+      return 0;
+    }
+    freelist_count = static_cast<uint32_t>(statement.ColumnInt(0));
+  }
+  {
     sql::Statement statement(db_->GetReadonlyStatement("PRAGMA page_size"));
     if (!statement.Step()) {
       LogEvent(SpecificEvent::kPragmaPageSizeFailed);
@@ -1038,7 +1088,7 @@ uint64_t DatabaseConnection::GetInMemorySize() const {
     }
     page_size = static_cast<uint16_t>(statement.ColumnInt(0));
   }
-  return static_cast<uint64_t>(page_count) * page_size;
+  return static_cast<uint64_t>(page_count - freelist_count) * page_size;
 }
 
 std::unique_ptr<BackingStoreDatabaseImpl>
@@ -1068,6 +1118,9 @@ Status DatabaseConnection::BeginTransaction(
   }
   CHECK(!active_rw_transaction_);
   active_rw_transaction_ = std::make_unique<sql::Transaction>(db_.get());
+  if (!legacy_blob_files_) {
+    legacy_blob_files_ = SnapshotLegacyBlobFiles();
+  }
   if (transaction.durability() ==
       blink::mojom::IDBTransactionDurability::Strict) {
     RETURN_STATUS_ON_ERROR(db_->Execute("PRAGMA synchronous=FULL"));
@@ -1309,6 +1362,21 @@ void DatabaseConnection::EndTransaction(
       LogEvent(SpecificEvent::kSyncActiveBlobsFailed);
     }
     sync_active_blobs_after_transaction_ = false;
+  }
+
+  // Sweep legacy blob files that have been deleted from the DB during the
+  // RW transaction that just terminated, successfully or otherwise.
+  std::set<int64_t> before;
+  before.swap(*legacy_blob_files_);
+  if (!before.empty()) {
+    legacy_blob_files_ = SnapshotLegacyBlobFiles();
+    for (int64_t blob_id : before) {
+      if (!legacy_blob_files_->contains(blob_id)) {
+        if (!base::DeleteFile(GetBlobFilePath(blob_id))) {
+          LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
+        }
+      }
+    }
   }
 }
 
@@ -1575,7 +1643,8 @@ StatusOr<IndexedDBValue> DatabaseConnection::AddExternalObjectMetadataToValue(
         SQL_FROM_HERE,
         "SELECT "
         "  blobs.row_id, object_type, mime_type, size_bytes, file_name, "
-        "  last_modified "
+        // `bytes` NULLness indicates whether this is a legacy Blob.
+        "  last_modified, bytes IS NULL "
         "FROM blobs INNER JOIN blob_references"
         "  ON blob_references.blob_row_id = blobs.row_id "
         "WHERE"
@@ -1614,6 +1683,11 @@ StatusOr<IndexedDBValue> DatabaseConnection::AddExternalObjectMetadataToValue(
           return base::unexpected(
               Fatal(Status::Corruption("Unknown object type in `blobs`"),
                     SpecificEvent::kBlobTypeUnknown));
+        }
+        bool is_legacy_blob = statement.ColumnBool(6);
+        if (is_legacy_blob) {
+          value.external_objects.back().set_indexed_db_file_path(
+              GetBlobFilePath(blob_row_id));
         }
       }
     }
@@ -1994,18 +2068,31 @@ DatabaseConnection::CreateAllExternalObjects(
     // object that manages the active blob.
     auto it = active_blobs_.find(object.blob_number());
     if (it == active_blobs_.end()) {
-      auto streamer = std::make_unique<ActiveBlobStreamer>(
-          object,
-          // Unretained is safe because `this` owns `streamer`.
-          base::BindRepeating(&DatabaseConnection::OpenBlobChunkForStreaming,
-                              base::Unretained(this), object.blob_number(),
-                              /*readonly=*/true),
-          GetMaxBlobSize().InBytes(),
-          base::BindOnce(&DatabaseConnection::OnBlobBecameInactive,
-                         base::Unretained(this), object.blob_number()),
-          base::BindRepeating(&LogNetError, "IndexedDB.BackingStore.ReadBlob",
-                              in_memory()));
-      it = active_blobs_.insert({object.blob_number(), std::move(streamer)})
+      std::unique_ptr<BlobEndpoint> endpoint;
+      // TODO(crbug.com/436887363): add metrics for number of blobs served from
+      // SQLite DB vs legacy files.
+      if (object.indexed_db_file_path().empty()) {
+        endpoint = std::make_unique<ActiveBlobStreamer>(
+            object,
+            // Unretained is safe because `this` owns `endpoint`.
+            base::BindRepeating(&DatabaseConnection::OpenBlobChunkForStreaming,
+                                base::Unretained(this), object.blob_number(),
+                                /*readonly=*/true),
+            GetMaxBlobSize().InBytes(),
+            base::BindOnce(&DatabaseConnection::OnBlobBecameInactive,
+                           base::Unretained(this), object.blob_number(),
+                           /*is_legacy_blob=*/false),
+            base::BindRepeating(&LogNetError, "IndexedDB.BackingStore.ReadBlob",
+                                in_memory()));
+      } else {
+        endpoint = std::make_unique<BlobReader>(
+            object,
+            // Unretained is safe because `this` owns `endpoint`.
+            base::BindOnce(&DatabaseConnection::OnBlobBecameInactive,
+                           base::Unretained(this), object.blob_number(),
+                           /*is_legacy_blob=*/true));
+      }
+      it = active_blobs_.emplace(object.blob_number(), std::move(endpoint))
                .first;
       if (!AddActiveBlobReference(object.blob_number())) {
         LogEvent(SpecificEvent::kAddActiveBlobReferenceFailed);
@@ -2057,12 +2144,9 @@ void DatabaseConnection::DeleteIdbDatabase(
   }
 }
 
-void DatabaseConnection::OnBlobBecameInactive(int64_t blob_number) {
+void DatabaseConnection::OnBlobBecameInactive(int64_t blob_number,
+                                              bool is_legacy_blob) {
   CHECK_EQ(active_blobs_.erase(blob_number), 1U);
-
-  if (active_rw_transaction_) {
-    sync_active_blobs_after_transaction_ = true;
-  }
 
   {
     sql::Statement statement(
@@ -2073,6 +2157,31 @@ void DatabaseConnection::OnBlobBecameInactive(int64_t blob_number) {
     statement.BindInt64(0, blob_number);
     if (!statement.Run()) {
       LogEvent(SpecificEvent::kRemoveActiveBlobReferenceFailed);
+    }
+  }
+
+  if (active_rw_transaction_) {
+    sync_active_blobs_after_transaction_ = true;
+  } else if (is_legacy_blob) {
+    // If there's no active RW transaction, and this legacy blob is no longer
+    // referenced, it can be deleted from disk. If there is a RW txn, deletion
+    // has to be deferred until after commit, in case of rollback.
+    sql::Statement statement(db_->GetCachedStatement(
+        SQL_FROM_HERE, "SELECT 1 FROM blobs WHERE row_id = ?"));
+    statement.BindInt64(0, blob_number);
+    if (!statement.Step()) {
+      if (!statement.Succeeded()) {
+        LogEvent(SpecificEvent::kRemoveActiveBlobReferenceFailed);
+      } else {
+        if (!base::DeleteFile(GetBlobFilePath(blob_number))) {
+          LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
+        }
+        // `legacy_blob_files_` should not be null, but DB corruption could
+        // technically lead to this state, so don't CHECK.
+        if (legacy_blob_files_) {
+          legacy_blob_files_->erase(blob_number);
+        }
+      }
     }
   }
 
@@ -2292,6 +2401,35 @@ StatusOr<mojo_base::BigBuffer> DatabaseConnection::Decompress(
       .transform_error([&](Status status) {
         return Fatal(status, SpecificEvent::kDecompressionFailure);
       });
+}
+
+std::set<int64_t> DatabaseConnection::SnapshotLegacyBlobFiles() {
+  sql::Statement statement(
+      db_->GetCachedStatement(SQL_FROM_HERE,
+                              "SELECT row_id FROM blobs "
+                              "WHERE object_type != ? AND bytes IS NULL"));
+  statement.BindInt64(
+      0, static_cast<int>(
+             IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle));
+
+  std::set<int64_t> result;
+  while (statement.Step()) {
+    result.insert(statement.ColumnInt64(0));
+  }
+  return result;
+}
+
+base::FilePath DatabaseConnection::GetLegacyBlobDirectory() const {
+  // For the sake of avoiding path length limits, the directory is given a short
+  // name instead of a descriptive name.
+  return path_.InsertBeforeExtensionASCII("_");
+}
+
+base::FilePath DatabaseConnection::GetBlobFilePath(int64_t blob_id) const {
+  base::FilePath path = GetLegacyBlobDirectory().AppendASCII(
+      absl::StrFormat("%" PRIx64, blob_id));
+  DCHECK_EQ(blob_id, GetBlobIdFromLegacyFilePath(path).value_or(-1));
+  return path;
 }
 
 // static

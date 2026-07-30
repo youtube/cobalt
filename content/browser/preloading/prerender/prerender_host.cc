@@ -48,6 +48,7 @@
 #include "net/base/load_flags.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/client_hints/enabled_client_hints.h"
 #include "third_party/blink/public/common/navigation/preloading_headers.h"
 #include "url/origin.h"
@@ -412,7 +413,7 @@ bool PrerenderHost::AreHttpRequestHeadersCompatible(
   // WebView.
   // TODO(crbug.com/40244149): Expand this to other platforms and non-x-headers.
   if (allow_x_header_mismatch) {
-    std::set<std::string> headers_to_be_removed;
+    absl::flat_hash_set<std::string> headers_to_be_removed;
     for (net::HttpRequestHeaders::Iterator it(prerender_headers);
          it.GetNext();) {
       if (it.name().starts_with("X-") || it.name().starts_with("x-")) {
@@ -636,6 +637,8 @@ bool PrerenderHost::StartPrerendering() {
       web_contents_->GetDelegate()->ShouldOverrideUserAgentForPreloading(
           attributes_.prerendering_url);
 
+  load_url_params.is_form_submission = attributes_.form_submission;
+
   // TODO(https://crbug.com/1406149, https://crbug.com/1378921): Set
   // `override_user_agent` for Android. This field is determined on the Java
   // side based on the URL and we should mimic Java code and set it to the
@@ -841,8 +844,6 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
   FrameTree& target_frame_tree = web_contents_->GetPrimaryFrameTree();
 
   // There should be no ongoing main-frame navigation during activation.
-  // TODO(crbug.com/40174232): Make sure sub-frame navigations are
-  // fine.
   CHECK(!GetFrameTree()->root()->HasNavigation());
 
   // Before the root's current_frame_host is cleared, collect the subframes of
@@ -1152,8 +1153,6 @@ PrerenderHost::AreBeginNavigationParamsCompatibleWithNavigation(
     return ActivationNavigationParamsMatch::kMixedContentContextType;
   }
 
-  // Initial prerender navigation cannot be a form submission.
-  CHECK(!begin_params_->is_form_submission);
   if (potential_activation.is_form_submission !=
       begin_params_->is_form_submission) {
     return ActivationNavigationParamsMatch::kIsFormSubmission;
@@ -1185,6 +1184,7 @@ PrerenderHost::AreBeginNavigationParamsCompatibleWithNavigation(
   switch (potential_activation.request_context_type) {
     case blink::mojom::RequestContextType::HYPERLINK:
     case blink::mojom::RequestContextType::LOCATION:
+    case blink::mojom::RequestContextType::FORM:
       break;
     default:
       return ActivationNavigationParamsMatch::kRequestContextType;
@@ -1391,10 +1391,6 @@ void PrerenderHost::RecordFailedFinalStatusImpl(
 void PrerenderHost::RecordActivation(NavigationRequest& navigation_request) {
   CHECK(!final_status_);
   final_status_ = PrerenderFinalStatus::kActivated;
-
-  // TODO(crbug.com/40215894): Replace
-  // `navigation_request.GetNextPageUkmSourceId()` with prerendered page's UKM
-  // source ID.
   ReportSuccessActivation(attributes_,
                           navigation_request.GetNextPageUkmSourceId());
 }

@@ -42,7 +42,8 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -87,7 +88,6 @@ import org.chromium.ui.modelutil.PropertyModel;
 @Config(manifest = Config.NONE)
 @EnableFeatures({
     ChromeFeatureList.WEB_FEED_SORT,
-    ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP,
     ChromeFeatureList.FEED_HEADER_REMOVAL,
     SigninFeatures.ENABLE_SEAMLESS_SIGNIN
 })
@@ -153,8 +153,8 @@ public class FeedSurfaceMediatorTest {
         when(mListLayoutHelper.setColumnCount(anyInt())).thenReturn(true);
         when(mFeedSurfaceCoordinator.getSurfaceLifecycleManager())
                 .thenReturn(mFeedSurfaceLifecycleManager);
-        ObservableSupplierImpl<Boolean> hasUnreadContent = new ObservableSupplierImpl<>();
-        hasUnreadContent.set(false);
+        SettableNonNullObservableSupplier<Boolean> hasUnreadContent =
+                ObservableSuppliers.createNonNull(false);
         when(mForYouStream.hasUnreadContent()).thenReturn(hasUnreadContent);
         when(mForYouStream.getStreamKind()).thenReturn(StreamKind.FOR_YOU);
         when(mFollowingStream.hasUnreadContent()).thenReturn(hasUnreadContent);

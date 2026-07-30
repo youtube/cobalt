@@ -30,8 +30,8 @@ void ToolbarSwipeSceneLayer::UpdateLayer(JNIEnv* env,
                                          bool left_tab,
                                          bool can_use_live_layer,
                                          int32_t default_background_color,
-                                         jfloat x,
-                                         jfloat y) {
+                                         float x,
+                                         float y) {
   background_color_ = default_background_color;
   ContentLayer* content_layer =
       left_tab ? left_content_layer_.get() : right_content_layer_.get();
@@ -71,8 +71,8 @@ SkColor ToolbarSwipeSceneLayer::GetBackgroundColor() {
   return background_color_;
 }
 
-static jlong JNI_ToolbarSwipeSceneLayer_Init(JNIEnv* env,
-                                             const JavaRef<jobject>& jobj) {
+static int64_t JNI_ToolbarSwipeSceneLayer_Init(JNIEnv* env,
+                                               const JavaRef<jobject>& jobj) {
   // This will automatically bind to the Java object and pass ownership there.
   ToolbarSwipeSceneLayer* scene_layer = new ToolbarSwipeSceneLayer(env, jobj);
   return reinterpret_cast<intptr_t>(scene_layer);

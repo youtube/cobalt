@@ -11,7 +11,6 @@ import android.app.Activity;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -40,8 +39,7 @@ public class TabSwitcherGroupSuggestionServiceFactory {
      */
     public static TabSwitcherGroupSuggestionService build(
             Activity activity,
-            MonotonicObservableSupplier<@Nullable TabGroupModelFilter>
-                    currentTabGroupModelFilterSupplier,
+            MonotonicObservableSupplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier,
             Profile profile,
             TabListCoordinator tabListCoordinator,
             TabGroupSuggestionMessageService messageService) {
@@ -87,6 +85,7 @@ public class TabSwitcherGroupSuggestionServiceFactory {
 
                     @Override
                     public void onShowSuggestion(List<@TabId Integer> tabIdsSortedByIndex) {
+                        if (tabIdsSortedByIndex.isEmpty()) return;
                         @TabId
                         int lastTabId = tabIdsSortedByIndex.get(tabIdsSortedByIndex.size() - 1);
                         int lastCardIndex = tabListCoordinator.getTabIndexFromTabId(lastTabId) + 1;

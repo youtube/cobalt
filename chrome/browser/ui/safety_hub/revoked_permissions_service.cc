@@ -379,7 +379,7 @@ RevokedPermissionsService::GetRevokedPermissions() {
     const base::Value& stored_value = revoked_permissions.setting_value;
     CHECK(stored_value.is_dict());
 
-    const base::Value::List* type_list =
+    const base::ListValue* type_list =
         stored_value.GetDict().FindList(permissions::kRevokedKey);
     CHECK(type_list);
     for (const base::Value& type_value : *type_list) {
@@ -442,7 +442,6 @@ RevokedPermissionsService::GetRevokedPermissions() {
                    IsUrlRevokedDisruptiveNotification(hcsm(), url)) {
       // If the origin has a revoked disruptive notification, add
       // `NOTIFICATIONS` to the list of revoked permissions.
-      CHECK(disruptive_notification_manager_);
       permissions_data.permission_types.insert(
           static_cast<ContentSettingsType>(ContentSettingsType::NOTIFICATIONS));
       // Update `constraints` to one with the latest expiration.

@@ -37,6 +37,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kChromeAndroidIdentitySurveyNtpAvatar,
     &switches::kChromeAndroidIdentitySurveyNtpPromo,
     &switches::kChromeAndroidIdentitySurveyBookmarkPromo,
+    &switches::kSigninLevelUpButton,
 };
 
 // static
@@ -48,8 +49,8 @@ base::android::FeatureMap* GetFeatureMap() {
 
 }  // namespace
 
-static jlong JNI_SigninFeatureMap_GetNativeMap(JNIEnv* env) {
-  return reinterpret_cast<jlong>(GetFeatureMap());
+static int64_t JNI_SigninFeatureMap_GetNativeMap(JNIEnv* env) {
+  return reinterpret_cast<int64_t>(GetFeatureMap());
 }
 
 }  // namespace signin

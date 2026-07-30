@@ -163,6 +163,14 @@ class ScopedPrefetchServiceContentBrowserClient
         browser_context, site);
   }
 
+  bool ShouldAllowPrefetchRedirection(
+      content::BrowserContext& browser_context,
+      const GURL& url,
+      const std::string& embedder_histogram_suffix) override {
+    // Block any URL with "blocked" in it to simulate the behavior.
+    return url.spec().find("blocked") == std::string::npos;
+  }
+
  private:
   raw_ptr<ContentBrowserClient> old_browser_client_;
   std::unique_ptr<MockPrefetchServiceDelegate> mock_prefetch_service_delegate_;
@@ -175,21 +183,34 @@ class ScopedPrefetchServiceContentBrowserClient
 // This is only used to test the proxy lookup.
 class TestNetworkContext : public network::TestNetworkContext {
  public:
-  explicit TestNetworkContext(std::optional<net::ProxyInfo> proxy_info)
-      : proxy_info_(proxy_info) {}
+  explicit TestNetworkContext(std::optional<net::ProxyInfo> proxy_info,
+                              bool manually_unblock_proxy_lookup = false)
+      : proxy_info_(proxy_info),
+        manually_unblock_proxy_lookup_(manually_unblock_proxy_lookup) {}
 
   void LookUpProxyForURL(
       const GURL& url,
       const net::NetworkAnonymizationKey& network_anonymization_key,
       mojo::PendingRemote<network::mojom::ProxyLookupClient>
           pending_proxy_lookup_client) override {
+    pending_proxy_lookup_client_ = std::move(pending_proxy_lookup_client);
+    if (!manually_unblock_proxy_lookup_) {
+      UnblockProxyLookup();
+    }
+  }
+
+  void UnblockProxyLookup() {
+    CHECK(pending_proxy_lookup_client_);
     mojo::Remote<network::mojom::ProxyLookupClient> proxy_lookup_client(
-        std::move(pending_proxy_lookup_client));
+        std::move(pending_proxy_lookup_client_));
     proxy_lookup_client->OnProxyLookupComplete(net::OK, proxy_info_);
   }
 
  private:
-  std::optional<net::ProxyInfo> proxy_info_;
+  const std::optional<net::ProxyInfo> proxy_info_;
+  const bool manually_unblock_proxy_lookup_;
+  mojo::PendingRemote<network::mojom::ProxyLookupClient>
+      pending_proxy_lookup_client_;
 };
 
 net::RequestPriority ExpectedPriorityForEagerness(
@@ -395,8 +416,9 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
   }
 
   void TearDown() override {
-    if (PrefetchDocumentManager::GetForCurrentDocument(main_rfh()))
+    if (PrefetchDocumentManager::GetForCurrentDocument(main_rfh())) {
       PrefetchDocumentManager::DeleteForCurrentDocument(main_rfh());
+    }
     PrefetchDocumentManager::SetPrefetchServiceForTesting(nullptr);
     mock_navigation_handle_.reset();
     PrefetchService::SetURLLoaderFactoryForTesting(nullptr);
@@ -669,8 +691,7 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
               expected_follow_redirect_params_size);
 
     for (const auto& follow_redirect_param : follow_redirect_params) {
-      EXPECT_EQ(follow_redirect_param.removed_headers.size(), 0U);
-      EXPECT_TRUE(follow_redirect_param.modified_headers.IsEmpty());
+      EXPECT_FALSE(follow_redirect_param.modified_headers.IsEmpty());
       EXPECT_TRUE(follow_redirect_param.modified_cors_exempt_headers.IsEmpty());
       EXPECT_FALSE(follow_redirect_param.new_url);
     }
@@ -829,8 +850,9 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
 
   std::optional<PrefetchServingPageMetrics>
   GetMetricsForMostRecentNavigation() {
-    if (!mock_navigation_handle_)
+    if (!mock_navigation_handle_) {
       return std::nullopt;
+    }
 
     return PrefetchServingPageMetrics::GetForNavigationHandle(
         *mock_navigation_handle_);
@@ -5414,7 +5436,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionDuringEligiblityCheck) {
   candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
 
-  // Send `candidate_1`;
+  // Send `candidate_1`.
   std::vector<blink::mojom::SpeculationCandidatePtr> candidates;
   candidates.push_back(candidate_1.Clone());
   auto* prefetch_document_manager =
@@ -5466,6 +5488,83 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionDuringEligiblityCheck) {
       PreloadingEligibility::kEligible);
 }
 
+// Tests that the prefetch eviction during eligiblity check, particularly during
+// proxy lookup.
+TEST_P(PrefetchServiceTest, PrefetchEvictionDuringProxyLookup) {
+  NavigateAndCommit(GURL("https://example.com"));
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
+          /*num_on_prefetch_likely_calls=*/1));
+
+  // Pause the elibility check at proxy lookup. The content of `proxy_info` is
+  // not used anyway.
+  net::ProxyInfo proxy_info;
+  proxy_info.UseNamedProxy("proxy.com");
+  TestNetworkContext network_context_for_proxy_lookup(
+      proxy_info, /*manually_unblock_proxy_lookup=*/true);
+  PrefetchService::SetNetworkContextForProxyLookupForTesting(
+      &network_context_for_proxy_lookup);
+
+  // The URL is cross-site to trigger proxy lookup.
+  const auto url_1 = GURL("https://cross-site.example.org/one");
+  auto candidate_1 = blink::mojom::SpeculationCandidate::New();
+  candidate_1->url = url_1;
+  candidate_1->action = blink::mojom::SpeculationAction::kPrefetch;
+  candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
+  candidate_1->referrer = blink::mojom::Referrer::New();
+
+  // Send `candidate_1`.
+  std::vector<blink::mojom::SpeculationCandidatePtr> candidates;
+  candidates.push_back(candidate_1.Clone());
+  auto* prefetch_document_manager =
+      PrefetchDocumentManager::GetOrCreateForCurrentDocument(main_rfh());
+  prefetch_document_manager->ProcessCandidates(candidates);
+  task_environment()->RunUntilIdle();
+
+  base::WeakPtr<PrefetchContainer> prefetch_container1;
+  std::tie(std::ignore, prefetch_container1) =
+      prefetch_service().GetAllForUrlWithoutRefAndQueryForTesting(
+          PrefetchKey(MainDocumentToken(), url_1))[0];
+
+  // `candidate_1` should be on a way of eligibility check.
+  ASSERT_EQ(prefetch_container1->GetLoadState(),
+            PrefetchContainer::LoadState::kNotStarted);
+
+  // Try to evict.
+  prefetch_service().EvictPrefetchesForBrowsingDataRemoval(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kPreserve)
+          ->BuildStorageKeyFilter(),
+      PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved);
+  {
+    const auto source_id = ForceLogsUploadAndGetUkmId();
+    auto actual_attempts = test_ukm_recorder()->GetEntries(
+        ukm::builders::Preloading_Attempt::kEntryName,
+        test::kPreloadingAttemptUkmMetrics);
+    ASSERT_EQ(actual_attempts.size(), 1u);
+    std::vector<ukm::TestUkmRecorder::HumanReadableUkmEntry> expected_attempts =
+        {attempt_entry_builder()->BuildEntry(
+            source_id, PreloadingType::kPrefetch,
+            PreloadingEligibility::kUnspecified,
+            PreloadingHoldbackStatus::kUnspecified,
+            PreloadingTriggeringOutcome::kUnspecified,
+            PreloadingFailureReason::kUnspecified,
+            /*accurate=*/false,
+            /*ready_time=*/std::nullopt,
+            blink::mojom::SpeculationEagerness::kImmediate)};
+    ASSERT_THAT(actual_attempts,
+                testing::UnorderedElementsAreArray(expected_attempts))
+        << test::ActualVsExpectedUkmEntriesToString(actual_attempts,
+                                                    expected_attempts);
+  }
+
+  // Resume the elibility check, to confirm the proxy lookup completion after
+  // `PrefetchContainer` destruction is no-op.
+  network_context_for_proxy_lookup.UnblockProxyLookup();
+
+  PrefetchService::SetNetworkContextForProxyLookupForTesting(nullptr);
+}
+
 // Tests that the prefetch eviction for heldback triggers causes no crash. This
 // is a regression test of crbug.com/404703517.
 TEST_P(PrefetchServiceTest, PrefetchEvictionWhenHoldback) {
@@ -5486,7 +5585,7 @@ TEST_P(PrefetchServiceTest, PrefetchEvictionWhenHoldback) {
   candidate_1->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
   candidate_1->referrer = blink::mojom::Referrer::New();
 
-  // Send `candidate_1`;
+  // Send `candidate_1`.
   std::vector<blink::mojom::SpeculationCandidatePtr> candidates;
   candidates.push_back(candidate_1.Clone());
   auto* prefetch_document_manager =
@@ -8779,6 +8878,29 @@ TEST_P(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Prerender."
       "NotServed.SpeculationRule_Immediate2",
       0);
+}
+
+// Verifies that certain embedder and url pattern will be blocked upon
+// redirection.
+TEST_P(PrefetchServiceTest, BlockCertainEmbedderPrefetchOnRedirectToSearch) {
+  base::HistogramTester histogram_tester;
+  MakePrefetchService(
+      std::make_unique<testing::NiceMock<MockPrefetchServiceDelegate>>(
+          /*num_on_prefetch_likely_calls=*/std::nullopt));
+  const PrefetchType prefetch_type = PrefetchType(
+      PreloadingTriggerType::kEmbedder, /*use_prefetch_proxy=*/false);
+  auto handle = MakePrefetchFromEmbedder(
+      GURL("https://example.com"), prefetch_type,
+      /*referrer=*/blink::mojom::Referrer(), /*referring_origin=*/std::nullopt);
+  task_environment()->RunUntilIdle();
+  // The prefetch request is still allowed before the redirect.
+  VerifyCommonRequestStateForWebContentsPrefetch(GURL("https://example.com"),
+                                                 {.use_prefetch_proxy = false});
+
+  MakeSingleRedirectAndWait(GURL("https://www.google.co.jp/search?q=blocked"));
+  histogram_tester.ExpectUniqueSample(
+      "Preloading.Prefetch.PrefetchStatus",
+      PrefetchStatus::kPrefetchFailedInvalidRedirect, 1);
 }
 
 }  // namespace

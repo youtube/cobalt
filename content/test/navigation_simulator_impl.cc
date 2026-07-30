@@ -1390,11 +1390,9 @@ bool NavigationSimulatorImpl::SimulateRendererInitiatedStart() {
           nullptr /* trust_token_params */, impression_,
           base::TimeTicks() /* renderer_before_unload_start */,
           base::TimeTicks() /* renderer_before_unload_end */,
-          has_user_gesture_
-              ? blink::mojom::NavigationInitiatorActivationAndAdStatus::
-                    kStartedWithTransientActivationFromNonAd
-              : blink::mojom::NavigationInitiatorActivationAndAdStatus::
-                    kDidNotStartWithTransientActivation,
+          base::TimeTicks() /* before_unload_dialog_opened */,
+          base::TimeTicks() /* before_unload_dialog_closed */,
+          has_user_gesture_, false /* started_by_ad */,
           false /* is_container_initiated */,
           net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
   auto common_params = blink::CreateCommonNavigationParams();
@@ -1410,7 +1408,7 @@ bool NavigationSimulatorImpl::SimulateRendererInitiatedStart() {
       PageTransitionCoreTypeIs(transition_, ui::PAGE_TRANSITION_RELOAD)
           ? blink::mojom::NavigationType::RELOAD
           : blink::mojom::NavigationType::DIFFERENT_DOCUMENT;
-  common_params->has_user_gesture = has_user_gesture_;
+  common_params->has_possibly_filtered_user_gesture = has_user_gesture_;
   common_params->should_check_main_world_csp = should_check_main_world_csp_;
   common_params->should_replace_current_entry = should_replace_current_entry_;
   common_params->href_translate = href_translate_;

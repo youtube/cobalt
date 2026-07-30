@@ -14,26 +14,27 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/test/views_test_base.h"
 
-class ProjectsPanelThreadItemViewTest : public views::ViewsTestBase {
- protected:
-  contextual_tasks::Thread CreateThread(const std::string& title) {
-    return contextual_tasks::Thread(contextual_tasks::ThreadType::kAiMode,
-                                    /*server_id=*/"", title,
-                                    /*conversation_turn_id=*/"");
-  }
+namespace {
 
-  const contextual_tasks::Thread kThread = CreateThread("Thread 1");
-};
+contextual_tasks::Thread CreateThread(const std::string& title) {
+  return contextual_tasks::Thread(contextual_tasks::ThreadType::kAiMode,
+                                  /*server_id=*/"", title,
+                                  /*conversation_turn_id=*/"");
+}
+
+}  // namespace
+
+class ProjectsPanelThreadItemViewTest : public views::ViewsTestBase {};
 
 TEST_F(ProjectsPanelThreadItemViewTest, DisplaysIconAndTitle) {
-  auto thread_item_view =
-      std::make_unique<ProjectsPanelThreadItemView>(kThread);
+  const auto thread = CreateThread("Thread 1");
+  auto thread_item_view = std::make_unique<ProjectsPanelThreadItemView>(thread);
 
-  // Check that the item has an image and a label.
-  ASSERT_EQ(2u, thread_item_view->children().size());
+  // Check that the item has an image, label, and ink drop.
+  ASSERT_EQ(3u, thread_item_view->children().size());
 
   views::ImageView* image_view =
-      static_cast<views::ImageView*>(thread_item_view->children()[0]);
+      static_cast<views::ImageView*>(thread_item_view->children()[1]);
   EXPECT_TRUE(image_view);
 
   // Check that the image view has the correct icon.
@@ -47,7 +48,7 @@ TEST_F(ProjectsPanelThreadItemViewTest, DisplaysIconAndTitle) {
             image_view->GetImageModel());
 
   views::Label* label =
-      static_cast<views::Label*>(thread_item_view->children()[1]);
+      static_cast<views::Label*>(thread_item_view->children()[2]);
   EXPECT_TRUE(label);
-  EXPECT_EQ(base::UTF8ToUTF16(kThread.title), label->GetText());
+  EXPECT_EQ(base::UTF8ToUTF16(thread.title), label->GetText());
 }

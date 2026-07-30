@@ -375,8 +375,8 @@ interface AuthenticatorResponse
     method constructor
 interface AutofillEvent : Event
     attribute @@toStringTag
+    getter autofillValues
     getter refill
-    method autofillValues
     method constructor
 interface BackForwardCacheRestoration : PerformanceEntry
     attribute @@toStringTag
@@ -422,6 +422,7 @@ interface BaseAudioContext : EventTarget
     getter destination
     getter listener
     getter onstatechange
+    getter renderQuantumSize
     getter sampleRate
     getter state
     method constructor
@@ -1436,11 +1437,18 @@ interface ChildNodePart : Part
     method replaceChildren
 interface Clipboard : EventTarget
     attribute @@toStringTag
+    getter onclipboardchange
     method constructor
     method read
     method readText
     method write
     method writeText
+    setter onclipboardchange
+interface ClipboardChangeEvent : Event
+    attribute @@toStringTag
+    getter changeId
+    getter types
+    method constructor
 interface ClipboardEvent : Event
     attribute @@toStringTag
     getter clipboardData
@@ -10211,8 +10219,10 @@ interface StyleSheetList
     method item
 interface SubmitEvent : Event
     attribute @@toStringTag
+    getter agentInvoked
     getter submitter
     method constructor
+    method respondWith
 interface Subscriber
     attribute @@toStringTag
     getter active
@@ -12947,6 +12957,7 @@ interface XRSession : EventTarget
     getter inputSources
     getter interactionMode
     getter isSystemKeyboardSupported
+    getter maxRenderLayers
     getter onend
     getter onframeratechange
     getter oninputsourceschange

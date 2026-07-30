@@ -547,9 +547,8 @@ class RenderFrameHostManagerTest
             ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
             entry->extra_headers(), frame_entry, entry, is_form_submission,
             nullptr /* navigation_ui_data */, std::nullopt /* impression */,
-            blink::mojom::NavigationInitiatorActivationAndAdStatus::
-                kDidNotStartWithTransientActivation,
-            false /* is_pdf */);
+            false /* started_with_transient_activation */,
+            false /* started_by_ad */, false /* is_pdf */);
 
     // Simulates request creation that triggers the 1st internal call to
     // GetFrameHostForNavigation.
@@ -2047,6 +2046,11 @@ TEST_P(RenderFrameHostManagerTest, CancelPendingProperlyDeletesOrSwaps) {
 
   rfh1->SuddenTerminationDisablerChanged(
       true, blink::mojom::SuddenTerminationDisablerType::kBeforeUnloadHandler);
+  // Put a user gesture on the frame to wait for the beforeunload event to
+  // complete.
+  rfh1->ActivateUserActivation(
+      blink::mojom::UserActivationNotificationType::kTest,
+      /*sticky_only=*/true);
 
   // Navigate to a new site, starting a cross-site navigation.
   controller().LoadURL(kUrl2, Referrer(), ui::PAGE_TRANSITION_LINK,

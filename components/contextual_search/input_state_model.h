@@ -25,8 +25,10 @@ using omnibox::SearchboxConfig;
 using omnibox::ToolMode;
 
 // Represents a valid searchbox inputs state.
+// LINT.IfChange(InputState)
 struct InputState {
   InputState();
+  InputState(const InputState&);
   ~InputState();
   // The set of allowed tools, models, and input types.
   std::vector<ToolMode> allowed_tools;
@@ -40,6 +42,7 @@ struct InputState {
   std::vector<ModelMode> disabled_models;
   std::vector<InputType> disabled_input_types;
 };
+// LINT.ThenChange(//components/omnibox/composebox/composebox_query.mojom:InputState)
 
 // Manages the state of composebox inputs including tools, models, and
 // multimodal inputs.
@@ -57,11 +60,21 @@ class InputStateModel {
   // Add a subscriber to this model.
   base::CallbackListSubscription subscribe(Subscriber callback);
 
+  // Initializes the model and notifies subscribers of the initial state.
+  void Initialize();
+
   // Set a new tool.
   void setActiveTool(ToolMode tool);
 
   // Set a new model.
   void setActiveModel(ModelMode model);
+
+  // Gets additional query params for the current state.
+  std::map<std::string, std::string> GetAdditionalQueryParams();
+
+  // Methods for testing.
+  void set_state_for_testing(const InputState& state) { state_ = state; }
+  const InputState& get_state_for_testing() { return state_; }
 
  private:
   // Notify all subscribers of the current `state_`.
@@ -73,8 +86,21 @@ class InputStateModel {
   // Update the currently disabled tools, models, and inputs.
   void updateDisabledState();
 
+  //  Helper method to update `disabled_tools` based on `rule_set_`.
+  void UpdateDisabledTools();
+
+  // Helper method to update `disabled_models` based on `rule_set_`.
+  void UpdateDisabledModels();
+
+  // Helper method to update `disabled_input_types` based on `rule_set_`.
+  void UpdateDisabledInputTypes();
+
+  // Gets the input type limits based on the current state.
+  std::map<omnibox::InputType, int> GetInputTypeLimits();
+
   InputState state_;
-  const base::raw_ref<contextual_search::ContextualSearchSessionHandle>
+  omnibox::RuleSet rule_set_;
+  base::raw_ref<contextual_search::ContextualSearchSessionHandle>
       session_handle_;
   base::RepeatingCallbackList<void(const InputState&)> subscribers_;
 };

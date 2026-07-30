@@ -27,7 +27,6 @@
 #include "components/autofill/core/browser/form_types.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/iban_access_manager.h"
@@ -51,7 +50,7 @@ namespace {
 
 // Checks if the field is focusable and empty.
 bool IsFieldFocusableAndEmpty(const AutofillField& field) {
-  return field.IsFocusable() && SanitizedFieldIsEmpty(field.value());
+  return field.is_focusable() && SanitizedFieldIsEmpty(field.value());
 }
 
 // The form is considered correctly filled if all autofilled fields were not
@@ -194,16 +193,10 @@ TouchToFillDelegateAndroidImpl::DryRunForCreditCard(const AutofillField& field,
   if (IsFormPrefilled(form)) {
     return {TriggerOutcome::kFormAlreadyFilled, {}};
   }
-  // Trigger only if Fast Checkout was not shown before.
-  if (!manager_->client().GetFastCheckoutClient()->IsNotShownYet()) {
-    return {TriggerOutcome::kFastCheckoutWasShown, {}};
-  }
 
   // Fetch all complete valid credit cards on file.
   // Complete = contains number, expiration date and name on card.
   // Valid = unexpired with valid number format.
-  // TODO(crbug.com/40227496): `*field` must contain the updated field
-  // information.
   std::vector<CreditCard> cards_to_suggest = GetTouchToFillCardsToSuggest(
       manager_->client(), field, field.Type().GetCreditCardType());
   return cards_to_suggest.empty()
@@ -408,9 +401,9 @@ void TouchToFillDelegateAndroidImpl::CreditCardSuggestionSelected(
   }
   const CreditCard& card_to_fill =
       is_virtual ? CreditCard::CreateVirtualCard(*card) : *card;
-  manager_->FillOrPreviewForm(mojom::ActionPersistence::kFill, query_form_,
-                              query_field_.global_id(), &card_to_fill,
-                              AutofillTriggerSource::kTouchToFillCreditCard);
+  manager_->FillOrPreviewForm(
+      mojom::ActionPersistence::kFill, query_form_, query_field_.global_id(),
+      &card_to_fill, AutofillTriggerSource::kKeyboardAccessoryOrBottomSheet);
 }
 
 void TouchToFillDelegateAndroidImpl::BnplSuggestionSelected(
@@ -426,7 +419,7 @@ void TouchToFillDelegateAndroidImpl::BnplSuggestionSelected(
               delegate->manager_->FillOrPreviewForm(
                   mojom::ActionPersistence::kFill, delegate->query_form_,
                   delegate->query_field_.global_id(), &card,
-                  AutofillTriggerSource::kTouchToFillCreditCard);
+                  AutofillTriggerSource::kKeyboardAccessoryOrBottomSheet);
             }
           },
           GetWeakPtr()));

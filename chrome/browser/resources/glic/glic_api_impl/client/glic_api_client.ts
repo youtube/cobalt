@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {AdditionalContext, AnnotatedPageData, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateSkillRequest, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, Skill, SkillPreview, SkillSource, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {AdditionalContext, AnnotatedPageData, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateActorTabOptions, CreateSkillRequest, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, NavigationConfirmationRequest, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResizeWindowOptions, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectCredentialDialogRequest, Skill, SkillPreview, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, HostCapability} from '../../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../../observable.js';
 
@@ -235,6 +235,23 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     }
 
     // Signal the change to the host.
+    this.host.skillPreviews.assignAndSignal(this.cachedSkillPreviews);
+  }
+
+  glicWebClientNotifySkillDeleted(payload: {
+    skillId: string,
+  }): void {
+    const skillId = payload.skillId;
+    this.cachedSkillPrompts.delete(skillId);
+    const index = this.cachedSkillPreviews.findIndex(
+        (cachedSkillPreview) => cachedSkillPreview.id === skillId);
+    if (index !== -1) {
+      // SkillPreview with the same ID exists, remove it.
+      this.cachedSkillPreviews = [
+        ...this.cachedSkillPreviews.slice(0, index),
+        ...this.cachedSkillPreviews.slice(index + 1),
+      ];
+    }
     this.host.skillPreviews.assignAndSignal(this.cachedSkillPreviews);
   }
 
@@ -630,15 +647,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
       this.getModelQualityClientId = undefined;
     }
 
-    if (state.enableSkills) {
-      if (state.skillPreviews) {
-        this.skillPreviews.assignAndSignal(
-            state.skillPreviews.map(s => ({
-                                      ...s,
-                                      source: s.source as number as SkillSource,
-                                    })));
-      }
-    } else {
+    if (!state.enableSkills) {
       this.createSkill = undefined;
       this.updateSkill = undefined;
       this.getSkill = undefined;
@@ -1182,7 +1191,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return result.skill;
   }
 
-  getSkills?(): ObservableValue<SkillPreview[]> {
+  getSkillPreviews?(): ObservableValue<SkillPreview[]> {
     return this.skillPreviews;
   }
 
@@ -1440,10 +1449,6 @@ class GlicBrowserHostMetricsImpl implements GlicBrowserHostMetrics {
   onTurnCompleted?(model: number, duration: number): void {
     this.sender.requestNoResponse(
         'glicBrowserOnTurnCompleted', {model, duration});
-  }
-
-  onModelChanged?(model: number): void {
-    this.sender.requestNoResponse('glicBrowserOnModelChanged', {model});
   }
 
   onRecordUseCounter?(counter: number): void {

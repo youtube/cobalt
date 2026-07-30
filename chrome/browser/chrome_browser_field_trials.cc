@@ -111,7 +111,7 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // On Linux/Desktop platform variants, such as ozone/wayland, some features
   // might need to be disabled as per OzonePlatform's runtime properties.
   // OzonePlatform selection and initialization, in turn, depend on Chrome flags
-  // processing, namely 'ozone-platform-hint', so do it here.
+  // processing, namely 'ozone-platform', so do it here.
   //
   // TODO(nickdiego): Move it back to
   // ChromeMainDelegate::PostEarlyInitialization.
@@ -130,11 +130,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // should be the exception, and not the norm. Instead, you should place the
   // override in the generic IS_ANDROID block below, guarded by an appropriate
   // runtime check.
-
-  // Enables the caret browsing a11y feature - can use arrow keys to navigate
-  // through web pages.
-  // TODO(crbug.com/369139090): Remove when rollout is complete
-  feature_overrides.EnableFeature(features::kAndroidCaretBrowsing);
 
   // Enable the link hover status bar.
   // TODO(crbug.com/404678510): Remove when the feature is stable.

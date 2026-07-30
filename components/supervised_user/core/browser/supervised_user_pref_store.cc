@@ -13,6 +13,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -23,8 +24,7 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
-#include "components/supervised_user/core/browser/supervised_user_settings_service.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/browser/family_link_settings_service.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
@@ -44,12 +44,27 @@ enum class SupervisionHasConflict : int {
   kMaxValue = kHasConflict,
 };
 
-struct SupervisedUserSettingsPrefMappingEntry {
+struct FamilyLinkSettingsPrefMappingEntry {
   const char* settings_name;
   const char* pref_name;
 };
 
-SupervisedUserSettingsPrefMappingEntry kSupervisedUserSettingsPrefMapping[] = {
+FamilyLinkSettingsPrefMappingEntry kFamilyLinkSettingsPrefMapping[] = {
+    {
+        supervised_user::kSigninAllowed,
+        prefs::kSigninAllowed,
+    },
+    {
+        supervised_user::kSigninAllowedOnNextStartup,
+        prefs::kSigninAllowedOnNextStartup,
+    },
+    {
+        supervised_user::kSkipParentApprovalToInstallExtensions,
+        prefs::kSkipParentApprovalToInstallExtensions,
+    },
+};
+
+FamilyLinkSettingsPrefMappingEntry kFamilyLinkWebFilteringPrefMapping[] = {
     {
         supervised_user::kContentPackDefaultFilteringBehavior,
         prefs::kDefaultSupervisedUserFilteringBehavior,
@@ -66,50 +81,43 @@ SupervisedUserSettingsPrefMappingEntry kSupervisedUserSettingsPrefMapping[] = {
         supervised_user::kSafeSitesEnabled,
         prefs::kSupervisedUserSafeSites,
     },
-    {
-        supervised_user::kSigninAllowed,
-        prefs::kSigninAllowed,
-    },
-    {
-        supervised_user::kSigninAllowedOnNextStartup,
-        prefs::kSigninAllowedOnNextStartup,
-    },
-    {
-        supervised_user::kSkipParentApprovalToInstallExtensions,
-        prefs::kSkipParentApprovalToInstallExtensions,
-    },
+
 };
 
 }  // namespace
 
 void SetSupervisedUserPrefStoreDefaults(PrefValueMap& pref_values) {
-  pref_values.SetInteger(
-      prefs::kDefaultSupervisedUserFilteringBehavior,
-      static_cast<int>(supervised_user::FilteringBehavior::kAllow));
+  if (!base::FeatureList::IsEnabled(
+          supervised_user::kSupervisedUserUseUrlFilteringService)) {
+    pref_values.SetInteger(
+        prefs::kDefaultSupervisedUserFilteringBehavior,
+        static_cast<int>(supervised_user::FilteringBehavior::kAllow));
+    pref_values.SetBoolean(prefs::kSupervisedUserSafeSites, true);
+  }
 
   pref_values.SetBoolean(policy::policy_prefs::kHideWebStoreIcon, false);
   pref_values.SetBoolean(feed::prefs::kEnableSnippets, false);
-  pref_values.SetBoolean(prefs::kSupervisedUserSafeSites, true);
+  pref_values.SetInteger(
+      policy::policy_prefs::kIncognitoModeAvailability,
+      static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
 }
 }  // namespace supervised_user
 
 SupervisedUserPrefStore::SupervisedUserPrefStore() = default;
 
 SupervisedUserPrefStore::SupervisedUserPrefStore(
-    supervised_user::SupervisedUserSettingsService*
-        supervised_user_settings_service,
+    supervised_user::FamilyLinkSettingsService* family_link_settings_service,
     supervised_user::DeviceParentalControls& device_parental_controls) {
-  Init(supervised_user_settings_service, device_parental_controls);
+  Init(family_link_settings_service, device_parental_controls);
 }
 
 void SupervisedUserPrefStore::Init(
-    supervised_user::SupervisedUserSettingsService*
-        supervised_user_settings_service,
+    supervised_user::FamilyLinkSettingsService* family_link_settings_service,
     supervised_user::DeviceParentalControls& device_parental_controls) {
-  settings_service_ = supervised_user_settings_service->GetWeakPtr();
+  family_link_settings_service_ = family_link_settings_service->GetWeakPtr();
 
-  user_settings_subscription_ =
-      supervised_user_settings_service->SubscribeForSettingsChange(
+  family_link_settings_subscription_ =
+      family_link_settings_service->SubscribeForSettingsChange(
           base::BindRepeating(&SupervisedUserPrefStore::OnNewSettingsAvailable,
                               base::Unretained(this)));
 
@@ -118,14 +126,12 @@ void SupervisedUserPrefStore::Init(
           &SupervisedUserPrefStore::OnDeviceParentalControlsChanged,
           weak_factory_.GetWeakPtr()));
 
-  // The SupervisedUserSettingsService must be created before the PrefStore, and
+  // The FamilyLinkSettingsService must be created before the PrefStore, and
   // it will notify the PrefStore to destroy both subscriptions when it is shut
   // down.
-  shutdown_subscription_ =
-      supervised_user_settings_service->SubscribeForShutdown(
-          base::BindRepeating(
-              &SupervisedUserPrefStore::OnSettingsServiceShutdown,
-              base::Unretained(this)));
+  shutdown_subscription_ = family_link_settings_service->SubscribeForShutdown(
+      base::BindRepeating(&SupervisedUserPrefStore::OnSettingsServiceShutdown,
+                          base::Unretained(this)));
 }
 
 bool SupervisedUserPrefStore::GetValue(std::string_view key,
@@ -133,7 +139,7 @@ bool SupervisedUserPrefStore::GetValue(std::string_view key,
   return prefs_->GetValue(key, value);
 }
 
-base::Value::Dict SupervisedUserPrefStore::GetValues() const {
+base::DictValue SupervisedUserPrefStore::GetValues() const {
   return prefs_->AsDict();
 }
 
@@ -169,7 +175,7 @@ void SupervisedUserPrefStore::OnDeviceParentalControlsChanged(
 }
 
 void SupervisedUserPrefStore::OnNewSettingsAvailable(
-    const base::Value::Dict& settings) {
+    const base::DictValue& settings) {
   family_link_settings_ = settings.Clone();
   RecreatePreferences();
 }
@@ -184,7 +190,12 @@ void SupervisedUserPrefStore::RecreatePreferences() {
 
   std::unique_ptr<PrefValueMap> old_prefs = std::move(prefs_);
   prefs_ = std::make_unique<PrefValueMap>();
-  if (settings_service_ && settings_service_->IsActive()) {
+
+  bool is_family_link_settings_service_active =
+      family_link_settings_service_ &&
+      family_link_settings_service_->IsActive();
+
+  if (is_family_link_settings_service_active) {
     supervised_user::SetSupervisedUserPrefStoreDefaults(*prefs_.get());
 
 #if BUILDFLAG(IS_ANDROID)
@@ -192,9 +203,8 @@ void SupervisedUserPrefStore::RecreatePreferences() {
         prefs_.get(), syncer::UserSelectableType::kPayments);
 #endif
 
-    // Copy supervised user settings to prefs.
-    for (const auto& entry :
-         supervised_user::kSupervisedUserSettingsPrefMapping) {
+    // Copy non-web filtering family link user settings to prefs.
+    for (const auto& entry : supervised_user::kFamilyLinkSettingsPrefMapping) {
       const base::Value* value =
           family_link_settings_->Find(entry.settings_name);
       if (value) {
@@ -202,14 +212,16 @@ void SupervisedUserPrefStore::RecreatePreferences() {
       }
     }
 
-    // Manually set preferences that aren't direct copies of the settings value.
-    {
-      // Incognito is disabled for supervised users across platforms.
-      // First-party sites use signed-in cookies to ensure that parental
-      // restrictions are applied for Unicorn accounts.
-      prefs_->SetInteger(
-          policy::policy_prefs::kIncognitoModeAvailability,
-          static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
+    // TODO(crbug.com/465666839): after the migration is complete, stop
+    // propagating these prefs (guard with kSupervisedUserUseUrlFilteringService
+    // first).
+    for (const auto& entry :
+         supervised_user::kFamilyLinkWebFilteringPrefMapping) {
+      const base::Value* value =
+          family_link_settings_->Find(entry.settings_name);
+      if (value) {
+        prefs_->SetValue(entry.pref_name, value->Clone());
+      }
     }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -223,25 +235,47 @@ void SupervisedUserPrefStore::RecreatePreferences() {
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
     // Apparently two parental controls systems are enabled at the same time.
-    // This is considered a conflict which is resolved in favor for Family Link
-    // parental controls.
+    // This is considered a conflict which in versions before
+    // kSupervisedUserUseUrlFilteringService and
+    // kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefs was resolved
+    // in favor of Family Link settings.
     if (device_parental_controls_state_.is_enabled) {
       base::UmaHistogramEnumeration(
           supervised_user::kSupervisionConflictHistogramName,
           supervised_user::SupervisionHasConflict::kHasConflict);
     }
+  }
 
-  } else {
+  // Merge device parental controls settings with the Family Link settings in
+  // one of two situations:
+  // 1. Family Link is not enabled (old behavior).
+  // 2. Family Link is enabled, and new merging feature is enabled too.
+  // The merge policy is to select the most restrictive setting.
+  if (!is_family_link_settings_service_active ||
+      base::FeatureList::IsEnabled(
+          supervised_user::
+              kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefs)) {
     if (device_parental_controls_state_.is_incognito_mode_disabled) {
+      // IncognitoModeAvailability::kDisabled is the most restrictive setting -
+      // it's safe to apply it regardless of the Family Link settings.
       prefs_->SetInteger(
           policy::policy_prefs::kIncognitoModeAvailability,
           static_cast<int>(policy::IncognitoModeAvailability::kDisabled));
     }
+    if (device_parental_controls_state_.is_safe_search_forced) {
+      // kForceGoogleSafeSearch=true is also the most restrictive setting.
+      prefs_->SetBoolean(policy::policy_prefs::kForceGoogleSafeSearch, true);
+    }
+  }
+
+  // Web filtering prefs are being deprecated: only merge them if device
+  // parental controls are mutually exclusive with family link settings and new
+  // way of delivering the web filtering settings is not enabled.
+  if (!is_family_link_settings_service_active &&
+      !base::FeatureList::IsEnabled(
+          supervised_user::kSupervisedUserUseUrlFilteringService)) {
     if (device_parental_controls_state_.is_web_filtering_enabled) {
       prefs_->SetBoolean(prefs::kSupervisedUserSafeSites, true);
-    }
-    if (device_parental_controls_state_.is_safe_search_forced) {
-      prefs_->SetBoolean(policy::policy_prefs::kForceGoogleSafeSearch, true);
     }
   }
 
@@ -272,6 +306,6 @@ void SupervisedUserPrefStore::NotifyObserversAboutChanges(
 }
 
 void SupervisedUserPrefStore::OnSettingsServiceShutdown() {
-  user_settings_subscription_ = {};
+  family_link_settings_subscription_ = {};
   shutdown_subscription_ = {};
 }

@@ -13,9 +13,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.educational_tip.EducationTipModuleActionDelegate;
 import org.chromium.chrome.browser.educational_tip.R;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
+import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleProvider;
 import org.chromium.chrome.browser.magic_stack.ModuleProviderBuilder;
-import org.chromium.components.segmentation_platform.InputContext;
+import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -26,12 +27,18 @@ import org.chromium.ui.modelutil.PropertyModel;
 @NullMarked
 public class EducationalTipModuleTwoCellBuilder implements ModuleProviderBuilder {
     private final EducationTipModuleActionDelegate mActionDelegate;
+    private final @ModuleType int mModuleType;
+    private final @Nullable Integer mManualRank;
 
     /**
+     * @param moduleType The type of the module to build.
      * @param actionDelegate The instance of {@link EducationTipModuleActionDelegate}.
      */
-    public EducationalTipModuleTwoCellBuilder(EducationTipModuleActionDelegate actionDelegate) {
+    public EducationalTipModuleTwoCellBuilder(
+            @ModuleType int moduleType, EducationTipModuleActionDelegate actionDelegate) {
+        mModuleType = moduleType;
         mActionDelegate = actionDelegate;
+        mManualRank = SetupListModuleUtils.getManualRank(mModuleType);
     }
 
     // ModuleProviderBuilder implementation.
@@ -39,7 +46,8 @@ public class EducationalTipModuleTwoCellBuilder implements ModuleProviderBuilder
     public boolean build(
             ModuleDelegate moduleDelegate, Callback<ModuleProvider> onModuleBuiltCallback) {
         onModuleBuiltCallback.onResult(
-                new EducationalTipModuleTwoCellCoordinator(moduleDelegate, mActionDelegate));
+                new EducationalTipModuleTwoCellCoordinator(
+                        mModuleType, moduleDelegate, mActionDelegate));
         return true;
     }
 
@@ -57,16 +65,7 @@ public class EducationalTipModuleTwoCellBuilder implements ModuleProviderBuilder
     }
 
     @Override
-    public boolean hasManualOrdering() {
-        // The two-cell setup list container should always be manually placed at the top
-        // when it's active.
-        return true;
-    }
-
-    @Override
-    @Nullable
-    public InputContext createInputContext() {
-        // Setup list modules have manual ranking
-        return null;
+    public @Nullable Integer getManualRank() {
+        return mManualRank;
     }
 }

@@ -1452,6 +1452,12 @@
       <message name="IDS_IOS_COMPOSEBOX_CANNOT_RELOAD_TAB_ERROR" desc="Message displayed in a snackbar when reloading a tab fails. [iOS only].">
         Can’t reload tabs
       </message>
+      <message name="IDS_IOS_COMPOSEBOX_CANVAS_ACTION" desc="The contextual menu option for opening the tool where users can dynamically build and edit content with the help of AI. [iOS only].">
+        Canvas
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_CANVAS_ENABLED_PLACEHOLDER" desc="The placeholder to show when Canvas is enabled and no user text was added.">
+        Create anything
+      </message>
       <message name="IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION" desc="The contextual menu option instructing the input plate to use the image generation tool. [iOS only].">
         Create image
       </message>
@@ -1479,6 +1485,15 @@
       </message>
       <message name="IDS_IOS_COMPOSEBOX_MENU_TITLE" desc="Title for the contextual menu, the menu allows the user to attach images, tabs, files to their query. [iOS only].">
         Ask Google about tabs and more
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MODEL_SELECTOR_OPTION_AUTO" desc="Title for the contextual menu option where the system automatically selects the optimal model per query. [iOS only].">
+        Auto
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MODEL_SELECTOR_TITLE" desc="Title for the contextual menu section for selecting the AI model to us. [iOS only].">
+        Gemini <ph name="VERSION_NUMBER">$1<ex>3</ex></ph> models
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MODEL_SELECTOR_OPTION_THINKING" desc="Title for the contextual menu option for the advanced thinking reasoning model. [iOS only].">
+        Thinking
       </message>
       <message name="IDS_IOS_COMPOSEBOX_SELECT_TAB_ACTION" desc="The contextual menu option for opening the tab picker for selection. [iOS only].">
         Tabs
@@ -6244,6 +6259,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SAFE_MODE_CRASH_REPORT_SENT" desc="The message indicating that Chrome sent a crash report. [Length: 140em]">
         Crash report sent.
       </message>
+      <message name="IDS_IOS_SAFE_MODE_NEEDS_OS_UPDATE" desc="The message indicating that Chrome crashed due to a known issue with the current version of iOS. [Length: 140em]">
+        Something went really wrong. Please update your iOS version.
+      </message>
       <message name="IDS_IOS_SAFE_MODE_RELOAD_CHROME" desc="The label of a button used to start Chrome from safe mode.  Clicking this button dismisses the safe mode UI and launches Chrome. [Length: 30em]">
         Try again
       </message>
@@ -7716,6 +7734,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_TAB_STRIP_TAB_GROUP_EXPAND" desc="The accessibility label for expanding a collapsed tab group. [iOS only]">
         Expand tab group.
+      </message>
+      <message name="IDS_IOS_TAB_SWITCHER_CLOSE_ALL_ACTION_BUTTON" desc="Text of the Close All button in the Tab Switcher overflow menu. [iOS only]">
+        Close All
       </message>
       <message name="IDS_IOS_TAB_SWITCHER_CLOSE_GROUP" desc="The accessibility label for the closing of a selected tab group. [iOS only]">
         Close group.

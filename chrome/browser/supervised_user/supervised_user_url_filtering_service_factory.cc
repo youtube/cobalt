@@ -4,13 +4,14 @@
 
 #include "chrome/browser/supervised_user/supervised_user_url_filtering_service_factory.h"
 
+#include <memory>
+
 #include "base/check_deref.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 
 namespace supervised_user {
@@ -47,9 +48,6 @@ SupervisedUserUrlFilteringServiceFactory::
   // all callers are migrated to the SupervisedUserUrlFilteringService.
   // TODO(crbug.com/469336110): Remove this dependency after migration.
   DependsOn(SupervisedUserServiceFactory::GetInstance());
-
-  // Gives access to Family Link settings.
-  DependsOn(SupervisedUserSettingsServiceFactory::GetInstance());
 }
 
 SupervisedUserUrlFilteringServiceFactory::
@@ -61,9 +59,7 @@ SupervisedUserUrlFilteringServiceFactory::BuildServiceInstanceForBrowserContext(
   Profile* profile = Profile::FromBrowserContext(context);
 
   return std::make_unique<SupervisedUserUrlFilteringService>(
-      CHECK_DEREF(SupervisedUserServiceFactory::GetForProfile(profile)),
-      CHECK_DEREF(SupervisedUserSettingsServiceFactory::GetForKey(
-          profile->GetProfileKey())));
+      CHECK_DEREF(SupervisedUserServiceFactory::GetForProfile(profile)));
 }
 
 }  // namespace supervised_user

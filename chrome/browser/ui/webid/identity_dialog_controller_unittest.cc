@@ -13,6 +13,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
+#include "chrome/browser/webid/federated_actor_login_request.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/optimization_guide/core/hints/mock_optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -152,17 +153,17 @@ class IdentityDialogControllerTest : public ChromeRenderViewHostTestHarness {
   }
 
   void Accept(permissions::PermissionRequestManager* manager) {
-    manager->Accept();
+    manager->Accept(/*prompt_options=*/std::monostate());
     task_environment()->RunUntilIdle();
   }
 
   void Deny(permissions::PermissionRequestManager* manager) {
-    manager->Deny();
+    manager->Deny(/*prompt_options=*/std::monostate());
     task_environment()->RunUntilIdle();
   }
 
   void Dismiss(permissions::PermissionRequestManager* manager) {
-    manager->Dismiss();
+    manager->Dismiss(/*prompt_options=*/std::monostate());
     task_environment()->RunUntilIdle();
   }
 
@@ -657,8 +658,9 @@ TEST_F(IdentityDialogControllerTest,
 
   // Set up ActorLoginRequest to make ShouldShowFedCmUi returns false.
   GURL idp_url("https://idp.example");
-  IdentityDialogController::SetActorLoginRequest(
-      web_contents()->GetPrimaryPage(), idp_url, kAccountId, base::DoNothing());
+  url::Origin idp_origin = url::Origin::Create(idp_url);
+  FederatedActorLoginRequest::Set(web_contents()->GetPrimaryPage(), idp_origin,
+                                  kAccountId, base::DoNothing());
 
   std::vector<IdentityRequestAccountPtr> accounts = CreateAccount();
   accounts[0]->idp_claimed_login_state =
@@ -688,6 +690,7 @@ TEST_F(IdentityDialogControllerTest,
       std::make_unique<MockAccountSelectionView>());
 
   GURL idp_url("https://idp.example");
+  url::Origin idp_origin = url::Origin::Create(idp_url);
   std::string account_id = "account_id123";
 
   // Case 1: Account is missing.
@@ -695,9 +698,9 @@ TEST_F(IdentityDialogControllerTest,
     base::MockCallback<OnFederatedTokenReceivedCallback> token_callback;
     EXPECT_CALL(token_callback, Run(false)).Times(1);
 
-    IdentityDialogController::SetActorLoginRequest(
-        web_contents()->GetPrimaryPage(), idp_url, account_id,
-        token_callback.Get());
+    FederatedActorLoginRequest::Set(web_contents()->GetPrimaryPage(),
+                                    idp_origin, account_id,
+                                    token_callback.Get());
 
     // Create an account with different ID.
     std::vector<IdentityRequestAccountPtr> accounts = CreateAccount();
@@ -720,9 +723,9 @@ TEST_F(IdentityDialogControllerTest,
     base::MockCallback<OnFederatedTokenReceivedCallback> token_callback;
     EXPECT_CALL(token_callback, Run(false)).Times(1);
 
-    IdentityDialogController::SetActorLoginRequest(
-        web_contents()->GetPrimaryPage(), idp_url, account_id,
-        token_callback.Get());
+    FederatedActorLoginRequest::Set(web_contents()->GetPrimaryPage(),
+                                    idp_origin, account_id,
+                                    token_callback.Get());
 
     std::vector<IdentityRequestAccountPtr> accounts = CreateAccount();
     // Ensure account matches.
@@ -752,6 +755,7 @@ TEST_F(IdentityDialogControllerTest, OnFlowCompleted) {
       std::make_unique<IdentityDialogController>(web_contents());
 
   GURL idp_url("https://idp.example");
+  url::Origin idp_origin = url::Origin::Create(idp_url);
   std::string account_id = "account_id123";
 
   // Test success.
@@ -759,9 +763,9 @@ TEST_F(IdentityDialogControllerTest, OnFlowCompleted) {
     base::MockCallback<OnFederatedTokenReceivedCallback> token_callback;
     EXPECT_CALL(token_callback, Run(true)).Times(1);
 
-    IdentityDialogController::SetActorLoginRequest(
-        web_contents()->GetPrimaryPage(), idp_url, account_id,
-        token_callback.Get());
+    FederatedActorLoginRequest::Set(web_contents()->GetPrimaryPage(),
+                                    idp_origin, account_id,
+                                    token_callback.Get());
 
     controller->OnFlowCompleted(true);
   }
@@ -771,16 +775,15 @@ TEST_F(IdentityDialogControllerTest, OnFlowCompleted) {
     base::MockCallback<OnFederatedTokenReceivedCallback> token_callback;
     EXPECT_CALL(token_callback, Run(false)).Times(1);
 
-    IdentityDialogController::SetActorLoginRequest(
-        web_contents()->GetPrimaryPage(), idp_url, account_id,
-        token_callback.Get());
+    FederatedActorLoginRequest::Set(web_contents()->GetPrimaryPage(),
+                                    idp_origin, account_id,
+                                    token_callback.Get());
 
     controller->OnFlowCompleted(false);
   }
 
   // Test that it does not crash if there is no actor login request.
-  IdentityDialogController::UnsetActorLoginRequest(
-      web_contents()->GetPrimaryPage());
+  FederatedActorLoginRequest::Unset(web_contents()->GetPrimaryPage());
   controller->OnFlowCompleted(true);
 }
 

@@ -10,7 +10,7 @@
 
 :host {
   /** Fonts */
-  --firmware-google-sans-font-family: "Google Sans", sans-serif;
+  --firmware-google-sans-font-family: 'Google Sans', sans-serif;
   --firmware-roboto-font-family: Roboto, sans-serif;
   --firmware-default-font-size: 16px;
 
@@ -61,10 +61,6 @@
 }
 
 :host-context(body.jelly-enabled) .firmware-version-font {
-  font: var(--cros-body-2-font);
-}
-
-:host-context(body.jelly-enabled) .firmware-description-font {
   font: var(--cros-body-2-font);
 }
 

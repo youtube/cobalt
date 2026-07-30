@@ -8,7 +8,6 @@
 #include "build/config/coverage/buildflags.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
-#include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -632,7 +631,8 @@ class SettingsGlicSubPageWebActuationToggleTest
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{features::kGlicWebActuationSetting, {}},
          {features::kGlicActor,
-          {{features::kGlicActorPolicyControlExemption.name, "true"}}}},
+          {{features::kGlicActorPolicyControlExemption.name, "true"},
+           {features::kGlicActorEligibleTiers.name, "100,200"}}}},
         /*disabled_features=*/{});
   }
 

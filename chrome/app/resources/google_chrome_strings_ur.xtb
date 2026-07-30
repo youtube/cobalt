@@ -48,7 +48,6 @@
 <translation id="146866447420868597">‏Chrome میں سائن ان کریں؟</translation>
 <translation id="1476347941828409626">‏Chrome پروفائلز کا &amp;نظم کریں</translation>
 <translation id="1492280395845991349">‏Chrome اپ ڈیٹ مکمل کرنے کے لیے بند کر کے دوبارہ چلائیں</translation>
-<translation id="1496875977627931224">آداب <ph name="USER_NAME" />،<ph name="LINE_BREAK" />آج آپ کے ذہن میں کیا چل رہا ہے؟</translation>
 <translation id="1497802159252041924">انسٹال کی خرابی: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1507198376417198979">‏اپنی نئی Chrome پروفائل کو حسب ضرورت بنائیں</translation>
 <translation id="1518627427551567882">یہ صفحہ محفوظ ہے</translation>
@@ -176,7 +175,6 @@
 <translation id="2857540653560290388">‏Chrome شروع ہو رہا ہے…</translation>
 <translation id="286025080868315611">‏Chrome کے کچھ ڈاؤن لوڈز کو مسدود کرنے کی وجہ جانیں</translation>
 <translation id="2861074815332034794">‏Chrome اپ ڈیٹ کیا جا رہا ہے (<ph name="PROGRESS_PERCENT" />)</translation>
-<translation id="2871893339301912279">‏آپ Chrome میں سائن ان ہیں!</translation>
 <translation id="2875053229394024379">‏جب آپ اپنے Google اکاؤنٹ سے Chrome میں سائن ان کرتے ہیں تو آپ Gemini کے ساتھ اپنی Chrome پروفائل استعمال کر سکتے ہیں۔ <ph name="BEGIN_LINK" />‫Chrome میں سائن ان کرنے کا طریقہ جانیں<ph name="END_LINK" /></translation>
 <translation id="2876628302275096482">‏اس بارے میں مزید جانیں کہ <ph name="BEGIN_LINK" />Chrome آپ کے ڈیٹا کو کس طرح نجی رکھتا ہے<ph name="END_LINK" /></translation>
 <translation id="2885378588091291677">ٹاسک مینیجر</translation>
@@ -308,6 +306,7 @@
 <translation id="4242034826641750751">‏Chrome کو اس سائٹ کے لیے کیمرے اور مائیکروفون کی اجازتیں درکار ہیں</translation>
 <translation id="424864128008805179">‏Chrome سے سائن آؤٹ کریں؟</translation>
 <translation id="4251615635259297716">‏آپ کا Chrome ڈیٹا اس اکاؤنٹ سے لنک کریں؟</translation>
+<translation id="4280647692742956593">‏چلتے پھرتے نئے ٹیب گروپس کھولنے یا تخلیق کرنے کے لیے اپنے فون پر Chrome ڈاؤن لوڈ کریں۔</translation>
 <translation id="4281844954008187215">سروس کی شرائط</translation>
 <translation id="4293420128516039005">‏اپنے آلات پر Chrome کو مطابقت پذیر اور ذاتی نوعیت کا بنانے کے لیے سائن ان کریں</translation>
 <translation id="430327780270213103">‏ایکسٹینشن کو Chrome ٹول بار میں رسائی کی درخواستیں دکھانے کی اجازت دیں</translation>
@@ -329,7 +328,6 @@
 <translation id="4459234553906210702">‏Ad measurement آپ کی ملاحظہ کی جانے والی سائٹس کو Chrome سے معلومات کی درخواست کرنے کی اجازت دیتا ہے جس سے سائٹ کو اپنے اشتہارات کی کارکردگی کی پیمائش کرنے میں مدد ملتی ہے۔ Ad measurement سائٹس کے درمیان ممکنہ حد تک کم معلومات کی منتقلی کے ذریعے کراس سائٹ ٹریکنگ کو محدود کرتا ہے۔</translation>
 <translation id="4493028449971051158">اسٹارٹ اپ کی خرابی: براہ کرم انسٹالر کو بطور منتظم چلائیں۔</translation>
 <translation id="4501471624619070934">انسٹالیشن ناکام ہوگئی کیونکہ اس ملک میں رسائی محدود ہے۔</translation>
-<translation id="4567424176335768812">آپ <ph name="USER_EMAIL_ADDRESS" /> کے بطور سائن ان کردہ ہیں۔ اب آپ اپنے سبھی سائن ان کردہ آلات پر اپنے بُک مارکس، سرگزشت اور دیگر ترتیبات تک رسائی حاصل کر سکتے ہیں۔</translation>
 <translation id="4571503333518166079">‏Chrome کی اطلاع کی ترتیبات پر جائیں</translation>
 <translation id="4592634244097223647">‏اس تصویر کے بارے میں Google سے پوچھیں</translation>
 <translation id="459622048091363950">‏Chrome کو رسائی مل جانے کے بعد، ویب سائٹس آپ سے رسائی طلب کر سکیں گی۔</translation>
@@ -363,7 +361,6 @@
 <translation id="4918844574251943176">تصویر کاپی ہو گئی</translation>
 <translation id="4926882258455737990">‏‫Chrome میں Gemini کے ساتھ ایک مختلف Google اکاؤنٹ استعمال کرنے کے لیے، <ph name="BEGIN_LINK" />ایک نئی پروفائل بنائیں<ph name="END_LINK" /> اور اس اکاؤنٹ سے سائن ان کریں جو آپ چاہتے ہیں</translation>
 <translation id="492720062778050435">‏Chrome تجویز کرتا ہے کہ آپ اس ایکسٹینشن کا جائزہ لیں</translation>
-<translation id="4946912144186040233">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے۔ یہ ترتیب آف ہے۔</translation>
 <translation id="4953650215774548573">‏Google Chrome کو اپنے ڈیفالٹ براؤزر کے بطور سیٹ کریں</translation>
 <translation id="495931528404527476">‏Chrome میں</translation>
 <translation id="4969674060580488087">‏ChromeOS Flex آپ کے اکاؤنٹ کی سائن ان تفصیلات پرانی ہونے کی وجہ سے آپ کے ڈیٹا کی مطابقت پذیری نہیں کر سکا۔</translation>
@@ -382,7 +379,6 @@
 <translation id="5139423532931106058">‏اپنی Chrome پروفائل کو حسب ضرورت بنائیں</translation>
 <translation id="5163087008893166964">‏Chrome میں آپ کا استقبال ہے، براؤزر کی نئی ونڈو کھلی</translation>
 <translation id="5166439563123238795">‏آپ کے ہاتھوں کو ٹریک کرنے کے لیے Chrome کو اجازت درکار ہے</translation>
-<translation id="5167819546851111585">آج آپ کے ذہن میں کیا چل رہا ہے؟</translation>
 <translation id="5169778651486082413">‏اپنے فون پر Chrome کے ساتھ اپنے پاس ورڈز کا استعمال کریں</translation>
 <translation id="5170938038195470297">‏آپ کا پروفائل استعمال نہیں کیا جا سکتا ہے کیونکہ یہ Google Chrome کے ایک جدید تر ورژن سے ہے۔
 
@@ -414,7 +410,6 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="5465210843490471889">‏<ph name="START_GLIC_STYLING" />‫Gemini<ph name="END_GLIC_STYLING" /> کے ساتھ استعمال کرنے کے لیے Chrome پروفائل کا انتخاب کریں</translation>
 <translation id="5468572406162360320">‏ان خصوصیات کو بہتر بنانے میں مدد کے لیے، Chrome ان کے ساتھ آپ کے تعاملات کو Google کو بھیجتا ہے۔ اس ڈیٹا کو انسان جائزہ کار پڑھ سکتے ہیں، اس پر کارروائی کر سکتے ہیں اور تشریح کر سکتے ہیں۔</translation>
 <translation id="5524890928877629608">تلاش کے حلقے کا اوپری دایاں کونا: <ph name="LEFT" /> فیصد دائیں، <ph name="TOP" /> فیصد اوپر</translation>
-<translation id="5530733413481476019">‏Chrome کو تیز تر بنائیں</translation>
 <translation id="5550137307985173298">‏‫Chrome کو نئی شکل دینے کے لیے نئے ٹیب کے صفحہ پر Chrome کو حسب ضرورت بنائیں بٹن پر کلک کریں</translation>
 <translation id="5566025111015594046">‎Google Chrome (mDNS-In)‎</translation>
 <translation id="5579324208890605088">اسٹارٹ اپ کی خرابی: براہ کرم انسٹالر کو باقاعدہ صارف کے طور پر چلائیں، منتظم کے طور پر نہیں۔</translation>
@@ -595,12 +590,14 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7193885263065350793">‏آپ کی تنظیم Chrome کو بند کر دیتی ہے جب اسے <ph name="TIMEOUT_DURATION" /> کے لیے استعمال نہیں کیا جاتا ہے۔</translation>
 <translation id="7242029209006116544">‏آپ ایک زیر انتظام اکاؤنٹ کے ساتھ سائن ان کر رہے ہیں اور اس کے منتظم کو اپنے Google Chrome پروفائل پر کنٹرول دے رہے ہیں۔ آپ کا Chrome کا ڈیٹا جیسے آپ کی ایپس، بُک مارکس، سرگزشت، پاس ورڈز اور دیگر ترتیبات <ph name="USER_NAME" /> سے مستقل طور پر مربوط ہو جائیں گی۔ آپ Google اکاؤنٹس ڈیش بورڈ کے ذریعہ یہ ڈیٹا حذف کر سکیں گے، لیکن آپ یہ ڈیٹا دوسرے اکاؤنٹ کے ساتھ وابستہ نہیں کر سکیں گے۔ آپ اختیاری طور پر اپنا موجودہ Chrome ڈیٹا علاحدہ رکھنے کیلئے ایک نیا پروفائل بنا سکتے ہیں۔ <ph name="LEARN_MORE" /></translation>
 <translation id="7285616922384953075">‏<ph name="MANAGER" /> ‫Chrome کا نظم کرتا ہے</translation>
+<translation id="7285990705317078173">‏قیمتوں کو ٹریک کرنے اور کسی بھی سائٹ پر قیمت کم ہونے پر الرٹس حاصل کرنے کے لیے اپنے فون پر Chrome ڈاؤن لوڈ کریں</translation>
 <translation id="7288567540154601580">ٹیبز اور ایکسٹینشز</translation>
 <translation id="7296210096911315575">استعمال اور حفاظت سے متعلق اہم معلومات</translation>
 <translation id="7302361266603927550">‏آپ کا کچھ Chrome ڈیٹا ابھی تک آپ کے Google اکاؤنٹ میں محفوظ نہیں ہوا ہے۔ سائن آؤٹ کرنے سے پہلے کچھ منٹ انتظار کر کے دیکھیں۔ اگر آپ ابھی سائن آؤٹ کرتے ہیں تو یہ ڈیٹا حذف ہو جائے گا۔</translation>
 <translation id="7308322188646931570">‏Chrome کو فائلیں ڈاؤن لوڈ کرنے کیلئے اسٹوریج تک رسائی درکار ہے</translation>
 <translation id="7339898014177206373">نئی ونڈو</translation>
 <translation id="7352651011704765696">کچھ غلط ہو گیا</translation>
+<translation id="7379321689415048316">‏‫Chrome مشکل فیلڈز کو آٹو فل کر سکتا ہے جو معیاری آٹو فل سے محروم ہوسکتی ہیں</translation>
 <translation id="7386878009611068389">‏اپنے والدین کے انتخابات کے ساتھ آن لائن محفوظ رہنے کے لیے اپنے Chrome پروفائل پر سوئچ کریں جہاں آپ نے پہلے سے بطور <ph name="USER_EMAIL_ADDRESS" /> سائن ان کر رکھا ہے</translation>
 <translation id="7398801000654795464">‏آپ Chrome میں بطور <ph name="USER_EMAIL_ADDRESS" /> سائن ان تھے۔ براہ کرم دوبارہ سائن ان کرنے کیلئے وہی اکاؤنٹ استعمال کریں۔</translation>
 <translation id="7412494426921990001">‏Chrome مینیو پر کلک کریں</translation>
@@ -615,7 +612,6 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7481213027396403996">‏Chrome کی مضبوط ترین سیکیورٹی حاصل کریں</translation>
 <translation id="749228101751499733">‏جب آپ سائن ان ہوتے ہیں، آپ Chrome میں اپنے Google اکاؤنٹ سے اپنے پاس ورڈز وغیرہ استعمال کر سکتے ہیں۔ <ph name="SHORTCUT" /> آپ کی Google سروسز کی ترتیبات کو تبدیل کر سکتا ہے۔</translation>
 <translation id="7496017508659652909">‏‫Chrome صفحات کو پہلے سے لوڈ کرتا ہے جس براؤزنگ اور تلاش کا عمل زیادہ تیز ہو جاتا ہے۔ <ph name="BEGIN_LINK" />پیشگی لوڈ کے صفحات کے بارے میں مزید جانیں<ph name="END_LINK" /></translation>
-<translation id="7510927761955779701">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے۔ یہ ترتیب آن ہے۔</translation>
 <translation id="7514258452813684157">‏‫Google اپڈیٹر سروس</translation>
 <translation id="7515191208480168435">‏آپ آسان رسائی کے لیے Google لینز کو پن کر سکتے ہیں</translation>
 <translation id="7535429826459677826">Google Chrome Dev</translation>
@@ -755,7 +751,6 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="8821043148920470810">‏مستقبل کے Google Chrome اپ ڈیٹس حاصل کرنے کے لیے، آپ کو Windows 10 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر Windows 7 استعمال کر رہا ہے۔</translation>
 <translation id="8823341990149967727">‏Chrome پرانا ہے</translation>
 <translation id="8834965163890861871">‏Google Chrome پاس ورڈز میں ترمیم کرنے کی کوشش کر رہا ہے۔ اس کی اجازت دینے کے لیے اپنا Windows پاس ورڈ ٹائپ کریں۔</translation>
-<translation id="8843516219908676469">‏‫Chrome فارمز کو بہتر طور پر سمجھتا ہے اور آپ کے لیے انہیں تیزی سے آٹو فل کر سکتا ہے</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{‏Chrome تجویز کرتا ہے کہ آپ اسے ہٹا دیں}other{‏Chrome تجویز کرتا ہے کہ آپ انہیں ہٹا دیں}}</translation>
 <translation id="8862326446509486874">سسٹم کی سطح پر انسٹال کرنے کیلئے آپ کے پاس مناسب حقوق نہیں ہیں۔ انسٹالر کو دوبارہ منتظم کے بطور چلانے کی کوشش کریں۔</translation>
 <translation id="8865415417596392024">‏آپ کے اکاؤنٹ میں Chrome کا ڈیٹا</translation>

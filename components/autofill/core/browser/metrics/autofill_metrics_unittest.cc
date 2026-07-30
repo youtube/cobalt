@@ -68,11 +68,11 @@
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_data_test_api.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/form_interactions_flow.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -2279,74 +2279,41 @@ class AutofillMetricsParseQueryResponseTest : public AutofillMetricsTest {
  public:
   void SetUp() override {
     AutofillMetricsTest::SetUp();
-    FormData form;
-    form.set_host_frame(test::MakeLocalFrameToken());
-    form.set_renderer_id(test::MakeFormRendererId());
-    form.set_url(GURL("http://foo.com"));
-    form.set_main_frame_origin(
-        url::Origin::Create(GURL("http://foo_root.com")));
-    FormFieldData field;
-    field.set_form_control_type(FormControlType::kInputText);
 
-    field.set_label(u"fullname");
-    field.set_name(u"fullname");
-    test_api(form).Append(field);
+    forms_.push_back(test::GetFormData(
+        {.fields = {{.role = NAME_FULL},
+                    {.role = ADDRESS_HOME_LINE1},
+                    {.label = u"radio_button",
+                     // Checkable fields should be ignored in parsing.
+                     .form_control_type = FormControlType::kInputRadio}}}));
+    SeeForm(forms_.back());
 
-    field.set_label(u"address");
-    field.set_name(u"address");
-    test_api(form).Append(field);
-
-    // Checkable fields should be ignored in parsing.
-    FormFieldData checkable_field;
-    checkable_field.set_label(u"radio_button");
-    checkable_field.set_form_control_type(FormControlType::kInputRadio);
-    checkable_field.set_check_status(
-        FormFieldData::CheckStatus::kCheckableButUnchecked);
-    test_api(form).Append(checkable_field);
-
-    SeeForm(form);
-    owned_forms_.push_back(std::make_unique<FormStructure>(form));
-    forms_.emplace_back(*owned_forms_.back());
-
-    form.set_renderer_id(test::MakeFormRendererId());
-    field.set_label(u"email");
-    field.set_name(u"email");
-    test_api(form).Append(field);
-
-    field.set_label(u"password");
-    field.set_name(u"password");
-    field.set_form_control_type(FormControlType::kInputPassword);
-    test_api(form).Append(field);
-
-    SeeForm(form);
-    owned_forms_.push_back(std::make_unique<FormStructure>(form));
-    forms_.emplace_back(*owned_forms_.back());
-    forms_data_.push_back(form);
+    forms_.push_back(test::GetFormData(
+        {.fields = {{.role = EMAIL_ADDRESS}, {.role = PASSWORD}}}));
+    SeeForm(forms_.back());
   }
 
  protected:
-  std::vector<std::unique_ptr<FormStructure>> owned_forms_;
-  std::vector<raw_ref<FormStructure>> forms_;
-  std::vector<FormData> forms_data_;
+  std::vector<FormData> forms_;
 };
 
 TEST_F(AutofillMetricsParseQueryResponseTest, ServerHasData) {
   AutofillQueryResponse response;
   auto* form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[0]->field(0), NAME_FULL, form_suggestion);
-  AddFieldPredictionToForm(*forms_[0]->field(1), ADDRESS_HOME_LINE1,
+  AddFieldPredictionToForm(forms_[0].fields()[0], NAME_FULL, form_suggestion);
+  AddFieldPredictionToForm(forms_[0].fields()[1], ADDRESS_HOME_LINE1,
                            form_suggestion);
   form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[1]->field(0), EMAIL_ADDRESS,
+  AddFieldPredictionToForm(forms_[1].fields()[0], EMAIL_ADDRESS,
                            form_suggestion);
-  AddFieldPredictionToForm(*forms_[1]->field(1), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[1].fields()[1], NO_SERVER_DATA,
                            form_suggestion);
 
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
-      .OnLoadedServerPredictions(
-          response_string, test::GetEncodedSignatures(forms_), forms_data_);
+      .OnLoadedServerPredictions(response_string,
+                                 test::GetEncodedSignatures(forms_), forms_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(true, 2)));
@@ -2357,20 +2324,20 @@ TEST_F(AutofillMetricsParseQueryResponseTest, ServerHasData) {
 TEST_F(AutofillMetricsParseQueryResponseTest, OneFormNoServerData) {
   AutofillQueryResponse response;
   auto* form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[0]->field(0), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[0].fields()[0], NO_SERVER_DATA,
                            form_suggestion);
-  AddFieldPredictionToForm(*forms_[0]->field(1), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[0].fields()[1], NO_SERVER_DATA,
                            form_suggestion);
   form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[1]->field(0), EMAIL_ADDRESS,
+  AddFieldPredictionToForm(forms_[1].fields()[0], EMAIL_ADDRESS,
                            form_suggestion);
-  AddFieldPredictionToForm(*forms_[1]->field(1), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[1].fields()[1], NO_SERVER_DATA,
                            form_suggestion);
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
-      .OnLoadedServerPredictions(
-          response_string, test::GetEncodedSignatures(forms_), forms_data_);
+      .OnLoadedServerPredictions(response_string,
+                                 test::GetEncodedSignatures(forms_), forms_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(false, 1), Bucket(true, 1)));
@@ -2383,7 +2350,7 @@ TEST_F(AutofillMetricsParseQueryResponseTest, AllFormsNoServerData) {
   for (int form_idx = 0; form_idx < 2; ++form_idx) {
     auto* form_suggestion = response.add_form_suggestions();
     for (int field_idx = 0; field_idx < 2; ++field_idx) {
-      AddFieldPredictionToForm(*forms_[form_idx]->field(field_idx),
+      AddFieldPredictionToForm(forms_[form_idx].fields()[field_idx],
                                NO_SERVER_DATA, form_suggestion);
     }
   }
@@ -2391,8 +2358,8 @@ TEST_F(AutofillMetricsParseQueryResponseTest, AllFormsNoServerData) {
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
-      .OnLoadedServerPredictions(
-          response_string, test::GetEncodedSignatures(forms_), forms_data_);
+      .OnLoadedServerPredictions(response_string,
+                                 test::GetEncodedSignatures(forms_), forms_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(false, 2)));
@@ -2403,21 +2370,21 @@ TEST_F(AutofillMetricsParseQueryResponseTest, AllFormsNoServerData) {
 TEST_F(AutofillMetricsParseQueryResponseTest, PartialNoServerData) {
   AutofillQueryResponse response;
   auto* form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[0]->field(0), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[0].fields()[0], NO_SERVER_DATA,
                            form_suggestion);
-  AddFieldPredictionToForm(*forms_[0]->field(1), PHONE_HOME_NUMBER,
+  AddFieldPredictionToForm(forms_[0].fields()[1], PHONE_HOME_NUMBER,
                            form_suggestion);
   form_suggestion = response.add_form_suggestions();
-  AddFieldPredictionToForm(*forms_[1]->field(0), NO_SERVER_DATA,
+  AddFieldPredictionToForm(forms_[1].fields()[0], NO_SERVER_DATA,
                            form_suggestion);
-  AddFieldPredictionToForm(*forms_[1]->field(1), PHONE_HOME_CITY_CODE,
+  AddFieldPredictionToForm(forms_[1].fields()[1], PHONE_HOME_CITY_CODE,
                            form_suggestion);
 
   std::string response_string = SerializeAndEncode(response);
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
-      .OnLoadedServerPredictions(
-          response_string, test::GetEncodedSignatures(forms_), forms_data_);
+      .OnLoadedServerPredictions(response_string,
+                                 test::GetEncodedSignatures(forms_), forms_);
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Autofill.ServerResponseHasDataForForm"),
       ElementsAre(Bucket(true, 2)));
