@@ -131,7 +131,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       [[fallthrough]];
     }
     case ExecutionTier::kTurbofan: {
-#ifdef V8_ENABLE_TURBOFAN
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
@@ -143,7 +142,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // set. In that case we set the for_debugging field for the TurboFan
       // result to match the requested for_debugging_.
       result.for_debugging = for_debugging_;
-#endif
       break;
     }
   }

@@ -279,7 +279,7 @@ class ExceptionHandlerInfo;
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
   V(Int32CountLeadingZeros)                         \
-  V(TaggedCountLeadingZeros)                        \
+  V(SmiCountLeadingZeros)                           \
   V(Float64CountLeadingZeros)                       \
   V(IntPtrToBoolean)                                \
   V(IntPtrToNumber)                                 \
@@ -4463,12 +4463,12 @@ class Int32CountLeadingZeros
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class TaggedCountLeadingZeros
-    : public FixedInputValueNodeT<1, TaggedCountLeadingZeros> {
-  using Base = FixedInputValueNodeT<1, TaggedCountLeadingZeros>;
+class SmiCountLeadingZeros
+    : public FixedInputValueNodeT<1, SmiCountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, SmiCountLeadingZeros>;
 
  public:
-  explicit TaggedCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+  explicit SmiCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
 
@@ -8333,10 +8333,8 @@ class ExtendPropertiesBackingStore
   using Base = FixedInputValueNodeT<2, ExtendPropertiesBackingStore>;
 
  public:
-  explicit ExtendPropertiesBackingStore(uint64_t bitfield,
-                                        const compiler::MapRef& old_map,
-                                        int old_length)
-      : Base(bitfield), old_map_(old_map), old_length_(old_length) {}
+  explicit ExtendPropertiesBackingStore(uint64_t bitfield, int old_length)
+      : Base(bitfield), old_length_(old_length) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::CanRead() |
@@ -8356,11 +8354,9 @@ class ExtendPropertiesBackingStore
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  const compiler::MapRef& old_map() const { return old_map_; }
   int old_length() const { return old_length_; }
 
  private:
-  const compiler::MapRef old_map_;
   const int old_length_;
 };
 

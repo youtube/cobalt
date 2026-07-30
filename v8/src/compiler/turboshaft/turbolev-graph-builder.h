@@ -12,8 +12,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-struct TurbolevGraphBuildingPhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS(TurbolevGraphBuilding)
+struct MaglevGraphBuildingPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(MaglevGraphBuilding)
 
   std::optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
                                    Linkage* linkage);

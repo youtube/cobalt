@@ -21,7 +21,6 @@
 #include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
@@ -42,7 +41,6 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
-#include "build/build_config.h"
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -3989,22 +3987,6 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
     }
     return true;
   }
-
-#if BUILDFLAG(IS_COBALT)
-  // Only allow HTML and JS/ECMAScript in Cobalt's HTTP cache.
-  std::string mime_type;
-  if (headers.GetMimeType(&mime_type)) {
-    bool is_html = (mime_type == "text/html");
-    bool is_js = base::EndsWith(mime_type, "javascript", base::CompareCase::SENSITIVE)
-        || base::EndsWith(mime_type, "ecmascript", base::CompareCase::SENSITIVE);
-    if (!is_html && !is_js) {
-      return true; // Do not write to cache / doom existing entry
-    }
-  } else {
-    // If we cannot determine the MIME type, err on the side of caution and do not cache.
-    return true;
-  }
-#endif
 
   return false;
 }

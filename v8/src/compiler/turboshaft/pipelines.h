@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE Pipeline {
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
     std::optional<BailoutReason> bailout =
-        Run<turboshaft::TurbolevGraphBuildingPhase>(linkage);
+        Run<turboshaft::MaglevGraphBuildingPhase>(linkage);
     EndPhaseKind();
 
     if (bailout.has_value()) {

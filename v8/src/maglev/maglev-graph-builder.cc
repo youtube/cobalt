@@ -4695,7 +4695,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kFloat64ToBoolean:
     case Opcode::kFloat64Ieee754Unary:
     case Opcode::kInt32CountLeadingZeros:
-    case Opcode::kTaggedCountLeadingZeros:
+    case Opcode::kSmiCountLeadingZeros:
     case Opcode::kFloat64CountLeadingZeros:
     case Opcode::kCheckedSmiIncrement:
     case Opcode::kCheckedSmiDecrement:
@@ -5929,7 +5929,7 @@ ValueNode* MaglevGraphBuilder::BuildExtendPropertiesBackingStore(
   // potentially causing a sandbox violation. This CHECK defends against that.
   SBXCHECK_GE(length, 0);
   return AddNewNode<ExtendPropertiesBackingStore>({property_array, receiver},
-                                                  map, length);
+                                                  length);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
@@ -8564,13 +8564,6 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(
 
 bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
                                        float call_frequency) {
-  if (static_cast<int>(graph()->inlined_functions().size()) >=
-      SourcePosition::MaxInliningId()) {
-    compilation_unit_->info()->set_could_not_inline_all_candidates();
-    TRACE_CANNOT_INLINE("maximum inlining ids");
-    return false;
-  }
-
   if (graph()->total_inlined_bytecode_size() >
       max_inlined_bytecode_size_cumulative()) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
@@ -10828,16 +10821,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathClz32(
     }
     return {};
   }
-
   DCHECK_EQ(arg_repr, ValueRepresentation::kTagged);
-  if (CheckType(arg, NodeType::kNumber)) {
-    return AddNewNode<TaggedCountLeadingZeros>({arg});
+  if (CheckType(arg, NodeType::kSmi)) {
+    return AddNewNode<SmiCountLeadingZeros>({arg});
   }
 
   if (!CanSpeculateCall()) {
     return {};
   }
-
   DeoptFrameScope continuation_scope(this,
                                      Float64CountLeadingZeros::continuation());
   ToNumberOrNumeric* conversion =

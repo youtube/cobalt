@@ -67,13 +67,7 @@ network::mojom::blink::CSPSourceListPtr CSPSourceListIsolatedCopy(
       in->allow_self, in->allow_star, in->allow_inline,
       in->allow_inline_speculation_rules, in->allow_eval, in->allow_wasm_eval,
       in->allow_wasm_unsafe_eval, in->allow_dynamic, in->allow_unsafe_hashes,
-#if BUILDFLAG(IS_COBALT)
-      in->report_sample, in->report_hash_algorithm,
-      in->cobalt_insecure_local_network,
-      in->cobalt_insecure_private_range);
-#else
       in->report_sample, in->report_hash_algorithm);
-#endif
 }
 
 HashMap<network::mojom::blink::CSPDirectiveName,
