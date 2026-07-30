@@ -93,6 +93,15 @@ source_set("formats") {
 
   configs += [ "//media:subcomponent_config" ]
 
+  if (use_starboard_media) {
+    sources += [
+      "common/offset_segmented_byte_queue.cc",
+      "common/offset_segmented_byte_queue.h",
+      "common/segmented_byte_queue.cc",
+      "common/segmented_byte_queue.h",
+    ]
+  }
+
   if (proprietary_codecs) {
     deps += [ "//media/video" ]
     sources += [
@@ -315,6 +324,13 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (use_starboard_media) {
+    sources += [
+      "common/offset_segmented_byte_queue_unittest.cc",
+      "common/segmented_byte_queue_unittest.cc",
+    ]
+  }
 
   if (proprietary_codecs) {
     sources += [

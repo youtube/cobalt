@@ -487,7 +487,14 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
+<<<<<<< HEAD
     DeleteAndRecreateDatabase(DomStorageRecoveryReason::kOpenFailure);
+=======
+#if BUILDFLAG(IS_COBALT)
+    status.Log("Cobalt.LocalStorage.DatabaseOpenError", in_memory_);
+#endif
+    DeleteAndRecreateDatabase();
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -696,8 +703,15 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // Deleting StorageAreas in here could cause more commits (and commit
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
+<<<<<<< HEAD
     DeleteAndRecreateDatabase(
         DomStorageRecoveryReason::kCommitErrorThresholdExceeded);
+=======
+#if BUILDFLAG(IS_COBALT)
+    status.Log("Cobalt.LocalStorage.DatabaseCommitError", in_memory_);
+#endif
+    DeleteAndRecreateDatabase();
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 }
 

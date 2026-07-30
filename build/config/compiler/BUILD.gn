@@ -24,6 +24,10 @@ import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -33,6 +37,7 @@ if (current_cpu == "mipsel" || current_cpu == "mips64el" ||
 }
 if (is_mac) {
   import("//build/config/apple/symbols.gni")
+  import("//build/config/mac/mac_sdk.gni")
 }
 if (is_ios) {
   import("//build/config/ios/ios_sdk.gni")
@@ -301,10 +306,19 @@ use_clang_warning_suppression_file =
 # source root and might have conflicting versions of some headers) can remove
 # this and specify their own include paths.
 config("default_include_dirs") {
+  if (is_cobalt && is_partner_toolchain) {
+    include_dirs = [
+      "//copied_base",
+      "//",
+      "$root_gen_dir/copied_base",
+      root_gen_dir
+    ]
+  } else {
   include_dirs = [
     "//",
     root_gen_dir,
   ]
+  }
 }
 
 # Compiler instrumentation can introduce dependencies in DSOs to symbols in
@@ -532,6 +546,7 @@ config("compiler") {
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
 
+<<<<<<< HEAD
     if (use_thin_lto) {
       # These passes were recently added to the mach-o lld thintlo link step,
       # but cause timeouts in certain build configs. Disable them until that's
@@ -542,6 +557,18 @@ config("compiler") {
         "-Wl,-mllvm",
         "-Wl,-vectorize-slp=false",
       ]
+=======
+    if (xcode_version_int >= 2700) {
+      # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
+      # requires at least LLVM 22.1.0 to work correctly.
+      defines += [
+        "INFINITY=__builtin_inff()",
+        "NAN=__builtin_nanf(\"\")",
+      ]
+      # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
+      # on a local variable, which depends on LLVM 23.1.0.
+      cflags += [ "-Wno-unknown-attributes" ]
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   }
 
@@ -698,7 +725,10 @@ config("compiler") {
     }
 
     cflags_c += [ "-std=${standard_prefix}11" ]
-    if (use_cxx23) {
+    if (is_cobalt && use_cxx17) {
+      assert(!use_cxx23)
+      cflags_cc += [ "-std=${standard_prefix}++17" ]
+    } else if (use_cxx23) {
       cflags_cc += [ "-std=${standard_prefix}++23" ]
     } else {
       cflags_cc += [ "-std=${standard_prefix}++20" ]
@@ -978,6 +1008,9 @@ config("compiler") {
     # to compile dylibs on Android, such as for constructing unit test APKs.
     "-Cdefault-linker-libraries",
   ]
+  if (is_cobalt && current_toolchain == default_toolchain) {
+    rustflags += ["-Ztls-model=emulated"]
+  }
 
   rustflags += [
     # To make Rust .d files compatible with ninja
@@ -2968,6 +3001,10 @@ config("no_optimize") {
   } else {
     cflags = [ "-O0" ]
     ldflags = []
+    if (is_cobalt && cobalt_debugging_enabled) {
+      # Strip unused symbols to avoid linker errors.
+      ldflags += common_optimize_on_ldflags
+    }
   }
 }
 
@@ -3007,7 +3044,11 @@ config("optimize_speed") {
   } else if (optimize_for_fuzzing) {
     cflags = [ "-O1" ] + common_optimize_on_cflags
   } else {
-    cflags = [ "-O3" ] + common_optimize_on_cflags
+    if (is_starboard) {
+      cflags = [ "-O2" ] + common_optimize_on_cflags
+    } else {
+      cflags = [ "-O3" ] + common_optimize_on_cflags
+    }
   }
   rustflags = [ "-Copt-level=3" ]
 }
@@ -3022,7 +3063,7 @@ config("optimize_fuzzing") {
 # The default optimization applied to all targets. This will be equivalent to
 # either "optimize" or "no_optimize", depending on the build flags.
 config("default_optimization") {
-  if (is_debug) {
+  if (is_debug || is_cobalt && cobalt_debugging_enabled) {
     configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")

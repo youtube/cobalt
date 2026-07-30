@@ -101,6 +101,17 @@ source_set("capture_device_specific") {
     "video/video_frame_receiver_types.h",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "video/blob_utils.cc",
+      "video/blob_utils.h",
+      "video/file_video_capture_device.cc",
+      "video/file_video_capture_device.h",
+      "video/file_video_capture_device_factory.cc",
+      "video/file_video_capture_device_factory.h",
+    ]
+  }
+
   public_deps = [ ":capture_base" ]
   deps = [
     "//base",
@@ -175,7 +186,14 @@ component("capture_lib") {
     "//ui/gfx/geometry",
   ]
 
-  if (is_android) {
+  if (is_cobalt) {
+    sources -= [
+      "video/create_video_capture_device_factory.cc",
+      "video/create_video_capture_device_factory.h",
+    ]
+  }
+
+  if (is_android && !is_cobalt) {
     public_deps += [ "video/android" ]
     deps += [ "video/android:capture_jni_headers" ]
   }
@@ -188,8 +206,50 @@ component("capture_lib") {
     public_deps += [ "video/win" ]
   }
 
+<<<<<<< HEAD
   if (is_linux || is_chromeos) {
     deps += [ "video/linux" ]
+=======
+  if ((is_linux || is_chromeos) && !is_cobalt) {
+    sources += [
+      "video/linux/scoped_v4l2_device_fd.cc",
+      "video/linux/scoped_v4l2_device_fd.h",
+      "video/linux/v4l2_capture_delegate.cc",
+      "video/linux/v4l2_capture_delegate.h",
+      "video/linux/v4l2_capture_device.h",
+      "video/linux/v4l2_capture_device_impl.cc",
+      "video/linux/v4l2_capture_device_impl.h",
+      "video/linux/video_capture_device_factory_linux.cc",
+      "video/linux/video_capture_device_factory_linux.h",
+      "video/linux/video_capture_device_factory_v4l2.cc",
+      "video/linux/video_capture_device_factory_v4l2.h",
+      "video/linux/video_capture_device_linux.cc",
+      "video/linux/video_capture_device_linux.h",
+    ]
+    if (rtc_use_pipewire) {
+      sources += [
+        "video/linux/video_capture_device_factory_webrtc.cc",
+        "video/linux/video_capture_device_factory_webrtc.h",
+        "video/linux/video_capture_device_webrtc.cc",
+        "video/linux/video_capture_device_webrtc.h",
+      ]
+    }
+    deps += [ "//gpu/command_buffer/client" ]
+  }
+
+  if (is_linux) {
+    sources += [
+      "video/linux/v4l2_capture_delegate_gpu_helper.cc",
+      "video/linux/v4l2_capture_delegate_gpu_helper.h",
+      "video/linux/v4l2_gpu_memory_buffer_tracker.cc",
+      "video/linux/v4l2_gpu_memory_buffer_tracker.h",
+    ]
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources +=
+        [ "video/linux/video_capture_device_factory_linux_starboard_stub.cc" ]
   }
 
   if (is_chromeos) {
@@ -248,6 +308,26 @@ source_set("test_support") {
     "//ui/gfx:test_support",
   ]
 
+<<<<<<< HEAD
+=======
+  if (is_linux && !is_cobalt_hermetic_build) {
+    sources += [
+      "video/linux/fake_device_provider.cc",
+      "video/linux/fake_device_provider.h",
+      "video/linux/fake_v4l2_impl.cc",
+      "video/linux/fake_v4l2_impl.h",
+    ]
+  }
+
+  if (is_mac) {
+    sources += [
+      "video/mac/test/screen_capture_kit_test_helper.h",
+      "video/mac/test/screen_capture_kit_test_helper.mm",
+    ]
+    weak_frameworks = [ "ScreenCaptureKit.framework" ]
+  }
+
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (is_chromeos) {
     public_deps = [ "video/chromeos:test_support" ]
   } else if (is_linux) {
@@ -275,6 +355,17 @@ test("capture_unittests") {
     "video/video_capture_metrics_unittest.cc",
     "video_capture_types_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_unittests.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [
+      "video/file_video_capture_device_unittest.cc",
+      "video/video_capture_device_unittest.cc",
+    ]
+  }
 
   data = [ "//media/test/data/bear.mjpeg" ]
 
@@ -297,8 +388,23 @@ test("capture_unittests") {
     "//ui/gfx:test_support",
   ]
 
+<<<<<<< HEAD
   if (is_linux) {
     deps += [ "video/linux:unit_tests" ]
+=======
+  if (is_linux && !is_cobalt) {
+    sources += [
+      "video/linux/v4l2_capture_delegate_unittest.cc",
+      "video/linux/video_capture_device_factory_v4l2_unittest.cc",
+    ]
+  }
+
+  if (is_linux) {
+    sources += [
+      "video/linux/v4l2_capture_delegate_gpu_helper_unittest.cc",
+      "video/linux/v4l2_gpu_memory_buffer_tracker_unittest.cc",
+    ]
+>>>>>>> parent of 7bb9703307c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     data += [ "//media/test/data/one_frame_1280x720.mjpeg" ]
   }
 
