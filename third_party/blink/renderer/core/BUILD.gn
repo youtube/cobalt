@@ -308,7 +308,6 @@ component("core") {
       "inspector/inspector_issue_conversion.cc",
       "inspector/inspector_issue_reporter.cc",
       "inspector/inspector_issue_storage.cc",
-      "exported/web_dev_tools_agent_impl_stub.cc",
       "inspector/devtools_agent_stub.cc",
       "inspector/worker_inspector_controller_stub.cc",
       "inspector/inspector_animation_agent_stub.cc",

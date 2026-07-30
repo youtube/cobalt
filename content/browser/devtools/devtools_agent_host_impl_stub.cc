@@ -48,5 +48,4 @@ bool DevToolsAgentHostImpl::Inspect() {
   return false;
 }
 
-// static
 }  // namespace content
