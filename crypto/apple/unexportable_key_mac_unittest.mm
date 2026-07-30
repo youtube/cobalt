@@ -8,11 +8,29 @@
 #include "crypto/apple/scoped_fake_keychain_v2.h"
 #include "crypto/keypair.h"
 #include "crypto/signature_verifier.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace crypto::apple {
 
 namespace {
+
+using ::testing::Eq;
+using ::testing::ExplainMatchResult;
+using ::testing::IsEmpty;
+using ::testing::Optional;
+using ::testing::UnorderedElementsAre;
+
+// Defines a matcher that checks if an UnexportableSigningKey's wrapped key
+// matches the expected bytes.
+MATCHER_P(WrappedKeyEq, expected_key, "") {
+  if (!arg) {
+    *result_listener << "is null";
+    return false;
+  }
+  return ExplainMatchResult(Eq(expected_key->GetWrappedKey()),
+                            arg->GetWrappedKey(), result_listener);
+}
 
 constexpr char kTestKeychainAccessGroup[] = "test-keychain-access-group";
 constexpr char kTestApplicationTag[] = "test-application-tag";
@@ -41,6 +59,107 @@ TEST_F(UnexportableKeyMacTest, SecureEnclaveAvailability) {
     scoped_fake_keychain_.keychain()->set_secure_enclave_available(available);
     EXPECT_EQ(GetUnexportableKeyProvider(config_) != nullptr, available);
   }
+}
+
+TEST_F(UnexportableKeyMacTest, GetAllSigningKeys) {
+  // Initially, there should be no keys.
+  EXPECT_THAT(
+      provider_->AsStatefulUnexportableKeyProvider()->GetAllSigningKeysSlowly(),
+      Optional(IsEmpty()));
+
+  // Create one key.
+  std::unique_ptr<UnexportableSigningKey> key1 =
+      provider_->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_NE(key1, nullptr);
+
+  EXPECT_THAT(
+      provider_->AsStatefulUnexportableKeyProvider()->GetAllSigningKeysSlowly(),
+      Optional(UnorderedElementsAre(WrappedKeyEq(key1.get()))));
+
+  // Create a second key.
+  std::unique_ptr<UnexportableSigningKey> key2 =
+      provider_->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_NE(key2, nullptr);
+
+  EXPECT_THAT(
+      provider_->AsStatefulUnexportableKeyProvider()->GetAllSigningKeysSlowly(),
+      Optional(UnorderedElementsAre(WrappedKeyEq(key1.get()),
+                                    WrappedKeyEq(key2.get()))));
+}
+
+TEST_F(UnexportableKeyMacTest, GetAllSigningKeysFiltersByTag) {
+  ASSERT_TRUE(provider_);
+  auto key = provider_->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_TRUE(key);
+
+  // Create a provider with a different application tag.
+  const UnexportableKeyProvider::Config other_config{
+      .keychain_access_group = kTestKeychainAccessGroup,
+      .application_tag = "other-application-tag",
+  };
+  std::unique_ptr<UnexportableKeyProvider> other_provider =
+      GetUnexportableKeyProvider(other_config);
+  ASSERT_TRUE(other_provider);
+
+  // Generate a key with the other provider.
+  auto other_key = other_provider->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_TRUE(other_key);
+
+  // The original provider should still only see its own key.
+  EXPECT_THAT(
+      provider_->AsStatefulUnexportableKeyProvider()->GetAllSigningKeysSlowly(),
+      Optional(UnorderedElementsAre(WrappedKeyEq(key.get()))));
+
+  // The other provider should only see its own key.
+  EXPECT_THAT(other_provider->AsStatefulUnexportableKeyProvider()
+                  ->GetAllSigningKeysSlowly(),
+              Optional(UnorderedElementsAre(WrappedKeyEq(other_key.get()))));
+}
+
+TEST_F(UnexportableKeyMacTest, GetAllSigningKeysPerformsPrefixMatching) {
+  // 1. Create a key with the base tag "test-tag".
+  UnexportableKeyProvider::Config config = config_;
+  config.application_tag = "test-tag";
+  std::unique_ptr<UnexportableKeyProvider> provider =
+      GetUnexportableKeyProvider(config);
+  ASSERT_TRUE(provider);
+  auto key1 = provider->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_TRUE(key1);
+
+  // 2. Create a key with a longer tag "test-tag.extension".
+  // This should be visible to the first provider because "test-tag" is a
+  // prefix of "test-tag.extension".
+  UnexportableKeyProvider::Config extended_config = config_;
+  extended_config.application_tag = "test-tag.extension";
+  std::unique_ptr<UnexportableKeyProvider> extended_provider =
+      GetUnexportableKeyProvider(extended_config);
+  ASSERT_TRUE(extended_provider);
+  auto key2 = extended_provider->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_TRUE(key2);
+
+  // 3. Create a key with a completely different tag "other-tag".
+  // This should NOT be visible to the first provider.
+  UnexportableKeyProvider::Config other_config = config_;
+  other_config.application_tag = "other-tag";
+  std::unique_ptr<UnexportableKeyProvider> other_provider =
+      GetUnexportableKeyProvider(other_config);
+  ASSERT_TRUE(other_provider);
+  auto key3 = other_provider->GenerateSigningKeySlowly(kAcceptableAlgos);
+  ASSERT_TRUE(key3);
+
+  // 4. Verify that the base provider sees both its own key and the extended
+  // key.
+  EXPECT_THAT(
+      provider->AsStatefulUnexportableKeyProvider()->GetAllSigningKeysSlowly(),
+      Optional(UnorderedElementsAre(WrappedKeyEq(key1.get()),
+                                    WrappedKeyEq(key2.get()))));
+
+  // 5. Verify that the extended provider only sees its own key.
+  // It should NOT see "test-tag" because "test-tag.extension" is not a
+  // prefix of "test-tag".
+  EXPECT_THAT(extended_provider->AsStatefulUnexportableKeyProvider()
+                  ->GetAllSigningKeysSlowly(),
+              Optional(UnorderedElementsAre(WrappedKeyEq(key2.get()))));
 }
 
 TEST_F(UnexportableKeyMacTest, DeleteSigningKey) {

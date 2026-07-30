@@ -1972,21 +1972,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, FullscreenBookmarkBar) {
 // require some additional flags to work.
 // See chrome/browser/ui/views/fullscreen_mac_browsertest.cc
 #if !BUILDFLAG(IS_MAC)
-class SideBySideBrowserTest : public BrowserTest {
- public:
-  SideBySideBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(features::kSideBySide);
-  }
-
-  SideBySideBrowserTest(const SideBySideBrowserTest&) = delete;
-  SideBySideBrowserTest& operator=(const SideBySideBrowserTest&) = delete;
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(SideBySideBrowserTest,
-                       BrowserFullscreenShowBookmarkBarSplitView) {
+IN_PROC_BROWSER_TEST_F(BrowserTest, BrowserFullscreenShowBookmarkBarSplitView) {
   chrome::AddTabAt(browser(), GURL("chrome://new-tab-page"), -1, true);
   chrome::AddTabAt(browser(), GURL(), -1, true);
 
@@ -2010,8 +1996,7 @@ IN_PROC_BROWSER_TEST_F(SideBySideBrowserTest,
             BookmarkBarController::From(browser())->bookmark_bar_state());
 }
 
-IN_PROC_BROWSER_TEST_F(SideBySideBrowserTest,
-                       TabFullscreenHiddenBookmarkBarSplitView) {
+IN_PROC_BROWSER_TEST_F(BrowserTest, TabFullscreenHiddenBookmarkBarSplitView) {
   chrome::AddTabAt(browser(), GURL("chrome://new-tab-page"), -1, true);
   chrome::AddTabAt(browser(), GURL(), -1, true);
 
@@ -2744,7 +2729,9 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
     // See https://crbug.com/567925.
     EXPECT_GE(bounds.width(), 100);
-    EXPECT_EQ(122, bounds.height());
+
+    // EXPECT_GE as Mac will have a larger height with the additional title bar.
+    EXPECT_GE(bounds.height(), 122);
     browser->window()->Close();
   }
 
@@ -2792,7 +2779,9 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
     // See https://crbug.com/567925.
     EXPECT_GE(bounds.width(), 100);
-    EXPECT_EQ(122, bounds.height());
+
+    // EXPECT_GE as Mac will have a larger height with the additional title bar.
+    EXPECT_GE(bounds.height(), 122);
     browser->window()->Close();
   }
 }

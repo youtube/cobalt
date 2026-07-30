@@ -184,27 +184,14 @@ void TileDisplayLayerImpl::AppendQuadsSpecialization(
     AppendQuadsData* append_quads_data,
     viz::SharedQuadState* shared_quad_state,
     const Occlusion& scaled_occlusion,
-    const gfx::Vector2d& quad_offset) {
-  const float max_contents_scale = GetMaximumContentsScaleForUseInAppendQuads();
-
+    const gfx::Vector2d& quad_offset,
+    float max_contents_scale) {
   // Keep track of the tilings that were used so that tilings that are
   // unused can be considered for removal.
   last_append_quads_scales_.clear();
 
-  // TODO(crbug.com/40902346): Use scaled_cull_rect to set
-  // append_quads_data->checkerboarded_needs_record.
-  std::optional<gfx::Rect> scaled_cull_rect;
-  const ScrollTree& scroll_tree =
-      layer_tree_impl()->property_trees()->scroll_tree();
-  if (const ScrollNode* scroll_node = scroll_tree.Node(scroll_tree_index())) {
-    if (transform_tree_index() == scroll_node->transform_id) {
-      if (const gfx::Rect* cull_rect =
-              scroll_tree.ScrollingContentsCullRect(scroll_node->element_id)) {
-        scaled_cull_rect =
-            gfx::ScaleToEnclosingRect(*cull_rect, max_contents_scale);
-      }
-    }
-  }
+  // TODO(crbug.com/40902346): Use CalculateScaledCullRect() to set
+  // append_quads_data->checkerboarded_needs_record as PictureLayerImpl does.
 
   const float ideal_scale_key = GetIdealContentsScaleKey();
   const gfx::Rect scaled_recorded_bounds =
@@ -215,20 +202,9 @@ void TileDisplayLayerImpl::AppendQuadsSpecialization(
                          max_contents_scale, ideal_scale_key);
        iter; ++iter) {
     const gfx::Rect geometry_rect = iter.geometry_rect();
-    if (!scaled_recorded_bounds.Intersects(geometry_rect)) {
-      // This happens when the tiling rect is snapped to be bigger than the
-      // recorded bounds, and CoverageIterator returns a "missing" tile
-      // to cover some of the empty area. The tile should be ignored, otherwise
-      // it would be mistakenly treated as checkerboarded and drawn with the
-      // safe background color.
-      // TODO(crbug.com/328677988): Ideally we should check intersection with
-      // visible_geometry_rect and remove the visible_geometry_rect.IsEmpty()
-      // condition below.
-      continue;
-    }
-    const gfx::Rect visible_geometry_rect =
-        scaled_occlusion.GetUnoccludedContentRect(geometry_rect);
-    if (visible_geometry_rect.IsEmpty()) {
+    gfx::Rect visible_geometry_rect;
+    if (ShouldSkipTile(geometry_rect, scaled_recorded_bounds, scaled_occlusion,
+                       visible_geometry_rect)) {
       continue;
     }
 

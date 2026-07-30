@@ -16,11 +16,16 @@
 
 namespace lens {
 
+using CreateSearchUrlRequestInfo = contextual_search::
+    ContextualSearchContextController::CreateSearchUrlRequestInfo;
+using SearchUrlType =
+    contextual_search::ContextualSearchContextController::SearchUrlType;
+
 // A router for queries that Lens should perform.
 class LensQueryFlowRouter {
  public:
   explicit LensQueryFlowRouter(LensSearchController* lens_search_controller);
-  ~LensQueryFlowRouter();
+  virtual ~LensQueryFlowRouter();
 
   // Whether the query router is in an off state.
   bool IsOff() const;
@@ -80,26 +85,50 @@ class LensQueryFlowRouter {
       std::map<std::string, std::string> additional_search_query_params,
       std::optional<SkBitmap> region_bytes);
 
+ protected:
+  // Creates a contextual search session handle. Virtual for testing.
+  virtual std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+  CreateContextualSearchSessionHandle();
+
+  // Returns the viewport screenshot. Virtual for testing.
+  virtual const SkBitmap& GetViewportScreenshot() const;
+
  private:
   LensOverlayQueryController* lens_overlay_query_controller() const {
     return lens_search_controller_->lens_overlay_query_controller();
   }
 
+  LensSearchContextualizationController*
+  lens_search_contextualization_controller() const {
+    return lens_search_controller_->lens_search_contextualization_controller();
+  }
+
+  tabs::TabInterface* tab_interface() const {
+    return lens_search_controller_->GetTabInterface();
+  }
+
   content::WebContents* web_contents() const {
-    return lens_search_controller_->GetTabInterface()->GetContents();
+    return tab_interface()->GetContents();
   }
 
   BrowserWindowInterface* browser_window_interface() const {
-    return lens_search_controller_->GetTabInterface()
-        ->GetBrowserWindowInterface();
+    return tab_interface()->GetBrowserWindowInterface();
   }
 
   Profile* profile() const {
     return Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   }
 
-  // Opens the contextual tasks panel to a default page URL.
-  void OpenContextualTasksPanel();
+  // Loads the provided query text in the contextual tasks panel.
+  void LoadQueryInContextualTasks(const std::string& query_text);
+
+  // Sends the provided request info to the contextual tasks panel to create a
+  // search URL which is then loaded into the contextual tasks panel.
+  void SendInteractionToContextualTasks(
+      std::unique_ptr<CreateSearchUrlRequestInfo> request_info);
+
+  // Opens the contextual tasks panel to a provided URL.
+  void OpenContextualTasksPanel(const GURL& url);
 
   // Uploads the viewport and page context using the provided session handle.
   void UploadContextualInputData(
@@ -125,6 +154,26 @@ class LensQueryFlowRouter {
       std::optional<uint32_t> pdf_current_page,
       float ui_scale_factor,
       base::TimeTicks invocation_time);
+
+  // Creates the search url request info from an interaction.
+  std::unique_ptr<CreateSearchUrlRequestInfo>
+  CreateSearchUrlRequestInfoFromInteraction(
+      lens::mojom::CenterRotatedBoxPtr region,
+      std::optional<SkBitmap> region_bytes,
+      std::optional<std::string> query_text,
+      lens::LensOverlaySelectionType lens_selection_type,
+      std::map<std::string, std::string> additional_search_query_params,
+      base::Time query_start_time);
+
+  // Returns the contextual search session handle for the query router. If the
+  // handle does not exist, it will create one.
+  contextual_search::ContextualSearchSessionHandle*
+  GetOrCreateContextualSearchSessionHandle();
+
+  // Returns the contextual search session handle for the query router if it
+  // exists.
+  contextual_search::ContextualSearchSessionHandle*
+  GetContextualSearchSessionHandle() const;
 
   // The contextual search session handle that is used to make requests to the
   // contextual search service. This is only stored by this query router in

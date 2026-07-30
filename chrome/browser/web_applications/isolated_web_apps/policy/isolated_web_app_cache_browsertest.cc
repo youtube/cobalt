@@ -43,6 +43,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
@@ -59,7 +60,6 @@
 #include "components/policy/policy_constants.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
-#include "components/webapps/isolated_web_apps/features.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
@@ -507,12 +507,10 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
   void SetIwasAllowlist(
       const std::vector<SignedWebBundleId>& bundle_ids,
       base::Version key_distribution_version = base::Version("1.0.1")) {
-    base::ScopedAllowBlockingForTesting allow_blocking;
-
-    EXPECT_THAT(test::UpdateKeyDistributionInfoWithAllowlist(
-                    key_distribution_version,
-                    /*managed_allowlist=*/bundle_ids),
-                base::test::HasValue());
+    EXPECT_OK(test::KeyDistributionComponentBuilder(key_distribution_version)
+                  .WithManagedAllowlist(bundle_ids)
+                  .Build()
+                  .UploadFromComponentFolder());
   }
 
   void CheckCacheManagerDebugOperationResult(const std::string& operation_name,

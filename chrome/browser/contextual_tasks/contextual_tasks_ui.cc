@@ -4,10 +4,13 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 
+#include "base/base64.h"
 #include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/uuid.h"
+#include "build/branding_buildflags.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
@@ -21,9 +24,12 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -32,22 +38,47 @@
 #include "chrome/grit/contextual_tasks_resources.h"
 #include "chrome/grit/contextual_tasks_resources_map.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/grit/theme_resources.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/signin/public/base/consent_level.h"
+#include "components/signin/public/identity_manager/access_token_info.h"
+#include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "ui/webui/webui_util.h"
 
 namespace {
+
+// A method to add eligibility booleans for context menu items that are shown
+// based on AIM eligibility.
+void AddContextMenuItemEligibilityLoadTimeData(content::WebUIDataSource* source,
+                                               Profile* profile) {
+  AimEligibilityService* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  source->AddBoolean("composeboxShowDeepSearchButton",
+                     aim_eligibility_service &&
+                         aim_eligibility_service->IsDeepSearchEligible());
+  source->AddBoolean("composeboxShowCreateImageButton",
+                     aim_eligibility_service &&
+                         aim_eligibility_service->IsCreateImagesEligible());
+  source->AddBoolean("composeboxShowPdfUpload",
+                     aim_eligibility_service &&
+                         aim_eligibility_service->IsPdfUploadEligible());
+}
+
 BrowserWindowInterface* FromWebContents(content::WebContents* web_contents) {
   BrowserWindow* window =
       BrowserWindow::FindBrowserWindowWithWebContents(web_contents);
@@ -55,6 +86,18 @@ BrowserWindowInterface* FromWebContents(content::WebContents* web_contents) {
     return window->AsBrowserView()->browser();
   }
   return nullptr;
+}
+
+std::string GetEncodedHandshakeMessage() {
+  lens::ClientToAimMessage message;
+  lens::HandshakePing* ping = message.mutable_handshake_ping();
+  ping->add_capabilities(lens::FeatureCapability::DEFAULT);
+  ping->add_capabilities(lens::FeatureCapability::OPEN_THREADS_VIEW);
+  ping->add_capabilities(lens::FeatureCapability::COBROWSING_DISPLAY_CONTROL);
+  const size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized_message(size);
+  message.SerializeToArray(&serialized_message[0], size);
+  return base::Base64Encode(serialized_message);
 }
 }  // namespace
 
@@ -85,7 +128,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
   // Add required resources for the searchbox.
   SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui),
-                                         /*enable_voice_search=*/false,
+                                         /*enable_voice_search=*/true,
                                          /*enable_lens_search=*/false);
   // Add strings.js
   source->UseStringsJs();
@@ -95,6 +138,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
       {"sourcesMenuTabsHeader", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TABS_HEADER},
+      {"title", IDS_CONTEXTUAL_TASKS_AI_MODE_TITLE},
+      /* composeDeepSearchPlaceholder and
+       * composeCreateImagePlaceholder are defined by searchbox_handler.cc.
+       */
+      {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
@@ -146,29 +194,44 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "enableThumbnailSizingTweaks",
       lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
-  source->AddString("searchboxComposePlaceholder", "[i18n] Ask Google...");
-  source->AddString("composeDeepSearchPlaceholder",
-                    "[i18n] Search within results...");
-  source->AddString("composeCreateImagePlaceholder", "[i18n] Create image...");
-  source->AddBoolean("composeboxShowPdfUpload", false);
+  source->AddString("searchboxComposePlaceholder",
+                    ntp_composebox::FeatureConfig::Get()
+                        .config.composebox()
+                        .input_placeholder_text());
   source->AddBoolean("composeboxSmartComposeEnabled", false);
-  source->AddBoolean("composeboxShowDeepSearchButton", false);
-  source->AddBoolean("composeboxShowCreateImageButton", false);
+  AddContextMenuItemEligibilityLoadTimeData(source, Profile::FromWebUI(web_ui));
+  source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowRecentTabChip", false);
   source->AddBoolean("composeboxShowSubmit", true);
   source->AddBoolean("composeboxContextDragAndDropEnabled", false);
-  source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
-  source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
+  source->AddBoolean(
+      "steadyComposeboxShowVoiceSearch",
+      contextual_tasks::GetIsExpandedComposeboxVoiceSearchEnabled());
+  source->AddBoolean(
+      "expandedComposeboxShowVoiceSearch",
+      contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
+  source->AddBoolean("darkMode",
+                     ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
+                                ->BrowserUsesDarkColors());
   source->AddString(
       "composeboxSource",
       contextual_search::ContextualSearchMetricsRecorder::
           ContextualSearchSourceToString(
               contextual_search::ContextualSearchSource::kContextualTasks));
+  source->AddLocalizedString(
+      "protectedErrorPageTopLine",
+      IDS_SIDE_PANEL_LENS_OVERLAY_PROTECTED_PAGE_ERROR_FIRST_LINE);
+  source->AddLocalizedString(
+      "protectedErrorPageBottomLine",
+      IDS_SIDE_PANEL_LENS_OVERLAY_PROTECTED_PAGE_ERROR_SECOND_LINE);
 
   source->AddString("userAgentSuffix",
                     contextual_tasks::GetContextualTasksUserAgentSuffix());
+  // Preload the serialized handshake message so it doesn't have to be fetched
+  // at runtime.
+  source->AddString("handshakeMessage", GetEncodedHandshakeMessage());
 
   // Set up chrome://contextual-tasks/internals debug UI.
   source->AddResourcePath(
@@ -203,7 +266,61 @@ void ContextualTasksUI::CreatePageHandler(
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> page_handler) {
   page_.Bind(std::move(page));
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
-      std::move(page_handler), this, ui_service_);
+      std::move(page_handler), this, ui_service_, context_controller_);
+
+  // Request the initial OAuth token to be used by the embedded page.
+  RequestOAuthToken();
+}
+
+void ContextualTasksUI::RequestOAuthToken() {
+  token_refresh_timer_.Stop();
+
+  auto* profile = Profile::FromWebUI(web_ui());
+  auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager ||
+      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    if (page_) {
+      page_->SetOAuthToken("");
+      return;
+    }
+    return;
+  }
+
+  // TODO(crbug.com/461596823): Currently just grabs the primary account, but
+  // should use the web identity when available. Additionally, the account
+  // should be grabbed once, and used until this WebUI is closed.
+  // TODO(crbug.com/462138963): Add error handling for when the account
+  // identities fail.
+  auto account =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+
+  // A previous fetcher for the same owner will be automatically cancelled.
+  oauth_token_fetcher_ = identity_manager->CreateAccessTokenFetcherForAccount(
+      account.account_id, signin::OAuthConsumerId::kContextualTasks,
+      base::BindOnce(&ContextualTasksUI::OnOAuthTokenReceived,
+                     base::Unretained(this)),
+      signin::AccessTokenFetcher::Mode::kWaitUntilRefreshTokenAvailable);
+}
+
+void ContextualTasksUI::OnOAuthTokenReceived(
+    GoogleServiceAuthError error,
+    signin::AccessTokenInfo access_token_info) {
+  oauth_token_fetcher_.reset();
+  if (!page_) {
+    return;
+  }
+  if (error.state() != GoogleServiceAuthError::NONE) {
+    page_->SetOAuthToken("");
+    return;
+  }
+  page_->SetOAuthToken(access_token_info.token);
+
+  if (!access_token_info.expiration_time.is_null()) {
+    token_refresh_timer_.Start(
+        FROM_HERE, access_token_info.expiration_time - base::Time::Now(),
+        base::BindOnce(&ContextualTasksUI::RequestOAuthToken,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
@@ -231,6 +348,14 @@ void ContextualTasksUI::SetThreadTitle(std::optional<std::string> title) {
   if (page_) {
     page_->SetThreadTitle(thread_title_.value_or(std::string()));
   }
+}
+
+const GURL& ContextualTasksUI::GetInnerFrameUrl() const {
+  if (!nav_observer_ || !nav_observer_->web_contents()) {
+    return GURL::EmptyGURL();
+  }
+
+  return nav_observer_->web_contents()->GetLastCommittedURL();
 }
 
 bool ContextualTasksUI::IsShownInTab() {
@@ -305,15 +430,50 @@ void ContextualTasksUI::OnInnerWebContentsCreated(
   nav_observer_ = std::make_unique<FrameNavObserver>(
       inner_contents, ui_service_, context_controller_, this);
   inner_web_contents_creation_observer_.reset();
+  embedded_web_contents_ = inner_contents->GetWeakPtr();
 }
 
 void ContextualTasksUI::OnSidePanelStateChanged() {
   page_->OnSidePanelStateChanged();
+
+  lens::ClientToAimMessage message;
+  auto* display_mode_msg = message.mutable_set_cobrowsing_display_mode();
+  if (IsShownInTab()) {
+    display_mode_msg->mutable_payload()->set_display_mode(
+        lens::CobrowsingDisplayModeParams::COBROWSING_TAB);
+    if (!is_last_shown_in_tab_) {
+      is_last_shown_in_tab_ = true;
+      if (composebox_handler_) {
+        composebox_handler_->UpdateSuggestedTabContext(nullptr);
+      }
+    }
+  } else {
+    if (is_last_shown_in_tab_) {
+      // The WebUI starts showing in the side panel, show the auto suggested
+      // chip if possible.
+      is_last_shown_in_tab_ = false;
+      // TODO(https://crbug.com/467696560): Get the correct upload status of the
+      // current tab.
+      OnActiveTabContextStatusChanged(TabContextStatus::kNotUploaded);
+    }
+    display_mode_msg->mutable_payload()->set_display_mode(
+        lens::CobrowsingDisplayModeParams::COBROWSING_SIDEPANEL);
+  }
+
+  PostMessageToWebview(message);
+}
+
+void ContextualTasksUI::DisableActiveTabContextSuggestion() {
+  ui_service_->set_auto_tab_context_suggestion_enabled(false);
 }
 
 void ContextualTasksUI::OnActiveTabContextStatusChanged(
     TabContextStatus status) {
   if (!composebox_handler_) {
+    return;
+  }
+
+  if (!ui_service_->auto_tab_context_suggestion_enabled()) {
     return;
   }
 
@@ -331,7 +491,8 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged(
   content::WebContents* web_contents = tab->GetContents();
   GURL last_committed_url = web_contents->GetLastCommittedURL();
 
-  if (!last_committed_url.is_valid() || last_committed_url.is_empty()) {
+  if (!last_committed_url.is_valid() ||
+      !last_committed_url.SchemeIsHTTPOrHTTPS()) {
     composebox_handler_->UpdateSuggestedTabContext(nullptr);
     return;
   }
@@ -343,6 +504,22 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged(
   tab_data->last_active = std::max(web_contents->GetLastActiveTimeTicks(),
                                    web_contents->GetLastInteractionTimeTicks());
   composebox_handler_->UpdateSuggestedTabContext(std::move(tab_data));
+}
+
+void ContextualTasksUI::TransferNavigationToEmbeddedPage(
+    content::OpenURLParams params) {
+  bool is_allowed_url = ui_service_->IsSearchResultsPage(params.url) ||
+                        ui_service_->IsAiUrl(params.url);
+  if (!embedded_web_contents_ || !is_allowed_url) {
+    return;
+  }
+
+  // TODO(465498890): Consider clearning source_site_instance in this case
+  //                  since the navigation may be targeting a different storage
+  //                  partition.
+  params.frame_tree_node_id =
+      embedded_web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
+  embedded_web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 ContextualTasksUI::FrameNavObserver::FrameNavObserver(
@@ -481,6 +658,23 @@ void ContextualTasksUI::CreatePageHandler(
       std::make_unique<ContextualTasksInternalsPageHandler>(
           context_service, optimization_guide_keyed_service,
           std::move(receiver), std::move(page));
+}
+
+// static
+base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
+    ui::ResourceScaleFactor scale_factor) {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Use the Google G favicon for Google Chrome branded builds.
+  // TODO(crbug.com/467038817): Update to 16px gradient PNG.
+  return static_cast<base::RefCountedMemory*>(
+      ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
+          IDR_GOOGLE_G, scale_factor));
+#else
+  // Use the Chromium favicon for Chromium builds.
+  return static_cast<base::RefCountedMemory*>(
+      ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
+          IDR_NTP_FAVICON, scale_factor));
+#endif
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(ContextualTasksUI)

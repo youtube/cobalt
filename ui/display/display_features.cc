@@ -37,14 +37,7 @@ BASE_FEATURE(kEnableExternalDisplayHDR10Mode,
 BASE_FEATURE(kCtmColorManagement, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-// This features allows listing all display modes of external displays in the
-// display settings and setting any one of them exactly as requested, which can
-// be very useful for debugging and development purposes.
-BASE_FEATURE(kListAllDisplayModes, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsListAllDisplayModesEnabled() {
-  return base::FeatureList::IsEnabled(kListAllDisplayModes);
-}
+BASE_FEATURE(kCADisplayLinkInBrowser, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // TODO(gildekel): A temporary flag to control whether EDID-based (vs.
 // port-based) display IDs are generated per display. Remove once the migration

@@ -4376,6 +4376,9 @@ No devices connected.
       <message name="IDS_ASH_ACCELERATOR_DESCRIPTION_NEW_INCOGNITO_WINDOW" translateable="false" desc="Label for accelerator action - Open new Incognito window.">
         Open new Incognito window
       </message>
+      <message name="IDS_ASH_ACCELERATOR_DESCRIPTION_NEW_SPLIT_VIEW" desc="Label for accelerator action - Add tab to new split view.">
+        Add tab to new split view
+      </message>
       <message name="IDS_ASH_ACCELERATOR_DESCRIPTION_NEW_TAB" desc="Label for accelerator action - Open new tab.">
         Open new tab
       </message>
@@ -6915,7 +6918,7 @@ No devices connected.
 
       <!-- Multipaste -->
       <message name="IDS_ASH_CLIPBOARD_HISTORY_CONTROL_V_LONGPRESS_FOOTER" desc="The message used to educate users about the clipboard history menu that shows when they hold down Ctrl+V.">
-        You’ll see the clipboard when you press and hold Ctrl + V. You can turn off this shortcut by disabling the #clipboard-history-longpress flag in chrome://flags (os://flags if using Lacros).
+        You’ll see the clipboard when you press and hold Ctrl + V. You can turn off this shortcut by disabling the #clipboard-history-longpress flag in chrome://flags.
       </message>
       <message name="IDS_ASH_CLIPBOARD_HISTORY_FOOTER" desc="The message used to educate users about the clipboard history menu that shows when they use the feature for the first time (or for the first time in a long time).">
         Select an item to paste it. You can see the clipboard by pressing <ph name="SHORTCUT_KEY_NAME">$1<ex>Launcher</ex></ph> + v.
@@ -7761,7 +7764,7 @@ New install
       </message>
       <message name="IDS_PICKER_FEATURE_TOUR_START_BUTTON_LABEL"
         desc="This string appears as the label of a button in a feature tour dialog. When selected, this button closes the dialog and activates the feature.">
-        Get started
+        Got it
       </message>
       <message name="IDS_PICKER_LIST_ITEM_ACCESSIBLE_NAME"
         desc="This string is read out by a screen reader to describe a search result. The search result contains two lines of text: a primary text (e.g. the title of a page) and a secondary text (e.g. the URL of a page). The commas are significant as they will introduce a pause in the spoken text. This string is used inside the placeholder of another message.">
@@ -7843,6 +7846,14 @@ New install
       <message name="IDS_QUICK_INSERT_FEATURED_GIFS_CATEGORY_TYPE_SECTION_TITLE"
         desc="This string appears as the heading text of a section. This section contains a grid of featured GIFs (in the sense of highlighted or promoted). The featured GIFs change throughout the day.">
         Featured GIFs
+      </message>
+      <message name="IDS_QUICK_INSERT_FEATURE_TOUR_WITH_EDITOR_BODY_TEXT"
+        desc="The body text for the Quick Insert feature tour when Help Me Write is available.">
+        Insert links, emojis, and more. You can also get help writing with Google AI. <ph name="LINK_TO_LEARN_MORE">$1<ex>Learn more</ex></ph>
+      </message>
+      <message name="IDS_QUICK_INSERT_FEATURE_TOUR_WITHOUT_EDITOR_BODY_TEXT"
+        desc="The body text for the Quick Insert feature tour when Help Me Write is unavailable.">
+        Insert links from places such as your browsing history and Google Drive. You can also insert emojis, image files, and more. <ph name="LINK_TO_LEARN_MORE">$1<ex>Learn more</ex></ph>
       </message>
 
       <!-- Lobster -->

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "base/base_switches.h"
 #include "base/byte_count.h"
 #include "base/command_line.h"
 #include "base/files/scoped_temp_dir.h"
@@ -48,17 +49,16 @@ struct InitGlobals {
     mojo::core::Init();
     bool success = base::CommandLine::Init(0, nullptr);
     CHECK(success);
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    scoped_feature_list_.InitFromCommandLine(
+        command_line->GetSwitchValueASCII(switches::kEnableFeatures),
+        command_line->GetSwitchValueASCII(switches::kDisableFeatures));
 
     TestTimeouts::Initialize();
 
     base::test::AllowCheckIsTestForTesting();
-
-    task_environment = std::make_unique<base::test::TaskEnvironment>(
-        base::test::TaskEnvironment::MainThreadType::DEFAULT,
-        base::test::TaskEnvironment::TimeSource::MOCK_TIME);
   }
 
-  std::unique_ptr<base::test::TaskEnvironment> task_environment;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -99,6 +99,8 @@ class WebnnGraphLPMFuzzer {
   bool IsFinished() {
     return action_index_ > 100 || action_index_ >= testcase_->actions_size();
   }
+
+  void RunUntilIdle() { webnn_test_environment_.RunUntilIdle(); }
 
  private:
   mojo_base::BigBuffer GenerateBytes(size_t byte_size) {
@@ -303,7 +305,7 @@ DEFINE_BINARY_PROTO_FUZZER(
   }
   // Ensure that any tasks scheduled by `webnn_graph_fuzzer_instance` are
   // executed before it is freed. See https://crbug.com/441020155.
-  init_globals->task_environment->RunUntilIdle();
+  webnn_graph_fuzzer_instance.RunUntilIdle();
 }
 
 }  // namespace

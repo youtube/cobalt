@@ -5,6 +5,7 @@
 
 import os
 
+
 def Run(os_path=None, args=None):
   try:
     _HERE_PATH = os_path.dirname(os_path.realpath(__file__))
@@ -24,7 +25,7 @@ def Run(os_path=None, args=None):
   # navigate parent directories via '../'. We must set the repository's root as
   # the cwd.
   os.chdir(_SRC_PATH)
-  return node.RunNode([
+  return node.RunNodeRaw([
       node_modules.PathToEsLint(),
       '--quiet',
       '--config',

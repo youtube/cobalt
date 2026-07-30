@@ -117,6 +117,7 @@
 <translation id="3581385059720151202">Искать изображения в Chromium</translation>
 <translation id="3582640969619785896">Chromium предложит сохранить пароль.</translation>
 <translation id="3594315078412605236">Настроить способы оплаты в Chromium</translation>
+<translation id="3600428265489994557">Войдите в Chromium</translation>
 <translation id="3617143087229977194">Откройте "Приложения по умолчанию" в настройках iOS, нажмите "Приложение браузера" и выберите Chromium.</translation>
 <translation id="3634039384458740619">Открыть настройки Chromium</translation>
 <translation id="3639997914391704523">Chromium сможет проверить ваши пароли, если вы войдете в аккаунт Google.</translation>
@@ -351,7 +352,6 @@
 <translation id="900560297598578021">Вы вошли как <ph name="EMAIL" />.
 
 <ph name="TIME" /> ваши данные были зашифрованы кодовой фразой. Введите ее, чтобы пользоваться данными Chromium и сохранять их в аккаунте Google.</translation>
-<translation id="9022552996538154597">Войти в Chromium</translation>
 <translation id="9031260906956926157">Некоторые данные Chromium ещё не сохранены в аккаунте Google.
 Подождите несколько минут. Если выйти сейчас, эти данные будут удалены.</translation>
 <translation id="9050790730841755540">Открывайте ссылки из приложений с помощью Chromium.</translation>

@@ -413,11 +413,6 @@ public class StripLayoutUtils {
         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
     }
 
-    public static boolean skipTabEdgePositionCalculation(StripLayoutTab tab) {
-        return (tab.isDying() && !ChromeFeatureList.sTabletTabStripAnimation.isEnabled())
-                || tab.isDraggedOffStrip();
-    }
-
     public static boolean shouldApplyMoreDensity() {
         return ChromeFeatureList.sTabStripDensityChangeAndroid.isEnabled()
                 && DeviceInfo.isDesktop();

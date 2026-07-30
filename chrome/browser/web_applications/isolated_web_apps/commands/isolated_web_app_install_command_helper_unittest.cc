@@ -22,6 +22,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
+#include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_expected_support.h"
@@ -575,12 +576,14 @@ class InstallIsolatedWebAppCommandHelperManifestIconsTest
 };
 
 TEST_F(InstallIsolatedWebAppCommandHelperManifestIconsTest,
-       ManifestIconIsDownloaded) {
+       ManifestIconIsDownloadedAndUpdateManifestIsParsed) {
   IsolatedWebAppUrlInfo url_info = CreateRandomIsolatedWebAppUrlInfo();
   GURL image_url = GetImageUrl(url_info);
 
   blink::mojom::ManifestPtr manifest = CreateManifest();
   manifest->icons = {CreateImageResourceForAnyPurpose(image_url)};
+  manifest->update_manifest_url =
+      GURL("https://otters.com/update_manifest.json");
 
   auto command_helper = std::make_unique<IsolatedWebAppInstallCommandHelper>(
       url_info, GetDataRetrieverForSuccessfulDownloads(url_info));
@@ -608,6 +611,9 @@ TEST_F(InstallIsolatedWebAppCommandHelperManifestIconsTest,
       ValueIs(Field(
           "manifest_icons", &WebAppInstallInfo::manifest_icons,
           UnorderedElementsAre(Field(&apps::IconInfo::url, Eq(image_url))))));
+
+  EXPECT_THAT(result->iwa_update_manifest_url,
+              Optional(Eq(manifest->update_manifest_url.value())));
 }
 
 TEST_F(InstallIsolatedWebAppCommandHelperManifestIconsTest,

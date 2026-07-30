@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/wallet/walletable_pass_bubble_view_factory.h"
 #include "chrome/browser/ui/wallet/walletable_pass_consent_bubble_view.h"
 #include "chrome/common/url_constants.h"
+#include "components/wallet/core/browser/metrics/wallet_metrics.h"
 #include "content/public/browser/web_contents.h"
 
 namespace wallet {
@@ -32,15 +33,14 @@ void WalletablePassConsentBubbleController::ShowBubble() {
 }
 
 void WalletablePassConsentBubbleController::SetUpAndShowConsentBubble(
-    optimization_guide::proto::PassCategory pass_category,
+    PassCategory pass_category,
     WalletablePassClient::WalletablePassBubbleResultCallback callback) {
   pass_category_ = pass_category;
   SetCallback(std::move(callback));
   QueueOrShowBubble();
 }
 
-optimization_guide::proto::PassCategory
-WalletablePassConsentBubbleController::pass_category() const {
+PassCategory WalletablePassConsentBubbleController::pass_category() const {
   CHECK(pass_category_.has_value());
   return *pass_category_;
 }
@@ -66,6 +66,9 @@ void WalletablePassConsentBubbleController::OnLearnMoreClicked() {
     SetReshowOnActivation(true);
     chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
   }
+  metrics::LogOptInEvent(
+      pass_category(),
+      metrics::WalletablePassOptInFunnelEvents::kLearnMoreButtonClicked);
 }
 
 }  // namespace wallet

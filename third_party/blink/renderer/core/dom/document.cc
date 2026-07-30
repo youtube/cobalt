@@ -2544,8 +2544,7 @@ static void AssertLayoutTreeUpdatedForPseudoElements(const Element& element) {
                                  kPseudoIdScrollButtonInlineStart,
                                  kPseudoIdScrollButtonInlineEnd,
                                  kPseudoIdScrollButtonBlockEnd,
-                                 kPseudoIdScrollMarker,
-                                 kPseudoIdOverscrollClientArea};
+                                 kPseudoIdScrollMarker};
   for (auto pseudo_id : pseudo_ids) {
     if (const PseudoElement* pseudo_element =
             element.GetPseudoElement(pseudo_id)) {
@@ -4868,7 +4867,8 @@ void Document::write(v8::Isolate* isolate,
     builder.Append(string);
   String string =
       TrustedTypesCheckForHTML(builder.ReleaseString(), GetExecutionContext(),
-                               "Document", "write", exception_state);
+                               trusted_types_names::kDocument,
+                               trusted_types_names::kWrite, exception_state);
   if (exception_state.HadException())
     return;
 
@@ -4883,7 +4883,8 @@ void Document::writeln(v8::Isolate* isolate,
     builder.Append(string);
   String string =
       TrustedTypesCheckForHTML(builder.ReleaseString(), GetExecutionContext(),
-                               "Document", "writeln", exception_state);
+                               trusted_types_names::kDocument,
+                               trusted_types_names::kWriteln, exception_state);
   if (exception_state.HadException())
     return;
 
@@ -4938,11 +4939,12 @@ void Document::Write(v8::Isolate* isolate,
     }
   }
   // Step 4: If isTrusted is false, set string to [... Get Trusted Type ...]
-  String string =
-      is_trusted ? builder.ReleaseString()
-                 : TrustedTypesCheckForHTML(builder.ReleaseString(),
-                                            GetExecutionContext(), "Document",
-                                            sink, exception_state);
+  String string = is_trusted
+                      ? builder.ReleaseString()
+                      : TrustedTypesCheckForHTML(
+                            builder.ReleaseString(), GetExecutionContext(),
+                            trusted_types_names::kDocument, AtomicString(sink),
+                            exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -8703,13 +8705,9 @@ HTMLElement* Document::TopmostPopoverOrHint() const {
   return nullptr;
 }
 void Document::SetPopoverPointerdownTarget(const HTMLElement* popover) {
+  CHECK(!RuntimeEnabledFeatures::LightDismissFromClickEnabled());
   DCHECK(!popover || popover->IsPopover());
   popover_pointerdown_target_ = popover;
-}
-
-void Document::SetPopoverPickerMousedownLocation(
-    std::optional<gfx::PointF> point) {
-  popover_picker_mousedown_location_ = point;
 }
 
 const HTMLDialogElement* Document::DialogPointerdownTarget() const {
@@ -8717,8 +8715,17 @@ const HTMLDialogElement* Document::DialogPointerdownTarget() const {
 }
 
 void Document::SetDialogPointerdownTarget(const HTMLDialogElement* dialog) {
+  CHECK(!RuntimeEnabledFeatures::LightDismissFromClickEnabled());
   DCHECK(!dialog || dialog->IsOpen());
   dialog_pointerdown_target_ = dialog;
+}
+
+HTMLDocument::PopoverPickerPointerdownInfo Document::PopoverPickerPointerdown()
+    const {
+  return popover_picker_pointerdown_info_;
+}
+void Document::SetPopoverPickerPointerdown(PopoverPickerPointerdownInfo info) {
+  popover_picker_pointerdown_info_ = std::move(info);
 }
 
 void Document::exitPointerLock() {
@@ -9461,6 +9468,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(popover_hint_stack_);
   visitor->Trace(popover_pointerdown_target_);
   visitor->Trace(dialog_pointerdown_target_);
+  visitor->Trace(popover_picker_pointerdown_info_);
   visitor->Trace(popovers_waiting_to_hide_);
   visitor->Trace(all_open_popovers_);
   visitor->Trace(all_open_dialogs_);
@@ -10123,7 +10131,8 @@ Document* Document::parseHTMLUnsafe(ExecutionContext* context,
                                     ExceptionState& exception_state) {
   UseCounter::Count(context, WebFeature::kHTMLUnsafeMethods);
   String compliant_html = TrustedTypesCheckForHTML(
-      html, context, "Document", "parseHTMLUnsafe", exception_state);
+      html, context, trusted_types_names::kDocument,
+      trusted_types_names::kParseHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return nullptr;
   }
@@ -10138,12 +10147,14 @@ Document* Document::parseHTMLUnsafe(ExecutionContext* context,
   UseCounter::Count(context, WebFeature::kHTMLUnsafeMethods);
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
   String compliant_html = TrustedTypesCheckForHTML(
-      html, context, "Document", "parseHTMLUnsafe", exception_state);
+      html, context, trusted_types_names::kDocument,
+      trusted_types_names::kParseHTMLUnsafe, exception_state);
   if (exception_state.HadException()) {
     return nullptr;
   }
   Document* doc = parseHTMLInternal(context, compliant_html, exception_state);
-  SanitizerAPI::SanitizeUnsafeInternal(doc, options, exception_state);
+  SanitizerAPI::SanitizeUnsafeInternal(
+      /*context_element*/ doc, /*root_element*/ doc, options, exception_state);
   return doc;
 }
 
@@ -10154,7 +10165,8 @@ Document* Document::parseHTML(ExecutionContext* context,
                               ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
   Document* doc = parseHTMLInternal(context, html, exception_state);
-  SanitizerAPI::SanitizeSafeInternal(doc, options, exception_state);
+  SanitizerAPI::SanitizeSafeInternal(
+      /*context_element*/ doc, /*root_element*/ doc, options, exception_state);
   return doc;
 }
 
@@ -10303,6 +10315,8 @@ CustomElementRegistry* Document::EffectiveGlobalCustomElementRegistry() const {
   }
   return nullptr;
 }
+
+template class CORE_TEMPLATE_EXPORT Supplement<Document>;
 
 }  // namespace blink
 

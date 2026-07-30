@@ -14,10 +14,12 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/browsing_data/core/features.h"
 #include "components/compose/buildflags.h"
 #include "components/compose/core/browser/compose_features.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/history/core/browser/features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/permissions/features.h"
 #include "components/prefs/pref_service.h"
@@ -26,7 +28,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "crypto/crypto_buildflags.h"
-#include "device/fido/features.h"
+#include "device/fido/public/features.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/compositor/compositor_switches.h"
 
@@ -54,7 +56,11 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
  protected:
   SettingsBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {},
+        {
+#if BUILDFLAG(IS_CHROMEOS)
+            autofill::features::kAutofillEnablePaymentsMandatoryReauthChromeOs,
+#endif
+        },
         /*disabled_features=*/
         {
 #if BUILDFLAG(ENABLE_GLIC)
@@ -68,7 +74,7 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
  private:
 #if BUILDFLAG(ENABLE_GLIC)
   glic::GlicTestEnvironment glic_test_environment_{
-      {.force_signin_and_model_execution_capability = false }};
+      {.force_signin_and_glic_capability = false }};
 #endif
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -524,6 +530,26 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicSubageClosedCaptionsToggleTest,
           "runMochaSuite('GlicSubpage ClosedCaptionsToggleEnabled')");
 }
 
+class SettingsGlicSubpageKeepSidepanelOpenOnNewTabsToggleTest
+    : public SettingsBrowserTest {
+ public:
+  SettingsGlicSubpageKeepSidepanelOpenOnNewTabsToggleTest() {
+    scoped_feature_list_.InitWithFeatures({features::kGlicDaisyChainNewTabs},
+                                          /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    SettingsGlicSubpageKeepSidepanelOpenOnNewTabsToggleTest,
+    SettingsGlicSubpageKeepSidepanelOpenOnNewTabsToggleEnabled) {
+  RunTest(
+      "settings/glic_subpage_test.js",
+      "runMochaSuite('GlicSubpage KeepSidepanelOpenOnNewTabsToggleEnabled')");
+}
+
 class SettingsGlicSubPageDefaultTabContextToggleTest
     : public SettingsBrowserTest {
  public:
@@ -754,6 +780,16 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecureDns) {
   RunTest("settings/secure_dns_test.js", "runMochaSuite('SettingsSecureDns')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, SecureDnsV2Input) {
+  RunTest("settings/secure_dns_v2_test.js",
+          "runMochaSuite('SettingsSecureDnsV2Input')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, SecureDnsV2) {
+  RunTest("settings/secure_dns_v2_test.js",
+          "runMochaSuite('SettingsSecureDnsV2')");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysBioEnrollment) {
   RunTest("settings/security_keys_bio_enrollment_test.js", "mocha.run()");
 }
@@ -971,7 +1007,7 @@ class SettingsClearBrowsingDataV2Test : public SettingsBrowserTest {
   SettingsClearBrowsingDataV2Test() {
     scoped_feature_list_.InitWithFeatures(
         {browsing_data::features::kDbdRevampDesktop,
-         browsing_data::features::kBrowsingHistoryActorIntegrationM1},
+         history::kBrowsingHistoryActorIntegrationM1},
         /*disabled_features=*/{});
   }
 
@@ -1588,6 +1624,12 @@ using SettingsSecurityPageV2Test = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, Main) {
   RunTest("settings/security_page_v2_test.js", "runMochaSuite('Main')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test,
+                       SecurityKeysSubpageDisabled) {
+  RunTest("settings/security_page_v2_test.js",
+          "runMochaSuite('SecurityKeysSubpageDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test,

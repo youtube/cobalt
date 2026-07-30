@@ -484,7 +484,8 @@ void Navigator::DidNavigate(
     RenderFrameHostImpl* render_frame_host,
     const mojom::DidCommitProvisionalLoadParams& params,
     std::unique_ptr<NavigationRequest> navigation_request,
-    bool was_within_same_document) {
+    bool was_within_same_document,
+    bool caused_by_ad) {
   DCHECK(navigation_request);
   FrameTreeNode* frame_tree_node = render_frame_host->frame_tree_node();
   FrameTree& frame_tree = frame_tree_node->frame_tree();
@@ -592,15 +593,15 @@ void Navigator::DidNavigate(
                                        : allow_subframe_paint_holding;
   const RenderFrameHostManager::ViewTransitionCommitInfo
       view_transition_commit_info{
-          .has_view_transition_resources =
-              navigation_request->HasViewTransitionResources()};
+          .view_transition_resources =
+              navigation_request->GetViewTransitionResources()};
   frame_tree_node->render_manager()->DidNavigateFrame(
       render_frame_host, navigation_request->common_params().has_user_gesture,
       was_within_same_document,
       navigation_request->browsing_context_group_swap()
           .ShouldClearProxiesOnCommit(),
       navigation_request->commit_params().frame_policy, allow_paint_holding,
-      view_transition_commit_info);
+      view_transition_commit_info, navigation_request->GetURL());
 
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
@@ -688,7 +689,7 @@ void Navigator::DidNavigate(
   bool did_navigate = controller_.RendererDidNavigate(
       render_frame_host, params, &details, was_within_same_document,
       was_on_initial_empty_document,
-      previous_document_history_intervention_activation,
+      previous_document_history_intervention_activation, caused_by_ad,
       navigation_request.get());
   if (!was_within_same_document) {
     base::UmaHistogramTimes(

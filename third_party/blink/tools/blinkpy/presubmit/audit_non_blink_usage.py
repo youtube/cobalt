@@ -1793,7 +1793,6 @@ _CONFIG = [
         ],
         'allowed': [
             'media::.+',
-            'media_capabilities_identifiability_metrics::.+',
             'webrtc::SdpVideoFormat',
             'webrtc::SdpAudioFormat',
         ]
@@ -2498,6 +2497,19 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/public/web/web_user_level_memory_pressure_signal_generator.h',
+            'third_party/blink/renderer/controller/user_level_memory_pressure_signal_generator.cc',
+            'third_party/blink/renderer/controller/user_level_memory_pressure_signal_generator.h',
+        ],
+        'allowed': [
+            'base::MEMORY_PRESSURE_LEVEL_CRITICAL',
+            'base::MEMORY_PRESSURE_LEVEL_NONE',
+            'base::MemoryPressureLevel',
+            'base::MemoryPressureListenerRegistry',
+        ]
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/controller/blink_shutdown.cc',
         ],
         'allowed': [
@@ -2675,14 +2687,6 @@ _CONFIG = [
     },
     {
         'paths': [
-            'third_party/blink/public/common/privacy_budget/identifiable_token.h',
-        ],
-        'allowed': [
-            'internal::DigestOfObjectRepresentation',
-        ]
-    },
-    {
-        'paths': [
             'third_party/blink/public/common/tokens/',
         ],
         'allowed': [
@@ -2700,18 +2704,14 @@ _CONFIG = [
     {
         'paths': [
             'third_party/blink/public/platform/media/',
+            'third_party/blink/public/platform/web_media_player.h',
             'third_party/blink/public/platform/web_media_player_client.h',
+            'third_party/blink/public/web/modules/mediastream/',
         ],
         'allowed': [
+            'cc::PaintCanvas',
+            'cc::PaintFlags',
             'media::.+',
-        ]
-    },
-    {
-        'paths': [
-            'third_party/blink/public/web/modules/mediastream/media_stream_video_source.h'
-        ],
-        'allowed': [
-            'media::CaptureVersion',
         ]
     },
     {
@@ -2819,6 +2819,20 @@ _CONFIG = [
             'xml_ffi::.*',
             'base::(StringViewToRustSlice|RustStrToStringView)',
             're2::StringPiece',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/public/mojom/authenticator_mojom_traits.h',
+        ],
+        'allowed': [
+            # Blink code shouldn't need to be qualified with the Blink namespace,
+            # but this is a Mojo trait so we need an exception.
+            'blink::.+',
+            'device::FidoTransportProtocol',
+            'device::AuthenticatorAttachment',
+            'device::ResidentKeyRequirement',
+            'device::UserVerificationRequirement',
         ]
     }
 ]

@@ -46,12 +46,31 @@ class COMPONENT_EXPORT(GBM_SUPPORT_X11) GBMSupportX11 {
   bool has_gbm_device() const { return device_ != nullptr; }
 
  private:
+  struct BufferUsageAndSIFormat {
+    BufferUsageAndSIFormat()
+        : usage(gfx::BufferUsage::GPU_READ),
+          format(viz::SinglePlaneFormat::kRGBA_8888) {}
+    BufferUsageAndSIFormat(gfx::BufferUsage usage,
+                           viz::SharedImageFormat format)
+        : usage(usage), format(format) {}
+
+    bool operator==(const BufferUsageAndSIFormat& other) const {
+      return usage == other.usage && format == other.format;
+    }
+
+    gfx::BufferUsage usage;
+    viz::SharedImageFormat format;
+  };
+
   friend class base::NoDestructor<GBMSupportX11>;
+
+  static std::vector<BufferUsageAndSIFormat> CreateSupportedConfigList(
+      ui::GbmDevice* device);
 
   GBMSupportX11();
 
   const std::unique_ptr<GbmDevice> device_;
-  const std::vector<gfx::BufferUsageAndFormat> supported_configs_;
+  const std::vector<BufferUsageAndSIFormat> supported_configs_;
 };
 
 }  // namespace ui

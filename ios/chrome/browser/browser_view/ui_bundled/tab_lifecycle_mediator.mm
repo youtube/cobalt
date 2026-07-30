@@ -21,7 +21,6 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
 #import "ios/chrome/browser/lens/model/lens_tab_helper.h"
-#import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/overscroll_actions/model/overscroll_actions_tab_helper.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
@@ -223,12 +222,6 @@
         HandlerForProtocol(_commandDispatcher, UnitConversionCommands));
   }
 
-  MiniMapTabHelper* miniMapTabHelper = MiniMapTabHelper::FromWebState(webState);
-  if (miniMapTabHelper) {
-    miniMapTabHelper->SetMiniMapCommands(
-        HandlerForProtocol(_commandDispatcher, MiniMapCommands));
-  }
-
   PriceNotificationsTabHelper* priceNotificationsTabHelper =
       PriceNotificationsTabHelper::FromWebState(webState);
   if (priceNotificationsTabHelper) {
@@ -263,9 +256,9 @@
         HandlerForProtocol(_commandDispatcher, BWGCommands);
     BWGTabHelper->SetBwgCommandsHandler(BWGCommandsHandler);
 
-    // TODO(crbug.com/448157489): Remove this or refactor to
+    // TODO(crbug.com/455903668): Remove this or refactor to
     // `HandlerForProtocol`.
-    if (IsAskGeminiSnackbarEnabled() || IsWebPageReportedImagesSheetEnabled()) {
+    if (IsWebPageReportedImagesSheetEnabled()) {
       BWGTabHelper->SetSnackbarCommandsHandler(
           static_cast<id<SnackbarCommands>>(_commandDispatcher));
     }
@@ -372,11 +365,6 @@
     annotationsTabHelper->SetUnitConversionCommands(nil);
   }
 
-  MiniMapTabHelper* miniMapTabHelper = MiniMapTabHelper::FromWebState(webState);
-  if (miniMapTabHelper) {
-    miniMapTabHelper->SetMiniMapCommands(nil);
-  }
-
   PriceNotificationsTabHelper* priceNotificationsTabHelper =
       PriceNotificationsTabHelper::FromWebState(webState);
   if (priceNotificationsTabHelper) {
@@ -406,7 +394,7 @@
   BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
   if (BWGTabHelper) {
     BWGTabHelper->SetBwgCommandsHandler(nil);
-    if (IsAskGeminiSnackbarEnabled()) {
+    if (IsWebPageReportedImagesSheetEnabled()) {
       BWGTabHelper->SetSnackbarCommandsHandler(nil);
     }
     if (IsAskGeminiChipEnabled()) {

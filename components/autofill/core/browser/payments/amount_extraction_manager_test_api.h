@@ -5,9 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_TEST_API_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_TEST_API_H_
 
-#include <memory>
-
 #include "base/check_deref.h"
+#include "base/memory/raw_ref.h"
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 
@@ -33,24 +32,11 @@ class AmountExtractionManagerTestApi {
         search_request_pending;
   }
 
-  bool GetIsFetchingAiPageContent() {
-    return amount_extraction_manager_->is_fetching_ai_page_content_;
+  bool IsTimeoutTimerRunning() {
+    return amount_extraction_manager_->timeout_timer_.IsRunning();
   }
 
-  void SetIsFetchingAiPageContent(bool is_fetching) {
-    amount_extraction_manager_->is_fetching_ai_page_content_ = is_fetching;
-  }
-
-  const optimization_guide::proto::AnnotatedPageContent* GetAiPageContent()
-      const {
-    return amount_extraction_manager_->ai_page_content_.get();
-  }
-
-  void SetAiPageContent() {
-    amount_extraction_manager_->ai_page_content_ =
-        std::make_unique<optimization_guide::proto::AnnotatedPageContent>(
-            optimization_guide::proto::AnnotatedPageContent());
-  }
+  void Reset() { amount_extraction_manager_->Reset(); }
 
  private:
   const raw_ref<AmountExtractionManager> amount_extraction_manager_;

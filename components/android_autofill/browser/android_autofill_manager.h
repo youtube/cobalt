@@ -45,6 +45,10 @@ class AndroidAutofillManager : public AutofillManager,
 
   void OnDidAutofillFormImpl(const FormData& form) override;
 
+  void SuppressAutomaticRefillsImpl(const FillId& fill_id) override {}
+
+  void RequestRefillImpl(const FillId& fill_id) override {}
+
   void OnDidEndTextFieldEditingImpl() override {}
   void OnHidePopupImpl() override;
   void OnSelectFieldOptionsDidChangeImpl(
@@ -110,8 +114,7 @@ class AndroidAutofillManager : public AutofillManager,
       const std::u16string& old_value) override {}
 
   void OnLoadedServerPredictionsImpl(
-      base::span<const raw_ptr<FormStructure, VectorExperimental>> forms)
-      override {}
+      base::span<const raw_ref<FormStructure>> forms) override {}
 
   bool ShouldParseForms() override;
 

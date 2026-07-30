@@ -15,6 +15,7 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
@@ -51,6 +52,35 @@ namespace {
 void RunLater(base::OnceClosure task) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
                                                               std::move(task));
+}
+
+void OnCreateActorTabComplete(
+    actor::ActorTask& task,
+    actor::ActorKeyedService::CreateActorTabCallback callback,
+    actor::AggregatedJournal& journal,
+    tabs::TabInterface* tab) {
+  if (base::FeatureList::IsEnabled(actor::kActorBindCreatedTabToTask) && tab) {
+    task.AddTab(
+        tab->GetHandle(),
+        base::BindOnce(
+            [](actor::ActorKeyedService::CreateActorTabCallback callback,
+               tabs::TabHandle handle, actor::TaskId task_id,
+               base::WeakPtr<actor::AggregatedJournal> journal,
+               actor::mojom::ActionResultPtr result) {
+              if (journal) {
+                journal->Log(
+                    GURL(), task_id, "OnCreateActorTabComplete",
+                    actor::JournalDetailsBuilder()
+                        .Add("AddTab result", actor::ToDebugString(*result))
+                        .Build());
+              }
+              std::move(callback).Run(handle.Get());
+            },
+            std::move(callback), tab->GetHandle(), task.id(),
+            journal.GetWeakPtr()));
+  } else {
+    std::move(callback).Run(tab);
+  }
 }
 
 }  // namespace
@@ -157,7 +187,8 @@ void ActorKeyedService::CreateActorTab(TaskId task_id,
           tab_strip_model->GetIndexOfTab(initiator_tab));
     }
 
-    std::move(callback).Run(initiator_tab);
+    OnCreateActorTabComplete(*task, std::move(callback), journal_,
+                             initiator_tab);
     return;
   }
 
@@ -216,7 +247,7 @@ void ActorKeyedService::CreateActorTab(TaskId task_id,
     GetJournal().Log(
         GURL(), task_id, "CreateActorTab",
         JournalDetailsBuilder().AddError("Failed creating navigation").Build());
-    std::move(callback).Run(nullptr);
+    OnCreateActorTabComplete(*task, std::move(callback), journal_, nullptr);
     return;
   }
 
@@ -226,13 +257,14 @@ void ActorKeyedService::CreateActorTab(TaskId task_id,
                      JournalDetailsBuilder()
                          .AddError("Navigation missing WebContents")
                          .Build());
-    std::move(callback).Run(nullptr);
+    OnCreateActorTabComplete(*task, std::move(callback), journal_, nullptr);
     return;
   }
 
   // It might be good to wait for this navigation to finish but given we're
   // navigating to about:blank it probably doesn't matter in practice.
-  std::move(callback).Run(tabs::TabInterface::GetFromContents(contents));
+  OnCreateActorTabComplete(*task, std::move(callback), journal_,
+                           tabs::TabInterface::GetFromContents(contents));
 }
 
 base::WeakPtr<ActorKeyedService> ActorKeyedService::GetWeakPtr() {
@@ -276,14 +308,14 @@ TaskId ActorKeyedService::CreateTaskWithOptions(
     base::WeakPtr<ActorTaskDelegate> delegate) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   if (!policy_checker_->can_act_on_web()) {
-    base::UmaHistogramBoolean("Actor.Task.Created", false);
+    RecordActorTaskCreated(false);
     GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::CreateTask",
                      JournalDetailsBuilder()
                          .AddError("Actuation capability disabled")
                          .Build());
     return TaskId();
   }
-  base::UmaHistogramBoolean("Actor.Task.Created", true);
+  RecordActorTaskCreated(true);
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
   auto actor_task = std::make_unique<ActorTask>(
       profile_.get(), std::move(execution_engine),
@@ -355,51 +387,62 @@ void ActorKeyedService::RequestTabObservation(
              const GURL& last_committed_url,
              page_content_annotations::FetchPageContextResultCallbackArg
                  result) {
-            if (!result.has_value()) {
-              std::move(callback).Run(base::unexpected(absl::StrFormat(
-                  "Failed Observation: code[%s] message[%s]",
-                  page_content_annotations::ToString(result.error().error_code),
-                  result.error().message)));
-              return;
-            }
+            if (result.has_value() &&
+                result.value()->annotated_page_content_result.has_value() &&
+                result.value()->screenshot_result.has_value()) {
+              auto& fetch_result = **result;
+              size_t size = fetch_result.annotated_page_content_result->proto
+                                .ByteSizeLong();
+              std::vector<uint8_t> buffer(size);
+              fetch_result.annotated_page_content_result->proto
+                  .SerializeToArray(buffer.data(), size);
+              pending_journal_entry->GetJournal().LogAnnotatedPageContent(
+                  last_committed_url, pending_journal_entry->GetTaskId(),
+                  buffer);
 
-            // Context for actor observations should always have an APC and a
-            // screenshot, return failure if either is missing.
-            auto& fetch_result = **result;
-            bool has_apc =
-                fetch_result.annotated_page_content_result.has_value();
-            bool has_screenshot = fetch_result.screenshot_result.has_value();
-            if (!has_apc || !has_screenshot) {
-              std::move(callback).Run(base::unexpected(absl::StrFormat(
-                  "Failed Observation: APC[%s] screenshot[%s]",
-                  has_apc ? std::string("OK")
-                          : fetch_result.annotated_page_content_result.error(),
-                  has_screenshot ? std::string("OK")
-                                 : fetch_result.screenshot_result.error())));
-              return;
-            }
-
-            size_t size = fetch_result.annotated_page_content_result->proto
-                              .ByteSizeLong();
-            std::vector<uint8_t> buffer(size);
-            fetch_result.annotated_page_content_result->proto.SerializeToArray(
-                buffer.data(), size);
-            pending_journal_entry->GetJournal().LogAnnotatedPageContent(
-                last_committed_url, pending_journal_entry->GetTaskId(), buffer);
-
-            auto& data = fetch_result.screenshot_result->screenshot_data;
-            pending_journal_entry->GetJournal().LogScreenshot(
-                last_committed_url, pending_journal_entry->GetTaskId(),
-                fetch_result.screenshot_result->mime_type, base::as_byte_span(data));
-            if (tab) {
-              actor::ActorTabData::From(tab.get())->DidObserveContent(
-                  fetch_result.annotated_page_content_result->proto);
+              auto& data = fetch_result.screenshot_result->screenshot_data;
+              pending_journal_entry->GetJournal().LogScreenshot(
+                  last_committed_url, pending_journal_entry->GetTaskId(),
+                  fetch_result.screenshot_result->mime_type,
+                  base::as_byte_span(data));
+              if (tab) {
+                actor::ActorTabData::From(tab.get())->DidObserveContent(
+                    fetch_result.annotated_page_content_result->proto);
+              }
             }
 
             std::move(callback).Run(std::move(result).value());
           },
           tab.GetWeakPtr(), std::move(callback), std::move(journal_entry),
           last_committed_url));
+}
+
+//  static
+std::optional<std::string> ActorKeyedService::ExtractErrorMessageIfFailed(
+    const TabObservationResult& result) {
+  if (!result.has_value()) {
+    return absl::StrFormat(
+        "Failed Observation: code[%s] message[%s]",
+        page_content_annotations::ToString(result.error().error_code),
+        result.error().message);
+  }
+
+  page_content_annotations::FetchPageContextResult& fetch_result = **result;
+
+  // Context for actor observations should always have an APC and a screenshot,
+  // return failure if either is missing.
+  bool has_apc = fetch_result.annotated_page_content_result.has_value();
+  bool has_screenshot = fetch_result.screenshot_result.has_value();
+  if (!has_apc || !has_screenshot) {
+    return absl::StrFormat(
+        "Fetch Error: APC[%s] screenshot[%s]",
+        has_apc ? std::string("OK")
+                : fetch_result.annotated_page_content_result.error(),
+        has_screenshot ? std::string("OK")
+                       : fetch_result.screenshot_result.error());
+  }
+
+  return std::nullopt;
 }
 
 void ActorKeyedService::PerformActions(
@@ -411,7 +454,7 @@ void ActorKeyedService::PerformActions(
   std::vector<ActionResultWithLatencyInfo> empty_results;
   auto* task = GetTask(task_id);
   if (!task) {
-    GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::PerformActions",
+    GetJournal().Log(GURL(), task_id, "ActorKeyedService::PerformActions",
                      JournalDetailsBuilder()
                          .Add("task_id", task_id)
                          .AddError("Invalid Task")
@@ -424,7 +467,7 @@ void ActorKeyedService::PerformActions(
 
   if (actions.empty()) {
     GetJournal().Log(
-        GURL(), TaskId(), "ActorKeyedService::PerformActions",
+        GURL(), task_id, "ActorKeyedService::PerformActions",
         JournalDetailsBuilder().AddError("Empty Actions List").Build());
     RunLater(base::BindOnce(std::move(callback),
                             mojom::ActionResultCode::kEmptyActionSequence,
@@ -464,7 +507,7 @@ void ActorKeyedService::StopAllTasks(ActorTask::StoppedReason stop_reason) {
 void ActorKeyedService::StopTask(TaskId task_id,
                                  ActorTask::StoppedReason stop_reason) {
   TRACE_EVENT0("actor", "ActorKeyedService::StopTask");
-  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::StopTask",
+  GetJournal().Log(GURL(), task_id, "ActorKeyedService::StopTask",
                    JournalDetailsBuilder()
                        .Add("task_id", task_id)
                        .Add("stop_reason", stop_reason)
@@ -534,7 +577,7 @@ void ActorKeyedService::OnDownloadCreated(content::DownloadManager* manager,
   if (content::WebContents* web_contents =
           content::DownloadItemUtils::GetWebContents(item)) {
     if (GetActingActorTaskForWebContents(web_contents)) {
-      base::UmaHistogramBoolean("Actor.Download.DirectDownloadTriggered", true);
+      RecordDirectDownloadTriggered(true);
     }
   }
 }

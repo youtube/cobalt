@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.multiwindow;
 import android.app.Activity;
 import android.content.Intent;
 import android.hardware.display.DisplayManager;
-import android.util.Pair;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
@@ -80,6 +79,44 @@ public abstract class MultiInstanceManager {
 
         // Update enums.xml when updating these values.
         int NUM_ENTRIES = 4;
+    }
+
+    @IntDef({
+        InstanceAllocationType.DEFAULT,
+        InstanceAllocationType.EXISTING_INSTANCE_UNMAPPED_TASK,
+        InstanceAllocationType.EXISTING_INSTANCE_MAPPED_TASK,
+        InstanceAllocationType.PREFER_NEW_INSTANCE_NEW_TASK,
+        InstanceAllocationType.PREFER_NEW_INVALID_INSTANCE,
+        InstanceAllocationType.NEW_INSTANCE_NEW_TASK,
+        InstanceAllocationType.EXISTING_INSTANCE_NEW_TASK,
+        InstanceAllocationType.INVALID_INSTANCE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface InstanceAllocationType {
+        int DEFAULT = 0;
+        int EXISTING_INSTANCE_UNMAPPED_TASK = 1;
+        int EXISTING_INSTANCE_MAPPED_TASK = 2;
+        int PREFER_NEW_INSTANCE_NEW_TASK = 3;
+        int PREFER_NEW_INVALID_INSTANCE = 4;
+        int NEW_INSTANCE_NEW_TASK = 5;
+        int EXISTING_INSTANCE_NEW_TASK = 6;
+        int INVALID_INSTANCE = 7;
+    }
+
+    /** A class that holds information about an allocated instance ID. */
+    public static class AllocatedIdInfo {
+        public final int instanceId;
+        public final @InstanceAllocationType int allocationType;
+        public final @SupportedProfileType int profileType;
+
+        public AllocatedIdInfo(
+                int instanceId,
+                @InstanceAllocationType int allocationType,
+                @SupportedProfileType int profileType) {
+            this.instanceId = instanceId;
+            this.allocationType = allocationType;
+            this.profileType = profileType;
+        }
     }
 
     /** Should be called when multi-instance mode is started. */
@@ -304,14 +341,6 @@ public abstract class MultiInstanceManager {
     }
 
     /**
-     * @return List of {@link InstanceInfo} structs for an activity that can be switched to, or
-     *     newly launched.
-     */
-    public List<InstanceInfo> getInstanceInfo() {
-        return getInstanceInfo(PersistedInstanceType.ANY);
-    }
-
-    /**
      * @return List of {@link InstanceInfo} structs with {@link PersistedInstanceType} {@param type}
      *     for an activity that can be switched to, or newly launched.
      */
@@ -326,18 +355,19 @@ public abstract class MultiInstanceManager {
      * @param taskId Task ID of the activity.
      * @param preferNew Boolean indicating a fresh new instance is preferred over the one that will
      *     load previous tab files from disk.
-     * @param profileType The type of tab/profile the activity supports.
+     * @param isIncognitoIntent Whether the allocated id is for an Incognito window.
      */
-    public abstract Pair<Integer, Integer> allocInstanceId(
-            int windowId, int taskId, boolean preferNew, @SupportedProfileType int profileType);
+    public abstract AllocatedIdInfo allocInstanceId(
+            int windowId, int taskId, boolean preferNew, boolean isIncognitoIntent);
 
     /**
      * Initialize the manager with the allocated instance ID.
      *
      * @param instanceId Instance ID of the activity.
      * @param taskId Task ID of the activity.
+     * @param profileType The type of tab/profile the activity supports
      */
-    public void initialize(int instanceId, int taskId) {}
+    public void initialize(int instanceId, int taskId, @SupportedProfileType int profileType) {}
 
     /** Perform initialization tasks for the manager after the tab state is initialized. */
     public void onTabStateInitialized() {}
@@ -363,6 +393,17 @@ public abstract class MultiInstanceManager {
     public boolean closeChromeWindowIfEmpty(int instanceId) {
         return false;
     }
+
+    /**
+     * Open the window for the specified instance. If a live activity exists for the instance, it
+     * will be brought to the foreground. If the instance is inactive, it will be restored in a new
+     * activity in a new task.
+     *
+     * @param instanceId ID of the instance whose window should be brought to the foreground.
+     * @param source The {@link NewWindowAppSource} that reflects the source of new activity
+     *     creation for an inactive instance, used for metrics.
+     */
+    public void openWindow(int instanceId, @NewWindowAppSource int source) {}
 
     /**
      * Close the window associated with a given task / activity. This will permanently and

@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
@@ -242,8 +243,8 @@ TEST_F(AudioServiceOutputDeviceTest, MAYBE_VerifyDataFlow) {
         .WillOnce(WithArg<3>([](media::AudioBus* client_bus) -> int {
           // Place some test data in the bus so that we can check that it was
           // copied to the audio service side.
-          std::ranges::fill(client_bus->channel_span(0), kAudioData);
-          std::ranges::fill(client_bus->channel_span(1), kAudioData);
+          std::ranges::fill(client_bus->channel(0), kAudioData);
+          std::ranges::fill(client_bus->channel(1), kAudioData);
           return client_bus->frames();
         }));
     env.reader->RequestMoreData(kDelay, env.time_stamp, glitch_info);
@@ -254,8 +255,8 @@ TEST_F(AudioServiceOutputDeviceTest, MAYBE_VerifyDataFlow) {
       return sample == kAudioData;
     };
 
-    EXPECT_TRUE(std::ranges::all_of(test_bus->channel_span(0), samples_match));
-    EXPECT_TRUE(std::ranges::all_of(test_bus->channel_span(1), samples_match));
+    EXPECT_TRUE(std::ranges::all_of(test_bus->channel(0), samples_match));
+    EXPECT_TRUE(std::ranges::all_of(test_bus->channel(1), samples_match));
   }
 }
 

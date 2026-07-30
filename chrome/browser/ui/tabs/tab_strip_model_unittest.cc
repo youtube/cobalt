@@ -453,7 +453,6 @@ class TabStripModelTest : public testing::TestWithParam<bool> {
 
   void SetUp() override {
     std::vector<base::test::FeatureRef> enabled_features = {
-        features::kSideBySide, features::kSideBySideSessionRestore,
         features::kTabGroupsFocusing};
     std::vector<base::test::FeatureRef> disabled_features;
     if (GetParam()) {
@@ -874,7 +873,7 @@ TEST_P(TabStripModelTest, TestTabHandlesAcrossModels) {
   EXPECT_EQ(nullptr, owned_tab.get()->opener());
   EXPECT_EQ(false, owned_tab.get()->reset_opener_on_active_tab_change());
   EXPECT_EQ(false, handle.Get()->IsPinned());
-  EXPECT_EQ(false, owned_tab.get()->blocked());
+  EXPECT_EQ(false, owned_tab.get()->IsBlocked());
 
   // Add it back into the tabstrip()->
 
@@ -6786,6 +6785,27 @@ TEST_P(TabStripModelTest, RemoveLeftTabInSplitActivatesRemainingTab) {
   tabstrip()->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
 
   // Verify that the other half of the split is now active.
+  EXPECT_EQ(tabstrip()->active_index(), 0);
+  ExpectSelectionIsExactly(tabstrip(), {0});
+}
+
+TEST_P(TabStripModelTest,
+       RemoveRightTabInSplitActivatesRemainingTabNotBackgroundTab) {
+  // Add 3 tabs to the tabstrip model. Tabs 0 and 2 are in a split view.
+  PrepareTabs(tabstrip(), 3);
+  tabstrip()->ActivateTabAt(0);
+
+  // Create split with tabs 0 and 2.
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData(),
+                            split_tabs::SplitTabCreatedSource::kToolbarButton);
+  tabstrip()->ActivateTabAt(1);
+  EXPECT_EQ("0s 2s 1", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ(tabstrip()->active_index(), 1);
+
+  // Close the right side of split (tab 2).
+  tabstrip()->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
+
+  // Tab 0 (other split half) should be active, NOT tab 1 (background tab).
   EXPECT_EQ(tabstrip()->active_index(), 0);
   ExpectSelectionIsExactly(tabstrip(), {0});
 }

@@ -11,10 +11,11 @@ import android.widget.Button;
 import android.widget.ImageButton;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
@@ -40,7 +41,7 @@ public class HubToolbarCoordinator {
     private final MenuButton mMenuButton;
     private final UserEducationHelper mUserEducationHelper;
     private final ObservableSupplier<Boolean> mIsAnimatingSupplier;
-    private final @Nullable ObservableSupplier<Boolean> mBottomToolbarVisibilitySupplier;
+    private final @Nullable NonNullObservableSupplier<Boolean> mBottomToolbarVisibilitySupplier;
     private final HubActionButtonCoordinator mActionButtonCoordinator;
 
     /**
@@ -68,8 +69,8 @@ public class HubToolbarCoordinator {
             HubColorMixer hubColorMixer,
             UserEducationHelper userEducationHelper,
             ObservableSupplier<Boolean> isHubAnimatingSupplier,
-            @Nullable ObservableSupplier<Boolean> bottomToolbarVisibilitySupplier,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            @Nullable NonNullObservableSupplier<Boolean> bottomToolbarVisibilitySupplier,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             Runnable exitHubRunnable) {
         mUserEducationHelper = userEducationHelper;
         mMenuButtonCoordinator = menuButtonCoordinator;
@@ -108,9 +109,7 @@ public class HubToolbarCoordinator {
                 activity.getString(R.string.accessibility_tab_switcher_toolbar_btn_menu));
         menuButtonCoordinator.setMenuButton(mMenuButton);
 
-        if (ChromeFeatureList.sTabGroupEntryPointsAndroid.isEnabled()) {
-            mIsAnimatingSupplier.addSyncObserver(mIsAnimatingObserver);
-        }
+        mIsAnimatingSupplier.addSyncObserver(mIsAnimatingObserver);
     }
 
     private void tryToTriggerAddToGroupIph(boolean isAnimating) {

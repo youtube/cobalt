@@ -32,6 +32,7 @@
 #include "ui/views/widget/widget_observer.h"
 
 class Browser;
+class SkRegion;
 
 namespace tabs {
 class TabInterface;
@@ -87,7 +88,8 @@ class GlicInstanceCoordinatorImpl
   void ContextAccessIndicatorChanged(GlicInstanceImpl& instance,
                                      bool enabled) override;
 
-  // GlicWindowController and GlicInstanceCoordinatorMetrics::DataProvider implementation
+  // GlicWindowController and GlicInstanceCoordinatorMetrics::DataProvider
+  // implementation
   std::vector<GlicInstance*> GetInstances() override;
   // GlicWindowController implementation
   HostManager& host_manager() override;
@@ -113,6 +115,7 @@ class GlicInstanceCoordinatorImpl
 
   void AddGlobalStateObserver(StateObserver* observer) override;
   void RemoveGlobalStateObserver(StateObserver* observer) override;
+  void SetDraggableRegion(const SkRegion& draggable_region) override;
 
   bool IsDetached() const override;
   bool IsPanelShowingForBrowser(
@@ -159,6 +162,7 @@ class GlicInstanceCoordinatorImpl
   GlicInstanceImpl* GetInstanceImplForTab(const tabs::TabInterface* tab) const;
   GlicInstanceImpl* GetOrCreateInstanceImplForFloaty();
   GlicInstanceImpl* CreateGlicInstance();
+  std::unique_ptr<GlicInstanceImpl> CreateInstanceImpl();
   void CreateWarmedInstance();
 
   void ToggleFloaty(bool prevent_close, glic::mojom::InvocationSource source);

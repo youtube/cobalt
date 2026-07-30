@@ -19,6 +19,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.Stage;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,6 +38,7 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
+import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -59,7 +61,9 @@ import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.messages.MessageStateHandler;
 import org.chromium.components.messages.MessagesTestHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -109,6 +113,38 @@ public class MultiInstanceManagerApi31Test {
                             mMultiInstanceManager.closeWindow(
                                     activity.getWindowIdForTesting(), CloseWindowAppSource.OTHER));
         }
+    }
+
+    @Test
+    @SmallTest
+    public void testTabModelSelectorObserverOnTabStateInitialized() {
+        ChromeTabbedActivity activity = mActivityTestRule.getActivity();
+
+        // Get the original value of |mCreatedTabOnStartup|.
+        boolean createdTabOnStartup = activity.getCreatedTabOnStartupForTesting();
+
+        // Reset the values of |mCreatedTabOnStartup| and |MultiInstanceManager.mTabModelObserver|.
+        // This tab model selector observer should be registered in MultiInstanceManager on tab
+        // state initialization irrespective of the value of |mCreatedTabOnStartup|.
+        activity.setCreatedTabOnStartupForTesting(false);
+        activity.getMultiInstanceMangerForTesting().setTabModelObserverForTesting(null);
+
+        var tabModelSelectorObserver = activity.getTabModelSelectorObserverForTesting();
+        ThreadUtils.runOnUiThreadBlocking(tabModelSelectorObserver::onTabStateInitialized);
+        Assert.assertEquals(
+                "Regular tab count should be written to persistent store after tab state"
+                        + " initialization.",
+                1,
+                MultiInstancePersistentStore.readNormalTabCount(activity.getWindowIdForTesting()));
+        Assert.assertEquals(
+                "Incognito tab count should be written to persistent store after tab state"
+                        + " initialization.",
+                0,
+                MultiInstancePersistentStore.readIncognitoTabCount(
+                        activity.getWindowIdForTesting()));
+
+        // Restore the original value of |mCreatedTabOnStartup|.
+        activity.setCreatedTabOnStartupForTesting(createdTabOnStartup);
     }
 
     // Initial state: max limit = 4, active tasks = 4, inactive tasks = 0.
@@ -287,6 +323,7 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     @Features.EnableFeatures({
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
         ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
@@ -320,6 +357,7 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     @Features.EnableFeatures({
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
         ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
@@ -410,6 +448,66 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    @Features.EnableFeatures({
+        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
+    public void moveTabGroupToOtherWindow_multipleWindowsOpen_incognitoWindow_hideTargetSelector() {
+        createNewWindows(
+                mActivityTestRule.getActivity(),
+                /* numWindows= */ 2,
+                /* addIncognitoExtras= */ true);
+        TabGroupMetadata tabGroupMetadata = getTabGroupMetaData();
+
+        ChromeTabbedActivity newWindow =
+                ApplicationTestUtils.waitForActivityWithClass(
+                        ChromeTabbedActivity.class,
+                        Stage.RESUMED,
+                        () ->
+                                mMultiInstanceManager.moveTabGroupToOtherWindow(
+                                        tabGroupMetadata,
+                                        MultiInstanceManager.NewWindowAppSource.WINDOW_MANAGER));
+        assertFalse(
+                "Target selector dialog should not be visible", mModalDialogManager.isShowing());
+        assertFalse("New window should not be incognito", newWindow.isIncognitoWindow());
+    }
+
+    @Test
+    @SmallTest
+    @Features.EnableFeatures({
+        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
+    public void moveTabGroupToOtherWindow_multipleWindowsOpen_incognitoWindow_showTargetSelector() {
+        createNewWindows(
+                mActivityTestRule.getActivity(),
+                /* numWindows= */ 3,
+                /* addIncognitoExtras= */ true);
+        TabGroupMetadata incognitoTabGroupMetadata =
+                new TabGroupMetadata(
+                        /* selectedTabId= */ TAB1_ID,
+                        /* sourceWindowId= */ 1,
+                        TAB_GROUP_ID1,
+                        TAB_IDS_TO_URLS,
+                        /* tabGroupColor= */ 0,
+                        TAB_GROUP_TITLE,
+                        /* mhtmlTabTitle= */ null,
+                        /* tabGroupCollapsed= */ true,
+                        /* isGroupShared= */ false,
+                        /* isIncognito= */ true);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mMultiInstanceManager.moveTabGroupToOtherWindow(
+                            incognitoTabGroupMetadata,
+                            MultiInstanceManager.NewWindowAppSource.WINDOW_MANAGER);
+                });
+        assertTrue("Target selector dialog should be visible", mModalDialogManager.isShowing());
+    }
+
+    @Test
+    @SmallTest
     public void openUrlInOtherWindow_multipleWindowsOpen() {
         createNewWindow(
                 mActivityTestRule.getActivity(),
@@ -477,6 +575,7 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @DisableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
     public void openUrlInOtherWindow_openInNewWindow_reachInstanceLimit() {
         MultiWindowUtils.setMaxInstancesForTesting(5);
         ChromeTabbedActivity firstActivity = mActivityTestRule.getActivity();
@@ -502,6 +601,7 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     @Features.EnableFeatures({
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
         ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
@@ -533,6 +633,7 @@ public class MultiInstanceManagerApi31Test {
 
     @Test
     @SmallTest
+    @Restriction({DeviceFormFactor.TABLET_OR_DESKTOP, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     @Features.EnableFeatures({
         ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
         ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT

@@ -62,6 +62,7 @@ public class CustomTabContextMenuTest {
 
     @Before
     public void setUp() {
+        ChromeContextMenuPopulator.setIsDefaultBrowserForTesting(false);
         ThreadUtils.runOnUiThreadBlocking(() -> FirstRunStatus.setFirstRunFlowComplete(true));
 
         EmbeddedTestServer testServer =
@@ -104,8 +105,7 @@ public class CustomTabContextMenuTest {
         ContextMenuCoordinator menuCoordinator = ContextMenuUtils.openContextMenu(tab, "testLink");
 
         Integer[] expectedItems = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -127,8 +127,7 @@ public class CustomTabContextMenuTest {
         ContextMenuCoordinator menuCoordinator = ContextMenuUtils.openContextMenu(tab, "testLink");
 
         Integer[] expectedItems = {
-            R.id.contextmenu_open_in_new_chrome_tab,
-            R.id.contextmenu_open_in_chrome_incognito_tab,
+            R.id.contextmenu_open_in_browser_id,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,

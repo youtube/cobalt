@@ -252,6 +252,8 @@ public final class AccessibilityNodeInfoUtils {
             builder.append(" partiallyChecked");
         }
 
+        // TODO(crbug.com/443078007): Add extended selection to the expected text.
+
         // Child objects - print for non-null cases.
         if (node.getCollectionInfo() != null) {
             builder.append(" CollectionInfo:").append(toString(node.getCollectionInfo()));
@@ -342,6 +344,7 @@ public final class AccessibilityNodeInfoUtils {
         if (collectionItemInfo.getColumnSpan() != 1) {
             prefix += String.format("colSpan=%s, ", collectionItemInfo.getColumnSpan());
         }
+        // TODO(crbug.com/458146866): Print sort direction in AccessibilityNodeInfoUtils.
         return String.format(
                 "%srowIndex=%s, colIndex=%s]",
                 prefix, collectionItemInfo.getRowIndex(), collectionItemInfo.getColumnIndex());

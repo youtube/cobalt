@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -21,7 +22,7 @@ class ScriptState;
 class V8PermissionState;
 
 class MODULES_EXPORT IdleManager final : public GarbageCollected<IdleManager>,
-                                         public GarbageCollectedMixin {
+                                         public Supplement<ExecutionContext> {
  public:
   static const unsigned kSupplementIndex;
 
@@ -44,7 +45,6 @@ class MODULES_EXPORT IdleManager final : public GarbageCollected<IdleManager>,
   void OnPermissionRequestComplete(ScriptPromiseResolver<V8PermissionState>*,
                                    mojom::blink::PermissionStatus);
 
-  Member<ExecutionContext> execution_context_;
   HeapMojoRemote<mojom::blink::IdleManager> idle_service_;
   HeapMojoRemote<mojom::blink::PermissionService> permission_service_;
 };

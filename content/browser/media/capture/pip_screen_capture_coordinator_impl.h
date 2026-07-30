@@ -27,12 +27,10 @@ class CONTENT_EXPORT PipScreenCaptureCoordinatorImpl {
 
   class Observer : public base::CheckedObserver {
    public:
-    // Called with the NativeWindowId of the PiP window when it is
-    // shown, or nullopt when it is closed.
-    virtual void OnPipWindowIdChanged(
-        std::optional<NativeWindowId> new_pip_window_id) = 0;
-    // Called when the list of captures changes.
-    virtual void OnCapturesChanged(
+    // Called when the state of the coordinator changes.
+    virtual void OnStateChanged(
+        std::optional<NativeWindowId> new_pip_window_id,
+        const GlobalRenderFrameHostId& new_pip_owner_render_frame_host_id,
         const std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo>&
             captures) = 0;
   };
@@ -44,11 +42,16 @@ class CONTENT_EXPORT PipScreenCaptureCoordinatorImpl {
   PipScreenCaptureCoordinatorImpl& operator=(
       const PipScreenCaptureCoordinatorImpl&) = delete;
 
-  void OnPipShown(WebContents& pip_web_contents);
-  void OnPipShown(NativeWindowId pip_window_id);
+  void OnPipShown(
+      WebContents& pip_web_contents,
+      const GlobalRenderFrameHostId& pip_owner_render_frame_host_id);
+  void OnPipShown(
+      NativeWindowId pip_window_id,
+      const GlobalRenderFrameHostId& pip_owner_render_frame_host_id);
   void OnPipClosed();
 
   std::optional<NativeWindowId> PipWindowId() const;
+  GlobalRenderFrameHostId GetPipOwnerRenderFrameHostId() const;
   std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo> Captures() const;
 
   std::unique_ptr<PipScreenCaptureCoordinatorProxy> CreateProxy();
@@ -62,10 +65,12 @@ class CONTENT_EXPORT PipScreenCaptureCoordinatorImpl {
   void AddCaptureOnUIThread(
       PipScreenCaptureCoordinatorProxy::CaptureInfo capture_info);
   void RemoveCaptureOnUIThread(const base::UnguessableToken& session_id);
+  void NotifyStateChanged();
   friend class base::NoDestructor<PipScreenCaptureCoordinatorImpl>;
   PipScreenCaptureCoordinatorImpl();
 
   std::optional<NativeWindowId> pip_window_id_;
+  GlobalRenderFrameHostId pip_owner_render_frame_host_id_;
   base::ObserverList<Observer> observers_;
   std::vector<PipScreenCaptureCoordinatorProxy::CaptureInfo> captures_;
   base::WeakPtrFactory<PipScreenCaptureCoordinatorImpl> weak_factory_{this};

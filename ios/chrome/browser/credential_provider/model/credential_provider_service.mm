@@ -81,11 +81,18 @@ ErrorForReportingForASCredentialIdentityStoreErrorCode(
   return CredentialIdentityStoreErrorForReporting::kUnknownError;
 }
 
+// We can't sync store when the app is backgrounded, as it loses access to files
+// and stores provided by iOS.
+bool CanSyncStore() {
+  return UIApplication.sharedApplication.applicationState ==
+         UIApplicationStateActive;
+}
+
 // Writes ASCredentialIdentity objects corresponding to `credentials` into the
 // ASCredentialIdentityStore used for OS-initated credential lookups.
 void SyncASIdentityStore(NSArray<id<Credential>>* credentials) {
   auto stateCompletion = ^(ASCredentialIdentityStoreState* state) {
-    if (!state.enabled) {
+    if (!state.enabled || !CanSyncStore()) {
       return;
     }
     auto replaceCompletion = ^(BOOL success, NSError* error) {
@@ -326,13 +333,15 @@ void CredentialProviderService::SyncAllCredentials(
   // We only sync passkeys into the account store.
   if (passkey_model_ && (store == account_password_store_)) {
     AddCredentials(memoryCredentialStore,
-                   passkey_model_->GetUnShadowedPasskeys());
+                   passkey_model_->GetPasskeys(
+                       webauthn::PasskeyModel::AnyRp(),
+                       webauthn::PasskeyModel::ShadowedCredentials::kExclude));
   }
   SyncStore();
 }
 
 void CredentialProviderService::SyncStore() {
-  if (!IsLastUsedProfile()) {
+  if (!IsLastUsedProfile() || !CanSyncStore()) {
     return;
   }
 
@@ -362,6 +371,10 @@ void CredentialProviderService::SyncStore() {
 
 void CredentialProviderService::CompleteSync(
     NSArray<id<Credential>>* credentials) {
+  if (!CanSyncStore()) {
+    return;
+  }
+
   [dual_credential_store_ removeAllCredentials];
   for (id<Credential> credential in credentials) {
     [dual_credential_store_ addCredential:credential];

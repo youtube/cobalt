@@ -18,9 +18,9 @@ import type {Origin} from '//resources/mojo/url/mojom/origin.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {PageMetadata as PageMetadataMojo} from '../../ai_page_content_metadata.mojom-webui.js';
-import type {AnnotatedPageData as AnnotatedPageDataMojo, CaptureRegionResult as CaptureRegionResultMojo, ContextData as ContextDataMojo, ConversationInfo as ConversationInfoMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PdfDocumentData as PdfDocumentDataMojo, Screenshot as ScreenshotMojo, TabContext as TabContextMojo, TabData as TabDataMojo, WebPageData as WebPageDataMojo} from '../../glic.mojom-webui.js';
-import {WebClientMode as WebClientModeMojo} from '../../glic.mojom-webui.js';
-import type {CaptureRegionResult, ConversationInfo, GetPinCandidatesOptions, HostCapability, PageMetadata, PanelOpeningData, PanelState, Screenshot, TabContextOptions, TaskOptions, WebPageData} from '../../glic_api/glic_api.js';
+import type {AnnotatedPageData as AnnotatedPageDataMojo, CaptureRegionResult as CaptureRegionResultMojo, ContextData as ContextDataMojo, ConversationInfo as ConversationInfoMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PdfDocumentData as PdfDocumentDataMojo, PinTabsOptions as PinTabsOptionsMojo, Screenshot as ScreenshotMojo, TabContext as TabContextMojo, TabData as TabDataMojo, UnpinTabsOptions as UnpinTabsOptionsMojo, WebPageData as WebPageDataMojo} from '../../glic.mojom-webui.js';
+import {PinTrigger as PinTriggerMojo, UnpinTrigger as UnpinTriggerMojo, WebClientMode as WebClientModeMojo} from '../../glic.mojom-webui.js';
+import type {CaptureRegionResult, ConversationInfo, GetPinCandidatesOptions, HostCapability, PageMetadata, PanelOpeningData, PanelState, PinTabsOptions, PinTrigger, Screenshot, TabContextOptions, TaskOptions, UnpinTabsOptions, UnpinTrigger, WebPageData} from '../../glic_api/glic_api.js';
 import {DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, WebClientMode} from '../../glic_api/glic_api.js';
 
 import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
@@ -399,6 +399,36 @@ export function getPinCandidatesOptionsFromClient(
   };
 }
 
+export function pinTriggerToMojo(trigger: PinTrigger|undefined):
+    PinTriggerMojo {
+  return (trigger ?? PinTriggerMojo.kWebClientUnknown) as PinTriggerMojo;
+}
+
+export function pinTabsOptionsToMojo(options: PinTabsOptions|undefined):
+    PinTabsOptionsMojo|null {
+  if (!options) {
+    return null;
+  }
+  return {
+    pinTrigger: pinTriggerToMojo(options.pinTrigger),
+  };
+}
+
+export function unpinTriggerToMojo(trigger: UnpinTrigger|undefined):
+    UnpinTriggerMojo {
+  return (trigger ?? UnpinTriggerMojo.kWebClientUnknown) as UnpinTriggerMojo;
+}
+
+export function unpinTabsOptionsToMojo(options: UnpinTabsOptions|undefined):
+    UnpinTabsOptionsMojo|null {
+  if (!options) {
+    return null;
+  }
+  return {
+    unpinTrigger: unpinTriggerToMojo(options.unpinTrigger),
+  };
+}
+
 export function byteArrayFromClient(buffer: ArrayBuffer): number[] {
   const byteArray = new Uint8Array(buffer);
   return Array.from(byteArray);
@@ -563,8 +593,9 @@ export function webClientModeToMojo(mode: WebClientMode|undefined):
       return WebClientModeMojo.kAudio;
     case WebClientMode.TEXT:
       return WebClientModeMojo.kText;
+    default:
+      return WebClientModeMojo.kUnknown;
   }
-  return WebClientModeMojo.kUnknown;
 }
 
 export function captureRegionResultToClient(

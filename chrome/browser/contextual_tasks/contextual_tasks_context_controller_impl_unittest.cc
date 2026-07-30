@@ -10,13 +10,14 @@
 
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/uuid.h"
 #include "chrome/browser/contextual_tasks/mock_contextual_tasks_context_controller.h"
+#include "chrome/test/base/testing_profile.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
+#include "content/public/test/browser_task_environment.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,8 +33,9 @@ using ::testing::Return;
 class ContextualTasksContextControllerImplTest : public testing::Test {
  public:
   void SetUp() override {
-    controller_ =
-        std::make_unique<ContextualTasksContextControllerImpl>(&mock_service_);
+    profile_ = TestingProfile::Builder().Build();
+    controller_ = std::make_unique<ContextualTasksContextControllerImpl>(
+        profile_.get(), &mock_service_);
   }
 
   void TearDown() override { controller_.reset(); }
@@ -106,8 +108,9 @@ class ContextualTasksContextControllerImplTest : public testing::Test {
     return result;
   }
 
-  base::test::TaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_;
   base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<TestingProfile> profile_;
   // Mock service to control the behavior of ContextualTasksService.
   MockContextualTasksContextController mock_service_;
   // The controller under test.
@@ -326,6 +329,20 @@ TEST_F(ContextualTasksContextControllerImplTest, GetFeatureEligibility) {
   EXPECT_EQ(actual_eligibility.contextual_tasks_enabled,
             expected_eligibility.contextual_tasks_enabled);
   EXPECT_EQ(actual_eligibility.aim_eligible, expected_eligibility.aim_eligible);
+}
+
+TEST_F(ContextualTasksContextControllerImplTest,
+       SetUrlResourcesFromServer_CallsService) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  std::vector<UrlResource> url_resources;
+  url_resources.emplace_back(base::Uuid::GenerateRandomV4(),
+                             GURL("https://resource1.com"));
+  url_resources.emplace_back(base::Uuid::GenerateRandomV4(),
+                             GURL("https://resource2.com"));
+
+  EXPECT_CALL(mock_service_, SetUrlResourcesFromServer(task_id, _)).Times(1);
+
+  controller_->SetUrlResourcesFromServer(task_id, url_resources);
 }
 
 TEST_F(ContextualTasksContextControllerImplTest, GetContextForTask_WithParams) {

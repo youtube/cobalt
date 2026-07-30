@@ -39,27 +39,24 @@ class AddToHomescreenMediator {
   // After initialization, SetWebAppInfo and SetIcon should be called to update
   // the UI accordingly.
   AddToHomescreenMediator(
-      const base::android::JavaParamRef<jobject>& java_ref,
-      const base::android::JavaParamRef<jobject>& java_web_contents);
+      const base::android::JavaRef<jobject>& java_ref,
+      const base::android::JavaRef<jobject>& java_web_contents);
 
-  void StartForAppBanner(
-      std::unique_ptr<AddToHomescreenParams> params,
-      base::RepeatingCallback<void(AddToHomescreenInstaller::Event,
-                                   const AddToHomescreenParams&)>
-          event_callback);
+  void StartForAppBanner(std::unique_ptr<AddToHomescreenParams> params,
+                         AddToHomescreenEventCallback event_callback);
 
   // These 2 methods are called from the coordinator when the current flow
   // started with startForAppMenu.
   void OnAppMetadataAvailable(const std::u16string& user_title,
                               const GURL& url,
-                              AddToHomescreenParams::AppType app_type);
+                              AddToHomescreenParams::AppType app_type,
+                              AddToHomescreenEventCallback event_callback);
   void OnFullAppDataAvailable(std::unique_ptr<AddToHomescreenParams> params);
 
   // Called from the Java side when the user accepts app installation from the
   // dialog.
-  void AddToHomescreen(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jstring>& j_user_title);
+  void AddToHomescreen(JNIEnv* env,
+                       const base::android::JavaRef<jstring>& j_user_title);
 
   // Called from the Java side when the installation UI is dismissed.
   void OnUiDismissed(JNIEnv* env);
@@ -82,9 +79,6 @@ class AddToHomescreenMediator {
                      const GURL& url,
                      AddToHomescreenParams::AppType app_type);
 
-  void RecordEventForAppMenu(AddToHomescreenInstaller::Event event,
-                             const AddToHomescreenParams& a2hs_params);
-
   // Points to the Java reference.
   base::android::ScopedJavaGlobalRef<jobject> java_ref_;
 
@@ -92,9 +86,7 @@ class AddToHomescreenMediator {
 
   std::unique_ptr<AddToHomescreenParams> params_;
 
-  base::RepeatingCallback<void(AddToHomescreenInstaller::Event,
-                               const AddToHomescreenParams&)>
-      event_callback_;
+  AddToHomescreenEventCallback event_callback_;
 
   AddToHomescreenMediator(const AddToHomescreenMediator&) = delete;
   AddToHomescreenMediator& operator=(const AddToHomescreenMediator&) = delete;

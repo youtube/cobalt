@@ -6,22 +6,27 @@
 
 #include "base/check_deref.h"
 #include "base/logging.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "components/signin/public/base/consent_level.h"
-#include "components/signin/public/identity_manager/access_token_info.h"
-#include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
+#include "components/application_locale_storage/application_locale_storage.h"
+#include "components/contextual_tasks/public/context_decoration_params.h"
+#include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_task_context.h"
+#include "components/contextual_tasks/public/features.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_constants.h"
-#include "google_apis/gaia/google_service_auth_error.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "url/gurl.h"
 
@@ -37,16 +42,39 @@ void OpenUrlInNewTab(content::WebUI* web_ui, const GURL& url) {
   Navigate(&params);
 }
 
+std::vector<contextual_tasks::mojom::TabPtr> TabsFromContext(
+    std::unique_ptr<contextual_tasks::ContextualTaskContext> context) {
+  if (!context) {
+    return {};
+  }
+
+  std::vector<contextual_tasks::mojom::TabPtr> tabs;
+
+  for (const auto& attachment : context->GetUrlAttachments()) {
+    auto tab = contextual_tasks::mojom::Tab::New();
+    tab->tab_id = attachment.GetTabSessionId().id();
+    tab->title = base::UTF16ToUTF8(attachment.GetTitle());
+    tab->url = attachment.GetURL();
+    tabs.push_back(std::move(tab));
+  }
+
+  return tabs;
+}
+
 }  // namespace
 
 ContextualTasksPageHandler::ContextualTasksPageHandler(
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> receiver,
     ContextualTasksUI* web_ui_controller,
-    contextual_tasks::ContextualTasksUiService* ui_service)
+    contextual_tasks::ContextualTasksUiService* ui_service,
+    contextual_tasks::ContextualTasksContextController* context_controller)
     : receiver_(this, std::move(receiver)),
-
       web_ui_controller_(web_ui_controller),
-      ui_service_(ui_service) {}
+      ui_service_(ui_service),
+      context_controller_(context_controller) {
+  CHECK(context_controller_);
+  context_controller_observation_.Observe(context_controller_);
+}
 
 ContextualTasksPageHandler::~ContextualTasksPageHandler() = default;
 
@@ -75,6 +103,9 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
 
 void ContextualTasksPageHandler::SetTaskId(const base::Uuid& uuid) {
   web_ui_controller_->SetTaskId(uuid);
+
+  // Trigger an update to the UI with the initial set of tabs for this task.
+  UpdateContextForTask(uuid);
 }
 
 void ContextualTasksPageHandler::SetThreadTitle(const std::string& title) {
@@ -85,12 +116,11 @@ void ContextualTasksPageHandler::CloseSidePanel() {
   web_ui_controller_->CloseSidePanel();
 }
 
-void ContextualTasksPageHandler::ShowThreadHistory(
-    ShowThreadHistoryCallback callback) {
-  std::vector<contextual_tasks::mojom::ThreadPtr> threads;
-  // TODO(crbug.com/445469925): Query backend asynchronously to get thread
-  // history.
-  std::move(callback).Run(std::move(threads));
+void ContextualTasksPageHandler::ShowThreadHistory() {
+  // Send a message to AIM to open the threads view.
+  lens::ClientToAimMessage message;
+  message.mutable_open_threads_view()->mutable_payload();
+  PostMessageToWebview(message);
 }
 
 void ContextualTasksPageHandler::IsShownInTab(IsShownInTabCallback callback) {
@@ -105,59 +135,16 @@ void ContextualTasksPageHandler::OpenHelpUi() {
   OpenUrlInNewTab(web_ui_controller_->web_ui(), GURL(kHelpUrl));
 }
 
-void ContextualTasksPageHandler::MoveTaskUiToToNewTab() {
+void ContextualTasksPageHandler::MoveTaskUiToNewTab() {
   auto* browser = web_ui_controller_->GetBrowser();
   const auto& task_id = web_ui_controller_->GetTaskId();
   if (!task_id.has_value()) {
     LOG(ERROR) << "Attempted to open in new tab with no valid task ID.";
     return;
   }
-  ui_service_->MoveTaskUiToToNewTab(task_id.value(), browser);
-}
 
-void ContextualTasksPageHandler::GetOAuthToken(GetOAuthTokenCallback callback) {
-  auto* identity_manager = IdentityManagerFactory::GetForProfile(
-      Profile::FromWebUI(web_ui_controller_->web_ui()));
-
-  if (!identity_manager ||
-      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    std::move(callback).Run("");
-    return;
-  }
-
-  // TODO(crbug.com/461596823): Currently just grabs the primary account, but
-  // should use the web identity when available. Additionally, the account
-  // should be grabbed once, and used until this WebUI is closed.
-  // TODO(crbug.com/462138963): Add error handling for when the account
-  // identities fail.
-  auto account =
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
-
-  // A previous fetcher for the same owner will be automatically cancelled.
-  oauth_token_fetcher_ = identity_manager->CreateAccessTokenFetcherForAccount(
-      account.account_id, signin::OAuthConsumerId::kContextualTasks,
-      base::BindOnce(&ContextualTasksPageHandler::OnOAuthTokenReceived,
-                     base::Unretained(this), std::move(callback)),
-      signin::AccessTokenFetcher::Mode::kWaitUntilRefreshTokenAvailable);
-}
-
-void ContextualTasksPageHandler::OnOAuthTokenReceived(
-    GetOAuthTokenCallback callback,
-    GoogleServiceAuthError error,
-    signin::AccessTokenInfo access_token_info) {
-  oauth_token_fetcher_.reset();
-  if (error.state() != GoogleServiceAuthError::NONE) {
-    std::move(callback).Run("");
-    return;
-  }
-  std::move(callback).Run(access_token_info.token);
-}
-
-void ContextualTasksPageHandler::GetAttachedTabs(
-    GetAttachedTabsCallback callback) {
-  std::vector<contextual_tasks::mojom::TabPtr> tabs;
-  // TODO(crbug.com/460614856): Query backend for attached tabs.
-  std::move(callback).Run(std::move(tabs));
+  ui_service_->MoveTaskUiToNewTab(task_id.value(), browser,
+                                  web_ui_controller_->GetInnerFrameUrl());
 }
 
 void ContextualTasksPageHandler::OnTabClickedFromSourcesMenu(int32_t tab_id,
@@ -179,18 +166,35 @@ void ContextualTasksPageHandler::OnWebviewMessage(
 
   if (aim_to_client_message.has_handshake_response()) {
     web_ui_controller_->page()->OnHandshakeComplete();
+    web_ui_controller_->OnSidePanelStateChanged();
+  } else if (aim_to_client_message.has_hide_input()) {
+    web_ui_controller_->page()->HideInput();
+  } else if (aim_to_client_message.has_restore_input()) {
+    web_ui_controller_->page()->RestoreInput();
+  } else if (aim_to_client_message.has_enter_basic_mode()) {
+    web_ui_controller_->page()->HideInput();
+  } else if (aim_to_client_message.has_exit_basic_mode()) {
+    web_ui_controller_->page()->RestoreInput();
   }
 }
 
-void ContextualTasksPageHandler::GetHandshakeMessage(
-    GetHandshakeMessageCallback callback) {
-  lens::ClientToAimMessage message;
-  lens::HandshakePing* ping = message.mutable_handshake_ping();
-  ping->add_capabilities(lens::FeatureCapability::DEFAULT);
-  const size_t size = message.ByteSizeLong();
-  std::vector<uint8_t> serialized_message(size);
-  message.SerializeToArray(&serialized_message[0], size);
-  std::move(callback).Run(serialized_message);
+void ContextualTasksPageHandler::GetCommonSearchParams(
+    bool is_dark_mode,
+    bool is_side_panel,
+    GetCommonSearchParamsCallback callback) {
+  // The server is not yet ready to adapt the side panel UI unless the gsc=2
+  // param is set. So force side panel mode if the temporary feature flag is
+  // enabled.
+  if (contextual_tasks::ShouldForceGscInTabMode()) {
+    is_side_panel = true;
+  }
+  auto params = lens::GetCommonSearchParametersMap(
+      /*country_code=*/g_browser_process->GetFeatures()
+          ->application_locale_storage()
+          ->Get(),
+      is_dark_mode, is_side_panel);
+  std::move(callback).Run(
+      base::flat_map<std::string, std::string>(params.begin(), params.end()));
 }
 
 void ContextualTasksPageHandler::PostMessageToWebview(
@@ -212,4 +216,35 @@ void ContextualTasksPageHandler::PostMessageToWebview(
   }
 
   web_ui_controller_->page()->PostMessageToWebview(serialized_message);
+}
+
+void ContextualTasksPageHandler::OnTaskUpdated(
+    const contextual_tasks::ContextualTask& task,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  if (!web_ui_controller_->page()) {
+    return;
+  }
+
+  const auto& current_task_id = web_ui_controller_->GetTaskId();
+  if (current_task_id != task.GetTaskId()) {
+    return;
+  }
+
+  UpdateContextForTask(task.GetTaskId());
+}
+
+void ContextualTasksPageHandler::UpdateContextForTask(
+    const base::Uuid& task_id) {
+  context_controller_->GetContextForTask(
+      task_id, {contextual_tasks::ContextualTaskContextSource::kTabStrip},
+      std::make_unique<contextual_tasks::ContextDecorationParams>(),
+      base::BindOnce(
+          [](base::WeakPtr<ContextualTasksPageHandler> self,
+             std::unique_ptr<contextual_tasks::ContextualTaskContext> context) {
+            if (self && self->web_ui_controller_->page()) {
+              self->web_ui_controller_->page()->OnContextUpdated(
+                  TabsFromContext(std::move(context)));
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr()));
 }

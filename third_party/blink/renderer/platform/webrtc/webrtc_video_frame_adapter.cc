@@ -235,11 +235,13 @@ WebRtcVideoFrameAdapter::SharedResources::ConstructVideoFrameFromTexture(
   viz::RasterContextProvider::ScopedRasterContextLock scoped_context(
       raster_context_provider.get());
 
+  // NV12 textures shouldn't be readback via conversion to NV12.
   if (!disable_gmb_frames_ &&
       CanUseGpuMemoryBufferReadback(
           source_frame->format(),
           raster_context_provider->SharedImageInterface(),
-          raster_context_provider->ContextCapabilities())) {
+          raster_context_provider->ContextCapabilities()) &&
+      source_frame->format() != media::PIXEL_FORMAT_NV12) {
     if (!accelerated_frame_pool_) {
       accelerated_frame_pool_ =
           media::RenderableGpuMemoryBufferVideoFramePool::Create(
@@ -284,7 +286,7 @@ WebRtcVideoFrameAdapter::SharedResources::ConstructVideoFrameFromTexture(
 #if BUILDFLAG(IS_WIN)
         // For shared memory GMBs on Windows we needed to explicitly request a
         // copy from the shared image GPU texture to the GMB.
-        CHECK(dst_frame->HasMappableGpuBuffer());
+        CHECK(dst_frame->HasMappableSharedImage());
         CHECK(!dst_frame->HasNativeGpuMemoryBuffer());
 
         auto* sii = raster_context_provider->SharedImageInterface();
@@ -336,7 +338,7 @@ WebRtcVideoFrameAdapter::SharedResources::ConstructVideoFrameFromGpu(
   // NV12 is the only supported format.
   DCHECK_EQ(source_frame->format(), media::PIXEL_FORMAT_NV12);
   DCHECK_EQ(source_frame->storage_type(),
-            media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER);
+            media::VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE);
 
   // This is necessary because mapping may require waiting on IO thread,
   // but webrtc API is synchronous.
@@ -355,7 +357,7 @@ void WebRtcVideoFrameAdapter::SharedResources::ScaleAndMapFrameAsync(
 
   if (frame->natural_size() == frame->visible_rect().size() &&
       frame->natural_size() == frame->coded_size() &&
-      frame->HasMappableGpuBuffer()) {
+      frame->HasMappableSharedImage()) {
     media::ConvertToMemoryMappedFrameAsync(frame, std::move(callback));
     return;
   }
@@ -383,8 +385,17 @@ void WebRtcVideoFrameAdapter::SharedResources::ScaleAndMapFrameAsync(
     {
       // Blocking is necessary to create the GpuMemoryBuffer from this thread.
       base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+      gfx::ColorSpace color_space = frame->ColorSpace();
+      // RGB formats will be converted to YUV, so original color space
+      // can't be used for scaled frame.
+      if (frame->format() == media::PIXEL_FORMAT_ARGB ||
+          frame->format() == media::PIXEL_FORMAT_ABGR ||
+          frame->format() == media::PIXEL_FORMAT_XRGB ||
+          frame->format() == media::PIXEL_FORMAT_XBGR) {
+        color_space = gfx::ColorSpace::CreateREC601();
+      }
       dst_frame = accelerated_frame_pool_->MaybeCreateVideoFrame(
-          frame->natural_size(), gfx::ColorSpace::CreateREC709());
+          frame->natural_size(), color_space);
     }
 
     if (dst_frame) {
@@ -500,7 +511,7 @@ void WebRtcVideoFrameAdapter::SharedResources::ScaleAndMapFrameAsync(
 
   // if not succeeded in scaling above, just map the frame as is via
   // ConvertToMemoryMappedFrameAsync();
-  if (frame->HasMappableGpuBuffer()) {
+  if (frame->HasMappableSharedImage()) {
     media::ConvertToMemoryMappedFrameAsync(frame, std::move(callback));
   } else {
     frame = media::ReadbackTextureBackedFrameToMemorySync(

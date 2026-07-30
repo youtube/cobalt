@@ -33,9 +33,9 @@ class PipScreenCaptureCoordinatorProxy {
 
   class Observer : public base::CheckedObserver {
    public:
-    virtual void OnPipWindowIdChanged(
-        const std::optional<NativeWindowId>& new_pip_window_id) = 0;
-    virtual void OnCapturesChanged(
+    virtual void OnStateChanged(
+        const std::optional<NativeWindowId>& new_pip_window_id,
+        const GlobalRenderFrameHostId& new_pip_owner_render_frame_host_id,
         const std::vector<CaptureInfo>& captures) = 0;
   };
 
@@ -43,7 +43,11 @@ class PipScreenCaptureCoordinatorProxy {
 
   // Returns the tracked PiP window ID.
   virtual std::optional<NativeWindowId> PipWindowId() const = 0;
+  virtual GlobalRenderFrameHostId GetPipOwnerRenderFrameHostId() const = 0;
   virtual const std::vector<CaptureInfo>& Captures() const = 0;
+
+  virtual std::vector<NativeWindowId> WindowsToExclude(
+      const DesktopMediaID& media_id) const = 0;
 
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;

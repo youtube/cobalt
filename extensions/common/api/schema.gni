@@ -65,7 +65,7 @@ if (enable_extensions) {
     "bluetooth_socket.webidl",
     "bluetooth.webidl",
     "cec_private.webidl",
-    "clipboard.idl",
+    "clipboard.webidl",
     "extension_options_internal.webidl",
     "feedback_private.idl",
     "file_system.idl",
@@ -83,9 +83,9 @@ if (enable_extensions) {
     "sockets_tcp_server.idl",
     "sockets_tcp.idl",
     "sockets_udp.idl",
-    "system_display.idl",
+    "system_display.webidl",
     "system_storage.webidl",
-    "usb.idl",
+    "usb.webidl",
     "virtual_keyboard_private.json",
     "virtual_keyboard.webidl",
     "web_view_internal.json",
@@ -106,10 +106,10 @@ if (enable_extensions) {
 # API by moving these entries to the `extensions_api_schema_files_` above.
 if (enable_desktop_android_extensions) {
   extensions_types_only_schema_files_ += [
-    "clipboard.idl",
+    "clipboard.webidl",
     "scripts_internal.idl",
-    "system_display.idl",
-    "usb.idl",
+    "system_display.webidl",
+    "usb.webidl",
     "virtual_keyboard_private.json",
     "virtual_keyboard.webidl",
   ]

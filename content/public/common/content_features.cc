@@ -14,6 +14,7 @@
 #include "content/common/buildflags.h"
 #include "content/public/common/btm_utils.h"
 #include "content/public/common/buildflags.h"
+#include "media/base/media_switches.h"
 
 namespace features {
 
@@ -51,6 +52,9 @@ BASE_FEATURE(kAndroidFallbackToNextSlot, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables IMEs to insert media content such as images, gifs and stickers.
 BASE_FEATURE(kAndroidMediaInsertion, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the physical keyboard autocorrect underline feature.
+BASE_FEATURE(kAndroidPkAutocorrectUnderline, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Warm up a spare renderer after each navigation on Android.
 BASE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout,
@@ -176,25 +180,6 @@ BASE_FEATURE(kBackForwardTransitionsNativePageSharedImage,
 
 // If enabled, makes battery saver request heavy align wake ups.
 BASE_FEATURE(kBatterySaverModeAlignWakeUps, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When this feature is enabled, private network requests initiated from
-// non-secure contexts in the `public` address space  are blocked.
-//
-// See also:
-//  - https://wicg.github.io/private-network-access/#integration-fetch
-//  - kBlockInsecurePrivateNetworkRequestsFromPrivate
-//  - kBlockInsecurePrivateNetworkRequestsFromUnknown
-BASE_FEATURE(kBlockInsecurePrivateNetworkRequests,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When this feature is enabled, requests to localhost initiated from non-secure
-// contexts in the `private` IP address space are blocked.
-//
-// See also:
-//  - https://wicg.github.io/private-network-access/#integration-fetch
-//  - kBlockInsecurePrivateNetworkRequests
-BASE_FEATURE(kBlockInsecurePrivateNetworkRequestsFromPrivate,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Broker file operations on disk cache in the Network Service.
 // This is no-op if the network service is hosted in the browser process.
@@ -403,9 +388,6 @@ BASE_FEATURE(kDisablePartialStorageCleanupForGPUDiskCache,
 // Enable drawing under System Bars within DisplayCutout.
 BASE_FEATURE(kDrawCutoutEdgeToEdge, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enable establishing the GPU channel early in renderer startup.
-BASE_FEATURE(kEarlyEstablishGpuChannel, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables canvas 2d methods BeginLayer and EndLayer.
 BASE_FEATURE(kEnableCanvas2DLayers, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -465,6 +447,9 @@ BASE_FEATURE(kFedCmLightweightMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables usage of the FedCM API with metrics endpoint at the same time.
 BASE_FEATURE(kFedCmMetricsEndpoint, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables FedCM to intercept and potentially cancel certain navigations.
+BASE_FEATURE(kFedCmNavigationCancellation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Nonce usage in Params
 BASE_FEATURE(kFedCmNonceInParams, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -527,6 +512,10 @@ BASE_FEATURE(kGuestViewMPArch, base::FEATURE_DISABLED_BY_DEFAULT);
 // See crbug.com/359623664
 BASE_FEATURE(kIdbPrioritizeForegroundClients,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// This flag unconditionally enables the SQLite backing store. Used for
+// about:flags.
+BASE_FEATURE(kIdbSqliteBackingStore, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether we ignore duplicate navigations or not, in favor of
 // preserving the already ongoing navigation.
@@ -838,6 +827,18 @@ BASE_FEATURE(kRetryGetVideoCaptureDeviceInfos,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// When enabled, skip pagehide-in-commit when navigating to DSE.
+// (See: https://crbug.com/375385416)
+BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// A parameter to delay pagehide-in-commit.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSkipPagehideInCommitForDSENavigationDelay,
+                   &kSkipPagehideInCommitForDSENavigation,
+                   "delay",
+                   base::Milliseconds(0));
 
 // Reuses RenderProcessHost up to a certain threshold. This mode ignores the
 // soft process limit and behaves just like a process-per-site policy for all
@@ -1191,6 +1192,15 @@ const base::FeatureParam<bool> kWebUIBundledCodeCacheGenerateResourceMap{
 BASE_FEATURE(kWebUIJSErrorReportingExtended, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// If enabled, WebUI will optimize resources loading by piping a dictionary of
+// URL paths to materialized WebUI resource content to the renderer via
+// LocalResourceLoaderConfig.
+// This is an extension of `kWebUIInProcessResourceLoading` which previously
+// serves only resources in resource bundle.
+// See crbug.com/459528908.
+BASE_FEATURE(kWebUIInProcessResourceLoadingV2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether the WebUSB API is enabled:
 // https://wicg.github.io/webusb
 BASE_FEATURE(kWebUsb, "WebUSB", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1215,6 +1225,11 @@ BASE_FEATURE(kWebXr, "WebXR", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebPermissionsApi, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, will unconditionally poll the C++ cache to check Java node
+// cache freshness to test correctness of Java node cache.
+BASE_FEATURE(kAccessibilityCheckJavaNodeCacheFreshness,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAccessibilityDeprecateJavaNodeCache,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1230,6 +1245,11 @@ const base::FeatureParam<bool> kAccessibilityDeprecateJavaNodeCacheDisableCache{
 // When enabled, TYPE_ANNOUNCE events will no longer be sent for live regions in
 // the web contents.
 BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, extended selections are sent to Android through setSelection
+// API.
+BASE_FEATURE(kAccessibilityExtendedSelection,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, WINDOW_CONTENT_CHANGED events will be sent for each
@@ -1260,7 +1280,7 @@ BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
 
 // Enables the reactive synchronization of accessibility and keyboard focus,
 // relying on new Android framework behavior.
-BASE_FEATURE(kAccessibilitySequentialFocus, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAccessibilitySequentialFocus, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, set selectable on all nodes with text, and support
 // ACTION_SET_SELECTION.
@@ -1282,9 +1302,6 @@ const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 100};
 const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 100};
-
-// Enable open PDF inline on Android.
-BASE_FEATURE(kAndroidOpenPdfInline, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // A feature to enable launch handler and file handler api for Chrome on Android
 BASE_FEATURE(kAndroidWebAppLaunchHandler, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1396,7 +1413,12 @@ enum class VideoCaptureServiceConfiguration {
 };
 
 VideoCaptureServiceConfiguration GetVideoCaptureServiceConfiguration() {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kAndroidZeroCopyVideoCapture)) {
+    return VideoCaptureServiceConfiguration::kEnabledForOutOfProcess;
+  }
+  return VideoCaptureServiceConfiguration::kEnabledForBrowserProcess;
+#elif BUILDFLAG(IS_IOS)
   return VideoCaptureServiceConfiguration::kEnabledForBrowserProcess;
 #else
   return base::FeatureList::IsEnabled(

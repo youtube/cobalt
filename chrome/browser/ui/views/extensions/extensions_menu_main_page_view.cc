@@ -48,6 +48,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/layout_types.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -68,13 +69,6 @@ constexpr int kRequestEntryIconIndex = 0;
 // Index of the extension's request entry child view containing the label in the
 // requests container.
 constexpr int kRequestEntryLabelIndex = 1;
-
-// Updates the `toggle_button` text based on its state.
-std::u16string GetSiteSettingToggleText(bool is_on) {
-  int label_id = is_on ? IDS_EXTENSIONS_MENU_SITE_SETTINGS_TOGGLE_ON_TOOLTIP
-                       : IDS_EXTENSIONS_MENU_SITE_SETTINGS_TOGGLE_OFF_TOOLTIP;
-  return l10n_util::GetStringUTF16(label_id);
-}
 
 // Converts a view to a ExtensionMenuItemView. This cannot be used to
 // *determine* if a view is an ExtensionMenuItemView (it should only be used
@@ -241,17 +235,15 @@ void ExtensionsMenuMainPageView::RemoveMenuItem(
 }
 
 void ExtensionsMenuMainPageView::UpdateSiteSettings(
-    const std::u16string& current_site,
-    int label_id,
-    bool is_tooltip_visible,
-    bool is_toggle_visible,
-    bool is_toggle_on) {
-  site_settings_label_->SetText(
-      l10n_util::GetStringFUTF16(label_id, current_site));
-  site_settings_tooltip_->SetVisible(is_tooltip_visible);
-  site_settings_toggle_->SetVisible(is_toggle_visible);
-  site_settings_toggle_->SetIsOn(is_toggle_on);
-  site_settings_toggle_->SetTooltipText(GetSiteSettingToggleText(is_toggle_on));
+    ExtensionsMenuViewModel::SiteSettingsState site_settings_state) {
+  site_settings_label_->SetText(site_settings_state.label);
+  site_settings_tooltip_->SetVisible(site_settings_state.has_tooltip);
+  site_settings_toggle_->SetVisible(
+      site_settings_state.toggle.status !=
+      ExtensionsMenuViewModel::ControlState::Status::kHidden);
+  site_settings_toggle_->SetIsOn(site_settings_state.toggle.is_on);
+  site_settings_toggle_->SetTooltipText(
+      site_settings_state.toggle.tooltip_text);
 }
 
 void ExtensionsMenuMainPageView::ShowReloadSection() {
@@ -282,6 +274,7 @@ void ExtensionsMenuMainPageView::AddOrUpdateExtensionRequestingAccess(
     views::AsViewClass<views::Label>(extension_items[kRequestEntryLabelIndex])
         ->SetText(name);
     requests_entries_view_->ReorderChildView(request_entry, index);
+    return;
   }
 
   // Otherwise, add a new request entry.

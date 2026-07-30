@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -16,8 +17,11 @@ class ExceptionState;
 class KURL;
 
 class NavigatorBeacon final : public GarbageCollected<NavigatorBeacon>,
-                              public GarbageCollectedMixin {
+                              public Supplement<Navigator> {
  public:
+  static constexpr auto kSupplementIndex =
+      Navigator::Supplements::kNavigatorBeacon;
+
   static NavigatorBeacon& From(Navigator&);
 
   explicit NavigatorBeacon(Navigator&);
@@ -38,8 +42,6 @@ class NavigatorBeacon final : public GarbageCollected<NavigatorBeacon>,
                       const V8UnionReadableStreamOrXMLHttpRequestBodyInit* data,
                       ExceptionState& exception_state);
   bool CanSendBeacon(ExecutionContext*, const KURL&, ExceptionState&);
-
-  Member<Navigator> navigator_;
 };
 
 }  // namespace blink

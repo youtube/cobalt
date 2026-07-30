@@ -28,6 +28,10 @@ import {getTemplate} from './sync_controls.html.js';
 import {loadTimeData} from '../i18n_setup.js';
 import type {Route} from '../router.js';
 import {RouteObserverMixin} from '../router.js';
+
+import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
+import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
+import {BatchUploadPromoProxyImpl} from 'chrome://resources/js/batch_upload_promo/batch_upload_promo_proxy.js';
 // </if>
 
 // clang-format on
@@ -116,16 +120,35 @@ export class SettingsSyncControlsElement extends
         type: Boolean,
         value: false,
       },
+
+      // <if expr="not is_chromeos">
+      batchUploadPromoLocalDataCount_: {
+        type: Number,
+        value: 0,
+        observer: 'batchUploadPromoLocalDataCountChanged_',
+      },
+
+      batchUploadPromoString_: {
+        type: String,
+        value: '',
+        observer: 'attachOpenBatchUploadLinkClick_',
+      },
+      // </if>
     };
   }
 
   declare hidden: boolean;
   declare syncPrefs?: SyncPrefs;
   declare syncStatus: SyncStatus|null;
-  private browserProxy_: SyncBrowserProxy = SyncBrowserProxyImpl.getInstance();
+  private syncBrowserProxy_: SyncBrowserProxy =
+      SyncBrowserProxyImpl.getInstance();
   private cachedSyncPrefs_: {[key: string]: any}|null;
   declare showSyncDisabledInformation: boolean;
   declare private isAccountSettingsPage_: boolean;
+  // <if expr="not is_chromeos">
+  declare private batchUploadPromoLocalDataCount_: number;
+  declare private batchUploadPromoString_: string;
+  // </if>
 
   constructor() {
     super();
@@ -143,25 +166,104 @@ export class SettingsSyncControlsElement extends
     this.addWebUiListener(
         'sync-prefs-changed', this.handleSyncPrefsChanged_.bind(this));
 
+    // <if expr="not is_chromeos">
+    if (loadTimeData.getBoolean('unoPhase2FollowUp')) {
+      BatchUploadPromoProxyImpl.getInstance()
+          .callbackRouter.onLocalDataCountChanged.addListener(
+              (batchUploadPromoData: number) => {
+                this.batchUploadPromoLocalDataCount_ = batchUploadPromoData;
+              });
+      BatchUploadPromoProxyImpl.getInstance()
+          .handler.getBatchUploadPromoLocalDataCount()
+          .then(({localDataCount}) => {
+            this.batchUploadPromoLocalDataCount_ = localDataCount;
+          });
+    }
+    // </if>
+
     const router = Router.getInstance();
     const currentRoute = router.getCurrentRoute();
     if (currentRoute === routes.SYNC_ADVANCED) {
-      this.browserProxy_.didNavigateToSyncPage();
+      this.syncBrowserProxy_.didNavigateToSyncPage();
     }
     // <if expr="not is_chromeos">
     if (loadTimeData.getBoolean('replaceSyncPromosWithSignInPromos') &&
         currentRoute === routes.ACCOUNT) {
       this.isAccountSettingsPage_ = true;
-      this.browserProxy_.didNavigateToAccountSettingsPage();
+      this.syncBrowserProxy_.didNavigateToAccountSettingsPage();
     }
     // </if>
   }
+
   /**
    * Handler for when the sync preferences are updated.
    */
   private handleSyncPrefsChanged_(syncPrefs: SyncPrefs) {
     this.syncPrefs = syncPrefs;
   }
+
+  // <if expr="not is_chromeos">
+  private async batchUploadPromoLocalDataCountChanged_(): Promise<void> {
+    if (!loadTimeData.getBoolean('unoPhase2FollowUp')) {
+      return;
+    }
+
+    if (!this.batchUploadPromoLocalDataCount_) {
+      this.batchUploadPromoString_ = '';
+      return;
+    }
+
+    this.batchUploadPromoString_ =
+        await PluralStringProxyImpl.getInstance().getPluralString(
+            'batchUploadPromoLabel', this.batchUploadPromoLocalDataCount_);
+  }
+
+  private shouldShowBatchUploadPromo_(): boolean {
+    if (!loadTimeData.getBoolean('unoPhase2FollowUp')) {
+      return false;
+    }
+
+    if (!this.isAccountSettingsPage_) {
+      return false;
+    }
+
+    return this.batchUploadPromoLocalDataCount_ !== 0;
+  }
+
+  /**
+   * Returns the HTML representation of the subtitle string. We need the HTML
+   * representation instead of the string since the string holds a link.
+   */
+  protected getSubtitleString_(): TrustedHTML {
+    return sanitizeInnerHtml(
+        this.batchUploadPromoString_, {tags: ['a'], attrs: ['id']});
+  }
+
+  /** Attach the click action and aria label to the batch upload promo link. */
+  private attachOpenBatchUploadLinkClick_(): void {
+    const element: HTMLElement|null|undefined =
+        this.shadowRoot?.querySelector(`#openBatchUploadLink`);
+    if (element !== null && element !== undefined) {
+      element.addEventListener('click', (me: MouseEvent) => {
+        this.onPromoClicked_(me);
+      });
+
+      // Since there is a link for the batch upload, we can also be sure that
+      // the containing element exists.
+      const batchUploadElement: HTMLElement|null|undefined =
+          this.shadowRoot?.querySelector(`#batchUploadPromo`);
+      element.setAttribute('aria-label', batchUploadElement!.textContent);
+    }
+  }
+
+  private onPromoClicked_(event: Event): void {
+    assert(this.shouldShowBatchUploadPromo_());
+
+    // Prevent navigation to href='#' and open the batch upload dialog instead.
+    event.preventDefault();
+    BatchUploadPromoProxyImpl.getInstance().handler.onBatchUploadPromoClicked();
+  }
+  // </if>
 
   /**
    * @return Computed binding returning the selected sync data radio button.
@@ -194,7 +296,7 @@ export class SettingsSyncControlsElement extends
     this.isAccountSettingsPage_ = newRoute === routes.ACCOUNT;
 
     if (this.isAccountSettingsPage_ && oldRoute !== routes.ACCOUNT) {
-      this.browserProxy_.didNavigateToAccountSettingsPage();
+      this.syncBrowserProxy_.didNavigateToAccountSettingsPage();
     }
   }
 
@@ -222,10 +324,11 @@ export class SettingsSyncControlsElement extends
 
     const toggle = event.target as CrToggleElement;
 
-    this.browserProxy_.setSyncDatatype(
+    this.syncBrowserProxy_.setSyncDatatype(
         UserSelectableType.HISTORY, toggle.checked);
-    this.browserProxy_.setSyncDatatype(UserSelectableType.TABS, toggle.checked);
-    this.browserProxy_.setSyncDatatype(
+    this.syncBrowserProxy_.setSyncDatatype(
+        UserSelectableType.TABS, toggle.checked);
+    this.syncBrowserProxy_.setSyncDatatype(
         UserSelectableType.SAVED_TAB_GROUPS, toggle.checked);
   }
   // </if>
@@ -266,13 +369,13 @@ export class SettingsSyncControlsElement extends
       const type = Number(toggle.dataset['type']!);
       assert(!isNaN(type));
 
-      this.browserProxy_.setSyncDatatype(type, toggle.checked);
+      this.syncBrowserProxy_.setSyncDatatype(type, toggle.checked);
       return;
     }
     // </if>
 
     assert(this.syncPrefs);
-    this.browserProxy_.setSyncDatatypes(this.syncPrefs);
+    this.syncBrowserProxy_.setSyncDatatypes(this.syncPrefs);
   }
 
   private disableTypeCheckBox_(
@@ -368,7 +471,8 @@ export class SettingsSyncControlsElement extends
     return !!this.syncStatus.hasError &&
         this.syncStatus.statusAction !== StatusAction.ENTER_PASSPHRASE &&
         this.syncStatus.statusAction !==
-        StatusAction.RETRIEVE_TRUSTED_VAULT_KEYS;
+        StatusAction.RETRIEVE_TRUSTED_VAULT_KEYS &&
+        this.syncStatus.statusAction !== StatusAction.CONFIRM_SYNC_SETTINGS;
   }
 }
 

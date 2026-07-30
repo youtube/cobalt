@@ -30,6 +30,7 @@
 #include "crypto/scoped_fake_user_verifying_key_provider.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "device/fido/enclave/constants.h"
+#include "device/fido/public/features.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/network/test/test_url_loader_factory.h"
 
@@ -95,10 +96,12 @@ class EnclaveAuthenticatorTestBase : public SyncTest {
   bool IsUVPAA();
   void SetBiometricsEnabled(bool enabled);
   void AddTestPasskeyToModel();
-  void SimulateTrustedVaultKeyRetrieval();
+  void SimulateTrustedVaultKeyRetrieval(bool with_store_keys_lock);
   void SimulateTrustedVaultKeyRetrieval(
       base::span<const uint8_t> trusted_vault_key,
-      int trusted_vault_key_version);
+      int trusted_vault_key_version,
+      bool with_store_keys_lock);
+  void SimulateOpportunisticTrustedVaultKeyRetrieval();
 
   // Convenience methods for setting up the mock trusted vault connection:
   void SetMockVaultConnectionOnRequestDelegate(
@@ -150,7 +153,8 @@ class EnclaveAuthenticatorTestBase : public SyncTest {
   logging::ScopedVmoduleSwitches scoped_vmodule_;
   bool sync_feature_enabled_ = true;
   base::OnceCallback<void(AuthenticationFactorsResult)> cached_connection_cb_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      device::kWebAuthnSignalApiHidePasskeys};
 };
 
 #endif  // CHROME_BROWSER_WEBAUTHN_ENCLAVE_AUTHENTICATOR_BROWSERTEST_BASE_H_

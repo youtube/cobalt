@@ -9,7 +9,6 @@ import android.content.Context;
 import org.chromium.base.Callback;
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier.NotifyBehavior;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
@@ -67,9 +66,8 @@ public class TabStateThemeResourceProvider extends ThemeResourceWrapper {
                     }
                 };
 
-        mActivityTabProvider.addObserver(mTabCallback, NotifyBehavior.NOTIFY_ON_ADD);
-        mLayoutManagerSupplier.addObserver(
-                mLayoutManagerChangeCallback, NotifyBehavior.NOTIFY_ON_ADD);
+        mActivityTabProvider.asObservable().addSyncObserverAndCallIfNonNull(mTabCallback);
+        mLayoutManagerSupplier.addSyncObserverAndCallIfNonNull(mLayoutManagerChangeCallback);
 
         maybeUpdateOverlay(mLatestTab);
     }
@@ -80,7 +78,7 @@ public class TabStateThemeResourceProvider extends ThemeResourceWrapper {
         if (mLayoutManager != null) {
             mLayoutManager.removeObserver(mLayoutStateObserver);
         }
-        mActivityTabProvider.removeObserver(mTabCallback);
+        mActivityTabProvider.asObservable().removeObserver(mTabCallback);
 
         super.destroy();
     }

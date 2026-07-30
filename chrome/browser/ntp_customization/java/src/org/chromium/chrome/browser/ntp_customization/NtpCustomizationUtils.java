@@ -15,6 +15,17 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoor
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.SINGLE_THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME_COLLECTIONS;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_INFO;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID;
 
 import android.app.Activity;
 import android.content.Context;
@@ -24,6 +35,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
@@ -46,6 +58,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.TimeUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.BackgroundOnlyAsyncTask;
@@ -56,6 +69,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThem
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorUtils;
+import org.chromium.chrome.browser.ntp_customization.theme.daily_refresh.NtpThemeDailyRefreshManager;
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.CustomBackgroundInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.CropImageUtils;
@@ -79,7 +93,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.Arrays;
 import java.util.concurrent.Executor;
 
 /** Utility class of the NTP customization. */
@@ -106,7 +119,24 @@ public class NtpCustomizationUtils {
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/new_tab_page/enums.xml:NtpBackgroundImageType)
 
+    /** An interface to get the current NTP's theme color. */
+    interface PrimaryColorProvider {
+        // Returns the current primary theme color if exists.
+        @Nullable
+        @ColorInt
+        Integer getPrimaryColor();
+    }
+
+    /** The time duration limit to refresh NTP's background. */
+    @VisibleForTesting
+    static final long DEFAULT_DAILY_REFRESH_HOURS_MS = TimeUtils.MILLISECONDS_PER_DAY;
+
     @VisibleForTesting static final String NTP_BACKGROUND_IMAGE_FILE = "ntp_background_image";
+
+    @VisibleForTesting
+    static final String NTP_BACKGROUND_IMAGE_FILE_FOR_DAILY_REFRESH =
+            "ntp_background_image_for_daily_refresh";
+
     private static final String TAG = "NtpCustomization";
     private static final String DELIMITER = "|";
     private static final int CUSTOM_BACKGROUND_INFO_NUM_FIELDS = 4;
@@ -220,9 +250,14 @@ public class NtpCustomizationUtils {
         }
     }
 
-    /** Returns the customized primary color if set, null otherwise. */
+    /**
+     * Returns the customized primary color if set, null otherwise.
+     *
+     * @param context The application context to get themed colors.
+     * @param checkDailyRefresh Whether to check daily update when getting the primiary color.
+     */
     public @Nullable static @ColorInt Integer getPrimaryColorFromCustomizedThemeColor(
-            Context context) {
+            Context context, boolean checkDailyRefresh) {
         if (!ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) return null;
 
         @NtpBackgroundImageType int imageType = getNtpBackgroundImageTypeFromSharedPreference();
@@ -231,11 +266,16 @@ public class NtpCustomizationUtils {
         }
 
         if (imageType == NtpBackgroundImageType.CHROME_COLOR) {
-            @NtpThemeColorId int colorId = getNtpThemeColorIdFromSharedPreference();
+            NtpThemeDailyRefreshManager ntpThemeDailyRefreshManager =
+                    NtpThemeDailyRefreshManager.getInstance();
+            @NtpThemeColorId
+            int colorId = ntpThemeDailyRefreshManager.getNtpThemeColorIdForChromeColorTheme();
             if (colorId <= NtpThemeColorId.DEFAULT || colorId >= NtpThemeColorId.NUM_ENTRIES) {
                 return null;
             }
-
+            if (checkDailyRefresh) {
+                colorId = ntpThemeDailyRefreshManager.mayApplyDailyRefreshForChromeColor(colorId);
+            }
             return context.getColor(NtpThemeColorUtils.getNtpThemePrimaryColorResId(colorId));
         }
 
@@ -342,20 +382,44 @@ public class NtpCustomizationUtils {
     }
 
     /**
-     * Saves the background image if it isn't null, otherwise removes the file.
+     * Saves the background image.
      *
      * @param backgroundImageBitmap The bitmap of the background image.
      */
-    private static void updateBackgroundImageFile(@Nullable Bitmap backgroundImageBitmap) {
+    @VisibleForTesting
+    static void saveBackgroundImageFile(@Nullable Bitmap backgroundImageBitmap) {
+        File file = createBackgroundImageFile();
+        saveBitmapImageToFile(backgroundImageBitmap, file);
+    }
+
+    /**
+     * Saves the daily refresh background image.
+     *
+     * @param backgroundImageBitmap The bitmap of the daily refresh background image.
+     */
+    @VisibleForTesting
+    static void saveDailyRefreshBackgroundImageFile(@Nullable Bitmap backgroundImageBitmap) {
+        File file = createDailyRefreshBackgroundImageFile();
+        saveBitmapImageToFile(backgroundImageBitmap, file);
+    }
+
+    /**
+     * Saves the background image if it isn't null, otherwise removes the file.
+     *
+     * @param backgroundImageBitmap The bitmap of the background image.
+     * @param file The file to save the image to.
+     */
+    @VisibleForTesting
+    static void saveBitmapImageToFile(@Nullable Bitmap backgroundImageBitmap, File file) {
         if (backgroundImageBitmap == null) {
-            deleteBackgroundImageFile();
+            deleteBackgroundImageFile(file);
             return;
         }
 
         new BackgroundOnlyAsyncTask<Void>() {
             @Override
             protected Void doInBackground() {
-                saveBackgroundImageFile(backgroundImageBitmap);
+                saveBitmapImageToFileImpl(backgroundImageBitmap, file);
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -368,14 +432,31 @@ public class NtpCustomizationUtils {
      *     landscape matrices.
      */
     @VisibleForTesting
-    static void updateBackgroundImageMatrices(BackgroundImageInfo backgroundImageInfo) {
-        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        prefsManager.writeString(
-                ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX,
-                matrixToString(backgroundImageInfo.portraitMatrix));
-        prefsManager.writeString(
-                ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_MATRIX,
-                matrixToString(backgroundImageInfo.landscapeMatrix));
+    static void updateBackgroundImageInfo(BackgroundImageInfo backgroundImageInfo) {
+        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
+
+        prefs.writeString(
+                NTP_BACKGROUND_IMAGE_PORTRAIT_INFO, backgroundImageInfo.getPortraitInfoString());
+        prefs.writeString(
+                NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO, backgroundImageInfo.getLandscapeInfoString());
+    }
+
+    /**
+     * Saves the background transformation matrices to SharedPreferences for daily refresh.
+     *
+     * @param backgroundImageInfo The {@link BackgroundImageInfo} object containing the portrait and
+     *     landscape matrices.
+     */
+    @VisibleForTesting
+    static void updateDailyRefreshBackgroundImageInfo(BackgroundImageInfo backgroundImageInfo) {
+        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
+
+        prefs.writeString(
+                NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH,
+                backgroundImageInfo.getPortraitInfoString());
+        prefs.writeString(
+                NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH,
+                backgroundImageInfo.getLandscapeInfoString());
     }
 
     /** Returns whether a white background should be applied on fake search box. */
@@ -395,10 +476,13 @@ public class NtpCustomizationUtils {
                 || type == NtpBackgroundImageType.THEME_COLLECTION;
     }
 
-    @VisibleForTesting
-    static void saveBackgroundImageFile(Bitmap backgroundImageBitmap) {
-        File file = getBackgroundImageFile();
-
+    /**
+     * Saves the background image bitmap to the specified file.
+     *
+     * @param backgroundImageBitmap The bitmap to save.
+     * @param file The file to save the image to.
+     */
+    private static void saveBitmapImageToFileImpl(Bitmap backgroundImageBitmap, File file) {
         try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
             backgroundImageBitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
         } catch (IOException e) {
@@ -408,25 +492,38 @@ public class NtpCustomizationUtils {
 
     /** Returns the file to save the NTP's background image. */
     @VisibleForTesting
-    public static File getBackgroundImageFile() {
+    public static File createBackgroundImageFile() {
         return new File(
                 ContextUtils.getApplicationContext().getFilesDir(), NTP_BACKGROUND_IMAGE_FILE);
     }
 
+    /** Returns the file to save the NTP's daily refresh background image. */
     @VisibleForTesting
-    static void deleteBackgroundImageFile() {
+    public static File createDailyRefreshBackgroundImageFile() {
+        return new File(
+                ContextUtils.getApplicationContext().getFilesDir(),
+                NTP_BACKGROUND_IMAGE_FILE_FOR_DAILY_REFRESH);
+    }
+
+    /** Deletes the background image file from disk. */
+    @VisibleForTesting
+    static void deleteBackgroundImageFile(File file) {
         new BackgroundOnlyAsyncTask<Void>() {
             @Override
             protected Void doInBackground() {
-                deleteBackgroundImageFileImpl();
+                deleteBackgroundImageFileImpl(file);
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
+    /**
+     * Deletes the given file from disk.
+     *
+     * @param file The file to be deleted.
+     */
     @VisibleForTesting
-    static void deleteBackgroundImageFileImpl() {
-        File file = getBackgroundImageFile();
+    static void deleteBackgroundImageFileImpl(File file) {
         if (file.exists()) {
             file.delete();
         }
@@ -440,12 +537,35 @@ public class NtpCustomizationUtils {
      */
     public static void readNtpBackgroundImage(
             Callback<@Nullable Bitmap> callback, Executor executor) {
+        readNtpBackgroundImageFromFile(callback, executor, createBackgroundImageFile());
+    }
+
+    /**
+     * Loads the NTP's daily refresh background bitmap image from disk.
+     *
+     * @param callback The callback to notice when the image is loaded.
+     * @param executor The executor for the loading task.
+     */
+    public static void readDailyRefreshNtpBackgroundImage(
+            Callback<@Nullable Bitmap> callback, Executor executor) {
+        readNtpBackgroundImageFromFile(callback, executor, createDailyRefreshBackgroundImageFile());
+    }
+
+    /**
+     * Loads a background bitmap image from a given file.
+     *
+     * @param callback The callback to notice when the image is loaded.
+     * @param executor The executor for the loading task.
+     * @param file The file to read the image from.
+     */
+    private static void readNtpBackgroundImageFromFile(
+            Callback<@Nullable Bitmap> callback, Executor executor, File file) {
         new AsyncTask<Bitmap>() {
             @Override
             // The return value of the super class doesn't have @Nullable annotation.
             @SuppressWarnings("NullAway")
             protected Bitmap doInBackground() {
-                return readNtpBackgroundImageImpl();
+                return readNtpBackgroundImageImpl(file);
             }
 
             @Override
@@ -459,10 +579,13 @@ public class NtpCustomizationUtils {
         }.executeOnExecutor(executor);
     }
 
+    /**
+     * Reads and decodes a bitmap from the specified file.
+     *
+     * @param file The file to read from.
+     */
     @VisibleForTesting
-    static @Nullable Bitmap readNtpBackgroundImageImpl() {
-        File file = getBackgroundImageFile();
-
+    static @Nullable Bitmap readNtpBackgroundImageImpl(File file) {
         if (!file.exists()) {
             return null;
         }
@@ -471,60 +594,38 @@ public class NtpCustomizationUtils {
     }
 
     /** Loads the NTP's background transformation matrices from SharedPreferences. */
-    public static @Nullable BackgroundImageInfo readNtpBackgroundImageMatrices() {
-        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        String portraitMatrixString =
-                prefsManager.readString(
-                        ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX, null);
-        String landscapeMatrixString =
-                prefsManager.readString(
-                        ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_MATRIX, null);
+    public static @Nullable BackgroundImageInfo readNtpBackgroundImageInfo() {
+        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
 
-        if (TextUtils.isEmpty(portraitMatrixString) || TextUtils.isEmpty(landscapeMatrixString)) {
-            return null;
-        }
+        String portraitInfoString = prefs.readString(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO, null);
+        String landscapeInfoString = prefs.readString(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO, null);
 
-        Matrix portraitMatrix = stringToMatrix(portraitMatrixString);
-        Matrix landscapeMatrix = stringToMatrix(landscapeMatrixString);
-
-        if (portraitMatrix == null || landscapeMatrix == null) {
-            return null;
-        }
-
-        return new BackgroundImageInfo(portraitMatrix, landscapeMatrix);
+        return BackgroundImageInfo.createFromStrings(portraitInfoString, landscapeInfoString);
     }
 
-    /** Converts a Matrix into a string representation for storage. */
-    public static String matrixToString(Matrix matrix) {
-        float[] values = new float[9];
-        matrix.getValues(values);
-        return Arrays.toString(values);
+    /**
+     * Loads the background transformation matrices for the daily refresh image from
+     * SharedPreferences.
+     */
+    public static @Nullable BackgroundImageInfo readDailyRefreshNtpBackgroundImageInfo() {
+        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
+
+        String portraitInfoString =
+                prefs.readString(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH, null);
+        String landscapeInfoString =
+                prefs.readString(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH, null);
+
+        return BackgroundImageInfo.createFromStrings(portraitInfoString, landscapeInfoString);
     }
 
-    /** Converts a string representation back into a Matrix. Returns null on failure. */
-    public static @Nullable Matrix stringToMatrix(String matrixString) {
-        if (matrixString == null || !matrixString.startsWith("[") || !matrixString.endsWith("]")) {
-            return null;
-        }
-
-        try {
-            // Remove brackets and spaces
-            String[] stringValues =
-                    matrixString.substring(1, matrixString.length() - 1).split(", ");
-            if (stringValues.length != 9) return null;
-
-            float[] values = new float[9];
-            for (int i = 0; i < 9; i++) {
-                values[i] = Float.parseFloat(stringValues[i]);
-            }
-
-            Matrix matrix = new Matrix();
-            matrix.setValues(values);
-            return matrix;
-        } catch (Exception e) {
-            Log.i(TAG, "Error in stringToMatrix: " + e);
-            return null;
-        }
+    /**
+     * Removes the background transformation matrices for the daily refresh image from
+     * SharedPreferences.
+     */
+    public static void removeDailyRefreshNtpBackgroundImageInfo() {
+        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
+        prefs.removeKey(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH);
+        prefs.removeKey(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH);
     }
 
     /**
@@ -567,7 +668,7 @@ public class NtpCustomizationUtils {
      *
      * @param bitmap The bitmap from which to extract and save the primary color.
      */
-    private static void pickAndSavePrimaryColor(Bitmap bitmap) {
+    static void pickAndSavePrimaryColor(Bitmap bitmap) {
         @ColorInt Integer primaryColor = getContentBasedSeedColor(bitmap);
         if (primaryColor != null) {
             setCustomizedPrimaryColorToSharedPreference(primaryColor.intValue());
@@ -577,27 +678,98 @@ public class NtpCustomizationUtils {
     }
 
     /**
+     * Picks the primary color for the daily refresh bitmap and saves it to SharedPreferences.
+     *
+     * @param bitmap The bitmap from which to extract and save the primary color.
+     */
+    static void pickAndSaveDailyRefreshPrimaryColor(Bitmap bitmap) {
+        new BackgroundOnlyAsyncTask<Void>() {
+            @Override
+            protected Void doInBackground() {
+                @ColorInt Integer primaryColor = getContentBasedSeedColor(bitmap);
+                if (primaryColor != null) {
+                    setDailyRefreshCustomizedPrimaryColorToSharedPreference(
+                            primaryColor.intValue());
+                } else {
+                    removeDailyRefreshCustomizedPrimaryColorFromSharedPreference();
+                }
+                return null;
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    /**
      * Sets the customized primary color to the SharedPreference.
      *
      * @param color The new primary theme color.
      */
     public static void setCustomizedPrimaryColorToSharedPreference(@ColorInt int color) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        prefsManager.writeInt(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR, color);
+        prefsManager.writeInt(NTP_CUSTOMIZATION_PRIMARY_COLOR, color);
+    }
+
+    /**
+     * Sets the customized primary color for daily refresh to SharedPreferences.
+     *
+     * @param color The new primary theme color for daily refresh.
+     */
+    public static void setDailyRefreshCustomizedPrimaryColorToSharedPreference(
+            @ColorInt int color) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeInt(NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH, color);
     }
 
     /** Gets the customized primary color from the SharedPreference. */
     public static @ColorInt int getCustomizedPrimaryColorFromSharedPreference() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         return prefsManager.readInt(
-                ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR,
-                NtpThemeColorInfo.COLOR_NOT_SET);
+                NTP_CUSTOMIZATION_PRIMARY_COLOR, NtpThemeColorInfo.COLOR_NOT_SET);
+    }
+
+    /** Gets the customized primary color for daily refresh from SharedPreferences. */
+    public static @ColorInt int getDailyRefreshCustomizedPrimaryColorFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readInt(
+                NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH, NtpThemeColorInfo.COLOR_NOT_SET);
     }
 
     /** Removes the customized primary color from the SharedPreference. */
     public static void removeCustomizedPrimaryColorFromSharedPreference() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR);
+    }
+
+    /** Removes the customized primary color for daily refresh from SharedPreferences. */
+    public static void removeDailyRefreshCustomizedPrimaryColorFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH);
+    }
+
+    /**
+     * Updates the daily refresh timestamp if enabled.
+     *
+     * @param timestamp The new timestamp.
+     */
+    public static void maybeUpdateDailyRefreshTimestamp(
+            long timestamp,
+            @NtpBackgroundImageType int backgroundImageType,
+            @Nullable CustomBackgroundInfo customBackgroundInfo) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+
+        if (backgroundImageType == NtpBackgroundImageType.CHROME_COLOR) {
+            if (!prefsManager.readBoolean(
+                    NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED, false)) {
+                return;
+            }
+        }
+
+        if (backgroundImageType == NtpBackgroundImageType.THEME_COLLECTION) {
+            if (customBackgroundInfo == null || !customBackgroundInfo.isDailyRefreshEnabled) {
+                return;
+            }
+        }
+
+        prefsManager.writeLong(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP, timestamp);
     }
 
     /**
@@ -607,15 +779,34 @@ public class NtpCustomizationUtils {
      */
     public static void setIsChromeColorDailyRefreshEnabledToSharedPreference(boolean enabled) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        prefsManager.writeBoolean(
-                ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED, enabled);
+        prefsManager.writeBoolean(NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED, enabled);
     }
 
     /** Gets whether daily refresh for Chrome Color is enabled from the SharedPreference. */
     public static boolean getIsChromeColorDailyRefreshEnabledFromSharedPreference() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         return prefsManager.readBoolean(
-                ChromePreferenceKeys.NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED, false);
+                NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED, false);
+    }
+
+    /**
+     * Sets the timestamp of the last time when a daily refreshed theme color or background image
+     * was set.
+     */
+    @VisibleForTesting
+    public static void setDailyRefreshTimestampToSharedPreference(long timestamp) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeLong(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP, timestamp);
+    }
+
+    /**
+     * Gets the timestamp of the last time when a daily refreshed theme color or background image
+     * was set.
+     */
+    @VisibleForTesting
+    public static long getDailyRefreshTimestampToSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return prefsManager.readLong(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP, 0);
     }
 
     /**
@@ -716,30 +907,70 @@ public class NtpCustomizationUtils {
      * Sets tint color for the default Google logo.
      *
      * @param context Used to look up current day/night mode status.
+     * @param defaultGoogleLogoDrawable The drawable instance for default Google Logo.
      */
     public static void setTintForDefaultGoogleLogo(
             Context context, Drawable defaultGoogleLogoDrawable) {
+        @NtpBackgroundImageType
+        int backgroundType = NtpCustomizationConfigManager.getInstance().getBackgroundImageType();
+        getTintedGoogleLogoDrawableImpl(
+                context,
+                defaultGoogleLogoDrawable,
+                backgroundType,
+                () ->
+                        NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
+                                context, /* checkDailyRefresh= */ false));
+    }
+
+    /**
+     * Returns the default Google logo with tint.
+     *
+     * @param context Used to look up current day/night mode status.
+     * @param defaultGoogleLogoDrawable The drawable instance for default Google Logo.
+     * @param backgroundType backgroundType The NTP's background theme type.
+     * @param primaryColor The primary theme color.
+     */
+    public static Drawable getTintedGoogleLogoDrawableImpl(
+            Context context,
+            Drawable defaultGoogleLogoDrawable,
+            @NtpBackgroundImageType int backgroundType,
+            @Nullable @ColorInt Integer primaryColor) {
+        return getTintedGoogleLogoDrawableImpl(
+                context, defaultGoogleLogoDrawable, backgroundType, () -> primaryColor);
+    }
+
+    /**
+     * Returns the default Google logo with tint.
+     *
+     * @param context Used to look up current day/night mode status.
+     * @param defaultGoogleLogoDrawable The drawable instance for default Google Logo.
+     * @param backgroundType backgroundType The NTP's background theme type.
+     * @param primaryColorProvider The interface to get primary theme color.
+     */
+    private static Drawable getTintedGoogleLogoDrawableImpl(
+            Context context,
+            Drawable defaultGoogleLogoDrawable,
+            @NtpBackgroundImageType int backgroundType,
+            PrimaryColorProvider primaryColorProvider) {
         // Check the mode before applying a tinted color. A transparent tint in light mode will
         // cause the logo's color to disappear.
         boolean isNightMode = ColorUtils.inNightMode(context);
-        @NtpBackgroundImageType
-        int defaultBackgroundType =
-                NtpCustomizationConfigManager.getInstance().getBackgroundImageType();
-
         // The colorful Google logo is shown for default theme in light mode.
-        if (!isNightMode && defaultBackgroundType == NtpBackgroundImageType.DEFAULT) {
-            return;
+        if (!isNightMode && backgroundType == NtpBackgroundImageType.DEFAULT) {
+            return defaultGoogleLogoDrawable;
         }
 
         @ColorInt int tintColor;
-        if (defaultBackgroundType == NtpBackgroundImageType.CHROME_COLOR
-                || defaultBackgroundType == NtpBackgroundImageType.COLOR_FROM_HEX) {
-            @ColorInt Integer primaryColor = getPrimaryColorFromCustomizedThemeColor(context);
+        if (backgroundType == NtpBackgroundImageType.CHROME_COLOR
+                || backgroundType == NtpBackgroundImageType.COLOR_FROM_HEX) {
+            @Nullable
+            @ColorInt
+            Integer primaryColor = primaryColorProvider.getPrimaryColor();
             if (primaryColor != null) {
                 tintColor = primaryColor.intValue();
             } else if (!isNightMode) {
                 // When primary color is missing, falls back to colorful Google logo in light mode.
-                return;
+                return defaultGoogleLogoDrawable;
             } else {
                 // When primary color is missing, falls back to white Google logo in light mode.
                 tintColor = Color.WHITE;
@@ -751,7 +982,9 @@ public class NtpCustomizationUtils {
             tintColor = Color.WHITE;
         }
 
-        defaultGoogleLogoDrawable.mutate().setTint(tintColor);
+        Drawable tintedDrawable = defaultGoogleLogoDrawable.mutate();
+        tintedDrawable.setTint(tintColor);
+        return tintedDrawable;
     }
 
     /**
@@ -812,7 +1045,21 @@ public class NtpCustomizationUtils {
             CustomBackgroundInfo customBackgroundInfo) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.writeString(
-                ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO,
+                NTP_CUSTOMIZATION_BACKGROUND_INFO,
+                customBackgroundInfoToString(customBackgroundInfo));
+    }
+
+    /**
+     * Sets the NTP's daily refresh {@link CustomBackgroundInfo} to SharedPreferences.
+     *
+     * @param customBackgroundInfo The new {@link CustomBackgroundInfo} for daily refresh.
+     */
+    @VisibleForTesting
+    static void setDailyRefreshCustomBackgroundInfoToSharedPreference(
+            CustomBackgroundInfo customBackgroundInfo) {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.writeString(
+                NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH,
                 customBackgroundInfoToString(customBackgroundInfo));
     }
 
@@ -820,15 +1067,29 @@ public class NtpCustomizationUtils {
     public static @Nullable CustomBackgroundInfo getCustomBackgroundInfoFromSharedPreference() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         return stringToCustomBackgroundInfo(
-                prefsManager.readString(
-                        ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO, null));
+                prefsManager.readString(NTP_CUSTOMIZATION_BACKGROUND_INFO, null));
+    }
+
+    /** Gets the current NTP's daily refresh {@link CustomBackgroundInfo} from SharedPreferences. */
+    public static @Nullable CustomBackgroundInfo
+            getDailyRefreshCustomBackgroundInfoFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        return stringToCustomBackgroundInfo(
+                prefsManager.readString(NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH, null));
     }
 
     /** Removes the {@link CustomBackgroundInfo} from the SharedPreference. */
     @VisibleForTesting
     static void removeCustomBackgroundInfoFromSharedPreference() {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO);
+    }
+
+    /** Removes the daily refresh {@link CustomBackgroundInfo} from SharedPreferences. */
+    @VisibleForTesting
+    static void removeDailyRefreshCustomBackgroundInfoFromSharedPreference() {
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH);
     }
 
     /**
@@ -888,7 +1149,7 @@ public class NtpCustomizationUtils {
                     backgroundUrl, collectionId, isUploadedImage, isDailyRefreshEnabled);
 
         } catch (Exception e) {
-            Log.e(TAG, "Error parsing CustomBackgroundInfo from string: " + e.getMessage(), e);
+            Log.i(TAG, "Error parsing CustomBackgroundInfo from string: " + e.getMessage(), e);
             return null;
         }
     }
@@ -918,18 +1179,31 @@ public class NtpCustomizationUtils {
         CropImageUtils.calculateInitialCenterCropMatrix(
                 landscapeMatrix, portraitHeight, portraitWidth, bitmap);
 
-        return new BackgroundImageInfo(portraitMatrix, landscapeMatrix);
+        return new BackgroundImageInfo(
+                portraitMatrix,
+                landscapeMatrix,
+                new Point(portraitWidth, portraitHeight),
+                new Point(portraitHeight, portraitWidth));
     }
 
     /**
      * Updates the necessary preferences and files for theme collection image or user uploaded
      * image.
+     *
+     * @param customBackgroundInfo The {@link CustomBackgroundInfo} containing the theme collection
+     *     info if passed in a theme collection image.
+     * @param bitmap The bitmap of the theme collection or uploaded image.
+     * @param backgroundImageInfo The {@link BackgroundImageInfo} containing the portrait and
+     *     landscape transformation matrices of the image.
+     * @param skipSavingPrimaryColor True if color selection and saving are deferred until the
+     *     bottom sheet is dismissed.
      */
-    public static void saveBackgroundInfoForThemeCollectionOrUploadedImage(
+    public static void saveBackgroundInfo(
             @Nullable CustomBackgroundInfo customBackgroundInfo,
             Bitmap bitmap,
-            BackgroundImageInfo backgroundImageInfo) {
-        updateBackgroundImageFile(bitmap);
+            BackgroundImageInfo backgroundImageInfo,
+            boolean skipSavingPrimaryColor) {
+        saveBackgroundImageFile(bitmap);
 
         if (customBackgroundInfo != null) {
             setCustomBackgroundInfoToSharedPreference(customBackgroundInfo);
@@ -937,8 +1211,89 @@ public class NtpCustomizationUtils {
             removeCustomBackgroundInfoFromSharedPreference();
         }
 
-        pickAndSavePrimaryColor(bitmap);
-        updateBackgroundImageMatrices(backgroundImageInfo);
+        if (!skipSavingPrimaryColor) {
+            pickAndSavePrimaryColor(bitmap);
+        }
+
+        updateBackgroundImageInfo(backgroundImageInfo);
+    }
+
+    /**
+     * Updates the necessary preferences and files for daily refresh of theme collection image.
+     *
+     * @param customBackgroundInfo The {@link CustomBackgroundInfo} containing the theme collection
+     *     info if passed in a theme collection image.
+     * @param bitmap The bitmap of the theme collection or uploaded image.
+     * @param backgroundImageInfo The {@link BackgroundImageInfo} containing the portrait and
+     *     landscape transformation matrices of the image.
+     */
+    public static void saveDailyRefreshBackgroundInfo(
+            @Nullable CustomBackgroundInfo customBackgroundInfo,
+            Bitmap bitmap,
+            BackgroundImageInfo backgroundImageInfo) {
+        saveDailyRefreshBackgroundImageFile(bitmap);
+
+        if (customBackgroundInfo != null) {
+            setDailyRefreshCustomBackgroundInfoToSharedPreference(customBackgroundInfo);
+        } else {
+            removeDailyRefreshCustomBackgroundInfoFromSharedPreference();
+        }
+
+        pickAndSaveDailyRefreshPrimaryColor(bitmap);
+
+        updateDailyRefreshBackgroundImageInfo(backgroundImageInfo);
+    }
+
+    /**
+     * Applies the daily refresh theme collection image by overwriting the current theme collection
+     * image settings with the daily refresh settings. This includes updating SharedPreferences and
+     * renaming the background image file.
+     */
+    static void applyDailyRefreshThemeCollectionImage() {
+        // 1. Overwrite current theme collection image info with daily refresh image info in
+        // SharedPreferences.
+        BackgroundImageInfo dailyRefreshNtpBackgroundImageInfo =
+                readDailyRefreshNtpBackgroundImageInfo();
+        if (dailyRefreshNtpBackgroundImageInfo != null) {
+            updateBackgroundImageInfo(dailyRefreshNtpBackgroundImageInfo);
+        }
+        setCustomizedPrimaryColorToSharedPreference(
+                getDailyRefreshCustomizedPrimaryColorFromSharedPreference());
+        CustomBackgroundInfo dailyRefreshCustomBackgroundInfo =
+                getDailyRefreshCustomBackgroundInfoFromSharedPreference();
+        if (dailyRefreshCustomBackgroundInfo != null) {
+            setCustomBackgroundInfoToSharedPreference(dailyRefreshCustomBackgroundInfo);
+        }
+
+        // 2. Remove the daily refresh info from SharedPreferences.
+        removeDailyRefreshNtpBackgroundImageInfo();
+        removeDailyRefreshCustomizedPrimaryColorFromSharedPreference();
+        removeDailyRefreshCustomBackgroundInfoFromSharedPreference();
+
+        // 3. Atomically swap the image files in the background.
+        new BackgroundOnlyAsyncTask<Void>() {
+            @Override
+            protected Void doInBackground() {
+                File dailyRefreshBackgroundImageFile = createDailyRefreshBackgroundImageFile();
+                if (!dailyRefreshBackgroundImageFile.exists()) {
+                    return null;
+                }
+
+                File mainFile = createBackgroundImageFile();
+                // Delete the old main file before renaming. This is necessary because renameTo
+                // might fail if the destination file already exists on some systems.
+                if (mainFile.exists()) {
+                    mainFile.delete();
+                }
+
+                if (!dailyRefreshBackgroundImageFile.renameTo(mainFile)) {
+                    Log.i(TAG, "Failed to rename daily refresh background image file.");
+                    // As a fallback, try to delete the daily refresh file to clean up.
+                    dailyRefreshBackgroundImageFile.delete();
+                }
+                return null;
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     public static void resetSharedPreferenceForTesting() {
@@ -946,8 +1301,15 @@ public class NtpCustomizationUtils {
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR);
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_MATRIX);
-        prefsManager.removeKey(ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_MATRIX);
+        prefsManager.removeKey(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO);
+        prefsManager.removeKey(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_THEME_COLOR_ID);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH);
+        prefsManager.removeKey(NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH);
+        prefsManager.removeKey(NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH);
+        prefsManager.removeKey(NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH);
     }
 
     public static void setImageFetcherForTesting(ImageFetcher imageFetcher) {

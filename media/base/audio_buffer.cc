@@ -34,17 +34,13 @@ namespace {
 class SelfOwnedMemory : public AudioBuffer::ExternalMemory {
  public:
   explicit SelfOwnedMemory(size_t size)
-      : heap_array_(UNSAFE_TODO(
-            base::HeapArray<uint8_t, base::AlignedFreeDeleter>::
-                FromOwningPointer(
-                    static_cast<uint8_t*>(
-                        base::AlignedAlloc(size, AudioBus::kChannelAlignment)),
-                    size))) {
+      : heap_array_(
+            base::AlignedUninit<uint8_t>(size, AudioBus::kChannelAlignment)) {
     span_ = heap_array_.as_span();
   }
 
  private:
-  base::HeapArray<uint8_t, base::AlignedFreeDeleter> heap_array_;
+  base::AlignedHeapArray<uint8_t> heap_array_;
 };
 
 std::unique_ptr<AudioBuffer::ExternalMemory> AllocateMemory(size_t size) {
@@ -69,10 +65,9 @@ AudioBufferMemoryPool::ExternalMemoryFromPool::ExternalMemoryFromPool(
     ExternalMemoryFromPool&& am) = default;
 AudioBufferMemoryPool::ExternalMemoryFromPool::ExternalMemoryFromPool(
     scoped_refptr<AudioBufferMemoryPool> pool,
-    std::unique_ptr<uint8_t, base::AlignedFreeDeleter> memory,
-    size_t size)
-    : memory_(std::move(memory)), pool_(pool) {
-  span_ = UNSAFE_TODO({memory_.get(), size});
+    base::AlignedHeapArray<uint8_t> memory)
+    : memory_(std::move(memory)), pool_(std::move(pool)) {
+  span_ = memory_.as_span();
 }
 
 AudioBufferMemoryPool::ExternalMemoryFromPool::~ExternalMemoryFromPool() {
@@ -105,11 +100,10 @@ AudioBufferMemoryPool::CreateBuffer(size_t size) {
 
   // FFmpeg may not always initialize the entire output memory, so just like
   // for VideoFrames we need to zero out the memory. https://crbug.com/1144070.
-  auto memory = std::unique_ptr<uint8_t, base::AlignedFreeDeleter>(
-      static_cast<uint8_t*>(base::AlignedAlloc(size, GetChannelAlignment())));
-  UNSAFE_TODO(memset(memory.get(), 0, size));
+  auto memory = base::AlignedUninit<uint8_t>(size, GetChannelAlignment());
+  std::ranges::fill(memory, 0u);
   return std::make_unique<ExternalMemoryFromPool>(
-      ExternalMemoryFromPool(this, std::move(memory), size));
+      ExternalMemoryFromPool(this, std::move(memory)));
 }
 
 void AudioBufferMemoryPool::ReturnBuffer(ExternalMemoryFromPool memory) {
@@ -320,8 +314,7 @@ scoped_refptr<AudioBuffer> AudioBuffer::CopyFrom(
 
   std::vector<const uint8_t*> data(channel_count);
   for (int ch = 0; ch < channel_count; ch++) {
-    data[ch] =
-        reinterpret_cast<const uint8_t*>(audio_bus->channel_span(ch).data());
+    data[ch] = reinterpret_cast<const uint8_t*>(audio_bus->channel(ch).data());
   }
 
   return CopyFrom(kSampleFormatPlanarF32, channel_layout, channel_count,
@@ -532,7 +525,7 @@ void AudioBuffer::ReadFrames(int frames_to_copy,
 
   if (sample_format_ == kSampleFormatPlanarF32) {
     for (int ch = 0; ch < channel_count_; ++ch) {
-      auto dest_data = dest->channel_span(ch).subspan(dest_offset);
+      auto dest_data = dest->channel(ch).subspan(dest_offset);
       const float* source_data =
           UNSAFE_TODO(reinterpret_cast<const float*>(channel_data_[ch]) +
                       source_frame_offset);
@@ -548,7 +541,7 @@ void AudioBuffer::ReadFrames(int frames_to_copy,
     for (int ch = 0; ch < channel_count_; ++ch) {
       const uint8_t* source_data =
           UNSAFE_TODO(channel_data_[ch] + source_frame_offset);
-      auto dest_data = dest->channel_span(ch).subspan(dest_offset);
+      auto dest_data = dest->channel(ch).subspan(dest_offset);
       for (int i = 0; i < frames_to_copy; ++i)
         dest_data[i] =
             UnsignedInt8SampleTypeTraits::ToFloat(UNSAFE_TODO(source_data[i]));
@@ -563,7 +556,7 @@ void AudioBuffer::ReadFrames(int frames_to_copy,
       const int16_t* source_data =
           UNSAFE_TODO(reinterpret_cast<const int16_t*>(channel_data_[ch]) +
                       source_frame_offset);
-      auto dest_data = dest->channel_span(ch).subspan(dest_offset);
+      auto dest_data = dest->channel(ch).subspan(dest_offset);
       for (int i = 0; i < frames_to_copy; ++i)
         dest_data[i] =
             SignedInt16SampleTypeTraits::ToFloat(UNSAFE_TODO(source_data[i]));
@@ -578,7 +571,7 @@ void AudioBuffer::ReadFrames(int frames_to_copy,
       const int32_t* source_data =
           UNSAFE_TODO(reinterpret_cast<const int32_t*>(channel_data_[ch]) +
                       source_frame_offset);
-      auto dest_data = dest->channel_span(ch).subspan(dest_offset);
+      auto dest_data = dest->channel(ch).subspan(dest_offset);
       for (int i = 0; i < frames_to_copy; ++i)
         dest_data[i] =
             SignedInt32SampleTypeTraits::ToFloat(UNSAFE_TODO(source_data[i]));

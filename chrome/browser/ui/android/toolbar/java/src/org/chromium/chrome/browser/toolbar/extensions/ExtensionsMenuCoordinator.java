@@ -14,14 +14,10 @@ import androidx.core.widget.ImageViewCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.divider.MaterialDivider;
-
 import org.chromium.base.lifetime.Destroyable;
-import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
@@ -51,9 +47,8 @@ import org.chromium.ui.widget.RectProvider;
 public class ExtensionsMenuCoordinator implements Destroyable {
     private final Context mContext;
     private final ListMenuButton mExtensionsMenuButton;
-    private final MaterialDivider mExtensionsMenuTabSwitcherDivider;
     private final ThemeColorProvider mThemeColorProvider;
-    private final ObservableSupplier<@Nullable Tab> mCurrentTabSupplier;
+    private final NullableObservableSupplier<Tab> mCurrentTabSupplier;
     private final TabCreator mTabCreator;
     private final View mContentView;
     private final PropertyModelChangeProcessor mChangeProcessor;
@@ -70,22 +65,17 @@ public class ExtensionsMenuCoordinator implements Destroyable {
      *
      * @param context The context for this component.
      * @param extensionsMenuButton The puzzle icon in the toolbar.
-     * @param extensionsMenuTabSwitcherDivider The divider between the extensions menu and the tab
-     *     switcher.
      * @param themeColorProvider The provider for theme colors.
      * @param taskSupplier Supplies the {@link ChromeAndroidTask}.
-     * @param profileSupplier Supplies the current {@link Profile}.
      * @param currentTabSupplier Supplies the current {@link Tab}.
      * @param tabCreator {@link TabCreator} to handle a new tab creation.
      */
     public ExtensionsMenuCoordinator(
             Context context,
             ListMenuButton extensionsMenuButton,
-            MaterialDivider extensionsMenuTabSwitcherDivider,
             ThemeColorProvider themeColorProvider,
-            OneshotSupplier<ChromeAndroidTask> taskSupplier,
-            ObservableSupplier<@Nullable Profile> profileSupplier,
-            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            ChromeAndroidTask task,
+            NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator) {
         mContext = context;
         mCurrentTabSupplier = currentTabSupplier;
@@ -95,8 +85,6 @@ public class ExtensionsMenuCoordinator implements Destroyable {
         mExtensionsMenuButton.setOnClickListener(view -> mShouldShowMenuOnInit = true);
         mExtensionsMenuButton.setMenuMaxWidth(
                 context.getResources().getDimensionPixelSize(R.dimen.extension_menu_max_width));
-
-        mExtensionsMenuTabSwitcherDivider = extensionsMenuTabSwitcherDivider;
 
         mThemeColorProvider = themeColorProvider;
         mThemeColorProvider.addTintObserver(mTintObserver);
@@ -132,8 +120,7 @@ public class ExtensionsMenuCoordinator implements Destroyable {
         mMediator =
                 new ExtensionsMenuMediator(
                         mContext,
-                        taskSupplier,
-                        profileSupplier,
+                        task,
                         mCurrentTabSupplier,
                         mExtensionModels,
                         () -> {
@@ -159,11 +146,6 @@ public class ExtensionsMenuCoordinator implements Destroyable {
                                 }
                                 mShouldShowMenuOnInit = false;
                             }
-                        },
-                        (extensionsSupported) -> {
-                            int visibility = extensionsSupported ? View.VISIBLE : View.GONE;
-                            mExtensionsMenuButton.setVisibility(visibility);
-                            mExtensionsMenuTabSwitcherDivider.setVisibility(visibility);
                         },
                         mExtensionsMenuButton.getRootView());
     }

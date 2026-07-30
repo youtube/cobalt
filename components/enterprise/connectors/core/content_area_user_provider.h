@@ -25,6 +25,17 @@ std::string GetActiveFrameUser(signin::IdentityManager* im,
                                const GURL& tab_url,
                                const GURL& frame_url);
 
+// Returns a default value for an active Gaia user based on the provided URL and
+// identity manager. This should be called after either
+// `GetActiveContentAreaUser` or `GetActiveFrameUser` have been used to attempt
+// to retrieve an active user.
+std::string GetDefaultActiveUser(signin::IdentityManager* im, const GURL& url);
+
+// Returns email of the active Gaia user checks performed at navigation time.
+// Only returns a value for google.com sites.
+std::string GetNavigationActiveContentAreaUser(signin::IdentityManager* im,
+                                               const GURL& tab_url);
+
 // Returns true if the main tab should be able to have its active user
 // retrieved. If this returns false, none of the other functions in this file
 // should be called.

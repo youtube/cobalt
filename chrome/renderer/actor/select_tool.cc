@@ -9,6 +9,7 @@
 
 #include "base/check.h"
 #include "base/notimplemented.h"
+#include "base/strings/to_string.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/chrome_features.h"
@@ -72,8 +73,12 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
   CHECK(frame_->GetWebFrame()->FrameWidget());
 
   if (target_->is_coordinate_dip()) {
-    NOTIMPLEMENTED() << "Coordinate-based target is not yet supported.";
-    return base::unexpected(MakeErrorResult());
+    static constexpr std::string_view kErrorMessage =
+        "Coordinate-based target is not yet supported.";
+    NOTIMPLEMENTED() << kErrorMessage;
+    return base::unexpected(MakeResult(mojom::ActionResultCode::kNotImplemented,
+                                       /*requires_page_stabilization=*/false,
+                                       kErrorMessage));
   }
 
   auto resolved_target = ValidateAndResolveTarget();

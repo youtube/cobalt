@@ -46,8 +46,6 @@
 #import "ios/chrome/browser/commerce/model/push_notification/push_notification_feature.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/app_bundle_promo/coordinator/app_bundle_promo_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_item.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_collection_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_commands.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
@@ -61,11 +59,13 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/coordinator/default_browser_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/default_browser/public/features.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/impression_limits/model/impression_limit_service_factory.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view_audience.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_container_delegate.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_ranking_model.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_utils.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/coordinator/magic_stack_ranking_model.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/public/magic_stack_utils.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/ui/magic_stack_collection_view.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/ui/magic_stack_collection_view_audience.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/ui/magic_stack_module_container_delegate.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/most_visited_tiles/coordinator/most_visited_tiles_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/most_visited_tiles/ui/most_visited_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/coordinator/price_tracking_promo_action_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/coordinator/price_tracking_promo_mediator.h"
@@ -362,34 +362,31 @@ using segmentation_platform::TipIdentifier;
   [moduleMediators addObject:_shortcutsMediator];
   self.contentSuggestionsMediator.shortcutsMediator = _shortcutsMediator;
 
-  if (IsTabResumptionEnabled()) {
-    _tabResumptionMediator = [[TabResumptionMediator alloc]
-              initWithLocalState:GetApplicationContext()->GetLocalState()
-                     prefService:prefs
-                 identityManager:identityManager
-                         browser:self.browser
-        optimizationGuideService:OptimizationGuideServiceFactory::GetForProfile(
-                                     profile)
-          impressionLimitService:
-              base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits)
-                  ? ImpressionLimitServiceFactory::GetForProfile(profile)
-                  : nil
-                 shoppingService:commerce::ShoppingServiceFactory::
-                                     GetForProfile(profile)
-                   bookmarkModel:ios::BookmarkModelFactory::GetForProfile(
-                                     profile)
-         pushNotificationService:GetApplicationContext()
-                                     ->GetPushNotificationService()
-           authenticationService:self.authService];
-    _tabResumptionMediator.NTPActionsDelegate = self.NTPActionsDelegate;
-    _tabResumptionMediator.contentSuggestionsMetricsRecorder =
-        self.contentSuggestionsMetricsRecorder;
-    _tabResumptionMediator.dispatcher = static_cast<
-        id<ApplicationCommands, PriceTrackedItemsCommands, SnackbarCommands>>(
-        self.browser->GetCommandDispatcher());
+  _tabResumptionMediator = [[TabResumptionMediator alloc]
+            initWithLocalState:GetApplicationContext()->GetLocalState()
+                   prefService:prefs
+               identityManager:identityManager
+                       browser:self.browser
+      optimizationGuideService:OptimizationGuideServiceFactory::GetForProfile(
+                                   profile)
+        impressionLimitService:
+            base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits)
+                ? ImpressionLimitServiceFactory::GetForProfile(profile)
+                : nil
+               shoppingService:commerce::ShoppingServiceFactory::GetForProfile(
+                                   profile)
+                 bookmarkModel:ios::BookmarkModelFactory::GetForProfile(profile)
+       pushNotificationService:GetApplicationContext()
+                                   ->GetPushNotificationService()
+         authenticationService:self.authService];
+  _tabResumptionMediator.NTPActionsDelegate = self.NTPActionsDelegate;
+  _tabResumptionMediator.contentSuggestionsMetricsRecorder =
+      self.contentSuggestionsMetricsRecorder;
+  _tabResumptionMediator.dispatcher = static_cast<
+      id<ApplicationCommands, PriceTrackedItemsCommands, SnackbarCommands>>(
+      self.browser->GetCommandDispatcher());
 
-    [moduleMediators addObject:_tabResumptionMediator];
-  }
+  [moduleMediators addObject:_tabResumptionMediator];
   if (IsPriceTrackingPromoCardEnabled(shoppingService, self.authService,
                                       prefs)) {
     _priceTrackingPromoMediator = [[PriceTrackingPromoMediator alloc]
@@ -1143,9 +1140,10 @@ using segmentation_platform::TipIdentifier;
       password_manager::InsecurePasswordCounts insecure_password_counts =
           safetyCheckManager->GetInsecurePasswordCounts();
 
-      HandleSafetyCheckPasswordTap(insecure_credentials,
-                                   insecure_password_counts, applicationHandler,
-                                   settingsHandler);
+      HandleSafetyCheckPasswordTap(
+          insecure_credentials, insecure_password_counts,
+          password_manager::PasswordCheckReferrer::kSafetyCheckMagicStack,
+          applicationHandler, settingsHandler);
 
       break;
     }
@@ -1346,8 +1344,7 @@ using segmentation_platform::TipIdentifier;
                   base::RecordAction(base::UserMetricsAction(
                       "Commerce.PriceTracking.MagicStackPromo.Reenable.Deny"));
                   [strongSelf dismissAlertCoordinator];
-                  [strongSelf->_priceTrackingPromoMediator
-                          removePriceTrackingPromo];
+                  [strongSelf->_priceTrackingPromoMediator disableModule];
                 }
                  style:UIAlertActionStyleCancel];
   [_priceTrackingPromoAlertCoordinator start];
@@ -1362,7 +1359,7 @@ using segmentation_platform::TipIdentifier;
           [self->_priceTrackingPromoMediator
                   enablePriceTrackingSettingsAndShowSnackbar];
         }
-        [self->_priceTrackingPromoMediator removePriceTrackingPromo];
+        [self->_priceTrackingPromoMediator disableModule];
       }];
 }
 

@@ -29,6 +29,7 @@
 #include "gpu/command_buffer/common/sync_token.h"
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/gl_utils.h"
+#include "gpu/command_buffer/service/gpu_persistent_cache.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/memory_program_cache.h"
 #include "gpu/command_buffer/service/passthrough_program_cache.h"
@@ -102,18 +103,18 @@ void TrimD3DResources(const scoped_refptr<SharedContextState>& context_state) {
   }
   if (d3d11_device) {
     Microsoft::WRL::ComPtr<IDXGIDevice3> dxgi_device;
-    if (SUCCEEDED(d3d11_device.As(&dxgi_device))) {
-      dxgi_device->Trim();
-    }
+    HRESULT hr = d3d11_device.As(&dxgi_device);
+    CHECK_EQ(hr, S_OK);
+    dxgi_device->Trim();
   }
 
   Microsoft::WRL::ComPtr<ID3D11Device> angle_d3d11_device =
       gl::QueryD3D11DeviceObjectFromANGLE();
   if (angle_d3d11_device && angle_d3d11_device != d3d11_device) {
     Microsoft::WRL::ComPtr<IDXGIDevice3> dxgi_device;
-    if (SUCCEEDED(angle_d3d11_device.As(&dxgi_device))) {
-      dxgi_device->Trim();
-    }
+    HRESULT hr = angle_d3d11_device.As(&dxgi_device);
+    CHECK_EQ(hr, S_OK);
+    dxgi_device->Trim();
   }
 }
 #endif
@@ -339,7 +340,8 @@ GpuChannelManager::GpuChannelManager(
     DawnContextProvider* dawn_context_provider,
     webgpu::DawnCachingInterfaceFactory* dawn_caching_interface_factory,
     const SharedContextState::GrContextOptionsProvider*
-        gr_context_options_provider)
+        gr_context_options_provider,
+    GpuPersistentCacheCollection* persistent_caches)
     : task_runner_(task_runner),
       io_task_runner_(io_task_runner),
       gpu_preferences_(gpu_preferences),
@@ -363,6 +365,9 @@ GpuChannelManager::GpuChannelManager(
       vulkan_context_provider_(vulkan_context_provider),
       metal_context_provider_(metal_context_provider),
       dawn_context_provider_(dawn_context_provider),
+      use_persistent_cache_for_ganesh_(
+          base::FeatureList::IsEnabled(features::kGpuPersistentCache)),
+      persistent_caches_(persistent_caches),
       peak_memory_monitor_(base::MakeRefCounted<GpuPeakMemoryMonitor>()),
       gr_context_options_provider_(gr_context_options_provider) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -374,7 +379,8 @@ GpuChannelManager::GpuChannelManager(
       (gpu_feature_info_
            .status_values[GPU_FEATURE_TYPE_GPU_TILE_RASTERIZATION] ==
        gpu::kGpuFeatureStatusEnabled) &&
-      !gpu_preferences_.disable_gpu_shader_disk_cache;
+      !gpu_preferences_.disable_gpu_shader_disk_cache &&
+      !use_persistent_cache_for_ganesh_;
   UMA_HISTOGRAM_BOOLEAN("Gpu.GrShaderCacheEnabled", enable_gr_shader_cache);
   if (enable_gr_shader_cache) {
     size_t gr_shader_cache_size = gpu_preferences.gpu_program_cache_size;
@@ -842,6 +848,10 @@ void GpuChannelManager::OnMemoryPressure(
   }
 #endif  // BUILDFLAG(USE_DAWN) || BUILDFLAG(SKIA_USE_DAWN)
 
+  if (persistent_caches_) {
+    persistent_caches_->PurgeMemory(memory_pressure_level);
+  }
+
 #if BUILDFLAG(IS_WIN)
   TrimD3DResources(shared_context_state_);
 #endif  // BUILDFLAG(IS_WIN)
@@ -975,7 +985,7 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
 
   if (!shared_context_state->InitializeSkia(
           gpu_preferences_, gpu_driver_bug_workarounds_, gr_shader_cache(),
-          use_shader_cache_shm_count_, watchdog_)) {
+          persistent_cache(), use_shader_cache_shm_count_, watchdog_)) {
     LOG(ERROR) << "ContextResult::kFatalFailure: Failed to initialize Skia for "
                   "SharedContextState";
     *result = ContextResult::kFatalFailure;
@@ -1059,6 +1069,12 @@ void GpuChannelManager::ScheduleGrContextCleanup() {
   if (shared_context_state_) {
     shared_context_state_->ScheduleSkiaCleanup();
   }
+}
+
+scoped_refptr<GpuPersistentCache> GpuChannelManager::persistent_cache() {
+  return use_persistent_cache_for_ganesh_
+             ? persistent_caches_->GetCache(kGrShaderGpuDiskCacheHandle)
+             : nullptr;
 }
 
 void GpuChannelManager::StoreShader(const std::string& key,

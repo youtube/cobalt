@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include <map>
 #include <memory>
 #include <set>
 #include <tuple>
@@ -140,8 +139,7 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
   void UnregisterOpenCursor(Cursor* cursor);
   void AddPreemptiveEvent() { pending_preemptive_events_++; }
   void DidCompletePreemptiveEvent() {
-    pending_preemptive_events_--;
-    DCHECK_GE(pending_preemptive_events_, 0);
+    CHECK_GE(--pending_preemptive_events_, 0);
   }
 
   // Common verifiers for mojo messages:

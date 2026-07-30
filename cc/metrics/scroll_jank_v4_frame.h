@@ -57,9 +57,11 @@ struct CC_EXPORT ScrollJankV4Frame {
     // See `viz::BeginFrameArgs::interval`.
     base::TimeDelta interval;
 
-    // Note: If this were an explicit constructor, it would prevent us from
+    // Note: If these were explicit constructors, they would prevent us from
     // using designated initializers (e.g. `{.frame_time = X, .interval = Y}`).
     static BeginFrameArgsForScrollJank From(const viz::BeginFrameArgs& args);
+    static BeginFrameArgsForScrollJank From(
+        const ScrollEventMetrics::DispatchBeginFrameArgs& args);
 
     bool operator==(const BeginFrameArgsForScrollJank&) const = default;
   };
@@ -162,9 +164,7 @@ struct CC_EXPORT ScrollJankV4Frame {
   // BFA4 (7-8) and BFA5 (9-10) with the presented frame (BFA6). The method only
   // cares about GSUs and GSEs, so it will ignore the initial GSB (1).
   //
-  // This method does NOT require that `events_metrics` is sorted. It will not
-  // modify `events_metrics` in any way. All pointers in the result point to
-  // events in `events_metrics`.
+  // This method does NOT require that `events_metrics` is sorted.
   static ScrollJankV4Frame::Timeline CalculateTimeline(
       const EventMetrics::List& events_metrics,
       const viz::BeginFrameArgs& presented_args,

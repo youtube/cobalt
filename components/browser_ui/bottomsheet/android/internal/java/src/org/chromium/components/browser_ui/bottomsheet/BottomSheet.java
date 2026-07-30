@@ -23,6 +23,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
@@ -644,7 +645,7 @@ class BottomSheet extends FrameLayout
         // If the sheet contents are cleared out before #onSheetClosed is called, do not try to
         // retrieve the accessibility string.
         if (getCurrentSheetContent() != null) {
-            announceForAccessibility(
+            updateA11yPaneTitle(
                     getResources()
                             .getString(
                                     getCurrentSheetContent()
@@ -658,7 +659,7 @@ class BottomSheet extends FrameLayout
     }
 
     /** Cancels and nulls the height animation if it exists. */
-    void cancelAnimation() {
+    private void cancelAnimation() {
         if (mSettleAnimator == null) return;
         mSettleAnimator.cancel();
         mSettleAnimator = null;
@@ -666,11 +667,10 @@ class BottomSheet extends FrameLayout
 
     /**
      * Creates the sheet's animation to a target state.
-     *
      * @param targetState The target state.
      * @param reason The reason the sheet started animation.
      */
-    void createSettleAnimation(
+    private void createSettleAnimation(
             @SheetState final int targetState, @StateChangeReason final int reason) {
         mTargetState = targetState;
         mSettleAnimator =
@@ -818,10 +818,8 @@ class BottomSheet extends FrameLayout
         return mSheetContent != null && mSheetContent.getPeekHeight() != HeightMode.DISABLED;
     }
 
-    /**
-     * @return Whether the half-height of the sheet is enabled.
-     */
-    boolean isHalfStateEnabled() {
+    /** @return Whether the half-height of the sheet is enabled. */
+    private boolean isHalfStateEnabled() {
         if (mSheetContent == null) return false;
 
         // Half state is invalid on small screens, when wrapping content at full height, and when
@@ -1036,10 +1034,12 @@ class BottomSheet extends FrameLayout
     /**
      * Set the current state of the bottom sheet. This is for internal use to notify observers of
      * state change events.
+     *
      * @param state The current state of the sheet.
      * @param reason The reason the state is changing if any.
      */
-    private void setInternalCurrentState(@SheetState int state, @StateChangeReason int reason) {
+    @VisibleForTesting
+    void setInternalCurrentState(@SheetState int state, @StateChangeReason int reason) {
         if (state == mCurrentState) return;
 
         // If we somehow got here with null content, force the sheet to close without animation.
@@ -1077,7 +1077,7 @@ class BottomSheet extends FrameLayout
                     mCurrentState == SheetState.FULL
                             ? getCurrentSheetContent().getSheetFullHeightAccessibilityStringId()
                             : getCurrentSheetContent().getSheetHalfHeightAccessibilityStringId();
-            setAccessibilityPaneTitle(getResources().getString(resId));
+            updateA11yPaneTitle(getResources().getString(resId));
 
             // TalkBack will announce the content description if it has changed, so wait to set the
             // content description until after announcing full/half height.
@@ -1501,6 +1501,12 @@ class BottomSheet extends FrameLayout
 
     private void invalidateContentDesiredHeight() {
         mContentDesiredHeight = HEIGHT_UNSPECIFIED;
+    }
+
+    private void updateA11yPaneTitle(CharSequence msg) {
+        // Set the pane title for the container. The bottom sheet view is not always accessible
+        // e.g. when sheet is dismissed.
+        ViewCompat.setAccessibilityPaneTitle(mSheetContainer, msg);
     }
 
     /**

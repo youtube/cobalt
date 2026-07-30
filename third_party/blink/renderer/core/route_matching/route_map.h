@@ -6,11 +6,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ROUTE_MATCHING_ROUTE_MAP_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_preposition.h"
 #include "third_party/blink/renderer/core/route_matching/route_match_state.h"
-#include "third_party/blink/renderer/core/route_matching/route_preposition.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
@@ -19,6 +21,7 @@
 namespace blink {
 
 class Document;
+class JSONValue;
 class Route;
 class URLPattern;
 
@@ -65,7 +68,8 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
 
   Route* get(const String& route_name);
 
-  // Document pointers may be null (in which case null will be returned).
+  // Supplement support. Document pointers may be null (in which case null will
+  // be returned).
   static const RouteMap* Get(const Document*);
   static RouteMap* Get(Document*);
   static RouteMap& Ensure(Document&);
@@ -77,8 +81,6 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
 
   ParseResult ParseAndApplyRoutes(const String& route_map_text);
 
-  ParseResult ParseRoutes(const String& route_map_text);
-
   void AddAnonymousRoute(URLPattern*);
 
   const Route* FindRoute(const String& route_name) const;
@@ -88,7 +90,7 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   // changed.
   void UpdateActiveRoutes();
 
-  void GetActiveRoutes(RoutePreposition,
+  void GetActiveRoutes(NavigationPreposition,
                        RouteMatchState::MatchCollection*) const;
 
   // Set the URLs that we're navigating between at the start of navigation. This
@@ -108,6 +110,10 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   }
 
  private:
+  ParseResult AddPatternToRoute(Route&, const JSONValue&);
+  bool UpdateMatchStatus(Route&,
+                         HeapVector<Member<Route>>* routes_needing_event);
+
   Member<Document> document_;
 
   HeapHashMap<String, Member<Route>> routes_;
@@ -116,6 +122,10 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
   // Only set while navigating from one URL to another one.
   KURL previous_url_;
   KURL next_url_;
+
+#if DCHECK_IS_ON()
+  bool is_updating_active_routes_ = false;
+#endif
 };
 
 }  // namespace blink

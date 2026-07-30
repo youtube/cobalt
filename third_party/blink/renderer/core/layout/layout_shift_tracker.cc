@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/layout/layout_shift_tracker.h"
 
+#include <algorithm>
+
 #include "cc/layers/heads_up_display_layer.h"
 #include "cc/layers/picture_layer.h"
 #include "cc/trees/layer_tree_host.h"
@@ -659,6 +661,24 @@ void LayoutShiftTracker::ReportShift(double score_delta,
     }
   }
 
+  if (RuntimeEnabledFeatures::SortedLayoutShiftSourcesByImpactAreaEnabled()) {
+    // Sort attributions by impact area in descending order (largest first).
+    // This benefits both the Performance API and tracing data.
+    // Using stable_sort to maintain insertion order for equal impact areas.
+    std::stable_sort(attributions_.begin(), attributions_.end(),
+                     [](const Attribution& a, const Attribution& b) {
+                       // Invalid attributions (kInvalidDOMNodeId) should sort
+                       // to the end.
+                       if (a.node_id == kInvalidDOMNodeId) {
+                         return false;
+                       }
+                       if (b.node_id == kInvalidDOMNodeId) {
+                         return true;
+                       }
+                       return a.MoreImpactfulThan(b);
+                     });
+  }
+
   SubmitPerformanceEntry(score_delta, had_recent_input);
 
   TRACE_EVENT_INSTANT2(
@@ -839,9 +859,9 @@ void LayoutShiftTracker::AttributionsToTracedValue(TracedValue& value) const {
   while (it != attributions_.end() && it->node_id != kInvalidDOMNodeId) {
     value.BeginDictionary();
     value.SetInteger("node_id", it->node_id);
-    RectToTracedValue(gfx::ToEnclosingRect(it->old_visual_rect), value,
+    RectToTracedValue(gfx::ToRoundedRect(it->old_visual_rect), value,
                       "old_rect");
-    RectToTracedValue(gfx::ToEnclosingRect(it->new_visual_rect), value,
+    RectToTracedValue(gfx::ToRoundedRect(it->new_visual_rect), value,
                       "new_rect");
     if (should_include_names) {
       Node* node = DOMNodeIds::NodeForId(it->node_id);

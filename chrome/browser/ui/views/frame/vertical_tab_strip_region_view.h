@@ -7,6 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/accessible_pane_view.h"
@@ -23,10 +24,6 @@ namespace tabs {
 class VerticalTabStripStateController;
 }  // namespace tabs
 
-namespace tabs_api {
-class TabStripService;
-}  // namespace tabs_api
-
 namespace views {
 class ResizeArea;
 class Separator;
@@ -41,9 +38,14 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
 
  public:
   static constexpr int kResizeAreaWidth = 6;
+  // TODO(crbug.com/465833741): Replace constant with derived value based on
+  // caption buttons.
+  static constexpr int kExpandedMinWidth = 96;
+  // TODO(crbug.com/465832180): Replace constant based width final max width for
+  // view.
+  static constexpr int kExpandedMaxWidth = 400;
 
   explicit VerticalTabStripRegionView(
-      tabs_api::TabStripService* service_register,
       tabs::VerticalTabStripStateController* state_controller,
       actions::ActionItem* root_action_item,
       BrowserWindowInterface* browser);
@@ -63,6 +65,8 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
     return tab_strip_view_->GetUnpinnedTabsContainerForTesting();
   }
 
+  RootTabCollectionNode* root_node_for_testing() { return root_node_.get(); }
+
   VerticalTabStripTopContainer* GetTopContainer() {
     return top_button_container_;
   }
@@ -71,13 +75,29 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
     return bottom_button_container_;
   }
 
+  VerticalTabStripController* GetVerticalTabStripController() {
+    return tab_strip_controller_.get();
+  }
+
   // views::View:
   void Layout(PassKey) override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
 
   bool IsPositionInWindowCaption(const gfx::Point& point);
+
+  void CreateTabStripController(BrowserView* browser_view);
+
+  // These methods provide the toolbar height and exclusion width, before the
+  // layout of this view, for use in calculating positioning of child views. If
+  // an exclusion width is provided, nothing can be rendered within the
+  // rectangle defined by `(exclusion_width, toolbar_height)` that is aligned to
+  // the leading, top corner.
+  void SetToolbarHeightForLayout(const int toolbar_height);
+  void SetExclusionWidthForLayout(const int exclusion_width);
 
  private:
   views::View* SetTabStripView(std::unique_ptr<views::View> view);
@@ -91,10 +111,15 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
   raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;
   raw_ptr<views::View> gemini_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+  std::unique_ptr<VerticalTabStripController> tab_strip_controller_;
   std::unique_ptr<RootTabCollectionNode> root_node_;
 
   raw_ptr<tabs::VerticalTabStripStateController> state_controller_;
   base::CallbackListSubscription collapsed_state_changed_subscription_;
+
+  // The width of the vertical tabstrip at the beginning of the current resize
+  // operation. Is std::nullopt when not resizing.
+  std::optional<int> starting_width_on_resize_ = std::nullopt;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_VERTICAL_TAB_STRIP_REGION_VIEW_H_

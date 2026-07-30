@@ -26,6 +26,7 @@
 #include "net/log/net_log_event_type.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request_context.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/origin.h"
 
 namespace net::device_bound_sessions {
@@ -93,12 +94,12 @@ void SignChallengeWithKey(
 
   std::optional<std::string> header_and_payload;
   if (is_for_refresh) {
-    header_and_payload = CreateKeyRefreshHeaderAndPayload(
-        challenge, expected_algorithm.value(), registration_url);
+    header_and_payload =
+        CreateKeyRefreshHeaderAndPayload(challenge, expected_algorithm.value());
   } else {
     header_and_payload = CreateKeyRegistrationHeaderAndPayload(
         challenge, expected_algorithm.value(), expected_public_key.value(),
-        std::move(authorization), registration_url);
+        std::move(authorization));
   }
 
   if (!header_and_payload.has_value()) {
@@ -652,10 +653,21 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     }
 
     // The registration endpoint is required to be same-site with the
-    // session. Therefore we don't need any FirstPartySetMetadata.
-    if (!(*session_or_error)
-             ->CanSetBoundCookie(url_fetcher_->request(),
-                                 FirstPartySetMetadata())) {
+    // session. Therefore we don't need any FirstPartySetMetadata.  The
+    // normalization provided by `DbscRequest` isn't technically needed
+    // here. But `CanSetBoundCookie` needs that normalization for other
+    // callers and its cheap enough that it's not worth working around.
+    bool can_set_bound_cookie;
+    {
+      // If we can't set a bound cookie, we destroy `this`, which leads
+      // to a dangling pointer in the `DbscRequest`. Instead, destroy
+      // `dbsc_request` before handling the returned boolean.
+      DbscRequest dbsc_request(&url_fetcher_->request());
+      can_set_bound_cookie =
+          (*session_or_error)
+              ->CanSetBoundCookie(dbsc_request, FirstPartySetMetadata());
+    }
+    if (!can_set_bound_cookie) {
       RunCallback(RegistrationResult{
           SessionError{SessionError::kBoundCookieSetForbidden}});
       // `this` may be deleted.
@@ -757,19 +769,21 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
         IsForRefreshRequest() ? NetLogEventType::DBSC_REFRESH_RESULT
                               : NetLogEventType::DBSC_REGISTRATION_RESULT;
     url_fetcher_->request().net_log().AddEvent(result_event_type, [&]() {
-      std::string result;
-      if (registration_result.is_session() ||
-          registration_result.is_no_session_config_change()) {
-        result = IsForRefreshRequest() ? "refreshed" : "registered";
-      } else {
-        const SessionError& error = registration_result.error();
-        if (IsForRefreshRequest()) {
-          result = error.GetDeletionReason().has_value() ? "session_ended"
-                                                         : "failed_continue";
-        } else {
-          result = "registration_failed";
-        }
-      }
+      std::string result = registration_result.Visit(absl::Overload{
+          [&](SessionError error) {
+            if (IsForRefreshRequest()) {
+              return error.GetDeletionReason().has_value() ? "session_ended"
+                                                           : "failed_continue";
+            } else {
+              return "registration_failed";
+            }
+          },
+          [&](const std::unique_ptr<Session>&) {
+            return IsForRefreshRequest() ? "refreshed" : "registered";
+          },
+          [&](RegistrationResult::NoSessionConfigChange) {
+            return IsForRefreshRequest() ? "refreshed" : "registered";
+          }});
 
       base::Value::Dict dict;
       dict.Set("status", std::move(result));

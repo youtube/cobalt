@@ -139,6 +139,19 @@ mojom::GetContextResultPtr LogErrorAndUnwrapResult(
   return std::move(result.value());
 }
 
+GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
+  switch (trigger) {
+    case mojom::UnpinTrigger::kWebClientUnknown:
+      return GlicUnpinTrigger::kWebClientUnknown;
+    case mojom::UnpinTrigger::kCandidatesToggle:
+      return GlicUnpinTrigger::kCandidatesToggle;
+    case mojom::UnpinTrigger::kChip:
+      return GlicUnpinTrigger::kChip;
+    case mojom::UnpinTrigger::kActuation:
+      return GlicUnpinTrigger::kActuation;
+  }
+}
+
 // Monitors the panel state and the browser widget state. Emits an event any
 // time the active state changes.
 // inactive = (panel hidden) || (panel attached) && (window not active)
@@ -808,6 +821,16 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (GlicEnabling::IsMultiInstanceEnabled()) {
       state->host_capabilities.push_back(mojom::HostCapability::kMultiInstance);
     }
+    if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+      int arm = features::kGlicTrustFirstOnboardingArmParam.Get();
+      if (arm == 1) {
+        state->host_capabilities.push_back(
+            mojom::HostCapability::kTrustFirstOnboardingArm1);
+      } else if (arm == 2) {
+        state->host_capabilities.push_back(
+            mojom::HostCapability::kTrustFirstOnboardingArm2);
+      }
+    }
     state->enable_get_page_metadata =
         base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
     state->enable_api_activation_gating =
@@ -1027,27 +1050,52 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   void PinTabs(const std::vector<int32_t>& tab_ids,
+               mojom::PinTabsOptionsPtr options,
                PinTabsCallback callback) override {
     std::vector<tabs::TabHandle> tab_handles;
     for (auto tab_id : tab_ids) {
       tab_handles.push_back(tabs::TabHandle(tab_id));
     }
-    std::move(callback).Run(sharing_manager().PinTabs(
-        tab_handles, GlicPinTrigger::kWebClientUnknown));
+    GlicPinTrigger trigger = GlicPinTrigger::kWebClientUnknown;
+    if (options) {
+      switch (options->pin_trigger) {
+        case mojom::PinTrigger::kWebClientUnknown:
+          trigger = GlicPinTrigger::kWebClientUnknown;
+          break;
+        case mojom::PinTrigger::kCandidatesToggle:
+          trigger = GlicPinTrigger::kCandidatesToggle;
+          break;
+        case mojom::PinTrigger::kAtMention:
+          trigger = GlicPinTrigger::kAtMention;
+          break;
+        case mojom::PinTrigger::kActuation:
+          trigger = GlicPinTrigger::kActuation;
+          break;
+      }
+    }
+    std::move(callback).Run(sharing_manager().PinTabs(tab_handles, trigger));
   }
 
   void UnpinTabs(const std::vector<int32_t>& tab_ids,
+                 mojom::UnpinTabsOptionsPtr options,
                  UnpinTabsCallback callback) override {
     std::vector<tabs::TabHandle> tab_handles;
     for (auto tab_id : tab_ids) {
       tab_handles.push_back(tabs::TabHandle(tab_id));
     }
-    std::move(callback).Run(sharing_manager().UnpinTabs(
-        tab_handles, GlicUnpinTrigger::kWebClientUnknown));
+    GlicUnpinTrigger trigger = GlicUnpinTrigger::kWebClientUnknown;
+    if (options) {
+      trigger = FromMojomUnpinTrigger(options->unpin_trigger);
+    }
+    std::move(callback).Run(sharing_manager().UnpinTabs(tab_handles, trigger));
   }
 
-  void UnpinAllTabs() override {
-    sharing_manager().UnpinAllTabs(GlicUnpinTrigger::kWebClientUnknown);
+  void UnpinAllTabs(mojom::UnpinTabsOptionsPtr options) override {
+    GlicUnpinTrigger trigger = GlicUnpinTrigger::kWebClientUnknown;
+    if (options) {
+      trigger = FromMojomUnpinTrigger(options->unpin_trigger);
+    }
+    sharing_manager().UnpinAllTabs(trigger);
   }
 
   void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
@@ -1821,7 +1869,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       mojo_credentials.push_back(actor::webui::mojom::Credential::New(
           credential.id.value(), base::UTF16ToUTF8(credential.username),
           base::UTF16ToUTF8(credential.source_site_or_app),
-          credential.request_origin));
+          credential.request_origin,
+          base::UTF16ToUTF8(credential.display_origin)));
     }
     base::flat_map<std::string, SkBitmap> mojo_icons;
     for (const auto& [site_or_app, image] : icons) {
@@ -1929,20 +1978,24 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
 GlicPageHandler::GlicPageHandler(
     content::WebContents* webui_contents,
+    Host* host,
     mojo::PendingReceiver<glic::mojom::PageHandler> receiver,
     mojo::PendingRemote<mojom::Page> page)
-    : webui_contents_(webui_contents),
+    : host_(*host),
+      webui_contents_(webui_contents),
       browser_context_(webui_contents->GetBrowserContext()),
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
-  host_ = GetGlicService()->host_manager().WebUIPageHandlerAdded(this);
+  GetGlicService()->host_manager().WebUIPageHandlerAdded(this, &host_.get());
   host_->AddPanelStateObserver(this);
-  UpdatePageState(host().GetPanelState(web_client_handler_.get()).kind);
-  subscriptions_.push_back(
-      GetGlicService()->enabling().RegisterProfileReadyStateChanged(
-          base::BindRepeating(&GlicPageHandler::UpdateProfileReadyState,
-                              base::Unretained(this))));
-  UpdateProfileReadyState();
+  UpdatePageState(host_->GetPanelState(web_client_handler_.get()).kind);
+  if (!base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
+    subscriptions_.push_back(
+        GetGlicService()->enabling().RegisterProfileReadyStateChanged(
+            base::BindRepeating(&GlicPageHandler::UpdateProfileReadyState,
+                                base::Unretained(this))));
+    UpdateProfileReadyState();
+  }
 }
 
 GlicPageHandler::~GlicPageHandler() {
@@ -1950,7 +2003,6 @@ GlicPageHandler::~GlicPageHandler() {
   WebUiStateChanged(glic::mojom::WebUiState::kUninitialized);
   // `GlicWebClientHandler` holds a pointer back to us, so delete it first.
   web_client_handler_.reset();
-  host_ = nullptr;
   GetGlicService()->host_manager().WebUIPageHandlerRemoved(this);
 }
 
@@ -2001,6 +2053,11 @@ content::RenderFrameHost* GlicPageHandler::GetGuestMainFrame() {
         return content::RenderFrameHost::FrameIterationAction::kContinue;
       });
   return web_view_guest ? web_view_guest->GetGuestMainFrame() : nullptr;
+}
+
+void GlicPageHandler::SetProfileReadyState(
+    glic::mojom::ProfileReadyState ready_state) {
+  page_->SetProfileReadyState(ready_state);
 }
 
 void GlicPageHandler::ClosePanel(ClosePanelCallback callback) {
@@ -2056,13 +2113,13 @@ void GlicPageHandler::PanelStateChanged(
   UpdatePageState(panel_state.kind);
 }
 
+void GlicPageHandler::UpdatePageState(mojom::PanelStateKind panelStateKind) {
+  page_->UpdatePageState(panelStateKind);
+}
+
 void GlicPageHandler::UpdateProfileReadyState() {
   page_->SetProfileReadyState(GlicEnabling::GetProfileReadyState(
       Profile::FromBrowserContext(browser_context_)));
-}
-
-void GlicPageHandler::UpdatePageState(mojom::PanelStateKind panelStateKind) {
-  page_->UpdatePageState(panelStateKind);
 }
 
 void GlicPageHandler::ZeroStateSuggestionChanged(

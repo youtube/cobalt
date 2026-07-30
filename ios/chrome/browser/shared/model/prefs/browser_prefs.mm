@@ -20,7 +20,6 @@
 #import "components/commerce/core/pref_names.h"
 #import "components/commerce/core/prefs.h"
 #import "components/component_updater/component_updater_service.h"
-#import "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #import "components/content_settings/core/browser/host_content_settings_map.h"
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/dom_distiller/core/distilled_page_prefs.h"
@@ -41,6 +40,7 @@
 #import "components/metrics/demographics/user_demographics.h"
 #import "components/metrics/metrics_pref_names.h"
 #import "components/network_time/network_time_tracker.h"
+#import "components/ntp_tiles/custom_links_manager_impl.h"
 #import "components/ntp_tiles/most_visited_sites.h"
 #import "components/ntp_tiles/popular_sites_impl.h"
 #import "components/ntp_tiles/pref_names.h"
@@ -242,9 +242,14 @@ inline constexpr char kLastInteractionTimeForFollowingGoodVisits[] =
     "LastInteractionTimeForGoodVisitsFollowing";
 inline constexpr char kLastInteractionTimeForGoodVisits[] =
     "LastInteractionTimeForGoodVisits";
-inline constexpr char kLongFeedVisitTimeAggregateKey[] = "LongFeedInteractionTimeDelta";
-inline constexpr char kLastUsedFeedForGoodVisitsKey[] = "LastUsedFeedForGoodVisits";
+inline constexpr char kLongFeedVisitTimeAggregateKey[] =
+    "LongFeedInteractionTimeDelta";
+inline constexpr char kLastUsedFeedForGoodVisitsKey[] =
+    "LastUsedFeedForGoodVisits";
 inline constexpr char kLegacySyncSessionsGUID[] = "sync.session_sync_guid";
+
+// Deprecated 12/2025.
+inline constexpr char kAutofillStatesDataDir[] = "autofill.states_data_dir";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -449,8 +454,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   update_client::RegisterPrefs(registry);
   variations::VariationsService::RegisterPrefs(registry);
   component_updater::RegisterComponentUpdateServicePrefs(registry);
-  component_updater::AutofillStatesComponentInstallerPolicy::RegisterPrefs(
-      registry);
   segmentation_platform::SegmentationPlatformService::RegisterLocalStatePrefs(
       registry);
   optimization_guide::prefs::RegisterLocalStatePrefs(registry);
@@ -720,6 +723,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   image_fetcher::ImageCache::RegisterProfilePrefs(registry);
   language::LanguagePrefs::RegisterProfilePrefs(registry);
   metrics::RegisterDemographicsProfilePrefs(registry);
+  ntp_tiles::CustomLinksManagerImpl::RegisterProfilePrefs(registry);
   ntp_tiles::MostVisitedSites::RegisterProfilePrefs(registry);
   ntp_tiles::PopularSitesImpl::RegisterProfilePrefs(registry);
   optimization_guide::prefs::RegisterProfilePrefs(registry);
@@ -858,9 +862,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Register pref used to detect addresses in web page
   registry->RegisterBooleanPref(prefs::kDetectAddressesEnabled, true);
   registry->RegisterBooleanPref(prefs::kDetectAddressesAccepted, false);
-
-  // Register MiniMap setting pref.
-  registry->RegisterBooleanPref(prefs::kIosMiniMapShowNativeMap, true);
 
   // Register prefs used by PromosManager.
   registry->RegisterListPref(prefs::kIosPromosManagerActivePromos);
@@ -1174,6 +1175,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Deprecated 11/2025.
   registry->RegisterListPref(kReaderModeRecentlyUsedTimestampsPref);
+
+  // Deprecated 12/2025.
+  registry->RegisterStringPref(kAutofillStatesDataDir, std::string());
+  registry->RegisterBooleanPref(prefs::kIosMiniMapShowNativeMap, true);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1376,6 +1381,10 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Added 11/2025.
   prefs->ClearPref(kReaderModeRecentlyUsedTimestampsPref);
+
+  // Added 12/2025.
+  prefs->ClearPref(kAutofillStatesDataDir);
+  prefs->ClearPref(prefs::kIosMiniMapShowNativeMap);
 }
 
 void MigrateObsoleteUserDefault() {

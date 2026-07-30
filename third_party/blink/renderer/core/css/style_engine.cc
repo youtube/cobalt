@@ -33,8 +33,10 @@
 
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/hash/hash.h"
 #include "base/rand_util.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
 #include "third_party/blink/renderer/core/css/cascade_layered.h"
@@ -49,10 +51,12 @@
 #include "third_party/blink/renderer/core/css/css_uri_value.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
+#include "third_party/blink/renderer/core/css/font_face.h"
 #include "third_party/blink/renderer/core/css/font_face_cache.h"
 #include "third_party/blink/renderer/core/css/invalidation/invalidation_set.h"
 #include "third_party/blink/renderer/core/css/media_feature_overrides.h"
 #include "third_party/blink/renderer/core/css/media_values.h"
+#include "third_party/blink/renderer/core/css/mixin_map.h"
 #include "third_party/blink/renderer/core/css/out_of_flow_data.h"
 #include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/css/property_registration.h"
@@ -68,6 +72,7 @@
 #include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
 #include "third_party/blink/renderer/core/css/style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_feature_values.h"
+#include "third_party/blink/renderer/core/css/style_rule_font_palette_values.h"
 #include "third_party/blink/renderer/core/css/style_rule_view_transition.h"
 #include "third_party/blink/renderer/core/css/style_sheet_collection.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
@@ -117,7 +122,6 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
-#include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector.h"
 #include "third_party/blink/renderer/platform/geometry/physical_size.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -877,8 +881,16 @@ void UpdateLayoutCounters(const LayoutObject& layout_object,
 void UpdateAltCounters(const StyleEngine& style_engine,
                        LayoutObject& layout_object,
                        CountersAttachmentContext& context) {
-  for (ContentData* content = layout_object.StyleRef().GetContentData();
-       content; content = content->Next()) {
+  auto* pseudo_element = DynamicTo<PseudoElement>(layout_object.GetNode());
+  if (!pseudo_element) {
+    return;
+  }
+  ContentData* content =
+      pseudo_element->CreateMutableAltContentDataForCountersIfNeeded();
+  if (!content) {
+    return;
+  }
+  for (; content; content = content->Next()) {
     if (auto* alt_counter_data = DynamicTo<AltCounterContentData>(content)) {
       alt_counter_data->UpdateText(context, style_engine, layout_object);
     }
@@ -1079,7 +1091,6 @@ void StyleEngine::UpdateGenericFontFamilySettings() {
   if (resolver_) {
     resolver_->InvalidateMatchedPropertiesCache();
   }
-  FontCache::Get().InvalidateShapeCache();
 }
 
 void StyleEngine::RemoveFontFaceRules(
@@ -2150,7 +2161,7 @@ void StyleEngine::ApplyRuleSetInvalidationForElement(
     const TreeScope& tree_scope,
     Element& element,
     SelectorFilter& selector_filter,
-    StyleScopeFrame& style_scope_frame,
+    StyleRecalcContext& style_recalc_context,
     const HeapHashSet<Member<RuleSet>>& rule_sets,
     unsigned changed_rule_flags,
     bool is_shadow_host) {
@@ -2170,9 +2181,6 @@ void StyleEngine::ApplyRuleSetInvalidationForElement(
   EInsideLink inside_link =
       EInsideLink::kNotInsideLink;  // Only used for MatchedProperties, so does
                                     // not matter for us.
-  StyleRecalcContext style_recalc_context =
-      StyleRecalcContext::FromAncestors(element);
-  style_recalc_context.style_scope_frame = &style_scope_frame;
   ElementRuleCollector collector(element_resolve_context, style_recalc_context,
                                  selector_filter, match_result, inside_link);
 
@@ -2480,8 +2488,11 @@ void StyleEngine::ApplyRuleSetInvalidationForTreeScope(
     // in the filter for the host will stay, giving a potential false
     // positive. It would be nice to handle this somehow.
     selector_filter.PopParent(host);
+    StyleRecalcContext style_recalc_context =
+        StyleRecalcContext::FromAncestors(host);
+    style_recalc_context.style_scope_frame = &style_scope_frame;
     ApplyRuleSetInvalidationForElement(tree_scope, host, selector_filter,
-                                       style_scope_frame, rule_sets,
+                                       style_recalc_context, rule_sets,
                                        changed_rule_flags,
                                        /*is_shadow_host=*/true);
     selector_filter.PushParent(host);
@@ -2522,11 +2533,13 @@ void StyleEngine::ApplyRuleSetInvalidationForTreeScope(
   // or StyleScopeFrame here: the caller should already have set up
   // the required state for `node` in both cases.
   for (Element& child : ElementTraversal::ChildrenOf(node)) {
-    ApplyRuleSetInvalidationForSubtree(
-        tree_scope, child, selector_filter,
-        /* parent_style_scope_frame */ style_scope_frame, rule_sets,
-        changed_rule_flags, invalidation_scope, invalidate_slotted,
-        invalidate_part);
+    StyleRecalcContext style_recalc_context =
+        StyleRecalcContext::FromAncestors(child);
+    style_recalc_context.style_scope_frame = &style_scope_frame;
+    ApplyRuleSetInvalidationForSubtree(tree_scope, child, selector_filter,
+                                       style_recalc_context, rule_sets,
+                                       changed_rule_flags, invalidation_scope,
+                                       invalidate_slotted, invalidate_part);
   }
 }
 
@@ -2534,13 +2547,14 @@ void StyleEngine::ApplyRuleSetInvalidationForSubtree(
     TreeScope& tree_scope,
     Element& element,
     SelectorFilter& selector_filter,
-    StyleScopeFrame& parent_style_scope_frame,
+    StyleRecalcContext& parent_style_recalc_context,
     const HeapHashSet<Member<RuleSet>>& rule_sets,
     unsigned changed_rule_flags,
     InvalidationScope invalidation_scope,
     bool invalidate_slotted,
     bool invalidate_part) {
-  StyleScopeFrame style_scope_frame(element, &parent_style_scope_frame);
+  StyleScopeFrame style_scope_frame(
+      element, parent_style_recalc_context.style_scope_frame);
 
   if (invalidate_part && element.hasAttribute(html_names::kPartAttr)) {
     // It's too complicated to try to handle ::part() precisely.
@@ -2550,8 +2564,12 @@ void StyleEngine::ApplyRuleSetInvalidationForSubtree(
                                 StyleChangeReasonForTracing::Create(
                                     style_change_reason::kStyleRuleChange));
   } else {
+    StyleRecalcContext style_recalc_context =
+        StyleRecalcContext::FromParentContext(parent_style_recalc_context,
+                                              element);
+    style_recalc_context.style_scope_frame = &style_scope_frame;
     ApplyRuleSetInvalidationForElement(tree_scope, element, selector_filter,
-                                       style_scope_frame, rule_sets,
+                                       style_recalc_context, rule_sets,
                                        changed_rule_flags,
                                        /*is_shadow_host=*/false);
   }
@@ -2584,12 +2602,16 @@ void StyleEngine::ApplyRuleSetInvalidationForSubtree(
     SelectorFilter::Mark mark = selector_filter.SetMark();
     selector_filter.PushParent(element);
 
+    StyleRecalcContext style_recalc_context =
+        StyleRecalcContext::FromParentContext(parent_style_recalc_context,
+                                              element);
+    style_recalc_context.style_scope_frame = &style_scope_frame;
+
     for (Element& child : ElementTraversal::ChildrenOf(element)) {
-      ApplyRuleSetInvalidationForSubtree(
-          tree_scope, child, selector_filter,
-          /* parent_style_scope_frame */ style_scope_frame, rule_sets,
-          changed_rule_flags, invalidation_scope, invalidate_slotted,
-          invalidate_part);
+      ApplyRuleSetInvalidationForSubtree(tree_scope, child, selector_filter,
+                                         style_recalc_context, rule_sets,
+                                         changed_rule_flags, invalidation_scope,
+                                         invalidate_slotted, invalidate_part);
     }
 
     selector_filter.PopTo(mark);
@@ -3246,8 +3268,10 @@ bool StyleEngine::UpdateRootFontRelativeUnits(
   bool root_font_glyphs_changed =
       !old_root_style ||
       (UsesGlyphRelativeUnits() &&
-       !base::ValuesEquivalent<Font>(old_root_style->GetFont(),
-                                     new_root_style->GetFont()));
+       (base::FeatureList::IsEnabled(blink::features::kCSSFontComparisonFix)
+            ? !base::ValuesEquivalent<Font>(old_root_style->GetFont(),
+                                            new_root_style->GetFont())
+            : old_root_style->GetFont() != new_root_style->GetFont()));
   bool root_line_height_changed =
       !old_root_style ||
       (UsesLineHeightUnits() &&

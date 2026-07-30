@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/geometry/rect_f.h"
 
@@ -19,8 +20,12 @@ namespace blink {
 // ContainerTiming is responsible for aggregating the text and image element
 // timing events for a given window.
 class CORE_EXPORT ContainerTiming final
-    : public GarbageCollected<ContainerTiming> {
+    : public GarbageCollected<ContainerTiming>,
+      public Supplement<LocalDOMWindow> {
  public:
+  static constexpr auto kSupplementIndex =
+      LocalDOMWindow::Supplements::kContainerTiming;
+
   explicit ContainerTiming(LocalDOMWindow&);
   ContainerTiming(const ContainerTiming&) = delete;
   ContainerTiming& operator=(const ContainerTiming&) = delete;
@@ -42,7 +47,7 @@ class CORE_EXPORT ContainerTiming final
                         Element* element,
                         const gfx::RectF& intersection_rect);
 
-  void Trace(Visitor* visitor) const;
+  void Trace(Visitor* visitor) const override;
 
  private:
   static Element* GetContainerRoot(Element*);

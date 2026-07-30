@@ -59,8 +59,8 @@
 #include "content/public/browser/web_contents.h"
 #include "crypto/unexportable_key.h"
 #include "device/fido/enclave/constants.h"
-#include "device/fido/features.h"
 #include "device/fido/mac/credential_metadata.h"
+#include "device/fido/public/features.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
@@ -195,8 +195,9 @@ void DeleteUnacceptedPasskeys(
       PasskeyModelFactory::GetInstance()->GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()));
   bool is_passkey_deleted = false;
-  for (const auto& passkey :
-       passkey_store->GetPasskeysForRelyingPartyId(relying_party_id)) {
+  for (const auto& passkey : passkey_store->GetPasskeys(
+           relying_party_id,
+           webauthn::PasskeyModel::ShadowedCredentials::kExclude)) {
     if (std::vector<uint8_t>(passkey.user_id().begin(),
                              passkey.user_id().end()) == user_id &&
         !base::Contains(all_accepted_credentials_ids,
@@ -241,7 +242,9 @@ void HideAndRestorePasskeys(
       PasskeyModelFactory::GetInstance()->GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()));
   std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys =
-      passkey_store->GetPasskeysForRelyingPartyId(relying_party_id);
+      passkey_store->GetPasskeys(
+          relying_party_id,
+          webauthn::PasskeyModel::ShadowedCredentials::kExclude);
   const auto passkey_it =
       std::ranges::find_if(passkeys, [&user_id](const auto& passkey) {
         return std::vector<uint8_t>(passkey.user_id().begin(),
@@ -444,7 +447,9 @@ void ChromeWebAuthenticationDelegate::PasskeyUnrecognized(
   std::string credential_id(passkey_credential_id.begin(),
                             passkey_credential_id.end());
   std::optional<sync_pb::WebauthnCredentialSpecifics> credential_specifics =
-      passkey_store->GetPasskeyByCredentialId(relying_party_id, credential_id);
+      passkey_store->GetPasskey(
+          relying_party_id, credential_id,
+          webauthn::PasskeyModel::ShadowedCredentials::kExclude);
   if (!credential_specifics) {
     LogSignalUnknownCredential(SignalUnknownCredentialResult::kPasskeyNotFound);
     return;
@@ -505,8 +510,9 @@ void ChromeWebAuthenticationDelegate::UpdateUserPasskeys(
       PasskeyModelFactory::GetInstance()->GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()));
   bool is_passkey_updated = false;
-  for (const auto& passkey :
-       passkey_store->GetPasskeysForRelyingPartyId(relying_party_id)) {
+  for (const auto& passkey : passkey_store->GetPasskeys(
+           relying_party_id,
+           webauthn::PasskeyModel::ShadowedCredentials::kExclude)) {
     if (std::vector<uint8_t>(passkey.user_id().begin(),
                              passkey.user_id().end()) == user_id &&
         (passkey.user_name() != name ||

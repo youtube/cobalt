@@ -15,6 +15,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
@@ -137,7 +138,7 @@ class FetcherDelegate : public ModelExecutionManager::Delegate {
 
   explicit FetcherDelegate(std::unique_ptr<legion::Client> client)
       : client_(std::move(client)) {
-    CHECK(client);
+    CHECK(client_);
   }
 
   std::unique_ptr<optimization_guide::ModelExecutionFetcher>

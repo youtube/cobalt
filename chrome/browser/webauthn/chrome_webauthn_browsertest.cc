@@ -55,14 +55,13 @@
 #include "content/public/test/browser_test_utils.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
-#include "device/fido/cable/cable_discovery_data.h"
 #include "device/fido/discoverable_credential_metadata.h"
-#include "device/fido/features.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/fido_request_handler_base.h"
-#include "device/fido/fido_transport_protocol.h"
-#include "device/fido/fido_types.h"
-#include "device/fido/public_key_credential_user_entity.h"
+#include "device/fido/public/features.h"
+#include "device/fido/public/fido_transport_protocol.h"
+#include "device/fido/public/fido_types.h"
+#include "device/fido/public/public_key_credential_user_entity.h"
 #include "device/fido/virtual_ctap2_device.h"
 #include "device/fido/virtual_fido_device.h"
 #include "device/fido/virtual_fido_device_factory.h"
@@ -82,6 +81,8 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace {
+
+using ShadowedCredentials = ::webauthn::PasskeyModel::ShadowedCredentials;
 
 static constexpr uint8_t kCredentialID[] = {1, 2,  3,  4,  5,  6,  7,  8,
                                             9, 10, 11, 12, 13, 14, 15, 16};
@@ -398,7 +399,6 @@ class WinWebAuthnBrowserTest
   WinWebAuthnBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
         {device::kWebAuthnHelloSignal,
-         device::kWebAuthenticationFixWindowsHelloRdp,
          device::kWebAuthenticationWindowsHints,
          device::kWebAuthnSignalApiHidePasskeys},
         /*disabled_features=*/{});
@@ -678,9 +678,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest,
 
   // After reporting the passkey, it should be marked as hidden.
   std::optional<sync_pb::WebauthnCredentialSpecifics> credential =
-      (passkey_model->GetPasskeyByCredentialId(
+      (passkey_model->GetPasskey(
           "www.example.com",
-          std::string(reinterpret_cast<const char*>(kCredentialID), 16)));
+          std::string(reinterpret_cast<const char*>(kCredentialID), 16),
+          ShadowedCredentials::kExclude));
   ASSERT_TRUE(credential);
   EXPECT_TRUE(credential->hidden());
 }
@@ -704,9 +705,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest,
 
   // Check that the passkey with kCredentialID was not hidden.
   std::optional<sync_pb::WebauthnCredentialSpecifics> credential =
-      (passkey_model->GetPasskeyByCredentialId(
+      (passkey_model->GetPasskey(
           "www.example.com",
-          std::string(reinterpret_cast<const char*>(kCredentialID), 16)));
+          std::string(reinterpret_cast<const char*>(kCredentialID), 16),
+          ShadowedCredentials::kExclude));
   ASSERT_TRUE(credential);
   EXPECT_FALSE(credential->hidden());
 
@@ -745,9 +747,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest,
 
   // Check that the passkey with kCredentialID2 was hidden.
   std::optional<sync_pb::WebauthnCredentialSpecifics> credential =
-      (passkey_model->GetPasskeyByCredentialId(
+      (passkey_model->GetPasskey(
           "www.example.com",
-          std::string(reinterpret_cast<const char*>(kCredentialID2), 16)));
+          std::string(reinterpret_cast<const char*>(kCredentialID2), 16),
+          ShadowedCredentials::kExclude));
   ASSERT_TRUE(credential);
   EXPECT_TRUE(credential->hidden());
 
@@ -842,9 +845,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest,
   }).then(c => 'webauthn: OK', e => 'error ' + e);
   )"));
 
-  auto passkey = passkey_model->GetPasskeyByCredentialId(
+  auto passkey = passkey_model->GetPasskey(
       "www.example.com",
-      std::string(reinterpret_cast<const char*>(kCredentialID), 16));
+      std::string(reinterpret_cast<const char*>(kCredentialID), 16),
+      ShadowedCredentials::kExclude);
 
   // Check if the name and displayName of the passkey reported was updated.
   EXPECT_EQ(passkey->user_name(), "Pepito");
@@ -896,9 +900,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest, SignalCurrentUserDetailsQuota) {
           base::ReplaceStringPlaceholders(kRequest, {kUsername1}, nullptr)));
 
   // Check that the name hasn't been updated.
-  auto passkey = passkey_model->GetPasskeyByCredentialId(
+  auto passkey = passkey_model->GetPasskey(
       "www.example.com",
-      std::string(reinterpret_cast<const char*>(kCredentialID), 16));
+      std::string(reinterpret_cast<const char*>(kCredentialID), 16),
+      ShadowedCredentials::kExclude);
   EXPECT_NE(passkey->user_name(), kUsername1);
 }
 
@@ -927,9 +932,10 @@ IN_PROC_BROWSER_TEST_F(WebAuthnBrowserTest,
   }).then(c => 'webauthn: OK', e => 'error ' + e);
   )"));
 
-  auto passkey = passkey_model->GetPasskeyByCredentialId(
+  auto passkey = passkey_model->GetPasskey(
       "www.example.com",
-      std::string(reinterpret_cast<const char*>(kCredentialID), 16));
+      std::string(reinterpret_cast<const char*>(kCredentialID), 16),
+      ShadowedCredentials::kExclude);
 
   // Check if the name and displayName of the passkey reported did not change.
   EXPECT_EQ(passkey->user_name(), kUsername1);

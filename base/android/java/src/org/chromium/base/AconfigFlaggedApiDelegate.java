@@ -18,7 +18,10 @@ import android.view.Display;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.Window;
+import android.view.accessibility.AccessibilityEvent;
 import android.webkit.WebViewDelegate;
+
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -215,5 +218,63 @@ public interface AconfigFlaggedApiDelegate {
     default @Nullable SelectionActionMenuClientWrapper getSelectionActionMenuClient(
             WebViewDelegate delegate) {
         return null;
+    }
+
+    /**
+     * Sets the sort direction on the CollectionItemInfoCompat Builder. This may call
+     * setSortDirection on the CollectionItemInfoCompat builder if the API is available.
+     *
+     * @param builder The CollectionItemInfoCompat.Builder instance to modify.
+     * @param sortDirection An integer representing the sort direction.
+     */
+    default void setCollectionItemSortDirection(
+            AccessibilityNodeInfoCompat.CollectionItemInfoCompat.Builder builder,
+            int sortDirection) {}
+
+    /**
+     * Attempts to add the CONTENT_CHANGE_TYPE_SORT_DIRECTION to the given AccessibilityEvent.
+     *
+     * @param event The AccessibilityEvent object to modify.
+     * @return true if the event was modified to include the sort direction content change type,
+     *     false otherwise (e.g., API not available).
+     */
+    default boolean setSortDirectionContentChangeType(AccessibilityEvent event) {
+        return false;
+    }
+
+    /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#setSelection(@Nullable
+     * SelectionCompat selection)} if supported.
+     *
+     * @param info The node to which the extended selection is assigned.
+     * @param view The view whose virtual descendant is associated with the selection position.
+     * @param startVirtualDescendantId The ID of the virtual descendant within {@code view}'s
+     *     virtual subtree that contains the start selection position.
+     * @param startOffset The offset for a selection position within the start virtual descendant's
+     *     text content.
+     * @param endVirtualDescendantId The ID of the virtual descendant within {@code view}'s virtual
+     *     subtree that contains the end selection position.
+     * @param endOffset The offset for a selection position within the end virtual descendant's text
+     *     content.
+     */
+    default void setSelection(
+            AccessibilityNodeInfoCompat info,
+            android.view.View view,
+            int startVirtualDescendantId,
+            int startOffset,
+            int endVirtualDescendantId,
+            int endOffset) {}
+
+    /**
+     * Calls {@link android.view.accessibility.AccessibilityNodeInfoCompat#setSelection(@Nullable
+     * SelectionCompat selection)} if supported.
+     *
+     * @param info The node whose extended selection is cleared.
+     */
+    default void clearSelection(AccessibilityNodeInfoCompat info) {}
+
+    /** Checks if {@link android.content.pm.webapp.WebAppManager} service is available. */
+    default boolean isWebAppServiceEnabled() {
+        return false;
     }
 }

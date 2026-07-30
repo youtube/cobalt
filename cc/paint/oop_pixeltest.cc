@@ -142,7 +142,7 @@ class OopPixelTest : public testing::Test,
 
     raster_context_provider_ =
         base::MakeRefCounted<viz::TestInProcessContextProvider>(
-            viz::TestContextType::kGpuRaster, /*support_locking=*/false,
+            viz::TestContextType::kRaster, /*support_locking=*/false,
             &gr_shader_cache_, &use_shader_cache_shm_count_);
     gpu::ContextResult result =
         raster_context_provider_->BindToCurrentSequence();
@@ -1079,13 +1079,12 @@ TEST_F(OopPixelTest, DrawHdrImageWithMetadata) {
         sk_make_sp<FakePaintImageGenerator>(image->imageInfo());
     {
       ImageHeaderMetadata image_metadata;
-      image_metadata.hdr_metadata.emplace();
       if (peak_luminance.has_value()) {
-        image_metadata.hdr_metadata->cta_861_3.emplace(peak_luminance.value(),
-                                                       kContentAvgNits);
+        image_metadata.hdr_metadata.cta_861_3.emplace(peak_luminance.value(),
+                                                      kContentAvgNits);
       }
       if (white_luminance.has_value()) {
-        image_metadata.hdr_metadata->ndwl.emplace(white_luminance.value());
+        image_metadata.hdr_metadata.ndwl.emplace(white_luminance.value());
       }
       image_generator->SetImageHeaderMetadata(image_metadata);
       EXPECT_TRUE(image->peekPixels(&image_generator->GetPixmap()));

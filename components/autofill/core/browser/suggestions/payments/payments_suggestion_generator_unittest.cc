@@ -117,40 +117,6 @@ Matcher<Suggestion> EqualsSuggestion(const Suggestion& suggestion) {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
-Matcher<Suggestion> EqualsIbanSuggestion(
-    const std::u16string& identifier_string,
-    const Suggestion::Payload& payload,
-    const std::u16string& nickname) {
-  if constexpr (BUILDFLAG(IS_ANDROID)) {
-    if (nickname.empty()) {
-      return AllOf(
-          Field(&Suggestion::type, SuggestionType::kIbanEntry),
-          Field(&Suggestion::main_text, Suggestion::Text(identifier_string)),
-          Field(&Suggestion::payload, payload));
-    }
-    return AllOf(Field(&Suggestion::type, SuggestionType::kIbanEntry),
-                 Field(&Suggestion::main_text, Suggestion::Text(nickname)),
-                 Field(&Suggestion::minor_texts,
-                       std::vector<Suggestion::Text>{
-                           Suggestion::Text(identifier_string)}),
-                 Field(&Suggestion::payload, payload));
-  }
-  if (nickname.empty()) {
-    return AllOf(Field(&Suggestion::type, SuggestionType::kIbanEntry),
-                 Field(&Suggestion::main_text,
-                       Suggestion::Text(identifier_string,
-                                        Suggestion::Text::IsPrimary(true))),
-                 Field(&Suggestion::payload, payload));
-  }
-  return AllOf(
-      Field(&Suggestion::type, SuggestionType::kIbanEntry),
-      Field(&Suggestion::main_text,
-            Suggestion::Text(nickname, Suggestion::Text::IsPrimary(true))),
-      Field(&Suggestion::payload, payload),
-      EqualLabels(std::vector<std::vector<Suggestion::Text>>{
-          {Suggestion::Text(identifier_string)}}));
-}
-
 #if !BUILDFLAG(IS_IOS)
 Matcher<Suggestion> EqualsUndoAutofillSuggestion() {
   return EqualsSuggestion(SuggestionType::kUndoOrClear,
@@ -337,16 +303,11 @@ class PaymentsSuggestionGeneratorTest
 // Params:
 // 1. Function reference to call which creates the appropriate credit card
 // benefit for the unittest.
-// 2. Whether the flag to sync benefits source is enabled.
-// 3. Issuer ID which is set for the credit card with benefits.
-// 4. Benefit source which is set for the credit card with benefits.
+// 2. Benefit source which is set for the credit card with benefits.
 class AutofillCreditCardBenefitsLabelTest
     : public PaymentsSuggestionGeneratorTest,
       public ::testing::WithParamInterface<
-          std::tuple<base::FunctionRef<CreditCardBenefit()>,
-                     bool,
-                     std::string,
-                     std::string>> {
+          std::tuple<base::FunctionRef<CreditCardBenefit()>, std::string>> {
  public:
   void SetUp() override {
     PaymentsSuggestionGeneratorTest::SetUp();
@@ -355,11 +316,8 @@ class AutofillCreditCardBenefitsLabelTest
         {{features::kAutofillEnableCardBenefitsForAmericanExpress, true},
          {features::kAutofillEnableCardBenefitsForBmo, true},
          {features::kAutofillEnableFlatRateCardBenefitsFromCurinos, true},
-         {features::kAutofillEnableCardBenefitsIph, true},
          {features::kAutofillEnableNewFopDisplayDesktop, true},
-         {features::kAutofillEnableFlatRateCardBenefitsBlocklist, true},
-         {features::kAutofillEnableCardBenefitsSourceSync,
-          IsCreditCardBenefitsSourceSyncEnabled()}});
+         {features::kAutofillEnableFlatRateCardBenefitsBlocklist, true}});
 
     std::u16string benefit_description;
     int64_t instrument_id;
@@ -413,24 +371,15 @@ class AutofillCreditCardBenefitsLabelTest
         /*guid=*/"00000000-0000-0000-0000-000000000001",
         /*server_id=*/"server_id1",
         /*instrument_id=*/instrument_id);
-    if (IsCreditCardBenefitsSourceSyncEnabled()) {
-      card_.set_benefit_source(GetBenefitSource());
-    } else {
-      card_.set_issuer_id(GetIssuerId());
-    }
+
+    card_.set_benefit_source(GetBenefitSource());
     payments_data().AddServerCreditCard(card_);
   }
 
   CreditCardBenefit GetBenefit() const { return std::get<0>(GetParam())(); }
 
-  bool IsCreditCardBenefitsSourceSyncEnabled() const {
-    return std::get<1>(GetParam());
-  }
-
-  const std::string& GetIssuerId() const { return std::get<2>(GetParam()); }
-
   const std::string& GetBenefitSource() const {
-    return std::get<3>(GetParam());
+    return std::get<1>(GetParam());
   }
 
   const CreditCard& card() { return card_; }
@@ -468,8 +417,6 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::Values(&test::GetActiveCreditCardFlatRateBenefit,
                                      &test::GetActiveCreditCardCategoryBenefit,
                                      &test::GetActiveCreditCardMerchantBenefit),
-                     ::testing::Bool(),
-                     ::testing::Values("amex", "bmo"),
                      ::testing::Values("amex", "bmo", "curinos")));
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -479,8 +426,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest, BenefitSuggestionLabel_Fpan) {
       card(), autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/false,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_TRUE(suggestion.labels.empty());
   } else {
@@ -500,8 +446,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       /*virtual_card_option=*/false,
       /*card_linked_offer_available=*/false);
   ASSERT_FALSE(autofill_client().GetAutofillOptimizationGuideDecider());
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_TRUE(suggestion.labels.empty());
   } else if (std::holds_alternative<CreditCardCategoryBenefit>(GetBenefit())) {
@@ -521,8 +466,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       card(), autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/false,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_EQ(suggestion.iph_metadata.feature, nullptr);
   } else {
@@ -543,21 +487,6 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
             &feature_engagement::kIPHAutofillVirtualCardSuggestionFeature);
 }
 
-// Checks that `feature` is set to null when the flag is off.
-TEST_P(AutofillCreditCardBenefitsLabelTest,
-       BenefitSuggestionFeatureForIph_IsNullWhenFlagIsDisabled) {
-  base::test::ScopedFeatureList disable_benefits_iph;
-  disable_benefits_iph.InitWithFeatures(
-      /*enabled_features=*/{},
-      /*disabled_features=*/{features::kAutofillEnableCardBenefitsIph});
-  EXPECT_EQ(CreateCreditCardSuggestionForTest(
-                card(), autofill_client(), CREDIT_CARD_NUMBER,
-                /*virtual_card_option=*/false,
-                /*card_linked_offer_available=*/false)
-                .iph_metadata.feature,
-            nullptr);
-}
-
 // Checks that `feature` is set to null when the card is not eligible
 // for the benefits.
 TEST_P(AutofillCreditCardBenefitsLabelTest,
@@ -573,8 +502,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
 
   if (std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_EQ(suggestion.iph_metadata.feature, nullptr);
-  } else if (IsCreditCardBenefitsSourceSyncEnabled() &&
-             GetBenefitSource() == "curinos") {
+  } else if (GetBenefitSource() == "curinos") {
     // Currently, Curinos only supports flat rate benefit, so when benefit
     // source is curinos, and the benefit is not a flat rate benefit, no
     // benefit suggestion will be shown.
@@ -593,8 +521,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       card(), autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/true,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_TRUE(suggestion.labels.empty());
   } else {
@@ -702,8 +629,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
   // Benefit description is not returned for flat rate benefits.
   if (std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_TRUE(suggestion.labels.empty());
-  } else if ((IsCreditCardBenefitsSourceSyncEnabled() &&
-              GetBenefitSource() == "curinos")) {
+  } else if (GetBenefitSource() == "curinos") {
     // Currently, Curinos only supports flat rate benefit, so when benefit
     // source is curinos, and the beneit is not a flat rate benefit, no
     // benefit suggestion will be shown.
@@ -723,8 +649,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       card(), autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/false,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_THAT(suggestion.labels,
                 ElementsAre(std::vector<Suggestion::Text>{Suggestion::Text(
@@ -752,8 +677,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       card(), autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/true,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_THAT(suggestion.labels,
                 ElementsAre(std::vector<Suggestion::Text>{
@@ -787,8 +711,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       virtual_card, autofill_client(), CREDIT_CARD_NUMBER,
       /*virtual_card_option=*/true,
       /*card_linked_offer_available=*/false);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_THAT(
         suggestion.labels,
@@ -912,8 +835,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       GetCreditCardSuggestionsForTouchToFill(cards, autofill_manager());
 
   EXPECT_EQ(suggestions[0].type, SuggestionType::kCreditCardEntry);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_THAT(suggestions[0],
                 EqualLabels({{card().GetInfo(CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
@@ -950,8 +872,7 @@ TEST_P(AutofillCreditCardBenefitsLabelTest,
       GetCreditCardSuggestionsForTouchToFill(cards, autofill_manager());
 
   EXPECT_EQ(suggestions[0].type, SuggestionType::kVirtualCreditCardEntry);
-  if (IsCreditCardBenefitsSourceSyncEnabled() &&
-      GetBenefitSource() == "curinos" &&
+  if (GetBenefitSource() == "curinos" &&
       !std::holds_alternative<CreditCardFlatRateBenefit>(GetBenefit())) {
     EXPECT_THAT(suggestions[0],
                 EqualLabels({{l10n_util::GetStringUTF16(
@@ -2576,88 +2497,6 @@ TEST_F(PaymentsSuggestionGeneratorTest,
 }
 
 TEST_F(PaymentsSuggestionGeneratorTest,
-       GetPromoCodeSuggestionsFromPromoCodeOffers_ValidPromoCodes) {
-  std::vector<const AutofillOfferData*> promo_code_offers;
-
-  base::Time expiry = AutofillClock::Now() + base::Days(2);
-  std::vector<GURL> merchant_origins;
-  DisplayStrings display_strings;
-  display_strings.value_prop_text = "test_value_prop_text_1";
-  std::string promo_code = "test_promo_code_1";
-  AutofillOfferData offer1 = AutofillOfferData::GPayPromoCodeOffer(
-      /*offer_id=*/1, expiry, merchant_origins,
-      /*offer_details_url=*/GURL("https://offer-details-url.com/"),
-      display_strings, promo_code);
-
-  promo_code_offers.push_back(&offer1);
-
-  DisplayStrings display_strings2;
-  display_strings2.value_prop_text = "test_value_prop_text_2";
-  std::string promo_code2 = "test_promo_code_2";
-  AutofillOfferData offer2 = AutofillOfferData::GPayPromoCodeOffer(
-      /*offer_id=*/2, expiry, merchant_origins,
-      /*offer_details_url=*/GURL("https://offer-details-url.com/"),
-      display_strings2, promo_code2);
-
-  promo_code_offers.push_back(&offer2);
-
-  std::vector<Suggestion> promo_code_suggestions =
-      GetPromoCodeSuggestionsFromPromoCodeOffers(promo_code_offers);
-  EXPECT_TRUE(promo_code_suggestions.size() == 4);
-
-  EXPECT_EQ(promo_code_suggestions[0].main_text.value, u"test_promo_code_1");
-  EXPECT_EQ(promo_code_suggestions[0].GetPayload<Suggestion::Guid>(),
-            Suggestion::Guid("1"));
-  EXPECT_THAT(promo_code_suggestions[0],
-              EqualLabels({{u"test_value_prop_text_1"}}));
-  EXPECT_EQ(promo_code_suggestions[0].GetPayload<Suggestion::Guid>(),
-            Suggestion::Guid("1"));
-  EXPECT_EQ(promo_code_suggestions[0].type,
-            SuggestionType::kMerchantPromoCodeEntry);
-  EXPECT_EQ(promo_code_suggestions[1].main_text.value, u"test_promo_code_2");
-  EXPECT_EQ(promo_code_suggestions[1].GetPayload<Suggestion::Guid>(),
-            Suggestion::Guid("2"));
-  EXPECT_THAT(promo_code_suggestions[1],
-              EqualLabels({{u"test_value_prop_text_2"}}));
-  EXPECT_EQ(promo_code_suggestions[1].GetPayload<Suggestion::Guid>(),
-            Suggestion::Guid("2"));
-  EXPECT_EQ(promo_code_suggestions[1].type,
-            SuggestionType::kMerchantPromoCodeEntry);
-
-  EXPECT_EQ(promo_code_suggestions[2].type, SuggestionType::kSeparator);
-
-  EXPECT_EQ(promo_code_suggestions[3].main_text.value,
-            l10n_util::GetStringUTF16(
-                IDS_AUTOFILL_PROMO_CODE_SUGGESTIONS_FOOTER_TEXT));
-  EXPECT_EQ(promo_code_suggestions[3].GetPayload<GURL>(),
-            offer1.GetOfferDetailsUrl().spec());
-  EXPECT_EQ(promo_code_suggestions[3].type,
-            SuggestionType::kSeePromoCodeDetails);
-}
-
-TEST_F(PaymentsSuggestionGeneratorTest,
-       GetPromoCodeSuggestionsFromPromoCodeOffers_InvalidPromoCodeURL) {
-  std::vector<const AutofillOfferData*> promo_code_offers;
-  AutofillOfferData offer;
-  offer.SetPromoCode("test_promo_code_1");
-  offer.SetValuePropTextInDisplayStrings("test_value_prop_text_1");
-  offer.SetOfferIdForTesting(1);
-  offer.SetOfferDetailsUrl(GURL("invalid-url"));
-  promo_code_offers.push_back(&offer);
-
-  std::vector<Suggestion> promo_code_suggestions =
-      GetPromoCodeSuggestionsFromPromoCodeOffers(promo_code_offers);
-  EXPECT_TRUE(promo_code_suggestions.size() == 1);
-
-  EXPECT_EQ(promo_code_suggestions[0].main_text.value, u"test_promo_code_1");
-  EXPECT_THAT(promo_code_suggestions[0],
-              EqualLabels({{u"test_value_prop_text_1"}}));
-  EXPECT_FALSE(std::holds_alternative<GURL>(promo_code_suggestions[0].payload));
-  EXPECT_EQ(promo_code_suggestions[0].type,
-            SuggestionType::kMerchantPromoCodeEntry);
-}
-
-TEST_F(PaymentsSuggestionGeneratorTest,
        GenerateLocalSaveAndFillSuggestion_CreditCardUploadDisabled) {
   base::test::ScopedFeatureList scoped_feature_list(
       features::kAutofillEnableSaveAndFill);
@@ -2922,165 +2761,6 @@ TEST_F(PaymentsSuggestionGeneratorTest,
           EqualsSuggestion(SuggestionType::kSaveAndFillCreditCardEntry),
           EqualsSuggestion(SuggestionType::kSeparator),
           EqualsManagePaymentsMethodsSuggestion(/*with_gpay_logo=*/true)));
-}
-
-// This class helps test the IBAN suggestion contents that are displayed in
-// Autofill suggestions.
-class AutofillIbanSuggestionContentTest
-    : public PaymentsSuggestionGeneratorTest,
-      public testing::WithParamInterface<bool> {
- public:
-  AutofillIbanSuggestionContentTest() {
-    feature_list_metadata_.InitWithFeatureStates(
-        {{features::kAutofillEnableNewFopDisplayDesktop,
-          IsNewFopDisplayEnabled()}});
-  }
-
-  ~AutofillIbanSuggestionContentTest() override = default;
-
-  bool IsNewFopDisplayEnabled() const {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-    return false;
-#else
-    return GetParam();
-#endif
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_metadata_;
-};
-
-INSTANTIATE_TEST_SUITE_P(PaymentsSuggestionGeneratorTest,
-                         AutofillIbanSuggestionContentTest,
-                         ::testing::Bool());
-
-TEST_P(AutofillIbanSuggestionContentTest, GetLocalIbanSuggestions) {
-  auto MakeLocalIban = [](const std::u16string& value,
-                          const std::u16string& nickname) {
-    Iban iban(Iban::Guid(base::Uuid::GenerateRandomV4().AsLowercaseString()));
-    iban.set_value(value);
-    if (!nickname.empty()) {
-      iban.set_nickname(nickname);
-    }
-    return iban;
-  };
-  Iban iban0 =
-      MakeLocalIban(u"CH56 0483 5012 3456 7800 9", u"My doctor's IBAN");
-  Iban iban1 =
-      MakeLocalIban(u"DE91 1000 0000 0123 4567 89", u"My brother's IBAN");
-  Iban iban2 =
-      MakeLocalIban(u"GR96 0810 0010 0000 0123 4567 890", u"My teacher's IBAN");
-  Iban iban3 = MakeLocalIban(u"PK70 BANK 0000 1234 5678 9000", u"");
-
-  std::vector<Suggestion> iban_suggestions =
-      GetSuggestionsForIbans({iban0, iban1, iban2, iban3});
-
-  // There are 6 suggestions, 4 for IBAN suggestions, followed by a separator,
-  // and followed by "Manage payment methods..." which redirects to the Chrome
-  // payment methods settings page.
-  ASSERT_EQ(iban_suggestions.size(), 6u);
-
-  EXPECT_THAT(
-      iban_suggestions[0],
-      EqualsIbanSuggestion(iban0.GetIdentifierStringForAutofillDisplay(),
-                           Suggestion::Guid(iban0.guid()), iban0.nickname()));
-
-  EXPECT_THAT(
-      iban_suggestions[1],
-      EqualsIbanSuggestion(iban1.GetIdentifierStringForAutofillDisplay(),
-                           Suggestion::Guid(iban1.guid()), iban1.nickname()));
-
-  EXPECT_THAT(
-      iban_suggestions[2],
-      EqualsIbanSuggestion(iban2.GetIdentifierStringForAutofillDisplay(),
-                           Suggestion::Guid(iban2.guid()), iban2.nickname()));
-
-  EXPECT_THAT(
-      iban_suggestions[3],
-      EqualsIbanSuggestion(iban3.GetIdentifierStringForAutofillDisplay(),
-                           Suggestion::Guid(iban3.guid()), iban3.nickname()));
-
-  EXPECT_EQ(iban_suggestions[4].type, SuggestionType::kSeparator);
-
-  EXPECT_EQ(iban_suggestions[5].main_text.value,
-            l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS));
-  EXPECT_EQ(iban_suggestions[5].type, SuggestionType::kManageIban);
-}
-
-TEST_P(AutofillIbanSuggestionContentTest, GetServerIbanSuggestions) {
-  Iban server_iban1 = test::GetServerIban();
-  Iban server_iban2 = test::GetServerIban2();
-  Iban server_iban3 = test::GetServerIban3();
-
-  std::vector<Suggestion> iban_suggestions =
-      GetSuggestionsForIbans({server_iban1, server_iban2, server_iban3});
-
-  // There are 5 suggestions, 3 for IBAN suggestions, followed by a separator,
-  // and followed by "Manage payment methods..." which redirects to the Chrome
-  // payment methods settings page.
-  ASSERT_EQ(iban_suggestions.size(), 5u);
-
-  EXPECT_THAT(iban_suggestions[0],
-              EqualsIbanSuggestion(
-                  server_iban1.GetIdentifierStringForAutofillDisplay(),
-                  Suggestion::InstrumentId(server_iban1.instrument_id()),
-                  server_iban1.nickname()));
-
-  EXPECT_THAT(iban_suggestions[1],
-              EqualsIbanSuggestion(
-                  server_iban2.GetIdentifierStringForAutofillDisplay(),
-                  Suggestion::InstrumentId(server_iban2.instrument_id()),
-                  server_iban2.nickname()));
-
-  EXPECT_THAT(iban_suggestions[2],
-              EqualsIbanSuggestion(
-                  server_iban3.GetIdentifierStringForAutofillDisplay(),
-                  Suggestion::InstrumentId(server_iban3.instrument_id()),
-                  server_iban3.nickname()));
-
-  EXPECT_EQ(iban_suggestions[3].type, SuggestionType::kSeparator);
-
-  EXPECT_EQ(iban_suggestions[4].main_text.value,
-            l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS));
-  EXPECT_EQ(iban_suggestions[4].type, SuggestionType::kManageIban);
-}
-
-TEST_P(AutofillIbanSuggestionContentTest, GetLocalAndServerIbanSuggestions) {
-  Iban server_iban1 = test::GetServerIban();
-  Iban server_iban2 = test::GetServerIban2();
-  Iban local_iban1 = test::GetLocalIban();
-
-  std::vector<Suggestion> iban_suggestions =
-      GetSuggestionsForIbans({server_iban1, server_iban2, local_iban1});
-
-  // There are 5 suggestions, 3 for IBAN suggestions, followed by a separator,
-  // and followed by "Manage payment methods..." which redirects to the Chrome
-  // payment methods settings page.
-  ASSERT_EQ(iban_suggestions.size(), 5u);
-
-  EXPECT_THAT(iban_suggestions[0],
-              EqualsIbanSuggestion(
-                  server_iban1.GetIdentifierStringForAutofillDisplay(),
-                  Suggestion::InstrumentId(server_iban1.instrument_id()),
-                  server_iban1.nickname()));
-
-  EXPECT_THAT(iban_suggestions[1],
-              EqualsIbanSuggestion(
-                  server_iban2.GetIdentifierStringForAutofillDisplay(),
-                  Suggestion::InstrumentId(server_iban2.instrument_id()),
-                  server_iban2.nickname()));
-
-  EXPECT_THAT(
-      iban_suggestions[2],
-      EqualsIbanSuggestion(local_iban1.GetIdentifierStringForAutofillDisplay(),
-                           Suggestion::Guid(local_iban1.guid()),
-                           local_iban1.nickname()));
-
-  EXPECT_EQ(iban_suggestions[3].type, SuggestionType::kSeparator);
-
-  EXPECT_EQ(iban_suggestions[4].main_text.value,
-            l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS));
-  EXPECT_EQ(iban_suggestions[4].type, SuggestionType::kManageIban);
 }
 
 // This class helps test the credit card contents that are displayed in
@@ -4198,8 +3878,12 @@ TEST_P(PaymentsSuggestionGeneratorTestForOffer,
   // suggestion label when the virtual card metadata flag is enabled on Android
   // OS.
   expected_labels_size = 0;
-#else
+#elif BUILDFLAG(IS_IOS)
+  // For iOS, the expiration date is shown as a suggestion label.
   expected_labels_size = 1;
+#else
+  // For virtual cards, expiration date is not shown as a suggestion label.
+  expected_labels_size = 0;
 #endif
   EXPECT_EQ(virtual_card_suggestion.labels.size(), expected_labels_size);
 
@@ -4219,10 +3903,17 @@ TEST_P(PaymentsSuggestionGeneratorTestForOffer,
               &feature_engagement::kIPHKeyboardAccessoryPaymentOfferFeature);
 #endif
   } else {
+#if BUILDFLAG(IS_IOS)
     ASSERT_EQ(real_card_suggestion.labels.size(), 2U);
     ASSERT_EQ(real_card_suggestion.labels[1].size(), 1U);
     EXPECT_EQ(real_card_suggestion.labels[1][0].value,
               l10n_util::GetStringUTF16(IDS_AUTOFILL_OFFERS_CASHBACK));
+#elif !BUILDFLAG(IS_ANDROID)
+    ASSERT_EQ(real_card_suggestion.labels.size(), 1U);
+    ASSERT_EQ(real_card_suggestion.labels[0].size(), 1U);
+    EXPECT_EQ(real_card_suggestion.labels[0][0].value,
+              l10n_util::GetStringUTF16(IDS_AUTOFILL_OFFERS_CASHBACK));
+#endif
   }
 }
 

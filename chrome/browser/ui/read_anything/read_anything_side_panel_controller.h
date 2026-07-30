@@ -13,6 +13,7 @@
 #include "base/observer_list.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
+#include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
 #include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
 #include "components/tabs/public/tab_interface.h"
@@ -66,13 +67,7 @@ class ReadAnythingSidePanelController
       public content::WebContentsObserver,
       public page_actions::PageActionObserver {
  public:
-  class Observer : public base::CheckedObserver {
-   public:
-    virtual void Activate(bool active,
-                          std::optional<ReadAnythingOpenTrigger> trigger) {}
-    virtual void OnSidePanelControllerDestroyed() = 0;
-    virtual void OnTabWillDetach() = 0;
-  };
+  using Observer = ReadAnythingLifecycleObserver;
   ReadAnythingSidePanelController(tabs::TabInterface* tab,
                                   SidePanelRegistry* side_panel_registry);
   ReadAnythingSidePanelController(const ReadAnythingSidePanelController&) =
@@ -104,8 +99,8 @@ class ReadAnythingSidePanelController
                        SidePanelEntryHideReason reason) override;
 
 
-  void AddObserver(ReadAnythingSidePanelController::Observer* observer);
-  void RemoveObserver(ReadAnythingSidePanelController::Observer* observer);
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   tabs::TabInterface* tab() { return tab_.get(); }
 
@@ -123,6 +118,9 @@ class ReadAnythingSidePanelController
 
   // Called when the associated tab enters the foreground.
   void TabForegrounded(tabs::TabInterface* tab);
+
+  // Called when the associated tab enters the background.
+  void TabBackgrounded(tabs::TabInterface* tab);
 
   // Called when the tab will detach.
   void TabWillDetach(tabs::TabInterface* tab,
@@ -148,6 +146,12 @@ class ReadAnythingSidePanelController
   // Show or hide the omnibox entry point.
   void UpdateOmniboxEntryPoint(bool should_show);
 
+  // Checks if the omnibox entry point was ignored and informs the entry point
+  // controller if it was.
+  // TODO(crbug.com/447418049): Check this with IRM too - possibly by moving
+  // this to the ReadAnythingController.
+  void UpdateOmniboxEntryPointIgnored(bool is_showing);
+
   // Called when the IPH for the omnibox entry is either shown or not shown.
   void OnShowPromoResult(user_education::FeaturePromoResult result);
 
@@ -160,6 +164,9 @@ class ReadAnythingSidePanelController
   // The time when CheckIfGoodCandidateForReadingMode was triggered.
   base::TimeTicks candidate_check_triggered_time_ms_;
 
+  // The cached result of CheckIfGoodCandidateForReadingMode.
+  bool was_last_checked_page_distillable_ = false;
+
   // A timer for delaying showing the ominbox entrypoint to ensure the user is
   // actually attempting to read the page.
   std::unique_ptr<base::RetainingOneShotTimer> page_dwell_timer_;
@@ -167,7 +174,7 @@ class ReadAnythingSidePanelController
   // IPH.
   std::unique_ptr<base::OneShotTimer> iph_response_timer_;
 
-  base::ObserverList<ReadAnythingSidePanelController::Observer> observers_;
+  base::ObserverList<Observer> observers_;
 
   const raw_ptr<tabs::TabInterface> tab_;
   raw_ptr<SidePanelRegistry> side_panel_registry_;

@@ -12,9 +12,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
-import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffColorFilter;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.Button;
@@ -25,6 +23,7 @@ import androidx.annotation.StyleRes;
 import androidx.constraintlayout.widget.ConstraintSet;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -42,12 +41,30 @@ class FuseboxViewBinder {
      * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
      */
     public static void bind(PropertyModel model, FuseboxViewHolder view, PropertyKey propertyKey) {
+        // go/keep-sorted start block=yes by_regex=propertyKey\s*==\s*FuseboxProperties\.(\w+)
         if (propertyKey == FuseboxProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(FuseboxProperties.ADAPTER));
+        } else if (propertyKey == FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE) {
+            view.addButton.setVisibility(
+                    model.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE)
+                            ? View.VISIBLE
+                            : View.GONE);
+            updateButtonsVisibilityAndStyling(model, view);
         } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE) {
             reanchorViewsForCompactFusebox(model, view);
             updateButtonsVisibilityAndStyling(model, view);
             updateToolDrawables(model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE), view);
+        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE) {
+            updateButtonsVisibilityAndStyling(model, view);
+        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED) {
+            view.requestType.setOnClickListener(
+                    v -> model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.ATTACHMENTS_VISIBLE) {
+            boolean visible = model.get(FuseboxProperties.ATTACHMENTS_VISIBLE);
+            view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
+        } else if (propertyKey == FuseboxProperties.BUTTON_ADD_CLICKED) {
+            view.addButton.setOnClickListener(
+                    v -> model.get(FuseboxProperties.BUTTON_ADD_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.COLOR_SCHEME) {
             updateButtonsVisibilityAndStyling(model, view);
             Context context = view.parentView.getContext();
@@ -57,26 +74,24 @@ class FuseboxViewBinder {
             view.popup.mPopupWindow.setBackgroundDrawable(background);
         } else if (propertyKey == FuseboxProperties.COMPACT_UI) {
             reanchorViewsForCompactFusebox(model, view);
-        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED) {
-            view.requestType.setOnClickListener(
-                    v -> model.get(FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED) {
+            view.popup.mAddCurrentTab.setOnClickListener(
+                    v -> model.get(FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED) {
+            setIsEnabledAndReapplyColorFilter(
+                    view.popup.mAddCurrentTab,
+                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
+        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON) {
+            updateForCurrentTabFavicon(
+                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON), view);
+        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE) {
+            view.popup.mAddCurrentTab.setVisibility(
+                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE)
+                            ? View.VISIBLE
+                            : View.GONE);
         } else if (propertyKey == FuseboxProperties.POPUP_AI_MODE_CLICKED) {
             view.popup.mAiModeButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_AI_MODE_CLICKED).run());
-        } else if (propertyKey == FuseboxProperties.ATTACHMENTS_VISIBLE) {
-            boolean visible = model.get(FuseboxProperties.ATTACHMENTS_VISIBLE);
-            view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
-        } else if (propertyKey == FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE) {
-            view.addButton.setVisibility(
-                    model.get(FuseboxProperties.ATTACHMENTS_TOOLBAR_VISIBLE)
-                            ? View.VISIBLE
-                            : View.GONE);
-            updateButtonsVisibilityAndStyling(model, view);
-        } else if (propertyKey == FuseboxProperties.BUTTON_ADD_CLICKED) {
-            view.addButton.setOnClickListener(
-                    v -> model.get(FuseboxProperties.BUTTON_ADD_CLICKED).run());
-        } else if (propertyKey == FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE) {
-            updateButtonsVisibilityAndStyling(model, view);
         } else if (propertyKey == FuseboxProperties.POPUP_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_CAMERA_CLICKED).run());
@@ -89,13 +104,17 @@ class FuseboxViewBinder {
             view.popup.mClipboardButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_CLIPBOARD_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED) {
-            view.popup.mCreateImageButton.setEnabled(
+            setIsEnabledAndReapplyColorFilter(
+                    view.popup.mCreateImageButton,
                     model.get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
         } else if (propertyKey == FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE) {
             updateButtonsVisibilityAndStyling(model, view);
         } else if (propertyKey == FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED) {
             view.popup.mCreateImageButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_CREATE_IMAGE_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.POPUP_FILE_BUTTON_ENABLED) {
+            view.popup.mFileButton.setEnabled(
+                    model.get(FuseboxProperties.POPUP_FILE_BUTTON_ENABLED));
         } else if (propertyKey == FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE) {
             view.popup.mFileButton.setVisibility(
                     model.get(FuseboxProperties.POPUP_FILE_BUTTON_VISIBLE)
@@ -110,39 +129,49 @@ class FuseboxViewBinder {
         } else if (propertyKey == FuseboxProperties.POPUP_TAB_PICKER_CLICKED) {
             view.popup.mTabButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_TAB_PICKER_CLICKED).run());
-        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED) {
-            view.popup.mAddCurrentTab.setOnClickListener(
-                    v -> model.get(FuseboxProperties.CURRENT_TAB_BUTTON_CLICKED).run());
-        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED) {
-            view.popup.mAddCurrentTab.setEnabled(
-                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_ENABLED));
-        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON) {
-            updateForCurrentTabFavicon(
-                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON), view);
-        } else if (propertyKey == FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE) {
-            view.popup.mAddCurrentTab.setVisibility(
-                    model.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE)
-                            ? View.VISIBLE
-                            : View.GONE);
         } else if (propertyKey == FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON) {
             updateButtonsVisibilityAndStyling(model, view);
+        } else if (propertyKey == FuseboxProperties.POPUP_TAB_PICKER_ENABLED) {
+            view.popup.mTabButton.setEnabled(model.get(FuseboxProperties.POPUP_TAB_PICKER_ENABLED));
         }
+        // go/keep-sorted end
+    }
+
+    private static void setIsEnabledAndReapplyColorFilter(Button button, boolean isEnabled) {
+        button.setEnabled(isEnabled);
+        reapplyColorFilter(button);
+    }
+
+    /**
+     * Most of the button's drawables used by this class will pick up a default tint from the
+     * button. But some of them need to retain the original coloring, such as a tab favicon or the
+     * generate image banana. It is these drawables that this function is used for. Because the
+     * button will not override the tint of a drawable that has had a color filter applied, we
+     * always call this method to set the color filter for these drawables. However this is
+     * complicated by not having a color filter implementation that takes a {@link ColorStateList}.
+     * These drawables need to slightly fade when the button is disabled, and then stop fading when
+     * the button is enabled. So this method should be called any time a relevant state change
+     * happens to the button that would cause the color state list to return a different color.
+     */
+    private static void reapplyColorFilter(Button button) {
+        // Only the start drawable needs to have special handling, all the others will always use
+        // the default tint of the button.
+        Drawable drawable = button.getCompoundDrawablesRelative()[0];
+        if (drawable == null) return;
+
+        Context context = button.getContext();
+        // For some reason, the drawable and the button don't seem to agree on state, use the
+        // button's version, as it tracks what we would expect current setters on the button to
+        // result in.
+        int[] stateSet = button.getDrawableState();
+        ColorStateList tint = context.getColorStateList(R.color.default_icon_color_white_tint_list);
+        @ColorInt int color = tint.getColorForState(stateSet, Color.TRANSPARENT);
+        drawable.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.MULTIPLY));
     }
 
     private static void updateToolDrawables(
             @AutocompleteRequestType int autocompleteRequestType, FuseboxViewHolder views) {
         Context context = views.parentView.getContext();
-        // Doesn't need manual tinting, the default tint from the button style will handle it. The
-        // same is true of the end drawables below.
-        final Drawable aiModeButtonStartDrawable =
-                context.getDrawable(R.drawable.search_spark_black_24dp);
-        final Drawable imageGenStartDrawable =
-                assumeNonNull(context.getDrawable(R.drawable.create_image_24dp)).mutate();
-        // Setting a color filter disables tinting.
-        imageGenStartDrawable.setColorFilter(
-                new PorterDuffColorFilter(
-                        context.getColor(R.color.default_icon_color_white_tint_list),
-                        Mode.MULTIPLY));
         final Drawable aiModeButtonEndDrawable;
         final Drawable imageGenEndDrawable;
         switch (autocompleteRequestType) {
@@ -161,10 +190,19 @@ class FuseboxViewBinder {
                 imageGenEndDrawable = null;
             }
         }
+
+        final Drawable aiModeButtonStartDrawable =
+                context.getDrawable(R.drawable.search_spark_black_24dp);
         views.popup.mAiModeButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
                 aiModeButtonStartDrawable, null, aiModeButtonEndDrawable, null);
+
+        // This drawable will be manually tinted with a filter, while all the others in this method
+        // will pick up the default from the button.
+        final Drawable imageGenStartDrawable =
+                assumeNonNull(context.getDrawable(R.drawable.create_image_24dp)).mutate();
         views.popup.mCreateImageButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
                 imageGenStartDrawable, null, imageGenEndDrawable, null);
+        reapplyColorFilter(views.popup.mCreateImageButton);
     }
 
     static void updateButtonsVisibilityAndStyling(PropertyModel model, FuseboxViewHolder views) {
@@ -191,6 +229,15 @@ class FuseboxViewBinder {
         addButton.setImageTintList(
                 OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
 
+        views.navigateButton
+                .getDrawable()
+                .setTint(
+                        OmniboxResourceProvider.getSendIconContrastColor(
+                                context, brandedColorScheme));
+        @ColorInt
+        int colorPrimary = OmniboxResourceProvider.getColorPrimary(context, brandedColorScheme);
+        views.navigateButton.getBackground().setTint(colorPrimary);
+
         ButtonCompat typeButton = views.requestType;
         if (showFuseboxToolbar
                 && (isAiModeUsed || isImageGenerationUsed || showDedicatedModeButton)) {
@@ -211,9 +258,6 @@ class FuseboxViewBinder {
                                 context, brandedColorScheme);
                 textAppearanceRes =
                         OmniboxResourceProvider.getAiModeButtonTextRes(brandedColorScheme);
-                @ColorInt
-                int colorPrimary =
-                        OmniboxResourceProvider.getAiModeIconTintColor(context, brandedColorScheme);
                 startDrawable =
                         assumeNonNull(context.getDrawable(R.drawable.search_spark_black_24dp))
                                 .mutate();
@@ -267,14 +311,18 @@ class FuseboxViewBinder {
                                 context, brandedColorScheme));
                 endDrawable = null;
             }
+
+            @Px int iconSizePx = res.getDimensionPixelSize(R.dimen.fusebox_button_icon_size);
+            scaleDrawable(startDrawable, iconSizePx);
+            scaleDrawable(endDrawable, iconSizePx);
+
             typeButton.setVisibility(View.VISIBLE);
             typeButton.setText(text);
             typeButton.setContentDescription(description);
             typeButton.setButtonColor(ColorStateList.valueOf(buttonColor));
             typeButton.setBorderColor(ColorStateList.valueOf(borderColor));
             typeButton.setTextAppearance(textAppearanceRes);
-            typeButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                    startDrawable, null, endDrawable, null);
+            typeButton.setCompoundDrawablesRelative(startDrawable, null, endDrawable, null);
         } else {
             typeButton.setVisibility(View.GONE);
         }
@@ -288,16 +336,14 @@ class FuseboxViewBinder {
                 isCreateImageButtonVisible ? View.VISIBLE : View.GONE);
         views.popup.mRequestTypeDivider.setVisibility(
                 isAiModeButtonVisible || isCreateImageButtonVisible ? View.VISIBLE : View.GONE);
-        views.popup.mFileButton.setEnabled(!isImageGenerationUsed);
 
         @StyleRes
         int textAppearance = OmniboxResourceProvider.getPopupButtonTextRes(brandedColorScheme);
         ColorStateList iconTint =
-                ColorStateList.valueOf(
-                        OmniboxResourceProvider.getDefaultIconColor(context, brandedColorScheme));
+                OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme);
         for (Button button : views.popup.mButtons) {
             button.setTextAppearance(textAppearance);
-            // Tints directly applied to drawables will take precedence over this tint.
+            // Color filters applied to drawables will take precedence over this tint.
             button.setCompoundDrawableTintList(iconTint);
         }
 
@@ -337,35 +383,29 @@ class FuseboxViewBinder {
         cs.applyTo(views.parentView);
     }
 
-    // TODO(https://crbug.com/460150759): Update to correctly tint for being disabled.
     private static void updateForCurrentTabFavicon(Bitmap favicon, FuseboxViewHolder viewHolder) {
         Context context = viewHolder.parentView.getContext();
         Resources res = context.getResources();
-        Button addCurrentTabButton = viewHolder.popup.mAddCurrentTab;
+        FuseboxPopup popup = viewHolder.popup;
+        Button addCurrentTabButton = popup.mAddCurrentTab;
 
-        final Drawable drawable;
-        final ColorStateList tint;
-        final PorterDuff.Mode blendMode;
-        if (favicon != null) {
-            @Px int iconSizePx = res.getDimensionPixelSize(R.dimen.fusebox_popup_item_icon_size);
-            Bitmap bitmap =
-                    Bitmap.createScaledBitmap(favicon, iconSizePx, iconSizePx, /* filter= */ true);
-            drawable = new BitmapDrawable(res, bitmap);
-            drawable.setBounds(
-                    /* left= */ 0, /* top= */ 0, /* right= */ iconSizePx, /* bottom= */ iconSizePx);
-            // This will change the alpha value based on the enabled state. The rgb values will
-            // always be unaffected because the multiplied color is white.
-            tint = context.getColorStateList(R.color.default_icon_color_white_tint_list);
-            blendMode = PorterDuff.Mode.MULTIPLY;
-        } else {
-            drawable = assumeNonNull(context.getDrawable(R.drawable.ic_globe_24dp));
-            tint = context.getColorStateList(R.color.default_icon_color_tint_list);
-            blendMode = PorterDuff.Mode.SRC_IN;
-        }
-
+        Drawable drawable =
+                FuseboxTabUtils.getDrawableForTabFavicon(
+                        context,
+                        favicon,
+                        res.getDimensionPixelSize(R.dimen.fusebox_popup_item_icon_size));
         addCurrentTabButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
                 drawable, /* top= */ null, /* end= */ null, /* bottom= */ null);
-        addCurrentTabButton.setCompoundDrawableTintList(tint);
-        addCurrentTabButton.setCompoundDrawableTintMode(blendMode);
+
+        if (favicon != null) {
+            // This will change the alpha value based on the enabled state. The rgb values will
+            // always be unaffected because the multiplied color is white.
+            reapplyColorFilter(addCurrentTabButton);
+        }
+    }
+
+    private static void scaleDrawable(@Nullable Drawable drawable, @Px int sizePx) {
+        if (drawable == null) return;
+        drawable.setBounds(0, 0, sizePx, sizePx);
     }
 }

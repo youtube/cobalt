@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/scoped_multi_source_observation.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -109,19 +110,15 @@ void PlusAddressSubmissionLogger::OnPlusAddressSuggestionShown(
   const AccountInfo account_info =
       identity_manager_->FindExtendedAccountInfo(core_account_info);
 
-  FormStructure* form_structure = manager.FindCachedFormById(form);
+  const FormStructure* form_structure = manager.FindCachedFormById(form);
   if (!form_structure) {
     return;
   }
-  auto it =
-      std::ranges::find_if(form_structure->fields(),
-                           [&field](const std::unique_ptr<AutofillField>& f) {
-                             return f->global_id() == field;
-                           });
-  if (it == form_structure->fields().end()) {
+  const AutofillField* autofill_field = form_structure->GetFieldById(field);
+  if (!autofill_field) {
     return;
   }
-  FormGlobalId renderer_form_id = (*it)->renderer_form_id();
+  FormGlobalId renderer_form_id = autofill_field->renderer_form_id();
 
   if (!records_.contains(&manager)) {
     managers_observation_.AddObservation(&manager);

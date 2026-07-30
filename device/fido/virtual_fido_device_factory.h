@@ -11,16 +11,21 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
-#include "device/fido/cable/cable_discovery_data.h"
-#include "device/fido/fido_constants.h"
 #include "device/fido/fido_discovery_base.h"
 #include "device/fido/fido_discovery_factory.h"
-#include "device/fido/fido_transport_protocol.h"
+#include "device/fido/public/fido_constants.h"
+#include "device/fido/public/fido_transport_protocol.h"
 #include "device/fido/virtual_ctap2_device.h"
 #include "device/fido/virtual_fido_device.h"
 #include "device/fido/virtual_fido_device_discovery.h"
 
-namespace device::test {
+namespace device {
+
+namespace cablev2 {
+struct Pairing;
+}
+
+namespace test {
 
 // A |FidoDiscoveryFactory| that always returns |VirtualFidoDevice|s.
 //
@@ -90,6 +95,8 @@ class VirtualFidoDeviceFactory : public device::FidoDiscoveryFactory {
   base::WeakPtrFactory<VirtualFidoDeviceFactory> weak_ptr_factory_{this};
 };
 
-}  // namespace device::test
+}  // namespace test
+
+}  // namespace device
 
 #endif  // DEVICE_FIDO_VIRTUAL_FIDO_DEVICE_FACTORY_H_

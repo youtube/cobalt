@@ -81,30 +81,6 @@
 
 #pragma mark - parent class methods
 
-- (BOOL)shouldShowSnapshotForItem:(GridItemIdentifier*)itemID {
-  CHECK(self.modeHolder.mode == TabGridMode::kSelection);
-  if (itemID.type == GridItemType::kTab) {
-    web::WebState* webState = GetWebState(
-        self.webStateList,
-        WebStateSearchCriteria{
-            .identifier = itemID.tabSwitcherItem.identifier,
-            .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned});
-
-    if (!webState) {
-      return NO;
-    }
-
-    if ([_failedLoadedItemIDs containsObject:itemID] || webState->IsCrashed()) {
-      return NO;
-    }
-
-    BOOL cached = _validAPCwebStatesIDs.contains(
-        base::NumberToString(webState->GetUniqueIdentifier().identifier()));
-    return cached || (webState->IsRealized() && !webState->IsLoading());
-  }
-  return [super shouldShowSnapshotForItem:itemID];
-}
-
 - (void)configureToolbarsButtons {
   // NO-OP
 }
@@ -112,11 +88,19 @@
 - (void)addToSelectionItemID:(GridItemIdentifier*)itemID {
   [super addToSelectionItemID:itemID];
   [_tabPickerConsumer setSelectedTabsCount:self.selectedEditingItems.tabsCount];
+  [self updateDoneButtonState];
 }
 
 - (void)removeFromSelectionItemID:(GridItemIdentifier*)itemID {
   [super removeFromSelectionItemID:itemID];
   [_tabPickerConsumer setSelectedTabsCount:self.selectedEditingItems.tabsCount];
+  [self updateDoneButtonState];
+}
+
+- (void)updateDoneButtonState {
+  BOOL selectionChanged = self.selectedEditingItems.allTabs !=
+                          [_tabsAttachmentDelegate preselectedWebStateIDs];
+  [_tabPickerConsumer setDoneButtonEnabled:selectionChanged];
 }
 
 - (void)userTappedOnItemID:(GridItemIdentifier*)itemID {
@@ -164,22 +148,43 @@
   [super userTappedOnItemID:itemID];
 }
 
+- (GridItemIdentifier*)activeIdentifier {
+  WebStateList* webStateList = self.webStateList;
+  if (!webStateList) {
+    return nil;
+  }
+
+  int webStateIndex = webStateList->active_index();
+  if (webStateIndex == WebStateList::kInvalidIndex) {
+    return nil;
+  }
+
+  // Since the tab picker flattens groups to display tabs individually, this
+  // method is overridden to bypass standard group cell logic.
+  return [GridItemIdentifier
+      tabIdentifier:webStateList->GetWebStateAt(webStateIndex)];
+}
+
 #pragma mark - ComposeboxTabPickerMutator
 
 - (void)attachSelectedTabs {
-  if (self.selectedEditingItems.itemsIdentifiers.count) {
-    std::set<web::WebStateID> cachedWebStateIDs;
-    for (const auto& webStateID : self.selectedEditingItems.allTabs) {
-      if (_validAPCwebStatesIDs.contains(
-              base::NumberToString(webStateID.identifier()))) {
-        cachedWebStateIDs.insert(webStateID);
-      }
-    }
-    [_tabsAttachmentDelegate
-         attachSelectedTabs:self
-        selectedWebStateIDs:self.selectedEditingItems.allTabs
-          cachedWebStateIDs:cachedWebStateIDs];
+  BOOL selectionChanged = self.selectedEditingItems.allTabs !=
+                          [_tabsAttachmentDelegate preselectedWebStateIDs];
+  if (!selectionChanged) {
+    return;
   }
+  std::set<web::WebStateID> cachedWebStateIDs;
+  for (const auto& webStateID : self.selectedEditingItems.allTabs) {
+    if (_validAPCwebStatesIDs.contains(
+            base::NumberToString(webStateID.identifier()))) {
+      cachedWebStateIDs.insert(webStateID);
+    }
+  }
+  // Call this even if `selectedEditingItems` is empty as you can remove tabs
+  // from tab picker.
+  [_tabsAttachmentDelegate attachSelectedTabs:self
+                          selectedWebStateIDs:self.selectedEditingItems.allTabs
+                            cachedWebStateIDs:cachedWebStateIDs];
 }
 
 #pragma mark - private
@@ -273,6 +278,13 @@
   }
 
   [_gridConsumer populateItems:items selectedItemIdentifier:nil];
+
+  // Defer scrolling until the next run loop to ensure the collection view
+  // layout is finalized.
+  __weak __typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [weakSelf bringActiveGridItemIntoView];
+  });
 }
 
 - (void)cancelPlaceholderForRealizedWebState:
@@ -329,6 +341,11 @@
   [_failedLoadedItemIDs addObject:itemID];
   [self removeFromSelectionItemID:itemID];
   [self reconfigureGridItem:itemID];
+}
+
+/// Brings the active grid item into view.
+- (void)bringActiveGridItemIntoView {
+  [_gridConsumer bringItemIntoView:[self activeIdentifier] animated:NO];
 }
 
 @end

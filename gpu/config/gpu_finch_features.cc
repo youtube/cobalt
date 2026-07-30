@@ -63,7 +63,7 @@ BASE_FEATURE(kAndroidSurfaceControl, base::FEATURE_ENABLED_BY_DEFAULT);
 // Hardware Overlays for WebView.
 BASE_FEATURE(kWebViewSurfaceControl, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kWebViewSurfaceControlForTV, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewSurfaceControlForTV, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This is used as default state because it's different for webview and chrome.
 // WebView hardcodes this as enabled in AwMainDelegate.
@@ -94,7 +94,7 @@ const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneManufacturerBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
         "RelaxLimitAImageReaderMaxSizeToOneManufacturerBlocklist",
-        "*Broadcom*"};
+        "*Broadcom*|*Google*"};
 const base::FeatureParam<std::string>
     kRelaxLimitAImageReaderMaxSizeToOneDeviceBlocklist{
         &kRelaxLimitAImageReaderMaxSizeToOne,
@@ -104,17 +104,11 @@ const base::FeatureParam<std::string>
         &kRelaxLimitAImageReaderMaxSizeToOne,
         "RelaxLimitAImageReaderMaxSizeToOneModelBlocklist", ""};
 
-// Allows using recommended AHardwareBuffer usage from Vulkan, that should allow
-// drivers to pick most optimal layout.
-BASE_FEATURE(kUseHardwareBufferUsageFlagsFromVulkan,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Same as above (and depends on it) and allows using extra usage even if we use
-// USAGE_COMPOSER_OVERLAY.
-BASE_FEATURE(kAllowHardwareBufferUsageFlagsFromVulkanForScanout,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 #endif
+
+// When enabled, gives GpuChannel/Host its own dedicated Mojo pipe instead
+// of associating with an unused IPC::Channel.
+BASE_FEATURE(kRemoveGPULegacyIPC, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable GPU Rasterization by default. This can still be overridden by
 // --enable-gpu-rasterization or --disable-gpu-rasterization.
@@ -388,6 +382,11 @@ const base::FeatureParam<bool> kSkiaGraphiteDawnD3D11DelayFlush{
 
 BASE_FEATURE(kSkiaGraphiteDawnUseD3D12, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+// Whether to use the GpuPersistentCache for caching GPU process shader blobs.
+// Usage for Graphite is controlled independently with
+// kSkiaGraphiteDawnUsePersistentCache.
+BASE_FEATURE(kGpuPersistentCache, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enabling this will make the GPU decode path use a mock implementation of
 // discardable memory.
@@ -736,6 +735,10 @@ bool EnablePurgeGpuImageDecodeCache() {
 }
 bool EnablePruneOldTransferCacheEntries() {
   return base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
+}
+
+bool IsLegacyIpcDisabled() {
+  return base::FeatureList::IsEnabled(kRemoveGPULegacyIPC);
 }
 
 #if BUILDFLAG(IS_ANDROID)

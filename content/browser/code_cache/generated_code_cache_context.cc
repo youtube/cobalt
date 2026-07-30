@@ -4,6 +4,7 @@
 #include "content/browser/code_cache/generated_code_cache_context.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -151,10 +152,13 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
   } else {
 #if !BUILDFLAG(IS_FUCHSIA)
     // Target the same amount of disk space used for persistent_cache as is used
-    // for disk_cache.
-    int64_t disk_cache_max_size = disk_cache::PreferredCacheSize(
-        base::SysInfo::AmountOfFreeDiskSpace(path).value_or(-1),
-        net::GENERATED_BYTE_CODE_CACHE);
+    // for disk_cache or use `max_bytes` if provided.
+    int64_t disk_cache_max_size =
+        max_bytes > 0
+            ? max_bytes
+            : disk_cache::PreferredCacheSize(
+                  base::SysInfo::AmountOfFreeDiskSpace(path).value_or(-1),
+                  net::GENERATED_BYTE_CODE_CACHE);
 
     persistent_cache_collection_ = {
         new persistent_cache::PersistentCacheCollection(
@@ -200,7 +204,11 @@ void GeneratedCodeCacheContext::ClearAndDeletePersistentCacheCollection() {
 std::optional<persistent_cache::PendingBackend>
 GeneratedCodeCacheContext::ShareReadOnlyConnection(
     const std::string& context_key) {
-  return persistent_cache_collection_->ShareReadOnlyConnection(context_key);
+  if (persistent_cache_collection_) {
+    return persistent_cache_collection_->ShareReadOnlyConnection(context_key);
+  }
+
+  return std::nullopt;
 }
 
 void GeneratedCodeCacheContext::InsertIntoPersistentCacheCollection(
@@ -208,6 +216,10 @@ void GeneratedCodeCacheContext::InsertIntoPersistentCacheCollection(
     std::string_view url,
     base::span<const uint8_t> content,
     persistent_cache::EntryMetadata metadata) {
+  if (!persistent_cache_collection_) {
+    return;
+  }
+
   // Since `content` is coming in through mojo it's important to make sure that
   // it's copied so it cannot be modified racily. This happens implicitly
   // because of the way the SQLite backend (the only backend available
@@ -228,6 +240,10 @@ std::optional<GeneratedCodeCacheContext::MetadataAndContent>
 GeneratedCodeCacheContext::FindInPersistentCacheCollection(
     const std::string& context_key,
     std::string_view url) {
+  if (!persistent_cache_collection_) {
+    return std::nullopt;
+  }
+
   mojo_base::BigBuffer content_buffer;
 
   // A BufferProvider for PersistentCache that puts a new mojo_base::BugBuffer

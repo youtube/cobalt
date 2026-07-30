@@ -18,12 +18,24 @@ REPOSITORY_ROOT = os.path.abspath(
 sys.path.insert(0, REPOSITORY_ROOT)
 import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
 
+TOOLCHAIN_SUFFIX = "__toolchain_"
+HOST_TOOLCHAIN_TO_SUFFIX = {
+    '//build/toolchain/linux:clang_x64': 'clang',
+    '//build/toolchain/linux:clang_x64_for_rust_host_build_tools':
+    'clang_for_rust',
+}
 LINKER_UNIT_TYPES = ('executable', 'shared_library', 'static_library',
                      'source_set')
 RESPONSE_FILE = '{{response_file_name}}'
 TESTING_SUFFIX = "__testing"
 AIDL_INCLUDE_DIRS_REGEX = r'--includes=\[(.*)\]'
 PROTO_IMPORT_DIRS_REGEX = r'--import-dir=(.*)'
+POSSIBLE_SUFFIXES = [
+    "{}{}".format(suffix_1, suffix_2) for suffix_1 in [""] + [
+        TOOLCHAIN_SUFFIX + toolchain_suffix
+        for toolchain_suffix in HOST_TOOLCHAIN_TO_SUFFIX.values()
+    ] for suffix_2 in ["", TESTING_SUFFIX]
+]
 
 
 def repo_root():
@@ -91,6 +103,26 @@ def _remove_out_prefix(label):
   return re.sub('^//out/.+?/(gen|obj)/', '', label)
 
 
+def _filter_cflags(cflags):
+  cflags_processed = []
+  # This is set to true when we have combined two consecutive indices into a single
+  # string and want to skip the next iteration.
+  skip_next = False
+  for i in range(len(cflags)):
+    if skip_next:
+      skip_next = False
+      continue
+
+    if cflags[i].startswith("-Xclang"):
+      # We don't care about -Xclang values as they're solely for the front-end to
+      # enable some static analysis on the code. It's important to disable this as
+      # there exists code that is implemented in Chromium, but built only in AOSP.
+      # We don't want those to stop building due to some statical analysis error.
+      skip_next = True
+    else:
+      cflags_processed.append(cflags[i])
+  return cflags_processed
+
 def _filter_defines(defines):
   # These C++ defines are not actually used in code; Chromium only uses them to
   # force rebuilds on rolls of certain dependencies. They don't hurt, per se,
@@ -139,8 +171,7 @@ class GnParser:
         self.include_dirs = set()
         self.deps = set()
         self.transitive_static_libs_deps = set()
-        self.ldflags = set()
-
+        self.ldflags = []
         # These are valid only for type == 'action'
         self.inputs = set()
         self.outputs = set()
@@ -289,6 +320,10 @@ class GnParser:
     def ldflags(self):
       return self.arch['common'].ldflags
 
+    @ldflags.setter
+    def ldflags(self, val):
+      self.arch['common'].ldflags = val
+
     def host_supported(self):
       return 'host' in self.arch
 
@@ -416,7 +451,9 @@ class GnParser:
       return 'android_arm64', 'arm64'
     if toolchain == '//build/toolchain/android:android_clang_riscv64':
       return 'android_riscv64', 'riscv64'
-    return 'host', 'host'
+    if toolchain in HOST_TOOLCHAIN_TO_SUFFIX.keys():
+      return 'host', 'host'
+    raise TypeError(f"Unknown toolchain found: {toolchain}")
 
   def get_target(self, gn_target_name):
     """Returns a Target object from the fully qualified GN target name.
@@ -447,6 +484,12 @@ class GnParser:
     type_ = desc['type']
     arch, chromium_arch = self._get_arch(desc['toolchain'])
     metadata = desc.get("metadata", {})
+
+    if arch == 'host':
+      # Add a custom suffix to the name. The goal here is to have host architecture
+      # as its own independent targets because there could be more than a single
+      # toolchain for the host.
+      target_name += f"{TOOLCHAIN_SUFFIX}{HOST_TOOLCHAIN_TO_SUFFIX[desc['toolchain']]}"
 
     if is_test_target:
       target_name += TESTING_SUFFIX
@@ -488,7 +531,10 @@ class GnParser:
       return target
 
     target.testonly = desc.get('testonly', False)
-
+    if target.type == "executable" and desc.get("crate_root", None):
+      # Find a more decisive way to figure out that this is a rust executable.
+      # TODO: Add a metadata to the executable from Chromium side.
+      target.type = "rust_executable"
     deps = desc.get("deps", [])
     build_only_deps = []
     if custom_processor is not None:
@@ -504,10 +550,6 @@ class GnParser:
           _remove_out_prefix(output) for output in desc['outputs'])
       target.arch[arch].args = desc['args']
     elif target.type == 'source_set':
-      target.arch[arch].sources.update(source
-                                       for source in desc.get('sources', [])
-                                       if not source.startswith("//out"))
-    elif target.type == "rust_executable":
       target.arch[arch].sources.update(source
                                        for source in desc.get('sources', [])
                                        if not source.startswith("//out"))
@@ -580,7 +622,7 @@ class GnParser:
           raise ValueError(
               f"Unexpected android_sdk_dep: {android_sdk_dep} for target {target.name}"
           )
-    elif target.script == "//build/rust/gni_impl/run_bindgen.py":
+    elif desc.get("script", "") == "//build/rust/gni_impl/run_bindgen.py":
       # rust_bindgen is a supported module in Soong but GN depend on actions
       # so we need to copy the action fields (sources, outputs and args) in
       # order to correctly generate the `rust_bindgen` module.
@@ -641,7 +683,7 @@ class GnParser:
       # targets above), are bubbled upward without creating an equivalent
       # GN target.
       pass
-    elif target.type in ["rust_library", "rust_proc_macro"]:
+    elif target.type in ["rust_library", "rust_proc_macro", "rust_executable"]:
       target.arch[arch].sources.update(source
                                        for source in desc.get('sources', [])
                                        if not source.startswith("//out"))
@@ -661,9 +703,9 @@ class GnParser:
     target.public_headers.update(public_headers)
     target.build_file_path = _get_build_path_from_label(target_name)
     target.arch[arch].cflags.extend(
-        desc.get('cflags', []) + desc.get('cflags_cc', []))
+        _filter_cflags(desc.get('cflags', []) + desc.get('cflags_cc', [])))
     target.arch[arch].libs.update(desc.get('libs', []))
-    target.arch[arch].ldflags.update(desc.get('ldflags', []))
+    target.arch[arch].ldflags.extend(desc.get('ldflags', []))
     target.arch[arch].defines.update(_filter_defines(desc.get('defines', [])))
     target.arch[arch].include_dirs.update(desc.get('include_dirs', []))
     target.output_name = desc.get('output_name', None)
@@ -673,10 +715,7 @@ class GnParser:
     target.arch[arch].rust_flags.extend(
         self.build_script_outputs.get(label_without_toolchain(gn_target_name),
                                       {}).get(chromium_arch, list()))
-    if target.type == "executable" and target.crate_root:
-      # Find a more decisive way to figure out that this is a rust executable.
-      # TODO: Add a metadata to the executable from Chromium side.
-      target.type = "rust_executable"
+
     if "-frtti" in target.arch[arch].cflags:
       target.rtti = True
 
@@ -688,7 +727,7 @@ class GnParser:
       deps = override_deps
 
     # Recurse in dependencies.
-    for gn_dep_name in set(deps) | set(build_only_deps):
+    for gn_dep_name in sorted(set(deps) | set(build_only_deps)):
       dep = self.parse_gn_desc(gn_desc, gn_dep_name, is_test_target)
 
       if dep.type == 'proto_library':
@@ -729,7 +768,16 @@ class GnParser:
         # to reuse transitive_static_libs_deps.
         target.arch[arch].transitive_static_libs_deps.add(dep.name)
 
-      if arch in dep.arch:
+      # rust_proc_macro must never propagate their dependency upward the tree. proc_macros are only used
+      # during compilations on host as they allow extending the compiler with custom macros, their dependency should
+      # be used to build the proc macro, then abandoned. Propagating it upward means that we'll be linking
+      # against code that is effectively dead, and can cause issues.
+      # Don't bubble up transitive dependencies of executables as they've already been linked.
+      # A dependency on the executable means that the output of the target (the executable) should
+      # be used, rather than its dependency.
+      if arch in dep.arch and dep.type not in [
+          'rust_proc_macro', 'rust_executable', 'executable'
+      ]:
         target.arch[arch].transitive_static_libs_deps.update(
             dep.arch[arch].transitive_static_libs_deps)
         target.arch[arch].deps.update(

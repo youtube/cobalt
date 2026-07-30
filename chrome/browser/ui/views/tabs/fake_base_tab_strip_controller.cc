@@ -8,6 +8,7 @@
 
 #include "base/containers/contains.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_selection_adapter.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
@@ -195,8 +196,7 @@ gfx::Range FakeBaseTabStripController::ListTabsInGroup(
   return first_tab > -1 ? gfx::Range(first_tab, last_tab) : gfx::Range();
 }
 
-const ui::ListSelectionModel& FakeBaseTabStripController::GetSelectionModel()
-    const {
+ui::ListSelectionModel FakeBaseTabStripController::GetSelectionModel() const {
   return selection_model_;
 }
 
@@ -276,9 +276,6 @@ void FakeBaseTabStripController::OnDropIndexUpdate(std::optional<int> index,
 void FakeBaseTabStripController::CreateNewTab(NewTabTypes context) {
   AddTab(num_tabs_, TabActive::kActive);
 }
-
-void FakeBaseTabStripController::CreateNewTabWithLocation(
-    const std::u16string& location) {}
 
 void FakeBaseTabStripController::OnStartedDragging(bool dragging_window) {}
 

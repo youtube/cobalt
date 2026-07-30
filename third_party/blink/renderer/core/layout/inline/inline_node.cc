@@ -46,7 +46,9 @@
 #include "third_party/blink/renderer/core/layout/svg/svg_text_layout_attributes_builder.h"
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
+#include "third_party/blink/renderer/core/style/computed_style_base.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
+#include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_performance.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_shaper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/ng_shape_cache.h"
@@ -552,6 +554,51 @@ void TruncateOrPadText(String* text, unsigned length) {
   }
 }
 
+// True if the `style` has a positive `letter-spacing` and a negative
+// `margin-right`.
+bool ShouldReportLetterSpacing(const ComputedStyle& style) {
+  const FontDescription& font_description = style.GetFontDescription();
+  const float letter_spacing = font_description.LetterSpacing();
+  if (letter_spacing < 0.5) {
+    return false;
+  }
+  if (!style.MayHaveMargin()) {
+    return false;
+  }
+  if (!style.IsHorizontalWritingMode()) [[unlikely]] {
+    return false;
+  }
+  const Length& margin_right = style.MarginRight();
+  if (margin_right.IsFixed() && margin_right.Pixels() < 0) {
+    return true;
+  }
+  return false;
+}
+
+bool ShouldReportLetterSpacing(const InlineNode node,
+                               const InlineItems& items) {
+  const ComputedStyle& block_style = node.Style();
+  if (ShouldReportLetterSpacing(block_style)) [[unlikely]] {
+    return true;
+  }
+  for (const auto& item_ptr : items) {
+    const InlineItem& item = *item_ptr;
+    if (item.Type() == InlineItem::kOpenTag) {
+      const ComputedStyle& style = *item.Style();
+      if (ShouldReportLetterSpacing(style)) [[unlikely]] {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void ReportLetterSpacing(const InlineNode node, const InlineItems& items) {
+  if (ShouldReportLetterSpacing(node, items)) [[unlikely]] {
+    UseCounter::Count(node.GetDocument(), WebFeature::kLetterSpacingWithMargin);
+  }
+}
+
 }  // namespace
 
 InlineNode::InlineNode(LayoutBlockFlow* block)
@@ -946,10 +993,6 @@ bool InlineNode::SetTextWithOffset(LayoutText* layout_text,
   InlineNodeData* const previous_data = editor.Prepare();
   if (!previous_data)
     return false;
-
-  // This function runs outside of the layout phase. Prevent purging font cache
-  // while shaping.
-  FontCachePurgePreventer font_cache_purge_preventer;
 
   TextOffsetMap offset_map;
   new_text = layout_text->TransformAndSecureText(new_text, offset_map);
@@ -1438,9 +1481,9 @@ void InlineNode::ShapeText(InlineItemsData* data,
                            const InlineItems* previous_items,
                            const Font* override_font) const {
   const String& text_content = data->text_content;
-  InlineItems* items = &data->items;
+  InlineItems& items = data->items;
 #if EXPENSIVE_DCHECKS_ARE_ON()
-  InlineItem::CheckIndex(*items);
+  InlineItem::CheckIndex(items);
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 
   ShapeResultSpacing spacing(
@@ -1451,7 +1494,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
   TextAutoSpace auto_space(*data);
 
   const bool allow_shape_cache =
-      IsNGShapeCacheAllowed(text_content, override_font, *items, spacing) &&
+      IsNGShapeCacheAllowed(text_content, override_font, items, spacing) &&
       !auto_space.MayApply();
 
   // Provide full context of the entire node to the shaper.
@@ -1461,8 +1504,9 @@ void InlineNode::ShapeText(InlineItemsData* data,
   DCHECK(!data->segments ||
          data->segments->EndOffset() == text_content.length());
 
-  for (unsigned index = 0; index < items->size();) {
-    InlineItem& start_item = *(*items)[index];
+  bool is_letter_spacing_reported = false;
+  for (unsigned index = 0; index < items.size();) {
+    InlineItem& start_item = *items[index];
     if (start_item.Type() != InlineItem::kText || !start_item.Length()) {
       index++;
       if (!start_item.IsOpaqueForTextProcessing()) {
@@ -1517,8 +1561,8 @@ void InlineNode::ShapeText(InlineItemsData* data,
     // break. This ensures that adjacent text items are shaped together whenever
     // possible as this is required for accurate cross-element shaping.
     unsigned num_text_items = 1;
-    for (; end_index < items->size(); end_index++) {
-      const InlineItem& item = *(*items)[end_index];
+    for (; end_index < items.size(); end_index++) {
+      const InlineItem& item = *items[end_index];
 
       if (item.Type() == InlineItem::kControl) {
         // Do not shape across control characters (line breaks, zero width
@@ -1574,7 +1618,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
     if (previous_text) {
       bool has_valid_shape_results = true;
       for (unsigned item_index = index; item_index < end_index; item_index++) {
-        if (NeedsShaping(*(*items)[item_index])) {
+        if (NeedsShaping(*items[item_index])) {
           has_valid_shape_results = false;
           break;
         }
@@ -1607,6 +1651,10 @@ void InlineNode::ShapeText(InlineItemsData* data,
       // The ShapeResult is actually not a reusable entry of NGShapeCache,
       // so it is safe to mutate it.
       const_cast<ShapeResult*>(shape_result)->ApplySpacing(spacing);
+      if (!is_letter_spacing_reported) {
+        is_letter_spacing_reported = true;
+        ReportLetterSpacing(*this, items);
+      }
     }
 
     // If the text is from one item, use the ShapeResult as is.
@@ -1633,7 +1681,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
       shape_result->EnsurePositionData();
     }
     for (; index < end_index; index++) {
-      InlineItem& item = *(*items)[index];
+      InlineItem& item = *items[index];
       if (item.Type() != InlineItem::kText || !item.Length()) {
         continue;
       }
@@ -1664,7 +1712,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
   auto_space.ApplyIfNeeded(*this, *data);
 
 #if DCHECK_IS_ON()
-  for (const Member<InlineItem>& item_ptr : *items) {
+  for (const Member<InlineItem>& item_ptr : items) {
     const InlineItem& item = *item_ptr;
     if (item.Type() == InlineItem::kText && item.Length()) {
       DCHECK(item.TextShapeResult());

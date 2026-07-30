@@ -32,10 +32,6 @@
 #include "storage/common/database/db_status.h"
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom.h"
 
-namespace base {
-class SequencedTaskRunner;
-}  // namespace base
-
 namespace blink {
 class StorageKey;
 }  // namespace blink
@@ -70,8 +66,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
       base::OnceCallback<void(SessionStorageImpl*)>;
   SessionStorageImpl(
       const base::FilePath& partition_directory,
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-      scoped_refptr<base::SequencedTaskRunner> memory_dump_task_runner,
       BackingMode backing_option,
       std::string database_name,
       DestructSessionStorageCallback destruct_callback,
@@ -104,13 +98,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
                       mojom::SessionStorageCloneType clone_type) override;
   void DeleteNamespace(const std::string& namespace_id,
                        bool should_persist) override;
-
-  // Called when the client (i.e. the corresponding browser storage partition)
-  // disconnects. Schedules the commit of any unsaved changes. All data on disk
-  // (where there was no call to DeleteNamespace will stay on disk for later
-  // restoring. `callback` is invoked when shutdown is complete, which may
-  // happen even before ShutDown returns.
-  void ShutDown(base::OnceClosure callback);
 
   // Clears unused storage areas, when thresholds are reached.
   void PurgeUnusedAreasIfNeeded();
@@ -153,7 +140,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   friend class DOMStorageBrowserTest;
 
   scoped_refptr<SessionStorageMetadata::MapData> RegisterNewAreaMap(
-      SessionStorageMetadata::NamespaceEntry namespace_entry,
+      const std::string& namespace_id,
       const blink::StorageKey& storage_key);
 
   // SessionStorageAreaImpl::Listener implementation:
@@ -161,13 +148,12 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
                          SessionStorageDataMap* map) override;
   void OnDataMapDestruction(const std::vector<uint8_t>& map_prefix) override;
   void OnCommitResult(DbStatus status) override;
-  void OnCommitResultWithCallback(base::OnceClosure callback, DbStatus status);
 
   // SessionStorageNamespaceImpl::Delegate implementation:
   scoped_refptr<SessionStorageDataMap> MaybeGetExistingDataMapForId(
       const std::vector<uint8_t>& map_number_as_bytes) override;
   void RegisterShallowClonedNamespace(
-      SessionStorageMetadata::NamespaceEntry source_namespace_entry,
+      const std::string& source_namespace_id,
       const std::string& new_namespace_id,
       const SessionStorageNamespaceImpl::StorageKeyAreas&
           clone_from_storage_keys) override;
@@ -175,7 +161,11 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   std::unique_ptr<SessionStorageNamespaceImpl>
   CreateSessionStorageNamespaceImpl(std::string namespace_id);
 
-  void DoDatabaseDelete(const std::string& namespace_id);
+  // Removes the namespaces in `namespace_ids` from `metadata_` and `database_`.
+  // Deletes map key/value pairs from `database_` for maps that no longer have
+  // any references.
+  void DeleteNamespacesFromMetadataAndDatabase(
+      std::vector<std::string> namespace_ids);
 
   // Runs |callback| immediately if already connected to a database, otherwise
   // delays running |callback| untill after a connection has been established.
@@ -192,11 +182,11 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void DeleteAndRecreateDatabase();
   void OnDBDestroyed(bool recreate_in_memory, DbStatus status);
 
-  void OnShutdownComplete();
-
   void GetStatistics(size_t* total_cache_size, size_t* unused_areas_count);
 
   void OnReceiverDisconnected();
+
+  void ShutDown();
 
   // Passed in by the StorageServiceImpl that owns this object. Used to signal
   // that this SessionStorageImpl can be destructed when the Receiver is
@@ -213,17 +203,18 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
     NO_CONNECTION,
     CONNECTION_IN_PROGRESS,
     CONNECTION_FINISHED,
-    CONNECTION_SHUTDOWN
   } connection_state_ = NO_CONNECTION;
 
   const base::FilePath partition_directory_;
-  const scoped_refptr<base::SequencedTaskRunner> database_task_runner_;
 
   base::trace_event::MemoryAllocatorDumpGuid memory_dump_id_;
 
   mojo::Receiver<mojom::SessionStorageControl> receiver_;
 
   std::unique_ptr<AsyncDomStorageDatabase> database_;
+  // This can be true even if the profile is not in-memory, since we attempt
+  // to create an in-memory DB if on-disk fails. This variable has no meaning
+  // if `database_` is null.
   bool in_memory_ = false;
   bool tried_to_recreate_during_open_ = false;
 
@@ -252,8 +243,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // whole database is thrown away.
   int commit_error_count_ = 0;
   bool tried_to_recover_from_commit_errors_ = false;
-
-  base::OnceClosure shutdown_complete_callback_;
 
   base::WeakPtrFactory<SessionStorageImpl> weak_ptr_factory_{this};
 };

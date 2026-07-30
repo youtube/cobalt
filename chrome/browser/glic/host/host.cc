@@ -8,6 +8,7 @@
 
 #include "base/containers/contains.h"
 #include "base/containers/to_vector.h"
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
@@ -17,6 +18,9 @@
 #include "chrome/browser/glic/host/glic.mojom-data-view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
+#include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
+#include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/host/host_metrics.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -25,9 +29,11 @@
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/skia/include/core/SkRegion.h"
 
 namespace glic {
 
@@ -65,7 +71,8 @@ Host::Host(Profile* profile,
     : profile_(profile),
       instance_delegate_(instance_delegate),
       glic_instance_(glic_instance),
-      sharing_manager_provider_(sharing_manager_provider) {}
+      sharing_manager_provider_(sharing_manager_provider),
+      metrics_(this) {}
 
 Host::~Host() {
   // Destroying the web contents results in calls back to the host, so do that
@@ -79,6 +86,8 @@ void Host::SetDelegate(EmbedderDelegate* new_delegate) {
 }
 
 void Host::Shutdown() {
+  metrics_.Shutdown();
+
   handler_info_.reset();
   contents_.reset();
 }
@@ -112,13 +121,22 @@ void Host::Reload() {
 }
 
 void Host::CreateContents(bool initially_hidden) {
-  if (!contents_) {
-    glic_service().fre_controller().RecordFrameworkStartTime();
-    contents_ = std::make_unique<WebUIContentsContainer>(
-        profile_, &glic_service().window_controller(), initially_hidden);
-    glic::GlicProfileManager::GetInstance()->OnLoadingClientForService(
-        &glic_service());
+  if (contents_) {
+    return;
   }
+
+  glic_service().fre_controller().RecordFrameworkStartTime();
+  if (base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
+    contents_ = glic_service().web_contents_warming_pool().TakeContainer();
+  } else {
+    contents_ =
+        std::make_unique<WebUIContentsContainer>(profile_, initially_hidden);
+  }
+  contents_->AttachToHost(this);
+  glic::GlicProfileManager::GetInstance()->OnLoadingClientForService(
+      &glic_service());
+
+  metrics_.StartRecording();
 }
 
 Host::PanelWillOpenOptions::PanelWillOpenOptions() = default;
@@ -366,6 +384,10 @@ content::WebContents* Host::webui_contents() const {
   return nullptr;
 }
 
+content::WebContents* Host::web_client_contents() const {
+  return web_client_contents_.get();
+}
+
 bool Host::IsGlicWebUiHost(content::RenderProcessHost* host) const {
   if (handler_info_) {
     if (handler_info_->page_handler->webui_contents()
@@ -375,6 +397,13 @@ bool Host::IsGlicWebUiHost(content::RenderProcessHost* host) const {
     }
   }
   return false;
+}
+
+content::RenderFrameHost* Host::GetGuestMainFrame() const {
+  if (page_handler()) {
+    return page_handler()->GetGuestMainFrame();
+  }
+  return nullptr;
 }
 
 bool Host::IsGlicWebUi(content::WebContents* contents) const {
@@ -504,6 +533,10 @@ void Host::SetPanelDraggableAreas(
   }
 }
 
+void Host::SetPanelDraggableRegion(const SkRegion& draggable_region) {
+  delegate_->SetDraggableRegion(draggable_region);
+}
+
 void Host::SetMinimumWidgetSize(GlicPageHandler* page_handler,
                                 const gfx::Size& size) {
   if (handler_info_ && handler_info_->page_handler == page_handler) {
@@ -594,6 +627,10 @@ void Host::FloatingPanelCanAttachChanged(bool can_attach) {
   handler_info_->web_client->FloatingPanelCanAttachChanged(can_attach);
 }
 
+void Host::GuestAdded(content::WebContents* guest_contents) {
+  web_client_contents_ = guest_contents->GetWeakPtr();
+}
+
 HostManager::HostManager(Profile* profile,
                          base::WeakPtr<GlicWindowController> window_controller)
     : profile_(profile),
@@ -617,6 +654,8 @@ void HostManager::GuestAdded(content::WebContents* guest_contents) {
       continue;
     }
 
+    host->GuestAdded(guest_contents);
+
     // TODO(harringtond): This looks wrong, either fix or document this.
     blink::web_pref::WebPreferences prefs(top->GetOrCreateWebPreferences());
     prefs.default_font_size =
@@ -632,6 +671,32 @@ std::vector<Host*> HostManager::GetAllHosts() {
     hosts.push_back(host.get());
   }
   return hosts;
+}
+
+Host* HostManager::GetOrCreateHostForTab(content::WebContents* web_contents) {
+  for (const auto& host : tab_hosts_) {
+    if (host->webui_contents() == web_contents) {
+      return host.get();
+    }
+  }
+
+  if (!tabs::TabInterface::MaybeGetFromContents(web_contents)) {
+    return nullptr;
+  }
+
+  // For backwards compatibility, tab hosts are tied to the window controller.
+  // In multi-instance mode, no instance is used for now. We should consider
+  // just creating new instances for these hosts.
+  GlicInstance* glic_instance = nullptr;
+  if (!GlicEnabling::IsMultiInstanceEnabled()) {
+    glic_instance =
+        static_cast<GlicWindowControllerInterface*>(window_controller_.get());
+  }
+  tab_hosts_.push_back(std::make_unique<Host>(profile_, nullptr, glic_instance,
+                                              GlicKeyedService::Get(profile_)));
+  Host* new_host = tab_hosts_.back().get();
+  new_host->SetDelegate(empty_embedder_delegate_.get());
+  return new_host;
 }
 
 bool HostManager::IsGlicWebUi(content::WebContents* contents) {
@@ -652,32 +717,10 @@ bool HostManager::IsGlicWebUiHost(content::RenderProcessHost* process_host) {
   return false;
 }
 
-Host* HostManager::WebUIPageHandlerAdded(GlicPageHandler* page_handler) {
-  std::vector<Host*> instance_hosts = GetPrimaryHosts();
-  auto iter = std::find_if(
-      instance_hosts.begin(), instance_hosts.end(), [page_handler](Host* h) {
-        return h->webui_contents() == page_handler->webui_contents();
-      });
-  if (iter != instance_hosts.end()) {
-    Host* host = *iter;
-    host->WebUIPageHandlerAdded(page_handler);
-    return host;
-  }
-
-  // For backwards compatibility, tab hosts are tied to the window controller.
-  // In multi-instance mode, no instance is used for now. We should consider
-  // just creating new instances for these hosts.
-  GlicInstance* glic_instance = nullptr;
-  if (!GlicEnabling::IsMultiInstanceEnabled()) {
-    glic_instance =
-        static_cast<GlicWindowControllerInterface*>(window_controller_.get());
-  }
-  tab_hosts_.push_back(std::make_unique<Host>(profile_, nullptr, glic_instance,
-                                              GlicKeyedService::Get(profile_)));
-  Host& new_host = *tab_hosts_.back();
-  new_host.SetDelegate(empty_embedder_delegate_.get());
-  new_host.WebUIPageHandlerAdded(page_handler);
-  return &new_host;
+void HostManager::WebUIPageHandlerAdded(GlicPageHandler* page_handler,
+                                        Host* host) {
+  CHECK(host);
+  host->WebUIPageHandlerAdded(page_handler);
 }
 
 void HostManager::WebUIPageHandlerRemoved(GlicPageHandler* page_handler) {

@@ -53,6 +53,7 @@
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout_view.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/test/test_widget_builder.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
@@ -930,7 +931,7 @@ IN_PROC_BROWSER_TEST_F(QuickInsertAccessibilityBrowserTest,
   sm()->ExpectSpeechPattern("*insert content*");
 #endif
   sm()->ExpectSpeechPattern("Dialog");
-  sm()->ExpectSpeechPattern("Get started");
+  sm()->ExpectSpeechPattern("Got it");
   sm()->ExpectSpeechPattern("Button");
   sm()->Replay();
 }

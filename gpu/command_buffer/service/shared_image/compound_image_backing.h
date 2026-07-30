@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/enum_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
@@ -35,14 +36,16 @@ enum class SharedImageAccessStream {
   kOverlay,
   kGL,
   kDawn,
+  kDawnBuffer,
   kMemory,
-  kVaapi
+  kVaapi,
+  kWebNNTensor
 };
 
 // Used to represent what access streams a backing can be used for.
 using AccessStreamSet = base::EnumSet<SharedImageAccessStream,
                                       SharedImageAccessStream::kSkia,
-                                      SharedImageAccessStream::kVaapi>;
+                                      SharedImageAccessStream::kWebNNTensor>;
 
 // A compound backing that combines a shared memory backing and real GPU
 // backing. The real GPU backing must implement `UploadFromMemory()` and not
@@ -107,6 +110,12 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   void NotifyBeginAccess(SharedImageBacking* backing,
                          RepresentationAccessMode mode);
 
+  // Called by wrapped representations during EndAccess(). This will update the
+  // CompoundImageBacking's clear rect with the accessed backing's clear rect it
+  // the access was a write access.
+  void NotifyEndAccess(SharedImageBacking* backing,
+                       RepresentationAccessMode mode);
+
   // SharedImageBacking implementation.
   SharedImageBackingType GetType() const override;
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
@@ -131,8 +140,8 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // rect will be xfered to the dst backing.
   // 4. If there is a shm backing, entire CompoundImageBacking as well all the
   // created gpu backings will be marked as cleared always.
-
   void SetClearedRect(const gfx::Rect& cleared_rect) override;
+
   void OnAddSecondaryReference() override;
 
   // CompoundImageBacking is registered as the primary backing while creating a
@@ -152,6 +161,12 @@ class GPU_GLES2_EXPORT CompoundImageBacking
       wgpu::BackendType backend_type,
       std::vector<wgpu::TextureFormat> view_formats,
       scoped_refptr<SharedContextState> context_state) override;
+  std::unique_ptr<DawnBufferRepresentation> ProduceDawnBuffer(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker,
+      const wgpu::Device& device,
+      wgpu::BackendType backend_type,
+      scoped_refptr<SharedContextState> context_state) override;
   std::unique_ptr<GLTextureImageRepresentation> ProduceGLTexture(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker) override;
@@ -167,6 +182,9 @@ class GPU_GLES2_EXPORT CompoundImageBacking
       MemoryTypeTracker* tracker,
       scoped_refptr<SharedContextState> context_state) override;
   std::unique_ptr<OverlayImageRepresentation> ProduceOverlay(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker) override;
+  std::unique_ptr<WebNNTensorRepresentation> ProduceWebNNTensor(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker) override;
 
@@ -322,9 +340,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   std::vector<ElementHolder> elements_;
 
   base::OnceCallback<void(bool)> pending_copy_to_gmb_callback_;
-
   scoped_refptr<SharedImageCopyManager> copy_manager_;
-
   bool has_shm_backing_ = false;
 };
 

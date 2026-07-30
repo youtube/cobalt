@@ -28,8 +28,6 @@
 #ifndef COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_SAFE_BROWSING_BLOCKING_PAGE_H_
 #define COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_SAFE_BROWSING_BLOCKING_PAGE_H_
 
-#include <map>
-
 #include "base/functional/callback_helpers.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -105,7 +103,6 @@ class SafeBrowsingBlockingPage : public BaseBlockingPage {
           security_interstitials::SecurityInterstitialControllerClient>
           controller_client,
       const BaseSafeBrowsingErrorUI::SBErrorDisplayOptions& display_options,
-      bool should_trigger_reporting,
       history::HistoryService* history_service,
       SafeBrowsingNavigationObserverManager* navigation_observer_manager,
       SafeBrowsingMetricsCollector* metrics_collector,

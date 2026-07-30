@@ -14,6 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
@@ -407,7 +408,8 @@ class OAuthMultiloginHelperTest
 
   OAuthMultiloginHelper* CreateHelper(
       const std::vector<OAuthMultiloginHelper::AccountIdGaiaIdPair> accounts,
-      bool set_external_cc_result = false) {
+      bool set_external_cc_result = false,
+      bool wait_on_connectivity = true) {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
     // `bound_session_delegate_` is owned by `OAuthMultiloginHelper`, ensures it
     // resets before creating a new helper to avoid dangling pointers.
@@ -415,7 +417,8 @@ class OAuthMultiloginHelperTest
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
     helper_ = std::make_unique<OAuthMultiloginHelper>(
         &test_signin_client_, this, token_service(),
-        gaia::MultiloginMode::MULTILOGIN_UPDATE_COOKIE_ACCOUNTS_ORDER, accounts,
+        gaia::MultiloginMode::MULTILOGIN_UPDATE_COOKIE_ACCOUNTS_ORDER,
+        wait_on_connectivity, accounts,
         set_external_cc_result ? kExternalCcResult : std::string(),
         gaia::GaiaSource::kChrome,
         base::BindOnce(&OAuthMultiloginHelperTest::OnOAuthMultiloginFinished,
@@ -535,6 +538,41 @@ TEST_F(OAuthMultiloginHelperTest, Success) {
   // Configure mock cookie manager:
   // - check that the cookie is the expected one
   // - immediately invoke the callback
+  EXPECT_CALL(
+      *cookie_manager(),
+      SetCanonicalCookie(CookieMatcher("SID", "SID_value", ".google.fr"),
+                         CookieSourceMatcher("google.fr"), _, _))
+      .WillOnce(RunSetCookieCallbackWithSuccess);
+
+  // Issue access token.
+  OAuth2AccessTokenConsumer::TokenResponse success_response;
+  success_response.access_token = kAccessToken;
+  token_service()->IssueAllTokensForAccount(kAccountId, success_response);
+
+  // Multilogin call.
+  EXPECT_EQ(result_, std::nullopt);
+  const network::ResourceRequest* multilogin_request = nullptr;
+  ASSERT_TRUE(url_loader()->IsPending(multilogin_url(), &multilogin_request));
+  EXPECT_EQ(multilogin_request->headers.GetHeader(kAuthorizationHeaderName),
+            CreateMultiBearerAuthorizationHeader(
+                {gaia::MultiloginAccountAuthCredentials(kGaiaId, kAccessToken,
+                                                        kNoAssertion)}));
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  EXPECT_CALL(*bound_session_delegate(), BeforeSetCookies);
+  EXPECT_CALL(*bound_session_delegate(), OnCookiesSet);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+  url_loader()->AddResponse(multilogin_url(), kMultiloginSuccessResponse);
+  EXPECT_FALSE(url_loader()->IsPending(multilogin_url()));
+  EXPECT_EQ(result_, SetAccountsInCookieResult::kSuccess);
+}
+
+// Same as Success, but simulates making a request while offline and
+// wait_on_connectivity=false, which allows sending the request anyway.
+TEST_F(OAuthMultiloginHelperTest, SuccessOffline) {
+  test_signin_client_.SetNetworkCallsDelayed(true);
+  token_service()->UpdateCredentials(kAccountId, "refresh_token");
+  CreateHelper({{kAccountId, kGaiaId}}, false, /*wait_on_connectivity=*/false);
+
   EXPECT_CALL(
       *cookie_manager(),
       SetCanonicalCookie(CookieMatcher("SID", "SID_value", ".google.fr"),
@@ -1394,7 +1432,10 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
           UnorderedElementsAre(CookieMatcher(
               "__Secure-1PSIDTS", "secure-1p-sidts-value", ".google.com")),
           _, _))
-      .WillOnce(base::test::RunOnceCallback<4>(true));
+      .WillOnce(base::test::RunOnceCallback<4>(
+          std::vector<net::device_bound_sessions::SessionError::ErrorType>{
+              net::device_bound_sessions::SessionError::ErrorType::kSuccess},
+          std::vector<net::CookieInclusionStatus>()));
 
   ASSERT_TRUE(
       url_loader()->IsPending(multilogin_url_with_cookie_enforcement()));
@@ -1409,6 +1450,146 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
       OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::kSuccess,
       /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+      net::device_bound_sessions::SessionError::ErrorType::kSuccess,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
+       SetCookiesViaDeviceBoundSessionManagerFails) {
+  base::HistogramTester histogram_tester;
+
+  ReplaceTokenService(/*use_refresh_tokens_for_multilogin=*/true);
+  const std::vector<uint8_t> binding_key = {1, 2, 3};
+  token_service()->UpdateCredentials(
+      kAccountId, "refresh_token",
+      signin_metrics::SourceForRefreshTokenOperation::kUnknown, binding_key);
+  CreateHelper(/*accounts=*/{{kAccountId, kGaiaId}});
+
+  // No cookies are set via `CookieManager` if standard DBSC is enabled.
+  MockCookieManager* mock_cookie_manager = cookie_manager();
+  ASSERT_NE(mock_cookie_manager, nullptr);
+  EXPECT_CALL(*mock_cookie_manager, SetCanonicalCookie).Times(0);
+
+  // No sessions are created via `BoundSessionOAuthMultiLoginDelegate` if
+  // standard DBSC is enabled.
+  MockBoundSessionOAuthMultiLoginDelegate* mock_bound_session_delegate =
+      bound_session_delegate();
+  ASSERT_NE(mock_bound_session_delegate, nullptr);
+  EXPECT_CALL(*mock_bound_session_delegate, BeforeSetCookies).Times(0);
+  EXPECT_CALL(*mock_bound_session_delegate, OnCookiesSet).Times(0);
+
+  EXPECT_CALL(mock_device_bound_session_manager(),
+              CreateBoundSessions(SizeIs(2), binding_key, SizeIs(1), _, _))
+      .WillOnce(base::test::RunOnceCallback<4>(
+          std::vector<net::device_bound_sessions::SessionError::ErrorType>{
+              net::device_bound_sessions::SessionError::ErrorType::kSuccess,
+              net::device_bound_sessions::SessionError::ErrorType::
+                  kInvalidSessionId},
+          std::vector<net::CookieInclusionStatus>()));
+
+  ASSERT_TRUE(
+      url_loader()->IsPending(multilogin_url_with_cookie_enforcement()));
+  const std::string response =
+      R"()]}'
+        {
+          "status": "OK",
+          "cookies":[
+            {
+              "name": "__Secure-1PSIDTS",
+              "value": "secure-1p-sidts-value",
+              "domain": ".google.com",
+              "path": "/",
+              "isSecure": true,
+              "isHttpOnly": false,
+              "maxAge": 31536000,
+              "priority": "HIGH",
+              "sameParty": "1"
+            }
+          ],
+          "device_bound_session_info": [
+            {
+              "domain": "GOOGLE_COM",
+              "is_device_bound": true,
+              "register_session_payload": {
+                "session_identifier": "id",
+                "refresh_url": "/RotateBoundCookies",
+                "scope": {
+                  "origin": "https://google.com",
+                  "include_site": true,
+                  "scope_specification" : [
+                    {
+                      "type": "include",
+                      "domain": ".google.com",
+                      "path": "/"
+                    }
+                  ]
+                },
+                "credentials": [{
+                  "type": "cookie",
+                  "name": "__Secure-1PSIDTS",
+                  "scope": {
+                    "domain": ".google.com",
+                    "path": "/"
+                  },
+                  "attributes": "Domain=.google.com; Path=/; Secure"
+                }],
+                "allowed_refresh_initiators": ["https://google.com"]
+              }
+            },
+            {
+              "domain": "GOOGLE_COM",
+              "is_device_bound": true,
+              "register_session_payload": {
+                "session_identifier": "id_2",
+                "refresh_url": "/RotateBoundCookies2",
+                "scope": {
+                  "origin": "https://google.com",
+                  "include_site": true,
+                  "scope_specification" : [
+                    {
+                      "type": "include",
+                      "domain": ".google.com",
+                      "path": "/"
+                    }
+                  ]
+                },
+                "credentials": [{
+                  "type": "cookie",
+                  "name": "cookie_2",
+                  "scope": {
+                    "domain": ".google.com",
+                    "path": "/"
+                  },
+                  "attributes": "Domain=.google.com; Path=/; Secure"
+                }],
+                "allowed_refresh_initiators": ["https://google.com"]
+              }
+            }
+          ]
+        }
+      )";
+  url_loader()->AddResponse(multilogin_url_with_cookie_enforcement(), response);
+  ASSERT_FALSE(
+      url_loader()->IsPending(multilogin_url_with_cookie_enforcement()));
+
+  EXPECT_EQ(SetAccountsInCookieResult::kSuccess, result_);
+  // If `DeviceBoundSessionManager` returns any session related error, mark the
+  // batch operation as a failure.
+  histogram_tester.ExpectUniqueSample(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
+      OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::kFailure,
+      /*expected_bucket_count=*/1);
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples(
+          "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError"),
+      UnorderedElementsAre(
+          base::Bucket(
+              net::device_bound_sessions::SessionError::ErrorType::kSuccess, 1),
+          base::Bucket(net::device_bound_sessions::SessionError::ErrorType::
+                           kInvalidSessionId,
+                       1)));
 }
 
 TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
@@ -1458,6 +1639,9 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
       OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::
           kFallbackNoBindingKey,
       /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+      /*expected_count=*/0);
 }
 
 TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
@@ -1532,6 +1716,9 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
       OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::
           kFallbackNoBoundSessions,
       /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+      /*expected_count=*/0);
 }
 
 TEST_F(
@@ -1580,6 +1767,9 @@ TEST_F(
   histogram_tester.ExpectTotalCount(
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
       /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+      /*expected_count=*/0);
 }
 
 class OAuthMultiloginHelperStandardBoundSessionsEnabledPrototypeDisabledTest
@@ -1619,7 +1809,10 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledPrototypeDisabledTest,
 
   EXPECT_CALL(mock_device_bound_session_manager(),
               CreateBoundSessions(SizeIs(1), binding_key, SizeIs(1), _, _))
-      .WillOnce(base::test::RunOnceCallback<4>(true));
+      .WillOnce(base::test::RunOnceCallback<4>(
+          std::vector<net::device_bound_sessions::SessionError::ErrorType>{
+              net::device_bound_sessions::SessionError::ErrorType::kSuccess},
+          std::vector<net::CookieInclusionStatus>()));
 
   const std::string url = multilogin_url() + "&cookie_binding=2";
   ASSERT_TRUE(url_loader()->IsPending(url));
@@ -1631,6 +1824,10 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledPrototypeDisabledTest,
   histogram_tester.ExpectUniqueSample(
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
       OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::kSuccess,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
+      net::device_bound_sessions::SessionError::ErrorType::kSuccess,
       /*expected_bucket_count=*/1);
 }
 
@@ -1677,6 +1874,9 @@ TEST_F(
   EXPECT_EQ(SetAccountsInCookieResult::kSuccess, result_);
   histogram_tester.ExpectTotalCount(
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
+      /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError",
       /*expected_count=*/0);
 }
 

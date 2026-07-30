@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_TEST_SUPPORT_DOM_STORAGE_DATABASE_TESTING_H_
 #define COMPONENTS_SERVICES_STORAGE_DOM_STORAGE_TEST_SUPPORT_DOM_STORAGE_DATABASE_TESTING_H_
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,13 +51,19 @@ void PutMetadataSync(AsyncDomStorageDatabase& database,
                      DomStorageDatabase::Metadata metadata);
 
 // A synchronous wrapper for
-// `AsyncDomStorageDatabase::DeleteStorageKeysFromSessionSync()`.  Expects
-// success.
+// `AsyncDomStorageDatabase::DeleteStorageKeysFromSession()`.  Expects success.
 void DeleteStorageKeysFromSessionSync(
     AsyncDomStorageDatabase& database,
     std::string session_id,
-    std::vector<blink::StorageKey> storage_keys,
-    absl::flat_hash_set<int64_t> excluded_cloned_map_ids);
+    std::vector<blink::StorageKey> metadata_to_delete,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete);
+
+// A synchronous wrapper for
+// `AsyncDomStorageDatabase::DeleteSessions()`.  Expects success.
+void DeleteSessionsSync(
+    AsyncDomStorageDatabase& database,
+    std::vector<std::string> session_ids,
+    std::vector<DomStorageDatabase::MapLocator> maps_to_delete);
 
 }  // namespace storage
 

@@ -229,8 +229,8 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   _locationBarViewController = locationBarViewController;
   if (locationBarViewController) {
     [self addChildViewController:locationBarViewController];
-    [locationBarViewController didMoveToParentViewController:self];
     [self.view setLocationBarView:locationBarViewController.view];
+    [locationBarViewController didMoveToParentViewController:self];
     self.view.locationBarContainer.hidden = NO;
     // Update the constraint of the location bar view to make sure the text is
     // centered.
@@ -557,6 +557,13 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   // Adds an empty menu so the event triggers the first time.
   UIMenu* emptyMenu = [UIMenu menuWithChildren:@[]];
   button.menu = emptyMenu;
+
+  // Fix the order of the New Tab button menu to ensure the menu and child menus
+  // are displayed in the correct visual order.
+  if (buttonType == AdaptiveToolbarButtonTypeNewTab) {
+    button.preferredMenuElementOrder =
+        UIContextMenuConfigurationElementOrderFixed;
+  }
 
   [button removeActionForIdentifier:kContextMenuActionIdentifier
                    forControlEvents:UIControlEventMenuActionTriggered];

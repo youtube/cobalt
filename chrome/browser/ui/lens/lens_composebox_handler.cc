@@ -97,6 +97,7 @@ void LensComposeboxOmniboxClient::OnAutocompleteAccept(
     const AutocompleteMatch& alternative_nav_match) {
   std::string query_text;
   net::GetValueForKeyInQuery(destination_url, "q", &query_text);
+  /* TODO(crbug.com/465154864): Add `aep` param value in lens AIM queries. */
   lens_composebox_controller_->IssueComposeboxQuery(query_text);
 }
 
@@ -149,18 +150,26 @@ void LensComposeboxHandler::FocusChanged(bool focused) {
 }
 
 void LensComposeboxHandler::SetDeepSearchMode(bool enabled) {
-  // Ignore, intentionally unimplemented for Lens. Deep search not implemented
+  // Intentionally unimplemented for Lens. Deep search not yet implemented
   // in Lens.
+  NOTREACHED();
 }
 
 void LensComposeboxHandler::SetCreateImageMode(bool enabled,
                                                bool image_present) {
-  // Ignore, intentionally unimplemented for Lens. Create image not implemented
+  // Intentionally unimplemented for Lens. Create image not yet implemented
   // in Lens.
+  NOTREACHED();
 }
 
 void LensComposeboxHandler::HandleLensButtonClick() {
   lens_composebox_controller_->ShowLensSelectionOverlay();
+}
+
+void LensComposeboxHandler::HandleFileUpload(bool is_image) {
+  // Intentionally unimplemented for Lens, file upload is not yet
+  // implemented in Lens.
+  NOTREACHED();
 }
 
 void LensComposeboxHandler::DeleteAutocompleteMatch(uint8_t line,
@@ -186,7 +195,8 @@ void LensComposeboxHandler::OnThumbnailRemoved() {
 }
 
 void LensComposeboxHandler::DeleteContext(
-    const base::UnguessableToken& file_token) {
+    const base::UnguessableToken& file_token,
+    bool from_automatic_chip) {
   lens_composebox_controller_->DeleteContext(file_token);
 }
 

@@ -31,17 +31,23 @@ The tables are parsed in this file as critical user journeys. Lines are consider
 | WMLC | install_by_user(Standalone) | manifest_update_title(Standalone, StandaloneUpdated) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(IgnoreDialog) |  check_menu_button_pending_update(NotExpanded) | launch(Standalone) | trigger_update_dialog_and_handle_response(AcceptUpdate) |  launch(Standalone) | check_app_title(Standalone, StandaloneUpdated) |
 
 # Accept update (icon)
-| WMLC | install_by_user(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(AcceptUpdate) |  check_app_icon(Standalone, Red) |
+| WMLC | install_by_user(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone, Red) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(AcceptUpdate) |  check_app_icon(Standalone, Red) |
 # Cancel update and uninstall (icon)
-| WMLC | install_by_user(Standalone) |check_app_icon(Standalone, Green) | manifest_update_icon(Standalone) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(CancelDialogAndUninstall) |  check_app_not_in_list | check_platform_shortcut_not_exists |
+| WMLC | install_by_user(Standalone) |check_app_icon(Standalone, Green) | manifest_update_icon(Standalone, Red) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(CancelDialogAndUninstall) |  check_app_not_in_list | check_platform_shortcut_not_exists |
 # Ignore update first, then update from menu. (icon)
-| WMLC | install_by_user(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(IgnoreDialog) |  check_menu_button_pending_update(NotExpanded) | launch(Standalone) | trigger_update_dialog_and_handle_response(AcceptUpdate) |  launch(Standalone) | check_app_icon(Standalone, Red) |
+| WMLC | install_by_user(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone, Red) | check_menu_button_pending_update(ExpandedUpdateAvailable) | trigger_update_dialog_and_handle_response(IgnoreDialog) |  check_menu_button_pending_update(NotExpanded) | launch(Standalone) | trigger_update_dialog_and_handle_response(AcceptUpdate) |  launch(Standalone) | check_app_icon(Standalone, Red) |
 
 # Verify app title and icons are updated silently for trusted apps.
 | WMLC | install_policy_app(Standalone, ShortcutOptions::All, Windowed, WebApp) | launch(Standalone) | manifest_update_title(Standalone, StandaloneUpdated) | check_menu_button_pending_update(NotExpanded) |  check_app_title(Standalone, StandaloneUpdated) |
-| WMLC | install_policy_app(Standalone, ShortcutOptions::All, Windowed, WebApp) | launch(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone) | check_menu_button_pending_update(NotExpanded) |  check_app_icon(Standalone, Red) |
+| WMLC | install_policy_app(Standalone, ShortcutOptions::All, Windowed, WebApp) | launch(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone, Red) | check_menu_button_pending_update(NotExpanded) |  check_app_icon(Standalone, Red) |
 
-# TODO(crbug.com/456097293): Also support silent icon updates, and that launching a web app in a browser tab does not trigger updates.
+# Verify icon diff updates of <10% image diffs.
+| WMLC | install_by_user(Standalone) | check_app_icon(Standalone, Green) | manifest_update_icon(Standalone, GreenSmallDiff) | check_menu_button_pending_update(NotExpanded) | check_app_icon(Standalone, GreenSmallDiff) |
+
+# Verify that manifest updates also work for apps that are open in a browser tab (both security sensitive and non-security sensitive ones).
+| WMLC | install_by_user(StandaloneNestedA) | maybe_close_pwa | navigate_browser(Standalone) | check_launch_icon_not_shown | manifest_update_scope_to(StandaloneNestedA, Standalone) | navigate_browser(Standalone) | check_launch_icon_shown
+| WMLC | install_by_user(Standalone) | maybe_close_pwa | navigate_browser(Standalone) | manifest_update_title(Standalone, StandaloneUpdated) | launch | check_menu_button_pending_update(ExpandedUpdateAvailable) |
+| WMLC | install_by_user(Standalone) | maybe_close_pwa | navigate_browser(Standalone) | manifest_update_icon(Standalone, Red) | launch | check_menu_button_pending_update(ExpandedUpdateAvailable) |
 
 ## Run on OS Login
 | #Platforms | Test -> | | | | | | | | | | | | | | | | |

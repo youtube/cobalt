@@ -15,15 +15,7 @@ namespace safe_browsing {
 
 namespace {
 
-using ::enterprise_connectors::BrowserThreadGuard;
 using ::enterprise_connectors::ConnectorUploadRequest;
-
-class BrowserThreadGuardImpl : public BrowserThreadGuard {
- public:
-  void AssertCalledOnUIThread() override {
-    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  }
-};
 
 }  // namespace
 
@@ -42,7 +34,7 @@ MultipartUploadRequest::MultipartUploadRequest(
                                  histogram_suffix,
                                  traffic_annotation,
                                  std::move(callback),
-                                 std::make_unique<BrowserThreadGuardImpl>()) {}
+                                 content::GetUIThreadTaskRunner({})) {}
 
 MultipartUploadRequest::MultipartUploadRequest(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -63,7 +55,7 @@ MultipartUploadRequest::MultipartUploadRequest(
                                  histogram_suffix,
                                  traffic_annotation,
                                  std::move(callback),
-                                 std::make_unique<BrowserThreadGuardImpl>()) {}
+                                 content::GetUIThreadTaskRunner({})) {}
 
 MultipartUploadRequest::MultipartUploadRequest(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -80,13 +72,9 @@ MultipartUploadRequest::MultipartUploadRequest(
                                  histogram_suffix,
                                  traffic_annotation,
                                  std::move(callback),
-                                 std::make_unique<BrowserThreadGuardImpl>()) {}
+                                 content::GetUIThreadTaskRunner({})) {}
 
 MultipartUploadRequest::~MultipartUploadRequest() = default;
-
-scoped_refptr<base::TaskRunner> MultipartUploadRequest::GetTaskRunner() {
-  return content::GetUIThreadTaskRunner({});
-}
 
 // static
 std::unique_ptr<ConnectorUploadRequest>
@@ -104,9 +92,9 @@ MultipartUploadRequest::CreateStringRequest(
         traffic_annotation, std::move(callback));
   }
 
-  return factory_->CreateStringRequest(url_loader_factory, base_url, metadata,
-                                       data, histogram_suffix,
-                                       traffic_annotation, std::move(callback));
+  return factory_->CreateStringRequest(
+      url_loader_factory, base_url, metadata, data, DataSource::STRING,
+      histogram_suffix, traffic_annotation, std::move(callback));
 }
 
 // static
@@ -132,7 +120,7 @@ MultipartUploadRequest::CreateFileRequest(
   // passed as the `get_data_result` argument.
   return factory_->CreateFileRequest(
       url_loader_factory, base_url, metadata,
-      enterprise_connectors::ScanRequestUploadResult::SUCCESS, path, file_size,
+      enterprise_connectors::ScanRequestUploadResult::kSuccess, path, file_size,
       is_obfuscated, histogram_suffix, traffic_annotation, std::move(callback));
 }
 
@@ -154,7 +142,7 @@ MultipartUploadRequest::CreatePageRequest(
 
   return factory_->CreatePageRequest(
       url_loader_factory, base_url, metadata,
-      enterprise_connectors::ScanRequestUploadResult::SUCCESS,
+      enterprise_connectors::ScanRequestUploadResult::kSuccess,
       std::move(page_region), histogram_suffix, traffic_annotation,
       std::move(callback));
 }

@@ -30,18 +30,15 @@ class AddToHomescreenCoordinator : public AddToHomescreenDataFetcher::Observer {
   AddToHomescreenCoordinator(
       content::WebContents* web_contents,
       int app_menu_type,
-      const base::android::JavaParamRef<jobject>& java_coordinator);
+      const base::android::JavaRef<jobject>& java_coordinator);
 
   // Called from the Java side and destructs this object.
   void Destroy(JNIEnv* env);
 
   // Called for showing the add-to-homescreen UI for AppBannerManager.
-  static bool ShowForAppBanner(
-      base::WeakPtr<AppBannerManager> weak_manager,
-      std::unique_ptr<AddToHomescreenParams> params,
-      base::RepeatingCallback<void(AddToHomescreenInstaller::Event,
-                                   const AddToHomescreenParams&)>
-          event_callback);
+  static bool ShowForAppBanner(base::WeakPtr<AppBannerManager> weak_manager,
+                               std::unique_ptr<AddToHomescreenParams> params,
+                               AddToHomescreenEventCallback event_callback);
 
   AddToHomescreenCoordinator() = delete;
   AddToHomescreenCoordinator(const AddToHomescreenCoordinator&) = delete;
@@ -59,6 +56,10 @@ class AddToHomescreenCoordinator : public AddToHomescreenDataFetcher::Observer {
                        const SkBitmap& display_icon,
                        AddToHomescreenParams::AppType app_type,
                        InstallableStatusCode status_code) override;
+
+  static void RecordEventForAppMenu(content::WebContents* web_contents,
+                                    AddToHomescreenEvent event,
+                                    const AddToHomescreenParams& a2hs_params);
 
   base::android::ScopedJavaGlobalRef<jobject> java_coordinator_;
 

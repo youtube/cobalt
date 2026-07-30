@@ -5,16 +5,20 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/data/webui/webui_composebox_pixel_test.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "url/url_constants.h"
 
 class FakeContextualTasksUiService
     : public contextual_tasks::ContextualTasksUiService {
  public:
   explicit FakeContextualTasksUiService(Profile* profile)
-      : contextual_tasks::ContextualTasksUiService(profile, nullptr) {}
+      : contextual_tasks::ContextualTasksUiService(profile, nullptr, nullptr) {}
   GURL GetDefaultAiPageUrl() override { return GURL(url::kAboutBlankURL); }
 
   static std::unique_ptr<KeyedService> BuildFakeService(
@@ -36,14 +40,33 @@ class ContextualTasksComposeBoxPixelTest
 
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override {
+    IdentityTestEnvironmentProfileAdaptor::
+        SetIdentityTestEnvironmentFactoriesOnBrowserContext(context);
     contextual_tasks::ContextualTasksUiServiceFactory::GetInstance()
         ->SetTestingFactory(
             context, base::BindRepeating(
                          &FakeContextualTasksUiService::BuildFakeService));
   }
 
+  void SetUpOnMainThread() override {
+    WebUIComposeBoxPixelTest::SetUpOnMainThread();
+    identity_test_environment_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
+            browser()->profile());
+
+    // Set up a fake identity to get an OAuth token, which allows the <webview>
+    // to load the AI page correctly.
+    identity_test_environment_adaptor_->identity_test_env()
+        ->MakePrimaryAccountAvailable("user@gmail.com",
+                                      signin::ConsentLevel::kSignin);
+    identity_test_environment_adaptor_->identity_test_env()
+        ->SetAutomaticIssueOfAccessTokens(true);
+  }
+
  private:
   base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_environment_adaptor_;
 };
 
 // Instantiating the tests.
@@ -117,5 +140,5 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest, Screenshots) {
       // Take a screenshot of the composebox.
       ScreenshotWebUi(kActiveTab, kComposebox,
                       /*screenshot_name=*/"ContextualTasksComposebox",
-                      /*baseline_cl=*/"7163438"));
+                      /*baseline_cl=*/"7204822"));
 }

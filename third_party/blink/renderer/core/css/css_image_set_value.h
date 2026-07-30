@@ -36,6 +36,7 @@ namespace blink {
 class CSSImageSetOptionValue;
 class CSSLengthResolver;
 class StyleImage;
+class StyleResolverState;
 
 class CORE_EXPORT CSSImageSetValue : public CSSValueList {
  public:
@@ -53,9 +54,16 @@ class CORE_EXPORT CSSImageSetValue : public CSSValueList {
 
   bool HasFailedOrCanceledSubresources() const;
 
+  const CSSImageSetValue& ResolveValuesIfNeeded(
+      const StyleResolverState&) const;
+  CSSImageSetValue& ResolveValuesIfNeeded(const StyleResolverState&);
+
   void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
+  CSSImageSetValue* ResolveValuesAndCreateCopyIfNeeded(
+      const StyleResolverState&) const;
+
   Member<StyleImage> cached_image_;
   float cached_device_scale_factor_{1.0f};
 

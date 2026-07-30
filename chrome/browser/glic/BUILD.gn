@@ -48,6 +48,7 @@ source_set("glic") {
     "host/glic_web_client_access.h",
     "host/guest_util.h",
     "host/host.h",
+    "host/host_metrics.h",
     "public/context/glic_sharing_manager.h",
     "public/glic_enabling.h",
     "public/glic_instance.h",
@@ -168,8 +169,11 @@ source_set("impl") {
     "host/glic_synthetic_trial_manager.cc",
     "host/glic_synthetic_trial_manager.h",
     "host/glic_ui.cc",
+    "host/glic_web_contents_warming_pool.cc",
+    "host/glic_web_contents_warming_pool.h",
     "host/guest_util.cc",
     "host/host.cc",
+    "host/host_metrics.cc",
     "host/page_metadata_manager.cc",
     "host/page_metadata_manager.h",
     "host/webui_contents_container.cc",
@@ -392,7 +396,6 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "glic_browsertest.cc",
-    "glic_keyed_service_browsertest.cc",
     "glic_net_log_browsertest.cc",
     "glic_policy_browsertest.cc",
     "glic_profile_manager_browsertest.cc",

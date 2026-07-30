@@ -58,6 +58,17 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
 
   std::optional<SkColor4f> solid_color() const { return solid_color_; }
 
+  std::optional<gfx::Rect> CalculateScaledCullRect(
+      float max_contents_scale) const;
+
+  // A helper for AppendQuadsSpecialization() that returns true if the current
+  // tile should be skipped. `visible_geometry_rect` is an out-param that will
+  // be populated when the tile should not be skipped.
+  bool ShouldSkipTile(const gfx::Rect& geometry_rect,
+                      const gfx::Rect& scaled_recorded_bounds,
+                      const Occlusion& scaled_occlusion,
+                      gfx::Rect& visible_geometry_rect) const;
+
  private:
   // Invoked when the draw mode is DRAW_MODE_RESOURCELESS_SOFTWARE.
   virtual void AppendQuadsForResourcelessSoftwareDraw(
@@ -81,7 +92,8 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
       AppendQuadsData* append_quads_data,
       viz::SharedQuadState* shared_quad_state,
       const Occlusion& scaled_occlusion,
-      const gfx::Vector2d& quad_offset) = 0;
+      const gfx::Vector2d& quad_offset,
+      float max_contents_scale) = 0;
 
   virtual float GetMaximumContentsScaleForUseInAppendQuads() = 0;
 
@@ -240,7 +252,8 @@ void TileBasedLayerImpl<Tiling>::AppendQuads(
   }
 
   AppendQuadsSpecialization(context, render_pass, append_quads_data,
-                            shared_quad_state, scaled_occlusion, quad_offset);
+                            shared_quad_state, scaled_occlusion, quad_offset,
+                            max_contents_scale);
 
   // Adjust shared_quad_state with the quad_offset, since by contract
   // AppendQuadsSpecialization() has adjusted each quad appended by that offset.
@@ -283,6 +296,47 @@ void TileBasedLayerImpl<Tiling>::AppendSolidQuad(
       render_pass, occlusion, shared_quad_state, scaled_visible_layer_rect,
       color, !layer_tree_impl()->settings().enable_edge_anti_aliasing,
       effect_node->blend_mode, append_quads_data);
+}
+
+template <typename Tiling>
+std::optional<gfx::Rect> TileBasedLayerImpl<Tiling>::CalculateScaledCullRect(
+    float max_contents_scale) const {
+  const ScrollTree& scroll_tree =
+      layer_tree_impl()->property_trees()->scroll_tree();
+  if (const ScrollNode* scroll_node = scroll_tree.Node(scroll_tree_index())) {
+    if (transform_tree_index() == scroll_node->transform_id) {
+      if (const gfx::Rect* cull_rect =
+              scroll_tree.ScrollingContentsCullRect(scroll_node->element_id)) {
+        return gfx::ToEnclosingRect(gfx::ScaleRect(
+            // Convert into layer space.
+            gfx::RectF(*cull_rect) - offset_to_transform_parent(),
+            max_contents_scale));
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+template <typename Tiling>
+bool TileBasedLayerImpl<Tiling>::ShouldSkipTile(
+    const gfx::Rect& geometry_rect,
+    const gfx::Rect& scaled_recorded_bounds,
+    const Occlusion& scaled_occlusion,
+    gfx::Rect& visible_geometry_rect) const {
+  if (!scaled_recorded_bounds.Intersects(geometry_rect)) {
+    // This happens when the tiling rect is snapped to be bigger than the
+    // recorded bounds, and CoverageIterator returns a "missing" tile
+    // to cover some of the empty area. The tile should be ignored, otherwise
+    // it would be mistakenly treated as checkerboarded and drawn with the
+    // safe background color.
+    // TODO(crbug.com/328677988): Ideally we should check intersection with
+    // visible_geometry_rect and remove the visible_geometry_rect.IsEmpty()
+    // condition below.
+    return true;
+  }
+  visible_geometry_rect =
+      scaled_occlusion.GetUnoccludedContentRect(geometry_rect);
+  return visible_geometry_rect.IsEmpty();
 }
 
 }  // namespace cc

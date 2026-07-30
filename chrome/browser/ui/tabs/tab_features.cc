@@ -360,8 +360,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       // injection callbacks and as a direct constructor argument.
       actor_ui_tab_controller_ =
           GetUserDataFactory().CreateInstance<actor::ui::ActorUiTabController>(
-              tab, tab, actor::ActorKeyedService::Get(profile),
-              std::make_unique<actor::ui::ActorUiTabControllerFactory>());
+              tab, tab, actor::ActorKeyedService::Get(profile));
     }
     actor_tab_data_ =
         GetUserDataFactory().CreateInstance<actor::ActorTabData>(tab, &tab);
@@ -399,14 +398,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   // any potential consumers, like the side panel controller.
   if (features::IsImmersiveReadAnythingEnabled()) {
     read_anything_controller_ =
-        GetUserDataFactory().CreateInstance<ReadAnythingController>(tab, &tab);
+        GetUserDataFactory().CreateInstance<ReadAnythingController>(
+            tab, &tab, side_panel_registry_.get());
+  } else {
+    // TODO(crbug.com/447418049): This will be removed in the future when
+    // ownership of this controller is migrated to ReadAnythingController.
+    read_anything_side_panel_controller_ =
+        std::make_unique<ReadAnythingSidePanelController>(
+            &tab, side_panel_registry_.get());
   }
-
-  // TODO(crbug.com/447418049): This will be removed in the future when
-  // ownership of this controller is migrated to ReadAnythingController.
-  read_anything_side_panel_controller_ =
-      std::make_unique<ReadAnythingSidePanelController>(
-          &tab, side_panel_registry_.get());
 
   // Create the HttpAuthCacheStatus to start observing resource load
   // completions.
@@ -437,7 +437,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   tab_creation_metrics_controller_ =
       std::make_unique<TabCreationMetricsController>(&tab);
 
-  tab_ui_helper_ = std::make_unique<TabUIHelper>(tab);
+  tab_ui_helper_ = GetUserDataFactory().CreateInstance<TabUIHelper>(tab, tab);
 
   task_manager::WebContentsTags::CreateForTabContents(tab.GetContents());
 
@@ -514,14 +514,22 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
 
   Profile* profile = tab->GetBrowserWindowInterface()->GetProfile();
 
-  // This method is transiently used to reset features that do not handle tab
-  // discarding themselves.
-  read_anything_side_panel_controller_->ResetForTabDiscard();
-  read_anything_side_panel_controller_.reset();
-  read_anything_side_panel_controller_ =
-      std::make_unique<ReadAnythingSidePanelController>(
-          tab, side_panel_registry_.get());
-
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    // TODO(crbug.com/467301642): Handle having the ReadAnythingController
+    // discard internally, rather than having TabFeatures recreate it.
+    read_anything_controller_.reset();
+    read_anything_controller_ =
+        GetUserDataFactory().CreateInstance<ReadAnythingController>(
+            *tab, tab, side_panel_registry_.get());
+  } else {
+    // This method is transiently used to reset features that do not handle tab
+    // discarding themselves.
+    read_anything_side_panel_controller_->ResetForTabDiscard();
+    read_anything_side_panel_controller_.reset();
+    read_anything_side_panel_controller_ =
+        std::make_unique<ReadAnythingSidePanelController>(
+            tab, side_panel_registry_.get());
+  }
   // Deregister side-panel entries that are web-contents scoped rather than tab
   // scoped.
   side_panel_registry_->Deregister(
@@ -580,6 +588,12 @@ TabFeatures::SetCustomizeChromeSidePanelControllerForTesting(
   customize_chrome_side_panel_controller_ =
       std::move(customize_chrome_side_panel_controller);
   return customize_chrome_side_panel_controller_.get();
+}
+
+TabAlertController* TabFeatures::SetTabAlertControllerForTesting(
+    std::unique_ptr<TabAlertController> tab_alert_controller) {
+  tab_alert_controller_ = std::move(tab_alert_controller);
+  return tab_alert_controller_.get();
 }
 
 // static

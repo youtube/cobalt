@@ -5,29 +5,44 @@
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {CrExpandButtonElement, SettingsSecurityPageV2Element} from 'chrome://settings/lazy_load.js';
-import {SafeBrowsingSetting, SecuritySettingsBundleSetting} from 'chrome://settings/lazy_load.js';
+import {HttpsFirstModeSetting, SafeBrowsingSetting, SecuritySettingsBundleSetting} from 'chrome://settings/lazy_load.js';
 import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
 import type {ControlledRadioButtonElement} from 'chrome://settings/settings.js';
-import {CrSettingsPrefs, HatsBrowserProxyImpl, Router, routes, SecurityPageV2Interaction} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, HatsBrowserProxyImpl, loadTimeData, MetricsBrowserProxyImpl, OpenWindowProxyImpl, PrivacyElementInteractions, Router, routes, SecurityPageV2Interaction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
 
+import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 import {TestHatsBrowserProxy} from './test_hats_browser_proxy.js';
+
+import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
+
 
 // clang-format on
 
 suite('Main', function() {
+  let testMetricsBrowserProxy: TestMetricsBrowserProxy;
+  let openWindowProxy: TestOpenWindowProxy;
   let settingsPrefs: SettingsPrefsElement;
   let page: SettingsSecurityPageV2Element;
 
   suiteSetup(function() {
+    loadTimeData.overrideValues({
+      enableSecurityKeysSubpage: true,
+    });
+
     settingsPrefs = document.createElement('settings-prefs');
     return CrSettingsPrefs.initialized;
   });
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    testMetricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(testMetricsBrowserProxy);
+    openWindowProxy = new TestOpenWindowProxy();
+    OpenWindowProxyImpl.setInstance(openWindowProxy);
 
     page = document.createElement('settings-security-page-v2');
     page.prefs = settingsPrefs.prefs;
@@ -136,6 +151,51 @@ suite('Main', function() {
     assertFalse(isVisible(page.$.resetEnhancedBundleToDefaultsButton));
   });
 
+  test('HttpsFirstModeRowRadioButtonsDisabledWhenOff', async function() {
+    page.setPrefValue(
+        'generated.https_first_mode_enabled', HttpsFirstModeSetting.DISABLED);
+    await flushTasks();
+
+    // The toggle is set to OFF because HTTPS First Mode is DISABLED.
+    const toggle = page.$.httpsFirstModeToggle;
+    assertFalse(toggle.checked, 'Toggle should be set to off');
+
+    // The radio buttons are disabled because HTTPS First Mode is DISABLED.
+    const balancedButton = page.$.httpsFirstModeEnabledBalanced;
+    assertTrue(
+        balancedButton.disabled, 'Balanced radio button should be disabled');
+    const strictButton = page.$.httpsFirstModeEnabledStrict;
+    assertTrue(strictButton.disabled, 'Strict radio button should be disabled');
+
+    toggle.click();
+    await flushTasks();
+
+    // The toggle is set to ON, so the radio buttons are now enabled.
+    assertFalse(
+        balancedButton.disabled, 'Balanced radio button should be enabled');
+    assertFalse(strictButton.disabled, 'Strict radio button should be enabled');
+  });
+
+  test('HttpsFirstModeDefaultBalancedWhenToggledOn', async function() {
+    page.setPrefValue(
+        'generated.https_first_mode_enabled', HttpsFirstModeSetting.DISABLED);
+    await flushTasks();
+
+    // The toggle is set to OFF because HTTPS First Mode is DISABLED.
+    const toggle = page.$.httpsFirstModeToggle;
+    assertFalse(toggle.checked, 'Toggle should be OFF');
+
+    toggle.click();
+    await flushTasks();
+    assertTrue(toggle.checked, 'Toggle should be ON');
+
+    // The pref should default to ENABLED_BALANCED.
+    assertEquals(
+        HttpsFirstModeSetting.ENABLED_BALANCED,
+        page.getPref('generated.https_first_mode_enabled').value,
+        'HTTPS First Mode should default to ENABLED_BALANCED when enabled');
+  });
+
   test('PasswordsLeakDetectionClickTogglesSetting', async function() {
     page.setPrefValue('generated.password_leak_detection', true);
 
@@ -184,6 +244,49 @@ suite('Main', function() {
         page.getPref('generated.password_leak_detection').value,
         `Password leak detection should not be changed by switching to
          Standard bundle`);
+  });
+
+  test('ManageCertificatesClick', async function() {
+    page.shadowRoot!.querySelector<HTMLElement>(
+                        '#manageCertificatesLinkRow')!.click();
+    const result =
+        await testMetricsBrowserProxy.whenCalled('recordSettingsPageHistogram');
+    assertEquals(PrivacyElementInteractions.MANAGE_CERTIFICATES, result);
+
+    const url = await openWindowProxy.whenCalled('openUrl');
+    assertEquals(url, loadTimeData.getString('certManagementV2URL'));
+  });
+
+  test('ManageSecurityKeysSubpageVisible', function() {
+    assertTrue(isChildVisible(page, '#securityKeysSubpageTrigger'));
+  });
+});
+
+suite('SecurityKeysSubpageDisabled', function() {
+  let settingsPrefs: SettingsPrefsElement;
+  let page: SettingsSecurityPageV2Element;
+
+  suiteSetup(function() {
+    loadTimeData.overrideValues({
+      enableSecurityKeysSubpage: false,
+    });
+
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
+  });
+
+  setup(function() {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    page = document.createElement('settings-security-page-v2');
+    page.prefs = settingsPrefs.prefs;
+    document.body.appendChild(page);
+    flush();
+  });
+
+
+  test('ManageSecurityKeysSubpageNotVisible', function() {
+    assertFalse(isChildVisible(page, '#securityKeysSubpageTrigger'));
   });
 });
 

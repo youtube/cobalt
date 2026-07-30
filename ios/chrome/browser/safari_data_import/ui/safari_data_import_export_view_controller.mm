@@ -33,8 +33,6 @@ NSString* GetAnimationName(BOOL dark_mode) {
                    : kSafariDataExportEducationAnimation;
 }
 
-/// Vertical spacing of the instruction view.
-const CGFloat kInstructionViewVerticalSpacing = 16;
 
 /// Static text instructions to export data from Safari, formatted with
 /// paddings.
@@ -53,17 +51,7 @@ UIView* GetInstructionsView() {
         IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_5),
   ]];
   instruction_view.translatesAutoresizingMaskIntoConstraints = NO;
-  /// Wraps the instructions with paddings, since its superview will be the
-  /// first item in a  stack view and `directionalLayoutMargins` would not be
-  /// honored.
-  UIView* wrapper = [[UIView alloc] initWithFrame:CGRectZero];
-  wrapper.translatesAutoresizingMaskIntoConstraints = NO;
-  [wrapper addSubview:instruction_view];
-  AddSameConstraintsWithInsets(
-      instruction_view, wrapper,
-      NSDirectionalEdgeInsetsMake(kInstructionViewVerticalSpacing, 0,
-                                  kInstructionViewVerticalSpacing, 0));
-  return wrapper;
+  return instruction_view;
 }
 
 /// Text provider for the animated promo.
@@ -92,11 +80,6 @@ NSDictionary<NSString*, NSString*>* GetTextProvider() {
 @implementation SafariDataImportExportViewController
 
 - (void)viewDidLoad {
-  /// Sets up navigation bar.
-  self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
-                           target:self
-                           action:@selector(didTapCancelButton)];
   /// Sets up the safari data import item.
   self.animationName = GetAnimationName(/*dark_mode=*/NO);
   self.animationNameDarkMode = GetAnimationName(/*dark_mode=*/YES);
@@ -108,13 +91,6 @@ NSDictionary<NSString*, NSString*>* GetTextProvider() {
       l10n_util::GetNSString(IDS_IOS_SAFARI_IMPORT_EXPORT_BUTTON_CONTINUE);
   self.animationTextProvider = GetTextProvider();
   [super viewDidLoad];
-}
-
-#pragma mark - Private
-
-/// Handles tapping the "Cancel" button in navigation.
-- (void)didTapCancelButton {
-  [self.actionHandler confirmationAlertDismissAction];
 }
 
 @end

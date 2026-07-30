@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include "base/numerics/ranges.h"
+#include "base/strings/strcat.h"
 #include "cc/test/pixel_test_utils.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
@@ -15,8 +16,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/common/chrome_features.h"
@@ -230,7 +231,7 @@ class TabUnderlineViewUiTest : public test::InteractiveGlicTest {
   GURL Title2() const { return embedded_test_server()->GetURL("/title2.html"); }
 
   TabUnderlineView* GetUnderlineOfActiveTab() {
-    TabStripViewInterface* tab_strip_view =
+    TabStripRegionView* tab_strip_view =
         browser()->window()->AsBrowserView()->tab_strip_view();
     views::View* underline =
         tab_strip_view
@@ -263,7 +264,7 @@ class TabUnderlineViewUiTest : public test::InteractiveGlicTest {
   }
 
   AlertIndicatorButton* GetAlertIndicatorButtonOfActiveTab() {
-    TabStripViewInterface* tab_strip_view =
+    TabStripRegionView* tab_strip_view =
         static_cast<BrowserView*>(browser()->window())->tab_strip_view();
     views::View* button =
         tab_strip_view

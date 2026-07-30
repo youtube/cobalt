@@ -28,6 +28,7 @@
 #include "url/gurl.h"
 
 class AimEligibilityService;
+class PrefService;
 
 namespace signin {
 class IdentityManager;
@@ -49,6 +50,7 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
       std::unique_ptr<CompositeContextDecorator> composite_context_decorator,
       AimEligibilityService* aim_eligibility_service,
       signin::IdentityManager* identity_manager,
+      PrefService* pref_service,
       bool supports_ephemeral_only);
   ~ContextualTasksServiceImpl() override;
 
@@ -80,6 +82,9 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
       const std::string& server_id) override;
   void AttachUrlToTask(const base::Uuid& task_id, const GURL& url) override;
   void DetachUrlFromTask(const base::Uuid& task_id, const GURL& url) override;
+  void SetUrlResourcesFromServer(
+      const base::Uuid& task_id,
+      std::vector<UrlResource> url_resources) override;
   void AssociateTabWithTask(const base::Uuid& task_id,
                             SessionID tab_id) override;
   void DisassociateTabFromTask(const base::Uuid& task_id,
@@ -136,6 +141,9 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   void NotifyTaskAdded(const ContextualTask& task, TriggerSource source);
   void NotifyTaskUpdated(const ContextualTask& task, TriggerSource source);
   void NotifyTaskRemoved(const base::Uuid& task_id, TriggerSource source);
+  void NotifyTaskAssociatedToTab(const base::Uuid& task_id, SessionID tab_id);
+  void NotifyTaskDisassociatedFromTab(const base::Uuid& task_id,
+                                      SessionID tab_id);
   ContextualTask AddTaskAndNotify(ContextualTask task);
 
   void OnDataStoresLoaded();
@@ -169,6 +177,7 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   raw_ptr<AimEligibilityService> aim_eligibility_service_;
   raw_ptr<signin::IdentityManager> identity_manager_;
 
+  const raw_ptr<PrefService> pref_service_;
   // Whether the service only supports ephemeral tasks.
   const bool supports_ephemeral_only_;
 

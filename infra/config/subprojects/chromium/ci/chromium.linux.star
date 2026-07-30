@@ -482,6 +482,7 @@ ci.thin_tester(
     targets = targets.bundle(
         targets = [
             "chromium_linux_gtests",
+            "chromium_linux_gtests_once",
             "chromium_linux_rel_isolated_scripts_once",
             "gtests_once",
         ],
@@ -725,6 +726,9 @@ ci.thin_tester(
                     # running tests there.
                     "--disable-accelerated-subwindows-for-testing",
                 ],
+                swarming = targets.swarming(
+                    shards = 10,
+                ),
             ),
             "ozone_x11_unittests": targets.remove(
                 reason = "x11 tests don't make sense for wayland",
