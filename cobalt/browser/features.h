@@ -62,6 +62,12 @@ extern const base::Feature kInMemoryUpdatesMemoryBuffer;
 // Sets the memory buffer size in bytes.
 extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
 
+// Disables showing the splash screen.
+extern const base::Feature kDisableSplashScreen;
+
+// Forces the display of a video as the splash screen.
+extern const base::Feature kForceVideoSplashScreen;
+
 }  // namespace features
 }  // namespace cobalt
 
