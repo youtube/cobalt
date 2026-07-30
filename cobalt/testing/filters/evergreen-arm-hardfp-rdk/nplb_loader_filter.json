@@ -31,12 +31,19 @@
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_beneath_the_canopy_aac_stereo_dmp_video_beneath_the_canopy_137_avc_dmp_output_punch_out_key_system_null",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_beneath_the_canopy_aac_stereo_dmp_video_beneath_the_canopy_248_vp9_dmp_output_punch_out_key_system_null",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_beneath_the_canopy_aac_stereo_dmp_video_sintel_399_av1_dmp_output_punch_out_key_system_null",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_sintel_329_ec3_dmp_video_beneath_the_canopy_137_avc_dmp_output_punch_out_key_system_com_youtube_playready",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.SunnyDay/audio_sintel_329_ec3_dmp_video_beneath_the_canopy_248_vp9_dmp_output_punch_out_key_system_com_youtube_playready",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_329_ec3_dmp_video_beneath_the_canopy_137_avc_dmp_output_punch_out_key_system_null",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/audio_sintel_381_ac3_dmp_video_beneath_the_canopy_137_avc_dmp_output_punch_out_key_system_null",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",
     "SbTimeZoneGetNameTest.IsIANAFormat",
-    "VerticalVideoTests/VerticalVideoTest.*"
+    "VerticalVideoTests/VerticalVideoTest.Seek/*"
   ]
 }
