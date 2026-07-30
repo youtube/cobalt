@@ -82,12 +82,10 @@ class CONTENT_EXPORT MediaDevicesDispatcherHost
   void SetCaptureHandleConfig(
       blink::mojom::CaptureHandleConfigPtr config) override;
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void CloseFocusWindowOfOpportunity(const std::string& label) override;
   void ProduceSubCaptureTargetId(
       media::mojom::SubCaptureTargetType type,
       ProduceSubCaptureTargetIdCallback callback) override;
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
   void SetPreferredSinkId(const std::string& hashed_sink_id,
                           SetPreferredSinkIdCallback callback) override;

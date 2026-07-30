@@ -29,6 +29,10 @@
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_features.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#endif
+
 namespace {
 
 void KillGpuProcessImpl(content::GpuProcessHost* host) {
@@ -127,6 +131,53 @@ void KillGpuProcess() {
                            false /* force_create */,
                            base::BindOnce(&KillGpuProcessImpl));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Coordinates background GPU resource teardown from the browser UI thread.
+// Dispatches OnBackgroundCleanup() to the GPU service and establishes a Mojo
+// IPC barrier (via GetVideoMemoryUsageStats query) to ensure all asynchronous
+// GPU channel, context, surface, and display teardown operations on the GPU
+// thread are completed before |callback| is invoked to destroy native windows.
+void CleanupGpuProcessOnUI(base::OnceClosure callback) {
+  GpuProcessHost::CallOnUI(
+      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
+      base::BindOnce(
+          [](base::OnceClosure callback, content::GpuProcessHost* host) {
+            if (host && host->gpu_service()) {
+              host->gpu_service()->OnBackgroundCleanup();
+              auto barrier_callback =
+                  mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                      base::BindOnce(
+                          [](base::OnceClosure cb,
+                             const gpu::VideoMemoryUsageStats&) {
+                            if (cb) {
+                              std::move(cb).Run();
+                            }
+                          },
+                          std::move(callback)),
+                      gpu::VideoMemoryUsageStats());
+              host->gpu_service()->GetVideoMemoryUsageStats(
+                  std::move(barrier_callback));
+            } else if (callback) {
+              std::move(callback).Run();
+            }
+          },
+          std::move(callback)));
+}
+
+// Notifies the GPU service from the browser UI thread to re-initialize the EGL
+// display, create the default offscreen surface, and fulfill any GPU channel
+// establishment requests queued while backgrounded.
+void RestoreGpuProcessOnUI() {
+  GpuProcessHost::CallOnUI(
+      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
+      base::BindOnce([](content::GpuProcessHost* host) {
+        if (host && host->gpu_service()) {
+          host->gpu_service()->OnForegrounded();
+        }
+      }));
+}
+#endif
 
 gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory() {
   return BrowserMainLoop::GetInstance()->gpu_channel_establish_factory();

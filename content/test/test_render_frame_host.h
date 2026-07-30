@@ -112,15 +112,19 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
   void ClearConsoleMessages() override;
   int GetHeavyAdIssueCount(HeavyAdIssueType type) override;
   void SimulateManifestURLUpdate(const GURL& manifest_url) override;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   TestRenderFrameHost* AppendFencedFrame() override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#if !BUILDFLAG(IS_COBALT)
   void CreateWebUsbServiceForTesting(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) override;
+#endif
   void ResetLocalFrame() override;
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void CreateHidServiceForTesting(
       mojo::PendingReceiver<blink::mojom::HidService> receiver) override;
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
   void SendNavigate(int nav_entry_id,
                     bool did_create_new_entry,

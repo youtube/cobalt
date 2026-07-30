@@ -10,9 +10,6 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/common/condition_variable.h"
-#endif
 
 namespace v8 {
 namespace base {
