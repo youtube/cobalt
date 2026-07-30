@@ -1323,7 +1323,6 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
   caps.chromium_gpu_fence = feature_info_->feature_flags().chromium_gpu_fence;
   caps.mesa_framebuffer_flip_y =
       feature_info_->feature_flags().mesa_framebuffer_flip_y;
-  caps.mappable_formats = feature_info_->feature_flags().mappable_formats;
 
 #if BUILDFLAG(IS_CHROMEOS)
   PopulateDRMCapabilities(&caps, feature_info_.get());
@@ -1529,6 +1528,11 @@ bool GLES2DecoderPassthroughImpl::ClearLevel3D(Texture* texture,
 
 gpu::gles2::ErrorState* GLES2DecoderPassthroughImpl::GetErrorState() {
   return nullptr;
+}
+
+void GLES2DecoderPassthroughImpl::BindFramebuffer(unsigned target,
+                                                  uint32_t service_id) const {
+  NOTREACHED();
 }
 
 void GLES2DecoderPassthroughImpl::WaitForReadPixels(

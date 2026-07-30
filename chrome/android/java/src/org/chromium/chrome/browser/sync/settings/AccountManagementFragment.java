@@ -427,7 +427,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                                 Context context = getContext();
                                 if (isChild && context != null) {
                                     mProfileDataCache.setBadge(
-                                            assumeNonNull(childAccount).getEmail(),
+                                            assumeNonNull(childAccount).getId(),
                                             ProfileDataCache
                                                     .createDefaultSizeChildAccountBadgeConfig(
                                                             context,
@@ -439,7 +439,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
 
     // ProfileDataCache.Observer implementation:
     @Override
-    public void onProfileDataUpdated(String accountEmail) {
+    public void onProfileDataUpdated(DisplayableProfileData profileData) {
         AccountManagerFacadeProvider.getInstance().getAccounts().then(this::updateAccountsList);
     }
 
@@ -461,10 +461,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
         switch (error) {
             case UserActionableError.SIGN_IN_NEEDS_UPDATE:
                 AccountManagerFacadeProvider.getInstance()
-                        .updateCredentials(
-                                CoreAccountInfo.getAndroidAccountFrom(mSignedInCoreAccountInfo),
-                                getActivity(),
-                                null);
+                        .updateCredentials(mSignedInCoreAccountInfo, getActivity(), null);
                 return;
             case UserActionableError.NEEDS_CLIENT_UPGRADE:
                 // Opens the client in play store for update.

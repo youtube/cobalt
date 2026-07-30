@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <cstdint>
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
@@ -26,7 +27,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
-
 namespace contextual_tasks {
 
 using testing::_;
@@ -55,6 +55,7 @@ class MockPage : public mojom::Page {
                const std::string& thread_id,
                const std::string& turn_id),
               (override));
+  MOCK_METHOD(void, SetAimUrl, (const GURL& url), (override));
   MOCK_METHOD(void, OnSidePanelStateChanged, (), (override));
   MOCK_METHOD(void,
               PostMessageToWebview,
@@ -77,6 +78,12 @@ class MockPage : public mojom::Page {
   MOCK_METHOD(void, ShowErrorPage, (), (override));
   MOCK_METHOD(void, HideErrorPage, (), (override));
   MOCK_METHOD(void, ShowOauthErrorDialog, (), (override));
+  MOCK_METHOD(void,
+              UpdateComposeboxPosition,
+              (mojom::ComposeboxPositionPtr position),
+              (override));
+  MOCK_METHOD(void, LockInput, (), (override));
+  MOCK_METHOD(void, UnlockInput, (), (override));
 
   mojo::Receiver<mojom::Page> receiver_{this};
 };
@@ -174,6 +181,7 @@ class ContextualTasksPageHandlerTest : public BrowserWithTestWindowTest {
     page_handler_ = std::make_unique<ContextualTasksPageHandler>(
         mojo::PendingReceiver<mojom::PageHandler>(), contextual_tasks_ui_.get(),
         mock_contextual_tasks_ui_service_, mock_contextual_tasks_service_);
+    page_handler_->set_skip_feedback_ui_for_testing(true);
   }
 
   void TearDown() override {
@@ -244,6 +252,152 @@ TEST_F(ContextualTasksPageHandlerTest, GetUrlForTask_FetchFromService) {
                                  run_loop.Quit();
                                }));
   run_loop.Run();
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_ResizeComposeboxPosition) {
+  lens::AimToClientMessage message;
+  auto* update_params =
+      message.mutable_set_chrome_desktop_input_plate_configuration();
+  update_params->set_max_width(500);
+  update_params->set_max_height(600);
+  update_params->set_margin_left(70);
+  update_params->set_margin_bottom(-80);
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+  EXPECT_CALL(page_,
+              UpdateComposeboxPosition(testing::Pointee(testing::AllOf(
+                  testing::Field(&mojom::ComposeboxPosition::max_width,
+                                 update_params->max_width()),
+                  testing::Field(&mojom::ComposeboxPosition::max_height,
+                                 update_params->max_height()),
+                  testing::Field(&mojom::ComposeboxPosition::margin_bottom,
+                                 update_params->margin_bottom()),
+                  testing::Field(&mojom::ComposeboxPosition::margin_left,
+                                 update_params->margin_left())))))
+      .Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_ResizeComposeboxPosition_MaxValues) {
+  lens::AimToClientMessage message;
+  auto* update_params =
+      message.mutable_set_chrome_desktop_input_plate_configuration();
+  update_params->set_max_width(INT32_MAX);
+  update_params->set_max_height(INT32_MAX);
+  update_params->set_margin_left(INT32_MAX);
+  update_params->set_margin_bottom(INT32_MAX);
+  auto composebox_position =
+      contextual_tasks::InputPlateConfigToMojo(*update_params);
+  EXPECT_EQ(composebox_position->max_width, INT32_MAX);
+  EXPECT_EQ(composebox_position->max_height, INT32_MAX);
+  EXPECT_EQ(composebox_position->margin_left, INT32_MAX);
+  EXPECT_EQ(composebox_position->margin_bottom, INT32_MAX);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_ResizeComposeboxPosition_NegativeMinValues) {
+  lens::AimToClientMessage message;
+  auto* update_params =
+      message.mutable_set_chrome_desktop_input_plate_configuration();
+  update_params->set_max_width(INT32_MIN);
+  update_params->set_max_height(INT32_MIN);
+  update_params->set_margin_left(INT32_MIN);
+  update_params->set_margin_bottom(INT32_MIN);
+  auto composebox_position =
+      contextual_tasks::InputPlateConfigToMojo(*update_params);
+  EXPECT_EQ(composebox_position->max_width, 0);
+  EXPECT_EQ(composebox_position->max_height, 0);
+  EXPECT_EQ(composebox_position->margin_left, INT32_MIN);
+  EXPECT_EQ(composebox_position->margin_bottom, INT32_MIN);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_PartiallyResizeComposeboxPosition) {
+  lens::AimToClientMessage message;
+  auto* update_params =
+      message.mutable_set_chrome_desktop_input_plate_configuration();
+  update_params->set_margin_left(-70);
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+  EXPECT_CALL(page_,
+              UpdateComposeboxPosition(testing::Pointee(testing::AllOf(
+                  testing::Field(&mojom::ComposeboxPosition::max_height,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::max_width,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_bottom,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_left,
+                                 update_params->margin_left())))))
+      .Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_ResizeComposeboxPositionOptional) {
+  lens::AimToClientMessage message;
+
+  message.mutable_set_chrome_desktop_input_plate_configuration();
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+  EXPECT_CALL(page_,
+              UpdateComposeboxPosition(testing::Pointee(testing::AllOf(
+                  testing::Field(&mojom::ComposeboxPosition::max_height,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::max_width,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_bottom,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_left,
+                                 testing::Eq(std::nullopt))))))
+      .Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+TEST_F(ContextualTasksPageHandlerTest,
+       OnWebviewMessage_DistinguishesZeroFromUnset) {
+  lens::AimToClientMessage message;
+  auto* update_params =
+      message.mutable_set_chrome_desktop_input_plate_configuration();
+
+  update_params->set_max_width(0);
+
+  size_t size = message.ByteSizeLong();
+  std::vector<uint8_t> serialized(size);
+  message.SerializeToArray(serialized.data(), size);
+
+  EXPECT_CALL(page_,
+              UpdateComposeboxPosition(testing::Pointee(testing::AllOf(
+                  testing::Field(&mojom::ComposeboxPosition::max_width,
+                                 testing::Optional(0)),
+                  testing::Field(&mojom::ComposeboxPosition::max_height,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_bottom,
+                                 testing::Eq(std::nullopt)),
+                  testing::Field(&mojom::ComposeboxPosition::margin_left,
+                                 testing::Eq(std::nullopt))))))
+      .Times(1);
+
+  page_handler_->OnWebviewMessage(serialized);
+}
+
+TEST_F(ContextualTasksPageHandlerTest, OnWebviewMessage_IgnoreMalformedData) {
+  std::vector<uint8_t> garbage_data = {0xDE, 0xAD, 0xBE, 0xEF};
+
+  EXPECT_CALL(page_, UpdateComposeboxPosition(testing::_)).Times(0);
+
+  page_handler_->OnWebviewMessage(garbage_data);
 }
 
 TEST_F(ContextualTasksPageHandlerTest, SetTaskId) {

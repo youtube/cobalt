@@ -55,7 +55,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 // supported.
 [[nodiscard]] bool IsWalletSupportedCountry(
     const GeoIpCountryCode& country_code,
-    EntityType entity_type) {
+    std::optional<EntityType> entity_type) {
   // List of countries where Wallet is supported.
   constexpr static auto kWalletSupportedCountries =
       base::MakeFixedFlatSet<std::string_view>(
@@ -90,10 +90,16 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     return false;
   }
 
+  // The entity type is not set for confirming whether the Wallet promotion can
+  // be shown.
+  if (!entity_type) {
+    return true;
+  }
+
   // List of countries in which private passes are not supported.
   constexpr static auto kPrivatePassExclusions =
       base::MakeFixedFlatSet<std::string_view>({"DE", "FR", "IT"});
-  return !IsMaskedStorageSupported(entity_type,
+  return !IsMaskedStorageSupported(*entity_type,
                                    EntityInstance::RecordType::kServerWallet) ||
          !kPrivatePassExclusions.contains(country_code.value()) ||
          base::FeatureList::IsEnabled(
@@ -182,6 +188,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
     case AutofillAiAction::kImportToWallet:
+    case AutofillAiAction::kWalletDataSharingPromotion:
       return false;
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kListEntityInstancesInSettings:
@@ -232,6 +239,10 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       CHECK(entity_type) << "An entity type is required to check if an entity "
                             "can be upstreamed";
       return entity_type_can_be_upstreamed(*entity_type);
+    case AutofillAiAction::kWalletDataSharingPromotion:
+      return is_enabled(features::kAutofillAiWalletVehicleRegistration) ||
+             is_enabled(features::kAutofillAiWalletFlightReservation) ||
+             is_enabled(features::kAutofillAiWalletPrivatePasses);
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
@@ -253,6 +264,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     const syncer::SyncService* sync_service) {
   switch (action) {
     case AutofillAiAction::kImportToWallet:
+    case AutofillAiAction::kWalletDataSharingPromotion:
       return sync_service &&
              sync_service->GetUserSettings()->GetSelectedTypes().Has(
                  syncer::UserSelectableType::kPayments) &&
@@ -334,25 +346,46 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillAiAvailableByDefault)) {
+        return true;
+      }
       return policy_pref_enabled && autofill_ai_available;
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kImport:
-      return policy_pref_enabled && autofill_ai_available &&
-             EntityTypeIsEnabledInSettings(*prefs, *entity_type);
+      if (!EntityTypeIsEnabledInSettings(*prefs, *entity_type)) {
+        return false;
+      }
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillAiAvailableByDefault)) {
+        return true;
+      }
+      return policy_pref_enabled && autofill_ai_available;
     case AutofillAiAction::kImportToWallet:
-      return policy_pref_enabled && autofill_ai_available &&
-             is_wallet_storage_enabled &&
-             EntityTypeIsEnabledInSettings(*prefs, *entity_type);
+      if (!EntityTypeIsEnabledInSettings(*prefs, *entity_type) ||
+          !is_wallet_storage_enabled) {
+        return false;
+      }
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillAiAvailableByDefault)) {
+        return true;
+      }
+      return policy_pref_enabled && autofill_ai_available;
     case AutofillAiAction::kIphForOptIn:
       // The IPH should only show if the user has not opted in yet.
       return policy_pref_enabled && !autofill_ai_available &&
              EntityTypeIsEnabledInSettings(*prefs, *entity_type);
     case AutofillAiAction::kOptIn:
-    case AutofillAiAction::kEnableOrDisable:
       if (!policy_pref_enabled) {
         MaybeOutputReason(debug_message, "Enterprise policy is not enabled.");
       }
       return policy_pref_enabled;
+    case AutofillAiAction::kWalletDataSharingPromotion:
+      return !is_wallet_storage_enabled &&
+             (policy_pref_enabled ||
+              base::FeatureList::IsEnabled(
+                  features::kAutofillAiAvailableByDefault));
+    case AutofillAiAction::kEnableOrDisable:
     case AutofillAiAction::kListEntityInstancesInSettings:
       return true;
   }
@@ -408,6 +441,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kOptIn:
     case AutofillAiAction::kEnableOrDisable:
     case AutofillAiAction::kImportToWallet:
+    case AutofillAiAction::kWalletDataSharingPromotion:
     case AutofillAiAction::kServerClassificationModel: {
       if (is_off_the_record) {
         MaybeOutputReason(debug_message, "Off the record.");
@@ -424,8 +458,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   // Wallet-supported country.
   switch (action) {
     case AutofillAiAction::kImportToWallet:
-      CHECK(entity_type.has_value());
-      if (!IsWalletSupportedCountry(country_code, *entity_type)) {
+    case AutofillAiAction::kWalletDataSharingPromotion:
+      if (!IsWalletSupportedCountry(country_code, entity_type)) {
         return false;
       }
       break;

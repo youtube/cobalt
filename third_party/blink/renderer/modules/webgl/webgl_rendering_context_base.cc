@@ -836,9 +836,14 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
   // See https://crbug.com/845742.
   gfx::Size size = GetDrawingBuffer()->Size();
   // We are grabbing a snapshot that is generally not for compositing, so use a
-  // custom resource provider. This avoids consuming compositing-specific
-  // resources (e.g. GpuMemoryBuffer). We tag the SharedImage with display usage
-  // since there are uncommon paths which may use this snapshot for compositing.
+  // custom resource provider to specify only the minimal required set of
+  // usages, resulting in as lightweight a backing of the created SharedImage as
+  // possible. This SharedImage will be the destination of a copy of the drawing
+  // buffer's contents made via the raster interface. In addition, we tag the
+  // SharedImage with display usage since there are uncommon paths which may use
+  // this snapshot for compositing.
+  auto shared_image_usages = gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+                             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
   constexpr auto kShouldInitialize =
       CanvasResourceProvider::ShouldInitialize::kNo;
 
@@ -847,7 +852,7 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
     resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
         size, GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
         kShouldInitialize, SharedGpuContext::ContextProviderWrapper(),
-        RasterMode::kGPU, gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
+        shared_image_usages);
 
     if (!resource_provider || !resource_provider->IsValid()) {
       return nullptr;
@@ -1265,8 +1270,8 @@ WebGLRenderingContextBase::WebGLRenderingContextBase(
                                        ->ContextProvider()
                                        ->GetGpuFeatureInfo()
                                        .disabled_webgl_extensions.c_str());
-  Vector<String> disabled_extension_list;
-  disabled_webgl_extensions.Split(' ', disabled_extension_list);
+  Vector<String> disabled_extension_list =
+      disabled_webgl_extensions.SplitSkippingEmpty(' ');
   for (const auto& entry : disabled_extension_list) {
     disabled_extensions_.insert(entry);
   }
@@ -1993,8 +1998,8 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
         Host()->Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-        shared_image_usage_flags, Host());
+        SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags,
+        Host());
   } else {
     resource_provider_ =
         CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
@@ -2102,9 +2107,7 @@ bool WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBuffer(
     gpu::raster::RasterInterface* raster_interface =
         shared_context_wrapper->ContextProvider().RasterInterface();
     gpu::SyncToken sync_token;
-    auto client_si =
-        resource_provider->GetBackingClientSharedImageForExternalWrite(
-            gpu::SharedImageUsageSet(), sync_token);
+    auto client_si = resource_provider->BeginExternalWrite(sync_token);
     if (!client_si) {
       return false;
     }
@@ -5558,7 +5561,7 @@ void WebGLRenderingContextBase::TexImageStaticBitmapImage(
   scoped_refptr<StaticBitmapImage> color_converted_image;
   if (params.unpack_colorspace_conversion && image->IsTextureBacked()) {
     color_converted_image = StaticBitmapImageTransform::ConvertToColorSpace(
-        image, PredefinedColorSpaceToSkColorSpace(unpack_color_space_));
+        image, PredefinedColorSpaceToGfxColorSpace(unpack_color_space_));
     if (!color_converted_image) {
       SynthesizeGLError(GL_OUT_OF_MEMORY, func_name,
                         "ImageBitmap in unpack color space unexpectedly empty");
@@ -5667,23 +5670,12 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   // TODO(https://crbug.com/1341235): The choice of color type should match the
   // format of the TexImage function. The choice of alpha type should opaque for
   // opaque images. The color space should match the unpack color space.
-  CanvasSnapshotProvider* snapshot_provider =
-      generated_image_cache_.GetCanvasSnapshotProvider(
-          {kPremul_SkAlphaType,
-           gfx::ColorSpace::CreateSRGB(),
-           GetN32FormatForCanvas(),
-           {width, height}});
-  if (!snapshot_provider) {
-    SynthesizeGLError(GL_OUT_OF_MEMORY, function_name, "out of memory");
-    return nullptr;
-  }
-
-  CHECK(snapshot_provider->IsExternalBitmapProvider());
-  CanvasNon2DSnapshotProviderBitmap* snapshot_provider_bitmap =
-      static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider);
-
-  return snapshot_provider_bitmap->DoExternalDrawAndSnapshot(
-      [&](MemoryManagedPaintCanvas& canvas) {
+  auto snapshot = CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
+      {kPremul_SkAlphaType,
+       gfx::ColorSpace::CreateSRGB(),
+       GetN32FormatForCanvas(),
+       {width, height}},
+      [&](cc::PaintCanvas& canvas) {
         if (!image->IsOpaque()) {
           canvas.clear(SkColors::kTransparent);
         }
@@ -5698,6 +5690,12 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
                     draw_options);
       },
       ImageOrientationEnum::kDefault);
+
+  if (!snapshot) {
+    SynthesizeGLError(GL_OUT_OF_MEMORY, function_name, "out of memory");
+  }
+
+  return snapshot;
 }
 
 WebGLTexture* WebGLRenderingContextBase::ValidateTexImageBinding(
@@ -6328,7 +6326,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
     video_renderer = local_video_renderer.get();
   }
 
-  if (source_image_rect_is_default && media_video_frame->IsMappable() &&
+  if (source_image_rect_is_default && media_video_frame->HasDirectCpuAccess() &&
       media_video_frame->format() == media::PIXEL_FORMAT_Y16 &&
       unpack_color_space_is_srgb) {
     // Try using optimized CPU-GPU path for some formats: e.g. Y16 and Y8. It

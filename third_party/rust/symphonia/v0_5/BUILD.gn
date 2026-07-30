@@ -35,6 +35,7 @@ cargo_crate("lib") {
     "//third_party/rust/symphonia_bundle_flac/v0_5:lib",
     "//third_party/rust/symphonia_bundle_mp3/v0_5:lib",
     "//third_party/rust/symphonia_codec_pcm/v0_5:lib",
+    "//third_party/rust/symphonia_codec_vorbis/v0_5:lib",
     "//third_party/rust/symphonia_core/v0_5:lib",
     "//third_party/rust/symphonia_metadata/v0_5:lib",
   ]
@@ -45,6 +46,8 @@ cargo_crate("lib") {
     "symphonia-bundle-flac",
     "symphonia-bundle-mp3",
     "symphonia-codec-pcm",
+    "symphonia-codec-vorbis",
+    "vorbis",
   ]
 
   #####################################################################

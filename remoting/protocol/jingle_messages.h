@@ -18,10 +18,6 @@
 #include "remoting/signaling/signaling_address.h"
 #include "third_party/webrtc/api/candidate.h"
 
-namespace jingle_xmpp {
-class XmlElement;
-}  // namespace jingle_xmpp
-
 namespace remoting::protocol {
 
 class ContentDescription;
@@ -71,12 +67,14 @@ struct SessionDescription {
   // A serialized string representation of the sdp.
   std::string sdp;
 
-  // Base64-encoded HMAC of the SDP description, for validation.
+  // Raw HMAC bytes of the SDP description, for validation.
   std::vector<uint8_t> signature;
 };
 
 // The authentication payload used in session-initiate, session-accept, and
 // session-info messages.
+// TODO: joedow - Consider using sub-messages to limit the fields for each
+// authenticator type.
 struct JingleAuthentication {
   JingleAuthentication();
   JingleAuthentication(const JingleAuthentication&);
@@ -91,22 +89,44 @@ struct JingleAuthentication {
   // The current auth method.
   std::optional<remoting::AuthenticationMethod> method;
 
-  // Base64-encoded SPAKE message.
+  // Raw SPAKE message bytes.
   std::vector<uint8_t> spake_message;
 
-  // Base64-encoded verification hash.
+  // Raw verification hash bytes.
   std::vector<uint8_t> verification_hash;
 
+  // Raw certificate bytes.
+  std::vector<uint8_t> certificate;
+
+  // Pairing information.
+  struct PairingInfo {
+    std::string client_id;
+  };
+  std::optional<PairingInfo> pairing_info;
+
+  // Generic ID attribute, used by some authenticators (e.g. FakeAuthenticator).
+  std::string id;
+
   // SessionAuthz host token.
-  std::vector<uint8_t> session_authz_host_token;
+  std::string session_authz_host_token;
 
   // SessionAuthz session token.
-  std::vector<uint8_t> session_authz_session_token;
+  std::string session_authz_session_token;
+
+  // Pairing error message, if any.
+  std::string pairing_error;
+
+  // Fake values for testing.
+  std::string test_id;
+  std::vector<uint8_t> test_key;
+
+  bool is_empty() const;
 };
 
 struct IceTransportInfo {
   IceTransportInfo();
   ~IceTransportInfo();
+  // TODO: joedow - Replace this with webrtc::IceCandidate post-chromotocol.
   struct NamedCandidate {
     NamedCandidate();
     NamedCandidate(const std::string& name,
@@ -135,11 +155,6 @@ struct IceTransportInfo {
     std::string password;
   };
 
-  // Caller keeps ownership of |stanza|. |error| is set to debug error
-  // message when parsing fails.
-  bool ParseXml(const jingle_xmpp::XmlElement* stanza);
-  std::unique_ptr<jingle_xmpp::XmlElement> ToXml() const;
-
   std::list<IceCredentials> ice_credentials;
   std::list<NamedCandidate> candidates;
 };
@@ -152,8 +167,13 @@ struct JingleTransportInfo {
   JingleTransportInfo& operator=(JingleTransportInfo&&);
   ~JingleTransportInfo();
 
+  // TODO: joedow - Remove this field when we no longer support chromotocol.
+  std::string xml_namespace;
+
   std::vector<IceTransportInfo::IceCredentials> ice_credentials;
   std::vector<IceTransportInfo::NamedCandidate> candidates;
+
+  std::optional<SessionDescription> session_description;
 };
 
 struct HostAttributesAttachment {
@@ -199,6 +219,7 @@ struct SessionInitiate {
   ~SessionInitiate();
 
   std::optional<JingleAuthentication> authentication;
+  std::optional<JingleTransportInfo> transport_info;
 };
 
 struct SessionAccept {
@@ -210,6 +231,7 @@ struct SessionAccept {
   ~SessionAccept();
 
   std::optional<JingleAuthentication> authentication;
+  std::optional<JingleTransportInfo> transport_info;
 };
 
 struct SessionInfo {
@@ -221,6 +243,21 @@ struct SessionInfo {
   ~SessionInfo();
 
   std::optional<JingleAuthentication> authentication;
+
+  // Generic info for session-info messages that are not authentication.
+  struct GenericInfo {
+    GenericInfo();
+    GenericInfo(const GenericInfo&);
+    GenericInfo(GenericInfo&&);
+    GenericInfo& operator=(const GenericInfo&);
+    GenericInfo& operator=(GenericInfo&&);
+    ~GenericInfo();
+
+    std::string name;
+    std::string namespace_uri;
+    std::string body;
+  };
+  std::optional<GenericInfo> generic_info;
 };
 
 struct SessionTerminate {
@@ -274,20 +311,7 @@ class JingleMessage {
                 const std::string& sid_value);
   ~JingleMessage();
 
-  // Caller keeps ownership of |stanza|.
-  static bool IsJingleMessage(const jingle_xmpp::XmlElement* stanza);
   static std::string GetActionName(ActionType action);
-
-  // Caller keeps ownership of |stanza|. |error| is set to debug error
-  // message when parsing fails.
-  bool ParseXml(const jingle_xmpp::XmlElement* stanza, std::string* error);
-
-  // Adds an XmlElement into |attachments|. This function implicitly creates
-  // |attachments| if it's empty, and |attachment| should not be an empty
-  // unique_ptr.
-  void AddAttachment(std::unique_ptr<jingle_xmpp::XmlElement> attachment);
-
-  std::unique_ptr<jingle_xmpp::XmlElement> ToXml() const;
 
   ActionType action() const { return action_; }
   const Payload& payload() const { return payload_; }
@@ -303,11 +327,7 @@ class JingleMessage {
   std::string initiator;
 
   std::unique_ptr<ContentDescription> description;
-
-  // Legacy XML-based payloads, maintained for backward compatibility.
-  std::unique_ptr<jingle_xmpp::XmlElement> transport_info_legacy;
-  std::unique_ptr<jingle_xmpp::XmlElement> info_legacy;
-  std::unique_ptr<jingle_xmpp::XmlElement> attachments_legacy;
+  std::vector<Attachment> attachments;
 
   // Value from the <reason> tag if it is present in the
   // message. Useful mainly for session-terminate messages, but Jingle
@@ -356,12 +376,6 @@ struct JingleMessageReply {
   JingleMessageReply(ErrorType error);
   JingleMessageReply(ErrorType error, const std::string& text);
   ~JingleMessageReply();
-
-  // Formats reply stanza for the specified |request_stanza|. Id and
-  // recepient as well as other information needed to generate a valid
-  // reply are taken from |request_stanza|.
-  std::unique_ptr<jingle_xmpp::XmlElement> ToXml(
-      const jingle_xmpp::XmlElement* request_stanza) const;
 
   ReplyType type;
   ErrorType error_type;

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -20,6 +21,9 @@
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "google_apis/gaia/oauth2_api_call_flow.h"
+
+class PrefService;
+class ApplicationLocaleStorage;
 
 namespace signin {
 class PrimaryAccountAccessTokenFetcher;
@@ -48,8 +52,13 @@ class LocaleSwitchScreen : public BaseScreen,
   static std::string GetResultString(Result result);
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
-  explicit LocaleSwitchScreen(base::WeakPtr<LocaleSwitchView> view,
-                              const ScreenExitCallback& exit_callback);
+  // `local_state` must be non-null and must outlive `this`.
+  // `application_locale_storage` must be non-null and must be the one
+  // associated with browser process.
+  LocaleSwitchScreen(PrefService* local_state,
+                     ApplicationLocaleStorage* application_locale_storage,
+                     base::WeakPtr<LocaleSwitchView> view,
+                     const ScreenExitCallback& exit_callback);
   ~LocaleSwitchScreen() override;
 
   // signin::IdentityManager::Observer:
@@ -89,6 +98,9 @@ class LocaleSwitchScreen : public BaseScreen,
   void FetchPreferredUserLocaleAndSwitchAsync();
   void OnAccessTokenRequestCompleted(GoogleServiceAuthError error,
                                      signin::AccessTokenInfo access_token_info);
+
+  const raw_ref<PrefService> local_state_;
+  const raw_ref<ApplicationLocaleStorage> application_locale_storage_;
 
   std::string locale_;
   base::WeakPtr<LocaleSwitchView> view_ = nullptr;

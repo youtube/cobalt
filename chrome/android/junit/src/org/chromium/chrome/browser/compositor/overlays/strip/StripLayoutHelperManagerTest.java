@@ -22,6 +22,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowTestUtils.enableMultiInstance;
 
 import android.app.Activity;
@@ -97,6 +98,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
@@ -159,6 +161,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private Tracker mTracker;
     @Mock private ResourceManager mResourceManager;
     @Mock private BackPressManager mBackPressManager;
+    @Mock private SnackbarManager mSnackbarManager;
     @Captor private ArgumentCaptor<List<Rect>> mSystemExclusionRectCaptor;
 
     private final SettableMonotonicObservableSupplier<LayerTitleCache> mLayerTitleCacheSupplier =
@@ -253,7 +256,8 @@ public class StripLayoutHelperManagerTest {
                         mBottomSheetController,
                         () -> mShareDelegate,
                         /* xrSpaceModeObservableSupplier= */ null,
-                        mBackPressManager);
+                        mBackPressManager,
+                        mSnackbarManager);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
         mStripLayoutHelperManager.setIsTabStripHiddenByHeightTransition(false);
     }
@@ -711,7 +715,7 @@ public class StripLayoutHelperManagerTest {
         assertEquals(
                 "Unexpected incognito tab created on startup value",
                 expectedIncognitoCreatedTabOnStartup,
-                standardHelper.getCreatedTabOnStartupForTesting());
+                incognitoHelper.getCreatedTabOnStartupForTesting());
     }
 
     @Test
@@ -798,8 +802,6 @@ public class StripLayoutHelperManagerTest {
         assertNotNull("DragListener should be set.", mStripLayoutHelperManager.getDragListener());
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     // TODO(crbug.com/430058918): Reenable or add new test.
@@ -865,8 +867,6 @@ public class StripLayoutHelperManagerTest {
         inOrder.verify(mStatusBarColorController).setTabStripColorOverlay(Color.TRANSPARENT, 0f);
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     // TODO(crbug.com/430058918): Reenable or add new test.
@@ -968,8 +968,6 @@ public class StripLayoutHelperManagerTest {
         mStripLayoutHelperManager.onHeightTransitionFinished(true);
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     public void testCalculateScrimOpacityDuringTransition_Hide() {
         // Test show->hide transition with simulated values.
@@ -1385,6 +1383,12 @@ public class StripLayoutHelperManagerTest {
     public void testGlicButtonEnabled() {
         initializeTest();
         assertNotNull("Glic button should be created.", mStripLayoutHelperManager.getGlicButton());
+
+        StripLayoutHelper standardHelper = mStripLayoutHelperManager.getStripLayoutHelper(false);
+        assertNonNull(standardHelper.getGlicButtonForTesting());
+
+        StripLayoutHelper incognitoHelper = mStripLayoutHelperManager.getStripLayoutHelper(true);
+        assertNull(incognitoHelper.getGlicButtonForTesting());
     }
 
     @Test
@@ -1637,8 +1641,6 @@ public class StripLayoutHelperManagerTest {
         return mStripLayoutHelperManager.getEventFilter().onInterceptTouchEvent(event, false);
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     @EnableFeatures({
         ChromeFeatureList.TOP_CONTROLS_REFACTOR,

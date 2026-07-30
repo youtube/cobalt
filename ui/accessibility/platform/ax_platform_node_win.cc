@@ -8140,8 +8140,6 @@ std::optional<PROPERTYID> AXPlatformNodeWin::MojoEventToUIAProperty(
     case ax::mojom::Event::kCheckedStateChanged:
       return UIA_ToggleToggleStatePropertyId;
     case ax::mojom::Event::kExpandedChanged:
-    case ax::mojom::Event::kRowCollapsed:
-    case ax::mojom::Event::kRowExpanded:
       return UIA_ExpandCollapseExpandCollapseStatePropertyId;
     case ax::mojom::Event::kSelection:
     case ax::mojom::Event::kSelectionAdd:
@@ -8258,6 +8256,31 @@ LONG AXPlatformNodeWin::FindBoundary(IA2TextBoundaryType ia2_boundary,
                                      LONG start_offset,
                                      ax::mojom::MoveDirection direction) {
   HandleSpecialTextOffset(&start_offset);
+
+  const std::u16string& text_str = GetHypertext();
+  if (ia2_boundary == IA2_TEXT_BOUNDARY_WORD && start_offset >= 0 &&
+      start_offset < static_cast<LONG>(text_str.length()) &&
+      text_str[start_offset] == '\n') {
+    // The IAccessible2 spec for IA2_TEXT_BOUNDARY_WORD states that behavior
+    // should match Ctrl+Arrow navigation, but acknowledges that handling of the
+    // end of a line varies across applications.
+    // Reference:
+    // https://accessibility.linuxfoundation.org/a11yspecs/ia2/docs/html/_accessible_text_8idl.html
+    //
+    // In standard Windows controls (e.g. Notepad), the newline character is
+    // treated as a distinct word boundary. Without this explicit check,
+    // FindBoundary logic often merges the newline with the preceding token,
+    // causing screen readers to incorrectly re-announce the previous word /
+    // punctuation. This check enforces native-like behavior at line ends.
+    switch (direction) {
+      case ax::mojom::MoveDirection::kForward:
+        return start_offset + 1;
+      case ax::mojom::MoveDirection::kBackward:
+        return start_offset;
+      default:
+        break;
+    }
+  }
 
   // If the |start_offset| is equal to the location of the caret, then use the
   // focus affinity, otherwise default to downstream affinity.

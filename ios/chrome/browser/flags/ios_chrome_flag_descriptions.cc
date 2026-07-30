@@ -332,11 +332,6 @@ const char kComposeboxDevToolsDescription[] =
     "Enables development tools for the composebox, allowing simulation of "
     "delays and failures.";
 
-const char kComposeboxFetchContextualSuggestionsForImageName[] =
-    "Enable Composebox Fetch Contextual Suggestions For image attachment";
-const char kComposeboxFetchContextualSuggestionsForImageDescription[] =
-    "Enables showing suggestions for image attachment.";
-
 const char kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName[] =
     "Enable Composebox Fetch Contextual Suggestions For multiple attachments";
 const char
@@ -362,6 +357,11 @@ const char kComposeboxIpadDescription[] = "Enables the composeboxIpad feature.";
 const char kComposeboxMenuTitleName[] = "ComposeboxMenuTitle";
 const char kComposeboxMenuTitleDescription[] =
     "Enables the ComposeboxMenuTitle feature.";
+
+const char kComposeboxServerSideStateName[] =
+    "Enable server side state in Composebox";
+extern const char kComposeboxServerSideStateDescription[] =
+    "When enabled, the server side state will be used in the composebox";
 
 const char kComposeboxTabPickerVariationName[] =
     "Enable tab picker variation in the composebox";
@@ -529,13 +529,6 @@ const char kEnableAutofillAddressSavePromptName[] =
 const char kEnableAutofillAddressSavePromptDescription[] =
     "Enable the Autofill address save prompts.";
 
-const char kEnableClipboardDataControlsIOSName[] =
-    "Enable Clipboard Data Controls";
-const char kEnableClipboardDataControlsIOSDescription[] =
-    "When this flag is enabled and the DataControlsRules Enterprise policy is "
-    "enabled, Enterprise admins can apply clipboard restrictions to Chrome "
-    "users on iOS.";
-
 const char kEnableCompromisedPasswordsMutingName[] =
     "Enable the muting of compromised passwords in the Password Manager";
 const char kEnableCompromisedPasswordsMutingDescription[] =
@@ -605,6 +598,11 @@ const char kEnhancedCalendarDescription[] =
     "When enabled, the enhanced calendar flow will be available to eligible "
     "users when adding a calendar event.";
 
+const char kExplainGeminiEditMenuName[] = "Enable Explain Gemini Edit Menu";
+const char kExplainGeminiEditMenuDescription[] =
+    "When enabled, the explain Gemini edit menu will be available to eligible "
+    "users when highlighting any text on a web page.";
+
 const char kFRESignInHeaderTextUpdateName[] =
     "Enable header text variations on the FRE sign-in page.";
 const char kFRESignInHeaderTextUpdateDescription[] =
@@ -645,10 +643,6 @@ const char kGeminiCopresenceDescription[] =
     "Enables the Gemini Copresence feature, which provides a persistent Gemini "
     "overlay.";
 
-const char kGeminiCrossTabName[] = "Gemini Cross Tab";
-const char kGeminiCrossTabDescription[] =
-    "When enabled, the Gemini floaty conversation persists across all tabs.";
-
 const char kGeminiDynamicSettingsName[] = "Gemini Dynamic Settings";
 const char kGeminiDynamicSettingsDescription[] =
     "Enables loading Gemini settings dynamically using the Gemini SDK.";
@@ -680,10 +674,6 @@ const char kGeminiNavigationPromoName[] = "GeminiNavigationPromo";
 const char kGeminiNavigationPromoDescription[] =
     "Enables the automatic promo for Gemini on navigation.";
 
-const char kGeminiOnboardingCardsName[] = "GeminiOnboardingCards";
-const char kGeminiOnboardingCardsDescription[] =
-    "Enables the discovery onboarding cards for new Gemini users.";
-
 const char kGeminiPersonalizationName[] = "GeminiPersonalization";
 const char kGeminiPersonalizationDescription[] =
     "Enables the GeminiPersonalization feature.";
@@ -710,11 +700,6 @@ const char kHideToolbarsInOverflowMenuName[] = "Hide Toolbars in Overflow menu";
 const char kHideToolbarsInOverflowMenuDescription[] =
     "When enabled, adds a button in the overflow menu that force the "
     "fullscreen mode on iOS.";
-
-const char kHomeMemoryImprovementsName[] = "Home Memory Improvements";
-const char kHomeMemoryImprovementsDescription[] =
-    "When enabled, uses code that aims to improve the memory footprint in "
-    "Home.";
 
 const char kHttpsUpgradesName[] = "HTTPS Upgrades";
 const char kHttpsUpgradesDescription[] =
@@ -1268,6 +1253,10 @@ const char kOptimizationGuideDebugLogsDescription[] =
     "Enables the optimization guide to log and save debug messages that can be "
     "shown in the internals page.";
 
+const char kPageActionMenuIconName[] = "PageActionMenuIcon";
+const char kPageActionMenuIconDescription[] =
+    "When enabled, changes the icon for the page action menu entry point.";
+
 const char kPageActionMenuName[] = "Page Action Menu";
 const char kPageActionMenuDescription[] =
     "When enabled, the entry point for the Page Action Menu becomes available "
@@ -1281,10 +1270,6 @@ const char kPageContentAnnotationsRemotePageMetadataName[] =
     "Page content annotations - Remote page metadata";
 const char kPageContentAnnotationsRemotePageMetadataDescription[] =
     "Enables fetching of page load metadata to be persisted on-device.";
-
-const char kPageContextAnchorTagsName[] = "Page Context anchor tags";
-const char kPageContextAnchorTagsDescription[] =
-    "Include the retrieval of anchor tags (links) as part of Page Context.";
 
 const char kPageVisibilityPageContentAnnotationsName[] =
     "Page visibility content annotations";
@@ -1519,18 +1504,26 @@ const char kSupervisedUserBlockInterstitialV3Name[] =
 const char kSupervisedUserBlockInterstitialV3Description[] =
     "Enables URL filter interstitial V3 for Family Link users.";
 
+const char kSupervisedUserEmitLogRecordSeparatelyName[] =
+    "Emit supervised user log record separately";
+const char kSupervisedUserEmitLogRecordSeparatelyDescription[] =
+    "Emit supervised user log record separately for Family Link and device "
+    "parental controls users (no user-visible effect).";
+
 const char kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsName[] =
     "Merge device parental controls and Family Link prefs";
 const char
     kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsDescription[] =
         "Merges non-web filtering device parental controls settings with "
-        "Family Link settings in the SupervisedUserPrefStore.";
+        "Family Link settings in the SupervisedUserPrefStore (no user-visible "
+        "effect).";
 
 const char kSupervisedUserUseUrlFilteringServiceName[] =
     "Use URL filtering service";
 const char kSupervisedUserUseUrlFilteringServiceDescription[] =
     "Use the SupervisedUserUrlFilteringService to get URL filtering settings "
-    "directly from supervision services instead of using PrefService.";
+    "directly from supervision services instead of using PrefService (no "
+    "user-visible effect).";
 
 const char kSyncAutofillWalletCredentialDataName[] =
     "Sync Autofill Wallet Credential Data";

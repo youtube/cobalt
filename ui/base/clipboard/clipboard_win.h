@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "ui/base/clipboard/clipboard.h"
@@ -56,6 +57,12 @@ class ClipboardWin : public Clipboard, public ClipboardChangeNotifier {
                          ClipboardBuffer buffer,
                          const DataTransferEndpoint* data_dst) const override;
   void Clear(ClipboardBuffer buffer) override;
+  void ReadHTML(ClipboardBuffer buffer,
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadHtmlCallback callback) const override;
+  void ReadFilenames(ClipboardBuffer buffer,
+                     const std::optional<DataTransferEndpoint>& data_dst,
+                     ReadFilenamesCallback callback) const override;
   void ReadAvailableTypes(ClipboardBuffer buffer,
                           const DataTransferEndpoint* data_dst,
                           std::vector<std::u16string>* types) const override;
@@ -78,7 +85,7 @@ class ClipboardWin : public Clipboard, public ClipboardChangeNotifier {
                const DataTransferEndpoint* data_dst,
                std::string* result) const override;
   void ReadPng(ClipboardBuffer buffer,
-               const DataTransferEndpoint* data_dst,
+               const std::optional<DataTransferEndpoint>& data_dst,
                ReadPngCallback callback) const override;
   void ReadDataTransferCustomData(ClipboardBuffer buffer,
                                   const std::u16string& type,
@@ -116,6 +123,30 @@ class ClipboardWin : public Clipboard, public ClipboardChangeNotifier {
   void WriteUploadCloudClipboard();
   void WriteConfidentialDataForPassword();
 
+  // If kNonBlockingOsClipboardReads is enabled, runs `read_func` on
+  // `worker_task_runner_` (passing owner_window = nullptr) and runs
+  // `reply_func` on the caller sequence with the result. Otherwise runs both
+  // callbacks synchronously on the caller thread, and `read_func` is passed
+  // owner_window = GetClipboardWindow().
+  template <typename Result>
+  void ReadAsync(base::OnceCallback<Result(HWND)> read_func,
+                 base::OnceCallback<void(Result)> reply_func) const;
+  struct ReadHTMLResult {
+    std::u16string markup;
+    std::string src_url;
+    uint32_t fragment_start = 0;
+    uint32_t fragment_end = 0;
+  };
+  // TODO(crbug.com/458194647): Return ReadHTMLResult instead of using
+  // out-params.
+  static void ReadHTMLInternal(HWND owner_window,
+                               ClipboardBuffer buffer,
+                               std::u16string* markup,
+                               std::string* src_url,
+                               uint32_t* fragment_start,
+                               uint32_t* fragment_end);
+  static std::vector<ui::FileInfo> ReadFilenamesInternal(ClipboardBuffer buffer,
+                                                         HWND owner_window);
   std::vector<uint8_t> ReadPngInternal(ClipboardBuffer buffer) const;
   SkBitmap ReadBitmapInternal(ClipboardBuffer buffer) const;
 
@@ -138,6 +169,8 @@ class ClipboardWin : public Clipboard, public ClipboardChangeNotifier {
 
   // Whether the clipboard is being monitored for changes.
   bool monitoring_clipboard_changes_ = false;
+
+  scoped_refptr<base::SequencedTaskRunner> worker_task_runner_;
 };
 
 }  // namespace ui

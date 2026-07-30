@@ -162,7 +162,7 @@ void ModelContext::ForEachScriptTool(
   for (const auto& tool : tool_map_) {
     auto tool_data = tool.value;
     // Always update the input schema, since the DOM might have changed.
-    if (auto* declarative_tool = tool_data->declarative_tool) {
+    if (auto declarative_tool = tool_data->declarative_tool) {
       tool_data->script_tool->input_schema =
           declarative_tool->ComputeInputSchema();
     }
@@ -191,6 +191,20 @@ void ModelContext::unregisterTool(const String& tool_name,
   OnToolsChanged();
 }
 
+void ModelContext::SetScriptToolDeclaration(
+    const String& name,
+    WebDocument::ScriptToolDeclaration* tool_declaration) const {
+  auto it = tool_map_.find(name);
+  if (it != tool_map_.end()) {
+    tool_declaration->description = it->value->script_tool->description;
+    tool_declaration->input_schema = it->value->script_tool->input_schema;
+    if (it->value->script_tool->annotations) {
+      tool_declaration->read_only =
+          it->value->script_tool->annotations->read_only;
+    }
+  }
+}
+
 void ModelContext::provideContext(ScriptState* script_state,
                                   ProvideContextParams* params,
                                   ExceptionState& exception_state) {
@@ -213,7 +227,7 @@ std::optional<uint32_t> ModelContext::ExecuteTool(
     const String& name,
     const String& input_arguments,
     AbortSignal* signal,
-    WebDocument::ScriptToolExecutedCallback tool_executed_cb) {
+    ScriptToolExecutedCallback tool_executed_cb) {
   auto it = tool_map_.find(name);
 
   if (it == tool_map_.end()) {
@@ -254,17 +268,24 @@ std::optional<uint32_t> ModelContext::ExecuteTool(
 }
 
 void ModelContext::CancelTool(uint32_t execution_id) {
+  auto it = pending_executions_.find(execution_id);
+  if (it == pending_executions_.end()) {
+    return;
+  }
+  String tool_name = it->value.tool_name;
+
+  if (LocalDOMWindow* window = document_->domWindow()) {
+    // This is a synchronous, non-cancelable event. Note that this can re-enter
+    // JavaScript and modify `pending_executions_`.
+    window->DispatchEvent(
+        *WebMCPEvent::Create(event_type_names::kToolcancel, tool_name));
+  }
+
+  // The pending_executions_ map might have been rehashed during DispatchEvent.
   auto pending_execution = pending_executions_.find(execution_id);
   if (pending_execution == pending_executions_.end()) {
     return;
   }
-
-  if (LocalDOMWindow* window = document_->domWindow()) {
-    // This is a synchronous, non-cancelable event.
-    window->DispatchEvent(*WebMCPEvent::Create(
-        event_type_names::kToolcancel, pending_execution->value.tool_name));
-  }
-
   task_runner_->PostTask(
       FROM_HERE,
       blink::BindOnce(std::move(pending_execution->value.callback),
@@ -309,11 +330,11 @@ void ModelContext::DidFinishParsing() {
 void ModelContext::ExecuteDeclarativeTool(
     DeclarativeWebMCPTool* tool,
     const String& input_arguments,
-    WebDocument::ScriptToolExecutedCallback tool_executed_cb) {
+    ScriptToolExecutedCallback tool_executed_cb) {
   tool->ExecuteTool(
       input_arguments,
       blink::BindOnce(
-          [](WebDocument::ScriptToolExecutedCallback tool_executed_cb,
+          [](ScriptToolExecutedCallback tool_executed_cb,
              base::expected<String, WebDocument::ScriptToolError> result) {
             std::move(tool_executed_cb).Run(result);
           },
@@ -329,7 +350,7 @@ std::optional<uint32_t> ModelContext::ExecuteV8Tool(
     const String& name,
     const String& input_arguments,
     AbortSignal* signal,
-    WebDocument::ScriptToolExecutedCallback tool_executed_cb) {
+    ScriptToolExecutedCallback tool_executed_cb) {
   ScriptState* script_state = tool_function->CallbackRelevantScriptState();
   ScriptState::Scope scope(script_state);
   v8::TryCatch try_catch(script_state->GetIsolate());
@@ -380,7 +401,7 @@ std::optional<uint32_t> ModelContext::ExecuteV8Tool(
   }
 
   auto callback_wrapper = blink::BindOnce(
-      [](WebDocument::ScriptToolExecutedCallback inner_cb,
+      [](ScriptToolExecutedCallback inner_cb,
          std::unique_ptr<ScopedAbortState> scoped_abort_state,
          base::expected<WebString, WebDocument::ScriptToolError> result) {
         // ScopedAbortState is destroyed here, unregistering the algorithm.
@@ -506,6 +527,7 @@ void ModelContext::Trace(Visitor* visitor) const {
 
 void ModelContext::ToolData::Trace(Visitor* visitor) const {
   visitor->Trace(v8_tool_function);
+  visitor->Trace(declarative_tool);
 }
 
 }  // namespace blink

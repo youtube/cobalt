@@ -22,12 +22,26 @@ namespace contextual_cueing {
 
 // Contains data from a valid cueing response.
 struct CueingResult {
+  // Parameters for auto-sending the prompt. When present, the prompt will
+  // be auto-submitted when the side panel opens (subject to conditions).
+  struct AutoSendParams {
+    // Whether this configuration is eligible for auto-submitting the
+    // prompt when the side panel opens.
+    bool auto_send_eligible = false;
+  };
+
   // The cue text to show to user.
   std::string cue_label;
   // Suggested prompt associated with the cue.
   std::string prompt_suggestion;
   // Whether the cue is contextual to page.
   bool is_dynamic = false;
+  // Whether this configuration is eligible for auto-opening the side panel.
+  // The client will auto-open if enabled and conditions are met, otherwise
+  // falls back to standard nudge behavior.
+  bool auto_open_eligible = false;
+  // Parameters controlling auto-send behavior for the prompt.
+  std::optional<AutoSendParams> auto_send_params;
 };
 
 // Decider for contextual cueing that is scoped to `Page`.

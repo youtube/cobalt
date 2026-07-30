@@ -184,7 +184,6 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="1289129165308566697">Verlauf auf anderen Geräten ansehen</translation>
 <translation id="1292571435393770077">Fach 16</translation>
 <translation id="1292701964462482250">"Software auf deinem Computer verhindert, dass Chrome eine sichere Internetverbindung herstellt" (nur Windows-Computer)</translation>
-<translation id="1293154089865862473">Inhalte von der Zahlungsseite werden an Google weitergegeben, um diese Optionen anzubieten. Wenn du die Optionen für „Später bezahlen“ in Autofill ausblenden möchtest, rufe die <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> auf.</translation>
 <translation id="1293556467332435079">Dateien</translation>
 <translation id="1293797321964802402">Umschlag 9 × 11 Zoll</translation>
 <translation id="129553762522093515">Kürzlich geschlossen</translation>
@@ -656,6 +655,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2071156619270205202">Für diese Karte ist keine virtuelle Kartennummer verfügbar.</translation>
 <translation id="2071852865256799872">Dein Browser wird von deiner Organisation verwaltet, dein Profil von <ph name="PROFILE_DOMAIN" /></translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">Informationen nur auf Gerät gespeichert</translation>
 <translation id="2074733626795553847">Blockierung aufheben für <ph name="TOPIC" /></translation>
 <translation id="2074771604462073334">Letzter Aufruf:</translation>
 <translation id="2078956195623975415">Musik- und Tanzspiele</translation>
@@ -704,6 +704,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2137891579555018930">Berechtigung steht aus…</translation>
 <translation id="213826338245044447">Mobile Lesezeichen</translation>
 <translation id="2141000681034340397">Eingabe bearbeiten</translation>
+<translation id="2141475438898772664">In 4 Raten oder monatlich zahlen</translation>
 <translation id="2144171668675205303">Keine aktiven Themen</translation>
 <translation id="2145193671493396738">Wirtschaftsnachrichten</translation>
 <translation id="214556005048008348">Zahlung abbrechen</translation>
@@ -1117,13 +1118,13 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="277133753123645258">Versandart</translation>
 <translation id="277499241957683684">Fehlender Gerätedatensatz</translation>
 <translation id="2775884851269838147">Erste Druckseite</translation>
+<translation id="277828055419948999">Chromium kann auch Felder automatisch ausfüllen, die von der Standard-Autofill-Funktion möglicherweise nicht erkannt werden</translation>
 <translation id="2781185443919227679">Strände und Inseln</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">Bezahlvorgang wird vorbereitet</translation>
 <translation id="2782088940970074970">Mietwagen</translation>
 <translation id="278436560439594386">Haushaltsgeräte</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">Inhalte von der Zahlungsseite werden an Google weitergegeben, um diese Optionen anzubieten.</translation>
 <translation id="2784949926578158345">Verbindung wurde zurückgesetzt.</translation>
 <translation id="2786008859124691917">Fahrräder und Zubehör</translation>
 <translation id="2792012897584536778">Administratoren dieses Geräts haben Sicherheitszertifikate eingerichtet, die es ihnen möglicherweise erlauben, Inhalte der von dir besuchten Websites anzuzeigen.</translation>
@@ -2472,6 +2473,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="4950898438188848926">Schaltfläche zum Wechseln von Tabs, Eingabetaste drücken, um zum offenen Tab "<ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" />" zu wechseln</translation>
 <translation id="495170559598752135">Aktionen</translation>
 <translation id="4953689047182316270">Auf Bedienungshilfen reagieren</translation>
+<translation id="4954505713046251871">Damit du Vorschläge erhalten kannst und diese Funktion verbessert werden kann, werden die URL und die Inhalte der Seite an Google gesendet</translation>
 <translation id="4954891067389874142">Mit einer gespeicherten Karte kannst du schneller bezahlen. Die Kartendetails werden in Google Wallet verschlüsselt.</translation>
 <translation id="4957080528849277028">Button „Chrome-Verlauf ansehen“ – aktivieren, um in den Chrome-Einstellungen deinen Browserverlauf aufzurufen und zu verwalten</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{und 1 weiteren Website}other{und # weiteren Websites}}</translation>
@@ -2789,6 +2791,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="5466018172325111652">Du hast keinen Code erhalten? <ph name="BEGIN_LINK" />Neuen Code anfordern<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Zahlungs-Apps</translation>
 <translation id="5470861586879999274">&amp;Bearbeiten wiederholen</translation>
+<translation id="5471158297908124590">Bestätige deine Identität, um Zahlungsmethoden zu bearbeiten</translation>
 <translation id="5472588168895083535">Handtracking gesperrt</translation>
 <translation id="5477756102936130143">Weiterleitung zu unterstützten Zahlungs-Apps aktivieren</translation>
 <translation id="5479505548832623900">Wahrscheinlich von der Erweiterung ignoriert.</translation>
@@ -2845,6 +2848,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="5543564889050342791">Zoos, Aquarien und Parks</translation>
 <translation id="5543722831081909240">180°</translation>
 <translation id="5544836308113951378">Personenschifffahrt und Charterboote</translation>
+<translation id="5545314360139398232"><ph name="ISSUER_NAME" /> verknüpfen, um in Raten zu zahlen</translation>
 <translation id="5547939254150808298">Druckereien und Verlage</translation>
 <translation id="554815783948612276">Foren- und Chatbetreiber</translation>
 <translation id="5548606607480005320">Sicherheitscheck</translation>
@@ -2866,6 +2870,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="5570825185877910964">Konto schützen</translation>
 <translation id="5571083550517324815">Diese Abholadresse wird nicht unterstützt. Bitte wähle eine andere Adresse aus.</translation>
 <translation id="5572434905385510939">22 × 28 Zoll</translation>
+<translation id="5573090972398558474">Deine Organisation hat diese Seite im Inkognitomodus blockiert.</translation>
 <translation id="5573641252776268565">Reisepass bearbeiten</translation>
 <translation id="5578606540385219379">Internetanbieter</translation>
 <translation id="5580958916614886209">Prüfe den Ablaufmonat und versuche es dann erneut</translation>
@@ -3172,6 +3177,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6093795393556121384">Ihre Karte wurde bestätigt.</translation>
 <translation id="6094253940069566294">Fahrzeug bearbeiten</translation>
 <translation id="6094290315941448991">Die Administratorrichtlinie blockiert die Bildschirmaufzeichnung, wenn vertrauliche Inhalte sichtbar sind</translation>
+<translation id="6097297436119286254">Bestätige deine Identität, um deine Zahlungsinformationen einzugeben</translation>
 <translation id="6099269767116481177">22 × 29,5 Zoll</translation>
 <translation id="6101583188322746099">Lebensmittellieferdienste</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3690,6 +3696,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="6926216138694948720">Körperschmuck und -kunst</translation>
 <translation id="692638818576287323">Gewerbefahrzeuge</translation>
 <translation id="6927878187051807444">Kameradateien und Screenshots</translation>
+<translation id="6929949393612835405">Schließen und zu „<ph name="OPENER_TITLE" />“ zurückkehren</translation>
 <translation id="6930607614725241390">In der Seitenleiste suchen</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Mit der Standardsuchmaschine hast du die Möglichkeit, im Web zu suchen und Chrome-Funktionen zu nutzen.<ph name="END_BOLD" /> Du kannst beispielsweise über die Adressleiste oder über Bilder auf Webseiten suchen. Eine Funktion ist möglicherweise nicht verfügbar, wenn sie nicht von deiner Suchmaschine unterstützt wird.</translation>
 <translation id="6934672428414710184">Dieser Name stammt aus deinem Google-Konto</translation>
@@ -3972,6 +3979,7 @@ Weitere Details:
 <translation id="7377314930809374926">Gastgewerbe</translation>
 <translation id="7378594059915113390">Mediensteuerelemente</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">Chrome kann auch Felder automatisch ausfüllen, die von der Standard-Autofill-Funktion möglicherweise nicht erkannt werden</translation>
 <translation id="7380398842872229465">10 × 15 Zoll</translation>
 <translation id="7381551826960739226">Die Funktion zum automatischen Ausfüllen der Zahlungsmethoden ist deaktiviert, da dieses Formular keine verschlüsselte Verbindung nutzt.</translation>
 <translation id="7388380253839603603">Treibstoffpreise und Kraftstoffe für Fahrzeuge</translation>
@@ -4293,6 +4301,7 @@ Weitere Details:
 <translation id="7844689747373518809">{COUNT,plural, =0{Keine}=1{1 App (<ph name="EXAMPLE_APP_1" />)}=2{2 Apps (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}other{# Apps (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />, <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Ein Fehler ist aufgetreten. Versuche es noch einmal.</translation>
 <translation id="784623644169604270">Keine neuen Aktivitäten</translation>
+<translation id="7848926355794727168">Automatisches Browsen</translation>
 <translation id="7853222852810008596">„Später bezahlen“ in dieser Währung nicht verfügbar</translation>
 <translation id="785476343534277563">Hochschulsport</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="FORMATTED_TOTAL_AMOUNT" /> <ph name="CURRENCY_CODE" /></translation>
@@ -4522,6 +4531,7 @@ Weitere Details:
 <translation id="8241707690549784388">Die gesuchte Seite hat die von dir eingegebenen Informationen verwendet bzw. verarbeitet. Wenn du zu dieser Seite zurückgehst, wird eventuell eine schon ausgeführte Aktion wiederholt. Möchtest du fortfahren?</translation>
 <translation id="8241712895048303527">Auf dieser Website blockieren</translation>
 <translation id="8242426110754782860">Fortfahren</translation>
+<translation id="824620968958405573">Aufgabe „Automatisches Browsen“</translation>
 <translation id="8246482227229072868">Ringe</translation>
 <translation id="8248406213705193919">Karte sicher speichern?</translation>
 <translation id="8249296373107784235">Abbrechen</translation>
@@ -4895,6 +4905,7 @@ Weitere Details:
 <translation id="8858065207712248076">Chrome empfiehlt, dein Passwort für <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> zurückzusetzen, wenn du es auf anderen Websites verwendet hast.</translation>
 <translation id="885906927438988819">Wenn die URL keinen Tippfehler enthält, <ph name="BEGIN_LINK" />kannst du die Windows-Netzwerkdiagnose durchführen<ph name="END_LINK" />.</translation>
 <translation id="8861126751581835107">Fotografie und digitale Kunst</translation>
+<translation id="8861482055962701239">Diese Daten konnten nicht in Google Wallet gespeichert werden. Sie wurde stattdessen in Chrome auf diesem Gerät gespeichert. Wenn du das nächste Mal auf die Daten zugreifst, wirst du von Chrome gefragt, ob sie in Wallet gespeichert werden sollen.</translation>
 <translation id="8863218129525348270">Karte auf deinem Gerät speichern, um beim nächsten Mal schneller bezahlen zu können</translation>
 <translation id="8864939224504814334">Anzüge, Kostüme und Businessbekleidung</translation>
 <translation id="8866132857352163524">Soundtracks</translation>
@@ -4920,6 +4931,7 @@ Weitere Details:
 <translation id="8897428486789851669">Schwimmen</translation>
 <translation id="8899807382908246773">Aufdringliche Anzeigen</translation>
 <translation id="8903921497873541725">Vergrößern</translation>
+<translation id="8903998444169664879">Bestätige deine Identität, um die Zahlungseinstellungen zu ändern</translation>
 <translation id="890493561996401738">Schaltfläche "Vorschlag entfernen", zum Entfernen Eingabetaste drücken, <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="8910898109640902752">8 × 10 in</translation>
 <translation id="8914504000324227558">Chrome neu starten</translation>

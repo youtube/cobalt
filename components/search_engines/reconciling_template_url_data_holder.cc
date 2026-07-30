@@ -9,6 +9,7 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/regional_capabilities/regional_capabilities_utils.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url_data_util.h"
 #include "components/search_engines/template_url_prepopulate_data.h"
@@ -35,6 +36,7 @@ GetReconciliationVariant(
     case ReconciliationType::kByIdFromAllEngines:
     case ReconciliationType::kByIdFromRegionalEngines:
     case ReconciliationType::kByIdFallthrough:
+    case ReconciliationType::kByMigrateToId:
       return ReconciliationVariant::kByID;
 
     case ReconciliationType::kNone:
@@ -126,7 +128,7 @@ ReconcilingTemplateURLDataHolder::FindMatchingBuiltInDefinitionsByKeyword(
     result = std::move(*engine_iter);
   } else {
     // Search the entire search engine database to find matching entry.
-    auto all_engines = TemplateURLPrepopulateData::GetAllPrepopulatedEngines();
+    auto all_engines = regional_capabilities::GetAllPrepopulatedEngines();
     for (const auto* engine : all_engines) {
       if (engine->keyword == keyword) {
         result = TemplateURLDataFromPrepopulatedEngine(*engine);
@@ -153,8 +155,15 @@ ReconcilingTemplateURLDataHolder::FindMatchingBuiltInDefinitionsById(
             ReconciliationType::kByIdFromRegionalEngines};
   }
 
+  // Search for potential migrations
+  if (std::unique_ptr<TemplateURLData> engine =
+          prepopulate_data_resolver_->TryGetMigratedEngine(data_to_match);
+      engine != nullptr) {
+    return {std::move(engine), ReconciliationType::kByMigrateToId};
+  }
+
   // Search the entire search engine database to find matching entry.
-  auto all_engines = TemplateURLPrepopulateData::GetAllPrepopulatedEngines();
+  auto all_engines = regional_capabilities::GetAllPrepopulatedEngines();
   for (const auto* engine : all_engines) {
     if (engine->id == data_to_match.prepopulate_id) {
       return {TemplateURLDataFromPrepopulatedEngine(*engine),

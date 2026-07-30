@@ -639,10 +639,25 @@ bool EntityInstance::IsUnmaskedServerEntity() const {
              });
 }
 
+EntityInstance EntityInstance::CopyWithNewEntityId(EntityId id) const {
+  EntityInstance new_instance = *this;
+  new_instance.guid_ = std::move(id);
+  return new_instance;
+}
+
 EntityInstance EntityInstance::CopyWithNewRecordType(
     RecordType record_type) const {
   EntityInstance new_entity = *this;
   new_entity.record_type_ = record_type;
+  return new_entity;
+}
+
+EntityInstance EntityInstance::CopyWithUpdatedAttribute(
+    AttributeInstance attribute) const {
+  EntityInstance new_entity = *this;
+  auto it = new_entity.attributes_.find(attribute.type());
+  CHECK(it != new_entity.attributes_.end());
+  *it = std::move(attribute);
   return new_entity;
 }
 

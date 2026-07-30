@@ -4,10 +4,12 @@
 
 package org.chromium.chrome.browser.app.tabmodel;
 
+import static org.chromium.chrome.browser.tab.TabStateStorageFlagHelper.isStorageAuthoritative;
+import static org.chromium.chrome.browser.tab.TabStateStorageFlagHelper.isTabStorageEnabled;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.crypto.CipherFactory;
-import org.chromium.chrome.browser.tab.TabStateStorageFlagHelper;
 import org.chromium.chrome.browser.tabmodel.AccumulatingTabCreator;
 import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager;
 import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager.StoreType;
@@ -34,12 +36,14 @@ public class TabPersistentStoreFactory {
             new PersistentStoreMigrationManager() {
                 @Override
                 public @StoreType int getAuthoritativeStoreType() {
-                    return StoreType.LEGACY;
+                    return (isTabStorageEnabled() && isStorageAuthoritative())
+                            ? StoreType.TAB_STATE_STORE
+                            : StoreType.LEGACY;
                 }
 
                 @Override
                 public @StoreType int getShadowStoreType() {
-                    return TabStateStorageFlagHelper.isTabStorageEnabled()
+                    return (isTabStorageEnabled() && !isStorageAuthoritative())
                             ? StoreType.TAB_STATE_STORE
                             : StoreType.INVALID;
                 }
@@ -105,10 +109,9 @@ public class TabPersistentStoreFactory {
                     cipherFactory,
                     recordLegacyTabCountMetrics);
         } else if (storeType == StoreType.TAB_STATE_STORE) {
-            assert TabStateStorageFlagHelper.isTabStorageEnabled();
-            assert TabStateStorageFlagHelper.isStorageAuthoritative();
+            assert isTabStorageEnabled();
+            assert isStorageAuthoritative();
             return new TabStateStore(
-                    migrationManager,
                     tabModelSelector,
                     windowTag,
                     tabCreatorManager,
@@ -228,14 +231,11 @@ public class TabPersistentStoreFactory {
             AccumulatingTabCreator regularShadowTabCreator,
             String orchestratorTag) {
         if (migrationManager == null) migrationManager = sDefaultManager;
-
-        @StoreType int shadowStoreType = migrationManager.getShadowStoreType();
-        if (shadowStoreType != StoreType.TAB_STATE_STORE) return null;
-        assert TabStateStorageFlagHelper.isTabStorageEnabled();
+        if (migrationManager.getShadowStoreType() != StoreType.TAB_STATE_STORE) return null;
+        assert isTabStorageEnabled();
 
         TabPersistentStore shadowTabPersistentStore =
                 new TabStateStore(
-                        migrationManager,
                         selector,
                         windowTag,
                         shadowTabCreatorManager,
@@ -244,12 +244,11 @@ public class TabPersistentStoreFactory {
 
         new ShadowTabStoreValidator(
                 authoritativeStore,
-                migrationManager,
                 shadowTabPersistentStore,
                 selector.getModel(/* incognito= */ false),
                 regularShadowTabCreator,
+                migrationManager,
                 orchestratorTag);
-        migrationManager.onShadowStoreCreated(shadowStoreType);
         return shadowTabPersistentStore;
     }
 }

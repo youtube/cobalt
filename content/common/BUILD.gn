@@ -9,6 +9,7 @@ import("//ipc/features.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//sandbox/features.gni")
+import("//services/network/public/cpp/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("features.gni")
 
@@ -142,10 +143,15 @@ source_set("common") {
     "input/synthetic_touchscreen_pinch_gesture.h",
     "media/cdm_info.cc",
     "memory_coordinator/memory_consumer_group_controller.h",
+    "memory_coordinator/memory_consumer_group_host.h",
+    "memory_coordinator/memory_consumer_registry.cc",
+    "memory_coordinator/memory_consumer_registry.h",
     "memory_coordinator/memory_coordinator_policy.cc",
     "memory_coordinator/memory_coordinator_policy.h",
     "memory_coordinator/memory_coordinator_policy_manager.cc",
     "memory_coordinator/memory_coordinator_policy_manager.h",
+    "memory_coordinator/memory_pressure_listener_policy.cc",
+    "memory_coordinator/memory_pressure_listener_policy.h",
     "navigation_params_utils.h",
     "origin_util.cc",
     "page_state_mojom_traits.h",
@@ -194,6 +200,7 @@ source_set("common") {
     ":mojo_bindings",
     "//cc",
     "//cc/ipc",
+    "//content/public/common:memory_consumer_update",
     "//content/public/common:switches",
     "//gpu/command_buffer/common",
     "//ipc",
@@ -514,10 +521,8 @@ mojom("mojo_bindings") {
         "//ui/native_theme/native_theme.h",
       ]
 
-      traits_private_headers = [
-        "//content/public/common/common_param_traits.h",
-        "//services/network/public/cpp/p2p_param_traits.h",
-      ]
+      traits_private_headers =
+          [ "//content/public/common/common_param_traits.h" ]
 
       traits_sources = [
         "//content/common/frame_owner_element_type_mojom_traits.cc",

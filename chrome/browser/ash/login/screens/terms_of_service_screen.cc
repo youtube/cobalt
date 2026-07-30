@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
 #include "base/functional/bind.h"
@@ -19,8 +20,6 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,6 +31,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -83,12 +83,17 @@ std::string TermsOfServiceScreen::GetResultString(Result result) {
 }
 
 TermsOfServiceScreen::TermsOfServiceScreen(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
     base::WeakPtr<TermsOfServiceScreenView> view,
     const ScreenExitCallback& exit_callback)
     : BaseScreen(TermsOfServiceScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
+      shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
       view_(std::move(view)),
       exit_callback_(exit_callback) {
+  CHECK(shared_url_loader_factory_);
   DCHECK(view_);
 }
 
@@ -144,12 +149,10 @@ void TermsOfServiceScreen::ShowImpl() {
     return;
 
   // Set the domain name whose Terms of Service are being shown.
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
   // Show the screen.
   view_->Show(
       ash::InstallAttributes::Get()->IsEnterpriseManaged()
-          ? connector->GetEnterpriseDomainManager()
+          ? browser_policy_connector_ash_->GetEnterpriseDomainManager()
           : enterprise_util::GetDomainFromEmail(
                 ProfileManager::GetActiveUserProfile()->GetProfileUserName()));
 
@@ -218,12 +221,10 @@ void TermsOfServiceScreen::StartDownload() {
   // download.
   terms_of_service_loader_->SetRetryOptions(
       3, network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
-  network::mojom::URLLoaderFactory* loader_factory =
-      g_browser_process->system_network_context_manager()
-          ->GetURLLoaderFactory();
   terms_of_service_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-      loader_factory, base::BindOnce(&TermsOfServiceScreen::OnDownloaded,
-                                     base::Unretained(this)));
+      shared_url_loader_factory_.get(),
+      base::BindOnce(&TermsOfServiceScreen::OnDownloaded,
+                     base::Unretained(this)));
 
   // Abort the download attempt if it takes longer than one minute.
   download_timer_.Start(FROM_HERE, base::Minutes(1), this,

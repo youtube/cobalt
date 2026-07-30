@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
+#include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_button.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_coordinator.h"
@@ -95,10 +96,10 @@ gfx::Image ExtensionsMenuTestUtil::GetIcon(const extensions::ExtensionId& id) {
 void ExtensionsMenuTestUtil::Press(const extensions::ExtensionId& id) {
   OpenExtensionsMenu();
 
-  ExtensionsMenuButton* primary_button = GetPrimaryButton(id);
-  CHECK(primary_button);
+  HoverButton* action_button = GetActionButton(id);
+  CHECK(action_button);
 
-  views::test::ButtonTestApi(primary_button).NotifyDefaultMouseClick();
+  views::test::ButtonTestApi(action_button).NotifyDefaultMouseClick();
 }
 
 gfx::NativeView ExtensionsMenuTestUtil::GetPopupNativeView() {
@@ -182,7 +183,7 @@ bool ExtensionsMenuTestUtil::IsExtensionsMenuShowing() {
              : menu_view_;
 }
 
-ExtensionsMenuButton* ExtensionsMenuTestUtil::GetPrimaryButton(
+HoverButton* ExtensionsMenuTestUtil::GetActionButton(
     const extensions::ExtensionId& id) {
   if (base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControl)) {
@@ -199,9 +200,8 @@ ExtensionsMenuButton* ExtensionsMenuTestUtil::GetPrimaryButton(
                                return entry->extension_id() == id;
                              });
 
-    return (iter == menu_entries.end())
-               ? nullptr
-               : (*iter)->primary_action_button_for_testing();
+    return (iter == menu_entries.end()) ? nullptr
+                                        : (*iter)->action_button_for_testing();
   }
 
   base::flat_set<raw_ptr<ExtensionMenuItemView, CtnExperimental>> menu_items =

@@ -160,7 +160,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Startup.Android.Cold.TimeToFirstContentfulPaint.{StartActivityType}"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>pasko@chromium.org</owner>
   <owner>alexilin@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -175,7 +175,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Startup.Android.Cold.TimeToFirstContentfulPaint3.{StartActivityType}"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>pasko@chromium.org</owner>
   <owner>nafisabedin@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -234,7 +234,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Startup.Android.Cold.TimeToFirstNavigationCommit.{StartActivityType}"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>pasko@chromium.org</owner>
   <owner>alexilin@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -687,38 +687,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Startup.Android.PrivacySandbox.AdsNoticeCCTAppIDCheck"
-    enum="Boolean" expires_after="2026-03-01">
-  <owner>jacobstanley@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Whether or not the current AppID matches the required AppID from the
-    PrivacySandboxAdsNoticeCCT feature parameter. Returns true if required AppID
-    is not specified.
-  </summary>
-</histogram>
-
-<histogram
-    name="Startup.Android.PrivacySandbox.DialogNotShownDueToTabLaunchedFromExternalApp"
-    enum="Boolean" expires_after="2024-08-04">
-  <owner>tommasin@chromium.org</owner>
-  <owner>kartoffel-core-eng@google.com</owner>
-  <summary>
-    Android: PrivacySandbox dialog not shown because Chrome Tab was launched
-    from an external app.
-  </summary>
-</histogram>
-
-<histogram name="Startup.Android.PrivacySandbox.ShouldShowAdsNoticeCCT"
-    enum="Boolean" expires_after="2026-02-22">
-  <owner>jacobstanley@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Whether or not the user using a CCT meets the requirements to view the
-    Privacy Sandbox Ads Notice.
-  </summary>
-</histogram>
-
 <histogram name="Startup.Android.StartComponent" enum="ProcessCreationReason"
     expires_after="2026-06-28">
   <owner>nafisabedin@google.com</owner>
@@ -930,7 +898,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.ColdStartFromMain" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -980,7 +948,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.CrashBubbleShown" enum="BooleanShown"
-    expires_after="2026-06-06">
+    expires_after="2026-08-09">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -1141,6 +1109,12 @@ chromium-metrics-reviews@google.com.
     user did not have a Chrome browser window open in the previous session, this
     metric is not recorded.
 
+    If kWebUIReloadButtonDeferBrowserViewShow is enabled, the browser window
+    display is deferred until the initial WebUI is ready. The measurement
+    initiates using the first active WebContents without requiring its strict
+    visibility, and the measurement is recorded in the same way once that
+    WebContents gets to complete its first non-empty painting.
+
     Do not modify this metric in any way without contacting
     chrome-ds@google.com.
 
@@ -1149,7 +1123,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.GPU.LoadTime.ApplicationStartToGpuInitialized"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1173,7 +1147,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.GPU.LoadTime.ChromeMainToGpuInitialized" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>spvm@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1409,7 +1383,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.StartupBrowserCreator.LaunchBrowser" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>hidehiko@chromium.org</owner>
   <owner>junis@google.com</owner>
   <owner>cros-sw-perf+metrics@google.com</owner>
@@ -1450,7 +1424,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.TimeFromMainToDidFinishLaunchingCall" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>olivierrobin@chromium.org</owner>
   <owner>justincohen@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1462,7 +1436,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Startup.TimeFromMainToSceneConnection" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>olivierrobin@chromium.org</owner>
   <owner>justincohen@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

@@ -48,7 +48,7 @@ TEST_F(MessagingUtilTest, TestMaximumJSONMessageSize) {
   v8::Local<v8::Value> long_message =
       V8ValueFromScriptSource(context, "'a'.repeat(1024 *1024 * 65)");
   std::string error;
-  std::unique_ptr<Message> message = messaging_util::MessageFromV8(
+  std::optional<Message> message = messaging_util::MessageFromV8(
       context, long_message, mojom::SerializationFormat::kJson, &error);
   EXPECT_FALSE(message);
   EXPECT_EQ(kMessageTooLongError, error);
@@ -219,7 +219,7 @@ TEST_F(MessagingUtilWithSystemTest, TestGetTargetIdFromExtensionContext) {
       {v8::Null(isolate()), extension->id(), true},
       // We treat the empty string to be the same as null, even though it's
       // somewhat unfortunate.
-      // See https://crbug.com/823577.
+      // See https://crbug.com/41377567.
       {gin::StringToV8(isolate(), ""), extension->id(), true},
       {gin::StringToV8(isolate(), extension->id()), extension->id(), true},
       {gin::StringToV8(isolate(), other_id), other_id, true},
@@ -289,7 +289,7 @@ TEST_F(MessagingUtilWithSystemTest, TestGetTargetIdFromUserScriptContext) {
       {v8::Null(isolate()), extension->id(), true},
       // We treat the empty string to be the same as null, even though it's
       // somewhat unfortunate.
-      // See https://crbug.com/823577.
+      // See https://crbug.com/41377567.
       {gin::StringToV8(isolate(), ""), extension->id(), true},
       {gin::StringToV8(isolate(), extension->id()), extension->id(), true},
       // User scripts may not target other extensions.

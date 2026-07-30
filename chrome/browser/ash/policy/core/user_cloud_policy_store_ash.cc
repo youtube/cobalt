@@ -14,12 +14,12 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ash/policy/core/cached_policy_key_loader.h"
 #include "chrome/browser/ash/policy/value_validation/onc_user_policy_value_validator.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_util.h"
 #include "chromeos/ash/components/dbus/session_manager/policy_descriptor.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
+#include "components/session_manager/core/session_manager.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 
 using RetrievePolicyResponseType =
@@ -104,7 +104,7 @@ void UserCloudPolicyStoreAsh::LoadImmediately() {
   // the user has flags configured in about:flags.
   // However, on those paths we must load policy synchronously so that the
   // Profile initialization never sees unmanaged prefs, which would lead to
-  // data loss. http://crbug.com/263061
+  // data loss. http://crbug.com/40326003
   std::string policy_blob;
   login_manager::PolicyDescriptor descriptor =
       ash::MakeChromePolicyDescriptor(login_manager::ACCOUNT_TYPE_USER,
@@ -116,7 +116,7 @@ void UserCloudPolicyStoreAsh::LoadImmediately() {
     LOG(ERROR)
         << "Session manager claims that session doesn't exist; signing out";
     base::debug::DumpWithoutCrashing();
-    chrome::AttemptUserExit();
+    session_manager::SessionManager::Get()->RequestSignOut();
     return;
   }
 
@@ -215,7 +215,7 @@ void UserCloudPolicyStoreAsh::OnPolicyRetrieved(
     LOG(ERROR)
         << "Session manager claims that session doesn't exist; signing out";
     base::debug::DumpWithoutCrashing();
-    chrome::AttemptUserExit();
+    session_manager::SessionManager::Get()->RequestSignOut();
     return;
   }
 

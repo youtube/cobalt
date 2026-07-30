@@ -37,7 +37,6 @@
 #include "chrome/browser/enterprise/reporting/report_scheduler_desktop.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
 #include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/policy/cloud/user_fm_registration_token_uploader_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -186,7 +185,7 @@ UserCloudPolicyManagerAsh::UserCloudPolicyManagerAsh(
   // for creating the invalidator for user remote commands. The invalidator must
   // not be initialized before then because the invalidation service cannot be
   // started because it depends on components initialized at the end of profile
-  // creation. https://crbug.com/171406
+  // creation. https://crbug.com/40299450
   observed_profile_.Observe(profile_.get());
 }
 

@@ -129,16 +129,13 @@ SyncPrefs::SyncPrefs(PrefService* pref_service)
                           base::Unretained(this)));
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  if (base::FeatureList::IsEnabled(switches::kOfferMigrationToDiceUsers) ||
-      base::FeatureList::IsEnabled(switches::kRollbackDiceMigration)) {
-    // The explicit browser signin pref is used for determining whether some
-    // data types are selected by default. Therefore, upon a change, the
-    // selected types may change.
-    pref_change_registrar_.Add(
-        ::prefs::kExplicitBrowserSignin,
-        base::BindRepeating(&SyncPrefs::OnSelectedTypesPrefChanged,
-                            base::Unretained(this)));
-  }
+  // The explicit browser signin pref is used for determining whether some data
+  // types are selected by default. Therefore, upon a change, the selected types
+  //  may change.
+  pref_change_registrar_.Add(
+      ::prefs::kExplicitBrowserSignin,
+      base::BindRepeating(&SyncPrefs::OnSelectedTypesPrefChanged,
+                          base::Unretained(this)));
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 }
 
@@ -725,8 +722,11 @@ bool SyncPrefs::IsTypeSupportedInTransportMode(UserSelectableType type) {
     case UserSelectableType::kExtensions:
       return switches::IsExtensionsExplicitBrowserSigninEnabled();
     case UserSelectableType::kThemes:
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_ANDROID)
       return false;
+#elif BUILDFLAG(IS_IOS)
+      // Allow 'Themes' toggle on iOS if the feature is enabled.
+      return base::FeatureList::IsEnabled(syncer::kSyncThemesIos);
 #else
       return base::FeatureList::IsEnabled(
           syncer::kSeparateLocalAndAccountThemes);
@@ -997,6 +997,10 @@ void SyncPrefs::MigrateGlobalDataTypePrefsToAccount(PrefService* pref_service,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Saved Tab Groups user toggle is only used on desktop.
   bool saved_tab_groups_enabled = everything_enabled;
+  // Explicitly set the extensions toggle, which otherwise requires an explicit
+  // sign-in to be enabled by default. This is to specifically handle the case
+  // when `syncer::kExplicitSigninForExtension` is true.
+  bool extensions_enabled = everything_enabled;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   if (everything_enabled) {
     // On desktop, Passwords is considered disabled by default and
@@ -1022,6 +1026,8 @@ void SyncPrefs::MigrateGlobalDataTypePrefsToAccount(PrefService* pref_service,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     saved_tab_groups_enabled = pref_service->GetBoolean(
         GetPrefNameForType(UserSelectableType::kSavedTabGroups));
+    extensions_enabled = pref_service->GetBoolean(
+        GetPrefNameForType(UserSelectableType::kExtensions));
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   }
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
@@ -1040,6 +1046,8 @@ void SyncPrefs::MigrateGlobalDataTypePrefsToAccount(PrefService* pref_service,
                         tabs_enabled);
   account_settings->Set(GetPrefNameForType(UserSelectableType::kSavedTabGroups),
                         saved_tab_groups_enabled);
+  account_settings->Set(GetPrefNameForType(UserSelectableType::kExtensions),
+                        extensions_enabled);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   // Another special case: For custom passphrase users, "Addresses and more"

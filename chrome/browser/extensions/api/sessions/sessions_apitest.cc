@@ -15,6 +15,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "base/strings/pattern.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -30,14 +31,15 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/test/base/browser_created_waiter.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/sessions/content/content_live_tab.h"
@@ -87,6 +89,7 @@ constexpr int kActiveTabId = kTabIDs[kActiveTabIndex];
 
 // Observes the global list of BrowserWindowInterfaces and waits for a specified
 // browser to close.
+// TODO(crbug.com/405219627): Move this to its own file.
 class BrowserCloseWaiter : public BrowserCollectionObserver {
  public:
   explicit BrowserCloseWaiter(BrowserWindowInterface* browser)
@@ -220,7 +223,7 @@ syncer::ClientTagHash TagHashFromSpecifics(
 
 class ExtensionSessionsTest : public ExtensionBrowserTest {
  public:
-  ExtensionSessionsTest() = default;
+  ExtensionSessionsTest();
   ~ExtensionSessionsTest() override = default;
 
   // ExtensionBrowserTest:
@@ -240,12 +243,23 @@ class ExtensionSessionsTest : public ExtensionBrowserTest {
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  base::test::ScopedFeatureList feature_list_{
-      chrome::android::kRecentlyClosedTabsAndWindows};
+  base::test::ScopedFeatureList feature_list_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   scoped_refptr<const Extension> extension_;
 };
+
+ExtensionSessionsTest::ExtensionSessionsTest() {
+#if BUILDFLAG(IS_ANDROID)
+  // kRecentlyClosedTabsAndWindows is required for Java-side window restore.
+  // kLoadAllTabsAtStartup is required to force WebContents for tabs not to be
+  // null, see browser_extension_window_controller.cc.
+  feature_list_.InitWithFeatures(
+      {chrome::android::kRecentlyClosedTabsAndWindows,
+       chrome::android::kLoadAllTabsAtStartup},
+      {});
+#endif  // BUILDFLAG(IS_ANDROID)
+}
 
 void ExtensionSessionsTest::SetUpCommandLine(base::CommandLine* command_line) {
   ExtensionBrowserTest::SetUpCommandLine(command_line);
@@ -357,6 +371,106 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesListEmpty) {
   EXPECT_TRUE(devices.empty());
 }
 
+IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
+  // Open a second window.
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+
+  // Ensure 2 tabs exist.
+  auto* tab_list2 = TabListInterface::From(browser2);
+  ASSERT_TRUE(tab_list2);
+  // Platforms like Win/Mac/Linux create browsers with no tabs, whereas Android
+  // creates browsers with a single tab.
+  if (tab_list2->GetTabCount() == 0) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  }
+  tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  ASSERT_EQ(2, tab_list2->GetTabCount());
+
+  // Pin and activate the first tab so its metadata has non-default values.
+  tabs::TabHandle tab_handle = tab_list2->GetTab(0)->GetHandle();
+  tab_list2->PinTab(tab_handle);
+  tab_list2->ActivateTab(tab_handle);
+  ASSERT_TRUE(tab_list2->GetTab(0)->IsPinned());
+  ASSERT_TRUE(tab_list2->GetTab(0)->IsActivated());
+
+  // Navigate the tabs, otherwise window close does not persist it in the tab
+  // restore service.
+  content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
+  content::WebContents* contents1 = tab_list2->GetTab(1)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
+
+  // Close the second window and wait for it to close.
+  BrowserCloseWaiter close_waiter(browser2);
+  browser2->GetWindow()->Close();
+  close_waiter.Wait();
+
+  // Get ready for a browser to be created.
+  BrowserCreatedWaiter browser_waiter;
+
+  // Run chrome.sessions.restore() with no arguments.
+  std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+      CreateFunction<SessionsRestoreFunction>(true).get(), "[]", GetProfile());
+
+  // The result is a session dictionary.
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result->is_dict());
+  const base::DictValue* session_dict = result->GetIfDict();
+  ASSERT_TRUE(session_dict);
+
+  // The session contains a window.
+  const base::DictValue* window_dict = session_dict->FindDict("window");
+  ASSERT_TRUE(window_dict) << "Window information is missing from the session.";
+
+  // The window contains 2 tabs.
+  const base::ListValue* tabs = window_dict->FindList("tabs");
+  ASSERT_TRUE(tabs);
+  EXPECT_EQ(2u, tabs->size());
+
+  const base::DictValue* tab0 = (*tabs)[0].GetIfDict();
+  const base::DictValue* tab1 = (*tabs)[1].GetIfDict();
+  ASSERT_TRUE(tab0);
+  ASSERT_TRUE(tab1);
+#if !BUILDFLAG(IS_ANDROID)
+  // The tab URLs are chrome://version/ and chrome://credits/.
+  // NOTE: On Android, the tabs are still navigating when the return value of
+  // the API function is computed, so the "committed" URLs used by the API are
+  // not available. However, we verify the loading URLs below in the test.
+  EXPECT_EQ("chrome://version/", api_test_utils::GetString(*tab0, "url"));
+  EXPECT_EQ("chrome://credits/", api_test_utils::GetString(*tab1, "url"));
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  // The first tab is pinned and active.
+  EXPECT_TRUE(api_test_utils::GetBoolean(*tab0, "pinned"));
+  EXPECT_TRUE(api_test_utils::GetBoolean(*tab0, "active"));
+
+  // The second tab is not pinned and not active.
+  EXPECT_FALSE(api_test_utils::GetBoolean(*tab1, "pinned"));
+  EXPECT_FALSE(api_test_utils::GetBoolean(*tab1, "active"));
+
+  // Wait for the browser to be created (it may be asynchronous).
+  BrowserWindowInterface* browser3 = browser_waiter.Wait();
+  ASSERT_TRUE(browser3);
+
+  // The restored browser has tabs at chrome://version/ and chrome://credits/.
+  auto* tab_list3 = TabListInterface::From(browser3);
+  ASSERT_TRUE(tab_list3);
+  ASSERT_EQ(2, tab_list3->GetTabCount());
+  EXPECT_EQ(GURL("chrome://version/"),
+            tab_list3->GetTab(0)->GetContents()->GetVisibleURL());
+  EXPECT_EQ(GURL("chrome://credits/"),
+            tab_list3->GetTab(1)->GetContents()->GetVisibleURL());
+
+  // The first tab is pinned and active.
+  EXPECT_TRUE(tab_list3->GetTab(0)->IsPinned());
+  EXPECT_TRUE(tab_list3->GetTab(0)->IsActivated());
+
+  // The second tab is not pinned and not active.
+  EXPECT_FALSE(tab_list3->GetTab(1)->IsPinned());
+  EXPECT_FALSE(tab_list3->GetTab(1)->IsActivated());
+}
+
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionWindow) {
   CreateSessionModels();
 
@@ -440,6 +554,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
   ASSERT_EQ(2, tab_list2->GetTabCount());
 
+  // Pin and activate the first tab so its metadata has non-default values.
+  tabs::TabHandle tab_handle = tab_list2->GetTab(0)->GetHandle();
+  tab_list2->PinTab(tab_handle);
+  tab_list2->ActivateTab(tab_handle);
+  ASSERT_TRUE(tab_list2->GetTab(0)->IsPinned());
+  ASSERT_TRUE(tab_list2->GetTab(0)->IsActivated());
+
   // Navigate each tab, otherwise window close does not persist them in the tab
   // restore service. Use different URLs.
   content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
@@ -485,16 +606,24 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   // The first URL is chrome://version/.
   const base::DictValue* tab0 = (*tabs)[0].GetIfDict();
   ASSERT_TRUE(tab0);
-  const std::string* url0 = tab0->FindString("url");
-  ASSERT_TRUE(url0);
-  EXPECT_EQ("chrome://version/", *url0);
+  EXPECT_EQ("chrome://version/", api_test_utils::GetString(*tab0, "url"));
+  EXPECT_EQ("About Version", api_test_utils::GetString(*tab0, "title"));
+  EXPECT_EQ(0, api_test_utils::GetInteger(*tab0, "index"));
 
-  // The seconnd URL is chrome://credits/.
+  // The first tab is pinned and active.
+  EXPECT_TRUE(api_test_utils::GetBoolean(*tab0, "pinned"));
+  EXPECT_TRUE(api_test_utils::GetBoolean(*tab0, "active"));
+
+  // The second URL is chrome://credits/.
   const base::DictValue* tab1 = (*tabs)[1].GetIfDict();
   ASSERT_TRUE(tab1);
-  const std::string* url1 = tab1->FindString("url");
-  ASSERT_TRUE(url1);
-  EXPECT_EQ("chrome://credits/", *url1);
+  EXPECT_EQ("chrome://credits/", api_test_utils::GetString(*tab1, "url"));
+  EXPECT_EQ("Credits", api_test_utils::GetString(*tab1, "title"));
+  EXPECT_EQ(1, api_test_utils::GetInteger(*tab1, "index"));
+
+  // The second tab is not pinned and not active.
+  EXPECT_FALSE(api_test_utils::GetBoolean(*tab1, "pinned"));
+  EXPECT_FALSE(api_test_utils::GetBoolean(*tab1, "active"));
 }
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedIncognito) {
@@ -564,7 +693,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedMaxResults) {
   }
 }
 
-// http://crbug.com/251199
+// http://crbug.com/40322238
 IN_PROC_BROWSER_TEST_F(ExtensionApiTest, DISABLED_SessionsApis) {
   ASSERT_TRUE(RunExtensionTest("sessions", {.extension_url = "sessions.html"}))
       << message_;

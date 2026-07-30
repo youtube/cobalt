@@ -66,13 +66,6 @@ void BwgService::Shutdown() {
 #pragma mark - Public
 
 bool BwgService::IsProfileEligibleForGemini() {
-  if (!IsGeminiAvailableForManagedAccounts()) {
-    if (auth_service_ && auth_service_->HasPrimaryIdentityManaged(
-                             signin::ConsentLevel::kSignin)) {
-      return false;
-    }
-  }
-
   AccountInfo account_info = identity_manager_->FindExtendedAccountInfo(
       identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
   bool tokens_ok =
@@ -91,7 +84,7 @@ bool BwgService::IsProfileEligibleForGemini() {
   bool is_eligible = can_use_model_execution && !is_disabled_by_policy &&
                      tokens_ok && !profile_->IsOffTheRecord();
 
-  base::UmaHistogramBoolean(kEligibilityHistogram, is_eligible);
+  RecordGeminiEligibility(is_eligible);
 
   return is_eligible;
 }

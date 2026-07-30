@@ -11,13 +11,20 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
 namespace network {
 class SimpleURLLoader;
-}
+class SharedURLLoaderFactory;
+}  // namespace network
 
 namespace ash {
 
@@ -38,8 +45,14 @@ class TermsOfServiceScreen : public BaseScreen {
   enum class ScreenState : int { LOADING = 0, LOADED = 1, ERROR = 2 };
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
-  TermsOfServiceScreen(base::WeakPtr<TermsOfServiceScreenView> view,
-                       const ScreenExitCallback& exit_callback);
+
+  // `shared_url_loader_factory` must be non-null.
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  TermsOfServiceScreen(
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      base::WeakPtr<TermsOfServiceScreenView> view,
+      const ScreenExitCallback& exit_callback);
 
   TermsOfServiceScreen(const TermsOfServiceScreen&) = delete;
   TermsOfServiceScreen& operator=(const TermsOfServiceScreen&) = delete;
@@ -92,6 +105,11 @@ class TermsOfServiceScreen : public BaseScreen {
   void SaveTos(const std::string& tos);
   // Runs callback for tests.
   void OnTosSavedForTesting();
+
+  const scoped_refptr<network::SharedURLLoaderFactory>
+      shared_url_loader_factory_;
+  const raw_ref<const policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
 
   base::WeakPtr<TermsOfServiceScreenView> view_;
   ScreenExitCallback exit_callback_;

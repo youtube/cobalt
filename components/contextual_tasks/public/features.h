@@ -31,9 +31,9 @@ BASE_DECLARE_FEATURE(kContextualTasksContextMenu);
 // Enables context menu settings for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksSuggestionsEnabled);
 
-// Enables auto-suggestions for contextual tasks. When disabled, no suggested
+// Enables tab auto-chip for contextual tasks. When disabled, no suggested
 // chips will be shown in the composebox automatically.
-BASE_DECLARE_FEATURE(kContextualTasksAutoSuggestionEnabled);
+BASE_DECLARE_FEATURE(kContextualTasksTabAutoSuggestionChipEnabled);
 
 // Force the application locale to US and the gl query parameter to us.
 BASE_DECLARE_FEATURE(kContextualTasksForceCountryCodeUS);
@@ -46,10 +46,6 @@ BASE_DECLARE_FEATURE(
 // Enables use of silk api to notify zero state rendered instead of the url
 // param.
 BASE_DECLARE_FEATURE(kEnableNotifyZeroStateRenderedCapability);
-
-// Enables use of TabListInterfaceObserver in
-// ContextualTasksSidePanelCoordinator.
-BASE_DECLARE_FEATURE(kContextualTasksTabListInterfaceObserver);
 
 // Replace the overflow menu in the side panel with an explicit button to move
 // the thread to a new tab.
@@ -207,6 +203,10 @@ extern bool ShouldEnableBasicModeZOrder();
 
 // Returns whether the cookie sync should be enabled.
 extern bool ShouldEnableCookieSync();
+
+// Returns whether the input plate can be locked and unlocked by a message
+// from AIM.
+extern bool ShouldEnableLockAndUnlockInputCapability();
 
 namespace flag_descriptions {
 

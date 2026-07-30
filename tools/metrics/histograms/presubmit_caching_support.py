@@ -8,7 +8,6 @@ import os
 import pickle
 from typing import Optional, Any, Dict
 
-
 @dataclasses.dataclass(frozen=True)
 class _PresubmitCheckContext:
   """Describes and identifies a context of a specific presubmit check.
@@ -88,6 +87,9 @@ class PresubmitCache:
         if loaded_cache.version == _CURRENT_CACHE_FILE_SCHEMA_VERSION:
           self._cache_contents = loaded_cache
       except pickle.PickleError:
+        pass
+      except ModuleNotFoundError:
+        # If changes were made to modules used we should drop the cache as well
         pass
 
   def _GetForContext(self, context: _PresubmitCheckContext) -> Optional[str]:

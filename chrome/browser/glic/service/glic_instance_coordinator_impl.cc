@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -30,7 +31,7 @@
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -93,6 +94,10 @@ BASE_FEATURE(kGlicHibernateAllOnMemoryPressure,
 constexpr base::FeatureParam<bool> kGlicHibernateAllAggressive{
     &kGlicHibernateAllOnMemoryPressure, "aggressive", false};
 
+BASE_FEATURE(kGlicMaxAwakeInstances, base::FEATURE_ENABLED_BY_DEFAULT);
+constexpr base::FeatureParam<int> kGlicMaxAwakeInstancesLimit{
+    &kGlicMaxAwakeInstances, "limit", 15};
+
 // TODO(refactor): Remove after launching kGlicMultiInstance.
 HostManager& GlicInstanceCoordinatorImpl::host_manager() {
   return *host_manager_;
@@ -113,7 +118,8 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
           this),
       metrics_(this) {
   if (base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs) ||
-      base::FeatureList::IsEnabled(features::kGlicTabRestoration)) {
+      base::FeatureList::IsEnabled(features::kGlicTabRestoration) ||
+      base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
     tab_observer_ = GlicTabObserver::Create(
         profile_, base::BindRepeating(&GlicInstanceCoordinatorImpl::OnTabEvent,
                                       weak_ptr_factory_.GetWeakPtr()));
@@ -245,13 +251,14 @@ void GlicInstanceCoordinatorImpl::Toggle(
     BrowserWindowInterface* browser,
     bool prevent_close,
     mojom::InvocationSource source,
-    std::optional<std::string> prompt_suggestion) {
+    std::optional<std::string> prompt_suggestion,
+    bool auto_send) {
   if (!browser) {
     ToggleFloaty(prevent_close, source, prompt_suggestion);
     return;
   }
 
-  ToggleSidePanel(browser, prevent_close, source, prompt_suggestion);
+  ToggleSidePanel(browser, prevent_close, source, prompt_suggestion, auto_send);
 }
 
 void GlicInstanceCoordinatorImpl::ShowAfterSignIn(
@@ -462,8 +469,49 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplFor(
   return nullptr;
 }
 
+void GlicInstanceCoordinatorImpl::ApplyMaxAwakeInstancesLimit() {
+  if (base::FeatureList::IsEnabled(kGlicMaxAwakeInstances)) {
+    size_t awake_count = 0;
+    for (const auto& [id, instance] : instances_) {
+      if (!instance->IsHibernated()) {
+        awake_count++;
+      }
+    }
+
+    const size_t limit = kGlicMaxAwakeInstancesLimit.Get();
+    if (awake_count < limit) {
+      return;
+    }
+
+    std::vector<GlicInstanceImpl*> hibernatable_instances;
+    for (auto& [id, instance] : instances_) {
+      if (!instance->IsHibernated() && !instance->IsActuating()) {
+        hibernatable_instances.push_back(instance.get());
+      }
+    }
+
+    // Sort candidates by last activation time (ascending = oldest first).
+    std::sort(hibernatable_instances.begin(), hibernatable_instances.end(),
+              [](const GlicInstanceImpl* a, const GlicInstanceImpl* b) {
+                return a->GetLastActivationTimestamp() <
+                       b->GetLastActivationTimestamp();
+              });
+
+    // Hibernate until we reach `limit - 1`.
+    int target_count = limit - 1;
+    size_t excess_count = awake_count - target_count;
+
+    for (size_t i = 0; i < excess_count && i < hibernatable_instances.size();
+         ++i) {
+      hibernatable_instances[i]->Hibernate();
+    }
+  }
+}
+
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance(
     std::optional<InstanceId> instance_id) {
+  ApplyMaxAwakeInstancesLimit();
+
   if (!base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
     if (!warmed_instance_) {
       CreateWarmedInstance();
@@ -549,14 +597,15 @@ void GlicInstanceCoordinatorImpl::ToggleFloaty(
     std::optional<std::string> prompt_suggestion) {
   GetOrCreateInstanceImplForFloaty()->Toggle(
       ShowOptions::ForFloating(/*source_tab=*/tabs::TabHandle::Null()),
-      prevent_close, source, prompt_suggestion);
+      prevent_close, source, prompt_suggestion, /*auto_send=*/false);
 }
 
 void GlicInstanceCoordinatorImpl::ToggleSidePanel(
     BrowserWindowInterface* browser,
     bool prevent_close,
     glic::mojom::InvocationSource source,
-    std::optional<std::string> prompt_suggestion) {
+    std::optional<std::string> prompt_suggestion,
+    bool auto_send) {
   auto* tab = TabListInterface::From(browser)->GetActiveTab();
   if (!tab) {
     return;
@@ -573,7 +622,7 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   // newly created instance, so we provide the instance creation trigger.
   instance->Toggle(
       ShowOptions::ForSidePanel(*tab, GlicPinTrigger::kInstanceCreation),
-      prevent_close, source, prompt_suggestion);
+      prevent_close, source, prompt_suggestion, auto_send);
 }
 
 void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstanceImpl* instance) {
@@ -739,10 +788,32 @@ void GlicInstanceCoordinatorImpl::OnTabEvent(const GlicTabEvent& event) {
     return;
   }
 
-  MaybeDaisyChainSidePanel(*creation_event);
+  MaybeDaisyChainNewTab(*creation_event);
+
+  MaybeDaisyChainFromLinkClick(*creation_event);
 }
 
-void GlicInstanceCoordinatorImpl::MaybeDaisyChainSidePanel(
+void GlicInstanceCoordinatorImpl::MaybeDaisyChainFromLinkClick(
+    const TabCreationEvent& event) {
+  if (!base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
+    return;
+  }
+
+  if (event.creation_type != TabCreationType::kFromLink || !event.opener ||
+      !event.new_tab) {
+    return;
+  }
+
+  auto* instance = GetInstanceImplForTab(event.opener);
+  if (!instance) {
+    return;
+  }
+
+  instance->MaybeDaisyChainToTab(event.opener, event.new_tab);
+}
+
+void GlicInstanceCoordinatorImpl::MaybeDaisyChainNewTab(
+
     const TabCreationEvent& creation_event) {
   if (!base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs)) {
     return;

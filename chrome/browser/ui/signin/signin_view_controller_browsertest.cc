@@ -307,12 +307,9 @@ class SigninViewControllerBrowserTest
 
 IN_PROC_BROWSER_TEST_F(
     SigninViewControllerBrowserTest,
-    // TODO(crbug.com/429624627): Re-enable this test.
-    DISABLED_SignoutOrReauthWithPromptForPersistentErrorState_Reauth) {
+    SignoutOrReauthWithPromptForPersistentErrorState_Reauth) {
   // Setup a primary account in error state.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
   identity_test_env()->UpdatePersistentErrorOfRefreshTokenForAccount(
       primary_account_info.account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
@@ -329,8 +326,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(signout_confirmation_ui);
 
   // Click "Verify it's you".
-  // Note: This is the cancel action.
-  signout_confirmation_ui->CancelDialogForTesting();
+  signout_confirmation_ui->CancelDialogAndReauthForTesting();
   VerifySignoutPromptHistogram(
       histogram_tester,
       ChromeSignoutConfirmationPromptVariant::kUnsyncedDataWithReauthButton,
@@ -351,8 +347,6 @@ IN_PROC_BROWSER_TEST_F(
     SignoutOrReauthWithPromptForPersistentErrorState_SignOutWithUnsyncedData) {
   // Setup a primary account in error state.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
   identity_test_env()->UpdatePersistentErrorOfRefreshTokenForAccount(
       primary_account_info.account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
@@ -390,13 +384,10 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(IsSignoutTab(tab));
 }
 
-// https://crbug.com/429624627: Test is flakily crashing.
 IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
-                       DISABLED_SignoutOrReauthWithPrompt_Cancel) {
+                       SignoutOrReauthWithPrompt_Cancel) {
   // Setup a primary account.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Add pending sync data.
   AddUnsyncedData();
@@ -431,8 +422,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_SignOutWithUnsyncedData) {
   // Setup a primary account.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Add pending sync data.
   AddUnsyncedData();
@@ -466,8 +455,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_SignOut) {
   // Setup a primary account.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Trigger the Chrome signout action.
   base::HistogramTester histogram_tester;
@@ -501,8 +488,7 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_NoPrompt) {
   // Setup a primary account in auth error.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
+
   identity_test_env()->UpdatePersistentErrorOfRefreshTokenForAccount(
       primary_account_info.account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
@@ -534,8 +520,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
   AccountCapabilitiesTestMutator mutator(&primary_account_info.capabilities);
   mutator.set_is_subject_to_parental_controls(true);
   identity_test_env()->UpdateAccountInfoForAccount(primary_account_info);
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Trigger the Chrome signout action.
   base::HistogramTester histogram_tester;
@@ -568,8 +552,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_BookmarksLimitExceeded) {
   // Setup a primary account.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Set Bookmarks Limit Exceeded error.
   GetTestSyncService()->SetBookmarksLimitExceeded(true);
@@ -640,8 +622,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
                        SignoutOrReauthWithPrompt_ReauthAndBookmarksLimit) {
   // Setup a primary account in error state.
   AccountInfo primary_account_info = SetPrimaryAccount();
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
   identity_test_env()->UpdatePersistentErrorOfRefreshTokenForAccount(
       primary_account_info.account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
@@ -1078,10 +1058,7 @@ IN_PROC_BROWSER_TEST_P(SigninViewControllerInteractiveBrowserTest,
   extensions::signin_test_util::SimulateExplicitSignIn(
       GetProfile(), identity_test_env(), kTestEmail);
 
-  // Verify that the user has performed an explicit signin.
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  // And that they can sync extensions while in transport mode.
+  // Verify that the user can sync extensions while in transport mode.
   ASSERT_TRUE(
       extensions::sync_util::IsSyncingExtensionsInTransportMode(GetProfile()));
 
@@ -1162,10 +1139,7 @@ IN_PROC_BROWSER_TEST_P(SigninViewControllerInteractiveBrowserTest,
   extensions::signin_test_util::SimulateExplicitSignIn(
       GetProfile(), identity_test_env(), kTestEmail);
 
-  // Verify that the user has performed an explicit signin.
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
-  // And that they can sync extensions while in transport mode.
+  // Verify that the user can sync extensions while in transport mode.
   ASSERT_TRUE(
       extensions::sync_util::IsSyncingExtensionsInTransportMode(GetProfile()));
 
@@ -1239,8 +1213,6 @@ IN_PROC_BROWSER_TEST_P(SigninViewControllerBrowserCookieParamTest, SignOut) {
           .signed_out = false}});
   }
   identity_test_env()->SetFreshnessOfAccountsInGaiaCookie(true);
-  ASSERT_TRUE(
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin));
 
   // Trigger the Chrome signout action, and confirm the prompt.
   SignoutConfirmationUI* signout_confirmation_ui =

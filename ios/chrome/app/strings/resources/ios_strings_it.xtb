@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">Continua configurazione</translation>
 <translation id="143681031165817424">Indirizzo salvato solo su questo dispositivo</translation>
 <translation id="1445276840641906250">Tutte le tue schede in un unico browser</translation>
+<translation id="1447564161241938558">L'importazione di password e passkey è stata disattivata dall'amministratore</translation>
 <translation id="1450170672351507823">È attiva la protezione standard. Per una maggiore sicurezza, utilizza la Protezione avanzata.</translation>
 <translation id="1455660774629812862">Non nascondere</translation>
 <translation id="1456545332132818232">Recensioni prodotto su <ph name="PRODUCT_NAME" />, <ph name="STARS" /> su <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">Per visualizzare le password, per prima cosa imposta un passcode sul tuo dispositivo.</translation>
 <translation id="201759455285471444">Espandi il gruppo di schede.</translation>
 <translation id="202070562065520783">Spiegami questo testo</translation>
-<translation id="2023713324775943812">Accedi alla Modalità di lettura dalla barra degli indirizzi quando disponibile</translation>
 <translation id="2044394949148788042">Apri la griglia delle schede</translation>
 <translation id="2044681667265133332">L'account <ph name="USER_EMAIL" /> è gestito da <ph name="HOSTED_DOMAIN" />, che potrebbe essere in grado di visualizzare alcune informazioni. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nuovo elemento</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">Password e passkey salvate</translation>
 <translation id="3143515551205905069">Annulla sincronizzazione</translation>
 <translation id="3144126448740580210">FINE</translation>
+<translation id="3147521114983561406">Le passkey vengono salvate nel tuo gestore delle password. Sono accessibili nelle schede di navigazione in incognito e quelle normali.</translation>
 <translation id="3148052723910099040">Griglia schede normali</translation>
 <translation id="3148237711805373460">Vai</translation>
 <translation id="3157387275655328056">Aggiungi all'elenco di lettura</translation>
@@ -1860,6 +1861,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7772032839648071052">Conferma passphrase</translation>
 <translation id="7772948288262733182">Ti diamo il bentornato</translation>
 <translation id="777637629667389858">Se hai eseguito l'accesso, ti protegge nei servizi Google.</translation>
+<translation id="7776604279034196531">Accedi alla modalità Lettura dalla barra degli indirizzi quando disponibile</translation>
 <translation id="7781829728241885113">Ieri</translation>
 <translation id="7788868432173225918">Chiudi visualizzazione espansa</translation>
 <translation id="7791543448312431591">Aggiungi</translation>
@@ -2097,6 +2099,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8587001564479545614">Crea PIN di recupero</translation>
 <translation id="8588404856427128947">Non attiva</translation>
 <translation id="8590286732816598906">Gruppo di schede, <ph name="GROUP_TITLE" />, Menu.</translation>
+<translation id="8593317261815647019">Creare una passkey al di fuori della modalità Incognito?</translation>
 <translation id="8600272508328041907">Passa alla traduzione della pagina intera</translation>
 <translation id="860043288473659153">Nome del titolare della carta</translation>
 <translation id="8601611099293226919">Cerca sullo schermo con Google Lens</translation>
@@ -2234,6 +2237,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="9055291197094969722">Crea gruppi di schede per organizzare le schede aperte e mantenere la produttività</translation>
 <translation id="9055580485132823283">Stai per eliminare {password_count} password, {passkey_count} passkey e l'elenco di siti e app per cui hai scelto di non salvare mai i dati di accesso. Gli account creati per siti e app non verranno eliminati.</translation>
 <translation id="9057030985451135243">Scopri di più sui gruppi di schede condivisi</translation>
+<translation id="9064106978262828592">Si è verificato un problema durante l'esportazione dei dati</translation>
 <translation id="9065203028668620118">Modifica</translation>
 <translation id="9066097352053395362">Nascondi Modifica preferito</translation>
 <translation id="9070824521421603770">Il tuo account verrà disconnesso e le schede verranno chiuse</translation>

@@ -18,6 +18,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/web_applications/jobs/finalize_install_job.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
@@ -573,7 +574,7 @@ TEST_F(WebAppSyncBridgeTest, ApplyIncrementalSyncChanges_AddUpdateDelete) {
       GetAppIdFromWebAppSpecifics(sync_app_to_add);
 
   WebAppSpecifics sync_app_to_update = CreateWebAppSpecificsForTesting(
-      "To Update, Updated", GURL("https://www.to_update.com/"));
+      "To Update", GURL("https://www.to_update.com/"));
 
   syncer::EntityChangeList entity_changes;
 
@@ -1068,11 +1069,11 @@ TEST_F(WebAppSyncBridgeTest, SpecificsProtoWithNewFieldPreserved) {
   // sync_proto.SerializeAsString();
   const char kStartUrl[] = "https://example.com/launchurl";
   const std::string serialized_proto =
-      "\n\035https://example.com/launchurl\022\tTest "
-      "name\030\001\372\265\277\024\005hello";
+      "\n\x1Dhttps://example.com/launchurl\x12\tTest "
+      "name\x18\x1*\x14https://example.com/\xFA\xB5\xBF\x14\x5hello";
   const GURL start_url = GURL(kStartUrl);
-  const webapps::AppId app_id =
-      GenerateAppId(/*manifest_id_path=*/std::nullopt, start_url);
+  const webapps::AppId app_id = GenerateAppIdFromManifestId(
+      GenerateManifestIdFromStartUrlOnly(start_url));
 
   // Parse the proto.
   WebAppSpecifics sync_proto;
@@ -1098,8 +1099,6 @@ TEST_F(WebAppSyncBridgeTest, SpecificsProtoWithNewFieldPreserved) {
   const WebApp* app = fake_provider().registrar_unsafe().GetAppById(app_id);
   ASSERT_TRUE(app);
 
-  // Clear the fields added due to normalizing the proto in `SetSyncProto` and
-  // `ApplySyncDataToApp`.
   WebAppSpecifics result_proto = app->sync_proto();
   result_proto.clear_relative_manifest_id();
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1228,7 +1227,7 @@ class WebAppSyncBridgeTest_UserDisplayModeSplit
       // UDM mitigations mess with the installed local state, disable them so
       // the state matches the intention of the test.
       : disable_user_display_mode_sync_mitigations_for_testing_(
-            &WebAppInstallFinalizer::
+            &FinalizeInstallJob::
                 DisableUserDisplayModeSyncMitigationsForTesting(),
             true)
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -1316,17 +1315,15 @@ TEST_P(WebAppSyncBridgeTest_UserDisplayModeSplit, SyncUpdateToUserDisplayMode) {
     if (local_other_platform_udm()) {
       ScopedRegistryUpdate update = sync_bridge().BeginUpdate();
       WebApp* web_app = update->UpdateApp(app_id);
-      DCHECK(web_app);
-      WebAppSpecifics sync_proto = web_app->sync_proto();
+      CHECK(web_app);
 
       if (IsChromeOs()) {
-        sync_proto.set_user_display_mode_default(
+        web_app->UpdateDefaultUserDisplayModeInSyncProto(
             local_other_platform_udm().value());
       } else {
-        sync_proto.set_user_display_mode_cros(
+        web_app->UpdateCrOsUserDisplayModeInSyncProto(
             local_other_platform_udm().value());
       }
-      web_app->SetSyncProto(std::move(sync_proto));
     }
   }
 

@@ -56,6 +56,8 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(DefaultBrowserEntrypointType) -->
 
 <variants name="DefaultBrowserEntrypointType">
+  <variant name="BubbleDialog"
+      summary="the bubble dialog anchored to app menu button"/>
   <variant name="ChangeDetectedNotification"
       summary="the change detected Os notification"/>
   <variant name="InfoBar" summary="the startup infobar"/>
@@ -82,6 +84,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".Emoji"/>
   <variant name=".ExtensionsWebStoreZeroStatePromo"/>
   <variant name=".Feed"/>
+  <variant name=".Feedback"/>
   <variant name=".HistoryClustersSidePanel"/>
   <variant name=".HistorySidePanel"/>
   <variant name=".LensOverlayUntrusted"/>
@@ -123,12 +126,6 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/others/histograms.xml:WebUIHostnameForCodeCache) -->
-
-<variants name="WebUITabStripTabCount">
-  <variant name=".01_05" summary="1 to 5 tabs"/>
-  <variant name=".06_20" summary="6 to 20 tabs"/>
-  <variant name=".21_" summary="21 or more tabs"/>
-</variants>
 
 <histogram name="Bubble.{BubbleName}.CloseReason" enum="WidgetClosedReason"
     expires_after="2026-07-22">
@@ -746,19 +743,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="RenderViewContextMenu.OpenLinkAsProfile" enum="OpenLinkAs"
-    expires_after="2026-02-22">
-  <owner>droger@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Count the clicks and displays of renderer view context menu item Open Link
-    as Profile, as well as Open Link in Incognito Window for comparison. If Open
-    Link as Profile is a submenu, it is counted as displayed even if the submenu
-    is not open, and only counted one time regardless the amount of items in the
-    submenu.
-  </summary>
-</histogram>
-
 <histogram name="RenderViewContextMenu.Shown" enum="RenderViewContextMenuItem"
     expires_after="2026-07-26">
   <owner>avi@chromium.org</owner>
@@ -791,6 +775,13 @@ chromium-metrics-reviews@google.com.
     This histogram is of special interest to the chrome-analysis-team@. Do not
     change its semantics or retire it without talking to them first.
   </summary>
+</histogram>
+
+<histogram name="Snackbar.DismissalReason" enum="SnackbarDismissalReason"
+    expires_after="2026-07-01">
+  <owner>lazzzis@google.com</owner>
+  <owner>src/chrome/browser/ui/messages/OWNERS</owner>
+  <summary>Records the reason why a snackbar was dismissed.</summary>
 </histogram>
 
 <histogram name="Snackbar.Shown" enum="SnackbarIdentifier"
@@ -936,7 +927,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ColorsStylesheetServingDuration" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>skau@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -972,7 +963,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ShownUrl" enum="WebUIUrlHashes"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>
@@ -1056,106 +1047,6 @@ features through Chrome Labs. -->
   <summary>
     True if WebUICodeCache feature is enabled. This counts the number of times
     generated WebUICodeCache JS code cache is instantiated.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.CloseAction" enum="WebUITabStripCloseActions"
-    expires_after="2025-11-12">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The WebUI tab strip is a more touch-friendly tab strip used in place of
-    Chrome's native tab strip in some cases. It can be opened and closed. This
-    records how a user closed it.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.CloseTabAction"
-    enum="WebUITabStripCloseTabActions" expires_after="2025-11-12">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The WebUI tab strip is a more touch-friendly tab strip used in place of
-    Chrome's native tab strip in some cases. This records how a user closed a
-    tab within the WebUI tab strip.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.LoadCompletedTime" units="ms"
-    expires_after="2026-07-26">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The amount of time between the RenderFrameHost StartProvisionalLoad event
-    and the RenderFrameHost DocumentOnLoadCompleted event for the WebUI tab
-    strip page. This happens once when a browser window with WebUI tab strip
-    enabled is created. WebUITabStrip.LoadDocumentTime should be smaller or
-    equal to WebUITabStrip.LoadCoimpletedTime.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.LoadDocumentTime" units="ms"
-    expires_after="2026-05-17">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The amount of time between the RenderFrameHost StartProvisionalLoad and
-    DidFinishDocumentLoad events for the WebUI tab strip page. This happens once
-    when a browser window with WebUI tab strip enabled is created.
-    WebUITabStrip.LoadDocumentTime should be smaller or equal to
-    WebUITabStrip.LoadCoimpletedTime.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.OpenAction" enum="WebUITabStripOpenActions"
-    expires_after="2026-06-21">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The WebUI tab strip is a more touch-friendly tab strip used in place of
-    Chrome's native tab strip in some cases. It can be opened and closed. This
-    records how a user opened it.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.OpenDuration" units="ms"
-    expires_after="2026-07-26">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    The WebUI tab strip is a more touch-friendly tab strip used in place of
-    Chrome's native tab strip in some cases. It can be opened and closed. This
-    records how long it was open when closing.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.TabActivation" units="ms"
-    expires_after="2025-11-12">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    WebUI Tabstrip: Time from activating a tab from WebUI to receiving an
-    activation notification in WebUI.
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.TabCreation{WebUITabStripTabCount}" units="ms"
-    expires_after="2025-11-12">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    WebUI Tabstrip: Time needed to create all of the tab elements at launch.
-    {WebUITabStripTabCount}
-  </summary>
-</histogram>
-
-<histogram name="WebUITabStrip.TabDataReceived{WebUITabStripTabCount}"
-    units="ms" expires_after="2025-11-12">
-  <owner>robliao@chromium.org</owner>
-  <owner>tluk@chromium.org</owner>
-  <summary>
-    WebUI Tabstrip: Time from requesting the tab data to receiving the data.
-    {WebUITabStripTabCount}
   </summary>
 </histogram>
 

@@ -44,6 +44,7 @@
 #include "chrome/browser/web_applications/url_pattern_with_regex_matcher.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
@@ -165,8 +166,8 @@ DisplayMode ResolveAppDisplayModeForStandaloneLaunchContainer(
       } else {
         return DisplayMode::kStandalone;
       }
-    case DisplayMode::kBorderless:
-      return DisplayMode::kBorderless;
+    case DisplayMode::kUnframed:
+      return DisplayMode::kUnframed;
   }
 }
 
@@ -256,7 +257,7 @@ bool WebAppRegistrar::IsSupportedDisplayModeForNavigationCapture(
     case blink::mojom::DisplayMode::kFullscreen:
     case blink::mojom::DisplayMode::kMinimalUi:
     case blink::mojom::DisplayMode::kWindowControlsOverlay:
-    case blink::mojom::DisplayMode::kBorderless:
+    case blink::mojom::DisplayMode::kUnframed:
     case blink::mojom::DisplayMode::kStandalone:
     case blink::mojom::DisplayMode::kTabbed:
       return true;
@@ -1008,6 +1009,9 @@ bool WebAppRegistrar::AppMatches(const webapps::AppId& app_id,
                          case WebAppFilter::BinaryOp::Op::kOr:
                            return AppMatches(app_id, *bin_op.left) ||
                                   AppMatches(app_id, *bin_op.right);
+                         case WebAppFilter::BinaryOp::Op::kExclude:
+                           return AppMatches(app_id, *bin_op.left) &&
+                                  !AppMatches(app_id, *bin_op.right);
                        }
                      }},
       filter.data_);
@@ -1026,110 +1030,44 @@ bool WebAppRegistrar::AppMatches(const webapps::AppId& app_id,
     return false;
   }
 
-  if (filter.is_app_eligible_for_manifest_update) {
-    return true;
-  }
-
-  if (filter.is_app_surfaceable_to_user) {
-    return install_state != proto::SUGGESTED_FROM_MIGRATION;
-  }
-
-  if (install_state == proto::SUGGESTED_FROM_MIGRATION) {
-    return filter.is_app_suggested_from_migration;
-  }
-
-  if (install_state == proto::SUGGESTED_FROM_ANOTHER_DEVICE) {
-    return filter.is_suggested_app;
-  }
-
-  // If the `DisplayMode` of a web app is undefined for whatever reason, it
-  // should be launching in a browser tab.
-  DisplayMode display_mode = GetAppEffectiveDisplayMode(app_id);
-  bool opens_in_browser_tab = display_mode == DisplayMode::kBrowser ||
-                              display_mode == DisplayMode::kUndefined;
-  if (filter.opens_in_browser_tab) {
-    return opens_in_browser_tab;
-  }
-
-  if (filter.opens_in_dedicated_window) {
-    return !opens_in_browser_tab;
-  }
-
-  if (const auto& iwa_filter = filter.isolated_app_filter) {
-    webapps::AppId iwa_app_id;
-    if (IsIsolatedApp(app_id) && !iwa_filter->is_sub_app) {
-      iwa_app_id = app_id;
-    } else if (iwa_filter->is_sub_app && IsIsolatedSubApp(app_id)) {
-      // Point at parent app when performing additional isolated app filters
-      // below (because of isolation_data only being available on the parent).
-      iwa_app_id = GetAppById(app_id)->parent_app_id().value();
-    } else {
-      return false;
-    }
-
-    const WebApp& iwa = CHECK_DEREF(GetAppById(iwa_app_id));
-    bool matches = true;
-    if (iwa_filter->must_be_in_dev_mode) {
-      matches &= iwa.isolation_data()->location().dev_mode();
-    }
-    if (iwa_filter->must_be_policy_installed) {
-      matches &= IsInstalledByPolicy(iwa_app_id);
-    }
-    if (iwa_filter->must_be_user_installed) {
-      matches &=
-          iwa.GetSources().Has(web_app::WebAppManagement::kIwaUserInstalled);
-    }
-    if (iwa_filter->must_have_no_external_management) {
-      matches &=
-          !iwa.GetSources().HasAny({web_app::WebAppManagement::kKiosk,
-                                    web_app::WebAppManagement::kIwaShimlessRma,
-                                    web_app::WebAppManagement::kIwaPolicy});
-    }
-    return matches;
-  }
-
-  if (filter.is_crafted_app) {
-    return !IsDiyApp(app_id);
-  }
-
-  if (filter.is_crafted_app_and_opens_in_dedicated_window) {
-    return !IsDiyApp(app_id) &&
-           GetAppEffectiveDisplayMode(app_id) != DisplayMode::kBrowser;
-  }
-
-  if (filter.is_diy_with_os_shortcut) {
-    const WebApp* app = GetAppById(app_id);
-    return app && app->is_diy_app() &&
-           install_state == proto::INSTALLED_WITH_OS_INTEGRATION;
-  }
-
-  if (filter.displays_badge_on_os || filter.supports_os_notifications) {
-    return install_state == proto::INSTALLED_WITH_OS_INTEGRATION;
-  }
-
-  if (filter.installed_in_chrome) {
-    return install_state == proto::INSTALLED_WITH_OS_INTEGRATION ||
-           install_state == proto::INSTALLED_WITHOUT_OS_INTEGRATION;
-  }
-
-  if (filter.installed_in_os) {
-    return install_state == proto::INSTALLED_WITH_OS_INTEGRATION;
-  }
-
-  if (filter.launchable_from_install_api) {
-    const WebApp* app = GetAppById(app_id);
-    return (app && app->WasInstalledByUser()) ||
-           GetAppEffectiveDisplayMode(app_id) != DisplayMode::kBrowser;
-  }
-
-  if (filter.is_app_trusted) {
-    const WebApp* app = GetAppById(app_id);
-    return (app && app->WasInstalledByTrustedSources());
-  }
-
-  if (filter.is_valid_migration_source) {
-    return install_state == proto::INSTALLED_WITH_OS_INTEGRATION &&
-           !IsInstalledByPolicy(app_id);
+  if (filter.predicate) {
+    const auto& app = CHECK_DEREF(GetAppById(app_id));
+    return std::visit(
+        absl::Overload{
+            [&](WebAppFilter::SimpleCondition condition) {
+              switch (condition) {
+                case WebAppFilter::SimpleCondition::kIsDiy:
+                  return app.is_diy_app();
+                case WebAppFilter::SimpleCondition::kWasInstalledByUser:
+                  return app.WasInstalledByUser();
+                case WebAppFilter::SimpleCondition::kInstalledByTrustedSource:
+                  return app.WasInstalledByTrustedSources();
+                case WebAppFilter::SimpleCondition::kIsolatedApp:
+                  return IsIsolatedApp(app_id);
+                case WebAppFilter::SimpleCondition::kIsolatedAppDevMode:
+                  return IsIsolatedAppInDevMode(app_id);
+                case WebAppFilter::SimpleCondition::kIsolatedSubApp:
+                  return app.parent_app_id() &&
+                         IsIsolatedApp(*app.parent_app_id());
+                case WebAppFilter::SimpleCondition::kOpensInDedicatedWindow: {
+                  DisplayMode display_mode = GetAppEffectiveDisplayMode(app_id);
+                  return display_mode != DisplayMode::kBrowser &&
+                         display_mode != DisplayMode::kUndefined;
+                }
+              }
+            },
+            [&](const WebAppFilter::ManagementRequirement& requirement) {
+              switch (requirement.type) {
+                case WebAppFilter::ManagementRequirement::Type::kHasAny:
+                  return app.GetSources().HasAny(requirement.sources);
+                case WebAppFilter::ManagementRequirement::Type::kHasAll:
+                  return app.GetSources().HasAll(requirement.sources);
+              }
+            },
+            [&](const WebAppFilter::InstallStateSet& install_states) {
+              return install_states.Has(*install_state);
+            }},
+        *filter.predicate);
   }
 
   return false;
@@ -2269,10 +2207,11 @@ bool WebAppRegistrar::IsIsolatedApp(const webapps::AppId& app_id) const {
   return web_app && web_app->isolation_data().has_value();
 }
 
-bool WebAppRegistrar::IsIsolatedSubApp(const webapps::AppId& app_id) const {
+bool WebAppRegistrar::IsIsolatedAppInDevMode(
+    const webapps::AppId& app_id) const {
   auto* web_app = GetAppById(app_id);
-  return web_app && web_app->parent_app_id() &&
-         IsIsolatedApp(*web_app->parent_app_id());
+  return web_app && web_app->isolation_data().has_value() &&
+         web_app->isolation_data()->location().dev_mode();
 }
 
 int WebAppRegistrar::CountUserInstalledNotLocallyInstalledApps() const {

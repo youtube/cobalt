@@ -22,6 +22,7 @@
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
 #include "chrome/browser/autofill/account_setting_service_factory.h"
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
+#include "chrome/browser/autofill/autofill_accessibility_annotator_data_adapter_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
@@ -342,6 +343,7 @@
 #include "chrome/browser/prefs/persistent_renderer_prefs_manager_factory.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_survey_desktop_controller_factory.h"
 #include "chrome/browser/profile_resetter/reset_report_uploader_factory.h"
+#include "chrome/browser/record_replay/recording_data_manager_factory.h"
 #include "chrome/browser/screen_ai/screen_ai_service_router_factory.h"
 #include "chrome/browser/search/instant_service_factory.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
@@ -671,6 +673,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   AccountPasswordStoreFactory::GetInstance();
   AccountReconcilorFactory::GetInstance();
   autofill::AccountSettingServiceFactory::GetInstance();
+  autofill::AutofillAccessibilityAnnotatorDataAdapterFactory::GetInstance();
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   AccountsPolicyManagerFactory::GetInstance();
   search_integrity::SearchIntegrityFactory::GetInstance();
@@ -1254,6 +1257,9 @@ void ChromeBrowserMainExtraPartsProfiles::
   ReadAnythingServiceFactory::GetInstance();
 #endif
   ReadingListModelFactory::GetInstance();
+#if !BUILDFLAG(IS_ANDROID)
+  record_replay::RecordingDataManagerFactory::GetInstance();
+#endif
   ReduceAcceptLanguageFactory::GetInstance();
   RendererUpdaterFactory::GetInstance();
   regional_capabilities::RegionalCapabilitiesServiceFactory::GetInstance();

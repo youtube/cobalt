@@ -332,6 +332,7 @@ public class ChildProcessService {
                 mLibraryInitialized = true;
                 mLibraryInitializedLock.notifyAll();
             }
+            RecordHistogram.recordBooleanHistogram("Android.ChildProcess.JavalessStarted", false);
             sendBuildInfoToNative();
             SparseArray<String> idsToKeys = mDelegate.getFileDescriptorsIdsToKeys();
 
@@ -360,9 +361,7 @@ public class ChildProcessService {
         } catch (Throwable e) {
             try {
                 mParentProcess.reportExceptionInInit(
-                        ChildProcessService.class.getName()
-                                + "\n"
-                                + android.util.Log.getStackTraceString(e));
+                        ChildProcessService.class.getName() + "\n" + Log.getStackTraceString(e));
             } catch (RemoteException re) {
                 Log.e(TAG, "Failed to call reportExceptionInInit.", re);
             }

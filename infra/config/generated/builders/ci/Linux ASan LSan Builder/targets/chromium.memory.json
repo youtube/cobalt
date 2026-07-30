@@ -287,6 +287,7 @@
           "dimensions": {
             "os": "Ubuntu-22.04"
           },
+          "hard_timeout": 5400,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 70
         },
@@ -1464,7 +1465,7 @@
             "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 11
+          "shards": 10
         },
         "test": "sync_integration_tests",
         "test_id_prefix": "ninja://chrome/test:sync_integration_tests/"

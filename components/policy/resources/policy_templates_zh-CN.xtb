@@ -1664,6 +1664,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="2158741059065130266">如果此政策设为 True，<ph name="PRODUCT_OS_NAME" />“文件”应用的用户可以看到回收站的垃圾桶图标，“我的文件”和“下载内容”下的文件（包括其使用者创建的子文件夹中的文件）在删除后会被发送到回收站中。
 
       如果此政策设为 False，通过显示隐藏文件并在“我的文件”或“下载内容”下找到 .Trash 目录，用户仍可查看之前位于回收站中的文件。</translation>
+<translation id="215891883000260452">为特定源启用 WebRTC 诊断日志收集功能</translation>
 <translation id="2159092270572925582">此政策允许您设置一个网址格式列表，从而指定允许哪些网站显示可屏蔽的（即主动型）混合内容（即 HTTPS 网站上的 HTTP 内容），以及要为哪些网站上可选的可屏蔽（即被动型）混合内容停用升级功能。
 
           如果您未设置此政策，可屏蔽的混合内容将被屏蔽，同时可选的可屏蔽混合内容将被升级，而且用户将能设置例外情况以允许在特定网站上显示此类内容。
@@ -1953,6 +1954,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       此政策会覆盖 <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />、<ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />、<ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" /> 和用户的偏好设置。
 
       此政策仅会对通过 WebUSB API 访问 USB 设备产生影响。若要通过 Web Serial API 授权访问 USB 设备，请参见 <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" /> 政策。</translation>
+<translation id="2318353380372431186">允许用户安装 IWA</translation>
 <translation id="2318583605563438459">允许家长添加受监督的账号</translation>
 <translation id="2326031114717677574">音频数据的取样和收集时间间隔。所允许的最短时间间隔为 1 分钟。
 
@@ -2131,6 +2133,17 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2466131534462628618">进行强制门户身份验证时忽略代理服务器</translation>
 <translation id="2467181864598429837">默认浏览器行为</translation>
 <translation id="2467896267442150508">持续时间不超过 1 周的间隔时段。如果开始时间晚于结束时间，该间隔时段会跨周。</translation>
+<translation id="2475594733565572760">此政策用于为其涵盖的所有生成式 AI 功能定义默认设置。例如，如果此政策的值设为 1，则 1 将是其涵盖的所有生成式 AI 功能的默认设置。这不会影响任何手动设置的政策值。此设置将为 Chrome 中涵盖的生成式 AI 功能定义默认值。如需查看此政策涵盖的功能列表，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。
+
+<ph name="GEMINI_SETTINGS_POLICY_NAME" /> 等某些政策仅支持“允许”和“不允许”两种状态。在这种情况下，如果将 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 设为 0 或 1，系统就会启用相应功能。如果将 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 设为 2，系统则会停用相应功能。各项功能的文档都详细介绍了此政策中的值对各自的影响，例如，对于 Chrome 中的 Gemini，可以访问 https://support.google.com/chrome/a/?p=gemini_in_chrome。此政策适用于以下功能：Chrome 中的 Gemini、Google 智能镜头和 AI 模式，而它们受各自的保障和/或服务条款的约束 (https://support.google.com/chrome/a/?p=genai_features_chrome)。
+
+0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
+
+1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
+
+2 表示不允许使用此功能。
+
+如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="2476249479201711962">允许在上下文菜单中使用默认搜索服务提供商</translation>
 <translation id="2478756867046106663">允许那些提供误导性体验的网站打开新的窗口或标签页</translation>
 <translation id="2479760962196319822">此政策旨在控制 <ph name="PRODUCT_OS_NAME" /> 用户能否在本地存储数据。
@@ -2476,6 +2489,13 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       注意：自 M114 起，特定自助服务终端应用可在特殊使用情形（例如学生评估）下为其应用覆盖这项政策的行为。</translation>
 <translation id="2667894101494585925">启用优化指南提取功能</translation>
 <translation id="2669157090883237118">不更改建议的 <ph name="PRODUCT_OS_NAME" /> 配置。</translation>
+<translation id="2669314653349044073">此政策允许针对特定源启用 WebRTC 诊断日志收集功能。
+
+如需详细了解有效的输入格式，请访问 https://chromeenterprise.google/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。此政策只能根据源进行匹配，因此网址格式中的任何路径都会被忽略。支持协议和子网域。
+
+如果设置了此政策，系统将为与列表中格式相符的源启用诊断日志收集功能。
+
+如果未设置此政策，系统将默认停用诊断日志收集功能。</translation>
 <translation id="2672012807430078509">控制是否允许将 NTLM 作为 SMB 装载功能的身份验证协议</translation>
 <translation id="2673363037046384711">最终用户可以启用或停用高效模式。</translation>
 <translation id="2673968385134502798">游戏</translation>
@@ -2583,6 +2603,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       如果此政策已停用，<ph name="PRODUCT_NAME" /> 将只能使用在系统级安装的本地消息传递主机。</translation>
 <translation id="2753637905605932878">限制 WebRTC 使用的本地 UDP 端口的范围</translation>
 <translation id="2755847332939882873">允许收集系统级性能跟踪记录</translation>
+<translation id="2755963656455766808">控制用户是否可以手动安装独立式 Web 应用</translation>
 <translation id="2757054304033424106">允许安装的扩展程序/应用的类型</translation>
 <translation id="275769337615229465">系统会将大多数源与同一网站中的其他源隔离。</translation>
 <translation id="2759224876420453487">控制多用户配置会话中的用户行为</translation>
@@ -4254,6 +4275,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="3927291637826333102">允许这些来源使用桌面、窗口和标签页截取功能</translation>
 <translation id="3928726028264020458">启用设备 VPD 信息报告功能</translation>
 <translation id="3935592079035695061">自午夜起的毫秒数。</translation>
+<translation id="3937800910397007337">强制将所有标签页设为前台优先级</translation>
 <translation id="3941289958028934630">为登录屏幕停用语音反馈</translation>
 <translation id="3943930334592166130">此政策旨在控制是否让系统在有多个证书与 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> 匹配时提示用户选择客户端证书。
       如果此政策已启用，每当自动选择政策与多个证书匹配时，系统都会提示用户选择客户端证书。
@@ -5610,6 +5632,12 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
        允许主机名匹配整个主机或任一网域。例如，倘若此列表包含“foo.example.com”或“example.com”，诸如“https://foo.example.com/bar”之类的网址便可能不会显示这类警告。</translation>
 <translation id="4852900976354340846">Direct Sockets 设置</translation>
 <translation id="485419696366295465">控制与 <ph name="BOREALIS_NAME" /> 子系统相关的政策。</translation>
+<translation id="4854384393031206645">控制用户是否可以手动安装独立式 Web 应用 (IWA)。
+
+如果此政策设为 false，系统会禁止用户安装 IWA。
+
+如果此政策设为 true 或未设置，则系统允许用户安装 IWA。
+</translation>
 <translation id="4855636880814771207">如果此政策已启用或未设置，用户将可以开启或关闭蓝牙。
 
       如果此政策已停用，<ph name="PRODUCT_OS_NAME" />会关闭蓝牙，而且用户无法开启它。
@@ -6021,6 +6049,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       </translation>
 <translation id="5104606191349861549">键盘快捷键（在 129 版及更高版本中受支持）</translation>
 <translation id="5105313908130842249">使用电池供电时的屏幕锁定延迟时间</translation>
+<translation id="5105593357527099243">禁止用户安装 IWA</translation>
 <translation id="510604120100968366">启用电量不足提示音功能。
 
           该功能负责播放电量不足提示音。
@@ -6163,6 +6192,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       *“适中”- 用户只可选择启用 YouTube“适中”受限模式和 YouTube“严格”受限模式，但无法关闭受限模式。
 
       *“关闭”或未设置值 - Chrome 不会强制启用 YouTube 受限模式。但是，外部政策（例如 YouTube 政策）仍有可能会强制启用受限模式。</translation>
+<translation id="5191007233343702012">使用标准标签页优先级</translation>
 <translation id="5191476996923842491">setTimeout() 函数延迟的默认行为。</translation>
 <translation id="519247340330463721">配置与安全浏览功能相关的政策。</translation>
 <translation id="5192555640439947289">如果此政策已启用，当设备处于休眠或合盖状态时，<ph name="PRODUCT_OS_NAME" /> 会要求用户提供密码来解锁设备。
@@ -6363,6 +6393,13 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5303080953475303561">通过设置此政策，您可以控制锁定屏幕将会按照什么样的频率要求用户输入密码以实现快速解锁。每当系统显示锁定屏幕时，如果与上次输入密码相距的时间超出了所选值指定的时长，便无法快速解锁。如果用户在锁定屏幕上的停留时长超过了此时长，那么当用户下次输错代码或重新进入锁定屏幕时（以先发生者为准），系统就会要求输入密码。
 
       如果您未设置此政策，使用快速解锁功能的用户需要每天在锁定屏幕上输入其密码一次。</translation>
+<translation id="530488290401810961">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
+
+如果此政策设为“允许”（即值为 0）或未经设置，系统会自动下载模型，并将其用于推理。
+
+如果此政策设为“停用”（即值为 1），系统将不会下载模型，并且会删除现有模型（如果已下载）。
+
+在桌面平台上，也可以通过 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 禁止下载模型。</translation>
 <translation id="5306186200045823863">信任 Symantec Corporation 的旧版 PKI 基础架构</translation>
 <translation id="5307432759655324440">无痕模式的可用性</translation>
 <translation id="5308551343115571396"><ph name="LACROS_NAME" /> 停用后，系统会尝试保留尽可能多的用户数据，但会移除所有浏览器数据。</translation>
@@ -6419,6 +6456,15 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5345892164332459671">停用流动单点登录，并且不将用户的 Web 服务身份验证移至新设备</translation>
 <translation id="5345910753471481870">不在“新标签页”页面上的搜索框中显示 Google 智能镜头按钮。</translation>
 <translation id="5346587320074666194">禁止在这些网站上使用传感器</translation>
+<translation id="5347735051291224683">此政策用于控制是否强制以前台优先级运行后台 Web 内容。
+
+默认情况下，浏览器会降低后台标签页中内容的优先级，以此优化资源利用。启用此政策会覆盖以上行为，导致后台标签页的调度方式与活动标签页相同。
+
+请注意，强制以前台优先级运行后台内容，可能会略微影响活动标签页的响应速度。
+
+如果启用此政策，所有 Web 内容都将以前台优先级运行，无论是否在前台显示。
+
+如果停用或不设置此政策，浏览器会根据标准启发法来确定优先级。例如，降低不可见、不播放音频、不参与视频通话的内容的优先级。</translation>
 <translation id="534836255587440809">禁止在登录屏幕上自动点击</translation>
 <translation id="5348658899015174540"><ph name="GET_DISPLAY_MEDIA_SET_NAME" /> API 允许 Web 应用一次截取多个界面。
       此政策将为指定源的 Web 应用解锁 <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> 属性。

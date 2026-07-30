@@ -14,7 +14,6 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
-#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
@@ -23,12 +22,14 @@
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/logging.h"
 #include "remoting/host/base/switches.h"
 #include "remoting/host/desktop_session.h"
 #include "remoting/host/ipc_constants.h"
 #include "remoting/host/linux/linux_process_launcher_delegate.h"
 #include "remoting/host/linux/remote_display_session_manager.h"
 #include "remoting/host/mojom/desktop_session.mojom.h"
+#include "remoting/host/pam_utils.h"
 #include "remoting/host/worker_process_ipc_delegate.h"
 #include "remoting/host/worker_process_launcher.h"
 
@@ -127,6 +128,14 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::
     // it is running.
     launcher_.reset();
     return;
+  }
+
+  if (!IsLocalLoginAllowed(info.user_info->username)) {
+    LOG(ERROR) << "User " << info.user_info->username
+               << " is not allowed for local login.";
+    // TODO: crbug.com/475611769 - Pass the SESSION_REJECTED error code to the
+    // network process so that the client can see the correct error message.
+    TerminateSession();
   }
 
   // TODO: crbug.com/475611769 - See if we need a dedicated desktop process
@@ -260,7 +269,10 @@ DesktopSessionFactoryLinux::~DesktopSessionFactoryLinux() {
 void DesktopSessionFactoryLinux::Start(Callback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  remote_display_session_manager_.Start(this, std::move(callback));
+  remote_display_session_manager_.Start(
+      this,
+      base::BindOnce(&DesktopSessionFactoryLinux::OnStartResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 std::unique_ptr<DesktopSession>
@@ -286,6 +298,33 @@ DesktopSessionFactoryLinux::CreateDesktopSession(
                      weak_ptr_factory_.GetWeakPtr(), display_name));
   desktop_sessions_[display_name] = desktop_session->GetWeakPtr();
   return desktop_session;
+}
+
+void DesktopSessionFactoryLinux::OnStartResult(
+    Callback callback,
+    base::expected<void, Loggable> result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (result.has_value()) {
+    // If there are any pre-existing remote displays with the CRD prefix, then
+    // they are probably leaked from the previous CRD host incarnation. We can't
+    // reuse them so we just terminate them to prevent collisions of the remote
+    // display names.
+    // TODO: crbug.com/475611769 - see how we can recover these sessions. We may
+    // need to write something to the disk.
+    for (const auto& [display_name, _] :
+         remote_display_session_manager_.remote_displays()) {
+      HOST_LOG << "Terminating pre-existing remote display: " << display_name;
+      remote_display_session_manager_.TerminateRemoteDisplay(
+          display_name,
+          base::BindOnce([](base::expected<void, Loggable> result) {
+            if (!result.has_value()) {
+              LOG(ERROR) << result.error();
+            }
+          }));
+    }
+  }
+  std::move(callback).Run(std::move(result));
 }
 
 void DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult(

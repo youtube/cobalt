@@ -247,6 +247,9 @@ COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kPlatformClipboardMonitor);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kNonBlockingOsClipboardReads);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kEnablePixelCanvasRecording);
 
 bool COMPONENT_EXPORT(UI_BASE_FEATURES) IsPixelCanvasRecordingEnabled();
@@ -269,6 +272,12 @@ BASE_DECLARE_FEATURE(kStringWidthCache);
 // (not just advertises it) before treating files as real.
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kUseClipboardStrictVirtualFileCheck);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kAsyncVirtualFileExtraction);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kVirtualFileChunkedRead);
 
 }  // namespace features
 

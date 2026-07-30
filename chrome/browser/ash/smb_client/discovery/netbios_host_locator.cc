@@ -43,7 +43,7 @@ net::IPAddress CalculateBroadcastAddress(
 }
 
 // TODO(baileyberro): Some devices' wifi interface has CONNECTION_UNKNOWN as
-// type rather than CONNECTION_WIFI. https://crbug.com/872665
+// type rather than CONNECTION_WIFI. https://crbug.com/40588714
 bool ShouldUseInterface(const net::NetworkInterface& interface) {
   return interface.address.IsIPv4() &&
          interface.prefix_length < (net::IPAddress::kIPv4AddressSize * 8) &&
@@ -192,8 +192,8 @@ void NetBiosHostLocator::AddHostToResult(const net::IPEndPoint& sender_ip,
 bool NetBiosHostLocator::WouldOverwriteResult(
     const net::IPEndPoint& sender_ip,
     const std::string& hostname) const {
-  return results_.count(hostname) &&
-         results_.at(hostname) != sender_ip.address();
+  auto it = results_.find(hostname);
+  return it != results_.end() && it->second != sender_ip.address();
 }
 
 }  // namespace ash::smb_client

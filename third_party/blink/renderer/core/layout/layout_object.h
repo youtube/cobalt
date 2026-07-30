@@ -505,6 +505,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     }
   }
 
+#if EXPENSIVE_DCHECKS_ARE_ON()
   // This function checks if the fragment tree is consistent with the
   // |LayoutObject| tree. This consistency is critical, as sometimes we traverse
   // the fragment tree, sometimes the |LayoutObject| tree, or mix the
@@ -523,7 +524,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
       layout_object->AssertClearedPaintInvalidationFlags();
     }
   }
-
+#endif  // EXPENSIVE_DCHECKS_ARE_ON()
 #endif  // DCHECK_IS_ON()
 
   // LayoutObject tree manipulation

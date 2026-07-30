@@ -25,20 +25,23 @@ class PLATFORM_EXPORT CanvasNon2DSnapshotProviderBitmap
 
   ~CanvasNon2DSnapshotProviderBitmap() override;
 
+  static scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
+      const CanvasSnapshotProvider::Info& info,
+      base::FunctionRef<void(cc::PaintCanvas&)> draw_callback,
+      ImageOrientation orientation);
+
   // CanvasSnapshotProvider:
   bool IsGpuContextLost() const override;
   bool IsValid() const override;
   bool IsAccelerated() const override { return false; }
   bool IsExternalBitmapProvider() const override { return true; }
-  scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
-      ImageOrientation orientation) override;
   viz::SharedImageFormat GetSharedImageFormat() const override {
     return info_.format;
   }
   gfx::ColorSpace GetColorSpace() const override { return info_.color_space; }
   SkAlphaType GetAlphaType() const override { return info_.alpha_type; }
   gfx::Size Size() const override { return info_.size; }
+  const CanvasSnapshotProvider::Info& Info() const { return info_; }
 
  private:
   explicit CanvasNon2DSnapshotProviderBitmap(
@@ -46,7 +49,7 @@ class PLATFORM_EXPORT CanvasNon2DSnapshotProviderBitmap
 
   class ImageProviderImpl : public cc::ImageProvider {
    public:
-    explicit ImageProviderImpl(CanvasSnapshotProvider::Info info);
+    ImageProviderImpl(bool is_f16, const gfx::ColorSpace& color_space);
     ~ImageProviderImpl() override = default;
 
     // cc::ImageProvider:
@@ -54,23 +57,11 @@ class PLATFORM_EXPORT CanvasNon2DSnapshotProviderBitmap
         const cc::DrawImage& draw_image) override;
 
    private:
-    std::unique_ptr<cc::PlaybackImageProvider> playback_image_provider_n32_;
-    std::optional<cc::PlaybackImageProvider> playback_image_provider_f16_;
+    bool is_f16_;
+    gfx::ColorSpace color_space_;
   };
 
-  std::optional<ImageProviderImpl> image_provider_impl_;
-  sk_sp<SkSurface> surface_;
-
   const CanvasSnapshotProvider::Info info_;
-
-  const cc::PaintImage::Id snapshot_paint_image_id_;
-  cc::PaintImage::ContentId snapshot_paint_image_content_id_ =
-      cc::PaintImage::kInvalidContentId;
-  uint32_t snapshot_sk_image_id_ = 0u;
-
-  // Recording accumulating draw ops. This pointer is always valid and safe to
-  // dereference.
-  std::unique_ptr<MemoryManagedPaintRecorder> recorder_;
 };
 
 }  // namespace blink

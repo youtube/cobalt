@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,11 +31,12 @@
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "components/sessions/content/content_live_tab.h"
 #include "components/sessions/core/live_tab_context.h"
+#include "components/sessions/core/serialized_navigation_entry.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
@@ -57,7 +59,10 @@
 #include "chrome/browser/ui/android/tab_model/android_live_tab_context.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
+#include "ui/base/page_transition_types.h"
 #else
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #endif
@@ -104,22 +109,26 @@ bool SortTabsByRecency(const sessions::SessionTab* t1,
   return t1->timestamp > t2->timestamp;
 }
 
-api::tabs::Tab CreateTabModelHelper(
-    const sessions::SerializedNavigationEntry& current_navigation,
-    const std::string& session_id,
-    int index,
-    bool pinned,
-    bool active,
-    const Extension* extension,
-    mojom::ContextType context) {
+// Creates an extensions tab API object. Takes primitive types as parameters
+// so it can be used both with TabRestoreService (on Win/Mac/Linux) and
+// TabModel (on Android).
+api::tabs::Tab CreateTabModelHelper(const GURL& virtual_url,
+                                    const std::u16string& title_utf16,
+                                    const GURL& favicon_url,
+                                    const std::string& session_id,
+                                    int index,
+                                    bool pinned,
+                                    bool active,
+                                    const Extension* extension,
+                                    mojom::ContextType context) {
   api::tabs::Tab tab_struct;
 
-  const GURL& url = current_navigation.virtual_url();
-  std::string title = base::UTF16ToUTF8(current_navigation.title());
+  const GURL& url = virtual_url;
+  std::string title = base::UTF16ToUTF8(title_utf16);
 
   tab_struct.session_id = session_id;
   tab_struct.url = url.spec();
-  tab_struct.fav_icon_url = current_navigation.favicon_url().spec();
+  tab_struct.fav_icon_url = favicon_url.spec();
   if (!title.empty()) {
     tab_struct.title = title;
   } else {
@@ -212,6 +221,22 @@ BrowserWindowInterface* FindBrowserWindowInterfaceWithProfile(
   return nullptr;
 }
 
+#if BUILDFLAG(IS_ANDROID)
+// Updates tab properties for `new_tab` in `new_tab_list` using data from
+// `saved_tab`. There aren't many properties to update because properties like
+// URL, title, favicon, etc. come from loading the page in the tab.
+void UpdateTabState(TabAndroid* saved_tab,
+                    TabListInterface* new_tab_list,
+                    tabs::TabHandle new_tab) {
+  if (saved_tab->IsPinned()) {
+    new_tab_list->PinTab(new_tab);
+  }
+  if (saved_tab->IsActivated()) {
+    new_tab_list->ActivateTab(new_tab);
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace
 
 SessionsGetRecentlyClosedFunction::SessionsGetRecentlyClosedFunction() =
@@ -223,10 +248,12 @@ SessionsGetRecentlyClosedFunction::~SessionsGetRecentlyClosedFunction() =
 api::tabs::Tab SessionsGetRecentlyClosedFunction::CreateTabModel(
     const sessions::tab_restore::Tab& tab,
     bool active) {
-  return CreateTabModelHelper(tab.navigations[tab.current_navigation_index],
-                              base::NumberToString(tab.id.id()),
-                              tab.tabstrip_index, tab.pinned, active,
-                              extension(), source_context_type());
+  const sessions::SerializedNavigationEntry& navigation =
+      tab.navigations[tab.current_navigation_index];
+  return CreateTabModelHelper(
+      navigation.virtual_url(), navigation.title(), navigation.favicon_url(),
+      base::NumberToString(tab.id.id()), tab.tabstrip_index, tab.pinned, active,
+      extension(), source_context_type());
 }
 
 api::windows::Window SessionsGetRecentlyClosedFunction::CreateWindowModel(
@@ -368,31 +395,25 @@ void SessionsGetRecentlyClosedFunction::OnGetRecentlyClosedWindow(
 
   // Extract the URL for the closed windows.
   std::vector<api::tabs::Tab> api_tabs;
-  for (int i = 0; i < model->GetTabCount(); ++i) {
-    TabAndroid* tab = model->GetTabAt(i);
+  for (int index = 0; index < model->GetTabCount(); ++index) {
+    TabAndroid* tab = model->GetTabAt(index);
     CHECK(tab);
     // NOTE: The tabs may not have WebContents, since the window is closed.
-    // TODO(crbug.com/405219627): Extract more metadata from the tab and return
-    // it to the API caller.
-    api::tabs::Tab api_tab;
-    api_tab.index = i;
-    GURL url = tab->GetURL();
-    api_tab.url = url.spec();
-
-    // Scrub any sensitive information from the tab before adding to the list.
-    ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
-        ExtensionTabUtil::GetScrubTabBehavior(extension(),
-                                              source_context_type(), url);
-    ExtensionTabUtil::ScrubTabForExtension(extension(), nullptr, &api_tab,
-                                           scrub_tab_behavior);
+    // TODO(crbug.com/405219627): Figure out how to pass the favicon URL.
+    api::tabs::Tab api_tab = CreateTabModelHelper(
+        tab->GetURL(), tab->GetTitle(), /*favicon_url=*/GURL(),
+        base::NumberToString(tab->GetWindowId().id()), index, tab->IsPinned(),
+        tab->IsActivated(), extension(), source_context_type());
     api_tabs.push_back(std::move(api_tab));
   }
 
   // Populate the window and session objects.
-  api::windows::Window window;
-  window.tabs = std::move(api_tabs);
-  api::sessions::Session session;
-  session.window = std::move(window);
+  api::windows::Window window = CreateWindowModelHelper(
+      std::move(api_tabs), base::NumberToString(model->GetSessionId().id()),
+      api::windows::WindowType::kNormal, api::windows::WindowState::kNormal);
+  api::sessions::Session session =
+      CreateSessionModelHelper(base::Time::Now().ToTimeT(), std::nullopt,
+                               std::move(window), std::nullopt);
 
   // Add the session to the result.
   result_.push_back(std::move(session));
@@ -408,9 +429,12 @@ api::tabs::Tab SessionsGetDevicesFunction::CreateTabModel(
     int tab_index,
     bool active) {
   std::string session_id = SessionId(session_tag, tab.tab_id.id()).ToString();
-  return CreateTabModelHelper(
-      tab.navigations[tab.normalized_navigation_index()], session_id, tab_index,
-      tab.pinned, active, extension(), source_context_type());
+  const sessions::SerializedNavigationEntry& navigation =
+      tab.navigations[tab.normalized_navigation_index()];
+  return CreateTabModelHelper(navigation.virtual_url(), navigation.title(),
+                              navigation.favicon_url(), session_id, tab_index,
+                              tab.pinned, active, extension(),
+                              source_context_type());
 }
 
 std::optional<api::windows::Window>
@@ -588,6 +612,10 @@ ExtensionFunction::ResponseAction SessionsGetDevicesFunction::Run() {
   return RespondNow(ArgumentList(GetDevices::Results::Create(result)));
 }
 
+SessionsRestoreFunction::SessionsRestoreFunction() = default;
+
+SessionsRestoreFunction::~SessionsRestoreFunction() = default;
+
 ExtensionFunction::ResponseValue SessionsRestoreFunction::GetRestoredTabResult(
     content::WebContents* contents) {
   ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
@@ -619,7 +647,7 @@ SessionsRestoreFunction::GetRestoredWindowResult(int window_id) {
                                std::move(*window), std::nullopt)));
 }
 
-ExtensionFunction::ResponseValue
+ExtensionFunction::ResponseAction
 SessionsRestoreFunction::RestoreMostRecentlyClosed(
     BrowserWindowInterface* browser) {
   sessions::TabRestoreService* tab_restore_service =
@@ -629,13 +657,21 @@ SessionsRestoreFunction::RestoreMostRecentlyClosed(
       tab_restore_service->entries();
 
   if (entries.empty()) {
-    return Error(kNoRecentlyClosedSessionsError);
+#if BUILDFLAG(IS_ANDROID)
+    // Android only stores tab restore information in TabRestoreService, so we
+    // must also query the Java side to check for window restore information.
+    return QueryRecentlyClosedEntitiesManager();
+#else
+    // Other platforms store everything in TabRestoreService, so if there are no
+    // entries there is nothing to restore.
+    return RespondNow(Error(kNoRecentlyClosedSessionsError));
+#endif
   }
 
   bool is_window = is_window_entry(*entries.front());
   sessions::LiveTabContext* context = GetLiveTabContextForBrowser(browser);
   if (!context) {
-    return Error(kNoLiveTabContextError);
+    return RespondNow(Error(kNoLiveTabContextError));
   }
   std::vector<sessions::LiveTab*> restored_tabs =
       tab_restore_service->RestoreMostRecentEntry(context);
@@ -644,12 +680,128 @@ SessionsRestoreFunction::RestoreMostRecentlyClosed(
   sessions::ContentLiveTab* first_tab =
       static_cast<sessions::ContentLiveTab*>(restored_tabs[0]);
   if (is_window) {
-    return GetRestoredWindowResult(
-        ExtensionTabUtil::GetWindowIdOfTab(&first_tab->GetWebContents()));
+    return RespondNow(GetRestoredWindowResult(
+        ExtensionTabUtil::GetWindowIdOfTab(&first_tab->GetWebContents())));
   }
 
-  return GetRestoredTabResult(&first_tab->GetWebContents());
+  return RespondNow(GetRestoredTabResult(&first_tab->GetWebContents()));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+ExtensionFunction::ResponseAction
+SessionsRestoreFunction::QueryRecentlyClosedEntitiesManager() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  // Getting recently closed windows from Java is asynchronous. `this` is safe
+  // because `SessionsRestoreFunction` is ref-counted.
+  base::OnceCallback<void(const base::android::JavaRef<jobject>&)> callback =
+      base::BindOnce(&SessionsRestoreFunction::OnGetRecentlyClosedWindow, this);
+  Java_RecentlyClosedEntriesManager_getRecentlyClosedWindow(
+      env, base::android::ToJniCallback(env, std::move(callback)));
+
+  // Check if the callback already ran and responded to the extension.
+  if (did_respond()) {
+    return AlreadyResponded();
+  } else {
+    return RespondLater();
+  }
+}
+
+void SessionsRestoreFunction::OnGetRecentlyClosedWindow(
+    const base::android::JavaRef<jobject>& j_tab_model) {
+  if (j_tab_model.is_null()) {
+    // No tab model, so no window to restore.
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // Look up the C++ side TabModel.
+  TabModel* saved_tab_model =
+      TabModelList::FindNativeTabModelForJavaObject(j_tab_model);
+  if (!saved_tab_model) {
+    // No tab model, so no window to restore.
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // Ensure there are tabs in the window to restore.
+  if (saved_tab_model->GetTabCount() == 0) {
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // Save the tab model object, which we'll need after window creation. This is
+  // a Java global reference, so the object will stay alive across the callback.
+  global_ref_tab_model_ = j_tab_model;
+
+  // Open a window, which is asynchronous.
+  // TODO(crbug.com/405219627): Restore window bounds.
+  BrowserWindowCreateParams params(
+      BrowserWindowInterface::TYPE_NORMAL,
+      *Profile::FromBrowserContext(browser_context()),
+      /*from_user_gesture=*/false);
+  // `this` is safe because the object is ref-counted.
+  auto callback =
+      base::BindOnce(&SessionsRestoreFunction::OnBrowserWindowCreated, this);
+  CreateBrowserWindow(std::move(params), std::move(callback));
+}
+
+void SessionsRestoreFunction::OnBrowserWindowCreated(
+    BrowserWindowInterface* browser) {
+  TabListInterface* new_tab_list = TabListInterface::From(browser);
+  CHECK(new_tab_list);
+
+  // Look up the C++ side TabModel again.
+  TabModel* saved_tab_model =
+      TabModelList::FindNativeTabModelForJavaObject(global_ref_tab_model_);
+  if (!saved_tab_model) {
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // This should not happen, but just in case.
+  if (saved_tab_model->GetTabCount() == 0) {
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // New Android browser windows start with one tab open already. Load the first
+  // URL into that tab's WebContents.
+  CHECK_EQ(new_tab_list->GetTabCount(), 1);
+  content::WebContents* first_contents = new_tab_list->GetTab(0)->GetContents();
+  CHECK(first_contents);
+  GURL first_url = saved_tab_model->GetTabAt(0)->GetURL();
+  base::WeakPtr<content::NavigationHandle> handle =
+      first_contents->GetController().LoadURL(first_url, content::Referrer(),
+                                              ui::PAGE_TRANSITION_FROM_API,
+                                              /*extra_headers=*/std::string());
+
+  // This should not happen, but just in case.
+  if (!handle.get()) {
+    Respond(Error(kNoRecentlyClosedSessionsError));
+    return;
+  }
+
+  // Create new tabs for the rest of the saved tabs.
+  for (int i = 1; i < saved_tab_model->GetTabCount(); ++i) {
+    TabAndroid* saved_tab = saved_tab_model->GetTabAt(i);
+    CHECK(saved_tab);
+    new_tab_list->OpenTab(saved_tab->GetURL(), i);
+  }
+
+  // Update tab state like pinned and active in a separate loop because loading
+  // new tabs may change activation state.
+  for (int i = 0; i < saved_tab_model->GetTabCount(); ++i) {
+    TabAndroid* saved_tab = saved_tab_model->GetTabAt(i);
+    tabs::TabHandle new_tab_handle = new_tab_list->GetTab(i)->GetHandle();
+    UpdateTabState(saved_tab, new_tab_list, new_tab_handle);
+  }
+
+  // Respond to the API. Note that the tabs have not yet finished loading, so
+  // their "committed URL" will be empty. They will eventually finish and we
+  // don't want to block the API on multiple tab loads.
+  Respond(GetRestoredWindowResult(ExtensionTabUtil::GetWindowId(browser)));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 ExtensionFunction::ResponseValue SessionsRestoreFunction::RestoreLocalSession(
     const SessionId& session_id,
@@ -790,7 +942,7 @@ ExtensionFunction::ResponseAction SessionsRestoreFunction::Run() {
   }
 
   if (!params->session_id) {
-    return RespondNow(RestoreMostRecentlyClosed(browser));
+    return RestoreMostRecentlyClosed(browser);
   }
 
   std::unique_ptr<SessionId> session_id(SessionId::Parse(*params->session_id));

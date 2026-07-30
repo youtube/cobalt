@@ -17,9 +17,11 @@
   --composebox-border-radius: 24px;
   --composebox-collapsed-height: 90px;
   --composebox-margin-bottom: 30px;
-  --composebox-start-indent: 20px;
-  --context-carousel-inline-end-spacing: 24px;
-  --context-carousel-inline-start-spacing: 24px;
+  --context-carousel-inline-end-spacing: 56px;
+  --context-carousel-inline-start-spacing: 20px;
+  --context-carousel-top-position: 20px;
+  --context-top-carousel-bottom-margin: 0;
+  --context-top-carousel-top-margin: 0;
   --composebox-container-height:
     calc(var(--composebox-height) + var(--composebox-dropdown-height)
       + var(--composebox-margin-bottom)
@@ -31,8 +33,6 @@
   --composebox-submit-container-inline-end:
       var(--composebox-last-icon-inline-end);
   --composebox-last-icon-inline-end: 12px;
-  --cr-composebox-file-chip-url-text-size: 11px;
-  --cr-composebox-file-chip-title-text-size: 14px;
   --cr-searchbox-height: 52px;
   --cr-searchbox-min-width: min(calc(100%), 1100px);
   --icon-menu-spacing: 6px;
@@ -84,6 +84,15 @@
   position: fixed;
 }
 
+:host(:not([input-enabled])) #composebox::part(composebox) {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+:host(:not([input-enabled])) #composebox::part(input) {
+  caret-color: transparent;
+}
+
 :host(:not([is-zero-state])) #composebox::before {
   background: var(--search-background-color);
   border-radius: var(--composebox-border-radius);
@@ -113,10 +122,6 @@
 }
 
 #composebox {
-  --composebox-thumbnail-img-chip-size: 44px;
-  /* 20px on right side. */
-  --composebox-width: calc(100% -
-      var(--composebox-start-indent) - 20px);
   --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
   --text-input-left-spacing: 24px;
@@ -128,15 +133,11 @@
   box-shadow: none;
   box-sizing: border-box;
   display: block;
-  inset-inline-start: var(--composebox-start-indent);
   max-width: var(--composebox-max-width);
   position: relative;
   /* Fast out (start), slow in (end) box shadow transition. */
   transition: box-shadow 600ms cubic-bezier(0.4, 0.0, 0.2, 1);
-  /* Ensure composebox does not overflow due to indentation.
-   * 20px on right side.
-   */
-  width: var(--composebox-width);
+  width: 100%;
   z-index: 1;
 }
 
@@ -149,47 +150,8 @@
   min-width: 200px;
 }
 
-/* TODO(crbug.com/466201452): Check this relayout logic
- * once Google.com AIM is RTL that this matches AIM.
- */
-
-@media (min-width: 789px) {
-  :host(:not([is-zero-state])[is-side-panel]) #composeboxContainer {
-    /* 96px gutter + 5px for text indentation in thread. */
-    --composebox-start-indent: 101px;
-  }
-}
-
-@media (min-width: 480px) {
-  :host(:not([is-zero-state]):not([is-side-panel])) #composeboxContainer {
-    /* Google.com uses 96px for indent column, and 5px left padding.
-     * Aligns the input text of the composebox with the AIM thread.
-     */
-    --composebox-start-indent: 101px;
-  }
-}
-
-/* W/more space, indent further to match AIM for both side panel and full tab.*/
-@media (min-width: 1420px) {
-  :host(:not([is-zero-state]):not([is-side-panel])) #composeboxContainer,
-  :host(:not([is-zero-state])[is-side-panel]) #composeboxContainer {
-    /* At this width, indent column should be 280px + 5px left padding.
-     * Google.com AIM has 20 other 36px columns as "inset end space",
-     * with 20px gaps, which = 720px of cols, 21 * 20px = 420px of gaps.
-     * Combined, this is 1140px of fixed space.
-     * The first and last columns are 1fr, so the remaining fluid
-     * space is (100% - 1140px) / 2 since we are splitting between the
-     * 2 columns, which = 50% - 570px per flex column. Since at this
-     * breakpoint, we need at least 280px of left indentation to match
-     * the AIM thread, we do not start growing until flexible
-     * indentation space > 280px of minimum left indentation.
-     */
-    --composebox-start-indent: max(285px, calc(50% - 570px));
-  }
-}
-
 #composebox::part(thumbnail) {
-  --thumbnail-size_: 28px;
+  --thumbnail-size_: var(--file-chip-thumbnail-full-size);
   height: var(--thumbnail-size_);
   padding: 0;
   width: var(--thumbnail-size_);
@@ -204,6 +166,12 @@
 #composebox::part(g-container) {
   max-height: 40vh;
   padding: 0;
+}
+
+#composebox::part(input),
+#composebox::part(tool-chip-label),
+#composebox::part(file-thumbnail-title) {
+  font-family: var(--google-sans-font);
 }
 
 #composebox::part(input-container) {
@@ -230,7 +198,7 @@
 
 #composebox[show-file-carousel_]::part(carousel-container) {
   /* Give room for the close button in the top right. */
-  --context-carousel-inline-end-spacing: 62px;
+  --context-carousel-inline-end-spacing: 56px;
 }
 
 #composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
@@ -377,7 +345,8 @@
   order: -1;
   position: fixed;
   transform: translateY(calc(-1 * (var(--composebox-height) + var(--composebox-margin-bottom))));
-  width: calc(var(--composebox-width) - 32px);
+  /* composebox-width defined by app.css */
+  width: calc(var(--composebox-width, 692px) - 32px);
   z-index: 4;
 }
 
@@ -451,11 +420,12 @@
  box-shadow: 2px 17px 18px -10px rgba(0, 0, 0, 0.05);
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer {
   --cr-composebox-match-match-padding-bottom: 0px;
   --color-searchbox-results-background-hovered: transparent;
   --color-searchbox-results-background-selected: transparent;
   --match-border-size: 2px;
+  --color-searchbox-results-icon-focused-outline: rgba(153, 200, 255, 1);
 
   align-items: flex-start;
   background-color: var(--search-background-color);
@@ -463,26 +433,27 @@
   margin-top: 16px;
   padding-inline-end: 8px;
   padding-inline-start: 8px;
+  pointer-events: auto;
   /* Do not set width since we are using padding + fitting children content. */
 }
 
-:host([is-zero-state][is-side-panel]) #coBrSuggestionsContainer  {
+:host([is-zero-state][is-side-panel]) #contextualTasksSuggestionsContainer  {
   margin-bottom: 24px;
   margin-top: 24px;
   /* Becomes 44px from the 28px ending padding in child. */
   padding-inline-end: 16px;
-  padding-inline-start: 16px;
+  /* Start inline from .flex-center is 16px. */
 }
 
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-focus-indicator) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-focus-indicator) {
   /* 'Important' is used to override all higher-specificity
    * dynamic focusIndicator modifications.
    */
   display: none !important;
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-container) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-container) {
   align-items: center;
   border-radius: 8px;
   box-sizing: border-box;
@@ -497,23 +468,22 @@
   width: calc(100% - 8px);
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-wrapper) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-wrapper) {
   width: 100%;
 }
 
-:host([is-zero-state][is-side-panel]) #coBrSuggestionsContainer::part(match-container) {
+:host([is-zero-state][is-side-panel]) #contextualTasksSuggestionsContainer::part(match-container) {
   /* With bottom padding of host = 56px. */
   height: 55px;
 }
 
-:host([is-loading_]) #coBrSuggestionsContainer::part(match-container) {
+:host([is-loading_]) #contextualTasksSuggestionsContainer::part(match-container) {
   pointer-events: none;
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-container):hover {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-container):hover {
   background-color: var(
-      --color-composebox-zero-state-suggestions-background-hovered,
-      rgba(247, 248, 250, 1));
+      --color-composebox-zero-state-suggestions-background-hovered);
 }
 
 @media (forced-colors: active) {
@@ -523,7 +493,7 @@
   }
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-icon-container) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon-container) {
   height: 24px;
   padding-inline-end: 8px;
   padding-inline-start: 8px;
@@ -531,22 +501,22 @@
 }
 
 :host([is-zero-state][is-side-panel])
-    #coBrSuggestionsContainer::part(match-icon-container) {
+    #contextualTasksSuggestionsContainer::part(match-icon-container) {
   padding-inline-end: 12px;
-  padding-inline-start: 16px;
+  padding-inline-start: 12px;
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-icon) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon) {
   background-color: var(--color-composebox-font-dark);
   height: 20px;
   margin: 2px;
   width: 20px;
 }
 
-:host([is-zero-state]) #coBrSuggestionsContainer::part(match-text-container) {
+:host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-text-container) {
   border-radius: 4px;
   color: var(--color-composebox-font-dark);
-  font-family: inherit;
+  font-family: var(--google-sans-font);
   font-size: 16px;
   letter-spacing: 1%;
   inset-inline-start: 12px;
@@ -556,14 +526,18 @@
 /* 'loading-bar-color-change' must be defined in child component
  * the animation modifies.
  */
-:host([is-zero-state][is-loading_]) #coBrSuggestionsContainer::part(match-text-container) {
+:host([is-zero-state][is-loading_]) #contextualTasksSuggestionsContainer::part(match-text-container) {
   animation: 2s loading-bar-color-change calc(0.1s * var(--loading-bar-animation-delay))
       infinite;
   background-color: var(--color-composebox-loading-start);
 }
 
 :host(:not([is-side-panel])[is-zero-state])
-    #coBrSuggestionsContainer::part(match-text-container) {
+    #contextualTasksSuggestionsContainer::part(match-text-container) {
   inset-inline-start: 8px;
   width: calc(100% - 8px);
+}
+
+#composeboxContainer:not(:has(#composebox[show-dropdown_])) ~ #contextualTasksSuggestionsContainer {
+  display: none;
 }

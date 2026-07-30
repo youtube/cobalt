@@ -110,14 +110,17 @@ class EslintTsTest(unittest.TestCase):
 
   def testWebUiEslintPlugin_WebComponentMissingDeps(self):
     with self.assertRaises(RuntimeError) as context:
-      self._run_test(
-          ["with_webui_plugin_web_component_missing_deps_violations.html.ts"],
-          enable_web_component_missing_deps=True)
+      self._run_test([
+          "with_webui_plugin_web_component_missing_deps_violations.html.ts",
+          "with_webui_plugin_web_component_missing_deps_violations_bar.html.ts",
+          "with_webui_plugin_web_component_missing_deps_violations_foo.html.ts",
+      ],
+                     enable_web_component_missing_deps=True)
 
     _EXPECTED_STRING = "@webui-eslint/web-component-missing-deps"
     self.assertTrue(_EXPECTED_STRING in str(context.exception))
 
-    _EXPECTED_ERROR = "Missing explicit import statement for '%(tagName)s' in the class definition file 'with_webui_plugin_web_component_missing_deps_violations.ts'"
+    _EXPECTED_ERROR = "Missing explicit import statement for '%(tagName)s' in the class definition file 'with_webui_plugin_web_component_missing_deps_violations.ts' or in 'lazy_load.ts'"
 
     # The following strings *should* appear in the error output since the
     # referenced dependencies are imported.
@@ -130,6 +133,14 @@ class EslintTsTest(unittest.TestCase):
         },
         _EXPECTED_ERROR % {
             'tagName': 'other-button2'
+        },
+        # Testing missing dependencies check correctly identifies missing imports
+        # in helper html.ts files.
+        _EXPECTED_ERROR % {
+            'tagName': 'cr-input'
+        },
+        _EXPECTED_ERROR % {
+            'tagName': 'my-bar'
         },
     ]
     for e in errors:
@@ -157,6 +168,14 @@ class EslintTsTest(unittest.TestCase):
         # Imported via lazy_load.js (testing lazy loading detection).
         _EXPECTED_ERROR % {
             'tagName': 'foo-bar'
+        },
+        # Testing dependencies correctly imported for helper template files are
+        # not reported as missing.
+        _EXPECTED_ERROR % {
+            'tagName': 'cr-textarea'
+        },
+        _EXPECTED_ERROR % {
+            'tagName': 'my-foo'
         },
     ]
     for e in non_errors:
@@ -221,6 +240,8 @@ class EslintTsTest(unittest.TestCase):
     _EXPECTED_STRING = "@webui-eslint/lit-element-structure"
     self.assertTrue(_EXPECTED_STRING in str(context.exception))
 
+    _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR = "Inconsistent method definition order in class %(className)s. Expected %(expectedOrder)s, found %(actualOrder)s"
+    _EXPECTED_INCORRECT_CLASS_NAME_ERROR = 'CrLitElement subclass %(className)s should end with the \'Element\' suffix'
     _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR = "Missing customElements.define(%(className)s.is, %(className)s) call"
     _EXPECTED_MISSING_STATIC_GET_IS_ERROR = "Missing 'static get is() {...}' for web component class %(className)s"
     _EXPECTED_MISSING_SUPER_CALLS_ERROR = "Missing superclass calls for lifecycle method(s) %(lifecycleMethods)s in class %(className)s"
@@ -232,34 +253,55 @@ class EslintTsTest(unittest.TestCase):
 
     # The following strings *should* appear in the error output.
     errors = [
-        # Case1
+        # Case 1.1
         _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
-            'className': 'SomeElement1'
+            'className': 'TestError1Element',
         },
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement1'
+            'className': 'TestError1Element',
         },
-        # Case2
+        # Case 1.2
         _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
-            'className': 'SomeElement2',
-            'domName': 'some-element2'
+            'className': 'TestError2Element',
+            'domName': 'test-error2'
         },
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement2'
+            'className': 'TestError2Element',
         },
-        # Case3
+        # Case 1.3
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement3'
+            'className': 'TestError3Element',
         },
-        # Case4
+        # Case 1.4
         _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
-            'className': 'SomeElement4',
-            'domName': 'some-element4'
+            'className': 'TestError4Element',
+            'domName': 'test-error4',
         },
-        # Case5
+        # Case 1.5
         _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
-            'className': 'SomeElement5',
-            'lifecycleMethods': ', '.join(super_call_required_methods)
+            'className': 'TestError5Element',
+            'lifecycleMethods': ', '.join(super_call_required_methods),
+        },
+        # Case 1.6
+        _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR % {
+            'className':
+                'TestError6Element',
+            'expectedOrder':
+                '[is, styles, render, properties, constructor, connectedCallback, disconnectedCallback, willUpdate, firstUpdated, updated]',
+            'actualOrder':
+                '[render, styles, is, properties, disconnectedCallback, connectedCallback, constructor, willUpdate, updated, firstUpdated]',
+        },
+        # Case 1.7
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestError7ElementFoo',
+        },
+        # Case 1.8
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestError8ElementFoo',
+        },
+        # Case 1.9
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestError9ElementFoo',
         },
     ]
     for e in errors:
@@ -268,50 +310,71 @@ class EslintTsTest(unittest.TestCase):
 
     # The following strings *should not* appear in the error output.
     non_errors = [
-        # Case6
+        # Case 2.1
         _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
-            'className': 'SomeElement6'
+            'className': 'TestNoError1Element'
         },
         _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
-            'className': 'SomeElement6',
-            'domName': 'some-element6'
+            'className': 'TestNoError1Element',
+            'domName': 'test-no-error1',
         },
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement6'
+            'className': 'TestNoError1Element'
         },
         _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
-            'className': 'SomeElement6',
+            'className': 'TestNoError1Element',
             'lifecycleMethods': ', '.join(super_call_required_methods)
         },
-        # Case7
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestNoError1Element',
+        },
+        # Case 2.2
         _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
-            'className': 'SomeElement7'
+            'className': 'TestNoError2Element'
         },
         _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
-            'className': 'SomeElement7',
-            'domName': 'some-element7'
+            'className': 'TestNoError2Element',
+            'domName': 'test-no-error2',
         },
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement7'
+            'className': 'TestNoError2Element'
         },
         _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
-            'className': 'SomeElement7',
-            'lifecycleMethods': ', '.join(super_call_required_methods)
+            'className': 'TestNoError2Element',
+            'lifecycleMethods': ', '.join(super_call_required_methods),
         },
-        # Case8
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestNoError2Element',
+        },
+        # Case 2.3
         _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
-            'className': 'SomeElement8'
+            'className': 'TestNoError3Element',
         },
         _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
-            'className': 'SomeElement8',
-            'domName': 'some-element8'
+            'className': 'TestNoError3Element',
+            'domName': 'test-no-error3',
         },
         _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
-            'className': 'SomeElement8'
+            'className': 'TestNoError3Element',
         },
         _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
-            'className': 'SomeElement8',
+            'className': 'TestNoError3Element',
             'lifecycleMethods': ', '.join(super_call_required_methods)
+        },
+        _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR % {
+            'className':
+                'TestNoError3Element',
+            'expectedOrder':
+                '[is, styles, render, properties, constructor, connectedCallback, disconnectedCallback, willUpdate, firstUpdated, updated]',
+            'actualOrder':
+                '',
+        },
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestNoError3Element',
+        },
+        # Case 2.4
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestNoError4Element',
         },
     ]
     for e in non_errors:
@@ -327,21 +390,38 @@ class EslintTsTest(unittest.TestCase):
     _EXPECTED_STRING = "@webui-eslint/lit-element-template-structure"
     self.assertTrue(_EXPECTED_STRING in str(context.exception))
 
-    _FOR_STATEMENT_ERROR = "For loop found in the HTML template file 'with_webui_plugin_lit_element_template_structure_violations.html.ts'. Use the map() directive to render the same HTML for an array of items, and delegate more complex logic to the class definition file"
+    _FOR_STATEMENT_ERROR = "For loop found in getHtml() method. Use Array#map() to render the same HTML for an array of items, and delegate more complex logic to the class definition file"
 
-    _FUNCTION_DEFINITION_ERROR = "Extra function definition '%(functionName)s' found in the HTML template file 'with_webui_plugin_lit_element_template_structure_violations.html.ts'. Complex logic should be delegated to the class definition file. Standalone/separate chunks of templates may need a dedicated custom element"
+    _IF_STATEMENT_ERROR = "If statement found in getHtml() method. Use ternary statements for conditional rendering, and delegate more complex logic to the class definition file"
+
+    _FUNCTION_DEFINITION_ERROR = "Extra function definition '%(functionName)s' found in the HTML template file. Complex logic should be delegated to the class definition file. Standalone/separate chunks of templates may need a dedicated custom element"
+
+    _VARIABLE_DECLARATION_ERROR = "Local (const/let) variable '%(variableName)s' found in the HTML template file. Logic should be delegated to the class definition file"
 
     # The following strings *should* appear in the error output.
     errors = [
         _FOR_STATEMENT_ERROR,
+        _IF_STATEMENT_ERROR,
         _FUNCTION_DEFINITION_ERROR % {
-            'functionName': 'computeFoo'
+            'functionName': 'computeProgress'
         },
         _FUNCTION_DEFINITION_ERROR % {
             'functionName': 'getButtonHtml'
         },
         _FUNCTION_DEFINITION_ERROR % {
             'functionName': 'getSpinnerDiv'
+        },
+        _VARIABLE_DECLARATION_ERROR % {
+            'variableName': 'INPUT_MAX_LENGTH'
+        },
+        _VARIABLE_DECLARATION_ERROR % {
+            'variableName': 'input'
+        },
+        _VARIABLE_DECLARATION_ERROR % {
+            'variableName': 'titleClass'
+        },
+        _VARIABLE_DECLARATION_ERROR % {
+            'variableName': 'messagesToRender'
         },
     ]
     for e in errors:

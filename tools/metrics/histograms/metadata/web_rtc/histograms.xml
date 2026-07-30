@@ -924,7 +924,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.EstimatedSendBitrateInKbps" units="kbps"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>holmer@chromium.org</owner>
   <summary>
     Average estimated send bitrate during a call, counted from first packet sent
@@ -1175,17 +1175,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="WebRTC.DesktopCapture.Win.WgcDirtyRegionSupport"
-    enum="BooleanActive" expires_after="2026-03-22">
-  <owner>henrika@chromium.org</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <summary>
-    A boolean is recorded to this histogram each time a WGC capturer is created.
-    The result is true if WGC supports Dirty Region APIs and it is expected that
-    Windows 24H2 (build 26100) and above should support this new functionality.
-  </summary>
-</histogram>
-
 <histogram name="WebRTC.DesktopCapture.Win.{Capturer}CapturerFrameTime"
     units="ms" expires_after="2027-02-01">
   <owner>alcooper@chromium.org</owner>
@@ -1413,7 +1402,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.Duration.Worker" units="microseconds"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>handellm@google.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1547,7 +1536,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.NegotiatedFeedbackType"
-    enum="PeerConnectionRtcpFeedbackType" expires_after="2026-06-10">
+    enum="PeerConnectionRtcpFeedbackType" expires_after="2026-08-09">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
