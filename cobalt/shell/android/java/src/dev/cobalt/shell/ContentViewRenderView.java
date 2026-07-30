@@ -12,7 +12,9 @@ import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.util.Log;
 
+import org.chromium.base.CommandLine;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.WindowAndroid;
@@ -28,12 +30,16 @@ import org.jni_zero.NativeMethods;
  */
 @JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
+    private static final String TAG = "cobalt";
+
     // The native side of this object.
     private long mNativeContentViewRenderView;
     private WindowAndroid mWindowAndroid;
 
     protected SurfaceBridge mSurfaceBridge;
     protected WebContents mWebContents;
+    private final boolean mUseWindowSurface;
+    private SurfaceHolder mExternalSurfaceHolder;
 
     private int mWidth;
     private int mHeight;
@@ -47,9 +53,10 @@ public class ContentViewRenderView extends FrameLayout {
      */
     public ContentViewRenderView(Context context) {
         super(context);
-
+        mUseWindowSurface = CommandLine.getInstance().hasSwitch("enable-window-surface-ui");
         mSurfaceBridge = createSurfaceBridge();
         mSurfaceBridge.initialize(this);
+        Log.i(TAG, "ContentViewRenderView created, mUseWindowSurface=" + mUseWindowSurface);
     }
 
     protected SurfaceBridge createSurfaceBridge() {
@@ -62,7 +69,7 @@ public class ContentViewRenderView extends FrameLayout {
      * @param rootWindow The {@link WindowAndroid} this render view should be linked to.
      */
     public void onNativeLibraryLoaded(WindowAndroid rootWindow) {
-        assert !getSurfaceView().getHolder().getSurface().isValid()
+        assert getSurfaceView() == null || !getSurfaceView().getHolder().getSurface().isValid()
             : "Surface created before native library loaded.";
         assert rootWindow != null;
         mNativeContentViewRenderView =
@@ -87,6 +94,7 @@ public class ContentViewRenderView extends FrameLayout {
 
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
+                mExternalSurfaceHolder = holder;
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceCreated(
                         mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -96,13 +104,16 @@ public class ContentViewRenderView extends FrameLayout {
                 // devices, where a relayout never happens. This bug is out of Chromium's
                 // control, but can be worked around by forcibly re-setting the visibility of
                 // the surface view. Otherwise, the screen stays black, and some tests fail.
-                getSurfaceView().setVisibility(getSurfaceView().getVisibility());
+                if (getSurfaceView() != null) {
+                    getSurfaceView().setVisibility(getSurfaceView().getVisibility());
+                }
 
                 onReadyToRender();
             }
 
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
+                mExternalSurfaceHolder = null;
                 assert mNativeContentViewRenderView != 0;
                 ContentViewRenderViewJni.get().surfaceDestroyed(
                         mNativeContentViewRenderView, ContentViewRenderView.this);
@@ -153,6 +164,27 @@ public class ContentViewRenderView extends FrameLayout {
         return mSurfaceBridge.getSurfaceView();
     }
 
+    public boolean isUsingWindowSurface() {
+        return mUseWindowSurface;
+    }
+
+    public SurfaceHolder.Callback getSurfaceCallback() {
+        return mSurfaceBridge.getSurfaceCallback();
+    }
+
+    public SurfaceHolder getSurfaceHolder() {
+        if (mExternalSurfaceHolder != null) {
+            return mExternalSurfaceHolder;
+        }
+
+        SurfaceView surfaceView = getSurfaceView();
+        if (surfaceView != null) {
+            return surfaceView.getHolder();
+        }
+
+        return null;
+    }
+
     /**
      * Should be called when the ContentViewRenderView is not needed anymore so its associated
      * native resource can be freed.
@@ -196,26 +228,22 @@ public class ContentViewRenderView extends FrameLayout {
     }
 
     /**
-     * @return whether the surface view is initialized and ready to render.
-     */
-    public boolean isInitialized() {
-        return getSurfaceView().getHolder().getSurface() != null;
-    }
-
-    /**
      * Enter or leave overlay video mode.
      * @param enabled Whether overlay mode is enabled.
      */
     public void setOverlayVideoMode(boolean enabled) {
         int format = enabled ? PixelFormat.TRANSLUCENT : PixelFormat.OPAQUE;
-        getSurfaceView().getHolder().setFormat(format);
+        SurfaceHolder holder = getSurfaceHolder();
+        if (holder != null) {
+            holder.setFormat(format);
+        }
         ContentViewRenderViewJni.get().setOverlayVideoMode(
                 mNativeContentViewRenderView, ContentViewRenderView.this, enabled);
     }
 
     @CalledByNative
     private void didSwapFrame() {
-        if (getSurfaceView().getBackground() != null) {
+        if (getSurfaceView() != null && getSurfaceView().getBackground() != null) {
             post(new Runnable() {
                 @Override
                 public void run() {
@@ -236,7 +264,19 @@ public class ContentViewRenderView extends FrameLayout {
             return mSurfaceView;
         }
 
+        protected SurfaceHolder.Callback getSurfaceCallback() {
+            return mSurfaceCallback;
+        }
+
         protected void initialize(ContentViewRenderView renderView) {
+            if (renderView.mUseWindowSurface) {
+                return;
+            }
+
+            initializeSurfaceView(renderView);
+        }
+
+        private void initializeSurfaceView(ContentViewRenderView renderView) {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 
@@ -248,11 +288,17 @@ public class ContentViewRenderView extends FrameLayout {
 
         protected void connect(SurfaceHolder.Callback surfaceCallback) {
             mSurfaceCallback = surfaceCallback;
+            if (mSurfaceView == null) {
+                return;
+            }
             mSurfaceView.getHolder().addCallback(mSurfaceCallback);
             mSurfaceView.setVisibility(VISIBLE);
         }
 
         protected void disconnect() {
+            if (mSurfaceView == null) {
+                return;
+            }
             mSurfaceView.getHolder().removeCallback(mSurfaceCallback);
         }
     }

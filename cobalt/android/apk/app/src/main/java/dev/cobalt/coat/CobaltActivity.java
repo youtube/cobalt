@@ -97,6 +97,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
+  private WindowSurfaceDelegate mWindowSurfaceDelegate;
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
@@ -246,12 +247,19 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
+    if (mShellManager.getContentViewRenderView().isUsingWindowSurface()) {
+      Log.i(TAG, "Enabling window surface mode for UI, taking surface.");
+      mWindowSurfaceDelegate = new WindowSurfaceDelegate(mShellManager);
+      getWindow().takeSurface(mWindowSurfaceDelegate);
+    }
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
+    View surfaceView = mShellManager.getContentViewRenderView().getSurfaceView();
     mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+        new CobaltA11yHelper(
+            this, surfaceView != null ? surfaceView : mShellManager.getContentViewRenderView());
 
     maybeRegisterNetworkRecoveryObserver();
 
