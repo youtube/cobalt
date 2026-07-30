@@ -139,7 +139,6 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://prefs-internals",
 #endif
 
-      "chrome://privacy-sandbox-internals",
       "chrome://private-aggregation-internals",
       "chrome://private-ai-internals",
       "chrome://process-internals",
@@ -267,6 +266,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
 #endif
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
       "chrome://signin-dice-web-intercept.top-chrome/?debug",
+      "chrome://signin-qrcode-bar",
 #endif
 #if BUILDFLAG(ENABLE_DICE_SUPPORT) && !BUILDFLAG(IS_CHROMEOS)
       "chrome://signout-confirmation",

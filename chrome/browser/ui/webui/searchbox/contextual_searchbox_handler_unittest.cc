@@ -54,6 +54,7 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/feature_engagement/test/mock_tracker.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
@@ -204,9 +205,9 @@ class MockContextualTasksContextService
   explicit MockContextualTasksContextService(Profile* profile)
       : ContextualTasksContextService(profile) {}
   MOCK_METHOD(void,
-              GetRelevantTabsForQuery,
+              GetRelevantTabsForConversationThread,
               (const contextual_tasks::TabSelectionOptions&,
-               const std::string&,
+               const contextual_tasks::ConversationThread&,
                const std::vector<GURL>&,
                base::OnceCallback<
                    void(std::vector<base::WeakPtr<content::WebContents>>)>),
@@ -308,7 +309,8 @@ class ContextualSearchboxHandlerTest
 
   void SubmitQueryAndWaitForNavigation() {
     content::TestNavigationObserver navigation_observer(web_contents());
-    handler().SubmitQuery(kQueryText, 1, false, false, false, false);
+    handler().SubmitQuery(kQueryText, 1, false, false, false, false,
+                          /*is_voice_search=*/false);
     auto navigation = content::NavigationSimulator::CreateFromPending(
         web_contents()->GetController());
     ASSERT_TRUE(navigation);
@@ -983,6 +985,19 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery) {
                                    SessionState::kNavigationOccurred));
 }
 
+TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_VoiceSearch) {
+  bool was_voice_search = false;
+  EXPECT_CALL(query_controller(), CreateSearchUrl)
+      .WillOnce(
+          [&](auto&& request_info, base::OnceCallback<void(GURL)> callback) {
+            was_voice_search = request_info->is_voice_search;
+          });
+
+  handler().SubmitQuery(kQueryText, 1, false, false, false, false,
+                        /*is_voice_search=*/true);
+  EXPECT_TRUE(was_voice_search);
+}
+
 TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
   // Arrange
 
@@ -1097,7 +1112,10 @@ class SmartTabSharingTest : public ContextualSearchboxHandlerTestHarness {
     feature_list_.InitWithFeaturesAndParameters(
         {{contextual_tasks::kContextualTasks, {}},
          {contextual_tasks::kContextualTasksContext,
-          {{"ContextualTasksContextSmartTabSharing", "true"}}}},
+          {{"ContextualTasksContextSmartTabSharing", "true"}}},
+         {contextual_tasks::
+              kContextualTasksContextSmartTabSharingDefaultOnAvailability,
+          {}}},
         {});
 
     auto query_controller_config_params = std::make_unique<
@@ -1175,7 +1193,8 @@ class SmartTabSharingTest : public ContextualSearchboxHandlerTestHarness {
 
   void SubmitQueryAndWaitForNavigation() {
     content::TestNavigationObserver navigation_observer(web_contents());
-    handler().SubmitQuery(kQueryText, 1, false, false, false, false);
+    handler().SubmitQuery(kQueryText, 1, false, false, false, false,
+                          /*is_voice_search=*/false);
     auto navigation = content::NavigationSimulator::CreateFromPending(
         web_contents()->GetController());
     ASSERT_TRUE(navigation);
@@ -1226,15 +1245,27 @@ TEST_F(SmartTabSharingTest, IsSmartTabSharingActive_ReadsPref) {
   EXPECT_FALSE(handler().IsSmartTabSharingActive());
 }
 
+TEST_F(SmartTabSharingTest, IsSmartTabSharingActive_AvailabilityDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      contextual_tasks::
+          kContextualTasksContextSmartTabSharingDefaultOnAvailability);
+
+  profile()->GetPrefs()->SetBoolean(
+      contextual_tasks::kContextualTasksShareOpenTabsEveryThread, true);
+  EXPECT_FALSE(handler().IsSmartTabSharingActive());
+}
+
 TEST_F(SmartTabSharingTest, SubmitQuery_SmartTabSharingOverrideDisabled) {
   handler().set_smart_tab_sharing_active_override(false);
 
   ASSERT_TRUE(mock_service_);
 
-  EXPECT_CALL(*mock_service_, GetRelevantTabsForQuery(testing::_, testing::_,
-                                                      testing::_, testing::_))
+  EXPECT_CALL(*mock_service_,
+              GetRelevantTabsForConversationThread(testing::_, testing::_,
+                                                   testing::_, testing::_))
       .Times(1)
-      .WillOnce([](const auto& options, const auto& query,
+      .WillOnce([](const auto& options, const auto& conversation_thread,
                    const auto& explicit_urls, auto callback) {
         // The min model score should be set to the promo value.
         ASSERT_EQ(
@@ -1253,10 +1284,11 @@ TEST_F(SmartTabSharingTest,
 
   handler().set_smart_tab_sharing_active_override(true);
 
-  EXPECT_CALL(*mock_service_, GetRelevantTabsForQuery(testing::_, testing::_,
-                                                      testing::_, testing::_))
+  EXPECT_CALL(*mock_service_,
+              GetRelevantTabsForConversationThread(testing::_, testing::_,
+                                                   testing::_, testing::_))
       .Times(1)
-      .WillOnce([](const auto& options, const auto& query,
+      .WillOnce([](const auto& options, const auto& conversation_thread,
                    const auto& explicit_urls, auto callback) {
         ASSERT_FALSE(options.min_model_score.has_value());
         std::move(callback).Run({});
@@ -1967,7 +1999,7 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_NoContextualTasksService) {
 
   content::TestNavigationObserver navigation_observer(web_contents());
   handler_without_service->SubmitQuery(kQueryText, 1, false, false, false,
-                                       false);
+                                       false, /*is_voice_search=*/false);
   auto navigation = content::NavigationSimulator::CreateFromPending(
       web_contents()->GetController());
   ASSERT_TRUE(navigation);
@@ -2014,7 +2046,7 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
 }
 
 TEST_F(ContextualSearchboxHandlerTest,
-       QueryAutocomplete_SkipsLensInputs_InToolModes) {
+       QueryAutocomplete_SetsLensInputs_InToolModes) {
   lens::proto::LensOverlaySuggestInputs suggest_inputs;
   suggest_inputs.set_encoded_image_signals("xyz");
   EXPECT_CALL(*static_cast<TestOmniboxClient*>(
@@ -2063,7 +2095,9 @@ TEST_F(ContextualSearchboxHandlerTest,
         std::move(autocomplete_controller));
 
     handler().QueryAutocomplete(u"test", false, 0);
-    EXPECT_FALSE(input.lens_overlay_suggest_inputs().has_value());
+    EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
+    EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
+              "xyz");
   }
 }
 

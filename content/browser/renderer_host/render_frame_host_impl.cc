@@ -177,7 +177,7 @@
 #include "content/browser/web_exposed_isolation_info.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
-#include "content/browser/webauth/webauth_request_security_checker.h"
+#include "content/browser/webauth/webauth_request_security_checker_impl.h"
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/request_service.h"
 #include "content/browser/websockets/websocket_connector_impl.h"
@@ -4225,6 +4225,10 @@ RenderFrameHostImpl::AccessibilityGetWebContentsAccessibility() {
 
 bool RenderFrameHostImpl::AccessibilityIsWebContentSource() {
   return true;
+}
+
+ui::AXMode RenderFrameHostImpl::GetScopedAccessibilityMode() const {
+  return delegate_->GetAccessibilityMode();
 }
 
 ui::AXPlatformNodeId RenderFrameHostImpl::GetOrCreateAXNodeUniqueId(
@@ -11245,7 +11249,6 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
     mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
     const gfx::Rect& bounds) {
-  // TODO(crbug.com/508672616) Store and use the mojo endpoints.
   if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
     local_frame_host_receiver_.ReportBadMessage(
         "kUnboundedElement feature must be enabled.");
@@ -11292,6 +11295,9 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
   CHECK(!unbounded_surface_client_.is_bound());
   CHECK(!outermost->active_unbounded_frame_);
 
+  unbounded_surface_host_receiver_.reset();
+  unbounded_surface_host_receiver_.Bind(std::move(host));
+
   unbounded_surface_client_.Bind(std::move(client));
   unbounded_surface_client_.set_disconnect_handler(base::BindOnce(
       &RenderFrameHostImpl::DismissUnboundedSurface, base::Unretained(this)));
@@ -11317,19 +11323,64 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
       widget_host_remote.InitWithNewEndpointAndPassReceiver(),
       std::move(widget_remote), GetGlobalId());
   if (widget) {
+    active_unbounded_widget_ = widget->GetWeakPtr();
     RenderWidgetHostViewBase* widget_host_view =
         static_cast<RenderWidgetHostViewBase*>(widget->GetView());
     if (widget_host_view) {
       float dsf = GetScaleFactorForView(parent_view);
-      int dip_x = std::round(bounds.x() / dsf);
-      int dip_y = std::round(bounds.y() / dsf);
-      int dip_w = std::round(bounds.width() / dsf);
-      int dip_h = std::round(bounds.height() / dsf);
-      gfx::Point origin =
-          parent_view->GetViewBounds().origin() + gfx::Vector2d(dip_x, dip_y);
-      gfx::Rect initial_rect = gfx::Rect(origin, gfx::Size(dip_w, dip_h));
+      gfx::Rect initial_rect = gfx::ScaleToRoundedRect(bounds, 1.f / dsf);
+      initial_rect.Offset(parent_view->GetViewBounds().OffsetFromOrigin());
       widget_host_view->InitAsPopup(parent_view, initial_rect, initial_rect);
+      unbounded_surface_client_->OnSurfaceAllocated(
+          widget->GetFrameSinkId(), widget_host_view->GetLocalSurfaceId());
     }
+  }
+}
+
+void RenderFrameHostImpl::GetCompositorFrameSink(
+    mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
+    mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client) {
+  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
+    mojo::ReportBadMessage("kUnboundedElement feature must be enabled.");
+    return;
+  }
+  if (!active_unbounded_widget_) {
+    return;
+  }
+  active_unbounded_widget_->CreateFrameSink(
+      std::move(sink), std::move(client),
+      mojo::PendingRemote<blink::mojom::RenderInputRouterClient>());
+}
+
+void RenderFrameHostImpl::UpdateBounds(const gfx::Rect& bounds) {
+  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
+    mojo::ReportBadMessage("kUnboundedElement feature must be enabled.");
+    return;
+  }
+  if (!active_unbounded_widget_) {
+    return;
+  }
+  RenderWidgetHostViewBase* widget_host_view =
+      static_cast<RenderWidgetHostViewBase*>(
+          active_unbounded_widget_->GetView());
+  if (!widget_host_view) {
+    return;
+  }
+  RenderWidgetHostView* parent_view = GetRenderWidgetHost()->GetView();
+  // TODO(crbug.com/508672616): This will break in some circumstances (such as
+  // going between monitors with different DSFs, mixed DSF multi-monitor
+  // setups, or dynamic scaling changes) and we need to propagate changes to
+  // the renderer.
+  float dsf = GetScaleFactorForView(parent_view);
+  gfx::Rect updated_rect = gfx::ScaleToRoundedRect(bounds, 1.f / dsf);
+  if (parent_view) {
+    updated_rect.Offset(parent_view->GetViewBounds().OffsetFromOrigin());
+  }
+  widget_host_view->SetBounds(updated_rect);
+  if (unbounded_surface_client_.is_bound()) {
+    unbounded_surface_client_->OnSurfaceAllocated(
+        active_unbounded_widget_->GetFrameSinkId(),
+        widget_host_view->GetLocalSurfaceId());
   }
 }
 
@@ -14678,7 +14729,7 @@ void RenderFrameHostImpl::CancelPrerenderingByMojoBinderPolicy(
   CHECK(canceled);
 }
 
-void RenderFrameHostImpl::RendererWillActivateForPrerenderingOrPreview() {
+void RenderFrameHostImpl::RendererWillActivateForPrerendering() {
   // Loosen the policies of the Mojo capability control during dispatching the
   // prerenderingchange event in Blink, because the page may start legitimately
   // using controlled interfaces once prerenderingchange is dispatched. We
@@ -14687,7 +14738,7 @@ void RenderFrameHostImpl::RendererWillActivateForPrerenderingOrPreview() {
   // should ensure that ActivateForPrerendering() arrives on the renderer
   // earlier than these deferred messages.
   CHECK(mojo_binder_policy_applier_)
-      << "activating prerender or preview pages should have a policy applier";
+      << "activating prerendering pages should have a policy applier";
   mojo_binder_policy_applier_->PrepareToGrantAll();
 }
 
@@ -14758,6 +14809,10 @@ void RenderFrameHostImpl::BindMediaRemoterFactoryReceiver(
 
 void RenderFrameHostImpl::CreateWebSocketConnector(
     mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver) {
+  if (is_mhtml_document()) {
+    mojo::ReportBadMessage("WebSockets are not allowed in MHTML documents.");
+    return;
+  }
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<WebSocketConnectorImpl>(
           GlobalRenderFrameHostId(GetProcess()->GetID(), routing_id_),
@@ -14768,11 +14823,15 @@ void RenderFrameHostImpl::CreateWebSocketConnector(
 
 void RenderFrameHostImpl::CreateWebTransportConnector(
     mojo::PendingReceiver<blink::mojom::WebTransportConnector> receiver) {
+  if (is_mhtml_document()) {
+    mojo::ReportBadMessage("WebTransport is not allowed in MHTML documents.");
+    return;
+  }
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<WebTransportConnectorImpl>(
           GetProcess()->GetDeprecatedID(), weak_ptr_factory_.GetWeakPtr(),
           last_committed_origin_, isolation_info_.network_anonymization_key(),
-          BuildClientSecurityState()),
+          BuildClientSecurityState(), GetNetworkRestrictionsID()),
       std::move(receiver));
 }
 
@@ -17201,11 +17260,23 @@ void RenderFrameHostImpl::DidCommitNavigation(
   // BackForwardCache (see the check IsInactiveAndDisallowActivation in
   // RFH::DidCommitSameDocumentNavigation() and RFH::BeginNavigation()) so it
   // isn't possible to get a DidCommitNavigation IPC from the renderer in
-  // kInBackForwardCache state.
-  //
-  // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
-  // we are sure this isn't hit.
-  DCHECK(!IsInBackForwardCache());
+  // kInBackForwardCache state. Trigger a renderer kill if we receive an
+  // unexpected DidCommit message.
+  if (IsInBackForwardCache()) {
+    if (render_view_host()->DidReceiveBackForwardCacheAck()) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(), bad_message::RFH_DID_COMMIT_NAVIGATION_WHILE_BFCACHED);
+    } else {
+      // The renderer might not have realized that it's in BFCache when it sent
+      // the DidCommitNavigation call, since we haven't received the BFCache
+      // ACK. In this case, just evict from BFCache instead of killing the
+      // renderer.
+      IsInactiveAndDisallowActivation(
+          DisallowActivationReasonId::kDidCommitNavigation);
+    }
+    // Return early in any case.
+    return;
+  }
 
   // TODO(https://crbug.com/445585641): Make this enforceable on Android.
 #if !BUILDFLAG(IS_ANDROID)
@@ -18695,7 +18766,7 @@ void RenderFrameHostImpl::PerformGetAssertionWebAuthSecurityChecks(
                 kGetPaymentCredentialAssertion
           : WebAuthRequestSecurityChecker::RequestType::kGetAssertion;
   blink::mojom::AuthenticatorStatus status =
-      GetWebAuthRequestSecurityChecker()->ValidateAncestorOrigins(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateAncestorOrigins(
           effective_origin, request_type, &is_cross_origin);
   if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
     std::move(callback).Run(status, is_cross_origin);
@@ -18712,7 +18783,7 @@ void RenderFrameHostImpl::PerformGetAssertionWebAuthSecurityChecks(
     // `out_app_id` is ignored because the original string is passed to the
     // credential provider on Android.
     std::string out_app_id;
-    status = GetWebAuthRequestSecurityChecker()->ValidateAppIdExtension(
+    status = GetWebAuthRequestSecurityCheckerImpl()->ValidateAppIdExtension(
         *app_id, effective_origin, remote_desktop_client_override, &out_app_id);
     if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
       std::move(callback).Run(status, is_cross_origin);
@@ -18728,7 +18799,7 @@ void RenderFrameHostImpl::PerformGetAssertionWebAuthSecurityChecks(
   }
 
   std::unique_ptr<webauthn::RemoteValidation> remote_validation =
-      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateDomainAndRelyingPartyID(
           effective_origin, relying_party_id, request_type,
           remote_desktop_client_override_origin,
           base::BindOnce(&RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
@@ -18757,7 +18828,7 @@ void RenderFrameHostImpl::PerformMakeCredentialWebAuthSecurityChecks(
           ? WebAuthRequestSecurityChecker::RequestType::kMakePaymentCredential
           : WebAuthRequestSecurityChecker::RequestType::kMakeCredential;
   blink::mojom::AuthenticatorStatus status =
-      GetWebAuthRequestSecurityChecker()->ValidateAncestorOrigins(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateAncestorOrigins(
           effective_origin, request_type, &is_cross_origin);
   if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
     std::move(callback).Run(status, is_cross_origin);
@@ -18774,7 +18845,7 @@ void RenderFrameHostImpl::PerformMakeCredentialWebAuthSecurityChecks(
     // `out_app_id` is ignored because the original string is passed to the
     // credential provider on Android.
     std::string out_app_id;
-    status = GetWebAuthRequestSecurityChecker()->ValidateAppIdExtension(
+    status = GetWebAuthRequestSecurityCheckerImpl()->ValidateAppIdExtension(
         *app_id, effective_origin, remote_desktop_client_override, &out_app_id);
     if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
       std::move(callback).Run(status, is_cross_origin);
@@ -18790,7 +18861,7 @@ void RenderFrameHostImpl::PerformMakeCredentialWebAuthSecurityChecks(
   }
 
   std::unique_ptr<webauthn::RemoteValidation> remote_validation =
-      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateDomainAndRelyingPartyID(
           effective_origin, relying_party_id, request_type,
           remote_desktop_client_override_origin,
           base::BindOnce(&RenderFrameHostImpl::OnWebAuthSecurityChecksCompleted,
@@ -18812,7 +18883,7 @@ void RenderFrameHostImpl::PerformReportWebAuthSecurityChecks(
   bool is_cross_origin = true;
 
   blink::mojom::AuthenticatorStatus status =
-      GetWebAuthRequestSecurityChecker()->ValidateAncestorOrigins(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateAncestorOrigins(
           effective_origin, WebAuthRequestSecurityChecker::RequestType::kReport,
           &is_cross_origin);
   if (status != blink::mojom::AuthenticatorStatus::SUCCESS) {
@@ -18828,7 +18899,7 @@ void RenderFrameHostImpl::PerformReportWebAuthSecurityChecks(
   }
 
   std::unique_ptr<webauthn::RemoteValidation> remote_validation =
-      GetWebAuthRequestSecurityChecker()->ValidateDomainAndRelyingPartyID(
+      GetWebAuthRequestSecurityCheckerImpl()->ValidateDomainAndRelyingPartyID(
           effective_origin, relying_party_id,
           WebAuthRequestSecurityChecker::RequestType::kReport,
           /*remote_desktop_client_override_origin=*/std::nullopt,
@@ -18978,9 +19049,14 @@ RenderFrameHostImpl* RenderFrameHostImpl::
 
 scoped_refptr<WebAuthRequestSecurityChecker>
 RenderFrameHostImpl::GetWebAuthRequestSecurityChecker() {
+  return GetWebAuthRequestSecurityCheckerImpl();
+}
+
+scoped_refptr<WebAuthRequestSecurityCheckerImpl>
+RenderFrameHostImpl::GetWebAuthRequestSecurityCheckerImpl() {
   if (!webauth_request_security_checker_) {
     webauth_request_security_checker_ =
-        base::MakeRefCounted<WebAuthRequestSecurityChecker>(this);
+        base::MakeRefCounted<WebAuthRequestSecurityCheckerImpl>(this);
   }
 
   return webauth_request_security_checker_;

@@ -23,6 +23,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "components/sync/base/features.h"
 #import "components/sync/service/sync_prefs.h"
+#import "components/webauthn/ios/features.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/autofill/manual_fill/public/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/manual_fill/test/manual_fill_matchers.h"
@@ -40,7 +41,7 @@
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
-#import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
+#import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/testing/earl_grey/matchers.h"
@@ -291,7 +292,7 @@ void SlowlyTypeText(NSString* text) {
 
 }  // namespace
 
-@interface FormInputAccessoryEGTest : WebHttpServerChromeTestCase
+@interface FormInputAccessoryEGTest : ChromeTestCase
 @end
 
 @implementation FormInputAccessoryEGTest
@@ -395,8 +396,6 @@ void SlowlyTypeText(NSString* text) {
         kAutofillCorrectUserEditedBitInParsedField);
   }
   if ([self isRunningTest:@selector(testAddressHomeAndWorkIPH)]) {
-    config.features_enabled.push_back(
-        autofill::features::kAutofillEnableSupportForHomeAndWork);
     config.iph_feature_enabled =
         feature_engagement::kIPHAutofillHomeWorkProfileSuggestionFeature.name;
   }
@@ -411,6 +410,12 @@ void SlowlyTypeText(NSString* text) {
   if ([self isRunningTest:@selector(testReFillAddressFieldsOnForm)]) {
     config.features_enabled.push_back(
         autofill::features::kAutofillAcrossIframesIos);
+  }
+
+  if ([self isRunningTest:@selector
+            (testPasswordSuggestionsSubtext_ConditionalPasskeyLoginEnabled)]) {
+    config.features_enabled.push_back(kIOSPasskeyShim);
+    config.features_enabled.push_back(kIOSPasskeyConditionalLoginWithShim);
   }
 
   if ([self shouldEnableTwoBubbleFeature]) {
@@ -1353,6 +1358,43 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [self verifyFieldWithIdHasBeenFilled:kFormVehicleLicensePlate value:@""];
   [self verifyFieldWithIdHasBeenFilled:kFormVehiclePlateState value:@""];
   [self verifyFieldWithIdHasBeenFilled:kFormVehicleVIN value:@""];
+}
+
+// Tests that password suggestions shown on the Keyboard Accessory get their
+// subtext overridden to "Password" when Conditional Passkey Login is enabled.
+- (void)testPasswordSuggestionsSubtext_ConditionalPasskeyLoginEnabled {
+  // Disable the credential bottom sheet.
+  [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
+
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
+
+  NSString* username = kExampleUsername;
+  NSString* password = kExamplePassword;
+  [PasswordManagerAppInterface
+      storeCredentialWithUsername:username
+                         password:password
+                              URL:net::NSURLWithGURL([self loginPageURL])];
+  [self loadLoginPage];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:chrome_test_util::TapWebElementWithId(kFormPassword)];
+
+  // The suggestion chip's accessibility label should mention "user, Password"
+  // instead of "user, localhost" (or signon realm).
+  NSString* passwordSubtext = l10n_util::GetNSString(IDS_IOS_PASSWORD_SUBTEXT);
+  NSString* expectedAccessibilityLabel =
+      [NSString stringWithFormat:@"%@, %@", username, passwordSubtext];
+  id<GREYMatcher> userChip = grey_allOf(
+      grey_accessibilityLabel(expectedAccessibilityLabel),
+      grey_ancestor(
+          grey_accessibilityID(kFormInputAccessoryViewAccessibilityID)),
+      nil);
+
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:userChip];
+
+  [[EarlGrey selectElementWithMatcher:userChip] performAction:grey_tap()];
+
+  [self verifyFieldsHaveBeenFilledWithUsername:username password:password];
 }
 
 @end

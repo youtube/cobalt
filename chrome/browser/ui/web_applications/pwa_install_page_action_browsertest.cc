@@ -49,6 +49,7 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
+#include "chrome/browser/ui/views/page_action/test_support/page_action_test_support.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/web_applications/install_bounce_metric.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -257,7 +258,7 @@ class PwaInstallViewBrowserTest : public extensions::ExtensionBrowserTest {
   };
 
   OpenTabResult OpenTab(const GURL& url) {
-    chrome::NewTab(browser());
+    chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
     content::WebContents* web_contents = GetCurrentTab();
     auto* app_banner_manager =
         webapps::TestAppBannerManagerDesktop::FromWebContents(web_contents);
@@ -370,9 +371,11 @@ class PwaInstallViewBrowserTest : public extensions::ExtensionBrowserTest {
 
  protected:
   IconLabelBubbleView* GetPageActionView() {
-    return BrowserView::GetBrowserViewForBrowser(browser())
-        ->toolbar_button_provider()
-        ->GetPageActionView(kActionInstallPwa);
+    return page_actions::GetIconLabelBubbleViewForTesting(
+        BrowserView::GetBrowserViewForBrowser(browser())
+            ->toolbar_button_provider()
+            ->GetPageActionViewInterface(kActionInstallPwa),
+        kActionInstallPwa);
   }
   void ExecuteForTesting() {
     web_app::ShowPwaInstallDialog(browser());
@@ -624,7 +627,7 @@ IN_PROC_BROWSER_TEST_F(PwaInstallViewBrowserTest, LabelAnimation) {
   FastForwardAnimation(GetPageActionView());
   EXPECT_TRUE(GetPageActionView()->ShouldShowLabel());
 
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   EXPECT_FALSE(GetPageActionView()->GetVisible());
 
   chrome::SelectPreviousTab(browser());

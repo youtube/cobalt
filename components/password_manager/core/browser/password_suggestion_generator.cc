@@ -96,7 +96,8 @@ Suggestion::PasswordSuggestionDetails GetSuggestionDetailsForRecoveryFlow(
 
   return Suggestion::PasswordSuggestionDetails(
       credential.username_value, credential.password_value,
-      credential.backup_password_value.value());
+      credential.backup_password_value.value(), credential.realm,
+      credential.is_grouped_affiliation);
 }
 
 
@@ -374,6 +375,7 @@ PasswordSuggestionGenerator::PasswordSuggestionGenerator(
       autofill_client_(autofill_client) {}
 
 void PasswordSuggestionGenerator::AppendOptionalFooterSection(
+    bool is_manual_fallback,
     std::vector<autofill::Suggestion>* suggestions) const {
   bool has_webauthn_credential = std::ranges::any_of(
       *suggestions,
@@ -393,7 +395,7 @@ void PasswordSuggestionGenerator::AppendOptionalFooterSection(
       &Suggestion::type);
 
   std::optional<autofill::Suggestion> hybrid_suggestion =
-      GetWebauthnSignInWithAnotherDeviceSuggestion();
+      GetWebauthnSignInWithAnotherDeviceSuggestion(is_manual_fallback);
 
   if (has_no_fillable_suggestions && !hybrid_suggestion) {
     return;
@@ -513,7 +515,7 @@ std::vector<Suggestion> PasswordSuggestionGenerator::GetSuggestionsForDomain(
 #endif
 
   // Add "Manage all passwords" link to settings.
-  AppendOptionalFooterSection(&suggestions);
+  AppendOptionalFooterSection(/*is_manual_fallback=*/false, &suggestions);
 
   return suggestions;
 }
@@ -644,14 +646,20 @@ PasswordSuggestionGenerator::GetManualFallbackSuggestions(
       [](const Suggestion& suggestion) { return suggestion.main_text.value; });
 
   // Add "Manage all passwords" link to settings.
-  AppendOptionalFooterSection(&suggestions);
+  AppendOptionalFooterSection(/*is_manual_fallback=*/true, &suggestions);
 
   return suggestions;
 }
 
 std::optional<autofill::Suggestion>
-PasswordSuggestionGenerator::GetWebauthnSignInWithAnotherDeviceSuggestion()
-    const {
+PasswordSuggestionGenerator::GetWebauthnSignInWithAnotherDeviceSuggestion(
+    bool is_manual_fallback) const {
+  if (is_manual_fallback &&
+      !base::FeatureList::IsEnabled(
+          password_manager::features::
+              kWebAuthnUsePasskeyFromAnotherDeviceInManualFallback)) {
+    return std::nullopt;
+  }
 #if BUILDFLAG(IS_ANDROID)
   return std::nullopt;
 #else   // BUILDFLAG(IS_ANDROID)

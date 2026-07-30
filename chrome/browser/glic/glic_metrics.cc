@@ -42,7 +42,6 @@
 #include "ui/base/base_window.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -299,7 +298,6 @@ void GlicMetrics::RecordGlicProfilePreferences() {
 void GlicMetrics::OnTrustFirstOnboardingAccept() {
   OnFreAccepted();
   OnOptInAccepted(OptInFlow::kGlicFre);
-  base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept.Onboarding"));
   base::UmaHistogramEnumeration("Glic.Fre.Accept.InvocationSource",
                                 invocation_source_);
 
@@ -318,7 +316,6 @@ void GlicMetrics::OnInstanceOpened() {
 
   if (!enabling_->HasConsented()) {
     OnOptInShown(OptInFlow::kGlicFre);
-    base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown.Onboarding"));
     base::UmaHistogramEnumeration("Glic.Fre.Shown.InvocationSource",
                                   invocation_source_);
     onboarding_shown_time_ = base::TimeTicks::Now();
@@ -331,7 +328,6 @@ void GlicMetrics::OnInstanceClosed() {
   }
 
   OnOptInDismissed(OptInFlow::kGlicFre);
-  base::RecordAction(base::UserMetricsAction("Glic.Fre.Dismissed.Onboarding"));
   base::UmaHistogramEnumeration("Glic.Fre.Dismissed.InvocationSource",
                                 invocation_source_);
   base::UmaHistogramLongTimes("Glic.Fre.TotalTime.Dismissed.Onboarding",
@@ -358,7 +354,11 @@ void GlicMetrics::OnOptInImpression(OptInFlow flow) {
 }
 
 void GlicMetrics::OnOptInAccepted(OptInFlow flow) {
-  base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept"));
+  if (base::FeatureList::IsEnabled(features::kGlicOnboardingMetricsMigration)) {
+    base::RecordAction(base::UserMetricsAction("Glic.Onboarding.OptInAccept"));
+  } else {
+    base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept"));
+  }
   base::UmaHistogramEnumeration("Glic.Fre.Accept.FlowSource", flow);
 }
 
@@ -794,6 +794,22 @@ void GlicMetrics::OnImpressionTimerFired() {
   if (enablement.anchor_entrypoint_override_active) {
     impression = EntryPointStatus::kAfterFreAnchoredButIneligible;
   } else {
+#if BUILDFLAG(IS_ANDROID)
+    bool is_bottom_bar_enabled = false;
+    bool is_mtb_enabled = false;
+    GlicKeyedService* service = GlicKeyedService::Get(profile_);
+    if (service) {
+      is_bottom_bar_enabled = service->IsBottomBarEnabled();
+      if (!is_bottom_bar_enabled) {
+        is_mtb_enabled = service->IsGlicShortcutActive();
+      }
+    }
+    if (is_mtb_enabled || is_bottom_bar_enabled) {
+      impression = EntryPointStatus::kAfterFreBrowserOnly;
+    } else {
+      impression = EntryPointStatus::kAfterFreThreeDotOnly;
+    }
+#else
     bool is_pinned =
         profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
     bool is_os_entrypoint_enabled =
@@ -808,7 +824,10 @@ void GlicMetrics::OnImpressionTimerFired() {
     } else {
       impression = EntryPointStatus::kAfterFreThreeDotOnly;
     }
+#endif
   }
+  // TODO(crbug.com/520136927): Move this metric to glic_metrics_provider.cc
+  // when glic_metrics.cc is deleted.
   base::UmaHistogramEnumeration("Glic.EntryPoint.Status", impression);
 
 #if !BUILDFLAG(IS_ANDROID)

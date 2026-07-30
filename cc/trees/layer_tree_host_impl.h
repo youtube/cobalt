@@ -89,6 +89,10 @@ namespace viz {
 class ClientResourceProvider;
 }
 
+namespace perfetto {
+class NamedTrack;
+}
+
 namespace cc {
 
 class BrowserControlsOffsetManager;
@@ -119,6 +123,7 @@ class SwapPromise;
 class SynchronousTaskGraphRunner;
 class TaskGraphRunner;
 class UIResourceBitmap;
+class UnboundedFrameSinkHandler;
 class Viewport;
 
 struct UIResourceChange {
@@ -279,7 +284,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Already overridden for BrowserControlsOffsetManagerClient which declares a
   // method of the same name.
   // void SetNeedsCommit();
-  void SetNeedsFullViewportRedraw() override;
   void DidUpdateScrollAnimationCurve() override;
   void DidStartPinchZoom() override;
   void DidUpdatePinchZoom() override;
@@ -538,6 +542,13 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
       const viz::BeginFrameArgs& args,
       std::vector<EventLatencyTracker::LatencyData> latencies) override;
 
+  // Unbounded element implementation.
+  void SetUnboundedFrameSink(
+      std::unique_ptr<LayerTreeFrameSink> unbounded_frame_sink,
+      const viz::LocalSurfaceId& local_surface_id);
+  void DismissUnboundedFrameSink();
+  void SetUnboundedLocalSurfaceId(const viz::LocalSurfaceId& local_surface_id);
+
   // Called from LayerTreeImpl.
   void OnCanDrawStateChangedForTree();
 
@@ -564,7 +575,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   ImageAnimationController* image_animation_controller() {
     return image_animation_controller_.get();
   }
-  base::flat_map<PaintImage::Id, bool> GatherImageAnimationState() const;
+  AnimatedImageDriverMap GatherAnimatedImageDriverState() const;
 
   ImageDecodeCache* GetImageDecodeCache() const;
 
@@ -889,6 +900,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   }
 
  protected:
+  static perfetto::NamedTrack GetTracingTrack(const LayerTreeImpl* tree);
+
   LayerTreeHostImpl(
       const LayerTreeSettings& settings,
       LayerTreeHostImplDelegate* delegate,
@@ -1372,6 +1385,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool dump_compositor_frame_ = false;
   uint32_t dump_compositor_frame_begin_ = 0;
   uint32_t dump_compositor_frame_end_ = 0;
+
+  std::unique_ptr<UnboundedFrameSinkHandler> unbounded_frame_sink_handler_;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

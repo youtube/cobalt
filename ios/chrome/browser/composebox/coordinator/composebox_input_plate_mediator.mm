@@ -515,10 +515,12 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
     }
   }
 
+  // TODO(crbug.com/515377633): Add proper Drive files selection.
   return [[ComposeboxAttachmentSelection alloc] initWithTabIDs:tabIDs
                                              cachedWebStateIDs:{}
                                                         images:images
-                                                         files:files];
+                                                         files:files
+                                                    driveItems:@[]];
 }
 
 - (void)updateAttachments:(ComposeboxAttachmentSelection*)attachments {
@@ -1882,7 +1884,8 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
 
 // Whether the user can ask about the current Tab.
 - (BOOL)canAskAboutCurrentTab {
-  return IsAskAboutThisPageEnabled() && [self canAttachActiveTab];
+  return _entrypoint != ComposeboxEntrypoint::kCobrowse &&
+         IsAskAboutThisPageEnabled() && [self canAttachActiveTab];
 }
 
 // Whether the current tab is attachable.

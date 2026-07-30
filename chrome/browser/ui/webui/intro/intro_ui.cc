@@ -111,8 +111,6 @@ IntroUI::IntroUI(content::WebUI* web_ui)
        IDS_FRE_REFRESH_DEFAULT_BROWSER_NO_THANKS},
       // Strings for finish or continue subpage.
       {"finishOrContinueTitle", IDS_FRE_FINISH_OR_CONTINUE_TITLE},
-      {"seeMoreTipsButtonLabel",
-       IDS_FRE_FINISH_OR_CONTINUE_SEE_MORE_TIPS_BUTTON_LABEL},
       {"startBrowsingButtonLabel",
        IDS_FRE_FINISH_OR_CONTINUE_START_BROWSING_BUTTON_LABEL},
   };
@@ -161,6 +159,8 @@ IntroUI::IntroUI(content::WebUI* web_ui)
   source->AddBoolean("usePrimaryAndTonalButtonsForPromos",
                      base::FeatureList::IsEnabled(
                          switches::kUsePrimaryAndTonalButtonsForPromos));
+  source->AddBoolean("isFirstRunDesktopRevampEnabled",
+                     is_first_run_desktop_revamp_enabled);
   if (base::FeatureList::IsEnabled(
           switches::kDisableFirstRunAnimationsForTesting)) {
     CHECK_IS_TEST();
@@ -189,6 +189,13 @@ IntroUI::IntroUI(content::WebUI* web_ui)
     source->AddResourcePath(
         chrome::kChromeUIIntroFinishOrContinueSubPage,
         IDR_INTRO_FINISH_OR_CONTINUE_FINISH_OR_CONTINUE_HTML);
+
+    source->AddLocalizedString(
+        "seeMoreTipsButtonLabel",
+        IDS_FRE_FINISH_OR_CONTINUE_SEE_MORE_TIPS_BUTTON_LABEL);
+    source->AddLocalizedString(
+        "seeWhatsNewButtonLabel",
+        IDS_FRE_FINISH_OR_CONTINUE_SEE_WHATS_NEW_BUTTON_LABEL);
   }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -304,6 +311,25 @@ void IntroUI::OnSignInCelebrationMojoHandlerReady(
       std::make_unique<SignInCelebrationHandler>(
           IdentityManagerFactory::GetForProfile(profile), std::move(page),
           std::move(receiver), std::move(celebration_finished_callback));
+}
+
+void IntroUI::BindInterface(
+    mojo::PendingReceiver<intro::mojom::IntroPageHandlerFactory> receiver) {
+  intro_factory_receiver_.reset();
+  intro_factory_receiver_.Bind(std::move(receiver));
+}
+
+void IntroUI::CreateIntroPageHandler(
+    mojo::PendingRemote<intro::mojom::IntroPage> page) {
+  CHECK(page);
+  intro_page_.reset();
+  intro_page_.Bind(std::move(page));
+}
+
+void IntroUI::ToggleAnimations(bool active) {
+  if (intro_page_.is_bound()) {
+    intro_page_->ToggleAnimations(active);
+  }
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(IntroUI)

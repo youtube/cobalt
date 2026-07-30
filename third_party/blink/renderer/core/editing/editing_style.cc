@@ -31,6 +31,7 @@
 #include "mojo/public/mojom/base/text_direction.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_computed_style_declaration.h"
+#include "third_party/blink/renderer/core/css/css_font_style_range_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
@@ -2069,6 +2070,29 @@ MutableCSSPropertyValueSet* GetPropertiesNotIn(
     }
   }
 
+  // execCommand treats `italic` and `oblique` as the same italic state
+  // (see the `apply_italic_` block below). Collapse them here too so a
+  // selection mixing the two keywords reports kTrue, not kMixed.
+  if (const CSSValue* base_font_style =
+          base_style->GetPropertyCSSValueInternal(CSSPropertyID::kFontStyle)) {
+    if (const CSSValue* font_style =
+            result->GetPropertyCSSValue(CSSPropertyID::kFontStyle)) {
+      auto is_italic_or_oblique = [](const CSSValue* value) {
+        const auto* id = DynamicTo<CSSIdentifierValue>(value);
+        if (id) {
+          return id->GetValueID() == CSSValueID::kItalic ||
+                 id->GetValueID() == CSSValueID::kOblique;
+        }
+        // `oblique <angle>` serializes as a CSSFontStyleRangeValue.
+        return IsA<cssvalue::CSSFontStyleRangeValue>(value);
+      };
+      if (is_italic_or_oblique(font_style) &&
+          is_italic_or_oblique(base_font_style)) {
+        result->RemoveProperty(CSSPropertyID::kFontStyle);
+      }
+    }
+  }
+
   if (base_style->GetPropertyCSSValueInternal(CSSPropertyID::kColor) &&
       GetFontColor(result) == GetFontColor(base_style))
     result->RemoveProperty(CSSPropertyID::kColor);
@@ -2166,7 +2190,7 @@ EditingTriState EditingStyle::SelectionHasStyle(const LocalFrame& frame,
 
   return MakeGarbageCollected<EditingStyle>(property_id, value,
                                             secure_context_mode)
-      ->TriStateOfStyle(frame.Selection().ComputeVisibleSelectionInDOMTree(),
+      ->TriStateOfStyle(frame.Selection().ComputeVisibleSelectionInDomTree(),
                         secure_context_mode);
 }
 

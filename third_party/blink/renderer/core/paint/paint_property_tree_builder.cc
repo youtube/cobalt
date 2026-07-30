@@ -104,19 +104,19 @@ namespace blink {
 
 namespace features {
 
-BASE_FEATURE(kPreventSvgFilterPaint, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPreventSvgFilterPaint, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kPreventSvgFilterPaintOnLocalFrameRestricted,
                    &kPreventSvgFilterPaint,
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kPreventSvgFilterPaintOnRemoteFrame,
                    &kPreventSvgFilterPaint,
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kPreventSvgFilterPaintOnWebPlugin,
                    &kPreventSvgFilterPaint,
-                   false);
+                   true);
 
 }  // namespace features
 
@@ -824,10 +824,24 @@ void FragmentPaintPropertyTreeBuilder::UpdatePaintOffsetTranslation(
     if (auto* box = DynamicTo<LayoutBox>(object_)) {
       if (box->IsFixedToView(full_context_.container_for_fixed_position) &&
           object_.View()->FirstFragment().PaintProperties()->Scroll()) {
-        state.scroll_translation_for_fixed = object_.View()
-                                                 ->FirstFragment()
-                                                 .PaintProperties()
-                                                 ->ScrollTranslation();
+        state.scroll_parent_scroll_translation = object_.View()
+                                                     ->FirstFragment()
+                                                     .PaintProperties()
+                                                     ->ScrollTranslation();
+      } else if (box->IsBackdropForOverscrollAreaParent()) {
+        Element& overscroll_target =
+            To<PseudoElement>(box->GetNode())->UltimateOriginatingElement();
+        PseudoElement* overscroll_area_parent =
+            overscroll_target.GetPseudoElement(kPseudoIdOverscrollAreaParent);
+        const LayoutObject* parent_layout =
+            overscroll_area_parent->GetLayoutObject();
+        const auto* parent_properties =
+            parent_layout->FirstFragment().PaintProperties();
+        CHECK(parent_properties);
+        if (parent_properties->ScrollTranslation()) {
+          state.scroll_parent_scroll_translation =
+              parent_properties->ScrollTranslation();
+        }
       }
     }
 
@@ -2015,6 +2029,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
       }
 
       EffectPaintPropertyNode::State state;
+      state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
       state.local_transform_space = context_.current.transform;
       if (EffectCanUseCurrentClipAsOutputClip())
         state.output_clip = context_.current.clip;
@@ -2115,6 +2130,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
 
       if (mask_clip) {
         EffectPaintPropertyNode::State mask_state;
+        mask_state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
         mask_state.local_transform_space = context_.current.transform;
         mask_state.output_clip = context_.current.clip;
         mask_state.blend_mode = SkBlendMode::kDstIn;
@@ -2138,6 +2154,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateEffect() {
 
       if (needs_mask_based_clip_path_) {
         EffectPaintPropertyNode::State clip_path_state;
+        clip_path_state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
         clip_path_state.local_transform_space = context_.current.transform;
         clip_path_state.output_clip = context_.current.clip;
         clip_path_state.blend_mode = SkBlendMode::kDstIn;
@@ -2198,6 +2215,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateElementCaptureEffect() {
   CHECK(context_.current.clip);
   CHECK(context_.current.transform);
   EffectPaintPropertyNode::State state;
+  state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
   state.direct_compositing_reasons = CompositingReason::kElementCapture;
   state.local_transform_space = context_.current.transform;
   state.output_clip = context_.current.clip;
@@ -2217,6 +2235,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateViewTransitionScopeRootEffect() {
 
     if (transition) {
       EffectPaintPropertyNode::State state;
+      state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
       state.local_transform_space = context_.current.transform;
       state.output_clip = context_.current.clip;
       state.compositor_element_id = CompositorElementIdFromUniqueObjectId(
@@ -2275,6 +2294,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateViewTransitionEffect() {
       DCHECK(transition);
 
       EffectPaintPropertyNode::State state;
+      state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
       state.direct_compositing_reasons =
           CompositingReason::kViewTransitionElement;
       state.local_transform_space = context_.current.transform;
@@ -2440,6 +2460,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateFilter() {
   if (NeedsPaintPropertyUpdate()) {
     if (NeedsFilter(object_, full_context_)) {
       EffectPaintPropertyNode::State state;
+      state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
       state.local_transform_space = context_.current.transform;
       EffectPaintPropertyNode::FilterInfo filter_info;
       UpdateFilterEffect(object_, properties_->Filter(), filter_info);
@@ -3403,6 +3424,9 @@ void FragmentPaintPropertyTreeBuilder::UpdateScrollNode() {
                              static_cast<cc::OverscrollBehavior::Type>(
                                  box.StyleRef().OverscrollBehaviorY()));
 
+  state.prevent_scroll_axis_locking =
+      (box.StyleRef().ScrollAxisLock() == EScrollAxisLock::kNone);
+
   if (auto* data = scrollable_area->GetSnapContainerData()) {
     state.snap_container_data = *data;
   }
@@ -3467,12 +3491,13 @@ void FragmentPaintPropertyTreeBuilder::UpdateOverflowControlEffects() {
 
     if (needs_effect_node) {
       EffectPaintPropertyNode::State effect_state;
+      effect_state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
       effect_state.local_transform_space = context_.current.transform;
       effect_state.output_clip = output_clip;
       effect_state.compositor_element_id =
           scrollable_area->GetScrollbarElementId(orientation);
 
-      if (scrollbar_is_overlay) {
+      if (scrollbar_is_overlay && !effect_state.is_in_canvas_subtree) {
         effect_state.direct_compositing_reasons =
             CompositingReason::kActiveOpacityAnimation;
       }
@@ -3512,6 +3537,7 @@ void FragmentPaintPropertyTreeBuilder::UpdateOverflowControlEffects() {
     // transition, for the same reason as explained above. Scroll corners
     // are only painted for non-overlay scrollbars.
     EffectPaintPropertyNode::State effect_state;
+    effect_state.is_in_canvas_subtree = context_.is_in_canvas_subtree;
     effect_state.local_transform_space = context_.current.transform;
     effect_state.output_clip = output_clip;
     effect_state.compositor_element_id =
@@ -3708,13 +3734,6 @@ void FragmentPaintPropertyTreeBuilder::FixAbsoluteContextToContainerBox() {
         &parent_object->FirstFragment().LocalBorderBoxProperties().Transform();
   }
 
-  // If we have a scroll parent, use that. Otherwise use the root scroll node.
-  if (parent_properties->Scroll() && parent_properties->Scroll()->Parent()) {
-    context_.current.scroll = parent_properties->Scroll()->Parent();
-  } else {
-    context_.current.scroll = &ScrollPaintPropertyNode::Root();
-  }
-
   context_.current.paint_offset = parent_object->FirstFragment().PaintOffset();
 }
 
@@ -3729,13 +3748,8 @@ void FragmentPaintPropertyTreeBuilder::UpdatePaintOffset() {
         DCHECK_EQ(full_context_.container_for_absolute_position,
                   box_model_object.Container());
         SwitchToOOFContext(context_.absolute_position);
-        if (object_.StyleRef().StyleType() == kPseudoIdBackdrop) {
-          Element& overscroll_target = To<PseudoElement>(object_.GetNode())
-                                           ->UltimateOriginatingElement();
-          if (overscroll_target.GetPseudoElement(
-                  kPseudoIdOverscrollAreaParent)) {
-            FixAbsoluteContextToContainerBox();
-          }
+        if (object_.IsBackdropForOverscrollAreaParent()) {
+          FixAbsoluteContextToContainerBox();
         }
         break;
       }
@@ -4037,6 +4051,10 @@ void FragmentPaintPropertyTreeBuilder::UpdateForSelf() {
 #endif
 
   if (properties_) {
+    if (full_context_.direct_compositing_reasons &
+        CompositingReason::kCanvasChild) {
+      context_.is_in_canvas_subtree = true;
+    }
     UpdateStickyTranslation(sticky_offset);
     UpdateAnchorPositionScrollTranslation();
     if (object_.IsSVGChild()) {

@@ -873,13 +873,13 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   }
 
   base::RecordAction(base::UserMetricsAction(userAction));
-  const BookmarkNode* editedNode = *(nodes.begin());
-  const BookmarkNode* selectedFolder = editedNode->parent();
+  const BookmarkNode* movedNode = *(nodes.begin());
+  const BookmarkNode* selectedFolder = movedNode->parent();
   _UIDisabled = YES;
   _folderChooserCoordinator = [[BookmarksFolderChooserCoordinator alloc]
       initWithBaseViewController:self.navigationController
                          browser:_browser.get()
-                     hiddenNodes:nodes];
+                      movedNodes:nodes];
   [_folderChooserCoordinator setSelectedFolder:selectedFolder];
   _folderChooserCoordinator.delegate = self;
   [_folderChooserCoordinator start];
@@ -1316,15 +1316,17 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   CHECK(folder, base::NotFatalUntil::M152);
   CHECK(!folder->is_url(), base::NotFatalUntil::M152);
 
-  // Copy the list of edited nodes from BookmarksFolderChooserCoordinator before
+  // Copy the list of moved nodes from BookmarksFolderChooserCoordinator before
   // `stopFolderChooserCoordinator` sets `_folderChooserCoordinator` to nil.
   std::set<raw_ptr<const bookmarks::BookmarkNode>> editedNodesSet =
-      _folderChooserCoordinator.editedNodes;
-  CHECK_GE(editedNodesSet.size(), 1u, base::NotFatalUntil::M152);
-
+      _folderChooserCoordinator.movedNodes;
   [self stopFolderChooserCoordinator];
 
   [self setTableViewEditing:NO];
+  if (editedNodesSet.empty()) {
+    // All nodes of the sets have been deleted in the meantime. Nothing to do.
+    return;
+  }
   ProfileIOS* profile = self.profile;
   std::vector<const BookmarkNode*> editedNodesVector(editedNodesSet.begin(),
                                                      editedNodesSet.end());

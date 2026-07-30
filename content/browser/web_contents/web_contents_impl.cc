@@ -45,12 +45,14 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/optional_trace_event.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_session_observer.h"
 #include "build/build_config.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "components/attribution_reporting/features.h"
@@ -1361,8 +1363,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       is_overlay_content_(false),
       showing_context_menu_(false),
       prerender_host_registry_(std::make_unique<PrerenderHostRegistry>(*this)),
-      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()),
-      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
+      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()) {
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
@@ -1391,7 +1392,12 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
 }
 
 WebContentsImpl::~WebContentsImpl() {
+  base::trace_event::TraceSessionObserverList::RemoveObserver(this);
   TRACE_EVENT0("content", "WebContentsImpl::~WebContentsImpl");
+  if (tracing_track_) {
+    TRACE_EVENT_END("content", tracing_track_->track());
+  }
+
   WebContentsOfBrowserContext::Detach(*this);
 
   // Imperfect sanity check against double free, given some crashes unexpectedly
@@ -1708,7 +1714,8 @@ const WebContents::UniqueToken& WebContentsImpl::GetUniqueToken() const {
 }
 
 const perfetto::NamedTrack& WebContentsImpl::GetTracingTrack() const {
-  return *tracing_track_;
+  CHECK(tracing_track_);
+  return tracing_track_->track();
 }
 
 const GURL& WebContentsImpl::GetURL() {
@@ -4267,6 +4274,14 @@ std::unique_ptr<WebContents> WebContentsImpl::Clone() {
 
 void WebContentsImpl::Init(const WebContents::CreateParams& params,
                            blink::FramePolicy primary_main_frame_policy) {
+  const char* static_name = params.creator_location.function_name()
+                                ? params.creator_location.function_name()
+                                : "WebContents";
+  tracing_track_.emplace(content::GetWebContentsTracingTrack(
+      web_contents_token_, perfetto::StaticString{static_name}));
+
+  EmitTracingSlice(params.main_frame_name);
+
   TRACE_EVENT0("content", "WebContentsImpl::Init");
 
   // Set initial autofill mode. Prefs may update this value later but for
@@ -4294,6 +4309,7 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
   // it should be hidden.
   visibility_ =
       params.initially_hidden ? Visibility::HIDDEN : Visibility::VISIBLE;
+
   GetController().SetActive(visibility_ == Visibility::VISIBLE);
 
   enable_wake_locks_ = params.enable_wake_locks;
@@ -4404,6 +4420,7 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
     renderer_preferences_.send_subresource_notification = true;
     SyncRendererPrefs();
   }
+  base::trace_event::TraceSessionObserverList::AddObserver(this);
 }
 
 void WebContentsImpl::OnWebContentsDestroyed(WebContentsImpl* web_contents) {
@@ -7184,6 +7201,12 @@ void WebContentsImpl::SetVisibilityAndNotifyObservers(Visibility visibility) {
   }
 }
 
+void WebContentsImpl::OnStart(const perfetto::DataSourceBase::StartArgs&) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  TRACE_EVENT_END("content", tracing_track_->track());
+  EmitTracingSlice(base::UTF16ToUTF8(GetTitle()));
+}
+
 void WebContentsImpl::NotifyWebContentsFocused(
     RenderWidgetHost* render_widget_host) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::NotifyWebContentsFocused",
@@ -7881,7 +7904,8 @@ void WebContentsImpl::DidFinishNavigation(NavigationHandle* navigation_handle) {
     // served from BackForwardCache.
     max_loaded_frame_count_ = GetFrameTreeSize(&primary_frame_tree_);
 
-    BrowserAccessibilityStateImpl::GetInstance()->OnPageNavigationComplete();
+    BrowserAccessibilityStateImpl::GetInstance()->OnPageNavigationComplete(
+        this);
   }
 
   // TODO(crbug.com/40202416): MPArch GuestView: We might need to look up the
@@ -8196,6 +8220,11 @@ void WebContentsImpl::DidNavigateMainFramePostCommit(
     DidInferColorScheme(page);
     AXTreeIDForMainFrameHasChanged();
   }
+
+  if (is_primary_main_frame) {
+    TRACE_EVENT_END("content", tracing_track_->track());
+    EmitTracingSlice(base::UTF16ToUTF8(GetTitle()));
+  }
 }
 
 void WebContentsImpl::DidNavigateAnyFramePostCommit(
@@ -8295,17 +8324,6 @@ void WebContentsImpl::DidInferColorScheme(PageImpl& page) {
   if (page.IsPrimary()) {
     observers_.NotifyObservers(&WebContentsObserver::InferredColorSchemeUpdated,
                                page.inferred_color_scheme());
-    if (page.inferred_color_scheme().has_value()) {
-      bool dark = page.inferred_color_scheme().value() ==
-                  blink::mojom::PreferredColorScheme::kDark;
-      base::UmaHistogramBoolean("Power.DarkMode.InferredDarkPageColorScheme",
-                                dark);
-      if (web_preferences_ && web_preferences_->preferred_color_scheme ==
-                                  blink::mojom::PreferredColorScheme::kDark) {
-        base::UmaHistogramBoolean(
-            "Power.DarkMode.DarkColorScheme.InferredDarkPageColorScheme", dark);
-      }
-    }
   }
 }
 
@@ -9980,7 +9998,8 @@ void WebContentsImpl::DidStartLoading(FrameTreeNode* frame_tree_node) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::DidStartLoading",
                         "frame_tree_node", frame_tree_node);
 
-  auto loading_track = perfetto::NamedTrack("Loading", 0, *tracing_track_);
+  auto loading_track =
+      perfetto::NamedTrack("Loading", 0, tracing_track_->track());
   TRACE_EVENT_BEGIN("browser,navigation", "WebContentsImpl Loading",
                     loading_track, "URL", "NULL",
                     "Primary Main FrameTreeNode id",
@@ -10021,7 +10040,8 @@ void WebContentsImpl::DidStopLoading() {
   observers_.NotifyObservers(&WebContentsObserver::DidStopLoading);
 
   // WebContentsImpl Loading
-  auto loading_track = perfetto::NamedTrack("Loading", 0, *tracing_track_);
+  auto loading_track =
+      perfetto::NamedTrack("Loading", 0, tracing_track_->track());
   TRACE_EVENT_END("browser,navigation", loading_track, "URL", url);
 
   GetPrimaryMainFrame()->ForEachRenderFrameHostImpl(
@@ -10411,6 +10431,8 @@ void WebContentsImpl::UpdateTitle(RenderFrameHostImpl* render_frame_host,
   if (title_changed) {
     if (render_frame_host == GetPrimaryMainFrame()) {
       NotifyTitleUpdateForEntry(entry);
+      TRACE_EVENT_END("content", tracing_track_->track());
+      EmitTracingSlice(base::UTF16ToUTF8(GetTitle()));
     }
     SCOPED_UMA_HISTOGRAM_TIMER("WebContentsObserver.TitleWasSetForMainFrame");
     observers_.NotifyObservers(&WebContentsObserver::TitleWasSetForMainFrame,
@@ -12843,6 +12865,18 @@ void WebContentsImpl::WarmUpAndroidSpareRenderer() {
     SpareRenderProcessHostManagerImpl::Get().WarmupSpare(GetBrowserContext(),
                                                          timeout);
   }
+}
+
+void WebContentsImpl::EmitTracingSlice(const std::string& title) {
+  TRACE_EVENT_BEGIN(
+      "content", nullptr, tracing_track_->track(),
+      [&](perfetto::EventContext ctx) {
+        if (!ctx.ShouldFilterDynamicEventNames() && !title.empty()) {
+          ctx.event()->set_name(title);
+        } else {
+          ctx.event()->set_name("WebContents");
+        }
+      });
 }
 
 }  // namespace content

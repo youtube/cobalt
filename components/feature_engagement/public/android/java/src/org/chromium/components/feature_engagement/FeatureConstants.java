@@ -29,6 +29,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.ADAPTIVE_BUTTON_PIN_GLIC_TOOLBAR_BUTTON_FEATURE,
     FeatureConstants.ANDROID_BOTTOM_BAR_GLIC,
     FeatureConstants.ANDROID_BOTTOM_BAR_NEW_TAB,
+    FeatureConstants.ANDROID_BOTTOM_BAR_PROMO_DIALOG,
     FeatureConstants.ANDROID_TAB_DECLUTTER_FEATURE,
     FeatureConstants.APP_RATING_PROMPT_FEATURE,
     FeatureConstants.APP_SPECIFIC_HISTORY_FEATURE,
@@ -71,6 +72,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.INSTANCE_SWITCHER,
     FeatureConstants.IPH_EXTENSIONS_MANAGE_APP_MENU_FEATURE,
     FeatureConstants.IPH_EXTENSIONS_MANAGE_TOOLBAR_FEATURE,
+    FeatureConstants.IPH_INCOGNITO_INDICATOR_CLOSE_ALL_WINDOWS,
     FeatureConstants.IPH_MIC_TOOLBAR_FEATURE,
     FeatureConstants.IPH_PDF_PAGE_DOWNLOAD,
     FeatureConstants.IPH_SHARE_SCREENSHOT_FEATURE,
@@ -179,6 +181,9 @@ public @interface FeatureConstants {
 
     /** Describes the new tab button moved down in the bottom bar. */
     String ANDROID_BOTTOM_BAR_NEW_TAB = "IPH_AndroidBottomBarNewTab";
+
+    /** Describes the promo dialog shown to introduce the bottom bar. */
+    String ANDROID_BOTTOM_BAR_PROMO_DIALOG = "IPH_AndroidBottomBarPromoDialog";
 
     String ANDROID_TAB_DECLUTTER_FEATURE = "IPH_AndroidTabDeclutter";
 
@@ -297,6 +302,12 @@ public @interface FeatureConstants {
      * their extensions in the toolbar.
      */
     String IPH_EXTENSIONS_MANAGE_TOOLBAR_FEATURE = "IPH_ExtensionsManageToolbar";
+
+    /**
+     * An IPH feature to inform users that they can close all Incognito windows by tapping the
+     * Incognito indicator.
+     */
+    String IPH_INCOGNITO_INDICATOR_CLOSE_ALL_WINDOWS = "IPH_IncognitoIndicatorCloseAllWindows";
 
     /** An IPH feature attached to the mic button in the toolbar prompring user to try voice. */
     String IPH_MIC_TOOLBAR_FEATURE = "IPH_MicToolbar";

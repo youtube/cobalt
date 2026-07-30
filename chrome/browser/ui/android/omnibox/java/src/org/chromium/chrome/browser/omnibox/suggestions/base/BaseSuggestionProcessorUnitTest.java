@@ -16,6 +16,7 @@ import static org.robolectric.Shadows.shadowOf;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,7 +57,6 @@ import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.OmniboxFeatureList;
-import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.components.omnibox.action.ActionPresentationMode;
@@ -206,7 +206,7 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     public void suggestionFavicons_showFaviconWhenAvailable() {
-        final ArgumentCaptor<Callback<Bitmap>> callback = MockitoHelper.callbackCaptor();
+        final ArgumentCaptor<Callback<Drawable>> callback = MockitoHelper.callbackCaptor();
         createSuggestion(
                 OmniboxSuggestionType.URL_WHAT_YOU_TYPED,
                 /* isSearch= */ false,
@@ -216,7 +216,7 @@ public class BaseSuggestionProcessorUnitTest {
         assertNotNull(icon1);
 
         verify(mImageSupplier).fetchFavicon(eq(TEST_URL), callback.capture());
-        callback.getValue().onResult(mBitmap);
+        callback.getValue().onResult(new BitmapDrawable(mContext.getResources(), mBitmap));
         OmniboxDrawableState icon2 = mModel.get(BaseSuggestionViewProperties.ICON);
         assertNotNull(icon2);
 
@@ -226,7 +226,7 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     public void suggestionFavicons_doNotReplaceFallbackIconWhenNoFaviconIsAvailable() {
-        final ArgumentCaptor<Callback<Bitmap>> callback = MockitoHelper.callbackCaptor();
+        final ArgumentCaptor<Callback<Drawable>> callback = MockitoHelper.callbackCaptor();
         createSuggestion(
                 OmniboxSuggestionType.URL_WHAT_YOU_TYPED,
                 /* isSearch= */ false,
@@ -352,10 +352,8 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     @Config(qualifiers = "w400dp")
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF})
     public void setRemoveOrRefineAction_noRmoveActionOnPhone() {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
-        OmniboxFeatures.sOmniboxImprovementForLFFRemoveSuggestionViaButton.setForTesting(true);
 
         var action = setUpDeleteScenarioForRemoveActionTesting();
 
@@ -368,11 +366,9 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     @Config(qualifiers = "sw600dp")
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF})
     public void setRemoveOrRefineAction_noRemoveActionOnTabletWithoutPeripherals() {
         DeviceInput.setSupportsAlphabeticKeyboardForTesting(false);
         DeviceInput.setSupportsPrecisionPointerForTesting(false);
-        OmniboxFeatures.sOmniboxImprovementForLFFRemoveSuggestionViaButton.setForTesting(true);
 
         var action = setUpDeleteScenarioForRemoveActionTesting();
 
@@ -385,10 +381,8 @@ public class BaseSuggestionProcessorUnitTest {
 
     @Test
     @Config(qualifiers = "sw600dp")
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF})
     public void setRemoveOrRefineAction_removeActionOnTabletWithPrecisionPointer() {
         DeviceInput.setSupportsPrecisionPointerForTesting(true);
-        OmniboxFeatures.sOmniboxImprovementForLFFRemoveSuggestionViaButton.setForTesting(true);
 
         var action = setUpDeleteScenarioForRemoveActionTesting();
 

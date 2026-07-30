@@ -77,6 +77,7 @@
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
+#include "chrome/browser/ui/views/page_action/test_support/page_action_test_support.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/toolbar/app_menu_control.h"
@@ -1990,7 +1991,7 @@ void WebAppIntegrationTestDriver::LaunchFromLaunchIcon(Site site) {
   ASSERT_TRUE(app_browser_);
   ASSERT_TRUE(app_browser_->is_type_app());
   ASSERT_TRUE(AppBrowserController::IsForWebApp(app_browser_, app_id));
-  active_app_id_ = app_browser()->app_controller()->app_id();
+  active_app_id_ = web_app::AppBrowserController::From(app_browser())->app_id();
 
 #if !BUILDFLAG(IS_CHROMEOS)
   // In certain tests where window controls overlay is being tested, if the app
@@ -2023,7 +2024,8 @@ void WebAppIntegrationTestDriver::LaunchFromMenuOption(Site site) {
   active_app_id_ = app_id;
 
   ASSERT_TRUE(AppBrowserController::IsForWebApp(app_browser(), active_app_id_));
-  EXPECT_EQ(app_browser()->app_controller()->app_id(), app_id);
+  EXPECT_EQ(web_app::AppBrowserController::From(app_browser())->app_id(),
+            app_id);
   AfterStateChangeAction();
 }
 
@@ -2591,7 +2593,8 @@ void WebAppIntegrationTestDriver::OpenInChrome() {
     return;
   }
   ASSERT_TRUE(IsBrowserOpen(app_browser())) << "No current app browser.";
-  webapps::AppId app_id = app_browser()->app_controller()->app_id();
+  webapps::AppId app_id =
+      web_app::AppBrowserController::From(app_browser())->app_id();
   GURL app_url = GetCurrentTab(app_browser())->GetURL();
   ASSERT_TRUE(AppBrowserController::IsForWebApp(app_browser(), app_id));
   ui_test_utils::BrowserDestroyedObserver observer(app_browser());
@@ -3696,7 +3699,8 @@ void WebAppIntegrationTestDriver::CheckCustomToolbar() {
     return;
   }
   ASSERT_TRUE(app_browser());
-  EXPECT_TRUE(app_browser()->app_controller()->ShouldShowCustomTabBar());
+  EXPECT_TRUE(web_app::AppBrowserController::From(app_browser())
+                  ->ShouldShowCustomTabBar());
   BrowserView* app_view = BrowserView::GetBrowserViewForBrowser(app_browser());
   EXPECT_TRUE(app_view->toolbar()
                   ->custom_tab_bar()
@@ -3710,7 +3714,8 @@ void WebAppIntegrationTestDriver::CheckNoToolbar() {
     return;
   }
   ASSERT_TRUE(app_browser());
-  EXPECT_FALSE(app_browser()->app_controller()->ShouldShowCustomTabBar());
+  EXPECT_FALSE(web_app::AppBrowserController::From(app_browser())
+                   ->ShouldShowCustomTabBar());
   BrowserView* app_view = BrowserView::GetBrowserViewForBrowser(app_browser());
   EXPECT_FALSE(app_view->toolbar()->custom_tab_bar()->GetVisible());
   AfterStateCheckAction();
@@ -3985,8 +3990,13 @@ void WebAppIntegrationTestDriver::CheckWindowControlsOverlayToggle(
   ASSERT_TRUE(app_browser());
   EXPECT_TRUE(AppBrowserController::IsForWebApp(app_browser(),
                                                 GetAppIdBySiteMode(site)));
-  EXPECT_EQ(app_browser()->app_controller()->AppUsesWindowControlsOverlay(),
-            is_shown == IsShown::kShown);
+
+  bool expected_toggle_shown =
+      web_app::AppBrowserController::From(app_browser())
+          ->AppUsesWindowControlsOverlay() &&
+      !base::FeatureList::IsEnabled(
+          features::kDesktopPWAsWindowControlsOverlayWithNoToggle);
+  EXPECT_EQ(expected_toggle_shown, is_shown == IsShown::kShown);
   WebAppFrameToolbarView* toolbar =
       BrowserView::GetBrowserViewForBrowser(app_browser())
           ->web_app_frame_toolbar_for_testing();
@@ -4039,7 +4049,7 @@ void WebAppIntegrationTestDriver::CheckWindowDisplayMinimal() {
   }
   ASSERT_TRUE(app_browser());
   web_app::AppBrowserController* app_controller =
-      app_browser()->app_controller();
+      web_app::AppBrowserController::From(app_browser());
   ASSERT_TRUE(app_controller->AsWebAppBrowserController());
   std::optional<AppState> app_state = GetStateForAppId(
       after_state_change_action_state_.get(), profile(), active_app_id_);
@@ -4067,7 +4077,7 @@ void WebAppIntegrationTestDriver::CheckWindowDisplayTabbed() {
   ASSERT_TRUE(app_browser());
 
   web_app::AppBrowserController* app_controller =
-      app_browser()->app_controller();
+      web_app::AppBrowserController::From(app_browser());
   ASSERT_TRUE(app_controller->AsWebAppBrowserController());
   std::optional<AppState> app_state = GetStateForAppId(
       after_state_change_action_state_.get(), profile(), active_app_id_);
@@ -4095,7 +4105,7 @@ void WebAppIntegrationTestDriver::CheckWindowDisplayStandalone() {
   ASSERT_TRUE(app_browser());
 
   web_app::AppBrowserController* app_controller =
-      app_browser()->app_controller();
+      web_app::AppBrowserController::From(app_browser());
   ASSERT_TRUE(app_controller->AsWebAppBrowserController());
   std::optional<AppState> app_state = GetStateForAppId(
       after_state_change_action_state_.get(), profile(), active_app_id_);
@@ -5034,9 +5044,11 @@ std::vector<Profile*> WebAppIntegrationTestDriver::GetAllProfiles() {
 
 IconLabelBubbleView* WebAppIntegrationTestDriver::pwa_install_view() {
   IconLabelBubbleView* pwa_install_view =
-      BrowserView::GetBrowserViewForBrowser(browser())
-          ->toolbar_button_provider()
-          ->GetPageActionView(kActionInstallPwa);
+      page_actions::GetIconLabelBubbleViewForTesting(
+          BrowserView::GetBrowserViewForBrowser(browser())
+              ->toolbar_button_provider()
+              ->GetPageActionViewInterface(kActionInstallPwa),
+          kActionInstallPwa);
   CHECK(pwa_install_view);
   return pwa_install_view;
 }
@@ -5060,6 +5072,7 @@ WebAppIntegrationTestDriver::GetTestAppHomePageHandler(
 
 WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
   std::vector<base::test::FeatureRef> enabled_features;
+  std::vector<base::test::FeatureRef> disabled_features;
   enabled_features.push_back(blink::features::kSubApps);
   enabled_features.push_back(blink::features::kDesktopPWAsTabStrip);
   enabled_features.push_back(features::kDesktopPWAsTabStripSettings);
@@ -5072,9 +5085,11 @@ WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
   enabled_features.push_back(features::kPwaNavigationCapturing);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
   enabled_features.push_back(blink::features::kWebAppMigrationApi);
+  disabled_features.push_back(
+      features::kDesktopPWAsWindowControlsOverlayWithNoToggle);
+  disabled_features.push_back(features::kWebAppInstallDialog);
 
-  scoped_feature_list_.InitWithFeatures(enabled_features,
-                                        {features::kWebAppInstallDialog});
+  scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
 }
 
 WebAppIntegrationTest::~WebAppIntegrationTest() = default;

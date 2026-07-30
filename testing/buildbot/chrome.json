@@ -134,7 +134,6 @@
           "chromeos/tast_control_cq_tests.txt"
         ],
         "cros_test_tags": [
-          "group:mainline",
           "dep:chrome"
         ],
         "cros_test_tags_exclude": [
@@ -5121,7 +5120,6 @@
         "test_id_prefix": "ninja://third_party/pthreadpool:pthreadpool_unittests/"
       },
       {
-        "experiment_percentage": 100,
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },

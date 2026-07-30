@@ -21,7 +21,9 @@ namespace ui {
 namespace {
 
 // Experimentally determined constant used to allow activation even if touch
-// release results in a small upward fling (quite common during a slow scroll).
+// release results in a small fling in the opposite direction of current active
+// overscroll action (e.g. a small upward fling after pulling down to refresh,
+// quite common during a slow scroll)
 const float kMinFlingVelocityForActivation = -500.f;
 
 // Weighted value used to determine whether a scroll should trigger vertical
@@ -57,6 +59,7 @@ OverscrollRefresh::~OverscrollRefresh() {
 void OverscrollRefresh::Reset() {
   scroll_consumption_state_ = ScrollConsumptionState::kDisabled;
   handler_->PullReset();
+  active_action_ = std::nullopt;
 }
 
 void OverscrollRefresh::OnScrollBegin(const gfx::PointF& pos) {
@@ -69,7 +72,10 @@ void OverscrollRefresh::OnScrollBegin(const gfx::PointF& pos) {
 }
 
 void OverscrollRefresh::OnScrollEnd(const gfx::Vector2dF& scroll_velocity) {
-  bool allow_activation = scroll_velocity.y() > kMinFlingVelocityForActivation;
+  // If the velocity does not meet the activation threshold, we infer the user
+  // is trying to cancel the gesture.
+  bool allow_activation = GetVelocityInActiveActionDirection(scroll_velocity) >
+                          kMinFlingVelocityForActivation;
   Release(allow_activation);
 }
 
@@ -113,13 +119,15 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
          touchpad_overscroll_history_navigation_enabled_ &&
          base::FeatureList::IsEnabled(
              ui::kAndroidTouchpadOverscrollHistoryNavigation));
-    // Check overscroll-behavior-x and whether initial x coordinate falls within
-    // the activation region:
-    //   - it is always activated near the horizontal edges
-    //   - if the swipe-to-navigate feature is enabled, it is activated
-    //     everywhere on touchpad (possibly converted from mousewheel)
+    // Check overscroll-behavior-x and other activation conditions for history
+    // navigation depending on the input device:
+    //   - touchscreen: iff system is not in gesture navigation mode;
+    //     only activated by swipes near the horizontal edges
+    //   - touchpad (possibly converted from mousewheel): iff the feature is
+    //     enabled; activated by swipes everywhere
     if (!(behavior.PropagatesXScroll() &&
-          (scroll_from_edge || touchpad_swipe_to_navigate))) {
+          ((scroll_from_edge && !is_gesture_navigation_mode_) ||
+           touchpad_swipe_to_navigate))) {
       Reset();
       return;
     }
@@ -136,6 +144,11 @@ void OverscrollRefresh::OnOverscrolled(const cc::OverscrollBehavior& behavior,
     scroll_consumption_state_ = handler_->PullStart(type, overscroll_edge)
                                     ? ScrollConsumptionState::kEnabled
                                     : ScrollConsumptionState::kDisabled;
+    if (scroll_consumption_state_ == ScrollConsumptionState::kEnabled) {
+      // Make sure active_action_ is not set yet before set
+      CHECK(!active_action_.has_value());
+      active_action_ = ActiveAction{type, overscroll_edge};
+    }
   }
 }
 
@@ -206,10 +219,39 @@ void OverscrollRefresh::SetTouchpadOverscrollHistoryNavigation(bool enabled) {
   touchpad_overscroll_history_navigation_enabled_ = enabled;
 }
 
+void OverscrollRefresh::SetIsGestureNavigationMode(
+    bool is_gesture_navigation_mode) {
+  is_gesture_navigation_mode_ = is_gesture_navigation_mode;
+}
+
 void OverscrollRefresh::Release(bool allow_refresh) {
   if (scroll_consumption_state_ == ScrollConsumptionState::kEnabled)
     handler_->PullRelease(allow_refresh);
   scroll_consumption_state_ = ScrollConsumptionState::kDisabled;
+  active_action_ = std::nullopt;
+}
+
+float OverscrollRefresh::GetVelocityInActiveActionDirection(
+    const gfx::Vector2dF& velocity) {
+  if (!active_action_.has_value()) {  // Reached as kNone when a user scrolls
+                                      // but not overscrolls
+    return 0.f;
+  }
+  switch (active_action_->action) {
+    case OverscrollAction::kPullToRefresh:
+      return velocity.y();
+    case OverscrollAction::kPullFromBottomEdge:
+      return -velocity.y();
+    case OverscrollAction::kHistoryNavigation:
+      if (active_action_->edge == BackGestureEventSwipeEdge::LEFT) {
+        return velocity.x();
+      } else {
+        return -velocity.x();
+      }
+    default:
+      // Reached as kNone when a user scrolls but not overscrolls
+      return 0.f;
+  }
 }
 
 }  // namespace ui

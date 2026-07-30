@@ -62,6 +62,7 @@ rust_static_library("child_process_security_policy_impl") {
   sources = [ "child_process_security_policy_impl.rs" ]
   cxx_bindings = [ "child_process_security_policy_impl.rs" ]
   visibility = [ ":browser" ]
+  configs += [ "//content:content_implementation" ]
   deps = [
     "//third_party/rust/cxx/v1:lib",
     "//url:url_rust",
@@ -1423,8 +1424,8 @@ source_set("browser") {
     "back_forward_cache/back_forward_cache_metrics.h",
     "back_forward_cache/back_forward_cache_subframe_navigation_throttle.cc",
     "back_forward_cache/back_forward_cache_subframe_navigation_throttle.h",
-    "connection_allowlist_gating.cc",
-    "connection_allowlist_gating.h",
+    "connection_allowlist_utils.cc",
+    "connection_allowlist_utils.h",
     "digital_credentials/digital_credential_environment.cc",
     "digital_credentials/digital_credential_environment.h",
     "digital_credentials/digital_identity_request_impl.cc",
@@ -2461,8 +2462,8 @@ source_set("browser") {
     "web_ui_browser_interface_broker_registry.cc",
     "webauth/client_data_json.cc",
     "webauth/client_data_json.h",
-    "webauth/webauth_request_security_checker.cc",
-    "webauth/webauth_request_security_checker.h",
+    "webauth/webauth_request_security_checker_impl.cc",
+    "webauth/webauth_request_security_checker_impl.h",
     "webid/accounts_fetcher.cc",
     "webid/accounts_fetcher.h",
     "webid/autofill_source.cc",

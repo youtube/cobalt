@@ -210,21 +210,6 @@ public class ReaderModeManagerTest {
 
     @Test
     @Feature("ReaderMode")
-    @EnableFeatures(
-            DomDistillerFeatures.READER_MODE_IMPROVEMENTS
-                    + ":trigger_on_mobile_friendly_pages/true")
-    public void testMobileFriendlyNotDistillable_exceptWhenFeatureFlagAndParamEnabled() {
-        Pair<Boolean, Integer> result =
-                ReaderModeManager.computeDistillationStatus(mTab, true, true, true);
-        assertTrue("Distillability should be fully determined.", result.first);
-        assertEquals(
-                "Page should be be distillable.",
-                ReaderModeManager.DistillationStatus.POSSIBLE,
-                (int) result.second);
-    }
-
-    @Test
-    @Feature("ReaderMode")
     public void testUi_notTriggered() {
         mDistillabilityObserver.onIsPageDistillableResult(mTab, false, true, false);
         assertEquals(
@@ -832,17 +817,17 @@ public class ReaderModeManagerTest {
     public void testActivateReaderMode_WithActiveTask_Confirm() {
         mUserDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
         when(mActorUiTabController.isActorActive()).thenReturn(true);
-        when(mActorUiTabController.showTaskAbortConfirmationDialog(any(Runnable.class)))
+        when(mActorUiTabController.showTaskAbortConfirmationDialog(any()))
                 .thenAnswer(
                         invocation -> {
-                            Runnable runnable = invocation.getArgument(0);
-                            runnable.run();
+                            Callback<Boolean> callback = invocation.getArgument(0);
+                            callback.onResult(true);
                             return true;
                         });
 
         mManager.activateReaderMode(EntryPoint.APP_MENU);
 
-        verify(mActorUiTabController).showTaskAbortConfirmationDialog(any(Runnable.class));
+        verify(mActorUiTabController).showTaskAbortConfirmationDialog(any());
         verify(mDistillerTabUtilsJniMock)
                 .distillCurrentPageAndViewIfSuccessful(eq(mWebContents), any());
     }
@@ -853,12 +838,11 @@ public class ReaderModeManagerTest {
     public void testActivateReaderMode_WithActiveTask_Cancel() {
         mUserDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
         when(mActorUiTabController.isActorActive()).thenReturn(true);
-        when(mActorUiTabController.showTaskAbortConfirmationDialog(any(Runnable.class)))
-                .thenReturn(true);
+        when(mActorUiTabController.showTaskAbortConfirmationDialog(any())).thenReturn(true);
 
         mManager.activateReaderMode(EntryPoint.APP_MENU);
 
-        verify(mActorUiTabController).showTaskAbortConfirmationDialog(any(Runnable.class));
+        verify(mActorUiTabController).showTaskAbortConfirmationDialog(any());
         verify(mDistillerTabUtilsJniMock, never())
                 .distillCurrentPageAndViewIfSuccessful(any(), any());
     }

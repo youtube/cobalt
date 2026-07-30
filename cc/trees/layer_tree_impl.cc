@@ -555,11 +555,17 @@ void LayerTreeImpl::UpdateViewportContainerSizes() {
 
     // Expand all clips between the outer viewport and the inner viewport.
     auto* outer_ancestor =
-        property_trees->clip_tree_mutable().MutableParent(outer_clip_node);
+        property_trees->clip_tree_mutable().HasParent(*outer_clip_node)
+            ? &property_trees->clip_tree_mutable().MutableParent(
+                  *outer_clip_node)
+            : nullptr;
     while (outer_ancestor && outer_ancestor->id != kRootPropertyNodeId) {
       outer_ancestor->clip.Union(outer_clip_node->clip);
       outer_ancestor =
-          property_trees->clip_tree_mutable().MutableParent(outer_ancestor);
+          property_trees->clip_tree_mutable().HasParent(*outer_ancestor)
+              ? &property_trees->clip_tree_mutable().MutableParent(
+                    *outer_ancestor)
+              : nullptr;
     }
   }
 
@@ -1847,8 +1853,9 @@ bool LayerTreeImpl::UpdateDrawProperties(
   // possible to hit test even without a renderer.
   render_surface_list_.clear();
 
-  if (layer_list_.empty())
-    return false;
+  if (layer_list_.empty()) {
+    return true;
+  }
 
   {
     base::ElapsedTimer timer;
@@ -1931,7 +1938,7 @@ bool LayerTreeImpl::UpdateDrawProperties(
   if (update_image_animation_controller && image_animation_controller()) {
     CHECK(!settings().trees_in_viz_in_viz_process);
     image_animation_controller()->UpdateStateFromDrivers(
-        host_impl()->GatherImageAnimationState());
+        host_impl()->GatherAnimatedImageDriverState());
   }
 
   device_viewport_rect_changed_ = false;
@@ -2403,9 +2410,9 @@ void LayerTreeImpl::NotifyLayerHasAnimatedImagesChanged(
 }
 
 void LayerTreeImpl::AnnotateAnimatedImages(
-    base::flat_map<PaintImage::Id, bool>& image_map) const {
+    AnimatedImageDriverMap& driver_map) const {
   for (auto* layer : layer_list_.PictureLayersWithAnimatedImages()) {
-    layer->AnnotateAnimatedImages(image_map);
+    layer->AnnotateAnimatedImages(driver_map);
   }
 }
 

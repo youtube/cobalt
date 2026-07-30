@@ -32,7 +32,7 @@ constexpr size_t kHeight = 10;
 
 class MockCanvasResourceDispatcher : public CanvasResourceDispatcher {
  public:
-  explicit MockCanvasResourceDispatcher(unsigned placeholder_id)
+  explicit MockCanvasResourceDispatcher(int placeholder_id)
       : CanvasResourceDispatcher(
             /*client=*/nullptr,
             scheduler::GetSingleThreadTaskRunnerForTesting(),
@@ -50,8 +50,8 @@ class MockCanvasResourceDispatcher : public CanvasResourceDispatcher {
   MOCK_METHOD0(MainThreadReceivedImage, void());
 };
 
-unsigned GenPlaceholderId() {
-  DEFINE_STATIC_LOCAL(unsigned, s_id, (0));
+DOMNodeId GenPlaceholderId() {
+  static DOMNodeId s_id = 0;
   return ++s_id;
 }
 
@@ -79,7 +79,7 @@ class OffscreenCanvasPlaceholderTest : public Test {
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider_;
   std::unique_ptr<WebGraphicsSharedImageInterfaceProvider>
       test_web_shared_image_interface_provider_;
-  unsigned placeholder_id_ = 0;
+  DOMNodeId placeholder_id_ = 0;
 };
 
 void OffscreenCanvasPlaceholderTest::SetUp() {
@@ -100,12 +100,11 @@ void OffscreenCanvasPlaceholderTest::TearDown() {
 
 void OffscreenCanvasPlaceholderTest::CreateDispatcher() {
   dispatcher_ = std::make_unique<MockCanvasResourceDispatcher>(placeholder_id_);
-  dispatcher_->SetPlaceholderCanvasDispatcher(placeholder_id_);
   resource_provider_ =
       CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
           gfx::Size(kWidth, kHeight), GetN32FormatForCanvas(),
           kPremul_SkAlphaType, gfx::ColorSpace::CreateSRGB(),
-          test_web_shared_image_interface_provider_.get());
+          gfx::HDRMetadata(), test_web_shared_image_interface_provider_.get());
 }
 
 scoped_refptr<CanvasResource> OffscreenCanvasPlaceholderTest::DrawSomething() {
@@ -211,7 +210,7 @@ TEST_F(OffscreenCanvasPlaceholderTest, DeferredAnimationStateIsApplied) {
   ASSERT_FALSE(dispatcher());
   const auto initial_state = placeholder()->GetAnimationStateForTesting();
   constexpr auto deferred_state =
-      CanvasResourceDispatcher::AnimationState::kSuspended;
+      OffscreenCanvasPlaceholder::AnimationState::kSuspended;
   // It doesn't really matter what the initial animation state is, but we want
   // to be sure that we're actually going to change it.
   ASSERT_NE(initial_state, deferred_state);
@@ -242,7 +241,7 @@ TEST_F(OffscreenCanvasPlaceholderTest,
   CreateDispatcher();
   const auto initial_state = placeholder()->GetAnimationStateForTesting();
   constexpr auto deferred_state =
-      CanvasResourceDispatcher::AnimationState::kSuspended;
+      OffscreenCanvasPlaceholder::AnimationState::kSuspended;
   ASSERT_NE(initial_state, deferred_state);
   placeholder()->SetSuspendOffscreenCanvasAnimation(deferred_state);
   platform->RunUntilIdle();

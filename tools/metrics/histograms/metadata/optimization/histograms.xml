@@ -144,6 +144,8 @@ chromium-metrics-reviews@google.com.
   <variant name="Compose" summary="Weights for On-Device Compose"/>
   <variant name="ContextualPageActionPriceTracking"
       summary="Contextual Page Action: Show price tracking"/>
+  <variant name="ContextualTasksMultiTurnTabRelevance"
+      summary="Contextual Tasks Multi-Turn Tab Relevance"/>
   <variant name="ContextualTasksTabRelevance"
       summary="Contextual Tasks Tab Relevance"/>
   <variant name="EduClassifier" summary="Education classifier"/>
@@ -625,6 +627,26 @@ chromium-metrics-reviews@google.com.
   <variant name="Unknown" summary="Unknown"/>
 </variants>
 
+<!-- LINT.IfChange(PageEmbeddingsPriority) -->
+
+<variants name="PageEmbeddingsPriority">
+  <variant name="Background" summary="Background priority"/>
+  <variant name="Default" summary="Default priority"/>
+  <variant name="Urgent" summary="Urgent priority"/>
+  <variant name="UserBlocking" summary="User Blocking priority"/>
+</variants>
+
+<!-- LINT.ThenChange(//depot/chromium/components/page_content_annotations/content/page_embeddings_service.cc:PageEmbeddingsPriority) -->
+
+<!-- LINT.IfChange(PageEmbeddingsUsageMode) -->
+
+<variants name="PageEmbeddingsUsageMode">
+  <variant name="Continuous" summary="Continuous usage mode"/>
+  <variant name="OnDemand" summary="On-demand usage mode"/>
+</variants>
+
+<!-- LINT.ThenChange(//depot/chromium/components/page_content_annotations/content/page_embeddings_service.cc:PageEmbeddingsUsageMode) -->
+
 <variants name="PageTextDumpEvent">
   <variant name="FinishedLoad" summary="finished load"/>
   <variant name="FirstLayout" summary="first layout"/>
@@ -801,7 +823,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.AnnotatedPageContent.TotalNodeCount.{AIPageContentMode}"
-    units="nodes" expires_after="2026-09-13">
+    units="nodes" expires_after="2026-11-29">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <owner>gklassen@chromium.org</owner>
@@ -817,7 +839,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.AnnotatedPageContent.TotalSize2.{AIPageContentMode}"
-    units="KB" expires_after="2026-09-13">
+    units="KB" expires_after="2026-11-29">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <owner>gklassen@chromium.org</owner>
@@ -1975,7 +1997,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.BatchRequestedSize.{AnnotationType}"
-    units="counts" expires_after="2026-08-24">
+    units="counts" expires_after="2026-11-29">
   <owner>robertogden@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2399,7 +2421,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether the on-demand page content extraction request was allowed,
     and the reason if it was. Recorded once per on-demand page content
-    extraction request.
+    extraction request, including calls using `trigger_if_not_cached` when an
+    initial extraction has not yet been scheduled.
   </summary>
 </histogram>
 
@@ -2410,7 +2433,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether an on-demand page content extraction request was requested
     on a PDF page. Content extraction is not performed for PDFs. Recorded once
-    per on-demand request.
+    per on-demand request, including calls using `trigger_if_not_cached` when an
+    initial extraction has not yet been scheduled.
   </summary>
 </histogram>
 
@@ -2421,7 +2445,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the duration from when an on-demand page content extraction is
     requested until the callback is executed with the result. Recorded once per
-    on-demand request.
+    on-demand request, including calls using `trigger_if_not_cached` when an
+    initial extraction has not yet been scheduled.
   </summary>
 </histogram>
 
@@ -2446,7 +2471,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the state of the AnnotatedPageContentRequest at the moment an
     on-demand extraction is requested. Recorded once per on-demand page content
-    extraction request, excluding PDFs.
+    extraction request (including calls using `trigger_if_not_cached` when an
+    initial extraction has not yet been scheduled), excluding PDFs.
   </summary>
 </histogram>
 
@@ -2457,7 +2483,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether an on-demand page content extraction request successfully
     returned a valid ExtractedPageContentResult. Recorded once per on-demand
-    request, excluding PDFs.
+    request (including calls using `trigger_if_not_cached` when an initial
+    extraction has not yet been scheduled), excluding PDFs.
   </summary>
 </histogram>
 
@@ -2525,6 +2552,20 @@ chromium-metrics-reviews@google.com.
     Records whether Chrome was handling input, at the time when we requested a
     screenshot.
   </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageEmbeddings.Job.TotalDuration.{PageEmbeddingsUsageMode}.{PageEmbeddingsPriority}"
+    units="ms" expires_after="2027-06-01">
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the total time from when page content is extracted (the job is
+    queued up) until the page embeddings computation is completed. Recorded once
+    for every successfully completed page embeddings computation job.
+  </summary>
+  <token key="PageEmbeddingsPriority" variants="PageEmbeddingsPriority"/>
+  <token key="PageEmbeddingsUsageMode" variants="PageEmbeddingsUsageMode"/>
 </histogram>
 
 <histogram

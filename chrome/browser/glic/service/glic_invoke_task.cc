@@ -41,10 +41,12 @@ std::u16string GetImageMarkup(const GURL& src_url,
   return base::StrCat({u"<img src=\"", spec, u"\"", alt, u"></img>"});
 }
 
-ui::ClipboardMetadata CreateClipboardMetadata(size_t size) {
+ui::ClipboardMetadata CreateClipboardMetadata(size_t size,
+                                              bool is_drag_and_drop) {
   ui::ClipboardMetadata metadata;
   metadata.format_type = ui::ClipboardFormatType::PngType();
   metadata.size = size;
+  metadata.is_drag_and_drop = is_drag_and_drop;
   return metadata;
 }
 
@@ -137,7 +139,7 @@ void WaitForNavigationTask::DidFinishNavigation(
   }
 }
 
-ShowInstanceTask::ShowInstanceTask(GlicInstanceImpl* instance,
+ShowInstanceTask::ShowInstanceTask(GlicInstanceImpl& instance,
                                    ShowOptions options)
     : instance_(instance), options_(options) {}
 
@@ -148,15 +150,15 @@ void ShowInstanceTask::Start(base::OnceClosure done_callback) {
   std::move(done_callback).Run();
 }
 
-SetupHiddenPanelTask::SetupHiddenPanelTask(GlicInstanceImpl* instance,
-                                           tabs::TabInterface* tab)
+SetupHiddenPanelTask::SetupHiddenPanelTask(GlicInstanceImpl& instance,
+                                           tabs::TabInterface& tab)
     : instance_(instance), tab_(tab) {}
 
 SetupHiddenPanelTask::~SetupHiddenPanelTask() = default;
 
 void SetupHiddenPanelTask::Start(base::OnceClosure done_callback) {
   instance_->SuppressShowOnNextTabAddedToTask(true);
-  instance_->BindTabWithoutShowing(tab_, GlicPinTrigger::kActuation,
+  instance_->BindTabWithoutShowing(&*tab_, GlicPinTrigger::kActuation,
                                    /*pin_on_bind=*/true);
   std::move(done_callback).Run();
 }
@@ -204,9 +206,9 @@ void MaybeInitializeHiddenClientTask::OnSequenceCompleted(bool success) {
   }
 }
 
-WaitForClientConnectedTask::WaitForClientConnectedTask(Host* host)
+WaitForClientConnectedTask::WaitForClientConnectedTask(Host& host)
     : host_(host) {
-  observation_.Observe(host_);
+  observation_.Observe(&*host_);
 }
 
 WaitForClientConnectedTask::~WaitForClientConnectedTask() = default;
@@ -226,7 +228,7 @@ void WaitForClientConnectedTask::WebClientConnected() {
   }
 }
 
-NotifyIsInvokingTask::NotifyIsInvokingTask(Host* host) : host_(host) {}
+NotifyIsInvokingTask::NotifyIsInvokingTask(Host& host) : host_(host) {}
 
 NotifyIsInvokingTask::~NotifyIsInvokingTask() = default;
 
@@ -433,6 +435,8 @@ ClipboardPolicyTask::ClipboardPolicyTask(
   source_rfh_id_ = options.additional_context->source_rfh_id;
   ExtractThumbnailData(options, thumbnail_data_);
   src_url_ = GURL(options.additional_context->context->name.value_or(""));
+  is_drag_and_drop_ =
+      (options.GetInvocationSource() == mojom::InvocationSource::kWebDragDrop);
 }
 
 ClipboardPolicyTask::~ClipboardPolicyTask() = default;
@@ -468,7 +472,7 @@ void ClipboardPolicyTask::Start(base::OnceClosure done_callback) {
       *source_rfh);
 
   ui::ClipboardMetadata metadata =
-      CreateClipboardMetadata(thumbnail_data_.size());
+      CreateClipboardMetadata(thumbnail_data_.size(), is_drag_and_drop_);
 
   content::ClipboardPasteData data;
   data.png = thumbnail_data_;

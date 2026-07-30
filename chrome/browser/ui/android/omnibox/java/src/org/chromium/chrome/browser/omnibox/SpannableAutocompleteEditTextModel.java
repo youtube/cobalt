@@ -16,6 +16,7 @@ import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.ui.accessibility.AccessibilityState;
 
 import java.util.regex.Pattern;
@@ -81,8 +82,7 @@ public class SpannableAutocompleteEditTextModel
                         delegate.getText().toString(),
                         null,
                         null,
-                        delegate.getSelectionStart(),
-                        delegate.getSelectionEnd(),
+                        new TextSelection(delegate.getSelectionStart(), delegate.getSelectionEnd()),
                         null);
         mPreviouslyNotifiedState = new AutocompleteState(mCurrentState);
         mPreviouslySetState = new AutocompleteState(mCurrentState);
@@ -155,8 +155,7 @@ public class SpannableAutocompleteEditTextModel
             mDelegate.sendAccessibilityEvent(event);
         }
 
-        if (oldState.getSelStart() != newState.getSelStart()
-                || oldState.getSelEnd() != newState.getSelEnd()) {
+        if (!oldState.getSelection().equals(newState.getSelection())) {
             mDelegate.sendAccessibilityEvent(
                     AccessibilityEvent.obtain(AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED));
         }
@@ -263,8 +262,11 @@ public class SpannableAutocompleteEditTextModel
         boolean retVal;
         mInputConnection.onBeginImeCommand();
         if (hasAutocomplete() && event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_FORWARD_DEL) {
-                // The editor doesn't see the selected text so won't handle forward delete.
+            if (event.getKeyCode() == KeyEvent.KEYCODE_FORWARD_DEL
+                    || event.getKeyCode() == KeyEvent.KEYCODE_DEL) {
+                // The editor doesn't see the selected text so won't handle forward delete. Normal
+                // delete doesn't always work on the last character on hard keyboards, so handle it
+                // similarly.
                 clearAutocompleteText();
                 mLastEditWasTyping = false;
 
@@ -272,7 +274,7 @@ public class SpannableAutocompleteEditTextModel
             } else if (cursorMovementCommitsAutocomplete(event)) {
                 // These commands treat the autocomplete suggestion as a selection and then apply
                 // the cursor movement.
-                int currentPos = mCurrentState.getSelStart();
+                int currentPos = mCurrentState.getSelection().from;
                 int totalLength = mCurrentState.getUserText().length();
                 String autocompleteText = mCurrentState.getAutocompleteText();
                 if (autocompleteText != null) {
@@ -311,7 +313,12 @@ public class SpannableAutocompleteEditTextModel
         if (DEBUG) Log.i(TAG, "onSetText: " + text);
         // setText() does not necessarily trigger onTextChanged(). We need to accept the new text
         // and reset the states.
-        mCurrentState.set(text.toString(), null, null, text.length(), text.length(), null);
+        mCurrentState.set(
+                text.toString(),
+                null,
+                null,
+                new TextSelection(text.length(), text.length()),
+                null);
         mSpanCursorController.reset();
         if (mIgnoreTextChangeFromAutocomplete) {
             mPreviouslyNotifiedState.copyFrom(mCurrentState);
@@ -323,7 +330,8 @@ public class SpannableAutocompleteEditTextModel
     @Override
     public void onSelectionChanged(int selStart, int selEnd) {
         if (DEBUG) Log.i(TAG, "onSelectionChanged [%d,%d]", selStart, selEnd);
-        if (mCurrentState.getSelStart() == selStart && mCurrentState.getSelEnd() == selEnd) return;
+        TextSelection selection = mCurrentState.getSelection();
+        if (selection.from == selStart && selection.to == selEnd) return;
 
         // Do not allow users to select the space between additional texts.
         String autocompleteText = mCurrentState.getAutocompleteText();
@@ -337,7 +345,7 @@ public class SpannableAutocompleteEditTextModel
             return;
         }
 
-        mCurrentState.setSelection(selStart, selEnd);
+        mCurrentState.setSelection(new TextSelection(selStart, selEnd));
         if (mBatchEditNestCount > 0) return;
         int len = mCurrentState.getUserText().length();
         if (autocompleteText != null) {
@@ -361,8 +369,8 @@ public class SpannableAutocompleteEditTextModel
             // Reset selection now. It will be updated immediately after focus is re-gained.
             // We do this to ensure the selection changed announcements are advertised by us
             // since we suppress all TEXT_SELECTION_CHANGED announcements coming from EditText.
-            mPreviouslyNotifiedState.setSelection(-1, -1);
-            mCurrentState.setSelection(-1, -1);
+            mPreviouslyNotifiedState.setSelection(TextSelection.INVALID);
+            mCurrentState.setSelection(TextSelection.INVALID);
         }
     }
 
@@ -441,8 +449,7 @@ public class SpannableAutocompleteEditTextModel
                 userText,
                 TextUtils.isEmpty(autocompleteText) ? null : autocompleteText,
                 additionalText,
-                userText.length(),
-                userText.length(),
+                new TextSelection(userText.length(), userText.length()),
                 siteSearchLabel);
         // TODO(changwan): avoid any unnecessary removal and addition of autocomplete text when it
         // is not changed or when it is appended to the existing autocomplete text.
@@ -457,6 +464,7 @@ public class SpannableAutocompleteEditTextModel
         boolean retVal =
                 mBatchEditNestCount == 0
                         && mLastEditWasTyping
+                        && mCurrentState.getSelection().isCollapsed()
                         && mCurrentState.isCursorAtEndOfUserText()
                         && doesKeyboardSupportAutocomplete()
                         && isNonCompositionalText(getTextWithoutAutocomplete());

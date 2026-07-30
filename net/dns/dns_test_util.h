@@ -391,6 +391,7 @@ class MockDnsTransactionFactory : public DnsTransactionFactory {
       const NetLogWithSource&,
       AttemptMode attempt_mode,
       SecureDnsMode secure_dns_mode,
+      handles::NetworkHandle target_network,
       ResolveContext* resolve_context,
       bool fast_timeout) override;
 
@@ -577,6 +578,13 @@ class MockHostResolverProc : public HostResolverProc {
               HostResolverFlags host_resolver_flags,
               AddressList* addrlist,
               int* os_error) override;
+
+  int Resolve(const std::string& hostname,
+              AddressFamily address_family,
+              HostResolverFlags host_resolver_flags,
+              AddressList* addrlist,
+              int* os_error,
+              handles::NetworkHandle network) override;
 
   CaptureList GetCaptureList() const;
 

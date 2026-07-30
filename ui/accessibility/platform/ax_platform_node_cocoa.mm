@@ -2219,6 +2219,7 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
     case ax::mojom::InvalidState::kTrue:
       return @"true";
   }
+  NOTREACHED();
 }
 
 - (NSNumber*)AXIsMultiSelectable {
@@ -2281,6 +2282,7 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
     case ax::mojom::HasPopup::kDialog:
       return @"dialog";
   }
+  NOTREACHED();
 }
 
 - (NSNumber*)AXRequired {
@@ -2581,8 +2583,12 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
 }
 
 - (id)AXStringForRange:(id)parameter {
+  // SAFETY: Apple documents -[NSValue objCType] as returning "a C string"
+  // (https://developer.apple.com/documentation/foundation/nsvalue/objctype),
+  // and @encode(...) is a NUL-terminated string literal. Foundation exposes
+  // no length-bearing counterpart, so strcmp is the documented comparison.
   if (![parameter isKindOfClass:[NSValue class]] ||
-      (0 != UNSAFE_TODO(strcmp([parameter objCType], @encode(NSRange))))) {
+      (0 != UNSAFE_BUFFERS(strcmp([parameter objCType], @encode(NSRange))))) {
     return nil;
   }
 

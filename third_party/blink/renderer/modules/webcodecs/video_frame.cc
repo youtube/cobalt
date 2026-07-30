@@ -379,6 +379,7 @@ class CanvasNon2DResourceProviderCache
             required_provider_info.size, required_provider_info.format,
             required_provider_info.alpha_type,
             required_provider_info.color_space,
+            required_provider_info.hdr_metadata,
             SharedGpuContext::ContextProviderWrapper(),
             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
 
@@ -620,11 +621,12 @@ VideoFrame::VideoFrame(scoped_refptr<media::VideoFrame> frame,
                        ExecutionContext* context,
                        std::string monitoring_source_id,
                        sk_sp<SkImage> sk_image,
-                       bool use_capture_timestamp) {
+                       std::optional<base::TimeDelta> timestamp) {
   DCHECK(frame);
+  auto ts = timestamp.value_or(frame->timestamp());
   handle_ = base::MakeRefCounted<VideoFrameHandle>(
-      frame, std::move(sk_image), context, std::move(monitoring_source_id),
-      use_capture_timestamp);
+      std::move(frame), std::move(sk_image), ts, context,
+      std::move(monitoring_source_id));
 }
 
 VideoFrame::VideoFrame(scoped_refptr<VideoFrameHandle> handle)
@@ -932,7 +934,7 @@ VideoFrame* VideoFrame::Create(ScriptState* script_state,
 
   return MakeGarbageCollected<VideoFrame>(
       base::MakeRefCounted<VideoFrameHandle>(
-          std::move(frame), std::move(sk_image),
+          std::move(frame), std::move(sk_image), /*timestamp=*/std::nullopt,
           ExecutionContext::From(script_state)));
 }
 

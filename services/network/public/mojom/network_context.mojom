@@ -243,6 +243,13 @@ struct NetworkContextFilePaths {
   // `http_cache_directory` automatically by the network service.
   TransferableDirectory? no_vary_search_directory;
 
+  // Points to the directory used for persisting the logical invalidation
+  // filters for the HTTP cache. Ignored if the cache is disabled or
+  // `http_cache_directory` is null. If left null, will be set to a
+  // subdirectory of `http_cache_directory` automatically by the network
+  // service.
+  TransferableDirectory? logical_invalidation_directory;
+
   // Points to a path that contains all the network service files and databases
   // as listed below. If this network context is running inside a sandboxed
   // network service, then this path should contain no other sensitive data
@@ -1102,6 +1109,14 @@ interface NetworkContext {
                  mojo_base.mojom.Time end_time,
                  ClearDataFilter? filter) => ();
 
+  // Clears the HTTP cache logically for entries within the time range.
+  // Any entries matching the filter are immediately marked as deleted,
+  // and will not be visible in the browser anymore. The physical background
+  // task clears resources from disk concurrently.
+  ClearHttpCacheLogically(mojo_base.mojom.Time start_time,
+                          mojo_base.mojom.Time end_time,
+                          ClearDataFilter? filter) => ();
+
   // Computes the size of cache objects last accessed between |start_time| and
   // |end_time|.
   //
@@ -1487,8 +1502,12 @@ interface NetworkContext {
   // https://tools.ietf.org/html/draft-vvv-webtransport-quic-01#section-3.2 .
   // When |fingerprints| is not empty, it is used to verify the certificate.
   // https://wicg.github.io/web-transport/#dom-quictransportconfiguration-server_certificate_fingerprints
-  //
   // It is recommended to detect mojo connection errors on |handshake_client|.
+  //
+  // The |network_restrictions_id| is used to block WebTransport connections
+  // that don't adhere to the current context's Connection Allowlist:
+  // https://wicg.github.io/connection-allowlists
+  // TODO(492456054): Make network_restrictions_id non-optional.
   CreateWebTransport(
       url.mojom.Url url,
       url.mojom.Origin origin,
@@ -1496,16 +1515,20 @@ interface NetworkContext {
       array<WebTransportCertificateFingerprint> fingerprints,
       array<string> application_protocols,
       WebTransportCongestionControl congestion_control,
+      uint16? anticipated_concurrent_incoming_unidirectional_streams,
+      uint16? anticipated_concurrent_incoming_bidirectional_streams,
       pending_remote<WebTransportHandshakeClient> handshake_client,
       pending_remote<URLLoaderNetworkServiceObserver>?
           url_loader_network_observer,
-      ClientSecurityState client_security_state);
+      ClientSecurityState client_security_state,
+      mojo_base.mojom.UnguessableToken? network_restrictions_id);
 
   // Create a NetLogExporter, which helps export NetLog to an existing file.
   // Note that the log is generally global, including all NetworkContexts
   // managed by the same NetworkService. The particular NetworkContext this is
   // called on will determine which NetworkContext gets its information and
   // configuration summary written out at the end of the log.
+  [AllowedContext=sandbox.mojom.Context.kBrowser]
   CreateNetLogExporter(pending_receiver<NetLogExporter> receiver);
 
   // Tries to preconnect to `url`. `num_streams` may be used to request more

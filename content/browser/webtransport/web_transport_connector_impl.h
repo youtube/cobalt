@@ -36,7 +36,8 @@ class WebTransportConnectorImpl final
       base::WeakPtr<RenderFrameHostImpl> frame,
       const url::Origin& origin,
       const net::NetworkAnonymizationKey& network_anonymization_key,
-      network::mojom::ClientSecurityStatePtr client_security_state);
+      network::mojom::ClientSecurityStatePtr client_security_state,
+      std::optional<base::UnguessableToken> network_restrictions_id);
   ~WebTransportConnectorImpl() override;
 
   void Connect(
@@ -45,6 +46,10 @@ class WebTransportConnectorImpl final
           fingerprints,
       const std::vector<std::string>& application_protocols,
       network::mojom::WebTransportCongestionControl congestion_control,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_unidirectional_streams,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_bidirectional_streams,
       mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
           handshake_client) override;
 
@@ -55,6 +60,10 @@ class WebTransportConnectorImpl final
           fingerprints,
       const std::vector<std::string>& application_protocols,
       network::mojom::WebTransportCongestionControl congestion_control,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_unidirectional_streams,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_bidirectional_streams,
       mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
           handshake_client,
       std::unique_ptr<WebTransportThrottleContext::Tracker> tracker);
@@ -65,6 +74,10 @@ class WebTransportConnectorImpl final
           fingerprints,
       const std::vector<std::string>& application_protocols,
       network::mojom::WebTransportCongestionControl congestion_control,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_unidirectional_streams,
+      std::optional<uint16_t>
+          anticipated_concurrent_incoming_bidirectional_streams,
       mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
           url_loader_network_observer,
       network::mojom::ClientSecurityStatePtr client_security_state,
@@ -78,6 +91,7 @@ class WebTransportConnectorImpl final
   const net::NetworkAnonymizationKey network_anonymization_key_;
   const network::mojom::ClientSecurityStatePtr client_security_state_;
   const base::WeakPtr<WebTransportThrottleContext> throttle_context_;
+  const std::optional<base::UnguessableToken> network_restrictions_id_;
 
   base::WeakPtrFactory<WebTransportConnectorImpl> weak_factory_{this};
 };

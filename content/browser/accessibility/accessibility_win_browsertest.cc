@@ -27,10 +27,10 @@
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_safearray.h"
 #include "base/win/scoped_variant.h"
+#include "base/win/windows_version.h"
 #include "build/build_config.h"
 #include "content/browser/accessibility/accessibility_browsertest.h"
 #include "content/browser/accessibility/accessibility_test_helpers.h"
@@ -60,7 +60,6 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/iaccessible2/ia2_api_all.h"
 #include "third_party/isimpledom/ISimpleDOMNode.h"
-#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/platform/ax_fragment_root_win.h"
 #include "ui/accessibility/platform/browser_accessibility_manager_win.h"
@@ -5267,6 +5266,38 @@ IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest,
   EXPECT_EQ(0, n_key_bindings);
   EXPECT_EQ(nullptr, key_bindings);
 
+  // get_keyBinding for aria-actions indices should return S_FALSE (no key
+  // bindings), not E_INVALIDARG.
+  EXPECT_EQ(S_FALSE,
+            div_action->get_keyBinding(2, 100, &key_bindings, &n_key_bindings));
+  EXPECT_EQ(0, n_key_bindings);
+  EXPECT_EQ(nullptr, key_bindings);
+  EXPECT_EQ(S_FALSE,
+            div_action->get_keyBinding(3, 100, &key_bindings, &n_key_bindings));
+  EXPECT_EQ(0, n_key_bindings);
+  EXPECT_EQ(nullptr, key_bindings);
+
+  // Out-of-range index should return E_INVALIDARG.
+  EXPECT_EQ(E_INVALIDARG,
+            div_action->get_keyBinding(4, 100, &key_bindings, &n_key_bindings));
+
+  // get_description returns S_FALSE for all valid indices (no descriptions
+  // are currently defined for any action type).
+  base::win::ScopedBstr action_description;
+  EXPECT_EQ(S_FALSE,
+            div_action->get_description(0, action_description.Receive()));
+  EXPECT_EQ(nullptr, action_description.Get());
+  EXPECT_EQ(S_FALSE,
+            div_action->get_description(2, action_description.Receive()));
+  EXPECT_EQ(nullptr, action_description.Get());
+  EXPECT_EQ(S_FALSE,
+            div_action->get_description(3, action_description.Receive()));
+  EXPECT_EQ(nullptr, action_description.Get());
+
+  // Out-of-range index should return E_INVALIDARG.
+  EXPECT_EQ(E_INVALIDARG,
+            div_action->get_description(4, action_description.Receive()));
+
   base::win::ScopedVariant childid_self(CHILDID_SELF);
 
   // Verify name of the edit button before doAction is called.
@@ -5313,6 +5344,136 @@ IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest,
 
   // There are no more actions, calls for indexes >=4 will fail.
   EXPECT_HRESULT_FAILED(div_action->doAction(4));
+}
+
+IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest,
+                       TestAriaActionUiaCustomProperty) {
+  if (base::win::GetVersion() < base::win::Version::WIN11) {
+    GTEST_SKIP() << "UIAutomationType_ElementArray custom properties require "
+                    "Windows 11 or later.";
+  }
+
+  LoadInitialAccessibilityTreeFromHtml(
+      R"HTML(<!DOCTYPE html>
+      <html>
+      <body>
+      <div role="textbox" id="my-textbox" aria-label="file viewer"
+           aria-actions="edit open">
+        your-file-name.pdf
+        <button id="edit"
+          onclick="document.getElementById('edit').innerText = 'edit clicked';">
+          Edit
+        </button>
+        <button id="open"
+          onclick="document.getElementById('open').innerText = 'open clicked';">
+          Open
+        </button>
+      </div>
+      </body>
+      </html>)HTML");
+
+  // (a) Get the host element via UIA and verify AccessibleActions custom
+  // property returns an element array of the target nodes.
+  ui::BrowserAccessibility* textbox_ba =
+      FindNode(ax::mojom::Role::kTextField, "file viewer");
+  ASSERT_NE(nullptr, textbox_ba);
+
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> textbox_uia =
+      QueryInterfaceFromNode<IRawElementProviderSimple>(textbox_ba);
+  ASSERT_NE(nullptr, textbox_uia.Get());
+
+  // Query the AccessibleActions custom property.
+  base::win::ScopedVariant aria_actions_value;
+  ASSERT_HRESULT_SUCCEEDED(textbox_uia->GetPropertyValue(
+      ui::UiaRegistrarWin::GetInstance().GetAriaActionsPropertyId(),
+      aria_actions_value.Receive()));
+
+  // Verify property is an element array with 2 elements (Edit, Open buttons).
+  ASSERT_EQ(VT_ARRAY | VT_UNKNOWN, aria_actions_value.type());
+  SAFEARRAY* actions_array = V_ARRAY(aria_actions_value.ptr());
+  ASSERT_NE(nullptr, actions_array);
+
+  LONG lower_bound = 0;
+  LONG upper_bound = 0;
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetLBound(actions_array, 1, &lower_bound));
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetUBound(actions_array, 1, &upper_bound));
+  LONG element_count = upper_bound - lower_bound + 1;
+  EXPECT_EQ(2, element_count);
+
+  // Verify the elements are the expected target nodes by checking their names.
+  ui::BrowserAccessibility* edit_ba =
+      FindNode(ax::mojom::Role::kButton, "Edit");
+  ui::BrowserAccessibility* open_ba =
+      FindNode(ax::mojom::Role::kButton, "Open");
+  ASSERT_NE(nullptr, edit_ba);
+  ASSERT_NE(nullptr, open_ba);
+
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> edit_uia =
+      QueryInterfaceFromNode<IRawElementProviderSimple>(edit_ba);
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> open_uia =
+      QueryInterfaceFromNode<IRawElementProviderSimple>(open_ba);
+
+  // Extract elements from the SAFEARRAY and verify they match targets.
+  Microsoft::WRL::ComPtr<IUnknown> element0;
+  Microsoft::WRL::ComPtr<IUnknown> element1;
+  LONG index0 = 0;
+  LONG index1 = 1;
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetElement(actions_array, &index0,
+                                               static_cast<void**>(&element0)));
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetElement(actions_array, &index1,
+                                               static_cast<void**>(&element1)));
+
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> element0_provider;
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> element1_provider;
+  ASSERT_HRESULT_SUCCEEDED(element0.As(&element0_provider));
+  ASSERT_HRESULT_SUCCEEDED(element1.As(&element1_provider));
+  EXPECT_EQ(edit_uia.Get(), element0_provider.Get());
+  EXPECT_EQ(open_uia.Get(), element1_provider.Get());
+
+  // (b) Verify property is absent on element without aria-actions.
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> button_uia =
+      QueryInterfaceFromNode<IRawElementProviderSimple>(edit_ba);
+  ASSERT_NE(nullptr, button_uia.Get());
+
+  base::win::ScopedVariant button_actions_value;
+  ASSERT_HRESULT_SUCCEEDED(button_uia->GetPropertyValue(
+      ui::UiaRegistrarWin::GetInstance().GetAriaActionsPropertyId(),
+      button_actions_value.Receive()));
+  EXPECT_EQ(VT_EMPTY, button_actions_value.type());
+
+  // (c) Dynamic update: change aria-actions via JS and verify property updates.
+  // Also change aria-label to trigger a NAME_CHANGED event we can wait on,
+  // since changing aria-actions alone does not fire a generator event.
+  {
+    AccessibilityNotificationWaiter waiter(
+        shell()->web_contents(), ui::AXEventGenerator::Event::NAME_CHANGED);
+    ExecuteScript(
+        u"let el = document.getElementById('my-textbox');"
+        u"el.setAttribute('aria-actions', 'edit');"
+        u"el.setAttribute('aria-label', 'file viewer updated');");
+    ASSERT_TRUE(waiter.WaitForNotification());
+  }
+
+  // Re-query the custom property after dynamic update.
+  base::win::ScopedVariant updated_actions_value;
+  ASSERT_HRESULT_SUCCEEDED(textbox_uia->GetPropertyValue(
+      ui::UiaRegistrarWin::GetInstance().GetAriaActionsPropertyId(),
+      updated_actions_value.Receive()));
+
+  // Should now contain only one element (Edit button).
+  ASSERT_EQ(VT_ARRAY | VT_UNKNOWN, updated_actions_value.type());
+  SAFEARRAY* updated_array = V_ARRAY(updated_actions_value.ptr());
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetLBound(updated_array, 1, &lower_bound));
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetUBound(updated_array, 1, &upper_bound));
+  EXPECT_EQ(1, upper_bound - lower_bound + 1);
+
+  Microsoft::WRL::ComPtr<IUnknown> updated_element;
+  LONG updated_index = 0;
+  ASSERT_HRESULT_SUCCEEDED(SafeArrayGetElement(
+      updated_array, &updated_index, static_cast<void**>(&updated_element)));
+  Microsoft::WRL::ComPtr<IRawElementProviderSimple> updated_provider;
+  ASSERT_HRESULT_SUCCEEDED(updated_element.As(&updated_provider));
+  EXPECT_EQ(edit_uia.Get(), updated_provider.Get());
 }
 
 IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest, HasHWNDAfterNavigation) {
@@ -5651,10 +5812,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest,
   win_event_waiter.Wait();
 }
 
-class AccessibilityWinUIABrowserTest : public AccessibilityWinBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{::features::kUiaProvider};
-};
+class AccessibilityWinUIABrowserTest : public AccessibilityWinBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(AccessibilityWinUIABrowserTest,
                        UIAClientDisconnectedHistogram) {
@@ -6309,10 +6467,7 @@ IN_PROC_BROWSER_TEST_F(AccessibilityWinUIABrowserTest,
 }
 
 class AccessibilityWinUIASelectivelyEnabledBrowserTest
-    : public AccessibilityWinUIABrowserTest {
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
+    : public AccessibilityWinUIABrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(AccessibilityWinUIASelectivelyEnabledBrowserTest,
                        RequestingTopLevelElementEnablesWebAccessibility) {
@@ -6809,36 +6964,6 @@ IN_PROC_BROWSER_TEST_F(AccessibilityWinBrowserTest,
   LONG role_button_2 = 0;
   ASSERT_HRESULT_SUCCEEDED(ia2_button_2->role(&role_button_2));
   EXPECT_EQ(role_button_2, ROLE_SYSTEM_PUSHBUTTON);
-}
-
-class AccessibilityWinAriaNotifyBrowserTest
-    : public AccessibilityWinBrowserTest {
- private:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    AccessibilityWinBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
-                                    "AriaNotify");
-    scoped_feature_list_.InitAndDisableFeature(features::kUiaProvider);
-  }
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// IA2 Fallback for Aria-Notify.
-IN_PROC_BROWSER_TEST_F(AccessibilityWinAriaNotifyBrowserTest,
-                       AriaNotification) {
-  LoadInitialAccessibilityTreeFromHtml(R"HTML(
-      <p>Hello world.</p>
-      <p>Another paragraph.</p>
-      <p id="goodbye">Goodbye world.</p>)HTML");
-  WebContentsImpl* web_contents =
-      static_cast<WebContentsImpl*>(shell()->web_contents());
-  ui::BrowserAccessibilityManager* manager =
-      web_contents->GetRootBrowserAccessibilityManager();
-  NativeWinEventWaiter win_event_waiter(
-      manager, "EVENT_OBJECT_LIVEREGIONCHANGED on role=ROLE_SYSTEM_TEXT*");
-  ExecuteScript(
-      u"document.getElementById('goodbye').ariaNotify('hello again');");
-  win_event_waiter.Wait();
 }
 
 }  // namespace content

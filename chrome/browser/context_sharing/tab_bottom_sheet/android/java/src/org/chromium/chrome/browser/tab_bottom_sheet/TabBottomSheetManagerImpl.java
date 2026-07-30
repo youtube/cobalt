@@ -17,15 +17,22 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
+import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
+import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponentSupplier;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
+import org.chromium.chrome.browser.tab.CurrentTabObserver;
+import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
+import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -101,6 +108,7 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     private boolean mIsSuppressedOnToolbarSwipe;
     private boolean mIsSuppressedByReadAloud;
     private boolean mIsSuppressedByIncognito;
+    private boolean mIsSuppressedByAutofill;
 
     private final TabModelSelectorObserver mTabModelSelectorObserver =
             new TabModelSelectorObserver() {
@@ -126,8 +134,26 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                 }
             };
 
+    private final TabObserver mTabObserver =
+            new EmptyTabObserver() {
+                @Override
+                public void onDidStartNavigationInPrimaryMainFrame(
+                        Tab tab, NavigationHandle navigationHandle) {
+                    if (UrlConstants.DISTILLER_SCHEME.equals(
+                            navigationHandle.getUrl().getScheme())) {
+                        tryToCloseBottomSheet(/* animate= */ false);
+                    }
+                }
+            };
+    private @Nullable CurrentTabObserver mCurrentTabObserver;
+
     private @Nullable View mPeekView;
+    private @Nullable MonotonicObservableSupplier<ManualFillingComponent>
+            mManualFillingComponentSupplier;
+    private @Nullable ManualFillingComponent mCurrentManualFillingComponent;
+
     private @Nullable NullableObservableSupplier<Tab> mActivePlaybackTabSupplier;
+    private @Nullable Runnable mReadAloudStopPlaybackCallback;
     private final Callback<@Nullable Tab> mActivePlaybackTabObserver =
             this::onActivePlaybackTabChanged;
 
@@ -140,6 +166,14 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
 
     private @Nullable TabBottomSheetCoordinator mTabBottomSheetCoordinator;
     private @Nullable NativeInterfaceDelegate mNativeInterfaceDelegate;
+
+    private final Callback<ManualFillingComponent> mFillingComponentObserver =
+            this::connectToFillingComponent;
+
+    private final Callback<Boolean> mIsAccessoryRequestedObserver =
+            this::onAccessoryRequestedChanged;
+
+    private final Runnable mOnBackPressed = () -> tryToCloseBottomSheet(/* animate= */ true);
 
     /**
      * Constructor.
@@ -176,8 +210,16 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                             (TabModelSelector selector) -> {
                                 if (selector != null) {
                                     selector.addObserver(mTabModelSelectorObserver);
+                                    mCurrentTabObserver =
+                                            new CurrentTabObserver(
+                                                    selector.getCurrentTabSupplier(), mTabObserver);
                                 }
                             }));
+        }
+        mManualFillingComponentSupplier = ManualFillingComponentSupplier.from(mWindowAndroid);
+        if (mManualFillingComponentSupplier != null) {
+            mManualFillingComponentSupplier.addSyncObserverAndPostIfNonNull(
+                    mFillingComponentObserver);
         }
 
         TabBottomSheetUtils.attachManagerToWindow(windowAndroid, this);
@@ -209,7 +251,8 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                         mBottomSheetController,
                         mTouchEventProvider,
                         coBrowseViews,
-                        mSheetEventsCallback);
+                        mSheetEventsCallback,
+                        mOnBackPressed);
         if (mPeekView != null) {
             mTabBottomSheetCoordinator.attachPeekView(mPeekView);
         }
@@ -217,9 +260,13 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
         if (mIsSuppressedOnTabSwitcher
                 || mIsSuppressedOnToolbarSwipe
                 || mIsSuppressedByReadAloud
-                || mIsSuppressedByIncognito) {
+                || mIsSuppressedByIncognito
+                || mIsSuppressedByAutofill) {
             // We are currently suppressed, save this sheet to be shown when suppression ends.
             mNativeInterfaceDelegate = nativeInterfaceDelegate;
+            if (mIsSuppressedByReadAloud && mReadAloudStopPlaybackCallback != null) {
+                mReadAloudStopPlaybackCallback.run();
+            }
             return true;
         }
         if (!mSuppressBottomSheetForTesting
@@ -305,11 +352,13 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
     }
 
     @Override
-    public void setReadAloudActivePlaybackTabSupplier(
-            NullableObservableSupplier<Tab> activePlaybackTabSupplier) {
+    public void initReadAloudIntegration(
+            NullableObservableSupplier<Tab> activePlaybackTabSupplier,
+            Runnable stopPlaybackCallback) {
         assert mActivePlaybackTabSupplier == null;
         mActivePlaybackTabSupplier = activePlaybackTabSupplier;
         mActivePlaybackTabSupplier.addSyncObserverAndCallIfNonNull(mActivePlaybackTabObserver);
+        mReadAloudStopPlaybackCallback = stopPlaybackCallback;
     }
 
     @Override
@@ -318,6 +367,18 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
             mActivePlaybackTabSupplier.removeObserver(mActivePlaybackTabObserver);
             mActivePlaybackTabSupplier = null;
         }
+        mReadAloudStopPlaybackCallback = null;
+        if (mCurrentManualFillingComponent != null) {
+            mCurrentManualFillingComponent
+                    .getIsAccessoryRequestedSupplier()
+                    .removeObserver(mIsAccessoryRequestedObserver);
+            mCurrentManualFillingComponent = null;
+        }
+        if (mManualFillingComponentSupplier != null) {
+            mManualFillingComponentSupplier.removeObserver(mFillingComponentObserver);
+            mManualFillingComponentSupplier = null;
+        }
+
         mIsCloseFromNative = true;
 
         mCallbackController.destroy();
@@ -327,6 +388,11 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
         if (mTabBottomSheetCoordinator != null) {
             mTabBottomSheetCoordinator.destroy();
             mTabBottomSheetCoordinator = null;
+        }
+
+        if (mCurrentTabObserver != null) {
+            mCurrentTabObserver.destroy();
+            mCurrentTabObserver = null;
         }
 
         TabModelSelector selector = TabModelSelectorSupplier.getValueOrNullFrom(mWindowAndroid);
@@ -378,7 +444,8 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
         if (!mIsSuppressedOnTabSwitcher
                 && !mIsSuppressedOnToolbarSwipe
                 && !mIsSuppressedByReadAloud
-                && !mIsSuppressedByIncognito) {
+                && !mIsSuppressedByIncognito
+                && !mIsSuppressedByAutofill) {
 
             if (mTabBottomSheetCoordinator != null && mNativeInterfaceDelegate != null) {
                 if (!mTabBottomSheetCoordinator.tryToShowBottomSheet(
@@ -386,6 +453,30 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
                     notifyOnClose();
                 }
             }
+        }
+    }
+
+    private void connectToFillingComponent(ManualFillingComponent component) {
+        if (mCurrentManualFillingComponent == component) return;
+        if (mCurrentManualFillingComponent != null) {
+            mCurrentManualFillingComponent
+                    .getIsAccessoryRequestedSupplier()
+                    .removeObserver(mIsAccessoryRequestedObserver);
+        }
+
+        mCurrentManualFillingComponent = component;
+        mCurrentManualFillingComponent
+                .getIsAccessoryRequestedSupplier()
+                .addSyncObserverAndCallIfNonNull(mIsAccessoryRequestedObserver);
+    }
+
+    private void onAccessoryRequestedChanged(boolean isRequested) {
+        if (isRequested && !mIsSuppressedByAutofill) {
+            mIsSuppressedByAutofill = true;
+            maybeCloseBottomSheet();
+        } else if (!isRequested && mIsSuppressedByAutofill) {
+            mIsSuppressedByAutofill = false;
+            maybeShowBottomSheet();
         }
     }
 
@@ -403,24 +494,60 @@ public class TabBottomSheetManagerImpl implements TabBottomSheetManager {
         mSuppressBottomSheetForTesting = suppress;
     }
 
-    public void setReadAloudActivePlaybackTabSupplierForTesting(
-            NullableObservableSupplier<Tab> activePlaybackTabSupplier) {
+    public void initReadAloudIntegrationForTesting(
+            NullableObservableSupplier<Tab> activePlaybackTabSupplier,
+            Runnable stopPlaybackCallback) {
         var oldSupplier = mActivePlaybackTabSupplier;
         if (oldSupplier != null) {
             oldSupplier.removeObserver(mActivePlaybackTabObserver);
         }
+        var oldCallback = mReadAloudStopPlaybackCallback;
 
         mActivePlaybackTabSupplier = activePlaybackTabSupplier;
         mActivePlaybackTabSupplier.addSyncObserverAndCallIfNonNull(mActivePlaybackTabObserver);
+        mReadAloudStopPlaybackCallback = stopPlaybackCallback;
         ResettersForTesting.register(
                 () -> {
                     if (mActivePlaybackTabSupplier != null) {
                         mActivePlaybackTabSupplier.removeObserver(mActivePlaybackTabObserver);
                     }
                     mActivePlaybackTabSupplier = oldSupplier;
+                    mReadAloudStopPlaybackCallback = oldCallback;
                     if (mActivePlaybackTabSupplier != null) {
                         mActivePlaybackTabSupplier.addSyncObserverAndCallIfNonNull(
                                 mActivePlaybackTabObserver);
+                    }
+                });
+    }
+
+    public void setManualFillingComponentSupplierForTesting(
+            @Nullable MonotonicObservableSupplier<ManualFillingComponent> supplier) {
+        var oldSupplier = mManualFillingComponentSupplier;
+        if (oldSupplier != null) {
+            oldSupplier.removeObserver(mFillingComponentObserver);
+        }
+        mManualFillingComponentSupplier = supplier;
+        if (mManualFillingComponentSupplier != null) {
+            mManualFillingComponentSupplier.addSyncObserverAndPostIfNonNull(
+                    mFillingComponentObserver);
+        }
+        ResettersForTesting.register(
+                () -> {
+                    if (mManualFillingComponentSupplier != null) {
+                        mManualFillingComponentSupplier.removeObserver(mFillingComponentObserver);
+                    }
+                    mManualFillingComponentSupplier = oldSupplier;
+                    if (mManualFillingComponentSupplier != null) {
+                        mManualFillingComponentSupplier.addSyncObserverAndPostIfNonNull(
+                                mFillingComponentObserver);
+                    } else {
+                        if (mCurrentManualFillingComponent != null) {
+                            mCurrentManualFillingComponent
+                                    .getIsAccessoryRequestedSupplier()
+                                    .removeObserver(mIsAccessoryRequestedObserver);
+                            mCurrentManualFillingComponent = null;
+                        }
+                        mIsSuppressedByAutofill = false;
                     }
                 });
     }

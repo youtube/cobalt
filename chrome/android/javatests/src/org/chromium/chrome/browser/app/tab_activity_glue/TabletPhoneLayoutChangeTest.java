@@ -33,7 +33,9 @@ import org.chromium.chrome.tab_ui.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.OmniboxFocusReason;
+import org.chromium.components.omnibox.TextSelection;
 import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.concurrent.TimeoutException;
@@ -107,8 +109,10 @@ public class TabletPhoneLayoutChangeTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
-                        toolbarManager.setUrlBarFocusAndText(
-                                true, OmniboxFocusReason.OMNIBOX_TAP, urlBarText));
+                        toolbarManager.beginFuseboxInput(
+                                new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP)
+                                        .setUserText(urlBarText)
+                                        .setSelection(TextSelection.SELECT_ALL)));
 
         CriteriaHelper.pollUiThread(
                 () -> {

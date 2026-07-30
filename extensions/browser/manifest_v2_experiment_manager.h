@@ -13,7 +13,6 @@
 #include "base/scoped_observation.h"
 #include "base/types/pass_key.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/prefs/pref_change_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/mv2_deprecation_impact_checker.h"
@@ -66,14 +65,6 @@ class ManifestV2ExperimentManager : public KeyedService,
     kMaxValue = kHardDisabled,
   };
 
-  // Possible actions taken by the user on an MV2 extension.
-  // Do not re-order entries, as these are used in UKM.
-  // Exposed for testing purposes.
-  enum class ExtensionMV2DeprecationAction {
-    kRemoved,
-    kReEnabled,
-  };
-
   // Retrieves the ManifestV2ExperimentManager associated with the given
   // `browser_context`. Note this instance is shared between on- and off-the-
   // record contexts.
@@ -83,34 +74,19 @@ class ManifestV2ExperimentManager : public KeyedService,
   // Returns the singleton instance of the factory for this KeyedService.
   static BrowserContextKeyedServiceFactory* GetFactory();
 
-  // Returns the current experiment stage for the MV2 experiment.  Note: You
-  // should only use this for determining the experiment stage itself. For
-  // determining if an extension is affected, use IsExtensionAffected() below.
-  MV2ExperimentStage GetCurrentExperimentStage();
-
   // Returns true if the given `extension` is affected by the MV2 deprecation.
   // This may be false if, e.g., the extension is policy-installed.
   bool IsExtensionAffected(const Extension& extension);
 
-  // Returns true if a new installation of the given `extension_id` should be
-  // blocked.
+  // Returns true if a new installation with the given `manifest_version`,
+  // `manifest_type`, and `manifest_location` should be blocked.
   bool ShouldBlockExtensionInstallation(
-      const ExtensionId& extension_id,
       int manifest_version,
       Manifest::Type manifest_type,
-      mojom::ManifestLocation manifest_location,
-      const HashedExtensionId& hashed_id);
+      mojom::ManifestLocation manifest_location);
 
   // Returns true if Chrome should disallow enabling the given `extension`.
   bool ShouldBlockExtensionEnable(const Extension& extension);
-
-  // Returns true if the notice for `extension_id` has been acknowledged by the
-  // user during the current MV2 deprecation `experiment_stage_`.
-  bool DidUserAcknowledgeNotice(const ExtensionId& extension_id);
-
-  // Called to indicate the user chose to acknowledge the notice for
-  // `extension_id` during the current MV2 deprecation `experiment_stage_`.
-  void MarkNoticeAsAcknowledged(const ExtensionId& extension_id);
 
   // Returns true if the user has acknowledge the notice during the current MV2
   // deprecation `experiment_stage_`.
@@ -125,17 +101,8 @@ class ManifestV2ExperimentManager : public KeyedService,
   base::CallbackListSubscription RegisterOnManagerReadyCallback(
       base::RepeatingClosure callback);
 
-  // Whether the disabled dialog has been triggered for this `browser_context_`.
-  bool has_triggered_disabled_dialog() {
-    return has_triggered_disabled_dialog_;
-  }
-  // This should be called when a new window is opened for `browser_context_`.
-  void SetHasTriggeredDisabledDialog(bool has_triggered);
-
   // Returns whether this has finished its initialization steps.
   bool is_manager_ready() { return is_manager_ready_; }
-
-  bool DidUserReEnableExtensionForTesting(const ExtensionId& extension_id);
 
   // Helpers to call internal methods directly for testing purposes. These are
   // useful to have an extension that's installed in the body of a test get
@@ -170,34 +137,14 @@ class ManifestV2ExperimentManager : public KeyedService,
   // deprecation (e.g., if it updated to MV3).
   void MaybeReEnableExtension(const Extension& extension);
 
-  // Returns true if a user re-enabled an extension after it was explicitly
-  // disabled by the MV2 deprecation.
-  bool DidUserReEnableExtension(const ExtensionId& extension_id);
-
   // Emits metrics about the state of installed extensions related to the
   // MV2 deprecation.
   void EmitMetricsForProfileReady();
 
-  // Emits a UKM record for the extension associated with `extension_url` and
-  // the corresponding `action`.
-  void RecordUkmForExtension(const GURL& extension_url,
-                             ExtensionMV2DeprecationAction action);
-
   // ExtensionRegistry:
-  void OnExtensionLoaded(content::BrowserContext* browser_context,
-                         const Extension* extension) override;
   void OnExtensionInstalled(content::BrowserContext* browser_context,
                             const Extension* extension,
                             bool is_update) override;
-  void OnExtensionUninstalled(content::BrowserContext* browser_context,
-                              const Extension* extension,
-                              UninstallReason reason) override;
-
-  // Called when the management policy for MV2 is changed.
-  void OnManagementPolicyChanged();
-
-  // The current stage of the MV2 deprecation experiments.
-  const MV2ExperimentStage experiment_stage_;
 
   // A helper object to determine if a given extension is affected by the
   // MV2 deprecation experiments.
@@ -210,11 +157,6 @@ class ManifestV2ExperimentManager : public KeyedService,
   // The associated BrowserContext. Guaranteed to be safe to use since this is
   // a KeyedService for the context.
   raw_ptr<content::BrowserContext> browser_context_;
-
-  PrefChangeRegistrar pref_change_registrar_;
-
-  // Whether the disabled dialog has been triggered for this `browser_context_`.
-  bool has_triggered_disabled_dialog_ = false;
 
   // Whether this class has finished its initialization steps.
   bool is_manager_ready_ = false;

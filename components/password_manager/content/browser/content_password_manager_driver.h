@@ -55,6 +55,11 @@ class ContentPasswordManagerDriver final
       mojo::PendingAssociatedReceiver<autofill::mojom::PasswordManagerDriver>
           pending_receiver);
   void DidNavigate();
+  // Checks if the current URL is safe to share password data with. Kills the
+  // current renderer process if the URL is not safe and `may_kill_renderer` is
+  // `true`.
+  bool HasValidURL(bool may_kill_renderer = true);
+  bool IsRenderFrameHostSupported();
 
   // PasswordManagerDriver implementation.
   DriverId GetId() const override;
@@ -117,6 +122,7 @@ class ContentPasswordManagerDriver final
   PasswordGenerationFrameHelper* GetPasswordGenerationHelper() override;
   PasswordManagerInterface* GetPasswordManager() override;
   PasswordAutofillManager* GetPasswordAutofillManager() override;
+  autofill::PasswordManagerDelegate* GetPasswordManagerDelegate() override;
   void SendLoggingAvailability() override;
   bool IsDirectChildOfPrimaryMainFrame() const override;
   bool IsInPrimaryMainFrame() const override;

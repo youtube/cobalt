@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/callback_list.h"
 #include "base/feature_list.h"
@@ -48,6 +49,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/browser/ui/window_metadata/window_metadata_controller.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -65,6 +67,7 @@
 #include "components/safe_browsing/core/browser/realtime/fake_url_lookup_service.h"
 #include "components/split_tabs/split_tab_visual_data.h"
 #include "components/tabs/public/split_tab_collection.h"
+#include "content/public/browser/desktop_capture_pip_utils.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -72,9 +75,12 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/scoped_accessibility_mode_override.h"
+#include "content/public/test/scoped_pip_exclusion_override.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "media/base/media_switches.h"
+#include "media/capture/capture_switches.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
 #include "ui/accessibility/platform/ax_platform_node_test_helper.h"
 #include "ui/base/buildflags.h"
@@ -88,6 +94,7 @@
 #if defined(USE_AURA)
 #include "ui/aura/client/focus_client.h"
 #include "ui/views/widget/native_widget_aura.h"
+#include "ui/wm/core/window_properties.h"
 #endif  // USE_AURA
 
 #if BUILDFLAG(IS_OZONE)
@@ -98,6 +105,127 @@
 #include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
 #include "chrome/browser/ui/ash/test_util.h"
 #endif
+
+#if BUILDFLAG(IS_WIN)
+
+class BrowserViewPipTest : public InProcessBrowserTest {
+ public:
+  BrowserViewPipTest() {
+    feature_list_.InitAndEnableFeature(features::kExcludePipFromScreenCapture);
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(BrowserViewPipTest, DynamicStatePropagation) {
+  content::ScopedPipExclusionOverride exclusion_override(false);
+
+  // Create a PIP browser.
+  Browser::CreateParams params(Browser::TYPE_PICTURE_IN_PICTURE,
+                               browser()->profile(), true);
+  Browser* pip_browser = Browser::Create(params);
+  pip_browser->window()->Show();
+  BrowserView* pip_browser_view =
+      BrowserView::GetBrowserViewForBrowser(pip_browser);
+
+  // Use the override to flip the global state.
+  exclusion_override.SetExcluded(true);
+  EXPECT_TRUE(pip_browser_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+
+  exclusion_override.SetExcluded(false);
+  EXPECT_FALSE(pip_browser_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+
+  CloseBrowserSynchronously(pip_browser);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserViewPipTest, InitialStateVerification) {
+  // Mock coordinator to return true for exclusion.
+  content::ScopedPipExclusionOverride exclusion_override(true);
+
+  // Create a PIP browser.
+  Browser::CreateParams params(Browser::TYPE_PICTURE_IN_PICTURE,
+                               browser()->profile(), true);
+  Browser* pip_browser = Browser::Create(params);
+  pip_browser->window()->Show();
+  BrowserView* pip_browser_view =
+      BrowserView::GetBrowserViewForBrowser(pip_browser);
+
+  // Verify it's excluded immediately.
+  EXPECT_TRUE(pip_browser_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+
+  CloseBrowserSynchronously(pip_browser);
+}
+
+class BrowserViewPipDisabledTest : public InProcessBrowserTest {
+ public:
+  BrowserViewPipDisabledTest() {
+    feature_list_.InitAndDisableFeature(features::kExcludePipFromScreenCapture);
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(BrowserViewPipDisabledTest, FeatureFlagEnforcement) {
+  content::ScopedPipExclusionOverride exclusion_override(false);
+
+  // Create a PIP browser.
+  Browser::CreateParams params(Browser::TYPE_PICTURE_IN_PICTURE,
+                               browser()->profile(), true);
+  Browser* pip_browser = Browser::Create(params);
+  pip_browser->window()->Show();
+  BrowserView* pip_browser_view =
+      BrowserView::GetBrowserViewForBrowser(pip_browser);
+
+  // Flip the global state.
+  exclusion_override.SetExcluded(true);
+
+  // Property should still be false because of the gate.
+  EXPECT_FALSE(pip_browser_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+
+  CloseBrowserSynchronously(pip_browser);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserViewPipTest, WindowTypeIsolation) {
+  content::ScopedPipExclusionOverride exclusion_override(false);
+
+  // Normal browser (already exists as browser()).
+  BrowserView* normal_view = BrowserView::GetBrowserViewForBrowser(browser());
+
+  // Flip the global state.
+  exclusion_override.SetExcluded(true);
+
+  // Property should remain false.
+  EXPECT_FALSE(normal_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserViewPipTest, NewWindowInitializationIsolation) {
+  // Mock coordinator to return true for exclusion.
+  content::ScopedPipExclusionOverride exclusion_override(true);
+
+  // Create a normal browser.
+  Browser::CreateParams params(Browser::TYPE_NORMAL, browser()->profile(),
+                               true);
+  Browser* new_normal_browser = Browser::Create(params);
+  new_normal_browser->window()->Show();
+
+  BrowserView* new_normal_view =
+      BrowserView::GetBrowserViewForBrowser(new_normal_browser);
+
+  // Property should remain false because normal windows are not excluded.
+  EXPECT_FALSE(new_normal_view->GetWidget()->GetNativeView()->GetProperty(
+      wm::kExcludeFromScreenCaptureKey));
+
+  CloseBrowserSynchronously(new_normal_browser);
+}
+
+#endif  // BUILDFLAG(IS_WIN)
 
 class BrowserViewTest : public InProcessBrowserTest {
  public:
@@ -903,6 +1031,8 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, ScrimForTabModalInSplitView) {
 
 // Tests that GetAccessibleTabLabel correctly labels each tab in a split.
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
+  auto* controller = WindowMetadataController::From(browser());
+
   // Create a pinned split.
   chrome::AddTabAt(browser(), GURL(), -1, true);
   browser()->tab_strip_model()->SetTabPinned(0, true);
@@ -915,24 +1045,24 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
                 IDS_TAB_AX_LABEL_PINNED_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
-                    browser()->GetTitleForTab(browser()
-                                                  ->tab_strip_model()
-                                                  ->GetTabAtIndex(0)
-                                                  ->GetHandle()))),
+                    controller->GetTitleForTab(browser()
+                                                   ->tab_strip_model()
+                                                   ->GetTabAtIndex(0)
+                                                   ->GetHandle()))),
             tabs::GetAccessibleTabLabel(
                 browser()->tab_strip_model()->GetTabAtIndex(0), false));
   EXPECT_EQ(l10n_util::GetStringFUTF16(
                 IDS_TAB_AX_LABEL_PINNED_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
-                    browser()->GetTitleForTab(browser()
-                                                  ->tab_strip_model()
-                                                  ->GetTabAtIndex(1)
-                                                  ->GetHandle()))),
+                    controller->GetTitleForTab(browser()
+                                                   ->tab_strip_model()
+                                                   ->GetTabAtIndex(1)
+                                                   ->GetHandle()))),
             tabs::GetAccessibleTabLabel(
                 browser()->tab_strip_model()->GetTabAtIndex(1), false));
 
-  // Create a split.
+  // Create a side-by-side split.
   chrome::AddTabAt(browser(), GURL(), -1, true);
   chrome::AddTabAt(browser(), GURL(), -1, true);
   browser()->tab_strip_model()->ActivateTabAt(2);
@@ -942,14 +1072,14 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
   EXPECT_EQ(
       l10n_util::GetStringFUTF16(
           IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
-          browser()->GetTitleForTab(
+          controller->GetTitleForTab(
               browser()->tab_strip_model()->GetTabAtIndex(2)->GetHandle())),
       tabs::GetAccessibleTabLabel(
           browser()->tab_strip_model()->GetTabAtIndex(2), false));
   EXPECT_EQ(
       l10n_util::GetStringFUTF16(
           IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
-          browser()->GetTitleForTab(
+          controller->GetTitleForTab(
               browser()->tab_strip_model()->GetTabAtIndex(3)->GetHandle())),
       tabs::GetAccessibleTabLabel(
           browser()->tab_strip_model()->GetTabAtIndex(3), false));
@@ -966,22 +1096,44 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, AccessibleTabLabel) {
                 IDS_TAB_AX_LABEL_UNNAMED_GROUP_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
-                    browser()->GetTitleForTab(browser()
-                                                  ->tab_strip_model()
-                                                  ->GetTabAtIndex(4)
-                                                  ->GetHandle()))),
+                    controller->GetTitleForTab(browser()
+                                                   ->tab_strip_model()
+                                                   ->GetTabAtIndex(4)
+                                                   ->GetHandle()))),
             tabs::GetAccessibleTabLabel(
                 browser()->tab_strip_model()->GetTabAtIndex(4), false));
   EXPECT_EQ(l10n_util::GetStringFUTF16(
                 IDS_TAB_AX_LABEL_UNNAMED_GROUP_FORMAT,
                 l10n_util::GetStringFUTF16(
                     IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
-                    browser()->GetTitleForTab(browser()
-                                                  ->tab_strip_model()
-                                                  ->GetTabAtIndex(5)
-                                                  ->GetHandle()))),
+                    controller->GetTitleForTab(browser()
+                                                   ->tab_strip_model()
+                                                   ->GetTabAtIndex(5)
+                                                   ->GetHandle()))),
             tabs::GetAccessibleTabLabel(
                 browser()->tab_strip_model()->GetTabAtIndex(5), false));
+
+  // Create a stacked split.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(6);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {7}, split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kStacked),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  EXPECT_EQ(
+      l10n_util::GetStringFUTF16(
+          IDS_TAB_AX_LABEL_SPLIT_TAB_TOP_VIEW_FORMAT,
+          controller->GetTitleForTab(
+              browser()->tab_strip_model()->GetTabAtIndex(6)->GetHandle())),
+      tabs::GetAccessibleTabLabel(
+          browser()->tab_strip_model()->GetTabAtIndex(6), false));
+  EXPECT_EQ(
+      l10n_util::GetStringFUTF16(
+          IDS_TAB_AX_LABEL_SPLIT_TAB_BOTTOM_VIEW_FORMAT,
+          controller->GetTitleForTab(
+              browser()->tab_strip_model()->GetTabAtIndex(7)->GetHandle())),
+      tabs::GetAccessibleTabLabel(
+          browser()->tab_strip_model()->GetTabAtIndex(7), false));
 }
 
 #if BUILDFLAG(IS_MAC)

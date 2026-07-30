@@ -20,6 +20,7 @@
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="1184145431117212167">ติดตั้งไม่สำเร็จเนื่องจากระบบไม่รองรับ Windows เวอร์ชันที่คุณใช้</translation>
 <translation id="1185134272377778587">เกี่ยวกับ Chromium</translation>
+<translation id="1186645291482254714">รับการแจ้งเตือนการติดตามราคาด้วย Chromium ในโทรศัพท์</translation>
 <translation id="1203500561924088507">ขอขอบคุณที่ติดตั้ง คุณต้องรีสตาร์ทเบราว์เซอร์ก่อนใช้ <ph name="BUNDLE_NAME" /></translation>
 <translation id="1232234696885483911">เมื่อคุณเปิดการค้นหารูปภาพ ระบบจะส่งชื่อหน้า, URL และเนื้อหา รวมถึง PDF ไปยังเซิร์ฟเวอร์โดยอัตโนมัติ <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">เมื่อลงชื่อเข้าใช้อยู่ คุณจะใช้รหัสผ่านและข้อมูลอื่นๆ จากบัญชี Google ใน Chromium ได้ หากต้องการเปลี่ยน ให้ไปที่ "บัญชีของคุณใน Chromium"</translation>
@@ -33,6 +34,7 @@
 <translation id="132092532143527429">ลองใช้ Gemini ใน Chromium</translation>
 <translation id="1324107359134968521">Chromium ต้องการสิทธิ์เข้าถึงบลูทูธเพื่อสำรวจอุปกรณ์บลูทูธ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ตรวจหาภาษา</translation>
+<translation id="1330742950061766891">ใช้การตั้งค่าเบราว์เซอร์ที่ Chromium แนะนำ</translation>
 <translation id="1342274909142618978">ลบข้อมูลออกจาก Chromium (<ph name="URL" />) ด้วย</translation>
 <translation id="1345251407431278948">ปักหมุดแล้ว คุณเข้าถึงการค้นหารูปภาพได้อีกครั้งจากปุ่มใหม่ในแถบเครื่องมือ</translation>
 <translation id="1356661055722410047">ใหม่! คุณแปลได้ทั้งข้อความและรูปภาพบนหน้าจอ</translation>
@@ -48,7 +50,6 @@
 <translation id="154404805518949443">ลงชื่อเข้าใช้ Chromium</translation>
 <translation id="1547469039832541117">สิ้นสุดงานที่ไฮไลต์ไว้</translation>
 <translation id="1553461853655228091">Chromium ต้องการสิทธิ์เข้าถึงกล้องเพื่อสร้างแผนที่ 3 มิติของสิ่งที่อยู่รอบตัวคุณ</translation>
-<translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{ระบบไม่รองรับส่วนขยายนี้อีกต่อไป Chromium ขอแนะนำให้คุณนำออก}other{ระบบไม่รองรับส่วนขยายเหล่านี้อีกต่อไป Chromium ขอแนะนำให้คุณนำออก}}</translation>
 <translation id="1562320819937089394">ปักหมุด Chromium</translation>
 <translation id="1574377791422810894">เครื่องมือด้านความปลอดภัยของ Chromium</translation>
 <translation id="1594928384848033697">Chromium ต้องการลบข้อมูลในเครื่องมือจัดการรหัสผ่าน โปรดพิมพ์รหัสผ่าน Windows ของคุณเพื่ออนุญาต</translation>
@@ -66,6 +67,7 @@
 <translation id="1749104137266986751">เมื่อ HTTPS ไม่พร้อมใช้งาน Chromium จะใช้การเชื่อมต่อที่ไม่ปลอดภัยโดยไม่แจ้งเตือนคุณ</translation>
 <translation id="1774152462503052664">ให้ Chromium ทำงานในพื้นหลัง</translation>
 <translation id="1779356040007214683">เพื่อให้ Chromium ปลอดภัยขึ้น เราได้ปิดส่วนขยายบางรายการที่ไม่ได้ระบุไว้ใน <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> และอาจถูกเพิ่มเข้ามาโดยที่คุณไม่รู้ตัว</translation>
+<translation id="1793486931176048546">คลิก<ph name="BEGIN_BOLD" />ใช่<ph name="END_BOLD" />ในการแจ้งเตือนของ Windows เพื่อปักหมุด Chromium ไว้ที่แถบงานเพื่อให้เข้าถึงได้รวดเร็ว</translation>
 <translation id="1808667845054772817">ติดตั้ง Chromium ใหม่</translation>
 <translation id="1820835682567584003">Chromium กำลังพยายาม<ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="183031085822326697">ครั้งถัดไปที่เปิด Chromium ใน <ph name="DEVICE_TYPE" /> คุณจะเห็นข้อความแจ้งให้ใช้เครื่องมือจัดการรหัสผ่านบน Google</translation>
@@ -370,6 +372,7 @@
 <translation id="5187123684706427865">บัญชี Chromium ต้องมีการตรวจสอบสิทธิ์อีกครั้ง</translation>
 <translation id="5231355151045086930">ออกจากระบบ Chromium</translation>
 <translation id="5234764350956374838">ปิด</translation>
+<translation id="5249261924633168472">เปิดลิงก์ในหน้าต่างที่ไม่ระบุตัวตนของ Chromium</translation>
 <translation id="5254739261293693943">ถามเกี่ยวกับวิดีโอนี้</translation>
 <translation id="5276305953263010518">ดาวน์โหลดแอป Chromium เพื่อบันทึกรหัสผ่านได้ทุกที่ทุกเวลา</translation>
 <translation id="5277894862589591112">เปิด Chromium ขึ้นมาใหม่เพื่อให้การเปลี่ยนแปลงมีผล</translation>
@@ -378,8 +381,10 @@
 <translation id="5294316920224716406">เมื่อท่องเว็บในโหมดไม่ระบุตัวตน Chromium จะแจ้งเตือนคุณก่อนโหลดเว็บไซต์โดยใช้การเชื่อมต่อที่ไม่ปลอดภัย</translation>
 <translation id="5313228254328109263">บริการภายในของ Chromium Updater</translation>
 <translation id="5346389065299425353">เจาะลึกการค้นหาด้วยการเพิ่มแท็บ ไฟล์ และเครื่องมือหลายรายการ</translation>
+<translation id="5348677704241861105">ดูภาพรวมของเอกสารนี้อย่างรวดเร็วและถามคำถามด้วย Gemini ใน Chromium</translation>
 <translation id="5352264705793813212">Chromium พบคำแนะนำด้านความปลอดภัยบางอย่างที่คุณควรตรวจสอบ</translation>
 <translation id="5352361688875342522">โปรไฟล์ Chromium อื่นๆ</translation>
+<translation id="535243042947607642">Chromium OS บันทึกข้อมูล Chromium ในบัญชี Google ไม่ได้เนื่องจากรายละเอียดการลงชื่อเข้าใช้บัญชีของคุณไม่ใช่ข้อมูลปัจจุบัน</translation>
 <translation id="5358375970380395591">คุณกำลังลงชื่อเข้าใช้ด้วยบัญชีที่จัดการ และให้การควบคุมระดับผู้ดูแลระบบของบัญชีดังกล่าวเหนือโปรไฟล์ Chromium ของคุณ ข้อมูล Chromium เช่น แอป บุ๊กมาร์ก ประวัติการเข้าชม รหัสผ่าน และการตั้งค่าอื่นๆ จะเชื่อมโยงอย่างถาวรกับ <ph name="USER_NAME" /> คุณจะสามารถลบข้อมูลนี้ผ่านทางแผงควบคุมบัญชี Google แต่คุณจะไม่สามารถเชื่อมโยงข้อมูลนี้กับบัญชีอื่น <ph name="LEARN_MORE" /></translation>
 <translation id="5368118228313795342">รหัสเพิ่มเติม: <ph name="EXTRA_CODE" /></translation>
 <translation id="5377622451696208284">รวม Chromium ไว้ในกิจกรรมบนเว็บและแอปเพื่อรับการปรับเปลี่ยนในแบบของคุณ</translation>
@@ -485,6 +490,7 @@
 <translation id="6390800440335263989">หากต้องการดำเนินการต่อ โปรดลงชื่อเข้าใช้ Chromium ด้วย <ph name="EMAIL" /> การดำเนินการดังกล่าวจะตรวจสอบว่าคุณมีนโยบายขององค์กรแล้ว</translation>
 <translation id="6400112897226594999">โลโก้ Chromium ในหน้าจอคอมพิวเตอร์</translation>
 <translation id="6403826409255603130">Chromium เป็นเว็บเบราว์เซอร์ที่เรียกใช้หน้าเว็บและแอปพลิเคชันด้วยความเร็วสูง มีความรวดเร็ว เสถียร และง่ายในการใช้งาน เรียกดูเว็บได้อย่างปลอดภัยมากขึ้นด้วยการป้องกันมัลแวร์และฟิชชิงที่สร้างอยู่ภายใน Chromium</translation>
+<translation id="6414624068245092115">โปรดยืนยันว่าเป็นคุณเพื่อให้ใช้และบันทึกข้อมูล Chromium ในบัญชี Google ได้เสมอ</translation>
 <translation id="642132557830635295">Chromium ทำงานได้เร็วขึ้นและฟีเจอร์ที่ใช้ JavaScript ควรทำงานตามที่ออกแบบไว้</translation>
 <translation id="6436260184216827876">การค้นหารูปภาพไม่พร้อมใช้งาน โปรดลองอีกครั้งในภายหลัง</translation>
 <translation id="6442900851116057561">รีสตาร์ท Chromium OS</translation>
@@ -579,7 +585,6 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7368826207863345663">คุณจะต้องใช้ macOS 13 ขึ้นไปเพื่อรับการอัปเดต Chromium ในอนาคต คอมพิวเตอร์เครื่องนี้ใช้ macOS 12</translation>
 <translation id="7376384068949534168">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" />และ<ph name="PERMISSION_2" />ออกแล้ว</translation>
 <translation id="73786666777299047">เปิด Chrome เว็บสโตร์</translation>
-<translation id="7384121030444253939">ระบบไม่รองรับส่วนขยายนี้แล้ว Chromium แนะนำให้คุณนำออกแทน</translation>
 <translation id="7407655596887111931">ตอนนี้ Chromium เป็นเบราว์เซอร์เริ่มต้นของคุณแล้ว</translation>
 <translation id="7413153308467572558">ดำเนินการต่อจากที่ค้างไว้: Chromium จะคืนค่าแท็บทุกครั้งที่คุณรีสตาร์ท หากต้องการปิดตัวเลือกนี้ ให้ไปที่</translation>
 <translation id="7427879960656355200">นำเข้ารหัสผ่านไปยัง Chromium</translation>
@@ -714,6 +719,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8852026904190808918">ระบบจะใช้ภาษานี้เพื่อแสดงเมนู การตั้งค่า การแจ้งเตือน และข้อความอื่นๆ ใน Chromium</translation>
 <translation id="8862326446509486874">คุณไม่มีสิทธิ์ในการติดตั้งระดับระบบ ทดลองใช้งานโปรแกรมติดตั้งอีกครั้งโดยกำหนดให้เป็นผู้ดูแลระบบ</translation>
 <translation id="8876044221123442390">เพิ่มโปรไฟล์ Chromium</translation>
+<translation id="8890569919834781711">Chromium OS บันทึกข้อมูล Chromium ในบัญชี Google ไม่ได้เนื่องจากเกิดข้อผิดพลาดในการลงชื่อเข้าใช้</translation>
 <translation id="8891709362986793894">องค์กรกำหนดให้คุณต้องลงชื่อเข้าใช้ Chromium</translation>
 <translation id="8907580949721785412">Chromium กำลังพยายามแสดงรหัสผ่าน พิมพ์รหัสผ่าน Windows ของคุณเพื่อแสดงรหัสผ่าน</translation>
 <translation id="8932992523185907506">Chromium ไม่ใช่เบราว์เซอร์เริ่มต้นของคุณอีกต่อไป ทำให้ Chromium เป็นเบราว์เซอร์เริ่มต้นไหม</translation>

@@ -6,6 +6,7 @@
 
 #import <algorithm>
 
+#import "base/check.h"
 #import "base/logging.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/string_util.h"
@@ -19,6 +20,7 @@
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
+#import "ios/chrome/browser/cobrowse/debugger/aim_srp_message_logger.h"
 #import "ios/chrome/browser/cobrowse/model/aim_cobrowse_java_script_feature.h"
 #import "ios/chrome/browser/cobrowse/model/assistant_aim_tab_helper.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
@@ -26,7 +28,10 @@
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_history_item.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_ui_constants.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_url_utils.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/web/public/js_messaging/web_frame.h"
@@ -35,18 +40,20 @@
 #import "ios/web/public/navigation/web_state_policy_decider_bridge.h"
 #import "ios/web/public/web_client.h"
 #import "ios/web/public/web_state.h"
+#import "ios/web/public/web_state_delegate_bridge.h"
 #import "net/base/apple/url_conversions.h"
 #import "third_party/lens_server_proto/aim_communication.pb.h"
 #import "url/gurl.h"
 
 @interface AssistantAIMMediator () <CRWWebStatePolicyDecider,
-                                    CRWWebFramesManagerObserver>
-
+                                    CRWWebFramesManagerObserver,
+                                    CRWWebStateDelegate>
 @end
 
 @implementation AssistantAIMMediator {
   std::unique_ptr<web::WebState> _webState;
   std::unique_ptr<web::WebStatePolicyDeciderBridge> _policyDeciderBridge;
+  std::unique_ptr<web::WebStateDelegateBridge> _webStateDelegateBridge;
   __weak id<AssistantAIMConsumer> _consumer;
   CobrowseContext* _context;
   id<AssistantContainerCommands> _containerHandler;
@@ -61,6 +68,8 @@
   base::RepeatingTimer _handshakeTimer;
   // The capabilities of the AIM page, if the handshake has completed.
   std::optional<std::vector<lens::FeatureCapability>> _capabilities;
+  // Logger for AIM SRP messages.
+  AimSRPMessageLogger* _logger;
 }
 
 @synthesize consumer = _consumer;
@@ -74,12 +83,17 @@
                        URLLoader:(UrlLoadingBrowserAgent*)URLLoader {
   self = [super init];
   if (self) {
+    DCHECK(webState);
+    DCHECK(!webState->GetDelegate());
     _webState = std::move(webState);
     _policyDeciderBridge = std::make_unique<web::WebStatePolicyDeciderBridge>(
         _webState.get(), self);
     _webState->SetUserAgentOverride(
         web::GetWebClient()->GetUserAgent(web::UserAgentType::MOBILE) + " " +
         contextual_tasks::GetContextualTasksUserAgentSuffix());
+    _webStateDelegateBridge =
+        std::make_unique<web::WebStateDelegateBridge>(self);
+    _webState->SetDelegate(_webStateDelegateBridge.get());
     _context = context;
     _containerHandler = containerHandler;
     _contextualTasksService = contextualTasksService;
@@ -97,8 +111,16 @@
             base::BindRepeating(^(const lens::AimToClientMessage& message) {
               [weakSelf handleWebMessage:message];
             }));
+
+    if (experimental_flags::IsOmniboxDebuggingEnabled()) {
+      _logger = [[AimSRPMessageLogger alloc] init];
+    }
   }
   return self;
+}
+
+- (NSArray<AimSRPDebuggerEvent*>*)debugEvents {
+  return _logger.events;
 }
 
 - (void)setConsumer:(id<AssistantAIMConsumer>)consumer {
@@ -124,6 +146,7 @@
   _webState.reset();
   _urlLoader = nullptr;
   _capabilities = std::nullopt;
+  _logger = nil;
 }
 
 #pragma mark - CRWWebStatePolicyDecider
@@ -155,14 +178,38 @@
     // Filter out about:blank initialization navigations to prevent spawning
     // empty tabs in the main browser upon loading the Assistant AIM sheet.
     if (URL.is_valid() && !URL.IsAboutBlank()) {
-      BOOL openInNewTab = requestInfo.target_window_is_cross_origin;
-      UrlLoadParams params = openInNewTab ? UrlLoadParams::InNewTab(URL)
-                                          : UrlLoadParams::InCurrentTab(URL);
+      UrlLoadParams params = UrlLoadParams::InNewTab(URL);
       _urlLoader->Load(params);
+      [_containerHandler
+          animateAssistantContainerToDetent:AssistantContainerDetent::kMinimized
+                                   duration:kSheetDetentAnimationDuration
+                                      curve:UIViewAnimationCurveEaseInOut];
     }
   } else {
     decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Allow());
   }
+}
+
+#pragma mark - CRWWebStateDelegate
+
+- (web::WebState*)webState:(web::WebState*)webState
+    createNewWebStateForURL:(const GURL&)URL
+                  openerURL:(const GURL&)openerURL
+            initiatedByUser:(BOOL)initiatedByUser {
+  // Cobrowse is not supported in incognito, so new tabs are always opened in
+  // regular mode.
+  OpenNewTabCommand* command = [OpenNewTabCommand commandWithURLFromChrome:URL
+                                                               inIncognito:NO];
+  command.openerWebState = webState->GetWeakPtr();
+
+  [self.sceneHandler openURLInNewTab:command];
+
+  [_containerHandler
+      animateAssistantContainerToDetent:AssistantContainerDetent::kMinimized
+                               duration:kSheetDetentAnimationDuration
+                                  curve:UIViewAnimationCurveEaseInOut];
+
+  return nullptr;
 }
 
 #pragma mark - Private helpers
@@ -250,6 +297,10 @@
     return;
   }
 
+  if (experimental_flags::IsOmniboxDebuggingEnabled()) {
+    [_logger logClientToAimMessage:message];
+  }
+
   // Execute the script in the page via the JavaScriptFeature.
   AimCobrowseJavaScriptFeature::GetInstance()->SendNativeToWeb(_webState.get(),
                                                                message);
@@ -322,11 +373,20 @@
   lens::ClientToAimMessage handshake_ping;
   handshake_ping.mutable_handshake_ping()->add_capabilities(
       lens::FeatureCapability::DEFAULT);
+
+  if (experimental_flags::IsOmniboxDebuggingEnabled()) {
+    [_logger logClientToAimMessage:handshake_ping];
+  }
+
   AimCobrowseJavaScriptFeature::GetInstance()->SendNativeToWeb(_webState.get(),
                                                                handshake_ping);
 }
 
 - (void)handleWebMessage:(const lens::AimToClientMessage&)message {
+  if (experimental_flags::IsOmniboxDebuggingEnabled()) {
+    [_logger logAimToClientMessage:message];
+  }
+
   if (message.has_handshake_response()) {
     _handshakeTimer.Stop();
     // Store the server capabilities.

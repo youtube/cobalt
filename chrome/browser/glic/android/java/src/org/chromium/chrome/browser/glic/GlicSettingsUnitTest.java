@@ -89,6 +89,7 @@ public class GlicSettingsUnitTest {
         when(mUserPrefsJniMock.get(mProfileMock)).thenReturn(mPrefServiceMock);
         when(mGlicKeyedServiceFactoryJniMock.getForProfile(mProfileMock))
                 .thenReturn(mGlicKeyedServiceMock);
+        when(mGlicEnablingJniMock.shouldShowWebActuationToggle(any())).thenReturn(true);
         doNothing().when(mCustomTabLauncher).openUrlInCct(any(Context.class), anyString());
 
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
@@ -129,9 +130,7 @@ public class GlicSettingsUnitTest {
         verify(mCustomTabLauncher)
                 .openUrlInCct(
                         any(),
-                        eq(
-                                mActivity.getString(
-                                        R.string.settings_glic_permissions_activity_button_url)));
+                        eq("https://myactivity.google.com/product/gemini?utm_source=gemini"));
     }
 
     @Test
@@ -139,10 +138,7 @@ public class GlicSettingsUnitTest {
         GlicSettings fragment = launchFragment();
         Preference preference = fragment.findPreference("glic_extensions");
         preference.getOnPreferenceClickListener().onPreferenceClick(preference);
-        verify(mCustomTabLauncher)
-                .openUrlInCct(
-                        any(),
-                        eq(mActivity.getString(R.string.settings_glic_extensions_button_url)));
+        verify(mCustomTabLauncher).openUrlInCct(any(), eq("https://gemini.google.com/apps"));
     }
 
     @Test

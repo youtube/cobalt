@@ -192,8 +192,39 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     private TrustedWebActivityBrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
     private @Nullable AppHeaderCoordinator mAppHeaderCoordinator;
     private @Nullable BrowserServicesThemeColorProvider mBrowserServicesThemeColorProvider;
+    private @Nullable CustomTabAllTabObserver mCustomTabAllTabObserver;
+    private @Nullable CustomTabSessionHandler mCustomTabSessionHandler;
 
     private ActivityLifecycleDispatcher mLifecycleDispatcherForTesting;
+
+    private static final class CustomTabAllTabObserver
+            extends CustomTabActivityTabProvider.Observer {
+        private @Nullable Tab mLastTab;
+
+        @Override
+        public void onInitialTabCreated(Tab tab, int mode) {
+            AllTabObserver.addCustomTab(tab);
+            mLastTab = tab;
+        }
+
+        @Override
+        public void onTabSwapped(Tab tab) {
+            removeLastTab();
+            AllTabObserver.addCustomTab(tab);
+            mLastTab = tab;
+        }
+
+        @Override
+        public void onAllTabsClosed() {
+            removeLastTab();
+        }
+
+        private void removeLastTab() {
+            if (mLastTab == null) return;
+            AllTabObserver.removeCustomTab(mLastTab);
+            mLastTab = null;
+        }
+    }
 
     @IntDef({PictureInPictureMode.NONE, PictureInPictureMode.MINIMIZED_CUSTOM_TAB})
     @Retention(RetentionPolicy.SOURCE)
@@ -597,29 +628,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                 mIntentDataProvider.getTwaStartupUptimeMillis());
         mTabObserverRegistrar.associateWithActivity(getLifecycleDispatcher(), mTabProvider);
 
-        mTabProvider.addObserver(
-                new CustomTabActivityTabProvider.Observer() {
-                    private Tab mLastTab;
-
-                    @Override
-                    public void onInitialTabCreated(Tab tab, int mode) {
-                        AllTabObserver.addCustomTab(tab);
-                        mLastTab = tab;
-                    }
-
-                    @Override
-                    public void onTabSwapped(Tab tab) {
-                        AllTabObserver.removeCustomTab(mLastTab);
-                        AllTabObserver.addCustomTab(tab);
-                        mLastTab = tab;
-                    }
-
-                    @Override
-                    public void onAllTabsClosed() {
-                        AllTabObserver.removeCustomTab(mLastTab);
-                        mLastTab = null;
-                    }
-                });
+        mCustomTabAllTabObserver = new CustomTabAllTabObserver();
+        mTabProvider.addObserver(mCustomTabAllTabObserver);
 
         mCurrentPageVerifier =
                 new CurrentPageVerifier(
@@ -788,14 +798,15 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                     getCustomTabActivityNavigationController());
         }
 
-        new CustomTabSessionHandler(
-                getIntentDataProvider(),
-                getCustomTabActivityTabProvider(),
-                this::getCustomTabToolbarCoordinator,
-                this::getCustomTabBottomBarDelegate,
-                mCustomTabIntentHandler,
-                this,
-                getLifecycleDispatcher());
+        mCustomTabSessionHandler =
+                new CustomTabSessionHandler(
+                        getIntentDataProvider(),
+                        getCustomTabActivityTabProvider(),
+                        this::getCustomTabToolbarCoordinator,
+                        this::getCustomTabBottomBarDelegate,
+                        mCustomTabIntentHandler,
+                        this,
+                        getLifecycleDispatcher());
 
         BrowserServicesIntentDataProvider intentDataProvider = getIntentDataProvider();
 
@@ -863,6 +874,11 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
     @Override
     protected void onDestroyInternal() {
+        if (mCustomTabSessionHandler != null) {
+            mCustomTabSessionHandler.onDestroy();
+            mCustomTabSessionHandler = null;
+        }
+
         if (mFullscreenManager != null) {
             mFullscreenManager.removeObserver(mFullscreenObserver);
             mFullscreenManager = null;
@@ -905,6 +921,12 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
 
         if (mTabProvider != null && mTabProvider.getTab() != null) {
             AllTabObserver.removeCustomTab(mTabProvider.getTab());
+        }
+        if (mCustomTabAllTabObserver != null) {
+            if (mTabProvider != null) {
+                mTabProvider.removeObserver(mCustomTabAllTabObserver);
+            }
+            mCustomTabAllTabObserver = null;
         }
 
         super.onDestroyInternal();
@@ -1065,6 +1087,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                 mBaseCustomTabRootUiCoordinator.getReadAloudControllerSupplier(),
                 mBaseCustomTabRootUiCoordinator::getContextualPageActionController,
                 mIntentDataProvider.getClientPackageNameIdentitySharing() != null,
+                mBaseCustomTabRootUiCoordinator.getPageZoomManager(),
                 mBaseCustomTabRootUiCoordinator.getOpenInAppMenuItemProvider());
     }
 

@@ -68,11 +68,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowerHighResolutionTimerThreshold);
 
-// Allows running DevTools main thread debugger even when a renderer process
-// hosts multiple main frames.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAllowDevToolsMainThreadDebuggerForMultipleMainFrames);
-
 // Enables rate obfuscation mitigation in compute pressure, to prevent
 // cross-channel attacks.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -734,10 +729,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kGMSCoreEmoji);
 
-// If enabled, then display audio track permission failures are ignored.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kGetDisplayMediaIgnoreAudioPermissionFailures);
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kHTMLParserYieldEventNameForPause);
@@ -747,11 +738,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t,
                                                kHTMLParserYieldTimeoutInMs);
 
-// When enabled all input arriving will be ignored, and the dispatcher will be
-// notified that the event was not consumed. With the exception of when there
-// is an attached Dev Tools session, during which input will be dispatched even
-// if we are hidden.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kIgnoreInputWhileHidden);
 
 // If enabled, a fix for image loading prioritization based on visibility is
 // applied. See https://crbug.com/1369823.
@@ -1955,7 +1941,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kURLPatternDummyURLCanonicalization);
 // feature directly.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePersistentCacheForCodeCache);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseSnappyForParkableStrings);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseZstdForParkableStrings);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kZstdCompressionLevel);
@@ -2076,7 +2061,6 @@ BLINK_COMMON_EXPORT bool IsSetIntervalWithoutClampEnabled();
 // back/forward cache.
 BLINK_COMMON_EXPORT bool IsUnloadBlocklisted();
 
-BLINK_COMMON_EXPORT bool ParkableStringsUseSnappy();
 
 // Returns true if the in-browser KeepAliveURLLoaderService should be enabled by
 // verifying either kKeepAliveInBrowserMigration or kFetchLaterAPI is true.

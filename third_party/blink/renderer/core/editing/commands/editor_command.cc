@@ -141,7 +141,7 @@ InputEvent::InputType InputTypeFromCommandType(EditingCommandType command_type,
                                           InputType caret_type) -> InputType {
     if (RuntimeEnabledFeatures::
             InputEventsDeleteNonCollapsedSelectionEnabled()) {
-      return frame.Selection().ComputeVisibleSelectionInDOMTree().IsRange()
+      return frame.Selection().ComputeVisibleSelectionInDomTree().IsRange()
                  ? selection_type
                  : caret_type;
     }
@@ -255,7 +255,7 @@ GCedStaticRangeVector* RangesFromCurrentSelectionOrExtendCaret(
 
 EphemeralRange ComputeRangeForTranspose(LocalFrame& frame) {
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTree();
+      frame.Selection().ComputeVisibleSelectionInDomTree();
   if (!selection.IsCaret()) {
     return EphemeralRange();
   }
@@ -319,7 +319,7 @@ static bool ExecuteApplyParagraphStyle(LocalFrame& frame,
 bool ExpandSelectionToGranularity(LocalFrame& frame,
                                   TextGranularity granularity) {
   const SelectionInDOMTree& selection = ExpandWithGranularity(
-      frame.Selection().ComputeVisibleSelectionInDOMTree().AsSelection(),
+      frame.Selection().ComputeVisibleSelectionInDomTree().AsSelection(),
       granularity);
   const EphemeralRange& new_range = NormalizeRange(selection);
   if (new_range.IsNull()) {
@@ -345,18 +345,17 @@ static EditingTriState SelectionListState(LocalFrame& frame,
   }
 
   const FrameSelection& selection = frame.Selection();
-  if (selection.ComputeVisibleSelectionInDOMTreeDeprecated().IsCaret()) {
-    if (EnclosingElementWithTag(
-            selection.ComputeVisibleSelectionInDOMTreeDeprecated().Start(),
-            tag_name)) {
+  auto visible_selection =
+      selection.ComputeVisibleSelectionInDomTreeDeprecated();
+  if (visible_selection.IsCaret()) {
+    if (EnclosingElementWithTag(visible_selection.Start(), tag_name)) {
       return EditingTriState::kTrue;
     }
-  } else if (selection.ComputeVisibleSelectionInDOMTreeDeprecated().IsRange()) {
-    Element* start_element = EnclosingElementWithTag(
-        selection.ComputeVisibleSelectionInDOMTreeDeprecated().Start(),
-        tag_name);
-    Element* end_element = EnclosingElementWithTag(
-        selection.ComputeVisibleSelectionInDOMTreeDeprecated().End(), tag_name);
+  } else if (visible_selection.IsRange()) {
+    Element* start_element =
+        EnclosingElementWithTag(visible_selection.Start(), tag_name);
+    Element* end_element =
+        EnclosingElementWithTag(visible_selection.End(), tag_name);
 
     if (start_element && end_element && start_element == end_element) {
       // If the selected list has the different type of list as child, return
@@ -481,7 +480,7 @@ static bool DeleteWithDirection(LocalFrame& frame,
   }
 
   if (frame.Selection()
-          .ComputeVisibleSelectionInDOMTreeDeprecated()
+          .ComputeVisibleSelectionInDomTreeDeprecated()
           .IsRange() &&
       !is_typing_action) {
     if (kill_ring) {
@@ -948,7 +947,7 @@ static bool ExecuteSwapWithMark(LocalFrame& frame,
                                 const String&) {
   const VisibleSelection mark(frame.GetEditor().Mark());
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTreeDeprecated();
+      frame.Selection().ComputeVisibleSelectionInDomTreeDeprecated();
   const bool mark_is_directional = frame.GetEditor().MarkIsDirectional();
   if (mark.IsNone() || selection.IsNone()) {
     return false;
@@ -1028,7 +1027,7 @@ static bool ExecuteTranspose(LocalFrame& frame,
 
   // Select the two characters.
   if (CreateVisibleSelection(new_selection) !=
-      frame.Selection().ComputeVisibleSelectionInDOMTree()) {
+      frame.Selection().ComputeVisibleSelectionInDomTree()) {
     frame.Selection().SetSelectionAndEndTyping(new_selection);
   }
 
@@ -1263,7 +1262,7 @@ static bool EnabledInRichlyEditableText(LocalFrame& frame,
     return false;
   }
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTree();
+      frame.Selection().ComputeVisibleSelectionInDomTree();
   return !selection.IsNone() && IsRichlyEditablePosition(selection.Anchor()) &&
          selection.RootEditableElement();
 }
@@ -1281,12 +1280,9 @@ static bool EnabledRangeInEditableText(LocalFrame& frame,
       !frame.Selection().SelectionHasFocus()) {
     return false;
   }
-  return frame.Selection()
-             .ComputeVisibleSelectionInDOMTreeDeprecated()
-             .IsRange() &&
-         frame.Selection()
-             .ComputeVisibleSelectionInDOMTreeDeprecated()
-             .IsContentEditable();
+  auto visible_selection =
+      frame.Selection().ComputeVisibleSelectionInDomTreeDeprecated();
+  return visible_selection.IsRange() && visible_selection.IsContentEditable();
 }
 
 static bool EnabledRangeInRichlyEditableText(LocalFrame& frame,
@@ -1303,7 +1299,7 @@ static bool EnabledRangeInRichlyEditableText(LocalFrame& frame,
     return false;
   }
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTree();
+      frame.Selection().ComputeVisibleSelectionInDomTree();
   return selection.IsRange() && IsRichlyEditablePosition(selection.Anchor());
 }
 
@@ -1355,7 +1351,7 @@ static bool EnabledSelectAll(LocalFrame& frame,
   // needs to be audited.  See http://crbug.com/590369 for more details.
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTree();
+      frame.Selection().ComputeVisibleSelectionInDomTree();
   if (selection.IsNone()) {
     return true;
   }
@@ -1466,7 +1462,7 @@ static String ValueFormatBlock(const EditorInternalCommand&,
                                LocalFrame& frame,
                                Event*) {
   const VisibleSelection& selection =
-      frame.Selection().ComputeVisibleSelectionInDOMTreeDeprecated();
+      frame.Selection().ComputeVisibleSelectionInDomTreeDeprecated();
   if (selection.IsNone() || !selection.IsValidFor(*(frame.GetDocument())) ||
       !selection.IsContentEditable()) {
     return "";

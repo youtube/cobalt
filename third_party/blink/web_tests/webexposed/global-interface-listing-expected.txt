@@ -500,6 +500,7 @@ interface Blob
     method slice
     method stream
     method text
+    method textStream
 interface BlobEvent : Event
     attribute @@toStringTag
     getter data
@@ -5490,6 +5491,7 @@ interface HTMLUserMediaElement : HTMLElement
     getter initialPermissionStatus
     getter invalidReason
     getter isValid
+    getter onerror
     getter onpromptaction
     getter onpromptdismiss
     getter onstream
@@ -5499,6 +5501,7 @@ interface HTMLUserMediaElement : HTMLElement
     getter type
     method constructor
     method setConstraints
+    setter onerror
     setter onpromptaction
     setter onpromptdismiss
     setter onstream
@@ -12705,16 +12708,20 @@ interface WebTransportDatagramDuplexStream
     attribute @@toStringTag
     getter incomingHighWaterMark
     getter incomingMaxAge
+    getter incomingMaxBufferedDatagrams
     getter maxDatagramSize
     getter outgoingHighWaterMark
     getter outgoingMaxAge
+    getter outgoingMaxBufferedDatagrams
     getter readable
     getter writable
     method constructor
     setter incomingHighWaterMark
     setter incomingMaxAge
+    setter incomingMaxBufferedDatagrams
     setter outgoingHighWaterMark
     setter outgoingMaxAge
+    setter outgoingMaxBufferedDatagrams
 interface WebTransportError : DOMException
     attribute @@toStringTag
     getter source
@@ -12745,6 +12752,7 @@ interface WheelEvent : MouseEvent
     getter deltaX
     getter deltaY
     getter deltaZ
+    getter momentum
     getter wheelDelta
     getter wheelDeltaX
     getter wheelDeltaY
@@ -13121,6 +13129,12 @@ interface XRLightProbe : EventTarget
     getter probeSpace
     method constructor
     setter onreflectionchange
+interface XRMediaBinding
+    attribute @@toStringTag
+    method constructor
+    method createCylinderLayer
+    method createEquirectLayer
+    method createQuadLayer
 interface XRMesh
     attribute @@toStringTag
     getter indices

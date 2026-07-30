@@ -1442,19 +1442,15 @@ void PdfInkModule::HandleGetAllTextAnnotationsMessage(
 
   base::ListValue annotations;
 
-  // It is safe to use base::Unretained(&id_generator_) because the callback is
-  // executed synchronously.
   DocumentInkTextBoxesMap document_text_boxes =
-      client_->LoadTextAnnotationsFromPdf(
-          base::BindRepeating(&PdfInkModule::IdGenerator::GetTextIdAndAdvance,
-                              base::Unretained(&id_generator_)));
+      client_->LoadTextAnnotationsFromPdf();
 
   // The backend sets the frontend ID for loaded text annotations.
   int frontend_id = 0;
 
   for (auto& [page_index, text_boxes] : document_text_boxes) {
     for (const auto& item : text_boxes) {
-      text_id_map_[frontend_id] = item.ink_text_id;
+      text_id_map_[frontend_id] = item.ink_loaded_text_id;
 
       auto text_attributes =
           base::DictValue()
@@ -1683,7 +1679,7 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
   // - Deletion: Delete existing annotation only.
   // First do the deletion if needed.
   if (auto it = text_id_map_.find(frontend_id); it != text_id_map_.end()) {
-    InkTextId existing_id = it->second;
+    TextId existing_id = it->second;
     // Make sure `existing_id` gets hidden before being discarded.
     client_->UpdateTextActiveAndInvalidate(existing_id, /*active=*/false);
     // "HandleFinishTextAnnotationMessageDiscard" note: This method will discard
@@ -1691,11 +1687,13 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
     // this just called `ApplyUndoRedoDiscards()`. This complies with the
     // assumptions `ApplyUndoRedoDiscards()` made regarding text annotation
     // discards.
-    client_->DiscardText(existing_id);
+    if (std::holds_alternative<InkTextId>(existing_id)) {
+      client_->DiscardText(std::get<InkTextId>(existing_id));
+    }
     text_id_map_.erase(it);
 
     if (modify_undo_redo_model) {
-      CHECK(undo_redo_model_.Remove(existing_id));
+      CHECK(undo_redo_model_.Remove(TextIdToIdType(existing_id)));
     }
 
     // Empty text means the annotation is being deleted. Return early since
@@ -1705,6 +1703,26 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
         CHECK(undo_redo_model_.Finish());
       }
       return;
+    }
+  }
+
+  std::optional<TextId> undo_redo_text_id;
+  if (!modify_undo_redo_model) {
+    // This assumes neither `HandleAnnotationUndoMessage()` nor
+    // `HandleAnnotationRedoMessage()` has been called yet for this action.
+    if (source == "undo") {
+      undo_redo_text_id = undo_redo_model_.GetUndoTextId();
+      if (undo_redo_text_id.has_value() &&
+          std::holds_alternative<InkLoadedTextId>(undo_redo_text_id.value())) {
+        InkLoadedTextId loaded_id =
+            std::get<InkLoadedTextId>(undo_redo_text_id.value());
+        text_id_map_[frontend_id] = loaded_id;
+        client_->UpdateTextActiveAndInvalidate(loaded_id, /*active=*/true);
+        return;
+      }
+    } else {
+      CHECK_EQ(source, "redo");
+      undo_redo_text_id = undo_redo_model_.GetRedoInkTextId();
     }
   }
 
@@ -1737,15 +1755,10 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
   InkTextId new_id;
   if (modify_undo_redo_model) {
     new_id = id_generator_.GetTextIdAndAdvance();
-  } else if (source == "undo") {
-    // This assumes `HandleAnnotationUndoMessage()` for this undo action has not
-    // been called yet.
-    new_id = undo_redo_model_.GetUndoInkTextId().value();
   } else {
-    // This assumes `HandleAnnotationRedoMessage()` for this redo action has not
-    // been called yet.
-    CHECK_EQ(source, "redo");
-    new_id = undo_redo_model_.GetRedoInkTextId().value();
+    CHECK(undo_redo_text_id.has_value());
+    CHECK(std::holds_alternative<InkTextId>(undo_redo_text_id.value()));
+    new_id = std::get<InkTextId>(undo_redo_text_id.value());
   }
 
   text_id_map_[frontend_id] = new_id;
@@ -1865,7 +1878,8 @@ void PdfInkModule::ApplyUndoRedoCommandsHelper(
   std::set<InkStrokeId> stroke_ids;
   std::set<InkModeledShapeId> shape_ids;
   for (const IdType& id : ids) {
-    if (std::holds_alternative<InkTextId>(id)) {
+    if (std::holds_alternative<InkTextId>(id) ||
+        std::holds_alternative<InkLoadedTextId>(id)) {
       // No need to handle text objects. The frontend will separately send
       // "finishTextAnnotation" messages and make changes there.
       continue;

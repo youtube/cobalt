@@ -967,6 +967,7 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
     // Create an accelerated CRP in order to produce an accelerated snapshot.
     resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
         size, GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
+        GetDrawingBuffer()->GetHdrMetadata(),
         SharedGpuContext::ContextProviderWrapper(), shared_image_usages);
 
     if (!resource_provider || !resource_provider->IsValid()) {
@@ -1714,33 +1715,32 @@ void WebGLRenderingContextBase::MarkContextChanged(
   }
 }
 
-bool WebGLRenderingContextBase::PushFrame() {
-  TRACE_EVENT0("blink", "WebGLRenderingContextBase::PushFrame");
+scoped_refptr<CanvasResource>
+WebGLRenderingContextBase::GetResourceForPushFrame(
+    bool& should_call_push_frame) {
+  should_call_push_frame = false;
+  TRACE_EVENT0("blink", "WebGLRenderingContextBase::GetResourceForPushFrame");
   DCHECK(Host());
   DCHECK(Host()->IsOffscreenCanvas());
   if (isContextLost() || !GetDrawingBuffer()) {
-    return false;
+    return nullptr;
   }
 
   ClearIfComposited(kClearCallerOther);
 
-  bool submitted_frame = false;
-
   if (GetDrawingBuffer()->IsUsingGpuCompositing()) {
     // Export the DrawingBuffer's SI directly if possible.
     if (auto canvas_resource = GetDrawingBuffer()->ExportCanvasResource()) {
-      submitted_frame = Host()->PushFrame(std::move(canvas_resource));
+      should_call_push_frame = true;
       MarkLayerComposited();
-      if (submitted_frame) {
-        return true;
-      }
+      return canvas_resource;
     }
   }
 
   // The above call to ExportCanvasResource() might have resulted in the context
   // getting destroyed, so we need to recheck.
   if (isContextLost() || !GetDrawingBuffer()) {
-    return false;
+    return nullptr;
   }
 
   if (resource_provider_.get() &&
@@ -1749,12 +1749,13 @@ bool WebGLRenderingContextBase::PushFrame() {
     Host()->DiscardResources();
   }
 
-  if (scoped_refptr<CanvasResource> resource =
-          CopyRenderingResultsFromDrawingBufferToResource(kBackBuffer)) {
-    submitted_frame = Host()->PushFrame(std::move(resource));
+  scoped_refptr<CanvasResource> resource =
+      CopyRenderingResultsFromDrawingBufferToResource(kBackBuffer);
+  if (resource) {
+    should_call_push_frame = true;
   }
   MarkLayerComposited();
-  return submitted_frame;
+  return resource;
 }
 
 void WebGLRenderingContextBase::Dispose() {
@@ -2197,6 +2198,9 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
+  const gfx::HDRMetadata hdr_metadata =
+      GetDrawingBuffer() ? GetDrawingBuffer()->GetHdrMetadata()
+                         : gfx::HDRMetadata();
   const gfx::Size size = base::FeatureList::IsEnabled(
                              kWebGLCanvasResourceProviderDrawingBufferSize)
                              ? GetDrawingBuffer()->Size()
@@ -2213,13 +2217,13 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
-        size, format, alpha_type, color_space,
+        size, format, alpha_type, color_space, hdr_metadata,
         SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags,
         Host());
   } else {
     resource_provider_ =
         CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
-            size, format, alpha_type, color_space,
+            size, format, alpha_type, color_space, hdr_metadata,
             SharedGpuContext::SharedImageInterfaceProvider(), Host());
   }
   Host()->UpdateMemoryUsage();
@@ -5881,6 +5885,7 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   auto snapshot = DrawAndSnapshotToImage(
       {kPremul_SkAlphaType,
        gfx::ColorSpace::CreateSRGB(),
+       gfx::HDRMetadata(),
        GetN32FormatForCanvas(),
        {width, height}},
       [&](cc::PaintCanvas& canvas) {
@@ -9097,7 +9102,7 @@ CanvasNon2DResourceProviderSharedImage* WebGLRenderingContextBase::
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> temp =
       CanvasNon2DResourceProviderSharedImage::Create(
           info.size, info.format, info.alpha_type, info.color_space,
-          SharedGpuContext::ContextProviderWrapper(),
+          info.hdr_metadata, SharedGpuContext::ContextProviderWrapper(),
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
 
   if (!temp) {

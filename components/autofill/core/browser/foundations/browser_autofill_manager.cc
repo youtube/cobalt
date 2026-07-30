@@ -308,6 +308,7 @@ FillDataType GetEventTypeFromSingleFieldSuggestionType(SuggestionType type) {
     case SuggestionType::kIdentityCredential:
     case SuggestionType::kWebauthnCredential:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
+    case SuggestionType::kWebauthnPasskeyQrCode:
     case SuggestionType::kDevtoolsTestAddresses:
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
@@ -681,6 +682,7 @@ bool IsManagementFooterOption(const Suggestion& suggestion) {
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
+    case SuggestionType::kWebauthnPasskeyQrCode:
     case SuggestionType::kOpenGemini:
       return true;
     case SuggestionType::kAutocompleteEntry:
@@ -1188,17 +1190,20 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     return;
   }
 
+  // TODO(crbug.com/519061643): Rely on central atMemory eligibility logic
+  // instead.
+  if (IsAtMemoryTriggerSource(trigger_source) &&
+      client().GetPersonalContextEnablementState() ==
+          personal_context::PersonalContextEnablementState::
+              kDisabledNotEligible) {
+    return;
+  }
+
   const FormFieldData& field = CHECK_DEREF(form.FindFieldByGlobalId(field_id));
   external_delegate_->OnQuery(form, field, caret_bounds, trigger_source,
                               /*update_datalist=*/true);
 
   if (IsAtMemoryTriggerSource(trigger_source)) {
-    // Do not show the pop up at all for non eligible profiles.
-    if (client().GetPersonalContextEnablementState() ==
-        personal_context::PersonalContextEnablementState::
-            kDisabledNotEligible) {
-      return;
-    }
     std::vector<Suggestion> suggestions;
     GetAtMemoryManager().MaybeAppendPersonalContextNotice(suggestions);
 
@@ -1971,8 +1976,7 @@ void BrowserAutofillManager::FillOrPreviewCreditCardForm(
         const FormFieldData* const field = form.FindFieldByGlobalId(field_id);
         auto [cached_form_structure, cached_autofill_field] =
             self.GetCachedFormAndField(form.global_id(), field_id);
-        if (!IsValidFormData(form) || !field || !IsValidFormFieldData(*field) ||
-            !cached_form_structure || !cached_autofill_field) {
+        if (!field || !cached_form_structure || !cached_autofill_field) {
           return;
         }
         self.form_filler_->FillOrPreviewForm(
@@ -2235,9 +2239,9 @@ void BrowserAutofillManager::DidShowSuggestions(
                             return GetFillingProductFromSuggestionType(type) ==
                                    FillingProduct::kAutofillAi;
                           })) {
-    ai_manager->OnSuggestionsShown(CHECK_DEREF(form_structure),
-                                   CHECK_DEREF(autofill_field), suggestions,
-                                   driver().GetPageUkmSourceId());
+    ai_manager->OnAutofillAiSuggestionsShown(
+        CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field), suggestions,
+        driver().GetPageUkmSourceId());
   }
 
   // Notify the BNPL manager about suggestion shown if the current shown

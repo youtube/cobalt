@@ -113,6 +113,7 @@
 #include "cc/trees/single_thread_proxy.h"
 #include "cc/trees/trace_utils.h"
 #include "cc/trees/tree_synchronizer.h"
+#include "cc/trees/unbounded_frame_sink_handler.h"
 #include "cc/view_transition/view_transition_request.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/features.h"
@@ -209,15 +210,17 @@ bool IsMobileOptimized(LayerTreeImpl* active_tree) {
 }
 
 void DidVisibilityChange(LayerTreeHostImpl* id, bool visible) {
+  const auto visibility_track =
+      perfetto::NamedTrack::FromPointer("LayerTreeHostVisibility", id);
   if (visible) {
     TRACE_EVENT_BEGIN("cc,benchmark", "LayerTreeHostImpl::SetVisible",
-                      perfetto::Track::FromPointer(id), "LayerTreeHostImpl",
+                      visibility_track, "LayerTreeHostImpl",
                       static_cast<void*>(id));
     return;
   }
 
-  TRACE_EVENT_END("cc,benchmark", /*"LayerTreeHostImpl::SetVisible"*/
-                  perfetto::Track::FromPointer(id));
+  TRACE_EVENT_END("cc,benchmark",
+                  /*"LayerTreeHostImpl::SetVisible"*/ visibility_track);
 }
 
 void PopulateMetadataContentColorUsage(const FrameData* frame,
@@ -294,6 +297,12 @@ void DoDumpCompositorFrame(const std::string& data,
   VLOG_IF(3, VerboseLogEnabled()) << ClientNameForVerboseLog() << ": "
 
 }  // namespace
+
+// static
+perfetto::NamedTrack LayerTreeHostImpl::GetTracingTrack(
+    const LayerTreeImpl* tree) {
+  return perfetto::NamedTrack::FromPointer("cc::PendingTree", tree);
+}
 
 // Holds either a created ImageDecodeCache or a ptr to a shared
 // GpuImageDecodeCache.
@@ -412,13 +421,6 @@ void LayerTreeHostImpl::DidMouseLeave() {
   for (auto& pair : scrollbar_animation_controllers_) {
     pair.second->DidMouseLeave();
   }
-}
-
-void LayerTreeHostImpl::SetNeedsFullViewportRedraw() {
-  // TODO(bokan): Do these really need to be manually called? (Rather than
-  // damage/redraw being set from scroll offset changes).
-  SetFullViewportDamage();
-  SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
 }
 
 void LayerTreeHostImpl::SetDeferBeginMainFrame(
@@ -659,19 +661,18 @@ const InputHandler& LayerTreeHostImpl::GetInputHandler() const {
   return static_cast<const InputHandler&>(*input_delegate_.get());
 }
 
-base::flat_map<PaintImage::Id, bool>
-LayerTreeHostImpl::GatherImageAnimationState() const {
-  base::flat_map<PaintImage::Id, bool> animation_state;
-  active_tree()->AnnotateAnimatedImages(animation_state);
+AnimatedImageDriverMap LayerTreeHostImpl::GatherAnimatedImageDriverState()
+    const {
+  AnimatedImageDriverMap result;
+  active_tree()->AnnotateAnimatedImages(result);
   if (pending_tree()) {
-    pending_tree()->AnnotateAnimatedImages(animation_state);
+    pending_tree()->AnnotateAnimatedImages(result);
   }
   if (recycle_tree()) {
-    recycle_tree()->AnnotateAnimatedImages(animation_state);
+    recycle_tree()->AnnotateAnimatedImages(result);
   }
-  return animation_state;
+  return result;
 }
-
 
 bool LayerTreeHostImpl::CanDraw() const {
   // Note: If you are changing this function or any other function that might
@@ -685,15 +686,13 @@ bool LayerTreeHostImpl::CanDraw() const {
     return false;
   }
 
-  // TODO(boliu): Make draws without layers work and move this below
-  // |resourceless_software_draw_| check. Tracked in crbug.com/264967.
+  if (resourceless_software_draw_) {
+    return true;
+  }
+
   if (active_tree_->LayerListIsEmpty()) {
     TRACE_EVENT_INSTANT("cc", "LayerTreeHostImpl::CanDraw no root layer");
     return false;
-  }
-
-  if (resourceless_software_draw_) {
-    return true;
   }
 
   // Do not draw while evicted. Await the activation of a tree containing a
@@ -968,8 +967,17 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
                                                     bool expects_to_draw) {
   DCHECK(frame->render_passes.empty());
   DCHECK(CanDraw());
-  DCHECK(!active_tree_->LayerListIsEmpty());
   DCHECK(!expects_to_draw || settings_.trees_in_viz_in_viz_process);
+
+  if (active_tree_->LayerListIsEmpty()) {
+    // If there are no layers, we still need at least one render pass to draw.
+    auto pass = viz::CompositorRenderPass::Create();
+    gfx::Rect viewport_rect = active_tree_->GetDeviceViewport();
+    pass->SetNew(viz::CompositorRenderPassId{1}, viewport_rect, viewport_rect,
+                 gfx::Transform());
+    frame->render_passes.push_back(std::move(pass));
+    return DrawResult::kSuccess;
+  }
 
   // For now, we use damage tracking to compute a global scissor. To do this, we
   // must compute all damage tracking before drawing anything, so that we know
@@ -3160,7 +3168,8 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
       };
 
   // Build and submit the dedicated CompositorFrame for the unbounded passes.
-  if (!frame->unbounded_render_passes.empty() && delegate_) {
+  if (!frame->unbounded_render_passes.empty() && delegate_ &&
+      unbounded_frame_sink_handler_) {
     // Unbounded element is not implemented for TreesInViz yet.
     CHECK(!settings_.TreesInVizInClientProcess());
     CHECK(settings_.enable_unbounded_element);
@@ -3172,22 +3181,9 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     unbounded_frame.metadata.begin_frame_ack = frame->begin_frame_ack;
     unbounded_frame.render_pass_list =
         std::move(frame->unbounded_render_passes);
+    populate_resources(unbounded_frame, unbounded_frame.render_pass_list);
 
-    // TODO(crbug.com/508672616): populate_resources is currently skipped for
-    // unbounded_frame because SubmitUnboundedCompositorFrame has an empty
-    // default implementation and drops the frame. In a later patchset when
-    // the frame is actually submitted to Viz, re-enable this call to ensure
-    // exported resources are properly tracked and returned.
-    // populate_resources(unbounded_frame, unbounded_frame.render_pass_list);
-
-    // TODO(508672616): Consider moving this Submit call to
-    // LayerTreeHostImpl::DrawLayers where the bounded compositor frame is
-    // submitted via LayerTreeFrameSink::SubmitCompositorFrame. Doing so
-    // requires structural changes to GenerateCompositorFrame's return type
-    // to pass back multiple frames, as well as updating DrawLayers'
-    // submission and metrics tracking pipelines to accommodate dual frame
-    // submissions.
-    delegate_->SubmitUnboundedCompositorFrame(std::move(unbounded_frame));
+    unbounded_frame_sink_handler_->SubmitFrame(std::move(unbounded_frame));
   }
 
   DCHECK(frame->begin_frame_ack.frame_id.IsSequenceValid());
@@ -3859,8 +3855,7 @@ void LayerTreeHostImpl::ActivateSyncTree() {
       });
   if (pending_tree_) {
     TRACE_EVENT_END("cc", /*"PendingTree:waiting"*/
-                    perfetto::Track::FromPointer(pending_tree_.get()),
-                    "pending_lsid",
+                    GetTracingTrack(pending_tree_.get()), "pending_lsid",
                     pending_tree_->local_surface_id_from_parent().ToString());
     active_tree_->lifecycle().AdvanceTo(LayerTreeLifecycle::kBeginningSync);
 
@@ -4977,6 +4972,12 @@ LayerTreeHostImpl::ProcessCompositorDeltas(
   }
   CollectScrollbarUpdatesForCommit(commit_data.get());
 
+  if (image_animation_controller_) {
+    commit_data->advanced_image_animation_clients =
+        image_animation_controller_->TakeAdvancedAnimationClients();
+    commit_data->animated_image_frame_index_map =
+        image_animation_controller_->GatherFrameIndexes();
+  }
   commit_data->page_scale_delta =
       active_tree_->page_scale_factor()->PullDeltaForMainThread(
           main_thread_mutator_host);
@@ -6221,6 +6222,33 @@ void LayerTreeHostImpl::MaybeFlashEnteredViewportScrollbars(
     } else if (!is_visible && was_visible) {
       previously_visible_scrollable_elements_.erase(scroll_element_id);
     }
+  }
+}
+
+void LayerTreeHostImpl::SetUnboundedFrameSink(
+    std::unique_ptr<LayerTreeFrameSink> unbounded_frame_sink,
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(task_runner_provider_->IsImplThread());
+  if (!unbounded_frame_sink_handler_) {
+    unbounded_frame_sink_handler_ =
+        std::make_unique<UnboundedFrameSinkHandler>(this);
+  }
+  unbounded_frame_sink_handler_->SetFrameSink(std::move(unbounded_frame_sink),
+                                              local_surface_id);
+}
+
+void LayerTreeHostImpl::DismissUnboundedFrameSink() {
+  DCHECK(task_runner_provider_->IsImplThread());
+  if (unbounded_frame_sink_handler_) {
+    unbounded_frame_sink_handler_->DismissFrameSink();
+  }
+}
+
+void LayerTreeHostImpl::SetUnboundedLocalSurfaceId(
+    const viz::LocalSurfaceId& local_surface_id) {
+  DCHECK(task_runner_provider_->IsImplThread());
+  if (unbounded_frame_sink_handler_) {
+    unbounded_frame_sink_handler_->SetLocalSurfaceId(local_surface_id);
   }
 }
 

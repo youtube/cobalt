@@ -46,9 +46,19 @@ class CORE_EXPORT OffscreenCanvas final
   USING_PRE_FINALIZER(OffscreenCanvas, Dispose);
 
  public:
-  static OffscreenCanvas* Create(ScriptState*, unsigned width, unsigned height);
+  static OffscreenCanvas* Create(ScriptState*,
+                                 unsigned width,
+                                 unsigned height,
+                                 uint32_t client_id = 0,
+                                 uint32_t sink_id = 0,
+                                 DOMNodeId canvas_id = kInvalidDOMNodeId);
 
-  OffscreenCanvas(ExecutionContext*, gfx::Size);
+  OffscreenCanvas(ExecutionContext*,
+                  gfx::Size,
+                  uint32_t client_id,
+                  uint32_t sink_id,
+                  DOMNodeId canvas_id);
+
   void Dispose();
 
   bool IsOffscreenCanvas() const override { return true; }
@@ -80,7 +90,6 @@ class CORE_EXPORT OffscreenCanvas final
   static OffscreenCanvas* FromPlaceholderId(ExecutionContext* context,
                                             DOMNodeId canvas_id);
 
-  void SetPlaceholderCanvasId(DOMNodeId canvas_id);
   void DeregisterFromAnimationFrameProvider();
   DOMNodeId PlaceholderCanvasId() const { return placeholder_canvas_id_; }
   bool HasPlaceholderCanvas() const;
@@ -104,13 +113,10 @@ class CORE_EXPORT OffscreenCanvas final
   }
 
   void SetFrameSinkIdForTesting(uint32_t client_id, uint32_t sink_id) {
-    SetFrameSinkId(client_id, sink_id);
-  }
-
-  void SetFrameSinkId(uint32_t client_id, uint32_t sink_id) {
     client_id_ = client_id;
     sink_id_ = sink_id;
   }
+
   uint32_t ClientId() const { return client_id_; }
   uint32_t SinkId() const { return sink_id_; }
 

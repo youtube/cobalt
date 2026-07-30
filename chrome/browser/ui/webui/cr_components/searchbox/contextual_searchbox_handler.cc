@@ -43,6 +43,12 @@
 #include "chrome/browser/ui/contextual_search/desktop_query_contextualizer_delegate.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/omnibox/everywhere_omnibox_service.h"
+#include "chrome/browser/ui/omnibox/everywhere_omnibox_service_factory.h"
+#endif
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_utils.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
@@ -494,15 +500,20 @@ omnibox::InputState ContextualSearchboxHandler::GetInputState() const {
 
 std::string ContextualSearchboxHandler::GetPreviousQuery() {
   auto* contextual_session_handle = GetContextualSessionHandle();
-  return contextual_session_handle ? contextual_session_handle->previous_query()
-                                   : std::string();
+  return contextual_session_handle &&
+                 !contextual_session_handle->previous_turns().empty()
+             ? contextual_session_handle->previous_turns().back().query
+             : std::string();
 }
 
 bool ContextualSearchboxHandler::IsSmartTabSharingActive() const {
   if (smart_tab_sharing_active_for_thread_.has_value()) {
     return *smart_tab_sharing_active_for_thread_;
   }
-  if (profile_) {
+  if (profile_ &&
+      base::FeatureList::IsEnabled(
+          contextual_tasks::
+              kContextualTasksContextSmartTabSharingDefaultOnAvailability)) {
     return profile_->GetPrefs()->GetBoolean(
         contextual_tasks::kContextualTasksShareOpenTabsEveryThread);
   }
@@ -952,6 +963,12 @@ void ContextualSearchboxHandler::OnDriveUploadClicked(
     drive_picker_controller_ =
         std::make_unique<DrivePickerHostController>(browser_window_interface);
   }
+  // Binds the controller's close callback to OnCancel to ensure that if the
+  // user closes the widget (e.g. by pressing Escape), the entire session
+  // is cleanly reset and all C++ and WebUI state is torn down.
+  drive_picker_controller_->set_on_close_callback(
+      base::BindOnce(&ContextualSearchboxHandler::OnCancel,
+                     weak_ptr_factory_.GetWeakPtr()));
 
   drive_picker_result_handler_receiver_.reset();
 
@@ -1380,7 +1397,8 @@ void ContextualSearchboxHandler::SubmitQuery(const std::string& query_text,
                                              bool alt_key,
                                              bool ctrl_key,
                                              bool meta_key,
-                                             bool shift_key) {
+                                             bool shift_key,
+                                             bool is_voice_search) {
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
@@ -1392,7 +1410,7 @@ void ContextualSearchboxHandler::SubmitQuery(const std::string& query_text,
               /*is_prefetch=*/false));
 
   ContextualizeQueryAndOpenUrl(query_text, disposition, aim_entry_point,
-                               /*additional_params=*/{});
+                               /*additional_params=*/{}, is_voice_search);
 }
 
 void ContextualSearchboxHandler::MaybeTriggerSmartTabSharingPromo(
@@ -1412,6 +1430,15 @@ void ContextualSearchboxHandler::MaybeTriggerSmartTabSharingPromo(
     }
   }
 
+  contextual_tasks::ConversationThread conversation_thread;
+  conversation_thread.query = query;
+  if (auto* contextual_session_handle = GetContextualSessionHandle()) {
+    conversation_thread.previous_turns =
+        contextual_session_handle->previous_turns();
+    conversation_thread.shared_tab_titles =
+        contextual_session_handle->GetSubmittedContextTabTitles();
+  }
+
   const bool is_eligible_for_promo =
       !IsSmartTabSharingActive() &&
       contextual_tasks::ContextualTasksContextService::
@@ -1427,8 +1454,8 @@ void ContextualSearchboxHandler::MaybeTriggerSmartTabSharingPromo(
     }
     tab_selection_options.min_model_score = static_cast<float>(
         contextual_tasks::GetSmartTabSharingPromoScoreThreshold());
-    contextual_tasks_context_service_->GetRelevantTabsForQuery(
-        tab_selection_options, query, explicit_urls,
+    contextual_tasks_context_service_->GetRelevantTabsForConversationThread(
+        tab_selection_options, conversation_thread, explicit_urls,
         base::BindOnce(
             &ContextualSearchboxHandler::OnRelevantTabsReceivedToMaybeShowPromo,
             weak_ptr_factory_.GetWeakPtr()));
@@ -1442,8 +1469,9 @@ void ContextualSearchboxHandler::MaybeTriggerSmartTabSharingPromo(
       tab_selection_options.browser_window_interface =
           browser_window_interface->GetWeakPtr();
     }
-    contextual_tasks_context_service_->GetRelevantTabsForQuery(
-        tab_selection_options, query, explicit_urls, base::DoNothing());
+    contextual_tasks_context_service_->GetRelevantTabsForConversationThread(
+        tab_selection_options, conversation_thread, explicit_urls,
+        base::DoNothing());
   }
 }
 
@@ -1451,7 +1479,8 @@ void ContextualSearchboxHandler::ContextualizeQueryAndOpenUrl(
     const std::string& query_text,
     WindowOpenDisposition disposition,
     omnibox::ChromeAimEntryPoint aim_entry_point,
-    std::map<std::string, std::string> additional_params) {
+    std::map<std::string, std::string> additional_params,
+    bool is_voice_search) {
   MaybeTriggerSmartTabSharingPromo(query_text, web_contents_);
 
   if (query_contextualizer_) {
@@ -1464,20 +1493,20 @@ void ContextualSearchboxHandler::ContextualizeQueryAndOpenUrl(
             [](ContextualSearchboxHandler* self, const std::string& query,
                WindowOpenDisposition disp,
                omnibox::ChromeAimEntryPoint entry_point,
-               std::map<std::string, std::string> params,
+               std::map<std::string, std::string> params, bool voice,
                base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
                    handle) {
               self->ComputeAndOpenQueryUrl(query, disp, entry_point,
-                                           std::move(params));
+                                           std::move(params), voice);
             },
             base::Unretained(this), query_text, disposition, aim_entry_point,
-            std::move(additional_params)),
+            std::move(additional_params), is_voice_search),
         /*enable_smart_tab_selection=*/IsSmartTabSharingActive());
     return;
   }
 
   ComputeAndOpenQueryUrl(query_text, disposition, aim_entry_point,
-                         std::move(additional_params));
+                         std::move(additional_params), is_voice_search);
 }
 
 void ContextualSearchboxHandler::OnRelevantTabsReceivedToMaybeShowPromo(
@@ -1502,7 +1531,8 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     const std::string& query_text,
     WindowOpenDisposition disposition,
     omnibox::ChromeAimEntryPoint aim_entry_point,
-    std::map<std::string, std::string> additional_params) {
+    std::map<std::string, std::string> additional_params,
+    bool is_voice_search) {
   auto* contextual_session_handle = GetContextualSessionHandle();
   std::vector<const contextual_search::FileInfo*> file_info_list;
   if (contextual_session_handle) {
@@ -1527,6 +1557,7 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     search_url_request_info->query_text = query_text;
     search_url_request_info->additional_params = additional_params;
     search_url_request_info->aim_entry_point = aim_entry_point;
+    search_url_request_info->is_voice_search = is_voice_search;
 
     file_info_list =
         contextual_session_handle->GetController()->GetFileInfoList();
@@ -1610,6 +1641,21 @@ void ContextualSearchboxHandler::OpenUrl(
   if (!url.is_valid()) {
     return;
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  // When the everywhere Omnibox is enabled, check to see if the current web
+  // contents is the everywhere omnibox popup -- if so redirect the open to
+  // the everywhere service.
+  if (base::FeatureList::IsEnabled(omnibox::kEverywhereOmnibox)) {
+    if (auto* service =
+            EverywhereOmniboxServiceFactory::GetForProfile(profile_)) {
+      if (service->IsEverywherePopup(web_contents_)) {
+        service->OpenUrl(url, disposition);
+        return;
+      }
+    }
+  }
+#endif
 
   auto* contextual_session_handle = GetContextualSessionHandle();
 

@@ -76,9 +76,7 @@ public class SafeModeController {
         SafeModeActionName.DISABLE_ANDROID_AUTOFILL,
         SafeModeActionName.DISABLE_ORIGIN_TRIALS,
         SafeModeActionName.DISABLE_SAFE_BROWSING,
-        SafeModeActionName.RESET_COMPONENT_UPDATER,
         SafeModeActionName.DISABLE_SUPERVISION_CHECKS,
-        SafeModeActionName.DISABLE_STARTUP_TASKS_LOGIC,
         SafeModeActionName.DISABLE_CRASHY_CLASS
     })
     private @interface SafeModeActionName {
@@ -89,9 +87,9 @@ public class SafeModeController {
         // int DISABLE_CHROME_AUTOCOMPLETE = 4;  // Autofill replaced Autocomplete since Android O.
         int DISABLE_ORIGIN_TRIALS = 5;
         int DISABLE_SAFE_BROWSING = 6;
-        int RESET_COMPONENT_UPDATER = 7;
+        // int RESET_COMPONENT_UPDATER = 7;  // Component updater has been removed.
         int DISABLE_SUPERVISION_CHECKS = 8;
-        int DISABLE_STARTUP_TASKS_LOGIC = 9;
+        // int DISABLE_STARTUP_TASKS_LOGIC = 9;
         int DISABLE_CRASHY_CLASS = 10;
         int COUNT = 11;
     }
@@ -115,14 +113,8 @@ public class SafeModeController {
                 SafeModeActionIds.DISABLE_AW_SAFE_BROWSING,
                 SafeModeActionName.DISABLE_SAFE_BROWSING);
         map.put(
-                SafeModeActionIds.RESET_COMPONENT_UPDATER,
-                SafeModeActionName.RESET_COMPONENT_UPDATER);
-        map.put(
                 SafeModeActionIds.DISABLE_SUPERVISION_CHECKS,
                 SafeModeActionName.DISABLE_SUPERVISION_CHECKS);
-        map.put(
-                SafeModeActionIds.DISABLE_STARTUP_TASKS_LOGIC,
-                SafeModeActionName.DISABLE_STARTUP_TASKS_LOGIC);
         map.put(SafeModeActionIds.DISABLE_CRASHY_CLASS, SafeModeActionName.DISABLE_CRASHY_CLASS);
         return map;
     }
@@ -197,20 +189,7 @@ public class SafeModeController {
         if (mRegisteredActions == null) {
             throw new IllegalStateException("Must registerActions() before calling queryActions()");
         }
-        return queryActionsInternal(appContext, webViewPackageName);
-    }
 
-    /**
-     * Overload for queryActions which does not require registerActions() to be called first. This
-     * overload is only for ComponentUpdater and should be removed once that code is no longer
-     * needed.
-     */
-    public Set<String> queryActionsUnsafe(String webViewPackageName) {
-        final Context appContext = ContextUtils.getApplicationContext();
-        return queryActionsInternal(appContext, webViewPackageName);
-    }
-
-    private Set<String> queryActionsInternal(Context appContext, String webViewPackageName) {
         Set<String> actions = new HashSet<>();
 
         Uri uri =

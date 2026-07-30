@@ -338,7 +338,7 @@ ContainerNode* HighestEditableRoot(const Position& position) {
 }
 
 ContainerNode* HighestEditableRoot(const PositionInFlatTree& position) {
-  return HighestEditableRoot(ToPositionInDOMTree(position));
+  return HighestEditableRoot(ToPositionInDomTree(position));
 }
 
 bool IsEditablePosition(const Position& position) {
@@ -364,7 +364,7 @@ bool IsEditablePosition(const Position& position) {
 }
 
 bool IsEditablePosition(const PositionInFlatTree& p) {
-  return IsEditablePosition(ToPositionInDOMTree(p));
+  return IsEditablePosition(ToPositionInDomTree(p));
 }
 
 bool IsRichlyEditablePosition(const Position& p) {
@@ -390,7 +390,7 @@ Element* RootEditableElementOf(const Position& p) {
 }
 
 Element* RootEditableElementOf(const PositionInFlatTree& p) {
-  return RootEditableElementOf(ToPositionInDOMTree(p));
+  return RootEditableElementOf(ToPositionInDomTree(p));
 }
 
 template <typename Strategy>
@@ -1622,8 +1622,8 @@ bool AreSameRangesAlgorithm(Node* node,
       CreateVisibleSelection(
           SelectionInDOMTree::Builder().SelectAllChildren(*node).Build())
           .ToNormalizedEphemeralRange();
-  return ToPositionInDOMTree(start_position) == range.StartPosition() &&
-         ToPositionInDOMTree(end_position) == range.EndPosition();
+  return ToPositionInDomTree(start_position) == range.StartPosition() &&
+         ToPositionInDomTree(end_position) == range.EndPosition();
 }
 
 bool AreSameRanges(Node* node,
@@ -1724,7 +1724,7 @@ const GCedStaticRangeVector* TargetRangesForInputEvent(const Node& node) {
       FirstEphemeralRangeOf(node.GetDocument()
                                 .GetFrame()
                                 ->Selection()
-                                .ComputeVisibleSelectionInDOMTree());
+                                .ComputeVisibleSelectionInDomTree());
   if (range.IsNull())
     return nullptr;
   return MakeGarbageCollected<GCedStaticRangeVector>(
@@ -1800,7 +1800,7 @@ void InsertTextAndSendInputEventsOfTypeInsertReplacementText(
 
   // Dispatch 'beforeinput'.
   Element* const target = FindEventTargetFrom(
-      frame, frame.Selection().ComputeVisibleSelectionInDOMTree());
+      frame, frame.Selection().ComputeVisibleSelectionInDomTree());
 
   // Copy the original target text into a string, in case the 'beforeinput'
   // event handler modifies the text.

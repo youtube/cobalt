@@ -20,7 +20,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.PersistableBundle;
-import android.provider.Browser;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
@@ -58,7 +57,6 @@ import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.ChromeActionModeHandler;
 import org.chromium.chrome.browser.IntentHandler;
-import org.chromium.chrome.browser.IntentHandler.TabOpenType;
 import org.chromium.chrome.browser.WebSearchDelegate;
 import org.chromium.chrome.browser.app.tabmodel.ArchivedTabModelOrchestrator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
@@ -247,8 +245,8 @@ import org.chromium.components.messages.ManagedMessageDispatcher;
 import org.chromium.components.messages.MessageContainer;
 import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.components.messages.MessagesFactory;
-import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -1532,9 +1530,7 @@ public class RootUiCoordinator
                             mActivityTabProvider);
         }
 
-        if (SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
-            initBottomSheetSigninAndHistorySyncControllers(originalProfile);
-        }
+        initBottomSheetSigninAndHistorySyncControllers(originalProfile);
 
         // Setup IncognitoReauthController as early as possible, to show the re-auth screen.
         if (IncognitoReauthManager.isIncognitoReauthFeatureAvailable()) {
@@ -1643,35 +1639,39 @@ public class RootUiCoordinator
         // A local supplier is created here to wrap the provided profile and satisfy the API.
         OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
         profileSupplier.set(profile);
-        mWebSigninAndHistorySyncCoordinatorSupplier.set(
-                SigninAndHistorySyncActivityLauncherImpl.get()
-                        .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
-                                mWindowAndroid,
-                                mActivity,
-                                mActivityResultTracker,
-                                new WebSigninAccountPickerDelegate(
-                                        profile,
-                                        mTabModelSelectorSupplier.asNonNull().get(),
-                                        new WebSigninBridge.Factory()),
-                                assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
-                                profileSupplier,
-                                getBottomSheetControllerSupplier().asNonNull(),
-                                mModalDialogManagerSupplier.get(),
-                                mSnackbarManagerSupplier.get(),
-                                SigninAccessPoint.WEB_SIGNIN));
-        mExtensionsSigninAndHistorySyncCoordinatorSupplier.set(
-                SigninAndHistorySyncActivityLauncherImpl.get()
-                        .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
-                                mWindowAndroid,
-                                mActivity,
-                                mActivityResultTracker,
-                                new BottomSheetSigninAndHistorySyncCoordinator.Delegate() {},
-                                assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
-                                profileSupplier,
-                                getBottomSheetControllerSupplier().asNonNull(),
-                                mModalDialogManagerSupplier.get(),
-                                mSnackbarManagerSupplier.get(),
-                                SigninAccessPoint.EXTENSIONS));
+        if (SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
+            mWebSigninAndHistorySyncCoordinatorSupplier.set(
+                    SigninAndHistorySyncActivityLauncherImpl.get()
+                            .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
+                                    mWindowAndroid,
+                                    mActivity,
+                                    mActivityResultTracker,
+                                    new WebSigninAccountPickerDelegate(
+                                            profile,
+                                            mTabModelSelectorSupplier.asNonNull().get(),
+                                            new WebSigninBridge.Factory()),
+                                    assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
+                                    profileSupplier,
+                                    getBottomSheetControllerSupplier().asNonNull(),
+                                    mModalDialogManagerSupplier.get(),
+                                    mSnackbarManagerSupplier.get(),
+                                    SigninAccessPoint.WEB_SIGNIN));
+        }
+        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+            mExtensionsSigninAndHistorySyncCoordinatorSupplier.set(
+                    SigninAndHistorySyncActivityLauncherImpl.get()
+                            .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
+                                    mWindowAndroid,
+                                    mActivity,
+                                    mActivityResultTracker,
+                                    new BottomSheetSigninAndHistorySyncCoordinator.Delegate() {},
+                                    assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
+                                    profileSupplier,
+                                    getBottomSheetControllerSupplier().asNonNull(),
+                                    mModalDialogManagerSupplier.get(),
+                                    mSnackbarManagerSupplier.get(),
+                                    SigninAccessPoint.EXTENSIONS));
+        }
     }
 
     private void initIncognitoReauthController(Profile profile) {
@@ -2008,8 +2008,7 @@ public class RootUiCoordinator
                     mReadAloudControllerSupplier,
                     mShareDelegateSupplier,
                     /* onShareRunnable= */ () -> {
-                        assumeNonNull(mToolbarManager);
-                        mToolbarManager.setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
+                        assertNonNull(mToolbarManager).endFuseboxInput();
                     },
                     mWindowAndroid,
                     mActivityResultTracker,
@@ -2808,11 +2807,10 @@ public class RootUiCoordinator
             return;
         }
 
-        Intent intent = new Intent(mActivity, mActivity.getClass());
-        intent.setAction(Intent.ACTION_VIEW);
+        Intent intent =
+                IntentHandler.createTrustedBringTabToFrontIntent(
+                        tabId, IntentHandler.BringToFrontSource.ACTIVATE_TAB);
         intent.setData(Uri.parse(url.getSpec()));
-        intent.putExtra(Browser.EXTRA_APPLICATION_ID, mActivity.getPackageName());
-        intent.putExtra(TabOpenType.REUSE_TAB_MATCHING_ID_STRING, tabId);
         IntentHandler.setTabLaunchType(intent, TabLaunchType.FROM_OMNIBOX);
         MultiWindowUtils.launchIntentInMaybeClosedWindow(mActivity, intent, tabWindowInfo.windowId);
     }

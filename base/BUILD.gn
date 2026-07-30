@@ -450,6 +450,7 @@ component("base") {
     "memory/safety_checks.h",
     "memory/scoped_policy.h",
     "memory/scoped_refptr.h",
+    "memory/self_deleting.h",
     "memory/shared_memory_hooks.h",
     "memory/shared_memory_mapper.cc",
     "memory/shared_memory_mapper.h",
@@ -2620,9 +2621,31 @@ group("base_rust") {
   public_deps = [
     ":callback",
     ":feature",
+    ":file_path",
     ":run_loop",
     ":sequenced_task_runner",
   ]
+}
+
+source_set("file_path_shim") {
+  sources = [
+    "files/file_path_rust_shim.cc",
+    "files/file_path_rust_shim.h",
+  ]
+  deps = [ "//base" ]
+}
+
+rust_static_library("file_path") {
+  crate_name = "base_file_path"
+  crate_root = "files/file_path.rs"
+  sources = [ "files/file_path.rs" ]
+  allow_unsafe = true
+  deps = [
+    ":file_path_shim",
+    "//base",
+    "//third_party/rust/cxx/v1:lib",
+  ]
+  cxx_bindings = [ "files/file_path.rs" ]
 }
 
 # A separate source_set for this header to avoid circular dependencies.
@@ -2760,13 +2783,18 @@ source_set("sequenced_task_runner_shim") {
   ]
 }
 
-rust_static_library("rust_sequences_unittests") {
+rust_static_library("base_rust_unittests") {
   testonly = true
   is_gtest_unittests = true
   allow_unsafe = true
-  sources = [ "task/sequenced_task_runner_unittest.rs" ]
-  crate_root = "task/sequenced_task_runner_unittest.rs"
+  sources = [
+    "base_rust_unittests.rs",
+    "files/file_path_unittest.rs",
+    "task/sequenced_task_runner_unittest.rs",
+  ]
+  crate_root = "base_rust_unittests.rs"
   deps = [
+    ":file_path",
     ":scoped_refptr",
     ":sequenced_task_runner",
     ":sequenced_task_runner_test_bridge",
@@ -3126,7 +3154,7 @@ component("i18n") {
   public_deps = [
     ":base",
     "//base/i18n:base_i18n_export",
-    "//base/i18n:language_code",
+    "//base/i18n:language_tag",
     "//base/i18n:time_formatting_types",
     "//base/i18n/icubridge",
     "//third_party/ced",
@@ -3705,6 +3733,7 @@ test("base_unittests") {
     "memory/ref_counted_unittest.cc",
     "memory/safe_ref_unittest.cc",
     "memory/safety_checks_unittest.cc",
+    "memory/self_deleting_unittest.cc",
     "memory/shared_memory_hooks_unittest.cc",
     "memory/shared_memory_mapping_unittest.cc",
     "memory/shared_memory_region_unittest.cc",
@@ -4006,6 +4035,7 @@ test("base_unittests") {
 
   deps = [
     ":base",
+    ":base_rust_unittests",
     ":base_stack_sampling_profiler_test_util",
     ":build_time",
     ":check_version_internal",
@@ -4014,7 +4044,6 @@ test("base_unittests") {
     ":i18n",
     ":path_service_unittest",
     ":rust_feature_unittests",
-    ":rust_sequences_unittests",
     ":sanitizer_buildflags",
     "//base/allocator:buildflags",
     "//base/i18n:unittests",
@@ -4562,6 +4591,7 @@ test("base_unittests") {
 
   sources += [
     "test/tracing/trace_event_analyzer_unittest.cc",
+    "trace_event/malloc_dump_provider_unittest.cc",
     "trace_event/memory_allocator_dump_unittest.cc",
     "trace_event/memory_dump_manager_unittest.cc",
     "trace_event/memory_dump_scheduler_unittest.cc",
@@ -4705,6 +4735,7 @@ if (enable_nocompile_tests) {
       "logging_nocompile.nc",
       "memory/protected_memory_nocompile.nc",
       "memory/ref_counted_nocompile.nc",
+      "memory/self_deleting_nocompile.nc",
       "memory/shared_memory_mapping_nocompile.nc",
       "memory/structured_shared_memory_nocompile.nc",
       "memory/weak_ptr_nocompile.nc",

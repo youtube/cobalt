@@ -315,6 +315,66 @@ public class NewTabPageCoordinatorUnitTest {
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
     }
 
+    @Test
+    public void testSetUrlFocusAnimationsDisabled_ResetsTranslationAndAlphas() {
+        PropertyModel model = mCoordinator.getModelForTesting();
+
+        // 1. Set some non-zero transition Y translation and non-1.f alpha states.
+        model.set(NewTabPageLayoutProperties.TRANSITION_Y, -150f);
+        mCoordinator.setSearchBoxAlpha(0.2f);
+        mCoordinator.setSearchProviderLogoAlpha(0.3f);
+
+        assertEquals(-150f, model.get(NewTabPageLayoutProperties.TRANSITION_Y), 0.01f);
+        assertEquals(0.2f, mCoordinator.getSearchBoxView().getAlpha(), 0.01f);
+
+        View logoView = mNewTabPageLayout.findViewById(R.id.logo_container_view);
+        if (logoView == null) {
+            logoView = mNewTabPageLayout.findViewById(R.id.search_provider_logo);
+        }
+        assertNotNull(logoView);
+        assertEquals(0.3f, logoView.getAlpha(), 0.01f);
+
+        // 2. Disabling focus animations should reset everything to their resting states:
+        // - TRANSITION_Y to 0f
+        // - Search Box alpha to 1.f
+        // - Search Provider Logo alpha to 1.f
+        mCoordinator.setUrlFocusAnimationsDisabled(true);
+
+        assertEquals(0f, model.get(NewTabPageLayoutProperties.TRANSITION_Y), 0.01f);
+        assertEquals(1.f, mCoordinator.getSearchBoxView().getAlpha(), 0.01f);
+        assertEquals(1.f, logoView.getAlpha(), 0.01f);
+
+        // 3. Verify subsequent alpha updates are blocked while animations are disabled.
+        mCoordinator.setSearchBoxAlpha(0.2f);
+        mCoordinator.setSearchProviderLogoAlpha(0.3f);
+        assertEquals(1.f, mCoordinator.getSearchBoxView().getAlpha(), 0.01f);
+        assertEquals(1.f, logoView.getAlpha(), 0.01f);
+    }
+
+    @Test
+    public void testSetUrlFocusAnimationsDisabled_FalseRecalculatesTransitionY() {
+        PropertyModel model = mCoordinator.getModelForTesting();
+
+        // 1. Disable animations first (TRANSITION_Y is reset to 0f).
+        mCoordinator.setUrlFocusAnimationsDisabled(true);
+        assertEquals(0f, model.get(NewTabPageLayoutProperties.TRANSITION_Y), 0.01f);
+
+        // 2. Set focus animation percentage to 1.0f. Since animations are disabled,
+        // TRANSITION_Y should remain unchanged at 0f.
+        mCoordinator.setUrlFocusChangeAnimationPercent(1.0f);
+        assertEquals(0f, model.get(NewTabPageLayoutProperties.TRANSITION_Y), 0.01f);
+
+        // 3. Force the search box view to have a simulated mock layout height in Robolectric.
+        View searchBoxView = mCoordinator.getSearchBoxView();
+        assertNotNull(searchBoxView);
+        searchBoxView.layout(0, 100, 1080, 200); // Height is 100, bottom is 200.
+
+        // 4. Re-enable focus animations. This should trigger onUrlFocusAnimationChanged()
+        // and recalculate/apply a non-zero (negative) vertical translation.
+        mCoordinator.setUrlFocusAnimationsDisabled(false);
+        assertTrue(model.get(NewTabPageLayoutProperties.TRANSITION_Y) < 0f);
+    }
+
     private void createCoordinator() {
         mNewTabPageLayout =
                 (NewTabPageLayout)
@@ -357,7 +417,7 @@ public class NewTabPageCoordinatorUnitTest {
     }
 
     @Test
-    public void testSearchBoxAndComposeplateMaxWidthLimit() {
+    public void testElementsMaxWidthLimit() {
         NewTabPageLayout layout = mCoordinator.getNewTabPageLayout();
         int maxSearchBoxWidthPx =
                 mActivity.getResources().getDimensionPixelSize(R.dimen.ntp_search_box_max_width);
@@ -367,12 +427,24 @@ public class NewTabPageCoordinatorUnitTest {
         int measureWidth = maxSearchBoxWidthPx * 10;
         mCoordinator.onMeasure(measureWidth);
 
+        // The max width cap is applied to Search Box, Composeplate and MVT on all platforms
+        // to ensure visual alignment. On tablets, smaller tiles are used internally to fit.
+        int expectedBoundedWidth = maxSearchBoxWidthPx;
+
         View searchBoxView = layout.findViewById(R.id.search_box);
         assertNotNull(searchBoxView);
-        assertEquals(maxSearchBoxWidthPx, searchBoxView.getLayoutParams().width);
+        assertEquals(expectedBoundedWidth, searchBoxView.getLayoutParams().width);
 
         View composeplateView = layout.findViewById(R.id.composeplate_view);
         assertNotNull(composeplateView);
-        assertEquals(maxSearchBoxWidthPx, composeplateView.getLayoutParams().width);
+        assertEquals(expectedBoundedWidth, composeplateView.getLayoutParams().width);
+
+        View logoView = layout.findViewById(R.id.logo_container_view);
+        assertNotNull(logoView);
+        assertEquals(measureWidth, logoView.getLayoutParams().width);
+
+        View mvtView = layout.findViewById(R.id.mv_tiles_container);
+        assertNotNull(mvtView);
+        assertEquals(expectedBoundedWidth, mvtView.getLayoutParams().width);
     }
 }

@@ -73,7 +73,8 @@ PrepareClientToAimRequestInfo(
     omnibox::ToolMode active_tool,
     omnibox::ModelMode active_model,
     std::optional<int64_t> active_tab_context_id,
-    std::optional<base::UnguessableToken> overlay_token);
+    std::optional<base::UnguessableToken> overlay_token,
+    bool is_voice_search);
 
 // Finalizes the AIM query request (consuming tokens) and delivers it to the
 // page.
@@ -102,6 +103,9 @@ GURL GetContextualTasksFunctionalURL(content::WebContents* web_contents);
 // Returns the pretty display URL (e.g. chrome://google.com/search) for the
 // given WebContents if it is a Contextual Tasks page.
 GURL GetContextualTasksDisplayURL(content::WebContents* web_contents);
+
+// Returns the effective pin state for the contextual tasks button.
+bool GetEffectivePinState(Profile* profile);
 
 }  // namespace contextual_tasks
 

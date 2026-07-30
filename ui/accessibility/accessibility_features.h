@@ -114,16 +114,9 @@ AX_BASE_EXPORT bool IsImageDescriptionsAlternateRoutingEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityExposeSummaryAsHeading);
 AX_BASE_EXPORT bool IsAccessibilityExposeSummaryAsHeadingEnabled();
 
-// Use language detection to determine the language
-// of text content in page and exposed to the browser process AXTree.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kEnableAccessibilityLanguageDetection);
-AX_BASE_EXPORT bool IsAccessibilityLanguageDetectionEnabled();
-
 // Extension manifest v3 migration for network speech synthesis.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kExtensionManifestV3NetworkSpeechSynthesis);
 AX_BASE_EXPORT bool IsExtensionManifestV3NetworkSpeechSynthesisEnabled();
-
-
 
 // Expose document markers on inline text boxes in addition to
 // static nodes. (Note: This will make it possible for AXPosition in the browser
@@ -176,10 +169,6 @@ AX_BASE_EXPORT bool IsIChromeAccessibleEnabled();
 // Enables calls to UiaDisconnectProvider when destroying a AXFragmentRootWin's
 // HWND.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaDisconnectRootProviders);
-
-// Use the browser's UIA provider when requested by
-// an accessibility client.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kUiaProvider);
 
 // Optimizes event firing by only emitting events when at least one listener is
 // subscribed. Killswitch to turn it off in case this work has negative
@@ -272,6 +261,11 @@ AX_BASE_EXPORT bool IsAccessibilityInlineLineSeparatorsEnabled();
 // notified on cursor moves.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityMagnificationFollowsFocus);
 AX_BASE_EXPORT bool IsAccessibilityMagnificationFollowsFocusEnabled();
+
+// Controls the new native C++ implementation for Read Aloud on Android,
+// replacing the previous Speakr service integration.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAloudNative);
+AX_BASE_EXPORT bool IsReadAloudNativeEnabled();
 
 #endif  // BUILDFLAG(IS_ANDROID)
 

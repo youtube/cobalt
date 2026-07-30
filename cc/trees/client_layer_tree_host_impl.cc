@@ -355,8 +355,7 @@ void ClientLayerTreeHostImpl::CreatePendingTree() {
 
   delegate_->OnCanDrawStateChanged(CanDraw());
   TRACE_EVENT_BEGIN("cc", "PendingTree:waiting",
-                    perfetto::Track::FromPointer(pending_tree_.get()),
-                    "active_lsid",
+                    GetTracingTrack(pending_tree_.get()), "active_lsid",
                     active_tree()->local_surface_id_from_parent().ToString());
 }
 
@@ -419,8 +418,11 @@ void ClientLayerTreeHostImpl::
   CHECK(!settings_.trees_in_viz_in_viz_process);
   CHECK(image_animation_controller_);
   const auto& animated_images = image_animation_controller_->AnimateForSyncTree(
-      CurrentBeginFrameArgs(), GatherImageAnimationState());
+      CurrentBeginFrameArgs(), GatherAnimatedImageDriverState());
   images_to_invalidate.insert(animated_images.begin(), animated_images.end());
+  if (image_animation_controller_->HasAdvancedAnimationClients()) {
+    SetNeedsCommit();
+  }
 
   images_to_invalidate.insert(dirty_paint_worklet_ids.begin(),
                               dirty_paint_worklet_ids.end());

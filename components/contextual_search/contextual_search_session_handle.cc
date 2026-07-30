@@ -9,10 +9,12 @@
 
 #include "base/containers/flat_set.h"
 #include "base/memory/ptr_util.h"
+#include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
@@ -177,6 +179,8 @@ void ContextualSearchSessionHandle::StartFileContextUploadFlow(
       std::make_unique<lens::ContextualInputData>();
   input_data->context_input = std::vector<lens::ContextualInput>();
   input_data->primary_content_type = mime_type;
+  input_data->upload_type = lens::LensOverlayContextualInputUploadType::
+      CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT;
   input_data->file_name = file_name;
   // For manual file uploads, the file name is also set in the page_title field.
   input_data->page_title = file_name;
@@ -236,6 +240,13 @@ void ContextualSearchSessionHandle::StartTabContextUploadFlow(
   }
 
   if (auto* controller = GetController()) {
+    if (!contextual_input_data->upload_type.has_value()) {
+      // If the input data did not already have an upload type (e.g.
+      // auto-context) then it was the result of an explicit user upload.
+      contextual_input_data->upload_type =
+          lens::LensOverlayContextualInputUploadType::
+              CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT;
+    }
     controller->StartFileUploadFlow(
         file_token, std::move(contextual_input_data), image_options);
   }
@@ -280,6 +291,9 @@ void ContextualSearchSessionHandle::StartDriveContextUploadFlow(
     contextual_input_data->file_name = params.file_name;
     contextual_input_data->page_title = params.file_name;
     contextual_input_data->primary_content_type = lens::MimeType::kUnknown;
+    contextual_input_data->upload_type =
+        lens::LensOverlayContextualInputUploadType::
+            CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT;
     context_controller->StartFileUploadFlow(
         file_token, std::move(contextual_input_data), std::nullopt);
   }
@@ -481,6 +495,17 @@ ContextualSearchSessionHandle::GetSubmittedContextFileInfos() const {
   return TokensToFileInfos(GetController(), submitted_context_tokens_);
 }
 
+std::vector<std::string>
+ContextualSearchSessionHandle::GetSubmittedContextTabTitles() const {
+  std::vector<std::string> titles;
+  for (const auto& file_info : GetSubmittedContextFileInfos()) {
+    if (file_info.tab_title.has_value()) {
+      titles.push_back(file_info.tab_title.value());
+    }
+  }
+  return titles;
+}
+
 void ContextualSearchSessionHandle::ClearSubmittedContextTokens() {
   submitted_context_tokens_.clear();
 }
@@ -540,6 +565,11 @@ void ContextualSearchSessionHandle::NotifyQuerySubmittedSessionState(
                                            query_text_length, file_infos.size(),
                                            has_drive_context);
   }
+}
+
+void ContextualSearchSessionHandle::AddThreadTurn(
+    const contextual_tasks::ThreadTurn& turn) {
+  previous_turns_.push_back(turn);
 }
 
 }  // namespace contextual_search

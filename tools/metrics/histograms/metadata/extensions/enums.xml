@@ -814,6 +814,7 @@ Called by update_extension_histograms.py.-->
   <int value="572" label="ACCESSIBILITY_PRIVATE_ON_KEY_UP"/>
   <int value="573"
       label="PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_ACTIONABLE_ERROR_CHANGED"/>
+  <int value="574" label="INDIGO_PRIVATE_ON_REGENERATE_STARTED"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_event_histogram_value.h:HistogramValue) -->
@@ -2908,6 +2909,7 @@ Called by update_extension_histograms.py.-->
   <int value="1970" label="MIMEHANDLER_SETMIMEHANDLEROPTIONS"/>
   <int value="1971" label="MIMEHANDLER_GETMIMEHANDLEROPTIONS"/>
   <int value="1972" label="GLICPRIVATE_HASCONVERSATION"/>
+  <int value="1973" label="GLICPRIVATE_ACTIVATETABWITHCONVERSATION"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3006,11 +3008,6 @@ Called by update_extension_histograms.py.-->
   <int value="8" label="COMMAND_LINE"/>
   <int value="9" label="EXTERNAL_POLICY"/>
   <int value="10" label="EXTERNAL_COMPONENT"/>
-</enum>
-
-<enum name="ExtensionMV2DeprecationAction">
-  <int value="0" label="Extension Removed"/>
-  <int value="1" label="Extension ReEnabled"/>
 </enum>
 
 <enum name="ExtensionNavigationScheme">
@@ -3308,6 +3305,12 @@ Called by update_extension_permission.py.-->
   <int value="1" label="Corrupted Chrome Web Store extension"/>
   <int value="2" label="Corrupted non-webstore extension"/>
   <int value="4" label="Non-webstore extension without hashes skipped"/>
+</enum>
+
+<enum name="ExtensionRuntimeUninstallURLHost">
+  <int value="0" label="HTTPS"/>
+  <int value="1" label="Local HTTP"/>
+  <int value="2" label="Remote HTTP"/>
 </enum>
 
 <enum name="ExtensionsDatabaseOperation">

@@ -55,6 +55,10 @@ class AccountCapabilities {
   const base::flat_map<std::string, bool>& ConvertToAccountCapabilitiesIOS();
 #endif
 
+  // Resets the cached list of supported account capability names.
+  // Useful for testing scenarios where feature flags change between tests.
+  static void ResetSupportedAccountCapabilityNamesForTesting();
+
   // clang-format off
   // keep-sorted start newline_separated=yes sticky_prefixes=#if,BUILDFLAG group_prefixes=#endif,can,has,is,must
   // clang-format on
@@ -175,6 +179,9 @@ class AccountCapabilities {
   // Whether the client must skip Apple's age range check in Chrome.
   signin::Tribool must_skip_apple_age_range_in_chrome() const;
 #endif
+
+  // Whether the account may fill and save Wallet private passes in Autofill.
+  signin::Tribool supports_wallet_private_passes_in_autofill() const;
 
   // keep-sorted end
 

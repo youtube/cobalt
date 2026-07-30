@@ -4,13 +4,13 @@
 
 package org.chromium.components.omnibox;
 
-import androidx.annotation.NonNull;
 import androidx.collection.ArraySet;
 
 import org.chromium.chrome.browser.omnibox.MatchClassificationStyle;
 import org.chromium.components.omnibox.AnswerTypeProto.AnswerType;
 import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.components.omnibox.action.OmniboxAction;
+import org.chromium.components.search_engines.StarterPackId;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -27,6 +27,7 @@ public class AutocompleteMatchBuilder {
     private @OmniboxSuggestionType int mType;
     private Set<Integer> mSubtypes;
     private boolean mIsSearchType;
+    private @OmniboxSuggestionKind int mSuggestionKind;
     private int mIconType;
     private String mDisplayText;
     private List<AutocompleteMatch.MatchClassification> mDisplayTextClassifications;
@@ -40,7 +41,7 @@ public class AutocompleteMatchBuilder {
     private String mImageDominantColor;
     private int mTransition;
     private boolean mIsDeletable;
-    private int mStarterPackId;
+    private @StarterPackId int mStarterPackId;
     private String mPostContentType;
     private byte[] mPostData;
     private int mGroupId;
@@ -83,6 +84,7 @@ public class AutocompleteMatchBuilder {
         mType = AutocompleteMatch.INVALID_TYPE;
         mSubtypes = new ArraySet<>();
         mIsSearchType = false;
+        mSuggestionKind = OmniboxSuggestionKind.SEARCH;
         mDisplayText = null;
         mDisplayTextClassifications = new ArrayList<>();
         mDescription = null;
@@ -95,7 +97,7 @@ public class AutocompleteMatchBuilder {
         mImageDominantColor = null;
         mTransition = 0;
         mIsDeletable = false;
-        mStarterPackId = 0;
+        mStarterPackId = StarterPackId.NONE;
         mPostContentType = null;
         mPostData = null;
         mGroupId = AutocompleteMatch.INVALID_GROUP;
@@ -127,6 +129,7 @@ public class AutocompleteMatchBuilder {
                 mType,
                 mSubtypes,
                 mIsSearchType,
+                mSuggestionKind,
                 mIconType,
                 mTransition,
                 mDisplayText,
@@ -243,6 +246,17 @@ public class AutocompleteMatchBuilder {
      */
     public AutocompleteMatchBuilder setIsSearch(boolean isSearch) {
         mIsSearchType = isSearch;
+        mSuggestionKind =
+                isSearch ? OmniboxSuggestionKind.SEARCH : OmniboxSuggestionKind.NAVIGATION;
+        return this;
+    }
+
+    /**
+     * @param type Accessibility type for TalkBack announcements.
+     * @return Omnibox suggestion builder.
+     */
+    public AutocompleteMatchBuilder setSuggestionKind(@OmniboxSuggestionKind int kind) {
+        mSuggestionKind = kind;
         return this;
     }
 
@@ -313,7 +327,7 @@ public class AutocompleteMatchBuilder {
      * @param actions List of actions to add to the AutocompleteMatch.
      * @return Omnibox suggestion builder.
      */
-    public AutocompleteMatchBuilder setActions(@NonNull List<OmniboxAction> actions) {
+    public AutocompleteMatchBuilder setActions(List<OmniboxAction> actions) {
         mActions = actions;
         return this;
     }
@@ -331,7 +345,7 @@ public class AutocompleteMatchBuilder {
      * @param starterPackId The starter pack engine id.
      * @return Omnibox suggestion builder.
      */
-    public AutocompleteMatchBuilder setStarterPackId(int starterPackId) {
+    public AutocompleteMatchBuilder setStarterPackId(@StarterPackId int starterPackId) {
         mStarterPackId = starterPackId;
         return this;
     }

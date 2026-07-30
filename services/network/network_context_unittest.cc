@@ -95,6 +95,7 @@
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_inclusion_status.h"
+#include "net/cookies/cookie_monster_store_test.h"
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_store.h"
@@ -2093,6 +2094,7 @@ TEST_F(NetworkContextTest, P2PHostResolution) {
   params.source = net::HostResolverSource::LOCAL_ONLY;
   std::unique_ptr<net::HostResolver::ResolveHostRequest> request1 =
       host_resolver.CreateRequest(kHostPortPair, network_anonymization_key,
+                                  net::handles::kInvalidNetworkHandle,
                                   net::NetLogWithSource(), params);
   net::TestCompletionCallback callback1;
   int result = request1->Start(callback1.callback());
@@ -2109,6 +2111,7 @@ TEST_F(NetworkContextTest, P2PHostResolution) {
   for (const auto& other_nak : kOtherNaks) {
     std::unique_ptr<net::HostResolver::ResolveHostRequest> request2 =
         host_resolver.CreateRequest(kHostPortPair, other_nak,
+                                    net::handles::kInvalidNetworkHandle,
                                     net::NetLogWithSource(), params);
     net::TestCompletionCallback callback2;
     result = request2->Start(callback2.callback());
@@ -2384,12 +2387,21 @@ TEST_F(NetworkContextTest, LogicalClearHttpCache) {
   std::unique_ptr<NetworkContext> network_context =
       CreateContextWithParams(std::move(context_params));
 
+  base::HistogramTester histograms;
+
   base::test::TestFuture<void> future;
-  network_context->ClearHttpCache(base::Time(), base::Time(), nullptr,
-                                  future.GetCallback());
+  network_context->ClearHttpCacheLogically(base::Time(), base::Time(), nullptr,
+                                           future.GetCallback());
 
   // The callback should be called immediately.
   EXPECT_TRUE(future.Wait());
+  histograms.ExpectBucketCount("NetworkService.ClearHttpCacheMode", 1, 1);
+
+  base::test::TestFuture<void> physical_future;
+  network_context->ClearHttpCache(base::Time(), base::Time(), nullptr,
+                                  physical_future.GetCallback());
+  EXPECT_TRUE(physical_future.Wait());
+  histograms.ExpectBucketCount("NetworkService.ClearHttpCacheMode", 0, 1);
 }
 
 #if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
@@ -12088,6 +12100,58 @@ TEST_F(ConnectionAllowlistReportingTest,
   VerifyReports(network_context.get(), {});
 }
 #endif  // BUILDFLAG(ENABLE_REPORTING)
+
+class EarlyCookieLoadOnPreconnectTest : public NetworkContextTest {
+ public:
+  EarlyCookieLoadOnPreconnectTest() {
+    feature_list_.InitAndEnableFeature(
+        net::features::kEarlyCookieLoadOnPreconnect);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(EarlyCookieLoadOnPreconnectTest, Basic) {
+  auto store = base::MakeRefCounted<net::MockPersistentCookieStore>();
+  store->set_store_load_commands(true);
+
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithBuilderCallback(
+          std::move(context_params),
+          base::BindOnce(
+              [](scoped_refptr<net::MockPersistentCookieStore> store,
+                 net::URLRequestContextBuilder* builder) {
+                auto cookie_monster = std::make_unique<net::CookieMonster>(
+                    std::move(store), nullptr);
+                builder->SetCookieStore(std::move(cookie_monster));
+              },
+              store));
+
+  net::EmbeddedTestServer test_server;
+  ASSERT_TRUE(test_server.Start());
+
+  network_context->PreconnectSockets(
+      1, test_server.base_url(), network::mojom::CredentialsMode::kInclude,
+      net::NetworkAnonymizationKey(), /*network_restrictions_id=*/std::nullopt,
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
+      std::nullopt, mojo::NullRemote());
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return store->commands().size() == 2u; }));
+
+  // Now, let the MockPersistentCookieStore finish loading.
+  ASSERT_EQ(2u, store->commands().size());
+  EXPECT_EQ(net::CookieStoreCommand::LOAD, store->commands()[0].type);
+  EXPECT_EQ(net::CookieStoreCommand::LOAD_COOKIES_FOR_KEY,
+            store->commands()[1].type);
+  EXPECT_EQ(net::CookieMonster::GetKey(test_server.base_url().host()),
+            store->commands()[1].key);
+}
+
 }  // namespace
 
 }  // namespace network

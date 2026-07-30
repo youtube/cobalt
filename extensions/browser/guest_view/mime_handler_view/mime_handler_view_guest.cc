@@ -94,16 +94,6 @@ bool MimeHandlerViewGuest::CanBeEmbeddedInsideCrossProcessFrames() const {
   return true;
 }
 
-GURL MimeHandlerViewGuest::GetOwnerSiteURL() const {
-  GURL url = GuestView<MimeHandlerViewGuest>::GetOwnerSiteURL();
-  if (!url.is_empty()) {
-    return url;
-  }
-  // Fallback for opaque origins without precursors (e.g., browser-initiated
-  // data: URLs). Use the committed URL instead for such cases.
-  return owner_rfh()->GetLastCommittedURL();
-}
-
 void MimeHandlerViewGuest::GuestOverrideRendererPreferences(
     blink::RendererPreferences& preferences) {
   CHECK(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
@@ -117,7 +107,8 @@ void MimeHandlerViewGuest::SetBeforeUnloadController(
 }
 
 const char* MimeHandlerViewGuest::GetAPINamespace() const {
-  return mime_handler_view::kAPINamespace;
+  // No associated API. Implicitly available to all contexts.
+  return nullptr;
 }
 
 int MimeHandlerViewGuest::GetTaskPrefix() const {

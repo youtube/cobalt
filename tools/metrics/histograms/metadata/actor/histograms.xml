@@ -361,7 +361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.MayOriginGatePageTransition" enum="Boolean"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>dylancutler@google.com</owner>
   <owner>johannhof@google.com</owner>
   <summary>
@@ -370,18 +370,6 @@ chromium-metrics-reviews@google.com.
     with trusted origins, is applied. We origin gate cross-origin client-
     initiated redirects and server redirects on the last link of the redirect
     chain.
-  </summary>
-</histogram>
-
-<histogram name="Actor.NavigationGating.ActionNavigationsApprovedByServer"
-    enum="BooleanAllowed" expires_after="2027-02-20">
-  <owner>masnoble@google.com</owner>
-  <owner>dylancutler@google.com</owner>
-  <owner>cfredric@google.com</owner>
-  <summary>
-    Records whether the navigation was approved by the server via a
-    NavigationConfirmationRequest to glic every time the actor processes a
-    navigation that was caused by an action and was not blocklisted.
   </summary>
 </histogram>
 
@@ -868,7 +856,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Task.Duration.NotVisible.{StoppedReason}" units="ms"
-    expires_after="2026-08-11">
+    expires_after="2026-11-29">
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -994,7 +982,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Tools.ExecutionDuration.{ToolRequest}" units="ms"
-    expires_after="2026-09-17">
+    expires_after="2026-11-29">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -1006,7 +994,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Actor.Tools.PageStabilization.{ToolRequest}" units="ms"
-    expires_after="2026-09-17">
+    expires_after="2026-11-29">
   <owner>dtapuska@google.com</owner>
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>

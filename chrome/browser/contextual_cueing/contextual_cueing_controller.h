@@ -10,12 +10,18 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/cue_target.h"
+#include "chrome/browser/tab_list/tab_list_interface_observer.h"
+#include "components/favicon_base/favicon_types.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
+#include "components/sessions/core/session_id.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+#include "url/gurl.h"
 
 class BrowserWindowInterface;
 class OptimizationGuideKeyedService;
@@ -26,6 +32,10 @@ namespace actions {
 class ActionItem;
 class ActionInvocationContext;
 }  // namespace actions
+
+namespace favicon {
+class FaviconService;
+}  // namespace favicon
 
 namespace optimization_guide {
 class ModelQualityLogEntry;
@@ -52,7 +62,8 @@ struct CueTabMetrics;
 
 class ContextualCueingController
     : public page_content_annotations::PageContentAnnotationsService::
-          PageContentAnnotationsObserver {
+          PageContentAnnotationsObserver,
+      public TabListInterfaceObserver {
  public:
   explicit ContextualCueingController(
       BrowserWindowInterface* browser_window_interface,
@@ -80,8 +91,20 @@ class ContextualCueingController
       const page_content_annotations::PageContentAnnotationsResult& result)
       override;
 
-  // Hide the cue if it's showing.
-  void HideCue();
+  // TabListInterfaceObserver:
+  void OnActiveTabChanged(TabListInterface& tab_list,
+                          tabs::TabInterface* tab) override;
+  void OnTabRemoved(TabListInterface& tab_list,
+                    tabs::TabInterface* tab,
+                    TabRemovedReason reason) override;
+
+  void ActiveTabUrlChanged(const GURL& url);
+
+  // Hide the cue for `tab` if it's showing.
+  void HideCueForTab(tabs::TabInterface* tab);
+
+  // Hide the cue for all tabs that have a multi-tab cue associated with `tab`.
+  void HideAllCuesDependingOnTab(tabs::TabInterface* tab);
 
   // Returns the CueTarget for the given CueTargetType, or nullptr if there is
   // none.
@@ -94,6 +117,10 @@ class ContextualCueingController
  private:
   // Initiates a model execution request to MES for the current window state.
   void InitiateModelExecutionRequest();
+
+  // Retrieves favicon for a specific web contents.
+  void FetchFavicon(tabs::TabInterface* tab,
+                    content::WebContents* web_contents);
 
   // Calculate the amount of time the current cue has been shown, and reset the
   // shown timestamp.
@@ -138,6 +165,9 @@ class ContextualCueingController
   void OnCueHidden();
   void OnCueFormFactorShown(CueFormFactor form_factor);
   void OnCueFormFactorHidden(CueFormFactor form_factor);
+  void OnFaviconAvailable(tabs::TabHandle handle,
+                          const favicon_base::FaviconImageResult& image_result);
+  void OnShowCueFailed(ContextualCueingDecision decision);
 
   void OnSidePanelShown();
 
@@ -159,14 +189,25 @@ class ContextualCueingController
   raw_ptr<syncer::SyncService> sync_service_;
   raw_ptr<TemplateURLService> template_url_service_;
   raw_ptr<signin::IdentityManager> identity_manager_;
+  raw_ptr<favicon::FaviconService> favicon_service_;
   absl::flat_hash_map<CueTargetType, std::unique_ptr<CueTarget>> cue_targets_;
   base::CallbackListSubscription side_panel_shown_subscription_;
   base::TimeTicks cue_shown_time_;
   base::TimeTicks cue_hidden_time_;
 
+  absl::flat_hash_map<tabs::TabHandle, ui::ImageModel> tab_favicons_;
+  base::CancelableTaskTracker cancelable_task_tracker_;
+
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<page_actions::PageActionObserver> page_action_observer_;
 #endif
+
+  GURL last_logged_active_url_;
+
+  // Map from the session ID of the tab that has a multi-tab cue associated with
+  // it to the set of session IDs for tabs that have a multi-tab cue including
+  // the key tab's session ID.
+  std::map<SessionID, std::set<SessionID>> multi_tab_cues_map_;
 
   base::WeakPtrFactory<ContextualCueingController> weak_ptr_factory_{this};
 };

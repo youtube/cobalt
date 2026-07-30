@@ -45,8 +45,12 @@ suite('ContextualTasksAppTest', function() {
       enableComposeboxJumpFix: false,
       isGhostLoaderVisible: false,
       isAiPage: true,
+      windowTrackingEnabled: true,
       nlmUrlParam: 'ajid',
       enableCustomNlmUi: true,
+      composeboxSmartTabSharingVisible: false,
+      isAimEligible: true,
+      isZeroState: false,
     });
     metrics = fakeMetricsPrivate();
     const proxy = new TestContextualTasksBrowserProxy('http://example.com');
@@ -1108,4 +1112,67 @@ suite('ContextualTasksAppTest', function() {
 
     assertTrue(appElement.$.composebox.hidden);
   });
+
+  test('composebox header wrapper hidden when isAimEligible is false', async () => {
+    loadTimeData.overrideValues({
+      isAimEligible: false,
+      isZeroState: true,
+    });
+
+    const {appElement} =
+        await createContextualTasksAppElement(/*url=*/ fixtureUrl);
+
+    const wrapper = appElement.shadowRoot.querySelector('#composeboxHeaderWrapper')!;
+    assertTrue(wrapper.hasAttribute('hidden'));
+  });
+
+  test('composebox header wrapper hidden when isZeroState is undefined', async () => {
+    const {appElement} =
+        await createContextualTasksAppElement(/*url=*/ fixtureUrl);
+
+    appElement.setIsZeroStateForTesting(undefined);
+    await microtasksFinished();
+    await appElement.updateComplete;
+
+    const wrapper = appElement.shadowRoot.querySelector('#composeboxHeaderWrapper')!;
+    assertTrue(wrapper.hasAttribute('hidden'));
+  });
+
+  test('composebox header wrapper hidden when isInputHidden is true', async () => {
+    const {appElement, proxy} =
+        await createContextualTasksAppElement(/*url=*/ fixtureUrl);
+
+    // Initial state
+    appElement.setIsZeroStateForTesting(false);
+    await microtasksFinished();
+    await appElement.updateComplete;
+    const wrapper = appElement.shadowRoot.querySelector('#composeboxHeaderWrapper')!;
+    assertFalse(wrapper.hasAttribute('hidden'));
+
+    proxy.callbackRouterRemote.hideInput();
+    await proxy.callbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+    await appElement.updateComplete;
+
+    assertTrue(wrapper.hasAttribute('hidden'));
+  });
+
+  test(
+      'does not initialize WindowManager when windowTrackingEnabled is false',
+      async () => {
+        loadTimeData.overrideValues({
+          windowTrackingEnabled: false,
+        });
+
+        const {appElement} =
+            await createContextualTasksAppElement(/*url=*/ fixtureUrl);
+
+        let newWindowIntercepted = false;
+        appElement.$.threadFrame.addEventListener('newwindow', (e: Event) => {
+          newWindowIntercepted = e.defaultPrevented;
+        });
+        appElement.$.threadFrame.dispatchEvent(
+            new CustomEvent('newwindow', {cancelable: true}));
+        assertFalse(newWindowIntercepted);
+      });
 });

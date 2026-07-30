@@ -129,7 +129,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Enclave.{Type}.Available" enum="BooleanAvailable"
-    expires_after="2026-08-30">
+    expires_after="2026-11-29">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -206,7 +206,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.FeatureNotificationsSettingChange"
-    enum="BooleanEnabled" expires_after="2026-07-14">
+    enum="BooleanEnabled" expires_after="2027-07-14">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>
@@ -339,7 +339,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.OneDriveSyncState.{SyncedState}" enum="BooleanEnabled"
-    expires_after="2026-09-06">
+    expires_after="2026-11-29">
   <owner>koretadaniel@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <summary>
@@ -465,7 +465,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.ProcessorFamily" enum="ProcessorFamily"
-    expires_after="2026-09-27">
+    expires_after="2026-11-29">
   <owner>rkc@chromium.org</owner>
   <owner>vnagarnaik@google.com</owner>
   <owner>rockot@chromium.org</owner>
@@ -495,6 +495,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     The result of a call to base::ReplaceFile. Logged every time when
     base::ReplaceFile is called.
+  </summary>
+</histogram>
+
+<histogram name="Windows.RunningIsolated" enum="BooleanEnabled"
+    expires_after="2027-02-28">
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-platform-security-core@google.com</owner>
+  <summary>
+    Reports true if the browser process is running isolated from other apps
+    running as the current user, false otherwise. Reported in every UMA log
+    upload.
   </summary>
 </histogram>
 

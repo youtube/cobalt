@@ -326,6 +326,12 @@
         "default": "",
       },
     },
+    {
+      name: "AIEmbeddingsAPI",
+    },
+    {
+      name: "AIEmbeddingsAPIForWorkers",
+    },
     // Strip actionability from content that is positioned offscreen
     // via position:fixed and cannot be reached by scrolling.
     {
@@ -1116,6 +1122,11 @@
     },
     {
       name: "CheckVisibilityExtraProperties",
+      status: "stable",
+    },
+    {
+      // crbug.com/517429018
+      name: "ClampUnfocusedSelectionCache",
       status: "stable",
     },
     {
@@ -2041,6 +2052,12 @@
       status: "experimental",
     },
     {
+      // Support resolving naming conficts for scroll and view timeline names
+      // by selecting the last in flat tree order.
+      name: "CSSTimelineNameConflictResolution",
+      status: "experimental",
+    },
+    {
       // Support for the 'all' keyword of the 'timeline-scope' property.
       //
       // https://drafts.csswg.org/scroll-animations-1/#timeline-scope
@@ -2141,6 +2158,9 @@
       origin_trial_feature_name: "DeclarativeCSSModules",
     },
     {
+      name: "DeclarativeSkeletons",
+    },
+    {
       // https://chromestatus.com/feature/5133099851317248
       name: "DecoupleComputedBorderWidthFromStyle",
       public: true,
@@ -2203,9 +2223,10 @@
       status: "stable",
     },
     {
-      // This feature makes the <dialog> element close properly when its "open"
-      // attribute is removed. https://github.com/whatwg/html/issues/5802 and
-      // https://github.com/whatwg/html/pull/10124.
+      // crbug.com/520262209: This feature makes the <dialog> element close
+      // properly when its "open" attribute is removed. See
+      //  - https://github.com/whatwg/html/issues/5802
+      //  - https://github.com/whatwg/html/pull/10124
       name: "DialogCloseWhenOpenRemoved",
       status: "experimental",
     },
@@ -3209,8 +3230,8 @@
       },
     },
     {
+      // https://crbug.com/40571175
       name: "GetComputedStyleOutsideFlatTree",
-      status: "stable",
     },
     {
       name: "GetDisplayMedia",
@@ -3282,6 +3303,9 @@
         "ChromeOS": "stable",
         "default": "experimental",
       },
+    },
+    {
+      name: "HarfRustShaping",
     },
     {
       name: "HasUAVisualTransition",
@@ -4608,6 +4632,13 @@
       status: "stable",
     },
     {
+      // When enabled, fixes selection jumping when drag-selecting out of
+      // a float box boundary.
+      // See https://crbug.com/41340914
+      name: "PreventTextSelectionJump",
+      status: "stable",
+    },
+    {
       // When enabled, prevents undo to be applied if the enclosing block
       // is not editable
       name: "PreventUndoIfNotEditable",
@@ -5655,6 +5686,7 @@
       // on performance.speculations.
       name: "SpeculationMeasurement",
       origin_trial_feature_name: "SpeculationMeasurement",
+      origin_trial_allows_third_party: true,
       status: "experimental",
     },
     {
@@ -5796,6 +5828,10 @@
     },
     {
       name: "SvgFallBackToContainerSize",
+      status: "stable",
+    },
+    {
+      name: "SvgFeImageEXIFOrientation",
       status: "stable",
     },
     {
@@ -6729,9 +6765,7 @@
     },
     {
       name: "WebGPUImmediatesFeature",
-      status: "experimental",
-      public: true,
-      implied_by: ["WebGPUExperimentalFeatures"],
+      status: "stable",
     },
     {
       // Enables GPUBuffer::mapSync for WebGPU.
@@ -6784,6 +6818,7 @@
     {
       name: "WebMCP",
       origin_trial_feature_name: "WebMCP",
+      origin_trial_allows_third_party: true,
       public: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -6842,6 +6877,14 @@
       // https://www.ietf.org/archive/id/draft-hancke-tsvwg-snap-00.html
       name: "WebRtcSctpSnap",
       status: "test",
+    },
+    {
+      // Restricts the sharing of SerialPort instances across different V8
+      // worlds (e.g., main world and isolated worlds) to prevent cross-world
+      // leaks.
+      name: "WebSerialWorldIsolatedCache",
+      status: "stable",
+      base_feature: "none",
     },
     // WebShare is enabled by default on Android (non-WebView), Win, ChromeOS, and Mac.
     // This is done in chrome/renderer/chrome_content_renderer_client.cc to prevent
@@ -6995,6 +7038,12 @@
       base_feature: "none",
     },
     {
+      name: "WebXRMediaBinding",
+      depends_on: ["WebXRLayers"],
+      public: true,
+      status: "experimental",
+    },
+    {
       name: "WebXRMeshDetection",
       depends_on: ["WebXR"],
       public: true,
@@ -7032,6 +7081,7 @@
     // https://crbug.com/40704952
     {
       name: "WheelEventMomentum",
+      status: "experimental",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch

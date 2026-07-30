@@ -15,6 +15,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/uuid.h"
 #include "components/multistep_filter/core/annotation_index/annotation_index_client.h"
 #include "components/multistep_filter/core/annotation_index/mock_annotation_index_client.h"
@@ -27,6 +28,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/unified_consent/pref_names.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -90,6 +92,8 @@ class MultistepFilterServiceTest : public testing::Test {
     scoped_feature_list_.InitAndEnableFeature(kMultistepFilter);
     pref_service_.registry()->RegisterBooleanPref(
         unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, true);
+    sync_service_.GetUserSettings()->SetSelectedType(
+        syncer::UserSelectableType::kHistory, true);
   }
 
   void CreateService(signin::IdentityManager* identity_manager) {
@@ -107,9 +111,15 @@ class MultistepFilterServiceTest : public testing::Test {
     auto consent_helper = unified_consent::UrlKeyedDataCollectionConsentHelper::
         NewAnonymizedDataCollectionConsentHelper(&pref_service_);
 
-    service_ = std::make_unique<MultistepFilterService>(
-        std::move(annotation_index_client), std::move(filter_store),
-        identity_manager, std::move(consent_helper), /*log_router=*/nullptr);
+    MultistepFilterService::Params params;
+    params.annotation_index_client = std::move(annotation_index_client);
+    params.filter_store = std::move(filter_store);
+    params.identity_manager = identity_manager;
+    params.consent_helper = std::move(consent_helper);
+    params.log_router = nullptr;
+    params.sync_service = &sync_service_;
+
+    service_ = std::make_unique<MultistepFilterService>(std::move(params));
 
     MultistepFilterServiceTestApi(*service_).set_filter_extractor(
         std::move(filter_extractor));
@@ -127,6 +137,7 @@ class MultistepFilterServiceTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   signin::IdentityTestEnvironment identity_test_env_;
   TestingPrefServiceSimple pref_service_;
+  syncer::TestSyncService sync_service_;
 
   std::unique_ptr<MockObserver> mock_observer_;
   std::unique_ptr<MultistepFilterService> service_;
@@ -139,6 +150,41 @@ class MultistepFilterServiceTest : public testing::Test {
 TEST_F(MultistepFilterServiceTest, CreateAndDestroy) {
   // Verifies the service can be created and destroyed without crashing.
   CreateService();
+}
+
+TEST_F(MultistepFilterServiceTest, ExtractAnnotation_HistorySyncDisabled) {
+  identity_test_env_.MakePrimaryAccountAvailable("test@gmail.com",
+                                                 signin::ConsentLevel::kSignin);
+  sync_service_.GetUserSettings()->SetSelectedType(
+      syncer::UserSelectableType::kHistory, false);
+
+  CreateService();
+  const GURL kUrl("http://example.com");
+
+  EXPECT_CALL(*mock_extractor_, ExtractAnnotationFromUrl).Times(0);
+  EXPECT_CALL(*mock_observer_, OnExtractionFinished(testing::Eq(std::nullopt)))
+      .Times(1);
+
+  service_->ExtractAnnotation(0, kUrl);
+}
+
+TEST_F(MultistepFilterServiceTest,
+       GenerateFilterSuggestions_HistorySyncDisabled) {
+  identity_test_env_.MakePrimaryAccountAvailable("test@gmail.com",
+                                                 signin::ConsentLevel::kSignin);
+  sync_service_.GetUserSettings()->SetSelectedType(
+      syncer::UserSelectableType::kHistory, false);
+
+  CreateService();
+  const GURL kUrl("http://example.com");
+
+  EXPECT_CALL(*mock_generator_, GenerateSuggestion).Times(0);
+  EXPECT_CALL(*mock_observer_, OnSuggestionGenerated(testing::Eq(std::nullopt)))
+      .Times(1);
+
+  base::test::TestFuture<std::optional<UrlFilterSuggestion>> future;
+  service_->GenerateFilterSuggestions(0, kUrl, future.GetCallback());
+  EXPECT_EQ(future.Get(), std::nullopt);
 }
 
 TEST_F(MultistepFilterServiceTest, ExtractAnnotation) {
@@ -330,6 +376,18 @@ TEST_F(MultistepFilterServiceTest, GenerateFilterSuggestions_MsbbDisabled) {
 
   service_->GenerateFilterSuggestions(kTestNavigationId, kUrl,
                                       mock_callback.Get());
+}
+
+TEST_F(MultistepFilterServiceTest,
+       OnHistoryDeletions_InvalidTimeRangeDoesNotCrash) {
+  CreateService();
+  history::DeletionInfo deletion_info = history::DeletionInfo::ForUrls(
+      {history::URLRow(GURL("https://example.com"))},
+      /*favicon_urls=*/{});
+
+  // Call OnHistoryDeletions. Since the time_range is invalid, it historically
+  // crashed. With the fix, it should succeed without crashing.
+  service_->OnHistoryDeletions(/*history_service=*/nullptr, deletion_info);
 }
 
 }  // namespace multistep_filter

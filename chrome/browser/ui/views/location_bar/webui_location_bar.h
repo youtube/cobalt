@@ -46,6 +46,8 @@ class WebUILocationBar : public LocationBar,
   // WebUIReadOnlyOmnibox::UpdatePropagator:
   void PropagateOmniboxUpdate(
       toolbar_ui_api::mojom::OmniboxViewStatePtr update) override;
+  void PropagateFocusRequest(
+      toolbar_ui_api::mojom::FocusRequestTarget target) override;
 
   // Called from WebUIToolbarWebView:
   void OnThemeChanged();
@@ -188,6 +190,10 @@ class WebUILocationBar : public LocationBar,
 
   base::TimeTicks last_page_info_bubble_close_time_;
   bool suppress_lhs_chip_clicked_ = false;
+
+  std::optional<std::u16string> last_search_keyword_;
+  std::optional<bool> last_is_keyword_selected_;
+  toolbar_ui_api::IconHandle keyword_icon_;
 
   base::WeakPtrFactory<WebUILocationBar> weak_ptr_factory_{this};
 };

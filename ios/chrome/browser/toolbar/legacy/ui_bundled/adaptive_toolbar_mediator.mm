@@ -558,12 +558,6 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
     UIAction* openAIMenu = [self.actionFactory actionToOpenAIMenu];
     [staticActions addObject:openAIMenu];
   }
-
-  if (IsAIMCobrowseDebugEntrypointEnabled()) {
-    UIAction* openAIMode = [self.actionFactory actionToOpenAIMode];
-    [staticActions addObject:openAIMode];
-  }
-
   UIMenuElement* clipboardAction = [self menuElementForPasteboard];
   if (clipboardAction) {
     UIMenu* staticMenu = [UIMenu menuWithTitle:@""
@@ -588,7 +582,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
   UIAction* closeTab = [self.actionFactory actionToCloseCurrentTab];
 
   [staticActions
-      addObjectsFromArray:@[ openNewIncognitoTab, openNewTab, closeTab ]];
+      addObjectsFromArray:@[ closeTab, openNewTab, openNewIncognitoTab ]];
   return [UIMenu menuWithTitle:@"" children:staticActions];
 }
 

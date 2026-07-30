@@ -23,6 +23,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_future.h"
+#include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -1201,16 +1202,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, ExtensionAPICannotNavigateDevtools) {
 }
 
 #if BUILDFLAG(IS_MAC)
-// https://crbug.com/41385204
+// Mac is intentionally unsupported (crbug.com/41385204).
 #define MAYBE_AcceptState DISABLED_AcceptState
 #else
 #define MAYBE_AcceptState AcceptState
 #endif
 IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, MAYBE_AcceptState) {
-#if BUILDFLAG(IS_MAC)
-  ui::test::ScopedFakeNSWindowFullscreen fake_fullscreen;
-#endif
-
   auto function = base::MakeRefCounted<WindowsCreateFunction>();
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   function->set_extension(extension.get());
@@ -1244,7 +1241,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, MAYBE_AcceptState) {
   views::test::PropertyWaiter minimize_waiter(
       base::BindRepeating(&BrowserWindow::IsMinimized,
                           base::Unretained(new_browser->window())),
-      true);
+      true, TestTimeouts::action_timeout());
   EXPECT_TRUE(minimize_waiter.Wait());
 #elif BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
   // TODO(crbug.com/40252593): Find a fix/workaround for wayland and add
@@ -2849,7 +2846,7 @@ class ExtensionApiPdfTest : public base::test::WithFeatureOverride,
 IN_PROC_BROWSER_TEST_P(ExtensionApiPdfTest, TemporaryAddressSpoof) {
   content::WebContents* first_web_contents = GetActiveWebContents();
   ASSERT_TRUE(first_web_contents);
-  chrome::NewTab(browser());
+  chrome::NewTab(browser(), NewTabTypes::kNoUserAction);
   content::WebContents* second_web_contents = GetActiveWebContents();
   ASSERT_NE(first_web_contents, second_web_contents);
   GURL url = embedded_test_server()->GetURL(

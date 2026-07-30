@@ -37,7 +37,7 @@ try_.defaults.set(
     siso_output_local_strategy = "greedy",
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-    siso_remote_linking = False,
+    siso_remote_linking = True,
 )
 
 targets.builder_defaults.set(
@@ -444,9 +444,6 @@ try_.builder(
     ),
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
-    # TODO: crbug.com/509602362 - Temporarily enable remote linking builder by builder.
-    # Will enable it for all CQ builds again after resolving RBE-CAS issue.
-    siso_remote_linking = True,
 )
 
 try_.builder(
@@ -515,20 +512,6 @@ try_.builder(
     mirrors = [
         "ci/Win x64 Builder",
         "ci/windows-no-initial-webui-rel",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/Win x64 Builder",
-            "release_try_builder",
-        ],
-    ),
-    contact_team_email = "chrome-webium-product-eng@google.com",
-)
-
-try_.builder(
-    name = "win-webium-product-rel",
-    mirrors = [
-        "ci/win-webium-product-rel",
     ],
     gn_args = gn_args.config(
         configs = [

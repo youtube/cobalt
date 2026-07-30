@@ -85,6 +85,7 @@
 #include "services/network/public/mojom/websocket.mojom-forward.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "third_party/blink/public/common/mediastream/media_devices.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-forward.h"
 #include "third_party/blink/public/mojom/browsing_topics/browsing_topics.mojom-forward.h"
@@ -1637,16 +1638,11 @@ class CONTENT_EXPORT ContentBrowserClient {
       mojo::BinderMapWithContext<RenderFrameHost*>* map) {}
 
   // Allows the embedder to control when Mojo interface binders are run for a
-  // frame that is in a managed mode, such as prerendering and preview mode.
+  // frame that is in a managed mode, such as prerendering.
   //
   // Prerender2 limits inactivated pages' capabilities by controlling when to
   // bind Mojo interfaces. See content/browser/preloading/prerender/README.md
   // for more about capability control.
-  //
-  // Preview mode follows the same limits that Prerender2 defines, and the page
-  // behaves as a prerendered page in Blink. But as the preview page is visible
-  // to users, we relax the restriction a little to permit rendering related
-  // operations.
   //
   // The embedder can add entries to `policy_map` for interfaces that it
   // registers in `RegisterBrowserInterfaceBindersForFrame()` and
@@ -1657,8 +1653,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // created for prerendering a page that is same-origin to the page that
   // triggered the prerender.
   virtual void RegisterMojoBinderPoliciesForSameOriginPrerendering(
-      MojoBinderPolicyMap& policy_map) {}
-  virtual void RegisterMojoBinderPoliciesForPreview(
       MojoBinderPolicyMap& policy_map) {}
 
   // Allows to register browser interfaces which are exposed to a service worker
@@ -3081,6 +3075,15 @@ class CONTENT_EXPORT ContentBrowserClient {
   // implementations should return nullptr in that case.
   virtual RenderFrameHost* GetEffectiveTopFrameForPartitioning(
       RenderFrameHost* render_frame_host);
+
+  // Allows the embedder to provide an alternate target RenderFrameHost for a
+  // postMessage sent to `target_rfh`. This is used, for example, to route
+  // messages in special cases. nullptr is returned if no override is needed.
+  virtual RenderFrameHost* GetPostMessageTargetOverride(
+      RenderFrameHost* target_rfh,
+      const std::optional<blink::LocalFrameToken>& source_frame_token,
+      const url::Origin& source_origin,
+      const std::optional<url::Origin>& target_origin);
 
   // Browser-side authoritative permission check, allowing embedders to grant
   // a file picker exemption to a known-trusted cross-origin subframe.

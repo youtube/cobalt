@@ -1609,8 +1609,10 @@ void LocalFrameView::ScheduleRelayout() {
     return;
   has_pending_layout_ = true;
 
-  if (!ShouldThrottleRendering())
-    GetPage()->Animator().ScheduleVisualUpdate(frame_.Get());
+  if (!ShouldThrottleRendering()) {
+    GetPage()->Animator().ScheduleVisualUpdate(
+        frame_.Get(), cc::BeginMainFrameReason::kLayoutInvalidation);
+  }
 }
 
 void LocalFrameView::ScheduleRelayoutOfSubtree(LayoutObject* relayout_root) {
@@ -1641,8 +1643,10 @@ void LocalFrameView::ScheduleRelayoutOfSubtree(LayoutObject* relayout_root) {
   if (layout_scheduling_enabled_) {
     has_pending_layout_ = true;
 
-    if (!ShouldThrottleRendering())
-      GetPage()->Animator().ScheduleVisualUpdate(frame_.Get());
+    if (!ShouldThrottleRendering()) {
+      GetPage()->Animator().ScheduleVisualUpdate(
+          frame_.Get(), cc::BeginMainFrameReason::kLayoutInvalidation);
+    }
 
     if (GetPage()->Animator().IsServicingAnimations())
       Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
@@ -2165,7 +2169,8 @@ void LocalFrameView::ScheduleVisualUpdateForVisualOverflowIfNeeded() {
       Lifecycle().GetState() >= DocumentLifecycle::kCompositingInputsClean) {
     // Schedule visual update to process the paint invalidation in the next
     // cycle.
-    local_frame_root.ScheduleVisualUpdateUnlessThrottled();
+    local_frame_root.ScheduleVisualUpdateUnlessThrottled(
+        cc::BeginMainFrameReason::kPaintInvalidation);
   }
   // Otherwise the visual overflow will be updated in the compositing inputs
   // phase of this lifecycle.
@@ -2178,7 +2183,8 @@ void LocalFrameView::ScheduleVisualUpdateForPaintInvalidationIfNeeded() {
       Lifecycle().GetState() >= DocumentLifecycle::kPrePaintClean) {
     // Schedule visual update to process the paint invalidation in the next
     // cycle.
-    local_frame_root.ScheduleVisualUpdateUnlessThrottled();
+    local_frame_root.ScheduleVisualUpdateUnlessThrottled(
+        cc::BeginMainFrameReason::kPaintInvalidation);
   }
   // Otherwise the paint invalidation will be handled in the pre-paint and paint
   // phase of this full lifecycle update.
@@ -5103,7 +5109,8 @@ void LocalFrameView::DidPaintCanvasChild(HTMLCanvasElement& canvas,
   }
 }
 
-void LocalFrameView::RequestCanvasOnpaint(HTMLCanvasElement& canvas) {
+void LocalFrameView::RequestCanvasOnpaint(HTMLCanvasElement& canvas,
+                                          Element* child) {
   DCHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled(
       GetFrame().GetDocument()->GetExecutionContext()));
   if (canvas.IsInCanvasSubtree()) {
@@ -5114,7 +5121,21 @@ void LocalFrameView::RequestCanvasOnpaint(HTMLCanvasElement& canvas) {
     add_result.stored_value->value =
         MakeGarbageCollected<GCedHeapLinkedHashSet<Member<Element>>>();
   }
+  if (child) {
+    add_result.stored_value->value->insert(child);
+  }
   ScheduleAnimation();
+}
+
+scoped_refptr<const cc::AnimatedImageFrameIndexMap>
+LocalFrameView::GetAnimatedImageFrameIndexes() const {
+  return GetFrame().LocalFrameRoot().View()->animated_image_frame_indexes_;
+}
+
+void LocalFrameView::SetAnimatedImageFrameIndexes(
+    scoped_refptr<const cc::AnimatedImageFrameIndexMap> indexes) {
+  CHECK(GetFrame().IsLocalRoot());
+  animated_image_frame_indexes_ = indexes;
 }
 
 #if DCHECK_IS_ON()

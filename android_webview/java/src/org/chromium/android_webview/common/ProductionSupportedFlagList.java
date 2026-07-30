@@ -273,9 +273,6 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_FIX_FORM_TRACKING,
                 "Improves form submission tracking and duplicate submission handling"),
         Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_FIX_IS_AUTOFILLED,
-                "Introduces AutofillField::field_modifiers_ to replace multiple other members."),
-        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_FIX_STATE_COUNTRY_MISCLASSIFICATION,
                 "When enabled, the rationalization engine will fix misclassifications where"
                         + " a field is detected as a COUNTRY when it should be a STATE or vice"
@@ -806,7 +803,6 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.NO_THROTTLING_VISIBLE_AGENT,
                 "Do not throttle Javascript timers to 1Hz on hidden cross-origin frames that are"
                         + " same-agent with a visible frame."),
-        Flag.baseFeature("CreateSpareRendererOnBrowserContextCreation"),
         Flag.baseFeature(
                 "AllowDatapipeDrainedAsBytesConsumerInBFCache",
                 "When enabled, allow pages with drained datapipe into bfcache."),
@@ -845,6 +841,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(NetFeatures.NETWORK_QUALITY_ESTIMATOR_IS_PRIVATE_HOST_CACHE),
         Flag.baseFeature(NetFeatures.NET_TASK_SCHEDULER),
         Flag.baseFeature(NetFeatures.NET_TASK_SCHEDULER2),
+        Flag.baseFeature(NetFeatures.NET_TASK_SCHEDULER_HOST_RESOLVER),
         Flag.baseFeature("BrowserThreadPoolAdjustment"),
         Flag.baseFeature(
                 "LevelDBProtoAsyncWrite",
@@ -983,18 +980,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 NetworkServiceFeatures.RENDERER_SIDE_CONTENT_DECODING,
                 "Enable renderer-side content decoding (decompression)."),
-        Flag.commandLine(
-                AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC,
-                "When enabled, webview chromium initialization uses the startup tasks logic where"
-                    + " it:\n"
-                    + " - runs the startup tasks asynchronously if startup is triggered from a"
-                    + " background thread. Otherwise runs startup synchronously.\n"
-                    + " - caches any chromium startup exception and rethrows it if startup is"
-                    + " retried without a restart.\n"
-                    + " Note: WebViewUseStartupTasksLogicP2 and kWebViewStartupTasksYieldToNative"
-                    + " also enable the same behaviour as this flag. Additionally, developer"
-                    + " preferences via the AndroidX API or manifest metadata supersedes this"
-                    + " flag."),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_LATCHED_COOKIE_POLICY,
                 "When enabled, cookie policy settings are captured at RestrictedCookieManager "
@@ -1041,25 +1026,8 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BlinkFeatures.BLINK_LIFECYCLE_SCRIPT_FORBIDDEN,
                 "Disallow script execution during blink lifecycle update."),
-        Flag.commandLine(
-                AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2,
-                "Enables phase 2 of using startup tasks logic for webview chromium initialization"
-                    + " which also starts browser processes asynchronously, when starting webview"
-                    + " asynchronously.\n"
-                    + " Note: This also enables the same behaviour as WebViewUseStartupTasksLogic"
-                    + " and WebViewStartupTasksYieldToNative with minor differences. Additionally,"
-                    + " developer preferences via the AndroidX API or manifest metadata supersedes"
-                    + " this flag."),
         Flag.baseFeature("ServiceWorkerAutoPreload"),
         Flag.baseFeature(GpuFeatures.WEB_GPU_USE_SPIRV14, "Use WebGPU's SPIR-V 1.4"),
-        Flag.commandLine(
-                AwSwitches.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE,
-                "Enables running native startup tasks asynchronously if WebView startup is"
-                    + " asynchronous.\n"
-                    + " Note: This also enables the same behaviour as WebViewUseStartupTasksLogic"
-                    + " and WebViewUseStartupTasksLogicP2, with minor additions. Additionally,"
-                    + " developer preferences via the AndroidX API or manifest metadata supersedes"
-                    + " this flag."),
         Flag.commandLine(
                 AwSwitches.STARTUP_NON_BLOCKING_WEBVIEW_CONSTRUCTOR,
                 "When enabled, WebView constructor will not block on WebView process global"
@@ -1406,6 +1374,12 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.SELECT_WEBVIEW_UNTRUSTED_EVENT_REMOVAL,
                 "Enables the removal of a WebView-specific hack to allow select elements to be"
                         + " opened with untrusted mousedown events."),
+        Flag.baseFeature(
+                "QuicIgnoreRedundantOnNetworkMadeDefault",
+                "When enabled, Quic will ignore redundant OnNetworkMadeDefault calls."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_SET_DOWNLOAD_FAVICONS_ENABLED,
+                "Enables the WebSettings setDownloadFaviconsEnabled method"),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

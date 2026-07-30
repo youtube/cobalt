@@ -76,6 +76,7 @@ export const ComposeboxEmbedderMixin =
             },
             showContextMenuDescription: {type: Boolean},
             smartTabSharingActive: {type: Boolean},
+            smartTabSharingVisible: {type: Boolean},
             shouldShowGhostFiles: {type: Boolean},
             showMenuOnClick: {type: Boolean},
             submitButtonIconType: {type: String},
@@ -176,6 +177,7 @@ export const ComposeboxEmbedderMixin =
         accessor smartComposeEnabled: boolean =
             loadTimeData.getBoolean('composeboxSmartComposeEnabled');
         accessor smartTabSharingActive: boolean = false;
+        accessor smartTabSharingVisible: boolean = false;
         contextMenuDescriptionEnabled: boolean =
             loadTimeData.getBoolean('composeboxShowContextMenuDescription');
         accessor showContextMenuDescription: boolean =
@@ -512,7 +514,15 @@ export const ComposeboxEmbedderMixin =
         // =====================================================================
 
         onVoicePermissionChanged(e: CustomEvent<VoicePermissionPromptState>) {
-          this.fire('embedded-voice-permission-prompt-changed', e.detail);
+          if (e.detail.isOpened) {
+            // Only for when the permission prompt is showing, fire a resize
+            // event if the permission prompt has a height and width.
+            if (e.detail.height > 0 && e.detail.width > 0) {
+              this.fire('embedded-voice-permission-prompt-changed', e.detail);
+            }
+          } else {
+            this.fire('embedded-voice-permission-prompt-changed', e.detail);
+          }
           const audioAnimation =
               this.shadowRoot?.querySelector<SearchAnimatedGlowElement>(
                   '#animatedSearchElement');
@@ -1077,6 +1087,23 @@ export const ComposeboxEmbedderMixin =
           });
         }
 
+        shouldShowSuggestionActivityLink(): boolean {
+          const showActivityLink = this.result && this.showDropdown &&
+              this.result.matches.some((match) => match.isNoncannedAimSuggestion);
+          this.fire('show-suggestion-activity-link', showActivityLink);
+          return !!showActivityLink;
+        }
+
+        onLinkClicked(e: CustomEvent<{event: Event}>) {
+          // Manually handle navigation to support WebView environments where default
+          // link clicks may be ignored.
+          e.detail.event.preventDefault();
+          const href = (e.detail.event.currentTarget as HTMLAnchorElement).href;
+          if (href) {
+            this.getPageHandler().navigateUrl(href);
+          }
+        }
+
         async addTabContextHandleCallback(
             tabUpload: TabUpload, _replaceAutoActiveTabToken: boolean = false,
             onBeforeUpdateFiles?: (attachment: ComposeboxFile) =>
@@ -1230,6 +1257,14 @@ export const ComposeboxEmbedderMixin =
         }
 
         onVoiceSearchButtonClick() {
+          const isSystemVoiceSearchEnabled =
+              loadTimeData.valueExists('isSystemVoiceSearchEnabled') &&
+              loadTimeData.getBoolean('isSystemVoiceSearchEnabled');
+          if (isSystemVoiceSearchEnabled) {
+            this.getPageHandler().startPlatformVoiceRecognition();
+            return;
+          }
+
           if (this.inVoiceSearchMode) {
             return;
           }
@@ -1611,7 +1646,7 @@ export const ComposeboxEmbedderMixin =
           } else {
             this.getSearchboxHandler().submitQuery(
                 this.input.trim(), mouseButton, altKey, ctrlKey, metaKey,
-                shiftKey);
+                shiftKey, /*isVoiceSearch=*/ false);
           }
 
           this.submitCleanup();
@@ -1709,12 +1744,32 @@ export const ComposeboxEmbedderMixin =
         }
 
         computeSubmitEnabled(): boolean {
-          // Embedders can override this.
-          return this.hasValidQuery();
+          // `submitEnabled` controls the visibility of the submit button.
+          // Since files can be added but technically not be submittable (like
+          // injected inputs), this needs to check if any files are present to
+          // show the submit button. The button will still appear disabled
+          // because that is controlled by `canSubmitFilesAndInput`.
+          return this.hasValidQuery() || this.files.size > 0;
         }
 
         hasValidQuery(): boolean {
-          // Embedders can override this.
+          // If there is at least one file that supports unimodal search, the
+          // query is valid.
+          if (Array.from(this.files.values())
+                  .some((file: ComposeboxFile) => file.supportsUnimodal)) {
+            return true;
+          }
+
+          // If an autocomplete match is selected, it's a valid query.
+          if (this.selectedMatchIndex >= 0 && !!this.result) {
+            return true;
+          }
+
+          // If there is non-empty text input.
+          if (this.input.trim().length > 0) {
+            return true;
+          }
+
           return false;
         }
 
@@ -2138,7 +2193,8 @@ export const ComposeboxEmbedderMixin =
           recordBoolean(metricName, true);
           this.getSearchboxHandler().submitQuery(
               e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
-              /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
+              /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false,
+              /*is_voice_search=*/ true);
           this.submitCleanup();
         }
 
@@ -2303,6 +2359,7 @@ export interface ComposeboxEmbedderMixinInterface extends
   enableImageContextualSuggestions: boolean;
   smartComposeEnabled: boolean;
   smartTabSharingActive: boolean;
+  smartTabSharingVisible: boolean;
   contextMenuDescriptionEnabled: boolean;
   showContextMenuDescription: boolean;
   shouldShowGhostFiles: boolean;
@@ -2393,6 +2450,8 @@ export interface ComposeboxEmbedderMixinInterface extends
       onBeforeUpdateFiles?: (attachment: ComposeboxFile) => void): Promise<ComposeboxFile|null>;
   getFilteredCarouselFiles(): ComposeboxFile[];
   getSharedTabs(): TabInfo[];
+  shouldShowSuggestionActivityLink(): boolean;
+  onLinkClicked(e: CustomEvent<{event: Event}>): void;
 
   // Common event handlers
   onContextMenuContainerMousedown(e: FocusEvent): void;
