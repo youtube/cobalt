@@ -101,11 +101,9 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
-    case SuggestionType::kManagePlusAddress:
     case SuggestionType::kUndoOrClear:
     case SuggestionType::kDatalistEntry:
     case SuggestionType::kAutocompleteEntry:
-    case SuggestionType::kFillExistingPlusAddress:
     case SuggestionType::kComposeResumeNudge:
     case SuggestionType::kComposeProactiveNudge:
     case SuggestionType::kComposeSavedStateNotification:
@@ -269,6 +267,10 @@ void PasswordAutofillManager::DidSelectSuggestion(
         suggestion
             .GetPayload<autofill::Suggestion::PasswordSuggestionDetails>();
     CHECK(payload.backup_password);
+    if (password_client_->GetPasswordFeatureManager()
+            ->IsBiometricAuthenticationBeforeFillingEnabled()) {
+      return;
+    }
     password_manager_driver_->PreviewSuggestion(
         payload.username, payload.backup_password.value());
     return;
@@ -459,6 +461,10 @@ void PasswordAutofillManager::OnTabSelected(
     autofill::TabbedPaneTabType tab_type) {
   // Tabbed panes do not currently exist for passwords.
   NOTREACHED();
+}
+
+bool PasswordAutofillManager::IsSearching() const {
+  return false;
 }
 
 void PasswordAutofillManager::OnAddPasswordFillData(

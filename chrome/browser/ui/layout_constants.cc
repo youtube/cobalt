@@ -190,7 +190,7 @@ gfx::Insets GetLayoutInsets(LayoutInset inset) {
 
     case TOOLBAR_ACTION_VIEW: {
       // TODO(afakhry): Unify all toolbar button sizes on all platforms.
-      // https://crbug.com/822967.
+      // https://crbug.com/40567493.
       return gfx::Insets(touch_ui ? 10 : 0);
     }
 
@@ -206,6 +206,9 @@ gfx::Insets GetLayoutInsets(LayoutInset inset) {
 
     case WEB_APP_APP_MENU_CHIP_PADDING:
       return gfx::Insets::TLBR(0, 4, 0, 6);
+
+    case WEB_APP_UNINSTALL_BUTTON_PADDING:
+      return gfx::Insets::TLBR(0, 8, 0, 8);
 
     case AVATAR_CHIP_PADDING:
       if (touch_ui) {

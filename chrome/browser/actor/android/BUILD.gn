@@ -21,6 +21,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/actor/ActorTaskHelper.java",
     "java/src/org/chromium/chrome/browser/actor/ActorTaskId.java",
     "java/src/org/chromium/chrome/browser/actor/NoOpActorForegroundServiceController.java",
+    "java/src/org/chromium/chrome/browser/actor/OffscreenRenderingManager.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorControlCoordinator.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorControlMediator.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorControlProperties.java",
@@ -37,6 +38,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/actor/ui/ActorPictureInPictureOverlayView.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorPictureInPictureOverlayViewBinder.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorUiTabController.java",
+    "java/src/org/chromium/chrome/browser/actor/ui/InnerGlowDrawable.java",
     "java/src/org/chromium/chrome/browser/actor/ui/PeekViewUiState.java",
   ]
 
@@ -50,7 +52,7 @@ android_library("java") {
     "//chrome/android:chrome_app_java_resources",
     "//chrome/app:java_strings_grd",
     "//chrome/browser/browser_controls/android:java",
-    "//chrome/browser/context_sharing/tab_bottom_sheet/android:java",
+    "//chrome/browser/context_sharing/tab_bottom_sheet/android:manager_public_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/glic:public_java",
     "//chrome/browser/glic/android:java_resources",
@@ -63,8 +65,9 @@ android_library("java") {
     "//chrome/browser/ui/browser_window/public/android:java",
     "//chrome/browser/ui/messages/android:java",
     "//components/browser_ui/notifications/android:java",
-    "//components/browser_ui/widget/android:java",
     "//components/browser_ui/styles/android:java_resources",
+    "//components/browser_ui/widget/android:java",
+    "//content/public/android:content_java",
     "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
@@ -90,6 +93,7 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/chrome/browser/actor/ActorKeyedService.java",
     "java/src/org/chromium/chrome/browser/actor/ActorKeyedServiceFactory.java",
     "java/src/org/chromium/chrome/browser/actor/ActorTask.java",
+    "java/src/org/chromium/chrome/browser/actor/OffscreenRenderingManager.java",
     "java/src/org/chromium/chrome/browser/actor/ui/ActorUiTabController.java",
   ]
 }
@@ -100,6 +104,8 @@ source_set("android") {
     "actor_keyed_service_android.h",
     "actor_task_android.cc",
     "actor_task_android.h",
+    "offscreen_rendering_manager_android.cc",
+    "offscreen_rendering_manager_android.h",
     "ui/actor_ui_tab_controller_android.cc",
     "ui/actor_ui_tab_controller_android.h",
   ]
@@ -107,12 +113,15 @@ source_set("android") {
   deps = [
     ":jni_headers",
     "//base",
+    "//cc/slim",
     "//chrome/browser/actor",
     "//chrome/browser/actor/ui",
     "//chrome/browser/android:tabs_public",
     "//chrome/browser/profiles",
     "//chrome/browser/tab",
     "//components/tabs:public",
+    "//content/public/browser",
+    "//ui/android",
     "//ui/base/unowned_user_data",
   ]
 }
@@ -120,7 +129,6 @@ source_set("android") {
 android_resources("java_resources") {
   sources = [
     "java/res/drawable/actor_gts_tab_indicator_background.xml",
-    "java/res/drawable/actor_overlay_background.xml",
     "java/res/drawable/actor_thumbnail_overlay_outline.xml",
     "java/res/layout/actor_control_layout.xml",
     "java/res/layout/actor_gts_tab_indicator.xml",
@@ -153,7 +161,7 @@ robolectric_library("junit") {
     "//base:base_junit_test_support",
     "//chrome/android:chrome_java",
     "//chrome/browser/browser_controls/android:java",
-    "//chrome/browser/context_sharing/tab_bottom_sheet/android:java",
+    "//chrome/browser/context_sharing/tab_bottom_sheet/android:manager_public_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/glic:public_java",
     "//chrome/browser/glic/android:java_resources",
@@ -166,10 +174,11 @@ robolectric_library("junit") {
     "//chrome/browser/ui/messages/android:java",
     "//components/browser_ui/notifications/android:java",
     "//components/browser_ui/notifications/android:test_support_java",
-    "//components/browser_ui/widget/android:java",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/styles/android:java_resources",
     "//components/browser_ui/theme/android:java_resources",
+    "//components/browser_ui/widget/android:java",
+    "//content/public/android:content_full_java",
     "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_core_core_java",
@@ -196,6 +205,7 @@ android_library("unit_device_javatests") {
     "//base:tasks_java",
     "//chrome/app:java_strings_grd",
     "//chrome/browser/browser_controls/android:java",
+    "//chrome/browser/profiles/android:java",
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/ui/android/layouts:java",
@@ -210,5 +220,29 @@ android_library("unit_device_javatests") {
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",
     "//ui/android:ui_utils_java",
+  ]
+}
+
+android_library("javatests") {
+  testonly = true
+  sources = [ "java/src/org/chromium/chrome/browser/actor/ActorPictureInPictureIntegrationTest.java" ]
+  deps = [
+    ":java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//chrome/android:chrome_java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/profiles/android:java",
+    "//chrome/browser/tab:java",
+    "//chrome/browser/tabmodel:java",
+    "//chrome/test/android:chrome_java_integration_test_support",
+    "//chrome/test/android:chrome_java_test_support_common",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_activity_activity_java",
+    "//third_party/androidx:androidx_core_core_pip_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/junit",
+    "//third_party/mockito:mockito_java",
+    "//ui/android:ui_java",
   ]
 }

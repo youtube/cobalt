@@ -35,7 +35,7 @@
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
 #include "chromeos/version/version_loader.h"
 #include "components/account_manager_core/account.h"
-#include "components/account_manager_core/account_manager_facade.h"
+#include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -320,7 +320,8 @@ void InlineLoginHandlerImpl::SetExtraInitParams(base::DictValue& params) {
   // For in-session login flows, request Gaia to ignore third party SAML IdP SSO
   // redirection policies (and redirect to SAML IdPs by default), otherwise some
   // managed users will not be able to login to Chrome OS at all. Please check
-  // https://crbug.com/984525 and https://crbug.com/984525#c20 for more context.
+  // https://crbug.com/41471092 and https://crbug.com/41471092#c20 for more
+  // context.
   params.Set("ignoreCrOSIdpSetting", true);
 }
 
@@ -336,8 +337,9 @@ void InlineLoginHandlerImpl::CompleteLogin(const CompleteLoginParams& params) {
     return;
   }
 
+  Profile* profile = Profile::FromWebUI(web_ui());
   AccountManagerFactory::Get()
-      ->GetAccountManagerFacade(Profile::FromWebUI(web_ui())->GetPath().value())
+      ->GetAccountManager(profile->GetPath().value())
       ->GetAccounts(
           base::BindOnce(&InlineLoginHandlerImpl::OnGetAccountsToCompleteLogin,
                          weak_factory_.GetWeakPtr(), params));
@@ -424,9 +426,9 @@ void InlineLoginHandlerImpl::ShowIncognitoAndCloseDialog(
 
 void InlineLoginHandlerImpl::GetAccountsInSession(const base::ListValue& args) {
   const std::string& callback_id = args[0].GetString();
-  const Profile* profile = Profile::FromWebUI(web_ui());
+  Profile* profile = Profile::FromWebUI(web_ui());
   AccountManagerFactory::Get()
-      ->GetAccountManagerFacade(profile->GetPath().value())
+      ->GetAccountManager(profile->GetPath().value())
       ->GetAccounts(base::BindOnce(&InlineLoginHandlerImpl::OnGetAccounts,
                                    weak_factory_.GetWeakPtr(), callback_id));
 }
@@ -452,8 +454,9 @@ void InlineLoginHandlerImpl::GetAccountsNotAvailableInArc(
   AllowJavascript();
   CHECK_EQ(1u, args.size());
   const std::string& callback_id = args[0].GetString();
+  Profile* profile = Profile::FromWebUI(web_ui());
   AccountManagerFactory::Get()
-      ->GetAccountManagerFacade(Profile::FromWebUI(web_ui())->GetPath().value())
+      ->GetAccountManager(profile->GetPath().value())
       ->GetAccounts(base::BindOnce(
           &InlineLoginHandlerImpl::ContinueGetAccountsNotAvailableInArc,
           weak_factory_.GetWeakPtr(), callback_id));

@@ -479,13 +479,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Failure"/>
 </enum>
 
-<enum name="ConditionalFocusDecision">
-  <int value="0" label="kExplicitFocusCapturedSurface"/>
-  <int value="1" label="kExplicitNoFocusChange"/>
-  <int value="2" label="kMicrotaskClosedWindow"/>
-  <int value="3" label="kBrowserSideTimerClosedWindow"/>
-</enum>
-
 <enum name="CrasInputStreamOpenSuccess">
   <int value="0" label="Success: Stream opened as indented."/>
   <int value="1" label="Error: Stream already opened."/>
@@ -1547,6 +1540,8 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Play/Pause"/>
 </enum>
 
+<!-- LINT.IfChange(MediaItemUIUpdatedViewAction) -->
+
 <enum name="MediaItemUIUpdatedViewAction">
   <int value="0" label="Play"/>
   <int value="1" label="Pause"/>
@@ -1562,6 +1557,8 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Enter picture in picture"/>
   <int value="12" label="Exit picture in picture"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/global_media_controls/public/views/media_item_ui_updated_view.h:MediaItemUIUpdatedViewAction) -->
 
 <!-- LINT.IfChange(MediaLauncherActivityEnabledReason) -->
 
@@ -1591,10 +1588,11 @@ chromium-metrics-reviews@google.com.
 <enum name="MediaNotificationSource">
   <int value="0" label="Unknown"/>
   <int value="1" label="Web"/>
-  <int value="2" label="Assistant"/>
+  <int value="2" label="(Obsolete) Assistant"/>
   <int value="3" label="Arc"/>
   <int value="4" label="Local Cast session"/>
   <int value="5" label="Non-local Cast session"/>
+  <int value="6" label="Cast device picker"/>
 </enum>
 
 <enum name="MediaOutputProtectionStatus">

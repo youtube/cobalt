@@ -7,15 +7,14 @@
 
 #import <UIKit/UIKit.h>
 
-// Returns the color to be used for toolbar buttons.
-UIColor* ToolbarButtonColor();
+// Returns the color to be used for the buttons in the toolbar, in incognito or
+// not.
+UIColor* ToolbarElementBackgroundColor(BOOL incognito);
 
-// Returns the color to be used for the location bar background in the toolbar,
-// in incognito or not.
-UIColor* ToolbarLocationBarBackgroundColor(bool incognito);
-
-// Configures `button` to have the shadow of a toolbar button.
-void ConfigureShadowForToolbarButton(UIView* button);
+// Configures the `container` to have the shadow of a toolbar button, or removes
+// the existing shadow if `remove_shadow` is YES.
+void ConfigureShadowForToolbarElement(UIView* container,
+                                      BOOL remove_shadow = NO);
 
 // Configures corner radius of the `container` so that it takes on a rounded
 // rectangle shape if the window has a compact width. Otherwise, a a pill/circle

@@ -105,7 +105,7 @@ const CounterStyle* LayoutCounter::NullableCounterStyle() const {
   // Note: CSS3 spec doesn't allow 'none' but CSS2.1 allows it. We currently
   // allow it for backward compatibility.
   // See https://github.com/w3c/csswg-drafts/issues/5795 for details.
-  if (counter_->ListStyle() == "none") {
+  if (counter_->ListStyle() == keywords::kNone) {
     return nullptr;
   }
   return &GetDocument().GetStyleEngine().FindCounterStyleAcrossScopes(
@@ -134,7 +134,10 @@ const AtomicString& LayoutCounter::ListStyle(const LayoutObject* object,
   if (const auto* counter = DynamicTo<LayoutCounter>(object)) {
     return counter->counter_->ListStyle();
   }
-  return style.ListStyleType()->GetCounterStyleName();
+  if (const auto list_style_type = style.ListStyleType()) {
+    return list_style_type->GetCounterStyleName();
+  }
+  return g_null_atom;
 }
 
 }  // namespace blink

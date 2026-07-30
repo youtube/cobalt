@@ -21,11 +21,9 @@
 #include "components/privacy_sandbox/canonical_topic.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "components/profile_metrics/browser_profile_type.h"
-#include "components/user_education/common/product_messaging_controller.h"
 #include "content/public/browser/interest_group_manager.h"
 #include "net/base/schemeful_site.h"
 
-class BrowserWindowInterface;
 class PrefService;
 
 namespace content {
@@ -38,10 +36,6 @@ class CookieSettings;
 
 namespace browsing_topics {
 class BrowsingTopicsService;
-}
-
-namespace views {
-class Widget;
 }
 
 class PrivacySandboxServiceImpl : public PrivacySandboxService {
@@ -112,49 +106,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
 
  protected:
   friend class PrivacySandboxServiceTest;
-  friend class PrivacySandboxQueueTestNoticeWithSearchEngine;
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           MetricsLoggingOccursCorrectly);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTestNonRegularProfile,
-                           NoMetricsRecorded);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest, RestrictedPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest, ManagedNoPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest,
-                           ManuallyControlledNoPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest, NoParamNoPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxPromptNoticeWaiting);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxPromptConsentWaiting);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxV1OffEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxV1OffDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxConsentEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxConsentDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxNoticeEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxNoticeDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandbox3PCOffEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandbox3PCOffDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxManagedEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxManagedDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxManuallyControlledEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxManuallyControlledDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxNoPromptDisabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           PrivacySandboxNoPromptEnabled);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest, PrivacySandboxRestricted);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
                            RelatedWebsiteSetsNotRelevantMetricAllowedCookies);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
@@ -163,63 +114,11 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
                            RelatedWebsiteSetsEnabledMetric);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
                            RelatedWebsiteSetsDisabledMetric);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceTest,
-      RecordPrivacySandbox4StartupMetrics_PromptSuppressed_Explicitly);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceTest,
-      RecordPrivacySandbox4StartupMetrics_PromptSuppressed_Implicitly);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceTest,
-      RecordPrivacySandbox4StartupMetrics_PromptNotSuppressed_EEA);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceTest,
-      RecordPrivacySandbox4StartupMetrics_PromptNotSuppressed_ROW);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandbox4StartupMetricsNonRegularProfilesTest,
-                           APIs);
+  FRIEND_TEST_ALL_PREFIXES(LogPrivacySandboxStateNonRegularProfilesTest, APIs);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
-                           RecordPrivacySandbox4StartupMetrics_APIs);
+                           LogPrivacySandboxState_APIs);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
                            ReturnsCorrectStatus);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceM1RestrictedNoticePromptTest,
-      RecordPrivacySandbox4StartupMetrics_PromptNotSuppressed);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceM1RestrictedNoticeUserCurrentlyUnrestricted,
-      RecordPrivacySandbox4StartupMetrics_GraduationFlow);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceM1RestrictedNoticeUserCurrentlyRestricted,
-      RecordPrivacySandbox4StartupMetrics_GraduationFlow);
-  FRIEND_TEST_ALL_PREFIXES(
-      PrivacySandboxServiceM1RestrictedNoticeUserCurrentlyUnrestricted,
-      RecordPrivacySandbox4StartupMetrics_GraduationFlowWhenNoticeShownToGuardian);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxQueueTestNoticeWithSearchEngine,
-                           PromptSuppressed);
-
-  // Contains all possible privacy sandbox states, recorded on startup.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  // Must be kept in sync with the SettingsPrivacySandboxEnabled enum in
-  // histograms/enums.xml.
-  enum class SettingsPrivacySandboxEnabled {
-    kPSEnabledAllowAll = 0,
-    kPSEnabledBlock3P = 1,
-    kPSEnabledBlockAll = 2,
-    kPSDisabledAllowAll = 3,
-    kPSDisabledBlock3P = 4,
-    kPSDisabledBlockAll = 5,
-    kPSDisabledPolicyBlock3P = 6,
-    kPSDisabledPolicyBlockAll = 7,
-    // DEPRECATED
-    kPSEnabledFlocDisabledAllowAll = 8,
-    // DEPRECATED
-    kPSEnabledFlocDisabledBlock3P = 9,
-    // DEPRECATED
-    kPSEnabledFlocDisabledBlockAll = 10,
-    // Add values above this line with a corresponding label in
-    // tools/metrics/histograms/enums.xml
-    kMaxValue = kPSEnabledFlocDisabledBlockAll,
-  };
 
   // Contains all possible states of first party sets preference.
   // These values are persisted to logs. Entries should not be renumbered and
@@ -236,45 +135,16 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
     kMaxValue = kFpsDisabled,
   };
 
-  // Contains the possible states of a users Privacy Sandbox overall settings.
-  // Must be kept in sync with SettingsPrivacySandboxStartupStates in
-  // histograms/enums.xml
-  enum class PSStartupStates {
-    kPromptWaiting = 0,
-    kPromptOffV1OffEnabled = 1,
-    kPromptOffV1OffDisabled = 2,
-    kConsentShownEnabled = 3,
-    kConsentShownDisabled = 4,
-    kNoticeShownEnabled = 5,
-    kNoticeShownDisabled = 6,
-    kPromptOff3PCOffEnabled = 7,
-    kPromptOff3PCOffDisabled = 8,
-    kPromptOffManagedEnabled = 9,
-    kPromptOffManagedDisabled = 10,
-    kPromptOffRestricted = 11,
-    kPromptOffManuallyControlledEnabled = 12,
-    kPromptOffManuallyControlledDisabled = 13,
-    kNoPromptRequiredEnabled = 14,
-    kNoPromptRequiredDisabled = 15,
-
-    // Add values above this line with a corresponding label in
-    // tools/metrics/histograms/enums.xml
-    kMaxValue = kNoPromptRequiredDisabled,
-  };
-
   // Helper function to log first party sets state.
   void RecordFirstPartySetsStateHistogram();
 
   // Helper function to log tracking protection state.
   void RecordTrackingProtectionStateHistogram();
 
-  // Logs the state of the privacy sandbox and cookie settings. Called once per
-  // profile startup.
+  // Logs the state of the Privacy Sandbox APIs (Topics, Protected Audience,
+  // Ad Measurement) and cookie-related settings (FPS, Tracking Protection).
+  // Called once per profile startup.
   void LogPrivacySandboxState();
-
-  // Logs the state of privacy sandbox 4 in regards to prompts. Called once per
-  // profile startup.
-  void RecordPrivacySandbox4StartupMetrics();
 
   // Converts the provided list of |top_frames| into eTLD+1s for display, and
   // provides those to |callback|.
@@ -311,31 +181,15 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   raw_ptr<browsing_topics::BrowsingTopicsService> browsing_topics_service_;
   raw_ptr<first_party_sets::FirstPartySetsPolicyService>
       first_party_sets_policy_service_;
-  raw_ptr<user_education::ProductMessagingController>
-      product_messaging_controller_;
   raw_ptr<PrivacySandboxCountries> privacy_sandbox_countries_;
 
   PrefChangeRegistrar user_prefs_registrar_;
-
-  user_education::RequiredNoticePriorityHandle notice_handle_;
-
-#if !BUILDFLAG(IS_ANDROID)
-  // A map of Browser windows which have an open Privacy Sandbox prompt,
-  // to the Widget for that prompt.
-  std::map<BrowserWindowInterface*, raw_ptr<views::Widget, CtnExperimental>>
-      browsers_to_open_prompts_;
-#endif
 
   // Fake implementation for current and blocked topics.
   // TODO(crbug.com/409048902): Moved initialization to constructor to prevent
   // potential initialization order issues.
   std::set<privacy_sandbox::CanonicalTopic> fake_current_topics_;
   std::set<privacy_sandbox::CanonicalTopic> fake_blocked_topics_;
-
-  // Record user startup state metrics based on the |state| on both client and
-  // profile level.
-  void RecordPromptStartupStateHistograms(
-      PrivacySandboxService::PromptStartupState state);
 
   // Called when the Topics preference is changed.
   void OnTopicsPrefChanged();
@@ -348,10 +202,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
 
   // Returns a PrivacySandboxCountries reference.
   PrivacySandboxCountries* GetPrivacySandboxCountries();
-
-  // Returns true if _any_ of the k-API prefs are disabled via policy or
-  // the prompt was suppressed via policy.
-  static bool IsM1PrivacySandboxEffectivelyManaged(PrefService* pref_service);
 
   bool force_chrome_build_for_tests_ = false;
 

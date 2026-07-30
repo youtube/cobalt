@@ -21,6 +21,8 @@ source_set("model") {
     ":detent_state_header",
     "//base",
     "//components/google/core/common",
+    "//ios/chrome/browser/fullscreen/model",
+    "//ios/chrome/browser/fullscreen/public:metrics",
     "//ios/chrome/browser/fullscreen/ui_bundled",
     "//ios/chrome/browser/ntp/model:util",
     "//ios/chrome/browser/shared/model/profile",
@@ -105,6 +107,7 @@ source_set("configuration_factory") {
   deps = [
     ":entrypoint",
     "//base",
+    "//components/signin/public/base",
     "//ios/chrome/browser/lens/ui_bundled:lens_entrypoint",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/profile",

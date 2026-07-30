@@ -29,6 +29,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/editing/editing_boundary.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
+#include "third_party/blink/renderer/core/editing/position_units.h"
+#include "third_party/blink/renderer/core/editing/text_affinity.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -46,16 +48,7 @@ class LayoutObject;
 class Node;
 class LocalFrame;
 
-// |WordSide| is used as a parameter of |StartOfWordPosition()| and
-// |EndOfWord()| to control a returning position when they are called for a
-// position before word boundary.
-enum WordSide {
-  kNextWordIfOnBoundary = false,
-  kPreviousWordIfOnBoundary = true
-};
-
 enum class PlatformWordBehavior { kWordSkipSpaces, kWordDontSkipSpaces };
-enum class SentenceTrailingSpaceBehavior { kIncludeSpace, kOmitSpace };
 
 // offset functions on Node
 CORE_EXPORT int CaretMinOffset(const Node*);
@@ -157,17 +150,6 @@ bool IsWordBreak(UChar);
 bool IsWordBoundary(UChar);
 
 // sentences
-CORE_EXPORT Position StartOfSentencePosition(const Position&);
-CORE_EXPORT PositionInFlatTree
-StartOfSentencePosition(const PositionInFlatTree&);
-CORE_EXPORT PositionWithAffinity
-EndOfSentence(const Position&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
-CORE_EXPORT PositionInFlatTreeWithAffinity
-EndOfSentence(const PositionInFlatTree&,
-              SentenceTrailingSpaceBehavior =
-                  SentenceTrailingSpaceBehavior::kIncludeSpace);
 CORE_EXPORT VisiblePosition
 EndOfSentence(const VisiblePosition&,
               SentenceTrailingSpaceBehavior =
@@ -176,10 +158,6 @@ CORE_EXPORT VisiblePositionInFlatTree
 EndOfSentence(const VisiblePositionInFlatTree&,
               SentenceTrailingSpaceBehavior =
                   SentenceTrailingSpaceBehavior::kIncludeSpace);
-PositionInFlatTree PreviousSentencePosition(const PositionInFlatTree&);
-PositionInFlatTree NextSentencePosition(const PositionInFlatTree&);
-EphemeralRange ExpandEndToSentenceBoundary(const EphemeralRange&);
-EphemeralRange ExpandRangeToSentenceBoundary(const EphemeralRange&);
 
 // lines
 // TODO(yosin) Return values of |VisiblePosition| version of |startOfLine()|
@@ -202,8 +180,12 @@ CORE_EXPORT bool InSameLine(const PositionInFlatTreeWithAffinity&,
                             const PositionInFlatTreeWithAffinity&);
 CORE_EXPORT bool IsStartOfLine(const VisiblePosition&);
 CORE_EXPORT bool IsStartOfLine(const VisiblePositionInFlatTree&);
+CORE_EXPORT bool IsStartOfLine(const Position&,
+                               TextAffinity = TextAffinity::kDownstream);
 CORE_EXPORT bool IsEndOfLine(const VisiblePosition&);
 CORE_EXPORT bool IsEndOfLine(const VisiblePositionInFlatTree&);
+CORE_EXPORT bool IsEndOfLine(const Position&,
+                             TextAffinity = TextAffinity::kDownstream);
 // TODO(yosin) Return values of |VisiblePosition| version of
 // |logicalStartOfLine()| with shadow tree isn't defined well. We should not use
 // it for shadow tree.
@@ -256,8 +238,6 @@ bool InSameParagraph(const VisiblePosition&,
 EphemeralRange ExpandToParagraphBoundary(const EphemeralRange&);
 
 // document
-CORE_EXPORT Position StartOfDocument(const Position&);
-CORE_EXPORT PositionInFlatTree StartOfDocument(const PositionInFlatTree&);
 CORE_EXPORT VisiblePosition EndOfDocument(const VisiblePosition&);
 CORE_EXPORT VisiblePositionInFlatTree
 EndOfDocument(const VisiblePositionInFlatTree&);
@@ -265,8 +245,6 @@ bool IsStartOfDocument(const VisiblePosition&);
 bool IsEndOfDocument(const VisiblePosition&);
 
 // editable content
-PositionInFlatTree StartOfEditableContent(const PositionInFlatTree&);
-PositionInFlatTree EndOfEditableContent(const PositionInFlatTree&);
 CORE_EXPORT bool IsEndOfEditableOrNonEditableContent(const VisiblePosition&);
 CORE_EXPORT bool IsEndOfEditableOrNonEditableContent(
     const VisiblePositionInFlatTree&);

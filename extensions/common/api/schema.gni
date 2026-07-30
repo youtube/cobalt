@@ -24,6 +24,7 @@ extensions_api_schema_files_ = [
   "power.webidl",
   "protocol_handlers.webidl",
   "runtime.json",
+  "scripting.idl",
   "storage.json",
   "system_cpu.webidl",
   "system_display.webidl",
@@ -66,7 +67,6 @@ if (enable_extensions) {
   extensions_api_schema_files_ += [
     "app_current_window_internal.webidl",
     "app_runtime.webidl",
-    "app_view_guest_internal.json",
     "app_window.webidl",
     "audio.webidl",
     "automation_internal.webidl",
@@ -88,12 +88,11 @@ if (enable_extensions) {
     "sockets_tcp.idl",
     "sockets_udp.idl",
     "system_storage.webidl",
-    "virtual_keyboard_private.json",
-    "virtual_keyboard.webidl",
   ]
 
   if (is_chromeos) {
     extensions_api_schema_files_ += [
+      "app_view_guest_internal.json",
       "bluetooth_low_energy.webidl",
       "bluetooth_private.webidl",
       "bluetooth_socket.webidl",
@@ -102,6 +101,8 @@ if (enable_extensions) {
       "media_perception_private.webidl",
       "serial.webidl",
       "usb.webidl",
+      "virtual_keyboard_private.json",
+      "virtual_keyboard.webidl",
       "webcam_private.webidl",
     ]
   } else {

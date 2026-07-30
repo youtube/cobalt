@@ -15,6 +15,7 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
+#include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -35,7 +36,7 @@ namespace {
 
 gfx::Size RestrictToPlatformMinimumSize(const gfx::Size& min_size) {
 #if BUILDFLAG(IS_MAC)
-  // http://crbug.com/78973 - MacOS does not handle zero-sized windows well.
+  // http://crbug.com/40552209 - MacOS does not handle zero-sized windows well.
   gfx::Size adjusted_min_size(1, 1);
   adjusted_min_size.SetToMax(min_size);
   return adjusted_min_size;
@@ -99,7 +100,7 @@ class ConstrainedDialogWebView : public views::WebView,
   base::WeakPtr<content::WebContents> initiator_web_contents_;
 
   // Showing a dialog should not activate, but on the Mac it does
-  // (https://crbug.com/1073587). Make sure it cannot be used to generate a
+  // (https://crbug.com/40127640). Make sure it cannot be used to generate a
   // popunder.
   PopunderPreventer popunder_preventer_;
 
@@ -136,7 +137,7 @@ class WebDialogWebContentsDelegateViews
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override {
     // Forward shortcut keys in dialog to our initiator's delegate.
-    // http://crbug.com/104586
+    // http://crbug.com/40116210
     if (!initiator_web_contents_) {
       return false;
     }

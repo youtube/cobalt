@@ -371,7 +371,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testAddToNewTabGroup() {
         mOnItemClickedCallback.onClick(
                 R.id.add_to_new_tab_group,
@@ -384,7 +383,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testAddToNewTabGroup_multipleTabs() {
         mOnItemClickedCallback.onClick(
                 R.id.add_to_new_tab_group,
@@ -401,7 +399,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_tabInGroup() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -466,7 +463,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabInGroup_multipleTabs() {
         var modelList = new ModelList();
@@ -527,7 +523,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -577,7 +572,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_multipleTabs() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -622,7 +616,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testAddToGroupSubmenu_fallbackTabGroupName() {
         when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn("");
@@ -645,7 +638,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testAddToGroupSubmenu_fallbackTabGroupName_incognito() {
         setupWithIncognito(true);
@@ -669,7 +661,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_multipleWindows() {
         MultiWindowUtils.setInstanceCountForTesting(3);
@@ -726,7 +717,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_tabOutsideOfGroup_multipleWindows_preventMoveToNewWindow() {
         int instanceType = ACTIVE;
         if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
@@ -765,7 +755,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_incognito_multipleWindows() {
         setupWithIncognito(/* incognito= */ true);
         initializeCoordinator();
@@ -794,7 +783,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void
             testListMenuItems_incognito_multipleWindows_filtersNonIncognito_incognitoOnlyWindows() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
@@ -826,7 +814,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_regular_multipleWindows_filtersIncognito_incognitoOnlyWindows() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
         setupWithIncognito(/* incognito= */ false);
@@ -857,7 +844,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void
             testListMenuItems_incognito_multipleWindows_filtersNonIncognito_mixedIncognitoWindows() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(false);
@@ -890,7 +876,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_regular_multipleWindows_filtersIncognito_mixedIncognitoWindows() {
         IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(false);
         setupWithIncognito(/* incognito= */ false);
@@ -922,7 +907,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_multipleWindows_multipleTabs() {
         MultiWindowUtils.setInstanceCountForTesting(3);
@@ -974,7 +958,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_belowApi31() {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
@@ -1020,7 +1003,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_belowApi31_multipleTabs() {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
@@ -1061,7 +1043,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_nonShareableUrl() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1103,7 +1084,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_incognito() {
         setupWithIncognito(/* incognito= */ true);
@@ -1124,8 +1104,7 @@ public class TabContextMenuCoordinatorUnitTest {
                 "Expected text appearance ID to be set to"
                         + " R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light"
                         + " in incognito for submenu parent",
-                org.chromium.chrome.R.style
-                        .TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light,
+                R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light,
                 modelList.get(0).model.get(ListMenuItemProperties.TEXT_APPEARANCE_ID));
 
         // List item 2
@@ -1173,7 +1152,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_incognito_multipleTabs() {
         setupWithIncognito(/* incognito= */ true);
@@ -1226,7 +1204,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showPinTabOption() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1276,9 +1253,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-    })
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showPinTabOption_multipleTabs() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1323,7 +1297,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showUnpinTabOption() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1376,9 +1349,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-    })
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showUnpinTabOption_multipleTabs() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1498,19 +1468,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @DisableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
-    public void testAddToTabGroup_newTabGroup() {
-        mOnItemClickedCallback.onClick(
-                R.id.add_to_tab_group,
-                new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)),
-                COLLABORATION_ID,
-                /* listViewTouchTracker= */ null);
-        verify(mBottomSheetCoordinator, times(1)).showBottomSheet(List.of(mTab1));
-    }
-
-    @Test
-    @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToNewWindow() {
         var modelList = new ModelList();
         mTabModel.addTab(
@@ -1537,7 +1494,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToWindow() {
         MultiWindowUtils.setInstanceCountForTesting(2);
         when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
@@ -1568,7 +1524,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     @SuppressWarnings("DirectInvocationOnMock")
     public void testAnchorWidth() {
         StripLayoutContextMenuCoordinatorTestUtils.testAnchorWidth(
@@ -1576,7 +1531,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testAnchor_offset() {
         StripLayoutContextMenuCoordinatorTestUtils.testAnchor_offset(
                 (rectProvider) ->
@@ -1587,7 +1541,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testAnchor_offset_incognito() {
         setupWithIncognito(/* incognito= */ true);
         StripLayoutContextMenuCoordinatorTestUtils.testAnchor_offset_incognito(
@@ -1599,9 +1552,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
-    })
     public void testMuteSite_singleTab() {
         when(mTabModel.isMuted(mTab1)).thenReturn(false);
         var modelList = new ModelList();
@@ -1620,9 +1570,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
-    })
     public void testUnmuteSite_singleTab() {
         when(mTabModel.isMuted(mTab1)).thenReturn(true);
         var modelList = new ModelList();
@@ -1641,9 +1588,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
-    })
     public void testMuteSite_multipleTabs() {
         when(mTabModel.isMuted(mTab1)).thenReturn(false);
         when(mTabModel.isMuted(mTab2)).thenReturn(false);
@@ -1666,9 +1610,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
-    })
     public void testUnmuteSite_multipleTabs() {
         when(mTabModel.isMuted(mTab1)).thenReturn(true);
         when(mTabModel.isMuted(mTab2)).thenReturn(true);
@@ -1691,9 +1632,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
-    })
     public void testMuteSite_multipleTabs_mixedState() {
         when(mTabModel.isMuted(mTab1)).thenReturn(true);
         when(mTabModel.isMuted(mTab2)).thenReturn(false);
@@ -1717,7 +1655,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToWindow_NonEmptyCustomWindowTitle() {
         final InstanceInfo emptyTitleInstance =
                 new InstanceInfo(
@@ -1757,7 +1694,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToWindow_EmptyCustomWindowTitle() {
         final InstanceInfo emptyTitleInstance =
                 new InstanceInfo(
@@ -1797,7 +1733,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToWindow_oneInstance_allTabsSelected_singleTab() {
         MultiWindowUtils.setInstanceCountForTesting(1);
 
@@ -1828,7 +1763,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveToWindow_oneInstance_allTabsSelected_multipleTabs() {
         MultiWindowUtils.setInstanceCountForTesting(1);
 
@@ -1860,7 +1794,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_noGroups_submenusEnabled() {
         // No groups
         when(mTabGroupModelFilter.getAllTabGroupIds()).thenReturn(Collections.emptySet());
@@ -1884,7 +1817,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_moreThanOneWindow_submenusEnabled() {
         MultiWindowUtils.setInstanceCountForTesting(2);
         when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
@@ -2010,7 +1942,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testSubmenuSelection() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -2054,8 +1985,7 @@ public class TabContextMenuCoordinatorUnitTest {
     @Test
     @Feature("Tab Strip Context Menu")
     @EnableFeatures({
-        ChromeFeatureList.ANDROID_CONTEXT_MENU_DUPLICATE_TABS,
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
     })
     public void testListMenuItems_singleTab_duplicateTab_featureEnabled() {
         var modelList = new ModelList();
@@ -2072,8 +2002,7 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @DisableFeatures({ChromeFeatureList.ANDROID_CONTEXT_MENU_DUPLICATE_TABS})
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
+    @DisableFeatures({ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS})
     public void testListMenuItems_singleTab_duplicateTab_featureDisabled() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -2097,8 +2026,7 @@ public class TabContextMenuCoordinatorUnitTest {
     @Test
     @Feature("Tab Strip Context Menu")
     @EnableFeatures({
-        ChromeFeatureList.ANDROID_CONTEXT_MENU_DUPLICATE_TABS,
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
     })
     public void testListMenuItems_multipleTabs_duplicateTabs_featureEnabled() {
         var modelList = new ModelList();
@@ -2115,8 +2043,7 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
-    @DisableFeatures({ChromeFeatureList.ANDROID_CONTEXT_MENU_DUPLICATE_TABS})
+    @DisableFeatures({ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS})
     public void testListMenuItems_multipleTabs_duplicateTabs_featureDisabled() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -2141,7 +2068,214 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
+    })
+    public void testListMenuItems_singleTab_closeOtherTabs_featureEnabled() {
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
+
+        ListItem closeOtherItem = findItemByMenuId(modelList, R.id.close_other_tabs_menu_id);
+        assertNull(closeOtherItem);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    public void testCloseOtherTabs_singleTab() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_other_tabs_menu_id,
+                new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)),
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTab2, mTabOutsideOfGroup))
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
+    })
+    public void testListMenuItems_singleTab_closeTabsToTheRight_featureEnabled() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
+
+        ListItem closeRightItem = findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id);
+        assertNotNull(closeRightItem);
+        assertEquals(
+                mActivity.getResources().getString(R.string.close_tabs_to_the_right_menu_item),
+                closeRightItem.model.get(ListMenuItemProperties.TITLE));
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
+    })
+    public void testListMenuItems_singleTab_closeTabsToTheRight_lastTab() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
+
+        assertNull(findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id));
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    public void testCloseTabsToTheRight_singleTab() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_tabs_to_the_right_menu_id,
+                new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)),
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTab2, mTabOutsideOfGroup))
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
+    })
+    public void testListMenuItems_multipleTabs_closeOtherTabs_featureEnabled() {
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, List.of(TAB_ID, TAB_ID_2)));
+
+        ListItem closeOtherItem = findItemByMenuId(modelList, R.id.close_other_tabs_menu_id);
+        assertNull(closeOtherItem);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    public void testCloseOtherTabs_multipleTabs() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_other_tabs_menu_id,
+                new AnchorInfo(TAB_ID, List.of(TAB_ID, TAB_ID_2)),
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTabOutsideOfGroup))
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures({
+        ChromeFeatureList.ANDROID_CONTEXT_MENU_NEW_ACTIONS,
+    })
+    public void testListMenuItems_multipleTabs_closeTabsToTheRight_featureEnabled() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, List.of(TAB_ID, TAB_ID_2)));
+
+        ListItem closeRightItem = findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id);
+        assertNotNull(closeRightItem);
+        assertEquals(
+                mActivity.getResources().getString(R.string.close_tabs_to_the_right_menu_item),
+                closeRightItem.model.get(ListMenuItemProperties.TITLE));
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    public void testCloseTabsToTheRight_multipleTabs() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_tabs_to_the_right_menu_id,
+                new AnchorInfo(TAB_ID, List.of(TAB_ID, TAB_ID_2)),
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTabOutsideOfGroup))
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
     public void testListMenuItems_moveTabItems_accessibilityOn() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
 
@@ -2171,7 +2305,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_moveTabItems_accessibilityOn_RTL() {
         LocalizationUtils.setRtlForTesting(true);
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
@@ -2202,7 +2335,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabLeft() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(1);
@@ -2219,7 +2351,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabLeft_firstTab() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(0);
@@ -2240,7 +2371,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabRight() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(1);
@@ -2257,7 +2387,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabRight_lastTab() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(2);
@@ -2278,7 +2407,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_moveTabItems_incognito() {
         setupWithIncognito(/* incognito= */ true);
         initializeCoordinator();
@@ -2325,7 +2453,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabStart_RTL() {
         LocalizationUtils.setRtlForTesting(true);
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
@@ -2344,7 +2471,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabStart_firstTab_RTL() {
         LocalizationUtils.setRtlForTesting(true);
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
@@ -2368,7 +2494,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabEnd_RTL() {
         LocalizationUtils.setRtlForTesting(true);
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
@@ -2388,7 +2513,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabEnd_lastTab_RTL() {
         LocalizationUtils.setRtlForTesting(true);
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
@@ -2412,7 +2536,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabLeft_firstUnpinnedTab() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(1);
@@ -2434,7 +2557,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabRight_pinnedTab() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTab1.getIsPinned()).thenReturn(true);
@@ -2460,7 +2582,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testMoveTabLeft_unpinnedTab() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(2);
@@ -2478,7 +2599,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     public void testListMenuItems_moveTabsItems_accessibilityOn() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
 
@@ -2508,7 +2628,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     public void testMoveTabsLeft() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(1);
@@ -2527,7 +2646,6 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     public void testMoveTabsRight() {
         mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
         when(mTabModel.indexOf(mTab1)).thenReturn(1);
@@ -2613,7 +2731,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_closeAllTabs() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -2639,7 +2756,6 @@ public class TabContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testListMenuItems_closeAllIncognitoTabs() {
         setupWithIncognito(/* incognito= */ true);
         initializeCoordinator();

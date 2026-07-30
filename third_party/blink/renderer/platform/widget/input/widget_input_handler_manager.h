@@ -14,6 +14,7 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "cc/input/browser_controls_state.h"
+#include "cc/metrics/scroll_sequence_tracker.h"
 #include "cc/trees/paint_holding_reason.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -58,6 +59,9 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   // we are still waiting for the user to see some non empty paint. And we use
   // the combination of states to correctly report UMA for input that is
   // suppressed.
+  //
+  // TODO(mustaq@chromium.org): Investigate which of these bits are still used
+  // in the codebase, and remove the rest.
   enum class SuppressingInputEventsBits {
     // if set, suppress events because pipeline is deferring main frame updates
     kDeferMainFrameUpdates = 1 << 0,
@@ -113,7 +117,7 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   void SetNeedsMainFrame(bool urgent) override;
   bool RequestedMainFramePending() override;
 
-  void OnFirstContentfulPaint(const base::TimeTicks& first_paint_time);
+  void OnFirstContentfulPaint();
   void SetHidden(bool hidden);
   void OnDevToolsSessionConnectionChanged(bool attached);
 
@@ -308,16 +312,6 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   const scoped_refptr<base::SingleThreadTaskRunner>& InputThreadTaskRunner(
       TaskRunnerType type = TaskRunnerType::kDefault) const;
 
-  // Records event UMA using the given `first_paint_time`.  If no paint occurred
-  // before this method is called, `first_paint_time` must be passed as
-  // `TimeTicks` zero.
-  void RecordEventMetricsForPaintTiming(
-      std::optional<base::TimeTicks> first_paint_time);
-
-  // Start `first_paint_max_delay_timer_` if not started already.  This runs on
-  // the main thread.
-  void StartFirstPaintMaxDelayTimer();
-
   // Helpers for FlushEventQueuesForTesting.
   void FlushCompositorQueueForTesting();
   void FlushMainThreadQueueForTesting(base::OnceClosure done);
@@ -329,10 +323,6 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   base::WeakPtr<mojom::blink::FrameWidgetInputHandler>
       frame_widget_input_handler_;
   scoped_refptr<scheduler::WidgetScheduler> widget_scheduler_;
-
-  // This caches `widget_->is_embedded()` value for access from outside the main
-  // thread (where `widget_` is not usable).
-  const bool widget_is_embedded_;
 
   // InputHandlerProxy is only interacted with on the compositor
   // thread.
@@ -367,34 +357,6 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   // we definitely don't have a compositor thread.
   bool uses_input_handler_ = false;
 
-  struct UmaData {
-    // Saves the number of user-interactions that would be dropped by the
-    // DropInputEventsBeforeFirstPaint feature (i.e. before receiving the first
-    // presentation of content).
-    int suppressed_interactions_count = 0;
-
-    // Saves the number of events that would be dropped by the
-    // DropInputEventsBeforeFirstPaint feature (i.e. before receiving the first
-    // presentation of content).
-    int suppressed_events_count = 0;
-
-    // Saves most recent input event time that would be dropped by the
-    // DropInputEventsBeforeFirstPaint feature (i.e. before receiving the first
-    // presentation of content). If this is after the first paint timestamp,
-    // we log the difference to track the worst dropped event experienced.
-    base::TimeTicks most_recent_suppressed_event_time;
-
-    // Control of UMA. We emit one UMA metric per navigation telling us
-    // whether any non-move input arrived before we starting updating the page
-    // or displaying content to the user. It must be atomic because navigation
-    // can occur on the renderer thread (resetting this) coincident with the UMA
-    // being sent on the compositor thread.
-    bool have_emitted_uma{false};
-  };
-
-  base::Lock uma_data_lock_;
-  UmaData uma_data_;
-
   // State tracking why we should keep suppressing input events, keeps track of
   // which parts of the rendering pipeline are currently deferred, or whether
   // we are waiting for the first non empty paint. We use this state to suppress
@@ -415,23 +377,14 @@ class PLATFORM_EXPORT WidgetInputHandlerManager final
   // coverage for input suppression: crbug.com/987626
   bool allow_pre_commit_input_ = false;
 
-  // Specifies weather the renderer has received a scroll-update event after the
-  // last scroll-begin or not, It is used to determine whether a scroll-update
-  // is the first one in a scroll sequence or not. This variable is only used on
-  // the input handling thread (i.e. on the compositor thread if it exists).
-  bool has_seen_first_gesture_scroll_update_after_begin_ = false;
+  // Tracks the current scroll sequence for metrics purposes. Among other
+  // things, it determines whether a scroll-update is the first one in a scroll
+  // sequence or not. This variable is only used on the input handling thread
+  // (i.e. on the compositor thread if it exists).
+  cc::ScrollSequenceTracker scroll_tracker_;
 
   // Timer for count dropped events.
   std::unique_ptr<base::OneShotTimer> dropped_event_counts_timer_;
-
-  // Timer to detect if first visibly non-empty paint happened after an
-  // acceptable maximum delay.  This timer is allocated and run on the main
-  // thread.
-  std::unique_ptr<base::OneShotTimer> first_paint_max_delay_timer_;
-
-  // Tracks whether `RecordEventMetricsForPaintTiming` has already recorded the
-  // UMA related to first paint.
-  bool recorded_event_metric_for_paint_timing_ = false;
 
   unsigned dropped_pointer_down_ = 0;
 

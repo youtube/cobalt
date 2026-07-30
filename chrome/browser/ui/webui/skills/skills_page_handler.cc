@@ -23,16 +23,16 @@
 namespace skills {
 namespace {
 
-SkillCategoryToSkillMap Translate1PSkillsMap(
-    const SkillIdToProtoMap& skills_map) {
+SkillCategoryToSkillMap Translate1PSkills(const SkillProtoList& skills_list) {
   SkillCategoryToSkillMap translated_map;
-  for (const auto& [id, skill] : skills_map) {
+  for (const auto& skill : skills_list) {
     Skill translated_skill;
     translated_skill.id = skill.id();
     translated_skill.name = skill.name();
     translated_skill.icon = skill.icon();
     translated_skill.prompt = skill.prompt();
     translated_skill.description = skill.description();
+    translated_skill.curated_by = skill.curated_by();
     translated_skill.image_url = GURL(skill.image_url());
     translated_skill.source = sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
     translated_map[skill.category()].push_back(std::move(translated_skill));
@@ -220,27 +220,33 @@ void SkillsPageHandler::GetInitial1PSkills(
       std::move(callback), SkillCategoryToSkillMap());
   auto* service =
       SkillsServiceFactory::GetForProfile(base::to_address(profile_));
-  std::move(scoped_callback).Run(Translate1PSkillsMap(service->Get1PSkills()));
+  std::move(scoped_callback).Run(Translate1PSkills(service->Get1PSkills()));
 }
 
 void SkillsPageHandler::OnDiscoverySkillsUpdated(
-    const SkillIdToProtoMap* skills_map) {
+    const FirstPartySkillData* first_party_skill_data) {
   first_party_download_timer_.Stop();
   RecordSkillsDownloadRequestStatus(
       SkillsDownloadRequestStatus::kResponseReceived);
   if (pending_save_1p_request_.has_value()) {
     auto request = std::exchange(pending_save_1p_request_, std::nullopt);
-    bool valid_skill = !skills_map || skills_map->contains(request->skill_id);
+    bool valid_skill =
+        !first_party_skill_data ||
+        std::find_if(first_party_skill_data->skills_list.begin(),
+                     first_party_skill_data->skills_list.end(),
+                     [&](const auto& skill) {
+                       return skill.id() == request->skill_id;
+                     }) != first_party_skill_data->skills_list.end();
     if (!valid_skill) {
       RecordSkillsManagementError(SkillsManagementError::k1pSkillDNE);
     }
     std::move(request->callback).Run(valid_skill);
   }
 
-  // If the map exists (even if empty) that means we have an updated list of
-  // skills.
-  if (skills_map) {
-    page_->Update1PMap(Translate1PSkillsMap(*skills_map));
+  // If the data exists that means we have an updated list of skills.
+  if (first_party_skill_data) {
+    page_->Update1PMap(Translate1PSkills(first_party_skill_data->skills_list));
+    // TODO (crbug.com/503394871): Notify the UI about the topics list.
   }
 }
 

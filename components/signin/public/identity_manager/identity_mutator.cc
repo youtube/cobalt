@@ -30,19 +30,37 @@ JniIdentityMutator::JniIdentityMutator(IdentityMutator* identity_mutator)
 int32_t JniIdentityMutator::SetPrimaryAccount(
     JNIEnv* env,
     const CoreAccountId& primary_account_id,
-    int32_t j_consent_level,
     int32_t j_access_point,
+    base::OnceClosure&& prefs_committed_callback) {
+  return std::to_underlying(SetPrimaryAccountImpl(
+      primary_account_id, signin::ConsentLevel::kSignin,
+      static_cast<signin_metrics::AccessPoint>(j_access_point),
+      std::move(prefs_committed_callback)));
+}
+
+int32_t JniIdentityMutator::SetPrimaryAccountWithSyncConsentForTesting(
+    JNIEnv* env,
+    const CoreAccountId& primary_account_id,
+    int32_t j_access_point,
+    base::OnceClosure&& prefs_committed_callback) {
+  return std::to_underlying(SetPrimaryAccountImpl(
+      primary_account_id, signin::ConsentLevel::kSync,
+      static_cast<signin_metrics::AccessPoint>(j_access_point),
+      std::move(prefs_committed_callback)));
+}
+
+PrimaryAccountMutator::PrimaryAccountError
+JniIdentityMutator::SetPrimaryAccountImpl(
+    const CoreAccountId& primary_account_id,
+    signin::ConsentLevel consent_level,
+    signin_metrics::AccessPoint access_point,
     base::OnceClosure&& prefs_committed_callback) {
   PrimaryAccountMutator* primary_account_mutator =
       identity_mutator_->GetPrimaryAccountMutator();
   DCHECK(primary_account_mutator);
-
-  PrimaryAccountMutator::PrimaryAccountError error =
-      primary_account_mutator->SetPrimaryAccount(
-          primary_account_id, static_cast<ConsentLevel>(j_consent_level),
-          static_cast<signin_metrics::AccessPoint>(j_access_point),
-          std::move(prefs_committed_callback));
-  return std::to_underlying(error);
+  return primary_account_mutator->SetPrimaryAccount(
+      primary_account_id, consent_level, access_point,
+      std::move(prefs_committed_callback));
 }
 
 bool JniIdentityMutator::RemovePrimaryAccountButKeepTokens(
@@ -52,14 +70,6 @@ bool JniIdentityMutator::RemovePrimaryAccountButKeepTokens(
       identity_mutator_->GetPrimaryAccountMutator();
   DCHECK(primary_account_mutator);
   return primary_account_mutator->RemovePrimaryAccountButKeepTokens(
-      static_cast<signin_metrics::ProfileSignout>(source_metric));
-}
-
-void JniIdentityMutator::RevokeSyncConsent(JNIEnv* env, int32_t source_metric) {
-  PrimaryAccountMutator* primary_account_mutator =
-      identity_mutator_->GetPrimaryAccountMutator();
-  DCHECK(primary_account_mutator);
-  return primary_account_mutator->RevokeSyncConsent(
       static_cast<signin_metrics::ProfileSignout>(source_metric));
 }
 

@@ -1934,38 +1934,6 @@ TEST_F(LoginDatabaseSyncMetadataTest, WriteThenDeleteSyncMetadata) {
             metadata_batch->GetDataTypeState().SerializeAsString());
 }
 
-TEST_F(LoginDatabaseSyncMetadataTest, HasUnsyncedPasswordDeletions) {
-  sync_pb::EntityMetadata tombstone_metadata;
-  tombstone_metadata.set_is_deleted(true);
-  tombstone_metadata.set_sequence_number(1);
-
-  sync_pb::EntityMetadata non_tombstone_metadata;
-  non_tombstone_metadata.set_is_deleted(false);
-  non_tombstone_metadata.set_sequence_number(1);
-
-  PasswordStoreSync::MetadataStore& password_sync_metadata_store =
-      db().password_sync_metadata_store();
-
-  EXPECT_FALSE(password_sync_metadata_store.HasUnsyncedPasswordDeletions());
-
-  // Storage keys must be integers.
-  const std::string kTombstoneStorageKey = "1";
-  const std::string kNonTombstoneStorageKey = "2";
-
-  ASSERT_TRUE(password_sync_metadata_store.UpdateEntityMetadata(
-      SyncDataType(), kTombstoneStorageKey, tombstone_metadata));
-  ASSERT_TRUE(password_sync_metadata_store.UpdateEntityMetadata(
-      SyncDataType(), kNonTombstoneStorageKey, non_tombstone_metadata));
-
-  EXPECT_TRUE(password_sync_metadata_store.HasUnsyncedPasswordDeletions());
-
-  // Delete the only metadata entry representing a deletion.
-  ASSERT_TRUE(password_sync_metadata_store.ClearEntityMetadata(
-      SyncDataType(), kTombstoneStorageKey));
-
-  EXPECT_FALSE(password_sync_metadata_store.HasUnsyncedPasswordDeletions());
-}
-
 #if BUILDFLAG(IS_POSIX)
 // Only the current user has permission to read the database.
 //
@@ -2473,8 +2441,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 3, 1);
 }
 
 TEST_F(LoginDatabaseUndecryptableLoginsTest,
@@ -2513,8 +2479,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 4, 1);
 }
 
 TEST_F(LoginDatabaseUndecryptableLoginsTest,
@@ -2552,8 +2516,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 1, 1);
 }
 
 #endif  // BUILDFLAG(IS_LINUX)
@@ -2593,8 +2555,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 2, 1);
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -2632,8 +2592,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 5, 1);
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -2666,8 +2624,6 @@ TEST_F(LoginDatabaseUndecryptableLoginsTest,
 
   histogram_tester.ExpectTotalCount(
       "PasswordManager.DeleteUndecryptableLoginsReturnValue", 0);
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 7, 1);
 }
 
 TEST_F(LoginDatabaseUndecryptableLoginsTest,
@@ -2763,9 +2719,6 @@ TEST_P(LoginDatabaseGetUndecryptableLoginsTest, GetAutoSignInLogins) {
         "PasswordManager.DeleteUndecryptableLoginsReturnValue",
         metrics_util::DeleteCorruptedPasswordsResult::kSuccessPasswordsDeleted,
         1);
-    histogram_tester.ExpectUniqueSample(
-        "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 0,
-        1);
   } else {
     if (base::FeatureList::IsEnabled(features::kSkipUndecryptablePasswords)) {
       EXPECT_CALL(on_undecryptable_passwords_removed,
@@ -2818,9 +2771,6 @@ TEST_P(LoginDatabaseGetUndecryptableLoginsTest, GetLogins) {
         "PasswordManager.DeleteUndecryptableLoginsReturnValue",
         metrics_util::DeleteCorruptedPasswordsResult::kSuccessPasswordsDeleted,
         1);
-    histogram_tester.ExpectUniqueSample(
-        "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 0,
-        1);
   } else {
     if (base::FeatureList::IsEnabled(features::kSkipUndecryptablePasswords)) {
       EXPECT_CALL(on_undecryptable_passwords_removed, Run);
@@ -2872,9 +2822,6 @@ TEST_P(LoginDatabaseGetUndecryptableLoginsTest, GetAutofillableLogins) {
     histogram_tester.ExpectUniqueSample(
         "PasswordManager.DeleteUndecryptableLoginsReturnValue",
         metrics_util::DeleteCorruptedPasswordsResult::kSuccessPasswordsDeleted,
-        1);
-    histogram_tester.ExpectUniqueSample(
-        "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords", 0,
         1);
   } else {
     if (base::FeatureList::IsEnabled(features::kSkipUndecryptablePasswords)) {

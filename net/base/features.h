@@ -630,11 +630,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t,
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kHttpCacheNoVarySearchPersistenceEnabled);
 
-// If true, don't erase the NoVarySearchCache entry when simple cache in-memory
-// hints indicate that the disk cache entry is not usable.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
-                                      kHttpCacheNoVarySearchKeepNotSuitable);
-
 // Whether to use the new implementation of
 // HttpNoVarySearchData::AreEquivalent().
 NET_EXPORT BASE_DECLARE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent);
@@ -861,6 +856,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkPermissionCheck);
 NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolProxyLimit);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitNormal);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitWebSocket);
+
+// If enabled, QuicCryptoClientConfigOwner will ignore memory pressure events
+// for all network isolation partitions.
+NET_EXPORT BASE_DECLARE_FEATURE(kIgnoreQuicCryptoConfigMemoryPressure);
 
 // If enabled, QuicCryptoClientConfigOwner will ignore memory pressure events
 // for the kDnsOverHttps partition.

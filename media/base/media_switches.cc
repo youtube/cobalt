@@ -854,6 +854,10 @@ BASE_FEATURE(kOnDeviceWebSpeech,
 // Enables on-device speech recognition using on-device Gemini Nano.
 BASE_FEATURE(kOnDeviceWebSpeechGeminiNano, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables on-device speech recognition using on-device TinyGemma.
+BASE_FEATURE(kOnDeviceWebSpeechSmallExpertModel,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the Live Caption feature on supported devices.
 BASE_FEATURE(kLiveCaption, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1026,6 +1030,9 @@ BASE_FEATURE(kAutoPictureInPicturePageInfoDetails,
 // Causes the AVC parser to additionally parse and indicate when an SEI
 // recovery point with `recovery_frame_cnt=0` has been found.
 BASE_FEATURE(kParseSEIRecoveryPoints, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kMediaSourceSeiRecoveryPointKeyframe,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, H.264 keyframe detection becomes stricter for samples whose avc
 // config does not provide SPS/PPS. In that case, an IDR alone is not

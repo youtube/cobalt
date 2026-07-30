@@ -88,7 +88,7 @@ bool SessionMapsAreEqual(const SessionStore::SessionsMap& lhs,
 }
 
 std::unique_ptr<Session> CreateSessionHelper(
-    unexportable_keys::UnexportableKeyId key_id,
+    unexportable_keys::UnexportableSigningKeyId key_id,
     std::string_view url_string,
     std::string_view session_id,
     std::string_view origin = "https://foo.test") {
@@ -222,9 +222,9 @@ class SessionStoreImplTest : public net::TestWithTaskEnvironment {
     store_->RestoreSessionBindingKey(
         SessionKey{site, session->id()},
         base::BindLambdaForTesting(
-            [&run_loop,
-             &session](unexportable_keys::ServiceErrorOr<
-                       unexportable_keys::UnexportableKeyId> key_id_or_error) {
+            [&run_loop, &session](unexportable_keys::ServiceErrorOr<
+                                  unexportable_keys::UnexportableSigningKeyId>
+                                      key_id_or_error) {
               session->set_unexportable_key_id(key_id_or_error);
               run_loop.Quit();
             }));
@@ -291,7 +291,8 @@ TEST_F(SessionStoreImplTest, RequireValidBindingKeyForSave) {
   CreateStoreAndLoadSessions();
   std::unique_ptr<Session> session = CreateSessionHelper(
       unexportable_key_service(), "https://foo.test", "session1");
-  session->set_unexportable_key_id(unexportable_keys::UnexportableKeyId());
+  session->set_unexportable_key_id(
+      unexportable_keys::UnexportableSigningKeyId());
   store().SaveSession(net::SchemefulSite(GURL("https://foo.test")), *session);
   EXPECT_EQ(store().GetAllSessions().size(), 0u);
 }
@@ -650,7 +651,7 @@ TEST_F(SessionStoreImplTest, GarbageCollectsStaleKeys) {
   const std::vector<uint8_t> kWrappedKey2 = {4, 5, 6};
   const std::vector<uint8_t> kStaleWrappedKey = {7, 8, 9};
 
-  EXPECT_CALL(mock_key_provider, GetAllSigningKeysSlowly).WillRepeatedly([=] {
+  EXPECT_CALL(mock_key_provider, GetAllKeysSlowly).WillRepeatedly([=] {
     auto key1 = std::make_unique<unexportable_keys::MockUnexportableKey>();
     auto key2 = std::make_unique<unexportable_keys::MockUnexportableKey>();
     auto stale_key = std::make_unique<unexportable_keys::MockUnexportableKey>();
@@ -670,15 +671,15 @@ TEST_F(SessionStoreImplTest, GarbageCollectsStaleKeys) {
   base::test::TestFuture<unexportable_keys::ServiceErrorOr<
       std::vector<unexportable_keys::UnexportableKeyId>>>
       get_all_keys_future;
-  unexportable_key_service().GetAllSigningKeysForGarbageCollectionSlowlyAsync(
+  unexportable_key_service().GetAllKeysForGarbageCollectionSlowlyAsync(
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       get_all_keys_future.GetCallback());
   ASSERT_OK_AND_ASSIGN(
       std::vector<unexportable_keys::UnexportableKeyId> all_keys_ids,
       get_all_keys_future.Take());
 
-  unexportable_keys::UnexportableKeyId key_id_1 = all_keys_ids[0];
-  unexportable_keys::UnexportableKeyId key_id_2 = all_keys_ids[1];
+  unexportable_keys::UnexportableSigningKeyId key_id_1(all_keys_ids[0]);
+  unexportable_keys::UnexportableSigningKeyId key_id_2(all_keys_ids[1]);
 
   // Save two new sessions.
   static constexpr std::string_view kFooSite = "https://foo.test";
@@ -694,13 +695,12 @@ TEST_F(SessionStoreImplTest, GarbageCollectsStaleKeys) {
   ASSERT_EQ(store().GetAllSessions().size(), 2u);
 
   // Finish loading the sessions, and wait for the stale key to be deleted.
-  EXPECT_CALL(mock_key_provider, DeleteSigningKeysSlowly)
-      .WillOnce([&](auto keys) {
-        auto wrapped_keys = base::ToVector(
-            keys, [](auto* key) { return key->GetWrappedKey(); });
-        EXPECT_THAT(wrapped_keys, ElementsAre(kStaleWrappedKey));
-        return wrapped_keys.size();
-      });
+  EXPECT_CALL(mock_key_provider, DeleteKeysSlowly).WillOnce([&](auto keys) {
+    auto wrapped_keys =
+        base::ToVector(keys, [](auto* key) { return key->GetWrappedKey(); });
+    EXPECT_THAT(wrapped_keys, ElementsAre(kStaleWrappedKey));
+    return wrapped_keys.size();
+  });
 
   // Advance time to allow StartGarbageCollection to run.
   FastForwardBy(kGarbageCollectionDelay);
@@ -729,8 +729,8 @@ TEST_F(SessionStoreImplTest, GarbageCollectionDoesNotTriggerIfFeatureDisabled) {
   unexportable_keys::MockUnexportableKeyProvider& mock_key_provider =
       SwitchToMockKeyProvider().mock();
 
-  EXPECT_CALL(mock_key_provider, GetAllSigningKeysSlowly).Times(0);
-  EXPECT_CALL(mock_key_provider, DeleteAllSigningKeysSlowly).Times(0);
+  EXPECT_CALL(mock_key_provider, GetAllKeysSlowly).Times(0);
+  EXPECT_CALL(mock_key_provider, DeleteAllKeysSlowly).Times(0);
 
   CreateStoreAndLoadSessions();
 }

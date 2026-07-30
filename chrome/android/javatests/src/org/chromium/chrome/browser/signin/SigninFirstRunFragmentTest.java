@@ -115,7 +115,6 @@ import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.identitymanager.IdentityManagerImpl;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
@@ -156,7 +155,7 @@ public class SigninFirstRunFragmentTest {
 
     @Rule
     public final BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
-            new BaseActivityTestRule(BlankUiTestActivity.class);
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
     @Mock private ExternalAuthUtils mExternalAuthUtilsMock;
     @Mock private FirstRunPageDelegate mFirstRunPageDelegateMock;
@@ -580,10 +579,9 @@ public class SigninFirstRunFragmentTest {
                 () -> {
                     return IdentityServicesProvider.get()
                             .getIdentityManager(ProfileManager.getLastUsedRegularProfile())
-                            .hasPrimaryAccount(ConsentLevel.SIGNIN);
+                            .hasPrimaryAccount();
                 });
-        final CoreAccountInfo primaryAccount =
-                mSigninTestRule.getPrimaryAccount(ConsentLevel.SIGNIN);
+        final CoreAccountInfo primaryAccount = mSigninTestRule.getPrimaryAccount();
         Assert.assertEquals(TestAccounts.ACCOUNT1.getEmail(), primaryAccount.getEmail());
         // Sign-in has completed, so the FRE should advance to the next page.
         verify(mFirstRunPageDelegateMock).advanceToNextPage();
@@ -791,10 +789,9 @@ public class SigninFirstRunFragmentTest {
                 () -> {
                     return IdentityServicesProvider.get()
                             .getIdentityManager(ProfileManager.getLastUsedRegularProfile())
-                            .hasPrimaryAccount(ConsentLevel.SIGNIN);
+                            .hasPrimaryAccount();
                 });
-        final CoreAccountInfo primaryAccount =
-                mSigninTestRule.getPrimaryAccount(ConsentLevel.SIGNIN);
+        final CoreAccountInfo primaryAccount = mSigninTestRule.getPrimaryAccount();
         Assert.assertEquals(
                 TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail(), primaryAccount.getEmail());
         verify(mFirstRunPageDelegateMock)
@@ -830,7 +827,7 @@ public class SigninFirstRunFragmentTest {
                     return targetPrimaryAccount.equals(
                             IdentityServicesProvider.get()
                                     .getIdentityManager(ProfileManager.getLastUsedRegularProfile())
-                                    .getPrimaryAccountInfo(ConsentLevel.SIGNIN));
+                                    .getPrimaryAccountInfo());
                 });
         verify(mFirstRunPageDelegateMock).advanceToNextPage();
     }
@@ -872,7 +869,7 @@ public class SigninFirstRunFragmentTest {
                 () -> {
                     return !IdentityServicesProvider.get()
                             .getIdentityManager(ProfileManager.getLastUsedRegularProfile())
-                            .hasPrimaryAccount(ConsentLevel.SIGNIN);
+                            .hasPrimaryAccount();
                 });
         waitForEvent(mFirstRunPageDelegateMock).acceptTermsOfService(true);
         waitForEvent(mFirstRunPageDelegateMock).advanceToNextPage();
@@ -889,7 +886,7 @@ public class SigninFirstRunFragmentTest {
         launchActivityWithFragment();
 
         onScrollToView(withId(R.id.signin_fre_dismiss_button)).perform(click());
-        Assert.assertNull(mSigninTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
+        Assert.assertNull(mSigninTestRule.getPrimaryAccount());
         verify(mFirstRunPageDelegateMock).acceptTermsOfService(true);
         verify(mFirstRunPageDelegateMock).advanceToNextPage();
         verify(mFirstRunPageDelegateMock)
@@ -916,6 +913,7 @@ public class SigninFirstRunFragmentTest {
     @Test
     @MediumTest
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_AUTO)
+    @SuppressWarnings("unchecked") // hamcrest allOf varargs
     public void testSignInDisabledOnAutomotive() {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         launchActivityWithFragment();
@@ -1547,6 +1545,7 @@ public class SigninFirstRunFragmentTest {
         verify(mFirstRunPageDelegateMock).recordLoadCompletedHistograms(slowestLoadPoint);
         final DisplayableProfileData profileData =
                 new DisplayableProfileData(
+                        accountInfo.getId(),
                         accountInfo.getEmail(),
                         mock(Drawable.class),
                         accountInfo.getFullName(),
@@ -1648,6 +1647,7 @@ public class SigninFirstRunFragmentTest {
         onView(withText(R.string.fre_signing_in_2)).check(matches(isDisplayed()));
         final DisplayableProfileData profileData =
                 new DisplayableProfileData(
+                        accountInfo.getId(),
                         accountInfo.getEmail(),
                         mock(Drawable.class),
                         accountInfo.getFullName(),
@@ -1736,7 +1736,7 @@ public class SigninFirstRunFragmentTest {
 
     /**
      * The dialog does not open instantly, and if we do not wait we get a small percentage of
-     * flakes. See https://crbug.com/1343519.
+     * flakes. See https://crbug.com/40231389.
      */
     private void clickOnUmaDialogLinkAndWait() {
         onView(withId(R.id.signin_fre_footer)).perform(clickOnUmaDialogLink());

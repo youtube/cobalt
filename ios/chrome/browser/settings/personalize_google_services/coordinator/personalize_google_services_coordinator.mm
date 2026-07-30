@@ -9,6 +9,7 @@
 #import "base/functional/callback.h"
 #import "base/functional/callback_helpers.h"
 #import "base/metrics/user_metrics.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/authentication/signin/reauth/coordinator/signin_reauth_coordinator.h"
@@ -109,8 +110,7 @@ enum class ActionAfterReauth {
       "Signin_AccountSettings_GoogleActivityControlsClicked"));
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForProfile(self.profile);
-  id<SystemIdentity> identity =
-      authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = authService->GetPrimaryIdentity();
   if (!identity.hasValidAuth) {
     [self openReauthCoordinatorWithAction:ActionAfterReauth::
                                               kOpenWebAppAcvityDialog];
@@ -130,8 +130,7 @@ enum class ActionAfterReauth {
       "Signin_AccountSettings_LinkedGoogleServicesClicked"));
   AuthenticationService* authService =
       AuthenticationServiceFactory::GetForProfile(self.profile);
-  id<SystemIdentity> identity =
-      authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = authService->GetPrimaryIdentity();
   if (!identity.hasValidAuth) {
     [self openReauthCoordinatorWithAction:ActionAfterReauth::
                                               kOpenLinkedGoogleServicesDialog];

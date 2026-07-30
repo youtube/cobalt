@@ -14,6 +14,7 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_cookie_synchronizer.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
@@ -118,6 +119,10 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
 
   ~TestingAimEligibilityService() override = default;
 
+  variations::VariationsService* GetVariationsService() const override {
+    return nullptr;
+  }
+
   bool IsAimLocallyEligible() const override { return is_locally_eligible_; }
   bool IsServerEligibilityEnabled() const override {
     return server_eligibility_enabled_;
@@ -154,14 +159,17 @@ class TestingContextualTasksUiService
       Profile* profile,
       contextual_tasks::ContextualTasksService* contextual_tasks_service,
       signin::IdentityManager* identity_manager,
-      AimEligibilityService* aim_eligibility_service)
+      AimEligibilityService* aim_eligibility_service,
+      std::unique_ptr<contextual_tasks::ContextualTasksCookieSynchronizer>
+          cookie_synchronizer)
       : ContextualTasksUiService(
             profile,
             std::make_unique<
                 contextual_tasks::MockContextualTasksUiServiceDelegate>(),
             contextual_tasks_service,
             identity_manager,
-            aim_eligibility_service) {}
+            aim_eligibility_service,
+            std::move(cookie_synchronizer)) {}
   ~TestingContextualTasksUiService() override = default;
 
   bool CookieJarContainsPrimaryAccount() override {
@@ -570,16 +578,17 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerCUJTest,
           WaitForShow(kOverlaySidePanelWebViewId),
           FocusWebContents(kOverlaySidePanelWebViewId),
           SendAccelerator(kOverlaySidePanelWebViewId, ctrl_c_accelerator),
-          PollState(
-              kTextCopiedState,
-              [&]() {
-                ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-                std::u16string clipboard_text =
-                    ui::clipboard_test_util::ReadText(
-                        clipboard, ui::ClipboardBuffer::kCopyPaste,
-                        /* data_dst = */ nullptr);
-                return base::EqualsASCII(clipboard_text, "This is test text.");
-              }),
+          PollState(kTextCopiedState,
+                    [&]() {
+                      ui::Clipboard* clipboard =
+                          ui::Clipboard::GetForCurrentThread();
+                      std::u16string clipboard_text =
+                          ui::clipboard_test_util::ReadText(
+                              clipboard, ui::ClipboardBuffer::kCopyPaste,
+                              /* data_dst = */ nullptr);
+                      return base::EqualsASCII(clipboard_text,
+                                               "This is test text.");
+                    }),
           WaitForState(kTextCopiedState, true)));
 }
 
@@ -931,7 +940,8 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerCUJTest, NavigationsUpdateCSB) {
               kOverlayId, kPathToOverlaySearchboxInput,
               base::StringPrintf(
                   "(el) => { el.dispatchEvent(new KeyboardEvent('keydown', { "
-                  "key:'%s', bubbles: true, cancelable: true, composed: true }));}",
+                  "key:'%s', bubbles: true, cancelable: true, composed: true "
+                  "}));}",
                   "Enter"),
               ExecuteJsMode::kFireAndForget)),
 
@@ -1690,7 +1700,8 @@ class ContextualTasksLensOverlayControllerInteractiveUiTest
                       contextual_tasks::ContextualTasksServiceFactory::
                           GetForProfile(profile),
                       IdentityManagerFactory::GetForProfile(profile),
-                      AimEligibilityServiceFactory::GetForProfile(profile)));
+                      AimEligibilityServiceFactory::GetForProfile(profile),
+                      /*cookie_synchronizer=*/nullptr));
             }));
   }
 

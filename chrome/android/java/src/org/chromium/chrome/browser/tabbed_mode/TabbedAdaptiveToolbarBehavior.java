@@ -14,11 +14,10 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
-import org.chromium.chrome.browser.ai.AiAssistantService;
-import org.chromium.chrome.browser.ai.PageSummaryButtonController;
 import org.chromium.chrome.browser.bookmarks.AddToBookmarksToolbarButtonController;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.glic.GlicToolbarButtonController;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -32,11 +31,12 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonControl
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.adaptive.OptionalNewTabButtonController;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.modaldialog.ModalDialogManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -53,11 +53,11 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
     private final Supplier<GroupSuggestionsButtonController>
             mGroupSuggestionsButtonControllerSupplier;
     private final Supplier<@Nullable TabModelSelector> mTabModelSelectorSupplier;
-    private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final MonotonicObservableSupplier<@StripVisibilityState Integer>
             mTabStripVisibilitySupplier;
     private final GlicToolbarButtonController.GlicButtonDelegate mToggleGlicCallback;
     private final Supplier<@Nullable ChromeAndroidTask> mChromeAndroidTaskSupplier;
+    private final BrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
 
     /**
      * @param context The Android context.
@@ -69,9 +69,10 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
      * @param registerVoiceSearchRunnable Runnable to register voice search.
      * @param groupSuggestionsButtonController Used to control group suggestions on the toolbar.
      * @param tabModelSelectorSupplier Used to access the current tab model.
-     * @param modalDialogManagerSupplier Used to manage modal dialogs.
      * @param tabStripVisibilitySupplier Used to check or observe tab strip visibility.
      * @param toggleGlicCallback Callback to toggle the Glic UI.
+     * @param chromeAndroidTaskSupplier Supplier for the ChromeAndroidTask.
+     * @param browserControlsVisibilityManager Manager for browser controls.
      */
     public TabbedAdaptiveToolbarBehavior(
             Context context,
@@ -83,10 +84,10 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
             Runnable registerVoiceSearchRunnable,
             Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonController,
             Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier,
             MonotonicObservableSupplier<@StripVisibilityState Integer> tabStripVisibilitySupplier,
             GlicToolbarButtonController.GlicButtonDelegate toggleGlicCallback,
-            Supplier<@Nullable ChromeAndroidTask> chromeAndroidTaskSupplier) {
+            Supplier<@Nullable ChromeAndroidTask> chromeAndroidTaskSupplier,
+            BrowserControlsVisibilityManager browserControlsVisibilityManager) {
         mContext = context;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mTabCreatorManagerSupplier = tabCreatorManagerSupplier;
@@ -96,26 +97,28 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
         mRegisterVoiceSearchRunnable = registerVoiceSearchRunnable;
         mGroupSuggestionsButtonControllerSupplier = groupSuggestionsButtonController;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
-        mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mTabStripVisibilitySupplier = tabStripVisibilitySupplier;
         mToggleGlicCallback = toggleGlicCallback;
         mChromeAndroidTaskSupplier = chromeAndroidTaskSupplier;
+        mBrowserControlsVisibilityManager = browserControlsVisibilityManager;
     }
 
     @Override
     public void registerPerSurfaceButtons(
             AdaptiveToolbarButtonController controller,
             Supplier<@Nullable Tracker> trackerSupplier) {
-        var newTabButton =
-                new OptionalNewTabButtonController(
-                        mContext,
-                        AppCompatResources.getDrawable(mContext, R.drawable.new_tab_icon),
-                        mActivityLifecycleDispatcher,
-                        mTabCreatorManagerSupplier,
-                        mActivityTabProvider,
-                        trackerSupplier,
-                        mTabStripVisibilitySupplier);
-        controller.addButtonVariant(AdaptiveToolbarButtonVariant.NEW_TAB, newTabButton);
+        if (!BottomBarConfigUtils.isBottomBarEnabled(mContext)) {
+            var newTabButton =
+                    new OptionalNewTabButtonController(
+                            mContext,
+                            AppCompatResources.getDrawable(mContext, R.drawable.new_tab_icon),
+                            mActivityLifecycleDispatcher,
+                            mTabCreatorManagerSupplier,
+                            mActivityTabProvider,
+                            trackerSupplier,
+                            mTabStripVisibilitySupplier);
+            controller.addButtonVariant(AdaptiveToolbarButtonVariant.NEW_TAB, newTabButton);
+        }
         var addToBookmarks =
                 new AddToBookmarksToolbarButtonController(
                         mActivityTabProvider.asObservable(),
@@ -125,14 +128,6 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
                         trackerSupplier,
                         mBookmarkModelSupplier);
         controller.addButtonVariant(AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS, addToBookmarks);
-        var pageSummary =
-                new PageSummaryButtonController(
-                        mContext,
-                        mModalDialogManagerSupplier.get(),
-                        mActivityTabProvider,
-                        AiAssistantService.getInstance(),
-                        trackerSupplier);
-        controller.addButtonVariant(AdaptiveToolbarButtonVariant.PAGE_SUMMARY, pageSummary);
         if (AdaptiveToolbarFeatures.isTabGroupingPageActionEnabled()) {
             var tabGrouping =
                     new GroupSuggestionsButtonDataProvider(
@@ -144,7 +139,8 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
             controller.addButtonVariant(AdaptiveToolbarButtonVariant.TAB_GROUPING, tabGrouping);
         }
 
-        if (AdaptiveToolbarFeatures.isGlicActionEnabled()) {
+        if (!BottomBarConfigUtils.isBottomBarEnabled(mContext)
+                && AdaptiveToolbarFeatures.isGlicActionEnabled()) {
             controller.addButtonVariant(
                     AdaptiveToolbarButtonVariant.GLIC,
                     new GlicToolbarButtonController(
@@ -152,7 +148,9 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
                             mActivityTabProvider,
                             mToggleGlicCallback,
                             trackerSupplier,
-                            mChromeAndroidTaskSupplier));
+                            mChromeAndroidTaskSupplier,
+                            mBrowserControlsVisibilityManager,
+                            mTabModelSelectorSupplier));
         }
 
         mRegisterVoiceSearchRunnable.run();
@@ -163,16 +161,37 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
         TabModelSelector selector = mTabModelSelectorSupplier.get();
         if (selector != null) {
             Profile profile = selector.getCurrentModel().getProfile();
-            if (profile != null && AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(profile)) {
+            if (profile != null
+                    && AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mContext, profile)) {
                 return AdaptiveToolbarButtonVariant.GLIC;
             }
         }
 
-        return AdaptiveToolbarBehavior.defaultResultFilter(mContext, segmentationResults);
+        List<Integer> filteredResults;
+        if (!BottomBarConfigUtils.isBottomBarEnabled(mContext)) {
+            filteredResults = segmentationResults;
+        } else {
+            filteredResults = new ArrayList<>();
+            for (int result : segmentationResults) {
+                if (result != AdaptiveToolbarButtonVariant.GLIC
+                        && result != AdaptiveToolbarButtonVariant.NEW_TAB) {
+                    filteredResults.add(result);
+                }
+            }
+        }
+
+        return AdaptiveToolbarBehavior.defaultResultFilter(mContext, filteredResults);
     }
 
     @Override
     public boolean canShowManualOverride(int manualOverride) {
+        // Ignore manual overrides for GLIC and New Tab when the Android Bottom Bar is enabled as
+        // these buttons have a dedicated spot in the bottom bar.
+        if (BottomBarConfigUtils.isBottomBarEnabled(mContext)
+                && (manualOverride == AdaptiveToolbarButtonVariant.GLIC
+                        || manualOverride == AdaptiveToolbarButtonVariant.NEW_TAB)) {
+            return false;
+        }
         return true;
     }
 
@@ -182,7 +201,7 @@ public class TabbedAdaptiveToolbarBehavior implements AdaptiveToolbarBehavior {
     }
 
     @Override
-    public @AdaptiveToolbarButtonVariant int getSegmentationDefault() {
-        return AdaptiveToolbarFeatures.getDefaultButtonVariant(mContext);
+    public @AdaptiveToolbarButtonVariant int getSegmentationDefault(Profile profile) {
+        return AdaptiveToolbarFeatures.getDefaultButtonVariant(mContext, profile);
     }
 }

@@ -61,6 +61,7 @@
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_ui_controller.h"
+#include "content/public/common/child_process_id.h"
 #include "content/public/common/content_constants.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
@@ -516,6 +517,10 @@ class CONTENT_EXPORT NavigationRequest
   bool IsInitialWebUISyncNavigation() override;
   bool IsInitialWebUINavigation() override;
   // End of NavigationHandle implementation.
+
+  // Returns a perfetto Track that represents this navigation, nested under the
+  // frame track.
+  perfetto::NamedTrack GetNavigationTracingTrack() const;
 
   // mojom::NavigationRendererCancellationListener implementation:
   void RendererCancellationWindowEnded() override;
@@ -1493,7 +1498,17 @@ class CONTENT_EXPORT NavigationRequest
   // redirect or results in an origin change, in which case the
   // NavigationRequest is no longer tied to the original entry.
   int64_t frame_entry_document_sequence_number() const {
-    return frame_entry_document_sequence_number_;
+    return origin_related_state_
+               ? origin_related_state_->document_sequence_number
+               : -1;
+  }
+
+  // Returns the item sequence number from the cached OriginRelatedState, or -1
+  // if the navigation performs a redirect or results in an origin change, in
+  // which case the NavigationRequest is no longer tied to the original entry.
+  int64_t frame_entry_item_sequence_number() const {
+    return origin_related_state_ ? origin_related_state_->item_sequence_number
+                                 : -1;
   }
 
   bool is_ad_tagged() const { return is_ad_tagged_; }
@@ -2964,6 +2979,20 @@ class CONTENT_EXPORT NavigationRequest
   // Unique id that identifies the navigation for which this NavigationRequest
   // is created.
   const int64_t navigation_id_ = ++unique_id_counter_;
+
+  // The tracing track for this navigation, parented to the frame track.
+  // Stored to ensure all events for this navigation use the same track ID.
+  perfetto::NamedTrack navigation_trace_track_;
+
+  // The track used for breakdown events of this navigation.
+  perfetto::NamedTrack breakdown_trace_track_;
+
+  // The track used for AsyncBeforeUnload events of this navigation.
+  perfetto::NamedTrack async_before_unload_trace_track_;
+
+  // True if "Navigation StartToCommit" trace event has been ended.
+  bool navigation_start_to_commit_ended_ = false;
+
   // static member for generating the unique id above.
   static int64_t unique_id_counter_;
 
@@ -2997,10 +3026,24 @@ class CONTENT_EXPORT NavigationRequest
   // or not.
   const bool is_back_forward_cache_restore_;
 
-  // These are set to the values from the FrameNavigationEntry this
-  // NavigationRequest is associated with (if any).
-  int64_t frame_entry_item_sequence_number_ = -1;
-  int64_t frame_entry_document_sequence_number_ = -1;
+  // Origin-related state that is specific to the origin when the navigation
+  // began. This can be cleared if the origin of the navigation changes (e.g.,
+  // due to redirects or CSP). Stored as std::optional so that it is nullopt
+  // when there is no associated FrameNavigationEntry or when the origin of the
+  // navigation changes.
+  //
+  // A subset of this state is cached from the FrameNavigationEntry this
+  // NavigationRequest is associated with (if any), so that the
+  // NavigationRequest can clear or modify it without modifying the
+  // FrameNavigationEntry itself (e.g., in case the navigation is canceled and
+  // attempted again later, perhaps without a redirect).
+  // TODO(crbug.com/421948889): Add expected_commit_origin field, along with
+  // clearing logic for when the origin changes during navigation.
+  struct OriginRelatedState {
+    int64_t item_sequence_number;
+    int64_t document_sequence_number;
+  };
+  std::optional<OriginRelatedState> origin_related_state_;
 
   // If non-empty, it represents the IsolationInfo explicitly asked to be used
   // for this NavigationRequest.

@@ -25,6 +25,11 @@ class LocationBar;
 class OmniboxPopupWebUIBaseContent;
 class OmniboxPopupPresenterDelegate;
 class RoundedOmniboxResultsFrame;
+class OmniboxController;
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace omnibox {
 extern const void* kOmniboxWebUIPopupWidgetId;
@@ -42,7 +47,8 @@ class OmniboxPopupPresenterBase {
   // Arguments must outlast this.
   explicit OmniboxPopupPresenterBase(
       LocationBar* location_bar,
-      OmniboxPopupPresenterDelegate& presenter_delegate);
+      OmniboxPopupPresenterDelegate& presenter_delegate,
+      OmniboxController* controller);
   OmniboxPopupPresenterBase(const OmniboxPopupPresenterBase&) = delete;
   OmniboxPopupPresenterBase& operator=(const OmniboxPopupPresenterBase&) =
       delete;
@@ -63,9 +69,13 @@ class OmniboxPopupPresenterBase {
   // going to be visible within the popup.
   OmniboxPopupWebUIBaseContent* GetWebUIContent() const;
 
-  // Override to enable deferred showing until the WebUI has painted a new
-  // frame.
-  virtual bool ShouldDeferUntilVisualStateReady() const;
+  // Returns the timeout if showing should be deferred until the WebUI has
+  // painted a new frame, or std::nullopt if it should not be deferred.
+  virtual std::optional<base::TimeDelta> ShouldDeferUntilVisualStateReady()
+      const = 0;
+
+  // Returns if the WebContents should be detached when the popup is hidden.
+  virtual bool ShouldDetachWebContentsOnHide() const = 0;
 
   virtual std::string_view GetPopupMetricPrefix() const = 0;
 
@@ -73,7 +83,15 @@ class OmniboxPopupPresenterBase {
     return *presenter_delegate_;
   }
 
+  // Outermost view in the hierarchy; used for hit testing.
+  views::View* GetOuterView();
+
  protected:
+  inline static constexpr std::string_view kWebUIPopupMetricPrefix =
+      "Omnibox.Popup.WebUI";
+  inline static constexpr std::string_view kAimPopupMetricPrefix =
+      "Omnibox.Popup.Aim";
+
   // The container for the WebUI WebView.
   views::View* GetUIContainer() const;
 
@@ -96,6 +114,8 @@ class OmniboxPopupPresenterBase {
 
   views::Widget* GetWidget() const { return widget_.get(); }
 
+  OmniboxController* controller() const;
+
   // The height of the popup content. Can be 0 if not specified.
   int content_height_ = 0;
 
@@ -116,6 +136,14 @@ class OmniboxPopupPresenterBase {
   void OnVisualStateReady(base::TimeTicks show_widget_time,
                           bool from_fallback,
                           bool success);
+
+  // Callback for when the visual state is ready.
+  // This is specifically for metrics logging and is distinct from the
+  // OnVisualStateReady deferral callback.
+  void OnVisualStateReadyForMetrics(base::TimeTicks result_ready_time,
+                                    bool success);
+
+  void LogResultToContentReadyMetric(content::WebContents* web_contents);
 
   // Remove observation and reset widget, optionally requesting it to close.
   void ReleaseWidget();
@@ -140,9 +168,19 @@ class OmniboxPopupPresenterBase {
   // owned and destroyed by the OS.
   std::unique_ptr<views::Widget> widget_;
 
+  const raw_ptr<OmniboxController> controller_;
+
   // True if `ShowWidget()` execution is currently being deferred until the
   // WebUI has produced a new frame.
   bool is_deferred_ = false;
+
+  // Whether the first content ready metric of the popup has been logged.
+  bool has_logged_first_content_ready_ = false;
+
+  // Whether the content ready metric has been logged since the popup was
+  // opened.
+  // This should be reset at the beginning of the Show() method.
+  bool has_logged_content_ready_since_open_ = false;
 
   base::WeakPtrFactory<OmniboxPopupPresenterBase> weak_factory_{this};
 };

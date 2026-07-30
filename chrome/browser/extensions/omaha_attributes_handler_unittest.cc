@@ -13,17 +13,17 @@
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/test/extension_state_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace extensions {
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
+namespace extensions {
 namespace {
 
 // Extension ids used during testing.
 constexpr char kTestExtensionId[] = "behllobkkfkfnphdnhnkndlbkcpglgmj";
-
-}  // namespace
 
 // Test suite to test Omaha attribute handler.
 using OmahaAttributesHandlerUnitTest = ExtensionServiceTestBase;
@@ -266,8 +266,9 @@ TEST_F(OmahaAttributesHandlerUnitTest, ExtensionUninstalledBeforeNotified) {
 
   auto attributes = base::DictValue().Set("_malware", true);
   // kTestExtensionId is already uninstalled. Performing action on it should
-  // not crash. Regression test for https://crbug.com/1305490.
+  // not crash. Regression test for https://crbug.com/40827106.
   service()->PerformActionBasedOnOmahaAttributes(kTestExtensionId, attributes);
 }
 
+}  // namespace
 }  // namespace extensions

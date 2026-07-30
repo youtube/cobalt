@@ -179,6 +179,10 @@ TEST_F(SyncUserSettingsImplTest, PreferredTypesSyncEverything) {
   // now mapped to a selectable type.
   expected_types.Remove(ACCESSIBILITY_ANNOTATION);
 
+  // TODO(crbug.com/488439751): In CL #3, delete (THEMES_ANDROID is now mapped
+  // to a selectable type.
+  expected_types.Remove(THEMES_ANDROID);
+
 #if BUILDFLAG(IS_CHROMEOS)
   expected_types.RemoveAll({WEB_APKS});
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -277,11 +281,6 @@ TEST_F(SyncUserSettingsImplTest,
       UserSelectableType::kHistory, UserSelectableType::kTabs,
       UserSelectableType::kSavedTabGroups, UserSelectableType::kCookies};
 
-#if BUILDFLAG(IS_CHROMEOS)
-  // Extensions syncing in transport mode is not supported on ChromeOS.
-  expected_disabled_types.Put(UserSelectableType::kExtensions);
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   // Themes is not supported on mobile.
   expected_disabled_types.Put(UserSelectableType::kThemes);
@@ -361,6 +360,9 @@ TEST_F(SyncUserSettingsImplTest, PreferredTypesSyncAllOsTypes) {
   // now mapped to a selectable type.
   expected_types.Remove(ACCESSIBILITY_ANNOTATION);
 
+  // TODO(crbug.com/488439751): In CL #3, delete (THEMES_ANDROID is now mapped
+  // to a selectable type.
+  expected_types.Remove(THEMES_ANDROID);
   EXPECT_TRUE(sync_user_settings->IsSyncAllOsTypesEnabled());
   EXPECT_THAT(GetPreferredUserTypes(*sync_user_settings),
               ContainerEq(expected_types));

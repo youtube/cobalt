@@ -52,7 +52,7 @@ std::string GetAllowlistEntryKey(const GURL& url) {
     return url.GetHost();
   } else {
     std::string canon_host;
-    safe_browsing::V4ProtocolManagerUtil::CanonicalizeUrl(url, &canon_host,
+    safe_browsing::SBProtocolManagerUtil::CanonicalizeUrl(url, &canon_host,
                                                           nullptr, nullptr);
     return canon_host;
   }
@@ -235,6 +235,7 @@ ThreatSeverity GetThreatSeverity(safe_browsing::SBThreatType threat_type) {
     case SB_THREAT_TYPE_AD_SAMPLE:
     case SB_THREAT_TYPE_BLOCKED_AD_POPUP:
     case SB_THREAT_TYPE_APK_DOWNLOAD:
+    case SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST:
       NOTREACHED();
   }
 }

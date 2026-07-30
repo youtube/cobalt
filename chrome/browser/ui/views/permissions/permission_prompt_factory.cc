@@ -7,8 +7,8 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/permission_bubble/permission_prompt.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -25,6 +25,7 @@
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
+#include "components/permissions/permissions_client.h"
 #include "components/permissions/request_type.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -82,7 +83,7 @@ bool ShouldIgnorePermissionRequest(
   // - Omnibox Popup is an embedded WebUI that itself may request permissions.
   const GURL visible_url = web_contents->GetVisibleURL();
   const GURL committed_url = web_contents->GetLastCommittedURL();
-  if (visible_url == GURL(chrome::kChromeUINewTabURL) ||
+  if (visible_url == chrome::ChromeUINewTabURLAsGURL() ||
       committed_url.host() == chrome::kChromeUIOmniboxPopupHost ||
       committed_url.host() == chrome::kChromeUIContextualTasksHost) {
     return false;
@@ -156,7 +157,25 @@ bool ShouldCurrentRequestUseExclusiveAccessUI(
              });
 }
 
-bool CanCurrentRequestUseModalUI(content::WebContents* web_contents) {
+bool CanCurrentRequestUseModalUI(
+    content::WebContents* web_contents,
+    permissions::PermissionPrompt::Delegate* delegate) {
+  // Permission prompts from side panels and omnibox popup do not
+  // have a TabInterface since they are not tab-based, but there is never a
+  // concern with showing a modal on them because if they can request
+  // permission, they are open and available unlike tabs, which can be switched
+  // between.
+  // This function is only called after embedded permission prompt has
+  // been chosen as the prompt type. Embedded permission prompt path is not run
+  // for WebUIs like omnibox popup/side panels if the omnibox embedded
+  // permission flag is not enabled, so, in those cases, accessing a null
+  // `TabInterface` is avoided.
+  if (permissions::PermissionsClient::Get()
+          ->IsPrivilegedInternalWebUIOrNewTabPage(
+              web_contents, delegate->GetRequestingOrigin(),
+              /*already_overrode_requester=*/true)) {
+    return true;
+  }
   return tabs::TabInterface::GetFromContents(web_contents)->CanShowModalUI();
 }
 
@@ -168,7 +187,7 @@ std::unique_ptr<permissions::PermissionPrompt> CreatePwaPrompt(
           ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate)) {
     // Run this check inside the if statement to avoid creating another prompt
     // type for embedded permission prompts.
-    return CanCurrentRequestUseModalUI(web_contents)
+    return CanCurrentRequestUseModalUI(web_contents, delegate)
                ? std::make_unique<EmbeddedPermissionPrompt>(
                      browser, web_contents, delegate)
                : nullptr;
@@ -188,16 +207,16 @@ std::unique_ptr<permissions::PermissionPrompt> CreateNormalPrompt(
   DCHECK(!delegate->ShouldCurrentRequestUseQuietUI());
 
   if (ShouldCurrentRequestUseExclusiveAccessUI(delegate)) {
-    return CanCurrentRequestUseModalUI(web_contents)
+    return CanCurrentRequestUseModalUI(web_contents, delegate)
                ? std::make_unique<ExclusiveAccessPermissionPrompt>(
                      browser, web_contents, delegate)
                : nullptr;
   } else if (permissions::PermissionUtil::
                  ShouldCurrentRequestUsePermissionElementSecondaryUI(
-                     delegate)) {
+                     delegate, web_contents)) {
     // Run this check inside the if statement to avoid creating another prompt
     // type for embedded permission prompts.
-    return CanCurrentRequestUseModalUI(web_contents)
+    return CanCurrentRequestUseModalUI(web_contents, delegate)
                ? std::make_unique<EmbeddedPermissionPrompt>(
                      browser, web_contents, delegate)
                : nullptr;
@@ -237,7 +256,7 @@ std::unique_ptr<permissions::PermissionPrompt> CreatePermissionPrompt(
     content::WebContents* web_contents,
     permissions::PermissionPrompt::Delegate* delegate) {
   BrowserWindowInterface* browser_window_interface =
-      chrome::FindBrowserWithTab(web_contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents);
   if (!browser_window_interface) {
     // For embedded WebUIs (e.g., Omnibox Popup and Contextual Tasks), try
     // getting the browser window that contains this WebContents.

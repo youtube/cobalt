@@ -27,7 +27,12 @@ import java.util.Objects;
 @NullMarked
 public interface BottomSheetContent {
     /** The different possible height modes for a given state. */
-    @IntDef({HeightMode.DEFAULT, HeightMode.WRAP_CONTENT, HeightMode.DISABLED})
+    @IntDef({
+        HeightMode.DEFAULT,
+        HeightMode.WRAP_CONTENT,
+        HeightMode.RESIZE_CONTENT,
+        HeightMode.DISABLED
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface HeightMode {
         /**
@@ -44,18 +49,29 @@ public interface BottomSheetContent {
         int WRAP_CONTENT = -1;
 
         /**
+         * The sheet will dynamically resize the sheet content to match the sheet offset at FULL /
+         * HALF state. Only intended to be used for `getFullHeightRatio`.
+         *
+         * <p>If half-height is disabled, this mode will just be treated as {@link
+         * HeightMode#DEFAULT}.
+         */
+        int RESIZE_CONTENT = -2;
+
+        /**
          * The state this mode is used for will be disabled. For example, disabling the peek state
          * would cause the sheet to automatically expand when triggered.
          */
-        int DISABLED = -2;
+        int DISABLED = -3;
     }
 
     /** The different priorities that the sheet's content can have. */
-    @IntDef({ContentPriority.HIGH, ContentPriority.LOW})
+    @IntDef({ContentPriority.COBROWSE, ContentPriority.HIGH, ContentPriority.LOW})
     @Retention(RetentionPolicy.SOURCE)
     @interface ContentPriority {
-        int HIGH = 0;
-        int LOW = 1;
+        // This priority level is for cobrowse only and should not be used outside of that feature.
+        int COBROWSE = 0;
+        int HIGH = 1;
+        int LOW = 2;
     }
 
     /** Carrier class for background glow specifications. */
@@ -216,24 +232,34 @@ public interface BottomSheetContent {
     }
 
     /**
-     * @return The height of the half state for the content as a ratio of the height of the
-     *         content area (ex. 1.f would be full-screen, 0.5f would be half-screen). The
-     *         returned value can also be one of {@link HeightMode}. If
-     *         {@link HeightMode#DEFAULT} is returned, the ratio will be a predefined value. If
-     *         {@link HeightMode#WRAP_CONTENT} is returned by {@link #getFullHeightRatio()}, the
-     *         half height will be disabled. Half height will also be disabled on small screens.
-     *         This method cannot return {@link HeightMode#WRAP_CONTENT}.
+     * Gets the height of the half state for the content as a ratio of the height of the content
+     * area (ex. 1.f would be full-screen, 0.5f would be half-screen). The returned value can also
+     * be one of {@link HeightMode}.
+     *
+     * <p>If {@link HeightMode#DEFAULT} is returned, the ratio will be a predefined value.
+     *
+     * <p>If {@link HeightMode#WRAP_CONTENT} is returned by {@link #getFullHeightRatio()}, the half
+     * height will be disabled. Half height will also be disabled on small screens. This method
+     * cannot return {@link HeightMode#WRAP_CONTENT} or {@link HeightMode#RESIZE_CONTENT}.
      */
     default float getHalfHeightRatio() {
         return HeightMode.DEFAULT;
     }
 
     /**
-     * @return The height of the full state for the content as a ratio of the height of the
-     *         content area (ex. 1.f would be full-screen, 0.5f would be half-screen). The
-     *         returned value can also be one of {@link HeightMode}. If
-     *         {@link HeightMode#DEFAULT}, the ratio will be a predefined value. This height
-     *         cannot be disabled. This method cannot return {@link HeightMode#DISABLED}.
+     * Gets the height of the full state for the content as a ratio of the height of the content
+     * area (ex. 1.f would be full-screen, 0.5f would be half-screen). The returned value can also
+     * be one of {@link HeightMode}.
+     *
+     * <p>If {@link HeightMode#DEFAULT}, the ratio will be a predefined value. This height cannot be
+     * disabled.
+     *
+     * <p>If {@link HeightMode#RESIZE_CONTENT} is returned, the sheet will dynamically resize the
+     * sheet content to match the sheet offset. The maximum height will be {@link
+     * BottomSheet#MAX_HEIGHT_RATIO} and the minimum height will be the height of the half height
+     * ratio.
+     *
+     * <p>This method cannot return {@link HeightMode#DISABLED}.
      */
     default float getFullHeightRatio() {
         return HeightMode.DEFAULT;

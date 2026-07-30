@@ -31,7 +31,11 @@ void UpdateProgress(CGFloat& progress, CGFloat scroll, CGFloat delta) {
 FullscreenBrowserAgent::FullscreenBrowserAgent(Browser* browser)
     : BrowserUserData(browser) {}
 
-FullscreenBrowserAgent::~FullscreenBrowserAgent() {}
+FullscreenBrowserAgent::~FullscreenBrowserAgent() {
+  for (auto& observer : observers_) {
+    observer.WillShutDown(this);
+  }
+}
 
 void FullscreenBrowserAgent::AddObserver(
     FullscreenBrowserAgentObserver* observer) {
@@ -76,7 +80,7 @@ void FullscreenBrowserAgent::EnterFullscreen(
     bool animated) {
   base::UmaHistogramEnumeration(kEnterFullscreenModeTransitionTriggerHistogram,
                                 trigger);
-  UpdateProgressAndBroadcast(0.0, 0.0, animated);
+  UpdateProgressAndBroadcast(FullscreenTransition::kEnterFullscreen, animated);
 }
 
 void FullscreenBrowserAgent::ExitFullscreen(
@@ -85,12 +89,17 @@ void FullscreenBrowserAgent::ExitFullscreen(
     bool animated) {
   base::UmaHistogramEnumeration(kExitFullscreenModeTransitionTriggerHistogram,
                                 trigger);
-  UpdateProgressAndBroadcast(1.0, 1.0, animated);
+  UpdateProgressAndBroadcast(FullscreenTransition::kExitFullscreen, animated);
 }
 
-void FullscreenBrowserAgent::UpdateProgressAndBroadcast(CGFloat top_progress,
-                                                        CGFloat bottom_progress,
-                                                        bool animated) {
+void FullscreenBrowserAgent::UpdateProgressAndBroadcast(
+    FullscreenTransition transition,
+    bool animated) {
+  CGFloat top_progress =
+      (transition == FullscreenTransition::kEnterFullscreen) ? 0.0 : 1.0;
+  CGFloat bottom_progress =
+      (transition == FullscreenTransition::kEnterFullscreen) ? 0.0 : 1.0;
+
   if (top_progress_ == top_progress && bottom_progress_ == bottom_progress) {
     return;
   }
@@ -98,16 +107,25 @@ void FullscreenBrowserAgent::UpdateProgressAndBroadcast(CGFloat top_progress,
   bottom_progress_ = bottom_progress;
 
   if (animated) {
+    base::TimeDelta duration = base::Seconds(kMaterialDuration1);
     auto update_state = base::CallbackToBlock(
         base::BindOnce(&FullscreenBrowserAgent::NotifyObserversOfUpdatedState,
-                       weak_ptr_factory_.GetWeakPtr()));
-    [UIView animateWithDuration:kMaterialDuration1 animations:update_state];
+                       weak_ptr_factory_.GetWeakPtr(), duration));
+    auto completion_block = base::CallbackToBlock(
+        base::BindOnce(&FullscreenBrowserAgent::AnimationDidComplete,
+                       weak_ptr_factory_.GetWeakPtr(), transition));
+    [UIView animateWithDuration:kMaterialDuration1
+                     animations:update_state
+                     completion:completion_block];
   } else {
     NotifyObserversOfUpdatedState();
+    NotifyFullscreenDidTransition(transition);
   }
 }
 
-void FullscreenBrowserAgent::NotifyObserversOfUpdatedState() {
+void FullscreenBrowserAgent::NotifyObserversOfUpdatedState(
+    base::TimeDelta duration) {
+  animation_duration_ = duration;
   CHECK(!updating_insets_);
   updating_insets_ = true;
   UIEdgeInsets old_insets = insets_;
@@ -122,6 +140,36 @@ void FullscreenBrowserAgent::NotifyObserversOfUpdatedState() {
       observer.DidUpdateState(this);
     }
   }
+  animation_duration_ = base::TimeDelta();
+}
+
+void FullscreenBrowserAgent::AnimationDidComplete(
+    FullscreenTransition transition,
+    bool finished) {
+  if (finished) {
+    NotifyFullscreenDidTransition(transition);
+  }
+}
+
+void FullscreenBrowserAgent::NotifyFullscreenDidTransition(
+    FullscreenTransition transition) {
+  for (auto& observer : observers_) {
+    observer.FullscreenDidTransition(this, transition);
+  }
+}
+
+bool FullscreenBrowserAgent::IsEnabled() const {
+  return disabled_count_ == 0;
+}
+
+FullscreenState FullscreenBrowserAgent::State() const {
+  if (top_progress_ == 0.0 && bottom_progress_ == 0.0) {
+    return FullscreenState::kUICollapsed;
+  }
+  if (top_progress_ == 1.0 && bottom_progress_ == 1.0) {
+    return FullscreenState::kUIExpanded;
+  }
+  return FullscreenState::kInProgress;
 }
 
 void FullscreenBrowserAgent::IncrementDisabledCounter(PassKey pass_key,

@@ -142,7 +142,7 @@ FrameHeaderMap& GetFrameHeaderMap() {
 // origins for OOM crashes. Keys are recorded here and not via
 // ChromeContentClient::SetActiveURL() because that method is only invoked in
 // response to IPC messages and most OOMs do not occur in response to an IPC.
-// https://crbug.com/1310046
+// https://crbug.com/40830140
 void UpdateLoadedOriginCrashKeys() {
   // Capture the origin for each RenderFrame.
   struct Visitor : public content::RenderFrameVisitor {
@@ -677,7 +677,8 @@ void ChromeRenderFrameObserver::GetCrossDocumentScriptToolResult(
 }
 
 void ChromeRenderFrameObserver::CreatePageStabilityMonitor(
-    mojo::PendingReceiver<actor::mojom::PageStabilityMonitor> monitor,
+    mojo::PendingReceiver<page_content_annotations::mojom::PageStabilityMonitor>
+        monitor,
     const actor::TaskId& task_id,
     bool supports_paint_stability) {
   page_stability_monitor_ = std::make_unique<actor::PageStabilityMonitor>(

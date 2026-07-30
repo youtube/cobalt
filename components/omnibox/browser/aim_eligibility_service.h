@@ -43,6 +43,10 @@ class IdentityManager;
 class PrimaryAccountAccessTokenFetcher;
 }  // namespace signin
 
+namespace variations {
+class VariationsService;
+}
+
 namespace network {
 class SimpleURLLoader;
 class SharedURLLoaderFactory;
@@ -66,9 +70,7 @@ class AimEligibilityService
   // eligibility).
   static bool GenericKillSwitchFeatureCheck(
       const AimEligibilityService* aim_eligibility_service,
-      const base::Feature& feature,
-      const std::optional<std::reference_wrapper<const base::Feature>>
-          feature_en_us = std::nullopt);
+      const base::Feature& feature);
   // See comment for `WriteToPref()`.
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   // Returns true if the AIM is allowed per the policy.
@@ -127,8 +129,6 @@ class AimEligibilityService
       Configuration configuration);
   ~AimEligibilityService() override;
 
-  // Checks if the application country matches the given country.
-  bool IsCountry(const std::string& country) const;
   // Checks if the application language matches the given language.
   bool IsLanguage(const std::string& language) const;
 
@@ -153,17 +153,25 @@ class AimEligibilityService
   // Virtual for testing purposes.
   virtual bool IsAimEligible() const;
 
+  // WARNING: This method is deprecated, will be removed soon, and should not be
+  // used.
   // Checks if user is eligible for Pdf Upload in AIM features.
   // Virtual for testing purposes.
   virtual bool IsPdfUploadEligible() const;
 
+  // WARNING: This method is deprecated, will be removed soon, and should not be
+  // used.
   // Checks if user is eligible for Deep Search in AIM features.
   virtual bool IsDeepSearchEligible() const;
 
+  // WARNING: This method is deprecated, will be removed soon, and should not be
+  // used.
   // Checks if user is eligible for Create Images in AIM features. Always
   // returns false for off-the-record profiles.
   virtual bool IsCreateImagesEligible() const;
 
+  // WARNING: This method is deprecated, will be removed soon, and should not be
+  // used.
   // Checks if user is eligible for Canvas in AIM features.
   virtual bool IsCanvasEligible() const;
 
@@ -228,8 +236,6 @@ class AimEligibilityService
   virtual void FetchEligibility(RequestSource source);
 
  protected:
-  // Virtual methods for platform-specific country and locale access.
-  virtual std::string GetCountryCode() const = 0;
 
   // Returns the locale in the BCP 47 IETF standard.
   // Natively enforces that the result from platform overrides does not contain
@@ -241,7 +247,12 @@ class AimEligibilityService
   // 47 standard (with hyphens).
   virtual std::string GetLocaleImpl() const = 0;
 
+  // Returns the variations service.
+  virtual variations::VariationsService* GetVariationsService() const = 0;
+
  private:
+  std::string GetCountryCode() const;
+
   friend class AimEligibilityServiceFriend;
 
   // Verifies that the provided locale strictly conforms to the IETF BCP 47
@@ -439,6 +450,7 @@ class AimEligibilityService
   const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   // Outlives `this` due to BCKSF dependency. Can be nullptr in tests.
   const raw_ptr<signin::IdentityManager, DanglingUntriaged> identity_manager_;
+
   bool is_dse_google_ = false;
 
   PrefChangeRegistrar pref_change_registrar_;

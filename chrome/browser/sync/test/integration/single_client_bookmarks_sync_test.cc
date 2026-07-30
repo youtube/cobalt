@@ -1218,7 +1218,7 @@ IN_PROC_BROWSER_TEST_P(
                    syncer::DataTypeEntityChange::kLocalDeletion));
 }
 
-// Android doesn't currently support PRE_ tests, see crbug.com/1117345.
+// Android doesn't currently support PRE_ tests, see crbug.com/40145099.
 #if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_P(SingleClientBookmarksSyncTest,
                        PRE_PersistProgressMarkerOnRestart) {
@@ -2546,7 +2546,7 @@ class SingleClientBookmarksThrottlingSyncTest
 #endif  // BUILDFLAG(IS_CHROMEOS)
                   })));
     } else {
-      ASSERT_TRUE(GetClient(kSingleProfileIndex)->SignInPrimaryAccount());
+      ASSERT_TRUE(GetClient(kSingleProfileIndex)->SignInNoWaitForCompletion());
       ASSERT_TRUE(GetClient(kSingleProfileIndex)->DisableAllSelectableTypes());
 #if BUILDFLAG(IS_CHROMEOS)
       ASSERT_TRUE(
@@ -2870,8 +2870,16 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
   EXPECT_THAT(model->account_bookmark_bar_node(), IsNull());
 }
 
+// TODO(crbug.com/505733920): Enable the test.
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_ShouldHandleMovesAcrossStorageBoundaries \
+  DISABLED_ShouldHandleMovesAcrossStorageBoundaries
+#else
+#define MAYBE_ShouldHandleMovesAcrossStorageBoundaries \
+  ShouldHandleMovesAcrossStorageBoundaries
+#endif
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
-                       ShouldHandleMovesAcrossStorageBoundaries) {
+                       MAYBE_ShouldHandleMovesAcrossStorageBoundaries) {
   const std::u16string kInitiallyLocalTitle = u"Initially Local";
   const std::u16string kInitiallyAccountTitle = u"Initially Account";
 
@@ -2950,8 +2958,16 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
               ElementsAre(IsFolder(kInitiallyAccountTitle)));
 }
 
+// TODO(crbug.com/505733920): Enable the test.
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_ShouldReturnLocalDataDescriptions \
+  DISABLED_ShouldReturnLocalDataDescriptions
+#else
+#define MAYBE_ShouldReturnLocalDataDescriptions \
+  ShouldReturnLocalDataDescriptions
+#endif
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
-                       ShouldReturnLocalDataDescriptions) {
+                       MAYBE_ShouldReturnLocalDataDescriptions) {
   ASSERT_TRUE(SetupClients());
 
   BookmarkModel* model = GetBookmarkModel(kSingleProfileIndex);
@@ -3142,7 +3158,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
               ElementsAre(IsUrlBookmark(kTitle2, kUrl2)));
 }
 
-// Android doesn't currently support PRE_ tests, see crbug.com/1117345.
+// Android doesn't currently support PRE_ tests, see crbug.com/40145099.
 #if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
                        PRE_PersistAccountBookmarksAcrossRestarts) {
@@ -3217,8 +3233,17 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
               ElementsAre(IsFolder(kInitiallyAccountTitle)));
 }
 
-IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
-                       PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit) {
+// TODO(crbug.com/505733920): Enable the test.
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit \
+  DISABLED_PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit
+#else
+#define MAYBE_PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit \
+  PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit
+#endif
+IN_PROC_BROWSER_TEST_F(
+    SingleClientBookmarksWithAccountStorageSyncTest,
+    MAYBE_PRE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit) {
   // Create two bookmarks on the server under BookmarkBar with a truncated
   // title.
   fake_server::EntityBuilderFactory entity_builder_factory;
@@ -3265,8 +3290,16 @@ IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
   ExcludeDataTypesFromCheckForDataTypeFailures({syncer::BOOKMARKS});
 }
 
+// TODO(crbug.com/505733920): Enable the test.
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit \
+  DISABLED_ShouldPersistIfInitialUpdatesCrossMaxCountLimit
+#else
+#define MAYBE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit \
+  ShouldPersistIfInitialUpdatesCrossMaxCountLimit
+#endif
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksWithAccountStorageSyncTest,
-                       ShouldPersistIfInitialUpdatesCrossMaxCountLimit) {
+                       MAYBE_ShouldPersistIfInitialUpdatesCrossMaxCountLimit) {
   ASSERT_TRUE(SetupClients());
   ASSERT_TRUE(GetClient(kSingleProfileIndex)->AwaitEngineInitialization());
 
@@ -3351,7 +3384,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Sign in again, but don't actually enable Sync-the-feature (so that Sync
   // will start in transport mode).
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
+  ASSERT_TRUE(SignIn());
   // Note: Depending on the state of feature flags (specifically
   // kReplaceSyncPromosWithSignInPromos), Bookmarks may or may not be considered
   // selected by default.
@@ -3429,9 +3462,18 @@ class SingleClientBookmarksSyncTestWithEnabledMigrateSyncingUserToSignedIn
 };
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+// TODO(crbug.com/505733920): Enable the test.
+#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
+#define MAYBE_ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn \
+  DISABLED_ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn
+#else
+#define MAYBE_ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn \
+  ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn
+#endif
 IN_PROC_BROWSER_TEST_F(
     SingleClientBookmarksSyncTestWithEnabledMigrateSyncingUserToSignedIn,
-    ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn) {
+    MAYBE_ShouldDeduplicateBookmarksAfterTurningSyncOffAndSignIn) {
   const std::u16string kSocialTitle = u"Social";
   const std::u16string kTwitterTitle = u"Twitter";
   const GURL kTwitterUrl("http://twitter.com");
@@ -3599,7 +3641,7 @@ IN_PROC_BROWSER_TEST_F(
           IsUrlBookmark(kMapsTitle, kMapsUrl)));
 
   // Sign in again, and enable sync in transport mode only.
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
+  ASSERT_TRUE(SignIn());
   GetSyncService(kSingleProfileIndex)
       ->GetUserSettings()
       ->SetSelectedType(syncer::UserSelectableType::kBookmarks, true);
@@ -3742,7 +3784,7 @@ class SingleClientBookmarksExplicitSigninSyncTest
 
 IN_PROC_BROWSER_TEST_P(SingleClientBookmarksExplicitSigninSyncTest,
                        PRE_BookmarksEnabledDefaultValue) {
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
+  ASSERT_TRUE(SignIn());
 
   ASSERT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kBookmarks));
@@ -3769,8 +3811,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientBookmarksExplicitSigninSyncTest,
   // When the user signs in after the flags were enabled, bookmarks should
   // always be available. See
   // `PrimaryAccountManager::SetExplicitBrowserSigninPrefs()`.
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
+  ASSERT_TRUE(SignIn());
 
   EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kBookmarks));
@@ -3815,7 +3856,7 @@ class SingleClientBookmarksExplicitSigninBothFeaturesSyncTest
 
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksExplicitSigninBothFeaturesSyncTest,
                        PRE_BookmarksEnabledDefaultValue) {
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
+  ASSERT_TRUE(SignIn());
 
   ASSERT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kBookmarks));
@@ -3873,7 +3914,7 @@ class SingleClientBookmarksExplicitSigninTransitionTest : public SyncTest {
 IN_PROC_BROWSER_TEST_F(SingleClientBookmarksExplicitSigninTransitionTest,
                        PRE_PRE_ExplicitSigninForBookmarksOffToOn) {
   ASSERT_FALSE(syncer::IsReplaceSyncPromosWithSignInPromosEnabled());
-  ASSERT_TRUE(SetupSyncWithMode(SetupSyncMode::kSyncTransportOnly));
+  ASSERT_TRUE(SignIn());
 
   // If `kReplaceSyncPromosWithSignInPromos` is disabled, syncing bookmarks is
   // turned off.

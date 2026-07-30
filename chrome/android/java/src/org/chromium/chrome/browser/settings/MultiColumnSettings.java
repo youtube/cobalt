@@ -16,8 +16,6 @@ import android.view.ViewGroup.LayoutParams;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -29,6 +27,7 @@ import androidx.slidingpanelayout.widget.SlidingPaneLayout;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -241,8 +240,8 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
     }
 
     @Override
-    public @NonNull View onCreateView(
-            @NonNull LayoutInflater inflater,
+    public View onCreateView(
+            LayoutInflater inflater,
             @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View view = super.onCreateView(inflater, container, savedInstanceState);
@@ -337,8 +336,8 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
         int headerWidth =
                 resources.getDimensionPixelSize(
                         screenWidthDp >= WIDE_HEADER_SCREEN_WIDTH_DP
-                                ? org.chromium.chrome.R.dimen.settings_wide_header_width
-                                : org.chromium.chrome.R.dimen.settings_narrow_header_width);
+                                ? R.dimen.settings_wide_header_width
+                                : R.dimen.settings_narrow_header_width);
 
         boolean menuLayoutUpdated = mSlideable != getSlidingPaneLayout().isSlideable();
         mSlideable = getSlidingPaneLayout().isSlideable();
@@ -588,7 +587,7 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
         private static final String KEY_BACK_STACK_COUNTS = "BackStackCounts";
 
         @Override
-        public void onFragmentResumed(@NonNull FragmentManager fm, @NonNull Fragment f) {
+        public void onFragmentResumed(FragmentManager fm, Fragment f) {
             if (f instanceof MainSettings) {
                 // Skip main settings which is visible in the header pane.
                 return;
@@ -697,11 +696,11 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
         return mFragmentTracker.mTitles;
     }
 
-    public void addObserver(@NonNull Observer o) {
+    public void addObserver(Observer o) {
         mObservers.add(o);
     }
 
-    public void removeObserver(@NonNull Observer o) {
+    public void removeObserver(Observer o) {
         mObservers.remove(o);
     }
 
@@ -760,24 +759,22 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat {
         getChildFragmentManager()
                 .addOnBackStackChangedListener(
                         () -> {
-                            mOnBackPressedCallback.updateEnabledState();
-
                             // On some specific devices, FragmentManager's BackStackChangedListener
                             // seems to be called *before* the back stack is updated, specifically
                             // if this is triggered from the system back button and the fragment
                             // manager's back stack will become empty by the event.
                             // Thus, updateEnabledState() above may NOT update the state to the
-                            // expected
-                            // one. As a workaround, post another updateEnabledState, which should
-                            // be
-                            // invoked *after* the back stack is updated, so the "back button"
-                            // in the following pages can work as expected.
+                            // expected one.
+                            // As a workaround, post updateEnabledState with some delay, which
+                            // should invoke the method *after* the back stack is updated so the
+                            // "back button" in the following pages can work as expected.
                             // Unfortunately, this is not perfect solution, as there still is some
                             // short timing that enabled is not properly set, but still provides
                             // better UX. See crbug.com/465040723 for more context.
                             if (getChildFragmentManager().getBackStackEntryCount() == 1) {
                                 getSlidingPaneLayout()
-                                        .post(mOnBackPressedCallback::updateEnabledState);
+                                        .postDelayed(
+                                                mOnBackPressedCallback::updateEnabledState, 100);
                             }
                         });
 

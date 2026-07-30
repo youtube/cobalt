@@ -648,7 +648,6 @@ source_set("browser_sources") {
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/storage:settings_observer",
     "//extensions/browser/api/system_display:display_info_provider",
-    "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
     "//extensions/browser/mime_handler:stream_container",
     "//extensions/buildflags",
     "//extensions/common",
@@ -684,6 +683,7 @@ source_set("browser_sources") {
     deps += [
       "//chromeos/constants",
       "//extensions/browser/api/clipboard:clipboard_types",
+      "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
     ]
   }
 
@@ -712,7 +712,7 @@ source_set("browser_sources") {
   # TODO(crbug.com/41323543): Ideally web_view should be a separate target on
   # which the extension system depends.
   if (enable_guest_view) {
-    if (enable_platform_apps) {
+    if (is_chromeos) {
       sources += [
         "guest_view/app_view/app_view_constants.cc",
         "guest_view/app_view/app_view_constants.h",
@@ -1103,6 +1103,7 @@ source_set("unit_tests") {
     "management_policy_unittest.cc",
     "message_tracker_unittest.cc",
     "mime_handler/mime_handler_stream_delegate_unittest.cc",
+    "mime_handler/mime_handler_stream_manager_unittest.cc",
     "mojo/keep_alive_impl_unittest.cc",
     "path_util_unittest.cc",
     "permissions/site_permissions_helper_unittest.cc",
@@ -1134,6 +1135,7 @@ source_set("unit_tests") {
     "//build:android_buildflags",
     "//build:chromeos_buildflags",
     "//components/content_settings/core/test:test_support",
+    "//components/crash/core/common:crash_key",
     "//components/crx_file",
     "//components/feedback",
     "//components/file_access:test_support",
@@ -1163,10 +1165,10 @@ source_set("unit_tests") {
     "//extensions/browser/api/content_settings",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/system_display:display_info_provider",
-    "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
+    "//extensions/browser/mime_handler",
     "//extensions/browser/mime_handler:mime_handler_registry_unittest",
-    "//extensions/browser/mime_handler:mime_handler_stream_delegate",
     "//extensions/browser/mime_handler:stream_container",
+    "//extensions/browser/mime_handler:test_helpers",
     "//extensions/browser/updater",
     "//extensions/buildflags",
     "//extensions/common",
@@ -1185,6 +1187,10 @@ source_set("unit_tests") {
     "//third_party/zlib/google:zip",
     "//ui/display:test_support",
   ]
+
+  if (is_chromeos) {
+    deps += [ "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate" ]
+  }
 
   # TODO(https://crbug.com/356905053): Gradually include more of these sources
   # in the desktop-android build when the related APIs are enabled.
@@ -1288,17 +1294,7 @@ if (enable_extensions) {
   source_set("browser_tests") {
     testonly = true
     sources = [
-      "api/hid/hid_apitest.cc",
-      "api/socket/socket_apitest.cc",
-      "api/sockets_tcp/sockets_tcp_apitest.cc",
-      "api/sockets_tcp_server/sockets_tcp_server_apitest.cc",
-      "api/sockets_udp/sockets_udp_apitest.cc",
-      "api/system_storage/storage_api_test_util.cc",
-      "api/system_storage/storage_api_test_util.h",
-      "api/system_storage/system_storage_apitest.cc",
-      "api/system_storage/system_storage_eject_apitest.cc",
       "browsertest_util_browsertest.cc",
-      "guest_view/app_view/app_view_apitest.cc",
       "guest_view/web_view/web_view_apitest.cc",
       "guest_view/web_view/web_view_apitest.h",
       "guest_view/web_view/web_view_media_access_apitest.cc",
@@ -1316,7 +1312,6 @@ if (enable_extensions) {
       "//extensions:test_support",
       "//extensions/browser:test_support",
       "//extensions/browser/api/system_display:display_info_provider",
-      "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
       "//extensions/common",
       "//extensions/common/api",
       "//extensions/shell:app_shell_lib",
@@ -1330,36 +1325,6 @@ if (enable_extensions) {
     ]
 
     public_deps = [ "//content/test:test_support" ]
-
-    if (is_chromeos) {
-      sources += [
-        "api/audio/audio_apitest_chromeos.cc",
-
-        # TODO(michaelpg): bluetooth_appshell_test.cc is a crutch until we have
-        # a better system for testing APIs in both app_shell and chrome. See
-        # crbug.com/650835.
-        "api/bluetooth/bluetooth_appshell_test.cc",
-        "api/bluetooth_socket/bluetooth_socket_apitest.cc",
-        "api/media_perception_private/media_perception_private_apitest.cc",
-        "api/virtual_keyboard/virtual_keyboard_apitest.cc",
-      ]
-
-      deps += [
-        "//chromeos/ash/components/audio",
-        "//chromeos/ash/components/dbus:test_support",
-        "//chromeos/ash/components/dbus/audio",
-        "//chromeos/ash/components/dbus/media_analytics",
-        "//chromeos/ash/components/dbus/media_analytics:media_perception_proto",
-        "//chromeos/ash/components/dbus/upstart",
-        "//chromeos/ash/components/login/login_state",
-        "//chromeos/ash/components/network",
-        "//chromeos/dbus/permission_broker",
-        "//chromeos/dbus/power",
-        "//chromeos/dbus/power:power_manager_proto",
-        "//components/crash/content/browser/error_reporting:mock_crash_endpoint",
-        "//extensions/common:mojom",
-      ]
-    }
   }
 
   fuzzer_test("extension_file_highlighter_fuzzer") {

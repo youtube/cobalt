@@ -14,7 +14,8 @@ enum class IOSAIHubAction {
   kDismiss = 3,
   kReaderModeOptions = 4,
   kGeminiSignedOut = 5,
-  kMaxValue = kGeminiSignedOut,
+  kGeminiIneligible = 6,
+  kMaxValue = kGeminiIneligible,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/ios/enums.xml:IOSAIHubAction)
 
@@ -46,5 +47,18 @@ void RecordPageActionMenuFeatureRowUsed(
 // Menu.
 void RecordPageActionMenuFeatureRowSettingsOpened(
     IOSPageActionMenuFeatureType feature_type);
+
+// Enum for the IOS.PageActionMenu.Footer.RowShown histogram.
+// LINT.IfChange(IOSPageActionMenuFooterReason)
+enum class IOSPageActionMenuFooterReason {
+  kGeminiEnterprise = 0,
+  kLensEnterprise = 1,
+  kLensSearchEngine = 2,
+  kMaxValue = kLensSearchEngine,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/ios/enums.xml:IOSPageActionMenuFooterReason)
+
+// Records when the footer ineligibility disclaimer is shown to the user.
+void RecordPageActionMenuFooterRowShown(IOSPageActionMenuFooterReason reason);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_PAGE_ACTION_MENU_UTILS_AI_HUB_METRICS_H_

@@ -668,6 +668,7 @@ VISIT_PROTO_FIELDS(const sync_pb::FeatureSpecificFields& proto) {
   VISIT(auto_sign_out_last_signin_timestamp_windows_epoch_micros);
   VISIT(desktop_to_ios_promo_receiving_enabled);
   VISIT_REP(desktop_to_ios_promo_receiving_types);
+  VISIT(glic_experimental_triggering_opted_in);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SharingSpecificFields& proto) {
@@ -735,7 +736,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(63 == GetNumDataTypes(),
+  static_assert(64 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -1375,6 +1376,7 @@ VISIT_PROTO_FIELDS(const sync_pb::SendTabToSelfSpecifics& proto) {
   VISIT(opened);
   VISIT(notification_dismissed);
   VISIT(page_context);
+  VISIT(encrypted_page_context);
   VISIT_REP(navigation);
   VISIT(current_navigation_index);
   VISIT(received_time_windows_epoch_micros);
@@ -1420,6 +1422,7 @@ VISIT_PROTO_FIELDS(const sync_pb::SessionSpecifics& proto) {
   VISIT(session_tag);
   VISIT(header);
   VISIT(tab);
+  VISIT(tab_screenshot);
   VISIT(tab_node_id);
 }
 
@@ -1437,6 +1440,12 @@ VISIT_PROTO_FIELDS(const sync_pb::SessionTab& proto) {
   VISIT_REP(variation_id);
   VISIT_ENUM(browser_type);
   VISIT(last_active_time_unix_epoch_millis);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::SessionTabScreenshot& proto) {
+  VISIT_BYTES(screenshot_data);
+  VISIT(url);
+  VISIT(timestamp_unix_epoch_millis);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SessionWindow& proto) {
@@ -2160,6 +2169,9 @@ VISIT_PROTO_FIELDS(const sync_pb::VehicleRegistration& proto) {
   VISIT(license_plate_country);
   VISIT(owner_name);
   VISIT(issuer_name);
+  VISIT(issue_date_unix_epoch_micros);
+  VISIT(expiration_date_unix_epoch_micros);
+  VISIT(logo_url);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
@@ -2175,6 +2187,7 @@ VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
   VISIT(carrier_code);
   VISIT(departure_airport_utc_offset_seconds);
   VISIT(arrival_airport_utc_offset_seconds);
+  VISIT(issuer_name);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::Passport& proto) {
@@ -2221,6 +2234,8 @@ VISIT_PROTO_FIELDS(const sync_pb::EventTicket& proto) {
   VISIT(ticket_number);
   VISIT(issuer_name);
   VISIT(event_start_time_windows_epoch_micros);
+  VISIT(event_end_time_windows_epoch_micros);
+  VISIT(logo_url);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::TransitPass& proto) {

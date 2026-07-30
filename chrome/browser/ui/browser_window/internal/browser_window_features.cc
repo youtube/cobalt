@@ -70,6 +70,7 @@
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_opt_in_iph_controller.h"
+#include "chrome/browser/ui/sharing_hub/sharing_hub_window_controller.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
@@ -124,7 +125,9 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
+#include "chrome/browser/ui/views/qrcode_generator/qrcode_window_controller.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
+#include "chrome/browser/ui/views/sharing/sharing_window_controller.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
@@ -146,6 +149,7 @@
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
+#include "chrome/browser/ui/web_modal/browser_window_modal_dialog_delegate.h"
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/find_bar_owner_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
@@ -392,7 +396,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           browser, tab_strip_model_),
       std::make_unique<
           tabs_api::tab_strip_model::TabStripModelExperimentalInjector>(
-          browser));
+          browser, tab_strip_model_));
 
   memory_saver_bubble_controller_ =
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
@@ -507,6 +511,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<BrowserWindowZoomObserver>(*browser,
                                                                      browser);
 
+  browser_window_modal_dialog_delegate_ =
+      GetUserDataFactory().CreateInstance<BrowserWindowModalDialogDelegate>(
+          *browser, browser);
+
   call_to_action_lock_ =
       GetUserDataFactory().CreateInstance<CallToActionLock>(*browser, browser);
 
@@ -590,6 +598,19 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             .CreateInstance<
                 send_tab_to_self::SendTabToSelfToolbarBubbleController>(
                 *browser, browser);
+
+    sharing_window_controller_ =
+        GetUserDataFactory().CreateInstance<SharingWindowController>(*browser,
+                                                                     browser);
+
+    sharing_hub_window_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<sharing_hub::SharingHubWindowController>(*browser,
+                                                                     browser);
+    qrcode_window_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<qrcode_generator::QRCodeWindowController>(*browser,
+                                                                      browser);
 
     if (browser_view) {
       // Get the PinnedToolbarActions for the browser; it might not exist for
@@ -953,7 +974,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   }
 
   devtools_ui_controller_ = std::make_unique<DevtoolsUIController>(
-      browser_view->GetContentsContainerViews());
+      browser_, browser_view->GetContentsContainerViews());
 
 #if BUILDFLAG(IS_WIN)
   windows_taskbar_icon_updater_ =

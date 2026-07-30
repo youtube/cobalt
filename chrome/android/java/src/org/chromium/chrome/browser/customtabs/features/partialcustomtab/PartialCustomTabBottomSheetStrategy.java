@@ -115,7 +115,7 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
     private final AnimatorListener mSpinnerFadeoutAnimatorListener;
     private final @Px int mUnclampedInitialHeight;
     private final boolean mIsFixedHeight;
-    private final Supplier<TouchEventProvider> mTouchEventProvider;
+    private final Supplier<@Nullable TouchEventProvider> mTouchEventProvider;
     private final Supplier<@Nullable Tab> mTab;
 
     private CustomTabToolbar.HandleStrategy mHandleStrategy;
@@ -149,7 +149,7 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
     public PartialCustomTabBottomSheetStrategy(
             Activity activity,
             BrowserServicesIntentDataProvider intentData,
-            Supplier<TouchEventProvider> touchEventProvider,
+            Supplier<@Nullable TouchEventProvider> touchEventProvider,
             Supplier<@Nullable Tab> tab,
             OnResizedCallback onResizedCallback,
             OnActivityLayoutCallback onActivityLayoutCallback,
@@ -397,7 +397,9 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
         dragHandle.setOnClickListener(v -> onDragBarTapped());
 
         if (mContentScrollMayResizeTab) {
-            mTouchEventProvider.get().addTouchEventObserver(this);
+            var touchEventProvider = mTouchEventProvider.get();
+            assumeNonNull(touchEventProvider);
+            touchEventProvider.addTouchEventObserver(this);
         }
         updateDragBarVisibility();
 
@@ -853,12 +855,12 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
 
     private void showNavbarButtons(boolean show) {
         // Resizing while the navbar buttons are visible, at times, flashes the host app.
-        // http://crbug/1360425 fixed this for when the navbar buttons are hidden, so taking
+        // http://crbug.com/40863055 fixed this for when the navbar buttons are hidden, so taking
         // advantage of that fix by hiding for a bit the navigation buttons, during the time the
         // flashing usually occurs. The navbar buttons need to be visible while resizing so that
         // the immersive mode confirmation dialog is not displayed, as fixed with
-        // http://crbug/1360453
-        // TODO: http://crbug/1373984 for follow-up on long term solution for fixing host app
+        // http://crbug.com/40863074
+        // TODO: http://crbug.com/40872053 for follow-up on long term solution for fixing host app
         // flashing issues.
         if (!show) {
             changeVisibilityNavbarButtons(false);
@@ -1013,8 +1015,12 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
 
     @Override
     public void destroy() {
-        if (mContentScrollMayResizeTab && mTouchEventProvider.get() != null) {
-            mTouchEventProvider.get().removeTouchEventObserver(this);
+        super.destroy();
+        if (mContentScrollMayResizeTab) {
+            var provider = mTouchEventProvider.get();
+            if (provider != null) {
+                provider.removeTouchEventObserver(this);
+            }
         }
     }
 

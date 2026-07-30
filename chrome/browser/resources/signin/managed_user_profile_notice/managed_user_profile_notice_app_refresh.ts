@@ -76,6 +76,12 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
       appMode_: {
         type: String,
         reflect: true,
+        attribute: 'app-mode',
+      },
+      revampEnabled_: {
+        type: Boolean,
+        reflect: true,
+        attribute: 'revamp-enabled',
       },
     };
   }
@@ -100,6 +106,8 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
   protected accessor disableProceedButton_: boolean = false;
   protected accessor currentState_: State = State.DISCLOSURE;
   protected accessor appMode_: AppMode = AppMode.FIRST_RUN;
+  protected accessor revampEnabled_: boolean =
+      loadTimeData.getBoolean('isFirstRunDesktopRevampEnabled');
   protected accessor processingSubtitle_: string =
       loadTimeData.getString('processingSubtitle');
   protected accessor selectedDataHandling_: BrowsingDataHandling|undefined;

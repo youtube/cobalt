@@ -46,7 +46,6 @@ import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -242,8 +241,8 @@ public class ChromeBackupAgentImpl extends SplitCompatBackupAgent.Impl {
     // private again.
     @VisibleForTesting
     boolean initializeBrowser() {
-        // Workaround for https://crbug.com/718166. The backup agent is sometimes being started in a
-        // child process, before the child process loads its native library. If backup then loads
+        // Workaround for https://crbug.com/40518724. The backup agent is sometimes being started in
+        // a child process, before the child process loads its native library. If backup then loads
         // the native library the child process is left in a very confused state and crashes.
         if (ContentProcessInfo.inChildProcess()) {
             Log.e(TAG, "Backup agent started from child process");
@@ -286,8 +285,7 @@ public class ChromeBackupAgentImpl extends SplitCompatBackupAgent.Impl {
                             IdentityManager identityManager =
                                     IdentityServicesProvider.get().getIdentityManager(profile);
                             assumeNonNull(identityManager);
-                            signedInAccount.set(
-                                    identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN));
+                            signedInAccount.set(identityManager.getPrimaryAccountInfo());
 
                             PrefService prefService = UserPrefs.get(profile);
                             for (PrefBackupSerializer serializer : NATIVE_PREFS_SERIALIZERS) {
@@ -580,7 +578,7 @@ public class ChromeBackupAgentImpl extends SplitCompatBackupAgent.Impl {
                             return assertNonNull(
                                             IdentityServicesProvider.get()
                                                     .getIdentityManager(profile))
-                                    .hasPrimaryAccount(ConsentLevel.SIGNIN);
+                                    .hasPrimaryAccount();
                         });
         if (!hasPrimaryAccount) {
             if (signedInAccountInfo != null) {
@@ -749,7 +747,7 @@ public class ChromeBackupAgentImpl extends SplitCompatBackupAgent.Impl {
                     IdentityManager identityManager =
                             assertNonNull(
                                     IdentityServicesProvider.get().getIdentityManager(profile));
-                    if (identityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)) {
+                    if (identityManager.hasPrimaryAccount()) {
                         // This may happen if the user is supervised as they will be signed in via
                         // {@link SigninChecker}.
                         callback.onSignInAborted();

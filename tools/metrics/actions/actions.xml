@@ -675,9 +675,10 @@ should be able to be added at any place in this file.
   <variant name="_PerformanceNewBadge"
       summary="For new badge next to Performance feature."/>
   <variant name="_PlusAddressCreateSuggestion"
-      summary="For creating plus addresses."/>
+      summary="For creating plus addresses. (obsolete)"/>
   <variant name="_PlusAddressFirstSaveFeature"
-      summary="For accessing settings after saving the first plus address."/>
+      summary="For accessing settings after saving the first plus address.
+               (obsolete)"/>
   <variant name="_PowerBookmarksSidePanel"
       summary="For power bookmarks side panel feature."/>
   <variant name="_PreviewsOmniboxUI"
@@ -713,6 +714,8 @@ should be able to be added at any place in this file.
       summary="For ReadingListInSidePanel feature."/>
   <variant name="_ReadingListMessages"
       summary="For ReadingListMessages feature."/>
+  <variant name="_ReadingModeKeyboardShortcut"
+      summary="For reading mode keyboard shortcut feature."/>
   <variant name="_ReadingModePageActionLabel"
       summary="For reading mode omnibox entrypoint."/>
   <variant name="_ReadingModeSidePanel"
@@ -742,6 +745,8 @@ should be able to be added at any place in this file.
       summary="For Resumption Rail feature entrypoint."/>
   <variant name="_RtlGestureNavigation"
       summary="For the gesture navigation in RTL mode."/>
+  <variant name="_SearchExtensionSideloadFeature"
+      summary="IPH for Search extension promo on Windows"/>
   <variant name="_SharedHighlightingBuilder"
       summary="For SharedHighlightingBuilder feature."/>
   <variant name="_SharedHighlightingReceiver"
@@ -846,13 +851,6 @@ should be able to be added at any place in this file.
       summary="For voice search video tutorial."/>
   <variant name="_VideoTutorial_TryNow"
       summary="For video tutorial Try Now feature."/>
-  <variant name="_WebFeedAwareness" summary="For WebFeedAwareness feature."/>
-  <variant name="_WebFeedFollow"
-      summary="For Web Feed follow recommendations."/>
-  <variant name="_WebFeedPostFollowDialog"
-      summary="For Web Feed successful follow operations."/>
-  <variant name="_WebFeedPostFollowDialogWithUIUpdate"
-      summary="For Web Feed successful follow operations after the UI update."/>
   <variant name="_WebUiHelpBubbleTest"
       summary="For WebUiHelpBubbleTest feature."/>
   <variant name="_WhatsNewUpdated" summary="For what's new updated content."/>
@@ -890,6 +888,7 @@ should be able to be added at any place in this file.
   <variant name="ReadAnything" summary="read anything"/>
   <variant name="ReadingList" summary="reading list"/>
   <variant name="ShoppingInsights" summary="shopping insights"/>
+  <variant name="SidePanelDev" summary="side panel dev feature"/>
   <variant name="SideSearch" summary="side search"/>
   <variant name="TabsFromOtherDevices" summary="tabs from other devices"/>
   <variant name="WebView" summary="web view"/>
@@ -15051,6 +15050,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.DisabledByAdminPanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>dewittj@google.com</owner>
   <owner>glic@google.com</owner>
   <description>
@@ -15069,6 +15069,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.ErrorPanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15102,6 +15103,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.LoadingPanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15131,6 +15133,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.OfflinePanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -15154,6 +15157,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.ReadyPanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>User closed the FRE while it was fully loaded.</description>
@@ -15178,6 +15182,7 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Glic.Fre.UninitializedPanelClosed">
+  <obsolete>Feature removed April 2026.</obsolete>
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
@@ -16689,6 +16694,15 @@ should be able to be added at any place in this file.
   <owner>haileywang@chromium.org</owner>
   <owner>shaktisahu@chromium.org</owner>
   <description>The user tapped outside the in-product help bubble.</description>
+</action>
+
+<action
+    name="InProductHelp.ShouldTriggerHelpUI.IPH_SearchExtensionSideloadFeature">
+  <owner>qlucyk@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <description>
+    Whether the IPH for Search Extension on Windows was triggered.
+  </description>
 </action>
 
 <action name="InProductHelp.ShouldTriggerHelpUI.IPH{InProductHelp_Type}"
@@ -28511,6 +28525,15 @@ should be able to be added at any place in this file.
   <description>MobileMenuDefaultBrowserPromo</description>
 </action>
 
+<action name="MobileMenuDefaultBrowserPromoShown">
+  <owner>eleanorlee@google.com</owner>
+  <description>
+    This metric is recorded every time the app menu is opened when Chrome is not
+    set to default and the app menu therefore has a default browser promo menu
+    item.
+  </description>
+</action>
+
 <action name="MobileMenuDeleteFromReadingList">
   <owner>wylieb@google.com</owner>
   <description>
@@ -32879,12 +32902,25 @@ should be able to be added at any place in this file.
     <variant name=".CloseAllTabs"
         summary="User closed all tabs via the tab context menu on tab strip
                  on Android."/>
+    <variant name=".CloseOtherTabs"
+        summary="User closed other tabs via the tab context menu on tab strip
+                 on Android."/>
+    <variant name=".CloseOtherTabs.MultiTab"
+        summary="User closed other tabs via the tab context menu on tab strip
+                 on Android while having selected more than one tab."/>
     <variant name=".CloseTab"
         summary="User closed a tab via the tab context menu on tab strip on
                  Android."/>
     <variant name=".CloseTab.MultiTab"
         summary="User closed multiple tabs via the tab context menu on tab
                  strip on Android."/>
+    <variant name=".CloseTabsToTheRight"
+        summary="User closed tabs to the right via the tab context menu on
+                 tab strip on Android."/>
+    <variant name=".CloseTabsToTheRight.MultiTab"
+        summary="User closed tabs to the right via the tab context menu on
+                 tab strip on Android while having more than one tab
+                 selected."/>
     <variant name=".DuplicateTab"
         summary="User duplicated a tab via the tab context menu on tab strip
                  on Android."/>
@@ -45516,6 +45552,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Impression_FromSettingsAutofillAndPasswords"
+    not_user_triggered="true">
+  <owner>josefraska@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded when showing sign in entry in the Autofill and passwords settings
+    page.
+  </description>
+</action>
+
 <action name="Signin_Impression_FromSetUpList">
   <owner>scottyoder@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
@@ -46567,6 +46613,16 @@ should be able to be added at any place in this file.
   <description>
     Recorded on sign in start from access point
     signin_metrics::AccessPoint::kSettings.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromSettingsAutofillAndPasswords">
+  <owner>josefraska@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kSettingsAutofillAndPasswords, emitted from
+    Autofill and passwords settings page.
   </description>
 </action>
 

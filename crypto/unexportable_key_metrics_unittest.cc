@@ -68,7 +68,7 @@ class MockTrackingUnexportableKeyProvider
 
   // StatefulUnexportableKeyProvider:
   std::optional<std::vector<std::unique_ptr<UnexportableSigningKey>>>
-  GetAllSigningKeysSlowly() override {
+  GetAllKeysSlowly() override {
     return base::ToVector(keys_, [&](const std::vector<uint8_t>& key) {
       return FromWrappedSigningKeySlowly(key);
     });
@@ -85,22 +85,21 @@ class MockTrackingUnexportableKeyProvider
     });
   }
 
-  std::optional<size_t> DeleteSigningKeysSlowly(
-      base::span<const StatefulUnexportableSigningKey* const> signing_keys)
-      override {
+  std::optional<size_t> DeleteKeysSlowly(
+      base::span<const UnexportableKey* const> keys) override {
     if (StatefulUnexportableKeyProvider* stateful_key_provider =
             key_provider_->AsStatefulUnexportableKeyProvider()) {
-      stateful_key_provider->DeleteSigningKeysSlowly(signing_keys);
+      stateful_key_provider->DeleteKeysSlowly(keys);
     }
-    return std::ranges::count_if(signing_keys, [&](auto* key) {
+    return std::ranges::count_if(keys, [&](auto* key) {
       return keys_.erase(key->GetWrappedKey()) != 0;
     });
   }
 
-  std::optional<size_t> DeleteAllSigningKeysSlowly() override {
+  std::optional<size_t> DeleteAllKeysSlowly() override {
     if (StatefulUnexportableKeyProvider* stateful_key_provider =
             key_provider_->AsStatefulUnexportableKeyProvider()) {
-      stateful_key_provider->DeleteAllSigningKeysSlowly();
+      stateful_key_provider->DeleteAllKeysSlowly();
     }
     return std::exchange(keys_, {}).size();
   }

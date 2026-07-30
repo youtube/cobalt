@@ -39,7 +39,7 @@ source_set("browsing_data") {
   if (is_android) {
     public += [ "counters/tabs_counter.h" ]
   }
-  if (enable_extensions) {
+  if (enable_hosted_apps) {
     public += [ "counters/hosted_apps_counter.h" ]
   }
 
@@ -90,7 +90,7 @@ source_set("impl") {
   if (is_android) {
     sources += [ "counters/tabs_counter.cc" ]
   }
-  if (enable_extensions) {
+  if (enable_hosted_apps) {
     sources += [ "counters/hosted_apps_counter.cc" ]
   }
 
@@ -113,6 +113,7 @@ source_set("impl") {
     "//chrome/browser/heavy_ad_intervention",
     "//chrome/browser/history",
     "//chrome/browser/language",
+    "//chrome/browser/lifetime",
     "//chrome/browser/login_detection",
     "//chrome/browser/media",
     "//chrome/browser/media/webrtc",
@@ -129,6 +130,7 @@ source_set("impl") {
     "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
     "//chrome/browser/search_engine_choice",
     "//chrome/browser/search_engines",
+    "//chrome/browser/sessions",
     "//chrome/browser/share",
     "//chrome/browser/signin",
     "//chrome/browser/spellchecker",
@@ -198,6 +200,7 @@ source_set("impl") {
 
   if (!is_android) {
     deps += [
+      "//chrome/browser/new_tab_page",
       "//chrome/browser/profiles/keep_alive",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
@@ -263,6 +266,7 @@ source_set("unit_tests") {
     "//chrome/browser/segmentation_platform",
     "//chrome/browser/segmentation_platform:test_utils",
     "//chrome/browser/spellchecker",
+    "//chrome/browser/ssl",
     "//chrome/browser/storage",
     "//chrome/browser/strike_database",
     "//chrome/browser/subresource_filter",
@@ -304,8 +308,10 @@ source_set("unit_tests") {
   }
 
   if (!is_android) {
-    deps +=
-        [ "//chrome/browser/web_applications:web_applications_test_support" ]
+    deps += [
+      "//chrome/browser/new_tab_page",
+      "//chrome/browser/web_applications:web_applications_test_support",
+    ]
   }
 
   if (enable_extensions) {

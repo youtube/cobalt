@@ -25,11 +25,13 @@
 #include "chrome/browser/media/webrtc/webrtc_event_log_manager_remote.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/upload_list/upload_list.h"
+#include "components/webrtc_logging/browser/text_log_list.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/peer_connection_tracker_host_observer.h"
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/webrtc_event_logger.h"
 
+class RTCDiagnosticLoggingTest;
 class WebRTCInternalsIntegrationBrowserTest;
 
 namespace content {
@@ -129,7 +131,8 @@ class WebRtcEventLogManager final
                                const std::string& value) override;
   void OnPeerConnectionSessionIdSet(content::GlobalRenderFrameHostId frame_id,
                                     int lid,
-                                    const std::string& session_id) override;
+                                    const std::string& session_id,
+                                    base::OnceClosure callback) override;
   void OnWebRtcEventLogWrite(content::GlobalRenderFrameHostId frame_id,
                              int lid,
                              const std::string& message) override;
@@ -157,6 +160,15 @@ class WebRtcEventLogManager final
       size_t web_app_id,
       base::OnceCallback<void(bool, const std::string&, const std::string&)>
           reply);
+
+  // Finishes logging all peer connections for the given process. The logs
+  // are stored and may be uploaded to a remote server if the logs are remote
+  // bound.
+  void FinishLogging(int render_process_id, base::OnceClosure callback);
+
+  // Cancels logging for all peer connections in the given process. Any
+  // existing logs for these peer connections are deleted and not uploaded.
+  void CancelLogging(int render_process_id, base::OnceClosure callback);
 
   // Clear WebRTC event logs associated with a given browser context, in a given
   // time range (|delete_begin| inclusive, |delete_end| exclusive), then
@@ -206,6 +218,7 @@ class WebRtcEventLogManager final
                            RunTest);
   friend class WebRtcEventLogManagerTestBase;
   friend class ::WebRTCInternalsIntegrationBrowserTest;
+  friend class ::RTCDiagnosticLoggingTest;
 
   using PeerConnectionKey = WebRtcEventLogPeerConnectionKey;
 
@@ -263,12 +276,16 @@ class WebRtcEventLogManager final
                                int lid,
                                base::OnceCallback<void(bool)> reply);
 
-  // An overload of OnPeerConnectionSessionIdSet() that replies true if and only
-  // if the operation was successful.
-  void OnPeerConnectionSessionIdSet(content::GlobalRenderFrameHostId frame_id,
-                                    int lid,
-                                    const std::string& session_id,
-                                    base::OnceCallback<void(bool)> reply);
+  // Sets the session id for the peer connection identified with `lid`.
+  // Replies true if and only if the operation was successful.
+  // Note: uses different naming convention to avoid name collision with the
+  // OnPeerConnectionSessionIdSet() version inherited from
+  // PeerConnectionTrackerHostObserver.
+  void OnSessionIdSetForPeerConnection(
+      content::GlobalRenderFrameHostId frame_id,
+      int lid,
+      const std::string& session_id,
+      base::OnceCallback<void(bool)> reply);
 
   // An overload of OnWebRtcEventLogWrite() that replies with a pair of bool.
   // The first bool is associated with local logging and the second bool is
@@ -369,7 +386,7 @@ class WebRtcEventLogManager final
   void OnPeerConnectionRemovedInternal(PeerConnectionKey key,
                                        base::OnceCallback<void(bool)> reply);
 
-  void OnPeerConnectionSessionIdSetInternal(
+  void OnSessionIdSetForPeerConnectionInternal(
       PeerConnectionKey key,
       const std::string& session_id,
       base::OnceCallback<void(bool)> reply);
@@ -404,6 +421,11 @@ class WebRtcEventLogManager final
       size_t web_app_id,
       base::OnceCallback<void(bool, const std::string&, const std::string&)>
           reply);
+
+  void StopLoggingInternal(
+      int render_process_id,
+      WebRtcRemoteEventLogManager::StopLoggingAction action,
+      base::OnceClosure callback);
 
   void ClearCacheForBrowserContextInternal(BrowserContextId browser_context_id,
                                            const base::Time& delete_begin,

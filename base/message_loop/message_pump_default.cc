@@ -4,10 +4,15 @@
 
 #include "base/message_loop/message_pump_default.h"
 
+#include <optional>
+
 #include "base/auto_reset.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/rand_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
@@ -21,6 +26,24 @@
 #endif
 
 namespace base {
+
+namespace {
+enum class BusyLoopPredictionAccuracy {
+  // Heuristic predicted busy loop, but no task arrived within the max busy
+  // loop duration.
+  kFalsePositive,
+  // Heuristic predicted busy loop, and a task arrived within the max busy loop
+  // duration.
+  kTruePositive,
+  // Heuristic predicted no busy loop, but a task arrived within the max busy
+  // loop duration.
+  kFalseNegative,
+  // Heuristic predicted no busy loop, and no task arrived within the max busy
+  // loop duration.
+  kTrueNegative,
+  kMaxValue = kTrueNegative,
+};
+}  // namespace
 
 MessagePumpDefault::MessagePumpDefault()
     : keep_running_(true),
@@ -60,8 +83,10 @@ void MessagePumpDefault::Run(Delegate* delegate) {
       before = base::TimeTicks::Now();
     }
 
-    if (ShouldBusyLoop()) {
-      bool signaled = BusyWaitOnEvent(before, next_work_info.remaining_delay());
+    bool should_busy_loop = ShouldBusyLoop();
+    bool signaled = false;
+    if (should_busy_loop) {
+      signaled = BusyWaitOnEvent(before, next_work_info.remaining_delay());
       if (!signaled) {
         next_work_info.recent_now = base::TimeTicks::Now();
         event_.TimedWait(next_work_info.remaining_delay());
@@ -71,7 +96,21 @@ void MessagePumpDefault::Run(Delegate* delegate) {
     }
 
     if (may_busy_loop) {
-      RecordWaitTime(base::TimeTicks::Now() - before);
+      base::TimeDelta wait_time = base::TimeTicks::Now() - before;
+      RecordWaitTime(wait_time);
+
+      if (base::ShouldRecordSubsampledMetric(0.001)) {
+        BusyLoopPredictionAccuracy heuristic_result =
+            should_busy_loop
+                ? (signaled ? BusyLoopPredictionAccuracy::kTruePositive
+                            : BusyLoopPredictionAccuracy::kFalsePositive)
+                : (wait_time > max_busy_loop_time_
+                       ? BusyLoopPredictionAccuracy::kTrueNegative
+                       : BusyLoopPredictionAccuracy::kFalseNegative);
+        UMA_HISTOGRAM_ENUMERATION(
+            "Scheduling.MessagePumpDefault.BusyLoop.PredictionAccuracy",
+            heuristic_result);
+      }
     }
     // Since event_ is auto-reset, we don't need to do anything special here
     // other than service each delegate method.
@@ -127,6 +166,14 @@ bool MessagePumpDefault::BusyWaitOnEvent(base::TimeTicks before,
                                          base::TimeDelta next_work_delay) {
   base::TimeDelta max_busy_loop_time =
       std::min(max_busy_loop_time_, next_work_delay);
+
+  const bool should_sample = base::ShouldRecordSubsampledMetric(0.001);
+
+  std::optional<base::ElapsedTimer> timer;
+  if (should_sample) {
+    timer.emplace();
+  }
+
   bool signaled = false;
   {
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("base"), "BusyWait",
@@ -138,6 +185,31 @@ bool MessagePumpDefault::BusyWaitOnEvent(base::TimeTicks before,
     } while (!signaled &&
              (base::TimeTicks::Now() - before) < max_busy_loop_time);
   }
+
+  if (should_sample) {
+    base::TimeDelta busy_loop_duration = timer->Elapsed();
+    // The maximum busy loop time is much lower than 100ms but set the
+    // histogram's upper bound to 100ms to capture cases where the thread is
+    // descheduled while busy looping.
+    if (signaled) {
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Scheduling.MessagePumpDefault.BusyLoop.Duration.TaskArrived",
+          busy_loop_duration, base::Microseconds(1), base::Milliseconds(100),
+          50);
+    } else {
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Scheduling.MessagePumpDefault.BusyLoop.Duration.TimedOut",
+          busy_loop_duration, base::Microseconds(1), base::Milliseconds(100),
+          50);
+    }
+
+    UMA_HISTOGRAM_BOOLEAN("Scheduling.MessagePumpDefault.BusyLoop.TaskArrived",
+                          signaled);
+    UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+        "Scheduling.MessagePumpDefault.BusyLoop.TargetDuration",
+        max_busy_loop_time, base::Microseconds(1), base::Milliseconds(10), 50);
+  }
+
   return signaled;
 }
 

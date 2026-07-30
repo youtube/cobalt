@@ -33,6 +33,8 @@ std::string CreateValidSkillsListString() {
   skill->set_id("test-id");
   skill->set_image_url("https://example.com/some-image.png");
 
+  skills_list.add_topics_list("test-topic");
+
   return skills_list.SerializeAsString();
 }
 
@@ -48,16 +50,16 @@ class SkillsDownloaderTest : public testing::Test {
 
  protected:
   // Helper to execute the async fetch synchronously for testing.
-  std::unique_ptr<SkillIdToProtoMap> FetchDiscoverySkillsSync() {
-    std::unique_ptr<SkillIdToProtoMap> result_map;
+  std::unique_ptr<FirstPartySkillData> FetchDiscoverySkillsSync() {
+    std::unique_ptr<FirstPartySkillData> result;
     base::RunLoop run_loop;
     downloader_.FetchDiscoverySkills(base::BindLambdaForTesting(
-        [&](std::unique_ptr<SkillIdToProtoMap> skills_map) {
-          result_map = std::move(skills_map);
+        [&](std::unique_ptr<FirstPartySkillData> first_party_skill_data) {
+          result = std::move(first_party_skill_data);
           run_loop.Quit();
         }));
     run_loop.Run();
-    return result_map;
+    return result;
   }
 
   void AddValidSkillsResponse() {
@@ -84,15 +86,19 @@ class SkillsDownloaderTest : public testing::Test {
 
 TEST_F(SkillsDownloaderTest, ReturnsValidSkills) {
   AddValidSkillsResponse();
-  auto result_map = FetchDiscoverySkillsSync();
+  auto result = FetchDiscoverySkillsSync();
 
-  ASSERT_TRUE(result_map);
-  ASSERT_EQ(result_map->size(), 1u);
+  ASSERT_TRUE(result);
+  ASSERT_EQ(result->skills_list.size(), 1u);
 
-  auto it = result_map->find("test-id");
-  ASSERT_NE(it, result_map->end());
-  EXPECT_EQ(it->second.name(), "/test-skill");
-  EXPECT_EQ(it->second.image_url(), "https://example.com/some-image.png");
+  const auto& skill = result->skills_list[0];
+  EXPECT_EQ(skill.id(), "test-id");
+  EXPECT_EQ(skill.name(), "/test-skill");
+  EXPECT_EQ(skill.image_url(), "https://example.com/some-image.png");
+  EXPECT_EQ(skill.curated_by(), "Chrome");
+
+  ASSERT_EQ(result->topics_list.size(), 1u);
+  EXPECT_EQ(result->topics_list[0], "test-topic");
 
   histogram_tester_.ExpectUniqueSample(
       "Skills.Downloader.FirstParty.FetchResult", SkillsFetchResult::kSuccess,
@@ -111,10 +117,10 @@ TEST_F(SkillsDownloaderTest, ReturnsValidSkillsWithRetry) {
 
   // 2. Second call returns valid data.
   AddValidSkillsResponse();
-  auto result_map = FetchDiscoverySkillsSync();
+  auto result = FetchDiscoverySkillsSync();
 
-  ASSERT_TRUE(result_map);
-  EXPECT_EQ(result_map->begin()->first, "test-id");
+  ASSERT_TRUE(result);
+  EXPECT_EQ(result->skills_list.begin()->id(), "test-id");
 }
 
 TEST_F(SkillsDownloaderTest, ReturnsInvalidProtocolBuffer) {

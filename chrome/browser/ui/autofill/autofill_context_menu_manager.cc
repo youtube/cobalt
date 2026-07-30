@@ -257,11 +257,6 @@ void AutofillContextMenuManager::ExecuteCommand(int command_id) {
     return;
   }
 
-  if (command_id == IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PLUS_ADDRESS) {
-    ExecuteFallbackForPlusAddressesCommand(*autofill_driver);
-    return;
-  }
-
   if (command_id ==
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD) {
     ExecuteFallbackForSelectPasswordCommand(*autofill_driver);
@@ -298,7 +293,7 @@ void AutofillContextMenuManager::MaybeAddAutofillFeedbackItem() {
   ContentAutofillDriver* autofill_driver =
       ContentAutofillDriver::GetForRenderFrameHost(rfh);
   // Do not show autofill context menu options for input fields that cannot be
-  // filled by the driver. See crbug.com/1367547.
+  // filled by the driver. See crbug.com/40061116.
   if (!autofill_driver || !autofill_driver->CanShowAutofillUi()) {
     return;
   }
@@ -363,14 +358,14 @@ void AutofillContextMenuManager::MaybeAddAutofillManualFallbackItems() {
   bool add_passwords_fallback = false;
 
   // Do not show autofill context menu options for input fields that cannot be
-  // filled by the driver. See crbug.com/1367547.
+  // filled by the driver. See crbug.com/40061116.
   if (autofill_driver && autofill_driver->CanShowAutofillUi()) {
     add_plus_address_fallback =
         ShouldAddPlusAddressManualFallbackItem(*autofill_driver);
   }
 
   // Do not show password manager context menu options for input fields that
-  // cannot be filled by the driver. See crbug.com/1367547.
+  // cannot be filled by the driver. See crbug.com/40061116.
   if (password_manager_driver && password_manager_driver->CanShowAutofillUi()) {
     add_passwords_fallback =
         ShouldAddPasswordsManualFallbackItem(*password_manager_driver);
@@ -530,20 +525,6 @@ void AutofillContextMenuManager::ExecuteAutofillFeedbackCommand(
       data_logs::FetchAutofillFeedbackData(
           &manager,
           LoadTriggerFormAndFieldLogs(manager, frame_token, params_)));
-}
-
-void AutofillContextMenuManager::ExecuteFallbackForPlusAddressesCommand(
-    AutofillDriver& autofill_driver) {
-  autofill_driver.RendererShouldTriggerSuggestions(
-      /*field_id=*/{autofill_driver.GetFrameToken(),
-                    FieldRendererId(params_.field_renderer_id)},
-      AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses);
-
-  base::RecordAction(base::UserMetricsAction(
-      "PlusAddresses.ManualFallbackDesktopContextManualFallbackSelected"));
-  UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
-      delegate_->GetBrowserContext(),
-      plus_addresses::features::kPlusAddressFallbackFromContextMenu);
 }
 
 void AutofillContextMenuManager::ExecuteFallbackForSelectPasswordCommand(

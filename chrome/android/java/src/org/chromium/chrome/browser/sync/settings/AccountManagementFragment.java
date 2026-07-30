@@ -58,7 +58,6 @@ import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.GAIAServiceType;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.components.sync.SyncService;
@@ -109,7 +108,6 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     private @Nullable CoreAccountInfo mSignedInCoreAccountInfo;
     private ProfileDataCache mProfileDataCache;
     private SyncService mSyncService;
-    private SyncService.@Nullable SyncSetupInProgressHandle mSyncSetupInProgressHandle;
     private @Nullable OneshotSupplier<SnackbarManager> mSnackbarManagerSupplier;
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
@@ -117,8 +115,6 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     @Override
     public void onCreatePreferences(@Nullable Bundle savedState, @Nullable String rootKey) {
         mSyncService = assumeNonNull(SyncServiceFactory.getForProfile(getProfile()));
-        // Prevent sync settings changes from taking effect until the user leaves this screen.
-        mSyncSetupInProgressHandle = mSyncService.getSetupInProgressHandle();
 
         if (getArguments() != null) {
             mGaiaServiceType =
@@ -139,21 +135,13 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        // Disable animations of preference changes (crbug.com/986401).
+        // Disable animations of preference changes (crbug.com/41472022).
         getListView().setItemAnimator(null);
     }
 
     @Override
     public boolean hasDivider() {
         return false;
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (mSyncSetupInProgressHandle != null) {
-            mSyncSetupInProgressHandle.close();
-        }
     }
 
     @Override
@@ -182,7 +170,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
 
         if (getPreferenceScreen() != null) getPreferenceScreen().removeAll();
 
-        mSignedInCoreAccountInfo = getIdentityManager().getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        mSignedInCoreAccountInfo = getIdentityManager().getPrimaryAccountInfo();
         List<AccountInfo> accounts =
                 AccountUtils.getAccountsIfFulfilledOrEmpty(
                         AccountManagerFacadeProvider.getInstance().getAccounts());
@@ -234,23 +222,19 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
         } else {
             signOutPreference.setLayoutResource(R.layout.account_management_account_row);
             signOutPreference.setIcon(R.drawable.ic_signout_40dp);
-            signOutPreference.setTitle(
-                    getIdentityManager().hasPrimaryAccount(ConsentLevel.SYNC)
-                            ? R.string.sign_out_and_turn_off_sync
-                            : R.string.sign_out);
+            signOutPreference.setTitle(R.string.sign_out);
             signOutPreference.setOnPreferenceClickListener(
                     preference -> {
                         if (!isVisible() || !isResumed()) {
                             return false;
                         }
-                        if (!getIdentityManager().hasPrimaryAccount(ConsentLevel.SIGNIN)) {
+                        if (!getIdentityManager().hasPrimaryAccount()) {
                             // Primary account might have been signed-out asynchronously already.
                             return false;
                         }
                         SignOutCoordinator.startSignOutFlow(
                                 requireContext(),
                                 getProfile(),
-                                getActivity().getSupportFragmentManager(),
                                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                                 assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
                                 SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS,
@@ -300,7 +284,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
         PreferenceCategory accountsCategory = findPreference(PREF_ACCOUNTS_CATEGORY);
         if (accountsCategory == null) {
             // This pref is dynamically added/removed many times, so it might not be present by now.
-            // More details can be found in crbug/1221491.
+            // More details can be found in crbug.com/40773503.
             return;
         }
         accountsCategory.removeAll();
@@ -354,7 +338,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                             assert assertNonNull(
                                             IdentityServicesProvider.get()
                                                     .getIdentityManager(getProfile()))
-                                    .hasPrimaryAccount(ConsentLevel.SIGNIN);
+                                    .hasPrimaryAccount();
                             SyncSettingsUtils.openGoogleMyAccount(getActivity());
                         }));
 
@@ -482,13 +466,6 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                         mSignedInCoreAccountInfo,
                         REQUEST_CODE_TRUSTED_VAULT_RECOVERABILITY_DEGRADED);
                 return;
-            case UserActionableError.UNRECOVERABLE_ERROR:
-            case UserActionableError.NEEDS_SETTINGS_CONFIRMATION:
-                // Identity error card is not shown for unrecoverable errors nor for sync setup
-                // incomplete error (the latter is shown as part of sync error in the manage sync
-                // settings page).
-                assert false; // NOTREACHED()
-                // fall through
             case UserActionableError.NONE:
             default:
                 return;
@@ -575,7 +552,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
     private void closeDialogIfOpen(String tag) {
         FragmentManager manager = getFragmentManager();
         if (manager == null) {
-            // Do nothing if the manager doesn't exist yet; see http://crbug.com/480544.
+            // Do nothing if the manager doesn't exist yet; see http://crbug.com/41170060.
             return;
         }
         DialogFragment df = (DialogFragment) manager.findFragmentByTag(tag);

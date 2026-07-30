@@ -10,6 +10,7 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/task/sequenced_task_runner.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "google_apis/gaia/google_service_auth_error.h"
 #import "ios/chrome/app/tests_hook.h"
@@ -49,7 +50,9 @@ GeminiServiceImpl::GeminiServiceImpl(
         {optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS});
   }
 
-  CheckGeminiEnterpriseEligibility();
+  if (!IsPageActionMenuAuthFlowEnabled()) {
+    CheckGeminiEnterpriseEligibility();
+  }
 }
 
 GeminiServiceImpl::~GeminiServiceImpl() = default;
@@ -62,6 +65,10 @@ void GeminiServiceImpl::Shutdown() {
 
 bool GeminiServiceImpl::IsProfileEligibleForGemini() {
   return !GeminiIneligibilityForProfile().has_value();
+}
+
+bool GeminiServiceImpl::IsWorkspacePolicyCheckPending() {
+  return !is_disabled_by_gemini_policy_.has_value();
 }
 
 std::optional<gemini::IneligibilityReasons>
@@ -82,8 +89,7 @@ GeminiServiceImpl::GeminiIneligibilityForProfile() {
   // with having the entrypoint maybe disappear at a later time (actual Gemini
   // requests to ineligible accounts will fail regardless).
   const bool is_managed_account =
-      auth_service_ &&
-      auth_service_->HasPrimaryIdentityManaged(signin::ConsentLevel::kSignin);
+      auth_service_ && auth_service_->HasPrimaryIdentityManaged();
   const bool is_eligible =
       can_use_model_execution && allowed_by_enterprise &&
       !is_disabled_by_gemini_policy_.value_or(is_managed_account) &&
@@ -150,10 +156,19 @@ void GeminiServiceImpl::CheckGeminiEnterpriseEligibility() {
 
   eligibility_weak_ptr_factory_.InvalidateWeakPtrs();
 
+  is_disabled_by_gemini_policy_ = std::nullopt;
+
   ios::provider::CheckGeminiEligibility(
       auth_service_, base::CallbackToBlock(base::BindOnce(
                          &GeminiServiceImpl::OnGeminiEligibilityResult,
                          eligibility_weak_ptr_factory_.GetWeakPtr())));
+}
+
+void GeminiServiceImpl::CheckGeminiEnterpriseEligibilityIfNeeded() {
+  if (!is_disabled_by_gemini_policy_.has_value() &&
+      !eligibility_weak_ptr_factory_.HasWeakPtrs()) {
+    CheckGeminiEnterpriseEligibility();
+  }
 }
 
 bool GeminiServiceImpl::CanUseGeminiModelExecution(
@@ -178,6 +193,8 @@ bool GeminiServiceImpl::CanUseGeminiModelExecution(
 
 void GeminiServiceImpl::ClearConsentPref() {
   pref_service_->ClearPref(prefs::kIOSBwgConsent);
+  pref_service_->ClearPref(prefs::kIOSGeminiLiveConsent);
+  pref_service_->ClearPref(prefs::kIOSGeminiLiveIntroPlayed);
 }
 
 void GeminiServiceImpl::LogFREState() {

@@ -36,6 +36,7 @@
 #import "ios/chrome/browser/composebox/ui/composebox_strings.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
+#import "ios/chrome/browser/composebox/ui/composebox_ui_util.h"
 #import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_input.h"
 #import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
@@ -368,7 +369,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _editView = editView;
   _editView.translatesAutoresizingMaskIntoConstraints = NO;
   _editView.minimumHeight =
-      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET
+      _theme.inputPlatePosition == ComposeboxInputPlatePosition::kiPad
           ? kOmniboxIPadMinHeight
           : kOmniboxMinHeight;
   _editView.accessibilityIdentifier = kComposeboxAccessibilityIdentifier;
@@ -664,6 +665,11 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
 - (void)micButtonTapped {
   [self.delegate composeboxViewController:self didTapMicButton:_micButton];
+}
+
+- (void)plusButtonTapped {
+  [self.delegate composeboxViewControllerDidTapPlusButton:self];
+  [self plusButtonDidOpenMenu];
 }
 
 - (void)visualSearchButtonTapped {
@@ -1093,10 +1099,17 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [plusButton addTarget:self
                  action:@selector(plusButtonTouchDown)
        forControlEvents:UIControlEventTouchDown];
-  [plusButton addTarget:self
-                 action:@selector(plusButtonDidOpenMenu)
-       forControlEvents:UIControlEventMenuActionTriggered];
-  plusButton.showsMenuAsPrimaryAction = YES;
+
+  if (IsComposeboxPlusButtonBottomSheet()) {
+    [plusButton addTarget:self
+                   action:@selector(plusButtonTapped)
+         forControlEvents:UIControlEventTouchUpInside];
+  } else {
+    [plusButton addTarget:self
+                   action:@selector(plusButtonDidOpenMenu)
+         forControlEvents:UIControlEventMenuActionTriggered];
+    plusButton.showsMenuAsPrimaryAction = YES;
+  }
 
   return plusButton;
 }
@@ -1244,7 +1257,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
 /// Configures the menu items for the plus (+) button.
 - (void)updatePlusButtonItems {
-  if (!_plusButton) {
+  if (!_plusButton || IsComposeboxPlusButtonBottomSheet()) {
     return;
   }
 
@@ -1344,7 +1357,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   UIAction* createImageAction = [self
       actionWithTitle:[_state.strings
                           menuLabelForTool:ComposeboxMode::kImageGeneration]
-                image:[self bananaIcon]
+                image:GetBananaIcon(kSymbolActionPointSize)
                hidden:[_state isToolHidden:ComposeboxMode::kImageGeneration]
              disabled:[_state isToolDisabled:ComposeboxMode::kImageGeneration]
              selected:_state.activeTool == ComposeboxMode::kImageGeneration
@@ -1590,11 +1603,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _inputPlateContainerView = [[UIView alloc] init];
   _inputPlateContainerView.translatesAutoresizingMaskIntoConstraints = NO;
   _inputPlateContainerView.backgroundColor = _theme.inputPlateBackgroundColor;
-  _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
+  CGFloat cornerRadius =
+      _theme.inputPlatePosition == ComposeboxInputPlatePosition::kiPad
+          ? kInputPlateIpadCornerRadius
+          : kInputPlateCornerRadius;
+  _inputPlateContainerView.layer.cornerRadius = cornerRadius;
 
   _inputPlateInternalContainerView = [[UIView alloc] init];
   _inputPlateInternalContainerView.clipsToBounds = YES;
-  _inputPlateInternalContainerView.layer.cornerRadius = kInputPlateCornerRadius;
+  _inputPlateInternalContainerView.layer.cornerRadius = cornerRadius;
   _inputPlateInternalContainerView.translatesAutoresizingMaskIntoConstraints =
       NO;
   [_inputPlateContainerView addSubview:_inputPlateInternalContainerView];
@@ -1610,7 +1627,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self.view addSubview:_inputPlateContainerView];
 
   _glowEffectView = ios::provider::CreateGlowEffect(
-      CGRectZero, kInputPlateCornerRadius, /*glowWidth is deprecated*/ 0);
+      CGRectZero, cornerRadius, /*glowWidth is deprecated*/ 0);
   if (_glowEffectView) {
     _glowEffectView.translatesAutoresizingMaskIntoConstraints = NO;
     _glowEffectView.userInteractionEnabled = NO;
@@ -1651,9 +1668,12 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
     // `_bottomPaddingConstraint` is updated in `updateToolbarVisibility`.
     [self updateToolbarVisibility];
-    _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
-    _inputPlateInternalContainerView.layer.cornerRadius =
-        kInputPlateCornerRadius;
+    CGFloat cornerRadius =
+        _theme.inputPlatePosition == ComposeboxInputPlatePosition::kiPad
+            ? kInputPlateIpadCornerRadius
+            : kInputPlateCornerRadius;
+    _inputPlateContainerView.layer.cornerRadius = cornerRadius;
+    _inputPlateInternalContainerView.layer.cornerRadius = cornerRadius;
   }
 
   [self updateInputPlateStackViewPadding];
@@ -1718,28 +1738,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       CGSizeMake(self.view.bounds.size.width, inputHeight);
 }
 
-/// Generates a banana icon image to be used in the UI.
-- (UIImage*)bananaIcon {
-  CGFloat iconPadding = 4.0;
-  CGSize size = CGSizeMake(kSymbolActionPointSize + iconPadding,
-                           kSymbolActionPointSize + iconPadding);
-
-  UIGraphicsImageRenderer* renderer =
-      [[UIGraphicsImageRenderer alloc] initWithSize:size];
-  UIImage* image = [renderer
-      imageWithActions:^(UIGraphicsImageRendererContext* rendererContext) {
-        CGRect rect = CGRectMake(0, 0, size.width, size.height);
-        UIFont* font = [UIFont systemFontOfSize:kSymbolActionPointSize];
-        NSDictionary* attributes = @{
-          NSFontAttributeName : font,
-          NSForegroundColorAttributeName : UIColor.blackColor
-        };
-        [@"🍌" drawInRect:rect withAttributes:attributes];
-      }];
-
-  return image;
-}
-
 // Returns a base configuration for a mode indicator button.
 - (UIButtonConfiguration*)modeIndicatorButtonConfigWithTitle:(NSString*)title
                                                        image:(UIImage*)image {
@@ -1770,8 +1768,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
   NSString* title =
       [_state.strings chipLabelForTool:ComposeboxMode::kImageGeneration];
-  UIButtonConfiguration* config =
-      [self modeIndicatorButtonConfigWithTitle:title image:[self bananaIcon]];
+  UIButtonConfiguration* config = [self
+      modeIndicatorButtonConfigWithTitle:title
+                                   image:GetBananaIcon(kSymbolActionPointSize)];
   config.contentInsets = kImageGenerationButtonInsets;
   config.background.backgroundColor =
       [_theme imageGenerationButtonBackgroundColor];

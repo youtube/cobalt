@@ -87,7 +87,7 @@ public class CustomTabActivity extends BaseCustomTabActivity {
     private final CustomTabsConnection mConnection = CustomTabsConnection.getInstance();
     private int mNumOmniboxNavigationEventsPerSession;
 
-    /** Prevents Tapjacking on T-. See crbug.com/1430867 */
+    /** Prevents Tapjacking on T-. See crbug.com/40063907 */
     private static final boolean sPreventTouches =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU;
 
@@ -230,8 +230,15 @@ public class CustomTabActivity extends BaseCustomTabActivity {
         }
 
         getCustomTabBottomBarDelegate().showBottomBarIfNecessary();
+        // Only enter the transparency-while-loading path when the intent actually carries
+        // EXTRA_TRANSLUCENT_BACKGROUND. Subclasses of BrowserServicesIntentDataProvider that
+        // do not override getTranslucentBackgroundColor() inherit the base implementation
+        // that always returns 0, which would otherwise spuriously trigger the !=defBg
+        // branch and leave the compositor view hidden indefinitely for navigations that
+        // never emit FCP.
         int bg = getIntentDataProvider().getTranslucentBackgroundColor(this);
-        if (bg != SemanticColorUtils.getDefaultBgColor(this)) {
+        if (CustomTabIntentDataProvider.hasTranslucentBackgroundColor(getIntent())
+                && bg != SemanticColorUtils.getDefaultBgColor(this)) {
             setContentVisibility(false);
             getWindow().setBackgroundDrawable(new ColorDrawable(bg));
             PageLoadMetrics.addObserver(

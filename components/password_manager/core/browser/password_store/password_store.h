@@ -28,6 +28,7 @@
 #include "components/password_manager/core/browser/password_store/password_store_change.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/smart_bubble_stats_store.h"
+#include "components/password_manager/core/browser/password_store/stored_credential.h"
 
 namespace syncer {
 class DataTypeControllerDelegate;
@@ -76,13 +77,11 @@ class PasswordStore : public PasswordStoreInterface {
       base::OnceClosure completion = base::DoNothing()) override;
   void RemoveLogin(const base::Location& location,
                    const PasswordForm& form) override;
-  void RemoveLoginsCreatedBetween(
-      const base::Location& location,
-      base::Time delete_begin,
-      base::Time delete_end,
-      base::OnceCallback<void(bool)> completion = base::NullCallback(),
-      base::OnceCallback<void(bool)> sync_completion =
-          base::NullCallback()) override;
+  void RemoveLoginsCreatedBetween(const base::Location& location,
+                                  base::Time delete_begin,
+                                  base::Time delete_end,
+                                  base::OnceCallback<void(bool)> completion =
+                                      base::NullCallback()) override;
   void DisableAutoSignInForOrigins(
       const base::RepeatingCallback<bool(const GURL&)>& origin_filter,
       base::OnceClosure completion = base::NullCallback()) override;
@@ -139,7 +138,7 @@ class PasswordStore : public PasswordStoreInterface {
                                          PasswordChangesOrError);
 
   // Notifies observers with all logins remaining after a modifying operation.
-  void NotifyLoginsRetainedOnMainSequence(LoginsResultOrError result);
+  void NotifyLoginsRetainedOnMainSequence(BackendLoginsResultOrError result);
 
   // Called when the backend reports that sync has been enabled or disabled.
   void NotifySyncEnabledOrDisabledOnMainSequence();

@@ -17,7 +17,16 @@ namespace {
 constexpr CGFloat kDefaultSymbolPointSize = 19;
 }  // namespace
 
-@implementation ToolbarButtonFactory
+@implementation ToolbarButtonFactory {
+  BOOL _incognito;
+}
+
+- (instancetype)initWithIncognito:(BOOL)incognito {
+  if ((self = [super init])) {
+    _incognito = incognito;
+  }
+  return self;
+}
 
 - (ToolbarButton*)makeBackButton {
   ToolbarButton* button = [self toolbarButtonForImageNamed:kBackSymbol
@@ -47,6 +56,12 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
   [buttonsContainer setContentHuggingPriority:UILayoutPriorityRequired
                                       forAxis:UILayoutConstraintAxisHorizontal];
 
+  UIView* backgroundView = [[UIView alloc] init];
+  backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+  backgroundView.backgroundColor = ToolbarElementBackgroundColor(_incognito);
+  [buttonsContainer addSubview:backgroundView];
+  AddSameConstraints(backgroundView, buttonsContainer);
+
   // Internal stack view to handle dynamic resizing when the forward button
   // visibility changes.
   UIStackView* buttonsStack = [[UIStackView alloc]
@@ -56,33 +71,29 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
   buttonsStack.distribution = UIStackViewDistributionFill;
   buttonsStack.alignment = UIStackViewAlignmentFill;
 
-  [buttonsContainer addSubview:buttonsStack];
-  AddSameConstraints(buttonsStack, buttonsContainer);
-
-  backButton.translatesAutoresizingMaskIntoConstraints = NO;
-  forwardButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [backgroundView addSubview:buttonsStack];
+  AddSameConstraints(buttonsStack, backgroundView);
 
   [NSLayoutConstraint activateConstraints:@[
     [buttonsContainer.heightAnchor
         constraintEqualToAnchor:backButton.heightAnchor]
   ]];
 
-  buttonsContainer.backgroundColor = ToolbarButtonColor();
   ConfigureCornerRadiusForToolbarButtonContainer(
-      buttonsContainer, buttonsContainer.traitCollection);
-  buttonsContainer.clipsToBounds = YES;
-  buttonsContainer.layer.masksToBounds = YES;
-  ConfigureShadowForToolbarButton(buttonsContainer);
+      backgroundView, buttonsContainer.traitCollection);
+  backgroundView.clipsToBounds = YES;
+  ConfigureShadowForToolbarElement(buttonsContainer);
 
-  backButton.backgroundColor = [UIColor clearColor];
-  forwardButton.backgroundColor = [UIColor clearColor];
+  // Remove effects from the standalone buttons in the container
+  ConfigureShadowForToolbarElement(backButton, /*remove_shadow*/ YES);
+  ConfigureShadowForToolbarElement(forwardButton, /*remove_shadow*/ YES);
 
   [buttonsContainer
       registerForTraitChanges:
           @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]
                   withHandler:^(id<UITraitEnvironment>, UITraitCollection*) {
                     ConfigureCornerRadiusForToolbarButtonContainer(
-                        buttonsContainer, buttonsContainer.traitCollection);
+                        backgroundView, buttonsContainer.traitCollection);
                   }];
   return buttonsContainer;
 }
@@ -150,13 +161,17 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
 - (ToolbarButton*)toolbarButtonForImageNamed:(NSString*)imageName
                                 defaultImage:(BOOL)defaultImage {
   if (defaultImage) {
-    return [[ToolbarButton alloc] initWithImageLoader:^UIImage* {
-      return DefaultSymbolWithPointSize(imageName, kDefaultSymbolPointSize);
-    }];
+    return [[ToolbarButton alloc]
+        initWithImageLoader:^UIImage* {
+          return DefaultSymbolWithPointSize(imageName, kDefaultSymbolPointSize);
+        }
+                  incognito:_incognito];
   }
-  return [[ToolbarButton alloc] initWithImageLoader:^UIImage* {
-    return CustomSymbolWithPointSize(imageName, kDefaultSymbolPointSize);
-  }];
+  return [[ToolbarButton alloc]
+      initWithImageLoader:^UIImage* {
+        return CustomSymbolWithPointSize(imageName, kDefaultSymbolPointSize);
+      }
+                incognito:_incognito];
 }
 
 @end

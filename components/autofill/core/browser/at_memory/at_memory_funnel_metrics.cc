@@ -36,7 +36,6 @@ void AtMemoryFunnelMetrics::OnPopupShown(
     case AutofillSuggestionTriggerSource::kPasswordManager:
     case AutofillSuggestionTriggerSource::kiOS:
     case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
-    case AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses:
     case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
     case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
     case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
@@ -57,6 +56,10 @@ void AtMemoryFunnelMetrics::OnQuerySubmitted() {
   query_submitted_ = true;
 }
 
+void AtMemoryFunnelMetrics::OnSuggestionAccepted() {
+  suggestion_accepted_ = true;
+}
+
 void AtMemoryFunnelMetrics::OnPopupHidden() {
   // Only log summary metrics if the popup was successfully shown.
   // This avoids polluting the "No Query Submitted" data with cases where the
@@ -65,6 +68,8 @@ void AtMemoryFunnelMetrics::OnPopupHidden() {
   if (source_.has_value()) {
     base::UmaHistogramBoolean("Autofill.AtMemory.Funnel.QuerySubmitted",
                               query_submitted_);
+    base::UmaHistogramBoolean("Autofill.AtMemory.Funnel.SuggestionAccepted",
+                              suggestion_accepted_);
   }
 }
 

@@ -10,6 +10,7 @@
 #import <vector>
 
 #import "base/functional/callback.h"
+#import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 
@@ -21,13 +22,17 @@ namespace actor {
 
 class ActorEngine;
 class ActorTool;
+class AggregatedJournal;
 
 // A class representing a task managed by `ActorService`. A task should live for
 // a whole Actor journey and be passed multiple sets of actions to execute
 // sequentially.
 class ActorTask {
  public:
-  ActorTask(ActorTaskId task_id, const std::string& title);
+  ActorTask(ActorTaskId task_id,
+            const std::string& title,
+            bool allow_incognito_web_states,
+            AggregatedJournal* journal);
   ~ActorTask();
 
   ActorTask(const ActorTask&) = delete;
@@ -35,7 +40,6 @@ class ActorTask {
 
   // Accessors. TODO(crbug.com/496164697): Remove when they are used internally
   // in ActorTask, this is to fix compilation.
-  ActorTaskId task_id() const { return task_id_; }
   const std::string& title() const { return title_; }
 
   // Returns the current execution state of the task.
@@ -46,7 +50,7 @@ class ActorTask {
   // doing.
   void Act(std::vector<std::unique_ptr<ActorTool>> actions,
            const std::string& task_update,
-           PerformActionsCallback callback);
+           ActCallback callback);
 
   // Stops the task and cancels any pending actions.
   void Stop(ActorTaskStoppedReason stop_reason);
@@ -62,12 +66,26 @@ class ActorTask {
   // or observing the given WebState.
   bool IsControllingWebState(web::WebState* web_state) const;
 
+  // Returns the set of web states actively controlled by this task.
+  const std::vector<base::WeakPtr<web::WebState>>& controlled_web_states()
+      const;
+
+  // Returns whether this task allows actuating on incognito WebStates.
+  bool allow_incognito_web_states() const;
+
  private:
   friend class ActorTaskTest;
 
+  // Sets the task state and logs the transition.
+  void SetState(ActorTaskState new_state);
+
   // Called when tools execution is completed.
-  void OnActCompleted(PerformActionsCallback callback,
-                      std::vector<ActionResult> results);
+  void OnActCompleted(ActCallback callback, std::vector<ActionResult> results);
+
+  // Adds WebStates targeted by actions passed to `Act()` to the controlled
+  // WebStates set.
+  void AddControlledWebStates(
+      const std::vector<std::unique_ptr<ActorTool>>& actions);
 
   // The task state.
   ActorTaskState state_ = ActorTaskState::kInit;
@@ -78,8 +96,13 @@ class ActorTask {
   // The task's title.
   const std::string title_;
 
+  const bool allow_incognito_web_states_;
+
   // The execution engine for this task.
   std::unique_ptr<ActorEngine> engine_;
+
+  // The aggregated journal for logging.
+  raw_ptr<AggregatedJournal> journal_;
 
   // Set of web states actively controlled (observed and/or being actuated on)
   // by this task.

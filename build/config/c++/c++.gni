@@ -49,6 +49,14 @@ declare_args() {
   # implementations in compiler-rt are outdated, so avoid building them in this
   # case.
   use_llvm_libatomic = !is_apple
+
+  # Unified modules controls whether we unify sysroot, libc++, and builtins
+  # into a single module.
+  use_unified_system_module = false
+}
+
+if (enable_strict_deps) {
+  assert(use_unified_system_module, "strict deps requires unified modules")
 }
 
 use_custom_libcxx =
@@ -123,7 +131,7 @@ if (is_android && export_libcxxabi_from_executables) {
   libcxx_is_shared = true
 }
 
-if (use_clang_modules) {
+if (use_clang_modules && !use_unified_system_module) {
   libcxx_prefix = "${root_build_dir}/gen/third_party/libc++/src"
   libcxx_modulemap =
       read_file("//third_party/libc++/src/include/module.modulemap.in",

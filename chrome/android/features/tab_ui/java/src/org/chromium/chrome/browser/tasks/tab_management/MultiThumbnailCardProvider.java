@@ -13,6 +13,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
@@ -31,6 +32,7 @@ import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.actor.ui.InnerGlowDrawable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -115,6 +117,7 @@ public class MultiThumbnailCardProvider implements ThumbnailProvider {
         private Canvas mCanvas;
         private Bitmap mMultiThumbnailBitmap;
         private @Nullable String mText;
+        private final Path mPath = new Path();
 
         private final List<Rect> mFaviconRects = new ArrayList<>(MAX_THUMBNAIL_COUNT);
         private final List<RectF> mThumbnailRects = new ArrayList<>(MAX_THUMBNAIL_COUNT);
@@ -401,7 +404,7 @@ public class MultiThumbnailCardProvider implements ThumbnailProvider {
 
             // Draw the base paint first and set the base for thumbnail to draw. Setting the xfer
             // mode as SRC_OVER so the thumbnail can be drawn on top of this paint. See
-            // https://crbug.com/1227619.
+            // https://crbug.com/40777171.
             mThumbnailBasePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_OVER));
             mCanvas.drawRoundRect(rect, mRadius, mRadius, mThumbnailBasePaint);
 
@@ -469,12 +472,18 @@ public class MultiThumbnailCardProvider implements ThumbnailProvider {
         }
 
         private void drawActingOverlay(int index) {
+            RectF rect = mThumbnailRects.get(index);
+            mCanvas.save();
+            mPath.reset();
+            mPath.addRoundRect(rect, mRadius, mRadius, Path.Direction.CW);
+            mCanvas.clipPath(mPath);
             mActingOverlayDrawable.setBounds(
-                    Math.round(mThumbnailRects.get(index).left),
-                    Math.round(mThumbnailRects.get(index).top),
-                    Math.round(mThumbnailRects.get(index).right),
-                    Math.round(mThumbnailRects.get(index).bottom));
+                    Math.round(rect.left),
+                    Math.round(rect.top),
+                    Math.round(rect.right),
+                    Math.round(rect.bottom));
             mActingOverlayDrawable.draw(mCanvas);
+            mCanvas.restore();
         }
 
         private void drawFavicon(
@@ -569,10 +578,7 @@ public class MultiThumbnailCardProvider implements ThumbnailProvider {
                 TabUiThemeProvider.getEmptyThumbnailColor(
                         mContext, false, true, /* colorId= */ null));
 
-        mActingOverlayDrawable =
-                assumeNonNull(
-                        AppCompatResources.getDrawable(
-                                mContext, R.drawable.actor_overlay_background));
+        mActingOverlayDrawable = InnerGlowDrawable.createGtsPreviewGlow(mContext);
         mSparkIconDrawable =
                 assumeNonNull(
                         AppCompatResources.getDrawable(mContext, R.drawable.ic_spark_blue_16dp));

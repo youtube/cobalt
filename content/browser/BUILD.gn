@@ -10,6 +10,7 @@ import("//build/config/linux/pangocairo/pangocairo.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
+import("//components/vrp_flags/features.gni")
 import("//content/browser/devtools/features.gni")
 import("//content/common/features.gni")
 import("//content/public/common/features.gni")
@@ -43,6 +44,7 @@ if (is_android) {
       "//content/test:*",
     ]
     deps = [
+      "//components/vrp_flags:buildflags",
       "//third_party/rust/font_types/v0_11:lib",
       "//third_party/rust/read_fonts/v0_39:lib",
       "//third_party/rust/skrifa/v0_42:lib",
@@ -172,6 +174,7 @@ source_set("browser") {
     "//components/viz/client",
     "//components/viz/common",
     "//components/viz/host",
+    "//components/vrp_flags:buildflags",
     "//components/web_package",
     "//components/webauthn/core/browser",
     "//components/webauthn/core/browser:client_data",
@@ -366,6 +369,7 @@ source_set("browser") {
   public_deps = [
     "//base",
     "//components/memory_pressure",
+    "//components/vrp_flags:buildflags",
     "//content/browser/indexed_db",
     "//ipc",
     "//media/mojo/mojom:remoting",
@@ -1617,6 +1621,11 @@ source_set("browser") {
     "preloading/prefetch/prefetch_canary_checker.h",
     "preloading/prefetch/prefetch_container.cc",
     "preloading/prefetch/prefetch_container.h",
+    "preloading/prefetch/prefetch_container_async_observer.cc",
+    "preloading/prefetch/prefetch_container_async_observer.h",
+    "preloading/prefetch/prefetch_container_observer.h",
+    "preloading/prefetch/prefetch_container_observer_for_prefetch_request_status_listener.cc",
+    "preloading/prefetch/prefetch_container_observer_for_prefetch_request_status_listener.h",
     "preloading/prefetch/prefetch_cookie_listener.cc",
     "preloading/prefetch/prefetch_cookie_listener.h",
     "preloading/prefetch/prefetch_data_pipe_tee.cc",
@@ -1897,8 +1906,6 @@ source_set("browser") {
     "renderer_host/media/aec_dump_manager_impl.h",
     "renderer_host/media/audio_input_device_manager.cc",
     "renderer_host/media/audio_input_device_manager.h",
-    "renderer_host/media/audio_input_stream_handle.cc",
-    "renderer_host/media/audio_input_stream_handle.h",
     "renderer_host/media/audio_output_authorization_handler.cc",
     "renderer_host/media/audio_output_authorization_handler.h",
     "renderer_host/media/audio_output_stream_observer_impl.cc",
@@ -2353,8 +2360,6 @@ source_set("browser") {
     "tracing/file_tracing_provider_impl.h",
     "tracing/memory_instrumentation_util.cc",
     "tracing/memory_instrumentation_util.h",
-    "tracing/startup_tracing_controller.cc",
-    "tracing/startup_tracing_controller.h",
     "tracing/trace_report_database.cc",
     "tracing/trace_report_database.h",
     "tracing/trace_upload_list.h",
@@ -3784,6 +3789,15 @@ source_set("browser") {
   if (is_chromeos) {
     deps += [ "//ash/constants" ]
   }
+
+  if (enable_vrp_flags) {
+    sources += [
+      "vrp_flags/vrp_flags_factory_impl.cc",
+      "vrp_flags/vrp_flags_factory_impl.h",
+    ]
+    deps += [ "//components/vrp_flags" ]
+    public_deps += [ "//components/vrp_flags:mojom" ]
+  }
 }
 
 if (is_android) {
@@ -3859,6 +3873,7 @@ fuzzer_test("content_sms_parser_fuzzer") {
     # it was used alone.
     # As a result, we depend on both here:
     ":browser",
+    "//components/vrp_flags:buildflags",
     "//content/public/browser:browser_sources",
     "//content/public/renderer:renderer_sources",
   ]

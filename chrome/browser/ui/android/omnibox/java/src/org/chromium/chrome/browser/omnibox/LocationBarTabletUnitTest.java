@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup.LayoutParams;
+import android.view.ViewGroup.MarginLayoutParams;
 import android.view.ViewOutlineProvider;
 import android.widget.LinearLayout;
 
@@ -296,10 +297,42 @@ public class LocationBarTabletUnitTest {
     @Test
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     @Config(qualifiers = "w800dp-xhdpi")
+    public void testHoverDrawable() {
+        int prefocusWidth = 400;
+        mLocationBarTablet.measure(
+                MeasureSpec.makeMeasureSpec(prefocusWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(100, MeasureSpec.EXACTLY));
+        mLocationBarTablet.onFuseboxStateChanged(FuseboxState.EXPANDED);
+        int inset =
+                mLocationBarTablet
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.location_bar_tablet_fusebox_popup_inset);
+
+        LayerDrawable hoverDrawable = mLocationBarTablet.getHoverDrawableForTesting();
+        assertEquals(inset, hoverDrawable.getLayerInsetTop(0));
+        assertEquals(inset, hoverDrawable.getLayerInsetBottom(0));
+        assertEquals(inset, hoverDrawable.getLayerInsetStart(0));
+        assertEquals(inset, hoverDrawable.getLayerInsetEnd(0));
+
+        int steadyStateInset =
+                mLocationBarTablet
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.modern_toolbar_background_vertical_offset);
+        mLocationBarTablet.onFuseboxStateChanged(FuseboxState.DISABLED);
+        assertEquals(steadyStateInset, hoverDrawable.getLayerInsetTop(0));
+        assertEquals(steadyStateInset, hoverDrawable.getLayerInsetBottom(0));
+        assertEquals(0, hoverDrawable.getLayerInsetStart(0));
+        assertEquals(0, hoverDrawable.getLayerInsetEnd(0));
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    @Config(qualifiers = "w800dp-xhdpi")
     public void testFuseboxStateChanged_compact() {
         View urlBar = mLocationBarTablet.findViewById(R.id.url_bar);
         View deleteButton = mLocationBarTablet.findViewById(R.id.delete_button);
         View micButton = mLocationBarTablet.findViewById(R.id.mic_button);
+        View statusView = mLocationBarTablet.findViewById(R.id.location_bar_status);
         mLocationBarTablet.onFuseboxStateChanged(FuseboxState.COMPACT);
         int translationY =
                 mLocationBarTablet
@@ -308,6 +341,13 @@ public class LocationBarTabletUnitTest {
         assertEquals(translationY, urlBar.getTranslationY(), MathUtils.EPSILON);
         assertEquals(translationY, deleteButton.getTranslationY(), MathUtils.EPSILON);
         assertEquals(-translationY, micButton.getTranslationY(), MathUtils.EPSILON);
+        assertEquals(-translationY, statusView.getTranslationY(), MathUtils.EPSILON);
+
+        int marginTop =
+                mLocationBarTablet
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.fusebox_compact_status_view_top_margin);
+        assertEquals(marginTop, ((MarginLayoutParams) statusView.getLayoutParams()).topMargin);
     }
 
     @Test

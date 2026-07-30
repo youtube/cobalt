@@ -175,11 +175,13 @@ ContextualTasksPageHandler::ContextualTasksPageHandler(
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> receiver,
     contextual_tasks::ContextualTasksUIInterface* web_ui_controller,
     contextual_tasks::ContextualTasksUiService* ui_service,
-    contextual_tasks::ContextualTasksService* contextual_tasks_service)
+    contextual_tasks::ContextualTasksService* contextual_tasks_service,
+    contextual_tasks::ContextualTasksPanelController* panel_controller)
     : receiver_(this, std::move(receiver)),
       web_ui_controller_(web_ui_controller),
       ui_service_(ui_service),
-      contextual_tasks_service_(contextual_tasks_service) {
+      contextual_tasks_service_(contextual_tasks_service),
+      panel_controller_(panel_controller) {
   CHECK(contextual_tasks_service_);
   contextual_tasks_service_observation_.Observe(contextual_tasks_service_);
 
@@ -211,7 +213,9 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
   // First check if there's an initial URL.
   std::optional<GURL> initial_url = ui_service_->GetInitialUrlForTask(uuid);
   if (initial_url) {
-    std::move(callback).Run(initial_url.value());
+    std::move(callback).Run(
+        contextual_tasks::ContextualTasksUiService::CopyParamsFromWebUIUrl(
+            initial_url.value(), web_ui_controller_->GetWebUiUrl()));
     return;
   }
 
@@ -274,7 +278,11 @@ void ContextualTasksPageHandler::IsEmbeddedPageErrorDocument(
 }
 
 void ContextualTasksPageHandler::CloseSidePanel() {
-  web_ui_controller_->CloseSidePanel();
+  if (panel_controller_) {
+    panel_controller_->Close();
+  } else {
+    web_ui_controller_->CloseSidePanel();
+  }
 }
 
 void ContextualTasksPageHandler::ShowThreadHistory() {
@@ -292,9 +300,12 @@ void ContextualTasksPageHandler::IsShownInTab(IsShownInTabCallback callback) {
 }
 
 void ContextualTasksPageHandler::OpenMyActivityUi() {
+  BrowserWindowInterface* browser = web_ui_controller_->GetBrowser();
+  if (!browser) {
+    return;
+  }
   OpenUrlWithDisposition(web_ui_controller_->GetProfile(), GURL(kMyActivityUrl),
-                         WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                         web_ui_controller_->GetBrowser());
+                         WindowOpenDisposition::NEW_FOREGROUND_TAB, browser);
 }
 
 void ContextualTasksPageHandler::OpenFeedbackUi() {
@@ -317,11 +328,14 @@ void ContextualTasksPageHandler::OpenFeedbackUi() {
 }
 
 void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
+  BrowserWindowInterface* browser = web_ui_controller_->GetBrowser();
+  if (!browser) {
+    return;
+  }
   OpenUrlWithDisposition(
       web_ui_controller_->GetProfile(),
       GURL(contextual_tasks::GetContextualTasksOnboardingTooltipHelpUrl()),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      web_ui_controller_->GetBrowser());
+      WindowOpenDisposition::NEW_FOREGROUND_TAB, browser);
 }
 
 void ContextualTasksPageHandler::OpenUrl(const GURL& url,
@@ -372,7 +386,7 @@ void ContextualTasksPageHandler::OnWebviewMessage(
   } else if (aim_to_client_message.has_restore_input()) {
     web_ui_controller_->GetPageRemote()->RestoreInput();
   } else if (aim_to_client_message.has_enter_basic_mode()) {
-    web_ui_controller_->GetPageRemote()->HideInput();
+    web_ui_controller_->GetPageRemote()->EnterBasicMode();
   } else if (aim_to_client_message
                  .has_set_chrome_desktop_input_plate_configuration()) {
     const auto& update_msg =
@@ -383,7 +397,7 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->GetPageRemote()->UpdateComposeboxPosition(
         std::move(mojo_position));
   } else if (aim_to_client_message.has_exit_basic_mode()) {
-    web_ui_controller_->GetPageRemote()->RestoreInput();
+    web_ui_controller_->GetPageRemote()->ExitBasicMode();
   } else if (aim_to_client_message.has_update_thread_context_library()) {
     OnReceivedUpdatedThreadContextLibrary(
         aim_to_client_message.update_thread_context_library());

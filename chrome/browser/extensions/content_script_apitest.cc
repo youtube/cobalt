@@ -28,6 +28,8 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ssl/https_upgrades_interceptor.h"
 #include "chrome/browser/ssl/https_upgrades_util.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -83,7 +85,6 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/search/ntp_test_utils.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -292,7 +293,7 @@ IN_PROC_BROWSER_TEST_P(ContentScriptApiTestWithContextType,
       << message_;
 }
 
-// crbug.com/39249 -- content scripts js should not run on view source.
+// crbug.com/40373984 -- content scripts js should not run on view source.
 IN_PROC_BROWSER_TEST_P(ContentScriptApiTestWithContextType, ViewSource) {
   ASSERT_TRUE(StartEmbeddedTestServer());
   ASSERT_TRUE(RunExtensionTest("content_scripts/view_source")) << message_;
@@ -352,7 +353,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest, RunAtTimingsAllFire) {
     EXPECT_TRUE(listener_idle.WaitUntilSatisfied());
 
     // Load the page a second time to check for any issues with cached XSL
-    // resources. See: crbug.com/1041916. Note that test_xsl.xsl has
+    // resources. See: crbug.com/40668194. Note that test_xsl.xsl has
     // mock-http-headers to make sure it is cached.
     listener_start.Reset();
     listener_end.Reset();
@@ -395,7 +396,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest,
 }
 
 // Tests that content scripts detaching its Window during evaluation shouldn't
-// crash. Regression test for https://crbug.com/1220761.
+// crash. Regression test for https://crbug.com/40773121.
 IN_PROC_BROWSER_TEST_F(ContentScriptApiTest, DetachDuringEvaluation) {
   ASSERT_TRUE(StartEmbeddedTestServer());
 
@@ -618,7 +619,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptCssInjectionTest,
   EXPECT_EQ(0, get_style_sheet_count());
 
   // Check extensions override page styles if they have more specific rules.
-  // Regression test for https://crbug.com/1175506.
+  // Regression test for https://crbug.com/40167984.
   // This page has four divs (with ids div1, div2, div3, and div4). The page
   // specifies styles for them, but the extension has more specific styles for
   // divs 1, 2, and 3.
@@ -1130,7 +1131,7 @@ IN_PROC_BROWSER_TEST_P(ContentScriptApiTestWithContextType,
 
   // There are different possible NTP URLs.
   std::vector<GURL> possible_ntp_urls = {
-      GURL(chrome::kChromeUINewTabURL),
+      chrome::ChromeUINewTabURLAsGURL(),
 #if BUILDFLAG(IS_ANDROID)
       GURL(chrome::kChromeUINativeNewTabURL),
 #endif
@@ -1509,7 +1510,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest, StorageApiAllowMixedAccessTest) {
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
-// Regression test for https://crbug.com/1449796 - verifying that the IPC
+// Regression test for https://crbug.com/40915015 - verifying that the IPC
 // verification doesn't incorrectly think that an IPC from a content script
 // running in an MHTML frame is malicious (in this scenario the `source_url`
 // field of the IPC may be a bit unusual and doesn't necessarily match the
@@ -1926,17 +1927,14 @@ IN_PROC_BROWSER_TEST_F(ContentScriptRelatedFrameTest,
   EXPECT_FALSE(DidScriptRunInFrame(tab->GetPrimaryMainFrame()));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Tests injecting a content script when the iframe rewrites the parent to be
 // null. This re-write causes the parent to itself become an about:blank frame
 // without a parent. Regression test for https://crbug.com/40627511 and
 // https://crbug.com/41459000.
-// TODO(crbug.com/371432155): Port to desktop Android when we have cross
-// platform utilities for Navigate/NavigateParams. Attempting to use
-// NavigateToURLInNewTab() causes crashes in the navigation stack.
 IN_PROC_BROWSER_TEST_F(ContentScriptRelatedFrameTest,
                        MatchAboutBlank_NullParent) {
-  NavigateParams navigate_params(browser(), null_document_url(),
+  NavigateParams navigate_params(browser_window_interface(),
+                                 null_document_url(),
                                  ui::PAGE_TRANSITION_TYPED);
   navigate_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
 
@@ -1968,7 +1966,6 @@ IN_PROC_BROWSER_TEST_F(ContentScriptRelatedFrameTest,
   // no-parent about:blank case well when there was a non-about:blank
   // precursor origin, which caused a crash during the document writing.
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Tests that match_about_blank does not allow extensions to inject into blob:
 // URLs.
@@ -2258,7 +2255,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptMatchOriginAsFallbackTest,
     EXPECT_TRUE(data_url_host->GetParent());
     EXPECT_EQ(data_url(), data_url_host->GetLastCommittedURL());
     // The extension should be allowed to inject since it has access to the
-    // related frame. https://crbug.com/1111028.
+    // related frame. https://crbug.com/40142417.
     EXPECT_TRUE(DidScriptRunInFrame(data_url_host));
   }
 }
@@ -2319,7 +2316,7 @@ IN_PROC_BROWSER_TEST_P(NTPInterceptionTest, ContentScript) {
   // Ensure that the extension isn't able to inject the script into the New Tab
   // Page.
   content::WebContents* web_contents = GetActiveWebContents();
-  ASSERT_TRUE(NavigateToURL(web_contents, GURL(chrome::kChromeUINewTabURL)));
+  ASSERT_TRUE(NavigateToURL(web_contents, chrome::ChromeUINewTabURLAsGURL()));
   ASSERT_TRUE(search::IsInstantNTP(web_contents));
 
   EXPECT_EQ(false, EvalJs(web_contents, "document.title !== 'Fake NTP';"));
@@ -2509,7 +2506,7 @@ class ContentScriptApiTestWithActivityLog : public ContentScriptApiTest {
 };
 
 // Tests Activity Log for content script executions.
-// Regression test for https://crbug.com/1519380.
+// Regression test for https://crbug.com/41492360.
 IN_PROC_BROWSER_TEST_F(ContentScriptApiTestWithActivityLog,
                        ActivityLogRecorded) {
   ASSERT_TRUE(StartEmbeddedTestServer());

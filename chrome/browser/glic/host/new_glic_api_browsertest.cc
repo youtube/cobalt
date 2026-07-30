@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/functional/callback.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_logging_settings.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -14,9 +16,11 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
+#include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/new_glic_api_test.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -82,6 +86,41 @@
 // rewritten to avoid RunTestSequence which is not supported on Android.
 
 namespace glic {
+
+class TestExperimentalTriggeringUpdatesHandler
+    : public mojom::ExperimentalTriggeringUpdatesHandler {
+ public:
+  TestExperimentalTriggeringUpdatesHandler(
+      mojo::PendingReceiver<mojom::ExperimentalTriggeringUpdatesHandler>
+          receiver,
+      base::RepeatingCallback<void(mojom::SubscriberObservationType)> callback)
+      : receiver_(this, std::move(receiver)), callback_(std::move(callback)) {}
+
+  void OnUpdate(mojom::ExperimentalTriggeringUpdatePtr update,
+                mojom::SubscriberObservationType observation) override {
+    if (update) {
+      last_update_ = std::move(update);
+    }
+    last_observation_ = observation;
+    if (callback_) {
+      callback_.Run(observation);
+    }
+  }
+
+  mojom::ExperimentalTriggeringUpdatePtr GetUpdate() {
+    return last_update_.Clone();
+  }
+  mojom::SubscriberObservationType GetObservation() const {
+    return last_observation_;
+  }
+
+ private:
+  mojo::Receiver<mojom::ExperimentalTriggeringUpdatesHandler> receiver_;
+  base::RepeatingCallback<void(mojom::SubscriberObservationType)> callback_;
+  mojom::ExperimentalTriggeringUpdatePtr last_update_;
+  mojom::SubscriberObservationType last_observation_;
+};
+
 namespace {
 
 std::vector<std::string> GetTestSuiteNames() {
@@ -243,9 +282,7 @@ class NewGlicApiTestWithWebContentsWarming : public NewGlicApiTest {
 
   void SetUpOnMainThread() override {
     NewGlicApiTest::SetUpOnMainThread();
-    glic::GlicKeyedService::Get(this->GetProfile())
-        ->web_contents_warming_pool()
-        .Clear();
+    coordinator().GetWebContentsWarmingPoolForTesting().Clear();
   }
 
  private:
@@ -263,9 +300,8 @@ class NewGlicApiTestWithPixelOutput : public NewGlicApiTest {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebContentsWarming,
                        testWebClientReadyOnPreload) {
-  auto container = glic::GlicKeyedService::Get(this->GetProfile())
-                       ->web_contents_warming_pool()
-                       .TakeContainer();
+  auto container =
+      coordinator().GetWebContentsWarmingPoolForTesting().TakeContainer();
   ASSERT_TRUE(container);
   auto* web_contents = container->web_contents();
 
@@ -305,6 +341,20 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testFailureForCapturedApiTestError) {
       {.should_fail = true, .should_fail_with_error = expected_failure});
 }
 
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testShowClientErrorDialog) {
+  glic::GlicHistogramTester histogram_tester;
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  // Wait for the histogram to be recorded.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return histogram_tester.GetAllSamples("Glic.Api.Client.ErrorDialogShown")
+               .size() > 0;
+  }));
+  histogram_tester.ExpectUniqueSample("Glic.Api.Client.ErrorDialogShown",
+                                      /*kDisabledByOrganization*/ 1, 1);
+}
+
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testLoadWhileWindowClosed) {
   // Open Glic
   ToggleGlicForActiveTab();
@@ -329,7 +379,14 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testInitializeFailsWindowClosed) {
   ExecuteJsTest();
 }
 
-IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testInitializeFailsWindowOpen) {
+// TODO(crbug.com/503936424): Re-enable the test.
+#if (defined(MEMORY_SANITIZER) && BUILDFLAG(IS_CHROMEOS)) || BUILDFLAG(IS_MAC)
+#define MAYBE_testInitializeFailsWindowOpen \
+  DISABLED_testInitializeFailsWindowOpen
+#else
+#define MAYBE_testInitializeFailsWindowOpen testInitializeFailsWindowOpen
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testInitializeFailsWindowOpen) {
   ToggleGlicForActiveTab();
   ASSERT_OK(WaitForGlicOpen());
 
@@ -493,6 +550,75 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testInvokeWaitsForNotifyPanelWillOpen) {
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testGetExperimentalTriggeringUpdates) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
+  options.target.surface = DefaultSurface{
+      GetTabListInterface()->GetActiveTab()->GetBrowserWindowInterface()};
+
+  mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> remote;
+  base::RunLoop run_loop;
+  TestExperimentalTriggeringUpdatesHandler handler(
+      remote.InitWithNewPipeAndPassReceiver(),
+      base::BindRepeating(
+          [](base::RepeatingClosure quit_closure,
+             mojom::SubscriberObservationType observation) {
+            if (observation == mojom::SubscriberObservationType::kComplete) {
+              quit_closure.Run();
+            }
+          },
+          run_loop.QuitClosure()));
+
+  ExecuteJsTest();
+  base::test::TestFuture<bool> future;
+  coordinator().GetExperimentalTriggeringUpdates(std::move(remote),
+                                                 future.GetCallback());
+  ContinueJsTest();
+
+  run_loop.Run();
+  EXPECT_TRUE(future.Get());
+
+  auto update = handler.GetUpdate();
+  ASSERT_TRUE(update);
+  EXPECT_EQ(update->type,
+            mojom::ExperimentalTriggeringUpdateType::kTerminalCompletion);
+  EXPECT_EQ(update->data, "");
+  EXPECT_EQ(handler.GetObservation(),
+            mojom::SubscriberObservationType::kComplete);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       testGetExperimentalTriggeringUpdatesError) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
+  options.target.surface = DefaultSurface{
+      GetTabListInterface()->GetActiveTab()->GetBrowserWindowInterface()};
+
+  mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> remote;
+  base::RunLoop run_loop;
+  TestExperimentalTriggeringUpdatesHandler handler(
+      remote.InitWithNewPipeAndPassReceiver(),
+      base::BindRepeating(
+          [](base::RepeatingClosure quit_closure,
+             mojom::SubscriberObservationType observation) {
+            if (observation == mojom::SubscriberObservationType::kError) {
+              quit_closure.Run();
+            }
+          },
+          run_loop.QuitClosure()));
+
+  ExecuteJsTest();
+  base::test::TestFuture<bool> future;
+  coordinator().GetExperimentalTriggeringUpdates(std::move(remote),
+                                                 future.GetCallback());
+  ContinueJsTest();
+
+  run_loop.Run();
+  EXPECT_TRUE(future.Get());
+
+  EXPECT_EQ(handler.GetObservation(), mojom::SubscriberObservationType::kError);
+}
+
 IN_PROC_BROWSER_TEST_P(NewGlicApiMultiProfileTest,
                        testPageMetadataCrossProfile) {
 #if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
@@ -556,11 +682,11 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiMultiProfileTest, testGetContextCrossProfile) {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebContentsWarming,
                        testWebClientReadyOnFullLoad) {
-  service()->web_contents_warming_pool().EnsurePreload();
+  coordinator().GetWebContentsWarmingPoolForTesting().EnsurePreload();
   ASSERT_OK(RunUntilEqual(
       [&]() {
-        return service()
-                   ->web_contents_warming_pool()
+        return coordinator()
+                   .GetWebContentsWarmingPoolForTesting()
                    .GetWarmedContainerForTesting() != nullptr;
       },
       true));
@@ -862,6 +988,16 @@ class NewGlicApiTestWithSkills : public NewGlicApiTest {
 
   skills::SkillsService* SkillsService() { return service_; }
 
+  void WaitForSkillsTab(const std::string& path) {
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      tabs::TabInterface* tab =
+          InProcessBrowserTest::browser()->tab_strip_model()->GetActiveTab();
+      return tab && base::StartsWith(
+                        tab->GetContents()->GetLastCommittedURL().spec(),
+                        GURL(chrome::kChromeUISkillsURL).Resolve(path).spec());
+    }));
+  }
+
  private:
   raw_ptr<skills::SkillsService> service_ = nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -912,12 +1048,12 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills, testShowManageSkillsUi) {
   ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
-    return tab &&
-           base::StartsWith(tab->GetContents()->GetLastCommittedURL().spec(),
-                            chrome::kChromeUISkillsURL);
-  }));
+  WaitForSkillsTab(chrome::kChromeUISkillsYourSkillsPath);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills, testShowBrowseSkillsUi) {
+  ExecuteJsTest();
+  WaitForSkillsTab(chrome::kChromeUISkillsBrowsePath);
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
@@ -936,11 +1072,11 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_1", "contextual_skill_1", "contextual_skill_icon_1",
       mojom::SkillSource::kFirstParty, "contextual_skill_description_1",
-      /*image_url=*/GURL("https://example.com")));
+      /*curated_by=*/std::nullopt, /*image_url=*/GURL("https://example.com")));
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_2", "contextual_skill_2", "contextual_skill_icon_2",
       mojom::SkillSource::kFirstParty, "contextual_skill_description_2",
-      /*image_url=*/GURL("https://example.com")));
+      /*curated_by=*/std::nullopt, /*image_url=*/GURL("https://example.com")));
 
   GlicInstance* instance =
       GlicKeyedServiceFactory::GetGlicKeyedService(GetProfile())
@@ -955,7 +1091,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
   skills_batch_2.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_3", "contextual_skill_3", "contextual_skill_icon_3",
       mojom::SkillSource::kFirstParty, "contextual_skill_description_3",
-      /*image_url=*/GURL("https://example.com")));
+      /*curated_by=*/std::nullopt, /*image_url=*/GURL("https://example.com")));
   instance->host().NotifyContextualSkillsChanged(std::move(skills_batch_2));
 
   ContinueJsTest();

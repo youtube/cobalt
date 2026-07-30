@@ -48,7 +48,6 @@
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/history/history_service_factory.h"
-#include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
@@ -111,7 +110,6 @@
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_field_detector.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
-#include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/logging/log_router.h"
 #include "components/autofill/core/browser/metrics/autofill_settings_metrics.h"
 #include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
@@ -144,6 +142,7 @@
 #include "components/password_manager/core/browser/password_requirements_service.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/plus_addresses/core/browser/plus_address_hats_utils.h"
+#include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "components/plus_addresses/core/browser/plus_address_types.h"
 #include "components/plus_addresses/core/common/features.h"
 #include "components/prefs/pref_service.h"
@@ -176,8 +175,11 @@
 #include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/autofill/android/android_sms_otp_backend_factory.h"
+#include "chrome/browser/autofill/android/at_memory_bottom_sheet_delegate.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
+#include "chrome/browser/ui/android/autofill/at_memory_bottom_sheet_bridge.h"
+#include "chrome/browser/ui/android/autofill/at_memory_bottom_sheet_delegate_android.h"
 #include "chrome/browser/ui/android/autofill/autofill_ai_save_update_entity_flow_manager.h"
 #include "chrome/browser/ui/android/autofill/save_update_address_profile_flow_manager.h"
 #include "chrome/browser/ui/autofill/autofill_message_controller_impl.h"
@@ -218,10 +220,6 @@ namespace autofill {
 
 namespace {
 
-// Default minimum delay in milliseconds for Plus Address HaTS surveys.
-static constexpr base::TimeDelta kDefaultMinDelay = base::Seconds(10);
-// Default maximum delay in milliseconds for Plus Address HaTS surveys.
-static constexpr base::TimeDelta kDefaultMaxDelay = base::Seconds(60);
 
 AutoselectFirstSuggestion ShouldAutofillPopupAutoselectFirstSuggestion(
     AutofillSuggestionTriggerSource source) {
@@ -294,129 +292,6 @@ bool CanTriggerAutofillAiSavePromptSurveyForEntityType(EntityType type) {
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-void LaunchPlusAddressUserPerceptionSurvey(
-    content::WebContents* web_contents,
-    HatsService* hats_service,
-    AutofillPlusAddressDelegate* delegate,
-    plus_addresses::hats::SurveyType survey_type) {
-  std::string survey_trigger;
-  base::TimeDelta min_delay;
-  base::TimeDelta max_delay;
-
-  const auto get_min_delay = [](const base::Feature* feature) {
-    return base::Milliseconds(
-        base::FeatureParam<int>(feature, plus_addresses::hats::kMinDelayMs, 0)
-            .Get());
-  };
-  const auto get_max_delay = [](const base::Feature* feature) {
-    return base::Milliseconds(
-        base::FeatureParam<int>(feature, plus_addresses::hats::kMaxDelayMs, 0)
-            .Get());
-  };
-
-  switch (survey_type) {
-    case plus_addresses::hats::SurveyType::kAcceptedFirstTimeCreate:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressAcceptedFirstTimeCreateSurvey)) {
-        return;
-      }
-      survey_trigger = kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate;
-      min_delay =
-          get_min_delay(&features::kPlusAddressAcceptedFirstTimeCreateSurvey);
-      max_delay =
-          get_max_delay(&features::kPlusAddressAcceptedFirstTimeCreateSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kDeclinedFirstTimeCreate:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressDeclinedFirstTimeCreateSurvey)) {
-        return;
-      }
-      survey_trigger = kHatsSurveyTriggerPlusAddressDeclinedFirstTimeCreate;
-      min_delay =
-          get_min_delay(&features::kPlusAddressDeclinedFirstTimeCreateSurvey);
-      max_delay =
-          get_max_delay(&features::kPlusAddressDeclinedFirstTimeCreateSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kCreatedMultiplePlusAddresses:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressUserCreatedMultiplePlusAddressesSurvey)) {
-        return;
-      }
-      survey_trigger =
-          kHatsSurveyTriggerPlusAddressCreatedMultiplePlusAddresses;
-      min_delay = get_min_delay(
-          &features::kPlusAddressUserCreatedMultiplePlusAddressesSurvey);
-      max_delay = get_max_delay(
-          &features::kPlusAddressUserCreatedMultiplePlusAddressesSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kCreatedPlusAddressViaManualFallback:
-      if (!base::FeatureList::IsEnabled(
-              features::
-                  kPlusAddressUserCreatedPlusAddressViaManualFallbackSurvey)) {
-        return;
-      }
-      survey_trigger =
-          kHatsSurveyTriggerPlusAddressCreatedPlusAddressViaManualFallback;
-      min_delay = get_min_delay(
-          &features::kPlusAddressUserCreatedPlusAddressViaManualFallbackSurvey);
-      max_delay = get_max_delay(
-          &features::kPlusAddressUserCreatedPlusAddressViaManualFallbackSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kDidChoosePlusAddressOverEmail:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressUserDidChoosePlusAddressOverEmailSurvey)) {
-        return;
-      }
-      survey_trigger =
-          kHatsSurveyTriggerPlusAddressDidChoosePlusAddressOverEmailSurvey;
-      min_delay = get_min_delay(
-          &features::kPlusAddressUserDidChoosePlusAddressOverEmailSurvey);
-      max_delay = get_max_delay(
-          &features::kPlusAddressUserDidChoosePlusAddressOverEmailSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kDidChooseEmailOverPlusAddress:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressUserDidChooseEmailOverPlusAddressSurvey)) {
-        return;
-      }
-      survey_trigger =
-          kHatsSurveyTriggerPlusAddressDidChooseEmailOverPlusAddressSurvey;
-      min_delay = get_min_delay(
-          &features::kPlusAddressUserDidChooseEmailOverPlusAddressSurvey);
-      max_delay = get_max_delay(
-          &features::kPlusAddressUserDidChooseEmailOverPlusAddressSurvey);
-      break;
-    case plus_addresses::hats::SurveyType::kFilledPlusAddressViaManualFallack:
-      if (!base::FeatureList::IsEnabled(
-              features::kPlusAddressFilledPlusAddressViaManualFallbackSurvey)) {
-        return;
-      }
-      survey_trigger =
-          kHatsSurveyTriggerPlusAddressFilledPlusAddressViaManualFallback;
-      min_delay = get_min_delay(
-          &features::kPlusAddressFilledPlusAddressViaManualFallbackSurvey);
-      max_delay = get_max_delay(
-          &features::kPlusAddressFilledPlusAddressViaManualFallbackSurvey);
-      break;
-  }
-
-  // Set default delays if the delays are not configured in the finch config or
-  // are configured to invalid values.
-  if (min_delay >= max_delay || min_delay.is_negative()) {
-    min_delay = kDefaultMinDelay;
-    max_delay = kDefaultMaxDelay;
-  }
-  const base::TimeDelta delay = base::RandTimeDelta(min_delay, max_delay);
-
-  hats_service->LaunchDelayedSurveyForWebContents(
-      survey_trigger, web_contents, delay.InMilliseconds(),
-      /*product_specific_bits_data=*/{},
-      /*product_specific_string_data=*/
-      delegate->GetPlusAddressHatsData(),
-      /*navigation_behavior=*/HatsService::NavigationBehavior::ALLOW_ANY,
-      /*success_callback=*/base::DoNothing(),
-      /*failure_callback=*/base::DoNothing());
-}
 
 }  // namespace
 
@@ -583,18 +458,6 @@ AutofillComposeDelegate* ChromeAutofillClient::GetComposeDelegate() {
 #else
   return nullptr;
 #endif
-}
-
-AutofillPlusAddressDelegate* ChromeAutofillClient::GetPlusAddressDelegate() {
-  // The `PlusAddressServiceFactory` should also ensure the service is not
-  // created without the feature enabled, but being defensive here to avoid
-  // surprises.
-  if (!base::FeatureList::IsEnabled(
-          plus_addresses::features::kPlusAddressesEnabled)) {
-    return nullptr;
-  }
-  return PlusAddressServiceFactory::GetForBrowserContext(
-      web_contents()->GetBrowserContext());
 }
 
 accessibility_annotator::AccessibilityQueryService*
@@ -866,13 +729,6 @@ void ChromeAutofillClient::ShowAutofillSettings(
             autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
         chrome::ShowSettingsSubPage(browser, chrome::kTravelSubPage);
         return;
-      case SuggestionType::kManagePlusAddress:
-        CHECK(base::FeatureList::IsEnabled(
-            plus_addresses::features::kPlusAddressesEnabled));
-        ShowSingletonTab(
-            browser,
-            GURL(plus_addresses::features::kPlusAddressManagementUrl.Get()));
-        return;
       case SuggestionType::kManageCreditCard:
       case SuggestionType::kManageIban:
         base::UmaHistogramEnumeration(
@@ -936,29 +792,6 @@ ChromeAutofillClient::ShowAutofillSuggestions(
   return session_id;
 }
 
-void ChromeAutofillClient::ShowPlusAddressEmailOverrideNotification(
-    const std::string& original_email,
-    EmailOverrideUndoCallback email_override_undo_callback) {
-#if BUILDFLAG(IS_ANDROID)
-  GetAutofillSnackbarController()->Show(
-      AutofillSnackbarType::kPlusAddressEmailOverride,
-      std::move(email_override_undo_callback));
-#else
-  if (ToastController* controller = GetToastController()) {
-    ToastParams params(ToastId::kPlusAddressOverride);
-    params.menu_model = std::make_unique<plus_addresses::PlusAddressMenuModel>(
-        base::UTF8ToUTF16(
-            GetIdentityManager()
-                ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                .email),
-        std::move(email_override_undo_callback),
-        base::BindRepeating(&AutofillClient::ShowAutofillSettings, GetWeakPtr(),
-                            SuggestionType::kManagePlusAddress));
-    controller->MaybeShowToast(std::move(params));
-  }
-#endif
-}
-
 void ChromeAutofillClient::UpdateAutofillDataListValues(
     base::span<const SelectOption> options) {
   if (suggestion_controller_.get()) {
@@ -991,7 +824,7 @@ void ChromeAutofillClient::UpdateAutofillSuggestions(
 
   // When a form changes dynamically, `suggestion_controller_` may hold a
   // delegate of the wrong type, so updating the popup would call into the wrong
-  // delegate. Hence, just close the existing popup (crbug.com/1113241).
+  // delegate. Hence, just close the existing popup (crbug.com/40143378).
   if (main_filling_product !=
       suggestion_controller_.get()->GetMainFillingProduct()) {
     suggestion_controller_->Hide(SuggestionHidingReason::kStaleData);
@@ -1192,6 +1025,26 @@ const AutofillAblationStudy& ChromeAutofillClient::GetAblationStudy() const {
 }
 
 #if BUILDFLAG(IS_ANDROID)
+void ChromeAutofillClient::ShowAtMemoryBottomSheet() {
+  if (AtMemoryBottomSheetBridge* bridge =
+          GetOrCreateAtMemoryBottomSheetBridge()) {
+    bridge->RequestShowContent(
+        std::make_unique<AtMemoryBottomSheetDelegateAndroid>(this));
+  }
+}
+
+AtMemoryBottomSheetBridge*
+ChromeAutofillClient::GetOrCreateAtMemoryBottomSheetBridge() {
+  if (!at_memory_bottom_sheet_bridge_) {
+    if (ui::WindowAndroid* window_android =
+            web_contents()->GetTopLevelNativeWindow()) {
+      at_memory_bottom_sheet_bridge_ =
+          std::make_unique<AtMemoryBottomSheetBridge>(window_android);
+    }
+  }
+  return at_memory_bottom_sheet_bridge_.get();
+}
+
 AutofillSnackbarControllerImpl*
 ChromeAutofillClient::GetAutofillSnackbarController() {
   if (!autofill_snackbar_controller_impl_) {
@@ -1457,18 +1310,6 @@ PasswordFormClassification ChromeAutofillClient::ClassifyAsPasswordForm(
   return password_manager::ClassifyAsPasswordForm(manager, form_id, field_id);
 }
 
-void ChromeAutofillClient::TriggerPlusAddressUserPerceptionSurvey(
-    plus_addresses::hats::SurveyType survey_type) {
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  auto* delegate = GetPlusAddressDelegate();
-  CHECK(delegate);
-  LaunchPlusAddressUserPerceptionSurvey(
-      web_contents(),
-      HatsServiceFactory::GetForProfile(profile,
-                                        /*create_if_necessary=*/true),
-      delegate, survey_type);
-}
 
 optimization_guide::ModelQualityLogsUploaderService*
 ChromeAutofillClient::GetMqlsUploadService() {

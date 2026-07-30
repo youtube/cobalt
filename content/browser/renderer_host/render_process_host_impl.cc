@@ -86,6 +86,7 @@
 #include "components/viz/common/switches.h"
 #include "components/viz/host/gpu_client.h"
 #include "components/viz/host/host_frame_sink_manager.h"
+#include "components/vrp_flags/buildflags.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/file_backed_blob_factory_worker_impl.h"
@@ -286,6 +287,10 @@
 #if BUILDFLAG(IS_P2P_ENABLED)
 #include "content/browser/renderer_host/p2p/socket_dispatcher_host.h"
 #endif  // BUILDFLAG(IS_P2P_ENABLED)
+
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+#include "components/vrp_flags/vrp_flags.h"  // nogncheck
+#endif
 
 // VLOG additional statements in Fuchsia release builds.
 #if BUILDFLAG(IS_FUCHSIA)
@@ -1846,6 +1851,24 @@ bool RenderProcessHostImpl::Init() {
   if (IsInitializedAndNotDead())
     return true;
 
+  if (IsForTopChromeWebUI()) {
+    bool existing_found = false;
+    auto* browser_context = GetBrowserContext();
+    for (auto it = RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
+         it.Advance()) {
+      RenderProcessHost* host = it.GetCurrentValue();
+      if (host != this && host->IsForTopChromeWebUI() &&
+          host->GetBrowserContext() == browser_context &&
+          host->IsInitializedAndNotDead()) {
+        existing_found = true;
+        break;
+      }
+    }
+    base::UmaHistogramBoolean(
+        "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
+        existing_found);
+  }
+
   base::CommandLine::StringType renderer_prefix;
   // A command prefix is something prepended to the command line of the spawned
   // process.
@@ -1882,7 +1905,22 @@ bool RenderProcessHostImpl::Init() {
   is_dead_ = false;
   sent_render_process_ready_ = false;
 
-  gpu_client_->PreEstablishGpuChannel();
+  // We may reach Init() during process death notification (e.g.
+  // RenderProcessExited on some observer). In this case the Channel may be
+  // null, so we re-initialize it here.
+  if (!channel_) {
+    InitializeChannelProxy();
+  }
+
+  if (base::FeatureList::IsEnabled(features::kSendGPUChannelEarly)) {
+    // Pre-establish the GPU channel and send the renderer pipe at renderer
+    // launch time.
+    gpu_client_->InitializeGpuChannelForNewRenderer(
+        mojo_invitation_.AttachMessagePipe(kGPUChannelAttachmentName));
+  } else {
+    gpu_client_->InitializeGpuChannelForNewRenderer(
+        mojo::ScopedMessagePipeHandle());
+  }
 
   // Set cache information after establishing a channel since the handles are
   // stored on the channels. Note that we also check if the factory is
@@ -1899,12 +1937,6 @@ bool RenderProcessHostImpl::Init() {
       }
     }
   }
-
-  // We may reach Init() during process death notification (e.g.
-  // RenderProcessExited on some observer). In this case the Channel may be
-  // null, so we re-initialize it here.
-  if (!channel_)
-    InitializeChannelProxy();
 
   if (ShouldPauseChannelUntilProcessLaunched()) {
     // Unpause the Channel briefly. This will be paused again below if we launch
@@ -3548,8 +3580,8 @@ void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
 
   // Only notify the renderer once to avoid reapplying static renderer
   // settings that are intended to be set once.
-  // TODO(http://crbug.com/434735272): — Handle other settings that are
-  // also meant to be applied once but may currently be updated dynamically.
+  // TODO(http://crbug.com/434735272): Handle other settings that
+  // are also meant to be applied once but may currently be updated dynamically.
   if (!did_update_renderer_locked_state_) {
     GetContentClient()->browser()->OnRendererProcessLockedStateUpdated(
         this, process_lock.site_url());
@@ -3651,6 +3683,11 @@ void RenderProcessHostImpl::AppendRendererCommandLine(
     command_line->AppendSwitch(switches::kTopChromeWebUI);
   }
 
+  if (base::FeatureList::IsEnabled(features::kSendGPUChannelEarly)) {
+    command_line->AppendSwitchASCII(
+        switches::kGpuClientId, base::NumberToString(gpu_client_->client_id()));
+  }
+
   // Call this as early as possible so that --extension-process will show early
   // in process listings. See https://crbug.com/1211558 for details.
   GetContentClient()->browser()->AppendExtraCommandLineSwitches(
@@ -3747,6 +3784,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       sandbox::policy::switches::kNoSandbox,
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
       switches::kDisableDevShmUsage,
+#endif
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+      vrp_flags::switches::kVrpFlags,
 #endif
 #if BUILDFLAG(IS_MAC)
       // Allow this to be set when invoking the browser and relayed along.

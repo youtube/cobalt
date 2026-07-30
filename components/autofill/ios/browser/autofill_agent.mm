@@ -452,8 +452,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
     return;
   }
 
-  if (suggestion.type == SuggestionType::kAutocompleteEntry ||
-      suggestion.type == SuggestionType::kFillExistingPlusAddress) {
+  if (suggestion.type == SuggestionType::kAutocompleteEntry) {
     // FormSuggestion is a simple, single value that can be filled out now.
     [self fillField:SysNSStringToUTF8(fieldIdentifier)
         fieldRendererID:fieldRendererID
@@ -670,12 +669,9 @@ bool HasGuid(const Suggestion::Payload& payload) {
                !base::FeatureList::IsEnabled(kAutofillUndoIos)) {
       // Show the "clear form" button.
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
-    } else if (popup_suggestion.type ==
-                   SuggestionType::kFillExistingPlusAddress ||
-               popup_suggestion.type == SuggestionType::kFillAutofillAi) {
-      CHECK(popup_suggestion.type != SuggestionType::kFillAutofillAi ||
-            base::FeatureList::IsEnabled(
-                autofill::features::kAutofillAiCreateEntityDataManager));
+    } else if (popup_suggestion.type == SuggestionType::kFillAutofillAi) {
+      CHECK(base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiCreateEntityDataManager));
 
       // Show any plus_address or autofill AI suggestions.
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
@@ -723,9 +719,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
       suggestion.featureForIPH =
           SuggestionFeatureForIPH::kAutofillExternalAccountProfile;
     } else if (popup_suggestion.iph_metadata.feature ==
-               &feature_engagement::kIPHPlusAddressCreateSuggestionFeature) {
-      suggestion.featureForIPH = SuggestionFeatureForIPH::kPlusAddressCreation;
-    } else if (popup_suggestion.iph_metadata.feature ==
                &feature_engagement::
                    kIPHAutofillHomeWorkProfileSuggestionFeature) {
       suggestion.featureForIPH =
@@ -764,20 +757,6 @@ bool HasGuid(const Suggestion::Payload& payload) {
   return fieldID == _lastQueriedFieldID;
 }
 
-- (void)showPlusAddressEmailOverrideNotification:
-    (base::OnceClosure)emailOverrideUndoCallback {
-  CHECK(_delegate);
-  [_delegate
-      showSnackbarWithMessage:
-          l10n_util::GetNSString(
-              IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_DESCRIPTION_TEXT_IOS)
-                   buttonText:
-                       l10n_util::GetNSString(
-                           IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_ACTION_TEXT_IOS)
-                messageAction:base::CallbackToBlock(
-                                  std::move(emailOverrideUndoCallback))
-             completionAction:nil];
-}
 
 #pragma mark - CRWWebStateObserver
 

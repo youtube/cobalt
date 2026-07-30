@@ -67,7 +67,7 @@ history::mojom::ForeignSessionTabPtr SessionTabToMojom(
   const ::sessions::SerializedNavigationEntry& current_navigation =
       tab.navigations.at(selected_index);
   GURL tab_url = current_navigation.virtual_url();
-  if (!tab_url.is_valid() || tab_url.spec() == chrome::kChromeUINewTabURL) {
+  if (!tab_url.is_valid() || tab_url == chrome::ChromeUINewTabURLAsGURL()) {
     return nullptr;
   }
 
@@ -83,6 +83,8 @@ history::mojom::ForeignSessionTabPtr SessionTabToMojom(
   tab_mojom->remote_icon_url_for_uma = current_navigation.favicon_url().spec();
   tab_mojom->timestamp =
       tab.timestamp.ToDeltaSinceWindowsEpoch().InMicrosecondsF();
+  tab_mojom->timestamp_display_str = base::UTF16ToUTF8(
+      ForeignSessionHandler::FormatSessionTime(tab.timestamp));
   tab_mojom->session_id = tab.tab_id.id();
 
   // Set the "direction" attribute of the title so that in RTL locales, a LTR
@@ -293,6 +295,7 @@ void ForeignSessionHandler::OnForeignSessionUpdated() {
   }
 }
 
+// static
 std::u16string ForeignSessionHandler::FormatSessionTime(
     const base::Time& time) {
   // Return a time like "1 hour ago", "2 days ago", etc.

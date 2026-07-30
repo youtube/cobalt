@@ -8,7 +8,6 @@
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
@@ -22,6 +21,7 @@
 #include "extensions/browser/blocklist_extension_prefs.h"
 #include "extensions/browser/cws_info_service.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/extension_urls.h"
@@ -29,7 +29,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 namespace extensions {
+namespace {
 
 class MockCWSInfoService : public CWSInfoServiceInterface {
  public:
@@ -175,11 +178,10 @@ void CheckSafetyCheckDisplayString(
 
 class SafetyCheckExtensionUtilsTest : public testing::Test {
  public:
+  SafetyCheckExtensionUtilsTest() = default;
   SafetyCheckExtensionUtilsTest(const SafetyCheckExtensionUtilsTest&) = delete;
   SafetyCheckExtensionUtilsTest& operator=(
       const SafetyCheckExtensionUtilsTest&) = delete;
-
-  SafetyCheckExtensionUtilsTest() = default;
   ~SafetyCheckExtensionUtilsTest() override = default;
 
   void SetUp() override {
@@ -705,4 +707,6 @@ TEST_F(SafetyCheckExtensionUtilsTest, SafetyCheck_String_Check) {
           api::developer_private::SafetyCheckWarningReason::kNone,
           api::developer_private::ExtensionState::kEnabled));
 }
+
+}  // namespace
 }  // namespace extensions

@@ -307,6 +307,8 @@ static_library("ui") {
     "//chrome/browser/contextual_tasks:ui",
     "//chrome/browser/crash_upload_list",
     "//chrome/browser/data_sharing",
+    "//chrome/browser/device_reauth",
+    "//chrome/browser/device_reauth:impl",
     "//chrome/browser/devtools",
     "//chrome/browser/engagement",
     "//chrome/browser/enterprise",
@@ -334,10 +336,14 @@ static_library("ui") {
     "//chrome/browser/image_decoder",
     "//chrome/browser/image_fetcher",
     "//chrome/browser/language",
+    "//chrome/browser/lifetime",
+    "//chrome/browser/lifetime:impl",
     "//chrome/browser/login_detection",
     "//chrome/browser/lookalikes",
     "//chrome/browser/media/router:media_router_feature",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
+    "//chrome/browser/metrics",
+    "//chrome/browser/metrics:impl",
     "//chrome/browser/new_tab_page/chrome_colors:generate_chrome_colors_info",
     "//chrome/browser/new_tab_page/chrome_colors:selected_colors_info",
     "//chrome/browser/ntp_tiles",
@@ -383,20 +389,25 @@ static_library("ui") {
     "//chrome/browser/search_provider_logos",
     "//chrome/browser/segmentation_platform",
     "//chrome/browser/sessions",
+    "//chrome/browser/sessions:impl",
     "//chrome/browser/share",
     "//chrome/browser/signin",
     "//chrome/browser/signin:impl",
     "//chrome/browser/signin:signin_promo",
     "//chrome/browser/site_protection",
+    "//chrome/browser/ssl",
+    "//chrome/browser/ssl:impl",
     "//chrome/browser/status_icons",
     "//chrome/browser/storage_access_api",
     "//chrome/browser/subresource_filter",
+    "//chrome/browser/supervised_user:impl",
     "//chrome/browser/sync",
     "//chrome/browser/task_manager:impl",
     "//chrome/browser/task_manager/common",
     "//chrome/browser/task_manager/common:impl",
     "//chrome/browser/translate:impl",
     "//chrome/browser/trusted_vault",
+    "//chrome/browser/trusted_vault:impl",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/autofill:impl",
     "//chrome/browser/ui/autofill/payments",
@@ -463,6 +474,7 @@ static_library("ui") {
     "//chrome/browser/vr",
     "//chrome/browser/vr:impl",
     "//chrome/browser/webauthn",
+    "//chrome/browser/webauthn:impl",
     "//chrome/browser/webnn",
     "//chrome/common",
     "//chrome/common/net",
@@ -734,7 +746,14 @@ static_library("ui") {
 
   # page_load_metrics's :impl includes headers from //chrome/browser/ui that
   # can't be split out yet.
-  allow_circular_includes_from = [ "//chrome/browser/page_load_metrics:impl" ]
+  allow_circular_includes_from = [
+    "//chrome/browser/page_load_metrics:impl",
+
+    # sessions includes headers from //chrome/browser/ui that can't be
+    # split out yet (e.g. browser.h, browser_finder.h).
+    "//chrome/browser/sessions",
+    "//chrome/browser/sessions:impl",
+  ]
 
   if (is_android) {
     sources += [ "//chrome/browser/ui/android/browser_navigator_android.cc" ]
@@ -773,7 +792,12 @@ static_library("ui") {
   # These are all-platform circular includes.
   if (!is_android) {
     # //chrome/browser/download:impl sources include headers from //chrome/browser/ui.
-    allow_circular_includes_from += [ "//chrome/browser/download:impl" ]
+    allow_circular_includes_from += [
+      "//chrome/browser/download:impl",
+
+      # TODO(crbug.com/504627103): Remove this circular dependency.
+      "//chrome/browser/new_tab_page:impl",
+    ]
   }
 
   allow_circular_includes_from += [
@@ -793,6 +817,11 @@ static_library("ui") {
     "//chrome/browser/ui/autofill/payments",
     "//chrome/browser/ui/autofill/payments:impl",
 
+    # TODO(crbug.com/502936350): Remove this circular dependency.
+    # device_reauth's :impl includes headers from //chrome/browser/ui
+    # that can't be split out yet.
+    "//chrome/browser/device_reauth:impl",
+
     # TODO(crbug.com/40161499): Remove this circular dependency.
     "//chrome/browser/devtools",
     "//chrome/browser/favicon",
@@ -804,6 +833,10 @@ static_library("ui") {
     # TODO(crbug.com/364667551): Remove this circular dependency when
     # c/b/ui/webui/feedback/feedback_dialog.h gets componentized.
     "//chrome/browser/feedback:feedback_impl",
+
+    # lifetime:impl includes headers from //chrome/browser/ui that can't be
+    # split out yet (e.g. browser.h, browser_finder.h, browser_window.h).
+    "//chrome/browser/lifetime:impl",
 
     # notifications:impl includes chrome/browser/ui/browser.h,
     # chrome/browser/ui/chrome_pages.h, chrome/browser/ui/browser_navigator.h
@@ -820,6 +853,10 @@ static_library("ui") {
     # TODO(crbug.com/353284909): Remove this circular dependency.
     "//chrome/browser/media/webrtc",
     "//chrome/browser/memory",
+
+    # metrics:impl includes headers from //chrome/browser/ui that can't be
+    # split out yet.
+    "//chrome/browser/metrics:impl",
     "//chrome/browser/net",
     "//chrome/browser/net:impl",
     "//chrome/browser/performance_manager:impl",
@@ -866,6 +903,10 @@ static_library("ui") {
     # gets componentized.
     "//chrome/browser/ui/extensions:impl",
 
+    # ssl:impl includes headers from //chrome/browser/ui that can't be
+    # split out yet (e.g. browser.h, browser_navigator.h, tab_strip_model.h).
+    "//chrome/browser/ssl:impl",
+
     # TODO(crbug.com/353332589): Remove this circular dependency when
     # translate's impl no longer includes headers from //chrome/browser/ui.
     "//chrome/browser/translate:impl",
@@ -877,6 +918,14 @@ static_library("ui") {
     # vr_tab_helper.cc includes //c/b/ui/browser.h, browser_finder.h,
     # browser_window_interface.h, and tab_strip_model.h.
     "//chrome/browser/vr:impl",
+
+    # TODO(crbug.com/353332589): Remove this circular dependency when
+    # c/b/ui/browser_finder.h gets componentized.
+    "//chrome/browser/supervised_user:impl",
+
+    # webauthn:impl includes headers from //chrome/browser/ui that can't be
+    # split out yet.
+    "//chrome/browser/webauthn:impl",
   ]
 
   if (enable_vr && is_win) {
@@ -893,7 +942,11 @@ static_library("ui") {
   if (!is_android) {
     deps += [
       "//chrome/browser/accessibility/phrase_segmentation",
+      "//chrome/browser/new_tab_page",
+      "//chrome/browser/new_tab_page:impl",
       "//chrome/browser/profile_resetter",
+      "//chrome/browser/ui/web_modal:browser_window_modal_dialog_delegate",
+      "//chrome/browser/ui/zoom:browser_window_zoom_observer",
     ]
   }
 
@@ -910,6 +963,10 @@ static_library("ui") {
       "android/android_profile_browser_collection_service.h",
       "android/android_profile_browser_collection_service_factory.cc",
       "android/android_profile_browser_collection_service_factory.h",
+      "android/autofill/at_memory_bottom_sheet_bridge.cc",
+      "android/autofill/at_memory_bottom_sheet_bridge.h",
+      "android/autofill/at_memory_bottom_sheet_delegate_android.cc",
+      "android/autofill/at_memory_bottom_sheet_delegate_android.h",
       "android/autofill/authenticator_selection_dialog_view_android.cc",
       "android/autofill/authenticator_selection_dialog_view_android.h",
       "android/autofill/autofill_ai_save_update_entity_flow_manager.cc",
@@ -1044,6 +1101,7 @@ static_library("ui") {
       "//chrome/browser/ui/android/hats:impl",
       "//chrome/browser/ui/android/tab_model",
       "//chrome/browser/ui/android/tab_model:impl",
+      "//chrome/browser/ui/android/toolbar:adaptive_jni_headers",
       "//chrome/browser/ui/android/toolbar:jni_headers",
       "//chrome/browser/ui/autofill:autofill_ai_ui_utils",
       "//chrome/browser/ui/autofill:autofill_ai_ui_utils_impl",
@@ -1448,8 +1506,6 @@ static_library("ui") {
       "webui/side_panel/history_clusters/history_clusters_side_panel_ui.h",
       "webui/side_panel/read_anything/chrome_os_extension_wrapper.cc",
       "webui/side_panel/read_anything/chrome_os_extension_wrapper.h",
-      "webui/side_panel/read_anything/read_anything_screenshotter.cc",
-      "webui/side_panel/read_anything/read_anything_screenshotter.h",
       "webui/side_panel/read_anything/read_anything_untrusted_page_handler.cc",
       "webui/side_panel/read_anything/read_anything_untrusted_page_handler.h",
       "webui/side_panel/read_anything/read_anything_untrusted_ui.cc",
@@ -1631,6 +1687,7 @@ static_library("ui") {
       "//chrome/browser/feedback:feedback_enum",
       "//chrome/browser/headless:command_processor",
       "//chrome/browser/hid",
+      "//chrome/browser/hid:impl",
       "//chrome/browser/image_editor",
       "//chrome/browser/image_editor:image_editor_component_util",
       "//chrome/browser/lens/region_search",
@@ -1867,8 +1924,6 @@ static_library("ui") {
       "//chrome/browser/accessibility_annotator/first_run",
       "//chrome/browser/importer",
       "//chrome/browser/importer:impl",
-      "//chrome/browser/ui:browser_list",
-      "//chrome/browser/ui:browser_list_impl",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/read_anything",
       "//chrome/browser/ui/tabs:tab_enums",
@@ -1958,7 +2013,6 @@ static_library("ui") {
       "//chrome/browser/ui/views/tabs/glic",
       "//chrome/browser/ui/views/tabs/glic:impl",
 
-      "//chrome/browser/ui:browser_list_impl",
       "//chrome/browser/ui/media_router:impl",
       "//chrome/browser/ui/window_sizer:impl",
       "//chrome/browser/ui/webui/settings:impl",
@@ -2020,6 +2074,11 @@ static_library("ui") {
 
       #TODO(crbug.com/486967014): Remove once views dep is removed for side panel.
       "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+
+      # hid's :impl includes //chrome/browser/ui/browser_finder.h,
+      # //chrome/browser/ui/dialogs/browser_dialogs.h, and
+      # //chrome/browser/ui/chrome_pages.h from //chrome/browser/ui.
+      "//chrome/browser/hid:impl",
     ]
 
     if (is_win || is_chromeos) {
@@ -4337,6 +4396,7 @@ static_library("ui") {
       "views/permissions/chip/multi_image_container.h",
       "views/permissions/chip/permission_dashboard_controller.cc",
       "views/permissions/chip/permission_dashboard_controller.h",
+      "views/permissions/chip/permission_dashboard_interface.h",
       "views/permissions/chip/permission_dashboard_view.cc",
       "views/permissions/chip/permission_dashboard_view.h",
       "views/permissions/chip/permission_prompt_chip_model.cc",
@@ -4399,6 +4459,8 @@ static_library("ui") {
       "views/promos/ios_promo_constants.h",
       "views/qrcode_generator/qrcode_generator_bubble.cc",
       "views/qrcode_generator/qrcode_generator_bubble.h",
+      "views/qrcode_generator/qrcode_window_controller.cc",
+      "views/qrcode_generator/qrcode_window_controller.h",
       "views/record_replay/save_recording_bubble_view.cc",
       "views/record_replay/save_recording_bubble_view.h",
       "views/relaunch_notification/relaunch_notification_controller.cc",
@@ -4427,6 +4489,8 @@ static_library("ui") {
       "views/sharing/sharing_dialog_view.h",
       "views/sharing/sharing_icon_view.cc",
       "views/sharing/sharing_icon_view.h",
+      "views/sharing/sharing_window_controller.cc",
+      "views/sharing/sharing_window_controller.h",
       "views/sharing_hub/preview_view.cc",
       "views/sharing_hub/preview_view.h",
       "views/sharing_hub/screenshot/screenshot_captured_bubble.cc",
@@ -4661,6 +4725,8 @@ static_library("ui") {
       "views/web_apps/isolated_web_apps/isolated_web_app_user_installability_checker.h",
       "views/web_apps/launch_app_user_choice_dialog_view.cc",
       "views/web_apps/launch_app_user_choice_dialog_view.h",
+      "views/web_apps/progress_delay.cc",
+      "views/web_apps/progress_delay.h",
       "views/web_apps/protocol_handler_launch_dialog_view.cc",
       "views/web_apps/protocol_handler_launch_dialog_view.h",
       "views/web_apps/sub_apps_install_dialog.cc",
@@ -4683,6 +4749,10 @@ static_library("ui") {
       "views/web_apps/web_app_install_intro_view.cc",
       "views/web_apps/web_app_install_intro_view.h",
       "views/web_apps/web_app_install_not_supported_dialog.cc",
+      "views/web_apps/web_app_install_options_view.cc",
+      "views/web_apps/web_app_install_options_view.h",
+      "views/web_apps/web_app_install_progress_view.cc",
+      "views/web_apps/web_app_install_progress_view.h",
       "views/web_apps/web_app_launch_dialog.cc",
       "views/web_apps/web_app_modal_dialog_delegate.cc",
       "views/web_apps/web_app_modal_dialog_delegate.h",
@@ -4871,6 +4941,7 @@ static_library("ui") {
       "//chrome/browser/ui/views/tabs/vertical",
       "//chrome/browser/ui/views/tabs/vertical:impl",
       "//chrome/browser/ui/views/user_education",
+      "//chrome/browser/ui/views/web_dialogs",
 
       # TODO(crbug.com/432061436) Remove this dependency when the following headers get
       # componentized:
@@ -5357,6 +5428,7 @@ static_library("ui") {
       # - c/b/ui/side_panel/read_anything/read_anything_untrusted_page_handler.cc
       # - c/b/ui/webui/print_preview/print_preview_ui.cc
       "//chrome/browser/pdf",
+      "//extensions/browser/mime_handler",
 
       # TODO(crbug.com/340272378, crbug.com/372750819): Remove this dependency
       # when "PdfOopif" feature gets enabled by default or the following files
@@ -5526,10 +5598,6 @@ static_library("ui") {
 
   if (enable_webui_tab_strip) {
     sources += [
-      "views/frame/webui_tab_strip_container_view.cc",
-      "views/frame/webui_tab_strip_container_view.h",
-      "views/frame/webui_tab_strip_field_trial.cc",
-      "views/frame/webui_tab_strip_field_trial.h",
       "webui/tab_strip/tab_before_unload_tracker.cc",
       "webui/tab_strip/tab_before_unload_tracker.h",
       "webui/tab_strip/tab_strip_page_handler.cc",
@@ -5562,9 +5630,7 @@ static_library("ui") {
     deps += [ "//chrome/browser/ui/webui/tab_strip_internals:impl" ]
 
     # TODO(crbug.com/427204855): Remove this circular include once
-    # "chrome/browser/ui/browser.h" and
-    # "chrome/browser/ui/browser_list.h"
-    # are fully componentized.
+    # "chrome/browser/ui/browser.h" is fully componentized.
     allow_circular_includes_from +=
         [ "//chrome/browser/ui/webui/tab_strip_internals:impl" ]
   }
@@ -5735,26 +5801,6 @@ source_set("browser_navigator_params_headers") {
 }
 
 if (!is_android) {
-  source_set("browser_list") {
-    sources = [ "browser_list.h" ]
-    public_deps = [ "//base" ]
-  }
-
-  source_set("browser_list_impl") {
-    sources = [ "browser_list.cc" ]
-    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
-    deps = [
-      "//base",
-      "//chrome/browser:browser_process",
-      "//chrome/browser:buildflags",
-      "//chrome/browser/lifetime:termination_notification",
-      "//chrome/browser/profiles:profile",
-      "//chrome/browser/ui:browser_list",
-      "//chrome/browser/ui/browser_window",
-      "//components/keep_alive_registry",
-    ]
-  }
-
   source_set("browser_tab_strip") {
     sources = [
       "browser_tab_strip_model_delegate.h",
@@ -5762,7 +5808,6 @@ if (!is_android) {
       "browser_tab_strip_tracker_delegate.h",
     ]
     public_deps = [
-      ":browser_list",
       "//base",
       "//chrome/browser/ui/tabs:tab_strip",
     ]

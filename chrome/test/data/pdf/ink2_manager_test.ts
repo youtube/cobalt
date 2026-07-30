@@ -14,6 +14,12 @@ const manager = Ink2Manager.getInstance();
 
 function getTestAnnotation(id: number): TextAnnotation {
   return {
+    id: id,
+    mojoTextInfo: new ArrayBuffer(0),
+    newTypefaces: [],
+    pageIndex: 0,
+    pdfZoom: 1.0,
+    text: 'Hello World',
     textAttributes: {
       typeface: TextTypeface.SANS_SERIF,
       size: 12,
@@ -24,9 +30,6 @@ function getTestAnnotation(id: number): TextAnnotation {
         italic: false,
       },
     },
-    text: 'Hello World',
-    id: id,
-    pageIndex: 0,
     textBoxRect: {
       height: 35,
       locationX: 60,
@@ -41,11 +44,12 @@ function getTestAnnotation(id: number): TextAnnotation {
 // with id 0.
 function verifyEditTextAnnotationMessage(expected: boolean, id: number = 0) {
   const editTextAnnotationMessage =
-      mockPlugin.findMessage('editTextAnnotation');
+      mockPlugin.findMessage<{type: string, data: number}>(
+          'editTextAnnotation');
   chrome.test.assertEq(expected, editTextAnnotationMessage !== undefined);
   if (expected) {
-    chrome.test.assertEq('editTextAnnotation', editTextAnnotationMessage.type);
-    chrome.test.assertEq(id, editTextAnnotationMessage.data);
+    chrome.test.assertEq('editTextAnnotation', editTextAnnotationMessage!.type);
+    chrome.test.assertEq(id, editTextAnnotationMessage!.data);
   }
 }
 
@@ -82,7 +86,7 @@ chrome.test.runTests([
 
     // Check that the manager requested the current annotation brush.
     const getAnnotationBrushMessage =
-        mockPlugin.findMessage('getAnnotationBrush');
+        mockPlugin.findMessage<{type: string}>('getAnnotationBrush');
     chrome.test.assertTrue(getAnnotationBrushMessage !== undefined);
     chrome.test.assertEq('getAnnotationBrush', getAnnotationBrushMessage.type);
 
@@ -163,7 +167,7 @@ chrome.test.runTests([
 
     // Check that the manager requested all the text annotations.
     const getAllTextAnnotationsMessage =
-        mockPlugin.findMessage('getAllTextAnnotations');
+        mockPlugin.findMessage<{type: string}>('getAllTextAnnotations');
     chrome.test.assertTrue(getAllTextAnnotationsMessage !== undefined);
     chrome.test.assertEq(
         'getAllTextAnnotations', getAllTextAnnotationsMessage.type);
@@ -201,7 +205,7 @@ chrome.test.runTests([
 
     // Check that the manager requested all the text annotations.
     const getAllTextAnnotationsMessage =
-        mockPlugin.findMessage('getAllTextAnnotations');
+        mockPlugin.findMessage<{type: string}>('getAllTextAnnotations');
     chrome.test.assertTrue(getAllTextAnnotationsMessage !== undefined);
     chrome.test.assertEq(
         'getAllTextAnnotations', getAllTextAnnotationsMessage.type);
@@ -254,7 +258,8 @@ chrome.test.runTests([
     // Confirm that the finish annotation message is sent with the correct
     // parameters.
     const finishTextAnnotationMessage =
-        mockPlugin.findMessage('finishTextAnnotation');
+        mockPlugin.findMessage<{type: string, data: TextAnnotation}>(
+            'finishTextAnnotation');
     chrome.test.assertTrue(finishTextAnnotationMessage !== undefined);
     chrome.test.assertEq(
         'finishTextAnnotation', finishTextAnnotationMessage.type);
@@ -527,7 +532,8 @@ chrome.test.runTests([
   async function testInitializeTextBox() {
     // Add listeners for the expected events that fire in response to an
     // initializeTextAnnotation call.
-    let eventsDispatched: Array<{name: string, detail: any}> = [];
+    let eventsDispatched:
+        Array<{name: string, detail: TextBoxInit | TextAttributes}> = [];
     ['initialize-text-box', 'attributes-changed'].forEach(eventName => {
       manager.addEventListener(eventName, e => {
         eventsDispatched.push(
@@ -600,7 +606,8 @@ chrome.test.runTests([
     function verifyFinishTextAnnotationMessage(
         annotationPageCoords: TextAnnotation) {
       const finishTextAnnotationMessage =
-          mockPlugin.findMessage('finishTextAnnotation');
+          mockPlugin.findMessage<{type: string, data: TextAnnotation}>(
+              'finishTextAnnotation');
       chrome.test.assertTrue(finishTextAnnotationMessage !== undefined);
       chrome.test.assertEq(
           'finishTextAnnotation', finishTextAnnotationMessage.type);
@@ -717,7 +724,8 @@ chrome.test.runTests([
   async function testInitializeExistingAnnotation() {
     // Add listeners for the expected events that fire in response to an
     // initializeTextAnnotation message.
-    const eventsDispatched: Array<{name: string, detail: any}> = [];
+    const eventsDispatched:
+        Array<{name: string, detail: TextBoxInit | TextAttributes}> = [];
     ['initialize-text-box', 'attributes-changed'].forEach(eventName => {
       manager.addEventListener(eventName, e => {
         eventsDispatched.push(
@@ -914,7 +922,9 @@ chrome.test.runTests([
       width: 50,
     });
 
-    let syncScrollMessage = mockPlugin.findMessage('syncScrollToRemote');
+    let syncScrollMessage =
+        mockPlugin.findMessage<{type: string, x: number, y: number}>(
+            'syncScrollToRemote');
     chrome.test.assertTrue(syncScrollMessage !== undefined);
     chrome.test.assertEq('syncScrollToRemote', syncScrollMessage.type);
     // The content is 800x1000 (2x page size), and the viewport is 500x500. The
@@ -938,7 +948,9 @@ chrome.test.runTests([
       height: 50,
       width: 50,
     });
-    syncScrollMessage = mockPlugin.findMessage('syncScrollToRemote');
+    syncScrollMessage =
+        mockPlugin.findMessage<{type: string, x: number, y: number}>(
+            'syncScrollToRemote');
     chrome.test.assertEq(undefined, syncScrollMessage);
 
     // Focus a textbox that is out of bounds the other direction.
@@ -948,7 +960,9 @@ chrome.test.runTests([
       height: 50,
       width: 50,
     });
-    syncScrollMessage = mockPlugin.findMessage('syncScrollToRemote');
+    syncScrollMessage =
+        mockPlugin.findMessage<{type: string, x: number, y: number}>(
+            'syncScrollToRemote');
     chrome.test.assertTrue(syncScrollMessage !== undefined);
     chrome.test.assertEq('syncScrollToRemote', syncScrollMessage.type);
     // Scroll x to maxScrollWidth - 20 - .1 * viewportWidth = 305 - 20 - 50 =
@@ -957,6 +971,22 @@ chrome.test.runTests([
     // 450 - 10 - 50 = 390.
     chrome.test.assertEq(235, syncScrollMessage.x);
     chrome.test.assertEq(390, syncScrollMessage.y);
+
+    chrome.test.succeed();
+  },
+
+  function testFontCaching() {
+    assertDeepEquals([], manager.getKnownFontIds());
+
+    manager.addKnownFontId(1);
+    assertDeepEquals([1], manager.getKnownFontIds());
+    manager.addKnownFontId(2);
+    assertDeepEquals([1, 2], manager.getKnownFontIds());
+
+    // verify that getKnownFontIds() returns a copy.
+    const ids = manager.getKnownFontIds();
+    ids.push(3);
+    assertDeepEquals([1, 2], manager.getKnownFontIds());
 
     chrome.test.succeed();
   },

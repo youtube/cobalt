@@ -46,6 +46,7 @@
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
 #include "chrome/browser/ui/views/toolbar/home_button.h"
+#include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
@@ -64,6 +65,7 @@
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/vector_icons/vector_icons.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -158,8 +160,8 @@ bool WaitForButtonVisible(content::WebContents* web_contents,
 }
 
 WebUIToolbarWebView* GetWebUIToolbarWebView(Browser* browser) {
-  return static_cast<ToolbarButtonProvider*>(
-             BrowserView::GetBrowserViewForBrowser(browser)->toolbar())
+  return BrowserView::GetBrowserViewForBrowser(browser)
+      ->toolbar_button_provider()
       ->GetWebUIToolbarViewForTesting();
 }
 
@@ -431,42 +433,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
                                      &webui_toolbar_view, &web_view,
                                      browser()));
 
-  // Find accessibility node for reload button.
-  content::WaitForAccessibilityTreeToContainNodeWithName(
-      web_view->GetWebContents(), "Reload");
   content::FindAccessibilityNodeCriteria find_criteria;
-  find_criteria.name = "Reload";
-  ui::AXPlatformNodeDelegate* reload_node =
-      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
-  ASSERT_TRUE(reload_node);
-
-  // Verify appropriate accessibility properties for reload button.
-  const ui::AXNodeData& reload = reload_node->GetData();
-  EXPECT_EQ(ax::mojom::Role::kButton, reload.role);
-  EXPECT_EQ(true, reload.IsClickable());
-  EXPECT_EQ("Reload",
-            reload.GetStringAttribute(ax::mojom::StringAttribute::kName));
-  EXPECT_EQ("Reload this page", reload.GetStringAttribute(
-                                    ax::mojom::StringAttribute::kDescription));
-  EXPECT_EQ(static_cast<int>(ax::mojom::HasPopup::kFalse),
-            reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
-
-  // Verify enabling devtools is reflected in HasPopup attribute.
-  webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
-  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
-  content::WaitForAccessibilityTreeToContainNodeWithName(
-      web_view->GetWebContents(), "Reload");
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
-        web_view->GetWebContents(), find_criteria);
-    return node &&
-           node->GetData().GetIntAttribute(
-               ax::mojom::IntAttribute::kHasPopup) ==
-               static_cast<int>(ax::mojom::HasPopup::kMenu) &&
-           node->GetData().GetStringAttribute(
-               ax::mojom::StringAttribute::kDescription) ==
-               "Reload this page, hold to see more options";
-  }));
 
   // Verify appropriate accessibility properties for back button.
   content::WaitForAccessibilityTreeToContainNodeWithName(
@@ -496,69 +463,70 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
       "Click to go forward, hold to see history",
       forward.GetStringAttribute(ax::mojom::StringAttribute::kDescription));
 
-  // Verify appropriate accessibility properties for home button.
-  std::string home_name =
-      content::EvalJs(web_view->GetWebContents(),
-                      "import('//resources/js/load_time_data.js').then(m => "
-                      "m.loadTimeData.getString('homeButtonAccName'))")
-          .ExtractString();
-  std::string home_tooltip =
-      content::EvalJs(web_view->GetWebContents(),
-                      "import('//resources/js/load_time_data.js').then(m => "
-                      "m.loadTimeData.getString('homeButtonTooltip'))")
-          .ExtractString();
+  // Verify appropriate accessibility properties for reload button.
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      web_view->GetWebContents(), "Reload");
+  find_criteria.name = "Reload";
+  ui::AXPlatformNodeDelegate* reload_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  ASSERT_TRUE(reload_node);
+  const ui::AXNodeData& reload = reload_node->GetData();
+  EXPECT_EQ(ax::mojom::Role::kButton, reload.role);
+  EXPECT_EQ(true, reload.IsClickable());
+  EXPECT_EQ("Reload",
+            reload.GetStringAttribute(ax::mojom::StringAttribute::kName));
+  EXPECT_EQ("Reload this page", reload.GetStringAttribute(
+                                    ax::mojom::StringAttribute::kDescription));
+  EXPECT_EQ(static_cast<int>(ax::mojom::HasPopup::kFalse),
+            reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
 
-  // Pin home button first to make it visible
+  auto check_reload_a11y = [&](ax::mojom::HasPopup expected_has_popup,
+                               const std::string& expected_description) {
+    content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
+    content::WaitForAccessibilityTreeToContainNodeWithName(
+        web_view->GetWebContents(), "Reload");
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
+          web_view->GetWebContents(), find_criteria);
+      return node &&
+             node->GetData().GetIntAttribute(
+                 ax::mojom::IntAttribute::kHasPopup) ==
+                 static_cast<int>(expected_has_popup) &&
+             node->GetData().GetStringAttribute(
+                 ax::mojom::StringAttribute::kDescription) ==
+                 expected_description;
+    }));
+  };
+
+  // Verify enabling devtools is reflected in HasPopup attribute.
+  webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
+  check_reload_a11y(ax::mojom::HasPopup::kMenu,
+                    "Reload this page, hold to see more options");
+
+  // Verify that setting mode to kStop is reflected in HasPopup attribute.
+  webui_toolbar_view->GetReloadControl()->ChangeMode(ReloadControl::Mode::kStop,
+                                                     true);
+  check_reload_a11y(ax::mojom::HasPopup::kFalse, "Stop loading this page");
+
+  // Verify it works when returning to kReload mode.
+  webui_toolbar_view->GetReloadControl()->ChangeMode(
+      ReloadControl::Mode::kReload, true);
+  check_reload_a11y(ax::mojom::HasPopup::kMenu,
+                    "Reload this page, hold to see more options");
+
+  // Verify appropriate accessibility properties for home button.
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kShowHomeButton, true);
   content::WaitForAccessibilityTreeToContainNodeWithName(
-      web_view->GetWebContents(), home_name);
-  find_criteria.name = home_name;
+      web_view->GetWebContents(), "Home");
+  find_criteria.name = "Home";
   ui::AXPlatformNodeDelegate* home_node =
       content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
   ASSERT_TRUE(home_node);
   const ui::AXNodeData& home = home_node->GetData();
   EXPECT_EQ(ax::mojom::Role::kButton, home.role);
-  EXPECT_EQ(home_name,
-            home.GetStringAttribute(ax::mojom::StringAttribute::kName));
-  EXPECT_EQ(home_tooltip,
+  EXPECT_EQ("Home", home.GetStringAttribute(ax::mojom::StringAttribute::kName));
+  EXPECT_EQ("Open the home page",
             home.GetStringAttribute(ax::mojom::StringAttribute::kDescription));
-
-  // Verify that setting mode to kStop is reflected in HasPopup attribute.
-  webui_toolbar_view->GetReloadControl()->ChangeMode(ReloadControl::Mode::kStop,
-                                                     true);
-  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
-  content::WaitForAccessibilityTreeToContainNodeWithName(
-      web_view->GetWebContents(), "Reload");
-  find_criteria.name = "Reload";
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
-        web_view->GetWebContents(), find_criteria);
-    return node &&
-           node->GetData().GetIntAttribute(
-               ax::mojom::IntAttribute::kHasPopup) ==
-               static_cast<int>(ax::mojom::HasPopup::kFalse) &&
-           node->GetData().GetStringAttribute(
-               ax::mojom::StringAttribute::kDescription) ==
-               "Stop loading this page";
-  }));
-
-  // Verify it works when returning to kReload mode.
-  webui_toolbar_view->GetReloadControl()->ChangeMode(
-      ReloadControl::Mode::kReload, true);
-  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
-  content::WaitForAccessibilityTreeToContainNodeWithName(
-      web_view->GetWebContents(), "Reload");
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
-        web_view->GetWebContents(), find_criteria);
-    return node &&
-           node->GetData().GetIntAttribute(
-               ax::mojom::IntAttribute::kHasPopup) ==
-               static_cast<int>(ax::mojom::HasPopup::kMenu) &&
-           node->GetData().GetStringAttribute(
-               ax::mojom::StringAttribute::kDescription) ==
-               "Reload this page, hold to see more options";
-  }));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
@@ -1215,6 +1183,78 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
   // Succeeded, but not really. Browser should be shutting down at this point
   // so we just have to make sure it doesn't crash.
   ASSERT_TRUE(observer.last_navigation_succeeded());
+}
+
+class WebUIToolbarWebViewRaceTest : public InProcessBrowserTest {
+ public:
+  WebUIToolbarWebViewRaceTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUIReloadButton,
+         features::kWebUIInProcessResourceLoadingV2,
+         features::kSkipIPCChannelPausingForNonGuests},
+        {features::kInitialWebUISyncNavStartToCommit});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Regression test for crbug.com/478033216.
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewRaceTest,
+                       BindInterfaceAfterCloseRace) {
+  // 1. Setup: Create a new browser window.
+  Browser* new_browser = CreateBrowser(browser()->profile());
+  ui_test_utils::WaitForBrowserSetLastActive(new_browser);
+
+  WebUIToolbarWebView* toolbar_view = ::GetWebUIToolbarWebView(new_browser);
+  ASSERT_TRUE(toolbar_view);
+  content::WebContents* webui_contents =
+      toolbar_view->GetWebViewForTesting()->GetWebContents();
+  ASSERT_TRUE(webui_contents);
+
+  // 2. Prepare Navigation Manager to hang the navigation.
+  GURL toolbar_url(chrome::kChromeUIWebUIToolbarURL);
+
+  // Trigger a reload to start a new navigation that we can control.
+  content::TestNavigationManager nav_manager(webui_contents, toolbar_url);
+  webui_contents->GetController().Reload(content::ReloadType::NORMAL,
+                                         /*check_for_repost=*/false);
+  EXPECT_TRUE(nav_manager.WaitForResponse());
+
+  // 3. Resume navigation (this queues the commit task on the UI thread).
+  nav_manager.ResumeNavigation();
+
+  // 4. Initiate browser closure.
+  // This synchronously calls Browser::OnWindowClosing() which nulls the
+  // BrowserWindowInterface reference and posts SynchronouslyDestroyBrowser.
+  new_browser->window()->Close();
+
+  // 5. Queue BindInterface manually.
+  // This mimics the Mojo request from the renderer arriving after the BWI is
+  // nulled but BEFORE the browser is destroyed.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<content::WebContents> weak_wc) {
+            if (!weak_wc) {
+              return;
+            }
+            auto* rfh = weak_wc->GetPrimaryMainFrame();
+            auto* web_ui = rfh ? rfh->GetWebUI() : nullptr;
+            auto* ui = web_ui ? web_ui->GetController()->GetAs<WebUIToolbarUI>()
+                              : nullptr;
+            if (ui) {
+              mojo::PendingRemote<tracked_element::mojom::TrackedElementHandler>
+                  remote;
+              ui->BindInterface(remote.InitWithNewPipeAndPassReceiver());
+            }
+          },
+          webui_contents->GetWeakPtr()));
+
+  // 6. Return to the message loop.
+  // This will process: [Commit Task] -> [BindInterface Task] -> [Destruction
+  // Task]. Without the fix, both Commit and BindInterface tasks would crash.
+  std::ignore = nav_manager.WaitForNavigationFinished();
 }
 
 // Verify that the crash is recovered by reloading the page until it hits the
@@ -2128,7 +2168,7 @@ class WebUIToolbarWebViewHomeButtonBrowserTest : public InProcessBrowserTest {
     GURL home_url(
         browser()->profile()->GetPrefs()->GetString(prefs::kHomePage));
     if (home_url.is_empty()) {
-      return GURL(chrome::kChromeUINewTabURL);
+      return chrome::ChromeUINewTabURLAsGURL();
     }
     return home_url;
   }
@@ -2589,6 +2629,66 @@ class WebUIPinnedToolbarActionsBrowserTest
                                  : actions::ActionPinnableState::kNotPinnable));
   }
 
+  void PinAction(actions::ActionId action_id,
+                 toolbar_ui_api::mojom::PinnedToolbarAction mojom_action) {
+    auto* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+    auto* web_contents =
+        webui_toolbar_view->GetWebViewForTesting()->GetWebContents();
+    auto* pinned_actions = webui_toolbar_view->GetPinnedToolbarActions();
+    ui::ElementIdentifier id =
+        pinned_toolbar_actions::GetElementIdentifierForAction(action_id);
+
+    // Verify it's not pinned initially.
+    if (id) {
+      CHECK_EQ(id, webui_toolbar::ActionIdToElementIdentifier(action_id));
+      EXPECT_FALSE(BrowserElements::From(browser())->GetElement(id));
+    }
+    EXPECT_TRUE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
+
+    model_->UpdatePinnedState(action_id, true);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+    // Verify it's not highlighted.
+    EXPECT_TRUE(EvalJsOnPinnedButton(web_contents, mojom_action,
+                                     "return !!btn && "
+                                     "!btn.hasAttribute('is-menu-open');")
+                    .ExtractBool());
+
+    // Verify it's trackable.
+    if (id) {
+      EXPECT_TRUE(base::test::RunUntil([&]() {
+        return BrowserElements::From(browser())->GetElement(id) != nullptr;
+      }));
+    }
+    // Once pinned, GetBubbleAnchor() should eventually return a non-null
+    // BubbleAnchor.
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      return !pinned_actions->GetBubbleAnchor(action_id).IsNull();
+    }));
+  }
+
+  void UnpinAction(actions::ActionId action_id,
+                   toolbar_ui_api::mojom::PinnedToolbarAction mojom_action) {
+    auto* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+    auto* web_contents =
+        webui_toolbar_view->GetWebViewForTesting()->GetWebContents();
+    auto* pinned_actions = webui_toolbar_view->GetPinnedToolbarActions();
+    ui::ElementIdentifier id =
+        pinned_toolbar_actions::GetElementIdentifierForAction(action_id);
+
+    model_->UpdatePinnedState(action_id, false);
+    ASSERT_TRUE(base::test::RunUntil(
+        [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+    if (id) {
+      EXPECT_TRUE(base::test::RunUntil([&]() {
+        return BrowserElements::From(browser())->GetElement(id) == nullptr;
+      }));
+    }
+    EXPECT_TRUE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
+  }
+
   raw_ptr<PinnedToolbarActionsModel> model_;
 
   const std::vector<
@@ -2629,7 +2729,7 @@ class WebUIPinnedToolbarActionsBrowserTest
           {kActionQrCodeGenerator,
            toolbar_ui_api::mojom::PinnedToolbarAction::kQrCodeGenerator},
           {kActionRouteMedia,
-           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMedia},
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMediaIdle},
           {kActionSidePanelShowReadAnything,
            toolbar_ui_api::mojom::PinnedToolbarAction::
                kSidePanelShowReadAnything},
@@ -2668,67 +2768,46 @@ class WebUIPinnedToolbarActionsBrowserTest
 
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
                        PinUnpinIndividually) {
-  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
-  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
-  content::WebContents* web_contents = web_view->GetWebContents();
-  auto* pinned_actions = webui_toolbar_view->GetPinnedToolbarActions();
-
   for (const auto& [action_id, mojom_action] : kActionMappings) {
-    ui::ElementIdentifier id =
-        pinned_toolbar_actions::GetElementIdentifierForAction(action_id);
-    if (id) {
-      CHECK_EQ(id, webui_toolbar::ActionIdToElementIdentifier(action_id));
-      EXPECT_FALSE(BrowserElements::From(browser())->GetElement(id));
-    }
-    EXPECT_TRUE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
-
-    model_->UpdatePinnedState(action_id, true);
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
-
-    // Verify it's not highlighted.
-    EXPECT_TRUE(EvalJsOnPinnedButton(web_contents, mojom_action,
-                                     "return !!btn && "
-                                     "!btn.hasAttribute('is-menu-open');")
-                    .ExtractBool());
-
-    // Verify it's trackable.
-    if (id) {
-      EXPECT_TRUE(base::test::RunUntil([&]() {
-        return BrowserElements::From(browser())->GetElement(id) != nullptr;
-      }));
-    }
-    // Once pinned, GetBubbleAnchor() should eventually return a non-null
-    // BubbleAnchor.
-    EXPECT_TRUE(base::test::RunUntil([&]() {
-      return !pinned_actions->GetBubbleAnchor(action_id).IsNull();
-    }));
-
-    model_->UpdatePinnedState(action_id, false);
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
-
-    if (id) {
-      EXPECT_TRUE(base::test::RunUntil([&]() {
-        return BrowserElements::From(browser())->GetElement(id) == nullptr;
-      }));
-    }
-    EXPECT_TRUE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
+    PinAction(action_id, mojom_action);
+    UnpinAction(action_id, mojom_action);
   }
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, PinAllTogether) {
-  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
-  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
-  content::WebContents* web_contents = web_view->GetWebContents();
-
   for (const auto& [action_id, mojom_action] : kActionMappings) {
-    model_->UpdatePinnedState(action_id, true);
+    PinAction(action_id, mojom_action);
   }
 
   for (const auto& [action_id, mojom_action] : kActionMappings) {
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+    UnpinAction(action_id, mojom_action);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, RouteMediaIcons) {
+  auto* action_item = static_cast<actions::StatefulImageActionItem*>(
+      actions::ActionManager::Get().FindAction(
+          kActionRouteMedia, browser()->GetActions()->root_action_item()));
+
+  const std::vector<std::pair<const gfx::VectorIcon&,
+                              toolbar_ui_api::mojom::PinnedToolbarAction>>
+      kRouteMediaIcons = {
+          {vector_icons::kMediaRouterIdleChromeRefreshIcon,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMediaIdle},
+          {vector_icons::kMediaRouterWarningChromeRefreshIcon,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMediaWarning},
+          {vector_icons::kMediaRouterPausedIcon,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMediaPaused},
+          {vector_icons::kMediaRouterActiveChromeRefreshIcon,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMediaActive},
+          {kCastChromeRefreshIcon,
+           toolbar_ui_api::mojom::PinnedToolbarAction::kRouteMedia},
+      };
+
+  for (const auto& [icon, mojom_action] : kRouteMediaIcons) {
+    action_item->SetStatefulImage(ui::ImageModel::FromVectorIcon(icon));
+    PinAction(kActionRouteMedia, mojom_action);
+    UnpinAction(kActionRouteMedia, mojom_action);
   }
 }
 
@@ -3308,3 +3387,58 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<DragTestParam>& info) {
       return info.param.test_name;
     });
+
+class WebUIToolbarProcessOverheadExperimentBrowserTest
+    : public InProcessBrowserTest {
+ public:
+  WebUIToolbarProcessOverheadExperimentBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kWebUIToolbarProcessOverheadExperiment},
+        {features::kWebUIReloadButton});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarProcessOverheadExperimentBrowserTest,
+                       Basic) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  ToolbarView* toolbar_view = browser_view->toolbar();
+
+  // Verify that the C++ reload button is visible.
+  views::View* reload_button = toolbar_view->reload_button();
+  ASSERT_TRUE(reload_button);
+  EXPECT_TRUE(reload_button->GetVisible());
+
+  // Verify that the WebUIToolbarWebView is NOT in the view hierarchy.
+  ToolbarButtonProvider* provider = toolbar_view;
+  EXPECT_EQ(provider->GetWebUIToolbarViewForTesting(), nullptr);
+
+  // Verify that the detached WebUIToolbarWebView IS created.
+  EXPECT_NE(toolbar_view->detached_toolbar_webview_for_testing(), nullptr);
+}
+
+class WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest
+    : public WebUIToolbarWebViewBrowserTest {
+ public:
+  WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest() = default;
+
+  void SetUpInProcessBrowserTestFixture() override {
+    WebUIToolbarWebViewBrowserTest::SetUpInProcessBrowserTestFixture();
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
+  }
+
+ protected:
+  std::unique_ptr<base::HistogramTester> histogram_tester_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
+                       FirstProcessRecordsFalse) {
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  histogram_tester_->ExpectUniqueSample(
+      "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
+      false, 1);
+}

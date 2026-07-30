@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/glic/glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
@@ -51,7 +52,10 @@
 #include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/animation/tween.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -111,7 +115,7 @@ void EstablishPrivateAiConnection(Profile* profile) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-using TaskIconAnimationMode = glic::TabStripGlicActorTaskIcon::AnimationMode;
+using TaskIconAnimationMode = glic::AnimationMode;
 }  // namespace
 
 TabStripActionContainer::TabStripNudgeAnimationSession::
@@ -391,6 +395,9 @@ void TabStripActionContainer::OnTriggerAnchoredMessage(
 
   // Set the chip text to the cue label.
   action->SetText(base::UTF8ToUTF16(label));
+  action->SetImage(ui::ImageModel::FromVectorIcon(
+      glic::GlicVectorIconManager::GetVectorIcon(IDR_GLIC_BUTTON_VECTOR_ICON),
+      ui::kColorSysOnSurface, 18));
   action->SetEnabled(true);
   action->SetVisible(true);
   action->SetInvokeActionCallback(base::BindRepeating(
@@ -423,6 +430,12 @@ void TabStripActionContainer::OnTriggerAnchoredMessage(
   // The secondary label becomes the anchored message bubble text.
   controller->SetAnchoredMessageText(kActionGlicContextualCueing,
                                      base::UTF8ToUTF16(anchored_message_text));
+  gfx::ImageSkia* icon =
+      ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+          IDR_GLIC_BUTTON_ALT_ICON);
+  controller->SetAnchoredMessageIcon(
+      kActionGlicContextualCueing,
+      icon ? ui::ImageModel::FromImageSkia(*icon) : ui::ImageModel());
   controller->SetAnchoredMessageAction(
       kActionGlicContextualCueing,
       page_actions::AnchoredMessageActionIconType::kClose, /*model=*/nullptr);
@@ -927,7 +940,7 @@ void TabStripActionContainer::ExecuteShowTabStripNudge(
         button, this,
         TabStripNudgeAnimationSession::AnimationSessionType::kShow,
         base::BindOnce(&TabStripActionContainer::OnAnimationSessionEnded,
-                       base::Unretained(this)),
+                       weak_factory_.GetWeakPtr()),
         (button != glic_button_ && button != glic_actor_task_icon_));
     animation_session_->Start();
   }
@@ -982,7 +995,7 @@ void TabStripActionContainer::ExecuteHideTabStripNudge(
         button, this,
         TabStripNudgeAnimationSession::AnimationSessionType::kHide,
         base::BindOnce(&TabStripActionContainer::OnAnimationSessionEnded,
-                       base::Unretained(this)),
+                       weak_factory_.GetWeakPtr()),
         (button != glic_button_ && button != glic_actor_task_icon_));
     animation_session_->Start();
   }

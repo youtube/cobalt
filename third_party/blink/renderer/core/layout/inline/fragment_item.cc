@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item_result.h"
+#include "third_party/blink/renderer/core/layout/inline/used_font.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
@@ -58,6 +59,13 @@ FragmentItem::FragmentItem(const InlineItem& inline_item,
       ink_overflow_type_(static_cast<unsigned>(InkOverflow::Type::kNotSet)),
       is_dirty_(false),
       is_last_for_node_(true) {
+  static_assert(std::to_underlying(ItemType::kMaxValue) <
+                (1 << kConstTypeBits));
+  static_assert(std::to_underlying(TextItemType::kMaxValue) <
+                (1 << kSubTypeBits));
+  static_assert(std::to_underlying(LineBoxType::kMaxValue) <
+                (1 << kSubTypeBits));
+
 #if DCHECK_IS_ON()
   if (text_.shape_result) {
     DCHECK_EQ(text_.shape_result->StartIndex(), StartOffset());
@@ -128,8 +136,7 @@ FragmentItem::FragmentItem(const PhysicalSize& size,
       rect_({PhysicalOffset(), size}),
       layout_object_(base_line.ContainerLayoutObject()),
       const_type_(kLine),
-      sub_type_(
-          static_cast<unsigned>(FragmentItem::LineBoxType::kNormalLineBox)),
+      sub_type_(static_cast<unsigned>(FragmentItem::LineBoxType::kRubyLineBox)),
       style_variant_(static_cast<unsigned>(base_line.GetStyleVariant())),
       is_hidden_for_paint_(false),
       text_direction_(static_cast<unsigned>(base_line.BaseDirection())),
@@ -809,6 +816,10 @@ void FragmentItem::SetTextRareData(const FitTextScale* scale,
     data->length_adjust_scale = 1.0f;
     text_.rare_data = data;
   }
+}
+
+const UsedFont FragmentItem::GetUsedFont() const {
+  return UsedFont(ScaledFont(), GetFitTextScale());
 }
 
 float FragmentItem::GetFitTextScale() const {

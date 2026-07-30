@@ -1445,9 +1445,9 @@ void FlexLayoutAlgorithm::PlaceFlexItems(
   LayoutUnit sum_line_cross_size;
 
   flex_lines->reserve(result.flex_lines.size());
-  for (auto& line : result.flex_lines) {
+  for (const auto& line : result.flex_lines) {
     // Flex the items.
-    auto line_items = items.take_first(line.count);
+    const auto line_items = items.take_first(line.count);
     LineFlexer(line_items, main_axis_inner_size,
                line.sum_hypothetical_main_size, gap_between_items_)
         .Run();
@@ -2811,87 +2811,99 @@ MinMaxSizesResult FlexLayoutAlgorithm::ComputeMinMaxSizeOfRowContainer() {
   // the flex basis is not definite.
   ConstructAndAppendFlexItems(Phase::kRowIntrinsicSize);
 
+  // We only need to run the line-breaker if we have "flex-wrap:balance".
+  base::span<FlexItem> items = base::span(flex_items_);
+  const FlexLineBreakerResult result =
+      balance_min_line_count_
+          ? BreakFlexItemsIntoLines(items, LayoutUnit::Max(),
+                                    gap_between_items_, is_multi_line_,
+                                    balance_min_line_count_)
+          : FlexLineBreakerResult(
+                {InitialFlexLine(flex_items_.size(), LayoutUnit())},
+                LayoutUnit());
+
   LayoutUnit largest_outer_min_content_contribution;
-  for (const FlexItem& item : flex_items_) {
-    const BlockNode& child = item.block_node;
+  for (const auto& line : result.flex_lines) {
+    const auto line_items = items.take_first(line.count);
 
-    const ConstraintSpace space =
-        BuildSpaceForIntrinsicInlineSize(child, item.alignment);
-    const MinMaxSizesResult min_max_content_contributions =
-        ComputeMinAndMaxContentContribution(Style(), child, space);
-    depends_on_block_constraints |=
-        min_max_content_contributions.depends_on_block_constraints;
+    MinMaxSizes line_sizes;
+    for (const FlexItem& item : line_items) {
+      const BlockNode& child = item.block_node;
 
-    MinMaxSizes item_final_contribution;
-    const LayoutUnit flex_base_size_border_box =
-        item.base_content_size + item.main_axis_border_padding;
-    const LayoutUnit hypothetical_main_size_border_box =
-        item.hypothetical_content_size + item.main_axis_border_padding;
+      const ConstraintSpace space =
+          BuildSpaceForIntrinsicInlineSize(child, item.alignment);
+      const MinMaxSizesResult min_max_content_contributions =
+          ComputeMinAndMaxContentContribution(Style(), child, space);
+      depends_on_block_constraints |=
+          min_max_content_contributions.depends_on_block_constraints;
 
-    const LayoutUnit main_axis_margins =
-        is_horizontal_flow_ ? item.initial_margins.HorizontalSum()
-                            : item.initial_margins.VerticalSum();
+      const LayoutUnit flex_base_size_border_box =
+          item.base_content_size + item.main_axis_border_padding;
+      const LayoutUnit hypothetical_main_size_border_box =
+          item.hypothetical_content_size + item.main_axis_border_padding;
 
-    if (is_multi_line_) {
-      largest_outer_min_content_contribution = std::max(
-          largest_outer_min_content_contribution,
-          min_max_content_contributions.sizes.min_size + main_axis_margins);
-    } else {
-      const LayoutUnit min_contribution =
-          min_max_content_contributions.sizes.min_size;
+      const LayoutUnit main_axis_margins =
+          is_horizontal_flow_ ? item.initial_margins.HorizontalSum()
+                              : item.initial_margins.VerticalSum();
 
-      // Note: |cant_move| is not actually necessary to pass the compat cases
-      // that have broke in the past, but it does restrict the new algorithm to
-      // a smaller set of scenarios where the old algorithm was egregiously
-      // wrong. If this version of the algorithm IS web compatible, we can then
-      // try removing the cant_move requirement.
-      const bool cant_move = (min_contribution > flex_base_size_border_box &&
-                              item.flex_grow == 0.f) ||
-                             (min_contribution < flex_base_size_border_box &&
-                              item.flex_shrink == 0.f);
-      // Note: We could further restrict the new algorithm to only apply to
-      // items that have both a fixed flex basis AND do not use automatic
-      // minimum sizing AND whose min and max properties do not depend on the
-      // item's content (e.g. fit-content, max-content etc). But last time we
-      // enabled this algorithm there were no bugs filed, so hopefully those
-      // further restrictions are not necessary. If we have compat problems this
-      // iteration, we can see if any would be fixed by employing such
-      // restrictions.
-      if (cant_move && !item.is_used_flex_basis_indefinite) {
-        item_final_contribution.min_size = hypothetical_main_size_border_box;
+      MinMaxSizes item_final_contribution;
+      if (is_multi_line_) {
+        largest_outer_min_content_contribution = std::max(
+            largest_outer_min_content_contribution,
+            min_max_content_contributions.sizes.min_size + main_axis_margins);
       } else {
-        item_final_contribution.min_size = min_contribution;
+        const LayoutUnit min_contribution =
+            min_max_content_contributions.sizes.min_size;
+
+        // Note: |cant_move| is not actually necessary to pass the compat cases
+        // that have broke in the past, but it does restrict the new algorithm
+        // to a smaller set of scenarios where the old algorithm was
+        // egregiously wrong. If this version of the algorithm IS web
+        // compatible, we can then try removing the cant_move requirement.
+        const bool cant_move = (min_contribution > flex_base_size_border_box &&
+                                item.flex_grow == 0.f) ||
+                               (min_contribution < flex_base_size_border_box &&
+                                item.flex_shrink == 0.f);
+        // Note: We could further restrict the new algorithm to only apply to
+        // items that have both a fixed flex basis AND do not use automatic
+        // minimum sizing AND whose min and max properties do not depend on the
+        // item's content (e.g. fit-content, max-content etc). But last time we
+        // enabled this algorithm there were no bugs filed, so hopefully those
+        // further restrictions are not necessary. If we have compat problems
+        // this iteration, we can see if any would be fixed by employing such
+        // restrictions.
+        if (cant_move && !item.is_used_flex_basis_indefinite) {
+          item_final_contribution.min_size = hypothetical_main_size_border_box;
+        } else {
+          item_final_contribution.min_size = min_contribution;
+        }
       }
+
+      const LayoutUnit max_contribution =
+          min_max_content_contributions.sizes.max_size;
+      const bool cant_move = (max_contribution > flex_base_size_border_box &&
+                              item.flex_grow == 0.f) ||
+                             (max_contribution < flex_base_size_border_box &&
+                              item.flex_shrink == 0.f);
+      if (cant_move && !item.is_used_flex_basis_indefinite) {
+        item_final_contribution.max_size = hypothetical_main_size_border_box;
+      } else {
+        item_final_contribution.max_size = max_contribution;
+      }
+
+      line_sizes += item_final_contribution;
+      line_sizes += main_axis_margins;
     }
 
-    const LayoutUnit max_contribution =
-        min_max_content_contributions.sizes.max_size;
-    const bool cant_move = (max_contribution > flex_base_size_border_box &&
-                            item.flex_grow == 0.f) ||
-                           (max_contribution < flex_base_size_border_box &&
-                            item.flex_shrink == 0.f);
-    if (cant_move && !item.is_used_flex_basis_indefinite) {
-      item_final_contribution.max_size = hypothetical_main_size_border_box;
-    } else {
-      item_final_contribution.max_size = max_contribution;
-    }
+    line_sizes +=
+        line.count ? (line.count - 1u) * gap_between_items_ : LayoutUnit();
 
-    container_sizes += item_final_contribution;
-    container_sizes += main_axis_margins;
+    container_sizes.Encompass(line_sizes);
   }
 
-  if (!flex_items_.empty()) {
-    const LayoutUnit gap_inline_size =
-        (flex_items_.size() - 1) * gap_between_items_;
-    if (is_multi_line_) {
-      container_sizes.min_size = largest_outer_min_content_contribution;
-      container_sizes.max_size += gap_inline_size;
-    } else {
-      DCHECK_EQ(largest_outer_min_content_contribution, LayoutUnit())
-          << "largest_outer_min_content_contribution is not filled in for "
-             "singleline containers.";
-      container_sizes += gap_inline_size;
-    }
+  // For a wrapping flexbox, assume each item is on its own line.
+  if (is_multi_line_) {
+    container_sizes.min_size = largest_outer_min_content_contribution;
   }
 
   // Handle potential weirdness caused by items' negative margins.

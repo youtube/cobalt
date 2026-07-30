@@ -180,7 +180,7 @@ public class BookmarksTest {
         // other a bookmark. We need to figure out which is which because the
         // order is not being explicitly set on creation.
         //
-        // See http://crbug/642128 - Explicitly set order on bookmark creation
+        // See http://crbug.com/40482652 - Explicitly set order on bookmark creation
         // and verify the order here.
         List<Bookmark> clientBookmarks = getClientBookmarks();
         Assert.assertEquals(2, clientBookmarks.size());
@@ -387,7 +387,7 @@ public class BookmarksTest {
     @LargeTest
     @Feature({"Sync"})
     public void testDisabledNoDownloadBookmark() throws Exception {
-        mSyncTestRule.disableDataType(UserSelectableType.BOOKMARKS);
+        mSyncTestRule.setSelectedType(UserSelectableType.BOOKMARKS, false);
         addServerBookmark(TITLE, URL);
         SyncTestUtil.triggerSyncAndWaitForCompletion();
         assertClientBookmarkCount(0);

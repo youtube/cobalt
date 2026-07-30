@@ -57,15 +57,15 @@ base::expected<std::unique_ptr<ClickTool>, ActorToolError> ClickTool::Create(
 
 void ClickTool::Execute(ToolExecutionCallback callback) {
   if (!web_state_) {
-    std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kExecutionMissingDependencies}));
+    std::move(callback).Run(
+        ToolExecutionResult(ActorToolErrorCode::kExecutionMissingDependencies));
     return;
   }
   web::WebFramesManager* frames_manager =
       js_feature_->GetWebFramesManager(web_state_.get());
   if (!frames_manager || !frames_manager->GetMainWebFrame()) {
-    std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kExecutionMissingDependencies}));
+    std::move(callback).Run(
+        ToolExecutionResult(ActorToolErrorCode::kExecutionMissingDependencies));
     return;
   }
 
@@ -76,13 +76,18 @@ void ClickTool::Execute(ToolExecutionCallback callback) {
                                     std::move(callback)));
 }
 
+base::WeakPtr<web::WebState> ClickTool::GetTargetWebState() const {
+  return web_state_;
+}
+
 void ClickTool::OnTargetFrameResolved(
     const optimization_guide::proto::ClickAction& action,
     ToolExecutionCallback callback,
     base::expected<ActionTargetJavaScriptFeature::TargetFrameResult,
                    ActorToolError> result) {
   if (!result.has_value()) {
-    std::move(callback).Run(base::unexpected(result.error()));
+    std::move(callback).Run(ToolExecutionResult(result.error().external_code,
+                                                result.error().message));
     return;
   }
 
@@ -90,8 +95,8 @@ void ClickTool::OnTargetFrameResolved(
       result.value();
   web::WebFrame* target_web_frame = target_frame.frame;
   if (!target_web_frame) {
-    std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kExecutionMissingDependencies}));
+    std::move(callback).Run(
+        ToolExecutionResult(ActorToolErrorCode::kExecutionMissingDependencies));
     return;
   }
 

@@ -14,10 +14,12 @@
 #import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/cobrowse/model/ios_contextual_tasks_service_factory.h"
+#import "ios/chrome/browser/cobrowse/ui/assistant_aim_ui_constants.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_view_controller.h"
-#import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_coordinator.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
+#import "ios/chrome/browser/composebox/public/composebox_entrypoint.h"
+#import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
@@ -68,7 +70,11 @@ class AssistantAIMUIStateProvider
 
 - (void)start {
   CHECK(IsAimCobrowseEnabled());
-  _currentDetent = AssistantContainerDetent::kMinimized;
+  if (base::FeatureList::IsEnabled(kAssistantAimMinimizedState)) {
+    _currentDetent = AssistantContainerDetent::kMinimized;
+  } else {
+    _currentDetent = AssistantContainerDetent::kMedium;
+  }
   if (self.browser->GetProfile()->IsOffTheRecord()) {
     return;
   }
@@ -86,9 +92,6 @@ class AssistantAIMUIStateProvider
 
   _containerHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
                                          AssistantContainerCommands);
-
-  [_containerHandler showAssistantContainerWithContent:_viewController
-                                              delegate:self];
 
   web::WebState::CreateParams params(self.browser->GetProfile());
   CobrowseContext* context = agent ? agent->GetCobrowseContext() : nil;
@@ -115,11 +118,12 @@ class AssistantAIMUIStateProvider
       initWithInputPlatePosition:ComposeboxInputPlatePosition::kBottom
                        incognito:NO
                            isNTP:NO];
+  ComposeboxFocusParams* focusParams = [[ComposeboxFocusParams alloc]
+      initWithEntrypoint:ComposeboxEntrypoint::kCobrowse];
   _inputPlateCoordinator = [[ComposeboxInputPlateCoordinator alloc]
       initWithBaseViewController:_viewController
                          browser:self.browser
-                      entrypoint:ComposeboxEntrypoint::kCobrowse
-                           query:nil
+                     focusParams:focusParams
                        URLLoader:_mediator
                            theme:theme
                       modeHolder:_modeHolder];
@@ -127,6 +131,23 @@ class AssistantAIMUIStateProvider
 
   [_viewController
       addInputViewController:_inputPlateCoordinator.inputViewController];
+
+  // This must be called AFTER the view controller and its children (like the
+  // input plate) are fully set up. This is because the initial layout and
+  // percentage updates need to be applied to the fully constructed content.
+  // Moving it earlier caused the minimized state to not be correctly applied to
+  // the content, leading to wrong UI.
+  [_containerHandler showAssistantContainerWithContent:_viewController
+                                              delegate:self];
+
+  AssistantContainerDetent targetDetent =
+      base::FeatureList::IsEnabled(kAssistantAimMinimizedState)
+          ? AssistantContainerDetent::kMinimized
+          : AssistantContainerDetent::kMedium;
+  [_containerHandler
+      animateAssistantContainerToDetent:targetDetent
+                               duration:0
+                                  curve:UIViewAnimationCurveEaseInOut];
 }
 
 - (void)stop {
@@ -147,7 +168,7 @@ class AssistantAIMUIStateProvider
 
   if (_viewController) {
     _viewController = nil;
-    [self dismissAssistantContainerAnimated:NO];
+    [self dismissAssistantContainerAnimated:YES];
   }
 }
 

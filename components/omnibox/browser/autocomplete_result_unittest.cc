@@ -375,6 +375,48 @@ void AutocompleteResultTest::SortMatchesAndVerifyOrder(
   EXPECT_THAT(actual, testing::ElementsAreArray(expected));
 }
 
+class AutocompleteResultTimeTest : public testing::Test {
+ protected:
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+};
+
+TEST_F(AutocompleteResultTimeTest, ResultReadyTime) {
+  AutocompleteResult result;
+  EXPECT_TRUE(result.result_ready_time().is_null());
+}
+
+TEST_F(AutocompleteResultTimeTest, RefreshReadyState) {
+  AutocompleteResult result;
+
+  auto now = task_environment_.NowTicks();
+  result.RefreshReadyState();
+  EXPECT_EQ(result.result_ready_time(), now);
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+  result.RefreshReadyState();
+  EXPECT_EQ(result.result_ready_time(), now + base::Seconds(1));
+}
+
+TEST_F(AutocompleteResultTimeTest, ResultReadyTimeSwapAndCopy) {
+  AutocompleteResult r1;
+  AutocompleteResult r2;
+
+  r1.RefreshReadyState();
+  r2.RefreshReadyState();
+
+  auto r1_time = r1.result_ready_time();
+  auto r2_time = r2.result_ready_time();
+
+  r1.SwapMatchesWith(&r2);
+  EXPECT_EQ(r1.result_ready_time(), r2_time);
+  EXPECT_EQ(r2.result_ready_time(), r1_time);
+
+  AutocompleteResult r3;
+  r3.CopyMatchesFrom(r1);
+  EXPECT_EQ(r3.result_ready_time(), r1.result_ready_time());
+}
+
 // Assertion testing for AutocompleteResult::SwapMatchesWith.
 TEST_F(AutocompleteResultTest, SwapMatches) {
   AutocompleteResult r1;
@@ -3325,6 +3367,7 @@ TEST_F(AutocompleteResultTest, Mobile_TrimOmniboxActions) {
     std::vector<std::vector<OmniboxActionId>> result_matches_and_actions_zps;
     std::vector<std::vector<OmniboxActionId>> result_matches_and_actions_typed;
     bool include_url = false;
+    bool use_tab_switch = false;
   } test_cases[]{
       {"No actions attached to matches",
        {{}, {}, {}, {}},
@@ -3337,6 +3380,37 @@ TEST_F(AutocompleteResultTest, Mobile_TrimOmniboxActions) {
        // Typed
        {{PEDAL}, {PEDAL}, {PEDAL}, {}}},
       {"Actions are shown only in first position",
+       {{ACTION_IN_SUGGEST}, {}, {ACTION_IN_SUGGEST}, {ACTION_IN_SUGGEST}},
+#if BUILDFLAG(IS_ANDROID)
+       // ZPS
+       {{ACTION_IN_SUGGEST}, {}, {}, {}},
+       // Typed
+       {{ACTION_IN_SUGGEST}, {}, {}, {}}
+#else
+       // ZPS
+       {{}, {}, {}, {}},
+       // Typed
+       {{ACTION_IN_SUGGEST}, {}, {}, {}}
+#endif
+      },
+      {"Actions are promoted over Pedals; positions dictate preference",
+       {{ACTION_IN_SUGGEST, PEDAL},
+        {PEDAL},
+        {ACTION_IN_SUGGEST, PEDAL},
+        {ACTION_IN_SUGGEST, PEDAL}},
+#if BUILDFLAG(IS_ANDROID)
+       // ZPS
+       {{ACTION_IN_SUGGEST}, {PEDAL}, {}, {}},
+       // Typed
+       {{ACTION_IN_SUGGEST}, {PEDAL}, {}, {}}
+#else
+       // ZPS
+       {{PEDAL}, {PEDAL}, {PEDAL}, {}},
+       // Typed
+       {{ACTION_IN_SUGGEST}, {PEDAL}, {PEDAL}, {}}
+#endif
+      },
+      {"Tab Switch actions can appear at any index on Android",
        {{ACTION_IN_SUGGEST},
         {ACTION_IN_SUGGEST},
         {ACTION_IN_SUGGEST},
@@ -3358,30 +3432,9 @@ TEST_F(AutocompleteResultTest, Mobile_TrimOmniboxActions) {
        // Typed
        {{ACTION_IN_SUGGEST}, {}, {}, {}}
 #endif
-      },
-      {"Actions are promoted over Pedals; positions dictate preference",
-       {{ACTION_IN_SUGGEST, PEDAL},
-        {ACTION_IN_SUGGEST, PEDAL},
-        {ACTION_IN_SUGGEST, PEDAL},
-        {ACTION_IN_SUGGEST, PEDAL}},
-#if BUILDFLAG(IS_ANDROID)
-       // ZPS
-       {{ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST}},
-       // Typed
-       {{ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST},
-        {ACTION_IN_SUGGEST}}
-#else
-       // ZPS
-       {{PEDAL}, {PEDAL}, {PEDAL}, {}},
-       // Typed
-       {{ACTION_IN_SUGGEST}, {PEDAL}, {PEDAL}, {}}
-#endif
-      },
+       ,
+       false,
+       true},
   };
 
   // Crete matches following the `input_matches_and_actions` input.
@@ -3402,8 +3455,11 @@ TEST_F(AutocompleteResultTest, Mobile_TrimOmniboxActions) {
         if (action_id == OmniboxActionId::ACTION_IN_SUGGEST) {
           omnibox::SuggestTemplateInfo::TemplateAction action;
           action.set_action_type(
-              omnibox::
-                  SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS);
+              data.use_tab_switch
+                  ? omnibox::
+                        SuggestTemplateInfo_TemplateAction_ActionType_CHROME_TAB_SWITCH
+                  : omnibox::
+                        SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS);
           match.actions.push_back(base::MakeRefCounted<OmniboxActionInSuggest>(
               std::move(action), std::nullopt));
         } else {

@@ -12,7 +12,7 @@
 
 #include "components/unexportable_keys/background_task_priority.h"
 #include "components/unexportable_keys/mojom/unexportable_key_service.mojom.h"
-#include "components/unexportable_keys/ref_counted_unexportable_signing_key.h"
+#include "components/unexportable_keys/ref_counted_unexportable_key.h"
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "components/unexportable_keys/unexportable_key_service.h"
@@ -47,7 +47,7 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
       base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
           callback) override;
   void SignSlowlyAsync(
-      const UnexportableKeyId key_id,
+      UnexportableSigningKeyId key_id,
       base::span<const uint8_t> data,
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback)
@@ -58,7 +58,7 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
       base::OnceCallback<void(ServiceErrorOr<size_t>)> callback) override;
   void DeleteAllKeysSlowlyAsync(
       base::OnceCallback<void(ServiceErrorOr<size_t>)> callback) override;
-  void GetAllSigningKeysForGarbageCollectionSlowlyAsync(
+  void GetAllKeysForGarbageCollectionSlowlyAsync(
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>
           callback) override;
@@ -78,7 +78,7 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
 
   struct CachedKeyData {
     CachedKeyData();
-    explicit CachedKeyData(const mojom::NewKeyDataPtr& new_key_data);
+    explicit CachedKeyData(const mojom::NewKeyMetadataPtr& metadata);
 
     CachedKeyData(const CachedKeyData& other);
     CachedKeyData& operator=(const CachedKeyData& other);
@@ -97,14 +97,14 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
   void OnSigningKeyGenerated(
       base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
           original_callback,
-      ServiceErrorOr<mojom::NewKeyDataPtr> result);
+      ServiceErrorOr<mojom::NewSigningKeyDataPtr> result);
 
   void OnSigningKeyLoaded(
       base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
           original_callback,
-      ServiceErrorOr<mojom::NewKeyDataPtr> result);
+      ServiceErrorOr<mojom::NewSigningKeyDataPtr> result);
 
-  void OnGetAllSigningKeysForGarbageCollection(
+  void OnGetAllKeysForGarbageCollection(
       base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>
           original_callback,
       ServiceErrorOr<std::vector<mojom::NewKeyDataPtr>> result);

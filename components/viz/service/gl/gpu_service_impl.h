@@ -26,6 +26,7 @@
 #include "components/viz/service/display_embedder/compositor_gpu_thread.h"
 #include "components/viz/service/gl/exit_code.h"
 #include "components/viz/service/viz_service_export.h"
+#include "components/vrp_flags/buildflags.h"
 #include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/command_buffer/service/gpu_persistent_cache.h"
 #include "gpu/command_buffer/service/sequence_id.h"
@@ -164,6 +165,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
                            uint64_t client_tracing_id,
                            bool is_gpu_host,
                            bool enable_extra_handles_validation,
+                           mojo::ScopedMessagePipeHandle channel_handle,
                            EstablishGpuChannelCallback callback) override;
   void SetChannelClientPid(int32_t client_id,
                            base::ProcessId client_pid) override;
@@ -243,6 +245,9 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void Crash() override;
   void Hang() override;
   void ThrowJavaException() override;
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+  void GetVrpFlags(GetVrpFlagsCallback callback) override;
+#endif
 
   // gpu::GpuChannelManagerDelegate:
   void LoseAllContexts() override;

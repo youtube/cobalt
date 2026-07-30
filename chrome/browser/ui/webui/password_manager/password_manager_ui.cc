@@ -31,7 +31,6 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/password_manager_resources.h"
@@ -388,6 +387,10 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_PASSWORD_DETAILS_CARD_DELETE_BUTTON_ARIA_LABEL},
       {"passwordDetailsCardDeleteButtonNoUsernameAriaLabel",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_DETAILS_CARD_DELETE_BUTTON_NO_USERNAME_ARIA_LABEL},
+      {"passwordDetailsCardShareButtonAriaLabel",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_DETAILS_CARD_SHARE_BUTTON_ARIA_LABEL},
+      {"passwordDetailsCardShareButtonNoUsernameAriaLabel",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_DETAILS_CARD_SHARE_BUTTON_NO_USERNAME_ARIA_LABEL},
       {"passwordDetailsCardBackupPasswordNote",
        IDS_PASSWORD_MANAGER_UI_BACKUP_PASSWORD_SETTINGS_DESCRIPTION},
       {"passwordDetailsCardBackupPasswordNoteDetails",

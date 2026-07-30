@@ -755,11 +755,22 @@ ScrollTranslationAction ConversionContext<Result>::StartEffect(
   current_clip_ = input_clip;
   current_effect_ = &effect;
 
-  if (effect.HasReferenceFilter()) {
+  if (effect.HasReferenceFilter() && effect.Filter()) {
     // For empty chunks, or chunks with empty bounds, with a filter applied
     // that produces output even when there's no input this will expand the
     // bounds to match.
     gfx::Rect filtered_bounds = effect.FilterOutputBounds();
+    effect_bounds_stack_.back().bounds = gfx::RectF(filtered_bounds);
+    // Emit an empty paint operation to add the filtered bounds (mapped to layer
+    // space) to the visual rect of the filter's SaveLayerOp.
+    result_.StartPaint();
+    result_.EndPaintOfUnpaired(
+        chunk_to_layer_mapper_.MapVisualRect(filtered_bounds));
+  }
+
+  if (effect.BackdropFilter()) {
+    gfx::Rect filtered_bounds = gfx::ToEnclosingRect(
+        gfx::SkRectToRectF(effect.BackdropFilterBounds().getBounds()));
     effect_bounds_stack_.back().bounds = gfx::RectF(filtered_bounds);
     // Emit an empty paint operation to add the filtered bounds (mapped to layer
     // space) to the visual rect of the filter's SaveLayerOp.
@@ -1575,7 +1586,8 @@ void LayerPropertiesUpdater::UpdateTrackedElementRects(
           chunk_to_layer_mapper_.MapVisualRect(element_rect.bounds);
       viz::TrackedElementRect rect_data(
           element_rect.id.value(), rect,
-          element_rect.should_add_to_compositor_frame_metadata);
+          element_rect.should_add_to_compositor_frame_metadata,
+          element_rect.frame_token, element_rect.parent_frame_token);
       tracked_element_rects_[feature].push_back(std::move(rect_data));
     }
   }

@@ -9,6 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -28,6 +29,8 @@ import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.theme.ThemeColorProvider;
+import org.chromium.chrome.browser.theme.ThemeColorProvider.TintObserver;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
@@ -39,6 +42,7 @@ import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
@@ -47,7 +51,6 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
@@ -59,6 +62,8 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.util.Objects;
+
 /**
  * The mediator for a signin button on the NTP toolbar. Listens for sign in state changes and drives
  * corresponding changes to the property model values which back the SigninButton view
@@ -69,7 +74,8 @@ final class SigninButtonMediator
                 IdentityManager.Observer,
                 SyncService.SyncStateChangedListener,
                 SigninManager.SignInStateObserver,
-                BottomSheetSigninAndHistorySyncCoordinator.Delegate {
+                BottomSheetSigninAndHistorySyncCoordinator.Delegate,
+                TintObserver {
     private final Context mContext;
     private final PropertyModel mModel;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
@@ -80,6 +86,7 @@ final class SigninButtonMediator
     private final BottomSheetController mBottomSheetController;
     private final ModalDialogManager mModalDialogManager;
     private final SnackbarManager mSnackbarManager;
+    private final ThemeColorProvider mThemeColorProvider;
     private @Nullable Profile mProfile;
     private @Nullable BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
     private @Nullable SigninManager mSigninManager;
@@ -94,6 +101,8 @@ final class SigninButtonMediator
     private @Nullable SyncService mSyncService;
 
     private @UserActionableError int mIdentityError = UserActionableError.NONE;
+
+    private @Nullable ColorStateList mActivityFocusTint;
 
     private boolean mHasSpaceToShow = true;
 
@@ -115,6 +124,7 @@ final class SigninButtonMediator
      *     sheet.
      * @param modalDialogManager The {@link ModalDialogManager} to manage the dialog.
      * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
+     * @param themeColorProvider The {@link ThemeColorProvider} to get toolbar tint changes.
      */
     public SigninButtonMediator(
             Context context,
@@ -126,7 +136,8 @@ final class SigninButtonMediator
             DeviceLockActivityLauncher deviceLockActivityLauncher,
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            ThemeColorProvider themeColorProvider) {
         mContext = context;
         mModel = model;
         mProfileSupplier = profileSupplier;
@@ -138,6 +149,12 @@ final class SigninButtonMediator
         mSnackbarManager = snackbarManager;
         mBottomSheetController = bottomSheetController;
         mSigninAndHistorySyncActivityLauncher = signinAndHistorySyncActivityLauncher;
+        mThemeColorProvider = themeColorProvider;
+        mActivityFocusTint = mThemeColorProvider.getActivityFocusTint();
+        mThemeColorProvider.addTintObserver(this);
+        mModel.set(
+                SigninButtonProperties.IS_ENABLED,
+                Objects.equals(mThemeColorProvider.getTint(), mActivityFocusTint));
     }
 
     /**
@@ -164,7 +181,7 @@ final class SigninButtonMediator
      */
     @Override
     public void onPrimaryAccountChanged(PrimaryAccountChangeEvent eventDetails) {
-        switch (eventDetails.getEventTypeFor(ConsentLevel.SIGNIN)) {
+        switch (eventDetails.getEventTypeFor()) {
             case PrimaryAccountChangeEvent.Type.SET:
                 updateButtonState();
                 break;
@@ -184,8 +201,25 @@ final class SigninButtonMediator
     public void onProfileDataUpdated(DisplayableProfileData profileData) {
         String primaryEmail =
                 CoreAccountInfo.getEmailFrom(
-                        assumeNonNull(mIdentityManager).getPrimaryAccountInfo(ConsentLevel.SIGNIN));
+                        assumeNonNull(mIdentityManager).getPrimaryAccountInfo());
         if (profileData.getAccountEmail().equals(primaryEmail)) {
+            updateButtonState();
+        }
+    }
+
+    @Override
+    public void onTintChanged(
+            @Nullable ColorStateList tint,
+            @Nullable ColorStateList activityFocusTint,
+            @BrandedColorScheme int brandedColorScheme) {
+
+        // If activityFocusTint is different from tint, the toolbar thinks we are inactive.
+        boolean isWindowActive = Objects.equals(tint, activityFocusTint);
+        mModel.set(SigninButtonProperties.IS_ENABLED, isWindowActive);
+
+        // The avatar icon tint needs to be manually set.
+        mActivityFocusTint = activityFocusTint;
+        if (mProfile != null && !mProfile.isOffTheRecord()) {
             updateButtonState();
         }
     }
@@ -218,8 +252,7 @@ final class SigninButtonMediator
                         ? UserActionableError.NONE
                         : mSyncService.getUserActionableError();
 
-        CoreAccountInfo coreAccountInfo =
-                assumeNonNull(mIdentityManager).getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        CoreAccountInfo coreAccountInfo = assumeNonNull(mIdentityManager).getPrimaryAccountInfo();
         if (coreAccountInfo != null) {
             assumeNonNull(mProfileDataCache)
                     .setBadge(
@@ -249,10 +282,7 @@ final class SigninButtonMediator
                             : AppCompatResources.getDrawable(mContext, R.drawable.account_circle));
             mModel.set(
                     SigninButtonProperties.AVATAR_TINT,
-                    profileData != null
-                            ? null
-                            : AppCompatResources.getColorStateList(
-                                    mContext, R.color.default_icon_color_tint_list));
+                    profileData != null ? null : mActivityFocusTint);
             mModel.set(
                     SigninButtonProperties.AVATAR_CONTENT_DESCRIPTION,
                     SigninUtils.getContentDescriptionForIdentityDisc(
@@ -404,5 +434,6 @@ final class SigninButtonMediator
     public void destroy() {
         setProfile(null);
         mProfileSupplier.removeObserver(mProfileSupplierObserver);
+        mThemeColorProvider.removeTintObserver(this);
     }
 }

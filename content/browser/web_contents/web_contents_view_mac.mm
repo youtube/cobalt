@@ -210,6 +210,10 @@ void WebContentsViewMac::StartDragging(
     const blink::mojom::DragEventSourceInfo& event_info) {
   RenderWidgetHostImpl* source_rwh =
       static_cast<RenderWidgetHostImpl*>(source_rfh.GetRenderWidgetHost());
+  // Disallow reentrant drag which could be an attempt to exploit drag state.
+  if (drag_source_start_rwh_) {
+    return;
+  }
   url::Origin source_origin = source_rfh.GetLastCommittedOrigin();
   // By allowing nested tasks, the code below also allows Close(),
   // which would deallocate |this|.  The same problem can occur while
@@ -674,7 +678,7 @@ void WebContentsViewMac::PerformEndDrag(uint32_t drag_operation,
   // non-root RenderWidgetHosts they need to be transformed.
   gfx::PointF transformed_point = local_point;
   gfx::PointF transformed_screen_point = screen_point;
-  if (drag_source_start_rwh_ && web_contents_->GetRenderWidgetHostView()) {
+  if (web_contents_->GetRenderWidgetHostView()) {
     content::RenderWidgetHostViewBase* contentsViewBase =
         static_cast<content::RenderWidgetHostViewBase*>(
             web_contents_->GetRenderWidgetHostView());
@@ -692,6 +696,8 @@ void WebContentsViewMac::PerformEndDrag(uint32_t drag_operation,
       transformed_screen_point.x(), transformed_screen_point.y(),
       static_cast<ui::mojom::DragOperation>(drag_operation),
       drag_source_start_rwh_.get());
+
+  drag_source_start_rwh_.reset();
 }
 
 void WebContentsViewMac::DraggingEntered(DraggingInfoPtr dragging_info,

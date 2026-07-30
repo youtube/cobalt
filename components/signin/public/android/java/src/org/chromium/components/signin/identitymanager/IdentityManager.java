@@ -56,20 +56,14 @@ public interface IdentityManager {
     /** Unregisters a IdentityManager.Observer */
     void removeObserver(Observer observer);
 
-    /**
-     * Returns whether the user's primary account is available.
-     *
-     * @param consentLevel {@link ConsentLevel} necessary for the caller.
-     */
-    boolean hasPrimaryAccount(@ConsentLevel int consentLevel);
+    /** Returns whether the user's primary account is available. */
+    boolean hasPrimaryAccount();
 
     /**
      * Provides access to the core information of the user's primary account. Returns non-null if
-     * the primary account was set AND the required consent level was granted, null otherwise.
-     *
-     * @param consentLevel {@link ConsentLevel} necessary for the caller.
+     * the primary account was set, null otherwise.
      */
-    @Nullable CoreAccountInfo getPrimaryAccountInfo(@ConsentLevel int consentLevel);
+    @Nullable CoreAccountInfo getPrimaryAccountInfo();
 
     /**
      * Looks up and returns information for account with given |accountId|. If the account cannot be

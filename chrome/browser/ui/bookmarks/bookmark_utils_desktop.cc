@@ -26,10 +26,10 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/incognito_allowed_url.h"
 #include "chrome/browser/ui/simple_message_box.h"
@@ -201,7 +201,7 @@ OpenedWebContentsSet OpenAllHelper(
     // there is a URL that is not allowed in incognito mode.
     // In this case we don't set the disposition to `NEW_BACKGROUND_TAB`
     // until we have opened the first URL that can be opened in incognito.
-    // See crbug.com/1349283.
+    // See crbug.com/40855833.
     if (opening_in_new_window) {
       if (!opening_urls_in_incognito || url_allowed_in_incognito) {
         disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
@@ -214,11 +214,19 @@ OpenedWebContentsSet OpenAllHelper(
         Profile::FromBrowserContext(opened_tab->GetBrowserContext());
     if (new_tab_profile->IsIncognitoProfile()) {
       if (!incognito_browser) {
-        incognito_browser = chrome::FindBrowserWithTab(opened_tab);
+        auto* tab_browser =
+            ProfileBrowserCollection::GetForProfile(new_tab_profile)
+                ->FindBrowserWithTab(opened_tab);
+        incognito_browser =
+            tab_browser ? tab_browser->GetBrowserForMigrationOnly() : nullptr;
       }
     } else {
       if (!regular_browser) {
-        regular_browser = chrome::FindBrowserWithTab(opened_tab);
+        auto* tab_browser =
+            ProfileBrowserCollection::GetForProfile(new_tab_profile)
+                ->FindBrowserWithTab(opened_tab);
+        regular_browser =
+            tab_browser ? tab_browser->GetBrowserForMigrationOnly() : nullptr;
       }
     }
 

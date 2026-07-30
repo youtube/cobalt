@@ -32,7 +32,6 @@
     "@typescript-eslint/types": "8.58.2",
     "@typescript-eslint/utils": "8.58.2",
     "eslint": "10.2.0",
-    "eslint-plugin-jsdoc": "62.9.0",
     "eslint-plugin-lit": "2.2.1",
     "lit": "3.3.0",
     "messageformat": "4.0.0-11",

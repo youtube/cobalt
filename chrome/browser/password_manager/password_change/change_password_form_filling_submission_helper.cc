@@ -20,6 +20,7 @@
 #include "chrome/browser/password_manager/password_change/password_change_logging_util.h"
 #include "chrome/browser/password_manager/password_change/password_change_submission_verifier.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/optimization_guide/core/model_quality/model_execution_logging_wrappers.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
@@ -377,6 +378,11 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
         base::unexpected(SubmissionError::kSubmitButtonNotFound));
     return;
   }
+
+  // Once button is clicked timeout can cause password on a website and inside
+  // Password Manager to diverge. Better to wait for click result to avoid false
+  // negatives.
+  timeout_timer_.Stop();
 
   click_helper_ = std::make_unique<ButtonClickHelper>(
       web_contents_.get(), client_, dom_node_id,

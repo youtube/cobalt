@@ -17,9 +17,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/content_settings/fake_owner.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
@@ -81,7 +81,8 @@ class ContentSettingBubbleModelMediaStreamTest : public InProcessBrowserTest {
   content::WebContents* GetActiveTab() {
     // First, we need to find the active browser window. It should be at
     // the same desktop as the browser in which we invoked the bubble.
-    BrowserWindowInterface* active_browser = chrome::FindLastActive();
+    BrowserWindowInterface* active_browser =
+        GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
     return active_browser->GetTabStripModel()->GetActiveWebContents();
   }
 
@@ -127,8 +128,8 @@ class ContentSettingBubbleModelMediaStreamTest : public InProcessBrowserTest {
 
 // Tests that clicking on the manage button in the media bubble opens the
 // correct section of the settings UI. This test sometimes leaks memory,
-// detected by linux_chromium_asan_rel_ng. See http://crbug/668693 for more
-// info.
+// detected by linux_chromium_asan_rel_ng. See http://crbug.com/41288110 for
+// more info.
 IN_PROC_BROWSER_TEST_F(ContentSettingBubbleModelMediaStreamTest,
                        DISABLED_ManageLink) {
   // For each of the three options, we click the manage button and check if the
@@ -162,13 +163,13 @@ IN_PROC_BROWSER_TEST_F(ContentSettingBubbleModelMediaStreamTest,
 
   content::RenderFrameHost* main_rfh =
       ui_test_utils::NavigateToURLBlockUntilNavigationsComplete(
-          browser(), GURL(chrome::kChromeUINewTabURL), 1);
+          browser(), chrome::ChromeUINewTabURLAsGURL(), 1);
   content::WebContents::FromRenderFrameHost(main_rfh)->Focus();
 
   ASSERT_TRUE(main_rfh);
-  EXPECT_EQ(GURL(chrome::kChromeUINewTabURL),
+  EXPECT_EQ(chrome::ChromeUINewTabURLAsGURL(),
             web_contents->GetLastCommittedURL());
-  EXPECT_EQ(GURL(chrome::kChromeUINewTabPageURL),
+  EXPECT_EQ(chrome::ChromeUINewTabPageURLAsGURL(),
             main_rfh->GetLastCommittedOrigin().GetURL());
 
   // Create a bubble with the given camera and microphone access state.

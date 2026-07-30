@@ -35,7 +35,6 @@ import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
@@ -439,9 +438,7 @@ public class ExtensionsToolbarCoordinatorImpl
                 int expectedHeight =
                         mContainer
                                 .getResources()
-                                .getDimensionPixelSize(
-                                        org.chromium.chrome.browser.toolbar.R.dimen
-                                                .toolbar_button_height);
+                                .getDimensionPixelSize(R.dimen.toolbar_button_height);
                 heightSpec =
                         View.MeasureSpec.makeMeasureSpec(expectedHeight, View.MeasureSpec.EXACTLY);
             }
@@ -474,11 +471,7 @@ public class ExtensionsToolbarCoordinatorImpl
         @Override
         public int updateVisibility(int availableWidth) {
             int puzzleButtonWidth =
-                    mContainer
-                            .getResources()
-                            .getDimensionPixelSize(
-                                    org.chromium.chrome.browser.toolbar.R.dimen
-                                            .toolbar_button_width);
+                    mContainer.getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
             mCanShowMenuIcon = puzzleButtonWidth <= availableWidth;
 
             updateMenuIconVisibility();

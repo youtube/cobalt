@@ -4,30 +4,21 @@
 
 package org.chromium.chrome.browser.feed;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import org.chromium.base.CommandLine;
 import org.chromium.base.DeviceInfo;
-import org.chromium.base.LocaleUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator.StreamTabId;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.components.prefs.PrefService;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.user_prefs.UserPrefs;
-
-import java.util.concurrent.TimeUnit;
 
 /** Helper methods covering more complex Feed related feature checks and states. */
 @NullMarked
 public final class FeedFeatures {
-    private static final long ONE_DAY_DELTA_MILLIS = TimeUnit.DAYS.toMillis(1L);
 
     private static @Nullable PrefService sFakePrefServiceForTest;
 
@@ -42,86 +33,13 @@ public final class FeedFeatures {
                 && isFeedEnabledByDse(profile);
     }
 
-    /**
-     * @param profile the profile of the current user.
-     * @return Whether the WebFeed UI should be enabled. Checks for the WEB_FEED flag, if the user
-     *     is signed in and confirms it's not a child profile.
-     */
-    public static boolean isWebFeedUIEnabled(Profile profile) {
-        boolean isPrimaryAccountSignedIn = false;
-        if (IdentityServicesProvider.get().getSigninManager(profile) != null) {
-            isPrimaryAccountSignedIn =
-                    assumeNonNull(IdentityServicesProvider.get().getSigninManager(profile))
-                            .getIdentityManager()
-                            .hasPrimaryAccount(ConsentLevel.SIGNIN);
-        }
-        return WebFeedBridge.isWebFeedEnabled()
-                && isPrimaryAccountSignedIn
-                && !profile.isChild()
-                && isFeedEnabledByDse(profile);
-    }
-
     private static boolean isFeedEnabledByDse(Profile profile) {
         return getPrefService(profile).getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE);
     }
 
-    public static boolean shouldUseWebFeedAwarenessIph() {
-        String awarenessStyleParam =
-                ChromeFeatureList.getFieldTrialParamByFeature(
-                        ChromeFeatureList.WEB_FEED_AWARENESS, "awareness_style");
-        return WebFeedBridge.isWebFeedEnabled()
-                && (awarenessStyleParam.equals("IPH") || awarenessStyleParam.isEmpty());
-    }
-
-    public static boolean shouldUseNewIndicator(Profile profile) {
-        // Return true if we are not rate limited.
-        if (ChromeFeatureList.getFieldTrialParamByFeature(
-                        ChromeFeatureList.WEB_FEED_AWARENESS, "awareness_style")
-                .equals("new_animation_no_limit")) {
-            return true;
-        }
-        // Otherwise, the rate limit is:
-        // 1. We have never seen the web feed.
-        // 2. It's been > 1 day since we last seen the new indicator.
-        if (ChromeFeatureList.getFieldTrialParamByFeature(
-                                ChromeFeatureList.WEB_FEED_AWARENESS, "awareness_style")
-                        .equals("new_animation")
-                && !getPrefService(profile).getBoolean(Pref.HAS_SEEN_WEB_FEED)) {
-            String timestamp = getPrefService(profile).getString(Pref.LAST_BADGE_ANIMATION_TIME);
-            long currentTime = System.currentTimeMillis();
-            long parsedTime;
-            try {
-                parsedTime = Long.parseLong(timestamp);
-            } catch (NumberFormatException e) {
-                parsedTime = 0L;
-            }
-            // Ignore parsed timestamps in the future.
-            return currentTime < parsedTime || currentTime - parsedTime > ONE_DAY_DELTA_MILLIS;
-        }
-        return false;
-    }
-
-    public static boolean isFeedFollowUiUpdateEnabled() {
-        if (LocaleUtils.getDefaultCountryCode().equals("US")) {
-            return true;
-        }
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_FOLLOW_UI_UPDATE);
-    }
-
-    /** Updates the timestamp for the last time the new indicator was seen to now. */
-    public static void updateNewIndicatorTimestamp(Profile profile) {
-        getPrefService(profile)
-                .setString(Pref.LAST_BADGE_ANIMATION_TIME, "" + System.currentTimeMillis());
-    }
-
-    /** Updates that the following feed has been seen. */
-    public static void updateFollowingFeedSeen(Profile profile) {
-        getPrefService(profile).setBoolean(Pref.HAS_SEEN_WEB_FEED, true);
-    }
-
     /**
      * @return Whether the feed should automatically scroll down when it first loads so that the
-     *         first card is at the top of the screen. This is for use with screenshot utilities.
+     *     first card is at the top of the screen. This is for use with screenshot utilities.
      */
     public static boolean isAutoScrollToTopEnabled() {
         CommandLine commandLine = CommandLine.getInstance();

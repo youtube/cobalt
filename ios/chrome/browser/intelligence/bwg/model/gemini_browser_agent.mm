@@ -16,7 +16,11 @@
 #import "components/favicon/ios/web_favicon_driver.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_utils.h"
+#import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller_observer.h"
@@ -24,11 +28,11 @@
 #import "ios/chrome/browser/intelligence/actor/model/actor_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_link_opening_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_link_opening_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_actuation_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_camera_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_configuration.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_link_opening_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_state_change_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_scroll_observer.h"
@@ -56,7 +60,9 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -162,7 +168,7 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
   bwg_gateway_ = ios::provider::CreateBWGGateway();
 
   if (bwg_gateway_) {
-    bwg_link_opening_handler_ = [[BWGLinkOpeningHandler alloc]
+    gemini_link_opening_handler_ = [[GeminiLinkOpeningHandler alloc]
         initWithURLLoader:UrlLoadingBrowserAgent::FromBrowser(browser_)
                dispatcher:browser_->GetCommandDispatcher()];
     gemini_page_state_change_handler_ = [[GeminiPageStateChangeHandler alloc]
@@ -172,14 +178,14 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
     bwg_session_handler_ = [[GeminiSessionHandler alloc]
         initWithWebStateList:browser_->GetWebStateList()];
     if (IsGeminiCopresenceEnabled()) {
-      gemini_view_state_handler_ = [[GeminiViewStateChangeHandler alloc]
-          initWithBrowserAgent:weak_factory_.GetWeakPtr()];
+      gemini_view_state_handler_ =
+          [[GeminiViewStateChangeHandler alloc] initWithTarget:this];
       bwg_session_handler_.geminiViewStateDelegate = gemini_view_state_handler_;
-      bwg_link_opening_handler_.geminiViewStateDelegate =
+      gemini_link_opening_handler_.geminiViewStateDelegate =
           gemini_view_state_handler_;
     }
     bwg_gateway_.sessionHandler = bwg_session_handler_;
-    bwg_gateway_.linkOpeningHandler = bwg_link_opening_handler_;
+    bwg_gateway_.linkOpeningHandler = gemini_link_opening_handler_;
 
     gemini_suggestion_handler_ = [[GeminiSuggestionHandler alloc]
         initWithWebStateList:browser_->GetWebStateList()];
@@ -202,11 +208,19 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
     ConfigureGemini();
   }
 
-  // Ensures a `FullscreenController` is created.
+  // Sets up observation of fullscreen state.
   if (IsGeminiCopresenceEnabled()) {
-    FullscreenController::CreateForBrowser(browser_);
-    fullscreen_controller_ = FullscreenController::FromBrowser(browser_);
-    fullscreen_controller_->AddObserver(this);
+    if (IsFullscreenRefactoringEnabled()) {
+      FullscreenBrowserAgent* agent =
+          FullscreenBrowserAgent::FromBrowser(browser_);
+      CHECK(agent);
+      agent->AddObserver(this);
+    } else {
+      FullscreenController::CreateForBrowser(browser_);
+      fullscreen_controller_ = FullscreenController::FromBrowser(browser_);
+      CHECK(fullscreen_controller_);
+      fullscreen_controller_->AddObserver(this);
+    }
 
     keyboard_show_observer_ = [[NSNotificationCenter defaultCenter]
         addObserverForName:UIKeyboardWillShowNotification
@@ -249,8 +263,11 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
     browser_->RemoveObserver(this);
   }
 
-  [bwg_link_opening_handler_ disconnect];
-  bwg_link_opening_handler_ = nil;
+  [gemini_link_opening_handler_ disconnect];
+  gemini_link_opening_handler_ = nil;
+
+  [gemini_view_state_handler_ disconnect];
+  gemini_view_state_handler_ = nil;
 
   gemini_actuation_handler_ = nil;
 
@@ -278,6 +295,14 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
     fullscreen_controller_ = nullptr;
   }
 
+  if (IsFullscreenRefactoringEnabled()) {
+    FullscreenBrowserAgent* fullscreenBrowserAgent =
+        FullscreenBrowserAgent::FromBrowser(browser_);
+    if (fullscreenBrowserAgent) {
+      fullscreenBrowserAgent->RemoveObserver(this);
+    }
+  }
+
   if (IsGeminiCopresenceWithFullscreenDisablerEnabled()) {
     ResetFullscreenDisabler();
   }
@@ -286,8 +311,8 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
 }
 
 void GeminiBrowserAgent::BrowserDestroyed(Browser* browser) {
-  [bwg_link_opening_handler_ disconnect];
-  bwg_link_opening_handler_ = nil;
+  [gemini_link_opening_handler_ disconnect];
+  gemini_link_opening_handler_ = nil;
 
   gemini_actuation_handler_ = nil;
 
@@ -325,8 +350,7 @@ void GeminiBrowserAgent::ConfigureGemini() {
 
   AuthenticationService* auth_service =
       AuthenticationServiceFactory::GetForProfile(browser_->GetProfile());
-  if (!auth_service ||
-      !auth_service->HasPrimaryIdentity(signin::ConsentLevel::kSignin)) {
+  if (!auth_service || !auth_service->HasPrimaryIdentity()) {
     return;
   }
 
@@ -432,22 +456,49 @@ bool GeminiBrowserAgent::HasCompletedFirstRun() {
   return pref_service->GetBoolean(prefs::kIOSBwgConsent);
 }
 
-CGFloat GeminiBrowserAgent::GetFloatyOffsetFromFullscreenController(
-    FullscreenController* controller) {
-  CGFloat fully_expanded_bottom_toolbar_height =
-      controller->GetMaxViewportInsets().bottom;
+CGFloat GeminiBrowserAgent::GetFloatyOffset() {
+  CHECK(IsFullscreenInitialized());
+  CGFloat max_bottom_inset =
+      IsFullscreenRefactoringEnabled()
+          ? FullscreenBrowserAgent::FromBrowser(browser_)->max_insets().bottom
+          : fullscreen_controller_->GetMaxViewportInsets().bottom;
 
   SceneState* scene_state = browser_->GetSceneState();
-  if (scene_state && scene_state.window && IsLandscape(scene_state.window)) {
-    fully_expanded_bottom_toolbar_height +=
-        scene_state.window.safeAreaInsets.bottom;
+
+  if (!IsFullscreenRefactoringEnabled() && IsChromeNextIaEnabled()) {
+    // The legacy FullscreenController is unaware of the App Bar's height.
+    // If the App Bar is at the bottom, explicitly account for it to ensure
+    // the floaty positions correctly above it.
+    LayoutGuideCenter* layout_guide_center = LayoutGuideCenterForBrowser(nil);
+    UIView* app_bar_view =
+        [layout_guide_center referencedViewUnderName:kAppBarGuide];
+    if (app_bar_view &&
+        AppBarPositionForView(app_bar_view) == AppBarPosition::kBottom) {
+      max_bottom_inset += kAppBarHeight;
+    }
   }
 
-  CGFloat offset =
-      (fully_expanded_bottom_toolbar_height * controller->GetProgress()) -
-      kFloatyIntrinsicPaddingCorrection;
+  if (scene_state && scene_state.window && IsLandscape(scene_state.window)) {
+    max_bottom_inset += scene_state.window.safeAreaInsets.bottom;
+  }
+
+  CGFloat offset = (max_bottom_inset * GetFloatyProgress()) -
+                   kFloatyIntrinsicPaddingCorrection;
 
   return offset;
+}
+
+CGFloat GeminiBrowserAgent::GetFloatyProgress() {
+  if (IsFullscreenRefactoringEnabled()) {
+    // If there is a collapsing bottom toolbar, track the bottom progress.
+    // Otherwise (e.g., in landscape where there is no bottom toolbar), fall
+    // back to tracking the top progress.
+    FullscreenBrowserAgent* agent =
+        FullscreenBrowserAgent::FromBrowser(browser_);
+    return (agent->max_insets().bottom > 0) ? agent->bottom_progress()
+                                            : agent->top_progress();
+  }
+  return fullscreen_controller_->GetProgress();
 }
 
 void GeminiBrowserAgent::InvokeFloaty(GeminiConfiguration* config) {
@@ -463,13 +514,12 @@ void GeminiBrowserAgent::InvokeFloaty(GeminiConfiguration* config) {
 }
 
 void GeminiBrowserAgent::ForceShowFloatyIfInvoked() {
-  if (!fullscreen_controller_ || !is_floaty_invoked_) {
+  if (!is_floaty_invoked_ || !IsFullscreenInitialized()) {
     return;
   }
 
-  CGFloat offset =
-      GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
-  ios::provider::UpdateOverlayOffsetWithOpacity(offset, kFloatyShownOpacity);
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                kFloatyShownOpacity);
   is_floaty_temporarily_hidden_ = false;
 }
 
@@ -513,10 +563,8 @@ void GeminiBrowserAgent::UpdateForTraitCollection(
   }
 
   // Update the offset for a device orientation update to landscape or portrait.
-  CGFloat offset =
-      GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
-  ios::provider::UpdateOverlayOffsetWithOpacity(
-      offset, fullscreen_controller_->GetProgress());
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                GetFloatyProgress());
 }
 
 void GeminiBrowserAgent::PresentFloaty(UIViewController* base_view_controller,
@@ -821,9 +869,8 @@ void GeminiBrowserAgent::HideFloatyIfInvoked(
   SetLastShownViewState(current_view_state);
   RecordFloatyHiddenFromSource(source);
 
-  CGFloat offset =
-      GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
-  ios::provider::UpdateOverlayOffsetWithOpacity(offset, kFloatyHiddenOpacity);
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                kFloatyHiddenOpacity);
 }
 
 void GeminiBrowserAgent::ShowFloatyIfInvoked(
@@ -983,8 +1030,7 @@ void GeminiBrowserAgent::FullscreenProgressUpdated(
     return;
   }
 
-  CGFloat offset = GetFloatyOffsetFromFullscreenController(controller);
-  ios::provider::UpdateOverlayOffsetWithOpacity(offset, progress);
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(), progress);
 }
 
 void GeminiBrowserAgent::FullscreenWillAnimate(FullscreenController* controller,
@@ -1032,16 +1078,40 @@ void GeminiBrowserAgent::FullscreenViewportInsetRangeChanged(
   FullscreenProgressUpdated(controller, controller->GetProgress());
 }
 
+#pragma mark - FullscreenBrowserAgentObserver
+
+void GeminiBrowserAgent::WillUpdateState(FullscreenBrowserAgent* agent) {
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                GetFloatyProgress());
+}
+
+void GeminiBrowserAgent::DidUpdateObscuredInsetRange(
+    FullscreenBrowserAgent* agent) {
+  ios::provider::UpdateOverlayOffsetWithOpacity(GetFloatyOffset(),
+                                                GetFloatyProgress());
+}
+
+void GeminiBrowserAgent::WillShutDown(FullscreenBrowserAgent* agent) {
+  agent->RemoveObserver(this);
+}
+
 #pragma mark - Private
 
 void GeminiBrowserAgent::PrepareFloatyToBeShown() {
   web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
-  if (!fullscreen_controller_ || !web_state) {
+  if (!IsFullscreenInitialized() || !web_state) {
     return;
   }
 
   if (!IsGeminiCopresenceWithFullscreenDisablerEnabled()) {
-    fullscreen_controller_->ExitFullscreen();
+    if (IsFullscreenRefactoringEnabled()) {
+      [HandlerForProtocol(browser_->GetCommandDispatcher(), FullscreenCommands)
+          exitFullscreenWithTrigger:FullscreenModeTransitionTrigger::
+                                        kUserInitiatedFinishedByCode
+                           animated:YES];
+    } else {
+      fullscreen_controller_->ExitFullscreen();
+    }
     return;
   }
 
@@ -1050,11 +1120,22 @@ void GeminiBrowserAgent::PrepareFloatyToBeShown() {
   CGPoint current_offset = scroll_view_proxy.contentOffset;
   [scroll_view_proxy setContentOffset:current_offset animated:NO];
   fullscreen_disabler_ =
-      std::make_unique<ScopedFullscreenDisabler>(fullscreen_controller_);
+      IsFullscreenRefactoringEnabled()
+          ? std::make_unique<ScopedFullscreenDisabler>(
+                HandlerForProtocol(browser_->GetCommandDispatcher(),
+                                   FullscreenCommands),
+                /*animated=*/true)
+          : std::make_unique<ScopedFullscreenDisabler>(fullscreen_controller_);
   fullscreen_disabler_timer_.Start(
       FROM_HERE, base::Seconds(kFullscreenDisablerTimeoutSeconds),
       base::BindOnce(&GeminiBrowserAgent::ResetFullscreenDisabler,
                      weak_factory_.GetWeakPtr()));
+}
+
+bool GeminiBrowserAgent::IsFullscreenInitialized() {
+  return IsFullscreenRefactoringEnabled()
+             ? FullscreenBrowserAgent::FromBrowser(browser_) != nullptr
+             : fullscreen_controller_ != nullptr;
 }
 
 void GeminiBrowserAgent::ResetFullscreenDisabler() {
@@ -1139,8 +1220,7 @@ void GeminiBrowserAgent::PresentFloatyWithState(
   config.pageContext =
       CreateGeminiPageContext(computation_state, std::move(page_context_proto));
   if (IsGeminiCopresenceEnabled()) {
-    config.initialBottomOffset =
-        GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
+    config.initialBottomOffset = GetFloatyOffset();
   }
   config.hostWindowScene = browser_->GetSceneState().scene;
 

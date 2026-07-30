@@ -47,6 +47,7 @@ class ComposeboxQueryControllerBridge
       content::WebContents* contextual_tasks_web_contents);
   ~ComposeboxQueryControllerBridge() override;
   void Destroy(JNIEnv* env);
+  void OnWebUIDestroyed(JNIEnv* env);
   void NotifySessionStarted(JNIEnv* env);
   void NotifySessionAbandoned(JNIEnv* env);
   base::android::ScopedJavaLocalRef<jobject> AddFile(
@@ -83,6 +84,7 @@ class ComposeboxQueryControllerBridge
   bool IsCreateImagesEligible(JNIEnv* env);
   void SetActiveTool(JNIEnv* env, omnibox::ToolMode tool_mode);
   void SetActiveModel(JNIEnv* env, omnibox::ModelMode model_mode);
+  void SubmitQueryToAimPage(JNIEnv* env, const std::string& query);
 
   std::unique_ptr<lens::proto::LensOverlaySuggestInputs>
   CreateLensOverlaySuggestInputs() const;
@@ -101,14 +103,11 @@ class ComposeboxQueryControllerBridge
 
   // contextual_tasks::ContextualTasksComposeboxHandlerInterface:
   void ResetInputStateModel() override;
-  void ResetBlocklistedSuggestions() override;
   void UpdateSuggestedTabContext(
-      std::unique_ptr<contextual_tasks::SuggestedTabInfo> suggested_tab)
-      override;
+      const contextual_tasks::SuggestedTabInfo* suggested_tab) override;
   void OnTaskChanged() override;
   void InitializeInputStateModel() override;
   void UpdateModelFromUrl(const GURL& url) override;
-  bool has_suggested_tab_context() const override;
 
   // contextual_tasks::QueryContextualizer::Delegate:
   GURL GetTabUrl(contextual_tasks::QueryContextualizer::TabId id) override;
@@ -158,6 +157,7 @@ class ComposeboxQueryControllerBridge
   raw_ptr<Profile> profile_;
   raw_ptr<contextual_tasks::ContextualTasksUIInterface>
       contextual_tasks_web_ui_interface_ = nullptr;
+  bool is_task_scoped_ = false;
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       session_handle_;
   std::unique_ptr<contextual_search::InputStateModel> input_state_model_;

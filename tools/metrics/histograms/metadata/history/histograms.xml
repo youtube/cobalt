@@ -49,7 +49,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="History.AttemptedToFixProfileError"
-    enum="BooleanDatabaseKilled" expires_after="2026-08-21">
+    enum="BooleanDatabaseKilled" expires_after="2026-10-25">
   <owner>etienneb@chromium.org</owner>
   <owner>sdefresne@chromium.org</owner>
   <component>1456716</component>
@@ -154,7 +154,6 @@ chromium-metrics-reviews@google.com.
 
   <token key="Task">
     <variant name="AccountPasswords" summary="AccountPasswords"/>
-    <variant name="AccountPasswordsSynced" summary="AccountPasswordsSynced"/>
     <variant name="AutofillData" summary="AutofillData"/>
     <variant name="AutofillOrigins" summary="AutofillOrigins"/>
     <variant name="CdmLicenses" summary="CdmLicenses"/>
@@ -186,7 +185,7 @@ chromium-metrics-reviews@google.com.
     <variant name="WebrtcEventLogs" summary="WebrtcEventLogs"/>
     <variant name="WebrtcLogs" summary="WebrtcLogs"/>
   </token>
-<!-- LINT.ThenChange(//chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h:TracingDataType) -->
+<!-- LINT.ThenChange(//chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.cc:TracingDataTypeHistogramSuffix) -->
 
 </histogram>
 
@@ -767,23 +766,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="History.Clusters.Backend.KeywordCache.ShortKeywordsCount"
-    units="count" expires_after="2024-11-03">
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-journeys@google.com</owner>
-  <component>1457319</component>
-  <summary>
-    Logs the number of keyword stored in the short cache. Each keyword may
-    actually be multiple words.
-
-    Each cluster can have multiple keyword phrases; each phrase consists of 1 or
-    more words.
-
-    Logged each time the short cache is refreshed, i.e. on omnibox key stroke if
-    the primary cache is not stale and limited to at most once every 10 seconds.
-  </summary>
-</histogram>
-
 <histogram name="History.Clusters.Backend.NumClustersReturned"
     units="number clusters returned" expires_after="2024-04-28">
   <owner>mcrouse@chromium.org</owner>
@@ -1090,20 +1072,6 @@ chromium-metrics-reviews@google.com.
     <variant name="SingleVisit" summary="only a single visit"/>
     <variant name="VisibilityScore" summary="low visibility score"/>
   </token>
-</histogram>
-
-<histogram
-    name="History.Clusters.ContextClusterer.ClusterCleanedUpBeforePersistence"
-    enum="Boolean" expires_after="2024-06-02">
-  <owner>sophiechang@chromium.org</owner>
-  <owner>chrome-journeys@google.com</owner>
-  <component>1457319</component>
-  <summary>
-    When the user visits a page, `ContextClustererHistoryServiceObserver`
-    considers whether to add the visit to a new cluster or an existing cluster.
-    If it decides to create a new cluster, this is logged. Therefore, logged at
-    most once per page visit.
-  </summary>
 </histogram>
 
 <histogram name="History.Clusters.ContextClusterer.DbLatency.{Segment}"
@@ -2727,7 +2695,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.RemoveVisitsFromWebHistory.EntryCount" units="entries"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -2988,30 +2956,6 @@ chromium-metrics-reviews@google.com.
     completes successfully. Records the outcome, i.e. whether the user is opted
     in to web and app activity.
   </summary>
-</histogram>
-
-<histogram name="History.WebHistoryMergeResult.{LocalOrRemote}.{VisitAge}"
-    units="visits" expires_after="2026-08-30">
-  <owner>treib@chromium.org</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <component>1456716</component>
-  <summary>
-    Recorded whenever remote history data is queried for display on
-    chrome://history (i.e. when the page is opened, when the user scrolls to the
-    bottom of the available list, and when the user changes the search terms).
-    Records the number of {LocalOrRemote} visits from {VisitAge}. See also
-    History.BrowsingHistoryResult.*, which gets recorded independently of the
-    existence of remote data.
-  </summary>
-  <token key="LocalOrRemote">
-    <variant name="Combined" summary="combined (local and remote)"/>
-    <variant name="LocalOnly" summary="local-only"/>
-    <variant name="RemoteOnly" summary="remote-only"/>
-  </token>
-  <token key="VisitAge">
-    <variant name="PostExpiryThreshold" summary="at most 90 days ago"/>
-    <variant name="PreExpiryThreshold" summary="more than 90 days ago"/>
-  </token>
 </histogram>
 
 <histogram name="History.WebHistoryRequestOutcome.{RequestType}"

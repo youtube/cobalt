@@ -235,6 +235,12 @@ void ModelContext::registerTool(ScriptState* script_state,
                                 ModelContextTool* tool,
                                 ModelContextRegisterToolOptions* options,
                                 ExceptionState& exception_state) {
+  if (!document_->IsActive()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "The document is detached.");
+    return;
+  }
+
   if (tool_map_.find(tool->name()) != tool_map_.end()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Duplicate tool name");
@@ -292,6 +298,9 @@ void ModelContext::registerTool(ScriptState* script_state,
     script_tool->annotations = mojom::blink::ScriptToolAnnotations::New();
     CHECK(tool->annotations()->hasReadOnlyHint());
     script_tool->annotations->read_only = tool->annotations()->readOnlyHint();
+    CHECK(tool->annotations()->hasUntrustedContentHint());
+    script_tool->annotations->untrusted_content =
+        tool->annotations()->untrustedContentHint();
   }
 
   auto* tool_data = MakeGarbageCollected<ToolData>(
@@ -329,6 +338,7 @@ std::optional<ScriptToolDeclaration> ModelContext::GetScriptToolDeclaration(
   declaration.input_schema = script_tool.input_schema;
   if (script_tool.annotations) {
     declaration.read_only = script_tool.annotations->read_only;
+    declaration.untrusted_content = script_tool.annotations->untrusted_content;
   }
   return declaration;
 }
@@ -624,6 +634,11 @@ void ModelContext::InvokeToolChangeClosure(bool force) {
   for (auto& it : tool_map_) {
     if (it.value->RefreshDeclarativeInputSchema()) {
       should_fire = true;
+      // Synthesize removed/added events so that DevTools picks up the new
+      // schema. Newly registered tools may emit added/removed/added initially,
+      // but this is necessary for dynamic schema updates to propagate.
+      probe::WebMCPToolRemoved(document_, *it.value);
+      probe::WebMCPToolAdded(document_, *it.value);
     }
   }
   if (should_fire && tool_change_closure_) {

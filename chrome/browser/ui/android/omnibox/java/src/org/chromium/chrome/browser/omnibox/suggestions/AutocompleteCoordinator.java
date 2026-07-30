@@ -183,7 +183,8 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
             mRecycledViewPool = null;
         }
 
-        // https://crbug.com/966227 Set initial layout direction ahead of inflating the suggestions.
+        // https://crbug.com/41460582 Set initial layout direction ahead of inflating the
+        // suggestions.
         updateSuggestionListLayoutDirection();
     }
 
@@ -490,7 +491,7 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
     /**
      * @return Suggestions Dropdown view, showing the list of suggestions.
      */
-    public @Nullable OmniboxSuggestionsDropdown getSuggestionsDropdownForTest() {
+    public @Nullable View getSuggestionsDropdown() {
         return mDropdown;
     }
 

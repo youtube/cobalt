@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.Notification;
 import android.content.Context;
+import android.content.Intent;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,7 +59,7 @@ public class ActorNotificationServiceTest {
 
     @Test
     public void testGetForegroundNotification_TaskNull() {
-        assertNull(mNotificationService.getForegroundNotification(null));
+        assertNull(mNotificationService.getForegroundNotification(null, false));
     }
 
     @Test
@@ -69,7 +70,8 @@ public class ActorNotificationServiceTest {
         when(mTask.getState()).thenReturn(ActorTaskState.ACTING);
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
-        Notification notification = mNotificationService.getForegroundNotification(mTask);
+        Notification notification =
+                mNotificationService.getForegroundNotification(mTask, /* isSilent= */ false);
 
         assertNotNull(notification);
         assertEquals(
@@ -86,9 +88,11 @@ public class ActorNotificationServiceTest {
         when(mTask.getTitle()).thenReturn("Test Task");
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.ACTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.ACTING, /* isSilent= */ false);
 
-        Notification notification = mNotificationService.getCachedNotification(taskId);
+        Notification notification =
+                mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
         assertNotNull(notification);
         assertEquals(
                 mContext.getString(R.string.actor_notification_title_working_on_task),
@@ -104,16 +108,18 @@ public class ActorNotificationServiceTest {
         when(mTask.getTitle()).thenReturn("Test Task");
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.ACTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.ACTING, /* isSilent= */ false);
         assertEquals(1, mMockNotificationManager.getNotifications().size());
 
         // Task is removed from KeyedService
         when(mKeyedService.getTask(taskId)).thenReturn(null);
 
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.FINISHED);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.FINISHED, /* isSilent= */ false);
 
         // Task won't be removed from notification cache.
-        assertNotNull(mNotificationService.getCachedNotification(taskId));
+        assertNotNull(mNotificationService.getCachedNotification(taskId, /* isSilent= */ false));
     }
 
     @Test
@@ -124,7 +130,8 @@ public class ActorNotificationServiceTest {
         when(mTask.getState()).thenReturn(ActorTaskState.ACTING);
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
-        Notification notification = mNotificationService.getCachedNotification(taskId);
+        Notification notification =
+                mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
 
         assertNotNull(notification);
         assertEquals(
@@ -139,7 +146,8 @@ public class ActorNotificationServiceTest {
         int taskId = 1;
         when(mKeyedService.getTask(taskId)).thenReturn(null);
 
-        Notification notification = mNotificationService.getCachedNotification(taskId);
+        Notification notification =
+                mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
 
         assertNull(notification);
         assertEquals(0, mMockNotificationManager.getNotifications().size());
@@ -161,8 +169,10 @@ public class ActorNotificationServiceTest {
         when(mKeyedService.getTask(taskId1)).thenReturn(task1);
         when(mKeyedService.getTask(taskId2)).thenReturn(task2);
 
-        mNotificationService.updateNotificationForTask(taskId1, ActorTaskState.ACTING);
-        mNotificationService.updateNotificationForTask(taskId2, ActorTaskState.ACTING);
+        mNotificationService.updateNotificationForTask(
+                taskId1, ActorTaskState.ACTING, /* isSilent= */ false);
+        mNotificationService.updateNotificationForTask(
+                taskId2, ActorTaskState.ACTING, /* isSilent= */ false);
 
         assertEquals(2, mMockNotificationManager.getNotifications().size());
 
@@ -171,8 +181,8 @@ public class ActorNotificationServiceTest {
         when(mKeyedService.getTask(taskId1)).thenReturn(null);
         when(mKeyedService.getTask(taskId2)).thenReturn(null);
 
-        assertNull(mNotificationService.getCachedNotification(taskId1));
-        assertNull(mNotificationService.getCachedNotification(taskId2));
+        assertNull(mNotificationService.getCachedNotification(taskId1, /* isSilent= */ false));
+        assertNull(mNotificationService.getCachedNotification(taskId2, /* isSilent= */ false));
     }
 
     @Test
@@ -183,19 +193,23 @@ public class ActorNotificationServiceTest {
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
         // First update.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.ACTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.ACTING, /* isSilent= */ false);
         assertEquals(1, mMockNotificationManager.getMutationCountAndDecrement());
 
         // Update to REFLECTING should be skipped.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.REFLECTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.REFLECTING, /* isSilent= */ false);
         assertEquals(0, mMockNotificationManager.getMutationCountAndDecrement());
 
         // Update to PAUSED_BY_USER should NOT be skipped.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.PAUSED_BY_USER);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.PAUSED_BY_USER, /* isSilent= */ false);
         assertEquals(1, mMockNotificationManager.getMutationCountAndDecrement());
 
         // Update to PAUSED_BY_ACTOR should be skipped.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.PAUSED_BY_ACTOR);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.PAUSED_BY_ACTOR, /* isSilent= */ false);
         assertEquals(0, mMockNotificationManager.getMutationCountAndDecrement());
     }
 
@@ -208,11 +222,12 @@ public class ActorNotificationServiceTest {
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
         // This should populate the state cache.
-        mNotificationService.getCachedNotification(taskId);
+        mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
         assertEquals(0, mMockNotificationManager.getMutationCountAndDecrement());
 
         // Now updateNotificationForTask with REFLECTING should be skipped.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.REFLECTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.REFLECTING, /* isSilent= */ false);
         assertEquals(0, mMockNotificationManager.getMutationCountAndDecrement());
     }
 
@@ -224,16 +239,19 @@ public class ActorNotificationServiceTest {
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
 
         // Task is known.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.ACTING);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.ACTING, /* isSilent= */ false);
         assertEquals(1, mMockNotificationManager.getNotifications().size());
 
         // Task is removed from KeyedService (native side).
         when(mKeyedService.getTask(taskId)).thenReturn(null);
 
         // Terminal state update should still work because of cache.
-        mNotificationService.updateNotificationForTask(taskId, ActorTaskState.FINISHED);
+        mNotificationService.updateNotificationForTask(
+                taskId, ActorTaskState.FINISHED, /* isSilent= */ false);
 
-        Notification notification = mNotificationService.getCachedNotification(taskId);
+        Notification notification =
+                mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
         assertNotNull(notification);
         assertEquals(
                 mContext.getString(R.string.actor_notification_title_task_complete),
@@ -248,16 +266,16 @@ public class ActorNotificationServiceTest {
         when(mTask.getId()).thenReturn(taskId);
         when(mTask.getTitle()).thenReturn("Test Task");
         when(mKeyedService.getTask(taskId)).thenReturn(mTask);
-        when(mServiceController.createTrustedBringTabToFrontIntent(any()))
-                .thenReturn(new android.content.Intent());
+        when(mServiceController.createTrustedBringTabToFrontIntent(any())).thenReturn(new Intent());
 
         int[] terminalStates = {
             ActorTaskState.FINISHED, ActorTaskState.FAILED, ActorTaskState.CANCELLED
         };
 
         for (int state : terminalStates) {
-            mNotificationService.updateNotificationForTask(taskId, state);
-            Notification notification = mNotificationService.getCachedNotification(taskId);
+            mNotificationService.updateNotificationForTask(taskId, state, /* isSilent= */ false);
+            Notification notification =
+                    mNotificationService.getCachedNotification(taskId, /* isSilent= */ false);
             assertNotNull("Notification should not be null for state: " + state, notification);
             assertFalse(
                     "Notification should NOT be ongoing for state: " + state,

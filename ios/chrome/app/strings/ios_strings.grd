@@ -365,6 +365,9 @@
       <message name="IDS_IOS_AI_HUB_HIDE_READER_MODE_LABEL" desc="The button label for hiding Reader mode when it's active from the AI hub.">
         Hide Reader
       </message>
+      <message name="IDS_IOS_AI_HUB_INELIGIBLE_ACCOUNT_SNACKBAR" translateable="false" desc="Snackbar message shown when a user taps Ask Gemini but their account is ineligible.">
+        This account won't work with Gemini. Sign in with a different Google Account.
+      </message>
       <message name="IDS_IOS_AI_HUB_LENS_LABEL" desc="The button label for the Lens entry point of the AI hub.">
         Search screen
       </message>
@@ -813,6 +816,9 @@
       <message name="IDS_IOS_AUTOFILL_SCAN_CARD_CVC" desc="The placeholder text for credit card security code in the payments card unmask dialog. [iOS only]">
         CVC
       </message>
+      <message name="IDS_IOS_AUTOFILL_SCAN_CARD_ENTER_MANUALLY" desc="Title for the button to skip scanning and enter credit card details manually. [iOS only]">
+        Enter manually
+      </message>
       <message name="IDS_IOS_AUTOFILL_SCAN_CARD_PLACEHOLDER_CARD_NUMBER" desc="The placeholder text for credit card number in the payments card unmask dialog. [iOS only]">
         Card Number
       </message>
@@ -1061,6 +1067,12 @@
       </message>
       <message name="IDS_IOS_BEST_FEATURES_TITLE" desc="Title for the Chrome iOS Best Features Promo">
         A safer, more powerful browser for you
+      </message>
+      <message name="IDS_IOS_BEST_OF_APP_BEST_FEATURES_BROWSE_IN_INCOGNITO_SUBTITLE" desc="Subtitle of the Browse in Incognito promo for the Best of App Best Features promo">
+        Open Incognito tabs to browse the web more privately.
+      </message>
+      <message name="IDS_IOS_BEST_OF_APP_BEST_FEATURES_BROWSE_IN_INCOGNITO_TITLE" desc="Title of the Browse in Incognito promo for the Best of App Best Features promo">
+        Browse in Incognito
       </message>
       <message name="IDS_IOS_BLOCK_POPUPS" desc="Title for the view and option in Settings for blocking pop-ups. [Length: 15em] [iOS only]">
         Block pop-ups
@@ -1732,6 +1744,9 @@
         {COUNT, plural,
         =1 {Add up to 1 tab}
         other {Add up to {COUNT} tabs}}
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MENU_TOOLS_SECTION_TITLE" desc="Title for the tools section in the composebox section [iOS only].">
+        Tools
       </message>
       <message name="IDS_IOS_COMPOSEBOX_MODEL_SELECTOR_OPTION_AUTO" desc="Title for the contextual menu option where the system automatically selects the optimal model per query. [iOS only].">
         Auto
@@ -5625,6 +5640,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_PHOTO_LIBRARY_ADD_USAGE_DESCRIPTION" desc="Specifies the reason for writing to the user's photo library while the app is in use [Length: unlimited] [iOS only].">
         This lets you save photos to your photo library.
       </message>
+      <message name="IDS_IOS_PICTURE_IN_PICTURE_PAUSE" desc="Accessibility label to pause the video in Picture in Picture." is_accessibility_with_no_ui="true">
+        Pause the video
+      </message>
+      <message name="IDS_IOS_PICTURE_IN_PICTURE_PLAY" desc="Accessibility label to play the video in Picture in Picture." is_accessibility_with_no_ui="true">
+        Play the video
+      </message>
       <message name="IDS_IOS_PINNED_TABS_DRAG_TO_PIN_LABEL" desc="Label displayed in the pin tab toolbar when a Tab is being dragged.">
         Drag tab here to pin it.
       </message>
@@ -6904,9 +6925,6 @@ Handoff must also be enabled in the General section of Settings, and your device
           =1 {A required field is empty. Fill it before saving.}
           other {Some required fields are empty. Fill them before saving.}}
       </message>
-      <message name="IDS_IOS_SETTINGS_ENHANCED_AUTOFILL_SAVED_INFORMATION" desc="Text describing that the information is saved on device in the Enhanced Autofill Settings menu. [iOS only]">
-        Your saved information is stored on your device
-      </message>
       <message name="IDS_IOS_SETTINGS_EXPORT_PASSWORDS_SET_UP_SCREENLOCK_CONTENT" desc="Message informing the user that in order to export the passwords, a screen lock needs to be set up on the device. This is shown as an alert message after the user tries to view or copy the password from a settings page. [Length: about two lines]">
         To export passwords, you must first set a passcode on your device.
       </message>
@@ -7442,6 +7460,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SIGNIN_PROMO_CHANGE_ACCOUNT" desc="Button that the user can press if they are not the profile that Chrome found (opposite of 'Continue as Joe Doe'). The user will be able to choose another account and sign-in with it.">
         Choose another account
+      </message>
+      <message name="IDS_IOS_SIGNIN_PROMO_CHOOSE_FROM_DRIVE" desc="This string is on a promo intended to promote signing in to Chrome with the user's Google Account. It appears when the user attempts to choose a file from Google Drive while signed out. We want users to read this promo and sign in.">
+        Access files in your Google Drive any time.
       </message>
       <message name="IDS_IOS_SIGNIN_PROMO_CLOSE_ACCESSIBILITY" desc="Accessibility label to describe the close button action in the sign-in promo element.">
         Close sign-in promo

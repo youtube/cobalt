@@ -60,6 +60,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   // Whether the loading state is currently shown.
   BOOL _loadingState;
+
+  // Whether `setEditItems:` has completed.
+  BOOL _setEditItemsCompleted;
 }
 
 #pragma mark - UIViewController
@@ -84,6 +87,15 @@ typedef NS_ENUM(NSInteger, ItemType) {
   [self validateFields];
 
   [self loadModel];
+
+  // This is used to dismiss date picker UI when the user taps outside of it.
+  UITapGestureRecognizer* tapGesture = [[UITapGestureRecognizer alloc]
+      initWithTarget:self
+              action:@selector(handleTapOutside:)];
+  // This allows the user to both dismiss a date picker and select another field
+  // with a single tap.
+  tapGesture.cancelsTouchesInView = NO;
+  [self.view addGestureRecognizer:tapGesture];
 }
 
 #pragma mark - LegacyChromeTableViewController
@@ -113,6 +125,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
           base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
       dateItem.editingEnabled = self.tableView.editing;
       dateItem.delegate = self;
+      dateItem.textFieldDelegate = self;
     }
   }
 
@@ -199,6 +212,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
     [self.tableView reloadData];
   }
   [self validateFields];
+  _setEditItemsCompleted = YES;
 }
 
 - (void)setEditingAllowed:(BOOL)editingAllowed {
@@ -271,6 +285,14 @@ typedef NS_ENUM(NSInteger, ItemType) {
 }
 
 #pragma mark - Actions
+
+- (void)handleTapOutside:(UITapGestureRecognizer*)gesture {
+  if (gesture.state == UIGestureRecognizerStateEnded) {
+    // Whenever a user taps outside of the current field or date picker, stop
+    // editing. This will dismiss the date picker UI used by date items.
+    [self.view endEditing:YES];
+  }
+}
 
 - (void)didTapCancel {
   [self.delegate dismissViewController:self];
@@ -434,6 +456,18 @@ typedef NS_ENUM(NSInteger, ItemType) {
   [self validateFields];
 }
 
+#pragma mark - UITextFieldDelegate
+
+- (BOOL)textField:(UITextField*)textField
+    shouldChangeCharactersInRange:(NSRange)range
+                replacementString:(NSString*)string {
+  // If the input view is a UIDatePicker, block all direct keyboard input.
+  if ([textField.inputView isKindOfClass:[UIDatePicker class]]) {
+    return NO;
+  }
+  return YES;
+}
+
 #pragma mark - TableViewLinkHeaderFooterItemDelegate
 
 - (void)view:(TableViewLinkHeaderFooterView*)view didTapLinkURL:(CrURL*)URL {
@@ -457,20 +491,26 @@ typedef NS_ENUM(NSInteger, ItemType) {
       if (countryItem.detailText.length > 1) {
         present.insert(autofill::AttributeType(countryItem.attributeType));
       }
+    } else if ([item isKindOfClass:[AutofillAIEntityEditDateItem class]]) {
+      AutofillAIEntityEditDateItem* dateItem =
+          base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
+      if (dateItem.textFieldValue.length > 0) {
+        present.insert(autofill::AttributeType(dateItem.attributeType));
+      }
     }
   }
   return present;
 }
 
-- (autofill::DenseSet<autofill::AttributeType>)missingRequiredFields {
+- (autofill::DenseSet<autofill::AttributeType>)missingFields {
   const autofill::DenseSet<autofill::AttributeType> presentAttributes =
       [self presentAttributes];
-  return [self.mutator getMissingRequiredFieldsFor:presentAttributes];
+  return [self.mutator getMissingImportConstraintsFor:presentAttributes];
 }
 
 - (BOOL)validateFields {
   const autofill::DenseSet<autofill::AttributeType> missingFields =
-      [self missingRequiredFields];
+      [self missingFields];
 
   NSMutableArray<TableViewItem*>* itemsToReconfigure =
       [[NSMutableArray alloc] init];
@@ -480,6 +520,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
           base::apple::ObjCCastStrict<AutofillAIEntityEditItem>(item);
       BOOL itemIsValid = !missingFields.contains(
           autofill::AttributeType(editItem.attributeType));
+      if (!_setEditItemsCompleted) {
+        itemIsValid = YES;
+      }
       if (editItem.hasValidValueStatus != itemIsValid) {
         editItem.hasValidValueStatus = itemIsValid;
         [itemsToReconfigure addObject:editItem];
@@ -489,9 +532,24 @@ typedef NS_ENUM(NSInteger, ItemType) {
           base::apple::ObjCCastStrict<AutofillAIEntityCountryItem>(item);
       BOOL itemIsValid = !missingFields.contains(
           autofill::AttributeType(countryItem.attributeType));
+      if (!_setEditItemsCompleted) {
+        itemIsValid = YES;
+      }
       if (countryItem.hasValidValueStatus != itemIsValid) {
         countryItem.hasValidValueStatus = itemIsValid;
         [itemsToReconfigure addObject:countryItem];
+      }
+    } else if ([item isKindOfClass:[AutofillAIEntityEditDateItem class]]) {
+      AutofillAIEntityEditDateItem* dateItem =
+          base::apple::ObjCCastStrict<AutofillAIEntityEditDateItem>(item);
+      BOOL itemIsValid = !missingFields.contains(
+          autofill::AttributeType(dateItem.attributeType));
+      if (!_setEditItemsCompleted) {
+        itemIsValid = YES;
+      }
+      if (dateItem.hasValidValueStatus != itemIsValid) {
+        dateItem.hasValidValueStatus = itemIsValid;
+        [itemsToReconfigure addObject:dateItem];
       }
     }
   }

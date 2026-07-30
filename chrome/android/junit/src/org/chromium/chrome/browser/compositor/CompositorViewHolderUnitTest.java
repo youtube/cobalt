@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -24,9 +25,11 @@ import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.IBinder;
+import android.util.Size;
 import android.view.ContextThemeWrapper;
 import android.view.InputDevice;
 import android.view.MotionEvent;
@@ -72,6 +75,7 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.layouts.EventFilter.EventType;
+import org.chromium.chrome.browser.layouts.components.VirtualView;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -177,7 +181,7 @@ public class CompositorViewHolderUnitTest {
     @Mock private Profile mIncognitoProfile;
     @Mock private ToolbarControlContainer mControlContainer;
     @Mock private View mContainerView;
-    @Mock private android.content.res.Resources mResources;
+    @Mock private Resources mResources;
     @Mock private WebContents mWebContents;
     @Mock private ContentView mContentView;
     @Mock private CompositorView mCompositorView;
@@ -220,7 +224,7 @@ public class CompositorViewHolderUnitTest {
         ApplicationStatus.onStateChangeForTesting(mActivity, ActivityState.CREATED);
 
         // Setup the mock keyboard.
-        KeyboardVisibilityDelegate.setInstance(mMockKeyboard);
+        KeyboardVisibilityDelegate.setInstanceForTesting(mMockKeyboard);
 
         mViewportInsets = ApplicationViewportInsetTracker.createForTests();
         when(mInsetObserver.isKeyboardInOverlayMode()).thenReturn(false);
@@ -1219,7 +1223,7 @@ public class CompositorViewHolderUnitTest {
     public void testAccessibilityNode_boundsAreCorrect() {
         mContext.getResources().getDisplayMetrics().density = 1.375f;
 
-        var virtualView = mock(org.chromium.chrome.browser.layouts.components.VirtualView.class);
+        var virtualView = mock(VirtualView.class);
         // Values in this test case are real numbers captured from clank running
         // in a maximized window.
         RectF dpRect = new RectF(100.36364f, 2.18182f, 337.36365f, 42.18182f);
@@ -1233,13 +1237,12 @@ public class CompositorViewHolderUnitTest {
         when(virtualView.getAccessibilityDescription()).thenReturn("test-node");
         doAnswer(
                         invocation -> {
-                            ((List<org.chromium.chrome.browser.layouts.components.VirtualView>)
-                                            invocation.getArgument(0))
-                                    .add(virtualView);
+                            List<VirtualView> list = invocation.getArgument(0);
+                            list.add(virtualView);
                             return null;
                         })
                 .when(mLayoutManager)
-                .getVirtualViews(any(List.class));
+                .getVirtualViews(anyList());
 
         mCompositorViewHolder.onAccessibilityModeChanged(true);
         assertNotNull(mCompositorViewHolder.mAccessibilityView);
@@ -1371,5 +1374,27 @@ public class CompositorViewHolderUnitTest {
         assertEquals(
                 "Unexpected start margin.", expectedStartMargin, layoutParams.getMarginStart());
         assertEquals("Unexpected end margin.", expectedEndMargin, layoutParams.getMarginEnd());
+    }
+
+    @Test
+    public void testGetLastNormalSize() {
+        when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
+        mCompositorViewHolder.onNativeLibraryReady(mWindowAndroid, null, mPrefService);
+
+        assertEquals(new Size(0, 0), mCompositorViewHolder.getLastNormalSize());
+
+        mCompositorViewHolder.layout(0, 0, 100, 200);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+        assertEquals(new Size(100, 200), mCompositorViewHolder.getLastNormalSize());
+
+        when(mActivity.isInPictureInPictureMode()).thenReturn(true);
+        mCompositorViewHolder.layout(0, 0, 50, 50);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+        assertEquals(new Size(100, 200), mCompositorViewHolder.getLastNormalSize());
+
+        when(mActivity.isInPictureInPictureMode()).thenReturn(false);
+        mCompositorViewHolder.layout(0, 0, 300, 400);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+        assertEquals(new Size(300, 400), mCompositorViewHolder.getLastNormalSize());
     }
 }

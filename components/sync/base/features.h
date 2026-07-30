@@ -50,6 +50,9 @@ BASE_DECLARE_FEATURE(kSyncGeminiThread);
 // Enables syncing of themes across iOS devices.
 BASE_DECLARE_FEATURE(kSyncThemesIos);
 
+// Enables syncing of New Tab Page customization themes on Android.
+BASE_DECLARE_FEATURE(kNewTabPageCustomizationThemeSync);
+
 // Enables syncing of usage metadata for loyalty cards.
 BASE_DECLARE_FEATURE(kSyncLoyaltyCardMetadata);
 
@@ -233,9 +236,14 @@ BASE_DECLARE_FEATURE(kSyncValidateAccessToken);
 BASE_DECLARE_FEATURE(kSyncInvalidationsBypassScheduler);
 
 #if BUILDFLAG(IS_ANDROID)
-// If enabled, search engines and site search will be synced on Android.
-BASE_DECLARE_FEATURE(kSyncSearchEnginesAndroid);
+// If enabled, search engines and site search will be synced on Android LFF.
+BASE_DECLARE_FEATURE(kSyncSearchEnginesAndroidLFF);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+// Feature flag for ChromeOS only to estimate new sign-in users population.
+BASE_DECLARE_FEATURE(kEstimateNewSignInUsersWithFinchAvailablePopulation);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace syncer
 

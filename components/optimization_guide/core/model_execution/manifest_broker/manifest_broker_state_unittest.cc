@@ -8,15 +8,22 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_count.h"
 #include "base/files/file_path.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/trace_event/trace_event.h"
 #include "base/version.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/fake_manifest_broker.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/test/manifest_builder.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/scenario_builder.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/test/test_manifest_asset_manager_component_state.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h"
+#include "components/optimization_guide/core/model_execution/performance_class.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_broker.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
@@ -26,231 +33,146 @@
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/proto/features/example_for_testing.pb.h"
 #include "components/optimization_guide/proto/manifest.pb.h"
+#include "services/on_device_model/public/cpp/features.h"
 #include "services/on_device_model/public/cpp/test_support/fake_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace optimization_guide {
 
-namespace {
-
-class ScenarioBuilder final {
- public:
-  explicit ScenarioBuilder(
-      TestManifestAssetManagerComponentState& component_state)
-      : state_(component_state) {
-    manifest_directory_ =
-        std::make_unique<ManifestComponentDirectory>(proto::Manifest{});
-  }
-
-  ScenarioBuilder& AddBaseModel(const std::string& name) {
-    state_->UpdateBaseModel(name + "_key", []() {
-      auto base_model_asset = std::make_unique<FakeBaseModelAsset>();
-      base_model_asset->set_version("1.0.0.0");
-      return base_model_asset;
-    }());
-    builder.Add(name + "_asset", OnDemandComponent(name + "_key", "1.0.0.0"));
-    builder.Add(name + "_recipe",
-                BaseModelRecipe(
-                    FileReference(name + "_asset", "weights.bin"),
-                    BaseModelRecipeArgs(
-                        proto::BaseModelRecipe::BACKEND_TYPE_CPU,
-                        proto::BaseModelRecipe::PERFORMANCE_HINT_UNSPECIFIED,
-                        {}, 100)));
-    return *this;
-  }
-
-  ScenarioBuilder& AddSafetyModel(const std::string& name) {
-    state_->UpdateSafetyModel(
-        name + "_key",
-        std::make_unique<FakeSafetyModelAsset>(FakeSafetyModelAsset::Content{
-            .model_info_version = 1,
-        }));
-    builder.Add(name + "_asset", OnDemandComponent(name + "_key", "1"));
-    builder.Add(name + "_recipe",
-                SafetyModelRecipe(FileReference(name + "_asset", "ts.bin")));
-    return *this;
-  }
-
-  ScenarioBuilder& AddAdaptation(const std::string& name,
-                                 const std::string& base_model) {
-    // TODO: Add
-    return *this;
-  }
-
-  ScenarioBuilder& AddUnsafeSolution(const std::string& use_case,
-                                     const std::string& model) {
-    manifest_directory_->Add(use_case + "config.pb", []() {
-      proto::SolutionConfig solution_config;
-      *solution_config.mutable_feature() = SimpleTestFeatureConfig();
-      return solution_config;
-    }());
-    builder.Add(
-        use_case + "_solution",
-        SolutionRecipe(model + "_recipe", "",
-                       FileReference("manifest", use_case + "config.pb")));
-    builder.Add(DeviceUseCase{DeviceCategory::kGpuHighTier, use_case},
-                use_case + "_solution");
-    return *this;
-  }
-
-  ScenarioBuilder& AddSafeSolution(const std::string& use_case,
-                                   const std::string& model,
-                                   const std::string& safety_model) {
-    manifest_directory_->Add(use_case + "config.pb", []() {
-      proto::SolutionConfig solution_config;
-      *solution_config.mutable_feature() = SimpleComposeConfig();
-      *solution_config.mutable_safety() = ComposeSafetyConfig();
-      return solution_config;
-    }());
-    builder.Add(
-        use_case + "_solution",
-        SolutionRecipe(model + "_recipe", safety_model + "_recipe",
-                       FileReference("manifest", use_case + "config.pb")));
-    builder.Add(DeviceUseCase{DeviceCategory::kGpuHighTier, use_case},
-                use_case + "_solution");
-    return *this;
-  }
-
-  void Finish() {
-    manifest_directory_->Add(builder.Build());
-    state_->UpdateManifest(std::move(manifest_directory_));
-  }
-
-  raw_ref<TestManifestAssetManagerComponentState> state_;
-  std::unique_ptr<ManifestComponentDirectory> manifest_directory_;
-  ManifestBuilder builder;
-};
-
-}  // namespace
-
 class ManifestBrokerStateTest : public testing::Test {
  public:
   ManifestBrokerStateTest() {}
 
-  void Startup() {
-    manifest_broker_state_ = std::make_unique<ManifestBrokerState>(
-        local_state_.local_state(), component_state_.CreateDelegate(),
-        fake_launcher_.LaunchFn());
-    model_broker_client_ = std::make_unique<ModelBrokerClient>(
-        manifest_broker_state_->BindAndPassRemoteBroker(), nullptr);
-    // Bind a subscriber to trigger initialization.
-    model_broker_client_->GetSubscriber(mojom::OnDeviceFeature::kTest);
-  }
-
-  void SimulateShutdown() {
-    model_broker_client_.reset();
-    manifest_broker_state_.reset();
-    component_state_.SimulateRestart();
-  }
-
  protected:
-  base::test::TaskEnvironment task_environment_{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  ScopedModelBrokerFeatureList scoped_feature_list_;
-  ModelBrokerPrefService local_state_;
-  TestManifestAssetManagerComponentState component_state_;
-  on_device_model::FakeOnDeviceServiceSettings fake_settings_;
-  on_device_model::FakeServiceLauncher fake_launcher_{&fake_settings_};
-  // ManifestBrokerState pieces:
-  std::unique_ptr<ManifestBrokerState> manifest_broker_state_;
-  std::unique_ptr<ModelBrokerClient> model_broker_client_;
+  base::test::TaskEnvironment task_environment_;
+  FakeManifestBroker fake_;
 };
 
-TEST_F(ManifestBrokerStateTest, ExecuteTestFeature) {
-  ScenarioBuilder(component_state_)
-      .AddBaseModel("model_A")
-      .AddUnsafeSolution("test", "model_A")
-      .Finish();
-  Startup();
-  base::test::TestFuture<ModelBrokerClient::CreateSessionResult> session_future;
-  model_broker_client_->CreateSession(mojom::OnDeviceFeature::kTest,
-                                      SessionConfigParams{},
-                                      session_future.GetCallback());
+// When the device is incapable of running models, session creations attempts
+// should fail, rather than hang, and the service should shut down after the
+// performance class check.
+TEST_F(ManifestBrokerStateTest, CreateSessionFailedOnDeviceIncapable) {
+  ScenarioBuilder::MinimalTestScenario(fake_.component_state());
 
+  // Ensure the device is considered incapable of using on-device models.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      on_device_model::features::kOnDeviceModelCpuBackend);
+  fake_.settings().performance_class =
+      on_device_model::mojom::PerformanceClass::kVeryLow;
+  fake_.Startup();
+
+  base::HistogramTester histogram_tester;
+  base::test::TestFuture<ModelBrokerClient::CreateSessionResult> session_future;
+  fake_.client().CreateSession(mojom::OnDeviceFeature::kTest,
+                               SessionConfigParams{},
+                               session_future.GetCallback());
+  // Broker should have a Manifest that supports no features, so session
+  // creations should fail (kNotSupported).
+  ASSERT_FALSE(session_future.Take());
+
+  // Performance class should have been evaluated.
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.ModelExecution.OnDeviceModelPerformanceClass",
+      OnDeviceModelPerformanceClass::kVeryLow, 1);
+  EXPECT_TRUE(fake_.launcher().did_launch_service());
+  // Service should idle-out again after the performance class check.
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return !fake_.launcher().is_service_running(); }));
+}
+
+// When the device is incapable of downloading models due to low disk space,
+// session creations attempts should fail, rather than hang.
+TEST_F(ManifestBrokerStateTest, CreateSessionFailedOnNotEnoughDiskSpace) {
+  ScenarioBuilder::MinimalTestScenario(fake_.component_state());
+
+  // Ensure the device is considered incapable of using on-device models.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      on_device_model::features::kOnDeviceModelCpuBackend);
+  fake_.component_state().SetFreeDiskSpace(base::ByteCount(1));
+  fake_.Startup();
+
+  base::HistogramTester histogram_tester;
+  base::test::TestFuture<ModelBrokerClient::CreateSessionResult> session_future;
+  fake_.client().CreateSession(mojom::OnDeviceFeature::kTest,
+                               SessionConfigParams{},
+                               session_future.GetCallback());
+  // Broker should have a Manifest that supports no features, so session
+  // creations should fail (kNotSupported).
+  ASSERT_FALSE(session_future.Take());
+}
+
+class TestOnDeviceModelAvailabilityObserver
+    : public OnDeviceModelAvailabilityObserver {
+ public:
+  explicit TestOnDeviceModelAvailabilityObserver(
+      mojom::OnDeviceFeature expected_feature) {
+    expected_feature_ = expected_feature;
+  }
+
+  void OnDeviceModelAvailabilityChanged(
+      mojom::OnDeviceFeature feature,
+      OnDeviceModelEligibilityReason reason) override {
+    EXPECT_EQ(expected_feature_, feature);
+    reason_ = reason;
+  }
+  mojom::OnDeviceFeature expected_feature_;
+  std::optional<OnDeviceModelEligibilityReason> reason_;
+};
+
+// Verify that availability observers are hooked up to the ModelBrokerImpl.
+TEST_F(ManifestBrokerStateTest, TestAvailabilityObserver) {
+  ScenarioBuilder::MinimalTestScenario(fake_.component_state());
+  fake_.Startup();
+  TestOnDeviceModelAvailabilityObserver obs(mojom::OnDeviceFeature::kTest);
+  fake_.state().AddOnDeviceModelAvailabilityChangeObserver(
+      mojom::OnDeviceFeature::kTest, &obs);
+  fake_.client().RequestAssetsFor("test");
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return obs.reason_ == OnDeviceModelEligibilityReason::kSuccess;
+  }));
+}
+
+// Tests fallback when `max_tokens` manifest proto field is 0 or unspecified.
+TEST_F(ManifestBrokerStateTest, FallbackToDefaultMaxTokens) {
+  std::string name = "model_A";
+  fake_.component_state().UpdateBaseModel(name + "_key", []() {
+    auto base_model_asset = std::make_unique<FakeBaseModelAsset>();
+    base_model_asset->set_version("1.0.0.0");
+    return base_model_asset;
+  }());
+
+  ManifestBuilder builder;
+  builder.Add(name + "_asset", OnDemandComponent(name + "_key", "1.0.0.0"));
+  builder.Add(name + "_recipe",
+              BaseModelRecipe(
+                  FileReference(name + "_asset", "weights.bin"),
+                  BaseModelRecipeArgs(
+                      proto::BaseModelRecipe::BACKEND_TYPE_CPU,
+                      proto::BaseModelRecipe::PERFORMANCE_HINT_UNSPECIFIED, {},
+                      /*max_tokens=*/0)));
+  builder.Add("test_solution",
+              SolutionRecipe(name + "_recipe", "",
+                             ManifestFileReference("testconfig.pb")));
+  builder.Add(DeviceUseCase{DeviceCategory::kGpuHighTier, "test"},
+              "test_solution");
+
+  auto manifest_directory =
+      std::make_unique<ManifestComponentDirectory>(builder.Build());
+  proto::SolutionConfig solution_config;
+  *solution_config.mutable_feature() = SimpleTestFeatureConfig();
+  manifest_directory->Add("testconfig.pb", solution_config);
+  fake_.component_state().UpdateManifest(std::move(manifest_directory));
+  fake_.Startup();
+
+  base::test::TestFuture<ModelBrokerClient::CreateSessionResult> session_future;
+  fake_.client().CreateSession(mojom::OnDeviceFeature::kTest,
+                               SessionConfigParams{},
+                               session_future.GetCallback());
   auto session = session_future.Take();
   ASSERT_TRUE(session);
-
-  proto::ExampleForTestingRequest request;
-  request.set_string_value("hello");
-
-  ResponseHolder response;
-  session->ExecuteModel(request, response.GetStreamingCallback());
-
-  EXPECT_TRUE(response.GetFinalStatus());
-
-  std::string expected_response =
-      ("CPU backendFastest inference"
-       "hello max:1024"
-       "TopK: 3, Temp: 0.800000011920929");
-  EXPECT_EQ(*response.value(), expected_response);
-}
-
-TEST_F(ManifestBrokerStateTest, PropagatesFeatureConfig) {
-  proto::Any config;
-  config.set_type_url("type.googleapis.com/test.Config");
-  config.set_value("test_value");
-
-  ScenarioBuilder scenario(component_state_);
-  scenario.builder.SetFeatureConfig(DeviceCategory::kGpuHighTier,
-                                    "summarizer_api", config);
-  scenario.builder.Add(
-      {DeviceCategory::kGpuHighTier, "test"},
-      SolutionRecipe("model", "", FileReference("manifest", "config.pb")));
-  scenario.builder.Add(
-      "model",
-      BaseModelRecipe(
-          FileReference("asset", "weights"),
-          BaseModelRecipeArgs(
-              proto::BaseModelRecipe::BACKEND_TYPE_GPU,
-              proto::BaseModelRecipe::PERFORMANCE_HINT_UNSPECIFIED, {}, 100)));
-  scenario.builder.Add("asset", OnDemandComponent("key", "1.0"));
-
-  scenario.Finish();
-
-  manifest_broker_state_ = std::make_unique<ManifestBrokerState>(
-      local_state_.local_state(), component_state_.CreateDelegate(),
-      fake_launcher_.LaunchFn());
-  model_broker_client_ = std::make_unique<ModelBrokerClient>(
-      manifest_broker_state_->BindAndPassRemoteBroker(), nullptr);
-
-  task_environment_.RunUntilIdle();
-
-  base::test::TestFuture<std::optional<mojo_base::ProtoWrapper>> future;
-  model_broker_client_->GetConfig(mojom::OnDeviceFeature::kSummarize,
-                                  future.GetCallback());
-
-  auto result = future.Take();
-  ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result->As<proto::Any>()->value(), "test_value");
-}
-
-TEST_F(ManifestBrokerStateTest, SupportsArbitraryUseCases) {
-  ScenarioBuilder scenario(component_state_);
-  scenario.builder.Add(
-      {DeviceCategory::kGpuHighTier, "custom_use_case"},
-      SolutionRecipe("model", "", FileReference("manifest", "config.pb")));
-  scenario.builder.Add(
-      "model",
-      BaseModelRecipe(
-          FileReference("asset", "weights"),
-          BaseModelRecipeArgs(
-              proto::BaseModelRecipe::BACKEND_TYPE_GPU,
-              proto::BaseModelRecipe::PERFORMANCE_HINT_UNSPECIFIED, {}, 100)));
-  scenario.builder.Add("asset", OnDemandComponent("key", "1.0"));
-
-  scenario.Finish();
-
-  manifest_broker_state_ = std::make_unique<ManifestBrokerState>(
-      local_state_.local_state(), component_state_.CreateDelegate(),
-      fake_launcher_.LaunchFn());
-  model_broker_client_ = std::make_unique<ModelBrokerClient>(
-      manifest_broker_state_->BindAndPassRemoteBroker(), nullptr);
-
-  task_environment_.RunUntilIdle();
-
-  auto& subscriber = model_broker_client_->GetSubscriber("custom_use_case");
-  EXPECT_TRUE(model_broker_client_->HasSubscriber("custom_use_case"));
-  EXPECT_EQ(subscriber.unavailable_reason(), std::nullopt);
+  EXPECT_EQ(session->GetTokenLimits().max_tokens, kOnDeviceModelMaxTokens);
 }
 
 }  // namespace optimization_guide

@@ -396,13 +396,14 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
           base::Unretained(this)),
       session->GetClient());
   session->CreateAndAddHandler<protocol::FetchHandler>(
-      GetIOContext(), base::BindRepeating(
-                          [](RenderFrameDevToolsAgentHost* self,
-                             base::OnceClosure done_callback) {
-                            self->UpdateResourceLoaderFactories();
-                            std::move(done_callback).Run();
-                          },
-                          base::Unretained(this)));
+      GetIOContext(), session->GetRootSession()->GetClient(),
+      base::BindRepeating(
+          [](RenderFrameDevToolsAgentHost* self,
+             base::OnceClosure done_callback) {
+            self->UpdateResourceLoaderFactories();
+            std::move(done_callback).Run();
+          },
+          base::Unretained(this)));
   session->CreateAndAddHandler<protocol::SchemaHandler>();
   const bool may_attach_to_browser = session->GetClient()->IsTrusted();
   session->CreateAndAddHandler<protocol::ServiceWorkerHandler>();
@@ -837,6 +838,15 @@ std::string RenderFrameDevToolsAgentHost::GetType() {
     return kTypeFrame;
   if (frame_tree_node_ && frame_tree_node_->IsFencedFrameRoot())
     return kTypeFrame;
+  // Prerender pages should always be reported as "page" type, even when they
+  // live in a separate WebContents (target_hint="_blank") that may not be
+  // associated with a browser tab. Without this, the embedder's
+  // GetTargetType() could return "other" for the prerender's WebContents,
+  // preventing DevTools from inspecting the prerendered page.
+  if (frame_tree_node_ &&
+      frame_tree_node_->GetFrameType() == FrameType::kPrerenderMainFrame) {
+    return kTypePage;
+  }
   if (!base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
     if (web_contents() &&
         static_cast<WebContentsImpl*>(web_contents())->GetOuterWebContents()) {

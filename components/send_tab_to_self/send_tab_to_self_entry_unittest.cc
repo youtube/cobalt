@@ -13,9 +13,11 @@
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
+#include "components/autofill/core/common/signatures.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/test_matchers.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
 #include "components/sessions/core/serialized_navigation_entry_test_helper.h"
 #include "components/sessions/core/session_constants.h"
@@ -35,30 +37,6 @@ using ::testing::IsEmpty;
 using ::testing::Not;
 using ::testing::Pointee;
 using ::testing::Property;
-
-MATCHER_P4(MatchesFormField,
-           id_attribute,
-           name_attribute,
-           form_control_type,
-           value,
-           "") {
-  return testing::ExplainMatchResult(
-             Field("id_attribute", &PageContext::FormField::id_attribute,
-                   id_attribute),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             Field("name_attribute", &PageContext::FormField::name_attribute,
-                   name_attribute),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             Field("form_control_type",
-                   &PageContext::FormField::form_control_type,
-                   form_control_type),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             Field("value", &PageContext::FormField::value, value), arg,
-             result_listener);
-}
 
 MATCHER_P(MatchesPageContext, fields_matcher, "") {
   return testing::ExplainMatchResult(
@@ -280,7 +258,11 @@ TEST(SendTabToSelfEntry, MarkAsOpened) {
 
 TEST(SendTabToSelfEntry, PageContextRoundTrip) {
   PageContext context;
-  context.form_field_info.fields.push_back(MakeFormField(u"id1", u"value1"));
+  PageContext::FormField field = MakeFormField(u"id1", u"value1");
+  field.autofill_signature.form_signature = autofill::FormSignature(12345u);
+  field.autofill_signature.field_signature = autofill::FieldSignature(6789u);
+
+  context.form_field_info.fields.push_back(std::move(field));
 
   const SendTabToSelfEntry entry("1", GURL("http://example.com"), "title",
                                  base::Time::FromTimeT(10), "device", "device2",
@@ -288,13 +270,17 @@ TEST(SendTabToSelfEntry, PageContextRoundTrip) {
 
   const SendTabToSelfLocal local_proto = entry.AsLocalProto();
 
+  std::unique_ptr<SendTabToSelfEntry> restored = SendTabToSelfEntry::FromProto(
+      local_proto.specifics(), base::Time::FromTimeT(10));
+
   EXPECT_THAT(
-      SendTabToSelfEntry::FromProto(local_proto.specifics(),
-                                    base::Time::FromTimeT(10)),
+      restored,
       Pointee(MatchesEntry(
           _, _, _, _, _,
-          MatchesPageContext(
-              ElementsAre(MatchesFormField(u"id1", _, _, u"value1"))),
+          MatchesPageContext(ElementsAre(MatchesFormField(
+              Eq(u"id1"), _, _, Eq(u"value1"),
+              MatchesAutofillSignature(autofill::FormSignature(12345u),
+                                       autofill::FieldSignature(6789u))))),
           MatchesNavigationHistory(IsEmpty(), testing::Eq(std::nullopt)))));
 }
 

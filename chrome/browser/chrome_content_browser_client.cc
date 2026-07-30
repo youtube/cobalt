@@ -183,6 +183,7 @@
 #include "chrome/browser/ui/prefs/pref_watcher.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/browser/ui/startup/google_chrome_scheme_util.h"
+#include "chrome/browser/ui/startup/url_util.h"
 #include "chrome/browser/ui/tab_contents/chrome_web_contents_view_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webid/identity_dialog_controller.h"
@@ -233,6 +234,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/cookie_settings_base.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/contextual_tasks/public/utils.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/dom_distiller/core/dom_distiller_switches.h"
@@ -366,6 +368,7 @@
 #include "content/public/common/origin_util.h"
 #include "content/public/common/url_utils.h"
 #include "content/public/common/window_container_type.mojom-shared.h"
+#include "device/fido/public/features.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "extensions/browser/browser_frame_context_data.h"
 #include "extensions/buildflags/buildflags.h"
@@ -381,6 +384,7 @@
 #include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/data_url.h"
+#include "net/base/url_util.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/ssl/client_cert_store.h"
@@ -401,6 +405,7 @@
 #include "services/network/public/cpp/self_deleting_url_loader_factory.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/cert_verifier_service.mojom.h"
+#include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/web_transport.mojom.h"
@@ -559,7 +564,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
-#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"  // nogncheck
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -781,7 +786,7 @@ using plugins::ChromeContentBrowserClientPluginsPart;
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-using web_apps::ChromeContentBrowserClientIsolatedWebAppsPart;
+using web_app::ChromeContentBrowserClientIsolatedWebAppsPart;
 #endif
 
 namespace {
@@ -1156,7 +1161,7 @@ void LaunchURL(
   // - 'allow-top-navigation-by-user-navigation' + user-activation
   // - 'allow-popups'
   //
-  // See https://crbug.com/1148777
+  // See https://crbug.com/40053861
   if (!is_primary_main_frame) {
     using SandboxFlags = network::mojom::WebSandboxFlags;
     auto allow = [&](SandboxFlags flag) {
@@ -1947,8 +1952,8 @@ bool ChromeContentBrowserClient::ShouldUseProcessPerSite(
 
   // NTP should use process-per-site.  This is a performance optimization to
   // reduce process count associated with NTP tabs.
-  if (site_url == GURL(chrome::kChromeUINewTabURL) ||
-      site_url == GURL(chrome::kChromeUINewTabPageURL)) {
+  if (site_url == chrome::ChromeUINewTabURLAsGURL() ||
+      site_url == chrome::ChromeUINewTabPageURLAsGURL()) {
     return true;
   }
 
@@ -2272,10 +2277,10 @@ bool ChromeContentBrowserClient::HasWebRequestAPIProxy(
           browser_context);
   if (!web_request_api) {
     return false;
+  } else if (base::FeatureList::IsEnabled(
+          features::kOptimizeWebRequestProxyForServiceWorkerAutoPreload)) {
+    return web_request_api->HasWebRequestOrDeclarativeWebRequestExtension();
   } else {
-    // TODO(crbug.com/362539771): Check if the request is from guest view and
-    // use HasWebRequestOrDeclarativeWebRequestExtension() instead of using
-    // MayHaveProxies().
     return web_request_api->MayHaveProxies();
   }
 #else
@@ -3186,6 +3191,17 @@ bool ChromeContentBrowserClient::IsDataSaverEnabled(
   }
 
   return data_saver::IsDataSaverEnabled();
+}
+
+bool ChromeContentBrowserClient::IsPinchToZoomAllowed(
+    content::BrowserContext* context) {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (IsRunningInAppMode()) {
+    return user_prefs::UserPrefs::Get(context)->GetBoolean(
+        ash::prefs::kKioskPinchToZoomAllowed);
+  }
+#endif
+  return true;
 }
 
 void ChromeContentBrowserClient::UpdateRendererPreferencesForWorker(
@@ -4128,6 +4144,24 @@ GetPreferredColorScheme(const WebPreferences& web_prefs,
   }
 #endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
 
+  // To prevent a UI flicker when the CS param is enforcing dark mode, force set
+  // the blink renderer so the initial load respects the prefers-color-scheme
+  // media query.
+  // TODO(crbug.com/506209287): Investigate if there is a feature specific place
+  // to add this logic to prevent flick on initial render.
+  if (web_contents) {
+    GURL url = web_contents->GetVisibleURL();
+    if (url.SchemeIs(content::kChromeUIScheme) &&
+        url.host() == chrome::kChromeUIContextualTasksHost) {
+      std::optional<bool> is_dark_mode =
+          contextual_tasks::GetDarkModeFromUrl(url);
+      if (is_dark_mode.has_value()) {
+        preferred_color_scheme =
+            is_dark_mode.value() ? blink::mojom::PreferredColorScheme::kDark
+                                 : blink::mojom::PreferredColorScheme::kLight;
+      }
+    }
+  }
   return {preferred_color_scheme, preferred_root_scrollbar_color_scheme};
 }
 
@@ -4453,7 +4487,9 @@ bool ChromeContentBrowserClient::CanCreateWindow(
         ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL, true);
     content::WebContents* responsible_web_contents =
         web_contents->GetResponsibleWebContents();
-    bool is_from_embedded_page = web_contents != responsible_web_contents;
+    bool is_from_embedded_page =
+        web_contents != responsible_web_contents ||
+        guest_view::GuestViewBase::FromRenderFrameHost(opener);
     if (contextual_tasks_ui_service &&
         contextual_tasks_ui_service->HandleNavigation(std::move(url_params),
                                                       responsible_web_contents,
@@ -4544,9 +4580,10 @@ ChromeContentBrowserClient::CreateModelBrokerClient(
 media::mojom::AvailabilityStatus
 ChromeContentBrowserClient::GetOnDeviceSpeechRecognitionAvailabilityStatus(
     content::BrowserContext* context,
-    const std::string& language) {
-  return speech::GetOnDeviceSpeechRecognitionAvailabilityStatus(context,
-                                                                language);
+    const std::string& language,
+    media::mojom::SpeechRecognitionQuality quality) {
+  return speech::GetOnDeviceSpeechRecognitionAvailabilityStatus(
+      context, language, quality);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -6109,6 +6146,7 @@ void ChromeContentBrowserClient::
     RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
         content::BrowserContext* browser_context,
         const std::optional<url::Origin>& request_initiator,
+        network::mojom::RequestDestination request_destination,
         NonNetworkURLLoaderFactoryMap* factories) {
   DCHECK(browser_context);
   DCHECK(factories);
@@ -6126,12 +6164,18 @@ void ChromeContentBrowserClient::
         request_initiator->scheme() == webapps::kIsolatedAppScheme) {
       app_origin = request_initiator;
     }
-    factories->emplace(
-        webapps::kIsolatedAppScheme,
-        web_app::IsolatedWebAppURLLoaderFactory::Create(
-            browser_context, app_origin,
-            base::FeatureList::IsEnabled(
-                features::kEnforceDedicatedWorkerSameOriginCheck)));
+    bool enforce_same_origin = false;
+    if (request_destination == network::mojom::RequestDestination::kWorker) {
+      enforce_same_origin = base::FeatureList::IsEnabled(
+          features::kEnforceDedicatedWorkerSameOriginCheck);
+    } else if (request_destination ==
+               network::mojom::RequestDestination::kSharedWorker) {
+      enforce_same_origin = base::FeatureList::IsEnabled(
+          features::kEnforceSharedWorkerSameOriginCheck);
+    }
+    factories->emplace(webapps::kIsolatedAppScheme,
+                       web_app::IsolatedWebAppURLLoaderFactory::Create(
+                           browser_context, app_origin, enforce_same_origin));
   }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
@@ -6879,6 +6923,14 @@ bool ChromeContentBrowserClient::IsSecurityLevelAcceptableForWebAuthn(
     return true;
   }
 #endif
+#if !BUILDFLAG(IS_ANDROID)
+  // For IWAs, WebAuthn is only enabled together with the remote
+  // desktop client override enterprise policy.
+  if (caller_origin.scheme() == webapps::kIsolatedAppScheme) {
+    return base::FeatureList::IsEnabled(
+        device::kWebAuthnIWARemoteDesktopAllowedOriginsPolicy);
+  }
+#endif  //! BUILDFLAG(IS_ANDROID)
   if (net::IsLocalhost(caller_origin.GetURL())) {
     return true;
   }
@@ -7235,7 +7287,7 @@ bool ChromeContentBrowserClient::HandleWebUI(
         (url->DomainIs(chrome::kChromeUIBookmarksHost) ||
          url->DomainIs(chrome::kChromeUIHistoryHost))) {
       // Rewrite with new tab URL
-      *url = GURL(chrome::kChromeUINewTabURL);
+      *url = chrome::ChromeUINewTabURLAsGURL();
     }
   }
 
@@ -8735,8 +8787,8 @@ bool ChromeContentBrowserClient::ShouldSuppressAXLoadComplete(
   WebContents* web_contents = WebContents::FromRenderFrameHost(rfh);
 
   const GURL& url = web_contents->GetVisibleURL();
-  return url == GURL(chrome::kChromeUINewTabURL) ||
-         url == GURL(chrome::kChromeUINewTabPageURL);
+  return url == chrome::ChromeUINewTabURLAsGURL() ||
+         url == chrome::ChromeUINewTabPageURLAsGURL();
 }
 
 void ChromeContentBrowserClient::BindAIManager(

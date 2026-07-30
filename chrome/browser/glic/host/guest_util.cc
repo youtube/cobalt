@@ -12,6 +12,7 @@
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
@@ -20,11 +21,13 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "net/base/url_util.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/autoplay/autoplay.mojom.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -82,6 +85,18 @@ class WebviewWebContentsObserver : public content::WebContentsObserver,
             : WebViewAutoPlayProgress::kAutoPlayGrantedForOtherRFH);
   }
 };
+
+std::vector<Host*> GetAllHosts(content::BrowserContext* context) {
+  std::vector<Host*> hosts;
+  GlicKeyedService* service =
+      GlicKeyedServiceFactory::GetGlicKeyedService(context, /*create=*/false);
+  if (service) {
+    for (auto* instance : service->instance_coordinator().GetInstances()) {
+      hosts.push_back(&instance->host());
+    }
+  }
+  return hosts;
+}
 
 }  // namespace
 
@@ -167,19 +182,24 @@ bool IsGlicWebUI(const content::WebContents* web_contents) {
          web_contents->GetLastCommittedURL() == chrome::kChromeUIGlicURL;
 }
 
-content::WebContents* GetGlicGuestWebContents(
-    content::WebContents* web_contents) {
-  if (!web_contents) {
-    return nullptr;
+bool IsProcessHostForGlic(content::RenderProcessHost* process_host) {
+  for (Host* host : GetAllHosts(process_host->GetBrowserContext())) {
+    auto* webui_contents = host->webui_contents();
+    if (webui_contents &&
+        webui_contents->GetPrimaryMainFrame()->GetProcess() == process_host) {
+      return true;
+    }
   }
-  GlicKeyedService* service = GlicKeyedServiceFactory::GetGlicKeyedService(
-      web_contents->GetBrowserContext());
-  if (!service) {
-    return nullptr;
-  }
+  return false;
+}
 
-  for (Host* host : service->host_manager().GetAllHosts()) {
-    if (host->webui_contents() == web_contents) {
+content::WebContents* GetGlicGuestWebContents(
+    content::WebContents* webui_contents) {
+  if (!webui_contents) {
+    return nullptr;
+  }
+  for (Host* host : GetAllHosts(webui_contents->GetBrowserContext())) {
+    if (host->webui_contents() == webui_contents) {
       content::RenderFrameHost* guest_rfh = host->GetGuestMainFrame();
       return guest_rfh ? content::WebContents::FromRenderFrameHost(guest_rfh)
                        : nullptr;
@@ -205,8 +225,8 @@ bool OnGuestAdded(content::WebContents* guest_contents) {
   if (!IsGlicWebUI(top)) {
     return false;
   }
-  GlicKeyedService* service =
-      GlicKeyedServiceFactory::GetGlicKeyedService(top->GetBrowserContext());
+  GlicKeyedService* service = GlicKeyedServiceFactory::GetGlicKeyedService(
+      top->GetBrowserContext(), /*create=*/false);
   if (!service) {
     return false;
   }
@@ -215,7 +235,23 @@ bool OnGuestAdded(content::WebContents* guest_contents) {
   guest_contents->SetSupportsDraggableRegions(true);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-  service->GuestAdded(guest_contents);
+  for (Host* host : GetAllHosts(top->GetBrowserContext())) {
+    auto* webui_contents = host->webui_contents();
+    if (!webui_contents || top != webui_contents) {
+      continue;
+    }
+
+#if !BUILDFLAG(IS_ANDROID)
+    // TODO(harringtond): This looks wrong, either fix or document this.
+    blink::web_pref::WebPreferences prefs(top->GetOrCreateWebPreferences());
+    prefs.default_font_size =
+        host->webui_contents()->GetOrCreateWebPreferences().default_font_size;
+    top->SetWebPreferences(prefs);
+#else
+    // TODO(b/470059315): What do we do for Android?
+#endif
+    break;
+  }
 
   guest_contents->SetUserData(
       "glic::WebviewWebContentsObserver",
@@ -227,6 +263,18 @@ bool OnGuestAdded(content::WebContents* guest_contents) {
       "Glic.Host.WebView.AutoPlay",
       WebViewAutoPlayProgress::kWebContentsObserverRegistered);
   return true;
+}
+
+std::vector<content::WebContents*> GetAllGlicGuestWebContentsForTesting(
+    content::BrowserContext* browser_context) {
+  std::vector<content::WebContents*> guest_contents;
+  for (Host* host : GetAllHosts(browser_context)) {
+    auto* guest = host->web_client_contents();
+    if (guest) {
+      guest_contents.push_back(guest);
+    }
+  }
+  return guest_contents;
 }
 
 }  // namespace glic

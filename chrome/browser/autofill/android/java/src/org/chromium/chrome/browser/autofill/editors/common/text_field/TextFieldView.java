@@ -8,6 +8,7 @@ import static org.chromium.chrome.browser.autofill.editors.common.field.FieldPro
 import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.FOCUSED;
 import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.IS_REQUIRED;
 import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.VALUE;
+import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.VALUE_CHANGED_CALLBACK;
 
 import android.content.Context;
 import android.text.Editable;
@@ -50,7 +51,7 @@ public class TextFieldView extends FrameLayout implements FieldView {
 
     private @Nullable Runnable mDoneRunnable;
 
-    @SuppressWarnings("WrongConstant") // https://crbug.com/1038784
+    @SuppressWarnings("WrongConstant") // https://crbug.com/40666488
     private final OnEditorActionListener mEditorActionListener =
             (view, actionId, event) -> {
                 if (actionId == EditorInfo.IME_ACTION_DONE && mDoneRunnable != null) {
@@ -148,6 +149,9 @@ public class TextFieldView extends FrameLayout implements FieldView {
                     @Override
                     public void afterTextChanged(Editable s) {
                         fieldModel.set(VALUE, s.toString());
+                        if (fieldModel.get(VALUE_CHANGED_CALLBACK) != null) {
+                            fieldModel.get(VALUE_CHANGED_CALLBACK).onResult(s.toString());
+                        }
                         if (sObserverForTest != null) {
                             sObserverForTest.onEditorTextUpdate();
                         }

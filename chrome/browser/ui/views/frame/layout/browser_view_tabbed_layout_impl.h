@@ -7,6 +7,7 @@
 
 #include <utility>
 
+#include "chrome/browser/ui/animation/browser_animation_types.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
@@ -96,7 +97,7 @@ class BrowserViewTabbedLayoutImpl : public BrowserViewLayoutImpl {
   // Describes how to render the top of the vertical tab strip.
   struct VerticalTabStripAnimation {
     // Is the vertical tab strip animating?
-    bool is_animating = false;
+    BrowserAnimationMotion current_motion;
     // The y-value of the top of the tab strip.
     int top_offset = 0;
     // The relative size of the top corner.
@@ -110,7 +111,7 @@ class BrowserViewTabbedLayoutImpl : public BrowserViewLayoutImpl {
       const BrowserLayoutParams& params) const;
 
   // Returns the type of tabstrip present.
-  enum class TabStripType { kNone, kWebUi, kVertical, kHorizontal };
+  enum class TabStripType { kNone, kVertical, kHorizontal };
   TabStripType GetTabStripType() const;
 
   // Returns whether the shadow overlay (with its attendant margin) around the
@@ -148,6 +149,7 @@ class BrowserViewTabbedLayoutImpl : public BrowserViewLayoutImpl {
   // expand animation.
   mutable double last_expand_on_hover_ = 0.0;
   mutable double last_bottom_corner_value_ = 1.0;
+  mutable int last_vertical_tab_strip_width_ = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_LAYOUT_BROWSER_VIEW_TABBED_LAYOUT_IMPL_H_

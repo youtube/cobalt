@@ -256,7 +256,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
 
     this.updateFilteredTabs_();
 
-    // http://crbug.com/1481787: Dispatch the search event to update the
+    // http://crbug.com/40072096: Dispatch the search event to update the
     // internal value to make CrSearchFieldMixin function correctly.
     this.getSearchInput().dispatchEvent(
         new CustomEvent('search', {composed: true, detail: this.searchText_}));
@@ -610,6 +610,19 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
       // No tabs matching the search text criteria.
       return;
     }
+
+    // <if expr="is_macosx">
+    const lowerKey = e.key.toLowerCase();
+
+    if (e.ctrlKey && (lowerKey === 'n' || lowerKey === 'p')) {
+      const mappedKey = lowerKey === 'n' ? 'ArrowDown' : 'ArrowUp';
+      this.$.tabsList.navigate(mappedKey);
+
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    // </if>
 
     if (selectorNavigationKeys.includes(e.key)) {
       this.$.tabsList.navigate(e.key);

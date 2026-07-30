@@ -65,12 +65,27 @@ class AtMemoryController {
                                  const FormFieldData& field,
                                  const Suggestion& suggestion);
 
+  // Returns true if a search is currently in progress.
+  bool IsSearching() const;
+
  private:
   void ExecuteQuery(const std::u16string& filter, bool full_search);
 
   // Callback handler for the search query.
   void OnSearchResultsReceived(
       accessibility_annotator::MemorySearchResults result);
+
+  // Fills the unmasked IBAN value after fetching it.
+  void FillIban(const Suggestion::AtMemoryPayload::Identifier& identifier,
+                const FormData& form,
+                const FormFieldData& field,
+                const Suggestion& suggestion);
+
+  // Fills the unmasked credit card value after fetching it.
+  void FillCreditCard(const Suggestion::AtMemoryPayload::Identifier& identifier,
+                      const FormData& form,
+                      const FormFieldData& field,
+                      const Suggestion& suggestion);
 
   const raw_ref<BrowserAutofillManager> manager_;
 
@@ -81,7 +96,10 @@ class AtMemoryController {
 
   std::unique_ptr<AtMemoryFunnelMetrics> at_memory_funnel_metrics_;
 
-  base::WeakPtrFactory<AtMemoryController> weak_ptr_factory_{this};
+  bool is_searching_ = false;
+
+  base::WeakPtrFactory<AtMemoryController> query_weak_ptr_factory_{this};
+  base::WeakPtrFactory<AtMemoryController> fill_weak_ptr_factory_{this};
 };
 
 }  // namespace autofill

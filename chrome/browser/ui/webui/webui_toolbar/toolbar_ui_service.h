@@ -40,13 +40,16 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
     virtual void OnLhsChipMousePressed(
         toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
     virtual void OnLhsChipClicked(
-        toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
+        toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+        bool is_mouse_interaction) = 0;
     virtual void OnLhsChipExpandAnimationEnded(
         toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
     virtual void OnLhsChipCollapseAnimationEnded(
         toolbar_ui_api::mojom::LhsChipIdentifier identifier) = 0;
     virtual void OnHomeButtonDropUrl(const GURL& url) = 0;
     virtual void OnHomeButtonDropFile(const gfx::PointF& drop_position) = 0;
+    virtual void OnOmniboxAction(
+        toolbar_ui_api::mojom::OmniboxActionPtr action) = 0;
   };
 
   ToolbarUIService(
@@ -70,6 +73,7 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
   void ShowContextMenu(toolbar_ui_api::mojom::ContextMenuType menu_type,
                        const gfx::RectF& bounds_in_css_pixels,
                        ui::mojom::MenuSourceType source) override;
+  void OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) override;
   void OnPageInitialized() override;
   void ShowContentSettingsBubble(
       ::toolbar_ui_api::mojom::ContentSettingImageType type,
@@ -78,8 +82,8 @@ class ToolbarUIService : public toolbar_ui_api::mojom::ToolbarUIService {
       toolbar_ui_api::mojom::PinnedToolbarAction action_id) override;
   void OnLhsChipMousePressed(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
-  void OnLhsChipClicked(
-      toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
+  void OnLhsChipClicked(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+                        bool is_mouse_interaction) override;
   void OnLhsChipExpandAnimationEnded(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnLhsChipCollapseAnimationEnded(

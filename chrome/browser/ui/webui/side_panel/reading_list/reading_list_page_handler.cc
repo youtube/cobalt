@@ -25,10 +25,10 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/side_panel/reading_list/reading_list_ui.h"
@@ -156,11 +156,11 @@ ReadingListPageHandler::ReadingListPageHandler(
     mojo::PendingRemote<reading_list::mojom::Page> page,
     ReadingListUI* reading_list_ui,
     content::WebUI* web_ui)
-    : receiver_(this, std::move(receiver)),
+    : content::WebContentsObserver(web_ui->GetWebContents()),
+      receiver_(this, std::move(receiver)),
       page_(std::move(page)),
       reading_list_ui_(reading_list_ui),
       web_ui_(web_ui),
-      web_contents_(web_ui->GetWebContents()),
       clock_(base::DefaultClock::GetInstance()) {
   Profile* profile = Profile::FromWebUI(web_ui);
   DCHECK(profile);
@@ -180,7 +180,8 @@ void ReadingListPageHandler::OpenURL(
     const GURL& url,
     bool mark_as_read,
     ui::mojom::ClickModifiersPtr click_modifiers) {
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (!browser) {
     return;
   }
@@ -220,7 +221,8 @@ void ReadingListPageHandler::UpdateReadStatus(const GURL& url, bool read) {
 }
 
 void ReadingListPageHandler::MarkCurrentTabAsRead() {
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (!browser) {
     return;
   }
@@ -231,7 +233,8 @@ void ReadingListPageHandler::MarkCurrentTabAsRead() {
 }
 
 void ReadingListPageHandler::AddCurrentTab() {
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (!browser) {
     return;
   }
@@ -252,7 +255,8 @@ void ReadingListPageHandler::ShowContextMenuForURL(const GURL& url,
                                                    int32_t x,
                                                    int32_t y) {
   auto embedder = reading_list_ui_->embedder();
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (embedder) {
     embedder->ShowContextMenu(
         gfx::Point(x, y),
@@ -302,12 +306,20 @@ void ReadingListPageHandler::GetWindowData(GetWindowDataCallback callback) {
   std::move(callback).Run(std::move(windows));
 }
 
+void ReadingListPageHandler::WebContentsDestroyed() {
+  reading_list_model_scoped_observation_.Reset();
+  reading_list_model_ = nullptr;
+}
+
 void ReadingListPageHandler::ReadingListModelCompletedBatchUpdates(
     const ReadingListModel* model) {
+  CHECK(web_contents());
   DCHECK(model == reading_list_model_);
-  if (web_contents_->GetVisibility() == content::Visibility::HIDDEN) {
+
+  if (web_contents()->GetVisibility() == content::Visibility::HIDDEN) {
     return;
   }
+
   page_->ItemsChanged(CreateReadLaterEntriesByStatusData());
   UpdateCurrentPageActionButton();
   reading_list_model_->MarkAllSeen();
@@ -324,8 +336,10 @@ void ReadingListPageHandler::ReadingListModelBeingDeleted(
 
 void ReadingListPageHandler::ReadingListDidApplyChanges(
     ReadingListModel* model) {
+  CHECK(web_contents());
   DCHECK(model == reading_list_model_);
-  if (web_contents_->GetVisibility() == content::Visibility::HIDDEN ||
+
+  if (web_contents()->GetVisibility() == content::Visibility::HIDDEN ||
       reading_list_model_->IsPerformingBatchUpdates()) {
     return;
   }
@@ -338,7 +352,8 @@ const std::optional<GURL> ReadingListPageHandler::GetActiveTabURL() {
   if (active_tab_url_) {
     return active_tab_url_.value();
   }
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   if (browser) {
     return chrome::GetURLToBookmark(
         browser->GetTabStripModel()->GetActiveWebContents());
@@ -413,7 +428,8 @@ std::string ReadingListPageHandler::GetTimeSinceLastUpdate(
 }
 
 void ReadingListPageHandler::UpdateCurrentPageActionButton() {
-  if (web_contents_->GetVisibility() == content::Visibility::HIDDEN ||
+  CHECK(web_contents());
+  if (web_contents()->GetVisibility() == content::Visibility::HIDDEN ||
       Profile::FromWebUI(web_ui_)->IsGuestSession()) {
     return;
   }

@@ -176,6 +176,46 @@ generate_allowlist_from_histograms_file("memory_dump_provider_name_variants") {
   allow_list_name = "MemoryDumpProviderName"
 }
 
+config("asan_raw_ptr_service_v2_config") {
+  # `-fsanitize-recover=address` makes asan report lazily. If tests expect
+  # immediate crash, this config will break the tests completely.
+  cflags = [ "-fsanitize-recover=address" ]
+}
+
+# `asan_raw_ptr_service` is built as a part of `base` without `-fsanitize=address`
+# to avoid performance regressions.
+source_set("asan_raw_ptr_service") {
+  # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
+  sources = []
+  if (use_asan_backup_ref_ptr) {
+    sources += [
+      "memory/raw_ptr_asan_allocator.cc",
+      "memory/raw_ptr_asan_allocator.h",
+      "memory/raw_ptr_asan_bound_arg_tracker.cc",
+      "memory/raw_ptr_asan_bound_arg_tracker.h",
+      "memory/raw_ptr_asan_event.cc",
+      "memory/raw_ptr_asan_event.h",
+      "memory/raw_ptr_asan_hooks.cc",
+      "memory/raw_ptr_asan_hooks.h",
+      "memory/raw_ptr_asan_service.cc",
+      "memory/raw_ptr_asan_service.h",
+    ]
+    deps = [ ":base_static" ]
+
+    if (use_asan_backup_ref_ptr_v2) {
+      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
+      configs -= [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    }
+
+    deps += [
+      ":compiler_specific",
+      "//base/allocator/partition_allocator/src/partition_alloc",
+      "//third_party/abseil-cpp:absl",
+      "//third_party/perfetto:libperfetto",
+    ]
+  }
+}
+
 # Base and everything it depends on should be a static library rather than
 # a source set. Base is more of a "library" in the classic sense in that many
 # small parts of it are used in many different contexts. This combined with a
@@ -276,6 +316,7 @@ component("base") {
     "containers/to_vector.h",
     "containers/unique_ptr_adapters.h",
     "containers/vector_buffer.h",
+    "containers/weak_value_table.h",
     "critical_closure.h",
     "debug/alias.cc",
     "debug/alias.h",
@@ -1093,25 +1134,6 @@ component("base") {
     "//third_party/rust/serde_json_lenient/v0_2/wrapper",
   ]
 
-  if (use_asan_backup_ref_ptr) {
-    # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
-    sources += [
-      "memory/raw_ptr_asan_allocator.cc",
-      "memory/raw_ptr_asan_allocator.h",
-      "memory/raw_ptr_asan_bound_arg_tracker.cc",
-      "memory/raw_ptr_asan_bound_arg_tracker.h",
-      "memory/raw_ptr_asan_event.cc",
-      "memory/raw_ptr_asan_event.h",
-      "memory/raw_ptr_asan_hooks.cc",
-      "memory/raw_ptr_asan_hooks.h",
-      "memory/raw_ptr_asan_service.cc",
-      "memory/raw_ptr_asan_service.h",
-    ]
-    if (use_asan_backup_ref_ptr_v2) {
-      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
-    }
-  }
-
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
@@ -1146,14 +1168,6 @@ component("base") {
     "//build:robolectric_buildflags",
     "//third_party/abseil-cpp:absl",
   ]
-
-  if (use_asan_backup_ref_ptr) {
-    # raw_ptr_asan_service.cc depends on:
-    deps += [ "//base/allocator/partition_allocator/src/partition_alloc" ]
-    if (use_asan_backup_ref_ptr_v2) {
-      deps += [ "//build/config/sanitizers:sanitizer_shared_hooks" ]
-    }
-  }
 
   sources += [
     "containers/span_rust.h",
@@ -1792,6 +1806,23 @@ component("base") {
     public_deps += [ "allocator/partition_allocator:allocator_shim" ]
   }
 
+  if (use_asan_backup_ref_ptr) {
+    # To make `source_set("asan_raw_ptr_service")` only a part of `base`,
+    # use `deps` to make only `base` depend on it. This causes a few
+    # unittests have `//nogncheck`.
+    deps += [ ":asan_raw_ptr_service" ]
+    allow_circular_includes_from = [ ":asan_raw_ptr_service" ]
+
+    # Moves the `-fsanitize-recover=address` configuration to `//base` using
+    # `all_dependent_configs`. This ensures the flag is only active when
+    # `use_asan_backup_ref_ptr_v2=true`, preventing PartitionAlloc GN variables
+    # from polluting the global `//build` directory and breaking standalone
+    # projects like V8.
+    if (use_asan_backup_ref_ptr_v2) {
+      all_dependent_configs += [ ":asan_raw_ptr_service_v2_config" ]
+    }
+  }
+
   # Windows.
   if (is_win) {
     sources += [
@@ -1968,6 +1999,8 @@ component("base") {
       "win/security_descriptor.h",
       "win/security_util.cc",
       "win/security_util.h",
+      "win/shell_util.cc",
+      "win/shell_util.h",
       "win/shlwapi.h",
       "win/shortcut.cc",
       "win/shortcut.h",
@@ -3030,7 +3063,6 @@ if (enable_rust_translit) {
 component("i18n") {
   output_name = "base_i18n"
   sources = [
-    "i18n/base_i18n_export.h",
     "i18n/base_i18n_switches.cc",
     "i18n/base_i18n_switches.h",
     "i18n/break_iterator.cc",
@@ -3077,6 +3109,8 @@ component("i18n") {
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   public_deps = [
     ":base",
+    "//base/i18n:base_i18n_export",
+    "//base/i18n:language_code",
     "//third_party/ced",
     "//third_party/icu",
   ]
@@ -3575,6 +3609,7 @@ test("base_unittests") {
     "containers/to_vector_unittest.cc",
     "containers/unique_ptr_adapters_unittest.cc",
     "containers/vector_buffer_unittest.cc",
+    "containers/weak_value_table_unittest.cc",
     "cpu_unittest.cc",
     "debug/alias_unittest.cc",
     "debug/asan_service_unittest.cc",
@@ -4112,6 +4147,7 @@ test("base_unittests") {
       "win/scoped_winrt_initializer_unittest.cc",
       "win/security_descriptor_unittest.cc",
       "win/security_util_unittest.cc",
+      "win/shell_util_unittest.cc",
       "win/shortcut_unittest.cc",
       "win/sid_unittest.cc",
       "win/startup_information_unittest.cc",
@@ -4126,6 +4162,8 @@ test("base_unittests") {
       "win/wmi_unittest.cc",
       "win/wrapped_window_proc_unittest.cc",
     ]
+
+    fuzztests += [ "FileUtilFuzzTest.RemoveWindowsExtendedPathPrefixNoCrash" ]
 
     if (enable_cet_shadow_stack) {
       sources += [ "win/cet_shadow_stack_unittest.cc" ]

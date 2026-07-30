@@ -125,12 +125,19 @@ enum class FeedUserActionType {
   kTappedRefollowAfterUnfollowOnSnackbar = 35,
   // User tapped to unfollow using the snackbar 'try again' option.
   kTappedUnfollowTryAgainOnSnackbar = 36,
+
+  // The following enum value is deprecated as a result of removing the feed
+  // header toggle.
   // After following an active web feed, the user tapped to go to Following feed
   // using the post-follow help dialog.
-  kTappedGoToFeedPostFollowActiveHelp = 37,
+  // kTappedGoToFeedPostFollowActiveHelp = 37,
+
+  // The following enum value is deprecated as a result of removing the feed
+  // header toggle.
   // After following an active web feed, the user tapped to dismiss the
   // post-follow help dialog.
-  kTappedDismissPostFollowActiveHelp = 38,
+  //  kTappedDismissPostFollowActiveHelp = 38,
+
   // After long-pressing on the feed and seeing the preview, the user tapped
   // on the preview.
   kTappedDiscoverFeedPreview = 39,
@@ -182,9 +189,13 @@ enum class FeedUserActionType {
   kFollowingFeedSelectedGroupByPublisher = 59,
   // User selected the "Sort by Latest" Following feed sort type.
   kFollowingFeedSelectedSortByLatest = 60,
+
+  // The following enum value is deprecated as a result of removing the feed
+  // header toggle.
   // After following an active web feed, the user tapped on 'got it' to
   // close the post-follow help dialog.
-  kTappedGotItFeedPostFollowActiveHelp = 61,
+  // kTappedGotItFeedPostFollowActiveHelp = 61,
+
   // User tapped the follow accelerator which is presented after a user taps
   // on a recommendation that is in the feed.
   kTappedFollowOnRecommendationFollowAccelerator = 62,
@@ -223,23 +234,6 @@ enum class ContentOrder : int {
 
   kMaxValue = kReverseChron,
 };
-
-// Values for the UMA
-// ContentSuggestions.Feed.WebFeed.SortType* histograms.
-// These values are persisted to logs. Entries should never be reused.
-// LINT.IfChange(FeedSortType)
-// TODO(crbug.com/40241876): should merge with ContentOrder.
-enum class FeedSortType : int {
-  // Sort Type unspecified.
-  kUnspecifiedSortType = 0,
-  // Content is grouped by publisher.
-  kGroupedByPublisher = 1,
-  // Content is ungrouped, and arranged in reverse chronological order.
-  kSortedByLatest = 2,
-
-  kMaxValue = kSortedByLatest,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/content/enums.xml:FeedSortType)
 
 // Values for the UMA ContentSuggestions.Feed.FeedSyncPromo histogram.
 // These values are persisted to logs. Entries should not be renumbered and

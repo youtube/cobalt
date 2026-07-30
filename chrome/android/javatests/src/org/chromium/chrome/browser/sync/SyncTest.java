@@ -23,15 +23,12 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.browser.sync.SyncTestUtil;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.sync.DataType;
 import org.chromium.components.sync.LocalDataDescription;
 import org.chromium.components.sync.PassphraseType;
 import org.chromium.components.sync.TransportState;
 import org.chromium.components.sync.UserSelectableType;
 
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
 
 /** Test suite for Sync. */
@@ -84,11 +81,11 @@ public class SyncTest {
     @Feature({"Sync"})
     public void testStopAndStartSync() {
         CoreAccountInfo accountInfo = mSyncTestRule.setUpAccountAndSignInForTesting();
-        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
+        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount());
 
         // Signing out should disable sync.
         mSyncTestRule.signOut();
-        Assert.assertNull(mSyncTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
+        Assert.assertNull(mSyncTestRule.getPrimaryAccount());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     Assert.assertEquals(
@@ -97,7 +94,7 @@ public class SyncTest {
                 });
 
         accountInfo = mSyncTestRule.setUpAccountAndSignInForTesting();
-        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
+        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount());
     }
 
     @Test
@@ -117,13 +114,12 @@ public class SyncTest {
         waitForIsSyncingUnencryptedUrls(true);
 
         // isSyncingUnencryptedUrls() should return false when history is disabled.
-        mSyncTestRule.disableDataType(UserSelectableType.HISTORY);
+        mSyncTestRule.setSelectedType(UserSelectableType.HISTORY, false);
         waitForIsSyncingUnencryptedUrls(false);
 
-        // Now enable only history datatypes and verify that isSyncingUnencryptedUrls() returns true
+        // Now enable history datatypes and verify that isSyncingUnencryptedUrls() returns true
         // again.
-        mSyncTestRule.setSelectedTypes(
-                false, new HashSet<>(Arrays.asList(UserSelectableType.HISTORY)));
+        mSyncTestRule.setSelectedType(UserSelectableType.HISTORY, true);
         waitForIsSyncingUnencryptedUrls(true);
     }
 
@@ -146,13 +142,12 @@ public class SyncTest {
         waitForIsSyncingUnencryptedUrls(true);
 
         // isSyncingUnencryptedUrls() should return false when history is disabled.
-        mSyncTestRule.disableDataType(UserSelectableType.HISTORY);
+        mSyncTestRule.setSelectedType(UserSelectableType.HISTORY, false);
         waitForIsSyncingUnencryptedUrls(false);
 
-        // Now enable only history datatypes and verify that isSyncingUnencryptedUrls() returns true
+        // Now enable history datatype and verify that isSyncingUnencryptedUrls() returns true
         // again.
-        mSyncTestRule.setSelectedTypes(
-                false, new HashSet<>(Arrays.asList(UserSelectableType.HISTORY)));
+        mSyncTestRule.setSelectedType(UserSelectableType.HISTORY, true);
         waitForIsSyncingUnencryptedUrls(true);
     }
 
@@ -180,7 +175,7 @@ public class SyncTest {
     @Feature({"Sync"})
     public void testGetLocalDataDescription() throws Exception {
         CoreAccountInfo accountInfo = mSyncTestRule.setUpAccountAndSignInForTesting();
-        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
+        Assert.assertEquals(accountInfo, mSyncTestRule.getPrimaryAccount());
 
         CallbackHelper callbackHelper = new CallbackHelper();
         ThreadUtils.runOnUiThreadBlocking(

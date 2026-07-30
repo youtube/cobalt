@@ -17,6 +17,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AimModelsProto.ModelMode;
+import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
 import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
 import org.chromium.components.omnibox.ToolModeProto.ToolMode;
 import org.chromium.url.GURL;
@@ -232,6 +233,9 @@ public class AutocompleteInputUnitTest {
                         // SRP
                         PageClassification.SEARCH_RESULT_PAGE_NO_SEARCH_TERM_REPLACEMENT_VALUE,
                         PageClassification.SRP_OMNIBOX_COMPOSEBOX_VALUE,
+                        // Co-browsing
+                        PageClassification.CO_BROWSING_COMPOSEBOX_VALUE,
+                        PageClassification.CO_BROWSING_COMPOSEBOX_VALUE,
                         // Web
                         PageClassification.OTHER_VALUE, //
                         PageClassification.OTHER_OMNIBOX_COMPOSEBOX_VALUE);
@@ -371,21 +375,21 @@ public class AutocompleteInputUnitTest {
     }
 
     @Test
-    public void shouldSuppressAutomaticSuggestionsUntilUserStartsTyping_updatesOwnState() {
+    public void getAutocompleteState_updatesOwnState() {
         mInput.setInitialUserText("initial");
         mInput.setUserText("initial");
-        mInput.setSuppressAutomaticSuggestionsUntilUserStartsTyping(true);
+        mInput.setAutocompleteState(AutocompleteState.STANDBY);
 
         // Still matches initial text.
-        assertTrue(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+        assertEquals(AutocompleteState.STANDBY, mInput.getAutocompleteState());
 
         // Diverges from initial text.
         mInput.setUserText("initial typing");
-        assertFalse(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+        assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
 
-        // Reverts to initial text - should still be false.
+        // Reverts to initial text - should still be ENABLED.
         mInput.setUserText("initial");
-        assertFalse(mInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+        assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
     }
 
     @Test
@@ -397,7 +401,7 @@ public class AutocompleteInputUnitTest {
         String userText = "initialUserText";
         String initialUserText = "initialUserText";
         boolean hasAttachments = true;
-        boolean suppressAutomaticSuggestionsUntilUserStartsTyping = true;
+        int autocompleteState = AutocompleteState.STANDBY;
         int selectionStart = 1;
         int selectionEnd = 2;
         int refineActionUsage = AutocompleteInput.RefineActionUsage.SEARCH_WITH_PREFIX;
@@ -414,8 +418,7 @@ public class AutocompleteInputUnitTest {
         input1.setUserText(userText);
         input1.setInitialUserText(initialUserText);
         input1.setHasAttachments(hasAttachments);
-        input1.setSuppressAutomaticSuggestionsUntilUserStartsTyping(
-                suppressAutomaticSuggestionsUntilUserStartsTyping);
+        input1.setAutocompleteState(autocompleteState);
         input1.setSelection(selectionStart, selectionEnd);
         input1.setRefineActionUsage(refineActionUsage);
         input1.setSuggestionsListScrolled();
@@ -434,9 +437,7 @@ public class AutocompleteInputUnitTest {
         assertEquals(userText, input2.getUserText());
         assertEquals(initialUserText, input2.getInitialUserText());
         assertEquals(input1.allowExactKeywordMatch(), input2.allowExactKeywordMatch());
-        assertEquals(
-                suppressAutomaticSuggestionsUntilUserStartsTyping,
-                input2.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping());
+        assertEquals(autocompleteState, input2.getAutocompleteState());
         assertEquals(selectionStart, (int) input2.getSelection().getLower());
         assertEquals(selectionEnd, (int) input2.getSelection().getUpper());
         assertEquals(refineActionUsage, input2.getRefineActionUsage());

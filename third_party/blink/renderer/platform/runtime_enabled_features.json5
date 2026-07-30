@@ -331,6 +331,12 @@
         "default": "",
       },
     },
+    // Strip actionability from popup-like content that is positioned offscreen
+    // and cannot be reached by scrolling.
+    {
+      name: "AIPageContentAnchoredOffscreenNonActionability",
+      status: "stable",
+    },
     // Whether to automatically build an APC content_extraction tree on load.
     {
       name: "AIPageContentBuildOnLoadForTesting",
@@ -360,6 +366,7 @@
     // math consistent with visual bounding boxes.
     {
       name: "AIPageContentOuterBoxMapToAncestorSpace",
+      status: "stable",
     },
     {
       name: "AIPageContentPaidContentAnnotation",
@@ -958,6 +965,11 @@
       base_feature: "none",
     },
     {
+      // For emergency flag flips in case we discover bad bugs.
+      name: "CacheStyleAdjuster",
+      status: "stable",
+    },
+    {
       name: "CallExitNodeWithoutLayoutObject",
       status: "stable",
     },
@@ -1123,14 +1135,6 @@
       name: "ClickFocusDoesntPersistStatusBubble",
       status: "stable",
     },
-    {
-      // Enables clipboardchange event API for listening for changes to the
-      // system clipboard
-      // https://chromestatus.com/feature/5085102657503232
-      name: "ClipboardChangeEvent",
-      origin_trial_feature_name: "ClipboardChangeEvent",
-      status: "stable",
-    },
     // This ensures that clipboard event fires on a target node which is
     // focused in case no visible selection is present.
     // crbug.com/40735783
@@ -1139,8 +1143,11 @@
       status: "stable",
     },
     {
-      // Allows usecounter in `ClipboardItem`
-      name: "ClipboardItemGetTypeCounter",
+      // Uses ComputeContainerNode() instead of AnchorNode() for clipboard event
+      // targeting so that kBeforeAnchor/kAfterAnchor selections correctly target
+      // the containing parent element rather than the element itself.
+      // See https://crbug.com/40684204
+      name: "ClipboardEventTargetUsesContainerNode",
       status: "stable",
     },
     {
@@ -1206,6 +1213,12 @@
       // https://issues.chromium.org/issues/414826954
       name: "CommandEventNotComposed",
       status: "stable",
+    },
+    {
+      // @container allowing multiple comma separated container queries.
+      // Also introduces the 'conditions' attribute on CSSContainerRule.
+      name: "CommaSeparatedContainerQueries",
+      status: "experimental",
     },
     {
       // Return the current target from composedPath() while
@@ -1583,15 +1596,6 @@
       status: "stable",
     },
     {
-      // crbug.com/417306102
-      name: "CssFitWidthText",
-      status: "experimental",
-    },
-    {
-      // crbug.com/417306102
-      name: "CssFitWidthTextReshaping",
-    },
-    {
       // crbug.com/483689942
       // Serialize font-family names as space-separated idents when possible,
       // per CSSWG resolution. See https://github.com/w3c/csswg-drafts/issues/5846.
@@ -1829,6 +1833,12 @@
       status: "stable",
     },
     {
+      // Kill switch for integrity() enforcement on CSS image and SVG
+      // document resources. See also: CSSURLRequestModifiers
+      name: "CSSResourceIntegrityEnforcement",
+      status: "stable",
+    },
+    {
       name: "CSSRevertRule",
       status: "stable",
     },
@@ -1963,6 +1973,19 @@
       // https://issues.chromium.org/40675832: CSS `text-decoration-skip-ink: all` value
       name: "CSSTextDecorationSkipInkAll",
       status: "stable",
+    },
+    {
+      name: "CSSTextDecorationSkipSpaces",
+      status: "test",
+    },
+    {
+      // crbug.com/417306102
+      name: "CssTextFit",
+      status: "experimental",
+    },
+    {
+      // crbug.com/417306102
+      name: "CssTextFitReshaping",
     },
     {
       // crbug.com/434361099
@@ -2419,6 +2442,10 @@
       // Enables proper backspace handling for emoji tag sequences
       // (e.g., subdivision flags like 🏴󠁧󠁢󠁥󠁮󠁧󠁿) per UTS #51 ED-14a.
       name: "EditEmojiTagSequence",
+      status: "stable",
+    },
+    {
+      name: "EditingLineMovementWithRubyFix",
       status: "stable",
     },
     {
@@ -2972,6 +2999,12 @@
       status: {"Android": "", "default": "stable"},
     },
     {
+      name: "FontDataService",
+      base_feature: "none",
+      // No status, as the web platform runtime enabled feature is controlled by
+      // a Chromium level feature (kFontDataServiceAllWebContents).
+    },
+    {
       name: "FontFallbackForTabSize",
       status: "stable",
     },
@@ -3026,13 +3059,6 @@
     {
       // https://github.com/flackr/reduce-motion/blob/main/explainer.md
       name: "ForceReduceMotion",
-    },
-    {
-      // TODO(crbug.com/1419161): Remove this feature after M113 has been stable
-      // for a few weeks or more. This is a kill switch that, when enabled, goes
-      // back to the old behavior, which was to restore the state for <input>
-      // and <select> even when they had `autocomplete=off`.
-      name: "FormControlRestoreStateIfAutocompleteOff",
     },
     {
       name: "FractionalScrollOffsets",
@@ -3271,11 +3297,11 @@
       name: "HTMLInterestForAttribute",
       status: "stable",
     },
-    // Adds support for the `::interest-hint` pseudo element, which is a sub-
+    // Adds support for the `::interest-button` pseudo element, which is a sub-
     // feature of the HTMLInterestForAttribute feature.
     // https://open-ui.org/components/interest-invokers.explainer/
     {
-      name: "HTMLInterestForInterestHintPseudo",
+      name: "HTMLInterestForInterestButtonPseudo",
       status: "experimental",
       depends_on: ["HTMLInterestForAttribute"],
     },
@@ -3374,6 +3400,10 @@
       status: "stable",
     },
     {
+      name: "InlineScriptCacheHint",
+      status: "experimental",
+    },
+    {
       // If enabled, and the inner html parser is unable to successfully
       // parse, it will log histograms of why it failed. The logging is
       // non-trivial.
@@ -3445,14 +3475,6 @@
       public: true,
     },
     {
-      // Adds `!important` to `[inert] {interactivity: auto}` in the UA
-      // stylesheet. Resolved in the CSSWG here:
-      // https://github.com/w3c/csswg-drafts/issues/12049#issuecomment-3303716541
-      // This killswitch is shipping in M142, and can ge removed in M144.
-      name: "InteractivityInertImportant",
-      status: "stable",
-    },
-    {
       name: "InterestGroupsInSharedStorageWorklet",
       public: true,
       status: "stable",
@@ -3483,13 +3505,6 @@
       name: "KeyboardAccessibleTooltip",
       status: "experimental",
       base_feature: "none",
-    },
-    {
-      // Fixes a bug after find-in-page tries to return focus to
-      // the page. This change shipped in M142, and this flag can
-      // be removed in M144.
-      name: "KeyboardFocusabilityAfterFindInPage",
-      status: "stable",
     },
     {
       // Adds `encryptionScheme` field based on
@@ -3526,6 +3541,15 @@
     {
       name: "LanguageDetectionAPIForWorkers",
       public: true,
+    },
+    {
+      // The following LayoutBox functions are implemented using information
+      // from physical fragments, rather than computed style, and containing
+      // block walking (was needed for percentage padding):
+      //   ClientLeft(), ClientTop(), ClientWidth(), ClientHeight(),
+      //   ContentLeft(), ContentTop(), ContentWidth(), ContentHeight().
+      name: "LayoutBoxRectGettersUseFragments",
+      status: "stable",
     },
     {
       name: "LayoutIgnoreMarginsForSticky",
@@ -3856,12 +3880,14 @@
       status: "experimental",
     },
     {
+      // Killswitch M149.
       name: "MergeFixedLayers",
-      status: "experimental",
+      status: "stable",
     },
     {
+      // Killswitch M149.
       name: "MergeStickyLayers",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "MessagePortCloseEvent",
@@ -3967,11 +3993,6 @@
       status: "experimental",
       depends_on: ["SetHTMLCanRunScripts", "StreamingSanitizer", "TrustedTypesCreateParserOptions"]
     },
-    // This is a killswitch flag, shipped in M144. It can be removed in M146.
-    {
-      name: "NoAriaDetailsForAnchorPos",
-      status: "stable",
-    },
     {
       // Fix for https://crbug.com/482862753
       name: "NoExtendSelectionToUserSelectNoneOutOfFlow",
@@ -4006,6 +4027,13 @@
       // values.
       // https://drafts.csswg.org/css-ui-4/#appearance-switching
       name: "NonStandardAppearanceValueSliderVertical",
+      status: "stable",
+    },
+    {
+      // Normalizes CRLF and standalone CR to LF in execCommand("insertText")
+      // for consistent newline handling in contenteditable elements.
+      // See https://crbug.com/41289410
+      name: "NormalizeLineEndingsInInsertText",
       status: "stable",
     },
     {
@@ -4721,6 +4749,13 @@
       name: "RemoveCharsetAutoDetectionForISO2022JP",
       status: "stable",
     },
+    {
+      // Optimize ReplaceChildren() to use RemoveChildren() for batch removal
+      // instead of looping RemoveChild(). This batches style invalidations
+      // improving performance.
+      name: "RemoveChildrenInReplaceChildren",
+      status: "stable",
+    },
     // After paste operation removes the placeholder <br> tag
     // that gets inserted in contenteditable as placeholder for newline
     {
@@ -5109,6 +5144,15 @@
       depends_on: ["SelectedcontentSpec"],
     },
     {
+      // Makes the <selectedcontent> element work in <select multiple> by
+      // cloning the contents for each option which is selected into the
+      // <selectedcontent> element.
+      // https://issues.chromium.org/issues/483769482
+      name: "SelectedcontentMultiple",
+      status: "experimental",
+      depends_on: ["SelectedcontentSpec", "CustomizableSelectMultiplePopup"],
+    },
+    {
       // Aligns the implementation of the <selectedcontent> element with the
       // HTML spec. https://issues.chromium.org/issues/458113204
       name: "SelectedcontentSpec",
@@ -5176,7 +5220,7 @@
     {
       // See https://chromestatus.com/feature/4811835974615040
       name: "SelectivePermissionsIntervention",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Removes the forced overflow:hidden rules on the select element's
@@ -5463,14 +5507,6 @@
       name: "SpeakerSelection",
       status: "experimental",
     },
-    // This is a flag that re-enables some deprecated/removed "special rules"
-    // that apply to the styles of an <h1> element nested within <article>,
-    // <aside>, <nav>, or <section>. It is disabled by default, and here as a
-    // Finch killswitch only. This was shipped (disabled) in M140, and the flag
-    // can be removed in M142.
-    {
-      name: "SpecialRulesForNestedH1Elements",
-    },
     {
       // Exposes speculation measurement data (preloads, prefetches, prerenders)
       // on performance.speculations.
@@ -5603,6 +5639,10 @@
     },
     {
       name: "SvgFilterPaintsForHiddenContent",
+      status: "stable",
+    },
+    {
+      name: "SvgFilterUserSpaceViewportForSvg",
       status: "stable",
     },
     {
@@ -6219,6 +6259,10 @@
       status: "stable",
     },
     {
+      name: "ViewTransitionDelayUnpauseOnTeardown",
+      status: "stable",
+    },
+    {
       name: "ViewTransitionHoistBackdropFilterEffect",
       status: "stable",
     },
@@ -6317,6 +6361,13 @@
       // https://chromestatus.com/feature/6024844719947776
       name: "WebAssemblyCustomDescriptors",
       origin_trial_feature_name: "WebAssemblyCustomDescriptors",
+      status: "experimental",
+      base_feature: "none",
+    },
+    {
+      // https://chromestatus.com/feature/6024844719947776, take 2
+      name: "WebAssemblyCustomDescriptorsV2",
+      origin_trial_feature_name: "WebAssemblyCustomDescriptorsV2",
       status: "experimental",
       base_feature: "none",
     },
@@ -6628,6 +6679,11 @@
     {
       name: "WebTransportApplicationProtocol",
       status: "stable",
+      base_feature: "none",
+    },
+    {
+      name: "WebTransportCongestionControl",
+      status: "experimental",
       base_feature: "none",
     },
     {

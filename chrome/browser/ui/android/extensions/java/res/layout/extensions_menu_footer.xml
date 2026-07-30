@@ -14,7 +14,8 @@ found in the LICENSE file.
 
     <LinearLayout
         android:id="@+id/extensions_menu_pin_menu_icon_button"
-        style="@style/ExtensionsMenuControlRow" >
+        style="@style/ExtensionsMenuControlRow"
+        android:paddingHorizontal="@dimen/extensions_menu_horizontal_padding" >
 
         <ImageView
             android:id="@+id/extensions_menu_button_pinning_icon"
@@ -37,7 +38,8 @@ found in the LICENSE file.
     <LinearLayout
         android:id="@+id/extensions_menu_discover_extensions_button"
         style="@style/ExtensionsMenuControlRow"
-        tools:ignore="UseCompoundDrawables" >
+        tools:ignore="UseCompoundDrawables"
+        android:paddingHorizontal="@dimen/extensions_menu_horizontal_padding" >
 
         <ImageView
             android:id="@+id/discover_extensions_icon"
@@ -55,7 +57,8 @@ found in the LICENSE file.
     <LinearLayout
         android:id="@+id/extensions_menu_manage_extensions_button"
         style="@style/ExtensionsMenuControlRow"
-        tools:ignore="UseCompoundDrawables" >
+        tools:ignore="UseCompoundDrawables"
+        android:paddingHorizontal="@dimen/extensions_menu_horizontal_padding" >
 
         <ImageView
             android:id="@+id/manage_extensions_icon"

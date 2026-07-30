@@ -48,10 +48,6 @@ namespace sdjwt = ::content::sdjwt;
 
 constexpr char kOpenid4vpProtocolPrefix[] = "openid4vp";
 
-constexpr char kMdlDocumentType[] = "org.iso.18013.5.1.mDL";
-
-constexpr char kOpenid4vpPathRegex[] =
-    R"(\$\['org\.iso\.18013\.5\.1'\]\['([^\)]*)'\])";
 constexpr char kMdocAgeOverDataElementRegex[] = R"(age_over_\d\d)";
 constexpr char kMdocAgeInYearsDataElement[] = "age_in_years";
 constexpr char kMdocAgeBirthYearDataElement[] = "age_birth_year";
@@ -68,21 +64,17 @@ constexpr char kVerifyPhoneNumberVctValue[] = "number-verification/verify/ts43";
 constexpr char kDpcVctValue[] = "com.emvco.dpc";
 constexpr char kDpcCredCardVctValue[] = "dpc.cred.card";
 
+constexpr char kDcqlQuery[] = "dcql_query";
+constexpr char kMdocFormat[] = "mso_mdoc";
+constexpr char kMdlDocumentType[] = "org.iso.18013.5.1.mDL";
+constexpr char kMdlNamespace[] = "org.iso.18013.5.1";
+constexpr char kMeta[] = "meta";
+constexpr char kDoctypeValue[] = "doctype_value";
+
 constexpr char kDigitalIdentityDialogParam[] = "dialog";
 constexpr char kDigitalIdentityNoDialogParamValue[] = "no_dialog";
 constexpr char kDigitalIdentityLowRiskDialogParamValue[] = "low_risk";
 constexpr char kDigitalIdentityHighRiskDialogParamValue[] = "high_risk";
-
-// Returns entry if `dict` has a list with a single dict element for key
-// `list_key`.
-const base::DictValue* FindSingleElementListEntry(const base::DictValue& dict,
-                                                  const std::string& list_key) {
-  const base::ListValue* list = dict.FindList(list_key);
-  if (!list || list->size() != 1u) {
-    return nullptr;
-  }
-  return list->front().GetIfDict();
-}
 
 // Returns whether an interstitial should be shown for a request which solely
 // requests the passed-in claims/data elements.
@@ -119,54 +111,6 @@ bool CanVctValueBypassInterstitial(const std::string& vct_value) {
          vct_value == kVerifyPhoneNumberVctValue;
 }
 
-bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithPresentationDefition(
-    const base::DictValue& request) {
-  const base::DictValue* presentation_dict =
-      request.FindDict("presentation_definition");
-  if (!presentation_dict) {
-    return false;
-  }
-
-  const base::DictValue* input_descriptor_dict =
-      FindSingleElementListEntry(*presentation_dict, "input_descriptors");
-  if (!input_descriptor_dict) {
-    return false;
-  }
-
-  const std::string* input_descriptor_id =
-      input_descriptor_dict->FindString("id");
-  if (!input_descriptor_id || *input_descriptor_id != kMdlDocumentType) {
-    return false;
-  }
-
-  const base::DictValue* constraints_dict =
-      input_descriptor_dict->FindDict("constraints");
-  if (!constraints_dict) {
-    return false;
-  }
-
-  const base::DictValue* field_dict =
-      FindSingleElementListEntry(*constraints_dict, "fields");
-  if (!field_dict) {
-    return false;
-  }
-
-  const base::ListValue* field_paths = field_dict->FindList("path");
-  if (!field_paths) {
-    return false;
-  }
-
-  if (!field_paths || field_paths->size() != 1u ||
-      !field_paths->front().is_string()) {
-    return false;
-  }
-
-  std::string mdoc_data_element;
-  return re2::RE2::FullMatch(field_paths->front().GetString(),
-                             re2::RE2(kOpenid4vpPathRegex),
-                             &mdoc_data_element) &&
-         CanClaimBypassInterstitial(mdoc_data_element);
-}
 
 // Returns whether the request is a Digital Payment Credential (DPC) request
 // that can bypass the interstitial.
@@ -188,7 +132,7 @@ bool IsDpcRequest(const base::flat_set<std::string>& all_claims,
 
 bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
     const base::DictValue& request) {
-  const base::DictValue* query_dict = request.FindDict("dcql_query");
+  const base::DictValue* query_dict = request.FindDict(kDcqlQuery);
   if (!query_dict) {
     return false;
   }
@@ -198,6 +142,15 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
     if (!claims_list) {
       return {};
     }
+
+    const std::string* format = credential.FindString("format");
+    const base::DictValue* meta = credential.FindDict(kMeta);
+    const std::string* doctype =
+        meta ? meta->FindString(kDoctypeValue) : nullptr;
+
+    bool is_mdl = format && *format == kMdocFormat && doctype &&
+                  *doctype == kMdlDocumentType;
+
     std::vector<std::string> claims;
     for (const base::Value& claim : *claims_list) {
       const base::DictValue* claim_dict = claim.GetIfDict();
@@ -212,7 +165,26 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
       if (!claim_name) {
         return {};
       }
-      claims.push_back(*claim_name);
+
+      bool path_ok = paths->size() == 2u && paths->front().is_string() &&
+                     paths->front().GetString() == kMdlNamespace;
+
+      bool is_mdl_claim =
+          re2::RE2::FullMatch(*claim_name,
+                              re2::RE2(kMdocAgeOverDataElementRegex)) ||
+          *claim_name == kMdocAgeInYearsDataElement ||
+          *claim_name == kMdocAgeBirthYearDataElement ||
+          *claim_name == kMdocBirthDateDataElement;
+
+      if (is_mdl_claim) {
+        if (is_mdl && path_ok) {
+          claims.push_back(*claim_name);
+        } else {
+          claims.push_back("__invalid_context__");
+        }
+      } else {
+        claims.push_back(*claim_name);
+      }
     }
     return claims;
   };
@@ -233,7 +205,7 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
   };
 
   auto meta_to_doctype_value = [](const base::DictValue& meta) -> std::string {
-    const std::string* doctype_value = meta.FindString("doctype_value");
+    const std::string* doctype_value = meta.FindString(kDoctypeValue);
     return doctype_value ? *doctype_value : "";
   };
 
@@ -254,7 +226,7 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
         credential_to_claims(*credential_dict);
     all_claims.insert(credential_claims.begin(), credential_claims.end());
 
-    const base::DictValue* meta_dict = credential_dict->FindDict("meta");
+    const base::DictValue* meta_dict = credential_dict->FindDict(kMeta);
     if (!meta_dict) {
       continue;
     }
@@ -302,12 +274,7 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocol(
     request_dict = &payload->GetDict();
   }
 
-  if (request_dict->contains("presentation_definition")) {
-    return CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithPresentationDefition(
-        *request_dict);
-  }
-
-  if (request_dict->contains("dcql_query")) {
+  if (request_dict->contains(kDcqlQuery)) {
     return CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
         *request_dict);
   }

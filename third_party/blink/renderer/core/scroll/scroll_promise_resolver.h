@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -32,6 +33,10 @@ class ScrollPromiseResolver : public GarbageCollected<ScrollPromiseResolver> {
 
     ~ActiveScrollTracker() {
       scroll_promise_resolver_->ActiveScrollTrackerRemoved();
+    }
+
+    void MarkInterrupted() {
+      scroll_promise_resolver_->SetScrollIsInterrupted();
     }
 
    private:
@@ -87,16 +92,18 @@ class ScrollPromiseResolver : public GarbageCollected<ScrollPromiseResolver> {
     CHECK(script_promise_is_created_);
     CHECK(resolver_);
     if (num_active_scrolls_ == 0) {
-      resolver_->Resolve(ScrollResult::Create());
+      auto* result = ScrollResult::Create();
+      result->setInterrupted(scroll_is_interrupted_);
+      resolver_->Resolve(result);
     }
   }
 
-  wtf_size_t num_active_scrolls_ = 0;
-  Member<ScriptPromiseResolver<ScrollResult>> resolver_;
-  bool script_promise_is_created_ = false;
+  void SetScrollIsInterrupted() { scroll_is_interrupted_ = true; }
 
-  // TODO(https://crbug.com/40712058): add a field to track if any scroller is
-  // interrupted.
+  Member<ScriptPromiseResolver<ScrollResult>> resolver_;
+  wtf_size_t num_active_scrolls_ = 0;
+  bool script_promise_is_created_ = false;
+  bool scroll_is_interrupted_ = false;
 };
 
 }  // namespace blink

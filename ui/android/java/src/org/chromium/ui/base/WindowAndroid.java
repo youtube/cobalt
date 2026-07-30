@@ -21,6 +21,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.graphics.Region;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Process;
@@ -106,7 +107,19 @@ public class WindowAndroid
 
     private static int sOccludedCount;
 
-    private static final ThreadUtils.ThreadChecker sThreadChecker = new ThreadUtils.ThreadChecker();
+    private static ThreadUtils.@Nullable ThreadChecker sThreadChecker;
+
+    private static long sTotalOccludedPixels;
+    private static long sAccumulatedPixelMilliseconds;
+    private static long sLastPixelUpdateTimeMs;
+
+    private static void updateAccumulatedPixelMilliseconds() {
+        long now = SystemClock.uptimeMillis();
+        if (sLastPixelUpdateTimeMs > 0) {
+            sAccumulatedPixelMilliseconds += sTotalOccludedPixels * (now - sLastPixelUpdateTimeMs);
+        }
+        sLastPixelUpdateTimeMs = now;
+    }
 
     private static final Runnable PERIODIC_METRICS_TASK =
             new Runnable() {
@@ -117,6 +130,19 @@ public class WindowAndroid
                     // complete.
                     RecordHistogram.recordCount100Histogram(
                             "Android.Window.OcclusionExperimental.OccludedCount", sOccludedCount);
+
+                    updateAccumulatedPixelMilliseconds();
+                    // Convert from milliseconds to seconds, and pixels to megapixels.
+                    float megapixelSeconds = (sAccumulatedPixelMilliseconds / 1000f) / 1_000_000f;
+                    RecordHistogram.recordCount100000Histogram(
+                            "Android.Window.OcclusionExperimental.SavedRenderingPer5Minutes",
+                            Math.round(megapixelSeconds));
+                    sAccumulatedPixelMilliseconds = 0;
+
+                    RecordHistogram.recordCount1000Histogram(
+                            "Android.Window.OcclusionExperimental.TotalOccludedMegapixels",
+                            Math.round(sTotalOccludedPixels / 1_000_000f));
+
                     ThreadUtils.postOnUiThreadDelayed(this, PERIODIC_METRIC_DELAY_MS);
                 }
             };
@@ -259,7 +285,10 @@ public class WindowAndroid
     private boolean mIsOccluded;
     private long mOcclusionStartTimeMs;
     private long mTotalOccludedTimeMs;
+    private long mOccludedPixels;
     private final long mCreationTimeMs;
+
+    private @Nullable WindowAndroidOcclusionMetrics mWindowAndroidOcclusionMetrics;
 
     private boolean mIsTopResumedActivity;
     private final boolean mActivityTopResumedSupported;
@@ -319,6 +348,10 @@ public class WindowAndroid
             DisplayAndroid display,
             boolean activityTopResumedSupported,
             boolean occlusionTrackingAllowed) {
+
+        if (sThreadChecker == null) {
+            sThreadChecker = new ThreadUtils.ThreadChecker();
+        }
 
         // When the first occlusion tracked window is created, start periodic metrics collection.
         if (occlusionTrackingAllowed
@@ -429,7 +462,7 @@ public class WindowAndroid
                 new Consumer<>() {
                     @Override
                     public void accept(Boolean visible) {
-                        updateOcclusionState(!visible);
+                        updateOcclusionState(!visible, null);
                     }
                 };
 
@@ -472,7 +505,7 @@ public class WindowAndroid
      * @param isOcclusionTracked Whether occlusion is tracked for this window.
      */
     public void setIsOcclusionTracked(boolean isOcclusionTracked) {
-        sThreadChecker.assertOnValidThread();
+        assumeNonNull(sThreadChecker).assertOnValidThread();
         assert !shouldTrackOcclusionWithTrustedPresentationApi();
         mIsOcclusionTracked = isOcclusionTracked;
     }
@@ -481,17 +514,36 @@ public class WindowAndroid
      * Sets whether the window is occluded.
      *
      * @param isOccluded Whether the window is occluded.
+     * @param windowBounds The screen bounds of the window in absolute screen coordinates in pixels,
+     *     or null if unknown.
+     * @param visibleRegion The visible region of the window in absolute screen coordinates in
+     *     pixels, or null if unknown. The meaning of null changes depending on if isOccluded is
+     *     true or false. When isOccluded is true, a null region is interpreted as the window being
+     *     fully occluded. If isOccluded is false, a null region is interpreted as the window being
+     *     fully visible.
      */
-    public void setOccluded(boolean isOccluded) {
-        sThreadChecker.assertOnValidThread();
+    public void setOccluded(
+            boolean isOccluded, @Nullable Rect windowBounds, @Nullable Region visibleRegion) {
+        assumeNonNull(sThreadChecker).assertOnValidThread();
         // If the Trusted Presentation API is already tracking occlusion, it takes precedence.
         if (!mOcclusionTrackingAllowed || shouldTrackOcclusionWithTrustedPresentationApi()) {
             return;
         }
-        updateOcclusionState(isOccluded);
+
+        if (mWindowAndroidOcclusionMetrics == null) {
+            mWindowAndroidOcclusionMetrics = new WindowAndroidOcclusionMetrics();
+        }
+        mWindowAndroidOcclusionMetrics.onOcclusionStateChanged(isOccluded, visibleRegion);
+
+        updateOcclusionState(isOccluded, windowBounds);
     }
 
-    private void onOccluded() {
+    private void onOccluded(@Nullable Rect windowBounds) {
+        updateAccumulatedPixelMilliseconds();
+
+        mOccludedPixels =
+                windowBounds == null ? 0 : (long) windowBounds.width() * windowBounds.height();
+        sTotalOccludedPixels += mOccludedPixels;
         mOcclusionStartTimeMs = SystemClock.uptimeMillis();
         sOccludedCount++;
     }
@@ -499,6 +551,8 @@ public class WindowAndroid
     private void onUnoccluded() {
         // The window wasn't occluded to begin with. Nothing to do.
         if (mOcclusionStartTimeMs == 0) return;
+
+        updateAccumulatedPixelMilliseconds();
 
         long durationMs = SystemClock.uptimeMillis() - mOcclusionStartTimeMs;
         // TODO(488882847): Rename to non-experimental once occlusion experiments are
@@ -508,9 +562,12 @@ public class WindowAndroid
         mTotalOccludedTimeMs += durationMs;
         mOcclusionStartTimeMs = 0;
         sOccludedCount--;
+        sTotalOccludedPixels -= mOccludedPixels;
+        assert sTotalOccludedPixels >= 0;
+        mOccludedPixels = 0;
     }
 
-    private void updateOcclusionState(boolean isOccluded) {
+    private void updateOcclusionState(boolean isOccluded, @Nullable Rect windowBounds) {
         if (mIsOccluded == isOccluded) return;
         mIsOccluded = isOccluded;
 
@@ -521,7 +578,7 @@ public class WindowAndroid
         }
 
         if (isOccluded) {
-            onOccluded();
+            onOccluded(windowBounds);
         } else {
             onUnoccluded();
         }
@@ -1091,10 +1148,14 @@ public class WindowAndroid
     @CalledByNative
     @Override
     public void destroy() {
+        long now = SystemClock.uptimeMillis();
         // This is safe to call even if the window was not occluded before destruction.
         onUnoccluded();
+        if (mWindowAndroidOcclusionMetrics != null) {
+            mWindowAndroidOcclusionMetrics.onDestroy();
+        }
 
-        long lifetimeMs = SystemClock.uptimeMillis() - mCreationTimeMs;
+        long lifetimeMs = now - mCreationTimeMs;
         if (lifetimeMs > 0 && mIsOcclusionTracked) {
             int percent = Math.round(mTotalOccludedTimeMs * 100f / lifetimeMs);
             // TODO(crbug.com/488882847): Rename to non-experimental once occlusion experiments are

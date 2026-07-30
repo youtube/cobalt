@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/assistant/ui/assistant_container_view.h"
 
+#import "ios/chrome/browser/assistant/ui/assistant_container_constants.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_layout_utils.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -18,9 +19,9 @@ constexpr CGFloat kGrabberHeight = 4.0;
 constexpr CGFloat kGrabberTopMargin = 8.0;
 
 // Shadow styling.
-const float kAssistantShadowOpacity = 0.29f;
-const CGFloat kAssistantShadowRadius = 21.0;
-const CGSize kAssistantShadowOffset = {0, 11};
+const float kAssistantShadowOpacity = 0.16f;
+const CGFloat kAssistantShadowRadius = 20.0;
+const CGSize kAssistantShadowOffset = {0, 8};
 
 }  // namespace
 
@@ -90,6 +91,10 @@ const CGSize kAssistantShadowOffset = {0, 11};
 
 // Updates the shadow opacity based on the currently masked corners.
 - (void)updateShadowOpacity {
+  if (IsIPhoneLandscapeLayout(self.traitCollection)) {
+    self.layer.shadowOpacity = kAssistantShadowOpacity;
+    return;
+  }
   self.layer.shadowOpacity =
       (_bottomCornerRadius > 0.0) ? kAssistantShadowOpacity : 0.0;
 }
@@ -128,6 +133,9 @@ const CGSize kAssistantShadowOffset = {0, 11};
   [self addSubview:_bottomRoundingView];
 
   _contentView = [self createContentView];
+  // Set on the content view to avoid being overridden by embedders.
+  _contentView.accessibilityIdentifier =
+      kAssistantContainerAccessibilityIdentifier;
   [_bottomRoundingView addSubview:_contentView];
 
   _grabberButton = [self createGrabberButton];

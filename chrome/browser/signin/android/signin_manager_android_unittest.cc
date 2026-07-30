@@ -187,14 +187,6 @@ TEST_F(SigninManagerAndroidTest, DeleteBookmarksWhenWipingAllData) {
   EXPECT_EQ(0u, bookmark_model->bookmark_bar_node()->children().size());
 }
 
-// Tests that wiping sync data also deletes bookmarks.
-TEST_F(SigninManagerAndroidTest, DeleteBookmarksWhenWipingSyncData) {
-  bookmarks::BookmarkModel* bookmark_model = AddTestBookmarks();
-  ASSERT_GE(bookmark_model->bookmark_bar_node()->children().size(), 0u);
-  WipeData(ClearedTypes::kSyncData);
-  EXPECT_EQ(0u, bookmark_model->bookmark_bar_node()->children().size());
-}
-
 // Tests that wiping Google service worker caches does not delete bookmarks.
 TEST_F(SigninManagerAndroidTest, DontDeleteBookmarksWhenDeletingSWCaches) {
   bookmarks::BookmarkModel* bookmark_model = AddTestBookmarks();
@@ -205,7 +197,7 @@ TEST_F(SigninManagerAndroidTest, DontDeleteBookmarksWhenDeletingSWCaches) {
             bookmark_model->bookmark_bar_node()->children().size());
 }
 
-TEST_F(SigninManagerAndroidTest, DoNotWipePasswordsIfLocalUpmOn) {
+TEST_F(SigninManagerAndroidTest, WipeLocalPasswords) {
   password_manager::PasswordForm profile_store_form;
   profile_store_form.username_value = u"username";
   profile_store_form.password_value = u"password";
@@ -218,9 +210,8 @@ TEST_F(SigninManagerAndroidTest, DoNotWipePasswordsIfLocalUpmOn) {
 
   WipeData(ClearedTypes::kAllData);
 
-  EXPECT_THAT(
-      GetAllLoginsSync(profile_password_store()),
-      UnorderedElementsAre(Pair(profile_store_form.signon_realm, SizeIs(1))));
+  EXPECT_THAT(GetAllLoginsSync(profile_password_store()), IsEmpty());
+  // TODO(crbug.com/506130502): This is weird, this API should be removed.
   EXPECT_THAT(
       GetAllLoginsSync(account_password_store()),
       UnorderedElementsAre(Pair(account_store_form.signon_realm, SizeIs(1))));

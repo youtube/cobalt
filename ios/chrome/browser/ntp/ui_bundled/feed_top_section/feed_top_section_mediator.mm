@@ -12,6 +12,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_promo_view_mediator.h"
@@ -209,8 +210,8 @@ using base::UserMetricsAction;
 // Returns true if notifications are enabled in Chime or at the OS level.
 - (BOOL)isNotificationsEnabled {
   DCHECK([self isUserSignedIn]);
-  id<SystemIdentity> identity = self.authenticationService->GetPrimaryIdentity(
-      signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity =
+      self.authenticationService->GetPrimaryIdentity();
   // Check if user has notifications enabled at the Chime level.
   BOOL isChimeEnabled =
       push_notification_settings::IsMobileNotificationsEnabledForAnyClient(

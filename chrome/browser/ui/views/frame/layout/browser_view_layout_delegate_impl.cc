@@ -24,10 +24,6 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
 
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-#include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
-#endif
-
 BrowserViewLayoutDelegateImpl::BrowserViewLayoutDelegateImpl(
     BrowserView& browser_view)
     : browser_view_(browser_view) {}
@@ -35,16 +31,6 @@ BrowserViewLayoutDelegateImpl::~BrowserViewLayoutDelegateImpl() = default;
 
 bool BrowserViewLayoutDelegateImpl::ShouldDrawTabStrip() const {
   return browser_view_->ShouldDrawTabStrip();
-}
-
-bool BrowserViewLayoutDelegateImpl::ShouldUseTouchableTabstrip() const {
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-  return WebUITabStripContainerView::UseTouchableTabStrip(
-             browser_view_->browser()) &&
-         browser_view_->GetSupportsTabStrip();
-#else
-  return false;
-#endif
 }
 
 bool BrowserViewLayoutDelegateImpl::ShouldDrawVerticalTabStrip() const {
@@ -71,9 +57,21 @@ BrowserLayoutParams BrowserViewLayoutDelegateImpl::GetBrowserLayoutParams(
       // This can happen sometimes right after a browser is created.
       return params;
     }
-    return params.InLocalCoordinates(use_browser_bounds
-                                         ? browser_view_->bounds()
-                                         : params.visual_client_area);
+    const gfx::Rect browser_bounds = browser_view_->bounds();
+#if BUILDFLAG(IS_CHROMEOS)
+    // Sometimes in kiosk mode the browser bounds briefly fail to line up with
+    // the client area. Rather than allowing this to crash in
+    // `InLocalCoordinates()`, just use the client bounds instead. The worst
+    // outcome in this case is that some minimum size calculations may be off by
+    // a few pixels for one frame.
+    // See https://crbug.com/506933210 for more information.
+    if (use_browser_bounds &&
+        !params.visual_client_area.Contains(browser_bounds)) {
+      use_browser_bounds = false;
+    }
+#endif
+    return params.InLocalCoordinates(
+        use_browser_bounds ? browser_bounds : params.visual_client_area);
   }
 
   return BrowserLayoutParams();

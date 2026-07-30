@@ -72,7 +72,7 @@ class SyncServiceImplHarness {
   std::string GetEmailForAccount(SyncTestAccount account) const;
 
   // Signs in to a primary account without enabling sync the feature.
-  [[nodiscard]] bool SignInPrimaryAccount(
+  [[nodiscard]] bool SignInNoWaitForCompletion(
       SyncTestAccount account = SyncTestAccount::kDefaultAccount);
 
   // This is similar to click the reset button on chrome.google.com/data.
@@ -85,7 +85,7 @@ class SyncServiceImplHarness {
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
   // The underlying implementation for mimic-ing persistent auth errors isn't
-  // implemented on Android, see https://crbug.com/1373448.
+  // implemented on Android, see https://crbug.com/40871747.
 #if !BUILDFLAG(IS_ANDROID)
   // Enters/exits the "Sync paused" state, which in real life happens if a
   // syncing user signs out of the content area.

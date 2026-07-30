@@ -17,6 +17,7 @@
 #include "base/version.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest.h"
 #include "components/optimization_guide/core/model_execution/model_broker_impl.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_access_controller.h"
 #include "components/optimization_guide/proto/manifest.pb.h"
 #include "components/optimization_guide/proto/text_safety_model_metadata.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom-shared.h"
@@ -96,6 +97,7 @@ class ManifestSolutionFactory {
                           ModelBrokerImpl& broker_impl,
                           UsageTracker& usage_tracker,
                           on_device_model::ServiceClient& service_client,
+                          OnDeviceModelAccessController& access_controller,
                           base::OnceClosure on_init_complete);
   ~ManifestSolutionFactory();
 
@@ -106,6 +108,9 @@ class ManifestSolutionFactory {
   // Flush all use cases and emit new solutions for any that are now available.
   void UpdateSolutions();
 
+  // Get debug info about the current models.
+  std::vector<mojom::BrokerModelInfoPtr> GetBrokerModels() const;
+
   const Manifest& manifest() const { return manifest_; }
 
  private:
@@ -113,7 +118,8 @@ class ManifestSolutionFactory {
 
   // Resolves a file reference to a file path.
   // Returns nullopt if the asset is not available.
-  std::optional<base::FilePath> ResolveFile(const proto::FileReference& file);
+  std::optional<base::FilePath> ResolveFile(
+      const proto::FileReference& file) const;
 
   // Arrange for Solution configs stored in the given asset to be loaded.
   void LoadSolutionConfigsFrom(const std::string& asset_id,
@@ -138,9 +144,15 @@ class ManifestSolutionFactory {
   mojo::Remote<on_device_model::mojom::TextSafetyModel>&
   GetOrLoadTextSafetyModel(const std::string& model_id);
 
+  // Called when a base model disconnects unexpectedly.
+  void OnBaseModelDisconnect(const std::string& model_id,
+                             uint32_t reason,
+                             const std::string& description);
+
   const raw_ref<ModelBrokerImpl> broker_impl_;
   const raw_ref<on_device_model::ServiceClient> service_client_;
   const raw_ref<UsageTracker> usage_tracker_;
+  const raw_ref<OnDeviceModelAccessController> access_controller_;
 
   const Manifest manifest_;
 

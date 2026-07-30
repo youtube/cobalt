@@ -112,7 +112,7 @@ TEST_F(SqlTrackedSequenceBoundTest, IntAsyncCall) {
   SqlTrackedSequenceBound<DummyBackend> tracked_sequence_bound(
       base::ThreadPool::CreateSequencedTaskRunner({}), async_task_manager_);
 
-  BASE_EXPECT_DEATH(
+  EXPECT_CHECK_DEATH_WITH(
       tracked_sequence_bound.AsyncCall(&DummyBackend::IntMethod),
       "Then\\(\\) not invoked for a method that returns a non-void type");
 }
@@ -148,7 +148,7 @@ TEST_F(SqlTrackedSequenceBoundTest, MissingWithArgs) {
   SqlTrackedSequenceBound<DummyBackend> tracked_sequence_bound(
       base::ThreadPool::CreateSequencedTaskRunner({}), async_task_manager_);
 
-  BASE_EXPECT_DEATH(
+  EXPECT_CHECK_DEATH_WITH(
       tracked_sequence_bound.AsyncCall(&DummyBackend::VoidMethodWithArgs),
       "Wrong number of arguments provided to WithArgs");
 }

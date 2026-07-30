@@ -206,8 +206,6 @@ try_.compilator_builder(
     main_list_view = "try",
 )
 
-# TODO(crbug.com/491905300#comment16): Add this builder back to CQ once there is
-# sufficient build capacity.
 try_.orchestrator_builder(
     name = "mac-gpu-rel",
     branch_selector = branches.selector.MAC_BRANCHES,
@@ -233,6 +231,9 @@ try_.orchestrator_builder(
     compilator = "mac-gpu-rel-compilator",
     contact_team_email = "chrome-gpu-infra@google.com",
     coverage_test_types = ["overall", "unit"],
+    cq_settings = try_.cq_settings(
+        on_default_cq = True,
+    ),
     experiments = {
         # go/nplus1shardsproposal
         "chromium.add_one_test_shard": 10,
@@ -816,26 +817,6 @@ ios_builder(
     builderless = True,
     cpu = cpu.ARM64,
     contact_team_email = "cobalt-appletv@google.com",
-    xcode = xcode.xcode_default,
-)
-
-ios_builder(
-    name = "ios-structured-test-ids-simulator-fyi",
-    mirrors = [
-        "ci/ios-structured-test-ids-simulator-fyi",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/ios-structured-test-ids-simulator-fyi",
-        ],
-    ),
-    builderless = True,
-    cpu = cpu.ARM64,
-    contact_team_email = "chrome-browser-infra-team@google.com",
-    experiments = {
-        "chromium_tests.resultdb_module": 100,
-    },
-    main_list_view = "try",
     xcode = xcode.xcode_default,
 )
 

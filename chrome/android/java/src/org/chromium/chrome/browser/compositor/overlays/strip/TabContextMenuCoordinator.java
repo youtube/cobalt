@@ -21,6 +21,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.util.TypedValue;
+import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.TextView;
@@ -141,8 +142,9 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     private final Activity mActivity;
     private final int mCircleSize;
     private final int mIconSize;
-    private final int mVisualCenterOfTextY;
-    private final int mVisualCenterOfTextYIncognito;
+    private final int mRowHeight;
+    private final float mVisualCenterOfTextY;
+    private final float mVisualCenterOfTextYIncognito;
 
     private TabContextMenuCoordinator(
             Supplier<TabModel> tabModelSupplier,
@@ -179,20 +181,31 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
         mCircleSize = getDimensionPixelSize(R.dimen.tab_group_nested_menu_color_icon_size);
 
+        Context themedContext =
+                new ContextThemeWrapper(mActivity, R.style.OverflowMenuThemeOverlay);
         TypedValue value = new TypedValue();
-        mActivity.getTheme().resolveAttribute(R.attr.listItemIconSize, value, true);
+        themedContext.getTheme().resolveAttribute(R.attr.listItemIconSize, value, true);
         mIconSize =
+                TypedValue.complexToDimensionPixelSize(
+                        value.data, mActivity.getResources().getDisplayMetrics());
+
+        themedContext.getTheme().resolveAttribute(R.attr.listItemHeight, value, true);
+        mRowHeight =
                 TypedValue.complexToDimensionPixelSize(
                         value.data, mActivity.getResources().getDisplayMetrics());
 
         mVisualCenterOfTextY =
                 calculateVisualCenterOfTextY(
-                        mActivity, R.style.TextAppearance_BrowserUIListMenuItem, mIconSize);
+                        themedContext,
+                        R.style.TextAppearance_BrowserUIListMenuItem,
+                        mIconSize,
+                        mRowHeight);
         mVisualCenterOfTextYIncognito =
                 calculateVisualCenterOfTextY(
-                        mActivity,
+                        themedContext,
                         R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light,
-                        mIconSize);
+                        mIconSize,
+                        mRowHeight);
     }
 
     /**
@@ -201,23 +214,34 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
      * @param context The {@link Context} to use.
      * @param textAppearance The style resource for the text.
      * @param iconSize The size of the icon area.
+     * @param rowHeight The height of the menu item row.
      * @return The Y coordinate of the visual center of the text.
      */
-    private static int calculateVisualCenterOfTextY(
-            Context context, int textAppearance, int iconSize) {
+    private static float calculateVisualCenterOfTextY(
+            Context context, int textAppearance, int iconSize, int rowHeight) {
         TextView textView = new TextView(context);
         textView.setTextAppearance(textAppearance);
+        // Set text to ensure measure() and getBaseline() return accurate values.
+        textView.setText("x");
 
-        Rect xBounds = new Rect();
-        textView.getPaint().getTextBounds("x", 0, 1, xBounds);
+        Rect bounds = new Rect();
+        textView.getPaint().getTextBounds("x", 0, 1, bounds);
         // Visual center of text relative to its baseline.
-        float visualCenterOffset = (xBounds.top + xBounds.bottom) / 2.0f;
+        float visualCenterOffset = (bounds.top + bounds.bottom) / 2.0f;
 
         textView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         int tvBaseline = textView.getBaseline();
         int tvHeight = textView.getMeasuredHeight();
-        float baselineY = (iconSize / 2.0f) + (tvBaseline - (tvHeight / 2.0f));
-        return Math.round(baselineY + visualCenterOffset);
+
+        // Android's LinearLayout with center_vertical floors the top margin.
+        float textTopInRow = (float) Math.floor((rowHeight - tvHeight) / 2.0f);
+        float iconTopInRow = (float) Math.floor((rowHeight - iconSize) / 2.0f);
+
+        // Visual center relative to the row top.
+        float visualCenterInRow = textTopInRow + tvBaseline + visualCenterOffset;
+
+        // Return visual center relative to the icon area top.
+        return (float) Math.floor(visualCenterInRow - iconTopInRow);
     }
 
     /**
@@ -346,6 +370,40 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                                         .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
                                         .build(),
                                 /* allowDialog= */ true);
+            } else if (menuId == R.id.close_other_tabs_menu_id) {
+                List<Tab> otherTabs = new ArrayList<>();
+                for (Tab tab : tabModel) {
+                    if (!tabIds.contains(tab.getId())) {
+                        otherTabs.add(tab);
+                    }
+                }
+                tabModel.getTabRemover()
+                        .closeTabs(
+                                TabClosureParams.closeTabs(otherTabs)
+                                        .hideTabGroups(true)
+                                        .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                        .build(),
+                                /* allowDialog= */ true);
+            } else if (menuId == R.id.close_tabs_to_the_right_menu_id) {
+                List<Tab> otherTabs = new ArrayList<>();
+                boolean foundPivot = false;
+                for (Tab tab : tabModel) {
+                    if (tabIds.contains(tab.getId())) {
+                        foundPivot = true;
+                        // New pivot is to the right of the old pivot. Clear previously accumulated
+                        // tabs.
+                        otherTabs.clear();
+                    } else if (foundPivot) {
+                        otherTabs.add(tab);
+                    }
+                }
+                tabModel.getTabRemover()
+                        .closeTabs(
+                                TabClosureParams.closeTabs(otherTabs)
+                                        .hideTabGroups(true)
+                                        .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                        .build(),
+                                /* allowDialog= */ true);
             }
         };
     }
@@ -426,6 +484,13 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 : idx < tabModel.getCount() - 1;
     }
 
+    private boolean canCloseTabsToTheRight(AnchorInfo anchorInfo) {
+        List<Integer> tabIds = anchorInfo.getAllTabIds();
+        TabModel tabModel = getTabModel();
+        Tab lastTab = tabModel.getTabAt(tabModel.getCount() - 1);
+        return lastTab != null && !tabIds.contains(lastTab.getId());
+    }
+
     private void buildMenuActionItemsForSingleTab(
             ModelList itemList, AnchorInfo anchorInfo, List<Tab> tabs, boolean isIncognito) {
         itemList.add(createMoveToTabGroupItem(tabs, isIncognito));
@@ -443,7 +508,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             // Share is only available for single tab selection.
             itemList.add(createShareItem(isIncognito));
         }
-        if (ChromeFeatureList.sAndroidContextMenuDuplicateTabs.isEnabled()) {
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
         itemList.add(createPinUnpinTabItem(tabs, isIncognito));
@@ -452,6 +517,14 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         }
         itemList.add(createCloseItem(isIncognito));
         itemList.add(createCloseAllTabsItem(isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            if (tabs.size() > 1) {
+                itemList.add(createCloseOtherTabsItem(isIncognito));
+            }
+            if (canCloseTabsToTheRight(anchorInfo)) {
+                itemList.add(createCloseTabsToTheRightItem(isIncognito));
+            }
+        }
     }
 
     private void buildMenuActionItemsForMultipleTabs(
@@ -466,7 +539,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         List<ListItem> reorderItems = createReorderItems(anchorInfo, isIncognito);
         if (!reorderItems.isEmpty()) itemList.addAll(reorderItems);
         itemList.add(buildMenuDivider(isIncognito));
-        if (ChromeFeatureList.sAndroidContextMenuDuplicateTabs.isEnabled()) {
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
             itemList.add(createDuplicateTabsItem(isIncognito));
         }
         itemList.add(createPinUnpinTabItem(tabs, isIncognito));
@@ -474,6 +547,14 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             itemList.add(createMuteUnmuteSiteItem(tabs, isIncognito));
         }
         itemList.add(createCloseItem(isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            if (tabs.size() > anchorInfo.getAllTabIds().size()) {
+                itemList.add(createCloseOtherTabsItem(isIncognito));
+            }
+            if (canCloseTabsToTheRight(anchorInfo)) {
+                itemList.add(createCloseTabsToTheRightItem(isIncognito));
+            }
+        }
     }
 
     private static ListItem buildListItem(
@@ -493,8 +574,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                         ? getIncognitoTabGroups(tabs, groupToNotBeIncluded)
                         : getRegularTabGroups(tabs, groupToNotBeIncluded);
 
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
-                || potentialGroups.isEmpty()) {
+        if (potentialGroups.isEmpty()) {
             String title =
                     mActivity
                             .getResources()
@@ -594,6 +674,25 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 .build();
     }
 
+    private ListItem createCloseTabsToTheRightItem(boolean isIncognito) {
+        String title =
+                mActivity.getResources().getString(R.string.close_tabs_to_the_right_menu_item);
+        return new ListItemBuilder()
+                .withTitle(title)
+                .withMenuId(R.id.close_tabs_to_the_right_menu_id)
+                .withIsIncognito(isIncognito)
+                .build();
+    }
+
+    private ListItem createCloseOtherTabsItem(boolean isIncognito) {
+        String title = mActivity.getResources().getString(R.string.close_other_tabs_menu_item);
+        return new ListItemBuilder()
+                .withTitle(title)
+                .withMenuId(R.id.close_other_tabs_menu_id)
+                .withIsIncognito(isIncognito)
+                .build();
+    }
+
     private ListItem createPinUnpinTabItem(List<Tab> tabs, boolean isIncognito) {
         boolean showUnpin = true;
         for (Tab tab : tabs) {
@@ -688,6 +787,10 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             recordUserAction("CloseAllTabs", /* isMultipleTabs= */ false);
         } else if (menuId == R.id.close_all_incognito_tabs_menu_id) {
             recordUserAction("CloseAllIncognitoTabs", /* isMultipleTabs= */ false);
+        } else if (menuId == R.id.close_other_tabs_menu_id) {
+            recordUserAction("CloseOtherTabs", isMultipleTabs);
+        } else if (menuId == R.id.close_tabs_to_the_right_menu_id) {
+            recordUserAction("CloseTabsToTheRight", isMultipleTabs);
         } else {
             assert false : "Unknown menu id: " + menuId;
         }
@@ -816,10 +919,11 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         circleDrawable.setSize(mCircleSize, mCircleSize);
 
         // Center the circle on the appropriate visual center.
-        int visualCenterOfTextY =
+        float visualCenterOfTextY =
                 isIncognito ? mVisualCenterOfTextYIncognito : mVisualCenterOfTextY;
-        int topInset = visualCenterOfTextY - (mCircleSize / 2);
-        int bottomInset = mIconSize - (topInset + mCircleSize);
+        float topInsetFloat = visualCenterOfTextY - (mCircleSize / 2.0f);
+        int topInset = (int) Math.floor(topInsetFloat);
+        int bottomInset = (int) Math.ceil(mIconSize - (topInsetFloat + mCircleSize));
         int leftInset = 0;
         int rightInset = 0;
 

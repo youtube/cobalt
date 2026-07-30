@@ -19,7 +19,6 @@
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service_interface.h"
-#include "components/password_manager/core/browser/leak_detection/leak_detection_delegate_interface.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_request_utils.h"
 #include "components/password_manager/core/browser/ui/bulk_leak_check_service_adapter.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
@@ -57,7 +56,7 @@ class PasswordCheckDelegate
   // Obtains information about insecure credentials. This includes the last
   // time a check was run, as well as all insecure credentials that are
   // present in the password store.
-  // TODO:(crbug.com/1350947) - Rename to GetInsecureCredentialsUiEntry.
+  // TODO:(crbug.com/40234318) - Rename to GetInsecureCredentialsUiEntry.
   std::vector<api::passwords_private::PasswordUiEntry> GetInsecureCredentials();
 
   // Returns a list of vectors. Each vector contains all credentials that share

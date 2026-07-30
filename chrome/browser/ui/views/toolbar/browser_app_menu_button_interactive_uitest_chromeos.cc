@@ -8,7 +8,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
+#include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -92,7 +92,7 @@ class BrowserAppMenuButtonVirtualKeyboardBrowserTest
   raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
 };
 
-// Regression test for crbug.com/1334994.
+// Regression test for crbug.com/40846803.
 IN_PROC_BROWSER_TEST_F(BrowserAppMenuButtonVirtualKeyboardBrowserTest,
                        ShowMenuDismissesVirtualKeyboard) {
   {
@@ -107,9 +107,9 @@ IN_PROC_BROWSER_TEST_F(BrowserAppMenuButtonVirtualKeyboardBrowserTest,
     VirtualKeyboardWaiter waiter(GetVKController(), run_loop.QuitClosure());
     // Show the AppMenu.
     BrowserView::GetBrowserViewForBrowser(browser())
-        ->toolbar()
-        ->app_menu_button()
-        ->ShowMenu(views::MenuRunner::NO_FLAGS);
+        ->toolbar_button_provider()
+        ->GetAppMenuControl()
+        ->ShowMenu();
     run_loop.Run();
     EXPECT_FALSE(IsVirtualKeyboardVisible());
   }

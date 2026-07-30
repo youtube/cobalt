@@ -36,6 +36,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 class OverviewGridTest : public OverviewTestBase {
  public:
   OverviewGridTest() = default;
@@ -89,7 +91,7 @@ class OverviewGridTest : public OverviewTestBase {
 
 // Tests that with only one window, we always animate.
 TEST_F(OverviewGridTest, AnimateWithSingleWindow) {
-  auto window = CreateAppWindow(gfx::Rect(100, 100));
+  auto window = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
   ToggleOverview();
   VerifyAnimationStates({true}, {});
 
@@ -99,8 +101,8 @@ TEST_F(OverviewGridTest, AnimateWithSingleWindow) {
 
 // Tests that are animations if the destination bounds are shown.
 TEST_F(OverviewGridTest, SourceHiddenDestinationShown) {
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
-  auto window2 = CreateAppWindow(gfx::Rect(200, 200));
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {200, 200});
 
   ToggleOverview();
   VerifyAnimationStates({true, true}, {});
@@ -111,10 +113,10 @@ TEST_F(OverviewGridTest, SourceHiddenDestinationShown) {
 
 // Tests that are animations if the source bounds are shown.
 TEST_F(OverviewGridTest, SourceShownDestinationHidden) {
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
   WindowState::Get(window1.get())->Maximize();
 
-  auto window2 = CreateAppWindow(gfx::Rect(400, 400));
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
 
   ToggleOverview();
   VerifyAnimationStates({true, true}, {});
@@ -129,9 +131,10 @@ TEST_F(OverviewGridTest, SourceShownButInTheUnionOfTwoOtherWindows) {
   // Create three windows, the union of the first two windows will be
   // gfx::Rect(0, 0, 200, 200). Window 3 will be in that union, but should still
   // animate since its not fully occluded.
-  auto window3 = CreateAppWindow(gfx::Rect(50, 200));
-  auto window2 = CreateAppWindow(gfx::Rect(50, 50, 150, 150));
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window3 = CreateWindowWithAppType(AppType::SYSTEM_APP, {50, 200});
+  auto window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {50, 50, 150, 150});
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
 
   ToggleOverview();
   VerifyAnimationStates({true, true, true}, {});
@@ -147,10 +150,10 @@ TEST_F(OverviewGridTest, AlwaysOnTopWindow) {
 
   // Create two windows, even if `window1` is maximized, `window2` will still
   // animate since it is always on top.
-  auto window2 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
   window2->SetProperty(aura::client::kZOrderingKey,
                        ui::ZOrderLevel::kFloatingWindow);
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
   WindowState::Get(window1.get())->Maximize();
 
   ToggleOverview();
@@ -164,11 +167,12 @@ TEST_F(OverviewGridTest, AlwaysOnTopWindow) {
 TEST_F(OverviewGridTest, MinimizedWindows) {
   UpdateDisplay("800x600");
 
-  auto window3 = CreateAppWindow(gfx::Rect(800, 600));
+  auto window3 = CreateWindowWithAppType(AppType::SYSTEM_APP, {800, 600});
   WindowState::Get(window3.get())->Minimize();
-  auto window2 = CreateAppWindow(gfx::Rect(800, 600));
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {800, 600});
   WindowState::Get(window2.get())->Minimize();
-  auto window1 = CreateAppWindow(gfx::Rect(10, 10, 780, 580));
+  auto window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {10, 10, 780, 580});
 
   // The minimized windows do not animate since their source is hidden, and
   // their destination is blocked by the near maximized window.
@@ -184,10 +188,10 @@ TEST_F(OverviewGridTest, SelectedWindow) {
   // visible on entering, so they should all be animated. On exit we select the
   // third window which is maximized, so the other two windows should not
   // animate.
-  auto window3 = CreateAppWindow(gfx::Rect(400, 400));
+  auto window3 = CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
   WindowState::Get(window3.get())->Maximize();
-  auto window2 = CreateAppWindow(gfx::Rect(400, 400));
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
 
   ToggleOverview();
   VerifyAnimationStates({true, true, true}, {});
@@ -201,8 +205,10 @@ TEST_F(OverviewGridTest, WindowWithBackdrop) {
   // Create one non resizable window and one normal window and verify that the
   // backdrop shows over the non resizable window, and that normal window
   // becomes maximized upon entering tablet mode.
-  auto window1 = CreateTestWindow(gfx::Rect(100, 100));
-  auto window2 = CreateTestWindow(gfx::Rect(400, 400));
+  auto window1 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 100});
+  auto window2 =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   window1->SetProperty(aura::client::kResizeBehaviorKey,
                        aura::client::kResizeBehaviorNone);
   wm::ActivateWindow(window1.get());
@@ -230,8 +236,9 @@ TEST_F(OverviewGridTest, SourcePartiallyOffscreenWindow) {
   UpdateDisplay("500x400");
 
   // Create `window2` to be partially offscreen.
-  auto window2 = CreateAppWindow(gfx::Rect(450, 100, 100, 100));
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {450, 100, 100, 100});
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
 
   // Tests that it still animates because the onscreen portion is not occluded
   // by `window1`.
@@ -263,7 +270,7 @@ TEST_F(OverviewGridTest, PartialAndFullOffscreenWindow) {
   // respectively.
   std::vector<std::unique_ptr<aura::Window>> windows;
   for (int i = 0; i < 12; ++i) {
-    windows.push_back(CreateAppWindow(gfx::Rect(100, 100)));
+    windows.push_back(CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100}));
   }
 
   // Enter overview and assert that we have one partially offscreen overview
@@ -292,9 +299,9 @@ TEST_F(OverviewGridTest, PartialAndFullOffscreenWindow) {
 // Tests that only one window animates when entering overview from splitview
 // double snapped.
 TEST_F(OverviewGridTest, SnappedWindow) {
-  auto window3 = CreateAppWindow(gfx::Rect(100, 100));
-  auto window2 = CreateAppWindow(gfx::Rect(100, 100));
-  auto window1 = CreateAppWindow(gfx::Rect(100, 100));
+  auto window3 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
+  auto window2 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
+  auto window1 = CreateWindowWithAppType(AppType::SYSTEM_APP, {100, 100});
 
   Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
   auto* split_view_controller =
@@ -322,8 +329,8 @@ TEST_F(OverviewGridTest, RecordsDelayedDeskBarPresentationMetric) {
   // Since the windows are not maximized, the desk bar should open after
   // the overview animation is complete, causing
   // `kOverviewDelayedDeskBarPresentationHistogram` to be recorded.
-  std::unique_ptr<aura::Window> window1(CreateTestWindow());
-  std::unique_ptr<aura::Window> window2(CreateTestWindow());
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
 
   ui::Compositor* const compositor = window1->GetHost()->compositor();
   base::HistogramTester histogram_tester;
@@ -344,8 +351,8 @@ TEST_F(OverviewGridTest, DoesNotRecordDelayedDeskBarPresentationMetric) {
   // Since the windows are maximized, the desk bar should open immediately when
   // we enter overview and `kOverviewDelayedDeskBarPresentationHistogram` should
   // not be recorded.
-  std::unique_ptr<aura::Window> window1(CreateTestWindow());
-  std::unique_ptr<aura::Window> window2(CreateTestWindow());
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
   WindowState::Get(window1.get())->Maximize();
   WindowState::Get(window2.get())->Maximize();
 

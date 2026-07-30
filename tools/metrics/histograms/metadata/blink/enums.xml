@@ -6254,7 +6254,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5627" label="LocalNetworkAccessWithinSharedWorker"/>
   <int value="5628" label="LocalNetworkAccessWithinDedicatedWorker"/>
   <int value="5629" label="CSSPseudoParentInScope"/>
-  <int value="5630" label="InterestHintPseudoElement"/>
+  <int value="5630" label="InterestButtonPseudoElement"/>
   <int value="5631" label="CookieStoreEmptyPath"/>
   <int value="5632" label="V8CookieListItem_Domain_AttributeGetter"/>
   <int value="5633" label="V8CookieListItem_Path_AttributeGetter"/>
@@ -6308,19 +6308,21 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5681" label="CryptoAlgorithmMlDsa87"/>
   <int value="5682" label="CryptoAlgorithmMlKem768"/>
   <int value="5683" label="CryptoAlgorithmMlKem1024"/>
-  <int value="5684" label="ClipboardChangedBetweenReadAndGetType"/>
-  <int value="5685" label="ClipboardChangedBetweenGetTypes"/>
+  <int value="5684" label="OBSOLETE_ClipboardChangedBetweenReadAndGetType"/>
+  <int value="5685" label="OBSOLETE_ClipboardChangedBetweenGetTypes"/>
   <int value="5686"
-      label="ClipboardReadAndGetTypeTimeDiffIsBetween5SecAnd1Min"/>
+      label="OBSOLETE_ClipboardReadAndGetTypeTimeDiffIsBetween5SecAnd1Min"/>
   <int value="5687"
-      label="ClipboardReadAndGetTypeTimeDiffIsBetween1MinAnd10Min"/>
-  <int value="5688" label="ClipboardReadAndGetTypeTimeDiffIsMoreThan10Min"/>
+      label="OBSOLETE_ClipboardReadAndGetTypeTimeDiffIsBetween1MinAnd10Min"/>
+  <int value="5688"
+      label="OBSOLETE_ClipboardReadAndGetTypeTimeDiffIsMoreThan10Min"/>
   <int value="5689"
-      label="ClipboardGetTypeTimeDiffOfSameTypeIsBetween5SecAnd1Min"/>
+      label="OBSOLETE_ClipboardGetTypeTimeDiffOfSameTypeIsBetween5SecAnd1Min"/>
   <int value="5690"
-      label="ClipboardGetTypeTimeDiffOfSameTypeIsBetween1MinAnd10Min"/>
-  <int value="5691" label="ClipboardGetTypeTimeDiffOfSameTypeIsMoreThan10Min"/>
-  <int value="5692" label="ClipboardGetTypeWindowNotInFocus"/>
+      label="OBSOLETE_ClipboardGetTypeTimeDiffOfSameTypeIsBetween1MinAnd10Min"/>
+  <int value="5691"
+      label="OBSOLETE_ClipboardGetTypeTimeDiffOfSameTypeIsMoreThan10Min"/>
+  <int value="5692" label="OBSOLETE_ClipboardGetTypeWindowNotInFocus"/>
   <int value="5693" label="ReportBodyToJSON"/>
   <int value="5694" label="CSPViolationReportBodyToJSON"/>
   <int value="5695" label="DeprecationReportBodyToJSON"/>
@@ -6516,6 +6518,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5874" label="FocusWithoutUserActivationAllowedByDescendant"/>
   <int value="5875" label="FocusWithoutUserActivationBlocked"/>
   <int value="5876" label="FocusWithoutUserActivationPolicySet"/>
+  <int value="5877" label="CacheHintAttributeOnScript"/>
+  <int value="5878" label="ElementInternalsWithBehaviors"/>
+  <int value="5879" label="HTMLSubmitButtonBehaviorUsage"/>
+  <int value="5880" label="ElementInternalsBehaviorsAccess"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7135,8 +7141,8 @@ Called by update_permissions_policy_enum.py.-->
 <!-- LINT.IfChange(FedCmRpMode) -->
 
 <enum name="FedCmRpMode">
-  <int value="0" label="Passive"/>
-  <int value="1" label="Active"/>
+  <int value="0" label="Active"/>
+  <int value="1" label="Passive"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/webid/federated_auth_request.mojom:RpMode) -->
@@ -8359,14 +8365,14 @@ Called by update_use_counter_css.py.-->
   <int value="888" label="rule-inset"/>
   <int value="889" label="column-rule-visibility-items"/>
   <int value="890" label="row-rule-visibility-items"/>
-  <int value="891" label="column-rule-edge-inset-start"/>
-  <int value="892" label="column-rule-edge-inset-end"/>
-  <int value="893" label="column-rule-interior-inset-start"/>
-  <int value="894" label="column-rule-interior-inset-end"/>
-  <int value="895" label="row-rule-edge-inset-start"/>
-  <int value="896" label="row-rule-edge-inset-end"/>
-  <int value="897" label="row-rule-interior-inset-start"/>
-  <int value="898" label="row-rule-interior-inset-end"/>
+  <int value="891" label="column-rule-inset-cap-start"/>
+  <int value="892" label="column-rule-inset-cap-end"/>
+  <int value="893" label="column-rule-inset-junction-start"/>
+  <int value="894" label="column-rule-inset-junction-end"/>
+  <int value="895" label="row-rule-inset-cap-start"/>
+  <int value="896" label="row-rule-inset-cap-end"/>
+  <int value="897" label="row-rule-inset-junction-start"/>
+  <int value="898" label="row-rule-inset-junction-end"/>
   <int value="899" label="timeline-trigger-range (obsolete)"/>
   <int value="900" label="timeline-trigger-exit-range (obsolete)"/>
   <int value="901" label="trigger-scope"/>
@@ -8378,12 +8384,12 @@ Called by update_use_counter_css.py.-->
   <int value="907" label="hash"/>
   <int value="908" label="base-url"/>
   <int value="909" label="pattern"/>
-  <int value="910" label="column-rule-edge-inset"/>
-  <int value="911" label="row-rule-edge-inset"/>
-  <int value="912" label="column-rule-interior-inset"/>
-  <int value="913" label="row-rule-interior-inset"/>
-  <int value="914" label="rule-edge-inset"/>
-  <int value="915" label="rule-interior-inset"/>
+  <int value="910" label="column-rule-inset-cap"/>
+  <int value="911" label="row-rule-inset-cap"/>
+  <int value="912" label="column-rule-inset-junction"/>
+  <int value="913" label="row-rule-inset-junction"/>
+  <int value="914" label="rule-inset-cap"/>
+  <int value="915" label="rule-inset-junction"/>
   <int value="916" label="page-margin-safety"/>
   <int value="917" label="timeline-trigger-entry-range-start (obsolete)"/>
   <int value="918" label="timeline-trigger-entry-range-end (obsolete)"/>
@@ -8411,6 +8417,7 @@ Called by update_use_counter_css.py.-->
   <int value="940" label="path-length"/>
   <int value="941" label="hanging-punctuation"/>
   <int value="942" label="flex-line-count"/>
+  <int value="943" label="text-decoration-skip-spaces"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8961,7 +8968,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="428" label="LoadingLazyMedia"/>
   <int value="429" label="ManifestLocalization"/>
   <int value="430" label="ContrastColor"/>
-  <int value="431" label="DRAFT_WebAppMigration"/>
+  <int value="431" label="AppMigration"/>
   <int value="432" label="DeclarativeWebmcp"/>
   <int value="433" label="Webgl"/>
   <int value="434" label="Webgl2"/>

@@ -23,6 +23,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -207,7 +208,9 @@ ContextualTasksComposeboxHandler::ContextualTasksComposeboxHandler(
   }
 }
 
-ContextualTasksComposeboxHandler::~ContextualTasksComposeboxHandler() = default;
+ContextualTasksComposeboxHandler::~ContextualTasksComposeboxHandler() {
+  web_ui_interface_->SetComposeboxHandler(nullptr);
+}
 
 void ContextualTasksComposeboxHandler::MarkContextUploadFinished(
     const base::UnguessableToken& token) {
@@ -320,7 +323,7 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
         TabListInterface::From(browser_window_interface);
     if (tab_list) {
       active_tab = tab_list->GetActiveTab();
-      if (active_tab) {
+      if (active_tab && !has_visual_selection) {
         tabs_to_recontextualize.push_back(active_tab->GetHandle().raw_value());
       }
     }
@@ -468,67 +471,26 @@ void ContextualTasksComposeboxHandler::ContinueCreateAndSendQueryMessage(
 
     // Create a client to aim message and send it to the page.
     auto create_client_to_aim_request_info =
-        std::make_unique<contextual_search::ContextualSearchContextController::
-                             CreateClientToAimRequestInfo>();
-    create_client_to_aim_request_info->query_text = query;
-    create_client_to_aim_request_info->query_text_source =
-        lens::QueryPayload::QUERY_TEXT_SOURCE_KEYBOARD_INPUT;
-    create_client_to_aim_request_info->query_start_time = base::Time::Now();
-
-    create_client_to_aim_request_info->active_tool =
-        GetInputState().active_tool;
-    create_client_to_aim_request_info->active_model =
-        GetInputState().active_model;
-
-    if (auto active_tab_context_id = GetActiveTabContextId();
-        active_tab_context_id.has_value()) {
-      lens::ContextTurnMetadata active_tab_context_turn_metadata;
-      active_tab_context_turn_metadata.set_context_id(*active_tab_context_id);
-      active_tab_context_turn_metadata.mutable_tab_metadata()
-          ->set_is_active_tab(true);
-      create_client_to_aim_request_info->context_turn_metadata.push_back(
-          active_tab_context_turn_metadata);
-    }
-
-    base::flat_set<base::UnguessableToken> file_tokens(
-        session_handle->GetUploadedContextTokens());
-    // Injected inputs are removed on query submit, so send delete updates.
-    for (const auto& token : file_tokens) {
-      const contextual_search::FileInfo* file_info =
-          session_handle->GetController()->GetFileInfo(token);
-      if (!file_info) {
-        continue;
-      }
-      auto injected_input_id = file_info->GetInjectedInputId();
-      if (injected_input_id.has_value()) {
-        SendDeleteInjectedInputUpdate(injected_input_id.value());
-      }
-    }
-    if (overlay_token) {
-      file_tokens.insert(*overlay_token);
-      // When an overlay token is present, it implies a recent Lens Overlay
-      // interaction, such as a region search. Setting this flag forces the
-      // inclusion of that interaction's data in the request. This is required
-      // to support immediate postmessage-based follow-up queries after the
-      // initial search URL loads, allowing the user to ask follow-up questions
-      // about the same region without re-selecting it.
-      create_client_to_aim_request_info
-          ->force_include_latest_interaction_request_data = true;
-    }
-    create_client_to_aim_request_info->file_tokens =
-        std::move(file_tokens).extract();
-
-    lens::ClientToAimMessage client_to_page_message =
-        session_handle->CreateClientToAimRequest(
-            std::move(create_client_to_aim_request_info));
+        contextual_tasks::PrepareClientToAimRequestInfo(
+            query, session_handle, web_ui_interface_,
+            GetInputState().active_tool, GetInputState().active_model,
+            GetActiveTabContextId(), overlay_token);
 
     // Delay submission if context still uploading.
     if (IsAnyContextUploading()) {
-      pending_message_ = std::move(client_to_page_message);
+      // Stash the request info instead of generating the message now.
+      // Generating the message here would evaluate file upload statuses
+      // prematurely, causing files that are still uploading to be stripped
+      // from the message. Storing the request info allows us to generate the
+      // message with up-to-date successful statuses once all uploads complete.
+      pending_query_request_info_ =
+          std::move(create_client_to_aim_request_info);
       return;
     }
-    // Otherwise, submit request to server side.
-    web_ui_interface_->PostMessageToWebview(client_to_page_message);
+
+    contextual_tasks::FinalizeAndSendAimQuery(
+        std::move(create_client_to_aim_request_info), session_handle,
+        web_ui_interface_);
   }
 }
 
@@ -606,7 +568,7 @@ bool ContextualTasksComposeboxHandler::IsAnyContextUploading() {
 }
 
 bool ContextualTasksComposeboxHandler::HasPendingQueryForTesting() const {
-  return !!pending_message_;
+  return pending_query_request_info_ != nullptr;
 }
 
 uint16_t ContextualTasksComposeboxHandler::GetNumTabsDelayed() const {
@@ -689,14 +651,8 @@ void ContextualTasksComposeboxHandler::AddTabContext(
   // The tab was explicitly added by the user. Hence remove the URL from the
   // blocklist.
   if (tab) {
-    if (tab->IsActivated() && !blocklisted_suggestions_.empty()) {
-      const std::string metric_name =
-          "ContextualTasks.Composebox.UserAction."
-          "AddedActiveTabAfterDeletingAutoSuggestion";
-      base::UmaHistogramBoolean(metric_name, true);
-      base::RecordAction(base::UserMetricsAction(metric_name.c_str()));
-    }
-    blocklisted_suggestions_.erase(tab->GetContents()->GetLastCommittedURL());
+    web_ui_interface_->GetAutoSuggestionManager()->OnTabContextAdded(
+        tab->GetContents()->GetLastCommittedURL(), tab->IsActivated());
   }
 
   auto* contextual_session_handle = GetContextualSessionHandle();
@@ -713,12 +669,28 @@ void ContextualTasksComposeboxHandler::AddTabContext(
                                                     std::move(callback));
 }
 
-bool ContextualTasksComposeboxHandler::has_suggested_tab_context() const {
-  return current_suggestion_.has_value();
-}
-
-void ContextualTasksComposeboxHandler::ResetBlocklistedSuggestions() {
-  blocklisted_suggestions_.clear();
+void ContextualTasksComposeboxHandler::AddDriveContext(
+    const std::string& drive_id,
+    const std::string& resource_key,
+    const std::string& mime_type_string,
+    AddDriveContextCallback callback) {
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
+    std::move(callback).Run(base::unexpected(
+        contextual_search::ContextUploadErrorType::kBrowserProcessingError));
+    return;
+  }
+  auto* contextual_session_handle = GetContextualSessionHandle();
+  if (!contextual_session_handle) {
+    std::move(callback).Run(base::unexpected(
+        contextual_search::ContextUploadErrorType::kBrowserProcessingError));
+    return;
+  }
+  auto token = contextual_session_handle->CreateContextToken();
+  pending_context_uploads_.insert(token);
+  std::move(callback).Run(base::ok(token));
+  contextual_session_handle->StartDriveContextUploadFlow(
+      token, drive_id, resource_key, mime_type_string);
 }
 
 void ContextualTasksComposeboxHandler::ClearFiles(
@@ -730,12 +702,13 @@ void ContextualTasksComposeboxHandler::ClearFiles(
 
   pending_delayed_tab_ids_.clear();
   pending_context_uploads_.clear();
-  pending_message_ = std::nullopt;
+  pending_query_request_info_.reset();
+  visual_selection_token_.reset();
+  visual_selection_overlay_token_.reset();
 
-  if (current_suggestion_ && should_block_auto_suggested_tabs) {
-    blocklisted_suggestions_.insert(*current_suggestion_);
+  if (should_block_auto_suggested_tabs) {
+    web_ui_interface_->GetAutoSuggestionManager()->OnAutoSuggestionDismissed();
   }
-  current_suggestion_ = std::nullopt;
 }
 
 void ContextualTasksComposeboxHandler::HandleLensButtonClick() {
@@ -852,7 +825,8 @@ void ContextualTasksComposeboxHandler::DeleteContext(
       deleted_tab_url = file_info->tab_url;
       auto injected_input_id = file_info->GetInjectedInputId();
       if (injected_input_id.has_value()) {
-        SendDeleteInjectedInputUpdate(injected_input_id.value());
+        contextual_tasks::SendInjectedInputRemovedUpdate(
+            web_ui_interface_, injected_input_id.value());
       }
     }
   }
@@ -899,39 +873,19 @@ void ContextualTasksComposeboxHandler::DeleteContext(
     active_task_context_provider->RefreshContext();
   }
 
+  auto* auto_suggestion_manager = web_ui_interface_->GetAutoSuggestionManager();
   if (from_automatic_chip) {
-    // If it was an auto-suggestion and user has dismissed it, the URL should be
-    // blocklisted for this thread.
-    // TODO(shaktisahu): Pass the URL of the chip from the UI. This requires URL
-    // to be stored and passed back from Typescript. For now, we can assume that
-    // the URL of the auto chip dismissed is equal to the active tab's URL.
-    TabListInterface* tab_list =
-        browser_window_interface
-            ? TabListInterface::From(browser_window_interface)
-            : nullptr;
-    tabs::TabInterface* active_tab =
-        tab_list ? tab_list->GetActiveTab() : nullptr;
-    if (active_tab) {
-      deleted_tab_url = active_tab->GetContents()->GetLastCommittedURL();
-    }
-  }
-
-  if (deleted_tab_url) {
-    // Blocklist the URL so that it shouldn't show up in subsequent
-    // auto-suggestions.
-    blocklisted_suggestions_.insert(deleted_tab_url.value());
+    auto_suggestion_manager->OnAutoSuggestionDismissed();
+  } else if (deleted_tab_url.has_value()) {
+    auto_suggestion_manager->OnTabContextRemoved(deleted_tab_url.value());
   }
 }
 
 void ContextualTasksComposeboxHandler::UpdateSuggestedTabContext(
-    std::unique_ptr<contextual_tasks::SuggestedTabInfo> suggested_tab) {
-  current_suggestion_ = std::nullopt;
-
-  // Filter the suggested tab info based on blocklisted URLs and update the UI.
+    const contextual_tasks::SuggestedTabInfo* suggested_tab) {
+  // Always use the passed info as the result of the manager's filtering.
   searchbox::mojom::TabInfoPtr filtered_suggestion;
-  if (contextual_tasks::GetIsTabAutoSuggestionChipEnabled() && suggested_tab &&
-      !blocklisted_suggestions_.contains(suggested_tab->url)) {
-    current_suggestion_ = suggested_tab->url;
+  if (contextual_tasks::GetIsTabAutoSuggestionChipEnabled() && suggested_tab) {
     filtered_suggestion = searchbox::mojom::TabInfo::New();
     filtered_suggestion->tab_id = suggested_tab->tab_id;
     filtered_suggestion->title = base::UTF16ToUTF8(suggested_tab->title);
@@ -1038,21 +992,13 @@ ContextualTasksComposeboxHandler::GetActiveTabContextId() {
 }
 
 void ContextualTasksComposeboxHandler::MaybeSendPendingQuery() {
-  if (pending_message_.has_value() && !IsAnyContextUploading()) {
-    web_ui_interface_->PostMessageToWebview(*pending_message_);
-    pending_message_.reset();
+  if (pending_query_request_info_ && !IsAnyContextUploading()) {
+    auto* session_handle = GetContextualSessionHandle();
+    if (session_handle) {
+      contextual_tasks::FinalizeAndSendAimQuery(
+          std::move(pending_query_request_info_), session_handle,
+          web_ui_interface_);
+    }
+    pending_query_request_info_.reset();
   }
-}
-
-
-void ContextualTasksComposeboxHandler::SendDeleteInjectedInputUpdate(
-    const std::string& id) {
-  lens::ClientToAimMessage client_to_aim_message;
-  lens::InjectedInputUpdate* injected_input_update =
-      client_to_aim_message.mutable_injected_input_update();
-  injected_input_update->mutable_payload()->set_id(id);
-  injected_input_update->mutable_payload()->set_update_type(
-      lens::InjectedInputUpdatePayload::UpdateType::
-          InjectedInputUpdatePayload_UpdateType_REMOVED);
-  web_ui_interface_->PostMessageToWebview(client_to_aim_message);
 }

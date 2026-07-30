@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.toolbar.adaptive.settings;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_ENABLED;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS;
@@ -31,9 +32,10 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
+import org.chromium.chrome.browser.glic.GlicEnablingJni;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionUtil;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -57,7 +59,6 @@ import java.util.List;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2)
-@DisableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY})
 public class AdaptiveToolbarSettingsFragmentTest {
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -65,6 +66,7 @@ public class AdaptiveToolbarSettingsFragmentTest {
     @Mock private UserPrefsJni mUserPrefsNatives;
     @Mock private PrefService mPrefService;
     @Mock private TemplateUrlService mTemplateUrlService;
+    @Mock private GlicEnabling.Natives mGlicEnablingNatives;
 
     private ChromeSwitchPreference mSwitchPreference;
     private RadioButtonGroupAdaptiveToolbarPreference mRadioPreference;
@@ -73,6 +75,9 @@ public class AdaptiveToolbarSettingsFragmentTest {
     public void setUpTest() throws Exception {
         UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
         doReturn(mPrefService).when(mUserPrefsNatives).get(any());
+
+        GlicEnablingJni.setInstanceForTesting(mGlicEnablingNatives);
+        when(mGlicEnablingNatives.isEnabledForProfile(mProfile)).thenReturn(true);
 
         ChromeSharedPreferences.getInstance().removeKey(ADAPTIVE_TOOLBAR_CUSTOMIZATION_ENABLED);
         ChromeSharedPreferences.getInstance().removeKey(ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS);
@@ -236,38 +241,6 @@ public class AdaptiveToolbarSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY)
-    public void testPageSummaryOption_Enabled() {
-        FragmentScenario<AdaptiveToolbarSettingsFragment> scenario = buildFragmentScenario();
-        scenario.onFragment(
-                fragment -> {
-                    mRadioPreference =
-                            (RadioButtonGroupAdaptiveToolbarPreference)
-                                    fragment.findPreference(
-                                            AdaptiveToolbarSettingsFragment
-                                                    .PREF_ADAPTIVE_RADIO_GROUP);
-
-                    // Select Read Aloud.
-                    Assert.assertEquals(
-                            R.id.adaptive_option_page_summary,
-                            getButton(AdaptiveToolbarButtonVariant.PAGE_SUMMARY).getId());
-                    selectButton(AdaptiveToolbarButtonVariant.PAGE_SUMMARY);
-                    assertButtonCheckedCorrectly(
-                            R.string.adaptive_toolbar_button_preference_page_summary,
-                            AdaptiveToolbarButtonVariant.PAGE_SUMMARY);
-                    Assert.assertEquals(
-                            AdaptiveToolbarButtonVariant.PAGE_SUMMARY,
-                            mRadioPreference.getSelection());
-                    Assert.assertEquals(
-                            AdaptiveToolbarButtonVariant.PAGE_SUMMARY,
-                            ChromeSharedPreferences.getInstance()
-                                    .readInt(ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS));
-                });
-    }
-
-
-    @Test
-    @SmallTest
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testGlicOption_Enabled() {
         FragmentScenario<AdaptiveToolbarSettingsFragment> scenario = buildFragmentScenario();
@@ -293,6 +266,29 @@ public class AdaptiveToolbarSettingsFragmentTest {
                             AdaptiveToolbarButtonVariant.GLIC,
                             ChromeSharedPreferences.getInstance()
                                     .readInt(ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS));
+                });
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.ANDROID_BOTTOM_BAR, ChromeFeatureList.GLIC})
+    public void testOptionsHiddenWithBottomBar() {
+        FragmentScenario<AdaptiveToolbarSettingsFragment> scenario = buildFragmentScenario();
+        scenario.onFragment(
+                fragment -> {
+                    mRadioPreference =
+                            (RadioButtonGroupAdaptiveToolbarPreference)
+                                    fragment.findPreference(
+                                            AdaptiveToolbarSettingsFragment
+                                                    .PREF_ADAPTIVE_RADIO_GROUP);
+
+                    // New tab button and Glic button should be gone.
+                    Assert.assertEquals(
+                            View.GONE,
+                            getButton(AdaptiveToolbarButtonVariant.NEW_TAB).getVisibility());
+                    Assert.assertEquals(
+                            View.GONE,
+                            getButton(AdaptiveToolbarButtonVariant.GLIC).getVisibility());
                 });
     }
 

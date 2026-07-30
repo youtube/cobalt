@@ -123,6 +123,8 @@
 #include "ui/wm/core/window_util.h"
 
 namespace ash {
+
+using chromeos::AppType;
 namespace {
 
 using ::chromeos::kHideShelfWhenFullscreenKey;
@@ -2184,8 +2186,8 @@ TEST_F(ShelfLayoutManagerTest, TabletModeTransitionWithAppListVisible) {
       .SetFirstDisplayAsInternalDisplay();
 
   // Show a window, which will later fill the whole screen.
-  std::unique_ptr<aura::Window> window(
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400)));
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   window->SetProperty(aura::client::kResizeBehaviorKey,
                       aura::client::kResizeBehaviorCanResize |
                           aura::client::kResizeBehaviorCanMaximize);
@@ -2355,7 +2357,7 @@ TEST_F(ShelfLayoutManagerTest, PressHomeButtonOnAutoHideShelf) {
 
   // Create a window to hide the shelf in auto-hide mode.
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   EXPECT_EQ(SHELF_AUTO_HIDE, shelf->GetVisibilityState());
@@ -3115,7 +3117,7 @@ TEST_F(ShelfLayoutManagerTest, NoTemporaryAutoHideStateWhileOpeningLauncher) {
 
   // Create a window to hide the shelf in auto-hide mode.
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   EXPECT_EQ(SHELF_AUTO_HIDE, shelf->GetVisibilityState());
@@ -3222,7 +3224,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, DraggedMRUWindow) {
     EndScroll(/*is_fling=*/false, 0.f);
 
     std::unique_ptr<aura::Window> window =
-        AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+        CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
     wm::ActivateWindow(window.get());
 
     StartScroll(start);
@@ -3250,7 +3252,8 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, DraggedMRUWindow) {
     // In splitview, depends on the drag position, the active dragged window
     // might be different.
     window->Show();
-    auto window2 = AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+    auto window2 =
+        CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
     SplitViewController* split_view_controller =
         SplitViewController::Get(Shell::GetPrimaryRootWindow());
     split_view_controller->SnapWindow(window.get(), SnapPosition::kPrimary);
@@ -3297,7 +3300,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
   const gfx::Rect shelf_bounds = GetShelfWidget()->GetWindowBoundsInScreen();
   gfx::Point start = shelf_bounds.top_center();
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   // Tests that downward swipe on shelf does not start window drag, nor change
@@ -3346,9 +3349,9 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, NoOpInOverview) {
   const gfx::Rect shelf_widget_bounds =
       GetShelfWidget()->GetWindowBoundsInScreen();
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   std::unique_ptr<aura::Window> window2 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window1.get());
 
   // Starts the drag from the center of the shelf's bottom.
@@ -3380,7 +3383,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, SwipeToExitOverview) {
   const gfx::Rect shelf_widget_bounds =
       GetShelfWidget()->GetWindowBoundsInScreen();
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   // Hide |window1| so we remain in kShownHomeLauncher when we enter overview.
   window1->Hide();
   EXPECT_EQ(HotseatState::kShownHomeLauncher, GetHotseatWidget()->state());
@@ -3407,7 +3410,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, FlingInOverview) {
   const gfx::Rect shelf_widget_bounds =
       GetShelfWidget()->GetWindowBoundsInScreen();
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window1.get());
 
   EnterOverview();
@@ -3444,7 +3447,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, FlingInOverviewHomeShelf) {
   const gfx::Rect shelf_widget_bounds =
       GetShelfWidget()->GetWindowBoundsInScreen();
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   // This will ensure we enter overview in home shelf mode.
   WindowState::Get(window1.get())->Minimize();
 
@@ -3479,8 +3482,10 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
   const int shelf_size = ShelfConfig::Get()->shelf_size();
   const int hotseat_size = GetHotseatWidget()->GetHotseatSize();
   const int hotseat_padding_size = ShelfConfig::Get()->hotseat_bottom_padding();
-  std::unique_ptr<aura::Window> window1 = CreateAppWindow(gfx::Rect(400, 400));
-  std::unique_ptr<aura::Window> window2 = CreateAppWindow(gfx::Rect(400, 400));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
 
   SplitViewController* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
@@ -3556,8 +3561,10 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, FlingHomeInSplitViewWithOverview) {
   const int shelf_size = ShelfConfig::Get()->shelf_size();
   const int hotseat_size = GetHotseatWidget()->GetHotseatSize();
   const int hotseat_padding_size = ShelfConfig::Get()->hotseat_bottom_padding();
-  std::unique_ptr<aura::Window> window1 = CreateAppWindow(gfx::Rect(400, 400));
-  std::unique_ptr<aura::Window> window2 = CreateAppWindow(gfx::Rect(400, 400));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
 
   SplitViewController* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
@@ -3603,8 +3610,10 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, FlingInSplitView) {
   const int shelf_size = ShelfConfig::Get()->shelf_size();
   const int hotseat_size = GetHotseatWidget()->GetHotseatSize();
   const int hotseat_padding_size = ShelfConfig::Get()->hotseat_bottom_padding();
-  std::unique_ptr<aura::Window> window1 = CreateAppWindow(gfx::Rect(400, 400));
-  std::unique_ptr<aura::Window> window2 = CreateAppWindow(gfx::Rect(400, 400));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, {400, 400});
 
   SplitViewController* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
@@ -3648,9 +3657,9 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, ShortFlingInSplitView) {
   const int hotseat_size = GetHotseatWidget()->GetHotseatSize();
   const int hotseat_padding_size = ShelfConfig::Get()->hotseat_bottom_padding();
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   std::unique_ptr<aura::Window> window2 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
 
   SplitViewController* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
@@ -3686,11 +3695,11 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, ShortFlingInSplitView) {
 TEST_F(ShelfLayoutManagerWindowDraggingTest,
        NoDelayedAnimatingBackgroundForTransitionFromVirtualKeyboardToHome) {
   std::unique_ptr<aura::Window> window1 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window1.get());
 
   std::unique_ptr<aura::Window> window2 =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window2.get());
 
   // Show virtual keyboard.
@@ -3747,7 +3756,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
 // The window can be dragged on a visible shelf.
 TEST_F(ShelfLayoutManagerWindowDraggingTest, WindowDragFromVisibleShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
   Shelf* shelf = GetPrimaryShelf();
   // In fact, hotseat state remains hidden throughout this entire test.
@@ -3769,7 +3778,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, WindowDragFromVisibleShelf) {
 TEST_F(ShelfLayoutManagerWindowDraggingTest,
        NoWindowDragFromAutoHiddenHiddenShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   Shelf* shelf = GetPrimaryShelf();
   EXPECT_EQ(HotseatState::kHidden, GetShelfLayoutManager()->hotseat_state());
   shelf->SetAutoHideBehavior(ShelfAutoHideBehavior::kAlways);
@@ -3800,7 +3809,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
 TEST_F(ShelfLayoutManagerWindowDraggingTest,
        WindowDragFromAutoHiddenShownShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   Shelf* shelf = GetPrimaryShelf();
   EXPECT_EQ(HotseatState::kHidden, GetShelfLayoutManager()->hotseat_state());
   shelf->SetAutoHideBehavior(ShelfAutoHideBehavior::kAlways);
@@ -3826,7 +3835,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
 // The window can't be dragged on a hidden shelf.
 TEST_F(ShelfLayoutManagerWindowDraggingTest, NoWindowDragFromHiddenShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   Shelf* shelf = GetPrimaryShelf();
   EXPECT_EQ(HotseatState::kHidden, GetShelfLayoutManager()->hotseat_state());
   shelf->SetAutoHideBehavior(ShelfAutoHideBehavior::kAlways);
@@ -3852,7 +3861,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
   // Go to in-app shelf, then drag the hotseat up until it is extended, this
   // will start a window drag.
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
   const gfx::Rect shelf_widget_bounds =
       GetShelfWidget()->GetWindowBoundsInScreen();
@@ -3877,7 +3886,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
        DragBelowHotseatDoesNotMoveHotseatAutoHiddenShelf) {
   // Extend the hotseat, then start dragging the window.
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
   SwipeUpOnShelf();
   const gfx::Rect shelf_widget_bounds =
@@ -3899,7 +3908,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
 
 TEST_F(ShelfLayoutManagerWindowDraggingTest, NoOpIfDragStartsAboveShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   Shelf* shelf = GetPrimaryShelf();
@@ -3924,7 +3933,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, NoOpIfDragStartsAboveShelf) {
 TEST_F(ShelfLayoutManagerWindowDraggingTest,
        NoOpIfDragSTartsAboveShelfAndMovesToShelf) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   Shelf* shelf = GetPrimaryShelf();
@@ -3960,7 +3969,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest,
 // fully dragged up if hotseat was hidden before.
 TEST_F(ShelfLayoutManagerWindowDraggingTest, StartsDragAfterHotseatIsUp) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   const gfx::Rect shelf_widget_bounds =
@@ -3994,7 +4003,7 @@ TEST_F(ShelfLayoutManagerWindowDraggingTest, StartsDragAfterHotseatIsUp) {
 
 TEST_F(ShelfLayoutManagerWindowDraggingTest, NoDragForDownwardEvent) {
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
 
   Shelf* shelf = GetPrimaryShelf();
@@ -4702,7 +4711,8 @@ TEST_F(NoSessionShelfLayoutManagerTest, UpdateShelfVisibilityAfterLogin) {
 
   // Create a window that covers the full height of the in-session work area.
   const int kExpectedWindowHeight = 800 - ShelfConfig::Get()->shelf_size();
-  auto window = CreateTestWindow(gfx::Rect(400, kExpectedWindowHeight));
+  auto window = CreateWindowWithAppType(chromeos::AppType::NON_APP,
+                                        {400, kExpectedWindowHeight});
 
   // Simulate login.
   SimulateUserLogin({}, kUserAccount, std::move(user_prefs));
@@ -5117,7 +5127,7 @@ TEST_P(NavigationWidgetRTLTest, VerifyHomeButtonBounds) {
   // Activate a window and wait for the navigation widget animation to finish.
   views::WidgetAnimationWaiter waiter(shelf->navigation_widget());
   std::unique_ptr<aura::Window> window =
-      AshTestBase::CreateTestWindow(gfx::Rect(0, 0, 400, 400));
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {400, 400});
   wm::ActivateWindow(window.get());
   waiter.WaitForAnimation();
 
@@ -5197,7 +5207,7 @@ TEST_P(LockedFullscreenShelfLayoutManagerTest,
   TabletModeControllerTestApi().EnterTabletMode();
 
   // Create test window.
-  const std::unique_ptr<aura::Window> window = AshTestBase::CreateTestWindow();
+  const std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
   wm::ActivateWindow(window.get());
 
   // Access hotseat before pinning the window.

@@ -7,9 +7,14 @@ package org.chromium.chrome.browser.media;
 import static org.chromium.build.NullUtil.assertNonNull;
 
 import android.app.Activity;
+import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+
+import androidx.annotation.VisibleForTesting;
+
+import com.google.android.material.color.DynamicColors;
 
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
@@ -19,6 +24,9 @@ import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
+import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
+import org.chromium.chrome.browser.night_mode.NightModeUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.url_formatter.SchemeDisplay;
@@ -35,12 +43,13 @@ import java.lang.ref.WeakReference;
  */
 @NullMarked
 @JNINamespace("picture_in_picture")
-public class AutoPictureInPicturePermissionController {
+public class AutoPictureInPicturePermissionController implements NightModeStateProvider.Observer {
     private static final String TAG = "AutoPipPermCtrl";
 
     private final WebContents mWebContents;
     private final GURL mUrl;
     private final Runnable mClosePipCallback;
+    private @Nullable WeakReference<Activity> mActivityWeakRef;
     private @Nullable AutoPipPermissionDialogView mView;
     private @Nullable AutoPictureInPicturePrivacyMaskView mMaskView;
 
@@ -52,6 +61,10 @@ public class AutoPictureInPicturePermissionController {
     // the state on the exact same view instance we modified, even if the WebContents' container
     // view changes in the meantime.
     private @Nullable WeakReference<View> mObscuredViewWeakRef;
+
+    // Callback to be run when the permission prompt is dismissed with a positive result
+    // (Allow on every visit or Allow once). Used to revert window bounds.
+    @VisibleForTesting @Nullable Runnable mOnPromptDismissedCallback;
 
     /**
      * Shows the permission prompt for auto picture-in-picture if the content setting is "ASK".
@@ -67,27 +80,54 @@ public class AutoPictureInPicturePermissionController {
         }
 
         WebContents webContents = tab.getWebContents();
+        if (!isPermissionPromptNeeded(webContents)) {
+            return;
+        }
+
         // When prompt is triggered, webContents is expected to be valid and can retrieve helper
         // from UserDataHost.
         AutoPictureInPictureTabHelper helper =
                 assertNonNull(AutoPictureInPictureTabHelper.fromWebContents(webContents));
 
-        // If the user already selected "Allow Once" for this WebContents or the permission is not
-        // "ASK", we shouldn't create a controller at all.
-        if (helper.hasAllowOnce()
-                || AutoPictureInPicturePermissionControllerJni.get()
-                                .getPermissionStatus(webContents)
-                        != ContentSetting.ASK) {
-            return;
-        }
-
         // Create the controller and register it with the helper. This prevents "fire and forget"
         // by giving the controller a clear owner (the helper attached to the WebContents).
         AutoPictureInPicturePermissionController controller =
                 new AutoPictureInPicturePermissionController(webContents, closePipCallback);
+
+        // WebContents (which owns this controller) outlives the Activity, so a WeakReference
+        // is necessary to prevent a memory leak.
+        WeakReference<Activity> weakActivity = new WeakReference<>(activity);
+        controller.mOnPromptDismissedCallback =
+                () -> {
+                    Activity a = weakActivity.get();
+                    if (a instanceof DocumentPictureInPictureActivity pipActivity) {
+                        pipActivity.revertToRequestedBounds();
+                    }
+                };
         helper.setPermissionController(controller);
 
         controller.show(activity);
+    }
+
+    /**
+     * Returns true if a permission prompt is needed for auto picture-in-picture.
+     *
+     * @param webContents The WebContents to check.
+     * @return True if a prompt is needed, false otherwise.
+     */
+    public static boolean isPermissionPromptNeeded(WebContents webContents) {
+        if (!isAutoPictureInPictureInUse(webContents)) {
+            return false;
+        }
+
+        AutoPictureInPictureTabHelper helper =
+                assertNonNull(AutoPictureInPictureTabHelper.fromWebContents(webContents));
+        if (helper.hasAllowOnce()) {
+            return false;
+        }
+
+        return AutoPictureInPicturePermissionControllerJni.get().getPermissionStatus(webContents)
+                == ContentSetting.ASK;
     }
 
     /**
@@ -135,22 +175,71 @@ public class AutoPictureInPicturePermissionController {
             return;
         }
 
+        mActivityWeakRef = new WeakReference<>(activity);
+
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         if (rootView == null) {
             Log.w(TAG, "Could not find root view to attach Auto-PiP prompt.");
             return;
         }
 
-        // Add the privacy mask first, so it's behind the prompt.
+        // Add the privacy mask first, so it's behind the prompt. Use the activity context directly
+        // to ensure it remains in dark mode (consistent with desktop Chrome).
         mMaskView = new AutoPictureInPicturePrivacyMaskView(activity, null);
         rootView.addView(mMaskView);
         mMaskView.show();
 
         obscureContentFromAccessibility();
 
+        GlobalNightModeStateProviderHolder.getInstance().addObserver(this);
+        updateViews();
+    }
+
+    @Override
+    public void onNightModeStateChanged() {
+        updateViews();
+    }
+
+    /**
+     * Updates the UI by recreating the dialog view with the current night mode and dynamic color
+     * context. This ensures that the prompt correctly matches the system theme when it changes
+     * dynamically.
+     */
+    private void updateViews() {
+        // Ensure the activity is still valid and has not been destroyed. If the activity
+        // is gone, there's no UI context left to update, so we can safely abort.
+        Activity activity = mActivityWeakRef != null ? mActivityWeakRef.get() : null;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+
+        // Retrieve the root view to attach/detach our dialog view.
+        ViewGroup rootView = activity.findViewById(android.R.id.content);
+        if (rootView == null) {
+            return;
+        }
+
+        // If the view already exists, remove it from its current parent before creating a new one.
+        // This happens during theme changes when the view needs to be recreated with a new context.
+        if (mView != null) {
+            ViewParent parent = mView.getParent();
+            if (parent instanceof ViewGroup viewGroup) {
+                viewGroup.removeView(mView);
+            }
+            mView = null;
+        }
+
+        boolean isNightMode = GlobalNightModeStateProviderHolder.getInstance().isInNightMode();
+
+        // Wrap the activity context with the preferred theme for the dialog view.
+        Context themedContext =
+                NightModeUtils.wrapContextWithNightModeConfig(
+                        activity, R.style.Theme_Chromium_Activity, isNightMode);
+        themedContext = DynamicColors.wrapContextIfAvailable(themedContext);
+
         mView =
                 new AutoPipPermissionDialogView(
-                        activity,
+                        themedContext,
                         activity.getString(R.string.permission_allow_every_visit),
                         activity.getString(R.string.permission_allow_this_time),
                         activity.getString(R.string.permission_dont_allow),
@@ -161,13 +250,14 @@ public class AutoPictureInPicturePermissionController {
                         mUrl.getOrigin(), SchemeDisplay.OMIT_HTTP_AND_HTTPS);
         mView.setOrigin(formattedOrigin);
 
-        // Add the view to the root of the activity.
+        // Add the newly created view to the root of the activity.
         rootView.addView(mView);
         mView.bringToFront();
     }
 
     /** Dismisses the prompt and cleans up views. */
     public void dismiss() {
+        GlobalNightModeStateProviderHolder.getInstance().removeObserver(this);
         if (mView != null) {
             ViewParent parent = mView.getParent();
             if (parent instanceof ViewGroup) {
@@ -180,10 +270,11 @@ public class AutoPictureInPicturePermissionController {
             mMaskView = null;
         }
 
+        mOnPromptDismissedCallback = null;
+        restoreContentAccessibility();
+
         // Ensure the helper releases its reference to this controller.
         if (!mWebContents.isDestroyed()) {
-            restoreContentAccessibility();
-
             AutoPictureInPictureTabHelper helper =
                     AutoPictureInPictureTabHelper.getIfPresent(mWebContents);
             if (helper != null && helper.getPermissionController() == this) {
@@ -238,6 +329,7 @@ public class AutoPictureInPicturePermissionController {
     private void onUiResult(int result) {
         if (mWebContents.isDestroyed()) {
             Log.w(TAG, "WebContents gone before UI result processed.");
+            dismiss();
             return;
         }
 
@@ -257,7 +349,17 @@ public class AutoPictureInPicturePermissionController {
                 break;
         }
 
+        // mOnPromptDismissedCallback is cleared in dismiss()
+        Runnable callback = mOnPromptDismissedCallback;
+
         dismiss();
+
+        // Run the callback unconditionally. We want to revert bounds even on soft dismissals
+        // (like close button click) to ensure the PiP window doesn't stay permanently
+        // enlarged if the user doesn't make a choice.
+        if (callback != null) {
+            callback.run();
+        }
     }
 
     @NativeMethods

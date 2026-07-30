@@ -667,7 +667,8 @@ def _crossbench_loading(estimated_runtime: int = 750,
   return CrossbenchConfig('loading.crossbench',
                           'loading',
                           estimated_runtime=estimated_runtime,
-                          flags=flags)
+                          flags=flags,
+                          auto_enable_field_trials=False)
 
 
 @_register('embedder.crossbench')
@@ -676,7 +677,18 @@ def _crossbench_embedder(estimated_runtime: int = 900,
   return CrossbenchConfig('embedder.crossbench',
                           'embedder',
                           estimated_runtime=estimated_runtime,
-                          flags=flags)
+                          flags=flags,
+                          auto_enable_field_trials=False)
+
+
+@_register('gma.embedder.crossbench')
+def _crossbench_gma_embedder(estimated_runtime: int = 900,
+                            flags: tuple[str, ...] = ()):
+  return CrossbenchConfig('gma.embedder.crossbench',
+                          'embedder',
+                          estimated_runtime=estimated_runtime,
+                          flags=flags,
+                          auto_enable_field_trials=False)
 
 
 @_register('devtools_frontend.crossbench')
@@ -772,9 +784,15 @@ PLATFORM_INFO = {
         'platform_os': 'mac',
         'is_fyi': False
     },
+    'mac-m4-pro-perf': {
+        'description': 'MacBook Pro M4 ARM',
+        'num_shards': 15,
+        'platform_os': 'mac',
+        'is_fyi': False
+    },
     'mac-m5-pro-perf': {
         'description': 'Mac M5 PRO ARM',
-        'num_shards': 1,
+        'num_shards': 2,
         'platform_os': 'mac',
         'is_fyi': False
     },

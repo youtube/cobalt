@@ -156,7 +156,6 @@ const char kOAuth2TokenExchangeURL[] = "/oauth2/v4/token";
 const char kOAuth2TokenRevokeURL[] = "/o/oauth2/revoke";
 const char kSecondaryEmail[] = "secondary_email@example.com";
 const char kSigninURL[] = "/signin";
-const char kSigninWithOutageInDiceURL[] = "/signin/outage";
 const char kSyncDuringOAuthOutageURL[] = "/sync/outage";
 const char kSignoutURL[] = "/signout";
 const char kAddAccountURL[] = "/AddSession";
@@ -229,7 +228,6 @@ std::unique_ptr<HttpResponse> HandleSigninURL(
     const HttpRequest& request) {
   if (!net::test_server::ShouldHandle(request, kSigninURL) &&
       !net::test_server::ShouldHandle(request, kChromeSyncEndpointURL) &&
-      !net::test_server::ShouldHandle(request, kSigninWithOutageInDiceURL) &&
       !net::test_server::ShouldHandle(request, kAddAccountURL)) {
     return nullptr;
   }
@@ -247,23 +245,24 @@ std::unique_ptr<HttpResponse> HandleSigninURL(
   // Add the SIGNIN dice header.
   std::unique_ptr<BasicHttpResponse> http_response(new BasicHttpResponse);
   if (header_value != kNoDiceRequestHeader) {
-    if (net::test_server::ShouldHandle(request, kSigninWithOutageInDiceURL)) {
-      http_response->AddCustomHeader(
-          kDiceResponseHeader,
-          base::StringPrintf(
-              "action=SIGNIN,authuser=1,id=%s,email=%s,"
-              "no_authorization_code=true",
-              signin::GetTestGaiaIdForEmail(main_email).ToString().c_str(),
-              main_email.c_str()));
+    GURL url = request.GetURL();
+    std::string_view query = url.query();
+    bool is_outage = (query.find("outage=true") != std::string::npos);
+
+    std::string header_value_to_add;
+    if (is_outage) {
+      header_value_to_add = base::StringPrintf(
+          "action=SIGNIN,authuser=1,id=%s,email=%s,no_authorization_code=true",
+          signin::GetTestGaiaIdForEmail(main_email).ToString().c_str(),
+          main_email.c_str());
     } else {
-      http_response->AddCustomHeader(
-          kDiceResponseHeader,
-          base::StringPrintf(
-              "action=SIGNIN,authuser=1,id=%s,email=%s,authorization_code=%s,"
-              "eligible_for_token_binding=ES256 RS256",
-              signin::GetTestGaiaIdForEmail(main_email).ToString().c_str(),
-              main_email.c_str(), kAuthorizationCode));
+      header_value_to_add = base::StringPrintf(
+          "action=SIGNIN,authuser=1,id=%s,email=%s,authorization_code=%s,"
+          "eligible_for_token_binding=ES256 RS256",
+          signin::GetTestGaiaIdForEmail(main_email).ToString().c_str(),
+          main_email.c_str(), kAuthorizationCode);
     }
+    http_response->AddCustomHeader(kDiceResponseHeader, header_value_to_add);
   }
 
   // When hitting the Chrome Sync endpoint, redirect to kEnableSyncURL, which
@@ -877,7 +876,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, SupportOAuthOutageInDice) {
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner =
       new base::TestMockTimeTaskRunner();
   dice_response_handler->SetTaskRunner(task_runner);
-  NavigateToURL(kSigninWithOutageInDiceURL);
+  NavigateToURL(base::StrCat({kSigninURL, "?outage=true"}));
   // Check that the Dice request header was sent.
   std::string client_id = GaiaUrls::GetInstance()->oauth2_chrome_client_id();
   EXPECT_EQ(base::StringPrintf("version=%s,client_id=%s,device_id=%s,"
@@ -909,7 +908,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest,
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner =
       new base::TestMockTimeTaskRunner();
   dice_response_handler->SetTaskRunner(task_runner);
-  NavigateToURL(kSigninWithOutageInDiceURL);
+  NavigateToURL(base::StrCat({kSigninURL, "?outage=true"}));
   // Check that the Dice request header was sent.
   std::string client_id = GaiaUrls::GetInstance()->oauth2_chrome_client_id();
   EXPECT_EQ(base::StringPrintf("version=%s,client_id=%s,device_id=%s,"
@@ -1109,7 +1108,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, TurnOffDice_SignedOut) {
 
 // Tests that turning off Dice via preferences works when signed in.
 //
-// Regression test for crbug/1254325
+// Regression test for crbug.com/40794285
 IN_PROC_BROWSER_TEST_F(DiceBrowserTest, PRE_TurnOffDice_SignedIn) {
   ASSERT_NO_FATAL_FAILURE(SetupSignedInAccounts());
 
@@ -1201,8 +1200,8 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, SignInAfterToken) {
             // Some test flags (e.g. ForceWebRequestProxyForTest) can change
             // whether the reported NTP URL is chrome://newtab or
             // chrome://new-tab-page.
-            if (url == GURL(chrome::kChromeUINewTabPageURL) ||
-                url == GURL(chrome::kChromeUINewTabURL)) {
+            if (url == chrome::ChromeUINewTabPageURLAsGURL() ||
+                url == chrome::ChromeUINewTabURLAsGURL()) {
               ntp_run_loop.Quit();
             }
           }));
@@ -1253,7 +1252,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, SignInAfterToken) {
 
 // Tests that the account is signed in if the ENABLE_SYNC response is received
 // before the refresh token, and the Sync/history sync opt-in is offered.
-// https://crbug.com/1082858
+// https://crbug.com/40692152
 IN_PROC_BROWSER_TEST_F(DiceBrowserTest, ProfileSignInBeforeToken) {
   base::HistogramTester histogram_tester;
   EXPECT_EQ(0, reconcilor_started_count_);
@@ -1278,7 +1277,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, ProfileSignInBeforeToken) {
   SendRefreshTokenResponse();
 
   ui_test_utils::UrlLoadObserver ntp_url_observer(
-      (GURL(chrome::kChromeUINewTabURL)));
+      (chrome::ChromeUINewTabURLAsGURL()));
 
   EXPECT_EQ(1, reconcilor_blocked_count_);
   WaitForReconcilorUnblockedCount(1);
@@ -1346,7 +1345,7 @@ class DiceBrowserTestWithoutReplaceSyncPromosWithSignInPromos
 
 // Verifies that Chrome doesn't crash on browser window close when the sync
 // confirmation dialog is waiting for its size.
-// Regression test for https://crbug.com/1304055.
+// Regression test for https://crbug.com/40826319.
 IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithoutReplaceSyncPromosWithSignInPromos,
                        CloseBrowserWhileInitializingSyncConfirmation) {
   content::TestNavigationObserver sync_confirmation_url_observer(
@@ -1974,7 +1973,7 @@ class DiceManageAccountBrowserTest : public DiceBrowserTest {
   void SetUp() override {
 #if BUILDFLAG(IS_WIN)
     // Shortcut deletion delays tests shutdown on Win-7 and results in time out.
-    // See crbug.com/1073451.
+    // See crbug.com/40686320.
     AppShortcutManager::SuppressShortcutsForTesting();
 #endif
     DiceBrowserTest::SetUp();

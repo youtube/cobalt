@@ -70,7 +70,7 @@ enum class ProfileSignout {
   kIosAccountRemovedFromDeviceAfterRestore = 15,
   // User clicked to 'Turn off sync' from the settings page.
   // Currently only available for Android Unicorn users.
-  kUserClickedRevokeSyncConsentSettings = 16,
+  // Deprecated: kUserClickedRevokeSyncConsentSettings = 16,
   // User clicked to signout from the settings page.
   kUserClickedSignoutProfileMenu = 17,
   // User retriggered signin from the Android sign-in bottomsheet.
@@ -340,10 +340,12 @@ enum class AccessPoint : int {
   kIosAppBar = 99,
   // Sign in from the Page Action Menu.
   kIosPageActionMenu = 100,
+  // Autofill and passwords settings page on iOS and Android.
+  kSettingsAutofillAndPasswords = 101,
   // Add values above this line with a corresponding label to the
   // "SigninAccessPoint" enum in
   // tools/metrics/histograms/metadata/signin/enums.xml.
-  kMaxValue = kIosPageActionMenu,  // This must be last.
+  kMaxValue = kSettingsAutofillAndPasswords,  // This must be last.
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 

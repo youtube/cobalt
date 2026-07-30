@@ -55,12 +55,12 @@ ChipController::ChipController(
     LocationBar* location_bar,
     ContentSettingImageViewDelegate* content_settings_image_delegate,
     PermissionChipInterface* chip,
-    PermissionDashboardView* permission_dashboard_view,
+    PermissionDashboardInterface* permission_dashboard,
     PermissionDashboardController* permission_dashboard_controller)
     : location_bar_(location_bar),
       content_settings_image_delegate_(content_settings_image_delegate),
       chip_(chip),
-      permission_dashboard_view_(permission_dashboard_view),
+      permission_dashboard_(permission_dashboard),
       permission_dashboard_controller_(permission_dashboard_controller) {
   chip_->SetVisible(false);
 }
@@ -228,7 +228,7 @@ void ChipController::OnWidgetDestroyed(views::Widget* widget) {
 
 void ChipController::OnWidgetActivationChanged(views::Widget* widget,
                                                bool active) {
-  // This logic prevents clickjacking. See https://crbug.com/1160485
+  // This logic prevents clickjacking. See https://crbug.com/40054242
   auto* prompt_bubble_widget = GetBubbleWidget();
   if (active && !parent_was_visible_when_activation_changed_) {
     // If the widget is active and the primary window wasn't active the last
@@ -280,9 +280,9 @@ void ChipController::InitializePermissionPrompt(
   // a request chip is shown --> only once a confirmation should be displayed,
   // the chip should become visible.
   chip_->SetVisible(false);
-  if (permission_dashboard_view_ &&
-      !permission_dashboard_view_->GetIndicatorChip()->GetVisible()) {
-    permission_dashboard_view_->SetVisible(false);
+  if (permission_dashboard_ &&
+      !permission_dashboard_->GetIndicatorChip()->GetVisible()) {
+    permission_dashboard_->SetVisible(false);
   }
   permission_prompt_model_ =
       std::make_unique<PermissionPromptChipModel>(delegate);
@@ -344,9 +344,8 @@ void ChipController::ShowPermissionUi(
 
   chip_->SetVisible(true);
 
-  if (permission_dashboard_view_) {
-    permission_dashboard_view_->SetVisible(true);
-    permission_dashboard_view_->UpdateDividerViewVisibility();
+  if (permission_dashboard_) {
+    permission_dashboard_->SetVisible(true);
   }
 
   SyncChipWithModel();
@@ -433,7 +432,7 @@ void ChipController::ResetPermissionPromptChip() {
               ->web_contents()
               ->GetLastCommittedURL();
       bool should_ignore_omnibox_state_check =
-          visible_url == GURL(chrome::kChromeUINewTabURL) ||
+          visible_url == chrome::ChromeUINewTabURLAsGURL() ||
           committed_url.host() == chrome::kChromeUIOmniboxPopupHost ||
           committed_url.host() == chrome::kChromeUIContextualTasksHost;
 
@@ -515,8 +514,8 @@ void ChipController::AnimateExpand() {
   chip_->AnimateExpand(
       gfx::Animation::RichAnimationDuration(base::Milliseconds(350)));
   chip_->SetVisible(true);
-  if (permission_dashboard_view_) {
-    permission_dashboard_view_->SetVisible(true);
+  if (permission_dashboard_) {
+    permission_dashboard_->SetVisible(true);
   }
 }
 
@@ -602,14 +601,11 @@ void ChipController::HideChip() {
   }
 
   chip_->SetVisible(false);
-  if (permission_dashboard_view_) {
-    // The request chip is gone, the divider view is no longer needed.
-    permission_dashboard_view_->UpdateDividerViewVisibility();
-
-    // Hide the parent view `permission_dashboard_view_` if no children are
+  if (permission_dashboard_) {
+    // Hide the parent view `permission_dashboard_` if no children are
     // visible.
-    if (!permission_dashboard_view_->GetIndicatorChip()->GetVisible()) {
-      permission_dashboard_view_->SetVisible(false);
+    if (!permission_dashboard_->GetIndicatorChip()->GetVisible()) {
+      permission_dashboard_->SetVisible(false);
     }
   }
   // When the chip visibility changed from visible -> hidden, the locationbar

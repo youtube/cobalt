@@ -12,6 +12,7 @@
 #include "base/task/thread_pool/job_task_source.h"
 #include "base/threading/platform_thread.h"
 #include "build/blink_buildflags.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
@@ -200,6 +201,32 @@ BASE_FEATURE(kRetryCreateFileMappingOnCommitLimit, FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPumpPeekMessageWithObserver, FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_POSIX)
+// If enabled, threads acquiring a base::Lock will try to acquire it in user
+// space. The `kSpinCount` parameter represents the maximum number of pause
+// instructions (yields) that will be executed with an exponential backoff
+// before blocking in the kernel.
+BASE_FEATURE(kBaseLockTrySpin, FEATURE_DISABLED_BY_DEFAULT);
+#if defined(ARCH_CPU_X86_FAMILY)
+BASE_FEATURE_PARAM(int, kSpinCountX86, &kBaseLockTrySpin, "spin_count_x86", 0);
+#elif defined(ARCH_CPU_ARM_FAMILY)
+BASE_FEATURE_PARAM(int, kSpinCountArm, &kBaseLockTrySpin, "spin_count_arm", 0);
+#endif
+
+namespace {
+int GetBaseLockSpinCount() {
+#if defined(ARCH_CPU_X86_FAMILY)
+  return kSpinCountX86.Get();
+#elif defined(ARCH_CPU_ARM_FAMILY)
+  return kSpinCountArm.Get();
+#else
+    return 0;
+#endif  // defined(ARCH_CPU_X86_FAMILY)
+}
+}  // namespace
+
+#endif  // BUILDFLAG(IS_POSIX)
+
 bool IsReducePPMsEnabled() {
   return g_is_reduce_ppms_enabled.load(std::memory_order_relaxed);
 }
@@ -207,6 +234,11 @@ bool IsReducePPMsEnabled() {
 void Init() {
   g_is_reduce_ppms_enabled.store(FeatureList::IsEnabled(kReducePPMs),
                                  std::memory_order_relaxed);
+#if BUILDFLAG(IS_POSIX)
+  if (FeatureList::IsEnabled(kBaseLockTrySpin)) {
+    base::internal::LockImpl::SetTrySpinCount(GetBaseLockSpinCount());
+  }
+#endif  // BUILDFLAG(IS_POSIX)
 
   sequence_manager::internal::SequenceManagerImpl::InitializeFeatures();
   sequence_manager::internal::ThreadController::InitializeFeatures();

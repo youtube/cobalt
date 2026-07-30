@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/policy/core/browser/policy_conversions.h"
 #include "components/policy/core/common/features.h"
+#include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/pref_names.h"
@@ -119,11 +120,13 @@ std::string SourceToString(policy::PolicySource source) {
 struct PolicyEntryData {
   PolicyEntryData(const std::string& version,
                   const policy::PolicyMap::Entry* entry)
-      : entry_(raw_ref<const policy::PolicyMap::Entry>::from_ptr(entry)) {
-    const base::Value* value =
-        entry_->value(base::Value::Type::DICT)->GetDict().Find(version);
+      : entry_(raw_ref<const policy::PolicyMap::Entry>::from_ptr(entry)),
+        value_(raw_ref<const base::DictValue>::from_ptr(
+            entry_->value(base::Value::Type::DICT)
+                ->GetDict()
+                .FindDict(version))) {
     action_ = static_cast<em::ExtensionInstallPolicy::Action>(
-        value->GetDict().FindInt("action").value_or(
+        value_->FindInt("action").value_or(
             em::ExtensionInstallPolicy::ACTION_ALLOW));
   }
 
@@ -143,12 +146,11 @@ struct PolicyEntryData {
   // formatted for the policy UI.
   base::DictValue ToDict() const {
     base::DictValue dict;
-    if (value_) {
+    {
       base::DictValue val_dict;
       val_dict.Set("action", ActionToString(action_));
-      val_dict.Set("reasons",
-                   ReasonsToListValue(value_->GetDict().FindList("reasons")));
-      if (const auto* risk_levels = value_->GetDict().FindDict("risk_levels")) {
+      val_dict.Set("reasons", ReasonsToListValue(value_->FindList("reasons")));
+      if (const auto* risk_levels = value_->FindDict("risk_levels")) {
         val_dict.Set("risk_levels", RiskLevelsToValue(risk_levels));
       }
       dict.Set("value", std::move(val_dict));
@@ -159,11 +161,11 @@ struct PolicyEntryData {
     return dict;
   }
 
-  const std::optional<base::Value>& value() const { return value_; }
+  const base::DictValue& value() const { return value_.get(); }
 
  private:
   raw_ref<const policy::PolicyMap::Entry> entry_;
-  std::optional<base::Value> value_;
+  raw_ref<const base::DictValue> value_;
   em::ExtensionInstallPolicy::Action action_;
 };
 
@@ -203,6 +205,14 @@ base::DictValue GetAggregatedPolicyValueForExtension(
   return dict;
 }
 
+base::DictValue GetPoliciesValuesDict(base::DictValue policies_values_dict) {
+  return base::DictValue().Set(
+      policy::kExtensionInstallPoliciesId,
+      base::DictValue()
+          .Set(policy::kNameKey, policy::kExtensionInstallPoliciesName)
+          .Set(policy::kPoliciesKey, std::move(policies_values_dict)));
+}
+
 }  // namespace
 
 ExtensionInstallPoliciesValueProvider::ExtensionInstallPoliciesValueProvider(
@@ -217,17 +227,20 @@ ExtensionInstallPoliciesValueProvider::
     ~ExtensionInstallPoliciesValueProvider() = default;
 
 base::DictValue ExtensionInstallPoliciesValueProvider::GetValues() {
+  base::DictValue policies_values_dict;
+
   if (!base::FeatureList::IsEnabled(
           policy::features::kEnableExtensionInstallPolicyFetching)) {
-    return base::DictValue();
+    return GetPoliciesValuesDict(std::move(policies_values_dict));
   }
+
   if (!profile_->GetPrefs()->GetBoolean(
           extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled)) {
-    return base::DictValue();
+    return GetPoliciesValuesDict(std::move(policies_values_dict));
   }
   auto* policy_service = GetPolicyService(&profile_.get());
   if (!policy_service) {
-    return base::DictValue();
+    return GetPoliciesValuesDict(std::move(policies_values_dict));
   }
   const extensions::ExtensionRegistry* registry =
       extensions::ExtensionRegistry::Get(&profile_.get());
@@ -248,7 +261,6 @@ base::DictValue ExtensionInstallPoliciesValueProvider::GetValues() {
   //   },
   //   ...
   // }
-  base::DictValue dict;
   const policy::PolicyMap& extension_install_policy_map =
       policy_service->GetPolicies(policy::PolicyNamespace(
           policy::POLICY_DOMAIN_EXTENSION_INSTALL, std::string()));
@@ -264,21 +276,19 @@ base::DictValue ExtensionInstallPoliciesValueProvider::GetValues() {
 
       if (const auto* extension =
               registry->GetInstalledExtension(extension_id)) {
-        dict.Set(absl::StrFormat("%s (%s@%s)", extension->name(), extension_id,
-                                 extension_version),
-                 std::move(policy_dict));
+        policies_values_dict.Set(
+            absl::StrFormat("%s (%s@%s)", extension->name(), extension_id,
+                            extension_version),
+            std::move(policy_dict));
       } else {
-        dict.Set(absl::StrFormat("%s@%s", extension_id, extension_version),
-                 std::move(policy_dict));
+        policies_values_dict.Set(
+            absl::StrFormat("%s@%s", extension_id, extension_version),
+            std::move(policy_dict));
       }
     }
   }
 
-  return base::DictValue().Set(
-      policy::kExtensionInstallPoliciesId,
-      base::DictValue()
-          .Set(policy::kNameKey, policy::kExtensionInstallPoliciesName)
-          .Set(policy::kPoliciesKey, std::move(dict)));
+  return GetPoliciesValuesDict(std::move(policies_values_dict));
 }
 
 base::DictValue ExtensionInstallPoliciesValueProvider::GetNames() {
@@ -286,11 +296,6 @@ base::DictValue ExtensionInstallPoliciesValueProvider::GetNames() {
           policy::features::kEnableExtensionInstallPolicyFetching)) {
     return base::DictValue();
   }
-  if (!profile_->GetPrefs()->GetBoolean(
-          extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled)) {
-    return base::DictValue();
-  }
-
   return base::DictValue().Set(
       policy::kExtensionInstallPoliciesId,
       base::DictValue()

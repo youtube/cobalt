@@ -38,6 +38,7 @@ public class CoBrowseViewFactory {
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
     private final SnackbarManager mSnackbarManager;
     private final ContextMenuPopulatorFactory mContextMenuPopulatorFactory;
+    private final CoBrowseViewsZoomControl mZoomControl;
 
     /**
      * Factory responsible for creating co-browse content.
@@ -51,6 +52,7 @@ public class CoBrowseViewFactory {
      * @param snackbarManager The {@link SnackbarManager} for managing snackbar messages.
      * @param contextMenuPopulatorFactory The {@link ContextMenuPopulatorFactory} to show context
      *     menu on the ThinWebView.
+     * @param zoomControl The control for zooming the WebContents.
      */
     public CoBrowseViewFactory(
             Activity activity,
@@ -59,7 +61,8 @@ public class CoBrowseViewFactory {
             WindowAndroid windowAndroid,
             ActivityLifecycleDispatcher lifecycleDispatcher,
             SnackbarManager snackbarManager,
-            ContextMenuPopulatorFactory contextMenuPopulatorFactory) {
+            ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            CoBrowseViewsZoomControl zoomControl) {
         mActivity = activity;
         mFuseboxConfig = fuseboxConfig;
         mProfileSupplier = profileSupplier;
@@ -67,6 +70,7 @@ public class CoBrowseViewFactory {
         mLifecycleDispatcher = lifecycleDispatcher;
         mSnackbarManager = snackbarManager;
         mContextMenuPopulatorFactory = contextMenuPopulatorFactory;
+        mZoomControl = zoomControl;
 
         TabBottomSheetUtils.attachFactoryToWindow(windowAndroid, this);
     }
@@ -81,24 +85,29 @@ public class CoBrowseViewFactory {
      * WebContents showing in a ThinWebView.
      *
      * @param webContents The {@link WebContents} to be displayed in the thin web view.
-     * @param showFusebox Whether to show the fusebox. Currently only used by contextual tasks.
      * @param backgroundColor The background color for the content.
+     * @param clientType The client using coBrowseViews.
      * @return The {@link CoBrowseViews} instance.
      */
     CoBrowseViews buildCoBrowseViews(
-            @Nullable WebContents webContents, boolean showFusebox, @ColorInt int backgroundColor) {
+            @Nullable WebContents webContents,
+            @ColorInt int backgroundColor,
+            @TabBottomSheetClientType int clientType) {
         TabBottomSheetWebUi webUi =
                 new TabBottomSheetWebUi(
-                        mActivity, mWindowAndroid, mContextMenuPopulatorFactory, backgroundColor);
+                        mActivity,
+                        mWindowAndroid,
+                        mContextMenuPopulatorFactory,
+                        backgroundColor,
+                        mZoomControl);
         ContextualTasksFusebox fusebox = null;
-        if (showFusebox) {
+        if (clientType == TabBottomSheetClientType.CONTEXTUAL_TASKS) {
             // TaskState retrieval from Manager.
             ContextualTasksFuseboxManager manager =
                     ContextualTasksFuseboxManager.from(mWindowAndroid);
             if (manager != null) {
                 // TODO(crbug.com/491504815): Get task ID from native and ensure the session is
                 // initialized for this task and WebContents.
-
                 fusebox =
                         new ContextualTasksFusebox(
                                 mActivity,
@@ -115,7 +124,7 @@ public class CoBrowseViewFactory {
 
         webUi.setWebContents(webContents);
 
-        return new CoBrowseViews(mActivity, webUi, fusebox, backgroundColor);
+        return new CoBrowseViews(mActivity, clientType, webUi, fusebox, backgroundColor);
     }
 
     @CalledByNative
@@ -123,14 +132,17 @@ public class CoBrowseViewFactory {
     public static @Nullable CoBrowseViews buildCoBrowseViews(
             @JniType("ui::WindowAndroid*") WindowAndroid windowAndroid,
             @Nullable @JniType("content::WebContents*") WebContents webContents,
-            boolean showFusebox) {
+            @TabBottomSheetClientType int clientType) {
         CoBrowseViewFactory factory = TabBottomSheetUtils.getFactoryFromWindow(windowAndroid);
         if (factory == null) {
             return null;
         }
 
-        // TODO(crbug.com/502611927): This may need to be different for AIM.
-        @ColorInt int backgroundColor = factory.mActivity.getColor(R.color.tab_bottom_sheet_bg);
-        return factory.buildCoBrowseViews(webContents, showFusebox, backgroundColor);
+        @ColorInt
+        int backgroundColor =
+                clientType == TabBottomSheetClientType.GLIC
+                        ? factory.mActivity.getColor(R.color.tab_bottom_sheet_glic_bg)
+                        : factory.mActivity.getColor(R.color.tab_bottom_sheet_base_bg);
+        return factory.buildCoBrowseViews(webContents, backgroundColor, clientType);
     }
 }

@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.h"
 #include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client_factory.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
 #include "chrome/browser/password_manager/factories/account_password_store_factory.h"
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/policy/dm_token_utils.h"
@@ -331,10 +332,8 @@ class ChromePasswordProtectionServiceTest
     enterprise_connectors::RealtimeReportingClientFactory::GetInstance()
         ->SetTestingFactory(
             browser_context(),
-            base::BindRepeating([](content::BrowserContext* context) {
-              return std::unique_ptr<KeyedService>(
-                  new enterprise_connectors::RealtimeReportingClient(context));
-            }));
+            base::BindRepeating(
+                &enterprise_connectors::test::BuildRealtimeReportingClient));
 
     client_ = std::make_unique<policy::MockCloudPolicyClient>();
     client_->SetDMToken("fake-token");
@@ -383,7 +382,7 @@ class ChromePasswordProtectionServiceTest
         new SafeBrowsingUIManager(
             std::make_unique<ChromeSafeBrowsingUIManagerDelegate>(),
             std::make_unique<ChromeSafeBrowsingBlockingPageFactory>(),
-            GURL(chrome::kChromeUINewTabURL)),
+            chrome::ChromeUINewTabURLAsGURL()),
         sync_password_hash_provider, cache_manager_.get(),
         mock_add_callback_.Get(), mock_remove_callback_.Get());
 #else
@@ -395,7 +394,7 @@ class ChromePasswordProtectionServiceTest
         new SafeBrowsingUIManager(
             std::make_unique<ChromeSafeBrowsingUIManagerDelegate>(),
             std::make_unique<ChromeSafeBrowsingBlockingPageFactory>(),
-            GURL(chrome::kChromeUINewTabURL)),
+            chrome::ChromeUINewTabURLAsGURL()),
         sync_password_hash_provider, cache_manager_.get(),
         mock_add_callback_.Get(), mock_remove_callback_.Get(),
         std::move(checkup_launcher));

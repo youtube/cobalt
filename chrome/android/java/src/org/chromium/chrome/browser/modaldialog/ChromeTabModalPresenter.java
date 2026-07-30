@@ -54,7 +54,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
     private final Activity mActivity;
 
     private final Supplier<TabObscuringHandler> mTabObscuringHandlerSupplier;
-    private final Supplier<ToolbarManager> mToolbarManagerSupplier;
+    private final Supplier<@Nullable ToolbarManager> mToolbarManagerSupplier;
     private final Runnable mHideContextualSearch;
     private final FullscreenManager mFullscreenManager;
     private final BrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
@@ -113,7 +113,7 @@ public class ChromeTabModalPresenter extends TabModalPresenter
     public ChromeTabModalPresenter(
             Activity activity,
             Supplier<TabObscuringHandler> tabObscuringHandlerSupplier,
-            Supplier<ToolbarManager> toolbarManagerSupplier,
+            Supplier<@Nullable ToolbarManager> toolbarManagerSupplier,
             Runnable hideContextualSearch,
             FullscreenManager fullscreenManager,
             BrowserControlsVisibilityManager browserControlsVisibilityManager,
@@ -230,11 +230,6 @@ public class ChromeTabModalPresenter extends TabModalPresenter
 
     @Override
     protected void setBrowserControlsAccess(boolean restricted) {
-        var toolbarManager = mToolbarManagerSupplier.get();
-        if (toolbarManager == null) return;
-
-        View menuButton = mToolbarManagerSupplier.get().getMenuButtonView();
-
         if (restricted) {
             mActiveTab = mTabModelSelector.getCurrentTab();
             assert mActiveTab != null
@@ -253,11 +248,14 @@ public class ChromeTabModalPresenter extends TabModalPresenter
             // Force toolbar to show and disable overflow menu.
             onTabModalDialogStateChanged(true);
 
-            mToolbarManagerSupplier.get().setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
+            ToolbarManager toolbarManager = getToolbarManager();
+            if (toolbarManager != null) {
+                toolbarManager.setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
+            }
 
-            if (menuButton != null) menuButton.setEnabled(false);
+            setMenuButtonEnabled(false);
         } else {
-            assumeNonNull(mActiveTab);
+            if (mActiveTab == null) return;
 
             // Show the action bar back if it was dismissed when the dialogs were showing.
             WebContents webContents = mActiveTab.getWebContents();
@@ -266,9 +264,36 @@ public class ChromeTabModalPresenter extends TabModalPresenter
             }
 
             onTabModalDialogStateChanged(false);
-            if (menuButton != null) menuButton.setEnabled(true);
+            setMenuButtonEnabled(true);
             mActiveTab = null;
         }
+    }
+
+    /**
+     * @param enabled Whether the menu button should be enabled.
+     */
+    private void setMenuButtonEnabled(boolean enabled) {
+        ToolbarManager toolbarManager = getToolbarManager();
+        if (toolbarManager == null) return;
+
+        View menuButton = toolbarManager.getMenuButtonView();
+        if (menuButton != null) menuButton.setEnabled(enabled);
+    }
+
+    /** Returns the {@link ToolbarManager} or null if it has been destroyed. */
+    private @Nullable ToolbarManager getToolbarManager() {
+        try {
+            return mToolbarManagerSupplier.get();
+        } catch (AssertionError e) {
+            // mToolbarManagerSupplier.get() may throw an AssertionError if the toolbar has
+            // been destroyed during Activity destruction. See RootUiCoordinator#getToolbarManager.
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    void setActiveTabForTesting(Tab tab) {
+        mActiveTab = tab;
     }
 
     @Override

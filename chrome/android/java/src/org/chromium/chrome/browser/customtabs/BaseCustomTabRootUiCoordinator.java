@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.customtabs;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.flags.CustomTabProfileType.INCOGNITO;
 
 import android.content.Intent;
@@ -16,8 +17,6 @@ import android.view.View;
 import android.widget.RelativeLayout;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -35,6 +34,8 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.blink.mojom.DisplayMode;
+import org.chromium.build.annotations.MonotonicNonNull;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.IntentHandler;
@@ -136,7 +137,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     private final Supplier<CustomTabMinimizeDelegate> mMinimizeDelegateSupplier;
     private final SearchActivityClient mCustomTabSearchClient;
 
-    private CustomTabHeightStrategy mCustomTabHeightStrategy;
+    private @MonotonicNonNull CustomTabHeightStrategy mCustomTabHeightStrategy;
 
     private @Nullable BrandingController mBrandingController;
 
@@ -146,8 +147,8 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     private @Nullable ReadAloudIphController mReadAloudIphController;
     private @Nullable GoogleBottomBarCoordinator mGoogleBottomBarCoordinator;
 
-    private @Nullable EdgeToEdgeSupplier.ChangeObserver mEdgeToEdgeChangeObserver;
-    private final @NonNull Runnable mOpenInBrowserRunnable;
+    private EdgeToEdgeSupplier.@Nullable ChangeObserver mEdgeToEdgeChangeObserver;
+    private final Runnable mOpenInBrowserRunnable;
     private @Nullable WebAppHeaderLayoutCoordinator mWebAppHeaderLayoutCoordinator;
     private final Supplier<BrowserServicesThemeColorProvider> mWebAppThemeColorProvider;
     private final @Nullable String mClientPackageName;
@@ -201,48 +202,45 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
      * @param clientPackageName If provided, the client package name of the embedder
      */
     public BaseCustomTabRootUiCoordinator(
-            @NonNull AppCompatActivity activity,
-            @NonNull MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
-            @NonNull ActivityTabProvider tabProvider,
-            @NonNull CustomTabActivityTabProvider customTabProvider,
-            @NonNull MonotonicObservableSupplier<Profile> profileSupplier,
-            @NonNull NullableObservableSupplier<BookmarkModel> bookmarkModelSupplier,
-            @NonNull MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
-            @NonNull MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
-            @NonNull BrowserControlsManager browserControlsManager,
-            @NonNull ActivityWindowAndroid windowAndroid,
-            @NonNull ActivityResultTracker activityResultTracker,
-            @NonNull OneshotSupplier<ChromeAndroidTask> chromeAndroidTaskSupplier,
-            @NonNull ActivityLifecycleDispatcher activityLifecycleDispatcher,
-            @NonNull MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
-            @NonNull MenuOrKeyboardActionController menuOrKeyboardActionController,
-            @NonNull Supplier<Integer> activityThemeColorSupplier,
-            @NonNull NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
-            @NonNull AppMenuBlocker appMenuBlocker,
-            @NonNull BooleanSupplier supportsAppMenuSupplier,
-            @NonNull MonotonicObservableSupplier<TabCreatorManager> tabCreatorManagerSupplier,
-            @NonNull FullscreenManager fullscreenManager,
-            @NonNull MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @NonNull Supplier<TabContentManager> tabContentManagerSupplier,
-            @NonNull MonotonicObservableSupplier<SnackbarManager> snackbarManagerSupplier,
-            @NonNull
-                    SettableMonotonicObservableSupplier<EdgeToEdgeController>
-                            edgeToEdgeControllerSupplier,
+            AppCompatActivity activity,
+            MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
+            ActivityTabProvider tabProvider,
+            CustomTabActivityTabProvider customTabProvider,
+            MonotonicObservableSupplier<Profile> profileSupplier,
+            NullableObservableSupplier<BookmarkModel> bookmarkModelSupplier,
+            MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
+            MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
+            BrowserControlsManager browserControlsManager,
+            ActivityWindowAndroid windowAndroid,
+            ActivityResultTracker activityResultTracker,
+            OneshotSupplier<ChromeAndroidTask> chromeAndroidTaskSupplier,
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
+            MenuOrKeyboardActionController menuOrKeyboardActionController,
+            Supplier<Integer> activityThemeColorSupplier,
+            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+            AppMenuBlocker appMenuBlocker,
+            BooleanSupplier supportsAppMenuSupplier,
+            MonotonicObservableSupplier<TabCreatorManager> tabCreatorManagerSupplier,
+            FullscreenManager fullscreenManager,
+            MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
+            Supplier<TabContentManager> tabContentManagerSupplier,
+            MonotonicObservableSupplier<SnackbarManager> snackbarManagerSupplier,
+            SettableMonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             @ActivityType int activityType,
-            @NonNull Supplier<Boolean> isInOverviewModeSupplier,
-            @NonNull AppMenuDelegate appMenuDelegate,
-            @NonNull StatusBarColorProvider statusBarColorProvider,
-            @NonNull
-                    SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
-                            ephemeralTabCoordinatorSupplier,
-            @NonNull IntentRequestTracker intentRequestTracker,
-            @NonNull Supplier<CustomTabToolbarCoordinator> customTabToolbarCoordinator,
-            @NonNull Supplier<BrowserServicesIntentDataProvider> intentDataProvider,
-            @NonNull BackPressManager backPressManager,
-            @NonNull Supplier<CustomTabActivityTabController> tabController,
-            @NonNull Supplier<CustomTabMinimizeDelegate> minimizeDelegateSupplier,
-            @NonNull Runnable openInBrowserRunnable,
-            @NonNull EdgeToEdgeManager edgeToEdgeManager,
+            Supplier<Boolean> isInOverviewModeSupplier,
+            AppMenuDelegate appMenuDelegate,
+            StatusBarColorProvider statusBarColorProvider,
+            SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
+                    ephemeralTabCoordinatorSupplier,
+            IntentRequestTracker intentRequestTracker,
+            Supplier<CustomTabToolbarCoordinator> customTabToolbarCoordinator,
+            Supplier<BrowserServicesIntentDataProvider> intentDataProvider,
+            BackPressManager backPressManager,
+            Supplier<CustomTabActivityTabController> tabController,
+            Supplier<CustomTabMinimizeDelegate> minimizeDelegateSupplier,
+            Runnable openInBrowserRunnable,
+            EdgeToEdgeManager edgeToEdgeManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             @Nullable Supplier<BrowserServicesThemeColorProvider> webAppThemeColorProvider,
             @Nullable String clientPackageName) {
@@ -344,7 +342,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         }
     }
 
-    MismatchNotificationChecker createMismatchNotificationChecker(String appId) {
+    @Nullable MismatchNotificationChecker createMismatchNotificationChecker(String appId) {
         CustomTabsConnection connection = CustomTabsConnection.getInstance();
         Intent intent = mIntentDataProvider.get().getIntent();
         if (!connection.isAppForAccountMismatchNotification(intent)) return null;
@@ -453,6 +451,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                     .get()
                     .onToolbarInitialized(mToolbarManager, mToolbarButtonsCoordinator);
             View coordinator = mActivity.findViewById(R.id.coordinator);
+            assumeNonNull(mCustomTabHeightStrategy);
             mCustomTabHeightStrategy.onToolbarInitialized(
                     coordinator,
                     toolbar,
@@ -478,6 +477,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         var cpac = getContextualPageActionController();
         if (cpac != null) cpac.setButtonVisibilitySupplier(toolbar.getShowOptionalButton());
         View coordinator = mActivity.findViewById(R.id.coordinator);
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.onToolbarInitialized(
                 coordinator,
                 toolbar,
@@ -551,11 +551,13 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                 controller.tryToReengageTheUser();
                             }
                             if (mAppMenuCoordinator != null) {
+                                View menuButtonView = getToolbarManager().getMenuButtonView();
+                                assert menuButtonView != null;
                                 mReadAloudIphController =
                                         new ReadAloudIphController(
                                                 mActivity,
                                                 profile,
-                                                getToolbarManager().getMenuButtonView(),
+                                                menuButtonView,
                                                 mAppMenuCoordinator.getAppMenuHandler(),
                                                 mActivityTabProvider.asObservable(),
                                                 mReadAloudControllerSupplier,
@@ -576,15 +578,17 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         }
     }
 
-    public CustomTabHistoryIphController getHistoryIphController() {
+    public @Nullable CustomTabHistoryIphController getHistoryIphController() {
         return mCustomTabHistoryIphController;
     }
 
     public ContextualPageActionController getContextualPageActionController() {
+        assumeNonNull(mAdaptiveToolbarUiCoordinator);
         return mAdaptiveToolbarUiCoordinator.getContextualPageActionController();
     }
 
     public void runPriceInsightsAction() {
+        assumeNonNull(mAdaptiveToolbarUiCoordinator);
         mAdaptiveToolbarUiCoordinator.runPriceInsightsAction();
     }
 
@@ -647,9 +651,11 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         showRegularOverviewIntent.putExtra(IntentHandler.EXTRA_OPEN_REGULAR_OVERVIEW_MODE, true);
         IntentUtils.addTrustedIntentExtras(showRegularOverviewIntent);
 
+        var tabModelSelector = mTabModelSelectorSupplier.get();
+        assert tabModelSelector != null;
         return new IncognitoReauthCoordinatorFactory(
                 mActivity,
-                mTabModelSelectorSupplier.get(),
+                tabModelSelector,
                 mModalDialogManagerSupplier.get(),
                 new IncognitoReauthManager(mActivity, profile),
                 /* layoutManager= */ null,
@@ -688,11 +694,11 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                 CustomTabHeightStrategy.createStrategy(
                         mActivity,
                         intentDataProvider,
-                        () -> mCompositorViewHolderSupplier.get(),
-                        () -> mTabModelSelectorSupplier.get().getCurrentTab(),
+                        () -> assumeNonNull(mCompositorViewHolderSupplier.get()),
+                        () -> assumeNonNull(mTabModelSelectorSupplier.get()).getCurrentTab(),
                         mActivityLifecycleDispatcher,
                         mFullscreenManager,
-                        () -> mMinimizeDelegateSupplier.get().isMinimized(),
+                        () -> assumeNonNull(mMinimizeDelegateSupplier.get()).isMinimized(),
                         DeviceFormFactor.isWindowOnTablet(mWindowAndroid));
 
         // Drag drop of files such as an image should not replace the tab contents for CCT, but
@@ -708,13 +714,13 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                     }
 
                     @Override
-                    public void onInitialTabCreated(@NonNull Tab tab, int mode) {
+                    public void onInitialTabCreated(Tab tab, int mode) {
                         setCanAcceptLoadDrops(tab, false);
                         mTab = tab;
                     }
 
                     @Override
-                    public void onTabSwapped(@NonNull Tab tab) {
+                    public void onTabSwapped(Tab tab) {
                         setCanAcceptLoadDrops(mTab, true);
                         setCanAcceptLoadDrops(tab, false);
                         mTab = tab;
@@ -739,14 +745,13 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                 new RelativeLayout.LayoutParams(contentView.getLayoutParams());
         if (headerAsOverlay) {
             layoutParams.removeRule(RelativeLayout.BELOW);
-            layoutParams.topMargin =
-                    getDesktopWindowStateManager()
-                            .getAppHeaderState()
-                            .getCaptionControlsTopOffset();
+            var desktopWindowStateManager = getDesktopWindowStateManager();
+            assumeNonNull(desktopWindowStateManager);
+            var appHeaderState = desktopWindowStateManager.getAppHeaderState();
+            assumeNonNull(appHeaderState);
+            layoutParams.topMargin = appHeaderState.getCaptionControlsTopOffset();
         } else {
-            layoutParams.addRule(
-                    RelativeLayout.BELOW,
-                    org.chromium.chrome.browser.web_app_header.R.id.web_app_header_layout);
+            layoutParams.addRule(RelativeLayout.BELOW, R.id.web_app_header_layout);
             layoutParams.topMargin = 0;
         }
 
@@ -761,6 +766,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     @Override
     public void onPostInflationStartup() {
         super.onPostInflationStartup();
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.onPostInflationStartup();
         mCustomTabHistoryIphController =
                 CustomTabAppMenuHelper.maybeCreateHistoryIphController(
@@ -781,9 +787,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             mWebAppHeaderLayoutCoordinator =
                     new WebAppHeaderLayoutCoordinator(
                             mActivity,
-                            mActivity.findViewById(
-                                    org.chromium.chrome.browser.web_app_header.R.id
-                                            .web_app_header_layout),
+                            mActivity.findViewById(R.id.web_app_header_layout),
                             desktopWindowStateManager,
                             mActivityTabProvider.asObservable(),
                             mWebAppThemeColorProvider.get(),
@@ -834,6 +838,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     protected void onScrimColorChanged(@ColorInt int scrimColor) {
         super.onScrimColorChanged(scrimColor);
         // TODO(jinsukkim): Separate CCT scrim update action from status bar scrim stuff.
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.setScrimColor(scrimColor);
     }
 
@@ -874,6 +879,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         super.onFindToolbarShown();
         CustomTabToolbar toolbar = mActivity.findViewById(R.id.toolbar);
         toolbar.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.onFindToolbarShown();
     }
 
@@ -882,6 +888,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
         super.onFindToolbarHidden();
         CustomTabToolbar toolbar = mActivity.findViewById(R.id.toolbar);
         toolbar.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.onFindToolbarHidden();
     }
 
@@ -916,6 +923,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     }
 
     @Override
+    @SuppressWarnings("NullAway")
     public void onDestroy() {
         if (mEdgeToEdgeControllerSupplier.get() != null) {
             mEdgeToEdgeControllerSupplier.get().unregisterObserver(mEdgeToEdgeChangeObserver);
@@ -981,9 +989,11 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
 
     /**
      * Perform slide-down animation on closing.
+     *
      * @param finishRunnable Runnable finishing the activity after the animation.
      */
     void handleCloseAnimation(Runnable finishRunnable) {
+        assumeNonNull(mCustomTabHeightStrategy);
         mCustomTabHeightStrategy.handleCloseAnimation(finishRunnable);
     }
 
@@ -1020,7 +1030,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                         }));
     }
 
-    CustomTabHeightStrategy getCustomTabSizeStrategyForTesting() {
+    @Nullable CustomTabHeightStrategy getCustomTabSizeStrategyForTesting() {
         return mCustomTabHeightStrategy;
     }
 
@@ -1030,12 +1040,12 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
     }
 
     @VisibleForTesting
-    public WebAppHeaderLayoutCoordinator getWebAppHeaderLayoutCoordinator() {
+    public @Nullable WebAppHeaderLayoutCoordinator getWebAppHeaderLayoutCoordinator() {
         return mWebAppHeaderLayoutCoordinator;
     }
 
     @Override
-    protected @Nullable MenuButtonCoordinator.VisibilityDelegate getMenuButtonVisibilityDelegate() {
+    protected MenuButtonCoordinator.@Nullable VisibilityDelegate getMenuButtonVisibilityDelegate() {
         return mToolbarButtonsCoordinator;
     }
 }

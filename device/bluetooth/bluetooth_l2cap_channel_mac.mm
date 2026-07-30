@@ -7,7 +7,10 @@
 #include <memory>
 
 #include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "device/bluetooth/bluetooth_classic_device_mac.h"
 #include "device/bluetooth/bluetooth_socket_mac.h"
 
@@ -28,6 +31,7 @@
 
 - (instancetype)initWithChannel:(device::BluetoothL2capChannelMac*)channel
                    l2capChannel:(IOBluetoothL2CAPChannel*)l2capChannel;
+- (void)setL2capChannel:(IOBluetoothL2CAPChannel*)l2capChannel;
 
 @end
 
@@ -45,6 +49,7 @@
 
 - (void)l2capChannelOpenComplete:(IOBluetoothL2CAPChannel*)l2capChannel
                           status:(IOReturn)error {
+  CHECK(_l2capChannel);
   if (error == kIOReturnSuccess) {
     // Keep the delegate alive until l2capChannelClosed.
     _strongSelf = self;
@@ -92,6 +97,11 @@
   _channel = nullptr;
 }
 
+- (void)setL2capChannel:(IOBluetoothL2CAPChannel*)l2capChannel {
+  CHECK(!_l2capChannel);
+  _l2capChannel = l2capChannel;
+}
+
 @end
 
 namespace device {
@@ -128,10 +138,12 @@ std::unique_ptr<BluetoothL2capChannelMac> BluetoothL2capChannelMac::OpenAsync(
   *status = [device openL2CAPChannelAsync:&l2cap_channel
                                   withPSM:psm
                                  delegate:channel->delegate_];
-  if (*status == kIOReturnSuccess)
+  if (*status == kIOReturnSuccess) {
     channel->channel_ = l2cap_channel;
-  else
+    [channel->delegate_ setL2capChannel:l2cap_channel];
+  } else {
     channel.reset();
+  }
 
   return channel;
 }
@@ -175,8 +187,12 @@ void BluetoothL2capChannelMac::OnChannelOpenComplete(
     DCHECK_EQ(status, kIOReturnSuccess);
   }
 
-  socket()->OnChannelOpenComplete(
-      BluetoothClassicDeviceMac::GetDeviceAddress([channel device]), status);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&BluetoothSocketMac::OnChannelOpenComplete,
+                                base::WrapRefCounted(socket()),
+                                BluetoothClassicDeviceMac::GetDeviceAddress(
+                                    [channel device]),
+                                status));
 }
 
 void BluetoothL2capChannelMac::OnChannelClosed(

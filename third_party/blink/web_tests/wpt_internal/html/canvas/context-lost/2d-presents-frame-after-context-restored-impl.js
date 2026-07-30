@@ -2,16 +2,7 @@
 // restores its 2D context from a GPU process termination.
 async function Test2dPresentsFrameAfterContextRestored(
     canvas, {desynchronized = false} = {}) {
-  const ctx = canvas.getContext('2d', {
-    desynchronized: desynchronized,
-  });
-
-  const contextLost = new Promise(resolve => {
-    canvas.oncontextlost = resolve;
-  });
-  const contextRestored = new Promise(resolve => {
-    canvas.oncontextrestored = resolve;
-  });
+  const ctx = get2dContext(canvas);
 
   // Draw something and crash the GPU process.
   ctx.fillStyle = 'red';
@@ -19,8 +10,8 @@ async function Test2dPresentsFrameAfterContextRestored(
 
   chrome.gpuBenchmarking.terminateGpuProcessNormally();
 
-  await contextLost;
-  await contextRestored;
+  await waitForContextLost(ctx);
+  await waitForContextRestored(ctx);
 
   // Once restored, the canvas should be usable as if it's a new canvas.
   ctx.fillStyle = 'lime';

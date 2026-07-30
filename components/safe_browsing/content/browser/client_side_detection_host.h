@@ -222,7 +222,11 @@ class ClientSideDetectionHost
 
   // User requests to report a site as unsafe. The screenshot values come from
   // the report dialog view.
-  void ReportUnsafeSite(SkBitmap screenshot);
+  void ReportUnsafeSite(SkBitmap screenshot, base::OnceClosure callback);
+
+  // Called when an unfamiliar login page is detected (e.g. via password field
+  // focus).
+  void OnUnfamiliarLoginPageDetected();
 
   // Sets a callback to be notified when preclassification is started.
   void set_preclassification_started_callback_for_testing(
@@ -252,6 +256,7 @@ class ClientSideDetectionHost
   friend class ClientSideDetectionHostCreditCardFormTest;
   friend class ClientSideDetectionHostClipboardDataTest;
   friend class ClientSideDetectionHostGeminiAntiscamProtectionTest;
+  friend class ClientSideDetectionHostPriorityTest;
   friend class ClientSideDetectionHostPrerenderBrowserTest_Screenshot;
   class ShouldClassifyUrlRequest;
   friend class ShouldClassifyUrlRequest;
@@ -569,6 +574,13 @@ class ClientSideDetectionHost
       ClientSideDetectionType client_side_detection_type,
       std::optional<std::string> credit_card_form_event);
 
+  // Returns true if the new request type has a higher or same priority tier
+  // than the last request type.
+  bool NewRequestTypeTierHigher(ClientSideDetectionType new_request_type);
+
+  // Returns the tier value for the given request type.
+  int GetTierValue(ClientSideDetectionType request_type);
+
   // OnCreditCardFormVisitCount is a callback that is called when site
   // visit count on a credit card form event is complete, at which point
   // it determines whether a credit card from event should trigger a CSD
@@ -594,6 +606,15 @@ class ClientSideDetectionHost
   // Fills in the screenshot data for the given `request`. Only fill if the
   // report type is USER_REPORT.
   void MaybeFillScreenshotData(ClientPhishingRequest* request);
+
+  // Helper method to run the callback.
+  void MaybeRunUserReportCallback();
+
+  // The callback for the report a scam dialog.
+  base::OnceClosure user_report_callback_;
+
+  // Timer to call the user report callback.
+  base::OneShotTimer user_report_timeout_timer_;
 
   // This pointer may be nullptr if client-side phishing detection is
   // disabled.
@@ -720,10 +741,11 @@ class ClientSideDetectionHost
   // when a user reports a site as unsafe.
   std::optional<SkBitmap> screenshot_;
 
-  // Tracks the state of the process running and the currently running
+  // Track the states of the processes running and the currently running
   // ClientSideDetectionType. This begins at the CLASSIFY bucket in
   // PreClassificationCheck until just prior to the network request being sent.
   bool is_csd_running_ = false;
+  bool is_classifying_ = false;
   ClientSideDetectionType last_request_type_ =
       ClientSideDetectionType::CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED;
 

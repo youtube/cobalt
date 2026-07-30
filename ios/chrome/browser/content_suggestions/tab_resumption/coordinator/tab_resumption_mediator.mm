@@ -33,6 +33,7 @@
 #import "components/page_image_service/mojom/page_image_service.mojom.h"
 #import "components/payments/core/currency_formatter.h"
 #import "components/sessions/core/session_id.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/service/sync_service.h"
@@ -291,30 +292,7 @@ void ConfigureTabResumptionItemForShopCard(
   }
 }
 
-bool IsShopCardImpressionLimitsEnabled() {
-  return base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits) &&
-         (commerce::kShopCardVariation.Get().contains(
-              commerce::kShopCardArm3) ||
-          commerce::kShopCardVariation.Get() == commerce::kShopCardArm4 ||
-          commerce::kShopCardVariation.Get() == commerce::kShopCardArm5);
-}
 
-int GetImpressionLimit() {
-  return base::GetFieldTrialParamByFeatureAsInt(
-      commerce::kTabResumptionShopCard, commerce::kShopCardMaxImpressions,
-      kShopCardMaxImpressions);
-}
-
-const char* GetImpressionLimitPref() {
-  if (commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3)) {
-    return tab_resumption_prefs::kTabResumptionWithPriceDropUrlImpressions;
-  } else if (commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) {
-    return tab_resumption_prefs::kTabResumptionWithPriceTrackableUrlImpressions;
-  } else if (commerce::kShopCardVariation.Get() == commerce::kShopCardArm5) {
-    return tab_resumption_prefs::kTabResumptionRegularUrlImpressions;
-  }
-  NOTREACHED();
-}
 
 }  // namespace
 
@@ -392,7 +370,7 @@ class TabResumptionMediatorProxy {
   raw_ptr<page_image_service::ImageService> _pageImageService;
   // Other KeyedServices.
   raw_ptr<OptimizationGuideService> _optimizationGuideService;
-  raw_ptr<ImpressionLimitService> _impressionLimitService;
+
   raw_ptr<commerce::ShoppingService> _shoppingService;
   raw_ptr<bookmarks::BookmarkModel> _bookmarkModel;
   raw_ptr<PushNotificationService> _pushNotificationService;
@@ -422,7 +400,6 @@ class TabResumptionMediatorProxy {
              identityManager:(signin::IdentityManager*)identityManager
                      browser:(Browser*)browser
     optimizationGuideService:(OptimizationGuideService*)optimizationGuideService
-      impressionLimitService:(ImpressionLimitService*)impressionLimitService
              shoppingService:(commerce::ShoppingService*)shoppingService
                bookmarkModel:(bookmarks::BookmarkModel*)bookmarkModel
      pushNotificationService:(PushNotificationService*)pushNotificationService
@@ -469,7 +446,7 @@ class TabResumptionMediatorProxy {
       _optimizationGuideService->RegisterOptimizationTypes(
           {optimization_guide::proto::PRICE_TRACKING});
     }
-    _impressionLimitService = impressionLimitService;
+
     _shoppingService = shoppingService;
     _bookmarkModel = bookmarkModel;
     _pushNotificationService = pushNotificationService;
@@ -502,7 +479,7 @@ class TabResumptionMediatorProxy {
   _webStateList = nullptr;
   _pageImageService = nullptr;
   _optimizationGuideService = nullptr;
-  _impressionLimitService = nullptr;
+
   _shoppingService = nullptr;
   _bookmarkModel = nullptr;
   _pushNotificationService = nullptr;
@@ -582,8 +559,7 @@ class TabResumptionMediatorProxy {
 
 - (void)onNotificationPermissionVerifiedOrGranted:(TabResumptionConfig*)config
                                           granted:(BOOL)granted {
-  id<SystemIdentity> identity =
-      _authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity();
   _pushNotificationService->SetPreference(
       identity.gaiaId, PushNotificationClientId::kCommerce, true);
 
@@ -738,12 +714,6 @@ class TabResumptionMediatorProxy {
       recordTabResumptionImpressionWithCustomization:
           static_cast<TabResumptionConfig*>(magicStackModule).shopCardData
                                              atIndex:index];
-
-  if (IsShopCardImpressionLimitsEnabled() && index == 0 &&
-      _impressionLimitService) {
-    _impressionLimitService->LogImpressionForURL(self.itemConfig.tabURL,
-                                                 GetImpressionLimitPref());
-  }
 }
 
 #pragma mark - Boolean Observer
@@ -870,16 +840,6 @@ class TabResumptionMediatorProxy {
 
 - (void)fetchShopCardDataForItemIfApplicable:(TabResumptionConfig*)item
                                          url:(const GURL&)resumptionURL {
-  if (IsShopCardImpressionLimitsEnabled() && _impressionLimitService) {
-    // TODO(crbug.com/408252386) Add unit tests for impression count
-    // integration.
-    std::optional<int> count = _impressionLimitService->GetImpressionCount(
-        resumptionURL, GetImpressionLimitPref());
-    if (count.has_value() && count.value() >= GetImpressionLimit()) {
-      return;
-    }
-  }
-
   if (commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3) ||
       commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) {
     GURL url = resumptionURL;
@@ -967,8 +927,8 @@ class TabResumptionMediatorProxy {
 // product image and updates the card when this data is availalbe.
 // This reduces the overall latency of the card.
 - (void)fetchPriceDropIfApplicable:(TabResumptionConfig*)config {
-  if (!_shoppingService->IsRegionLockedFeatureEnabled(
-          commerce::kTabResumptionShopCard)) {
+  if (!_shoppingService || !_shoppingService->IsRegionLockedFeatureEnabled(
+                               commerce::kTabResumptionShopCard)) {
     return;
   }
   __weak TabResumptionMediator* weakSelf = self;

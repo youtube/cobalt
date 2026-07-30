@@ -112,12 +112,20 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kScanCreditCard";
     case Suggestion::Icon::kSettings:
       return "kSettings";
+    case Suggestion::Icon::kSpark:
+      return "kSpark";
     case Suggestion::Icon::kUndo:
       return "kUndo";
     case Suggestion::Icon::kVehicle:
       return "kVehicle";
     case Suggestion::Icon::kWork:
       return "kWork";
+    case Suggestion::Icon::kGmail:
+      return "kGmail";
+    case Suggestion::Icon::kGooglePhotos:
+      return "kGooglePhotos";
+    case Suggestion::Icon::kGoogleCalendar:
+      return "kGoogleCalendar";
     case Suggestion::Icon::kCardGeneric:
       return "kCardGeneric";
     case Suggestion::Icon::kCardAmericanExpress:
@@ -144,8 +152,6 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kCardVisa";
     case Suggestion::Icon::kIban:
       return "kIban";
-    case Suggestion::Icon::kPlusAddress:
-      return "kPlusAddress";
     case Suggestion::Icon::kNoIcon:
       return "kNoIcon";
     case Suggestion::Icon::kBnplGeneric:
@@ -277,8 +283,8 @@ Suggestion::AtMemoryPayload::AtMemoryPayload() = default;
 
 Suggestion::AtMemoryPayload::AtMemoryPayload(
     std::u16string value,
-    base::RepeatingCallback<std::u16string()> reveal_callback)
-    : value(std::move(value)), reveal_callback(std::move(reveal_callback)) {}
+    accessibility_annotator::EntryType entry_type)
+    : value(std::move(value)), entry_type(entry_type) {}
 
 Suggestion::AtMemoryPayload::AtMemoryPayload(const AtMemoryPayload&) = default;
 

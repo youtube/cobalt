@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -26,25 +27,28 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/navigation_handle.h"
+#include "ui/base/base_window.h"
 namespace glic {
 
 namespace {
 constexpr base::TimeDelta kDefaultTimeout = base::Minutes(1);
+
 }  // namespace
 
+#if !BUILDFLAG(IS_ANDROID)
 static tabs::TabInterface* CreateBrowserAndGetActiveTab(Profile* profile) {
-  BrowserWindowCreateParams params(*profile, /*from_user_gesture=*/false);
-  BrowserWindowInterface* browser = CreateBrowserWindow(std::move(params));
+  BrowserWindowInterface* browser = chrome::OpenEmptyWindow(profile);
   if (!browser) {
     return nullptr;
   }
   tabs::TabInterface* tab = TabListInterface::From(browser)->GetActiveTab();
   if (!tab) {
     tab = TabListInterface::From(browser)->OpenTab(
-        GURL(chrome::kChromeUINewTabURL), -1);
+        chrome::ChromeUINewTabURLAsGURL(), -1);
   }
   return tab;
 }
+#endif
 
 // static
 GlicInvokeHandler::ResolvedTarget GlicInvokeHandler::ResolveTargetSurface(
@@ -60,23 +64,27 @@ GlicInvokeHandler::ResolvedTarget GlicInvokeHandler::ResolveTargetSurface(
       }
     }
 
+#if !BUILDFLAG(IS_ANDROID)
     tabs::TabInterface* tab = CreateBrowserAndGetActiveTab(profile);
     if (tab) {
       return {tab, /*is_new=*/true};
     }
+#endif
 
     return {nullptr, /*is_new=*/false};
   } else if (const auto* new_tab_opt = std::get_if<NewTab>(&target.surface)) {
     BrowserWindowInterface* browser = new_tab_opt->window;
     if (!browser) {
+#if !BUILDFLAG(IS_ANDROID)
       tabs::TabInterface* tab = CreateBrowserAndGetActiveTab(profile);
       if (tab) {
         return {tab, /*is_new=*/true};
       }
+#endif
       return {nullptr, /*is_new=*/false};
     }
     tabs::TabInterface* tab = TabListInterface::From(browser)->OpenTab(
-        GURL(chrome::kChromeUINewTabURL), -1);
+        chrome::ChromeUINewTabURLAsGURL(), -1);
     if (tab) {
       return {tab, /*is_new=*/true};
     }
@@ -157,6 +165,20 @@ void GlicInvokeHandler::Invoke() {
       std::make_unique<ShowInstanceTask>(&*instance_, show_options));
   tasks.push_back(
       std::make_unique<WaitForClientConnectedTask>(&instance_->host()));
+  if (options_.on_client_connected) {
+    tasks.push_back(std::make_unique<PostCallbackTask>(base::BindOnce(
+        [](base::WeakPtr<GlicInstanceImpl> instance,
+           base::OnceCallback<void(GlicInstance*)> cb) {
+          if (instance) {
+            std::move(cb).Run(instance.get());
+          }
+        },
+        instance_->GetWeakPtr(), std::move(options_.on_client_connected))));
+  }
+  // TODO(b/505086089): Handle client disconnects.
+  tasks.push_back(
+      std::make_unique<NotifyIsInvokingTask>(&instance_->host(), true));
+
   if (options_.wait_for_panel_open) {
     tasks.push_back(std::make_unique<StabilizationTask>(tab_->GetContents()));
   }
@@ -164,50 +186,40 @@ void GlicInvokeHandler::Invoke() {
   tasks.push_back(std::make_unique<WaitForFreCompletionTask>(
       instance_->profile(), options_.fre_override));
 
+  tasks.push_back(std::make_unique<SendToClientTask>(
+      &*instance_, CreateMojoOptions(), auto_submit_passkey_));
+
+  if (options_.feature_mode == mojom::FeatureMode::kActuation) {
+    auto on_actuation_started = base::BindOnce(
+        [](base::WeakPtr<GlicInvokeHandler> handler) {
+          if (handler) {
+            handler->timeout_timer_.Stop();
+          }
+        },
+        weak_ptr_factory_.GetWeakPtr());
+
+    tasks.push_back(std::make_unique<WaitForActuationTask>(
+        &*instance_, options_.timeout.value_or(kDefaultTimeout),
+        base::BindOnce(&GlicInvokeHandler::OnError,
+                       weak_ptr_factory_.GetWeakPtr()),
+        std::move(on_actuation_started)));
+  }
+
   main_task_ = std::make_unique<SequentialTaskGroup>(std::move(tasks));
 
-  main_task_->Start(base::BindOnce(&GlicInvokeHandler::SendToClient,
+  main_task_->Start(base::BindOnce(&GlicInvokeHandler::OnSuccess,
                                    weak_ptr_factory_.GetWeakPtr()));
 }
 
 bool GlicInvokeHandler::RequiresAutoSubmitIncompatibleFre() const {
-  if (GlicEnabling::HasConsentedForProfile(instance_->profile())) {
-    return false;
-  }
-  if (options_.fre_override != mojom::FreOverride::kUnspecified) {
-    return options_.fre_override != mojom::FreOverride::kTrustFirstInline &&
-           options_.fre_override != mojom::FreOverride::kTrustFirstClick;
-  }
-  return GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(
-             instance_->profile()) &&
-         features::kGlicTrustFirstOnboardingArmParam.Get() == 1;
+  return false;
 }
 
 bool GlicInvokeHandler::RequiresOverrideIncompatibleFre() const {
-  if (GlicEnabling::HasConsentedForProfile(instance_->profile())) {
-    return false;
-  }
-  return !GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(
-      instance_->profile());
+  return false;
 }
 
-void GlicInvokeHandler::SendToClient() {
-  if (!instance_->host().IsWebClientConnected()) {
-    OnError(GlicInvokeError::kTimeout);
-    return;
-  }
 
-  if (auto_submit_passkey_) {
-    instance_->host().InvokeWithAutoSubmit(
-        *auto_submit_passkey_, CreateMojoOptions(),
-        base::BindOnce(&GlicInvokeHandler::OnSuccess,
-                       weak_ptr_factory_.GetWeakPtr()));
-  } else {
-    instance_->host().Invoke(CreateMojoOptions(),
-                             base::BindOnce(&GlicInvokeHandler::OnSuccess,
-                                            weak_ptr_factory_.GetWeakPtr()));
-  }
-}
 
 void GlicInvokeHandler::OnTabClosed(tabs::TabInterface* tab) {
   tab_ = nullptr;
@@ -216,6 +228,10 @@ void GlicInvokeHandler::OnTabClosed(tabs::TabInterface* tab) {
 
 void GlicInvokeHandler::OnSuccess() {
   timeout_timer_.Stop();
+  instance_->host().NotifyIsInvoking(false);
+  if (main_task_) {
+    main_task_->NotifySequenceCompleted(/*success=*/true);
+  }
 
   if (options_.on_success) {
     std::move(options_.on_success).Run();
@@ -227,6 +243,10 @@ void GlicInvokeHandler::OnSuccess() {
 
 void GlicInvokeHandler::OnError(GlicInvokeError error) {
   timeout_timer_.Stop();
+  instance_->host().NotifyIsInvoking(false);
+  if (main_task_) {
+    main_task_->NotifySequenceCompleted(/*success=*/false);
+  }
 
   if (options_.on_error) {
     std::move(options_.on_error).Run(error);
@@ -255,6 +275,13 @@ mojom::InvokeOptionsPtr GlicInvokeHandler::CreateMojoOptions() {
 
   if (options_.skill_id) {
     mojo_options->skill_id = *options_.skill_id;
+  }
+
+  if (options_.zss_config) {
+    auto mojo_zss_config = mojom::ZssConfig::New();
+    mojo_zss_config->additional_content =
+        options_.zss_config->additional_content;
+    mojo_options->zss_config = std::move(mojo_zss_config);
   }
 
   return mojo_options;

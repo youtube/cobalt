@@ -6,6 +6,8 @@
 
 #import "base/notimplemented.h"
 #import "components/omnibox/browser/omnibox_pref_names.h"
+#import "ios/chrome/browser/banner_promo/model/default_browser_banner_promo_app_agent.h"
+#import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -14,6 +16,9 @@
 #import "ios/chrome/browser/shared/model/web_state_list/active_web_state_observation_forwarder.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
+#import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory_delegate.h"
@@ -28,6 +33,7 @@
 
 @interface ToolbarMediator () <BooleanObserver,
                                CRWWebStateObserver,
+                               DefaultBrowserBannerAppAgentObserver,
                                ToolbarButtonMenuFactoryDelegate,
                                WebStateListObserving>
 @end
@@ -47,12 +53,16 @@
   raw_ptr<FullscreenController> _fullscreenController;
   // Whether the location bar indicator is active.
   BOOL _locationBarIndicatorActive;
+  // The default browser banner app agent.
+  DefaultBrowserBannerPromoAppAgent* _defaultBrowserBannerAppAgent;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
                        actionFactory:(BrowserActionFactory*)actionFactory
                 fullscreenController:(FullscreenController*)fullscreenController
-                         topPosition:(BOOL)topPosition {
+                         topPosition:(BOOL)topPosition
+        defaultBrowserBannerAppAgent:
+            (DefaultBrowserBannerPromoAppAgent*)defaultBrowserBannerAppAgent {
   self = [super init];
   if (self) {
     _webStateList = webStateList;
@@ -74,6 +84,11 @@
     _fullscreenController = fullscreenController;
     _topPosition = topPosition;
     _locationBarIndicatorActive = NO;
+
+    if (_topPosition && defaultBrowserBannerAppAgent) {
+      _defaultBrowserBannerAppAgent = defaultBrowserBannerAppAgent;
+      [_defaultBrowserBannerAppAgent addObserver:self];
+    }
 
     if (IsBottomOmniboxAvailable()) {
       _bottomOmniboxEnabled = [[PrefBackedBoolean alloc]
@@ -105,12 +120,14 @@
   [self.consumer setCanGoBack:self.navigationBrowserAgent->CanGoBack(webState)];
   [self.consumer
       setCanGoForward:self.navigationBrowserAgent->CanGoForward(webState)];
-  [self.consumer setIsLoading:webState->IsLoading()];
 
   const GURL visibleURL = webState->GetVisibleURL();
+  [self.consumer setShareEnabled:!visibleURL.is_empty()];
 
   [self.consumer setNTPVisible:IsUrlNtp(visibleURL)];
-  [self.consumer setShareEnabled:!visibleURL.is_empty()];
+
+  [self.consumer setIsLoading:webState->IsLoading()];
+  [self.consumer setLoadingProgress:webState->GetLoadingProgress()];
 
   [self.consumer
             setMenu:[_buttonMenuFactory
@@ -129,6 +146,7 @@
 }
 
 - (void)disconnect {
+  [_defaultBrowserBannerAppAgent removeObserver:self];
   _activeWebStateObservationForwarder.reset();
   _activeWebStateObserver.reset();
   _webStateList->RemoveObserver(_webStateListObserver.get());
@@ -149,7 +167,27 @@
   [self updateToolbarPosition];
 }
 
+- (void)setUICurrentlySupportsPromo:(BOOL)supports {
+  if (_defaultBrowserBannerAppAgent) {
+    _defaultBrowserBannerAppAgent.UICurrentlySupportsPromo = supports;
+  }
+}
+
 #pragma mark - ToolbarMutator
+
+- (void)exitFullscreen {
+  FullscreenModeTransitionTrigger trigger =
+      FullscreenModeTransitionTrigger::kForcedByUser;
+
+  if (IsFullscreenRefactoringEnabled()) {
+    [self.fullscreenCommands exitFullscreenWithTrigger:trigger animated:YES];
+    return;
+  }
+
+  if (_fullscreenController) {
+    _fullscreenController->ExitFullscreen(trigger);
+  }
+}
 
 - (void)goBack {
   if (self.navigationBrowserAgent) {
@@ -173,6 +211,12 @@
   if (self.navigationBrowserAgent) {
     self.navigationBrowserAgent->StopLoading();
   }
+}
+
+#pragma mark - ToolbarMutator
+
+- (void)tabGroupIndicatorVisibilityUpdated:(BOOL)visible {
+  [self setUICurrentlySupportsPromo:!visible];
 }
 
 #pragma mark - ToolbarButtonMenuFactoryDelegate
@@ -268,6 +312,31 @@
   }
 }
 
+#pragma mark - DefaultBrowserBannerAppAgentObserver
+
+- (void)displayPromoFromAppAgent:(DefaultBrowserBannerPromoAppAgent*)appAgent {
+  [self.consumer showBannerPromo];
+}
+
+- (void)hidePromoFromAppAgent:(DefaultBrowserBannerPromoAppAgent*)appAgent {
+  [self.consumer hideBannerPromo];
+}
+
+#pragma mark - BannerPromoViewDelegate
+
+- (void)bannerPromoWasTapped:(BannerPromoView*)bannerPromoView {
+  [self.settingsHandler
+      showDefaultBrowserSettingsFromViewController:nil
+                                      sourceForUMA:
+                                          DefaultBrowserSettingsPageSource::
+                                              kBannerPromo];
+  [_defaultBrowserBannerAppAgent promoTapped];
+}
+
+- (void)bannerPromoCloseButtonWasTapped:(BannerPromoView*)bannerPromoView {
+  [_defaultBrowserBannerAppAgent promoCloseButtonTapped];
+}
+
 #pragma mark - UIKeyboardNotification
 
 - (void)keyboardWillShow:(NSNotification*)notification {
@@ -318,16 +387,21 @@
 
   _locationBarIndicatorActive = showLocationIndicator;
 
-  if (showLocationIndicator) {
-    if (_fullscreenController) {
-      _fullscreenController->EnterForceFullscreenMode(
-          /* insets_update_enabled */ false,
-          FullscreenModeTransitionTrigger::kForcedByCode);
+  FullscreenModeTransitionTrigger trigger =
+      FullscreenModeTransitionTrigger::kForcedByCode;
+
+  if (IsFullscreenRefactoringEnabled()) {
+    if (showLocationIndicator) {
+      [self.fullscreenCommands enterFullscreenWithTrigger:trigger animated:YES];
+    } else {
+      [self.fullscreenCommands exitFullscreenWithTrigger:trigger animated:YES];
     }
-  } else {
-    if (_fullscreenController) {
-      _fullscreenController->ExitForceFullscreenMode(
-          FullscreenModeTransitionTrigger::kForcedByCode);
+  } else if (_fullscreenController) {
+    if (showLocationIndicator) {
+      _fullscreenController->EnterForceFullscreenMode(
+          /* insets_update_enabled */ false, trigger);
+    } else {
+      _fullscreenController->ExitForceFullscreenMode(trigger);
     }
   }
 

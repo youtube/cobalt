@@ -12,9 +12,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
-#include "chrome/browser/pdf/mime_handler_stream_manager.h"
 #include "chrome/browser/pdf/pdf_handler_stream_delegate.h"
-#include "chrome/browser/pdf/pdf_test_util.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/pdf/common/constants.h"
 #include "content/public/browser/navigation_entry.h"
@@ -22,19 +20,25 @@
 #include "content/public/test/web_contents_tester.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
+#include "extensions/browser/mime_handler/mime_handler_test_helpers.h"
 #include "extensions/browser/mime_handler/stream_container.h"
 #include "pdf/buildflags.h"
 #include "pdf/pdf_features.h"
 
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+#include "base/strings/string_number_conversions.h"
+#include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/save_to_drive/content_reader.h"
 #include "chrome/browser/save_to_drive/save_to_drive_event_dispatcher.h"
 #include "chrome/browser/save_to_drive/save_to_drive_flow.h"
+#include "chrome/browser/save_to_drive/save_to_drive_utils.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/save_to_drive/get_account.h"
 #include "chrome/common/extensions/api/pdf_viewer_private.h"
 #include "extensions/browser/test_event_router.h"
+#include "extensions/common/error_utils.h"
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 namespace extensions {
@@ -85,7 +89,7 @@ class PdfViewerPrivateApiUnitTest : public ChromeRenderViewHostTestHarness {
     scoped_feature_list_.InitAndEnableFeature(chrome_pdf::features::kPdfOopif);
     ChromeRenderViewHostTestHarness::SetUp();
 
-    pdf::MimeHandlerStreamManager::Create(web_contents());
+    mime_handler::MimeHandlerStreamManager::Create(web_contents());
 
     // For testing purposes, `main_rfh()` represents the extension's
     // embedder's frame host, while `extension_host` represents the
@@ -101,6 +105,7 @@ class PdfViewerPrivateApiUnitTest : public ChromeRenderViewHostTestHarness {
                             base::Unretained(this));
     SaveToDriveFlow::SetCreateCallbackForTesting(
         &create_save_to_drive_flow_callback_);
+    SaveToDriveFlow::SetSkipValidateTabForTesting(true);
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
   }
 
@@ -108,6 +113,7 @@ class PdfViewerPrivateApiUnitTest : public ChromeRenderViewHostTestHarness {
     extension_host_ = nullptr;
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
     SaveToDriveFlow::SetCreateCallbackForTesting(nullptr);
+    SaveToDriveFlow::SetSkipValidateTabForTesting(false);
     create_save_to_drive_flow_callback_.Reset();
     flow_ = nullptr;
     event_router_ = nullptr;
@@ -115,12 +121,13 @@ class PdfViewerPrivateApiUnitTest : public ChromeRenderViewHostTestHarness {
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
     web_contents()->RemoveUserData(
-        pdf::MimeHandlerStreamManager::UserDataKey());
+        mime_handler::MimeHandlerStreamManager::UserDataKey());
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
-  pdf::MimeHandlerStreamManager* mime_handler_stream_manager() {
-    return pdf::MimeHandlerStreamManager::FromWebContents(web_contents());
+  mime_handler::MimeHandlerStreamManager* mime_handler_stream_manager() {
+    return mime_handler::MimeHandlerStreamManager::FromWebContents(
+        web_contents());
   }
 
   content::RenderFrameHost* extension_host() { return extension_host_; }
@@ -136,21 +143,21 @@ class PdfViewerPrivateApiUnitTest : public ChromeRenderViewHostTestHarness {
   }
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
-  // Create a claimed stream container in `pdf::MimeHandlerStreamManager`. This
-  // updates `extension_host_`, since the navigation deletes the embedder frame
-  // host's child frame hosts.
+  // Create a claimed stream container in
+  // `mime_handler::MimeHandlerStreamManager`. This updates `extension_host_`,
+  // since the navigation deletes the embedder frame host's child frame hosts.
   void CreateAndClaimStreamContainer() {
     extension_host_ = nullptr;
 
     content::RenderFrameHost* embedder_host =
         content::NavigationSimulator::NavigateAndCommitFromDocument(
             GURL("https://original_url1"), main_rfh());
-    pdf::MimeHandlerStreamManager::Create(web_contents());
+    mime_handler::MimeHandlerStreamManager::Create(web_contents());
 
     auto* manager = mime_handler_stream_manager();
     manager->AddStreamContainer(
         embedder_host->GetFrameTreeNodeId(), "internal_id",
-        pdf_test_util::GenerateSampleStreamContainer(1),
+        extensions::mime_handler::GenerateSampleStreamContainer(1),
         std::make_unique<pdf::PdfHandlerStreamDelegate>());
     manager->ClaimStreamInfoForTesting(embedder_host);
 
@@ -416,6 +423,27 @@ TEST_F(PdfViewerPrivateApiUnitTest, SaveToDrive) {
 
   EXPECT_TRUE(
       api_test_utils::RunFunction(function, R"(["ORIGINAL"])", profile()));
+}
+
+// Failed in sending a request to save a PDF to Drive when there is no valid
+// browser tab.
+// There is no active browser in unit test, so by default, this error message
+// should be returned. `SaveToDriveFlow::SetSkipValidateTabForTesting(true)` is
+// called in test setup to bypass this check, so set false is called for this
+// test.
+TEST_F(PdfViewerPrivateApiUnitTest, SaveToDriveNoActiveBrowser) {
+  SaveToDriveFlow::SetSkipValidateTabForTesting(false);
+
+  CreateAndClaimStreamContainer();
+  auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+  function->SetRenderFrameHost(extension_host());
+
+  EXPECT_EQ(
+      ErrorUtils::FormatErrorMessage(
+          ExtensionTabUtil::kTabNotFoundError,
+          base::NumberToString(save_to_drive::GetTabId(extension_host()))),
+      api_test_utils::RunFunctionAndReturnError(function, R"(["ORIGINAL"])",
+                                                profile()));
 }
 
 // Failed in sending a request to save a PDF to Drive if there is already a

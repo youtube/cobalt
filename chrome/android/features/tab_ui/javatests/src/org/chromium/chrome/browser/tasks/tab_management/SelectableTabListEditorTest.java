@@ -873,7 +873,7 @@ public class SelectableTabListEditorTest {
 
     @Test
     @MediumTest
-    @DisableIf.Build(sdk_is_greater_than = VERSION_CODES.R, message = "crbug.com/1511804")
+    @DisableIf.Build(sdk_is_greater_than = VERSION_CODES.R, message = "crbug.com/41484386")
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     public void testToolbarMenuItem_BookmarkActionSingleTab() {
         prepareBlankTab(1, false);
@@ -1218,7 +1218,6 @@ public class SelectableTabListEditorTest {
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(DeviceFormFactor.PHONE)
-    @DisabledTest(message = "Was restricted to low end devices, crbug.com/489156901")
     public void testListViewAppearance() throws IOException {
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1246,7 +1245,6 @@ public class SelectableTabListEditorTest {
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(DeviceFormFactor.PHONE)
-    @DisabledTest(message = "Was restricted to low end devices, crbug.com/489156901")
     public void testListViewV2Shows() {
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1260,7 +1258,6 @@ public class SelectableTabListEditorTest {
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(DeviceFormFactor.PHONE)
-    @DisabledTest(message = "Was restricted to low end devices, crbug.com/489156901")
     public void testListViewAppearance_oneSelectedTab() throws IOException {
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1289,7 +1286,6 @@ public class SelectableTabListEditorTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
-    @DisabledTest(message = "Was restricted to low end devices, crbug.com/489156901")
     public void testListView_select() {
         prepareBlankTab(2, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1487,7 +1483,7 @@ public class SelectableTabListEditorTest {
         Espresso.pressBack();
     }
 
-    // This is a regression test for crbug.com/1132478.
+    // This is a regression test for crbug.com/40721968.
     @Test
     @MediumTest
     public void testTabListEditorContentDescription() {

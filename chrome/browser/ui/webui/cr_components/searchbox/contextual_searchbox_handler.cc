@@ -190,7 +190,7 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
         tab_context_controller->GetInitialPageContextEligibility() &&
         active_web_contents &&
         active_web_contents->GetLastCommittedURL() ==
-            chrome::kChromeUINewTabURL &&
+            chrome::ChromeUINewTabURLAsGURL() &&
         !show_in_current_tab_chip;
     tab_data->last_active = tab_time.time;
     tabs.push_back(std::move(tab_data));
@@ -565,6 +565,29 @@ void ContextualSearchboxHandler::AddTabContext(int32_t tab_id,
   auto context_token = contextual_session_handle->CreateContextToken();
   ContinueAddTabContext(tab_id, delay_upload, context_token,
                         std::move(callback));
+}
+
+void ContextualSearchboxHandler::AddDriveContext(
+    const std::string& drive_id,
+    const std::string& resource_key,
+    const std::string& mime_type_string,
+    AddDriveContextCallback callback) {
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
+    std::move(callback).Run(base::unexpected(
+        contextual_search::ContextUploadErrorType::kBrowserProcessingError));
+    return;
+  }
+  auto* contextual_session_handle = GetContextualSessionHandle();
+  if (!contextual_session_handle) {
+    std::move(callback).Run(base::unexpected(
+        contextual_search::ContextUploadErrorType::kBrowserProcessingError));
+    return;
+  }
+  auto context_token = contextual_session_handle->CreateContextToken();
+  std::move(callback).Run(base::ok(context_token));
+  contextual_session_handle->StartDriveContextUploadFlow(
+      context_token, drive_id, resource_key, mime_type_string);
 }
 
 std::vector<base::UnguessableToken>

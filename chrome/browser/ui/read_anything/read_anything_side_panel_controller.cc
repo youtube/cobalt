@@ -261,7 +261,9 @@ void ReadAnythingSidePanelController::ReturnWebUIToController() {
       ReadAnythingSidePanelControllerGlue::UserDataKey());
   auto* controller = ReadAnythingController::From(tab_);
   CHECK(controller);
-  controller->TransferWebUiOwnership(web_view_->TakeContentsWrapper());
+  controller->TransferWebUiOwnership(
+      web_view_->TakeContentsWrapper(),
+      ReadAnythingController::PresentationState::kInSidePanel);
 }
 
 std::unique_ptr<views::View>
@@ -318,9 +320,6 @@ void ReadAnythingSidePanelController::TabForegrounded(tabs::TabInterface* tab) {
 void ReadAnythingSidePanelController::TabWillDetach(
     tabs::TabInterface* tab,
     tabs::TabInterface::DetachReason reason) {
-  if (!features::IsImmersiveReadAnythingEnabled()) {
-    observers_.Notify(&Observer::OnTabWillDetach);
-  }
 
   if (!tab_->IsActivated()) {
     return;

@@ -13,7 +13,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -104,7 +103,7 @@ public class BookmarkSaveFlowTest {
 
         // Setup mocks.
         PriceTrackingUtilsJni.setInstanceForTesting(mMockPriceTrackingUtilsJni);
-        doReturn(mAccountInfo).when(mIdentityManager).getPrimaryAccountInfo(anyInt());
+        doReturn(mAccountInfo).when(mIdentityManager).getPrimaryAccountInfo();
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -127,7 +126,8 @@ public class BookmarkSaveFlowTest {
         loadBookmarkModel();
         doAnswer(
                         (invocation) -> {
-                            ((Callback<Boolean>) invocation.getArgument(3)).onResult(true);
+                            Callback<Boolean> callback = invocation.getArgument(3);
+                            callback.onResult(true);
                             return null;
                         })
                 .when(mMockPriceTrackingUtilsJni)
@@ -135,14 +135,16 @@ public class BookmarkSaveFlowTest {
                         any(Profile.class), anyLong(), anyBoolean(), any(), anyBoolean());
         doAnswer(
                         (invocation) -> {
-                            ((Callback<Boolean>) invocation.getArgument(1)).onResult(true);
+                            Callback<Boolean> callback = invocation.getArgument(1);
+                            callback.onResult(true);
                             return null;
                         })
                 .when(mShoppingService)
                 .subscribe(any(CommerceSubscription.class), any());
         doAnswer(
                         (invocation) -> {
-                            ((Callback<Boolean>) invocation.getArgument(1)).onResult(true);
+                            Callback<Boolean> callback = invocation.getArgument(1);
+                            callback.onResult(true);
                             return null;
                         })
                 .when(mShoppingService)
@@ -259,7 +261,8 @@ public class BookmarkSaveFlowTest {
 
                     doAnswer(
                                     args -> {
-                                        ((Callback<Boolean>) args.getArgument(2)).onResult(true);
+                                        Callback<Boolean> callback = args.getArgument(2);
+                                        callback.onResult(true);
                                         return null;
                                     })
                             .when(mMockPriceTrackingUtilsJni)
@@ -306,7 +309,8 @@ public class BookmarkSaveFlowTest {
 
                     doAnswer(
                                     args -> {
-                                        ((Callback<Boolean>) args.getArgument(2)).onResult(false);
+                                        Callback<Boolean> callback = args.getArgument(2);
+                                        callback.onResult(false);
                                         return null;
                                     })
                             .when(mMockPriceTrackingUtilsJni)
@@ -323,7 +327,8 @@ public class BookmarkSaveFlowTest {
 
         doAnswer(
                         (invocation) -> {
-                            ((Callback<Boolean>) invocation.getArgument(3)).onResult(false);
+                            Callback<Boolean> callback = invocation.getArgument(3);
+                            callback.onResult(false);
                             return null;
                         })
                 .when(mMockPriceTrackingUtilsJni)
@@ -331,7 +336,8 @@ public class BookmarkSaveFlowTest {
                         any(Profile.class), anyLong(), anyBoolean(), any(), anyBoolean());
         doAnswer(
                         (invocation) -> {
-                            ((Callback<Boolean>) invocation.getArgument(1)).onResult(false);
+                            Callback<Boolean> callback = invocation.getArgument(1);
+                            callback.onResult(false);
                             return null;
                         })
                 .when(mShoppingService)

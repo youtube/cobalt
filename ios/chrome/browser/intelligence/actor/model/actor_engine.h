@@ -11,6 +11,7 @@
 
 #import "base/functional/callback.h"
 #import "base/memory/weak_ptr.h"
+#import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 
 namespace actor {
@@ -65,7 +66,7 @@ class ActorEngine {
     kCancelled,
   };
 
-  ActorEngine();
+  ActorEngine(ActorTaskId task_id, AggregatedJournal* journal);
   ~ActorEngine();
   ActorEngine(const ActorEngine&) = delete;
   ActorEngine& operator=(const ActorEngine&) = delete;
@@ -73,7 +74,7 @@ class ActorEngine {
   // Performs the given sequence of tools and invokes the callback when
   // completed.
   void Act(std::vector<std::unique_ptr<ActorTool>> actions,
-           PerformActionsCallback callback);
+           ActCallback callback);
 
   // Cancels any ongoing and pending actions.
   void CancelOngoingAndPendingActions(EngineResult reason);
@@ -83,6 +84,9 @@ class ActorEngine {
 
   // Executes the next action.
   void ExecuteNextAction();
+
+  // Sets the engine state and logs the transition.
+  void SetState(State new_state);
 
   // Callback for when UI pre-invoke is finished.
   void FinishedUiPreInvoke(ActionResult result);
@@ -114,11 +118,13 @@ class ActorEngine {
   // The sequence of actions to be executed.
   std::vector<std::unique_ptr<ActorTool>> action_sequence_;
 
-  // The index of the next action that will be invoked.
+  // The index of the *next* action that will be invoked. Prefer to use
+  // `InProgressActionIndex()` to get the index of the action currently being
+  // executed.
   size_t next_action_index_ = 0;
 
   // Invoked when all actions complete or a terminal error occurs.
-  PerformActionsCallback completion_callback_;
+  ActCallback completion_callback_;
 
   // Accumulated results of executed actions. Results are added here in
   // `FinishedToolInvoke` on successful tool execution. If a subsequent step
@@ -127,6 +133,15 @@ class ActorEngine {
   // the failure result is added here by `CompleteActions`. Aligns with Desktop
   // implementation.
   std::vector<ActionResult> action_results_;
+
+  // The ID of the task that owns this engine.
+  ActorTaskId task_id_;
+
+  // The aggregated journal for logging.
+  raw_ptr<AggregatedJournal> journal_;
+
+  // Current async entry for journal logging.
+  std::unique_ptr<AggregatedJournal::PendingAsyncEntry> current_async_entry_;
 
   // Weak pointer factory.
   base::WeakPtrFactory<ActorEngine> weak_ptr_factory_{this};

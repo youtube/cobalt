@@ -87,6 +87,21 @@ const noRestrictedImportsPaths = [
     name: '//webui-test/chai.js',
     message: 'Use chrome://webui-test/chai_assert.js instead.',
   },
+  {
+    name: 'chrome://resources/cr_components/composebox/composebox.js',
+    message:
+        'Prevent new composebox usage until it is cleaned up. See crbug.com/497887993.',
+  },
+  {
+    name: '//resources/cr_components/composebox/composebox.js',
+    message:
+        'Prevent new composebox usage until it is cleaned up. See crbug.com/497887993.',
+  },
+  {
+    name: 'chrome-untrusted://resources/cr_components/composebox/composebox.js',
+    message:
+        'Prevent new composebox usage until it is cleaned up. See crbug.com/497887993.',
+  },
 ];
 
 export default [
@@ -108,23 +123,36 @@ export default [
       // No point checking minify_js expected output tests.
       'ui/webui/resources/tools/tests/minify_js/*_expected.js',
 
-      // ESLint is disabled for camera_app_ui and recorder_app_ui as they used
-      // a custom eslint plugin that does not work with the latest eslint, and
-      // they had complex eslint rc files that have not been updated to the
-      // latest eslint. See https://crbug.com/368085620.
-      'ash/webui/camera_app_ui/resources/**/*',
-      'ash/webui/recorder_app_ui/resources/**/*',
-
       // ESLint is disabled for directories that use custom linting rules,
       // which is no longer supported. TODO(https://crbug.com/369766161):
       // Bring directories into conformance to re-enable linting.
-      'ash/webui/**/*',
+      'ash/webui/*',
       'chrome/browser/resources/chromeos/**/*',
       'chrome/test/data/webui/chromeos/**/*.js',
 
-      // TODO(https://crbug.com/41446521): Bring extension test files into
+      // camera_app_ui and recorder_app_ui conforms to global ESLint.
+      '!ash/webui/camera_app_ui',
+      '!ash/webui/recorder_app_ui',
+
+      // TODO(https://crbug.com/41446521): Bring these extension test files into
       // conformance.
-      'chrome/test/data/extensions/**/*',
+      // Temporarily omitted until files are updated.
+      'chrome/test/data/extensions/api_test/*',
+      // Temporarily omitted. These files contain scripts that are wrapped on
+      // the C++ side in functions, and so they currently have "floating"
+      // return statements. This causes eslint to fail in parsing and can't be
+      // manually disabled with an `eslint-disable` comment (because it's a
+      // parsing error, rather than an actual linting issue).
+      'chrome/test/data/extensions/webui/*',
+      'chrome/test/data/extensions/webui_untrusted/*',
+
+      // Omitted: These are "raw" dumps from user data dirs. We shouldn't bother
+      // formatting / linting them.
+      'chrome/test/data/extensions/profiles/*',
+      'chrome/test/data/extensions/good/*',
+
+      // Omitted: Platform apps are deprecated on all platforms.
+      'chrome/test/data/extensions/platform_apps/*',
     ],
   },
   {
@@ -548,6 +576,32 @@ export default [
         'error', {
           'ts-ignore': true,
           'ts-nocheck': true,
+        }
+      ],
+    },
+  },
+  {
+    // TODO(crbug.com/497887993): Allow existing usages of composebox.ts until
+    // the shared composebox files are cleaned up.
+    files: [
+      'chrome/browser/resources/contextual_tasks/composebox.ts',
+      'chrome/browser/resources/contextual_tasks/onboarding_tooltip.ts',
+      'chrome/browser/resources/lens/overlay/side_panel/side_panel_app.ts',
+      'chrome/browser/resources/new_tab_page/app.ts',
+      'chrome/browser/resources/new_tab_page/lazy_load.ts',
+      'chrome/browser/resources/omnibox_popup/aim_app.ts',
+      'chrome/test/data/webui/contextual_tasks/composebox_misc_inputs_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_drag_drop_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_input_placeholder_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_voice_search_test.ts',
+      'chrome/test/data/webui/lens/side_panel/composebox_test.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error', {
+          paths: noRestrictedImportsPaths.filter(
+              path => !path.name.includes('composebox')),
         }
       ],
     },

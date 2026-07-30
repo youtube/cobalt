@@ -9,7 +9,7 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import type {BrowserProxy} from '../../browser_proxy.js';
-import type {WebClientInitialState} from '../../glic.mojom-webui.js';
+import type {ExperimentalTriggeringUpdatesHandlerRemote, WebClientInitialState} from '../../glic.mojom-webui.js';
 import {WebClientHandlerRemote} from '../../glic.mojom-webui.js';
 import {ObservableValue} from '../../observable.js';
 import type {ObservableValueReadOnly} from '../../observable.js';
@@ -180,6 +180,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
   sender: GatedSender;
   private enableApiActivationGating = true;
   panelIsActive = false;
+  private isInvoking = false;
   private handler: WebClientHandlerRemote;
   private webClientErrorTimer: OneShotTimer;
   private webClientState =
@@ -202,6 +203,9 @@ export class GlicApiHost implements PostMessageRequestHandler {
   captureRegionObserver?: CaptureRegionObserverImpl;
   tabDataHandlerSet: TabDataHandlerSet;
   tabFaviconHandlerSet: TabFaviconHandlerSet;
+  private experimentalTriggeringUpdatesHandler =
+      new Map<number, ExperimentalTriggeringUpdatesHandlerRemote>();
+  private nextExperimentalTriggeringUpdateHandlerId = 0;
 
   constructor(
       private browserProxy: BrowserProxy, communicator: GlicApiCommunicator,
@@ -242,6 +246,10 @@ export class GlicApiHost implements PostMessageRequestHandler {
     this.messageHandler.destroy();
     this.pinCandidatesObserver?.disconnectFromSource();
     this.captureRegionObserver?.disconnectFromSource();
+    for (const handler of this.experimentalTriggeringUpdatesHandler.values()) {
+      handler.$.close();
+    }
+    this.experimentalTriggeringUpdatesHandler.clear();
   }
 
   setInitialState(initialState: WebClientInitialState) {
@@ -259,7 +267,15 @@ export class GlicApiHost implements PostMessageRequestHandler {
   }
 
   shouldGateRequests(): boolean {
+    if (this.isInvoking) {
+      return false;
+    }
     return !this.panelIsActive && this.enableApiActivationGating;
+  }
+
+  setIsInvoking(isInvoking: boolean) {
+    this.isInvoking = isInvoking;
+    this.updateSenderActive();
   }
 
   waitingOnPanelWillOpen() {
@@ -503,9 +519,9 @@ export class GlicApiHost implements PostMessageRequestHandler {
 
   onRequestReceived(type: string): void {
     this.reportRequestCountEvent(type, GlicRequestEvent.REQUEST_RECEIVED);
-    if (document.visibilityState === 'hidden') {
+    if (!this.panelIsActive) {
       this.reportRequestCountEvent(
-          type, GlicRequestEvent.REQUEST_RECEIVED_WHILE_HIDDEN);
+          type, GlicRequestEvent.REQUEST_RECEIVED_WHILE_INACTIVE);
     }
   }
 
@@ -526,8 +542,6 @@ export class GlicApiHost implements PostMessageRequestHandler {
     const requestTypeNumber: number|undefined =
         (HOST_REQUEST_TYPES as any)[histogramSuffix];
     if (!requestTypeNumber) {
-      console.warn(
-          `reportRequestCountEvent: invalid requestType ${histogramSuffix}`);
       return;
     }
     chrome.histograms.recordEnumerationValue(
@@ -537,22 +551,38 @@ export class GlicApiHost implements PostMessageRequestHandler {
     switch (event) {
       case GlicRequestEvent.REQUEST_HANDLER_EXCEPTION:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.RequestCounts.Error`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Error`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
-      case GlicRequestEvent.REQUEST_RECEIVED_WHILE_HIDDEN:
+      case GlicRequestEvent.REQUEST_RECEIVED_WHILE_INACTIVE:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.RequestCounts.Hidden`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Inactive`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       case GlicRequestEvent.REQUEST_RECEIVED:
         chrome.histograms.recordEnumerationValue(
-            `Glic.Api.RequestCounts.Received`, requestTypeNumber,
+            `Glic.Api.StatusCounts.Received`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       default:
         break;
     }
+  }
+
+  addExperimentalTriggeringUpdatesHandler(
+      handler: ExperimentalTriggeringUpdatesHandlerRemote): number {
+    const id = this.nextExperimentalTriggeringUpdateHandlerId++;
+    this.experimentalTriggeringUpdatesHandler.set(id, handler);
+    return id;
+  }
+
+  getExperimentalTriggeringUpdatesHandler(observationId: number):
+      ExperimentalTriggeringUpdatesHandlerRemote|undefined {
+    return this.experimentalTriggeringUpdatesHandler.get(observationId);
+  }
+
+  deleteExperimentalTriggeringUpdatesHandler(observationId: number): void {
+    this.experimentalTriggeringUpdatesHandler.delete(observationId);
   }
 }
 
@@ -561,8 +591,9 @@ enum GlicRequestEvent {
   REQUEST_RECEIVED = 0,
   RESPONSE_SENT = 1,
   REQUEST_HANDLER_EXCEPTION = 2,
-  REQUEST_RECEIVED_WHILE_HIDDEN = 3,
-  MAX_VALUE = REQUEST_RECEIVED_WHILE_HIDDEN,
+  // Deprecated: REQUEST_RECEIVED_WHILE_HIDDEN = 3,
+  REQUEST_RECEIVED_WHILE_INACTIVE = 4,
+  MAX_VALUE = REQUEST_RECEIVED_WHILE_INACTIVE,
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicRequestEvent)
 

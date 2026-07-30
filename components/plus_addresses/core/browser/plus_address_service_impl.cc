@@ -30,9 +30,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_field_data.h"
-#include "components/autofill/core/common/plus_address_survey_type.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
-#include "components/plus_addresses/core/browser/metrics/plus_address_metrics.h"
 #include "components/plus_addresses/core/browser/plus_address_allocator.h"
 #include "components/plus_addresses/core/browser/plus_address_blocklist_data.h"
 #include "components/plus_addresses/core/browser/plus_address_hats_utils.h"
@@ -115,33 +113,6 @@ bool IsSiteExcluded(const url::Origin& origin) {
 std::string GetPlusAddressFromPlusProfile(
     const PlusProfile& affiliated_profile) {
   return affiliated_profile.plus_address.value();
-}
-
-// Returns a suggestion to fill an existing plus address.
-Suggestion CreateFillPlusAddressSuggestion(std::u16string plus_address) {
-  Suggestion suggestion = Suggestion(std::move(plus_address),
-                                     SuggestionType::kFillExistingPlusAddress);
-  if constexpr (!BUILDFLAG(IS_ANDROID)) {
-    suggestion.labels = {{Suggestion::Text(l10n_util::GetStringUTF16(
-        IDS_PLUS_ADDRESS_FILL_SUGGESTION_SECONDARY_TEXT))}};
-  }
-  suggestion.icon = Suggestion::Icon::kPlusAddress;
-  return suggestion;
-}
-
-std::vector<autofill::Suggestion> GetSuggestions(
-    const std::vector<std::string>& affiliated_plus_addresses) {
-  std::vector<Suggestion> suggestions;
-  suggestions.reserve(affiliated_plus_addresses.size());
-  for (const std::string& affiliated_plus_address : affiliated_plus_addresses) {
-    suggestions.push_back(CreateFillPlusAddressSuggestion(
-        base::UTF8ToUTF16(affiliated_plus_address)));
-  }
-  // It is required by `autofill::SuggestionGenerator` that this function should
-  // not filter plus addresses and should return an `autofill::Suggestion`
-  // object for each of them.
-  CHECK_EQ(suggestions.size(), affiliated_plus_addresses.size());
-  return suggestions;
 }
 
 }  // namespace
@@ -321,27 +292,6 @@ void PlusAddressServiceImpl::GetAffiliatedPlusAddresses(
             std::move(inner_callback).Run(std::move(plus_addresses));
           },
           std::move(callback)));
-}
-
-std::vector<Suggestion> PlusAddressServiceImpl::GetSuggestionsFromPlusAddresses(
-    const std::vector<std::string>& plus_addresses) {
-  std::vector<Suggestion> suggestions = GetSuggestions(plus_addresses);
-  const autofill::DenseSet<SuggestionType> suggestion_types(suggestions,
-                                                            &Suggestion::type);
-
-  using enum AutofillPlusAddressDelegate::SuggestionEvent;
-  if (suggestion_types.contains(SuggestionType::kFillExistingPlusAddress)) {
-    RecordAutofillSuggestionEvent(kExistingPlusAddressSuggested);
-  }
-  return suggestions;
-}
-
-Suggestion PlusAddressServiceImpl::GetManagePlusAddressSuggestion() const {
-  Suggestion suggestion(
-      l10n_util::GetStringUTF16(IDS_PLUS_ADDRESS_MANAGE_PLUS_ADDRESSES_TEXT),
-      SuggestionType::kManagePlusAddress);
-  suggestion.icon = Suggestion::Icon::kGoogleMonochrome;
-  return suggestion;
 }
 
 void PlusAddressServiceImpl::ReservePlusAddress(
@@ -547,65 +497,6 @@ bool PlusAddressServiceImpl::IsSupportedOrigin(
 
   return origin.scheme() == url::kHttpsScheme ||
          origin.scheme() == url::kHttpScheme;
-}
-
-void PlusAddressServiceImpl::RecordAutofillSuggestionEvent(
-    SuggestionEvent suggestion_event) {
-  metrics::RecordAutofillSuggestionEvent(suggestion_event);
-
-  using enum autofill::AutofillPlusAddressDelegate::SuggestionEvent;
-  switch (suggestion_event) {
-    case kRefreshPlusAddressInlineClicked:
-      base::RecordAction(base::UserMetricsAction("PlusAddresses.Refreshed"));
-      return;
-    case kExistingPlusAddressSuggested:
-      base::RecordAction(base::UserMetricsAction(
-          "PlusAddresses.StandaloneFillSuggestionShown"));
-      return;
-    case kCreateNewPlusAddressSuggested: {
-      if (setting_service_->GetHasAcceptedNotice()) {
-        base::RecordAction(
-            base::UserMetricsAction("PlusAddresses.CreateSuggestionShown"));
-      } else {
-        base::RecordAction(base::UserMetricsAction(
-            "PlusAddresses.CreateSuggestionFirstTimeNoticeShown"));
-      }
-      return;
-    }
-    case kCreateNewPlusAddressInlineSuggested:
-      base::RecordAction(
-          base::UserMetricsAction("PlusAddresses.CreateSuggestionShown"));
-      return;
-    case kExistingPlusAddressChosen:
-      base::RecordAction(base::UserMetricsAction(
-          "PlusAddresses.FillStandaloneSuggestionAccepted"));
-      return;
-    case kCreateNewPlusAddressChosen:
-      base::RecordAction(
-          base::UserMetricsAction("PlusAddresses.CreateSuggestionAccepted"));
-      return;
-    case kCreateNewPlusAddressInlineChosen:
-      base::RecordAction(
-          base::UserMetricsAction("PlusAddresses.OfferedPlusAddressAccepted"));
-      return;
-    case kErrorDuringReserve:
-    case kCreateNewPlusAddressInlineReserveLoadingStateShown:
-      return;
-  }
-  NOTREACHED();
-}
-
-void PlusAddressServiceImpl::OnPlusAddressSuggestionShown(
-    autofill::AutofillManager& manager,
-    autofill::FormGlobalId form,
-    autofill::FieldGlobalId field,
-    SuggestionContext suggestion_context,
-    autofill::PasswordFormClassification::Type form_type,
-    autofill::SuggestionType suggestion_type) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  submission_logger_.OnPlusAddressSuggestionShown(
-      manager, form, field, suggestion_context, form_type, suggestion_type,
-      /*plus_address_count=*/plus_address_cache_.Size());
 }
 
 void PlusAddressServiceImpl::DidFillPlusAddress() {

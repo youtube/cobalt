@@ -93,6 +93,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap_observer_list.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/timer.h"
@@ -689,6 +690,11 @@ class CORE_EXPORT Document : public ContainerNode,
   // the field is set to true when initializing `this` instance and set to false
   // only once (upon activation).
   bool IsScriptBlockedUntilPrerenderActivation() const;
+
+  // Called when a prerender-until-script page is upgraded to a full prerender.
+  // Similar to UnblockScriptExecutionForPrerenderActivation(), but the page
+  // remains in prerendering state (document.prerendering stays true).
+  void UnblockScriptExecutionForPrerenderUpgrade();
 
   bool IsForExternalHandler() const { return is_for_external_handler_; }
 
@@ -1728,6 +1734,17 @@ class CORE_EXPORT Document : public ContainerNode,
   PopoverStack& PopoverAutoStack() { return popover_auto_stack_; }
   const PopoverStack& PopoverAutoStack() const { return popover_auto_stack_; }
   bool PopoverAutoShowing() const { return !popover_auto_stack_.empty(); }
+  bool PopoverShowing() const { return popover_showing_; }
+  void SetPopoverShowing(bool showing) { popover_showing_ = showing; }
+  uint32_t PopoverHidingNestingCount() const {
+    return popover_hiding_nesting_count_;
+  }
+  void IncrementPopoverHidingNestingCount() { ++popover_hiding_nesting_count_; }
+  void DecrementPopoverHidingNestingCount() {
+    CHECK(popover_hiding_nesting_count_);
+    --popover_hiding_nesting_count_;
+  }
+
   HeapHashSet<Member<HTMLElement>>& AllOpenPopovers() {
     return all_open_popovers_;
   }
@@ -2640,6 +2657,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // pages' triggers can determine whether or not to block scripts.
   void UnblockScriptExecutionForPrerenderActivation();
 
+  // Resume script execution after either prerender activation or
+  // prerender-until-script upgrade.
+  void ResumeBlockedScriptExecution();
+
   // Slow path for GetViewTransitions() when view_transitions_ does not already
   // exist.
   ViewTransitionSupplement& CreateViewTransitions();
@@ -2999,6 +3020,10 @@ class CORE_EXPORT Document : public ContainerNode,
   HeapHashSet<Member<HTMLElement>> popovers_waiting_to_hide_;
   // A set of all open popovers, of all types.
   HeapHashSet<Member<HTMLElement>> all_open_popovers_;
+
+  // Used during the popover show/hide process to avoid reentrant show/hide.
+  bool popover_showing_ = false;
+  uint32_t popover_hiding_nesting_count_ = 0;
 
   // The ordered list of currently-open dialogs, in order they were opened.
   HeapLinkedHashSet<Member<HTMLDialogElement>> all_open_dialogs_;

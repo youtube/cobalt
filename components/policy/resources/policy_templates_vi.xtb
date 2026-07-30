@@ -123,6 +123,7 @@ Nếu bạn đặt chính sách này thành 1 – DisabledForBrowser, thì quy t
 
 Lưu ý: Hãy đọc thêm về chính sách giảm thiểu quy trình (https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies).</translation>
 <translation id="1068801725746725727">Cho phép nhận khảo sát về Duyệt web an toàn</translation>
+<translation id="1069651607236021905">Buộc chạy ở chế độ ưu tiên nền trước đối với các nguồn gốc cụ thể</translation>
 <translation id="107045325503547419">Tuỳ thuộc vào quy trình ra mắt tính năng.</translation>
 <translation id="1073983258515362346">Báo cáo thông tin về đèn nền của thiết bị.
 
@@ -706,14 +707,6 @@ Nếu bạn không đặt chính sách này, thì bộ chọn biểu tượng c�
 <translation id="1523587744262636189">cổng 10080 (có thể được bỏ chặn cho đến ngày 1/4/2022)</translation>
 <translation id="1523774894176285446">Trình duyệt thay thế để chạy các trang web đã định cấu hình.</translation>
 <translation id="152657506688053119">Danh sách các URL thay thế cho nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
-<translation id="1526766414933532012">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Đo lường quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng của bạn hay không.
-
-Nếu bạn đặt chính sách này thành Disabled (Tắt), thì chế độ cài đặt Đo lường quảng cáo sẽ tắt cho người dùng.
-Nếu bạn đặt chính sách này thành Enabled (Bật) hoặc không đặt chính sách này, thì người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Đo lường quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
-
-Nếu đặt chính sách này thì bạn cần đặt chính sách <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> thành Disabled (Tắt).
-
-Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Attribution Reporting API không còn được dùng nữa.</translation>
 <translation id="1532928374875633053">Cho phép bạn thiết lập danh sách các mẫu URL trang web để chỉ định những trang web sẽ tự động cấp quyền kiểm soát vị trí cửa sổ. Việc này sẽ mở rộng khả năng các trang web xem được thông tin về màn hình của thiết bị và dùng thông tin đó để mở/đặt cửa sổ hoặc yêu cầu chế độ toàn màn hình trên một số màn hình cụ thể.
 
       Để biết thông tin chi tiết về các mẫu URL trang web hợp lệ, vui lòng truy cập vào https://chromeenterprise.google/policies/url-patterns. Cho phép sử dụng ký tự đại diện <ph name="WILDCARD_VALUE" />. Chính sách này chỉ đối chiếu dựa trên nguồn gốc, nên mọi đường dẫn trong mẫu URL sẽ bị bỏ qua.
@@ -1166,6 +1159,7 @@ Chính sách này không có hiệu lực nếu không có tuỳ chọn lưu gi�
 
       Nếu bạn không đặt chính sách này, thì người dùng có thể thao tác trên toàn bộ danh sách gồm các ngôn ngữ ưu tiên.</translation>
 <translation id="1803646570632580723">Danh sách các ứng dụng được ghim sẽ hiển thị trong trình chạy</translation>
+<translation id="1807539058116290184">Không cho phép dùng cử chỉ chụm để thu phóng ở chế độ Kiosk</translation>
 <translation id="1808715480127969042">Chặn cookie trên các trang web này</translation>
 <translation id="1810261428246410396">Cho phép sử dụng tính năng Chia sẻ Internet tức thì.</translation>
 <translation id="1813638828646876133">Bật chế độ tự động gửi mã PIN trên màn hình đăng nhập và màn hình khoá</translation>
@@ -2138,6 +2132,15 @@ Nếu bạn không đặt chính sách này, thì màn hình bảo vệ quyền 
 <translation id="2450392422484526374">Nếu bạn đặt chính sách này thành true, tính năng In thầm lặng sẽ bật. Khi đó, cửa sổ xem trước bản in sẽ đóng ngay sau khi mở và máy in mặc định với các lựa chọn mặc định sẽ được dùng để in. Nếu lựa chọn in mặc định là "Lưu dưới dạng PDF", tệp sẽ được lưu vào thư mục Tệp đã tải xuống.
 
 Nếu bạn không đặt chính sách này hoặc đặt chính sách này thành false, tính năng In thầm lặng sẽ bị tắt. Khi đó, cửa sổ xem trước bản in sẽ không tự động đóng và người dùng phải lựa chọn như bình thường.</translation>
+<translation id="2451322901390143329">Kiểm soát việc Trình chạy web được tạo từ URL dữ liệu có được chỉ định một nguồn gốc duy nhất, không rõ ràng hay không.
+
+Bạn có thể tạo Trình chạy web bằng một URL dữ liệu chứa tập lệnh của trình chạy. Trước đây, các trình chạy này kế thừa nguồn gốc của trang đã tạo ra chúng, cho phép chúng truy cập vào cùng một bộ nhớ cục bộ, cookie và dữ liệu khác được liên kết với nguồn gốc. Để cải thiện tính bảo mật và tuân thủ thông số kỹ thuật HTML, Chrome sẽ thay đổi chế độ mặc định ở mốc 149 để các trình xử lý được tạo từ URL dữ liệu sẽ có một nguồn gốc duy nhất, không rõ ràng. Thao tác này sẽ tách biệt các dữ liệu đó khỏi dữ liệu của trang người tạo.
+
+Nếu bạn đặt chính sách này thành Enabled (Bật) hoặc không đặt, thì chế độ mặc định mới (an toàn hơn) sẽ được sử dụng và Trình chạy web được tạo từ URL dữ liệu sẽ có một nguồn gốc duy nhất, không rõ ràng.
+
+Nếu bạn đặt chính sách này thành Tắt, thì Chrome sẽ quay lại chế độ cũ và Trình chạy web được tạo từ URL dữ liệu sẽ kế thừa nguồn gốc của người tạo. Điều này cho phép quản trị viên tạm thời giải quyết các vấn đề về khả năng tương thích nếu các ứng dụng nội bộ gặp sự cố do thay đổi về bảo mật.
+
+Chính sách này chỉ mang tính tạm thời và sẽ bị loại bỏ ở mốc 157.</translation>
 <translation id="2452225615952836461">Luôn viết hoa phương thức yêu cầu</translation>
 <translation id="2454228136871844693">Tối ưu hóa cho độ ổn định.</translation>
 <translation id="2455033019778127130">Áp dụng hoạt động mặc định của trình duyệt, hiển thị Điều khoản dịch vụ (ToS) và chờ người dùng chấp nhận.</translation>
@@ -3318,6 +3321,18 @@ Có nhiều chính sách liệt kê những nguồn gốc ảnh hưởng đến 
           Khi bạn không đặt chính sách này, khoảng thời gian mặc định sẽ được sử dụng.
 
           Bạn phải chỉ định giá trị của chính sách bằng mili giây.</translation>
+<translation id="3197981761853858791">Chính sách này không được dùng nữa vì cấu hình lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" /> không còn được hỗ trợ.
+
+Chính sách kiểm soát việc người dùng có nhìn thấy lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" /> hay không.
+Lời nhắc là một luồng chặn người dùng nhằm thông báo cho người dùng về chế độ cài đặt của <ph name="PRIVACY_SANDBOX_NAME" />. Xem <ph name="PRIVACY_SANDBOX_URL" /> để biết thông tin chi tiết về nỗ lực của Chrome trong việc ngừng sử dụng cookie của bên thứ ba.
+
+Nếu bạn đặt chính sách này thành Tắt, <ph name="PRODUCT_NAME" /> sẽ không hiển thị lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" />.
+Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, <ph name="PRODUCT_NAME" /> sẽ xác định xem có thể hiển thị lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" /> hay không rồi hiển thị lời nhắc đó nếu có thể.
+
+Nếu đã đặt bất kỳ chính sách nào sau đây, bạn phải đặt chính sách này thành Tắt:
+<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="3198385910521788907">Không hiển thị màn hình cảm biến sự có mặt của con người trong quá trình đăng nhập</translation>
 <translation id="3205825995289802549">Mở tối đa cửa sổ trình duyệt đầu tiên trong lần chạy đầu tiên</translation>
 <translation id="320607884987562184">Nếu bạn đặt chính sách này thành 1, thì các trang web có thể chạy JavaScript. Nếu bạn đặt chính sách này thành 2, thì các trang web không được chạy JavaScript.
@@ -4105,6 +4120,12 @@ Chính sách thiết bị này tương đương với chính sách người dùn
       Nếu bạn tắt lựa chọn cài đặt này, thì người dùng sẽ không dùng được tính năng Tự động điền.
 
       Nếu bạn bật hoặc không đặt giá trị cho lựa chọn cài đặt này, thì người dùng vẫn có quyền kiểm soát tính năng Tự động điền. Điều này sẽ cho phép họ thiết lập hồ sơ Tự động điền và bật hoặc tắt tính năng này theo ý muốn.</translation>
+<translation id="3730809439296971274">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Quảng cáo do trang web gợi ý của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng hay không.
+
+Nếu bạn đặt chính sách này thành Tắt, chế độ cài đặt Quảng cáo do trang web gợi ý sẽ tắt cho người dùng.
+Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Quảng cáo do trang web gợi ý của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
+
+Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Protected Audience API không còn được dùng.</translation>
 <translation id="3733014427925403568">Ngày trong tuần cho khoảng thời gian.</translation>
 <translation id="3736879847913515635">Cho phép thêm người trong trình quản lý người dùng</translation>
 <translation id="3744984310825999317">Cho phép <ph name="PEPPER_NAME" /> sử dụng một bộ giải mã mới để giải mã video được tăng tốc phần cứng.</translation>
@@ -5150,6 +5171,7 @@ Chính sách này luôn có hiệu lực đối với <ph name="PRODUCT_OS_NAME"
 <translation id="4463675333222095358">Bật tính năng Chuyển đổi đơn vị của Thông tin nhanh</translation>
 <translation id="4464365009416584564">Tắt <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4467952432486360968">Chặn cookie của bên thứ ba</translation>
+<translation id="4468220154891570994">Cho phép dùng cử chỉ chụm để thu phóng ở chế độ Kiosk</translation>
 <translation id="4472740647327683596">Chiều rộng của trang (tính bằng micromet)</translation>
 <translation id="4474167089968829729">Bật lưu mật khẩu cho trình quản lý mật khẩu</translation>
 <translation id="4474266799109921560">Nếu bạn đặt chính sách này thành 2, hệ thống sẽ tự động ngăn các nguồn gốc của Ứng dụng web tách biệt sử dụng API WebPrinting.
@@ -5359,6 +5381,17 @@ Các mẫu URL không được xung đột với <ph name="CONTROLLED_FRAME_BLOC
           khác nhau của chính sách này trong khi chạy sẽ không gây ra vấn đề gì.
           </translation>
 <translation id="4578265298946081589">Không khởi động lại khi đăng xuất người dùng.</translation>
+<translation id="4580711645933054901">Chính sách này cho phép bạn chỉ định danh sách các mẫu URL. Nội dung trên web chạy trong nền khớp với các mẫu này sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Nếu bạn bật chính sách <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> thì danh sách này sẽ bị bỏ qua vì tất cả các thẻ sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Nếu bạn tắt hoặc không đặt chính sách <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> thì chỉ nội dung khớp với các mẫu trong danh sách này sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Để biết thông tin chi tiết về các mẫu <ph name="URL_LABEL" /> hợp lệ, vui lòng xem tại https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Chính sách này chỉ đối chiếu dựa trên nguồn gốc, nên mọi đường dẫn hoặc tham số truy vấn trong mẫu sẽ bị bỏ qua. Hỗ trợ tên giao thức, máy chủ và cổng.
+
+Nếu danh sách này trống hoặc bạn không đặt danh sách này, thì không có nội dung chạy nền nào bị buộc phải chạy ở chế độ ưu tiên nền trước.</translation>
 <translation id="4581507927311097234">Khoảng thời gian (tính bằng mili giây) kể từ khi không có hoạt động đầu vào của người dùng cho đến thời điểm màn hình bị tắt</translation>
 <translation id="4582027661281685066">Danh sách mẫu URL. Các yêu cầu bắt nguồn từ trang web do các nguồn gốc trùng khớp phân phát sẽ không phải trải qua bước kiểm tra <ph name="PRIVATE_NETWORK_ACCESS" />.
 
@@ -6184,14 +6217,6 @@ Nếu bạn không đặt chính sách này thì hành vi của chính sách s�
 <translation id="5063480226653192405">Mức sử dụng</translation>
 <translation id="5067143124345820993">Danh sách trắng những người dùng được phép đăng nhập</translation>
 <translation id="50689955292091946">Bật bàn phím ảo hỗ trợ tiếp cận trên màn hình đăng nhập</translation>
-<translation id="5069453818168036580">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Quảng cáo do trang web gợi ý của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng hay không.
-
-Nếu bạn đặt chính sách này thành Disabled (Tắt), thì chế độ cài đặt Quảng cáo do trang web gợi ý sẽ bị tắt cho người dùng.
-Nếu bạn đặt chính sách này thành Enabled (Bật) hoặc không đặt, thì người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Quảng cáo do trang web gợi ý của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
-
-Nếu đặt chính sách này thì bạn cần đặt chính sách <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> thành Disabled (Tắt).
-
-Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Protected Audience API không còn được dùng nữa.</translation>
 <translation id="5069522005630249098">Chế độ cài đặt này quyết định lượng dữ liệu người dùng được lưu giữ sau khi <ph name="LACROS_NAME" /> tắt.
 
       Nếu bạn không đặt, hoặc đặt chính sách này thành <ph name="LACROS_BACKWARD_MIGRATION_NONE" />, thì quá trình di chuyển dữ liệu ngược sẽ không diễn ra.
@@ -6297,6 +6322,12 @@ Chính sách này là giải pháp tạm thời để bạn có thời gian di c
 <translation id="5124368997194894978">Bật tính năng khởi động trên AC (dòng điện xoay chiều)</translation>
 <translation id="5130213897914754028">Ngăn các trang web sử dụng SharedArrayBuffers</translation>
 <translation id="5130935469849337738">Luôn cung cấp bản dịch</translation>
+<translation id="513314432051760916">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Đo lường quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng hay không.
+
+Nếu bạn đặt chính sách này thành Tắt, chế độ cài đặt Đo lường quảng cáo sẽ tắt cho người dùng.
+Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Đo lường quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
+
+Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Attribution Reporting API không còn được dùng.</translation>
 <translation id="5138579693170759139">Chính sách này cho phép quản trị viên kiểm soát cách Google xử lý cookie và dữ liệu được gửi đến Tìm kiếm thông qua <ph name="PRODUCT_OS_NAME" />.
 Khi bạn bật chính sách này, người dùng có thể sử dụng hộp tìm kiếm của Trình chạy <ph name="PRODUCT_OS_NAME" /> và hộp địa chỉ của Trình duyệt <ph name="PRODUCT_NAME" /> trong <ph name="PRODUCT_OS_NAME" />. Cookie và dữ liệu chỉ có thể được dùng cho các mục đích thiết yếu.
 Khi bạn tắt hoặc không đặt chính sách này, dữ liệu và cookie có thể được sử dụng cho các mục đích không thiết yếu.</translation>
@@ -6319,6 +6350,7 @@ Các miền phải ở dạng tên miền đủ điều kiện (FQDN) hoặc d�
 
 Hệ thống sẽ bỏ qua các miền không đúng định dạng.</translation>
 <translation id="5163002264923337812">Cho phép quy trình đăng nhập dựa trên web cũ</translation>
+<translation id="5163120075537316507">Đã tắt nguồn gốc không rõ ràng cho URL dữ liệu trong Trình chạy web (chế độ cũ không dùng nữa)</translation>
 <translation id="5163889437570441600">Có thể truyền nội dung tới thiết bị này bằng cách sử dụng <ph name="PRODUCT_NAME" />.
 
           Nếu bạn thiết lập chính sách này thành Sai, người dùng sẽ không thể truyền nội dung tới thiết bị của họ. Nếu bạn thiết lập chính sách này thành Đúng, người dùng được phép truyền nội dung. Nếu bạn không thiết lập chính sách này, người dùng không được phép truyền nội dung tới thiết bị ChromeOS đã đăng ký, nhưng có thể truyền nội dung tới thiết bị chưa đăng ký.</translation>
@@ -6987,6 +7019,15 @@ Nếu bạn tắt <ph name="NTPCARDSVISIBLE" />, thẻ SharePoint và OneDrive s
 <translation id="5542235730745104308">Nếu bạn đặt chính sách này thành True, thì <ph name="PRODUCT_NAME" /> sẽ sử dụng các trang thông báo lỗi thay thế tích hợp (chẳng hạn như "không tìm thấy trang"). Nếu bạn đặt chính sách này thành False, thì <ph name="PRODUCT_NAME" /> sẽ không bao giờ sử dụng các trang thông báo lỗi thay thế.
 
 Nếu bạn đặt chính sách này, người dùng sẽ không thay đổi được lựa chọn đó. Nếu bạn không đặt chính sách này, thì chính sách sẽ bật nhưng người dùng có thể thay đổi chế độ cài đặt này.</translation>
+<translation id="5543124658694855168">Nếu bạn đặt chính sách này, doanh nghiệp sẽ có thể ghi đè giá trị mà <ph name="CPU_PERFORMANCE_API_NAME" /> trả về (tức là
+<ph name="CPU_PERFORMANCE_GETTER_NAME" />,
+vui lòng xem https://github.com/WICG/cpu-performance để biết thông tin chi tiết).
+
+Nếu bạn đặt chính sách này, giá trị của
+<ph name="CPU_PERFORMANCE_GETTER_NAME" />
+sẽ bị ghi đè thành giá trị được chỉ định. Nếu bạn không đặt chính sách này, hệ thống sẽ sử dụng cách tính bậc hiệu suất mặc định.
+
+Chính sách này có thể có các giá trị từ 0 đến 4.</translation>
 <translation id="5544059132156503357">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định các loại mã hoá được phép khi yêu cầu phiếu Kerberos từ một máy chủ <ph name="MS_AD_NAME" />.
 
 Nếu bạn đặt chính sách này thành:
@@ -7294,6 +7335,7 @@ Chính sách này ảnh hưởng đến cả quy trình xác thực khi đăng n
 <translation id="5706929446669049441">Tắt tính năng chia sẻ thông tin đăng nhập của người dùng</translation>
 <translation id="57072195677044908">Tắt chế độ cài đặt phân tách hồ sơ</translation>
 <translation id="5708969689202733975">Định cấu hình chế độ mở khóa nhanh được phép</translation>
+<translation id="5714281972278520176">Bật nguồn gốc không rõ ràng cho URL dữ liệu trong Trình chạy web</translation>
 <translation id="5714563837055244378">Bật tính năng chia sẻ dữ liệu của Ứng dụng Android sang Web.</translation>
 <translation id="5715739768416614900">Bật các công cụ khắc phục sự cố Kiosk.</translation>
 <translation id="5717973246079053225">Tắt tính năng báo cáo trên đám mây qua hồ sơ được quản lý.</translation>
@@ -8170,6 +8212,7 @@ Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên b
 <translation id="6287128640500683781">Cho phép mọi người dùng đăng nhập</translation>
 <translation id="6287310684159482272">Cài đặt cookie</translation>
 <translation id="6287742528823584153">Bật dịch vụ <ph name="PRODUCT_NAME" /> và mở không gian làm việc từ xa khi đăng nhập</translation>
+<translation id="6293411231114989812">Đã bật nguồn gốc không rõ ràng cho URL dữ liệu trong Trình chạy web (chế độ mặc định mới)</translation>
 <translation id="6299147100249359151">Cho phép Phát hiện phạm vi chính sách.</translation>
 <translation id="6299554629216555326">Cài đặt quyền Quản lý cửa sổ</translation>
 <translation id="6302021021024941085">Tắt các công cụ khắc phục sự cố Kiosk.</translation>
@@ -9513,6 +9556,9 @@ Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đ�
 
 Nếu bạn không đặt chính sách này, thì ban đầu, trình phóng to màn hình sẽ tắt trên màn hình đăng nhập nhưng người dùng có thể bật trình phóng to màn hình bất cứ lúc nào.</translation>
 <translation id="7109384070286741861">Vô hiệu hóa thuật toán CECPQ2</translation>
+<translation id="711246451611873603">Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, người dùng có thể dùng cử chỉ chụm để thu phóng trong một phiên Kiosk.
+
+Nếu bạn đặt chính sách này thành Tắt, người dùng sẽ không được phép dùng cử chỉ chụm để thu phóng trong một phiên Kiosk.</translation>
 <translation id="7113439794629928551">Hiện bộ điều khiển nội dung nghe nhìn cho các phiên <ph name="PRODUCT_NAME" /> do các thiết bị khác bắt đầu</translation>
 <translation id="7113803652772945829">Nếu bạn đặt chính sách này thành true, thì người dùng có thể sử dụng một trình quản lý mật khẩu bên thứ ba.
 Trình quản lý mật khẩu đó sẽ xử lý thao tác lưu và điền tất cả mật khẩu, thông tin thanh toán và dữ liệu tự động điền.
@@ -10438,6 +10484,7 @@ Bạn có thể ghi đè chính sách này cho các nguồn gốc cụ thể c�
 
           Bạn phải chỉ định giá trị của chính sách bằng mili giây. Các giá trị được giới hạn ở mức nhỏ hơn hoặc bằng thời gian chờ tắt màn hình (nếu có đặt thời gian này) và thời gian chờ khi ở chế độ tạm vắng.</translation>
 <translation id="7680437377926096177">Ngăn hiện hộp thoại đăng xuất khi cửa sổ cuối cùng đóng lại.</translation>
+<translation id="7681075922820376711">Ghi đè cho cấp hiệu suất của CPU</translation>
 <translation id="7682409626897786151">Cho phép bạn thiết lập danh sách mẫu URL để chỉ định các trang web được phép dùng tính năng tạo khoá. Nếu một mẫu URL nằm trong "KeygenBlockedForUrls", thì việc đó sẽ ghi đè các ngoại lệ này.
 
           Nếu bạn không đặt chính sách này, thì giá trị mặc định chung của chính sách "DefaultKeygenSetting" (nếu bạn đã đặt chính sách này) hoặc trong cấu hình cá nhân của người dùng (nếu bạn chưa đặt chính sách này) sẽ được sử dụng cho tất cả trang web.
@@ -10762,6 +10809,12 @@ Các nguồn gốc phải tương ứng với các ứng dụng web là Ứng d�
 <translation id="7891884447851425349">Nếu bạn bật <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />, thì thao tác đặt <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> sẽ chỉ định URL của công cụ tìm kiếm dùng để tìm kiếm mặc định. URL phải chứa chuỗi <ph name="SEARCH_TERM_MARKER" />. Chuỗi này sẽ được thay bằng cụm từ tìm kiếm của người dùng trong truy vấn.
 
       Bạn có thể chỉ định URL tìm kiếm của Google là: <ph name="GOOGLE_SEARCH_URL" />.</translation>
+<translation id="7892399002226884003">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Chủ đề quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng hay không.
+
+Nếu bạn đặt chính sách này thành Tắt, chế độ cài đặt Chủ đề quảng cáo sẽ tắt cho người dùng của bạn.
+Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Chủ đề quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
+
+Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Topics API không còn được dùng.</translation>
 <translation id="7893719068404928632">Nếu bạn đặt chính sách này thành Enabled (Bật) thì bất cứ khi nào một cảnh báo dự kiến sẽ
 xuất hiện trong <ph name="CHROME_DEVTOOLS_NAME" /> do không kiểm tra được <ph name="LOCAL_NETWORK_ACCESS" />,
 yêu cầu chính sẽ bị chặn.
@@ -11296,16 +11349,6 @@ Những chính sách này chỉ dùng cho mục đích định cấu hình các 
 Bạn không cần định cấu hình các cài đặt này theo cách thủ công! Bạn có thể tải xuống các mẫu dễ sử dụng dành cho Windows, Mac và Linux từ <ph name="POLICY_TEMPLATE_DOWNLOAD_URL" />.
 
 Bạn nên định cấu hình chính sách trên Windows qua GPO, mặc dù việc cấp phép chính sách qua cổng đăng ký vẫn được hỗ trợ cho các phiên bản Windows tham gia miền <ph name="MS_AD_NAME" />.</translation>
-<translation id="8261008508574620157">Chính sách kiểm soát việc người dùng có nhìn thấy lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" /> hay không.
-Lời nhắc là một luồng chặn người dùng nhằm thông báo cho người dùng về chế độ cài đặt của <ph name="PRIVACY_SANDBOX_NAME" />. Xem <ph name="PRIVACY_SANDBOX_URL" /> để biết thông tin chi tiết về nỗ lực của Chrome trong việc ngừng sử dụng cookie của bên thứ ba.
-
-Nếu bạn đặt chính sách này thành Tắt, thì <ph name="PRODUCT_NAME" /> sẽ không hiển thị lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" />.
-Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ xác định xem có cần hiển thị lời nhắc của <ph name="PRIVACY_SANDBOX_NAME" /> hay không và sau đó hiển thị lời nhắc đó nếu có thể.
-
-Nếu đã đặt bất kỳ chính sách nào sau đây, thì bạn phải đặt chính sách này thành Tắt:
-<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="826163650738550159">Chính sách này sẽ cung cấp quyền truy cập vào trang thử nghiệm chính sách, trong khi các chính sách được thử nghiệm trên trang này, tất cả các chính sách khác sẽ bị bỏ qua.
 Tính năng này sẽ chỉ có trên kênh Canary.
 
@@ -11965,14 +12008,6 @@ Chính sách này chỉ là biện pháp tạm thời và sẽ bị xoá sau m�
       Khi bạn tắt chính sách này, thì tính bảo mật và độ ổn định của <ph name="PRODUCT_NAME" /> sẽ bị ảnh hưởng vì mã không xác định và có khả năng gây hại có thể được phép tải trong quá trình chạy trình duyệt của <ph name="PRODUCT_NAME" />. Bạn chỉ nên tắt chính sách này nếu gặp vấn đề về khả năng tương thích với phần mềm bên thứ ba. Phần mềm này phải hoạt động trong quá trình chạy trình duyệt của <ph name="PRODUCT_NAME" />.
 
       Lưu ý: Hãy đọc thêm về Chính sách giảm thiểu quy trình (https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies).</translation>
-<translation id="8672039014434141545">Chính sách kiểm soát việc có thể tắt chế độ cài đặt Chủ đề quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> cho người dùng hay không.
-
-Nếu bạn đặt chính sách này thành Disabled (Tắt), thì chế độ cài đặt Chủ đề quảng cáo sẽ tắt cho người dùng của bạn.
-Nếu bạn đặt chính sách này thành Enabled (Bật) hoặc không đặt chính sách này, thì người dùng sẽ có thể bật hoặc tắt chế độ cài đặt Chủ đề quảng cáo của <ph name="PRIVACY_SANDBOX_NAME" /> trên thiết bị.
-
-Nếu đặt chính sách này, thì bạn cần đặt chính sách <ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> thành Disabled (Tắt).
-
-Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /> phiên bản 144 khi Topics API không còn được dùng nữa.</translation>
 <translation id="8672321184841719703">Phiên bản cập nhật tự động đích</translation>
 <translation id="867410340948518937">U2F (Hai yếu tố chung)</translation>
 <translation id="8675599659717867329">Tắt tính năng báo cáo</translation>

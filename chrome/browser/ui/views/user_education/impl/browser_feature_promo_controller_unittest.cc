@@ -32,7 +32,6 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h"
-#include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
@@ -460,7 +459,8 @@ class BrowserFeaturePromoControllerTestBase : public TestWithBrowserView {
   }
 
   views::View* GetAnchorView() {
-    return browser_view()->toolbar()->app_menu_button();
+    return views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+        kToolbarAppMenuButtonElementId, browser_view()->GetElementContext());
   }
 
   ui::TrackedElement* GetAnchorElement() {
@@ -1675,7 +1675,7 @@ class BrowserFeaturePromoControllerViewsTest
 // In branded builds on Windows, some of the required strings may be optimized
 // out during Chrome resource compilation. To avoid issues, simply don't run
 // these tests on those specific bots.
-// See https://crbug.com/434261108 and https://crbug.com/1181150 for more info.
+// See https://crbug.com/434261108 and https://crbug.com/40750695 for more info.
 #if !BUILDFLAG(GOOGLE_CHROME_BRANDING) || !BUILDFLAG(IS_WIN)
 
 namespace {

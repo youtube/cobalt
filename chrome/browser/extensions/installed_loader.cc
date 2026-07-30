@@ -369,17 +369,6 @@ void InstalledLoader::LoadAllExtensions(Profile* profile) {
   ExtensionPrefs::ExtensionsInfo extensions_info =
       extension_prefs_->GetInstalledExtensionsInfo();
 
-  std::erase_if(extensions_info, [this](const ExtensionInfo& info) {
-    // Skip extensions installed via CDP because they are only meant for the
-    // current session.
-    int creation_flags = GetCreationFlags(&info);
-    if (creation_flags & Extension::INSTALLED_VIA_CDP) {
-      extension_prefs_->DeleteExtensionPrefs(info.extension_id);
-      return true;
-    }
-    return false;
-  });
-
   bool should_write_prefs = false;
 
   for (auto& info : extensions_info) {
@@ -393,7 +382,7 @@ void InstalledLoader::LoadAllExtensions(Profile* profile) {
       // Reloading an extension reads files from disk.  We do this on the
       // UI thread because reloads should be very rare, and the complexity
       // added by delaying the time when the extensions service knows about
-      // all extensions is significant.  See crbug.com/37548 for details.
+      // all extensions is significant.  See crbug.com/40366546 for details.
       // |allow_blocking| disables tests that file operations run on the file
       // thread.
       base::ScopedAllowBlocking allow_blocking;

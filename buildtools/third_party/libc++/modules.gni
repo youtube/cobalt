@@ -14,17 +14,6 @@ if (is_win) {
   import("//build/toolchain/win/win_toolchain_data.gni")
 }
 
-configs_to_add = [
-  "//buildtools/third_party/libc++:extra_flags",
-  "//buildtools/third_party/libc++:stdver",
-  "//build/config/compiler:no_chromium_code",
-]
-
-configs_to_remove = [
-  "//build/config/compiler:chromium_code",
-  "//build/config/coverage:default_coverage",
-]
-
 if (use_clang_modules) {
   template("clang_module") {
     source_set(target_name) {
@@ -78,30 +67,6 @@ if (use_clang_modules) {
           "//buildtools/third_party/libc++:libcxx_modulemap",
           "//buildtools/third_party/libc++:sysroot_modulemaps",
         ]
-      }
-
-      # Header files in modules need to be built with chromium_code config as
-      # some warnings are not triggered if we use no_chromium_code config for
-      # modules compiles.
-      configs -= configs_to_remove - [ "//build/config/compiler:chromium_code" ]
-
-      # The module needs to use the same version of -std that is used by the
-      # libraries depending on it. Otherwise we get a module config mismatch.
-      configs += configs_to_add - [
-                   "//build/config/compiler:no_chromium_code",
-                   "//buildtools/third_party/libc++:stdver",
-                 ]
-
-      # Any complex target-specific logic needs to go in here.
-      # The modularize tool supports simple attributes, but not conditional
-      # logic.
-      if (target_name == "std_stdatomic_h" && use_cxx23) {
-        # In cxx23, stdatomic.h uses libcxx's stdatomic rather than the
-        # builtin.
-        if (!is_win) {
-          public_deps -= [ ":_Builtin_stdatomic" ]
-        }
-        public_deps += [ ":std" ]
       }
 
       if (is_apple && target_name == "libunwind") {
@@ -184,7 +149,6 @@ if (use_clang_modules) {
 template("modulemap_config") {
   config(target_name) {
     path = rebase_path(invoker.source, root_build_dir)
-    cflags_cc = [ "-fmodule-map-file=${path}" ]
     swiftflags = [ "-Xcc=-fmodule-map-file=${path}" ]
   }
 }

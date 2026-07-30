@@ -65,6 +65,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
@@ -1681,9 +1682,9 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
   const AppId app_id = InstallTestWebApp(
       GURL(kAppUrl1), web_app::mojom::UserDisplayMode::kTabbed);
 
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
   Browser* app_browser = OpenTestWebApp(app_id);
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 2u);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 2u);
 
   TabStripModel* app_tab_strip_model = app_browser->tab_strip_model();
   EXPECT_EQ(app_tab_strip_model->count(), 1);
@@ -1724,7 +1725,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
                                                    TabCloseTypes::CLOSE_NONE);
   CloseBrowserSynchronously(browser());
   EXPECT_FALSE(web_app::IsBrowserOpen(browser()));
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1u);
 
   TabStripModel* app_tab_strip_model = app_browser->tab_strip_model();
   EXPECT_EQ(app_tab_strip_model->count(), 1);
@@ -1748,7 +1749,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
   EXPECT_TRUE(content::WaitForLoadStop(tab));
 
   EXPECT_EQ(title1, tab->GetLastCommittedURL());
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 2u);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 2u);
   EXPECT_TRUE(chrome::FindBrowserWithTab(tab)->is_type_normal());
 
   TabStripModel* tab_strip_model =
@@ -1758,7 +1759,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
 }
 
 // Verify that "Open Link in New Tab" doesn't crash for about:blank.
-// This is a regression test for https://crbug.com/1197027.
+// This is a regression test for https://crbug.com/40176721.
 IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, OpenAboutBlankInNewTab) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
@@ -1784,7 +1785,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, OpenAboutBlankInNewTab) {
 }
 
 // Verify that "Open Link in New Tab" doesn't crash for data: URLs.
-// This is a regression test for https://crbug.com/1197027.
+// This is a regression test for https://crbug.com/40176721.
 IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, OpenDataURLInNewTab) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
@@ -1921,7 +1922,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, SuggestedFileName) {
 }
 
 // Check which commands are present after opening the context menu for the main
-// frame.  This is a regression test for https://crbug.com/1085040.
+// frame.  This is a regression test for https://crbug.com/40132018.
 IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
                        MenuContentsVerification_MainFrame) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -1980,7 +1981,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest,
 
   // Make sure the subframe doesn't contain any text, because the context menu
   // may behave differently when opened over text selection.  See also
-  // https://crbug.com/1090891.
+  // https://crbug.com/40133938.
   {
     content::TestNavigationObserver nav_observer(tab, 1);
     const char kScript[] = R"(
@@ -2282,7 +2283,7 @@ IN_PROC_BROWSER_TEST_F(ContextMenuBrowserTest, OpenLinkInProfileEntryPresent) {
   }
 }
 
-// Flaky on Linux. https://crbug.com/1453315.
+// Flaky on Linux. https://crbug.com/40916369.
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_OpenLinkInProfile DISABLED_OpenLinkInProfile
 #else
@@ -2862,7 +2863,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,
   ASSERT_EQ(browser()->tab_strip_model()->active_index(), starting_tab_index);
 }
 
-// https://crbug.com/1444953
+// https://crbug.com/40064516
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 #define MAYBE_ImageSearchContextMenuOpensImageSearchForKeyboard \
   DISABLED_ImageSearchContextMenuOpensImageSearchForKeyboard

@@ -22,7 +22,6 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridg
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -33,6 +32,7 @@ import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.ViewRectProvider;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -191,15 +191,13 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
             int optionalSection = mMenuBridge.getOptionalSection();
             mMainPageModel.set(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE, optionalSection);
 
-            if (optionalSection
-                    == org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes
-                            .OptionalSectionType.HOST_ACCESS_REQUESTS) {
+            if (optionalSection == ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS) {
                 mMainPageModel.set(
                         ExtensionsMenuProperties.HOST_ACCESS_REQUESTS,
                         mMenuBridge.getHostAccessRequests());
             } else {
                 mMainPageModel.set(
-                        ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, new java.util.ArrayList<>());
+                        ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, new ArrayList<>());
             }
 
             updateMenuEntries();
@@ -320,6 +318,12 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         updateSitePermissionsPage(entry.id);
     }
 
+    /** Called when the list of pinned actions changed. */
+    @Override
+    public void onPinnedActionsChanged() {
+        updateMenuEntries();
+    }
+
     /** Called when a host access request has been added. */
     @Override
     public void onHostAccessRequestAdded(String extensionId) {
@@ -362,9 +366,6 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
      * @return The created list item.
      */
     private ListItem createMenuItem(ExtensionsMenuTypes.MenuEntryState entry) {
-        boolean isActionPinned = entry.contextMenuButton.isOn;
-        int contextMenuIcon = isActionPinned ? R.drawable.ic_keep_24dp : R.drawable.ic_more_vert;
-
         PropertyModel model =
                 new PropertyModel.Builder(ExtensionsMenuItemProperties.ALL_KEYS)
                         .with(ExtensionsMenuItemProperties.EXTENSION_ID, entry.id)
@@ -373,8 +374,8 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
                                 (view) ->
                                         onContextMenuButtonClicked((ListMenuButton) view, entry.id))
                         .with(
-                                ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ICON,
-                                contextMenuIcon)
+                                ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK,
+                                (view) -> mMenuBridge.executeAction(entry.id))
                         .with(
                                 ExtensionsMenuItemProperties.SITE_ACCESS_TOGGLE_ON_CLICK,
                                 (buttonView, isOn) ->
@@ -451,6 +452,7 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
             PropertyModel itemModel, ExtensionsMenuTypes.MenuEntryState itemState) {
         itemModel.set(ExtensionsMenuItemProperties.TITLE, itemState.actionButton.text);
         itemModel.set(ExtensionsMenuItemProperties.ICON, itemState.actionButton.icon);
+        itemModel.set(ExtensionsMenuItemProperties.IS_PINNED, itemState.contextMenuButton.isOn);
         itemModel.set(
                 ExtensionsMenuItemProperties.SITE_ACCESS_TOGGLE_CHECKED,
                 itemState.siteAccessToggle.isOn);
@@ -469,21 +471,45 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         itemModel.set(
                 ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TEXT,
                 itemState.sitePermissionsButton.text);
+        itemModel.set(ExtensionsMenuItemProperties.IS_ENTERPRISE, itemState.isEnterprise);
     }
 
     /**
-     * Resets the menu items by pulling the list of menu entries from native and updating the action
-     * models list. Also updates the zero state visibility.
+     * Updates the menu items by pulling the list of menu entries from native and updating the
+     * action models list. Also updates the zero state visibility.
      */
     private void updateMenuEntries() {
-        mActionModels.clear();
         List<ExtensionsMenuTypes.MenuEntryState> entries = mMenuBridge.getMenuEntries();
 
-        for (ExtensionsMenuTypes.MenuEntryState entry : entries) {
-            mActionModels.add(createMenuItem(entry));
+        if (mActionModels.size() != entries.size()) {
+            // If sizes mismatch (e.g., initial load), clear and rebuild.
+            reconstructModel(entries);
+        } else {
+            // Update items in-place to keep the {@link ListItem} instances.
+            for (int i = 0; i < entries.size(); i++) {
+                ExtensionsMenuTypes.MenuEntryState entry = entries.get(i);
+                ListItem item = mActionModels.get(i);
+
+                String currentId = item.model.get(ExtensionsMenuItemProperties.EXTENSION_ID);
+                if (!currentId.equals(entry.id)) {
+                    // In case the item order is different, clear and rebuild.
+                    reconstructModel(entries);
+                    break;
+                }
+
+                updateMenuItem(item.model, entry);
+            }
         }
 
         updateZeroState();
+    }
+
+    /** Resets and reconstructs {@link mActionModels}. */
+    private void reconstructModel(List<ExtensionsMenuTypes.MenuEntryState> entries) {
+        mActionModels.clear();
+        for (ExtensionsMenuTypes.MenuEntryState entry : entries) {
+            mActionModels.add(createMenuItem(entry));
+        }
     }
 
     /**

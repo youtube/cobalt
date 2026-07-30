@@ -32,7 +32,6 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.profiles.ProfileManager;
-import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridge;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
@@ -41,9 +40,9 @@ import org.chromium.chrome.test.util.browser.sync.SyncTestUtil;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.sync.SyncService;
+import org.chromium.components.sync.UserSelectableType;
 import org.chromium.components.sync.internal.SyncPrefNames;
 import org.chromium.components.sync.protocol.AutofillWalletSpecifics;
 import org.chromium.components.sync.protocol.EntitySpecifics;
@@ -54,7 +53,6 @@ import org.chromium.components.user_prefs.UserPrefs;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -217,40 +215,14 @@ public class SyncTestRule extends ChromeTabbedActivityTestRule {
     /** Adds an account of given account name to AccountManagerFacade and waits for the seeding. */
     public CoreAccountInfo addAccount(AccountInfo account) {
         mSigninTestRule.addAccount(account);
-        Assert.assertFalse(SyncTestUtil.isSyncFeatureEnabled());
         return account;
     }
 
     /**
-     * @return The primary account of the requested {@link ConsentLevel}.
+     * @return The primary account.
      */
-    public CoreAccountInfo getPrimaryAccount(@ConsentLevel int consentLevel) {
-        return mSigninTestRule.getPrimaryAccount(consentLevel);
-    }
-
-    /**
-     * Set up a test account, sign in and enable sync. FirstSetupComplete bit will be set after
-     * this. For most purposes this function should be used as this emulates the basic sign in flow.
-     *
-     * @return the test account that is signed in.
-     */
-    @Deprecated
-    public CoreAccountInfo setUpAccountAndEnableSyncForTesting() {
-        CoreAccountInfo accountInfo =
-                mSigninTestRule.addTestAccountThenSigninWithConsentLevelSync();
-
-        // In addition to using ConsentLevel.SYNC above, configure SyncService
-        // to enable the legacy Sync-the-feature.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mSyncService.setInitialSyncFeatureSetupComplete();
-                });
-
-        // Enable UKM when enabling sync as it is done by the sync confirmation UI.
-        enableUKM();
-        SyncTestUtil.waitForSyncFeatureActive();
-        SyncTestUtil.triggerSyncAndWaitForCompletion();
-        return accountInfo;
+    public CoreAccountInfo getPrimaryAccount() {
+        return mSigninTestRule.getPrimaryAccount();
     }
 
     /**
@@ -288,8 +260,7 @@ public class SyncTestRule extends ChromeTabbedActivityTestRule {
 
     public void signOut() {
         mSigninTestRule.signOut();
-        Assert.assertNull(mSigninTestRule.getPrimaryAccount(ConsentLevel.SIGNIN));
-        Assert.assertFalse(SyncTestUtil.isSyncFeatureEnabled());
+        Assert.assertNull(mSigninTestRule.getPrimaryAccount());
     }
 
     public void clearServerData() {
@@ -300,45 +271,18 @@ public class SyncTestRule extends ChromeTabbedActivityTestRule {
         // necessary to invoke triggerSync() explicitly, just like many Java
         // tests do.
         SyncTestUtil.triggerSync();
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    return !SyncTestUtil.getSyncServiceForLastUsedProfile().isSyncFeatureEnabled();
-                },
-                SyncTestUtil.TIMEOUT_MS,
-                SyncTestUtil.INTERVAL_MS);
     }
 
-    /*
-     * Enables the Sync data type in USER_SELECTABLE_TYPES.
+    /**
+     * Sets an individual type selection.
+     *
+     * @param type The type that should be enabled or disabled.
+     * @param isTypeOn Set to true if the type should be enabled, false otherwise.
      */
-    public void enableDataType(final int userSelectableType) {
+    public void setSelectedType(@UserSelectableType int type, boolean isTypeOn) {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Set<Integer> chosenTypes = mSyncService.getSelectedTypes();
-                    chosenTypes.add(userSelectableType);
-                    mSyncService.setSelectedTypes(false, chosenTypes);
-                });
-    }
-
-    /*
-     * Enables the |selectedTypes| in USER_SELECTABLE_TYPES.
-     */
-    public void setSelectedTypes(boolean syncEverything, Set<Integer> selectedTypes) {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mSyncService.setSelectedTypes(syncEverything, selectedTypes);
-                });
-    }
-
-    /*
-     * Disables the Sync data type in USER_SELECTABLE_TYPES.
-     */
-    public void disableDataType(final int userSelectableType) {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    Set<Integer> chosenTypes = mSyncService.getSelectedTypes();
-                    chosenTypes.remove(userSelectableType);
-                    mSyncService.setSelectedTypes(false, chosenTypes);
+                    mSyncService.setSelectedType(type, isTypeOn);
                 });
     }
 
@@ -453,16 +397,6 @@ public class SyncTestRule extends ChromeTabbedActivityTestRule {
     /** Returns an instance of SyncService that can be overridden by subclasses. */
     protected SyncService createSyncServiceImpl() {
         return null;
-    }
-
-    private static void enableUKM() {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    // Outside of tests, URL-keyed anonymized data collection is enabled by sign-in
-                    // UI.
-                    UnifiedConsentServiceBridge.setUrlKeyedAnonymizedDataCollectionEnabled(
-                            ProfileManager.getLastUsedRegularProfile(), true);
-                });
     }
 
     private static PrefService getPrefService() {

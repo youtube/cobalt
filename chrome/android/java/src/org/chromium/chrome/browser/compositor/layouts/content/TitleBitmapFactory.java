@@ -28,7 +28,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
-import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTrailingButtonsCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.components.tab_groups.TabGroupColorId;
@@ -42,7 +42,7 @@ public class TitleBitmapFactory {
 
     private static final float TITLE_WIDTH_PERCENTAGE = 1.f;
     // Canvas#drawText() seems to fail when trying to draw 4100 or more characters.
-    // See https://crbug.com/524390/ for more details.
+    // See https://crbug.com/40432863/ for more details.
     private static final int MAX_NUM_TITLE_CHAR = 1000;
 
     // We were drawing up to 1000 characters, but only displaying ~30 in the tab strip. Experiment
@@ -134,7 +134,8 @@ public class TitleBitmapFactory {
         mButtonTextPaint.density = density;
         float maxButtonTextHeight =
                 tabStripHeightPx
-                        - (StripLayoutHelperManager.GLIC_BUTTON_MARGIN_HEIGHT_DP * density);
+                        - (StripLayoutTrailingButtonsCoordinator.GLIC_BUTTON_MARGIN_HEIGHT_DP
+                                * density);
         enforceMaxTextHeight(mButtonTextPaint, maxButtonTextHeight);
 
         FontMetrics buttonTextFontMetrics = mButtonTextPaint.getFontMetrics();

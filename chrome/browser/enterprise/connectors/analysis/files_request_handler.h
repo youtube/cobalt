@@ -137,6 +137,12 @@ class FilesRequestHandler : public RequestHandlerBase {
 
   void MaybeCompleteScanRequest();
 
+  // If feature is enabled and if there are any files that have not been
+  // reported yet, cancel them and report the cancellation.
+  void MaybeCancelAndReport();
+
+  void MaybeTrackCancellation();
+
   void CreateFileOpeningJob(
       std::vector<safe_browsing::FileOpeningJob::FileOpeningTask> tasks,
       file_access::ScopedFileAccess file_access);

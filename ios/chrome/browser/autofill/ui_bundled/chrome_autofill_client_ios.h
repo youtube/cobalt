@@ -135,9 +135,6 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   SuggestionUiSessionId ShowAutofillSuggestions(
       const PopupOpenArgs& open_args,
       base::WeakPtr<AutofillSuggestionDelegate> delegate) override;
-  void ShowPlusAddressEmailOverrideNotification(
-      const std::string& original_email,
-      EmailOverrideUndoCallback email_override_undo_callback) override;
   void UpdateAutofillDataListValues(
       base::span<const autofill::SelectOption> datalist) override;
   void HideAutofillSuggestions(SuggestionHidingReason reason) override;
@@ -153,7 +150,6 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   const AutofillAblationStudy& GetAblationStudy() const override;
   bool IsLastQueriedField(FieldGlobalId field_id) override;
   bool ShouldFormatForLargeKeyboardAccessory() const override;
-  AutofillPlusAddressDelegate* GetPlusAddressDelegate() override;
   // Returns a pointer to a DeviceAuthenticator. Might be nullptr if the given
   // platform is not supported.
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(

@@ -145,7 +145,16 @@ class CC_EXPORT BrowserControlsOffsetManager {
   void OnBrowserControlsParamsChanged(bool animate_changes);
 
   void ScrollBegin();
-  gfx::Vector2dF ScrollBy(const gfx::Vector2dF& pending_delta);
+  // Scrolls the browser controls by the given `pending_delta` and returns the
+  // remaining scroll delta that was not applied. `is_inertial` indicates
+  // whether the scroll update received from the browser process corresponds to
+  // a scroll that continues after the user lifts their finger off the screen
+  // (e.g. fling).
+  //
+  // TODO(anandrv): Remove the default value for the `is_inertial` parameter
+  // once snap animation is always enabled.
+  gfx::Vector2dF ScrollBy(const gfx::Vector2dF& pending_delta,
+                          bool is_inertial = false);
   void ScrollEnd(
       const gfx::Vector2dF& compensated_scroll_delta = gfx::Vector2dF());
 
@@ -179,6 +188,15 @@ class CC_EXPORT BrowserControlsOffsetManager {
   // region. The value should be between 0 and 1.
   float SnapAnimationCanHideRegionHeight(float slowness) const;
 
+  // Returns the magnitude of scroll delta in a single scroll sequence required
+  // to trigger the snap animation.
+  //
+  // `slowness` is a multiplier that controls how much the trigger threshold
+  // changes relative to the reference threshold, where a higher value means
+  // a larger threshold and a lower value means a smaller threshold. The value
+  // should be between 0 and 1.
+  float SnapAnimationThreshold(float slowness) const;
+
  protected:
   BrowserControlsOffsetManager(BrowserControlsOffsetManagerClient* client,
                                float controls_show_threshold,
@@ -205,16 +223,7 @@ class CC_EXPORT BrowserControlsOffsetManager {
   bool IsAnimatingHeightChange();
 
   gfx::Vector2dF ScrollByPrecise(const gfx::Vector2dF& pending_delta);
-  void ScrollBySnap(const gfx::Vector2dF& pending_delta);
-
-  // Returns the magnitude of scroll delta in a single scroll sequence required
-  // to trigger the snap animation.
-  //
-  // `slowness` is a multiplier that controls how much the trigger threshold
-  // changes relative to the height of the controls, where a higher value means
-  // a larger threshold and a lower value means a smaller threshold. The value
-  // should be between 0 and 1.
-  float SnapAnimationThreshold(float slowness) const;
+  void ScrollBySnap(const gfx::Vector2dF& pending_delta, bool is_inertial);
   float ControlsAnimatedHeight() const;
 
   // The client manages the lifecycle of this.

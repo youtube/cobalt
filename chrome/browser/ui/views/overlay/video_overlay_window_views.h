@@ -108,6 +108,8 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
       const std::vector<media_session::MediaImage>& images) override;
   void SetSurfaceId(const viz::SurfaceId& surface_id) override;
   void SetPlaybackControlsVisibility(bool is_visible) override;
+  void SetImmersiveVideoOptions(
+      blink::mojom::ImmersiveOptionsPtr options) override;
 
   // views::Widget:
   bool IsActive() const override;
@@ -423,7 +425,7 @@ class VideoOverlayWindowViews : public content::VideoOverlayWindow,
   // The upper and lower bounds of |current_size_|. These are determined by the
   // size of the primary display work area when Picture-in-Picture is initiated.
   // TODO(apacible): Update these bounds when the display the window is on
-  // changes. http://crbug.com/819673
+  // changes. http://crbug.com/40566075
   gfx::Size min_size_;
   gfx::Size max_size_;
 

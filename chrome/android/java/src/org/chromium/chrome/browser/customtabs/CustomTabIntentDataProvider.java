@@ -214,7 +214,7 @@ public class CustomTabIntentDataProvider extends BrowserServicesIntentDataProvid
     static final String EXTRA_CUSTOM_CONTENT_ACTIONS =
             "androidx.browser.customtabs.extra.CUSTOM_CONTENT_ACTIONS";
 
-    private static final String EXTRA_TRANSLUCENT_BACKGROUND =
+    static final String EXTRA_TRANSLUCENT_BACKGROUND =
             "androidx.browser.customtabs.extra.TRANSLUCENT_BACKGROUND";
 
     @IntDef({
@@ -443,10 +443,11 @@ public class CustomTabIntentDataProvider extends BrowserServicesIntentDataProvid
                         isTrustedCustomTab, getInitialActivityWidthFromIntent(intent), packageName);
 
         // When scrolling up the web content, we don't want to hide the URL bar in pCCT.
-        if (initialActivityHeight > 0 || initialActivityWidth > 0) {
+        boolean isPcct = initialActivityHeight > 0 || initialActivityWidth > 0;
+        if (isPcct) {
             intent.putExtra(CustomTabsIntent.EXTRA_ENABLE_URLBAR_HIDING, false);
         }
-        if (hasTranslucentBackgroundColor(intent)) {
+        if (isPcct || hasTranslucentBackgroundColor(intent)) {
             intent.setClassName(context, TranslucentCustomTabActivity.class.getName());
         }
     }
@@ -508,7 +509,7 @@ public class CustomTabIntentDataProvider extends BrowserServicesIntentDataProvid
                 : roundedCornersPosition;
     }
 
-    private static boolean hasTranslucentBackgroundColor(Intent intent) {
+    static boolean hasTranslucentBackgroundColor(Intent intent) {
         try {
             return intent.hasExtra(EXTRA_TRANSLUCENT_BACKGROUND);
         } catch (Throwable t) {

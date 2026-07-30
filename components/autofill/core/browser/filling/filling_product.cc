@@ -37,8 +37,6 @@ std::string FillingProductToString(FillingProduct filling_product) {
       return "Password";
     case FillingProduct::kCompose:
       return "Compose";
-    case FillingProduct::kPlusAddresses:
-      return "PlusAddresses";
     case FillingProduct::kAutofillAi:
       return "AutofillAi";
     case FillingProduct::kLoyaltyCard:
@@ -99,9 +97,6 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kComposeResumeNudge:
     case SuggestionType::kComposeSavedStateNotification:
       return FillingProduct::kCompose;
-    case SuggestionType::kFillExistingPlusAddress:
-    case SuggestionType::kManagePlusAddress:
-      return FillingProduct::kPlusAddresses;
     case SuggestionType::kDatalistEntry:
       return FillingProduct::kDataList;
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
@@ -131,6 +126,38 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kWebauthnCredential:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       return FillingProduct::kPasskey;
+  }
+  NOTREACHED();
+}
+
+FillingProduct GetFillingProductFromSuggestionDataSource(
+    SuggestionGenerator::SuggestionDataSource source) {
+  switch (source) {
+    case SuggestionGenerator::SuggestionDataSource::kAutofillAi:
+      return FillingProduct::kAutofillAi;
+    case SuggestionGenerator::SuggestionDataSource::kAddress:
+    case SuggestionGenerator::SuggestionDataSource::kAddressOnTyping:
+      return FillingProduct::kAddress;
+    case SuggestionGenerator::SuggestionDataSource::kCreditCard:
+    case SuggestionGenerator::SuggestionDataSource::kVirtualStandaloneCvc:
+    case SuggestionGenerator::SuggestionDataSource::kSaveAndFillPromo:
+      return FillingProduct::kCreditCard;
+    case SuggestionGenerator::SuggestionDataSource::kIban:
+      return FillingProduct::kIban;
+    case SuggestionGenerator::SuggestionDataSource::kMerchantPromoCode:
+      return FillingProduct::kMerchantPromoCode;
+    case SuggestionGenerator::SuggestionDataSource::kAutocomplete:
+      return FillingProduct::kAutocomplete;
+    case SuggestionGenerator::SuggestionDataSource::kLoyaltyCard:
+      return FillingProduct::kLoyaltyCard;
+    case SuggestionGenerator::SuggestionDataSource::kIdentityCredential:
+      return FillingProduct::kIdentityCredential;
+    case SuggestionGenerator::SuggestionDataSource::kPasskey:
+      return FillingProduct::kPasskey;
+    case SuggestionGenerator::SuggestionDataSource::kCompose:
+      return FillingProduct::kCompose;
+    case SuggestionGenerator::SuggestionDataSource::kOneTimePassword:
+      return FillingProduct::kOneTimePassword;
   }
   NOTREACHED();
 }

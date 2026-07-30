@@ -11,12 +11,16 @@
 #include "components/os_crypt/async/common/encryptor.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "sql/transaction.h"
 #include "url/gurl.h"
 
 namespace accessibility_annotator {
 
 namespace {
-constexpr char kContentAnnotationsTableCreationSql[] =
+// Table creation should be pegged to a specific version number, enforcing
+// linear migration-only updates.
+
+constexpr char kContentAnnotationsTableVersion1CreationSql[] =
     R"SQL(
   CREATE TABLE content_annotations (
     visit_id INTEGER PRIMARY KEY NOT NULL,
@@ -28,7 +32,6 @@ constexpr char kContentAnnotationsTableCreationSql[] =
     classifier_results TEXT NOT NULL
   )
   )SQL";
-constexpr char kContentAnnotationsTableName[] = "content_annotations";
 
 std::optional<ContentAnnotationsData> ToContentAnnotationsData(
     sql::Statement& statement,
@@ -78,15 +81,13 @@ bool ContentAnnotationsTable::Init(sql::Database* db,
   return true;
 }
 
-bool ContentAnnotationsTable::CreateTablesIfNecessary() {
+bool ContentAnnotationsTable::MigrateFromCleanStateToVersion1() {
   if (!db_) {
     return false;
   }
 
-  if (!db_->DoesTableExist(kContentAnnotationsTableName)) {
-    if (!db_->Execute(kContentAnnotationsTableCreationSql)) {
-      return false;
-    }
+  if (!db_->Execute(kContentAnnotationsTableVersion1CreationSql)) {
+    return false;
   }
   return true;
 }
@@ -181,17 +182,33 @@ ContentAnnotationsTable::GetAllContentAnnotations() {
   return results;
 }
 
-bool ContentAnnotationsTable::DeleteContentAnnotation(
-    history::VisitID visit_id) {
+bool ContentAnnotationsTable::DeleteContentAnnotations(
+    base::span<const history::VisitID> visit_ids) {
   if (!db_ || !encryptor_) {
+    return false;
+  }
+
+  if (visit_ids.empty()) {
+    return true;
+  }
+
+  sql::Transaction transaction(db_);
+  if (!transaction.Begin()) {
     return false;
   }
 
   sql::Statement statement(db_->GetCachedStatement(
       SQL_FROM_HERE, "DELETE FROM content_annotations WHERE visit_id = ?"));
-  statement.BindInt64(0, visit_id);
 
-  return statement.Run();
+  for (history::VisitID visit_id : visit_ids) {
+    statement.Reset(true);
+    statement.BindInt64(0, visit_id);
+    if (!statement.Run()) {
+      return false;
+    }
+  }
+
+  return transaction.Commit();
 }
 
 bool ContentAnnotationsTable::ClearAllContentAnnotations() {

@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/existing_window_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
@@ -154,7 +155,8 @@ class WebAppTabStripBrowserTest : public WebAppBrowserTestBase,
       metrics_waiter.AddWebFeatureExpectation(
           blink::mojom::WebFeature::kWebAppTabbed);
     }
-    webapps::AppId app_id = InstallWebAppFromPage(browser(), start_url);
+    webapps::AppId app_id = InstallWebAppFromPage(
+        browser(), start_url, {.launch_or_reparent_page_to_app = true});
     if (await_metric) {
       metrics_waiter.Wait();
     }
@@ -248,7 +250,14 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, PopOutTabOnInstall) {
                WebAppInstallationAcceptanceCallback acceptance_callback) {
               web_app_info->user_display_mode = mojom::UserDisplayMode::kTabbed;
               std::move(acceptance_callback)
-                  .Run(/*user_accepted=*/true, std::move(web_app_info));
+                  .Run(/*user_accepted=*/true, std::move(web_app_info),
+                       base::BindOnce(
+                           [](bool success,
+                              base::OnceClosure reparent_or_launch_app) {
+                             if (success && reparent_or_launch_app) {
+                               std::move(reparent_or_launch_app).Run();
+                             }
+                           }));
             }),
         base::BindLambdaForTesting(
             [&run_loop, &app_id](const webapps::AppId& installed_app_id,
@@ -427,8 +436,7 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, MonochromeAppIconOnHomeTab) {
       .SetFaviconMonochromeReadCallbackForTesting(base::BindLambdaForTesting(
           [&](const webapps::AppId& cached_app_id) { run_loop.Quit(); }));
 
-  webapps::AppId app_id =
-      InstallWebAppFromPageAndCloseAppBrowser(browser(), start_url);
+  webapps::AppId app_id = InstallWebAppInNewTabAndClose(browser(), start_url);
   run_loop.Run();
 
   Browser* app_browser = LaunchWebAppBrowser(app_id);
@@ -711,14 +719,16 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, MoveTabsToNewWindow) {
 
   chrome::NewTab(app_browser);
 
-  size_t initial_browser_count = chrome::GetTotalBrowserCount();
+  size_t initial_browser_count =
+      GlobalBrowserCollection::GetInstance()->GetSize();
 
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::MoveTabsToNewWindow(app_browser, {1});
   Browser* new_browser = browser_created_observer.Wait();
   ASSERT_TRUE(new_browser);
 
-  EXPECT_EQ(initial_browser_count + 1, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(initial_browser_count + 1,
+            GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Check that the tab made it to a new window.
   EXPECT_NE(app_browser, new_browser);
@@ -1275,7 +1285,8 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest,
 IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, MiddleClickHomeTabLink) {
   GURL start_url =
       embedded_test_server()->GetURL("/web_apps/tab_strip_customizations.html");
-  webapps::AppId app_id = InstallWebAppFromPage(browser(), start_url);
+  webapps::AppId app_id = InstallWebAppFromPage(
+      browser(), start_url, {.launch_or_reparent_page_to_app = true});
   Browser* app_browser = FindWebAppBrowser(browser()->profile(), app_id);
   TabStripModel* tab_strip = app_browser->tab_strip_model();
 
@@ -1318,7 +1329,8 @@ IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, MiddleClickHomeTabLink) {
 IN_PROC_BROWSER_TEST_P(WebAppTabStripBrowserTest, PageTitle) {
   GURL start_url =
       embedded_test_server()->GetURL("/web_apps/tab_strip_customizations.html");
-  webapps::AppId app_id = InstallWebAppFromPage(browser(), start_url);
+  webapps::AppId app_id = InstallWebAppFromPage(
+      browser(), start_url, {.launch_or_reparent_page_to_app = true});
   Browser* app_browser = FindWebAppBrowser(browser()->profile(), app_id);
   TabStripModel* tab_strip = app_browser->tab_strip_model();
 
