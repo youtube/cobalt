@@ -250,7 +250,34 @@ def jobject_subclass_definition(sb, java_type):
   template_decl, template_arglist = _gen_t_names(java_type.generics)
   with sb.ifndef(definition_macro_name):
     with sb.namespace(java_class.mirror_namespace, skip_newline=True):
-      sb(template_decl.replace('typename', '::jni_zero::internal::IsJobject'))
+      # Cobalt changes:
+      #
+      # Instead of always relying on IsJobject being a concept (and therefore
+      # basically having a template declaration that looks like
+      #   template <::jni_zero::internal::IsJobject T>
+      # add a code path that supports C++17, so we end up with something like
+      #
+      #   #if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+      #   template <::jni_zero::internal::IsJobject T>
+      #   #else
+      #   template <typename T, std::enable_if_t<::jni_zero::internal::IsJobject<T>, int> = 0>
+      #   #endif
+      #
+      if len(template_decl) > 0:
+        sb('#if !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts >= 201907L)\n'
+           )
+        sb(template_decl.replace('typename', '::jni_zero::internal::IsJobject'))
+        sb('#else\n')
+        # Given template_arglist string that looks like "<T1, T2>", split it into
+        # a list [T1, T2].
+        template_arglist_as_list = template_arglist[1:-1].split(', ')
+        extra_template_args = ', '.join([
+            f'std::enable_if_t<::jni_zero::internal::IsJobject<{arg}>, int> = 0'
+            for arg in template_arglist_as_list
+        ])
+        sb(template_decl.replace('>\n', f', {extra_template_args}>\n'))
+        sb('#endif\n')
+      # End of Cobalt changes.
       sb(f'class _{jobject_name} : public _jobject {{}};\n')
 
       sb(template_decl)

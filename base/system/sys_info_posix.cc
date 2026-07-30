@@ -42,7 +42,7 @@
 #include <sys/statvfs.h>
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/magic.h>
 #include <sys/vfs.h>
 #endif
@@ -64,7 +64,7 @@ base::ByteSize AmountOfVirtualMemory() {
 using LazyVirtualMemory =
     base::internal::LazySysInfoValue<base::ByteSize, AmountOfVirtualMemory>;
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 bool IsStatsZeroIfUnlimited(const base::FilePath& path) {
   struct statfs stats;
 
@@ -88,6 +88,40 @@ bool IsStatsZeroIfUnlimited(const base::FilePath& path) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
+<<<<<<< HEAD
+=======
+bool GetDiskSpaceInfo(const base::FilePath& path,
+                      int64_t* available_bytes,
+                      int64_t* total_bytes) {
+  struct statvfs stats;
+  if (HANDLE_EINTR(statvfs(path.value().c_str(), &stats)) != 0) {
+    return false;
+  }
+
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  const bool zero_size_means_unlimited =
+      stats.f_blocks == 0 && IsStatsZeroIfUnlimited(path);
+#else
+  const bool zero_size_means_unlimited = false;
+#endif
+
+  if (available_bytes) {
+    *available_bytes =
+        zero_size_means_unlimited
+            ? std::numeric_limits<int64_t>::max()
+            : base::saturated_cast<int64_t>(stats.f_bavail * stats.f_frsize);
+  }
+
+  if (total_bytes) {
+    *total_bytes =
+        zero_size_means_unlimited
+            ? std::numeric_limits<int64_t>::max()
+            : base::saturated_cast<int64_t>(stats.f_blocks * stats.f_frsize);
+  }
+  return true;
+}
+
+>>>>>>> parent of 8fab9a44295 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void GetKernelVersionNumbers(int32_t* major_version,
                              int32_t* minor_version,
                              int32_t* bugfix_version) {

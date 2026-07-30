@@ -14,6 +14,11 @@
 #include "components/memory_system/parameters.h"
 #include "partition_alloc/buildflags.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory/cobalt_memory_context.h"
+#include "base/memory/cobalt_memory_attribution_observer.h"
+#endif
+
 #if BUILDFLAG(ENABLE_GWP_ASAN)
 #include "components/gwp_asan/client/gwp_asan.h"  // nogncheck
 #if BUILDFLAG(IS_CHROMEOS)
@@ -348,6 +353,13 @@ void MemorySystem::Impl::InitializeDispatcher(
 #endif
 #if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
       .AddOptionalObservers(allocation_recording_.recorder.get())
+#endif
+#if BUILDFLAG(IS_COBALT)
+      .AddOptionalObservers(
+          dispatcher_parameters.cobalt_memory_attribution_inclusion ==
+                  CobaltMemoryAttributionInclusion::kInclude
+              ? base::memory::CobaltMemoryAttributionObserver::Get()
+              : nullptr)
 #endif
       .DoInitialize(base::allocator::dispatcher::Dispatcher::GetInstance());
 }
