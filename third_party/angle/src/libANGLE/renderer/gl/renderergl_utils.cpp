@@ -1670,11 +1670,18 @@ void GenerateCaps(const FunctionsGL *functions,
                                  functions->hasGLESExtension("GL_KHR_debug") ||
                                  functions->hasGLESExtension("GL_EXT_debug_marker");
     extensions->EGLImageOES         = functions->hasGLESExtension("GL_OES_EGL_image");
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    extensions->EGLImageExternalOES = true;
+    extensions->EGLImageExternalWrapModesEXT =
+        functions->hasExtension("GL_EXT_EGL_image_external_wrap_modes");
+    extensions->EGLImageExternalEssl3OES = true;
+#else
     extensions->EGLImageExternalOES = functions->hasGLESExtension("GL_OES_EGL_image_external");
     extensions->EGLImageExternalWrapModesEXT =
         functions->hasExtension("GL_EXT_EGL_image_external_wrap_modes");
     extensions->EGLImageExternalEssl3OES =
         functions->hasGLESExtension("GL_OES_EGL_image_external_essl3");
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     extensions->EGLImageArrayEXT = functions->hasGLESExtension("GL_EXT_EGL_image_array");
 
     extensions->EGLSyncOES = functions->hasGLESExtension("GL_OES_EGL_sync");
@@ -2583,7 +2590,14 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // http://crbug.com/1187513
     // Imagination drivers are buggy with context switching. It needs to unbind fbo before context
     // switching to workadround the driver issues.
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    // Tegra devices require unbinding FBO before context switching to
+    // prevent display degradation (b/490474392).
+    ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext,
+                            IsPowerVR(vendor) || (IsAndroid() && isNvidia));
+#else  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     ANGLE_FEATURE_CONDITION(features, unbindFBOBeforeSwitchingContext, IsPowerVR(vendor));
+#endif // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // http://crbug.com/1181068 and http://crbug.com/783979
     ANGLE_FEATURE_CONDITION(features, flushOnFramebufferChange,

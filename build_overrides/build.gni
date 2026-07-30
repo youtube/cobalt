@@ -56,6 +56,15 @@ declare_args() {
   use_perfetto_trace_processor = !is_cronet_build
 }
 
+# Needed by Evergreen, which builds copied_base and Starboard with some
+# toolchains that only support C++17.
+if (is_cobalt) {
+  declare_args() {
+    # Whether to build in C++17 mode and override Chromium's default.
+    use_cxx17 = false
+  }
+}
+
 # Allows different projects to specify their own suppression/ignore lists for
 # sanitizer tools.
 # asan_suppressions_file = "path/to/asan_suppressions.cc"

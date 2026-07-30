@@ -36,6 +36,10 @@ enum {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::atomic<int> g_max_pending_bytes_per_parse{StreamParser::kMaxPendingBytesPerParse};  // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 base::TimeDelta EndTimestamp(const StreamParser::BufferQueue& queue) {
   return queue.back()->timestamp() + queue.back()->duration();
 }
@@ -66,6 +70,13 @@ unsigned GetMSEBufferSizeLimitIfExists(std::string_view switch_string) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void SourceBufferState::SetMaxPendingBytesPerParseOverride(int max_bytes) {
+  g_max_pending_bytes_per_parse = max_bytes;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // List of time ranges for each SourceBuffer.
 // static
@@ -143,12 +154,18 @@ SourceBufferState::~SourceBufferState() {
 }
 
 void SourceBufferState::Init(StreamParser::InitCB init_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                             std::string_view mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                              std::optional<std::string_view> expected_codecs,
                              const StreamParser::EncryptedMediaInitDataCB&
                                  encrypted_media_init_data_cb) {
   DCHECK_EQ(state_, UNINITIALIZED);
   init_cb_ = std::move(init_cb);
   encrypted_media_init_data_cb_ = encrypted_media_init_data_cb;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mime_type_ = mime_type;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   state_ = PENDING_PARSER_CONFIG;
   InitializeParser(expected_codecs);
 }
@@ -196,9 +213,22 @@ void SourceBufferState::SetParseWarningCallback(
   frame_processor_->SetParseWarningCallback(std::move(parse_warning_cb));
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool SourceBufferState::AppendToParseBuffer(
+    base::span<const uint8_t> data,
+    base::ScopedClosureRunner release_runner) {
+  // Parsers that borrow `data` must never be handed a null runner, so route
+  // that case to the copying overload. This is the only place that decides
+  // between the two.
+  return release_runner ? stream_parser_->AppendToParseBuffer(
+                              data, std::move(release_runner))
+                        : stream_parser_->AppendToParseBuffer(data);
+}
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool SourceBufferState::AppendToParseBuffer(base::span<const uint8_t> data) {
   return stream_parser_->AppendToParseBuffer(data);
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
     base::TimeDelta append_window_start,
@@ -215,7 +245,11 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_parser_->Parse(g_max_pending_bytes_per_parse);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
@@ -628,6 +662,9 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
@@ -713,6 +750,9 @@ bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      video_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {
@@ -784,6 +824,7 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
+
 }
 
 void SourceBufferState::OnNewMediaSegment() {

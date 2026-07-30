@@ -35,6 +35,11 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/public/platform/web_media_player_client.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 class ImageBitmapOptions;
@@ -172,8 +177,23 @@ class CORE_EXPORT HTMLVideoElement final
     return visibility_tracker_.Get();
   }
 
+<<<<<<< HEAD
   // HTMLMediaElement overrides.
   void OnEncryptedMediaInitData() final;
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
+  void SetMaxVideoResolution(const String& max_video_resolution, ExceptionState& exception_state);
+
+  // GetMaxVideoCapabilities() overrides the function in web_media_player_client.h to allow
+  // other cc/h files to access the max_video_capabilities_ variable.
+  std::string GetMaxVideoCapabilities() const override { return max_video_capabilities_ ; }
+  // Similar to GetMaxVideoCapabilities(), but retrieves the maximum video resolution hint.
+  std::string GetMaxVideoResolution() const override { return max_video_resolution_ ; }
+
+  bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
  protected:
   // EventTarget overrides.
@@ -289,6 +309,11 @@ class CORE_EXPORT HTMLVideoElement final
   cc::PaintFlags::FilterQuality filter_quality_ =
       cc::PaintFlags::FilterQuality::kLow;
   cc::PaintFlags::DynamicRangeLimitMixture dynamic_range_limit_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string max_video_capabilities_;
+  std::string max_video_resolution_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

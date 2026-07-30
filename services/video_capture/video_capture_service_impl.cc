@@ -14,7 +14,6 @@
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/ipc/client/client_shared_image_interface.h"
-#include "media/capture/video/create_video_capture_device_factory.h"
 #include "media/capture/video/fake_video_capture_device_factory.h"
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
@@ -39,6 +38,10 @@
 #include "media/capture/video/video_capture_gpu_channel_host.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
+
+#if !BUILDFLAG(IS_COBALT)
+#include "media/capture/video/create_video_capture_device_factory.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 namespace video_capture {
 
@@ -328,6 +331,7 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
   // The task runner passed to CreateFactory is used for things that need to
   // happen on a "UI thread equivalent", e.g. obtaining screen rotation on
   // Chrome OS.
+<<<<<<< HEAD
   gpu::GpuDriverBugWorkarounds* gpu_workarounds_ptr = nullptr;
 #if BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
   gpu::GpuDriverBugWorkarounds gpu_workarounds;
@@ -340,6 +344,16 @@ void VideoCaptureServiceImpl::LazyInitializeDeviceFactory() {
   std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
       media::CreateVideoCaptureDeviceFactory(ui_task_runner_,
                                              gpu_workarounds_ptr);
+=======
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt doesn't support media capture.
+  std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
+      nullptr;
+#else   // BUILDFLAG(IS_COBALT)
+  std::unique_ptr<media::VideoCaptureDeviceFactory> media_device_factory =
+      media::CreateVideoCaptureDeviceFactory(ui_task_runner_);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 85a454c890c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   auto video_capture_system = std::make_unique<media::VideoCaptureSystemImpl>(
       std::move(media_device_factory));
