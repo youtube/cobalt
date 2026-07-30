@@ -44,12 +44,14 @@ void AccountCapabilitiesTestMutator::
 }
 #endif
 
+#if !BUILDFLAG(IS_IOS)
 void AccountCapabilitiesTestMutator::set_can_run_chrome_privacy_sandbox_trials(
     bool value) {
   capabilities_
       ->capabilities_map_[kCanRunChromePrivacySandboxTrialsCapabilityName] =
       value;
 }
+#endif
 
 void AccountCapabilitiesTestMutator::
     set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
@@ -59,14 +61,11 @@ void AccountCapabilitiesTestMutator::
       value;
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 void AccountCapabilitiesTestMutator::set_can_toggle_auto_updates(bool value) {
   capabilities_->capabilities_map_[kCanToggleAutoUpdatesName] = value;
 }
-
-void AccountCapabilitiesTestMutator::set_can_use_chrome_ip_protection(
-    bool value) {
-  capabilities_->capabilities_map_[kCanUseChromeIpProtectionName] = value;
-}
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 void AccountCapabilitiesTestMutator::set_can_use_chromeos_generative_ai(
@@ -80,12 +79,14 @@ void AccountCapabilitiesTestMutator::set_can_use_copyeditor_feature(
   capabilities_->capabilities_map_[kCanUseCopyEditorFeatureName] = value;
 }
 
+#if !BUILDFLAG(IS_IOS)
 void AccountCapabilitiesTestMutator::
     set_can_use_devtools_generative_ai_features(bool value) {
   capabilities_
       ->capabilities_map_[kCanUseDevToolsGenerativeAiFeaturesCapabilityName] =
       value;
 }
+#endif
 
 void AccountCapabilitiesTestMutator::set_can_use_edu_features(bool value) {
   capabilities_->capabilities_map_[kCanUseEduFeaturesCapabilityName] = value;

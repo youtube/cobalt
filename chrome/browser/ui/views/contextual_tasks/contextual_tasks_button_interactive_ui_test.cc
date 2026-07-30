@@ -5,11 +5,13 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -20,6 +22,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_pref_names.h"
@@ -28,10 +31,9 @@
 #include "components/sessions/core/session_id.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "net/dns/mock_host_resolver.h"
-#include "net/test/embedded_test_server/embedded_test_server.h"
-#include "ui/base/interaction/element_identifier.h"
 
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
@@ -51,6 +53,30 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
   ~TestingAimEligibilityService() override = default;
 
   bool IsAimEligible() const override { return true; }
+};
+
+class TestingContextualTasksUiService
+    : public contextual_tasks::ContextualTasksUiService {
+ public:
+  TestingContextualTasksUiService(
+      Profile* profile,
+      contextual_tasks::ContextualTasksService* contextual_tasks_service,
+      signin::IdentityManager* identity_manager)
+      : ContextualTasksUiService(profile,
+                                 contextual_tasks_service,
+                                 identity_manager) {}
+  ~TestingContextualTasksUiService() override = default;
+
+  bool CookieJarContainsPrimaryAccount() override {
+    return cookie_jar_contains_primary_account_;
+  }
+
+  void SetCookieJarContainsPrimaryAccount(bool contains) {
+    cookie_jar_contains_primary_account_ = contains;
+  }
+
+ private:
+  bool cookie_jar_contains_primary_account_ = true;
 };
 }  // namespace
 
@@ -78,6 +104,26 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
                                     TemplateURLServiceFactory::GetForProfile(
                                         profile)));
                           }));
+
+                  contextual_tasks::ContextualTasksUiServiceFactory::
+                      GetInstance()
+                          ->SetTestingFactory(
+                              context,
+                              base::BindLambdaForTesting(
+                                  [](content::BrowserContext* context) {
+                                    Profile* profile =
+                                        Profile::FromBrowserContext(context);
+                                    return static_cast<
+                                        std::unique_ptr<KeyedService>>(
+                                        std::make_unique<
+                                            TestingContextualTasksUiService>(
+                                            profile,
+                                            contextual_tasks::
+                                                ContextualTasksServiceFactory::
+                                                    GetForProfile(profile),
+                                            IdentityManagerFactory::
+                                                GetForProfile(profile)));
+                                  }));
                 }));
   }
 
@@ -101,9 +147,19 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
 
   auto SignIntoEligibleAccount() {
     return Do([&]() {
-      AccountInfo primary_account_info =
-          identity_test_env()->MakePrimaryAccountAvailable(
-              "primary@example.com", signin::ConsentLevel::kSignin);
+      identity_test_env()->MakePrimaryAccountAvailable(
+          "primary@example.com", signin::ConsentLevel::kSignin);
+    });
+  }
+
+  auto SetMockCookieJarContainsPrimaryAccount(bool contains) {
+    return Do([&, contains]() {
+      auto* service = static_cast<TestingContextualTasksUiService*>(
+          contextual_tasks::ContextualTasksUiServiceFactory::
+              GetForBrowserContext(browser()->profile()));
+      service->SetCookieJarContainsPrimaryAccount(contains);
+      // Trigger update
+      identity_test_env()->SetRefreshTokenForPrimaryAccount();
     });
   }
 
@@ -149,6 +205,17 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksButtonInteractiveTest,
       Do([&] {
         GetPrefService()->SetBoolean(prefs::kPinContextualTaskButton, true);
       }),
+      WaitForShow(ContextualTasksButton::kContextualTasksToolbarButton));
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksButtonInteractiveTest,
+                       CookieUpdateTriggersVisibility) {
+  RunTestSequence(
+      SignIntoEligibleAccount(),
+      WaitForShow(ContextualTasksButton::kContextualTasksToolbarButton),
+      SetMockCookieJarContainsPrimaryAccount(false),
+      WaitForHide(ContextualTasksButton::kContextualTasksToolbarButton),
+      SetMockCookieJarContainsPrimaryAccount(true),
       WaitForShow(ContextualTasksButton::kContextualTasksToolbarButton));
 }
 
@@ -220,21 +287,20 @@ class ContextualTasksEphemeralButtonInteractiveTest
     return embedded_test_server()->GetURL("example.com", "/title1.html");
   }
 
-  contextual_tasks::ContextualTasksContextController*
-  GetContextualTasksController() {
-    return contextual_tasks::ContextualTasksContextControllerFactory::
-        GetForProfile(browser()->profile());
+  contextual_tasks::ContextualTasksService* GetContextualTasksService() {
+    return contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+        browser()->profile());
   }
 
   auto CreateTaskForTab(int tab_index) {
     return Do([&, tab_index] {
       contextual_tasks::ContextualTask task =
-          GetContextualTasksController()->CreateTask();
+          GetContextualTasksService()->CreateTask();
       content::WebContents* const web_contents =
           browser()->tab_strip_model()->GetWebContentsAt(tab_index);
       SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents);
-      GetContextualTasksController()->AssociateTabWithTask(task.GetTaskId(),
-                                                           session_id);
+      GetContextualTasksService()->AssociateTabWithTask(task.GetTaskId(),
+                                                        session_id);
     });
   }
 
@@ -244,9 +310,9 @@ class ContextualTasksEphemeralButtonInteractiveTest
           browser()->tab_strip_model()->GetWebContentsAt(tab_index);
       SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents);
       std::optional<contextual_tasks::ContextualTask> task =
-          GetContextualTasksController()->GetContextualTaskForTab(session_id);
+          GetContextualTasksService()->GetContextualTaskForTab(session_id);
       if (task.has_value()) {
-        GetContextualTasksController()->DisassociateTabFromTask(
+        GetContextualTasksService()->DisassociateTabFromTask(
             task.value().GetTaskId(), session_id);
       }
     });

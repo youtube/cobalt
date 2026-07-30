@@ -17,6 +17,8 @@ export function getHtml(this: ActionChipsElement) {
       <button id="${this.getId_(chip, index) || nothing}"
         class="action-chip ${
               this.isDeepDiveChip_(chip) ? 'deep-dive-chip' : ''}"
+        title="${this.isRecentTabChip_(chip) ?
+          this.recentTabChipTitle_(chip) : nothing}"
         @click="${() => this.handleClick_(chip)}">
         <div class="action-chip-icon-container ${
               this.getAdditionalIconClasses_(chip)}">
@@ -34,7 +36,7 @@ export function getHtml(this: ActionChipsElement) {
           <span
             title="${chip.suggestion}"
             class="chip-body">
-              ${this.showSimplifiedUI_ ? ' - ' : ''}${chip.suggestion}
+              ${this.showDashSimplifiedUI_(chip) ? ' - ' : ''}${chip.suggestion}
           </span>
         </div>
       </button>`)}

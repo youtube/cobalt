@@ -15,12 +15,12 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
+#include "chrome/browser/contextual_tasks/contextual_search_session_finder.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
@@ -33,6 +33,7 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
@@ -47,8 +48,8 @@
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/features.h"
-#include "components/contextual_tasks/public/utils.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/contextual_tasks/public/utils.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
@@ -105,23 +106,14 @@ std::string GetEncodedHandshakeMessage() {
   ping->add_capabilities(lens::FeatureCapability::DEFAULT);
   ping->add_capabilities(lens::FeatureCapability::OPEN_THREADS_VIEW);
   ping->add_capabilities(lens::FeatureCapability::COBROWSING_DISPLAY_CONTROL);
-  ping->add_capabilities(lens::FeatureCapability::THREAD_CONTEXT_LIBRARY);
+  if (base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksContextLibrary)) {
+    ping->add_capabilities(lens::FeatureCapability::THREAD_CONTEXT_LIBRARY);
+  }
   const size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized_message(size);
   message.SerializeToArray(&serialized_message[0], size);
   return base::Base64Encode(serialized_message);
-}
-
-// Attempts to take ownership of a session handle from the WebContents helper
-// and return it. Returns nullptr if no helper or session handle is available.
-std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-TryTakeSessionHandleFromWebContents(content::WebUI* web_ui) {
-  auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
-      web_ui->GetWebContents());
-  if (helper && helper->session_handle()) {
-    return helper->TakeSessionHandle();
-  }
-  return nullptr;
 }
 
 }  // namespace
@@ -169,9 +161,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       ui_service_(contextual_tasks::ContextualTasksUiServiceFactory::
                       GetForBrowserContext(
                           web_ui->GetWebContents()->GetBrowserContext())),
-      context_controller_(
-          contextual_tasks::ContextualTasksContextControllerFactory::
-              GetForProfile(Profile::FromBrowserContext(
+      contextual_tasks_service_(
+          contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+              Profile::FromBrowserContext(
                   web_ui->GetWebContents()->GetBrowserContext()))) {
   inner_web_contents_creation_observer_ =
       std::make_unique<InnerFrameCreationObvserver>(
@@ -300,6 +292,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "darkMode", ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
                       ->BrowserUsesDarkColors());
   source->AddBoolean("clearAllInputsWhenSubmittingQuery", true);
+  source->AddBoolean("autoSubmitVoiceSearchQuery",
+                     contextual_tasks::GetAutoSubmitVoiceSearchQuery());
 
   source->AddString(
       "composeboxSource",
@@ -338,10 +332,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
   Profile* profile = Profile::FromWebUI(web_ui);
   AddZeroStateStrings(source, profile);
-
-  // Take ownership of a session handle if one was already provided. Otherwise,
-  // one will be lazily created in GetOrCreateContextualSessionHandle().
-  session_handle_ = TryTakeSessionHandleFromWebContents(web_ui);
 }
 
 ContextualTasksUI::~ContextualTasksUI() = default;
@@ -356,7 +346,7 @@ void ContextualTasksUI::CreatePageHandler(
 
   page_.Bind(std::move(page));
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
-      std::move(page_handler), this, ui_service_, context_controller_);
+      std::move(page_handler), this, ui_service_, contextual_tasks_service_);
 
   // Request the initial OAuth token to be used by the embedded page.
   RequestOAuthToken();
@@ -457,6 +447,19 @@ void ContextualTasksUI::SetIsAiPage(bool is_ai_page) {
   if (page_) {
     page_->OnAiPageStatusChanged(is_ai_page);
   }
+
+  // When AI page is first loaded, close the Lens overlay if it's open.
+  if (is_ai_page && !was_ai_page_) {
+    auto* browser = GetBrowser();
+    if (browser) {
+      if (auto* controller = LensSearchController::FromTabWebContents(
+              browser->GetTabStripModel()->GetActiveWebContents())) {
+        controller->CloseLensAsync(
+            lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted);
+      }
+    }
+  }
+  was_ai_page_ = is_ai_page;
 }
 
 const GURL& ContextualTasksUI::GetInnerFrameUrl() const {
@@ -480,10 +483,11 @@ content::WebContents* ContextualTasksUI::GetWebUIWebContents() {
 }
 
 void ContextualTasksUI::CloseSidePanel() {
-  auto* browser = webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
-  auto* coordinator =
-      contextual_tasks::ContextualTasksSidePanelCoordinator::From(browser);
-  CHECK(coordinator);
+  auto* coordinator = GetSidePanelCoordinator();
+  if (!coordinator) {
+    return;
+  }
+
   coordinator->Close();
 }
 
@@ -531,20 +535,48 @@ void ContextualTasksUI::CreatePageHandler(
 
 contextual_search::ContextualSearchSessionHandle*
 ContextualTasksUI::GetOrCreateContextualSessionHandle() {
-  if (!session_handle_) {
+  content::WebContents* web_contents = web_ui()->GetWebContents();
+  auto* helper = ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+      web_contents);
+
+  // Check if a session exists for the current task.
+  contextual_search::ContextualSearchSessionHandle* existing_session =
+      task_id_.has_value() ? helper->GetSessionForTask(task_id_.value())
+                           : helper->session_handle();
+  if (existing_session) {
+    return existing_session;
+  }
+
+  // Create a new session if there's no task ID yet.
+  if (!task_id_) {
     auto* service = ContextualSearchServiceFactory::GetForProfile(
         Profile::FromWebUI(web_ui()));
     if (service) {
-      session_handle_ = service->CreateSession(
+      auto session_handle = service->CreateSession(
           ntp_composebox::CreateQueryControllerConfigParams(),
           contextual_search::ContextualSearchSource::kContextualTasks);
       // TODO(crbug.com/469875164): Determine what to do with the return value
       // of this call, or move this call to a different location.
-      session_handle_->CheckSearchContentSharingSettings(
+      session_handle->CheckSearchContentSharingSettings(
           Profile::FromWebUI(web_ui())->GetPrefs());
+      helper->SetTaskSession(std::nullopt, std::move(session_handle));
+      return helper->session_handle();
     }
   }
-  return session_handle_.get();
+
+  // TODO(crbug.com/469837027): Figure out what the below is doing. It does not
+  // seem quite right.
+
+  // If no valid session exists, maintains context continuity by trying to find
+  // one from affiliated tabs or side panel WebContents.
+  auto* coordinator = GetSidePanelCoordinator();
+  if (!coordinator || !task_id_.has_value()) {
+    return nullptr;
+  }
+
+  coordinator->UpdateContextualSearchWebContentsHelperForTask(web_contents,
+                                                              task_id_.value());
+  return helper->session_handle();
 }
 
 void ContextualTasksUI::PostMessageToWebview(
@@ -558,7 +590,7 @@ void ContextualTasksUI::OnInnerWebContentsCreated(
   // This should only ever happen once per WebUI.
   CHECK(!nav_observer_);
   nav_observer_ = std::make_unique<FrameNavObserver>(
-      inner_contents, ui_service_, context_controller_, this);
+      inner_contents, ui_service_, contextual_tasks_service_, this);
   inner_web_contents_creation_observer_.reset();
   embedded_web_contents_ = inner_contents->GetWeakPtr();
 }
@@ -585,7 +617,8 @@ void ContextualTasksUI::OnContextRetrievedForActiveTab(
   std::unique_ptr<url_deduplication::URLDeduplicationHelper>
       url_duplication_helper =
           contextual_tasks::CreateURLDeduplicationHelperForContextualTask();
-  if (context->ContainsURL(last_committed_url, url_duplication_helper.get())) {
+  if (context &&
+      context->ContainsURL(last_committed_url, url_duplication_helper.get())) {
     composebox_handler_->UpdateSuggestedTabContext(nullptr);
     return;
   }
@@ -637,6 +670,12 @@ void ContextualTasksUI::DisableActiveTabContextSuggestion() {
   ui_service_->set_auto_tab_context_suggestion_enabled(false);
 }
 
+void ContextualTasksUI::OnLensOverlayStateChanged(bool is_showing) {
+  if (page_) {
+    page_->OnLensOverlayStateChanged(is_showing);
+  }
+}
+
 void ContextualTasksUI::OnActiveTabContextStatusChanged() {
   if (!GetBrowser()) {
     return;
@@ -673,7 +712,7 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
       std::make_unique<contextual_tasks::ContextDecorationParams>();
   context_decoration_params->contextual_search_session_handle =
       GetOrCreateContextualSessionHandle()->AsWeakPtr();
-  context_controller_->GetContextForTask(
+  contextual_tasks_service_->GetContextForTask(
       GetTaskId().value(),
       {contextual_tasks::ContextualTaskContextSource::kPendingContextDecorator},
       std::move(context_decoration_params),
@@ -703,34 +742,33 @@ void ContextualTasksUI::PushTaskDetailsToPage() {
                         thread_id_.value_or(""), thread_turn_id_.value_or(""));
 }
 
+contextual_tasks::ContextualTasksSidePanelCoordinator*
+ContextualTasksUI::GetSidePanelCoordinator() {
+  if (!web_ui()->GetWebContents()) {
+    return nullptr;
+  }
+
+  auto* browser = webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+  if (!browser) {
+    return nullptr;
+  }
+
+  return contextual_tasks::ContextualTasksSidePanelCoordinator::From(browser);
+}
+
 ContextualTasksUI::FrameNavObserver::FrameNavObserver(
     content::WebContents* web_contents,
     contextual_tasks::ContextualTasksUiService* ui_service,
-    contextual_tasks::ContextualTasksContextController* context_controller,
+    contextual_tasks::ContextualTasksService* contextual_tasks_service,
     TaskInfoDelegate* task_info_delegate)
     : content::WebContentsObserver(web_contents),
       ui_service_(ui_service),
-      context_controller_(context_controller),
+      contextual_tasks_service_(contextual_tasks_service),
       task_info_delegate_(CHECK_DEREF(task_info_delegate)) {}
-
-void ContextualTasksUI::FrameNavObserver::DidStartNavigation(
-    content::NavigationHandle* navigation_handle) {
-  if (!ui_service_ || !context_controller_) {
-    return;
-  }
-
-  const GURL& url = navigation_handle->GetURL();
-
-  // This is a zero state if there is no query in the AIM page.
-  std::string query_value;
-  net::GetValueForKeyInQuery(url, "q", &query_value);
-  task_info_delegate_->OnZeroStateChange(
-      /*is_zero_state=*/query_value.empty() && ui_service_->IsAiUrl(url));
-}
 
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (!ui_service_ || !context_controller_) {
+  if (!ui_service_ || !contextual_tasks_service_) {
     return;
   }
 
@@ -746,31 +784,49 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
 
+  // Set whether this navigation is to a zero state so the UI can adjust
+  // accordingly.
+  const bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
+  task_info_delegate_->OnZeroStateChange(is_zero_state);
+
   bool is_url_changed = false;
   if (url != last_committed_url_) {
     last_committed_url_ = url;
     is_url_changed = true;
   }
 
-  // If this navigation is inside the same document, do nothing.
-  if (navigation_handle->IsSameDocument()) {
-    return;
-  }
-
   if (!is_url_changed) {
-    return;
-  }
-
-  if (url == ui_service_->GetDefaultAiPageUrl()) {
-    ui_service_->OnTaskChanged(task_info_delegate_->GetBrowser(),
-                               task_info_delegate_->GetWebUIWebContents(),
-                               base::Uuid(),
-                               task_info_delegate_->IsShownInTab());
     return;
   }
 
   if (!ui_service_->IsAiUrl(url)) {
     return;
+  }
+
+  if (is_zero_state) {
+    // Create a new task for zero state, since there's no thread to associate
+    // this with yet.
+    contextual_tasks::ContextualTask task =
+        contextual_tasks_service_->CreateTask();
+    base::Uuid new_task_id = task.GetTaskId();
+    task_info_delegate_->SetTaskId(new_task_id);
+    task_info_delegate_->SetThreadId(std::nullopt);
+    task_info_delegate_->SetThreadTurnId(std::nullopt);
+    task_info_delegate_->SetThreadTitle(std::nullopt);
+
+    ui_service_->OnTaskChanged(task_info_delegate_->GetBrowser(),
+                               task_info_delegate_->GetWebUIWebContents(),
+                               new_task_id,
+                               task_info_delegate_->IsShownInTab());
+    return;
+  }
+
+  // If we don't yet have a title, try to pull one from the query.
+  if (!task_info_delegate_->GetThreadTitle()) {
+    std::string query_value;
+    if (net::GetValueForKeyInQuery(url, "q", &query_value)) {
+      task_info_delegate_->SetThreadTitle(query_value);
+    }
   }
 
   std::string url_thread_id;
@@ -785,41 +841,29 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   bool is_pending_task =
       task_info_delegate_->GetTaskId().has_value() && !webui_thread_id;
 
-  // In cases where the webui doesn't know about an existing threaad ID or
+  // In cases where the webui doesn't know about an existing thread ID or
   // there's a mismatch, either create a new task or update to use an existing
   // one (if it exists).
   if (!is_pending_task &&
       (!webui_thread_id || (webui_thread_id.value() != url_thread_id))) {
     // Check if there's an existing task for the thread.
     std::optional<contextual_tasks::ContextualTask> existing_task =
-        context_controller_->GetTaskFromServerId(
+        contextual_tasks_service_->GetTaskFromServerId(
             contextual_tasks::ThreadType::kAiMode, url_thread_id);
 
     if (existing_task) {
       task_changed =
           task_info_delegate_->GetTaskId() &&
-          existing_task.value().GetTaskId() == task_info_delegate_->GetTaskId();
+          existing_task.value().GetTaskId() != task_info_delegate_->GetTaskId();
       task_info_delegate_->SetTaskId(existing_task.value().GetTaskId());
       task_info_delegate_->SetThreadTitle(existing_task.value().GetTitle());
     } else {
       task_changed = true;
-      auto task = context_controller_->CreateTaskFromUrl(url);
+      auto task = contextual_tasks_service_->CreateTaskFromUrl(url);
       task_info_delegate_->SetTaskId(task.GetTaskId());
     }
   }
   task_info_delegate_->SetThreadId(url_thread_id);
-
-  // TODO(crbug.com/456793138): Update the contextual search session handle on
-  // the webcontents, reusing sessions if the thread already has a corresponding
-  // session entry, based on the mtid, once mtid is reliably set by the server.
-
-  // If we don't yet have a title, try to pull one from the query.
-  if (!task_info_delegate_->GetThreadTitle()) {
-    std::string query_value;
-    if (net::GetValueForKeyInQuery(url, "q", &query_value)) {
-      task_info_delegate_->SetThreadTitle(query_value);
-    }
-  }
 
   std::optional<std::string> mstk;
   mstk.emplace();
@@ -827,7 +871,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     mstk = std::nullopt;
   }
 
-  context_controller_->UpdateThreadForTask(
+  contextual_tasks_service_->UpdateThreadForTask(
       task_info_delegate_->GetTaskId().value(),
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
@@ -839,6 +883,27 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
                                task_info_delegate_->GetTaskId().value(),
                                task_info_delegate_->IsShownInTab());
   }
+}
+
+bool ContextualTasksUI::IsZeroState(
+    const GURL& url,
+    contextual_tasks::ContextualTasksUiService* ui_service) {
+  std::string query_value;
+  std::string mstk_value;
+  std::string vsrid_value;
+  std::string cinpts_value;
+  net::GetValueForKeyInQuery(url, "q", &query_value);
+  net::GetValueForKeyInQuery(url, "mstk", &mstk_value);
+  net::GetValueForKeyInQuery(url, "vsrid", &vsrid_value);
+  net::GetValueForKeyInQuery(url, "cinpts", &cinpts_value);
+
+  // If the URL is an AI URL and there's no query or mstk, it's zero state. If
+  // there is either a query or mstk, assume it's not zero state. If there is a
+  // vsrid/cinpts, assume it's not zero state since there will soon be an mstk.
+  // TODO(crbug.com/472336339): Find a more robust way to determine if the page
+  // is zero state instead of query params.
+  return ui_service->IsAiUrl(url) && query_value.empty() &&
+         mstk_value.empty() && vsrid_value.empty() && cinpts_value.empty();
 }
 
 ContextualTasksUI::InnerFrameCreationObvserver::InnerFrameCreationObvserver(
@@ -871,14 +936,14 @@ void ContextualTasksUI::CreatePageHandler(
         contextual_tasks_internals::mojom::ContextualTasksInternalsPageHandler>
         receiver) {
   Profile* profile = Profile::FromWebUI(web_ui());
-  auto* context_service =
+  auto* contextual_tasks_service =
       contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
           profile);
   auto* optimization_guide_keyed_service =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
   contextual_tasks_internals_page_handler_ =
       std::make_unique<ContextualTasksInternalsPageHandler>(
-          context_service, optimization_guide_keyed_service,
+          contextual_tasks_service, optimization_guide_keyed_service,
           std::move(receiver), std::move(page));
 }
 

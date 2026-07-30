@@ -16,6 +16,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/task_info_delegate.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
@@ -48,7 +49,8 @@ struct AccessTokenInfo;
 }  // namespace signin
 
 namespace contextual_tasks {
-class ContextualTasksContextController;
+class ContextualTasksService;
+class ContextualTasksSidePanelCoordinator;
 class ContextualTasksUiService;
 }  // namespace contextual_tasks
 
@@ -76,19 +78,16 @@ class ContextualTasksUI : public TaskInfoDelegate,
     explicit FrameNavObserver(
         content::WebContents* web_contents,
         contextual_tasks::ContextualTasksUiService* ui_service,
-        contextual_tasks::ContextualTasksContextController* context_controller,
+        contextual_tasks::ContextualTasksService* contextual_tasks_service,
         TaskInfoDelegate* task_info_delegate);
     ~FrameNavObserver() override = default;
 
-    void DidStartNavigation(
-        content::NavigationHandle* navigation_handle) override;
     void DidFinishNavigation(
         content::NavigationHandle* navigation_handle) override;
 
    private:
     raw_ptr<contextual_tasks::ContextualTasksUiService> ui_service_;
-    raw_ptr<contextual_tasks::ContextualTasksContextController>
-        context_controller_;
+    raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
     raw_ref<TaskInfoDelegate> task_info_delegate_;
 
     // Last committed URL used to check if URL changes.
@@ -128,6 +127,13 @@ class ContextualTasksUI : public TaskInfoDelegate,
   BrowserWindowInterface* GetBrowser() override;
   content::WebContents* GetWebUIWebContents() override;
   void OnZeroStateChange(bool is_zero_state) override;
+
+  // Returns whether the given URL is an AI page zero state. This is used to
+  // determine if the UI should be rendered in zero state. Static so it can be
+  // used by the FrameNavObserver and easily tested.
+  static bool IsZeroState(
+      const GURL& url,
+      contextual_tasks::ContextualTasksUiService* ui_service);
 
   // Get the URL of the page currently embedded in this WebUI.
   const GURL& GetInnerFrameUrl() const;
@@ -175,12 +181,16 @@ class ContextualTasksUI : public TaskInfoDelegate,
   void OnSidePanelStateChanged();
 
   // Called to disable active tab context suggestion on compose box.
-  void DisableActiveTabContextSuggestion();
+  virtual void DisableActiveTabContextSuggestion();
 
   // Called when the active tab has been changed, either a new page is loaded or
   // a title change. This is only called when the of this class is rendered in
   // the side panel.
   void OnActiveTabContextStatusChanged();
+
+  // Notify the UI that the Lens overlay has either started showing or is now
+  // hidden.
+  void OnLensOverlayStateChanged(bool is_showing);
 
   void SetComposeboxHandlerForTesting(
       std::unique_ptr<ContextualTasksComposeboxHandler> handler) {
@@ -192,12 +202,6 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // lens.ClientToAimMessage protobuf) and using the <webview> postMessage API
   // to send it to the guest content.
   virtual void PostMessageToWebview(const lens::ClientToAimMessage& message);
-
-  void set_session_handle(
-      std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-          session_handle) {
-    session_handle_ = std::move(session_handle);
-  }
 
   mojo::Remote<contextual_tasks::mojom::Page>& page() { return page_; }
 
@@ -244,6 +248,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // Update the task's details in the WebUI.
   void PushTaskDetailsToPage();
 
+  contextual_tasks::ContextualTasksSidePanelCoordinator*
+  GetSidePanelCoordinator();
+
   // The OAuth token fetcher is used to fetch the OAuth token for the signed in
   // user. This is used to authenticate the user when making requests in the
   // embedded page.
@@ -252,18 +259,10 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // A timer used to refresh the OAuth token before it expires.
   base::OneShotTimer token_refresh_timer_;
 
-  // Must outlive `composebox_handler_`.
-  std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-      session_handle_;
-
   std::unique_ptr<ContextualTasksComposeboxHandler> composebox_handler_;
   raw_ptr<contextual_tasks::ContextualTasksUiService> ui_service_;
 
-  // A handle to the class that extends the ContextualTasksService - the backend
-  // component responsible for maintaining associations between open tabs and
-  // threads.
-  raw_ptr<contextual_tasks::ContextualTasksContextController>
-      context_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 
   mojo::Receiver<composebox::mojom::PageHandlerFactory>
       composebox_page_handler_factory_receiver_{this};
@@ -318,6 +317,7 @@ class ContextualTasksUI : public TaskInfoDelegate,
     kShownInSidePanel,
   };
   WebUIState previous_web_ui_state_ = WebUIState::kUnknown;
+  bool was_ai_page_ = false;
 
   base::WeakPtrFactory<ContextualTasksUI> weak_ptr_factory_{this};
 

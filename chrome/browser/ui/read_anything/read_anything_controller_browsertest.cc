@@ -219,28 +219,21 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
-                       ShowSidePanelFromAppMenu) {
+                       ShowImmersiveFromAppMenu) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   ASSERT_TRUE(tab);
-
   auto* controller = ReadAnythingController::From(tab);
-
   ASSERT_TRUE(controller);
 
-  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
-  ASSERT_FALSE(side_panel_ui->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kReadAnything)));
+  AssertOverlayVisibility(/*visible=*/false);
 
   chrome::ExecuteCommand(browser(), IDC_SHOW_READING_MODE_SIDE_PANEL);
 
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return side_panel_ui->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
-  }));
+  AssertOverlayVisibility(/*visible=*/true);
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
-                       ShowSidePanelFromContextMenu) {
+                       ShowImmersiveFromContextMenu) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   ASSERT_TRUE(tab);
 
@@ -248,9 +241,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 
   ASSERT_TRUE(controller);
 
-  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
-  ASSERT_FALSE(side_panel_ui->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kReadAnything)));
+  AssertOverlayVisibility(/*visible=*/false);
 
   content::WebContents* web_contents = tab->GetContents();
   TestRenderViewContextMenu menu(*web_contents->GetPrimaryMainFrame(),
@@ -258,10 +249,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   menu.Init();
   menu.ExecuteCommand(IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE, 0);
 
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return side_panel_ui->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
-  }));
+  AssertOverlayVisibility(/*visible=*/true);
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
@@ -487,7 +475,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
-                       ToggleSidePanelViaActionItem) {
+                       ToggleImmersiveViaActionItem) {
   tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
   ASSERT_TRUE(tab);
 
@@ -500,9 +488,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
       action_manager.FindAction(kActionSidePanelShowReadAnything);
   ASSERT_TRUE(read_anything_action);
 
-  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
-  ASSERT_FALSE(side_panel_ui->IsSidePanelEntryShowing(
-      SidePanelEntryKey(SidePanelEntryId::kReadAnything)));
+  AssertOverlayVisibility(/*visible=*/false);
 
   // Create a context with a valid trigger for the action.
   actions::ActionInvocationContext context =
@@ -515,12 +501,9 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
 
   read_anything_action->InvokeAction(std::move(context));
 
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return side_panel_ui->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
-  }));
+  AssertOverlayVisibility(/*visible=*/true);
 
-  // Invoke the action again to close the side panel.
+  // Invoke the action again to close the immersive view.
   // Create a new context for the second invocation.
   actions::ActionInvocationContext context2 =
       actions::ActionInvocationContext::Builder()
@@ -531,10 +514,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
           .Build();
   read_anything_action->InvokeAction(std::move(context2));
 
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !side_panel_ui->IsSidePanelEntryShowing(
-        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
-  }));
+  AssertOverlayVisibility(/*visible=*/false);
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
@@ -586,7 +566,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   auto* controller = ReadAnythingController::From(tab);
   ASSERT_TRUE(controller);
 
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return controller->GetPresentationState() ==
@@ -627,7 +607,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   controller->SetWebUIWrapperForTest(std::move(wrapper));
 
   // Show Reading Mode.
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
   auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return side_panel_ui->IsSidePanelEntryShowing(
@@ -814,7 +794,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Open Side Panel immediately followed by opening Immersive UI (before the
   // WebUI has a chance to load)
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
   controller->ShowImmersiveUI(ReadAnythingOpenTrigger::kOmniboxChip);
 
   // Verify Immersive UI is open (and did not crash)
@@ -833,7 +813,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
 
   // Open Side Panel
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return side_panel_ui->IsSidePanelEntryShowing(
@@ -880,8 +860,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   content::WebContents* immersive_ui_web_contents = GetImmersiveWebContents();
   ASSERT_TRUE(immersive_ui_web_contents);
 
-  // Open Side Panel via ShowUI
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  // Open Side Panel
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
 
   // Verify Immersive UI is closed
   views::View* overlay_view = GetImmersiveOverlay();
@@ -1015,7 +995,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
 
   // Open Side Panel
-  controller->ShowUI(SidePanelOpenTrigger::kAppMenu);
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return side_panel_ui->IsSidePanelEntryShowing(
         SidePanelEntryKey(SidePanelEntryId::kReadAnything));
@@ -1034,4 +1014,87 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   AssertOverlayVisibility(/*visible=*/true);
   EXPECT_EQ(controller->GetPresentationState(),
             ReadAnythingController::PresentationState::kInImmersiveOverlay);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       TogglePresentation_FromImmersive_OpensSidePanel) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
+
+  // Open Immersive UI
+  controller->ShowImmersiveUI(ReadAnythingOpenTrigger::kOmniboxChip);
+  AssertOverlayVisibility(/*visible=*/true);
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInImmersiveOverlay);
+
+  // Toggle Presentation
+  controller->TogglePresentation();
+
+  // Verify Immersive UI is closed and Side Panel is open
+  AssertOverlayVisibility(/*visible=*/false);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return side_panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
+  }));
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInSidePanel);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       TogglePresentation_FromSidePanel_OpensImmersive) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
+
+  // Open Side Panel
+  controller->ShowSidePanelUI(SidePanelOpenTrigger::kAppMenu);
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return side_panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
+  }));
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInSidePanel);
+
+  // Toggle Presentation
+  controller->TogglePresentation();
+
+  // Verify Side Panel is closed and Immersive UI is open
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !side_panel_ui->IsSidePanelEntryShowing(
+        SidePanelEntryKey(SidePanelEntryId::kReadAnything));
+  }));
+  AssertOverlayVisibility(/*visible=*/true);
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInImmersiveOverlay);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       TogglePresentation_WhenClosed_DoesNothing) {
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
+
+  // Ensure initially closed
+  AssertOverlayVisibility(/*visible=*/false);
+  ASSERT_FALSE(side_panel_ui->IsSidePanelEntryShowing(
+      SidePanelEntryKey(SidePanelEntryId::kReadAnything)));
+  EXPECT_NE(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInImmersiveOverlay);
+  EXPECT_NE(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInSidePanel);
+
+  // Toggle Presentation
+  controller->TogglePresentation();
+
+  // Verify still closed
+  AssertOverlayVisibility(/*visible=*/false);
+  ASSERT_FALSE(side_panel_ui->IsSidePanelEntryShowing(
+      SidePanelEntryKey(SidePanelEntryId::kReadAnything)));
 }

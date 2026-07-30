@@ -80,6 +80,10 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
   // GetWebContents() since that may be nullptr if the popup isn't visible.
   content::WebContents* GetWrappedWebContents();
 
+  // content::WebContentsObserver:
+  void PrimaryMainFrameRenderProcessGone(
+      base::TerminationStatus status) override;
+
  protected:
   // Callback for cleaning up the `context_menu_` field.
   void OnMenuClosed();
@@ -101,7 +105,6 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
 
   raw_ptr<OmniboxPopupPresenterBase> popup_presenter_ = nullptr;
   raw_ptr<LocationBarView> location_bar_view_ = nullptr;
-  raw_ptr<OmniboxPopupPresenterBase> omnibox_popup_presenter_ = nullptr;
   // The controller for the Omnibox.
   raw_ptr<OmniboxController> controller_ = nullptr;
 

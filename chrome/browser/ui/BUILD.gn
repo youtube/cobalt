@@ -249,6 +249,8 @@ static_library("ui") {
     "//chrome/browser/search",
     "//chrome/browser/task_manager",
     "//chrome/browser/ui/tabs:tab_enums",
+    "//chrome/browser/ui/webui/omnibox/aim_eligibility",
+    "//chrome/browser/ui/webui/omnibox/aim_eligibility:mojo_bindings",
   ]
 
   deps = [
@@ -2993,6 +2995,8 @@ static_library("ui") {
       "webui/settings/settings_manage_profile_handler.h",
       "webui/settings/system_handler.cc",
       "webui/settings/system_handler.h",
+      "webui/updater/updater_page_handler.cc",
+      "webui/updater/updater_page_handler.h",
       "webui/updater/updater_ui.cc",
       "webui/updater/updater_ui.h",
     ]
@@ -3014,6 +3018,8 @@ static_library("ui") {
       "//chrome/browser/ui/webui/app_settings:impl",
       "//chrome/browser/ui/webui/signin:profile",
       "//chrome/browser/ui/webui/signin:profile_impl",
+      "//chrome/browser/ui/webui/updater:mojo_bindings",
+      "//chrome/updater:browser_sources",
       "//components/capture_mode",
       "//components/country_codes",
       "//services/audio/public/mojom",
@@ -3791,6 +3797,8 @@ static_library("ui") {
       "views/extensions/extensions_menu_coordinator.h",
       "views/extensions/extensions_menu_delegate_desktop.cc",
       "views/extensions/extensions_menu_delegate_desktop.h",
+      "views/extensions/extensions_menu_entry_view.cc",
+      "views/extensions/extensions_menu_entry_view.h",
       "views/extensions/extensions_menu_handler.h",
       "views/extensions/extensions_menu_item_view.cc",
       "views/extensions/extensions_menu_item_view.h",
@@ -4968,6 +4976,7 @@ static_library("ui") {
         "views/webauthn/mac_authentication_view.mm",
       ]
       deps += [
+        "//chrome/browser/ui/webui/unexportable_keys_internals",
         "//components/crash/core/common:crash_key",
         "//services/audio/public/cpp",
       ]
@@ -5775,7 +5784,11 @@ static_library("test_support") {
     }
   }
 
-  if (!is_android) {
+  if (is_android) {
+    sources += [
+      "android/autofill/save_update_address_profile_flow_manager_test_api.h",
+    ]
+  } else {
     sources += [
       "browser_window/test/mock_browser_window_interface.cc",
       "browser_window/test/mock_browser_window_interface.h",

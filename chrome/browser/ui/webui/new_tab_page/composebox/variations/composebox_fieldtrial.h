@@ -26,10 +26,6 @@ extern const base::FeatureParam<std::string> kConfigParam;
 // multi-context input flow is enabled.
 extern const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages;
-// Whether or not to support the context_id migration on the server, for
-// the multi-context input flow.
-extern const base::FeatureParam<bool> kEnableContextIdMigration;
-
 // Whether to show zps suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxZps;
 // Whether to show typed suggestions under the composebox.
@@ -148,6 +144,9 @@ enum class RealboxLayoutMode {
 
 // Flag to control the realbox layout mode (Tall, Compact).
 extern const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode;
+
+// Whether to enable multi-line input in the searchbox.
+extern const base::FeatureParam<bool> kMultiLineEnabled;
 
 bool IsNtpRealboxNextEnabled(Profile* profile);
 

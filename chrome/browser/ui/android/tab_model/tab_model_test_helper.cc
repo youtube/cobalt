@@ -22,6 +22,7 @@
 #include "chrome/browser/flags/android/chrome_session_state.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_jni_bridge.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
 #include "content/public/browser/visibility.h"
@@ -78,7 +79,7 @@ base::android::ScopedJavaLocalRef<jobject> TestTabModel::GetJavaObject() const {
 void TestTabModel::CreateTab(TabAndroid* parent,
                              content::WebContents* web_contents,
                              int index,
-                             bool select,
+                             TabLaunchType type,
                              bool should_pin) {}
 
 void TestTabModel::HandlePopupNavigation(TabAndroid* parent,
@@ -205,6 +206,12 @@ bool TestTabModel::ContainsTabGroup(tab_groups::TabGroupId group_id) {
 std::vector<tab_groups::TabGroupId> TestTabModel::ListTabGroups() {
   NOTIMPLEMENTED();
   return {};
+}
+
+std::optional<tab_groups::TabGroupId> TestTabModel::CreateTabGroup(
+    const std::vector<tabs::TabHandle>& tabs) {
+  NOTIMPLEMENTED();
+  return std::nullopt;
 }
 
 std::optional<tab_groups::TabGroupId> TestTabModel::AddTabsToGroup(
@@ -340,16 +347,21 @@ void OwningTestTabModel::CloseTabAt(int index) {
 void OwningTestTabModel::CreateTab(TabAndroid* parent,
                                    content::WebContents* web_contents,
                                    int index,
-                                   bool select,
+                                   TabLaunchType type,
                                    bool should_pin) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   size_t insertion_index =
       (index == TabModel::kInvalidIndex) ? owned_tabs_.size() : index;
 
+  bool is_new_tab_incognito =
+      web_contents->GetBrowserContext()->IsOffTheRecord();
+  bool select_tab = TabModelJniBridge::IsTabLaunchedInForeground(
+      type, is_new_tab_incognito, GetProfile()->IsOffTheRecord());
+
   // Take ownership of the WebContents.
   AddTabFromWebContents(std::unique_ptr<content::WebContents>(web_contents),
-                        insertion_index, select,
+                        insertion_index, select_tab,
                         TabModel::TabLaunchType::FROM_RESTORE);
 }
 
@@ -461,6 +473,12 @@ void OwningTestTabModel::UnpinTab(tabs::TabHandle tab) {
 bool OwningTestTabModel::ContainsTabGroup(tab_groups::TabGroupId group_id) {
   NOTIMPLEMENTED();
   return false;
+}
+
+std::optional<tab_groups::TabGroupId> OwningTestTabModel::CreateTabGroup(
+    const std::vector<tabs::TabHandle>& tabs) {
+  NOTIMPLEMENTED();
+  return std::nullopt;
 }
 
 std::vector<tab_groups::TabGroupId> OwningTestTabModel::ListTabGroups() {

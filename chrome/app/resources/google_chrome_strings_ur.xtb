@@ -89,6 +89,7 @@
 <translation id="1874309113135274312">‏Google Chrome بی ٹا (mDNS-In)</translation>
 <translation id="1877026089748256423">‏Chrome پرانا ہے</translation>
 <translation id="1880677175115548835">متن منتخب کریں</translation>
+<translation id="1896602904211344018">‏‫Chrome ایپ حاصل کریں</translation>
 <translation id="1919130412786645364">‏Chrome میں سائن ان کی اجازت دیں</translation>
 <translation id="1953553007165777902">ڈاؤن لوڈ ہو رہی ہے… <ph name="MINUTE" /> منٹ(منٹس) باقی ہے</translation>
 <translation id="1979600810166324878">‏‫iOS کے لیے Chrome پر بہتر کردہ محفوظ براؤزنگ کے ساتھ دوران سفر زیادہ محفوظ رہیں</translation>
@@ -274,6 +275,7 @@
 <translation id="3889417619312448367">‏Google Chrome کو اَن انسٹال کریں</translation>
 <translation id="3892148308691398805">ٹیکسٹ کاپی کریں</translation>
 <translation id="3906096710440765802">‏اپنے سبھی آلات پر اپنے پاس ورڈز، بُک مارکس وغیرہ حاصل کرنے کیلئے Chrome میں سائن ان کریں</translation>
+<translation id="3921132130819999051">‏‫Chrome کو آپ کے لیے براؤز کرنے دیں</translation>
 <translation id="3941890832296813527">انسٹال سے متعلق خرابی: انسٹالر فائل کا نام غلط یا غیر تعاون یافتہ ہے۔</translation>
 <translation id="395904275706073188">محفوظ صفحات کو پڑھا نہیں جا سکتا۔ کوئی دوسرا صفحہ آزمائیں۔</translation>
 <translation id="3968962723676998462">‏اپنے اکاؤنٹ، <ph name="ACCOUNT_EMAIL" /> میں Chrome ڈیٹا کا استعمال کرنے اور محفوظ کرنے کے لیے اپنا پاس فریز درج کریں</translation>
@@ -315,6 +317,7 @@
 <translation id="4334294535648607276">ڈاؤن لوڈ مکمل ہوگیا۔</translation>
 <translation id="4337324600316876133">‏مستقبل میں Google Chrome اپ ڈیٹس حاصل کرنے کے لیے آپ کو macOS 12 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر macOS 11 کا استعمال کر رہا ہے۔</translation>
 <translation id="4343195214584226067">‏<ph name="EXTENSION_NAME" /> کو Chrome میں شامل کر دیا گیا ہے</translation>
+<translation id="4344128547036991536">‏جب آپ Google لینز کھولتے ہیں تو صفحہ کا عنوان، URL اور مواد، بشمول PDFs، خودکار طور پر Google کو بھیجے جائیں گے۔ <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">‏ذاتی نوعیت سازی حاصل کرنے کے لیے Chrome کو ویب اور ایپ سرگرمی میں شامل کریں</translation>
 <translation id="436060642166082913">‏Chrome نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ فائل آپ کے ذاتی اور سوشل نیٹ ورک اکاؤنٹس کو نقصان پہنچا سکتی ہے</translation>
 <translation id="4367027658822022112">‏آپ آسان رسائی کے لیے Google لینز کو پن کر سکتے ہیں؛ سائیڈ پینل کے اوپری حصے میں پن کریں بٹن پر کلک کریں</translation>
@@ -378,6 +381,7 @@
 <translation id="5163087008893166964">‏Chrome میں آپ کا استقبال ہے، براؤزر کی نئی ونڈو کھلی</translation>
 <translation id="5166439563123238795">‏آپ کے ہاتھوں کو ٹریک کرنے کے لیے Chrome کو اجازت درکار ہے</translation>
 <translation id="5167819546851111585">آج آپ کے ذہن میں کیا چل رہا ہے؟</translation>
+<translation id="5169778651486082413">‏اپنے فون پر Chrome کے ساتھ اپنے پاس ورڈز کا استعمال کریں</translation>
 <translation id="5170938038195470297">‏آپ کا پروفائل استعمال نہیں کیا جا سکتا ہے کیونکہ یہ Google Chrome کے ایک جدید تر ورژن سے ہے۔
 
 ممکن ہے کچھ خصوصیات دستیاب نہ ہوں۔ براہ کرم ایک مختلف پروفائل ڈائرکٹری کا تعین کریں یا Chrome کا ایک جدید تر ورژن استعمال کریں۔</translation>
@@ -407,7 +411,6 @@
 Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہے۔</translation>
 <translation id="5465210843490471889">‏<ph name="START_GLIC_STYLING" />‫Gemini<ph name="END_GLIC_STYLING" /> کے ساتھ استعمال کرنے کے لیے Chrome پروفائل کا انتخاب کریں</translation>
 <translation id="5468572406162360320">‏ان خصوصیات کو بہتر بنانے میں مدد کے لیے، Chrome ان کے ساتھ آپ کے تعاملات کو Google کو بھیجتا ہے۔ اس ڈیٹا کو انسان جائزہ کار پڑھ سکتے ہیں، اس پر کارروائی کر سکتے ہیں اور تشریح کر سکتے ہیں۔</translation>
-<translation id="5510398294750420479">‏دوران سفر ہونے پر تحفظ کی ایک اضافی پرت شامل کرنے کے لیے اپنے فون پر Chrome ڈاؤن لوڈ کریں</translation>
 <translation id="5524890928877629608">تلاش کے حلقے کا اوپری دایاں کونا: <ph name="LEFT" /> فیصد دائیں، <ph name="TOP" /> فیصد اوپر</translation>
 <translation id="5530733413481476019">‏Chrome کو تیز تر بنائیں</translation>
 <translation id="5550137307985173298">‏‫Chrome کو نئی شکل دینے کے لیے نئے ٹیب کے صفحہ پر Chrome کو حسب ضرورت بنائیں بٹن پر کلک کریں</translation>
@@ -463,6 +466,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6008161919456049856">‏آپ کے پاس ورڈز، ادائیگی کے طریقے اور پتے جو آپ نے اپنے Google اکاؤنٹ میں محفوظ کیے ہیں اس آلہ سے ہٹا دیے جائیں گے۔ انہیں Chrome میں دوبارہ استعمال کرنے کے لیے، دوبارہ سائن ان کریں۔</translation>
 <translation id="6009821354356307391">فالو اپ کرنے کو کہیں</translation>
 <translation id="6014316319780893079">‏<ph name="BEGIN_LINK" />Chrome کے ٹولز<ph name="END_LINK" /> کے ذریعے آپ محفوظ طریقے سے براؤز کر سکتے ہیں اور چیزوں پر کنٹرول رکھ سکتے ہیں</translation>
+<translation id="6018578474045062808">‏اپنے فون پر Chrome کے ساتھ Google لینز آزمائیں</translation>
 <translation id="6022659036123304283">‏Chrome کو اپنا ڈیفالٹ براؤزر بنائيں</translation>
 <translation id="6025087594896450715">‏<ph name="REMAINING_TIME" /> میں Google Chrome ری سٹارٹ ہو جائے گا</translation>
 <translation id="6040143037577758943">بند کریں</translation>
@@ -485,6 +489,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6173637689840186878">‏<ph name="PAGE_TITLE" /> - Google Chrome بی ٹا</translation>
 <translation id="6180522807229584611">‏یہ ٹیب اضافی وسائل کا استعمال کر رہا ہے۔ اپنی کارکردگی کو بہتر بنانے کیلئے، Chrome کو اسے غیر فعال کرنے کی اجازت دیں۔</translation>
 <translation id="6182736845697986886">اپ ڈیٹ سرور کی اندرونی خرابی کی وجہ سے انسٹالیشن ناکام ہو گئی۔</translation>
+<translation id="6183773856988300112">‏‫Chrome میں Gemini آپ کے ٹیبز میں کام کرنے اور آپ کے دیے گئے ٹاسکس کو مکمل کرنے کے لیے خودکار براؤز کا استعمال کرتا ہے۔ <ph name="LINK_BEGIN" />مزید جانیں<ph name="LINK_END" /></translation>
 <translation id="6192058120268468905">‏‫Chrome میں آپ کا اکاؤنٹ</translation>
 <translation id="6220551899604141979">‏‫<ph name="PARTNER_NAME" /> نے ایک ایکسٹینشن شامل کی ہے جو Chrome کے کام کرنے کے طریقے کو تبدیل کر سکتی ہے۔
 
@@ -511,6 +516,8 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="6418662306461808273">‏موجودہ Chrome پروفائل پر سوئچ کریں؟</translation>
 <translation id="6426623519983252346">‏اگلی بار جب آپ Chrome iOS کھولیں گے تو آپ کو <ph name="FEATURE_NAME" /> کو آزمانے کے لیے ایک پرامپٹ نظر آئے گا۔</translation>
 <translation id="6434035853014503219">‏‫Chrome کو اپنے ڈیفالٹ براؤزر کے طور پر منتخب کرنے کا شکریہ!</translation>
+<translation id="6438015621983209660">‏اپنے فون پر Chrome کے ساتھ بہتر کردہ محفوظ براؤزنگ کو بڑھائیں</translation>
+<translation id="6442774133615368941">‏‫Chrome iOS ایپ پر دکھائی دینے والی چیزوں کی خریداری کرنے، ترجمہ کرنے اور شناخت کرنے کیلئے اپنے کیمرے کا استعمال کریں</translation>
 <translation id="6473905796280459355">‏Chrome کے بارے میں صفحہ پر جائیں</translation>
 <translation id="6481963882741794338">‏ذاتی نوعیت سازی اور دیگر مقاصد کے لیے Chrome اور دیگر Google سروسز کو لنک کریں</translation>
 <translation id="648319183876919572">بہتر کردہ محفوظ براؤزنگ آپ کو خطرناک ویب سائٹس اور ڈاؤن لوڈز سے بچانے کے لیے بہت کچھ کرتی ہے</translation>
@@ -648,6 +655,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="7832314606810669113">‏اپنے تمام آلات پر اپنے بُک مارکس اور مزید حاصل کرنے کے لیے، Chrome میں سائن ان کریں۔ آپ کے سائن ان کرنے کے بعد یہ بُک مارک آپ کے Google اکاؤنٹ میں محفوظ ہو جائے گا۔</translation>
 <translation id="7845233973568007926">انسٹال کرنے کا شکریہ۔ آپ کو <ph name="BUNDLE_NAME" /> استعمال کرنے سے پہلے اپنا کمپیوٹر لازمی طور سے ری اسٹارٹ کرنا چاہیے۔</translation>
 <translation id="7849037457735762883">‏جہاں آپ نے چھوڑا تھا وہیں سے جاری رکھیں: جب بھی آپ ری سٹارٹ کریں گے Chrome آپ کے ٹیبز کو بحال کر سکتا ہے۔ اسے آن کرنے کے لیے، اس پر جائیں</translation>
+<translation id="7869620795354551924">‏اپنے محفوظ کردہ پاس ورڈز استعمال کرنے کے لیے، QR کوڈ کی پیروی کریں، Chrome برائے iOS ڈاؤن لوڈ کریں اور اپنے Google اکاؤنٹ میں سائن ان کریں</translation>
 <translation id="7872446069773932638">ڈاؤن لوڈ ہو رہی ہے… <ph name="SECONDS" /> سیکنڈ(سیکنڈز) باقی ہے</translation>
 <translation id="7886087451482920026">‏‫Google لینز کے ساتھ ٹیکسٹ منتخب کریں</translation>
 <translation id="7887929410013642057">‏ہمیشہ AI وضع کے شارٹ کٹس دکھائیں</translation>
@@ -734,6 +742,7 @@ Google Chrome آپ کی ترتیبات کو بازیافت کرنے سے قاص�
 <translation id="878572486461146056">انسٹال سے متعلق خرابی: آپ کے نیٹ ورک کے منتظم نے ایک گروپ پالیسی کا اطلاق کیا ہے جو انسٹالیشن کو روکتی ہے: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796919761992612392">‏اپنے Chrome کو حسب ضرورت بنائیں</translation>
 <translation id="8798550110818026746">‏آپ کی تنظیم براؤزنگ ڈیٹا دیکھ سکتی اور اس کا نظم کر سکتی ہے، جیسے آپ کے بُک مارکس، سرگزشت اور پاس ورڈز۔ یہ دیگر Chrome پروفائلز میں براؤزنگ ڈیٹا نہیں دیکھ سکتی</translation>
+<translation id="8813277370772331957">مجھے بعد میں یاد دلائیں</translation>
 <translation id="8821043148920470810">‏مستقبل کے Google Chrome اپ ڈیٹس حاصل کرنے کے لیے، آپ کو Windows 10 یا اس کے بعد کے ورژن کی ضرورت ہوگی۔ یہ کمپیوٹر Windows 7 استعمال کر رہا ہے۔</translation>
 <translation id="8823341990149967727">‏Chrome پرانا ہے</translation>
 <translation id="8834965163890861871">‏Google Chrome پاس ورڈز میں ترمیم کرنے کی کوشش کر رہا ہے۔ اس کی اجازت دینے کے لیے اپنا Windows پاس ورڈ ٹائپ کریں۔</translation>

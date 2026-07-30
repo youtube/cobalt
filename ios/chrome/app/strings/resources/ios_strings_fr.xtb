@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Mois d'expiration</translation>
 <translation id="1150989369772528668">Agenda</translation>
 <translation id="1161663161838091892">Synchronisez les onglets et l'historique pour continuer</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} carte de crédit}one{{count} carte de crédit}other{{count} cartes de crédit}}</translation>
 <translation id="1164891049599601209">Saisi sur un site trompeur</translation>
 <translation id="1165039591588034296">Erreur</translation>
 <translation id="1172898394251786223">Champ suivant</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Ne pas masquer</translation>
 <translation id="1456545332132818232">Avis sur le produit pour <ph name="PRODUCT_NAME" />, <ph name="STARS" /> sur <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Tapez moins et gagnez du temps</translation>
+<translation id="1466035273550360103">Aucun onglet ouvert</translation>
 <translation id="1469381646033328562">Ton compte est géré par ton parent.
 <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Modifié</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Onglets ouverts</translation>
 <translation id="1752547299766512813">Enreg. mots de passe</translation>
 <translation id="1764070164487214210">Itinéraire</translation>
+<translation id="1764511703783285459">L'autre gestionnaire de mots de passe n'a partagé aucuns mots de passe ni clés d'accès</translation>
 <translation id="1767766085187034454">Google Traduction</translation>
 <translation id="1771016937398045251">Menu "Outils"</translation>
 <translation id="1772468122139624049">Impossible d'actualiser les onglets</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Impossible d'enregistrer votre modification.</translation>
 <translation id="3254806613790954367">Le dernier onglet ouvert sur tous vos appareils</translation>
 <translation id="325717987950204592">Appuyez sur "Confidentialité et sécurité"</translation>
-<translation id="3266338926702638258">Afficher l'historique des prix pour ce produit</translation>
 <translation id="3272527697863656322">Annuler</translation>
 <translation id="3273510436356991673">Personnaliser votre écran d'accueil</translation>
 <translation id="3277021493514034324">Adresse du site copiée</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 sélectionné}one{# sélectionné}other{# sélectionnés}}</translation>
 <translation id="3668816008081204991">La liste de lecture est masquée</translation>
 <translation id="3670030362669914947">Numéro</translation>
+<translation id="3672283986707092811">Tout sélectionner</translation>
 <translation id="3679163990085797665">Supprimer entrées lues</translation>
 <translation id="368329460027487650">Déconnecté. Ouvre les options de connexion.</translation>
 <translation id="3695446226812920698">Comment procéder</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Nom à afficher</translation>
 <translation id="4375772272517383391">Fermer tous les onglets</translation>
 <translation id="4378154925671717803">Téléphone</translation>
+<translation id="4380677808580146413">Sélectionner</translation>
 <translation id="4389019817280890563">Appuyez pour modifier la langue.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Après 1 jour}one{Après {COUNT} jour}other{Après {COUNT} jours}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 onglet}one{# onglet}other{# onglets}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Masquer "Onglets récents"</translation>
 <translation id="4578835633387306383">Activer…</translation>
 <translation id="4580716718466706433">Accédez au Gestionnaire de mots de passe</translation>
+<translation id="4585751637295612750">Ouvrez un nouvel onglet pour l'ajouter à votre question</translation>
 <translation id="4587589328781138893">Sites</translation>
 <translation id="4592672037257622855">{count,plural, =1{Page ajoutée à votre liste de lecture}one{{count} page ajoutée à votre liste de lecture}other{{count} pages ajoutées à votre liste de lecture}}</translation>
 <translation id="459644946100970322">Activer les alertes de prix ?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">La note contient plus de 1 000 caractères</translation>
 <translation id="5087098519049306025">Suivi des prix</translation>
 <translation id="5090832849094901128">La suppression de ce mot de passe n'entraînera pas celle de votre compte sur <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Rien n'a été importé</translation>
 <translation id="5113960131843706315">Chargement de vos données…</translation>
 <translation id="5118462200606189584">Ajouter un compte…</translation>
 <translation id="5118764316110575523">Désactivé</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Enregistrer le fichier</translation>
 <translation id="5355191726083956201">La protection renforcée est activée</translation>
 <translation id="536067926684072644">Afficher les favoris</translation>
+<translation id="5364647308446127983">{count,plural, =1{Impossible d'importer {count} clé d'accès}one{Impossible d'importer {count} clé d'accès}other{Impossible d'importer {count} clés d'accès}}</translation>
 <translation id="5371112366564891538">Augmenter la taille du texte</translation>
+<translation id="5376135254804080693">Tout désélectionner</translation>
 <translation id="537853552771686272">Gérez les thèmes et les sites qui vous intéressent</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} fermé}one{{count} fermé}other{{count} fermés}}</translation>
 <translation id="5394975111793637642">Masquer la carte "Avis sur les produits pour vous"</translation>
@@ -1445,6 +1453,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="6410390304316730527">La fonctionnalité Navigation sécurisée vous protège contre les pirates informatiques qui pourraient vous inciter à effectuer des opérations dangereuses, comme installer des logiciels malveillants ou divulguer des informations personnelles (mots de passe, numéros de téléphone ou numéros de carte de crédit, par exemple). Si vous la désactivez, faites preuve de vigilance lorsque vous consultez des sites Web inconnus ou peu fiables.</translation>
 <translation id="6410883413783534063">Ouvrez des onglets pour consulter plusieurs pages en même temps</translation>
 <translation id="6418346271604475326">PDF en prépa.</translation>
+<translation id="6420292512900923139">Problème lors de l'importation de vos données</translation>
 <translation id="6421038304268477484">Texte traduit</translation>
 <translation id="6429213933892582367">Ouvrez "Options de mots de passe"</translation>
 <translation id="6435236283694032571">Ajouter à la liste de lecture</translation>
@@ -1483,6 +1492,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Options</translation>
 <translation id="6550891580932862748">Ce mode ne vous protège pas contre les téléchargements, les extensions et les sites Web dangereux. Vos paramètres de navigation sécurisée dans les autres produits Google ne seront pas affectés.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Rétablir</translation>
 <translation id="6559301491397835130">{count,plural, =1{Favori enregistré dans "{title}". Il n'est enregistré que sur cet appareil.}one{Favori enregistré dans "{title}". Il n'est enregistré que sur cet appareil.}other{Favoris enregistrés dans "{title}". Ils ne sont enregistrés que sur cet appareil.}}</translation>
 <translation id="656065428026159829">Voir plus</translation>
@@ -1559,6 +1569,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="6807287147325542056">Mots de passe dans d'autres applis</translation>
 <translation id="681368974849482173">Élément créé</translation>
 <translation id="6825078212112407882">{count,plural, =1{Favori enregistré dans votre compte Google {email}}one{{count} favori enregistré dans votre compte Google {email}}other{{count} favoris enregistrés dans votre compte Google {email}}}</translation>
+<translation id="6826004672264649705">Vous suivez actuellement ce produit. Ouvrir pour voir l'historique des prix.</translation>
 <translation id="6830728435402077660">Non sécurisé</translation>
 <translation id="6831043979455480757">Traduire</translation>
 <translation id="6842136130964845393">Pour toujours avoir accès à vos mots de passe enregistrés, confirmez votre identité</translation>

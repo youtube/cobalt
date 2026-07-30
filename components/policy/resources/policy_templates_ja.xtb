@@ -2326,6 +2326,11 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FO
 <translation id="2707733461906745082">プロファイル分離</translation>
 <translation id="2707873794476722903">セーフ ブラウジングを標準モードで有効にする。</translation>
 <translation id="2709516037105925701">自動入力</translation>
+<translation id="2713265653152900248">このポリシーでは、<ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> の例外として、シークレット モードでアクセスを許可する URL のリストを指定できます。このポリシーは、たとえば <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> で「*」と設定してシークレット モードですべてのリクエストをブロックし、限定された一部の URL のみアクセスを許可する場合に使用します。つまり、特定のスキームや、他のドメインのサブドメイン、ポート、具体的なパスについて例外を設定します。設定の際は、https://support.google.com/chrome/a?p=url_blocklist_filter_format で指定された形式を使用します。<ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> ポリシーは <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> よりも優先されます。このポリシーで指定できる URL は最大 1,000 件です。
+
+このポリシーを未設定のままにした場合、<ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> に例外は設定されません。
+
+このポリシーはシークレット モードにのみ適用されます。すべてのユーザー プロファイルの URL を許可するには、<ph name="URL_ALLOWLIST_POLICY_NAME" /> ポリシーを使用してください。</translation>
 <translation id="2713913573196284609">この値は M121 でサポートが終了しました。M121 以降では、値は EnabledBelowThreshold として処理されます。</translation>
 <translation id="2713977837384407666">常に Google に統計情報を送信する</translation>
 <translation id="2714359695399346815">このポリシーを有効に設定するか未設定のままにすると、STUN サーバーの使用が許可され、リモート クライアントはファイアウォールの有無にかかわらずこのコンピュータを検出して接続できます。
@@ -2792,6 +2797,7 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="3030232909811556512">このポリシーを無効に設定した場合、ユーザーは <ph name="PRODUCT_OS_NAME" /> のアバター画像をローカル ファイル、デバイスのカメラ、ユーザーの Google プロフィール画像から選択できません。
 
 このポリシーを有効に設定するか未設定のままにした場合、ユーザーはこれらのオプションからアバター画像を選択できます。</translation>
+<translation id="3031370204150460535">Gemini アプリの統合の直接実行をブロックするサイトを指定する</translation>
 <translation id="3031796805169553856">WebAssembly モジュールのクロスオリジン送信を許可する</translation>
 <translation id="3032322294267258117">SAML を使用せず GAIA 経由で認証されたユーザーの設定を管理します。</translation>
 <translation id="3034855514833090741">このポリシーを有効に設定した場合、初期設定時に Google アシスタントの Voice Match 設定フローが表示されます。このポリシーを無効に設定した場合、初期設定時に Google アシスタントの Voice Match 設定フローは表示されません。
@@ -4244,6 +4250,7 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
       このポリシーを設定しない場合、<ph name="PRODUCT_OS_NAME" /> デバイスではデフォルトの 259200000 ミリ秒（3 日）が使用されます。
 
       ロールバックや他の <ph name="PRODUCT_OS_NAME" /> アップデートでデバイスの Powerwash が実行される場合、このポリシーの値に関係なく、アップデートが利用可能になったときは直ちにユーザーに通知されます。</translation>
+<translation id="4086132065708736174">Gemini アプリの統合の直接実行を許可するサイトを指定する</translation>
 <translation id="4086150283035515220">このポリシーを有効に設定した場合、ユーザーはダウンロードの前に各ファイルの保存先を尋ねられます。このポリシーを無効に設定した場合、ダウンロードは直ちに開始され、ユーザーはファイルの保存先を尋ねられません。
 
       このポリシーを未設定のままにした場合、ユーザーはこの設定を変更できます。</translation>
@@ -8110,6 +8117,34 @@ False に設定すると、P2P は使用されません。
       このポリシーが未設定の場合、デフォルトでは、企業で管理されているユーザーと管理されていないユーザーのいずれもアプリを起動できます。</translation>
 <translation id="6640748114867542396">管理対象の拡張機能に Enterprise Hardware Platform API の使用を許可しない</translation>
 <translation id="6641109870010271671"><ph name="PRODUCT_NAME" /> がサーバー認証で信頼すべき TLS 証明書</translation>
+<translation id="6641851832244467923">このポリシーでは、接続先の URL やその他の条件に基づいてブラウザで使用するプロキシを選択するルールを設定します。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシー、<ph name="PROXY_SETTINGS_EXTENSION_API" /> の拡張機能 API、またはユーザーが手動で設定したプロキシ設定より優先されます（設定されている場合）。
+
+このポリシーを未設定のままにした場合、他のプロキシ ポリシーやユーザー設定には影響しません。
+
+ブラウザで使用するプロキシを決定する必要がある場合、次のすべての条件を満たすエントリが見つかるまで、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーのエントリが順番に照合されます。
+  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の URL パターンの少なくとも 1 つに一致する。
+  * <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> の URL パターンのいずれにも一致しない。
+  * <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> で空白以外のリストが指定されている場合、そのエントリが示すすべての条件が満たされている。
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> の値は、一致した場合にプロキシとして使用されます。一致するエントリが見つからない場合は、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーで設定されたプロキシにフォールバックされます。
+
+<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> と <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> でサポートされている URL パターンについては、https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns をご覧ください。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> フィールドのエントリは、次のような PAC ファイルの文字列値に対応します。
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+または、URL と似た形式のプロキシ指定子を使用して、次のようにプロキシを直接指定することもできます。
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+リスト内の最初に到達可能なエントリがプロキシとして使用されます。リスト内の無効なエントリは無視されます。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> フィールドには、オーバーライド ルールで使用するプロキシを決定する際に、すべて満たす必要がある条件のリストを指定します。未設定の場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の少なくとも 1 つのホストが一致すれば、エントリが使用されます。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件は、指定された DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> が IP アドレスに解決可能かどうかを判定します。これにはホスト（例: example.com）が含まれている必要があり、スキームまたはポート（例: https://example.com、example.com:123、https://example.com:123）は必須ではありません。安全なスキームが使用されている場合（例: https）、DNS ルックアップで HTTPS レコードもリクエストされることがあります（詳しくは RFC 9460 をご覧ください）。<ph name="PROXY_OVERRIDE_RULES_RESULT" /> の値が「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」の場合は、条件が満たされたと判定されます。代わりにこの値を「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」に設定した場合は、解決に失敗すると、条件が満たされたと判定されます。</translation>
 <translation id="6641981670621198190">3D グラフィックス API のサポートを無効にする</translation>
 <translation id="6646912445796087001">画面キーボードの各種機能を有効または無効にします。このポリシーは VirtualKeyboardEnabled ポリシーが有効に設定されている場合にのみ、有効です。
 
@@ -8458,6 +8493,9 @@ false に設定するか未設定のままにした場合、このレイアウ�
 <translation id="6866755486434471318"><ph name="PEPPER_NAME" /> が共有画像を動画のデコードに使用することを許可する。</translation>
 <translation id="6878757724611298427">関連付けられていないデバイスでの Android アプリの使用をユーザーに許可する</translation>
 <translation id="6881447940489194100">データの 16 進数でエンコードされた SHA-256 ハッシュ。</translation>
+<translation id="688149562204519323"><ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> ポリシーを設定すると、シークレット モードで特定の URL をウェブページで読み込まないようブロックできます。管理者は、ブロックする URL パターンのリストを指定できます。このポリシーを未設定のままにした場合、シークレット モードで URL はブロックされません。<ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> で最大 1,000 件の例外を定義できます。URL パターンの指定方法（https://support.google.com/chrome/a?p=url_blocklist_filter_format）をご確認ください。
+
+このポリシーはシークレット モードにのみ適用されます。すべてのユーザー プロファイルの URL をブロックするには、<ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーを使用してください。</translation>
 <translation id="68818134518270542">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> のロック画面でメモアプリとして有効にできるアプリを指定できます。任意のメモアプリをロック画面に設定すると、そのアプリを起動するための UI 要素が画面に表示されます。アプリを起動すると、ロック画面の上部にウィンドウが表示され、このコンテキストにメモを作成できます。アプリを使用して、作成したメモをメインのユーザー セッションに読み込むことができます（セッションがロックされていない場合）。ロック画面でサポートされているのは <ph name="PRODUCT_NAME" /> のメモアプリのみです。このポリシーを設定すると、アプリの拡張機能 ID がポリシーのリスト値に含まれている場合に、ユーザーはロック画面でアプリを有効にできます。このため、このポリシーを空のリストに設定すると、メモアプリはロック画面で無効になります。ポリシーでアプリ ID を指定しても、ユーザーがロック画面でそのアプリをメモアプリとして有効にできるとは限りません。たとえば、<ph name="PRODUCT_NAME" /> 61 では、使用できる一連のアプリに関して、さらにプラットフォームによる制限が適用されます。このポリシーを未設定のままにした場合、ユーザーがロック画面で有効にできる一連のアプリに関して、ポリシーを通じて適用される制限はありません。</translation>
 <translation id="6882028194958060206">Flash コンテンツ設定をすべてのコンテンツに拡張する（サポート終了）</translation>
 <translation id="6883050310557769428">フローティング SSO を有効にするかどうか、および Cookie ドメインのブロックリストとその例外を制御します。</translation>
@@ -9166,6 +9204,13 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 
           このポリシーを未設定のままにした場合、初期設定では色補正機能が無効になりますが、ユーザーはいつでも有効にできます。</translation>
 <translation id="7323896582714668701"><ph name="PRODUCT_NAME" /> の追加コマンド ライン パラメータ</translation>
+<translation id="7324627441366994249">ウェブページ上で Gemini アプリの統合の直接実行をブロックするサイトの URL パターンのリストを指定できます。
+
+許可リストとブロックリストのどちらにも一致しない URL には、<ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" /> が使用されます。
+
+許可リストとブロックリストの両方に一致する URL には、直接実行が許可されます。
+
+有効な URL パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。</translation>
 <translation id="7325801934761922681">サンドボックス化された iframe 内で外部プロトコルへの移動を Chrome がブロックしないようにする</translation>
 <translation id="7326394567531622570">このオプションは Wipe（値 2）と似ていますが、ログイン トークンを保持するように動作します（この場合、ユーザーの再ログインが不要になります）。</translation>
 <translation id="7331098674887251788">Gemini アプリの統合を許可し、ウェブページで直接操作できるようにする</translation>
@@ -10250,6 +10295,13 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 false に設定した場合、管理対象のネットワークに接続されているかどうかに関係なく参加を許可します。</translation>
 <translation id="8183108371184777472">ブラウザ ウィンドウの起動を抑制する</translation>
 <translation id="8185312100223853315">プロフィール ラベル</translation>
+<translation id="8186370194423312090">ウェブページ上で Gemini アプリの統合の直接実行を許可するサイトの URL パターンのリストを指定できます。
+
+許可リストとブロックリストのどちらにも一致しない URL には、<ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" /> が使用されます。
+
+許可リストとブロックリストの両方に一致する URL には、直接実行が許可されます。
+
+有効な URL パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。</translation>
 <translation id="8186911565834244165">ユーザーからのフィードバックを許可する</translation>
 <translation id="8195133650230097559">電源管理の wake lock のリクエストを無視する</translation>
 <translation id="8196558469954193908">クライアント証明書が使用されているときに HTTP/2 接続の統合を許可するよう指定します。接続を統合するには、新しい接続候補のホスト名と既存の接続のホスト名が、このポリシーに記述されているパターンの 1 つ以上に一致する必要があります。このポリシーでは、<ph name="URL_BLOCKLIST_POLICY_NAME" /> フィルタの形式を使ってホストのリストを指定します。たとえば、「example.com」と指定すると「example.com」とすべてのサブドメイン（「sub.example.com」など）が一致することになりますが、「.example.net」と指定すると「example.net」のみが一致することになります。

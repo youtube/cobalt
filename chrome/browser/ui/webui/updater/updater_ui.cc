@@ -6,13 +6,19 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <memory>
 #include <string_view>
+#include <utility>
+#include <variant>
 
+#include "base/check.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
+#include "chrome/browser/ui/webui/updater/updater_page_handler.h"
+#include "chrome/browser/ui/webui/updater/updater_ui.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -22,21 +28,44 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/webui_util.h"
 
+namespace {
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+// Associates an app name with one or more AppIds in the load-time data made
+// available to the front-end. `app_name` may be a localized string identified
+// by an IDS code or a provided string.
 void AddKnownApp(content::WebUIDataSource& source,
                  int index,
-                 int app_name_ids,
+                 std::variant<int, std::string_view> app_name,
                  std::initializer_list<std::string_view> app_ids) {
-  source.AddLocalizedString(
-      base::StrCat({"knownAppName", base::NumberToString(index)}),
-      app_name_ids);
+  std::visit(
+      absl::Overload{
+          [&](int app_name_ids) {
+            source.AddLocalizedString(
+                base::StrCat({"knownAppName", base::NumberToString(index)}),
+                app_name_ids);
+          },
+          [&](std::string_view app_name) {
+            source.AddString(
+                base::StrCat({"knownAppName", base::NumberToString(index)}),
+                app_name);
+          },
+      },
+      app_name);
   source.AddString(base::StrCat({"knownAppIds", base::NumberToString(index)}),
                    base::JoinString(app_ids, ","));
 }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
+}  // namespace
+
+// enable_chrome_send is needed for plural_string_handler.
 UpdaterUI::UpdaterUI(content::WebUI* web_ui)
-    : content::WebUIController(web_ui) {
+    : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIUpdaterHost);
@@ -122,6 +151,10 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
   AddKnownApp(
       *source, num_known_apps++, IDS_SHORTCUT_NAME_DEV,
       {"{401C381F-E0DE-4B85-8BD8-3F3F14FBDA57}", "COM.GOOGLE.CHROME.DEV"});
+  AddKnownApp(*source, num_known_apps++, "Google Updater",
+              {"{44FC7FE2-65CE-487C-93F4-EDEE46EEAAAB}"});
+  AddKnownApp(*source, num_known_apps++, "Chrome Enterprise Companion App",
+              {"{85EEDF37-756C-4972-9399-5A12A4BEE148}"});
   source->AddLocalizedString("defaultAppFilters", IDS_PRODUCT_NAME);
 #else
   source->AddString("defaultAppFilters", "");
@@ -132,4 +165,20 @@ UpdaterUI::UpdaterUI(content::WebUI* web_ui)
                               IDR_UPDATER_UPDATER_HTML);
 }
 
+WEB_UI_CONTROLLER_TYPE_IMPL(UpdaterUI)
+
 UpdaterUI::~UpdaterUI() = default;
+
+void UpdaterUI::BindInterface(
+    mojo::PendingReceiver<updater_ui::mojom::PageHandlerFactory> receiver) {
+  page_factory_receiver_.reset();
+  page_factory_receiver_.Bind(std::move(receiver));
+}
+
+void UpdaterUI::CreatePageHandler(
+    mojo::PendingRemote<updater_ui::mojom::Page> page,
+    mojo::PendingReceiver<updater_ui::mojom::PageHandler> receiver) {
+  CHECK(page);
+  page_handler_ = std::make_unique<UpdaterPageHandler>(std::move(receiver),
+                                                       std::move(page));
+}

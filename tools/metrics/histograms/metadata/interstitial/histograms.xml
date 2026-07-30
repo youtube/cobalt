@@ -54,7 +54,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="SecurityInterstitialSBWithSourceSubtype">
-  <variant name=".scam_experiment_catch_all_enforcement"/>
+  <variant name=".scam_experiment_catch_all"/>
   <variant name=".scam_experiment_verdict_1"
       summary="scam detection verdict 1"/>
   <variant name=".scam_experiment_verdict_2"
@@ -445,7 +445,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="interstitial.{SecurityInterstitialSBType}interaction{IsPostCommitInterstitialSuffix}"
-    enum="SecurityInterstitialInteraction" expires_after="2025-12-28">
+    enum="SecurityInterstitialInteraction" expires_after="2026-12-22">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

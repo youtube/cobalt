@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
-#include "base/strings/stringprintf.h"
-#include "base/test/with_feature_override.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
@@ -19,11 +15,9 @@
 #include "extensions/browser/api/test/test_api.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
-#include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
-#include "extensions/test/result_catcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
@@ -103,26 +97,9 @@ IN_PROC_BROWSER_TEST_F(InputImeApiTest, WakeWorkerAfterShutdown) {
 
   // Focus the text field.
   content::WebContents* tab = GetActiveWebContents();
-  {
-    SCOPED_TRACE(
-        "waiting for textField to appear so we can focus the cursor on it");
-    // Using a Promise allows us to wait until the element is available on the
-    // page to avoid test flakiness when trying to focus.
-    ASSERT_TRUE(content::ExecJs(tab,
-                                "new Promise(resolve => {"
-                                "  const check = () => {"
-                                "    const elem = "
-                                "document.getElementById('textField');"
-                                "    if (elem) {"
-                                "      elem.focus();"
-                                "      resolve();"
-                                "    } else {"
-                                "      setTimeout(check, 10);"
-                                "    }"
-                                "  };"
-                                "  check();"
-                                "});"));  // Assert the text box is focused.
-  }
+  ASSERT_TRUE(
+      content::ExecJs(tab, "document.getElementById('textField').focus();"));
+  // Assert the text box is focused.
   ASSERT_EQ(
       true,
       content::EvalJsAfterLifecycleUpdate(
@@ -164,143 +141,5 @@ IN_PROC_BROWSER_TEST_F(InputImeApiTest, WakeWorkerAfterShutdown) {
                      "document.getElementById('textField').value")
                      .ExtractString());
 }
-
-class InputImeKeyboardEventDataApiTest : public base::test::WithFeatureOverride,
-                                         public InputImeApiTest {
- public:
-  struct TestCase {
-    ui::KeyboardCode key_code;
-    std::string expected_dom_key;
-  };
-
-  InputImeKeyboardEventDataApiTest()
-      : base::test::WithFeatureOverride(
-            extensions_features::kInputImeKeyboardEventDataToDOMSpec) {
-    if (IsParamFeatureEnabled()) {
-      test_cases_ = {
-          {ui::VKEY_CONTROL, "Control"},
-          {ui::VKEY_ESCAPE, "Escape"},
-          {ui::VKEY_DOWN, "ArrowDown"},
-          {ui::VKEY_UP, "ArrowUp"},
-          {ui::VKEY_LEFT, "ArrowLeft"},
-          {ui::VKEY_RIGHT, "ArrowRight"},
-          {ui::VKEY_BROWSER_BACK, "BrowserBack"},
-          {ui::VKEY_BROWSER_FORWARD, "BrowserForward"},
-          // ChromeOS defaults F<#> keys to media keys.
-          {ui::VKEY_F1, "BrowserBack"},
-          {ui::VKEY_F2, "BrowserForward"},
-
-      };
-    } else {
-      test_cases_ = {
-          {ui::VKEY_CONTROL, "Ctrl"},
-          {ui::VKEY_ESCAPE, "Esc"},
-          {ui::VKEY_DOWN, "Down"},
-          {ui::VKEY_UP, "Up"},
-          {ui::VKEY_LEFT, "Left"},
-          {ui::VKEY_RIGHT, "Right"},
-          {ui::VKEY_BROWSER_BACK, "HistoryBack"},
-          {ui::VKEY_BROWSER_FORWARD, "HistoryForward"},
-          // ChromeOS defaults F<#> keys to media keys.
-          {ui::VKEY_F1, "HistoryBack"},
-          {ui::VKEY_F2, "HistoryForward"},
-      };
-    }
-  }
-
- protected:
-  std::vector<TestCase> test_cases() { return test_cases_; }
-
- private:
-  std::vector<TestCase> test_cases_;
-};
-
-// Tests that a sampling of keys are sent through with the expected
-// `KeyboardEvent.key` values according to the
-// `extensions_features::kInputImeKeyboardEventDataToDOMSpec` feature state.
-// Regression test for crbug.com/467185174.
-IN_PROC_BROWSER_TEST_P(InputImeKeyboardEventDataApiTest,
-                       DOMKeyboardEventCodeValues) {
-  ASSERT_TRUE(StartEmbeddedTestServer());
-
-  // Enable the test extension to be an IME.
-  std::vector<std::string> extension_ime_ids{
-      "_ext_ime_ilanclmaeigfpnmdlgelmhkpkegdioiptest"};
-  ash::input_method::InputMethodManager::Get()
-      ->GetActiveIMEState()
-      ->SetEnabledExtensionImes(extension_ime_ids);
-
-  // Load the extension and verify it is the current IME.
-  ExtensionTestMessageListener set_current_input_method("set_input_success");
-  const Extension* extension = LoadExtension(
-      test_data_dir_.AppendASCII("input_ime/control_key"),
-      {.wait_for_renderers = true, .wait_for_registration_stored = true});
-  ASSERT_TRUE(extension);
-  // Confirm the current input method has been set to the test extension.
-  ASSERT_TRUE(set_current_input_method.WaitUntilSatisfied());
-
-  // Navigate to a page and focus the text input.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), embedded_test_server()->GetURL(
-                     "/extensions/test_file_with_text_field.html")));
-  // Focus and then assert text field is focused.
-  content::WebContents* tab = GetActiveWebContents();
-  {
-    SCOPED_TRACE(
-        "waiting for textField to appear so we can focus the cursor on it");
-    // Using a Promise allows us to wait until the element is available on the
-    // page to avoid test flakiness when trying to focus.
-    ASSERT_TRUE(content::ExecJs(tab,
-                                "new Promise(resolve => {"
-                                "  const check = () => {"
-                                "    const elem = "
-                                "document.getElementById('textField');"
-                                "    if (elem) {"
-                                "      elem.focus();"
-                                "      resolve();"
-                                "    } else {"
-                                "      setTimeout(check, 10);"
-                                "    }"
-                                "  };"
-                                "  check();"
-                                "});"));  // Assert the text box is focused.
-  }
-  ASSERT_EQ(
-      true,
-      content::EvalJsAfterLifecycleUpdate(
-          tab,
-          /*raf_script=*/"",
-          "document.activeElement === document.getElementById('textField');")
-          .ExtractBool());
-
-  // Send a series of keys and validate that the `keyData.code` matches the
-  // expected KeyboardEvent.code.
-  for (const auto& test_case : test_cases()) {
-    // Send the key code to the page which then is sent as an
-    // `input.ime.OnKeyEvent()` to the extension.
-    ExtensionTestMessageListener key_listener;
-    key_listener.set_extension_id(extension->id());
-    ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
-        browser(), test_case.key_code, /*control=*/false,
-        /*shift=*/false, /*alt=*/false, /*command=*/false));
-    {
-      SCOPED_TRACE(base::StringPrintf(
-          "waiting for key code %hu to be processed by the "
-          "extension and the keyData.key (%s) to be sent back",
-          test_case.key_code, test_case.expected_dom_key));
-      ASSERT_TRUE(key_listener.WaitUntilSatisfied());
-    }
-
-    // Verify the returned key matches expectations.
-    const std::string& key = key_listener.message();
-    ASSERT_FALSE(key.empty());
-    EXPECT_EQ(test_case.expected_dom_key, key)
-        << "Mismatch for key code: " << test_case.key_code
-        << " expected key: " << test_case.expected_dom_key
-        << " but got key: " << key;
-  }
-}
-
-INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(InputImeKeyboardEventDataApiTest);
 
 }  // namespace extensions

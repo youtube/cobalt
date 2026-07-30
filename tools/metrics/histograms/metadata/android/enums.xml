@@ -1336,6 +1336,7 @@ chromium-metrics-reviews@google.com.
   <int value="65" label="MultiInstanceCreationLimit"/>
   <int value="66" label="PermissionPromptLoud"/>
   <int value="67" label="SaveUpdateEntity"/>
+  <int value="68" label="SigninSurvey"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->
@@ -1963,6 +1964,15 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/android/transfer_input_to_viz_result.h:TransferInputToVizResult)-->
+
+<!-- LINT.IfChange(TransferredSequenceType) -->
+
+<enum name="TransferredSequenceType">
+  <int value="0" label="ActionDown"/>
+  <int value="1" label="PointerDown"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/renderer_host/input/input_transfer_handler_android.h:TransferredSequenceType) -->
 
 <enum name="UrlTargetType">
   <int value="0" label="URL"/>

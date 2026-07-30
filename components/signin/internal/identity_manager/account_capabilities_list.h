@@ -49,22 +49,22 @@ ACCOUNT_CAPABILITY(kCanMakeChromeSearchEngineChoiceScreenChoice,
                    "accountcapabilities/ge4tenznmnqxa")
 #endif
 
+#if !BUILDFLAG(IS_IOS)
 ACCOUNT_CAPABILITY(kCanRunChromePrivacySandboxTrialsCapabilityName,
                    CAN_RUN_CHROME_PRIVACY_SANDBOX_TRIALS_CAPABILITY_NAME,
                    "accountcapabilities/gu2dqlldmfya")
+#endif
 
 ACCOUNT_CAPABILITY(
     kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
     CAN_SHOW_HISTORY_SYNC_OPT_INS_WITHOUT_MINOR_MODE_RESTRICTIONS_CAPABILITY_NAME,
     "accountcapabilities/gi2tklldmfya")
 
+#if BUILDFLAG(IS_CHROMEOS)
 ACCOUNT_CAPABILITY(kCanToggleAutoUpdatesName,
                    CAN_TOGGLE_AUTO_UPDATES_NAME,
                    "accountcapabilities/gu4dmlldmfya")
-
-ACCOUNT_CAPABILITY(kCanUseChromeIpProtectionName,
-                   CAN_USE_CHROME_IP_PROTECTION_NAME,
-                   "accountcapabilities/geydgnznmnqxa")
+#endif
 
 ACCOUNT_CAPABILITY(kCanUseChromeOSGenerativeAi,
                    CAN_USE_CHROMEOS_GENERATIVE_AI,

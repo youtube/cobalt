@@ -95,6 +95,11 @@ constexpr base::FeatureParam<base::TimeDelta>
     kGlicHibernateMemoryPollingInterval{&kGlicHibernateOnMemoryUsage,
                                         "polling_interval", base::Minutes(10)};
 
+BASE_FEATURE(kGlicHibernateAllOnMemoryPressure,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<bool> kGlicHibernateAllAggressive{
+    &kGlicHibernateAllOnMemoryPressure, "aggressive", false};
+
 // TODO(refactor): Remove after launching kGlicMultiInstance.
 HostManager& GlicInstanceCoordinatorImpl::host_manager() {
   return *host_manager_;
@@ -219,6 +224,23 @@ std::vector<GlicInstance*> GlicInstanceCoordinatorImpl::GetInstances() {
 GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTab(
     const tabs::TabInterface* tab) const {
   return GetInstanceImplForTab(tab);
+}
+
+void GlicInstanceCoordinatorImpl::CreateNewConversationForTabs(
+    const std::vector<tabs::TabInterface*>& tabs) {
+  if (tabs.empty()) {
+    return;
+  }
+
+  GlicInstanceImpl* instance = CreateGlicInstance();
+  for (tabs::TabInterface* tab : tabs) {
+    SidePanelShowOptions side_panel_options(*tab);
+    side_panel_options.pin_trigger = GlicPinTrigger::kContextMenu;
+    ShowOptions show_opts(side_panel_options);
+    show_opts.focus_on_show =
+        tab->GetBrowserWindowInterface()->IsActive() && tab->IsActivated();
+    instance->Show(show_opts);
+  }
 }
 
 void GlicInstanceCoordinatorImpl::Toggle(
@@ -691,8 +713,22 @@ void GlicInstanceCoordinatorImpl::OnMemoryPressure(
 
   if (base::FeatureList::IsEnabled(kGlicHibernateAllOnMemoryPressure)) {
     warmed_instance_.reset();
+
+    // Iterate over a copy of instances to avoid issues with modification during
+    // iteration.
+    std::vector<GlicInstanceImpl*> instances_to_process;
     for (auto const& [id, instance] : instances_) {
-      if (!instance->IsShowing() && !instance->IsActuating()) {
+      instances_to_process.push_back(instance.get());
+    }
+
+    for (GlicInstanceImpl* instance : instances_to_process) {
+      if (kGlicHibernateAllAggressive.Get()) {
+        auto is_showing = instance->IsShowing();
+        instance->Hibernate();
+        if (is_showing) {
+          instance->CloseAllEmbedders();
+        }
+      } else if (!instance->IsShowing() && !instance->IsActuating()) {
         instance->Hibernate();
       }
     }

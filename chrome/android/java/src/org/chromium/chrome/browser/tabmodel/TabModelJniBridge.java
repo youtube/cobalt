@@ -273,7 +273,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @param profile The profile for which to create the new tab.
      * @param webContents A {@link WebContents} object.
      * @param index The index to create the tab at.
-     * @param select Select the created tab.
+     * @param type The launch type of the tab.
      * @param shouldPin Whether the tab should be pinned.
      * @return Whether or not the Tab was successfully created.
      */
@@ -283,11 +283,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
             Profile profile,
             WebContents webContents,
             int index,
-            boolean select,
+            @TabLaunchType int type,
             boolean shouldPin) {
-        @TabLaunchType
-        int type =
-                select ? TabLaunchType.FROM_RECENT_TABS_FOREGROUND : TabLaunchType.FROM_RECENT_TABS;
         return getTabCreator(profile.isOffTheRecord())
                         .createTabWithWebContents(
                                 parent,
@@ -553,6 +550,10 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     protected abstract @JniType("std::vector<base::Token>") List<Token> listTabGroups();
 
     @CalledByNative
+    protected abstract @JniType("std::optional<base::Token>") @Nullable Token createTabGroup(
+            @JniType("std::vector<TabAndroid*>") List<Tab> tabs);
+
+    @CalledByNative
     protected abstract @JniType("std::optional<base::Token>") @Nullable Token addTabsToGroup(
             @JniType("std::optional<base::Token>") @Nullable Token tabGroupId,
             @JniType("std::vector<TabAndroid*>") List<Tab> tabs);
@@ -645,6 +646,15 @@ public abstract class TabModelJniBridge implements TabModelInternal {
         return TabModelJniBridgeJni.get()
                 .getActivityTypeForTesting( // IN-TEST
                         mNativeTabModelJniBridge);
+    }
+
+    @CalledByNative
+    private static boolean isTabLaunchedInForeground(
+            @TabLaunchType int type,
+            boolean isNewTabIncognitoBranded,
+            boolean isCurrentModelIncognitoBranded) {
+        return TabModelOrderControllerImpl.willOpenInForeground(
+                type, isNewTabIncognitoBranded, isCurrentModelIncognitoBranded);
     }
 
     @NativeMethods

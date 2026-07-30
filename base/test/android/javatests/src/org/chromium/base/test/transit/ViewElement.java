@@ -237,7 +237,7 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
                         instrumentationThreadCondition(
                                 "Root has window focus",
                                 () -> whether(rootMatched.getDecorView().hasWindowFocus())))
-                .pickUpCarryOn(new ViewSettledCarryOn(activity, this));
+                .enterState(new ViewSettled(activity, this));
     }
 
     @Override
@@ -364,6 +364,11 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
                 return this;
             }
         }
+    }
+
+    /** Convenience default {@link Options}. */
+    public static ViewElement.Options defaultOptions() {
+        return Options.DEFAULT;
     }
 
     /** Convenience {@link Options} setting unscoped(). */

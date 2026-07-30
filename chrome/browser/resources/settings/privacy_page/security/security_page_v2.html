@@ -7,7 +7,7 @@
 
   @media (prefers-color-scheme: dark) {
     :host {
-    --security-page-selected-card-background-color: rgba(0, 74, 119, 1);
+      --security-page-selected-card-background-color: rgba(0, 74, 119, 1);
     }
   }
 
@@ -53,6 +53,10 @@
     padding: 0;
   }
 
+  .settings-columned-section ul.icon-bulleted-list li {
+    column-gap: 0px;
+  }
+
   settings-radio-group:not([is-horizontal]) {
     padding-inline-start: 40px;
   }
@@ -70,8 +74,13 @@
     border-bottom: var(--cr-separator-line);
   }
 
+  settings-section:last-of-type{
+    --cr-card-shadow: none;
+  }
+
   ul.icon-bulleted-list {
     --cr-icon-size: 20px;
+    --iron-icon-width: 16px;
     flex-basis: 100%;
     list-style-type: none;
     margin-bottom: 0;
@@ -80,7 +89,7 @@
   }
 
   ul.icon-bulleted-list li {
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     margin-top: 0;
   }
 
@@ -88,11 +97,16 @@
     margin-inline-end: 10px;
   }
 
+  #advancedProtectionProgramLinkRow {
+    background-color: var(--cr-fallback-color-surface2);
+  }
+
   #bundlesRadioGroup controlled-radio-button {
     align-content: flex-start;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    row-gap: 20px;
+    column-gap: 10px;
   }
 
   #bundlesRadioGroup controlled-radio-button::part(labelWrapper) {
@@ -100,12 +114,17 @@
     display: flex;
     font-size: 112%;
     font-weight: 500;
+    height: 20px;
     justify-content: space-between;
     padding: 0;
   }
 
   #bundlesRadioGroup ul.icon-bulleted-list li:last-child {
     margin-bottom: 0;
+  }
+
+  #httpsFirstModeRadioGroup > :last-child {
+    padding-bottom: var(--cr-section-vertical-padding);
   }
 
   #safeBrowsingRadioGroup {
@@ -221,7 +240,9 @@
         label="$i18n{securitySafeBrowsingTitle}"
         sub-label="$i18n{securitySafeBrowsingDesc}" class="box"
         numeric-unchecked-values="[[safeBrowsingOff_]]"
-        state-text-map="[[safeBrowsingStateTextMap_]]">
+        state-text-map="[[safeBrowsingStateTextMap_]]"
+        icon="settings20:warning_outline"
+        icon-visible="[[isSafeBrowsingWarningIconVisible_]]">
       <div slot="collapse">
         <settings-radio-group id="safeBrowsingRadioGroup"
             pref="{{prefs.generated.safe_browsing}}"
@@ -230,7 +251,8 @@
           <controlled-radio-button
               label="$i18n{securitySafeBrowsingStandardTitle}"
               name="[[safeBrowsingSettingEnum_.STANDARD]]"
-              pref="[[prefs.generated.safe_browsing]]">
+              pref="[[prefs.generated.safe_browsing]]"
+              disabled="[[!isSafeBrowsingEnabled_]]">
             <div class="settings-radio-button-subtitle">
               $i18n{securitySafeBrowsingStandardSubtitle}
             </div>
@@ -257,7 +279,8 @@
           <controlled-radio-button id="enhancedProtectionButton"
               label="$i18n{securitySafeBrowsingEnhancedTitle}"
               name="[[safeBrowsingSettingEnum_.ENHANCED]]"
-              pref="[[prefs.generated.safe_browsing]]">
+              pref="[[prefs.generated.safe_browsing]]"
+              disabled="[[!isSafeBrowsingEnabled_]]">
             <div class="settings-radio-button-subtitle">
               $i18n{securitySafeBrowsingEnhancedSubtitle}
             </div>
@@ -388,6 +411,14 @@
         label="$i18n{manageCertificates}"
         sub-label="$i18n{manageCertificatesDescription}"
         on-click="onManageCertificatesClick_" external>
+    </cr-link-row>
+  </settings-section>
+  <settings-section>
+    <cr-link-row id="advancedProtectionProgramLinkRow" class="box"
+        start-icon="settings20:gshield"
+        on-click="onAdvancedProtectionProgramClick_"
+        external using-slotted-label>
+      <div slot="label">$i18nRaw{securityAdvancedProtectionProgramLabel}</div>
     </cr-link-row>
   </settings-section>
 </settings-subpage>

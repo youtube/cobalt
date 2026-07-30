@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.customtabs.PopupIntentCreatorProvider;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask.PendingTaskInfo;
+import org.chromium.chrome.browser.util.WindowFeatures;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.util.ArrayList;
@@ -86,14 +87,14 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         if (existingTask != null) {
             assert existingTask.getBrowserWindowType() == browserWindowType
                     : "The browser window type of an existing task can't be changed.";
-            existingTask.setActivityScopedObjects(activityScopedObjects);
+            existingTask.addActivityScopedObjects(activityScopedObjects);
             return existingTask;
         }
 
         if (pendingId != null) {
             ChromeAndroidTask pendingTask = mPendingTasks.remove(pendingId);
             assert pendingTask != null : "Invalid pendingId provided.";
-            pendingTask.setActivityScopedObjects(activityScopedObjects);
+            pendingTask.addActivityScopedObjects(activityScopedObjects);
             mTasks.put(taskId, pendingTask);
             return pendingTask;
         }
@@ -158,29 +159,10 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
             return;
         }
 
-        // If the ActivityWindowAndroid that's passed in isn't the ActivityWindowAndroid held by
-        // this ChromeAndroidTask, don't do anything.
-        //
-        // This scenario can happen if one Android Task contains more than one Activity with
-        // ActivityWindowAndroid. An example Task stack:
-        //
-        // [
-        //   CustomTabActivity    (top Activity)
-        //   ChromeTabbedActivity (root Activity that created ChromeAndroidTask)
-        // ]
-        //
-        // In the example, each of the two Activities has an ActivityWindowAndroid. When the
-        // user leaves CustomTabActivity, its ActivityWindowAndroid will call
-        // onActivityWindowAndroidDestroy() on the ChromeAndroidTask created by
-        // ChromeTabbedActivity as the two Activities are in the same Task. However, this isn't
-        // the right time to clear and destroy the ActivityWindowAndroid held by the
-        // ChromeAndroidTask.
-        if (task.getActivityWindowAndroid() != activityWindowAndroid) {
-            return;
-        }
+        task.removeActivityScopedObjects(activityWindowAndroid);
 
-        task.clearActivityScopedObjects();
-
+        // Destroy the ChromeAndroidTask if there is no ActivityWindowAndroid associated with it.
+        //
         // It's not 100% correct to destroy the ChromeAndroidTask here as a ChromeAndroidTask
         // is meant to track an Android Task, but an ActivityWindowAndroid is associated with a
         // ChromeActivity.
@@ -191,7 +173,9 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         //
         // In the future, we can register a Task listener when a ChromeAndroidTask is created,
         // then destroy it when notified of the Task removal.
-        removeInternal(taskId);
+        if (task.getTopActivityWindowAndroid() == null) {
+            removeInternal(taskId);
+        }
     }
 
     @Override
@@ -334,13 +318,13 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
                 return null;
             case BrowserWindowType.POPUP:
                 var popupIntentCreator = assertNonNull(PopupIntentCreatorProvider.getInstance());
-                // TODO(crbug.com/466146557): Create WindowFeatures and set this extra.
-                // Most likely it looks like this:
-                // Rect bounds = createParams.getInitialBounds();
-                // WindowFeatures features =
-                //         new WindowFeatures(
-                //                 bounds.left, bounds.top, bounds.width(), bounds.height());
-                Intent intent = popupIntentCreator.createPopupIntent(null, isIncognito);
+                Rect bounds = createParams.getInitialBounds();
+                WindowFeatures features =
+                        new WindowFeatures(
+                                bounds.left, bounds.top, bounds.width(), bounds.height());
+                Intent intent =
+                        popupIntentCreator.createPopupIntent(
+                                features, createParams.getProfile().isIncognitoBranded());
                 IntentUtils.addTrustedIntentExtras(intent);
                 return intent;
             default:

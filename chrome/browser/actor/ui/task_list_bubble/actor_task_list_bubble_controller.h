@@ -23,10 +23,6 @@
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
 #endif
 
-namespace tabs {
-struct ActorTaskListBubbleRowState;
-}  // namespace tabs
-
 struct ActorTaskListBubbleRowButtonParams {
   std::u16string title;
   std::u16string subtitle;
@@ -46,7 +42,7 @@ class ActorTaskListBubbleController : public views::WidgetObserver {
 
 #if BUILDFLAG(ENABLE_GLIC)
   void ShowBubble(views::View* anchor_view);
-  void OnStateUpdate(actor::TaskId task_id);
+  void OnStateUpdate();
 #endif
 
   void OnWidgetDestroyed(views::Widget* widget) override;
@@ -60,9 +56,9 @@ class ActorTaskListBubbleController : public views::WidgetObserver {
   raw_ptr<views::Widget> bubble_widget_ = nullptr;
 
 #if BUILDFLAG(ENABLE_GLIC)
-  ActorTaskListBubbleRowButtonParams CreateRowButtonParamsForTaskState(
-      tabs::ActorTaskListBubbleRowState task_state);
-  void OnStateUpdateImpl(actor::TaskId task_id);
+  ActorTaskListBubbleRowButtonParams CreateRowButtonParamsForTask(
+      actor::TaskId task_id);
+  void OnStateUpdateImpl();
 
   std::vector<base::CallbackListSubscription>
       bubble_state_change_callback_subscription_;

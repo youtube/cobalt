@@ -355,6 +355,10 @@ bool GlicEnabling::IsEnabledByFlags() {
 }
 
 bool GlicEnabling::IsProfileEligible(const Profile* profile) {
+  if (g_bypass_enablement_checks_for_testing) {
+    return true;
+  }
+
 #if BUILDFLAG(IS_CHROMEOS)
   // Due to the tight coupling of the browser Profile and OS users in ChromeOS,
   // we check the user session type to align with other desktop browser
@@ -579,10 +583,34 @@ bool GlicEnabling::GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
     return false;
   }
 
+  // Reset local state enablement pref if corresponding command line flag is
+  // set. Intended for manual testing only.
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(
+          ::switches::kGlicResetMultiInstanceEnabledByTier)) {
+    g_browser_process->local_state()->SetBoolean(
+        prefs::kGlicMultiInstanceEnabledBySubscriptionTier, false);
+  }
+
   // If multi-instance was ever enabled by tier, ensure that it stays enabled.
   if (g_browser_process->local_state()->GetBoolean(
           prefs::kGlicMultiInstanceEnabledBySubscriptionTier)) {
     return true;
+  }
+
+  // G1 status command line flag supersedes actual tier check from eligibility
+  // service. Intended for manual testing only.
+  bool flag_overrides_tier =
+      command_line->HasSwitch(::switches::kGlicForceG1StatusForMultiInstance);
+  if (flag_overrides_tier) {
+    std::string flag_value = command_line->GetSwitchValueASCII(
+        ::switches::kGlicForceG1StatusForMultiInstance);
+    bool is_g1_via_flag = flag_value == "true" ? true : false;
+    if (is_g1_via_flag) {
+      g_browser_process->local_state()->SetBoolean(
+          prefs::kGlicMultiInstanceEnabledBySubscriptionTier, true);
+    }
+    return is_g1_via_flag;
   }
 
   // If `additional_profile` was specified, also check it.

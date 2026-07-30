@@ -57,9 +57,6 @@ class ExtensionApiTabTest : public extensions::ExtensionApiTest {
   }
 };
 
-// TODO(https://crbug.com/371432155): Enable these tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
 class ExtensionApiTabTestWithContextType
     : public ExtensionApiTabTest,
       public testing::WithParamInterface<ContextType> {
@@ -72,10 +69,13 @@ class ExtensionApiTabTestWithContextType
   ~ExtensionApiTabTestWithContextType() override = default;
 };
 
+#if !BUILDFLAG(IS_ANDROID)
 INSTANTIATE_TEST_SUITE_P(PersistentBackground,
                          ExtensionApiTabTestWithContextType,
                          ::testing::Values(ContextType::kPersistentBackground));
+#endif
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          ExtensionApiTabTestWithContextType,
                          ::testing::Values(ContextType::kServiceWorker));
@@ -104,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(PersistentBackground,
 INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          ExtensionApiTabBackForwardCacheTest,
                          ::testing::Values(ContextType::kServiceWorker));
+#endif
 
 class ExtensionApiNewTabTest : public ExtensionApiTabTestWithContextType {
  public:
@@ -128,7 +129,8 @@ INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          ::testing::Values(ContextType::kServiceWorker));
 
 // TODO(crbug.com/451682394): Disabled on Linux dbg due to flakiness.
-#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+// TODO(crbug.com/471405507): Disabled on Android.
+#if (BUILDFLAG(IS_LINUX) && !defined(NDEBUG)) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_Tabs DISABLED_Tabs
 #else
 #define MAYBE_Tabs Tabs
@@ -141,6 +143,9 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiNewTabTest, MAYBE_Tabs) {
 
   ASSERT_TRUE(RunExtensionTest("tabs/basics/crud")) << message_;
 }
+
+// TODO(https://crbug.com/371432155): Enable these tests.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, TabAudible) {
   ASSERT_TRUE(
@@ -168,7 +173,13 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiTabTestWithContextType, MAYBE_Muted) {
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, Tabs2) {
+// TODO(crbug.com/471405507): Disabled on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_Tabs2 DISABLED_Tabs2
+#else
+#define MAYBE_Tabs2 Tabs2
+#endif
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, MAYBE_Tabs2) {
   ASSERT_TRUE(RunExtensionTest("tabs/basics", {.extension_url = "crud2.html"}))
       << message_;
 }

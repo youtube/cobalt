@@ -2421,6 +2421,11 @@ Si la règle est définie sur 2 (désactivée), l'intégration du Google Develo
 <translation id="2707733461906745082">Séparation du profil</translation>
 <translation id="2707873794476722903">La navigation sécurisée est active et en mode de protection standard.</translation>
 <translation id="2709516037105925701">Saisie automatique</translation>
+<translation id="2713265653152900248">Cette règle permet d'autoriser l'accès aux URL listées en mode navigation privée, comme exceptions à <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Par exemple, définir <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> sur "*" bloque toutes les requêtes en mode navigation privée, et vous pouvez appliquer cette règle pour autoriser l'accès à une liste limitée d'URL. Utilisez-la pour définir des exceptions à certains schémas, ports, chemins d'accès spécifiques ou sous-domaines d'autres domaines à l'aide du format spécifié sur ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ). La règle <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> prévaut sur <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Cette règle est limitée à 1 000 entrées.
+
+Si cette règle n'est pas configurée, aucune exception à <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> n'est autorisée.
+
+Cette règle ne concerne que le mode navigation privée. Pour autoriser les URL pour tous les profils utilisateur, veuillez utiliser la règle <ph name="URL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="2713913573196284609">Cette valeur a été abandonnée dans la version M121. Dans M121 et les versions ultérieures, les valeurs seront traitées comme EnabledUnderThreshold.</translation>
 <translation id="2713977837384407666">Toujours envoyer des métriques à Google</translation>
 <translation id="2714359695399346815">Si cette règle est activée ou qu'elle n'est pas configurée, elle permet d'utiliser des serveurs STUN. Les clients distants peuvent ainsi détecter cet ordinateur et s'y connecter même s'ils sont séparés par un pare-feu.
@@ -2900,6 +2905,7 @@ Cette règle n'empêche pas les utilisateurs de choisir des fichiers dans <ph na
 <translation id="3030232909811556512">Si cette règle est désactivée, l'image d'avatar <ph name="PRODUCT_OS_NAME" /> de l'utilisateur ne peut pas être définie à partir de fichiers locaux, de l'appareil photo ou de la photo du profil Google de l'utilisateur.
 
 Si cette règle est activée ou n'est pas définie, l'utilisateur peut définir l'image d'avatar à l'aide de ces options.</translation>
+<translation id="3031370204150460535">Empêcher les intégrations de l'appli Gemini d'agir directement sur les sites spécifiés</translation>
 <translation id="3031796805169553856">Autoriser l'envoi des modules WebAssembly en multi-origine</translation>
 <translation id="3032322294267258117">Permet de contrôler les paramètres des utilisateurs authentifiés via GAIA sans SAML.</translation>
 <translation id="3034855514833090741">Si la règle est activée, la procédure Voice Match pour l'Assistant Google s'affiche lors de la configuration initiale. Si la règle est désactivée, la procédure Voice Match pour l'Assistant Google ne s'affiche pas lors de la configuration initiale.
@@ -4354,6 +4360,7 @@ Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides, veuillez co
       Si cette règle n'est pas définie, le délai par défaut est fixé à 259 200 000 millisecondes (trois jours) pour les appareils <ph name="PRODUCT_OS_NAME" />.
 
       Pour le rollback et les autres mises à jour de <ph name="PRODUCT_OS_NAME" /> qui effectuent un Powerwash de l'appareil, l'utilisateur est toujours averti dès que la mise à jour est disponible, indépendamment de la valeur de cette règle.</translation>
+<translation id="4086132065708736174">Autoriser les intégrations de l'appli Gemini à agir directement sur les sites spécifiés</translation>
 <translation id="4086150283035515220">Si cette règle est activée, les utilisateurs doivent toujours spécifier le répertoire de destination d'un fichier avant de le télécharger. Si cette règle est désactivée, le téléchargement commence immédiatement. Les utilisateurs n'ont pas besoin de spécifier une destination.
 
       Si cette règle n'est pas configurée, les utilisateurs peuvent modifier ce paramètre.</translation>
@@ -8413,6 +8420,34 @@ Pour que les modifications apportées à cette règle puissent être appliquées
       Si cette règle n'est pas définie, le comportement par défaut sera autorisé pour les utilisateurs gérés par une entreprise et pour les utilisateurs non gérés.</translation>
 <translation id="6640748114867542396">Ne pas autoriser les extensions gérées à utiliser l'API Enterprise Hardware Platform</translation>
 <translation id="6641109870010271671">Certificats TLS qui devraient être approuvés par <ph name="PRODUCT_NAME" /> pour l'authentification du serveur</translation>
+<translation id="6641851832244467923">Configurer cette règle permet de sélectionner le proxy que le navigateur utilise en fonction de l'URL de destination et d'autres conditions. Cette règle est prioritaire sur les paramètres proxy définis dans la règle <ph name="PROXY_SETTINGS_POLICY_NAME" />, l'API d'extension <ph name="PROXY_SETTINGS_EXTENSION_API" /> ou manuellement dans les paramètres utilisateur, le cas échéant.
+
+Si cette règle n'est pas configurée, cela n'a aucune incidence sur les autres règles de proxy ni les paramètres utilisateur.
+
+Lorsque le navigateur doit décider quel proxy utiliser, les entrées de la règle <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> sont évaluées dans l'ordre jusqu'à ce qu'une entrée remplisse toutes les conditions suivantes :
+  * Au moins un des formats d'URL dans <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> correspond.
+  * Aucun des formats d'URL dans <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> ne correspond.
+  * Si <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> est spécifié et qu'il s'agit d'une liste non vide, toutes les conditions représentées par ses entrées sont remplies.
+En cas de correspondance, la valeur de <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> sera utilisée comme proxy. Si aucune correspondance n'est trouvée, les paramètres proxy seront ceux définis dans la règle <ph name="PROXY_SETTINGS_POLICY_NAME" />.
+
+Les formats d'URL acceptés par <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> et <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> sont décrits sur https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
+
+Les entrées du champ <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> correspondent à des valeurs de chaîne de fichiers PAC, telles que :
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+Vous pouvez aussi utiliser directement des spécificateurs de proxy de type URL pour spécifier le proxy, par exemple :
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+La première entrée accessible de la liste sera utilisée comme proxy. Les entrées non valides de la liste sont ignorées.
+
+Le champ <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> contient une liste de conditions qui doivent toutes être remplies pour que la règle de remplacement serve à déterminer le proxy à utiliser. Si ce champ n'est pas défini, l'entrée sera utilisée tant qu'au moins un hôte dans <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> correspondra.
+
+La condition <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> vérifie si l’<ph name="PROXY_OVERRIDE_RULES_HOST" /> DNS fourni peut être résolu en une adresse IP. Il doit contenir un hôte (par exemple, example.com) et, éventuellement, un schéma ou un port (par exemple, https://example.com, example.com:123, https://example.com:123). Si un schéma sécurisé est utilisé (par exemple, https), la résolution DNS peut également demander l'enregistrement HTTPS (pour en savoir plus, consultez le document RFC 9460). La condition est considérée comme remplie si la valeur de <ph name="PROXY_OVERRIDE_RULES_RESULT" /> est "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />". Si la valeur est définie sur <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, la condition est considérée comme remplie si la résolution a échoué.</translation>
 <translation id="6641981670621198190">Désactiver la prise en charge des API 3D graphics</translation>
 <translation id="6646912445796087001">Permet d'activer ou de désactiver les différentes fonctionnalités du clavier à l'écran. Cette règle s'applique uniquement si la règle "VirtualKeyboardEnabled" est activée.
 
@@ -8770,6 +8805,9 @@ Si la règle est définie sur "false" ou si elle n'est pas configurée, cette di
 <translation id="6866755486434471318">Autorise <ph name="PEPPER_NAME" /> à utiliser des images partagées pour le décodage vidéo.</translation>
 <translation id="6878757724611298427">Autoriser les utilisateurs à se servir d'applis Android sur des appareils non affiliés</translation>
 <translation id="6881447940489194100">Hachage SHA-256 des données, encodé en hexadécimal.</translation>
+<translation id="688149562204519323">Si vous définissez la règle <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />, les pages Web dont les URL sont interdites ne peuvent pas se charger en mode navigation privée. Les administrateurs peuvent spécifier la liste des formats d'URL à bloquer. Si cette règle n'est pas configurée, aucune URL n'est bloquée en mode navigation privée. Vous pouvez définir jusqu'à 1 000 exceptions dans <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" />. Découvrez les formats d'URL à respecter ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ).
+
+Cette règle ne s'applique qu'au mode navigation privée. Pour bloquer des URL pour tous les profils utilisateur, veuillez utiliser la règle <ph name="URL_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="68818134518270542">Permet de spécifier les applications que les utilisateurs peuvent activer comme applications de prise de notes sur l'écran de verrouillage <ph name="PRODUCT_OS_NAME" />.
 
       Si l'application de prise de notes préférée est activée sur l'écran de verrouillage, un élément d'interface utilisateur destiné à la lancer s'affiche à l'écran. Une fois démarrée, l'application peut ouvrir une fenêtre au-dessus de l'écran de verrouillage et créer des notes dans ce contexte. L'application peut importer les notes créées dans la session de l'utilisateur principal (lorsque la session est déverrouillée). Seules les applications de prise de notes <ph name="PRODUCT_NAME" /> sont acceptées sur l'écran de verrouillage.
@@ -9530,6 +9568,13 @@ Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, 
 
           Si cette règle n'est pas configurée, la fonctionnalité de correction des couleurs est initialement désactivée, mais l'utilisateur peut l'activer à tout moment.</translation>
 <translation id="7323896582714668701">Paramètres de ligne de commande supplémentaires pour <ph name="PRODUCT_NAME" /></translation>
+<translation id="7324627441366994249">Permet de définir une liste de formats d'URL indiquant les sites sur lesquels les intégrations de l'appli Gemini ne peuvent pas agir directement sur les pages Web.
+
+Les URL qui ne correspondent ni à la liste d'autorisation, ni à la liste de blocage utilisent <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+Les URL correspondant à la fois à la liste d'autorisation et à la liste de blocage sont autorisées.
+
+Pour en savoir plus sur les formats d‘URL valides, veuillez consulter https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="7325801934761922681">Empêcher Chrome de bloquer les navigations vers des protocoles externes dans un iFrame en bac à sable</translation>
 <translation id="7326394567531622570">Semblable à l'option "Nettoyer" (valeur 2), celle-ci essaie de conserver les jetons de connexion pour éviter à l'utilisateur de devoir se reconnecter.</translation>
 <translation id="7331098674887251788">Autorise les intégrations de l'appli Gemini à agir directement sur les pages Web</translation>
@@ -10669,6 +10714,13 @@ Si la règle est définie sur "True" ou n'est pas configurée, les appareils doi
 Si la règle est définie sur "False", les utilisateurs peuvent rejoindre une session sans être connectés à un réseau géré.</translation>
 <translation id="8183108371184777472">Empêcher l'ouverture de la fenêtre du navigateur</translation>
 <translation id="8185312100223853315">Libellé du profil</translation>
+<translation id="8186370194423312090">Permet de définir une liste de formats d'URL indiquant les sites sur lesquels les intégrations de l'appli Gemini peuvent agir directement sur les pages Web.
+
+Les URL qui ne correspondent ni à la liste d'autorisation, ni à la liste de blocage utilisent <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+Les URL correspondant à la fois à la liste d'autorisation et à la liste de blocage sont autorisées.
+
+Pour en savoir plus sur les formats d‘URL valides, veuillez consulter https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="8186911565834244165">Autoriser les commentaires des utilisateurs</translation>
 <translation id="8195133650230097559">Ignorer les demandes de wakelocks pour la gestion de l'alimentation</translation>
 <translation id="8196558469954193908">Permet de procéder au multiplexage des connexions HTTP/2 lorsque des certificats client sont utilisés. Pour ce faire, le nom d'hôte de la nouvelle connexion potentielle et celui d'une connexion existante doivent correspondre à un ou plusieurs modèles définis par cette règle. Celle-ci permet d'établir la liste des hôtes selon le format de filtrage <ph name="URL_BLOCKLIST_POLICY_NAME" />, où une correspondance est établie entre "example.com" et "example.com" (et tous les sous-domaines tels que "sub.example.com"), tandis que ".example.net" correspond exactement à "example.net".

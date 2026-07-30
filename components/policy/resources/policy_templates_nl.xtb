@@ -2419,6 +2419,11 @@ Als je het beleid instelt op 2 (Uitgezet), staat het de integratie van het Googl
 <translation id="2707733461906745082">Profielscheiding</translation>
 <translation id="2707873794476722903">Safe Browsing is actief in de standaardmodus.</translation>
 <translation id="2709516037105925701">Automatisch invullen</translation>
+<translation id="2713265653152900248">Als je het beleid instelt, wordt toegang geboden tot de vermelde URL's in de incognitomodus, als uitzonderingen op <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Als je <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> bijvoorbeeld instelt op *, worden alle verzoeken in de incognitomodus geblokkeerd. Je kunt dit beleid gebruiken om toegang tot een beperkte lijst met URL's toe te staan. Gebruik dit beleid om uitzonderingen op te geven voor bepaalde schema's, subdomeinen van andere domeinen, poorten of specifieke paden met de indeling die wordt gespecificeerd op (https://support.google.com/chrome/a?p=url_blocklist_filter_format). Het beleid <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> heeft voorrang op <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Dit beleid is beperkt tot 1000 items.
+
+Als je het beleid niet instelt, zijn er geen uitzonderingen toegestaan op <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />.
+
+Dit beleid is alleen van invloed op de incognitomodus. Als je URL's wilt toestaan voor alle gebruikersprofielen, gebruik je het beleid <ph name="URL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="2713913573196284609">Deze waarde is beëindigd vanaf M121. In M121 en daarna worden waarden behandeld als EnabledBelowThreshold.</translation>
 <translation id="2713977837384407666">Altijd statistieken naar Google sturen</translation>
 <translation id="2714359695399346815">Als je dit beleid toepast of niet instelt, kun je STUN-servers gebruiken, zodat externe clients dit apparaat kunnen zien en er verbinding mee kunnen maken, zelfs door een firewall.
@@ -2898,6 +2903,7 @@ Dit beleid voorkomt niet dat gebruikers bestanden uit <ph name="GOOGLE_DRIVE_NAM
 <translation id="3030232909811556512">Als dit beleid niet is toegepast, kan de <ph name="PRODUCT_OS_NAME" />-avatarafbeelding van de gebruiker niet worden ingesteld via lokale bestanden, de camera van het apparaat of de Google-profielafbeelding van de gebruiker.
 
 De gebruiker kan de avatarafbeelding instellen via een van deze opties als dit beleid is toegepast of niet is ingesteld.</translation>
+<translation id="3031370204150460535">Niet toestaan dat Gemini-app-integraties rechtstreeks acties uitvoeren op aangegeven sites</translation>
 <translation id="3031796805169553856">Toestaan dat WebAssembly-modules cross-origin worden verstuurd</translation>
 <translation id="3032322294267258117">Bepaalt instellingen voor gebruikers die zijn geverifieerd via GAIA zonder SAML.</translation>
 <translation id="3034855514833090741">Als je dit beleid aanzet, wordt het Voice Match-proces van de Google Assistent getoond tijdens de eerste installatie. Als je het beleid uitzet, laat de Google Assistent het Voice Match-proces niet zien tijdens de eerste installatie.
@@ -4351,6 +4357,7 @@ Ga naar https://chromeenterprise.google/policies/url-patterns/ voor gedetailleer
       Als dit beleid niet is ingesteld, wordt de standaardperiode van 259.200.000 milliseconden (3 dagen) gebruikt voor <ph name="PRODUCT_OS_NAME" />-apparaten.
 
       Voor rollbacks en andere <ph name="PRODUCT_OS_NAME" />-updates waarmee een powerwash wordt uitgevoerd op het apparaat, krijgt de gebruiker altijd meteen een melding als de update beschikbaar is, onafhankelijk van de waarde van dit beleid.</translation>
+<translation id="4086132065708736174">Toestaan dat Gemini-app-integraties rechtstreeks acties uitvoeren op aangegeven sites</translation>
 <translation id="4086150283035515220">Als je het beleid toepast, wordt gebruikers gevraagd waar ze elk bestand willen opslaan voordat het bestand wordt gedownload. Als je het beleid niet toepast, worden downloads onmiddellijk gestart en wordt gebruikers niet gevraagd waar ze het bestand willen opslaan.
 
       Als je het beleid niet instelt, kunnen gebruikers deze instelling zelf wijzigen.</translation>
@@ -8369,6 +8376,34 @@ Wijzigingen in het beleid zijn alleen van toepassing als ARC niet actief is, bij
       Als je dit beleid niet instelt, is toegestaan de standaardoptie voor zowel zakelijk beheerde gebruikers als niet-beheerde gebruikers.</translation>
 <translation id="6640748114867542396">Beheerde extensies niet toestaan de Enterprise Hardware Platform API te gebruiken</translation>
 <translation id="6641109870010271671">TLS-certificaten die <ph name="PRODUCT_NAME" /> moet vertrouwen voor serververificatie</translation>
+<translation id="6641851832244467923">Als je dit beleid instelt, configureer je regels die selecteren welke proxy de browser gebruikt, afhankelijk van de URL van de bestemming en andere voorwaarden. Dit beleid heeft voorrang op proxyinstellingen die zijn ingesteld via het beleid <ph name="PROXY_SETTINGS_POLICY_NAME" />, de extensie-API <ph name="PROXY_SETTINGS_EXTENSION_API" /> of handmatige gebruikersinstellingen (als die zijn ingesteld).
+
+Als je het beleid niet instelt, heeft dit geen effect op andere proxybeleidsregels of gebruikersinstellingen.
+
+Als de browser moet beslissen welke proxy moet worden gebruikt, worden de vermeldingen van het beleid <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> in volgorde geëvalueerd totdat een vermelding aan alle volgende punten voldoet:
+* Er is een overeenkomst met minstens één van de URL-patronen in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
+  * Geen van de URL-patronen in <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> komt overeen.
+  * Als <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> is aangegeven en een niet-lege lijst is, is aan alle voorwaarden voldaan die door de vermeldingen in de lijst worden vertegenwoordigd.
+De waarde in <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> wordt gebruikt als proxy voor een dergelijke overeenkomst. Als er geen overeenkomst wordt gevonden, vallen de proxyinstellingen terug op wat is ingesteld in het beleid <ph name="PROXY_SETTINGS_POLICY_NAME" />.
+
+De URL-patronen die worden ondersteund door <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> en <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />, worden beschreven op https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
+
+De vermeldingen in het veld <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> komen overeen met tekenreekswaarden van PAC-bestanden, zoals:
+* DIRECT
+* PROXY host:poort
+* HTTPS host:poort
+* SOCKS4 host:poort
+* SOCKS5 host:poort
+Je kunt ook rechtstreeks proxy-aanduidingen in URL-indeling gebruiken om de proxy aan te geven, bijvoorbeeld:
+* http://host:poort
+* https://host:poort
+* socks4://host:poort
+* socks5://host:poort
+De eerste bereikbare vermelding in de lijst wordt gebruikt als proxy. Ongeldige vermeldingen in de lijst worden genegeerd.
+
+Het veld <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> bevat een lijst met voorwaarden waaraan allemaal moet worden voldaan voordat de overschrijvingsregel wordt gebruikt om te bepalen welke proxy moet worden gebruikt. Als je dit niet instelt, wordt de vermelding gebruikt zolang er minstens één host in <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> overeenkomt.
+
+De voorwaarde <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> controleert of de verstrekte DNS-naam <ph name="PROXY_OVERRIDE_RULES_HOST" /> kan worden omgezet in een IP-adres. Deze moet een host bevatten (bijv. example.com) en eventueel een schema of poort (bijv. https://example.com, example.com:123, https://example.com:123). Als er een beveiligd schema wordt gebruikt (bijv. https), kan DNS-lookup ook de HTTPS-record opvragen (zie RFC 9460 voor meer informatie). Als de waarde van <ph name="PROXY_OVERRIDE_RULES_RESULT" /> is ingesteld op <ph name="PROXY_OVERRIDE_RULES_RESOLVED" />, wordt de voorwaarde als voldaan beschouwd. Als de waarde in plaats daarvan is ingesteld op <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, wordt de voorwaarde als voldaan beschouwd als de omzetting is mislukt.</translation>
 <translation id="6641981670621198190">Ondersteuning voor API's voor 3D-beelden uitzetten</translation>
 <translation id="6646912445796087001">Zet verschillende functies op het schermtoetsenbord aan of uit. Dit beleid geldt alleen als het beleid VirtualKeyboardEnabled is toegepast.
 
@@ -8725,6 +8760,9 @@ Als het beleid is ingesteld op False of niet is ingesteld, is de indeling niet b
 <translation id="6866755486434471318">Toestaan dat <ph name="PEPPER_NAME" /> gedeelde afbeeldingen gebruikt voor videodecodering.</translation>
 <translation id="6878757724611298427">Gebruikers toestaan Android-apps te gebruiken op niet-aangesloten apparaten</translation>
 <translation id="6881447940489194100">Hexadecimale gecodeerde SHA-256-hash van de gegevens.</translation>
+<translation id="688149562204519323">Als je het beleid <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> instelt, worden webpagina's met verboden URL's niet geladen in de incognitomodus. Beheerders kunnen de lijst verstrekken met URL-patronen die moeten worden geblokkeerd. Als je dit beleid niet instelt, worden er geen URL's geblokkeerd in de incognitomodus. Er kunnen maximaal 1000 uitzonderingen worden gedefinieerd in <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" />. Bekijk hoe je een URL-patroon opmaakt (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+Dit beleid is alleen van toepassing op de incognitomodus. Als je URL's wilt blokkeren voor alle gebruikersprofielen, gebruik je het beleid <ph name="URL_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="68818134518270542">Als je het beleid instelt, geef je de apps op die gebruikers beschikbaar kunnen maken als notitie-app op het vergrendelscherm van <ph name="PRODUCT_OS_NAME" />.
 
       Als de voorkeurs-app op het vergrendelscherm staat, wordt er een UI-element voor het starten van de gewenste notitie-app op het scherm getoond. Als de app wordt gestart, kan deze een venster bovenop het vergrendelscherm maken en notities maken in deze context. De app kan gemaakte notities importeren naar de primaire gebruikerssessie als de sessie ontgrendeld is. Alleen notitie-apps voor <ph name="PRODUCT_NAME" /> worden ondersteund op het vergrendelscherm.
@@ -9483,6 +9521,13 @@ Dit beleid is bedoeld om bedrijven die afhankelijk zijn van het oude gedrag in d
 
           Als je dit beleid niet instelt, staat de functie voor kleurcorrectie in eerste instantie uit. Gebruikers kunnen deze functie op elk moment aanzetten.</translation>
 <translation id="7323896582714668701">Extra opdrachtregelparameters voor <ph name="PRODUCT_NAME" /></translation>
+<translation id="7324627441366994249">Hiermee kun je een lijst met URL-patronen instellen om aan te geven op welke sites Gemini-app-integraties niet rechtstreeks acties kunnen uitvoeren op webpagina's.
+
+URL's die niet overeenkomen met de toelatingslijst of de blokkeerlijst, gebruiken <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+URL's die overeenkomen met zowel de toelatingslijst als de blokkeerlijst, zijn toegestaan.
+
+Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor uitgebreide informatie over geldige URL-patronen.</translation>
 <translation id="7325801934761922681">Voorkomen dat Chrome navigatie naar externe protocollen in iframes in sandboxes blokkeert</translation>
 <translation id="7326394567531622570">Vergelijkbaar met Wipe (waarde 2), maar probeert inlogtokens te behouden, zodat de gebruiker niet opnieuw hoeft in te loggen.</translation>
 <translation id="7331098674887251788">Hiermee kunnen Gemini-app-integraties rechtstreeks acties uitvoeren op webpagina's</translation>
@@ -10619,6 +10664,13 @@ Als de waarde is ingesteld op Waar of niet is ingesteld, moeten ze zich op een b
 Als je het beleid instelt op Onwaar, kunnen ze deelnemen zonder dat ze zich binnen een beheerd netwerk bevinden.</translation>
 <translation id="8183108371184777472">Lancering van browservenster onderdrukken</translation>
 <translation id="8185312100223853315">Profiellabel</translation>
+<translation id="8186370194423312090">Hiermee kun je een lijst met URL-patronen instellen om aan te geven op welke sites Gemini-app-integraties rechtstreeks acties kunnen uitvoeren op webpagina's.
+
+URL's die niet overeenkomen met de toelatingslijst of de blokkeerlijst, gebruiken <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+URL's die overeenkomen met zowel de toelatingslijst als de blokkeerlijst, zijn toegestaan.
+
+Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor uitgebreide informatie over geldige URL-patronen.</translation>
 <translation id="8186911565834244165">Gebruikersfeedback toestaan</translation>
 <translation id="8195133650230097559">Wake lock-verzoeken voor stroombeheer negeren</translation>
 <translation id="8196558469954193908">Dit beleid staat toe dat HTTP/2-verbindingen kunnen worden samengevoegd als clientcertificaten worden gebruikt. De verbindingen kunnen alleen worden samengevoegd als zowel de hostnaam van de potentiële nieuwe verbinding als de hostnaam van een bestaande verbinding overeenkomt met een of meer patronen die in dit beleid worden beschreven. Dit beleid bestaat uit een lijst van hosts die de filterindeling '<ph name="URL_BLOCKLIST_POLICY_NAME" />' gebruiken: 'example.com' komt overeen met 'example.com' en alle subdomeinen (zoals 'sub.example.com'), terwijl '.example.net' exact overeenkomt met 'example.net'.

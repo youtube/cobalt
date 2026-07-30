@@ -72,7 +72,7 @@ import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.toolbar.top.tab_strip.StripVisibilityState;
+import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
@@ -676,10 +676,7 @@ public class ChromeTabbedActivityTest {
                                             TabLaunchType.FROM_LINK,
                                             null);
                             TabGroupModelFilter filter =
-                                    mActivity
-                                            .getTabModelSelector()
-                                            .getTabGroupModelFilterProvider()
-                                            .getTabGroupModelFilter(false);
+                                    mActivity.getTabModelSelector().getTabGroupModelFilter(false);
                             filter.createSingleTabGroup(newTab);
                             return newTab;
                         });
@@ -767,10 +764,7 @@ public class ChromeTabbedActivityTest {
 
                     // Verify other tab group properties.
                     TabGroupModelFilter filter =
-                            mActivity
-                                    .getTabModelSelector()
-                                    .getTabGroupModelFilterProvider()
-                                    .getTabGroupModelFilter(false);
+                            mActivity.getTabModelSelector().getTabGroupModelFilter(false);
                     Assert.assertEquals(TAB_GROUP_TITLE, filter.getTabGroupTitle(TAB_GROUP_ID));
                     Assert.assertEquals(0, filter.getTabGroupColor(TAB_GROUP_ID));
                     if (shouldApplyCollapse) {
@@ -1222,10 +1216,7 @@ public class ChromeTabbedActivityTest {
 
                     TabGroupModelFilter filter2 =
                             (TabGroupModelFilter)
-                                    activity2
-                                            .getTabModelSelector()
-                                            .getTabGroupModelFilterProvider()
-                                            .getTabGroupModelFilter(false);
+                                    activity2.getTabModelSelector().getTabGroupModelFilter(false);
                     List<Tab> relatedTabs = filter2.getRelatedTabList(tab1.getId());
                     Criteria.checkThat(relatedTabs.size(), Matchers.is(2));
                     Criteria.checkThat(

@@ -544,6 +544,14 @@ PaintResult PaintLayerPainter::PaintTransitionPseudos(
   if (!pseudo_layout_object) {
     return kFullyPainted;
   }
+  auto* transition = ViewTransitionUtils::GetTransition(*element);
+  if (!transition || transition->IsCapturing()) {
+    // Don't paint the pseudos during the capture phase. This avoids scaling
+    // problems in the scope snapshot layer when participants overflow.
+    // Note: PaintTransitionScopeSnapshotIfNeeded will paint the scope snapshot
+    // layer during capture, ensuring that the scope remains visible.
+    return kFullyPainted;
+  }
   PaintLayer* pseudo_layer = pseudo_layout_object->Layer();
   if (!pseudo_layer || pseudo_layer->Parent() != &paint_layer_) {
     return kFullyPainted;

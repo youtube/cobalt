@@ -21,15 +21,6 @@ class Profile;
 
 namespace tabs {
 
-struct ActorTaskListBubbleRowState {
-  actor::TaskId task_id;
-  std::string title;
-  // If this row requires processing. A row is only processed when it has been
-  // clicked on by the user. If the row does not need user attention it will not
-  // require processing.
-  bool requires_processing;
-};
-
 class GlicActorTaskIconManager : public KeyedService {
  public:
   GlicActorTaskIconManager(Profile* profile,
@@ -39,16 +30,8 @@ class GlicActorTaskIconManager : public KeyedService {
   // Called whenever actor task state updates.
   void OnActorTaskStateUpdate(actor::TaskId task_id);
 
-  // Called whenever an actor task is completed.
-  void OnActorTaskStopped(actor::TaskId task_id,
-                          actor::ActorTask::State final_state,
-                          std::string task_title);
-
-  // Determines the state the task nudge should be in.
-  void UpdateTaskNudge();
-
-  // Determines the state of a task to show in the task list bubble.
-  void UpdateTaskListBubble(actor::TaskId task_id);
+  // Called whenever updates are needed to the task icon components.
+  void UpdateTaskIconComponents(actor::TaskId task_id);
 
   // Register for this callback to get task nudge state change notifications.
   using TaskNudgeChangeCallback = base::RepeatingCallback<void(
@@ -58,19 +41,13 @@ class GlicActorTaskIconManager : public KeyedService {
 
   // Register for this callback to get task state change notifications for the
   // bubble.
-  using TaskListBubbleChangeCallback =
-      base::RepeatingCallback<void(actor::TaskId task_id)>;
+  using TaskListBubbleChangeCallback = base::RepeatingCallback<void()>;
   base::CallbackListSubscription RegisterTaskListBubbleStateChange(
       TaskListBubbleChangeCallback callback);
 
   actor::ui::ActorTaskNudgeState GetCurrentActorTaskNudgeState() const;
 
-  raw_ptr<tabs::TabInterface> GetLastUpdatedTabForTaskId(actor::TaskId task_id);
-
-  void ClearStoppedTasks();
-
-  std::map<actor::TaskId, ActorTaskListBubbleRowState>
-  GetActorTaskListBubbleRows() const {
+  std::map<actor::TaskId, bool> GetActorTaskListBubbleRows() const {
     return actor_task_list_bubble_rows_;
   }
 
@@ -85,14 +62,19 @@ class GlicActorTaskIconManager : public KeyedService {
   // Called once on startup.
   void RegisterSubscriptions();
 
+  // Determines the state the task nudge should be in.
+  void UpdateTaskNudge();
+
+  // Determines the state of a task to show in the task list bubble.
+  void UpdateTaskListBubble(actor::TaskId task_id);
+
   std::vector<base::CallbackListSubscription> callback_subscriptions_;
 
   using TaskNudgeChangeCallbackList = base::RepeatingCallbackList<void(
       actor::ui::ActorTaskNudgeState actor_task_nudge_text)>;
   TaskNudgeChangeCallbackList task_nudge_state_change_callback_list_;
 
-  using TaskListBubbleChangeCallbackList =
-      base::RepeatingCallbackList<void(actor::TaskId task_id)>;
+  using TaskListBubbleChangeCallbackList = base::RepeatingCallbackList<void()>;
   TaskListBubbleChangeCallbackList task_list_bubble_change_callback_list_;
 
   actor::ui::ActorTaskNudgeState current_actor_task_nudge_state_;
@@ -100,18 +82,11 @@ class GlicActorTaskIconManager : public KeyedService {
   raw_ptr<Profile> profile_;
   raw_ptr<actor::ActorKeyedService> actor_service_;
 
-  // TODO(mjenn): Update implementation for multi-tab actuation.
-  actor::TaskId current_task_id_;
-
-  // TODO(b/440770955): Replace complete task lists (complete + fail) with a
-  // snapshot (task title, state and tab handle) of the completed or failed
-  // tasks for the pop-over.
-  bool has_unprocessed_completed_tasks_ = false;
-  // Whether there is an unprocessed failed task.
-  bool has_unprocessed_failed_tasks_ = false;
-
-  // Map of tasks needing notifications.
-  std::map<actor::TaskId, ActorTaskListBubbleRowState>
+  // Map of tasks needing notifications. `requires_proccessing` tracks if this
+  // row requires processing. A row is only processed when it has been clicked
+  // on by the user. If the row does not need user attention it will not require
+  // processing.
+  std::map<actor::TaskId, bool /*requires_processing*/>
       actor_task_list_bubble_rows_;
 };
 

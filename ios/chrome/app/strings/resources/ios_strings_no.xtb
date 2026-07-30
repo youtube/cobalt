@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Utløpsmåned</translation>
 <translation id="1150989369772528668">Kalender</translation>
 <translation id="1161663161838091892">Synkroniser faner og logg for å fortsette</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} kredittkort}other{{count} kredittkort}}</translation>
 <translation id="1164891049599601209">Skrevet inn på et villedende nettsted</translation>
 <translation id="1165039591588034296">Feil</translation>
 <translation id="1172898394251786223">Neste felt</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Ikke skjul</translation>
 <translation id="1456545332132818232">Produktanmeldelser av <ph name="PRODUCT_NAME" />, <ph name="STARS" /> av <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Spar tid – skriv mindre</translation>
+<translation id="1466035273550360103">Ingen åpne faner</translation>
 <translation id="1469381646033328562">Kontoen din administreres av forelderen din.
 <ph name="BEGIN_LINK" />Finn ut mer<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Endret</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Åpne faner</translation>
 <translation id="1752547299766512813">Lagre passord</translation>
 <translation id="1764070164487214210">Veibeskrivelser</translation>
+<translation id="1764511703783285459">Den andre løsningen for passordlagring delte ingen passord eller passnøkler</translation>
 <translation id="1767766085187034454">Google Oversetter</translation>
 <translation id="1771016937398045251">Verktøy-menyen</translation>
 <translation id="1772468122139624049">Kan ikke laste inn faner på nytt</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Kunne ikke lagre endringen.</translation>
 <translation id="3254806613790954367">Den siste åpne fanen på alle enhetene dine</translation>
 <translation id="325717987950204592">Trykk på «Personvern og sikkerhet»</translation>
-<translation id="3266338926702638258">Vis prishistorikken for dette produktet</translation>
 <translation id="3272527697863656322">Avbryt</translation>
 <translation id="3273510436356991673">Tilpass startskjermen</translation>
 <translation id="3277021493514034324">Nettstedsadressen er kopiert</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 er valgt}other{# er valgt}}</translation>
 <translation id="3668816008081204991">Leselisten er skjult</translation>
 <translation id="3670030362669914947">Nummer</translation>
+<translation id="3672283986707092811">Velg alle</translation>
 <translation id="3679163990085797665">Slett leste</translation>
 <translation id="368329460027487650">Logget av. Åpner alternativer for pålogging.</translation>
 <translation id="3695446226812920698">Sånn gjør du det</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Visningsnavn</translation>
 <translation id="4375772272517383391">Lukk alle faner</translation>
 <translation id="4378154925671717803">Telefon</translation>
+<translation id="4380677808580146413">Velg</translation>
 <translation id="4389019817280890563">Trykk for å bytte språk.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Etter 1 dag}other{Etter {COUNT} dager}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 fane}other{# faner}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Skjul nylige faner</translation>
 <translation id="4578835633387306383">Slå på…</translation>
 <translation id="4580716718466706433">Gå til «Passordlagring»</translation>
+<translation id="4585751637295612750">Åpne en ny fane for å legge den til i spørsmålet ditt</translation>
 <translation id="4587589328781138893">Nettsteder</translation>
 <translation id="4592672037257622855">{count,plural, =1{Siden er lagt til på leselisten din}other{{count} sider er lagt til på leselisten din}}</translation>
 <translation id="459644946100970322">Vil du slå på prisvarsler?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Merknaden inneholder over 1000 tegn</translation>
 <translation id="5087098519049306025">Prissporing</translation>
 <translation id="5090832849094901128">Sletting av dette passordet sletter ikke kontoen din på <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Ingenting er importert</translation>
 <translation id="5113960131843706315">Henter tingene dine …</translation>
 <translation id="5118462200606189584">Legg til konto…</translation>
 <translation id="5118764316110575523">Av</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Lagre fil</translation>
 <translation id="5355191726083956201">Økt beskyttelse er på</translation>
 <translation id="536067926684072644">Vis bokmerker</translation>
+<translation id="5364647308446127983">{count,plural, =1{Kunne ikke importere {count} passnøkkel}other{Kunne ikke importere {count} passnøkler}}</translation>
 <translation id="5371112366564891538">Øk tekststørrelsen</translation>
+<translation id="5376135254804080693">Velg bort alle</translation>
 <translation id="537853552771686272">Administrer emnene og nettstedene du er interessert i</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} er lukket}other{{count} er lukket}}</translation>
 <translation id="5394975111793637642">Skjul «Produktanmeldelser for deg»-kortet</translation>
@@ -1445,6 +1453,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6410390304316730527">Safe Browsing beskytter deg mot angripere som kan prøve å lure deg til å gjøre farlige ting, som å installere skadelig programvare eller avsløre personopplysninger, for eksempel passord, telefonnumre eller kredittkortinformasjon. Hvis du slår det av, må du være forsiktig når du surfer på ukjente eller useriøse nettsteder.</translation>
 <translation id="6410883413783534063">Åpne faner for å besøke ulike sider samtidig</translation>
 <translation id="6418346271604475326">Forbereder PDF</translation>
+<translation id="6420292512900923139">Problemer med å importere dataene dine</translation>
 <translation id="6421038304268477484">Oversatt tekst</translation>
 <translation id="6429213933892582367">Åpne Passordvalg</translation>
 <translation id="6435236283694032571">Legg til på leselisten</translation>
@@ -1483,6 +1492,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6537746030088321027">eteksempel.no</translation>
 <translation id="6550675742724504774">Alternativer</translation>
 <translation id="6550891580932862748">Beskytter deg ikke mot farlige nettsteder, nedlastinger eller utvidelser. Safe Browsing-innstillingene i andre Google-produkter påvirkes ikke.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Gjør om</translation>
 <translation id="6559301491397835130">{count,plural, =1{Bokmerket er lagret i «{title}». Det er bare lagret på denne enheten.}other{Bokmerkene er lagret i «{title}». De er bare lagret på denne enheten.}}</translation>
 <translation id="656065428026159829">Se mer</translation>

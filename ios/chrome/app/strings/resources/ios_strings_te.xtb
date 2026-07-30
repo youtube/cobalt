@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">గడువు ముగింపు నెల</translation>
 <translation id="1150989369772528668">క్యాలెండర్</translation>
 <translation id="1161663161838091892">కొనసాగించడానికి ట్యాబ్‌లను, హిస్టరీని సింక్ చేయండి</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} క్రెడిట్ కార్డ్}other{{count} క్రెడిట్ కార్డ్‌లు}}</translation>
 <translation id="1164891049599601209">మోసపూరిత సైట్‌లోకి ప్రవేశించారు</translation>
 <translation id="1165039591588034296">ఎర్రర్</translation>
 <translation id="1172898394251786223">తర్వాతి ఫీల్డ్</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">దాచవద్దు</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" /> ప్రోడక్ట్ రివ్యూలు, <ph name="MAX_STARS" />‌లో  <ph name="STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">సమయాన్ని ఆదా చేసుకోండి, తక్కువ టైప్ చేయండి</translation>
+<translation id="1466035273550360103">తెరిచిన ట్యాబ్‌లు లేవు</translation>
 <translation id="1469381646033328562">మీ ఖాతాను మీ తల్లి/తండ్రి మేనేజ్ చేస్తున్నారు.
 <ph name="BEGIN_LINK" />మరింత తెలుసుకోండి<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">మార్చబడింది</translation>
@@ -207,7 +209,8 @@
 <translation id="1750238553597293878">మీ Google ఖాతాలోని పాస్‌వర్డ్‌లను ఉపయోగించడం కొనసాగించండి</translation>
 <translation id="17513872634828108">తెరిచిన ట్యాబ్‍లు</translation>
 <translation id="1752547299766512813">పాస్‌వర్డ్‌లను సేవ్ చేయండి</translation>
-<translation id="1764070164487214210">దిశలు</translation>
+<translation id="1764070164487214210">దిశలు (డైరెక్షన్స్)</translation>
+<translation id="1764511703783285459">ఇతర పాస్‌వర్డ్ మేనేజర్ పాస్‌వర్డ్‌లను లేదా పాస్-కీలను షేర్ చేయలేదు</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">టూల్స్ మెనూ</translation>
 <translation id="1772468122139624049">ట్యాబ్‌లను రీలోడ్ చేయడం సాధ్యపడదు</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">మీ మార్పు సేవ్ చేయడం సాధ్యపడలేదు.</translation>
 <translation id="3254806613790954367">మీ అన్ని పరికరాలంతటా మీరు చివరిగా తెరిచిన ట్యాబ్</translation>
 <translation id="325717987950204592">"గోప్యత, సెక్యూరిటీ" అనే ఆప్షన్‌ను ట్యాప్ చేయండి</translation>
-<translation id="3266338926702638258">ఈ ప్రోడక్ట్‌కు సంబంధించిన ధర హిస్టరీని చూడండి</translation>
 <translation id="3272527697863656322">రద్దు చేయండి</translation>
 <translation id="3273510436356991673">మీ మొదటి స్క్రీన్‌ను అనుకూలంగా మార్చుకోండి</translation>
 <translation id="3277021493514034324">సైట్ అడ్రస్‌ కాపీ చేయబడింది</translation>
@@ -917,6 +919,7 @@
 <translation id="4568230126482344545">ఇటీవలి ట్యాబ్‌లను దాచండి</translation>
 <translation id="4578835633387306383">ఆన్ చేయండి…</translation>
 <translation id="4580716718466706433">"Password Manager"కు వెళ్లండి</translation>
+<translation id="4585751637295612750">మీ ప్రశ్నకు జోడించడానికి కొత్త ట్యాబ్‌ను తెరవండి</translation>
 <translation id="4587589328781138893">సైట్‌లు</translation>
 <translation id="4592672037257622855">{count,plural, =1{మీ చదవాల్సిన లిస్ట్‌కు పేజీ జోడించబడింది}other{మీ చదవాల్సిన లిస్ట్‌కు {count} పేజీలు జోడించబడ్డాయి}}</translation>
 <translation id="459644946100970322">ప్రైస్ అలర్ట్‌లను ఆన్ చేయాలా?</translation>
@@ -1070,6 +1073,7 @@
 <translation id="508645147179720015">గమనికలో 1000 కంటే ఎక్కువ అక్షరాలు ఉన్నాయి</translation>
 <translation id="5087098519049306025">ధర ట్రాకింగ్</translation>
 <translation id="5090832849094901128">ఈ పాస్‌వర్డ్‌ను తొలగించడం వలన <ph name="WEBSITE" />లో మీ ఖాతా తొలగించబడదు.</translation>
+<translation id="510580293474170715">ఏదీ దిగుమతి కాలేదు</translation>
 <translation id="5113960131843706315">మీ డేటాను పొందుతోంది…</translation>
 <translation id="5118462200606189584">ఖాతాను జోడించండి…</translation>
 <translation id="5118764316110575523">ఆఫ్ చేయబడి ఉంది</translation>
@@ -1449,6 +1453,7 @@
 <translation id="6410390304316730527">ప్రమాదకరమైన సాఫ్ట్‌వేర్ ఇన్‌స్టాల్ చేసే విధంగా లేదా మీ పాస్‌వర్డ్‌లు, ఫోన్ నంబర్‌లు లేదా క్రెడిట్ కార్డ్‌ల వంటి మీ వ్యక్తిగత సమాచారాన్ని బహిర్గతం చేసే విధంగా మిమ్మల్ని మాయ చేసే హ్యాకర్‌ల నుండి మిమ్మల్ని సురక్షిత బ్రౌజింగ్ రక్షిస్తుంది. మీరు దీన్ని ఆఫ్ చేస్తే, అపరిచిత లేదా విశ్వసనీయం కాని సైట్‌లను బ్రౌజ్ చేసినప్పుడు జాగ్రత్త వహించండి.</translation>
 <translation id="6410883413783534063">ఒకే సమయంలో వేర్వేరు పేజీలను సందర్శించడానికి ట్యాబ్‌లను తెరవండి</translation>
 <translation id="6418346271604475326">PDF సిద్ధపరు.</translation>
+<translation id="6420292512900923139">మీ డేటాను దిగుమతి చేసుకోవడంలో సమస్య ఉంది</translation>
 <translation id="6421038304268477484">అనువదించిన టెక్స్ట్</translation>
 <translation id="6429213933892582367">పాస్‌వర్డ్ ఆప్షన్‌లను తెరవండి</translation>
 <translation id="6435236283694032571">చదవాల్సిన లిస్ట్‌కు జోడించండి</translation>
@@ -1487,6 +1492,7 @@
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">ఎంపికలు</translation>
 <translation id="6550891580932862748">ప్రమాదకరమైన వెబ్‌సైట్‌లు, డౌన్‌లోడ్‌లు లేదా ఎక్స్‌టెన్షన్‌ల నుండి మిమ్మల్ని రక్షించదు. ఇతర Google ప్రోడక్ట్‌లలో మీ సురక్షిత బ్రౌజింగ్ సెట్టింగ్‌లు ప్రభావితం కావు.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">మళ్లీ చేయి</translation>
 <translation id="6559301491397835130">{count,plural, =1{బుక్‌మార్క్ "{title}"కు సేవ్ చేయబడింది. ఇది ఈ పరికరంలో మాత్రమే సేవ్ చేయబడుతుంది.}other{బుక్‌మార్క్‌లు "{title}"కు సేవ్ చేయబడ్డాయి. ఇది ఈ పరికరంలో మాత్రమే సేవ్ చేయబడతాయి.}}</translation>
 <translation id="656065428026159829">మరిన్ని చూడండి</translation>
@@ -1563,6 +1569,7 @@
 <translation id="6807287147325542056">ఇతర యాప్స్‌లోని పాస్‌వర్డ్‌లు</translation>
 <translation id="681368974849482173">అంశం క్రియేట్ చేయబడింది</translation>
 <translation id="6825078212112407882">{count,plural, =1{బుక్‌మార్క్ మీ Google ఖాతా, {email}‌లో సేవ్ చేయబడింది}other{{count} బుక్‌మార్క్‌లు మీ Google ఖాతా, {email}‌లో సేవ్ చేయబడ్డాయి}}</translation>
+<translation id="6826004672264649705">ప్రస్తుతం ఈ ప్రోడక్ట్‌ను ట్రాక్ చేస్తున్నారు. ధర హిస్టరీని చూడటానికి తెరవండి</translation>
 <translation id="6830728435402077660">సురక్షితం కాదు</translation>
 <translation id="6831043979455480757">అనువదించు</translation>
 <translation id="6842136130964845393">మీరు మీ సేవ్ చేయబడిన పాస్‌వర్డ్‌లను ఎల్లప్పుడూ యాక్సెస్ చేయగలరని నిర్ధారించుకోవడానికి, అది మీరేనని వెరిఫై చేయండి</translation>

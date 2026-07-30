@@ -71,19 +71,20 @@ class AccountCapabilities {
   signin::Tribool can_make_chrome_search_engine_choice_screen_choice() const;
 #endif
 
+#if !BUILDFLAG(IS_IOS)
   // Chrome can run privacy sandbox trials for accounts with this capability.
   signin::Tribool can_run_chrome_privacy_sandbox_trials() const;
+#endif
 
   // Chrome can show history sync opt in screens without minor mode
   // restrictions with this capability.
   signin::Tribool
   can_show_history_sync_opt_ins_without_minor_mode_restrictions() const;
 
+#if BUILDFLAG(IS_CHROMEOS)
   // Chrome can toggle auto updates with this capability.
   signin::Tribool can_toggle_auto_updates() const;
-
-  // The user account is able to use IP Protection.
-  signin::Tribool can_use_chrome_ip_protection() const;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // The user account is able to use generative AI features. Since many
@@ -96,8 +97,10 @@ class AccountCapabilities {
   // The user account is able to use copyeditor feature.
   signin::Tribool can_use_copyeditor_feature() const;
 
+#if !BUILDFLAG(IS_IOS)
   // The user account is able to use DevTools AI features.
   signin::Tribool can_use_devtools_generative_ai_features() const;
+#endif
 
   // The user account is able to use edu features.
   signin::Tribool can_use_edu_features() const;

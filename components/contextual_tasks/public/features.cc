@@ -45,10 +45,6 @@ BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
 BASE_FEATURE(kContextualTasksForceCountryCodeUS,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Forces the context id migration to be enabled.
-const base::FeatureParam<bool> kForceContextIdMigration{
-    &kContextualTasks, "ForceContextIdMigration", false};
-
 const base::FeatureParam<double> kMinEmbeddingSimilarityScore{
     &kContextualTasksContext, "ContextualTasksContextEmbeddingSimilarityScore",
     0.8};
@@ -126,6 +122,16 @@ const base::FeatureParam<bool> kEnableExpandedComposeboxVoiceSearch(
     "EnableExpandedComposeboxVoiceSearch",
     true);
 
+const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery(
+    &kContextualTasks,
+    "AutoSubmitVoiceSearchQuery",
+    false);
+
+const base::FeatureParam<std::string> kContextualTasksHelpUrl(
+    &kContextualTasks,
+    "ContextualTasksHelpUrl",
+    "https://support.google.com/websearch/");
+
 const base::FeatureParam<std::string> kContextualTasksOnboardingTooltipHelpUrl(
     &kContextualTasksShowOnboardingTooltip,
     "ContextualTasksOnboardingTooltipHelpUrl",
@@ -135,12 +141,12 @@ const base::FeatureParam<int>
     kContextualTasksShowOnboardingTooltipSessionImpressionCap(
         &kContextualTasksShowOnboardingTooltip,
         "ContextualTasksShowOnboardingTooltipSessionImpressionCap",
-        3);
+        1);
 
 const base::FeatureParam<int> kContextualTasksOnboardingTooltipDismissedCap(
     &kContextualTasksShowOnboardingTooltip,
     "ContextualTasksOnboardingTooltipDismissedCap",
-    3);
+    1);
 
 int GetContextualTasksShowOnboardingTooltipSessionImpressionCap() {
   if (!base::FeatureList::IsEnabled(kContextualTasksShowOnboardingTooltip)) {
@@ -164,16 +170,16 @@ bool GetIsSteadyComposeboxVoiceSearchEnabled() {
   return kEnableSteadyComposeboxVoiceSearch.Get();
 }
 
+bool GetAutoSubmitVoiceSearchQuery() {
+  return kAutoSubmitVoiceSearchQuery.Get();
+}
+
 bool ShouldForceGscInTabMode() {
   return kForceGscInTabMode.Get();
 }
 
 bool ShouldForceCountryCodeUS() {
   return base::FeatureList::IsEnabled(kContextualTasksForceCountryCodeUS);
-}
-
-bool ShouldForceContextIdMigration() {
-  return kForceContextIdMigration.Get();
 }
 
 std::string GetContextualTasksAiPageUrl() {
@@ -240,6 +246,10 @@ bool ShouldLogContextualTasksContextQuality() {
 
 std::string GetContextualTasksOnboardingTooltipHelpUrl() {
   return kContextualTasksOnboardingTooltipHelpUrl.Get();
+}
+
+std::string GetContextualTasksHelpUrl() {
+  return kContextualTasksHelpUrl.Get();
 }
 
 namespace flag_descriptions {

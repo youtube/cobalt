@@ -61,24 +61,11 @@
 #endif  // BUILDFLAG(ENABLE_GLIC)
 namespace {
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class TriggerOutcome {
-  kAccepted = 0,
-  kDismissed = 1,
-  kTimedOut = 2,
-  kMaxValue = kTimedOut,
-};
-
 constexpr base::TimeDelta kExpansionInDuration = base::Milliseconds(500);
 constexpr base::TimeDelta kExpansionOutDuration = base::Milliseconds(250);
 constexpr base::TimeDelta kOpacityInDuration = base::Milliseconds(300);
 constexpr base::TimeDelta kOpacityOutDuration = base::Milliseconds(100);
 constexpr base::TimeDelta kOpacityDelay = base::Milliseconds(100);
-constexpr char kDeclutterTriggerOutcomeName[] =
-    "Tab.Organization.Declutter.Trigger.Outcome";
-constexpr char kDeclutterTriggerBucketedCTRName[] =
-    "Tab.Organization.Declutter.Trigger.BucketedCTR";
 
 #if BUILDFLAG(ENABLE_GLIC)
 constexpr int kLargeSpaceBetweenButtons = 6;
@@ -458,9 +445,14 @@ TabStripActionContainer::CreateGlicActorButtonContainer() {
   glic_actor_button_container->SetCollapseMargins(true);
   glic_actor_button_container->SetCrossAxisAlignment(
       views::LayoutAlignment::kCenter);
-  glic_actor_button_container->SetBackground(views::CreateRoundedRectBackground(
-      kColorNewTabButtonCRBackgroundFrameActive, gfx::RoundedCornersF(12),
-      gfx::Insets::VH(4, 8)));
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicActorUiGlobalTaskIndicator)) {
+    // Remove background for global task indicator.
+    glic_actor_button_container->SetBackground(
+        views::CreateRoundedRectBackground(
+            kColorNewTabButtonCRBackgroundFrameActive, gfx::RoundedCornersF(12),
+            gfx::Insets::VH(4, 8)));
+  }
 
   // Should be hidden until a task starts.
   glic_actor_button_container->SetVisible(false);
@@ -521,9 +513,6 @@ void TabStripActionContainer::OnToggleActionUIState(const Browser* browser,
 }
 
 void TabStripActionContainer::OnTabDeclutterButtonClicked() {
-  base::UmaHistogramEnumeration(kDeclutterTriggerOutcomeName,
-                                TriggerOutcome::kAccepted);
-  LogDeclutterTriggerBucket(true);
   browser_->window()->CreateTabSearchBubble(
       tab_search::mojom::TabSearchSection::kOrganize,
       tab_search::mojom::TabOrganizationFeature::kDeclutter);
@@ -532,8 +521,6 @@ void TabStripActionContainer::OnTabDeclutterButtonClicked() {
 }
 
 void TabStripActionContainer::OnTabDeclutterButtonDismissed() {
-  base::UmaHistogramEnumeration(kDeclutterTriggerOutcomeName,
-                                TriggerOutcome::kDismissed);
   tab_declutter_controller_->OnActionUIDismissed(
       base::PassKey<TabStripActionContainer>());
 
@@ -723,6 +710,9 @@ void TabStripActionContainer::ShowGlicActorTaskIcon() {
     glic_actor_button_container_->ReorderChildView(glic_button_, 0u);
 
   glic_actor_button_container_->SetVisible(true);
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
+    glic_button_->SuppressLabel();
+  }
   UpdateGlicActorButtonContainerBorders();
 #else
   NOTREACHED();
@@ -739,11 +729,15 @@ void TabStripActionContainer::HideGlicActorTaskIcon() {
     HideTabStripNudge(glic_actor_task_icon_);
     // Once we hide the nudge we want to bring the glic button default label
     // back.
+    // TODO(mjenn): Remove  when GlicActorUiGlobalTaskIndicator is launched.
     glic_button_->ShowDefaultLabel();
   }
   glic_actor_task_icon_->SetTaskIconToDefault();
   glic_button_ = AddChildView(std::move(glic_button_));
   glic_actor_button_container_->SetVisible(false);
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
+    glic_button_->ShowDefaultLabel();
+  }
   UpdateGlicActorButtonContainerBorders();
 #if !BUILDFLAG(IS_MAC)
   // Re-add the separator so it's ordered after the GlicButton.
@@ -760,54 +754,6 @@ bool TabStripActionContainer::GetIsShowingGlicActorTaskIconNudge() {
 #else
   return false;
 #endif  // BUILDFLAG(ENABLE_GLIC)
-}
-
-DeclutterTriggerCTRBucket TabStripActionContainer::GetDeclutterTriggerBucket(
-    bool clicked) {
-  const auto total_tab_count =
-      tab_declutter_controller_->tab_strip_model()->count();
-  const auto stale_tab_count = tab_declutter_controller_->GetStaleTabs().size();
-
-  if (total_tab_count < 15) {
-    return clicked ? DeclutterTriggerCTRBucket::kClickedUnder15Tabs
-                   : DeclutterTriggerCTRBucket::kShownUnder15Tabs;
-  } else if (total_tab_count < 20) {
-    if (stale_tab_count < 2) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked15To19TabsUnder2Stale
-                     : DeclutterTriggerCTRBucket::kShown15To19TabsUnder2Stale;
-    } else if (stale_tab_count < 5) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked15To19Tabs2To4Stale
-                     : DeclutterTriggerCTRBucket::kShown15To19Tabs2To4Stale;
-    } else if (stale_tab_count < 8) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked15To19Tabs5To7Stale
-                     : DeclutterTriggerCTRBucket::kShown15To19Tabs5To7Stale;
-    } else {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked15To19TabsOver7Stale
-                     : DeclutterTriggerCTRBucket::kShown15To19TabsOver7Stale;
-    }
-  } else if (total_tab_count < 25) {
-    if (stale_tab_count < 2) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked20To24TabsUnder2Stale
-                     : DeclutterTriggerCTRBucket::kShown20To24TabsUnder2Stale;
-    } else if (stale_tab_count < 5) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked20To24Tabs2To4Stale
-                     : DeclutterTriggerCTRBucket::kShown20To24Tabs2To4Stale;
-    } else if (stale_tab_count < 8) {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked20To24Tabs5To7Stale
-                     : DeclutterTriggerCTRBucket::kShown20To24Tabs5To7Stale;
-    } else {
-      return clicked ? DeclutterTriggerCTRBucket::kClicked20To24TabsOver7Stale
-                     : DeclutterTriggerCTRBucket::kShown20To24TabsOver7Stale;
-    }
-  } else {
-    return clicked ? DeclutterTriggerCTRBucket::kClickedOver24Tabs
-                   : DeclutterTriggerCTRBucket::kShownOver24Tabs;
-  }
-}
-
-void TabStripActionContainer::LogDeclutterTriggerBucket(bool clicked) {
-  const DeclutterTriggerCTRBucket bucket = GetDeclutterTriggerBucket(clicked);
-  base::UmaHistogramEnumeration(kDeclutterTriggerBucketedCTRName, bucket);
 }
 
 void TabStripActionContainer::ShowTabStripNudge(TabStripNudgeButton* button) {
@@ -875,10 +821,6 @@ void TabStripActionContainer::ExecuteShowTabStripNudge(
         (button != glic_button_ && button != glic_actor_task_icon_));
     animation_session_->Start();
   }
-
-  if (button == tab_declutter_button_) {
-    LogDeclutterTriggerBucket(false);
-  }
 }
 
 void TabStripActionContainer::ExecuteHideTabStripNudge(
@@ -941,9 +883,6 @@ void TabStripActionContainer::SetLockedExpansionMode(
 void TabStripActionContainer::OnAutoTabGroupButtonClicked() {
   tab_organization_service_->OnActionUIAccepted(browser_);
 
-  UMA_HISTOGRAM_BOOLEAN("Tab.Organization.AllEntrypoints.Clicked", true);
-  UMA_HISTOGRAM_BOOLEAN("Tab.Organization.Proactive.Clicked", true);
-
   // Force hide the button when pressed, bypassing locked expansion mode.
   ExecuteHideTabStripNudge(auto_tab_group_button_);
 }
@@ -951,21 +890,12 @@ void TabStripActionContainer::OnAutoTabGroupButtonClicked() {
 void TabStripActionContainer::OnAutoTabGroupButtonDismissed() {
   tab_organization_service_->OnActionUIDismissed(browser_);
 
-  UMA_HISTOGRAM_BOOLEAN("Tab.Organization.Proactive.Clicked", false);
-
   // Force hide the button when pressed, bypassing locked expansion mode.
   ExecuteHideTabStripNudge(auto_tab_group_button_);
 }
 
 void TabStripActionContainer::OnTabStripNudgeButtonTimeout(
     TabStripNudgeButton* button) {
-  if (button == auto_tab_group_button_) {
-    UMA_HISTOGRAM_BOOLEAN("Tab.Organization.Proactive.Clicked", false);
-  } else if (button == tab_declutter_button_) {
-    base::UmaHistogramEnumeration(kDeclutterTriggerOutcomeName,
-                                  TriggerOutcome::kTimedOut);
-  }
-
   // Hide the button if not pressed. Use locked expansion mode to avoid
   // disrupting the user.
   HideTabStripNudge(button);

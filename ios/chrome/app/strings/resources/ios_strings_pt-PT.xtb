@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Mês de expiração</translation>
 <translation id="1150989369772528668">Calendário</translation>
 <translation id="1161663161838091892">Sincronize os separadores e o histórico para continuar</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} cartão de crédito}other{{count} cartões de crédito}}</translation>
 <translation id="1164891049599601209">Entrou num site fraudulento.</translation>
 <translation id="1165039591588034296">Erro</translation>
 <translation id="1172898394251786223">Campo seguinte</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Não ocultar</translation>
 <translation id="1456545332132818232">Críticas sobre produtos relativas a <ph name="PRODUCT_NAME" />, <ph name="STARS" /> de <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Poupe tempo, escreva menos</translation>
+<translation id="1466035273550360103">Sem separadores abertos</translation>
 <translation id="1469381646033328562">A conta é gerida pelos teus pais.
 <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Alterado</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Separadores abertos</translation>
 <translation id="1752547299766512813">Guardar Palavras-passe</translation>
 <translation id="1764070164487214210">Direções</translation>
+<translation id="1764511703783285459">O outro gestor de palavras-passe não partilhou palavras-passe nem chaves de acesso</translation>
 <translation id="1767766085187034454">Google Tradutor</translation>
 <translation id="1771016937398045251">Menu de ferramentas</translation>
 <translation id="1772468122139624049">Não é possível atualizar os separadores</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Não foi possível guardar a alteração.</translation>
 <translation id="3254806613790954367">O último separador aberto em todos os seus dispositivos</translation>
 <translation id="325717987950204592">Toque em "Privacidade e segurança"</translation>
-<translation id="3266338926702638258">Mostrar histórico de preços deste produto</translation>
 <translation id="3272527697863656322">Cancelar</translation>
 <translation id="3273510436356991673">Personalizar o ecrã principal</translation>
 <translation id="3277021493514034324">Endereço do site copiado</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 selecionado}other{# selecionados}}</translation>
 <translation id="3668816008081204991">A Lista de leitura está oculta</translation>
 <translation id="3670030362669914947">Número</translation>
+<translation id="3672283986707092811">Selecionar tudo</translation>
 <translation id="3679163990085797665">Eliminar lidas</translation>
 <translation id="368329460027487650">Sessão terminada. Abre as opções para iniciar sessão.</translation>
 <translation id="3695446226812920698">Saiba como</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Nome a apresentar</translation>
 <translation id="4375772272517383391">Fechar todos os separadores</translation>
 <translation id="4378154925671717803">Telemóvel</translation>
+<translation id="4380677808580146413">Selecionar</translation>
 <translation id="4389019817280890563">Toque para alterar o idioma.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Após 1 dia}other{Após {COUNT} dias}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 separador}other{# separadores}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Ocultar Separadores recentes</translation>
 <translation id="4578835633387306383">Ativar…</translation>
 <translation id="4580716718466706433">Aceda ao "Gestor de Palavras-passe"</translation>
+<translation id="4585751637295612750">Abra um novo separador para o adicionar à sua pergunta</translation>
 <translation id="4587589328781138893">Sites</translation>
 <translation id="4592672037257622855">{count,plural, =1{Página adicionada à sua Lista de leitura}other{{count} páginas adicionadas à sua Lista de leitura}}</translation>
 <translation id="459644946100970322">Ativar alertas de preços?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">A nota tem mais de 1000 carateres</translation>
 <translation id="5087098519049306025">Acompanhamento de preço</translation>
 <translation id="5090832849094901128">Eliminar esta palavra-passe não elimina a sua conta em <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Nada importado</translation>
 <translation id="5113960131843706315">A aceder ao seu conteúdo…</translation>
 <translation id="5118462200606189584">Adicionar conta…</translation>
 <translation id="5118764316110575523">Desativado</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Guardar ficheiro</translation>
 <translation id="5355191726083956201">A Proteção melhorada está ativada.</translation>
 <translation id="536067926684072644">Mostrar marcadores</translation>
+<translation id="5364647308446127983">{count,plural, =1{Não foi possível importar {count} chave de acesso}other{Não foi possível importar {count} chaves de acesso}}</translation>
 <translation id="5371112366564891538">Aumentar tamanho do texto</translation>
+<translation id="5376135254804080693">Desmarcar tudo</translation>
 <translation id="537853552771686272">Faça a gestão dos tópicos e sites que lhe interessam</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} fechado}other{{count} fechados}}</translation>
 <translation id="5394975111793637642">Ocultar críticas sobre produtos no seu cartão</translation>
@@ -1445,6 +1453,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="6410390304316730527">A Navegação segura permite-lhe proteger-se contra os atacantes que o podem enganar no sentido de fazer algo perigoso, como instalar software malicioso, ou revelar informações pessoais, como palavras-passe, números de telefone ou cartões de crédito. Se a desativar, tenha cuidado ao navegar em sites desconhecidos ou pouco credíveis.</translation>
 <translation id="6410883413783534063">Abra separadores para visitar várias páginas em simultâneo.</translation>
 <translation id="6418346271604475326">A preparar PDF</translation>
+<translation id="6420292512900923139">Problemas ao importar os seus dados</translation>
 <translation id="6421038304268477484">Texto traduzido</translation>
 <translation id="6429213933892582367">Abra as Opções de palavras-passe</translation>
 <translation id="6435236283694032571">Adicionar à lista de leitura</translation>
@@ -1483,6 +1492,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="6537746030088321027">exemplo.pt</translation>
 <translation id="6550675742724504774">Opções</translation>
 <translation id="6550891580932862748">Não protege contra transferências, extensões ou Websites perigosos. As suas definições da Navegação segura noutros produtos Google não são afetadas.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Refazer</translation>
 <translation id="6559301491397835130">{count,plural, =1{Marcador guardado em "{title}". Está guardado apenas neste dispositivo.}other{Marcadores guardados em "{title}". Estão guardados apenas neste dispositivo.}}</translation>
 <translation id="656065428026159829">Ver mais</translation>
@@ -1559,6 +1569,7 @@ A Entrega também tem de estar ativada na secção Geral das Definições e os s
 <translation id="6807287147325542056">Palavras-passe noutras apps</translation>
 <translation id="681368974849482173">Item criado</translation>
 <translation id="6825078212112407882">{count,plural, =1{Marcador guardado na sua Conta Google, {email}}other{{count} marcadores guardados na sua Conta Google, {email}}}</translation>
+<translation id="6826004672264649705">Está a acompanhar este produto. Abra o separador para ver o histórico de preços</translation>
 <translation id="6830728435402077660">Inseguro</translation>
 <translation id="6831043979455480757">Traduzir</translation>
 <translation id="6842136130964845393">Para se certificar de que pode sempre aceder às suas palavras-passe guardadas, valide a sua identidade</translation>

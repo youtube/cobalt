@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_LENS_LENS_QUERY_FLOW_ROUTER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
@@ -118,6 +119,15 @@ class LensQueryFlowRouter
       contextual_search::FileUploadStatus file_upload_status,
       const std::optional<contextual_search::FileUploadErrorType>& error_type);
 
+  // Handles the interaction response from the server.
+  void HandleInteractionResponse(
+      std::optional<lens::ImageCrop> image_crop,
+      lens::LensOverlayInteractionResponse interaction_response);
+
+  void reset_file_upload_status_observation() {
+    file_upload_status_observation_.Reset();
+  }
+
  protected:
   // Creates a contextual search session handle. Virtual for testing.
   virtual std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
@@ -137,6 +147,10 @@ class LensQueryFlowRouter
 
   LensOverlayQueryController* lens_overlay_query_controller() const {
     return lens_search_controller_->lens_overlay_query_controller();
+  }
+
+  bool ShouldRouteToContextualTasks() const {
+    return lens_search_controller_->should_route_to_contextual_tasks();
   }
 
   LensOverlayGen204Controller* gen204_controller() const {
@@ -245,6 +259,11 @@ class LensQueryFlowRouter
   // Closure of UploadContextualInputData to be called by
   // MaybeResumeQueryFlow().
   base::OnceClosure pending_upload_request_;
+
+  base::ScopedObservation<contextual_search::ContextualSearchContextController,
+                          contextual_search::ContextualSearchContextController::
+                              FileUploadStatusObserver>
+      file_upload_status_observation_{this};
 
   base::WeakPtrFactory<LensQueryFlowRouter> weak_factory_{this};
 };

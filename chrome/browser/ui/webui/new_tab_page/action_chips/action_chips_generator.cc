@@ -114,27 +114,11 @@ ChipsGenerationScenario GetScenario(
 ActionChipPtr CreateRecentTabChip(TabInfoPtr tab, std::string_view suggestion) {
   ActionChipPtr chip = ActionChip::New();
   chip->type = ChipType::kRecentTab;
-
-  if (ntp_features::kNtpNextShowSimplificationUIParam.Get()) {
-    std::string_view host = tab->url.host();
-
-    if (base::StartsWith(host, "www.", base::CompareCase::INSENSITIVE_ASCII)) {
-      host = host.substr(4);
-    }
-
-    chip->title = !suggestion.empty()
-                      ? suggestion
-                      : l10n_util::GetStringUTF8(
-                            IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB);
-    chip->suggestion = host;
-  } else {
-    chip->title = tab->title;
-    chip->suggestion = !suggestion.empty()
-                           ? suggestion
-                           : l10n_util::GetStringUTF8(
-                                 IDS_WEBUI_OMNIBOX_COMPOSE_ASK_ABOUT_THIS_TAB);
-  }
-
+  chip->title =
+      !suggestion.empty()
+          ? suggestion
+          : l10n_util::GetStringUTF8(IDS_NTP_ACTION_CHIP_TAB_HEADING_1);
+  chip->suggestion = tab->title;
   chip->tab = std::move(tab);
   return chip;
 }

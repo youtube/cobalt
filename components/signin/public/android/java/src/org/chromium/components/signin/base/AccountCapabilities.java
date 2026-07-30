@@ -100,20 +100,6 @@ public class AccountCapabilities {
     }
 
     /**
-     * @return canToggleAutoUpdates capability value.
-     */
-    public @Tribool int canToggleAutoUpdates() {
-        return getCapabilityByName(AccountCapabilitiesConstants.CAN_TOGGLE_AUTO_UPDATES_NAME);
-    }
-
-    /**
-     * @return canUseChromeIpProtection capability value.
-     */
-    public @Tribool int canUseChromeIpProtection() {
-        return getCapabilityByName(AccountCapabilitiesConstants.CAN_USE_CHROME_IP_PROTECTION_NAME);
-    }
-
-    /**
      * @return canUseChromeOSGenerativeAi capability value.
      */
     public @Tribool int canUseChromeOSGenerativeAi() {

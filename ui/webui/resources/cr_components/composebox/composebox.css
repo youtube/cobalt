@@ -410,7 +410,7 @@ search-animated-glow {
   top: auto;
 }
 
-:host([lens-button-disabled_]) #lensIcon {
+:host([lens-button-disabled]) #lensIcon {
   opacity: 0.3;
 }
 
@@ -576,6 +576,12 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
   --cr-icon-button-margin-end: 0px;
   --cr-icon-button-margin-start: 0px;
   --cr-icon-button-size: 36px;
+}
+
+@media (forced-colors: active) {
+  contextual-entrypoint-and-carousel::part(voice-icon) {
+    --cr-icon-button-fill-color: ButtonText;
+  }
 }
 
 :host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #submitOverlay,

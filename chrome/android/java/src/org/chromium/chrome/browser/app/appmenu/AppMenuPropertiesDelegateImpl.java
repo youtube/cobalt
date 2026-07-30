@@ -1050,7 +1050,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         if (currentTab != null && shouldCheckBookmarkStar(currentTab)) {
             bookmarkMenuModel.set(
                     AppMenuItemProperties.ICON,
-                    AppCompatResources.getDrawable(mContext, R.drawable.btn_star_filled));
+                    AppCompatResources.getDrawable(mContext, R.drawable.ic_star_filled_24dp));
             bookmarkMenuModel.set(AppMenuItemProperties.CHECKED, true);
             bookmarkMenuModel.set(
                     AppMenuItemProperties.TITLE_CONDENSED,
@@ -1058,7 +1058,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         } else {
             bookmarkMenuModel.set(
                     AppMenuItemProperties.ICON,
-                    AppCompatResources.getDrawable(mContext, R.drawable.star_outline_24dp));
+                    AppCompatResources.getDrawable(mContext, R.drawable.ic_star_24dp));
             bookmarkMenuModel.set(AppMenuItemProperties.CHECKED, false);
             bookmarkMenuModel.set(
                     AppMenuItemProperties.TITLE_CONDENSED,
@@ -1298,8 +1298,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     public @StringRes int getAddToGroupMenuItemString(@Nullable Token currentTabGroupId) {
-        TabGroupModelFilter filter =
-                mTabModelSelector.getTabGroupModelFilterProvider().getCurrentTabGroupModelFilter();
+        TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
         if (currentTabGroupId != null) return R.string.menu_move_tab_to_group;
         if (filter != null) {
             boolean hasGroups = filter.getTabGroupCount() != 0;

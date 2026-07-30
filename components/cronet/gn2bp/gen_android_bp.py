@@ -248,6 +248,10 @@ def initialize_globals(import_channel: str):
       for suffix in gn_utils.POSSIBLE_SUFFIXES
   }
 
+  additional_args.update({
+    f'{MODULE_PREFIX}components_cronet_android_cronet': [('afdo', True)]
+  })
+
 # Shared libraries which are directly translated to Android system equivalents.
 shared_library_allowlist = [
     'android',
@@ -874,6 +878,7 @@ class Module:
     self.cargo_env_compat = None
     self.cargo_pkg_version = None
     self.whole_program_vtables = False
+    self.afdo = None
 
   def variant(self, arch_name):
     return self if arch_name == 'common' else self.target[arch_name]
@@ -960,6 +965,8 @@ class Module:
     self._output_field(output, 'cargo_pkg_version')
     if self.whole_program_vtables:
       self._output_field(output, 'whole_program_vtables')
+    if self.afdo:
+      self._output_field(output, 'afdo')
     if self.rtti:
       self._output_field(output, 'rtti')
     target_out = []
@@ -2038,6 +2045,11 @@ class MakeDafsaSanitizer(BaseActionSanitizer):
     # (e.g. registry_controlled_domain.cc)
     return True
 
+  def _sanitize_args(self):
+    self._update_all_args(self._sanitize_filepath_with_location_tag)
+    self._update_all_args(self._sanitize_filepath)
+    super()._sanitize_args()
+
 
 class JavaCppFeatureSanitizer(BaseActionSanitizer):
 
@@ -3008,11 +3020,6 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
       if output_name is None:
         module.stem = 'lib' + target.get_target_name().removesuffix(
             gn_utils.TESTING_SUFFIX)
-      elif output_name.startswith("cronet."):
-        # The AOSP version of CronetLibraryLoader looks for the libcronet so
-        # with an extra suffix. Make sure the shared library name matches what
-        # the loader expects.
-        module.stem = 'libmainline' + output_name
       else:
         module.stem = 'lib' + output_name
 

@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">ମିଆଦ ଶେଷ ହେଉଥିବା ମାସ</translation>
 <translation id="1150989369772528668">କ୍ୟାଲେଣ୍ଡର୍</translation>
 <translation id="1161663161838091892">ଜାରି ରଖିବା ପାଇଁ ଟାବଗୁଡ଼ିକ ଏବଂ ଇତିହାସ ସିଙ୍କ କରନ୍ତୁ</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} କ୍ରେଡିଟ କାର୍ଡ}other{{count} କ୍ରେଡିଟ କାର୍ଡ}}</translation>
 <translation id="1164891049599601209">ପ୍ରତାରଣାମୂଳକ ସାଇଟରେ ଲେଖାଯାଇଥିଲା</translation>
 <translation id="1165039591588034296">ତ୍ରୁଟି</translation>
 <translation id="1172898394251786223">ପରବର୍ତ୍ତୀ କ୍ଷେତ୍ର</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">ଲୁଚାନ୍ତୁ ନାହିଁ</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" /> ଉପରେ ପ୍ରଡକ୍ଟ ସମୀକ୍ଷା, <ph name="MAX_STARS" />ରୁ <ph name="STARS" /> ଷ୍ଟାର, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">ସମୟ ବଞ୍ଚାନ୍ତୁ, କମ ଟାଇପ କରନ୍ତୁ</translation>
+<translation id="1466035273550360103">ଖୋଲାଯାଇଥିବା କୌଣସି ଟାବ ନାହିଁ</translation>
 <translation id="1469381646033328562">ତୁମର ଆକାଉଣ୍ଟ ତୁମ ବାପାମାଙ୍କ ଦ୍ୱାରା ପରିଚାଳିତ ହେଉଛି।
 <ph name="BEGIN_LINK" />ଅଧିକ ଜାଣ<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">ପରିବର୍ତ୍ତନ କରାଯାଇଛି</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">ଟାବ୍‌ଗୁଡ଼ିକ ଖୋଲନ୍ତୁ</translation>
 <translation id="1752547299766512813">ପାସ୍‌ୱାର୍ଡଗୁଡ଼ିକୁ ସେଭ୍ କରନ୍ତୁ</translation>
 <translation id="1764070164487214210">ଦିଗନିର୍ଦ୍ଦେଶ</translation>
+<translation id="1764511703783285459">ଅନ୍ୟ Password Manager କୌଣସି ପାସୱାର୍ଡ କିମ୍ବା ପାସକୀ ସେୟାର କରିନାହିଁ</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">ଟୁଲ ମେନୁ</translation>
 <translation id="1772468122139624049">ଟାବଗୁଡ଼ିକୁ ରିଲୋଡ କରାଯାଇପାରିବ ନାହିଁ</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">ଆପଣଙ୍କ ପରିବର୍ତ୍ତଗୁଡ଼ିକ ସେଭ କରାଯାଇପାରିଲା ନାହିଁ</translation>
 <translation id="3254806613790954367">ଆପଣଙ୍କର ସମସ୍ତ ଡିଭାଇସରେ ଆପଣଙ୍କ ଗତ ଖୋଲା ଥିବା ଟାବ</translation>
 <translation id="325717987950204592">"ଗୋପନୀୟତା ଏବଂ ସୁରକ୍ଷା" ଟାପ କରନ୍ତୁ</translation>
-<translation id="3266338926702638258">ଏହି ପ୍ରଡକ୍ଟ ପାଇଁ ମୂଲ୍ୟ ଇତିହାସ ଦେଖାନ୍ତୁ</translation>
 <translation id="3272527697863656322">ବାତିଲ୍ କରନ୍ତୁ</translation>
 <translation id="3273510436356991673">ଆପଣଙ୍କ ହୋମ ସ୍କ୍ରିନକୁ କଷ୍ଟମାଇଜ କରନ୍ତୁ</translation>
 <translation id="3277021493514034324">ସାଇଟ୍ ଠିକଣା କପି କରାଯାଇଛି</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 ଚୟନ କରାଯାଇଛି}other{# ଚୟନ କରାଯାଇଛି}}</translation>
 <translation id="3668816008081204991">ପଢ଼ିବା ତାଲିକା ଲୁକ୍କାୟିତ ଅଛି</translation>
 <translation id="3670030362669914947">ନମ୍ବର</translation>
+<translation id="3672283986707092811">ସମସ୍ତ ଚୟନ କରନ୍ତୁ</translation>
 <translation id="3679163990085797665">'ପଢ଼ାଯାଇଥିବା'କୁ ଡିଲିଟ କରନ୍ତୁ</translation>
 <translation id="368329460027487650">ସାଇନ ଆଉଟ କରାଯାଇଛି। ସାଇନ ଇନ କରିବାକୁ ବିକଳ୍ପଗୁଡ଼ିକୁ ଖୋଲେ।</translation>
 <translation id="3695446226812920698">କିପରି ହେବ ତାହା ଜାଣନ୍ତୁ</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">ଡିସପ୍ଲେ ନାମ</translation>
 <translation id="4375772272517383391">ସମସ୍ତ ଟାବକୁ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="4378154925671717803">ଫୋନ୍</translation>
+<translation id="4380677808580146413">ଚୟନ କରନ୍ତୁ</translation>
 <translation id="4389019817280890563">ଭାଷା ପରିବର୍ତ୍ତନ କରିବାକୁ ଟାପ୍ କରନ୍ତୁ।</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{1 ଦିନ ପରେ}other{{COUNT} ଦିନ ପରେ}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 ଟାବ}other{# ଟାବ}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">'ବର୍ତ୍ତମାନର ଟାବଗୁଡ଼ିକୁ' ଲୁଚାନ୍ତୁ</translation>
 <translation id="4578835633387306383">ଚାଲୁ କରନ୍ତୁ…</translation>
 <translation id="4580716718466706433">"Password Manager"କୁ ଯାଆନ୍ତୁ</translation>
+<translation id="4585751637295612750">ଏହାକୁ ଆପଣଙ୍କ ପ୍ରଶ୍ନରେ ଯୋଗ କରିବା ପାଇଁ ଏକ ନୂଆ ଟାବ ଖୋଲନ୍ତୁ</translation>
 <translation id="4587589328781138893">ସାଇଟଗୁଡ଼ିକ</translation>
 <translation id="4592672037257622855">{count,plural, =1{ଆପଣଙ୍କ ପଢ଼ିବା ତାଲିକାରେ ପୃଷ୍ଠା ଯୋଗ କରାଯାଇଛି}other{ଆପଣଙ୍କ ପଢ଼ିବା ତାଲିକାରେ {count} ପୃଷ୍ଠା ଯୋଗ କରାଯାଇଛି}}</translation>
 <translation id="459644946100970322">ମୂଲ୍ୟ ଆଲର୍ଟଗୁଡ଼ିକୁ ଚାଲୁ କରିବେ?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">ନୋଟରେ 1000ରୁ ଅଧିକ କେରେକ୍ଟର ଅଛି</translation>
 <translation id="5087098519049306025">ମୂଲ୍ୟ ଟ୍ରାକିଂ</translation>
 <translation id="5090832849094901128">ଏହି ପାସୱାର୍ଡ ଡିଲିଟ୍ କରିବା ଫଳରେ <ph name="WEBSITE" />ରେ ଥିବା ଆପଣଙ୍କ ଆକାଉଣ୍ଟ ଡିଲିଟ୍ ହେବ ନାହିଁ।</translation>
+<translation id="510580293474170715">କିଛି ଇମ୍ପୋର୍ଟ କରାଯାଇନାହିଁ</translation>
 <translation id="5113960131843706315">ଆପଣଙ୍କ ଷ୍ଟଫ ପ୍ରାପ୍ତ କରାଯାଉଛି…</translation>
 <translation id="5118462200606189584">ଆକାଉଣ୍ଟ ଯୋଗ କରନ୍ତୁ…</translation>
 <translation id="5118764316110575523">ବନ୍ଦ ଅଛି</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">ଫାଇଲ ସେଭ କରନ୍ତୁ</translation>
 <translation id="5355191726083956201">ଉନ୍ନତ ସୁରକ୍ଷା ଚାଲୁ ଅଛି</translation>
 <translation id="536067926684072644">ବୁକମାର୍କଗୁଡ଼ିକୁ ଦେଖାନ୍ତୁ</translation>
+<translation id="5364647308446127983">{count,plural, =1{{count} ପାସକୀକୁ ଇମ୍ପୋର୍ଟ କରାଯାଇପାରିଲା ନାହିଁ}other{{count} ପାସକୀକୁ ଇମ୍ପୋର୍ଟ କରାଯାଇପାରିଲା ନାହିଁ}}</translation>
 <translation id="5371112366564891538">ଟେକ୍ସଟ ସାଇଜକୁ ବଢ଼ାନ୍ତୁ</translation>
+<translation id="5376135254804080693">ସମସ୍ତ ଅଚୟନ କରନ୍ତୁ</translation>
 <translation id="537853552771686272">ଆପଣଙ୍କ ରୁଚି ଥିବା ବିଷୟ ଏବଂ ସାଇଟଗୁଡ଼ିକୁ ପରିଚାଳନା କରନ୍ତୁ</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} ବନ୍ଦ ଅଛି}other{{count} ବନ୍ଦ ଅଛି}}</translation>
 <translation id="5394975111793637642">ଆପଣଙ୍କ କାର୍ଡ ପାଇଁ ପ୍ରଡକ୍ଟ ସମୀକ୍ଷାଗୁଡ଼ିକୁ ଲୁଚାନ୍ତୁ</translation>
@@ -1445,6 +1453,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="6410390304316730527">ସେଫ୍ ବ୍ରାଉଜିଂ ଆପଣଙ୍କୁ ଆକ୍ରମଣକାରୀଙ୍କ ଠାରୁ ରକ୍ଷା କରିଥାଏ, ଯେଉଁମାନେ ଆପଣଙ୍କୁ କିଛି ବିପଦଜନକ କାର୍ଯ୍ୟ ଯେପରି, କ୍ଷତିକାରକ ସଫ୍ଟୱେୟାର୍ ଇନଷ୍ଟଲ୍ କରିବା କିମ୍ବା ଆପଣଙ୍କ ପାସୱାର୍ଡ, ଫୋନ୍ ନମ୍ବର ବା କ୍ରେଡିଟ୍ କାର୍ଡ ପରି ବ୍ୟକ୍ତିଗତ ସୂଚନା ପ୍ରକାଶ କରିବାକୁ ପ୍ରତାରଣା କରିପାରନ୍ତି। ଯଦି ଆପଣ ଏହାକୁ ବନ୍ଦ କରନ୍ତି, ତେବେ ଅପରିଚିତ ଏବଂ ଅସୁରକ୍ଷିତ ସାଇଟଗୁଡ଼ିକୁ ବ୍ରାଉଜ୍ କରିବା ବେଳେ ସତର୍କ ରୁହନ୍ତୁ।</translation>
 <translation id="6410883413783534063">ଏକା ସମୟରେ ବିଭିନ୍ନ ପୃଷ୍ଠାକୁ ଭିଜିଟ୍‍ କରିବା ପାଇଁ ଟାବଗୁଡ଼ିକ ଖୋଲନ୍ତୁ</translation>
 <translation id="6418346271604475326">PDF ପ୍ରସ୍ତୁତ କରୁଛି</translation>
+<translation id="6420292512900923139">ଆପଣଙ୍କ ଡାଟା ଇମ୍ପୋର୍ଟ କରିବାରେ ସମସ୍ୟା</translation>
 <translation id="6421038304268477484">ଅନୁବାଦ କରାଯାଇଥିବା ଟେକ୍ସଟ</translation>
 <translation id="6429213933892582367">ପାସୱାର୍ଡ ବିକଳ୍ପଗୁଡ଼ିକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="6435236283694032571">ପଢ଼ିବା ତାଲିକାରେ ଯୋଗ କରନ୍ତୁ</translation>
@@ -1483,6 +1492,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">ବିକଳ୍ପଗୁଡ଼ିକ</translation>
 <translation id="6550891580932862748">ବିପଦଜନକ ୱେବସାଇଟ, ଡାଉନଲୋଡ ଏବଂ ଏକ୍ସଟେନସନଗୁଡ଼ିକଠାରୁ ଆପଣଙ୍କୁ ସୁରକ୍ଷିତ ରଖେ ନାହିଁ। ଅନ୍ୟ Google ପ୍ରଡକ୍ଟଗୁଡ଼ିକରେ ଆପଣଙ୍କ ସୁରକ୍ଷିତ ବ୍ରାଉଜିଂ ସେଟିଂସ ପ୍ରଭାବିତ ହେବ ନାହିଁ।</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">ରି-ଡୁ କରନ୍ତୁ</translation>
 <translation id="6559301491397835130">{count,plural, =1{"{title}"ରେ ବୁକମାର୍କ ସେଭ କରାଯାଇଛି। ଏହା କେବଳ ଏହି ଡିଭାଇସରେ ସେଭ କରାଯାଇଛି।}other{"{title}"ରେ ବୁକମାର୍କଗୁଡ଼ିକ ସେଭ କରାଯାଇଛି। ଏହା କେବଳ ଏହି ଡିଭାଇସରେ ସେଭ କରାଯାଇଛି।}}</translation>
 <translation id="656065428026159829">ଅଧିକ ଦେଖନ୍ତୁ</translation>
@@ -1559,6 +1569,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="6807287147325542056">ଅନ୍ୟ ଆପ୍ସରେ ପାସୱାର୍ଡ</translation>
 <translation id="681368974849482173">ଆଇଟମ୍ ତିଆରି ହୋଇଛି</translation>
 <translation id="6825078212112407882">{count,plural, =1{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ, {email}ରେ ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}other{ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟ {email}ରେ {count} ବୁକମାର୍କ ସେଭ କରାଯାଇଛି}}</translation>
+<translation id="6826004672264649705">ବର୍ତ୍ତମାନ ଏହି ପ୍ରଡକ୍ଟକୁ ଟ୍ରାକ କରାଯାଉଛି। ମୂଲ୍ୟ ଇତିହାସ ଦେଖିବାକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="6830728435402077660">ସୁରକ୍ଷିତ ନୁହେଁ</translation>
 <translation id="6831043979455480757">Translate</translation>
 <translation id="6842136130964845393">ଆପଣ ଆପଣଙ୍କ ସେଭ୍ କରାଯାଇଥିବା ପାସୱାର୍ଡଗୁଡ଼ିକୁ ସର୍ବଦା ଆକ୍ସେସ୍ କରିପାରିବେ, ତାହା ସୁନିଶ୍ଚିତ କରିବା ପାଇଁ ଏହା ଆପଣ ଅଟନ୍ତି ବୋଲି ଯାଞ୍ଚ କରନ୍ତୁ</translation>

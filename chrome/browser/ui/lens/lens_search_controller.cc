@@ -9,6 +9,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/lens/core/mojom/geometry.mojom.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -38,6 +39,7 @@
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/desktop_to_mobile_promos/features.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
@@ -190,7 +192,7 @@ void LensSearchController::OpenLensOverlay(
   // The overlay can only be reinvoked if the feature is enabled.
   const bool allow_reinvoking_overlay =
       lens::features::GetEnableLensButtonInSearchbox() || IsOff();
-  // If the eligibility checks fail, do not procced with opening any UI.
+  // If the eligibility checks fail, do not proceed with opening any UI.
   if (!allow_reinvoking_overlay ||
       !RunLensEligibilityChecks(
           invocation_source,
@@ -384,6 +386,13 @@ void LensSearchController::CloseLensAsync(
     return;
   }
 
+  // While the overlay is closing, the session handle can be destroyed or
+  // moved. It needs to be reset here to avoid a crash when the query router is
+  // eventually destroyed.
+  if (query_router_) {
+    query_router_->reset_file_upload_status_observation();
+  }
+
   // Close the side panel if it is showing. This provides a smooth closing
   // animation.
   auto* const side_panel_ui =
@@ -511,6 +520,10 @@ bool LensSearchController::IsHandshakeComplete() {
          AreLensSuggestInputsReady(*suggest_inputs);
 }
 
+bool LensSearchController::should_route_to_contextual_tasks() const {
+  return should_route_to_contextual_tasks_;
+}
+
 tabs::TabInterface* LensSearchController::GetTabInterface() {
   return tab_;
 }
@@ -533,7 +546,12 @@ std::optional<std::string> LensSearchController::GetPageTitle() {
 }
 
 void LensSearchController::ClearVisualSelectionThumbnail() {
-  lens_searchbox_controller_->SetSearchboxThumbnail("");
+  lens_searchbox_controller_->SetSearchboxThumbnail(std::string());
+}
+
+void LensSearchController::SetThumbnailCreatedCallback(
+    base::RepeatingCallback<void(const std::string&)> callback) {
+  thumbnail_created_callback_ = std::move(callback);
 }
 
 base::WeakPtr<LensSearchController> LensSearchController::GetWeakPtr() {
@@ -699,6 +717,16 @@ void LensSearchController::StartLensSession(
   state_ = State::kInitializing;
   invocation_source_ = invocation_source;
 
+  // Check if contextual tasks is currently available. If so, route through
+  // results to the contextual tasks side panel.
+  auto* const entry_point_eligibility_manager =
+      contextual_tasks::EntryPointEligibilityManager::From(
+          tab_->GetBrowserWindowInterface());
+  should_route_to_contextual_tasks_ =
+      contextual_tasks::GetEnableLensInContextualTasks() &&
+      entry_point_eligibility_manager &&
+      entry_point_eligibility_manager->AreEntryPointsEligible();
+
   // Create the query controller to be used for the current invocation.
   CHECK(!lens_overlay_query_controller_);
   lens_overlay_query_controller_ = CreateLensQueryController(invocation_source);
@@ -717,7 +745,8 @@ void LensSearchController::StartLensSession(
 
   // Set the results panel delegate to the side panel coordinator owned by
   // this controller.
-  results_panel_router_ = std::make_unique<lens::LensResultsPanelRouter>(this);
+  results_panel_router_ = std::make_unique<lens::LensResultsPanelRouter>(
+      tab_->GetBrowserWindowInterface()->GetProfile(), this);
 
   // Reset session state.
   hats_triggered_in_session_ = false;
@@ -776,6 +805,17 @@ void LensSearchController::NotifyOverlayOpened() {
 void LensSearchController::OnThumbnailProcessed(
     bool is_region_selection,
     const std::string& thumbnail_uri) {
+  if (should_route_to_contextual_tasks()) {
+    if (!is_region_selection || !thumbnail_created_callback_) {
+      return;
+    }
+    // This function returns full viewport thumbnails and region selection
+    // thumbnails. Only region search selections should trigger the thumbnail
+    // created callback to be run.
+    thumbnail_created_callback_.Run(thumbnail_uri);
+    return;
+  }
+
   lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
   if (is_region_selection &&
       lens_overlay_controller_->use_aim_for_visual_search()) {
@@ -785,6 +825,10 @@ void LensSearchController::OnThumbnailProcessed(
 
 void LensSearchController::CloseLensPart2(
     lens::LensOverlayDismissalSource dismissal_source) {
+  if (state_ == State::kOff) {
+    return;
+  }
+
   // Let the controllers know to cleanup.
   // TODO(crbug.com/404941800): Move logging to a shared location to not be
   // dependent on the overlay controller.
@@ -801,6 +845,7 @@ void LensSearchController::CloseLensPart2(
   lens_overlay_query_controller_.reset();
   query_router_.reset();
   invocation_source_.reset();
+  thumbnail_created_callback_.Reset();
 
   // Record end of session metrics.
   lens_session_metrics_logger_->RecordEndOfSessionMetrics(dismissal_source);
@@ -825,6 +870,13 @@ void LensSearchController::OnOverlayHidden(
       DCHECK(dismissal_source.has_value());
       return;
     }
+    CloseLensPart2(dismissal_source.value());
+    return;
+  }
+
+  if (should_route_to_contextual_tasks() &&
+      dismissal_source ==
+          lens::LensOverlayDismissalSource::kOverlayCloseButton) {
     CloseLensPart2(dismissal_source.value());
     return;
   }
@@ -887,11 +939,6 @@ void LensSearchController::HandleInteractionURLResponse(
   MaybeShowMobilePromo();
 }
 
-void LensSearchController::HandleInteractionResponse(
-    lens::mojom::TextPtr text) {
-  lens_overlay_controller_->HandleInteractionResponse(std::move(text));
-}
-
 void LensSearchController::OnSuggestInputsReady() {
   if (IsOff()) {
     return;
@@ -945,10 +992,15 @@ void LensSearchController::HandleThumbnailCreatedBitmap(
                      /*is_region_selection=*/false));
 }
 
+void LensSearchController::HandleInteractionResponse(
+    lens::mojom::TextPtr text) {
+  lens_overlay_controller_->HandleInteractionResponse(std::move(text));
+}
+
 void LensSearchController::HandleThumbnailCreated(
     const std::string& thumbnail_bytes,
     const SkBitmap& region_bitmap) {
-  lens_overlay_controller_->HandleRegionBitmapCreated(region_bitmap);
+  lens_overlay_controller()->HandleRegionBitmapCreated(region_bitmap);
 
   std::string thumbnail_uri =
       webui::MakeDataURIForImage(base::as_byte_span(thumbnail_bytes), "jpeg");

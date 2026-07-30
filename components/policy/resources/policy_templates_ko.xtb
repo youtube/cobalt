@@ -2452,6 +2452,11 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FOR_URLS_P
 <translation id="2707733461906745082">프로필 분리</translation>
 <translation id="2707873794476722903">세이프 브라우징이 표준 모드에서 활성화됩니다.</translation>
 <translation id="2709516037105925701">자동 완성</translation>
+<translation id="2713265653152900248">정책을 설정하면 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />의 예외로 시크릿 모드에서 목록에 추가된 URL에 액세스할 수 있습니다. 예를 들어 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 정책을 * 기호로 설정하면 시크릿 모드의 모든 요청이 차단되며, 이 정책을 사용하여 제한된 URL 목록에 대한 액세스를 허용할 수 있습니다. 또한 https://support.google.com/chrome/a?p=url_blocklist_filter_format에 지정된 형식을 사용하여 특정 스키마, 다른 도메인의 하위 도메인, 포트 또는 특정 경로의 예외 목록을 여는 데 사용할 수 있습니다. <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> 정책은 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 정책보다 우선 적용됩니다. 정책의 항목은 1,000개로 제한됩니다.
+
+정책을 설정하지 않으면 <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />에 예외가 허용되지 않습니다.
+
+이 정책은 시크릿 모드에만 영향을 미칩니다. 모든 사용자 프로필에서 URL을 허용하려면 <ph name="URL_ALLOWLIST_POLICY_NAME" /> 정책을 사용하세요.</translation>
 <translation id="2713913573196284609">이 값은 M121부터 지원이 중단됩니다. M121 및 이후 버전에서는 값이 EnabledBelowThreshold로 처리됩니다.</translation>
 <translation id="2713977837384407666">측정항목을 Google에 항상 전송</translation>
 <translation id="2714359695399346815">정책을 사용 설정하거나 설정하지 않으면 STUN 서버를 사용할 수 있으므로 방화벽으로 분리되어 있더라도 원격 클라이언트에서 이 컴퓨터를 찾아서 연결할 수 있습니다.
@@ -2933,6 +2938,7 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="3030232909811556512">이 정책을 사용 중지하면 로컬 파일, 기기 카메라 또는 사용자의 Google 프로필 이미지를 사용하여 사용자의 <ph name="PRODUCT_OS_NAME" /> 아바타 이미지를 설정할 수 없습니다.
 
 정책을 사용 설정하거나 설정하지 않을 경우 사용자는 이러한 옵션 중에서 아바타 이미지를 설정할 수 있습니다.</translation>
+<translation id="3031370204150460535">지정된 사이트에서 직접 작동하는 Gemini 앱 통합 차단</translation>
 <translation id="3031796805169553856">WebAssembly 모듈이 출처 간에 전송되도록 허용</translation>
 <translation id="3032322294267258117">SAML 없이 GAIA를 통해 인증된 사용자 설정을 제어합니다.</translation>
 <translation id="3034855514833090741">정책을 사용 설정하면 최초 설정 시 Google 어시스턴트가 Voice Match 흐름을 표시합니다. 정책을 사용 중지하면 최초 설정 시 Google 어시스턴트가 Voice Match 흐름을 표시하지 않습니다.
@@ -4411,6 +4417,7 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
       기간을 설정하지 않으면 <ph name="PRODUCT_OS_NAME" /> 기기에 기본 기간인 259,200,000밀리초(3일)가 사용됩니다.
 
       롤백 및 기기를 파워워시하는 기타 <ph name="PRODUCT_OS_NAME" /> 업데이트의 경우 이 정책의 값과 관계없이 업데이트가 제공될 때마다 사용자에게 즉시 알림이 전송됩니다.</translation>
+<translation id="4086132065708736174">지정된 사이트에서 직접 작동하는 Gemini 앱 통합 허용</translation>
 <translation id="4086150283035515220">정책을 '사용'으로 설정하면 다운로드 전 각 파일의 저장 위치를 확인하는 메시지가 표시됩니다. 정책을 '사용 안함'으로 설정하면 다운로드가 즉시 시작되며 파일의 저장 위치를 확인하는 메시지가 표시되지 않습니다.
 
       정책을 설정하지 않으면 사용자가 이 설정을 변경할 수 있습니다.</translation>
@@ -8533,6 +8540,34 @@ false로 설정하면 P2P가 사용되지 않습니다.
       정책을 설정하지 않는 경우 기본값은 엔터프라이즈 관리 사용자 및 관리되지 않는 사용자 모두의 애플리케이션 실행을 허용하는 것입니다.</translation>
 <translation id="6640748114867542396">관리되는 확장 프로그램에서 Enterprise Hardware Platform API를 사용하도록 허용 안함</translation>
 <translation id="6641109870010271671">서버 인증을 위해 <ph name="PRODUCT_NAME" />에서 신뢰할 수 있는 TLS 인증서</translation>
+<translation id="6641851832244467923">이 정책을 설정하면 대상 URL 및 기타 조건에 따라 브라우저에서 사용할 프록시를 선택하는 규칙이 구성됩니다. 이 정책은 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책, <ph name="PROXY_SETTINGS_EXTENSION_API" /> 확장 프로그램 API 또는 수동 사용자 설정에서 설정된 프록시 설정보다 우선 적용됩니다.
+
+정책을 설정하지 않아도 다른 프록시 정책 또는 사용자 설정에 영향을 미치지 않습니다.
+
+브라우저에서 사용할 프록시를 결정해야 하는 경우 항목이 다음 사항을 모두 충족할 때까지 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 정책의 항목이 순서대로 평가됩니다.
+  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 URL 패턴 중 하나 이상이 일치합니다.
+  * <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />의 URL 패턴 중 일치하는 패턴이 없습니다.
+  * <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 조건이 지정되고 목록이 비어 있지 않은 경우 해당 항목으로 표현된 모든 조건이 충족됩니다.
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" />의 값이 이러한 일치의 프록시로 사용됩니다. 일치하는 항목이 없으면 프록시 설정이 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책에 설정된 항목으로 되돌아갑니다.
+
+<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 및 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />에서 지원되는 URL 패턴은 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns에 설명되어 있습니다.
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 필드 항목은 다음과 같은 PAC 파일의 문자열 값에 해당합니다.
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+또는 URL과 유사한 프록시 지정자를 직접 사용하여 다음과 같이 프록시를 지정할 수 있습니다.
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+목록에서 연결 가능한 첫 번째 항목이 프록시로 사용됩니다. 목록의 잘못된 항목은 무시됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 필드에는 사용할 프록시를 결정하기 위해 재정의 규칙을 사용하려면 모두 충족해야 하는 조건 목록이 포함됩니다. 설정하지 않으면 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />의 호스트 중 하나 이상이 일치하는 한 항목이 사용됩니다.
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 조건은 제공된 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" />가 IP 주소로 확인할 수 있는지 확인합니다. 호스트(예: example.com)가 포함되어야 하며 선택적으로 스키마 또는 포트(예: https://example.com, example.com:123, https://example.com:123)가 포함될 수 있습니다. 보안 스키마(예: https)가 사용되는 경우 DNS 조회에서 HTTPS 레코드를 요청할 수도 있습니다. 자세한 내용은 RFC 9460을 참고하세요. <ph name="PROXY_OVERRIDE_RULES_RESULT" />의 값이 "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />"인 경우 조건이 충족된 것으로 간주됩니다. 대신 값이 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />로 설정되면 해결이 실패한 경우 조건이 충족된 것으로 간주됩니다.</translation>
 <translation id="6641981670621198190">3D 그래픽 API 지원 사용 중지</translation>
 <translation id="6646912445796087001">터치 키보드의 다양한 기능을 사용 설정하거나 중지합니다. 이 정책은 'VirtualKeyboardEnabled' 정책이 사용 설정되어 있을 때만 적용됩니다.
 
@@ -8895,6 +8930,9 @@ False로 설정하거나 설정하지 않으면 레이아웃을 사용할 수 �
 <translation id="6866755486434471318"><ph name="PEPPER_NAME" />에서 동영상 디코딩에 공유 이미지를 사용하도록 허용합니다.</translation>
 <translation id="6878757724611298427">사용자가 연결되지 않은 기기에서 Android 앱을 사용하도록 허용</translation>
 <translation id="6881447940489194100">16진수로 인코딩된 데이터의 SHA-256 해시입니다.</translation>
+<translation id="688149562204519323"><ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> 정책을 설정하면 시크릿 모드에서 금지된 URL이 있는 웹페이지의 로드가 중지됩니다. 관리자는 차단할 URL 패턴 목록을 지정할 수 있습니다. 정책을 설정하지 않으면 시크릿 모드에서 URL이 차단되지 않습니다. <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" />에서 최대 1,000개의 예외를 정의할 수 있습니다. URL 패턴의 형식을 지정하는 방법을 확인하세요(https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+이 정책은 시크릿 모드에만 영향을 미칩니다. 모든 사용자 프로필에서 URL을 차단하려면 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책을 사용하세요.</translation>
 <translation id="68818134518270542">정책을 설정하면 사용자가 <ph name="PRODUCT_OS_NAME" /> 잠금 화면에서 메모 앱으로 사용 설정할 수 있는 앱이 지정됩니다.
 
       선호하는 앱이 잠금 화면에 있는 경우 해당 메모 앱을 실행하기 위한 UI 요소가 화면에 표시됩니다. 앱을 실행하면 잠금 화면 상단에 앱 창이 표시되고 이러한 상황에서 메모가 생성됩니다. 세션이 잠금 해제되면 앱에서 생성된 메모를 기본 사용자 세션으로 가져올 수 있습니다. 잠금 화면에서는 <ph name="PRODUCT_NAME" /> 메모 앱만 지원됩니다.
@@ -9699,6 +9737,13 @@ true로 설정하면 <ph name="PRODUCT_NAME" />에서는
 
           정책을 설정하지 않으면 처음에는 색상 보정 기능이 사용 중지되지만 사용자가 언제든지 사용 설정할 수 있습니다.</translation>
 <translation id="7323896582714668701"><ph name="PRODUCT_NAME" />의 추가 명령줄 매개변수</translation>
+<translation id="7324627441366994249">URL 패턴 목록을 설정하여 Gemini 앱 통합이 웹페이지에서 직접 작동해서는 안 되는 사이트를 지정할 수 있습니다.
+
+허용 목록 또는 차단 목록과 일치하지 않는 URL에는 <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />가 사용됩니다.
+
+허용 목록 및 차단 목록과 일치하는 URL은 허용됩니다.
+
+유효한 URL 패턴에 관해 자세히 알아보려면 https://support.google.com/chrome/a?p=url_blocklist_filter_format 페이지를 참고하세요.</translation>
 <translation id="7325801934761922681">Chrome이 샌드박스 처리된 iframe 내부에서 외부 프로토콜로 이동을 차단하지 못하도록 방지</translation>
 <translation id="7326394567531622570">완전 삭제(값 2)와 유사하지만, 사용자가 다시 로그인할 필요가 없도록 로그인 토큰을 저장합니다.</translation>
 <translation id="7331098674887251788">Gemini 앱 통합이 웹페이지에서 직접 작동하도록 허용합니다.</translation>
@@ -10856,6 +10901,13 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
 값을 false로 설정하면 관리 네트워크에 있지 않아도 참여할 수 있습니다.</translation>
 <translation id="8183108371184777472">브라우저 창 실행 억제</translation>
 <translation id="8185312100223853315">프로필 라벨</translation>
+<translation id="8186370194423312090">URL 패턴 목록을 설정하여 Gemini 앱 통합이 웹페이지에서 직접 작동해도 되는 사이트를 지정할 수 있습니다.
+
+허용 목록 또는 차단 목록과 일치하지 않는 URL에는 <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />가 사용됩니다.
+
+허용 목록 및 차단 목록과 일치하는 URL은 허용됩니다.
+
+유효한 URL 패턴에 관해 자세히 알아보려면 https://support.google.com/chrome/a?p=url_blocklist_filter_format 페이지를 참고하세요.</translation>
 <translation id="8186911565834244165">사용자 의견 허용</translation>
 <translation id="8195133650230097559">전원 관리를 위해 wake lock 요청 무시</translation>
 <translation id="8196558469954193908">이 정책을 사용하면 클라이언트 인증서가 사용될 때 HTTP/2 연결 병합이 허용됩니다. 연결을 병합하려면 잠재적인 새로운 연결의 호스트 이름과 기존 연결의 호스트 이름이 이 정책에서 설명된 패턴 중 하나 이상과 일치해야 합니다. 이 정책은 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 필터 형식을 사용하는 호스트 목록입니다. 예를 들어, 'example.com'은 'example.com' 및 모든 하위 도메인(예: 'sub.example.com')과 일치하며 'example.net'은 'example.net'과 정확하게 일치합니다.

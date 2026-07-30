@@ -1713,7 +1713,7 @@ A oferta de um contrato de chave pós-quântico é compatível com versões ante
 No entanto, os dispositivos que não implementam corretamente a TLS talvez não funcionem direito quando a nova opção for oferecida. Por exemplo, talvez eles se desconectem em resposta a opções não reconhecidas ou mensagens maiores resultantes. Esses dispositivos não estão prontos para o estágio pós-quântico e interferem na transição pós-quântica da empresa. Os administradores precisam entrar em contato com o fornecedor para que seja feita uma correção caso encontrem esse problema.
 
 Esta política é uma medida temporária e será removida após a versão 145 do <ph name="PRODUCT_NAME" />. Ela pode ser ativada para permitir que você teste problemas e pode ser desativada enquanto os problemas são resolvidos.</translation>
-<translation id="2172201084331314152">Definir os recursos de câmera, configurações do navegador, configurações do SO, digitalização, Web Store, tela, Explorar, Crosh, galeria, terminal, gravador, impressão, atalhos de teclado, Gmail, Google Docs, Google Slides, Google Sheets, Google Drive, Google Keep, Google Agenda, Google Chat, YouTube, Google Maps, calculadora e editor de texto que serão desativados</translation>
+<translation id="2172201084331314152">Definir os recursos de câmera, configurações do navegador, configurações do SO, digitalização, Web Store, tela, Explorar, Crosh, galeria, terminal, gravador, impressão, atalhos de teclado, Gmail, Google Docs, Google Slides, Google Planilhas, Google Drive, Google Keep, Google Agenda, Google Chat, YouTube, Google Maps, calculadora e editor de texto que serão desativados</translation>
 <translation id="2174946221763588594">Define se os sites acessados pelos usuários podem criar sessões de realidade aumentada imersivas usando a <ph name="WEBXR_API_NAME" />.
 
       Quando a política estiver ativada ou indefinida, a <ph name="WEBXR_API_NAME" /> aceitará <ph name="WEBXR_AR_SESSION_ENUM_VALUE" /> durante a criação da sessão, permitindo que os usuários participem de experiências de realidade aumentada.
@@ -2541,6 +2541,11 @@ Se a política for definida como 2 ("Desativada"), a integração do Google Deve
 <translation id="2707733461906745082">Separação de perfis</translation>
 <translation id="2707873794476722903">O "Navegação segura" está ativo no modo padrão.</translation>
 <translation id="2709516037105925701">Preenchimento automático</translation>
+<translation id="2713265653152900248">A definição da política concede acesso aos URLs listados no modo de navegação anônima, como exceções a <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Por exemplo, se <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> for definida como *, todas as solicitações serão bloqueadas no modo de navegação anônima, e você poderá usar a política para permitir o acesso a uma lista limitada de URLs. Ela pode abrir exceções para alguns esquemas, subdomínios de outros domínios, portas ou caminhos específicos usando o formato especificado em (https://support.google.com/chrome/a?p=url_blocklist_filter_format). A política <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" /> tem precedência sobre <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" />. Esta política tem um limite de 1.000 entradas.
+
+Se ela não for definida, nenhuma exceção a <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> será permitida.
+
+A política afeta apenas o modo de navegação anônima. Se quiser permitir URLs para todos os perfis de usuário, use a política <ph name="URL_ALLOWLIST_POLICY_NAME" />.</translation>
 <translation id="2713913573196284609">Esse valor foi descontinuado na versão M121. Na versão M121 e em versões mais recentes, os valores serão tratados como EnabledBelowThreshold.</translation>
 <translation id="2713977837384407666">Sempre enviar métricas ao Google</translation>
 <translation id="2714359695399346815">Se a política for definida como "Ativada" ou deixada sem definição, o uso de servidores STUN será permitido, isso faz com que clientes remotos possam descobrir e se conectar a esta máquina, mesmo quando separados por um firewall.
@@ -3029,6 +3034,7 @@ Esta política não impede que os usuários escolham arquivos do <ph name="GOOGL
 <translation id="3030232909811556512">Se esta política for desativada, não vai ser possível definir a imagem do avatar do usuário <ph name="PRODUCT_OS_NAME" /> usando arquivos locais, a câmera do dispositivo ou a imagem de perfil do Google.
 
 Se a política for ativada ou não for definida, o usuário poderá definir a imagem de avatar com qualquer uma dessas opções.</translation>
+<translation id="3031370204150460535">Bloquear a ação direta de integrações do app do Gemini em sites especificados</translation>
 <translation id="3031796805169553856">Permitir que módulos WebAssembly sejam enviados em origem cruzada</translation>
 <translation id="3032322294267258117">Controla as configurações para usuários autenticados por GAIA sem SAML.</translation>
 <translation id="3034855514833090741">Se a política for ativada, o fluxo do Voice Match do Google Assistente será mostrado durante a configuração inicial. Se a política for desativada, o Google Assistente não mostrará o fluxo do Voice Match durante a configuração inicial.
@@ -4526,6 +4532,7 @@ Para informações detalhadas sobre padrões de <ph name="URL_LABEL" /> válidos
       Se a política não for definida, o período padrão de 259.200.000 milissegundos (três dias) vai ser usado para dispositivos <ph name="PRODUCT_OS_NAME" />.
 
       Para a reversão e outras atualizações do <ph name="PRODUCT_OS_NAME" /> que vão acionar o Powerwash do dispositivo, o usuário sempre será notificado imediatamente quando a atualização ficar disponível, independentemente do valor da política.</translation>
+<translation id="4086132065708736174">Permitir que integrações do app do Gemini ajam diretamente em sites especificados</translation>
 <translation id="4086150283035515220">Se a política for definida como ativada, será solicitado, ao usuário, um local para salvar cada arquivo antes do download. Se a política for definida como desativada, os downloads serão iniciados imediatamente, sem solicitar um local para salvar o arquivo ao usuário.
 
       Se a política não for definida, o usuário poderá alterar essa configuração.</translation>
@@ -8751,6 +8758,34 @@ Mudanças na política são aplicadas apenas enquanto o ARC não está em execu�
       Se a política for deixada sem definição, o padrão será permitido tanto para usuários gerenciados por empresas quanto para os não gerenciados.</translation>
 <translation id="6640748114867542396">Não permitir que extensões gerenciadas usem a API Enterprise Hardware Platform</translation>
 <translation id="6641109870010271671">Certificados TLS que devem ser considerados confiáveis pelo <ph name="PRODUCT_NAME" /> para autenticação do servidor</translation>
+<translation id="6641851832244467923">A definição desta política configura regras que selecionam qual proxy o navegador usa, dependendo do URL de destino e de outras condições. Esta política terá precedência sobre as configurações de proxy definidas pela política <ph name="PROXY_SETTINGS_POLICY_NAME" />, pela API de extensão <ph name="PROXY_SETTINGS_EXTENSION_API" /> ou pelas configurações manuais do usuário, se alguma delas estiver definida.
+
+Se a política não for definida, isso não vai afetar outras políticas de proxy ou configurações do usuário.
+
+Quando o navegador precisa decidir qual proxy usar, as entradas da política <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> são avaliadas em sequência até que uma delas satisfaça todos os pontos a seguir:
+  * Pelo menos um dos padrões de URL em <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> é correspondente.
+  * Nenhum dos padrões de URL em <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> é correspondente.
+  * Se <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> for especificado e for uma lista não vazia, todas as condições representadas pelas entradas serão satisfeitas.
+O valor em <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> será usado como proxy para essa correspondência. Se nenhuma correspondência for encontrada, as configurações de proxy vão voltar para o que está definido na política <ph name="PROXY_SETTINGS_POLICY_NAME" />.
+
+Os padrões de URL compatíveis com <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> e <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> estão documentados em https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
+
+As entradas do campo <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> correspondem a valores de string de arquivos PAC, como:
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+  * SOCKS4 host:port
+  * SOCKS5 host:port
+Como alternativa, especificadores de proxy semelhantes a URLs podem ser usados diretamente para especificar o proxy, por exemplo:
+  * http://host:port
+  * https://host:port
+  * socks4://host:port
+  * socks5://host:port
+A primeira entrada acessível na lista será usada como proxy. As entradas inválidas na lista são ignoradas.
+
+O campo <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> tem uma lista de condições que precisam ser atendidas para que a regra de substituição seja usada para decidir o proxy. Se for deixado sem definição, a entrada será usada desde que tenha correspondência com pelo menos um host em <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />.
+
+A condição <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> verifica se o <ph name="PROXY_OVERRIDE_RULES_HOST" /> DNS fornecido pode ser resolvido para um endereço IP. Ele precisa ter um host (como example.com) e, opcionalmente, um esquema ou uma porta (como https://example.com, example.com:123 ou https://example.com:123). Se um esquema seguro for usado (por exemplo, https), a busca DNS também poderá solicitar o registro HTTPS. Consulte mais detalhes na RFC 9460. Se o valor de <ph name="PROXY_OVERRIDE_RULES_RESULT" /> for "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />", a condição será considerada atendida. Se o valor for definido como <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, a condição será considerada atendida se a resolução falhar.</translation>
 <translation id="6641981670621198190">Desativar o suporte a APIs para gráficos 3D</translation>
 <translation id="6646912445796087001">Ativa ou desativa vários recursos do teclado na tela. Esta política entra em vigor somente quando a VirtualKeyboardEnabled é ativada.
 
@@ -9121,6 +9156,9 @@ Se ela for definida como "false" ou deixada sem definição, o layout não ficar
 <translation id="6866755486434471318">Permitir que <ph name="PEPPER_NAME" /> use imagens compartilhadas para decodificar vídeos.</translation>
 <translation id="6878757724611298427">Permite que os usuários usem apps Android em dispositivos não afiliados</translation>
 <translation id="6881447940489194100">Hash SHA-256 dos dados codificado em hexadecimal.</translation>
+<translation id="688149562204519323">Se a política <ph name="INCOGNITO_MODE_URL_BLOCKLIST_POLICY_NAME" /> for definida, as páginas da web que têm URLs proibidos não vão ser carregadas no modo de navegação anônima. Os administradores podem especificar a lista de padrões de URL a serem bloqueados. Se a política for deixada sem definição, nenhum URL será bloqueado no modo de navegação anônima. Até 1.000 exceções podem ser definidas na <ph name="INCOGNITO_MODE_URL_ALLOWLIST_POLICY_NAME" />. Confira como formatar um padrão de URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+A política afeta apenas o modo de navegação anônima. Se quiser bloquear URLs para todos os perfis de usuário, use a política <ph name="URL_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="68818134518270542">A definição da política especifica os apps que os usuários podem ativar para fazer anotações na tela de bloqueio do <ph name="PRODUCT_OS_NAME" />.
 
       Se o app preferencial for ativado na tela de bloqueio, será exibido um elemento de interface para abri-lo. Quando iniciado, o app poderá criar uma janela própria na parte superior da tela de bloqueio e anotações no contexto dessa tela. Quando a sessão do usuário principal for desbloqueada, será possível importar para ela as notas criadas. Apenas os apps de anotação do <ph name="PRODUCT_NAME" /> são compatíveis com a tela de bloqueio.
@@ -9944,6 +9982,13 @@ Consulte as restrições de <ph name="LOCAL_NETWORK_ACCESS" /> em https://wicg.g
 
           Se esta política não for definida, o recurso de correção de cor ficará desativado inicialmente, mas poderá ser ativado pelo usuário a qualquer momento.</translation>
 <translation id="7323896582714668701">Parâmetros de linha de comando adicionais para o <ph name="PRODUCT_NAME" /></translation>
+<translation id="7324627441366994249">Permite definir uma lista de padrões do URL que especificam sites em que integrações do app Gemini não podem agir diretamente em páginas da web.
+
+Os URLs que não correspondem à lista de permissões nem à lista de bloqueio usam <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+Os URLs que correspondem à lista de permissões e à lista de bloqueio são permitidos.
+
+Encontre informações detalhadas sobre padrões do URL válidos em https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="7325801934761922681">Impedir que o Chrome bloqueie a navegação para protocolos externos no iframe dentro do sandbox</translation>
 <translation id="7326394567531622570">Semelhante a Wipe (valor 2), mas tenta preservar os tokens de login para que o usuário não precise fazer login novamente.</translation>
 <translation id="7331098674887251788">Permitir que as integrações do app do Gemini atuem diretamente nas páginas da Web</translation>
@@ -11120,6 +11165,13 @@ Se o valor for "true" ou não for definido, eles precisarão estar em uma rede g
 Se o valor for "false", será possível participar sem estar em uma rede gerenciada.</translation>
 <translation id="8183108371184777472">Suprimir a inicialização da janela do navegador</translation>
 <translation id="8185312100223853315">Rótulo do perfil</translation>
+<translation id="8186370194423312090">Permite definir uma lista de padrões de URL que especificam sites em que integrações do app Gemini podem agir diretamente em páginas da web.
+
+Os URLs que não correspondem à lista de permissões nem à lista de bloqueio usam <ph name="GEMINI_ACT_ON_WEB_SETTINGS_POLICY_NAME" />.
+
+Os URLs que correspondem à lista de permissões e à lista de bloqueio são permitidos.
+
+Encontre informações detalhadas sobre padrões do URL válidos em https://support.google.com/chrome/a?p=url_blocklist_filter_format.</translation>
 <translation id="8186911565834244165">Permitir feedback do usuário</translation>
 <translation id="8195133650230097559">Ignorar solicitações de wake locks para gerenciamento de energia</translation>
 <translation id="8196558469954193908">Esta política permite a união da conexão HTTP/2 quando os certificados do cliente estão em uso. Para fazer a união, o nome do host da possível nova conexão e o nome do host de uma conexão já existente precisam corresponder a um ou mais padrões descritos nesta política. A política é uma lista de hosts que utilizam o formato de filtro <ph name="URL_BLOCKLIST_POLICY_NAME" />: "example.com" corresponde a "example.com" e a todos os subdomínios (por exemplo, "sub.example.com"), enquanto ".example.net" corresponde exatamente a "example.net".

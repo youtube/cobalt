@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Buwan ng pag-expire</translation>
 <translation id="1150989369772528668">Kalendaryo</translation>
 <translation id="1161663161838091892">I-sync ang mga tab at history para magpatuloy</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} credit card}one{{count} credit card}other{{count} na credit card}}</translation>
 <translation id="1164891049599601209">Inilagay sa mapanlinlang na site</translation>
 <translation id="1165039591588034296">Error</translation>
 <translation id="1172898394251786223">Susunod na field</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Huwag i-hide</translation>
 <translation id="1456545332132818232">May mga review ng produkto sa <ph name="PRODUCT_NAME" />, <ph name="STARS" /> sa <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Makatipid ng oras, mag-type ng mas kaunti</translation>
+<translation id="1466035273550360103">Walang bukas na tab</translation>
 <translation id="1469381646033328562">Pinapamahalaan ng iyong magulang ang account mo.
 <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Binago</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Mga bukas na tab</translation>
 <translation id="1752547299766512813">I-save ang Mga Password</translation>
 <translation id="1764070164487214210">Mga Direksyon</translation>
+<translation id="1764511703783285459">Hindi nag-share ng anumang password o passkey ang ibang password manager</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">Menu na Mga Tool</translation>
 <translation id="1772468122139624049">Hindi ma-reload ang mga tab</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Hindi ma-save ang iyong pagbabago.</translation>
 <translation id="3254806613790954367">Ang iyong huling nakabukas na tab sa lahat ng device mo</translation>
 <translation id="325717987950204592">I-tap ang "Privacy at Seguridad"</translation>
-<translation id="3266338926702638258">Ipakita ang history ng presyo para sa produktong ito</translation>
 <translation id="3272527697863656322">Kanselahin</translation>
 <translation id="3273510436356991673">I-customize ang iyong home screen</translation>
 <translation id="3277021493514034324">Nakopya ang address ng site</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 ang napili}one{# ang napili}other{# ang napili}}</translation>
 <translation id="3668816008081204991">Naka-hide ang listahan ng babasahin</translation>
 <translation id="3670030362669914947">Numero</translation>
+<translation id="3672283986707092811">Piliin Lahat</translation>
 <translation id="3679163990085797665">I-delete ang nabasa na</translation>
 <translation id="368329460027487650">Naka-sign out. Magbubukas ng mga opsyon sa pag-sign in.</translation>
 <translation id="3695446226812920698">Alamin kung paano</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Display name</translation>
 <translation id="4375772272517383391">Isara ang lahat ng tab</translation>
 <translation id="4378154925671717803">Telepono</translation>
+<translation id="4380677808580146413">Pumili</translation>
 <translation id="4389019817280890563">I-tap para baguhin ang wika.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Pagkalipas ng 1 araw}one{Pagkalipas ng {COUNT} araw}other{Pagkalipas ng {COUNT} na araw}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 tab}one{# tab}other{# na tab}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">I-hide ang Mga kamakailang tab</translation>
 <translation id="4578835633387306383">I-on…</translation>
 <translation id="4580716718466706433">Pumunta sa "Password Manager"</translation>
+<translation id="4585751637295612750">Magbukas ng bagong tab para idagdag ito sa iyong tanong</translation>
 <translation id="4587589328781138893">Mga Site</translation>
 <translation id="4592672037257622855">{count,plural, =1{Naidagdag ang page sa iyong listahan ng babasahin}one{Naidagdag ang {count} page sa iyong listahan ng babasahin}other{Naidagdag ang {count} na page sa iyong listahan ng babasahin}}</translation>
 <translation id="459644946100970322">I-on ang mga alerto sa presyo?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Mahigit sa 1000 character ang tala</translation>
 <translation id="5087098519049306025">Pagsubaybay sa Presyo</translation>
 <translation id="5090832849094901128">Kapag na-delete ang password na ito, hindi ide-delete ang iyong account sa <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Walang na-import</translation>
 <translation id="5113960131843706315">Kinukuha ang iyong mga bagay…</translation>
 <translation id="5118462200606189584">Magdagdag ng account…</translation>
 <translation id="5118764316110575523">Naka-off</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">I-save ang file</translation>
 <translation id="5355191726083956201">Naka-on ang Enhanced Protection</translation>
 <translation id="536067926684072644">Ipakita ang Mga Bookmark</translation>
+<translation id="5364647308446127983">{count,plural, =1{Hindi ma-import ang {count} passkey}one{Hindi ma-import ang {count} passkey}other{Hindi ma-import ang {count} na passkey}}</translation>
 <translation id="5371112366564891538">Palakihin ang text</translation>
+<translation id="5376135254804080693">I-deselect Lahat</translation>
 <translation id="537853552771686272">Pamahalaan ang mga paksa at site kung saan ka interesado</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} ang isinara}one{{count} ang isinara}other{{count} ang isinara}}</translation>
 <translation id="5394975111793637642">I-hide ang card na mga review ng produkto para sa iyo</translation>
@@ -1445,6 +1453,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6410390304316730527">Pinoprotektahan ka ng Ligtas na Pag-browse laban sa mga attacker na posibleng manlinlang sa iyong gumawa ng anumang mapanganib na bagay tulad ng pag-install ng nakakapinsalang software o paghahayag ng personal na impormasyon tulad ng mga password, numero ng telepono, o credit card. Kung io-off mo ito, maging maingat kapag nagba-browse sa mga hindi pamilyar o hindi mapagkakatiwalaang site.</translation>
 <translation id="6410883413783534063">Magbukas ng mga tab para mabisita ang iba't ibang page nang sabay-sabay</translation>
 <translation id="6418346271604475326">Ihinahanda ang PDF</translation>
+<translation id="6420292512900923139">Nagkaproblema sa pag-import ng iyong data</translation>
 <translation id="6421038304268477484">Na-translate na text</translation>
 <translation id="6429213933892582367">Buksan ang Mga Opsyon sa Password</translation>
 <translation id="6435236283694032571">Idagdag sa Listahan ng Babasahin</translation>
@@ -1483,6 +1492,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Mga Pagpipilian</translation>
 <translation id="6550891580932862748">Hindi ka poprotektahan laban sa mga mapanganib na website, download, at extension. Hindi maaapektuhan ang mga setting ng Ligtas na Pag-browse mo sa iba pang produkto ng Google.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Redo</translation>
 <translation id="6559301491397835130">{count,plural, =1{Na-save ang bookmark sa "{title}." Naka-save lang ito sa device na ito.}one{Bookmark ang na-save sa "{title}." Naka-save lang ang mga ito sa device na ito.}other{na Bookmark ang na-save sa "{title}." Naka-save lang ang mga ito sa device na ito.}}</translation>
 <translation id="656065428026159829">Tumingin pa</translation>

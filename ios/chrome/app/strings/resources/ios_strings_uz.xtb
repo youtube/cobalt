@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Muddati tugaydigan oy</translation>
 <translation id="1150989369772528668">Taqvim</translation>
 <translation id="1161663161838091892">Davom etish uchun varaqlar va tarixni sinxronlang</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} ta kredit karta}other{{count} ta kredit karta}}</translation>
 <translation id="1164891049599601209">Soxta saytda kiritilgan</translation>
 <translation id="1165039591588034296">Xatolik</translation>
 <translation id="1172898394251786223">Keyingi maydoncha</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Berkitilmasin</translation>
 <translation id="1456545332132818232">Mahsulot sharhlari: <ph name="PRODUCT_NAME" />, <ph name="STARS" />/<ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Vaqtni tejang, kamroq yozing</translation>
+<translation id="1466035273550360103">Ochiq varaqlar topilmadi</translation>
 <translation id="1469381646033328562">Hisobingiz ota-onangiz boshqaruvida.
 <ph name="BEGIN_LINK" />Batafsil<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Oʻzgardi</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Ichki oynalarni ochish</translation>
 <translation id="1752547299766512813">Parollarni saqlash</translation>
 <translation id="1764070164487214210">Qanday boriladi</translation>
+<translation id="1764511703783285459">Boshqa parol menejeri hech qaysi parol yoki kirish kalitini ulashmadi.</translation>
 <translation id="1767766085187034454">Google Tarjimon</translation>
 <translation id="1771016937398045251">Asboblar menyusi</translation>
 <translation id="1772468122139624049">Varaqlar qayta yuklanmadi</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Oʻzgarish saqlanmadi.</translation>
 <translation id="3254806613790954367">Barcha qurilmalarda ochilgan oxirgi sahifa</translation>
 <translation id="325717987950204592">“Maxfiylik va xavfsizlik” bandini tanlang</translation>
-<translation id="3266338926702638258">Bu mahsulot uchun narxlar tarixini chiqarish</translation>
 <translation id="3272527697863656322">Bekor qilish</translation>
 <translation id="3273510436356991673">Bosh ekranni moslashtiring</translation>
 <translation id="3277021493514034324">Sayt manzilidan nusxa olindi</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 band tanlandi}other{# band belgilandi}}</translation>
 <translation id="3668816008081204991">Saqlangan sahifalar berkitilgan</translation>
 <translation id="3670030362669914947">Raqam</translation>
+<translation id="3672283986707092811">Hammasini belgilash</translation>
 <translation id="3679163990085797665">Ochilganlarni oʻchirish</translation>
 <translation id="368329460027487650">Hisobdan chiqqansiz. Kirish uchun parametrlar ochiladi.</translation>
 <translation id="3695446226812920698">Batafsil</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Chiqadigan ism</translation>
 <translation id="4375772272517383391">Barcha varaqlarni yopish</translation>
 <translation id="4378154925671717803">Telefon</translation>
+<translation id="4380677808580146413">Tanlash</translation>
 <translation id="4389019817280890563">Tilni almashtirish uchun bosing.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{1 kundan keyin}other{{COUNT} kundan keyin}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 ta varaq}other{# ta varaq}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Oxirgi varaqlarni berkitish</translation>
 <translation id="4578835633387306383">Yoqish…</translation>
 <translation id="4580716718466706433">Parollar menejerini oching</translation>
+<translation id="4585751637295612750">Savolga kiritish uchun yangi varaq oching</translation>
 <translation id="4587589328781138893">Sites</translation>
 <translation id="4592672037257622855">{count,plural, =1{Saqlangan sahifalarga sahifa kiritildi}other{Saqlangan sahifalarga {count} ta sahifa kiritildi}}</translation>
 <translation id="459644946100970322">Narxga oid bildirishnomalar yoqilsinmi?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">Qayd 1000 ta belgidan oshib ketdi</translation>
 <translation id="5087098519049306025">Narx kuzatuvi</translation>
 <translation id="5090832849094901128">Bu parol olib tashlangani bilan <ph name="WEBSITE" /> hisobingiz oʻchib ketmaydi.</translation>
+<translation id="510580293474170715">Hech narsa import qilinmadi</translation>
 <translation id="5113960131843706315">Maʼlumotlar sinxronlanmoqda…</translation>
 <translation id="5118462200606189584">Hisob kiritish…</translation>
 <translation id="5118764316110575523">Oʻchiq</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Faylni saqlash</translation>
 <translation id="5355191726083956201">Kengaytirilgan himoya yoniq</translation>
 <translation id="536067926684072644">Bukmarklarni chiqarish</translation>
+<translation id="5364647308446127983">{count,plural, =1{{count} ta kirish kaliti import qilinmadi}other{{count} ta kirish kaliti import qilinmadi}}</translation>
 <translation id="5371112366564891538">Matnni kattalashtirish</translation>
+<translation id="5376135254804080693">Hammasini bekor qilish</translation>
 <translation id="537853552771686272">Qiziq boʻlgan mavzu va saytlarni boshqarish</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} ta varaq yopildi}other{{count} ta varaq yopildi}}</translation>
 <translation id="5394975111793637642">“Siz uchun mahsulot sharhlari” bildirgisi chiqmasin</translation>
@@ -1445,6 +1453,7 @@ Handoff funksiyasini faqatgina Chrome sozlamalarida emas, balki qurilma sozlamal
 <translation id="6410390304316730527">Saytlarni xavfsiz kezish parollar, telefon raqamlari yoki kredit kartalari kabi shaxsiy maʼlumotlaringizni oʻgʻirlash yoki zararli dasturlarni oʻrnatish orqali xavfli ishlarni amalga oshirishga undovchi shubhali kimsalardan himoyalaydi. Agar bu funksiyani faolsizlantirsangiz, notanish va shubhali saytlarga kirishda ehtiyot boʻling.</translation>
 <translation id="6410883413783534063">Bir vaqtda turli sahifalarga tashrif buyurish uchun varaqlar ochish</translation>
 <translation id="6418346271604475326">PDF tayyorlanmoqda</translation>
+<translation id="6420292512900923139">Maʼlumotlarni import qilishda muammo</translation>
 <translation id="6421038304268477484">Tarjima qilingan matn</translation>
 <translation id="6429213933892582367">Parol sozlamalarini oching</translation>
 <translation id="6435236283694032571">Saqlangan sahifalarga kiritish</translation>
@@ -1483,6 +1492,7 @@ Handoff funksiyasini faqatgina Chrome sozlamalarida emas, balki qurilma sozlamal
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Parametrlar</translation>
 <translation id="6550891580932862748">Zararli sayt, yuklanma va kengaytmalardan himoya qila olmaydi. Saytlarni xavfsiz kezish sozlamalari boshqa Google mahsulotlariga taʼsir qilmaydi.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Qaytarish</translation>
 <translation id="6559301491397835130">{count,plural, =1{Bukmark "{title}" jildiga saqlandi. U faqat shu qurilmada saqlanadi.}other{Bukmarklar "{title}" jildiga saqlandi. Ular faqat shu qurilmada saqlanadi.}}</translation>
 <translation id="656065428026159829">Yana</translation>
@@ -1559,6 +1569,7 @@ Handoff funksiyasini faqatgina Chrome sozlamalarida emas, balki qurilma sozlamal
 <translation id="6807287147325542056">Boshqa ilovalardagi parollar</translation>
 <translation id="681368974849482173">Saqlandi</translation>
 <translation id="6825078212112407882">{count,plural, =1{Bukmark Google hisobingizga ({email}) saqlandi}other{{count} ta bukmark Google hisobingizga ({email}) saqlandi}}</translation>
+<translation id="6826004672264649705">Hozirda bu mahsulot kuzatilmoqda. Narxlar tarixini koʻrish uchun oching</translation>
 <translation id="6830728435402077660">Xavfsiz emas</translation>
 <translation id="6831043979455480757">Tarjima</translation>
 <translation id="6842136130964845393">Parollarni istalgan vaqt ochish uchun shaxsingizni tasdiqlang</translation>

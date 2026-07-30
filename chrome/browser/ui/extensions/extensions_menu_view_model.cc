@@ -196,6 +196,16 @@ ExtensionsMenuViewModel::ControlState::Status GetSitePermissionsButtonStatus(
   return ExtensionsMenuViewModel::ControlState::Status::kDisabled;
 }
 
+std::u16string GetContextMenuAccessibleName(
+    bool is_pinned,
+    const std::u16string& extension_name) {
+  int tooltip_id =
+      is_pinned
+          ? IDS_EXTENSIONS_MENU_EXTENSION_CONTEXT_MENU_BUTTON_PINNED_ACCESSIBLE_NAME
+          : IDS_EXTENSIONS_MENU_EXTENSION_CONTEXT_MENU_BUTTON_ACCESSIBLE_NAME;
+  return l10n_util::GetStringFUTF16(tooltip_id, extension_name);
+}
+
 std::u16string GetSitePermissionsButtonText(
     const extensions::Extension& extension,
     Profile& profile,
@@ -514,6 +524,14 @@ ExtensionsMenuViewModel::ExtensionSitePermissionsState::operator=(
 ExtensionsMenuViewModel::ExtensionSitePermissionsState::
     ~ExtensionSitePermissionsState() = default;
 
+ExtensionsMenuViewModel::MenuEntryState::MenuEntryState() = default;
+ExtensionsMenuViewModel::MenuEntryState::MenuEntryState(
+    const MenuEntryState& other) = default;
+ExtensionsMenuViewModel::MenuEntryState&
+ExtensionsMenuViewModel::MenuEntryState::operator=(const MenuEntryState&) =
+    default;
+ExtensionsMenuViewModel::MenuEntryState::~MenuEntryState() = default;
+
 ExtensionsMenuViewModel::ExtensionsMenuViewModel(
     BrowserWindowInterface* browser,
     Delegate* delegate)
@@ -720,6 +738,30 @@ bool ExtensionsMenuViewModel::CanShowSitePermissionsPage(
                                              *toolbar_model_, *web_contents);
 }
 
+ExtensionsMenuViewModel::ControlState
+ExtensionsMenuViewModel::GetContextMenuButtonState(
+    const extensions::ExtensionId& extension_id) {
+  ExtensionActionViewModel* action_model = GetActionViewModel(extension_id);
+  CHECK(action_model);
+
+  return GetContextMenuButtonState(action_model);
+}
+
+ExtensionsMenuViewModel::ControlState
+ExtensionsMenuViewModel::GetContextMenuButtonState(
+    ExtensionActionViewModel* action_model) {
+  bool is_action_pinned = toolbar_model_->IsActionPinned(action_model->GetId());
+  ControlState button_state;
+  button_state.accessible_name = GetContextMenuAccessibleName(
+      is_action_pinned, action_model->GetActionName());
+  // The action's pinned state will be used to determine the button's icon.
+  // TODO(crbug.com/449814184): compute and return the icons on the model,
+  // rather than having the View compute them given `is_on`.
+  button_state.is_on = is_action_pinned;
+
+  return button_state;
+}
+
 ExtensionsMenuViewModel::ExtensionSitePermissionsState
 ExtensionsMenuViewModel::GetExtensionSitePermissionsState(
     const extensions::ExtensionId& extension_id,
@@ -796,8 +838,8 @@ ExtensionsMenuViewModel::GetExtensionShowRequestsToggleState(
   return show_requests_toggle;
 }
 
-ExtensionsMenuViewModel::MenuItemState
-ExtensionsMenuViewModel::GetMenuItemState(
+ExtensionsMenuViewModel::MenuEntryState
+ExtensionsMenuViewModel::GetMenuEntryState(
     const extensions::ExtensionId& extension_id) {
   Profile* profile = browser_->GetProfile();
   ExtensionActionViewModel* action_model = GetActionViewModel(extension_id);
@@ -805,7 +847,8 @@ ExtensionsMenuViewModel::GetMenuItemState(
   CHECK(extension);
   content::WebContents* web_contents = GetActiveWebContents();
 
-  MenuItemState menu_item;
+  MenuEntryState menu_item;
+  menu_item.context_menu_button = GetContextMenuButtonState(action_model);
   menu_item.site_access_toggle = GetSiteAccessToggleState(
       *extension, *profile, *toolbar_model_, *web_contents);
   menu_item.site_permissions_button = GetSitePermissionsButtonState(

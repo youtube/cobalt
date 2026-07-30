@@ -743,6 +743,15 @@ inline constexpr char kAutofillEnableAiBasedAmountExtractionName[] =
 inline constexpr char kAutofillEnableAiBasedAmountExtractionDescription[] =
     "When enabled, Chrome will extract the checkout amount from the checkout "
     "page using server-side AI.";
+inline constexpr char
+    kAutofillAiBasedAmountExtractionIgnoreSeenTermsForTestingName[] =
+        "Enable ignore AI-based Amount Extraction Terms Acknowledgement";
+inline constexpr char
+    kAutofillAiBasedAmountExtractionIgnoreSeenTermsForTestingDescription[] =
+        "When enabled, the BNPL flow acts as if the user has not yet seen "
+        "or the AI terms. This allows the AI terms to be shown repeatedly "
+        "for testing purposes, regardless of the actual stored user "
+        "preference.";
 
 inline constexpr char kAutofillEnableAmountExtractionName[] =
     "Enable checkout amount extraction.";
@@ -1033,12 +1042,6 @@ inline constexpr char kAutoPictureInPictureForVideoPlaybackName[] =
     "Auto picture in picture for video playback";
 inline constexpr char kAutoPictureInPictureForVideoPlaybackDescription[] =
     "Enables auto picture in picture for video playback";
-
-inline constexpr char kBackForwardTransitionsCrossDocSharedImageName[] =
-    "Back-forward transitions on cross-document navigations use SharedImage";
-inline constexpr char kBackForwardTransitionsCrossDocSharedImageDescription[] =
-    "When enabled, use a SharedImage for capturing screenshots for "
-    "back/forward transitions on cross-document navigations.";
 
 inline constexpr char kBiometricReauthForPasswordFillingName[] =
     "Biometric reauth for password filling";
@@ -4235,11 +4238,6 @@ inline constexpr char kTouchTextEditingRedesignName[] =
 inline constexpr char kTouchTextEditingRedesignDescription[] =
     "Enables new touch text editing features.";
 
-inline constexpr char kTranslationAPIName[] = "Experimental translation API";
-inline constexpr char kTranslationAPIDescription[] =
-    "Enables the on-device language translation API. "
-    "See https://github.com/WICG/translation-api/blob/main/README.md";
-
 inline constexpr char kTranslationAPIStreamingBySentenceName[] =
     "Translation API streaming split by sentence";
 inline constexpr char kTranslationAPIStreamingBySentenceDescription[] =
@@ -4278,12 +4276,6 @@ inline constexpr char kUiaProviderDescription[] =
 inline constexpr char kUiPartialSwapName[] = "Partial swap";
 inline constexpr char kUiPartialSwapDescription[] =
     "Sets partial swap behavior.";
-
-inline constexpr char kTPCPhaseOutFacilitatedTestingName[] =
-    "Third-party Cookie Phase Out Facilitated Testing";
-inline constexpr char kTPCPhaseOutFacilitatedTestingDescription[] =
-    "Enables third-party cookie phase out for facilitated testing described in "
-    "https://developer.chrome.com/en/docs/privacy-sandbox/chrome-testing/";
 
 inline constexpr char kTpcdHeuristicsGrantsName[] =
     "Third-party Cookie Grants Heuristics Testing";
@@ -4707,18 +4699,6 @@ inline constexpr char kPromptAPIForGeminiNanoMultimodalInputDescription[] =
     "You must comply with our Prohibited Use Policy [2] which provides "
     "additional details about appropriate use of Generative AI.";
 
-inline constexpr char kSummarizationAPIForGeminiNanoName[] =
-    "Summarization API for Gemini Nano";
-inline constexpr char kSummarizationAPIForGeminiNanoDescription[] =
-    "Enables the Summarization API, allowing you to summarize a piece "
-    "of text with a built-in large language model (Gemini Nano in Chrome)."
-    "The API may be subject to changes including the supported options."
-    "Please refer to the built-in AI article [1] for details. "
-    "This API It is NOT suitable for use cases that require factual accuracy "
-    "(e.g. answering knowledge questions). "
-    "You must comply with our Prohibited Use Policy [2] which provides "
-    "additional details about appropriate use of Generative AI.";
-
 inline constexpr char kWriterAPIForGeminiNanoName[] =
     "Writer API for Gemini Nano";
 inline constexpr char kWriterAPIForGeminiNanoDescription[] =
@@ -5108,6 +5088,15 @@ inline constexpr char kAppSpecificHistoryName[] = "Allow app specific history";
 inline constexpr char kAppSpecificHistoryDescription[] =
     "If enabled, history results will also be categorized by application.";
 
+inline constexpr char
+    kAutofillAndroidKeyboardAccessoryDynamicPositioningName[] =
+        "Dynamically position keyboard accessory on devices with large form "
+        "factors";
+inline constexpr char
+    kAutofillAndroidKeyboardAccessoryDynamicPositioningDescription[] =
+        "Dynamically position keyboard accessory above or below the field on "
+        "devices with large form factors.";
+
 inline constexpr char kAutofillAndroidDesktopKeyboardAccessoryRevampName[] =
     "Move keyboard accessory to top on devices with large form factors";
 inline constexpr char
@@ -5286,11 +5275,6 @@ inline constexpr char
         "Forwards the requests from web pages that use the Credential "
         "Management "
         "API to 3P password managers if 3P mode autofill is on.";
-
-inline constexpr char kCpaSpecUpdateName[] = "CpaSpecUpdate";
-inline constexpr char kCpaSpecUpdateDescription[] =
-    "Updates the Cpa button animation and changes the shape of the checked "
-    "state button for stateful CPAs.";
 
 inline constexpr char kDeprecatedExternalPickerFunctionName[] =
     "Use deprecated External Picker method";
@@ -6565,10 +6549,6 @@ inline constexpr char kArcFriendlierErrorDialogName[] =
 inline constexpr char kArcFriendlierErrorDialogDescription[] =
     "Replaces disruptive error dialogs with Chrome notifications for some ANR "
     "and crash events.";
-
-inline constexpr char kArcIdleManagerName[] = "Enable ARC Idle Manager";
-inline constexpr char kArcIdleManagerDescription[] =
-    "ARC will turn on Android's doze mode when idle.";
 
 inline constexpr char kArcNativeBridgeToggleName[] =
     "Toggle between native bridge implementations for ARC";

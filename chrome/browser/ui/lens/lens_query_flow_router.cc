@@ -27,6 +27,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
+#include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
@@ -52,17 +53,13 @@ LensQueryFlowRouter::LensQueryFlowRouter(
     : lens_search_controller_(lens_search_controller) {}
 
 LensQueryFlowRouter::~LensQueryFlowRouter() {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    auto* session_handle = GetContextualSearchSessionHandle();
-    if (session_handle && session_handle->GetController()) {
-      session_handle->GetController()->RemoveObserver(this);
-    }
+  if (ShouldRouteToContextualTasks()) {
     gen204_controller()->OnQueryFlowEnd();
   }
 }
 
 bool LensQueryFlowRouter::IsOff() const {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     return !GetContextualSearchSessionHandle();
   }
   return lens_overlay_query_controller()->IsOff();
@@ -78,7 +75,7 @@ void LensQueryFlowRouter::StartQueryFlow(
     std::optional<uint32_t> pdf_current_page,
     float ui_scale_factor,
     base::TimeTicks invocation_time) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     CHECK(lens_search_controller_->invocation_source().has_value());
     gen204_id_ = base::RandUint64();
     gen204_controller()->OnQueryFlowStart(
@@ -87,11 +84,17 @@ void LensQueryFlowRouter::StartQueryFlow(
 
     // Create a contextual session for this WebContents if one does not exist.
     CHECK(!pending_session_handle_);
+
+    // If a session handle is already being observed (e.g. from the side panel),
+    // remove the observer before creating a new session handle.
+    file_upload_status_observation_.Reset();
+
     pending_session_handle_ = CreateContextualSearchSessionHandle();
     pending_session_handle_->NotifySessionStarted();
 
     // Add observer to listen for file upload status changes.
-    pending_session_handle_->GetController()->AddObserver(this);
+    file_upload_status_observation_.Observe(
+        pending_session_handle_->GetController());
 
     // If permissions have been granted, start uploading the current viewport
     // and page content. If not, store as a callback to be run later.
@@ -121,14 +124,13 @@ void LensQueryFlowRouter::StartQueryFlow(
 }
 
 void LensQueryFlowRouter::MaybeResumeQueryFlow() {
-  if (contextual_tasks::GetEnableLensInContextualTasks() &&
-      pending_upload_request_) {
+  if (ShouldRouteToContextualTasks() && pending_upload_request_) {
     std::move(pending_upload_request_).Run();
   }
 }
 
 void LensQueryFlowRouter::MaybeRestartQueryFlow() {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     return;
   }
   lens_overlay_query_controller()->MaybeRestartQueryFlow();
@@ -136,7 +138,7 @@ void LensQueryFlowRouter::MaybeRestartQueryFlow() {
 
 void LensQueryFlowRouter::SendTaskCompletionGen204IfEnabled(
     lens::mojom::UserAction user_action) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     auto* session_handle = GetContextualSearchSessionHandle();
     if (!session_handle || !session_handle->GetController() ||
         !overlay_tab_context_file_token_.has_value()) {
@@ -160,7 +162,7 @@ void LensQueryFlowRouter::SendTaskCompletionGen204IfEnabled(
 
 void LensQueryFlowRouter::SendSemanticEventGen204IfEnabled(
     lens::mojom::SemanticEvent event) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     auto* session_handle = GetContextualSearchSessionHandle();
     if (!session_handle || !session_handle->GetController() ||
         !overlay_tab_context_file_token_.has_value()) {
@@ -185,7 +187,7 @@ LensQueryFlowRouter::GetSuggestInputs() {
     return std::nullopt;
   }
 
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     auto* session_handle = GetContextualSearchSessionHandle();
     if (session_handle) {
       return session_handle->GetSuggestInputs();
@@ -205,14 +207,15 @@ void LensQueryFlowRouter::SetSuggestInputsReadyCallback(
     return;
   }
 
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     suggest_inputs_ready_callback_ = std::move(callback);
 
     // If the session handle doesn't exist yet, the observer will be added
     // once it is created.
     auto* session_handle = GetContextualSearchSessionHandle();
-    if (session_handle && session_handle->GetController()) {
-      session_handle->GetController()->AddObserver(this);
+    if (session_handle && session_handle->GetController() &&
+        !file_upload_status_observation_.IsObserving()) {
+      file_upload_status_observation_.Observe(session_handle->GetController());
     }
     return;
   }
@@ -227,7 +230,7 @@ void LensQueryFlowRouter::SendRegionSearch(
     std::map<std::string, std::string> additional_search_query_params,
     std::optional<SkBitmap> region_bytes,
     lens::LensOverlayInvocationSource invocation_source) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         std::move(region), std::move(region_bytes), /*query_text=*/std::nullopt,
         lens_selection_type, additional_search_query_params, query_start_time,
@@ -246,7 +249,7 @@ void LensQueryFlowRouter::SendTextOnlyQuery(
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
     lens::LensOverlayInvocationSource invocation_source) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
         lens_selection_type, additional_search_query_params, query_start_time,
@@ -265,7 +268,7 @@ void LensQueryFlowRouter::SendContextualTextQuery(
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
     lens::LensOverlayInvocationSource invocation_source) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     auto request_info = CreateSearchUrlRequestInfoFromInteraction(
         /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
         lens_selection_type, additional_search_query_params, query_start_time,
@@ -288,7 +291,7 @@ void LensQueryFlowRouter::SendMultimodalRequest(
     std::map<std::string, std::string> additional_search_query_params,
     std::optional<SkBitmap> region_bytes,
     lens::LensOverlayInvocationSource invocation_source) {
-  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+  if (ShouldRouteToContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         std::move(region), std::move(region_bytes), query_text,
         lens_selection_type, additional_search_query_params, query_start_time,
@@ -327,6 +330,25 @@ void LensQueryFlowRouter::OnFileUploadStatusChangedForTesting(
     const std::optional<contextual_search::FileUploadErrorType>& error_type) {
   OnFileUploadStatusChanged(file_token, mime_type, file_upload_status,
                             error_type);
+}
+
+void LensQueryFlowRouter::HandleInteractionResponse(
+    std::optional<lens::ImageCrop> image_crop,
+    lens::LensOverlayInteractionResponse interaction_response) {
+  if (interaction_response.has_text()) {
+    lens::ZoomedCrop zoomed_crop;
+    if (image_crop.has_value()) {
+      zoomed_crop.CopyFrom(image_crop->zoomed_crop());
+    }
+    // TODO(crbug.com/469836056): Verify that this is the correct resized bitmap
+    // to be using to generate the text once the interaction response returns
+    // text.
+    lens_search_controller_->HandleInteractionResponse(
+        lens::CreateTextMojomFromInteractionResponse(
+            interaction_response, zoomed_crop,
+            gfx::Size(GetViewportScreenshot().width(),
+                      GetViewportScreenshot().height())));
+  }
 }
 
 void LensQueryFlowRouter::OnFileUploadStatusChanged(
@@ -379,7 +401,11 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
     pending_session_handle_->NotifySessionStarted();
   }
 
-  if (!overlay_tab_context_file_token_.has_value()) {
+  bool needs_overlay_tab_context =
+      lens_search_controller_->invocation_source() !=
+      lens::LensOverlayInvocationSource::kContextualTasksComposebox;
+  if (needs_overlay_tab_context &&
+      !overlay_tab_context_file_token_.has_value()) {
     pending_search_url_request_ = std::move(request_info);
     // Upload the page context when creating a session handle.
     if (auto* controller =
@@ -398,6 +424,14 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
 }
 
 void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
+  // If the invocation source was the contextual tasks composebox, avoid
+  // navigating the side panel URL to preserve the current
+  // conversation (the panel should already be open).
+  if (lens_search_controller_->invocation_source() ==
+      lens::LensOverlayInvocationSource::kContextualTasksComposebox) {
+    return;
+  }
+
   // Show the side panel. This will create a new task and associate it with the
   // active tab.
   contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
@@ -517,9 +551,15 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
         GetViewportScreenshot(), region->Clone(), region_bytes,
         std::move(client_logs));
     if (image_crop_and_bitmap) {
+      lens_search_controller_->HandleThumbnailCreated(
+          image_crop_and_bitmap->image_crop.image().image_content(),
+          image_crop_and_bitmap->region_bitmap);
       request_info->image_crop = std::move(image_crop_and_bitmap->image_crop);
     }
   }
+  request_info->interaction_response_callback =
+      base::BindOnce(&LensQueryFlowRouter::HandleInteractionResponse,
+                     weak_factory_.GetWeakPtr(), request_info->image_crop);
   return request_info;
 }
 

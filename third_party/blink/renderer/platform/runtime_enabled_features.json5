@@ -1228,10 +1228,6 @@
       depends_on: ["ControlledFrame"],
     },
     {
-      name: "CookieDeprecationFacilitatedTesting",
-      base_feature: "none",
-    },
-    {
       // Enables setting the `maxAge` option when creating a cookie in the
       // Cookie Store API.
       name: "CookieStoreAPIMaxAge",
@@ -2174,10 +2170,6 @@
       // crbug.com/420857717
       name: "EmojiMonochromeRendering",
       status: "experimental"
-    },
-    {
-      name: "EmphasisMarkShapeCache",
-      status: "stable",
     },
     {
       name: "EndpointInclusiveCommitStyles",
@@ -5420,8 +5412,6 @@
         "ChromeOS": "stable",
         "default": "",
       },
-      origin_trial_feature_name: "TranslationAPI",
-      origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },

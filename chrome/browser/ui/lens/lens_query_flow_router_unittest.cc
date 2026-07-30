@@ -553,6 +553,8 @@ class LensQueryFlowRouterContextualTaskEnabledTest
 
     ON_CALL(*mock_lens_search_controller_, lens_overlay_controller())
         .WillByDefault(Return(mock_lens_overlay_controller_.get()));
+    ON_CALL(*mock_lens_search_controller_, should_route_to_contextual_tasks())
+        .WillByDefault(Return(true));
     ON_CALL(*mock_lens_search_controller_, invocation_source())
         .WillByDefault(Return(lens::LensOverlayInvocationSource::kAppMenu));
   }
@@ -1151,9 +1153,6 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // ready.
   EXPECT_CALL(*router.mock_session_handle(), GetSuggestInputs())
       .WillOnce(Return(std::nullopt));
-  // The observer is added again to listen for updates.
-  EXPECT_CALL(*mock_context_controller_, AddObserver(&router));
-
   // Act
   router.SetSuggestInputsReadyCallback(base::DoNothing());
 }
@@ -1255,6 +1254,27 @@ TEST_F(
   router.OnFileUploadStatusChangedForTesting(
       base::UnguessableToken::Create(), lens::MimeType::kPdf,
       contextual_search::FileUploadStatus::kUploadSuccessful, std::nullopt);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       HandleInteractionResponse_ExtractsTextAndRoutesToLensSearchController) {
+  // Arrange: Set up and create the router.
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  // Arrange: Set up the interaction response.
+  lens::LensOverlayInteractionResponse interaction_response;
+  interaction_response.mutable_text()->set_content_language("en");
+
+  // Assert: Create expectation.
+  EXPECT_CALL(*mock_lens_search_controller_, HandleInteractionResponse(_))
+      .WillOnce([](lens::mojom::TextPtr text) {
+        EXPECT_EQ(text->content_language, "en");
+      });
+
+  // Act: Call the method.
+  router.HandleInteractionResponse(std::nullopt, interaction_response);
 }
 
 class

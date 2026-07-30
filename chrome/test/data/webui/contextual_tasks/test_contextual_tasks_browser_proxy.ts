@@ -25,6 +25,7 @@ class MockPage extends TestBrowserProxy implements PageInterface {
       'onAiPageStatusChanged',
       'onContextUpdated',
       'onHandshakeComplete',
+      'onLensOverlayStateChanged',
       'onSidePanelStateChanged',
       'restoreInput',
       'setOAuthToken',
@@ -84,6 +85,10 @@ class MockPage extends TestBrowserProxy implements PageInterface {
     this.methodCalled('onAiPageStatusChanged', isAiPage);
   }
 
+  onLensOverlayStateChanged(isOverlayShowing: boolean) {
+    this.methodCalled('onLensOverlayStateChanged', isOverlayShowing);
+  }
+
   setTaskDetails(taskId: Uuid, threadId: string, turnId: string) {
     this.methodCalled('setTaskDetails', taskId, threadId, turnId);
   }
@@ -108,6 +113,7 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
       'getThreadUrl',
       'getUrlForTask',
       'isShownInTab',
+      'isZeroState',
       'moveTaskUiToNewTab',
       'onboardingTooltipDismissed',
       'onTabClickedFromSourcesMenu',
@@ -158,6 +164,11 @@ class TestContextualTasksPageHandler extends TestBrowserProxy implements
   isShownInTab() {
     this.methodCalled('isShownInTab');
     return Promise.resolve({isInTab: this.isInTab_});
+  }
+
+  isZeroState(url: Url) {
+    this.methodCalled('isZeroState', url);
+    return Promise.resolve({isZeroState: false});
   }
 
   openMyActivityUi() {

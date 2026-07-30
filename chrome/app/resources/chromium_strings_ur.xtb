@@ -23,6 +23,7 @@
 <translation id="1184145431117212167">‏انسٹالیشن ناکام ہوگئی کیونکہ Windows کا آپ کا ورژن تعاون یافتہ نہیں ہے۔</translation>
 <translation id="1185134272377778587">‏Chromium کے بارے میں</translation>
 <translation id="1203500561924088507">انسٹال کرنے کا شکریہ۔ آپ کو <ph name="BUNDLE_NAME" /> استعمال کرنے سے پہلے اپنا براؤزر لازمی طور سے ری اسٹارٹ کرنا چاہیے۔</translation>
+<translation id="1232234696885483911">‏جب آپ تصاویر کا استعمال کر کے تلاش کھولتے ہیں تو صفحہ کا عنوان، URL اور مواد بشمول PDFs خودکار طور پر سرور کو بھیجے جائیں گے۔ <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">‏جب آپ سائن ان ہوتے ہیں، آپ Chromium میں اپنے Google اکاؤنٹ سے اپنے پاس ورڈز وغیرہ استعمال کر سکتے ہیں۔ اسے تبدیل کرنے کے لیے، "Chromium میں آپ کا اکاؤنٹ" پر جائیں۔</translation>
 <translation id="1262876892872089030">‏جب یہ ٹیب غیر فعال تھا تو Chromium کو تیز رکھنے کے لیے میموری خالی کر دی گئی تھی۔ آپ اس سائٹ کو ہمیشہ غیر فعال ہونے سے خارج کرنے کا انتخاب کر سکتے ہیں۔</translation>
 <translation id="1265577313130862557">‏Chromium نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ فائل خطرناک ہے</translation>
@@ -221,9 +222,11 @@
 <translation id="3352986031709923790">تلاش کے حلقے کا اوپری بایاں کونا: <ph name="RIGHT" /> فیصد بائیں، <ph name="TOP" /> فیصد اوپر</translation>
 <translation id="3366305173356742781">‏آپ کے اکاؤنٹ میں Chromium ڈیٹا</translation>
 <translation id="3369405342922656244">اس صفحہ کو تصاویر کا استعمال کر کے تلاش کے ساتھ تلاش کریں</translation>
+<translation id="3375770072980084583">‏اپنے فون پر Chromium کے ساتھ اپنے پاس ورڈز استعمال کریں</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">‏موجودہ Chromium پروفائل پر سوئچ کریں؟</translation>
 <translation id="3412460710772753638">اس آلہ پر پاس ورڈ مینیجر میں</translation>
+<translation id="3455907671758333080">‏اپنے فون پر Chromium کے ساتھ بہتر کردہ محفوظ براؤزنگ کو بڑھائیں</translation>
 <translation id="3461644266919055473">‏‫Chromium کو اپنے لحاظ سے سیٹ کرنا...</translation>
 <translation id="347328004046849135">‏جب آپ کسی متاثرہ پاس ورڈ سے سائن ان کریں گے تو Chromium آپ کو مطلع کرے گا</translation>
 <translation id="3474745554856756813">‏یہ اس آلہ سے <ph name="ITEMS_COUNT" /> آئٹمز کو حذف کر دے گا۔ بعد میں اپنے ڈیٹا کی بازیافت کرنے کیلئے، Chromium میں <ph name="USER_EMAIL" /> کے بطور سائن ان کریں۔</translation>
@@ -250,6 +253,7 @@
 <translation id="3798048725356732506">‏‫Chromium پروفائلز آپ کے مختلف ڈیٹا کو الگ رکھنے میں آپ کی مدد کرتی ہیں۔ ابھی ایک نئی پروفائل شامل کریں۔</translation>
 <translation id="3802055581630249637">‏Chromium ان صفحات کو پیشگی لوڈ کرتا ہے جنہیں آپ ممکنہ طور پر ملاحظہ کر سکتے ہیں، تاکہ وہ آپ کے ملاحظہ کرتے وقت مزید تیزی سے لوڈ ہو سکیں</translation>
 <translation id="3810973564298564668">نظم کریں</translation>
+<translation id="3823384748599722168">‏اپنے محفوظ کردہ پاس ورڈز استعمال کرنے کے لیے، QR کوڈ کی پیروی کریں، iOS کے لیے Chromium ڈاؤن لوڈ کریں اور اپنے Google اکاؤنٹ میں سائن ان کریں</translation>
 <translation id="3846683726093018685">‫**خلاصہ کریں:** 30 الفاظ سے کم والی ایک واحد سطر میں، اسکرین شاٹ میں موجود مواد کے بنیادی موضوع اور مقصد کی وضاحت کریں۔
 
           ‫**سوالات تجویز کریں:** 3 تا 5 ایسے فکر انگیز سوالات کی نقطہ دار فہرست تخلیق کریں جو کوئی صارف اسکرین شاٹ کو اچھی طرح سمجھنے کیلئے پوچھ سکے۔ ان سوالات میں کم از کم ایک سوال ایسا ہونا چاہیے جو خاص طور پر کسی ویژوئل آبجیکٹ، اس کے ڈیزائن یا اس کی مقام بندی سے متعلق ہو۔</translation>
@@ -325,6 +329,7 @@
 <translation id="4548534452171747496">‏‫Chromium صفحات کو پہلے سے لوڈ کرتا ہے جس براؤزنگ اور تلاش کا عمل زیادہ تیز ہو جاتا ہے۔ <ph name="BEGIN_LINK" />پیشگی لوڈ کے صفحات کے بارے میں مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="4567424176335768812">آپ <ph name="USER_EMAIL_ADDRESS" /> کے بطور سائن ان کردہ ہیں۔ اب آپ اپنے سبھی سائن ان کردہ آلات پر اپنے بُک مارکس، سرگزشت اور دیگر ترتیبات تک رسائی حاصل کر سکتے ہیں۔</translation>
 <translation id="4570813286784708942">‏Chromium نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ آپ نے محفوظ براؤزنگ کو آف کر دیا ہے اور فائل کی تصدیق نہیں ہو سکتی</translation>
+<translation id="4583692638088316420">‏اپنے فون پر Chromium کے ساتھ Google لینز آزمائیں</translation>
 <translation id="4594305310729380060">اس آلہ پر پاس ورڈ مینیجر کو</translation>
 <translation id="459535195905078186">‏Chromium ایپس</translation>
 <translation id="4598116752460667024">فہرست سے کوئی بھی پروسیس تلاش کریں۔</translation>
@@ -356,6 +361,7 @@
 <translation id="4987820182225656817">‏مہمان کسی چیز کو پیچھے چھوڑے بغیر Chromium کو استعمال کر سکتے ہیں۔</translation>
 <translation id="4992938037305302429">‏‫Chromium میں آپ کا اکاؤنٹ</translation>
 <translation id="4994636714258228724">‏خود کو Chromium میں شامل کریں</translation>
+<translation id="5083712646171654472">‏‫Chromium میں Gemini آپ کے ٹیبز میں کام کرنے اور آپ کے دیے گئے ٹاسکس کو مکمل کرنے کے لیے خودکار براؤز کا استعمال کرتا ہے۔ <ph name="LINK_BEGIN" />مزید جانیں<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">‏آپ کے ہاتھوں کو ٹریک کرنے کے لیے Chromium کو اجازت درکار ہے</translation>
 <translation id="5141988424377517949">‏آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔ ‫Chromium نے <ph name="PERMISSION_1" />، <ph name="PERMISSION_2" />، <ph name="PERMISSION_3" /> کو ہٹا دیا۔</translation>
 <translation id="5167819546851111585">آج آپ کے ذہن میں کیا چل رہا ہے؟</translation>
@@ -368,6 +374,7 @@
 <translation id="5254739261293693943">اس ویڈیو کے بارے میں پوچھیں</translation>
 <translation id="5277894862589591112">‏اپنی تبدیلیوں کو لاگو کرنے کیلئے، Chromium کو دوبارہ شروع کریں</translation>
 <translation id="5286907366254680517">پتا چلا</translation>
+<translation id="5289287148052354622">‏‫Chromium ایپ حاصل کریں</translation>
 <translation id="5294316920224716406">‏پوشیدگی وضع میں براؤز کرتے وقت، غیر محفوظ کنکشن کا استعمال کرتے ہوئے کسی سائٹ کو لوڈ کرنے سے پہلے Chromium آپ کو متنبہ کرے گا</translation>
 <translation id="5313228254328109263">‏‫Chromium اپڈیٹر انٹرنل سروس</translation>
 <translation id="5346389065299425353">متعدد ٹیبز، فائلز اور ٹولز شامل کر کے اپنی تلاش کو گہرا کریں</translation>
@@ -582,6 +589,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="7617377681829253106">‏Chromium اور بھی بہتر ہوگیا ہے</translation>
 <translation id="7622753900276619808">‏اب آپ کے پاس Chromium میں مزید خصوصیات دستیاب ہیں</translation>
 <translation id="7649070708921625228">مدد</translation>
+<translation id="7656340475565475526">‏‫Chromium کو آپ کے لیے براؤز کرنے دیں</translation>
 <translation id="7658239707568436148">منسوخ کریں</translation>
 <translation id="7686590090926151193">‏Chromium آپ کا ڈیفالٹ براؤزر نہیں ہے</translation>
 <translation id="7689606757190482937">‏اپنے آلات پر Chromium کو مطابقت پذیر اور ذاتی نوعیت کا بنائیں</translation>
@@ -607,7 +615,6 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="7888981273428720788">‏Chromium کو بطور ڈیفالٹ براؤزر سیٹ کریں</translation>
 <translation id="7934340546140346950">‏جب بھی ممکن ہو، Chromium غیر محفوظ کنکشنز کو خودکار طور پر HTTPS پر اپ گریڈ کرتا ہے</translation>
 <translation id="7937630085815544518">‏آپ Chromium میں بطور <ph name="USER_EMAIL_ADDRESS" /> سائن ان تھے۔ براہ کرم دوبارہ سائن ان کرنے کیلئے وہی اکاؤنٹ استعمال کریں۔</translation>
-<translation id="7953047982688951904">‏دوران سفر ہونے پر تحفظ کی ایک اضافی پرت شامل کرنے کے لیے اپنے فون پر Chromium ڈاؤن لوڈ کریں</translation>
 <translation id="7975919845073681630">‏یہ Chromium کا ثانوی انسٹالیشن ہے اور اسے آپ کا ڈیفالٹ براؤزر نہیں بنایا جا سکتا ہے۔</translation>
 <translation id="7997934263947464652">‏نامعلوم ذرائع سے ایکسٹینشنز، ایپس اور تھیمز آپ کے آلے کو نقصان پہنچا سکتے ہیں۔ Chromium صرف انہیں <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> سے انسٹال کرنے کی تجویز کرتا ہے۔</translation>
 <translation id="8004582292198964060">براؤزر</translation>
@@ -634,6 +641,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="8254601181414348851">‏نئی پروفائل میں Chromium میں سائن ان کریں؟</translation>
 <translation id="8286943863733751221">‏<ph name="BEGIN_LINK" />Chromium<ph name="END_LINK" /> آپ کو غیر محفوظ سائٹس اور ڈاؤن لوڈز کے بارے میں خبردار کرتا ہے</translation>
 <translation id="8295827201165805317">‏آپ نے حال ہی میں ملاحظہ نہیں کیا ہے۔ ‫Chromium نے <ph name="PERMISSION" /> کو ہٹا دیا۔</translation>
+<translation id="8296236834352487533">‏‫Chromium iOS ایپ پر دکھائی دینے والی چیزوں کی خریداری کرنے، ترجمہ کرنے اور شناخت کرنے کیلئے اپنے کیمرے کا استعمال کریں</translation>
 <translation id="8313851650939857356">اسٹارٹ کی اپ خرابی: <ph name="STARTUP_ERROR" />۔</translation>
 <translation id="8318772038038596122">‏آپ کی تنظیم Chromium کو بند کر دیتی ہے جب اسے <ph name="TIMEOUT_DURATION" /> کے لیے استعمال نہیں کیا جاتا ہے۔</translation>
 <translation id="8321888067342493336">بطور تصویر کے محفوظ کریں</translation>
@@ -679,6 +687,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="8747073452963259673">تلاش کے حلقے کا نیچے والا دایاں کونا: <ph name="LEFT" /> فیصد دائیں، <ph name="BOTTOM" /> فیصد نیچے</translation>
 <translation id="878572486461146056">انسٹال سے متعلق خرابی: آپ کے نیٹ ورک کے منتظم نے ایک گروپ پالیسی کا اطلاق کیا ہے جو انسٹالیشن کو روکتی ہے: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">‏Chromium کو اس سائٹ کیلئے آپ کے کیمرے اور مائیکروفون تک رسائی کی اجازت درکار ہے</translation>
+<translation id="8813277370772331957">مجھے بعد میں یاد دلائیں</translation>
 <translation id="8818550178040858407">‏Chromium میں سائن ان کریں؟</translation>
 <translation id="8823401858233292222">‏‫Chromium کو ڈیفالٹ براؤزر بنائیں اور ٹاسک بار کو پن کریں</translation>
 <translation id="8826492472752484139">"پاس ورڈ مینیجر" پر کلک کریں</translation>

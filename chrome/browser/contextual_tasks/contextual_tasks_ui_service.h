@@ -38,17 +38,17 @@ class TabInterface;
 }  // namespace tabs
 
 namespace contextual_tasks {
-
-class ContextualTasksContextController;
+class ContextualTasksService;
 
 // A service used to coordinate all of the side panel instances showing an AI
 // thread. Events like tab switching and Intercepted navigations from both the
 // sidepanel and omnibox will be routed here.
 class ContextualTasksUiService : public KeyedService {
  public:
-  ContextualTasksUiService(Profile* profile,
-                           ContextualTasksContextController* context_controller,
-                           signin::IdentityManager* identity_manager);
+  ContextualTasksUiService(
+      Profile* profile,
+      contextual_tasks::ContextualTasksService* contextual_tasks_service,
+      signin::IdentityManager* identity_manager);
   ContextualTasksUiService(const ContextualTasksUiService&) = delete;
   ContextualTasksUiService operator=(const ContextualTasksUiService&) = delete;
   ~ContextualTasksUiService() override;
@@ -139,6 +139,12 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is for the search results page.
   bool IsValidSearchResultsPage(const GURL& url);
 
+  // Called when the Lens overlay is shown/hidden. No-op if the active UI is not
+  // in the side panel since the Lens button is always hidden in a tab.
+  virtual void OnLensOverlayStateChanged(
+      BrowserWindowInterface* browser_window_interface,
+      bool is_showing);
+
   // Associates a WebContents with a task, assuming the URL of the WebContents'
   // main frame or side panel is a contextual task URL.
   void AssociateWebContentsToTask(content::WebContents* web_contents,
@@ -163,6 +169,13 @@ class ContextualTasksUiService : public KeyedService {
     return auto_tab_context_suggestion_enabled_;
   }
 
+  // Return whether there is a user signed into the browser with valid
+  // credentials (aka, an OAuth token can be obtained).
+  virtual bool IsSignedInToBrowserWithValidCredentials();
+
+  // Return whether the cookie jar contains the primary account.
+  virtual bool CookieJarContainsPrimaryAccount();
+
  protected:
   // The actual implementation of `HandleNavigation` that extracts more of the
   // components needed to decide if the navigation should be handled by this
@@ -176,10 +189,6 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is for the primary account in Chrome.
   virtual bool IsUrlForPrimaryAccount(const GURL& url);
 
-  // Return whether there is a user is either signed into the browser or has
-  // an account tied to the provided URL.
-  virtual bool IsSignedInToBrowser(const GURL& url);
-
  private:
   // Focus an existing tab based on the provided URL if it exists. The URLs must
   // be identical in order for the existing tab to be selected.
@@ -189,8 +198,7 @@ class ContextualTasksUiService : public KeyedService {
 
   const raw_ptr<Profile> profile_;
 
-  raw_ptr<contextual_tasks::ContextualTasksContextController>
-      context_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
 

@@ -273,6 +273,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.tasks.HomeSurfaceTracker;
@@ -293,7 +294,6 @@ import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
-import org.chromium.chrome.browser.toolbar.top.tab_strip.StripVisibilityState;
 import org.chromium.chrome.browser.ui.AppLaunchDrawBlocker;
 import org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlockerFactory;
 import org.chromium.chrome.browser.ui.RootUiCoordinator;
@@ -813,10 +813,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
             // For saving non-incognito tab closures for Recent Tabs.
             mHistoricalTabModelObserver =
-                    new HistoricalTabModelObserver(
-                            mTabModelSelector
-                                    .getTabGroupModelFilterProvider()
-                                    .getTabGroupModelFilter(false));
+                    new HistoricalTabModelObserver(mTabModelSelector.getTabGroupModelFilter(false));
             mHistoricalTabModelObserver.addSecondaryTabModelSupplier(
                     ArchivedTabModelOrchestrator.getForProfile(currentTabModel.getProfile())
                             ::getTabModel);
@@ -1146,9 +1143,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         this,
                         getModalDialogManager(),
                         mHubManagerSupplier,
-                        mTabModelSelector
-                                .getTabGroupModelFilterProvider()
-                                .getCurrentTabGroupModelFilterSupplier());
+                        mTabModelSelector.getCurrentTabGroupModelFilterSupplier());
         Pair<TabSwitcher, Pane> result =
                 delegate.createTabSwitcherPane(
                         this,
@@ -1480,9 +1475,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             new GroupSuggestionsPromotionCoordinator(
                                     this,
                                     mRootUiCoordinator.getBottomSheetController(),
-                                    mTabModelSelector
-                                            .getTabGroupModelFilterProvider()
-                                            .getTabGroupModelFilter(false));
+                                    mTabModelSelector.getTabGroupModelFilter(false));
                 }
             }
 
@@ -1731,9 +1724,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
         @Nullable SavedTabGroup syncGroup = tabGroupSyncService.getGroup(tabGroupId);
         @Nullable TabGroupModelFilter filter =
-                mTabModelSelector
-                        .getTabGroupModelFilterProvider()
-                        .getTabGroupModelFilter(/* isIncognito= */ false);
+                mTabModelSelector.getTabGroupModelFilter(/* isIncognito= */ false);
         if (syncGroup == null || filter == null) return;
 
         // If the tab group does not exist locally or is in the current window, open it locally.
@@ -1856,9 +1847,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             TabGroupUtils.mergeTabsToDest(
                     Collections.singletonList(tab),
                     destTabId,
-                    getTabModelSelector()
-                            .getTabGroupModelFilterProvider()
-                            .getTabGroupModelFilter(tab.isIncognito()),
+                    getTabModelSelector().getTabGroupModelFilter(tab.isIncognito()),
                     null);
             IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_DEST_TAB_ID);
         }
@@ -1904,9 +1893,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             TabGroupUtils.mergeTabsToDest(
                     tabs,
                     destTabId,
-                    getTabModelSelector()
-                            .getTabGroupModelFilterProvider()
-                            .getTabGroupModelFilter(multiTabMetadata.isIncognito),
+                    getTabModelSelector().getTabGroupModelFilter(multiTabMetadata.isIncognito),
                     null);
             IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_DEST_TAB_ID);
         }
@@ -1946,9 +1933,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         // 4. Regroup tabs and restore the original group properties(e.g. color, title, collapsed
         // state).
         TabGroupModelFilter tabGroupModelFilter =
-                mTabModelSelector
-                        .getTabGroupModelFilterProvider()
-                        .getTabGroupModelFilter(tabGroupMetadata.isIncognito);
+                mTabModelSelector.getTabGroupModelFilter(tabGroupMetadata.isIncognito);
 
         boolean isTabStripVisible = true;
         if (mLayoutManager != null) {
@@ -3053,9 +3038,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 mCallbackController.makeCancelable(
                         (tabModelSelectorReturn) -> {
                             TabGroupColorUtils.assignTabGroupColorsIfApplicable(
-                                    tabModelSelectorReturn
-                                            .getTabGroupModelFilterProvider()
-                                            .getCurrentTabGroupModelFilter());
+                                    tabModelSelectorReturn.getCurrentTabGroupModelFilter());
                         }));
 
         mInactivityTrackerSupplier.set(
@@ -3765,10 +3748,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             Profile profile = mTabModelProfileSupplier.get();
-            TabGroupModelFilter filter =
-                    mTabModelSelector
-                            .getTabGroupModelFilterProvider()
-                            .getCurrentTabGroupModelFilter();
+            TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
             if (id == R.id.add_to_group_menu_id) {
                 TrackerFactory.getTrackerForProfile(profile)
                         .notifyEvent("menu_add_to_group_clicked");

@@ -47,6 +47,7 @@
 <translation id="1149401351239820326">Mese di scadenza</translation>
 <translation id="1150989369772528668">Calendario</translation>
 <translation id="1161663161838091892">Sincronizza schede e cronologia per continuare</translation>
+<translation id="1162834932051545794">{count,plural, =1{{count} carta di credito}other{{count} carte di credito}}</translation>
 <translation id="1164891049599601209">Inserita in un sito ingannevole</translation>
 <translation id="1165039591588034296">Errore</translation>
 <translation id="1172898394251786223">Campo successivo</translation>
@@ -125,6 +126,7 @@
 <translation id="1455660774629812862">Non nascondere</translation>
 <translation id="1456545332132818232">Recensioni prodotto su <ph name="PRODUCT_NAME" />, <ph name="STARS" /> su <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
 <translation id="1460751212339734034">Risparmia tempo e digita meno</translation>
+<translation id="1466035273550360103">Nessuna scheda aperta</translation>
 <translation id="1469381646033328562">Il tuo account è gestito da un genitore.
 <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Modificata</translation>
@@ -208,6 +210,7 @@
 <translation id="17513872634828108">Schede aperte</translation>
 <translation id="1752547299766512813">Salva password</translation>
 <translation id="1764070164487214210">Indicazioni</translation>
+<translation id="1764511703783285459">L'altro gestore delle password non ha condiviso password o passkey</translation>
 <translation id="1767766085187034454">Google Traduttore</translation>
 <translation id="1771016937398045251">Menu Strumenti</translation>
 <translation id="1772468122139624049">Impossibile ricaricare le schede</translation>
@@ -593,7 +596,6 @@
 <translation id="3245744387817103524">Impossibile salvare la modifica.</translation>
 <translation id="3254806613790954367">L'ultima scheda aperta su tutti i tuoi dispositivi</translation>
 <translation id="325717987950204592">Tocca "Privacy e sicurezza"</translation>
-<translation id="3266338926702638258">Mostra la cronologia dei prezzi per questo prodotto</translation>
 <translation id="3272527697863656322">Annulla</translation>
 <translation id="3273510436356991673">Personalizza la schermata Home</translation>
 <translation id="3277021493514034324">Indirizzo del sito copiato</translation>
@@ -688,6 +690,7 @@
 <translation id="3662966164093827811">{count,plural, =1{1 elemento selezionato}other{# elementi selezionati}}</translation>
 <translation id="3668816008081204991">L'elenco di lettura è nascosto</translation>
 <translation id="3670030362669914947">Numero</translation>
+<translation id="3672283986707092811">Seleziona tutto</translation>
 <translation id="3679163990085797665">Elimina voci lette</translation>
 <translation id="368329460027487650">Account disconnesso. Consente di aprire le opzioni per accedere.</translation>
 <translation id="3695446226812920698">Scopri come</translation>
@@ -870,6 +873,7 @@
 <translation id="4367971618859387374">Nome visualizzato</translation>
 <translation id="4375772272517383391">Chiudi tutte le schede</translation>
 <translation id="4378154925671717803">Telefono</translation>
+<translation id="4380677808580146413">Seleziona</translation>
 <translation id="4389019817280890563">Tocca per modificare la lingua.</translation>
 <translation id="4393294364304621138">{COUNT,plural, =1{Dopo 1 giorno}other{Dopo {COUNT} giorni}}</translation>
 <translation id="4402672425188312225">{COUNT,plural, =1{1 scheda}other{# schede}}</translation>
@@ -915,6 +919,7 @@
 <translation id="4568230126482344545">Nascondi schede recenti</translation>
 <translation id="4578835633387306383">Attiva…</translation>
 <translation id="4580716718466706433">Vai a "Gestore delle password"</translation>
+<translation id="4585751637295612750">Apri una nuova scheda per aggiungerla alla tua domanda</translation>
 <translation id="4587589328781138893">Siti</translation>
 <translation id="4592672037257622855">{count,plural, =1{Pagina aggiunta al tuo elenco di lettura}other{{count} pagine aggiunte al tuo elenco di lettura}}</translation>
 <translation id="459644946100970322">Attivare gli avvisi sui prezzi?</translation>
@@ -1068,6 +1073,7 @@
 <translation id="508645147179720015">La nota contiene più di 1000 caratteri</translation>
 <translation id="5087098519049306025">Monitoraggio del prezzo</translation>
 <translation id="5090832849094901128">L'eliminazione di questa password non comporta l'eliminazione del tuo account su <ph name="WEBSITE" />.</translation>
+<translation id="510580293474170715">Nessun elemento importato</translation>
 <translation id="5113960131843706315">Recupero dei tuoi dati in corso…</translation>
 <translation id="5118462200606189584">Aggiungi account…</translation>
 <translation id="5118764316110575523">Non attiva</translation>
@@ -1138,7 +1144,9 @@
 <translation id="5352128922772839949">Salva file</translation>
 <translation id="5355191726083956201">Protezione avanzata è attiva</translation>
 <translation id="536067926684072644">Mostra i preferiti</translation>
+<translation id="5364647308446127983">{count,plural, =1{Impossibile importare {count} passkey}other{Impossibile importare {count} passkey}}</translation>
 <translation id="5371112366564891538">Aumenta dimensioni testo</translation>
+<translation id="5376135254804080693">Deseleziona tutto</translation>
 <translation id="537853552771686272">Gestisci gli argomenti e i siti che ti interessano</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} chiusa}other{{count} chiuse}}</translation>
 <translation id="5394975111793637642">Nascondi la scheda Recensioni prodotto per te</translation>
@@ -1445,6 +1453,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6410390304316730527">La Navigazione sicura ti protegge da utenti malintenzionati che potrebbero indurti con l'inganno a effettuare operazioni pericolose, come installare software dannosi o rivelare informazioni personali (ad esempio password, numeri di telefono o carte di credito). Se la disattivi, fai attenzione quando navighi in siti sconosciuti o sospetti.</translation>
 <translation id="6410883413783534063">Apri più schede per visitare pagine diverse contemporaneamente</translation>
 <translation id="6418346271604475326">Preparazione del PDF</translation>
+<translation id="6420292512900923139">Si è verificato un problema durante l'importazione dei dati</translation>
 <translation id="6421038304268477484">Testo tradotto</translation>
 <translation id="6429213933892582367">Apri Opzioni password</translation>
 <translation id="6435236283694032571">Aggiungi all'elenco di lettura</translation>
@@ -1483,6 +1492,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Opzioni</translation>
 <translation id="6550891580932862748">Non ti protegge da estensioni, download e siti web pericolosi. Le impostazioni di Navigazione sicura di altri prodotti Google rimarranno invariate.</translation>
+<translation id="6556501700899673703">Lexend</translation>
 <translation id="6556866813142980365">Ripeti</translation>
 <translation id="6559301491397835130">{count,plural, =1{Preferito salvato in "{title}", solo su questo dispositivo.}other{Preferiti salvati in "{title}", solo su questo dispositivo.}}</translation>
 <translation id="656065428026159829">Mostra altri</translation>
@@ -1559,6 +1569,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6807287147325542056">Password in altre app</translation>
 <translation id="681368974849482173">Elemento creato</translation>
 <translation id="6825078212112407882">{count,plural, =1{Preferito salvato nel tuo Account Google, {email}}other{{count} preferiti salvati nel tuo Account Google, {email}}}</translation>
+<translation id="6826004672264649705">Stai monitorando questo prodotto. Apri per visualizzare la cronologia dei prezzi</translation>
 <translation id="6830728435402077660">Non sicuro</translation>
 <translation id="6831043979455480757">Traduci</translation>
 <translation id="6842136130964845393">Per assicurarti di poter accedere alle tue password salvate in qualsiasi momento, verifica la tua identità</translation>

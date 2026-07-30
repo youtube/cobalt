@@ -24,6 +24,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "ios/chrome/app/profile/first_run_profile_agent.h"
+#import "ios/chrome/browser/app_bar/coordinator/app_bar_coordinator.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_sheet_coordinator.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
@@ -86,9 +87,6 @@
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/public/prototypes/diamond/chrome_app_bar_prototype.h"
-#import "ios/chrome/browser/shared/public/prototypes/diamond/diamond_grid_button.h"
-#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -283,8 +281,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   GuidedTourCoordinator* _guidedTourCoordinator;
   // Completion block for when the `_guidedTourCoordinator` finishes.
   ProceduralBlock _guidedTourCompletionBlock;
-  // App bar for the prototype.
-  ChromeAppBarPrototype* _appBar;
+  // Coordinator for the AppBar.
+  AppBarCoordinator* _appBarCoordinator;
   // Coordinator for the Assistant Sheet.
   AssistantSheetCoordinator* _assistantSheetCoordinator;
 }
@@ -372,8 +370,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                      forProtocol:@protocol(BookmarksCommands)];
   }
 
-  if (IsDiamondPrototypeEnabled()) {
-    _appBar.incognitoBrowser = incognitoBrowser;
+  if (IsChromeNextIaEnabled()) {
+    _appBarCoordinator.incognitoBrowser = incognitoBrowser;
   }
 }
 
@@ -422,12 +420,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
   [[TabGridSceneAgent agentFromScene:sceneState] willEnterTabGrid];
-
-  if (IsDiamondPrototypeEnabled()) {
-    [[NSNotificationCenter defaultCenter]
-        postNotificationName:kDiamondEnterTabGridNotification
-                      object:nil];
-  }
 
   BOOL animated = !self.animationsDisabledForTesting;
 
@@ -584,26 +576,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [[TabGridSceneAgent agentFromScene:sceneState] willExitTabGrid];
 
   __weak TabGridCoordinator* weakSelf = self;
-
-  if (IsDiamondPrototypeEnabled()) {
-    Browser* browser =
-        incognito ? _incognitoBrowser.get() : self.regularBrowser;
-    // Don't open the TabGrid if there is no web state. It can happen at
-    // startup.
-    if (browser && browser->GetWebStateList()->count() == 0) {
-      TabGridViewController* baseViewController = self.baseViewController;
-      [baseViewController contentWillAppearAnimated:NO];
-      [baseViewController contentDidAppear];
-      if (completion) {
-        completion();
-      }
-      return;
-    }
-
-    [[NSNotificationCenter defaultCenter]
-        postNotificationName:kDiamondLeaveTabGridNotification
-                      object:nil];
-  }
 
   completion = ^{
     if (self.tabGridEnterTime.is_null()) {
@@ -929,50 +901,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       std::move(delegate), tabGroup->tab_group_id(), entryPoint);
 }
 
-- (void)prototypeGeminiCallback {
-  CHECK(IsDiamondPrototypeEnabled());
-
-  if (IsAssistantSheetEnabled()) {
-    if (!_assistantSheetCoordinator) {
-      _assistantSheetCoordinator = [[AssistantSheetCoordinator alloc]
-          initWithBaseViewController:self.baseViewController
-                             browser:self.regularBrowser];
-    }
-    [_assistantSheetCoordinator start];
-    return;
-  }
-
-  TabGridPage page = self.baseViewController.currentPage;
-  if (page == TabGridPageTabGroups) {
-    page = self.baseViewController.activePage;
-  }
-  DiamondPrototypeStartGemini(
-      !self.bvcContainer, page == TabGridPageIncognitoTabs, self.regularBrowser,
-      self.incognitoBrowser, self.baseViewController);
-}
-
-- (void)prototypeNewTabCallback {
-  CHECK(IsDiamondPrototypeEnabled());
-  TabGridPage page = self.baseViewController.currentPage;
-  if (page == TabGridPageTabGroups) {
-    page = self.baseViewController.activePage;
-  }
-  DiamondPrototypeStartNewTab(
-      !self.bvcContainer, page == TabGridPageIncognitoTabs, self.regularBrowser,
-      self.incognitoBrowser, self.baseViewController);
-}
-
-- (void)prototypeTabGridCallback {
-  CHECK(IsDiamondPrototypeEnabled());
-  if (self.bvcContainer) {
-    id<ApplicationCommands> applicationHandler =
-        HandlerForProtocol(self.dispatcher, ApplicationCommands);
-    [applicationHandler displayTabGridInMode:TabGridOpeningMode::kDefault];
-  } else {
-    [self exitTabGrid];
-  }
-}
-
 // Cancels all the currently active collaboration flows.
 - (void)cancelCollaborationFlows {
   collaboration::CollaborationService* collaborationService =
@@ -1003,6 +931,9 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                                    GetForProfile(profile)
                     modeHolder:_modeHolder];
 
+  _mediator.sceneAgent =
+      [TabGridSceneAgent agentFromScene:_regularBrowser->GetSceneState()];
+
   id<ApplicationCommands> applicationCommandsHandler =
       HandlerForProtocol(self.dispatcher, ApplicationCommands);
 
@@ -1028,23 +959,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   self.baseViewController.topToolbar = _toolbarsCoordinator.topToolbar;
   self.baseViewController.bottomToolbar = _toolbarsCoordinator.bottomToolbar;
 
-  if (IsDiamondPrototypeEnabled()) {
-    _appBar = [[ChromeAppBarPrototype alloc] init];
-    _appBar.regularBrowser = _regularBrowser;
-    _appBar.incognitoBrowser = _incognitoBrowser;
-    [_appBar.askGeminiButton addTarget:self
-                                action:@selector(prototypeGeminiCallback)
-                      forControlEvents:UIControlEventTouchUpInside];
-    [_appBar.openNewTabButton addTarget:self
-                                 action:@selector(prototypeNewTabCallback)
-                       forControlEvents:UIControlEventTouchUpInside];
-    [_appBar.tabGridButton addTarget:self
-                              action:@selector(prototypeTabGridCallback)
-                    forControlEvents:UIControlEventTouchUpInside];
-    [self.baseViewController setAppBar:_appBar];
-
-    LayoutGuideCenter* center = LayoutGuideCenterForBrowser(nil);
-    [center referenceView:_appBar underName:kDiamondBottomAppBarGuide];
+  if (IsChromeNextIaEnabled()) {
+    _appBarCoordinator =
+        [[AppBarCoordinator alloc] initWithRegularBrowser:_regularBrowser
+                                         incognitoBrowser:_incognitoBrowser];
+    [_appBarCoordinator start];
+    [self.baseViewController setAppBar:_appBarCoordinator.viewController];
   }
 
   _regularGridCoordinator = [[RegularGridCoordinator alloc]

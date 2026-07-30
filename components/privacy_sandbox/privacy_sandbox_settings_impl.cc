@@ -36,7 +36,6 @@
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
-#include "components/privacy_sandbox/tpcd_experiment_eligibility.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -467,8 +466,7 @@ bool PrivacySandboxSettingsImpl::MaySendAttributionReport(
 bool PrivacySandboxSettingsImpl::
     IsAttributionReportingTransitionalDebuggingAllowed(
         const url::Origin& top_frame_origin,
-        const url::Origin& reporting_origin,
-        bool& can_bypass) const {
+        const url::Origin& reporting_origin) const {
   content_settings::CookieSettingsBase::CookieSettingWithMetadata
       cookie_setting_with_metadata;
   // With what is available here, we can create a cookie_partition_key for the
@@ -490,14 +488,6 @@ bool PrivacySandboxSettingsImpl::
       net::CookieSettingOverrides(), cookie_partition_key,
       &cookie_setting_with_metadata);
 
-  if (base::FeatureList::IsEnabled(
-          kAttributionDebugReportingCookieDeprecationTesting)) {
-    can_bypass =
-        cookie_setting_with_metadata.BlockedByThirdPartyCookieBlocking() &&
-        delegate_->AreThirdPartyCookiesBlockedByCookieDeprecationExperiment();
-  } else {
-    can_bypass = false;
-  }
   return allowed;
 }
 
@@ -858,13 +848,7 @@ bool PrivacySandboxSettingsImpl::IsPrivateAggregationDebugModeAllowed(
     return true;
   }
 
-  // Third-party cookie access is disabled, but we may still allow Private
-  // Aggregation's debug mode in this context if it was only blocked due to the
-  // 3PCD experiment.
-  return base::FeatureList::IsEnabled(
-             kPrivateAggregationDebugReportingCookieDeprecationTesting) &&
-         cookie_setting_with_metadata.BlockedByThirdPartyCookieBlocking() &&
-         delegate_->AreThirdPartyCookiesBlockedByCookieDeprecationExperiment();
+  return false;
 }
 
 void PrivacySandboxSettingsImpl::SetAllPrivacySandboxAllowedForTesting() {
@@ -960,10 +944,6 @@ PrivacySandboxSettingsImpl::GetM1PrivacySandboxApiEnabledStatus(
   DCHECK(pref_name == prefs::kPrivacySandboxM1TopicsEnabled ||
          pref_name == prefs::kPrivacySandboxM1FledgeEnabled ||
          pref_name == prefs::kPrivacySandboxM1AdMeasurementEnabled);
-  if (delegate_->IsCookieDeprecationExperimentEligible() &&
-      features::kCookieDeprecationTestingDisableAdsAPIs.Get()) {
-    return Status::kBlockedBy3pcdExperiment;
-  }
 
   bool should_ignore_restriction =
       pref_name == prefs::kPrivacySandboxM1AdMeasurementEnabled &&
@@ -985,12 +965,6 @@ PrivacySandboxSettingsImpl::GetM1PrivacySandboxApiEnabledStatus(
   status = (pref_service_->GetBoolean(pref_name)) ? Status::kAllowed
                                                   : Status::kApisDisabled;
   return status;
-}
-
-TpcdExperimentEligibility
-PrivacySandboxSettingsImpl::GetCookieDeprecationExperimentCurrentEligibility()
-    const {
-  return delegate_->GetCookieDeprecationExperimentCurrentEligibility();
 }
 
 bool PrivacySandboxSettingsImpl::AreRelatedWebsiteSetsEnabled() const {

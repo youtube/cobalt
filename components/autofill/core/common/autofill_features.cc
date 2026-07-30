@@ -39,6 +39,11 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Kill switch: If enabled, `ChromeAutofillClient` may enter the actor mode,
+// changing how the UI, parsing and the server predictions work. For more
+// context see: go/autofill-actor-mode-implementation
+BASE_FEATURE(kAutofillActorMode, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls whether to rewrite the credit card trigger field to the first
 // credit card number field in the same section.
 BASE_FEATURE(kAutofillActorRewriteCreditCardTriggerField,
@@ -589,6 +594,11 @@ BASE_FEATURE(kAutofillEnableLoyaltyCardsFilling,
                  ? base::FEATURE_ENABLED_BY_DEFAULT
                  : base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, Autofill will help users fill in non-affiliated loyalty cards
+// on loyalty card only fields.
+BASE_FEATURE(kAutofillEnableNonAffiliatedLoyaltyCardsFilling,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // Controls if Chrome Autofill UI surfaces ignore touch events if something is
 // fully or partially obscuring the Chrome window.
@@ -602,7 +612,7 @@ BASE_FEATURE(kAutofillEnableSupportForHomeAndWork,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, chrome will support name and email address profile.
-// TODO(cbug.com/356845298): Clean up when launched.
+// TODO(crbug.com/356845298): Clean up when launched.
 BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
              base::FEATURE_DISABLED_BY_DEFAULT);
 

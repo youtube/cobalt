@@ -80,7 +80,7 @@ class TabModelJniBridge : public TabModel {
   void CreateTab(TabAndroid* parent,
                  content::WebContents* web_contents,
                  int index,
-                 bool select,
+                 TabLaunchType type,
                  bool should_pin) override;
   void HandlePopupNavigation(TabAndroid* parent,
                              NavigateParams* params) override;
@@ -128,6 +128,8 @@ class TabModelJniBridge : public TabModel {
   void UnpinTab(tabs::TabHandle tab) override;
   bool ContainsTabGroup(tab_groups::TabGroupId group_id) override;
   std::vector<tab_groups::TabGroupId> ListTabGroups() override;
+  std::optional<tab_groups::TabGroupId> CreateTabGroup(
+      const std::vector<tabs::TabHandle>& tabs) override;
   std::optional<tab_groups::TabGroupId> AddTabsToGroup(
       std::optional<tab_groups::TabGroupId> group_id,
       const std::set<tabs::TabHandle>& tabs) override;
@@ -144,6 +146,10 @@ class TabModelJniBridge : public TabModel {
   static jclass GetClazz(JNIEnv* env);
 
   static TabModel* GetArchivedTabModelPtr();
+
+  static bool IsTabLaunchedInForeground(TabLaunchType type,
+                                        bool is_new_tab_incognito,
+                                        bool is_current_model_incognito);
 
  protected:
   jni_zero::ScopedJavaLocalRef<jobject> GetActivityForWindow(

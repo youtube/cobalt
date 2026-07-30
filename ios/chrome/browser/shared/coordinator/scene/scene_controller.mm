@@ -55,15 +55,16 @@
 #import "ios/chrome/browser/app_store_rating/model/app_store_rating_scene_agent.h"
 #import "ios/chrome/browser/app_store_rating/model/features.h"
 #import "ios/chrome/browser/appearance/ui_bundled/appearance_customization.h"
+#import "ios/chrome/browser/assistant/coordinator/assistant_sheet_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
+#import "ios/chrome/browser/authentication/signin/fullscreen_promo/model/fullscreen_signin_promo_scene_agent.h"
 #import "ios/chrome/browser/authentication/ui_bundled/change_profile/change_profile_authentication_continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/change_profile/change_profile_load_url.h"
 #import "ios/chrome/browser/authentication/ui_bundled/change_profile/change_profile_signout_continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/features.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin/promo/fullscreen_signin_promo_scene_agent.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_in_progress.h"
@@ -176,7 +177,6 @@
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
 #import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_window.h"
@@ -536,6 +536,10 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
 @property(nonatomic, strong)
     YoutubeIncognitoCoordinator* youtubeIncognitoCoordinator;
+
+// The coordinator for the Assistant Sheet.
+@property(nonatomic, strong)
+    AssistantSheetCoordinator* assistantSheetCoordinator;
 
 // The profile of the current scene.
 @property(nonatomic, readonly) ProfileIOS* profile;
@@ -1503,6 +1507,9 @@ void RecordIfNeededSigninFullscreenPromoEvent(
 
   [self stopAccountMenu];
 
+  [self.assistantSheetCoordinator stop];
+  self.assistantSheetCoordinator = nil;
+
   [self safariImportWorkflowDidEndForCoordinator:_safariImportCoordinator];
 
   _incognitoWebStateObserver.reset();
@@ -2215,26 +2222,6 @@ using UserFeedbackDataCallback =
     }
   }
 
-  if (IsDiamondPrototypeEnabled()) {
-    if (!command.URL.is_valid() || IsUrlNtp(command.URL)) {
-      if (command.inIncognito !=
-          (self.currentInterface == self.incognitoInterface)) {
-        [self setCurrentInterfaceForMode:command.inIncognito
-                                             ? ApplicationMode::INCOGNITO
-                                             : ApplicationMode::NORMAL];
-      }
-      dispatch_after(
-          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-          dispatch_get_main_queue(), ^{
-            DiamondPrototypeStartNewTab(
-                self.mainCoordinator.isTabGridActive, command.inIncognito,
-                self.mainInterface.browser, self.incognitoInterface.browser,
-                self.mainCoordinator.activeViewController);
-          });
-      return;
-    }
-  }
-
   UrlLoadParams params =
       UrlLoadParams::InNewTab(command.URL, command.virtualURL);
   params.SetInBackground(command.inBackground);
@@ -2580,6 +2567,17 @@ using UserFeedbackDataCallback =
   // Since this is only for internal prototyping, the coordinator remains active
   // once it's been started.
   [self.AIPrototypingCoordinator start];
+}
+
+- (void)showAssistant {
+  if (!IsAssistantSheetEnabled()) {
+    return;
+  }
+  self.assistantSheetCoordinator = [[AssistantSheetCoordinator alloc]
+      initWithBaseViewController:self.currentInterface.viewController
+                         browser:self.currentInterface.browser];
+  self.assistantSheetCoordinator.mode = AssistantSheetModeGemini;
+  [self.assistantSheetCoordinator start];
 }
 
 - (void)displaySafariDataImportFromEntryPoint:
@@ -3519,6 +3517,31 @@ using UserFeedbackDataCallback =
     }
   }
 
+  // TODO(crbug.com/471130344): This branch addresses a privacy leak where
+  // Composebox UI interactions were exposed from incognito to non-incognito
+  // sessions.
+  //
+  // While the legacy Omnibox UI was also affected by this bug, it was
+  // incidentally dismissed because it was presented as a BVC subview.
+  // Since the Composebox is presented independently on top of the view stack,
+  // the dismissal logic must be explicitly addressed here.
+  //
+  // Refer to crbug.com/470968439 for additional context.
+  if (IsComposeboxIOSEnabled()) {
+    BOOL alreadyInIncognito = self.currentInterface.profile->IsOffTheRecord();
+    BOOL targetModeIncognito =
+        targetMode == ApplicationModeForTabOpening::INCOGNITO;
+    // The composebox UI and its dependencies are browser-scoped and
+    // instantiated upon creation.
+    //
+    // When the context changes (e.g., transitioning to Incognito mode), any
+    // preexisting Composebox UI must be dismissed and recreated to ensure its
+    // underlying dependencies remain synchronized with the new environment.
+    if (alreadyInIncognito != targetModeIncognito) {
+      dismissOmnibox = YES;
+    }
+  }
+
   [self dismissModalDialogsWithCompletion:dismissModalsCompletion
                            dismissOmnibox:dismissOmnibox];
 }
@@ -3529,6 +3552,20 @@ using UserFeedbackDataCallback =
                                       completion:(ProceduralBlock)completion {
   __weak SceneController* weakSelf = self;
   std::vector<GURL> copyURLs = URLs;
+
+  if (IsComposeboxIOSEnabled()) {
+    BOOL alreadyInIncognito = self.currentInterface.profile->IsOffTheRecord();
+    // The composebox UI and its dependencies are browser-scoped and
+    // instantiated upon creation.
+    //
+    // When the context changes (e.g., transitioning to Incognito mode), any
+    // preexisting Composebox UI must be dismissed and recreated to ensure its
+    // underlying dependencies remain synchronized with the new environment.
+    if (alreadyInIncognito != incognitoMode) {
+      dismissOmnibox = YES;
+    }
+  }
+
   [self
       dismissModalDialogsWithCompletion:^{
         [weakSelf openMultipleTabsWithURLs:copyURLs
@@ -3557,10 +3594,6 @@ using UserFeedbackDataCallback =
 }
 
 - (BOOL)shouldOpenNTPTabOnActivationOfBrowser:(Browser*)browser {
-  if (IsDiamondPrototypeEnabled()) {
-    return NO;
-  }
-
   // Check if there are pending actions that would result in opening a new tab.
   // In that case, it is not useful to open another tab.
   for (NSUserActivity* activity in self.sceneState.connectionOptions
@@ -4063,6 +4096,10 @@ using UserFeedbackDataCallback =
   // If History is active, stop it.
   [self.historyCoordinator stop];
   self.historyCoordinator = nil;
+
+  // If Assistant Sheet is active, stop it.
+  [self.assistantSheetCoordinator stop];
+  self.assistantSheetCoordinator = nil;
 
   // If the Safari data import workflow is active, stop it.
   [self safariImportWorkflowDidEndForCoordinator:_safariImportCoordinator];

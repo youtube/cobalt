@@ -119,9 +119,6 @@ class ExtensionTabUtil {
       bool also_match_incognito_profile,
       std::string* error_message);
 
-  // Returns the tabs:: API constant for the window type of the `browser`.
-  static std::string GetBrowserWindowTypeText(BrowserWindowInterface& browser);
-
   // Creates a Tab object (see chrome/common/extensions/api/tabs.json) with
   // information about the state of a browser tab for the given `web_contents`.
   // This will scrub the tab of sensitive data (URL, favicon, title) according
@@ -151,10 +148,6 @@ class ExtensionTabUtil {
       const Extension* extension,
       WindowController::PopulateTabBehavior populate_tab_behavior,
       mojom::ContextType context);
-
-  // Creates a tab MutedInfo object (see chrome/common/extensions/api/tabs.json)
-  // with information about the mute state of a browser tab.
-  static api::tabs::MutedInfo CreateMutedInfo(content::WebContents* contents);
 
   // Gets the level of scrubbing of tab data that needs to happen for a given
   // extension and web contents. This is the preferred way to get
@@ -189,10 +182,6 @@ class ExtensionTabUtil {
                                int* tab_index);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-  // Returns the active tab's WebContents if there is an active tab. Returns
-  // null if there is no active tab.
-  static content::WebContents* GetActiveTab(BrowserWindowInterface* browser);
-
   // Any out parameter (`window`, `contents`, & `tab_index`) may be null.
   //
   // The output `*window` value may be null if the tab is a prerender tab that
@@ -213,9 +202,6 @@ class ExtensionTabUtil {
 
   // Gets the extensions-specific split view ID.
   static int GetSplitId(const split_tabs::SplitTabId& id);
-
-  // Gets the window ID that the group belongs to.
-  static int GetWindowIdOfGroup(const tab_groups::TabGroupId& id);
 
   // Gets the metadata for the group with ID `group_id`. Sets the `error` if not
   // found. `window`, `id`, or `visual_data` may be nullptr and will not be set

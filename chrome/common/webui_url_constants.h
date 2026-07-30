@@ -701,6 +701,7 @@ inline constexpr char kSafetyCheckSubPage[] = "safetyCheck";
 inline constexpr char kSafetyHubSubPage[] = "safetyCheck";
 inline constexpr char kSearchEnginesSubPage[] = "searchEngines";
 inline constexpr char kSearchSubPage[] = "search";
+inline constexpr char kSecuritySubPage[] = "security";
 inline constexpr char kSignOutSubPage[] = "signOut";
 inline constexpr char kSiteDetailsSubpage[] = "content/siteDetails";
 inline constexpr char kSyncSetupSubPage[] = "syncSetup";
@@ -726,6 +727,11 @@ inline constexpr char kChromeUICertificateRedirectPath[] = "/certificates";
 inline constexpr char kChromeUICertificateRedirectURL[] =
     "chrome://settings/certificates";
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
+
+#if BUILDFLAG(IS_MAC)
+inline constexpr char kChromeUIUnexportableKeysInternalsHost[] =
+    "unexportable-keys-internals";
+#endif  // BUILDFLAG(IS_MAC)
 
 // Extensions sub pages.
 inline constexpr char kExtensionConfigureCommandsSubPage[] =
