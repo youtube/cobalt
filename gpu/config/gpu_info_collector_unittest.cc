@@ -179,6 +179,8 @@ class GPUInfoCollectorTest
       EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
           .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
               test_values_.gl_extensions.c_str())));
+      EXPECT_CALL(*gl_, GetError())
+          .WillRepeatedly(Return(GL_NO_ERROR));
     }
 #else // !BUILDFLAG(IS_COBALT)
     EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
