@@ -106,6 +106,7 @@ chromium-metrics-reviews@google.com.
   <variant name="LevelDB"/>
   <variant name="LeveldbValueStore"/>
   <variant name="LocalStorage"/>
+  <variant name="LocalStorageSqlite"/>
   <variant name="MadvFreeDiscardableMemoryAllocator"/>
   <variant name="Malloc"/>
   <variant name="MappableSharedImageVideoFramePool"/>
@@ -128,6 +129,7 @@ chromium-metrics-reviews@google.com.
   <variant name="PartitionAlloc"/>
   <variant name="PartitionAlloc.AddressSpace"/>
   <variant name="SessionStorage"/>
+  <variant name="SessionStorageSqlite"/>
   <variant name="SharedContextState"/>
   <variant name="SharedImageManager"/>
   <variant name="SharedMemoryTracker"/>
@@ -1161,7 +1163,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.Active" units="MB"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -1172,7 +1174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.Active.Over200MBWatermark"
-    enum="BooleanGreaterOrEqualThan200MB" expires_after="2026-08-30">
+    enum="BooleanGreaterOrEqualThan200MB" expires_after="2026-11-01">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -1204,7 +1206,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.Inactive" units="MB"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -1217,7 +1219,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.NumOpenTabs" units="tabs"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>justincohen@chromium.org</owner>
   <owner>rkgibson@google.com</owner>
   <summary>
@@ -1244,7 +1246,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Browser.MemoryFootprint.Startup" units="MB"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>justincohen@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -1359,7 +1361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.CommitPercentageUsed" units="%"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>aattar@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2685,6 +2687,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Memory.PartitionAlloc.CorePoolSizeReduced" enum="Boolean"
+    expires_after="2026-07-07">
+  <owner>nuskos@chromium.org</owner>
+  <owner>chrome-cpp-runtime-safety@google.com</owner>
+  <summary>
+    Whether PartitionAlloc's core pool size was reduced on iOS due to initial
+    allocation failure. This can happen on devices or in processes that lack the
+    extended virtual address space entitlement. Recorded once during allocator
+    shim configuration.
+  </summary>
+</histogram>
+
 <histogram name="Memory.PartitionAlloc.PartitionRoot.ExtrasSize" units="bytes"
     expires_after="2025-10-12">
   <owner>keishi@chromium.org</owner>
@@ -2946,7 +2960,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.All" units="processes"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -3059,7 +3073,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.StackSamplingProfiler.StackSampleSize2" units="KB"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>iby@chromium.org</owner>
   <owner>chromeos-data-eng@google.com</owner>
   <summary>

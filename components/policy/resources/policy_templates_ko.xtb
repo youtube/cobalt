@@ -1249,6 +1249,14 @@ Manifest V2 확장 프로그램 지원이 중단되며 향후 모든 확장 프�
 <translation id="1858775210076906272">미리 입력된 Kerberos 구성</translation>
 <translation id="1861206724856734193">데이터 유출 방지 규칙 목록을 설정합니다.</translation>
 <translation id="1862267110714201519">고스트 창 기능 사용 안함</translation>
+<translation id="1862749749551522146">소켓 풀 크기 무작위화는 공격자가 결정론적인 용량 한도를 악용해 크로스 사이트 정보를 알아내는 것을 방지하는 보안 메커니즘입니다.
+풀의 용량이 일반적으로 128개의 소켓인 경우 이 메커니즘은 풀을 128~256개 사이에서 무작위로 제한합니다.
+이로 인해 프록시에 연결되는 수가 최대 2배까지 늘어날 수 있지만, 실제 평균 증가량은 약 1.2배 수준에 가깝습니다.
+
+이 기능은 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 및 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />의 설정에 영향을 미칩니다.
+해당 설정은 직접적인 상한값을 정의하지 않으며, 실제 상한값은 설정값의 2배가 됩니다(다만 실제 평균값은 앞서 언급했듯이 약 1.2배 수준입니다).
+
+이 기능은 기본적으로 모든 풀에서 사용 설정되어 있지만, 이 정책을 사용하면 프록시 풀에 한해 기능을 사용 중지할 수 있습니다.</translation>
 <translation id="1865417998205858223">주요 권한</translation>
 <translation id="1865867000796030567">정책을 사용으로 설정하면 지연 없이 자동 실행되는 키오스크 앱의 <ph name="REQUIRED_PLATFORM_VERSION" /> 매니페스트 키 값이 자동 업데이트 대상 버전 접두사로 사용됩니다.
 
@@ -1904,6 +1912,25 @@ URI 템플릿에 <ph name="HTTP_VARIABLE_DNS" /> 변수가 포함된 경우 리�
 <translation id="225340736558643885">안전하지 않은 양식 경고 사용 설정</translation>
 <translation id="2258126710006312594">원격 액세스 사용자가 호스트와 파일 전송을 할 수 있게 허용</translation>
 <translation id="225830954785359083">로드 취소 중 페이지에서 팝업을 표시하지 않도록 차단</translation>
+<translation id="2260635608598936994"><ph name="PRODUCT_NAME" /> 보안 신호 보고서에 포함할 클라이언트 인증서를 선택하는 필터를 구성합니다. 이러한 보고서는 브라우저 및 기기 상태 정보를 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에 전송하며, 관리자는 이 정보를 사용하여 <ph name="GOOGLE_CONTEXT_AWARE_ACCESS" /> 규칙을 구성할 수 있습니다.
+
+이 정책을 사용하면 ISSUER 및/또는 SUBJECT 고유 이름과 같은 클라이언트 인증서 속성을 기반으로 필터를 정의할 수 있습니다. <ph name="PRODUCT_NAME" />에는 지정된 필터 중 하나 이상과 일치하는 경우에만 신호 보고서에 인증서가 포함됩니다.
+
+     <ph name="SELECTOR_PLACEHOLDER" /> 섹션 사용의 예:
+
+      * <ph name="SELECTOR_PLACEHOLDER" />를 <ph name="SECURITY_SIGNALS_CLIENT_CERTIFICATE_SELECTORS_FILTER_EXAMPLE" />로 설정하면 CommonName이 <ph name="ISSUER_CN_PLACEHOLDER" />인 인증서에서 발급한 클라이언트 인증서만 선택됩니다.
+
+      * <ph name="SELECTOR_PLACEHOLDER" />에 <ph name="ISSUER_STRING_VALUE" /> 및 <ph name="SUBJECT_STRING_VALUE" /> 섹션이 모두 포함된 경우 두 조건을 모두 만족하는 클라이언트 인증서만 선택됩니다.
+
+      * <ph name="SELECTOR_PLACEHOLDER" />에 <ph name="FILTER_STRING_ORGANIZATION" /> 값이 있는 <ph name="SUBJECT_STRING_VALUE" /> 섹션이 포함된 경우 선택되려면 인증서에 지정된 값과 일치하는 조직이 하나 이상 있어야 합니다.
+
+      * <ph name="SELECTOR_PLACEHOLDER" />에 <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" /> 값이 있는 <ph name="SUBJECT_STRING_VALUE" /> 섹션이 포함된 경우 선택되려면 인증서에 지정된 값과 일치하는 조직 단위가 하나 이상 있어야 합니다.
+
+      * <ph name="SELECTOR_PLACEHOLDER" />가 <ph name="EMPTY_DICTIONARY" />로 설정된 경우 이 정책의 비어 있는 세부정보는 무시됩니다.
+
+      정책을 설정하지 않으면 신호 보고 중에 클라이언트 인증서가 선택되지 않습니다.
+
+*중요:* 이 정책은 Chrome에서의 보안 신호 전송에 관한 전반적인 기능을 제어하는 <ph name="USER_SECURITY_SIGNALS_REPORTING_POLICY_NAME" /> 정책이 사용 설정된 경우에만 적용됩니다.</translation>
 <translation id="2261648512244797294">지원 중단된 Privet 인쇄 사용 중지</translation>
 <translation id="2262701937800507517"><ph name="PRODUCT_OS_NAME" />의 기본 암호화 순서 사용</translation>
 <translation id="2263881357524831360"><ph name="ANDROID_NAME" />에서 <ph name="PRODUCT_NAME" />의 서드 파티 비밀번호 관리자 사용 허용</translation>
@@ -2337,6 +2364,24 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FOR_URLS_P
 <translation id="252742292004421898">이 사이트에서 Direct Sockets API 허용</translation>
 <translation id="2528762900096510743">자동 로그아웃 서비스 사용 설정</translation>
 <translation id="2529880111512635313">강제로 설치된 앱과 확장 프로그램 목록 구성</translation>
+<translation id="2530090617700835618">정책을 설정하면 WebSocket 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
+
+WebSocket이 아닌 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 128이 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 값을 128 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(128) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256이 사용됩니다.
+기본값(128)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+적용된 한도는 <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />의 영향을 받습니다.</translation>
 <translation id="253135976343875019">AC 전원으로 실행할 때 유휴 경고 지연</translation>
 <translation id="2532480434098051405">인라인 이미지를 허용하고 AI 모델을 개선합니다.</translation>
 <translation id="2535370400681639351">정책을 사용 설정하면 gnubby 인증 요청이 원격 호스트 연결 전반에 걸쳐 프록시됩니다.
@@ -2721,6 +2766,15 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
 정책이 사용 중지되거나 설정되지 않으면 사용자가 Kerberos 설정 페이지의 Kerberos 계정 설정을 통해 Kerberos 계정을 추가할 수 있습니다. 사용자는 자신이 추가한 계정을 완전히 제어할 수 있으며 수정하거나 삭제할 수도 있습니다.
 
 이 정책이 사용 중지되면 사용자는 Kerberos 계정을 추가할 수 없습니다. 계정은 'Kerberos 계정 구성' 정책을 통해서만 추가할 수 있습니다. 계정을 잠그는 데 효과적인 방법입니다.</translation>
+<translation id="2771222727845689796">이 정책을 사용하면 URL 패턴 목록을 지정할 수 있습니다. 해당 패턴과 일치하는 백그라운드 웹 콘텐츠는 포그라운드 우선순위로 강제 실행됩니다.
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 정책이 사용 설정되면 모든 탭이 포그라운드 우선순위로 강제 적용되므로 이 목록은 무시됩니다.
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 정책이 사용 중지되거나 설정되지 않은 경우, 이 목록의 패턴과 일치하는 콘텐츠만 강제 적용됩니다.
+
+유효한 <ph name="URL_LABEL" /> 패턴에 관해 자세히 알아보려면 https://support.google.com/chrome/a?p=url_blocklist_filter_format을 참고하세요.
+
+이 목록이 비어 있거나 설정되지 않은 경우 백그라운드 콘텐츠가 포그라운드 우선순위로 강제 적용되지 않습니다.</translation>
 <translation id="2772231477628401250">업데이트 다운로드에 HTTP 사용</translation>
 <translation id="2772955711376920612">정책을 사용 설정하고 <ph name="DEVICE_POWER_PEAK_SHIFT_BATTERY_THRESHOLD_POLICY_NAME" /> 및 <ph name="DEVICE_POWER_PEAK_SHIFT_DAY_CONFIG_POLICY_NAME" />를 설정하면 기기에서 지원하는 경우 전원 피크 시프트가 사용 설정된 상태로 유지됩니다. 피크 시프트 전원 관리 정책은 사용량이 가장 많은 시간에 교류 전원 사용을 최소화하는 절전 정책입니다. 매주 평일 전원 피크 시프트 모드를 실행할 시작 시간과 종료 시간을 설정할 수 있습니다. 배터리가 지정된 기준점 이상인 한, 사용량이 가장 많은 시간에는 교류 전원이 연결되어 있더라도 기기가 배터리로 실행됩니다. 지정된 종료 시간이 지나면 교류 전원이 연결되어 있는 경우 기기가 교류 전원으로 실행되지만 배터리가 충전되지는 않습니다. 지정된 충전 시작 시간이 되면 기기가 다시 교류 전원을 사용하여 평소대로 작동하며 배터리가 충전됩니다.
 
@@ -4748,15 +4802,6 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 기본 알림을 사용�
 
           설정되지 않으면 처음에는 로그인 화면에서 음성 피드백이 사용되지 않지만 사용자가 언제든지 사용 설정할 수 있습니다.</translation>
 <translation id="4173974507809462880">로그인 시 터치패드 스크롤 방향 화면 표시</translation>
-<translation id="4175770453187201981">이 정책은 주소 표시줄과 새 탭 페이지 검색창에 표시되는 Google AI 모드 통합을 제어합니다.
-
-이 기능에 액세스하려면 Google을 사용자의 기본 검색엔진으로 설정해야 합니다.
-
-0/설정 안 함 = 사용자가 이 기능을 사용할 수 있습니다.
-
-1 = 사용자가 이 기능을 사용할 수 없습니다.
-
-정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.</translation>
 <translation id="417956245902013347">로그인 화면에서 캐럿 강조표시 접근성 기능을 사용합니다.
 
           이 정책이 True로 설정되면 로그인 화면에서 캐럿 강조표시가 항상 사용됩니다.
@@ -4903,6 +4948,7 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
       정책을 사용 중지하거나 설정하지 않으면 사용자가 이 설정을 변경할 수 있습니다.
 
       참고: Android에서는 대신 <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" /> 정책을 사용하세요.</translation>
+<translation id="4261641564041253502"><ph name="PRODUCT_NAME" /> 보안 신호 보고서의 필터와 일치하는 클라이언트 인증서를 자동으로 선택합니다.</translation>
 <translation id="4261820385751181068">기기 로그인 화면 언어</translation>
 <translation id="4263788921751326798">기기 비정상 종료 정보 보고 사용 중지</translation>
 <translation id="4268586991084547853">Microsoft IE/Edge 엔터프라이즈 모드 사이트 목록과 더 잘 호환됩니다.</translation>
@@ -5289,6 +5335,24 @@ false로 설정되면 확장 프로그램 및 플러그인 데이터가 수집�
 
 <ph name="IP_PROTECTION_NAME" /> 기능은 M139 이후에 출시될 예정입니다.</translation>
 <translation id="4525328580251166229">Bruschetta 하위 시스템과 관련된 정책을 관리합니다.</translation>
+<translation id="452801090660038046">정책을 설정하면 WebSocket이 아닌 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
+
+WebSocket 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 128이 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 값을 128 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(128) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99) 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99)이 사용됩니다.
+기본값(128)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+적용된 한도는 <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />의 영향을 받습니다.</translation>
 <translation id="4528981768990874684"><ph name="IP_PROTECTION_NAME" /> 기능을 사용 중지합니다.</translation>
 <translation id="453031441196755904">지원 중단된 정책입니다.</translation>
 <translation id="4531706050939927436">Google Play를 사용해 Google 관리 콘솔에서 Android 앱을 강제 설치할 수 있습니다. Android 앱은 이 정책을 사용하지 않습니다.</translation>
@@ -5720,23 +5784,6 @@ JavaScript 최적화 정책 예외는 사이트 세부사항에서만 시행됩�
       사용 설정하면 Gemini 소개 화면이 표시됩니다.
 
       설정하지 않으면 기업 관리 사용자에게는 Gemini 소개 화면이 표시되지 않고, 비관리 사용자에게는 표시됩니다.</translation>
-<translation id="4781685421378746692">정책은 <ph name="PRODUCT_NAME" /> 측면 패널 또는 탭을 통해 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> 및 <ph name="GOOGLE_LENS_PRODUCT_NAME" />에 페이지 및 파일 콘텐츠를 공유하는 것을 제어합니다.
-
-이 정책은 웹의 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에는 영향을 미치지 않습니다. <ph name="PRODUCT_NAME" /> 이용 시 사용자가 정보를 공유하는 방식을 제어할 뿐입니다.
-
-0/설정 안 함 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 있습니다.
-
-1 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 없습니다. 컨텍스트 공유의 진입점과 측면 패널이 사용 중지되거나 숨겨집니다.
-
-이 기능이 사용 중지되어 있으므로 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />이 사용자의 기본 검색엔진이 아닌 경우 정책은 무시됩니다.
-
-이 정책은 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책과 별개입니다. <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책은 검색주소창 또는 NTP 검색창의 진입점만 제어하는 반면, 이 정책은 측면 패널 또는 탭을 통한 컨텍스트 공유를 제어합니다.
-
-또한 이 정책은 <ph name="GEMINI_SETTINGS_POLICY_NAME" />에서 사용 중지할 수 있는 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 통합은 제어하지 않습니다.
-
-정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
-
-생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="4783415902268741066">브라우저 측면 패널에 가장 최근의 기본 검색엔진 결과 페이지가 표시되도록 허용합니다.</translation>
 <translation id="4786784434769279324">컴퓨터가 유휴 상태일 때 실행할 작업</translation>
 <translation id="4787763197941188108">기본 인쇄 페이지 크기를 재정의합니다.
@@ -6616,22 +6663,6 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5293285950307241933">모든 로컬 사용자 데이터 삭제</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" />에서 새 동영상 디코더를 사용하도록 허용합니다.</translation>
 <translation id="529457411593078576">첫 실행 중 CCT에 서비스 약관 사용 설정</translation>
-<translation id="529718811410033393">정책을 설정하면 WebSocket이 아닌 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
-
-WebSocket 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> 정책을 참고하세요.
-
-정책을 설정하지 않으면 기본값 32가 사용됩니다.
-
-일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
-일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
-
-값은 6 이상이어야 합니다.
-이 한도 미만의 값을 설정하면 6이 사용됩니다.
-기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
-
-값은 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99) 이하여야 합니다.
-이 한도를 초과하는 값을 설정하면 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99)이 사용됩니다.
-기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="5297873769621042075">정책을 설정하면 HTTPS로 업그레이드되지 않고 HTTPS 우선 모드가 설정된 경우 오류 전면 광고가 표시되지 않는 호스트 이름 또는 호스트 이름 패턴(예: '[*.]example.com') 목록이 지정됩니다. 조직에서 이 정책을 사용하면 HTTPS 업그레이드 또는 HTTPS 우선 모드를 사용 중지하지 않고도 HTTPS를 지원하지 않는 서버에 대한 액세스를 유지할 수 있습니다.
 
 제공된 호스트 이름은 표준화되어야 합니다. 모든 IDN은 A 라벨 형식으로 변환되어야 하며 모든 ASCII 문자는 소문자여야 합니다.
@@ -6925,15 +6956,6 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="5481873128882951841">Krisp 주변 소음 제거 사용 중지</translation>
 <translation id="5483012943408894695">안전하지 않은 출처에 대한 보안 제한을 적용하지 않을 출처 또는 호스트 이름 패턴</translation>
 <translation id="5483065054530244863">로컬 트러스트 앵커에서 발행된 SHA-1 서명 인증서를 허용합니다.</translation>
-<translation id="5485491014653571963">이 설정은 Gemini 앱 통합을 허용합니다.
-
-0/설정 안 함 = 사용자가 Gemini 통합을 사용할 수 있습니다.
-
-1 = 사용자가 Gemini 통합을 사용할 수 없습니다.
-
-정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
-
-자세한 내용은 고객센터 도움말(https://support.google.com/chrome/a?p=gemini_in_chrome)을 참고하세요.</translation>
 <translation id="5486917900445838803">정책을 사용 설정하거나 설정하지 않으면 가능한 경우 그래픽 가속이 사용 설정됩니다.
 
       정책을 사용 중지하면 그래픽 가속이 사용 중지됩니다.</translation>
@@ -7192,29 +7214,6 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5622924058222112599">기본 CECPQ2 롤아웃 프로세스 사용 설정</translation>
 <translation id="5623304306796942802">여러 인증서가 일치하는 경우 메시지 표시</translation>
 <translation id="5624310713789233422">툴바에서 기업 프로필 배지의 공개 상태 제어</translation>
-<translation id="5624334866248253262">데이터 유출을 방지하기 위해 데이터 제어 규칙 목록을 구성합니다.
-
-      각 규칙은 다음으로 구성됩니다.
-      - 해당 규칙을 트리거하는 조건 필드. 규칙은 사용자 작업이 <ph name="DATA_CONTROLS_SOURCES" />, <ph name="DATA_CONTROLS_DESTINATIONS" />, <ph name="DATA_CONTROLS_AND" />, <ph name="DATA_CONTROLS_OR" />, <ph name="DATA_CONTROLS_NOT" /> 필드에 채워진 모든 필드와 일치하는 경우에만 트리거됩니다. 목록 하위 필드의 경우 하나의 항목만 일치하면 됩니다. 예를 들어 하나의 URL 패턴만 일치하면 규칙이 트리거됩니다.
-      - 적용될 제한사항의 목록. 제한사항에 따라 <ph name="DATA_CONTROLS_SOURCES" /> 또는 <ph name="DATA_CONTROLS_DESTINATIONS" /> 조건만 사용할 수 있습니다.
-
-      규칙은 다음을 위해 추가될 수 있습니다.
-      - 소스와 대상 사이에 공유되는 클립보드 데이터의 제어
-      - 소스 탭을 기준으로 스크린샷 차단 제어
-
-      <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> 정책을 True로 설정하면 트리거된 규칙이 관리자에게 보고됩니다.
-      제한 수준은 BLOCK, WARN 또는 REPORT로 설정될 수 있습니다.
-      - 제한 수준이 BLOCK으로 설정되면 작업이 허용되지 않습니다.
-      - 제한 수준이 WARN으로 설정되면 사용자에게 경고가 표시되며 사용자는 작업을 계속하거나 취소할 수 있습니다.
-      - 제한 수준이 REPORT로 설정되면 사용자 작업은 중단되지 않지만, <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> 정책이 사용 설정된 경우 보고서가 전송됩니다.
-
-      참고:
-      - URL 패턴 형식은 이 형식(https://support.google.com/chrome/a?p=url_blocklist_filter_format)에 따라 지정하세요.
-      - <ph name="PRODUCT_OS_NAME" />에 대한 데이터 유출 방지 규칙의 경우 <ph name="DATA_LEAK_PREVENTION_RULES_LIST" /> 정책도 참고하세요.
-
-      정책을 설정하지 않으면 제한사항이 적용되지 않습니다.
-
-      이 정책은 Chrome Enterprise Premium 라이선스가 할당된 사용자에게만 제공됩니다.</translation>
 <translation id="5625771176514429288">Chrome 앱이 이러한 플랫폼에서 실행됩니다.</translation>
 <translation id="5627270992026554674">교사가 Google 클래스룸 수업 출석부를 사용하지 못하도록 차단</translation>
 <translation id="5630352020869108293">마지막 세션 복원</translation>
@@ -8321,6 +8320,7 @@ Origin-Agent-Cluster: 헤더가 설정되지 않았을 때 M111의 기본값은 
 
       정책의 설정 여부와 관계없이 사용자는 WPAD 최적화 설정을 변경할 수 없습니다.</translation>
 <translation id="6363485842496031347">단축키 삭제 설정은 Alt 수정자가 포함된 단축키를 사용합니다.</translation>
+<translation id="6364336078281746235">특정 URL에 포그라운드 우선순위 강제 적용</translation>
 <translation id="6366574325767783825">정책을 True로 설정하거나 설정하지 않으면 <ph name="PRODUCT_NAME" />에서 서명된 HTTP 교환(SXG)으로 제공된 웹 콘텐츠를 허용합니다.
 
       정책을 False로 설정하면 서명된 HTTP 교환(SXG)이 로드되지 않습니다.</translation>
@@ -10290,22 +10290,6 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FOR_URLS_P
 
       사용자의 기기가 관리되지 않는다면 이 기능의 사용 가능 여부는 사용자가 기기 소유자인지에 따라 추가로 달라집니다.</translation>
 <translation id="7570291542739287032">클라우드 전용</translation>
-<translation id="7571158727244273239">정책을 설정하면 WebSocket 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
-
-WebSocket이 아닌 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 정책을 참고하세요.
-
-정책을 설정하지 않으면 기본값 32가 사용됩니다.
-
-일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
-일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
-
-값은 6 이상이어야 합니다.
-이 한도 미만의 값을 설정하면 6이 사용됩니다.
-기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
-
-값은 256 이하여야 합니다.
-이 한도를 초과하는 값을 설정하면 256이 사용됩니다.
-기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="7572641760104970905">복잡성 없음</translation>
 <translation id="757395965347379751">이 설정이 사용 설정되었다면 <ph name="PRODUCT_NAME" />은(는) 로컬에 설치된 CA 인증서를 성공적으로 확인하고 체인을 구축하는 한 SHA-1 서명 인증서를 허용합니다.
 
@@ -10897,6 +10881,7 @@ https://chromeenterprise.google/policies/url-patterns를 참고하세요.
 <translation id="7941975817681987555">모든 네트워크 연결의 네트워크 활동 예측 안함</translation>
 <translation id="794447754389837404">이 사이트에서 Direct Sockets API의 비공개 네트워크 액세스 차단</translation>
 <translation id="7945445169067895719">기기가 정지되거나 덮개가 닫히면 잠금 사용 설정</translation>
+<translation id="7945744599423774764">프록시에 대한 소켓 풀 크기 무작위화 허용</translation>
 <translation id="7946350455013548764">이 정책을 3으로 설정하면 웹사이트에서 HID 기기 액세스를 요청할 수 있습니다. 정책을 2로 설정하면 HID 기기 액세스가 거부됩니다.
 
       정책을 설정하지 않으면 웹사이트에서 액세스를 요청할 수 있지만, 사용자가 이 설정을 변경할 수 있습니다.
@@ -11480,6 +11465,7 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 <translation id="8337114537412769126"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />가 사용 설정되어 있으면 <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> 설정은 POST로 추천 검색어를 제공할 때의 매개변수를 지정합니다. 이 매개변수는 쉼표로 구분된 이름 값의 쌍으로 구성됩니다. 값이 <ph name="SEARCH_TERM_MARKER" />와 같은 템플릿 매개변수면 실제 검색어 데이터로 교체됩니다.
 
       <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" />를 설정하지 않으면 GET 메서드를 사용해 추천 검색어 요청이 전송됩니다.</translation>
+<translation id="8337200442224446773">프록시에 대한 소켓 풀 무작위화 차단</translation>
 <translation id="8337961007759352651">작업자용 스크립트(웹 작업자, 서비스 워커 등)에는 <ph name="MIMETYPE_TEXT_JAVASCRIPT" /> 같은 자바스크립트 MIME 유형이 필요합니다. <ph name="MIMETYPE_TEXT_ASCII" /> 같은 기존 MIME 유형이 있는 작업자 스크립트는 거부됩니다.</translation>
 <translation id="8339089771335211509">WebRTC가 공개 인터넷에 연결하는 인터페이스만 사용하며 비공개 IP 주소를 사용해서는 연결하지 않습니다.</translation>
 <translation id="8339420913453596618">2단계 인증 사용 안함</translation>
@@ -11919,6 +11905,7 @@ false로 설정되면 정책 데이터 및 정책을 가져오는 시간이 수�
 <ph name="PRODUCT_NAME" />의 경우 이 정책은 기기가 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />에 등록되어 있을 때만 적용됩니다.
 <ph name="PRODUCT_OS_NAME" />의 경우 이 정책이 항상 적용됩니다.</translation>
 <translation id="8619748440665904084">처음 실행 시 양식 자동 완성 데이터 가져오기 사용 중지</translation>
+<translation id="8621146428060651659">프록시에 대한 소켓 풀 무작위화 허용</translation>
 <translation id="862621549134406761">RSA 키 사용 검사를 사용 설정합니다.</translation>
 <translation id="8626826495474944836">모든 사이트에 사이트 격리 필요</translation>
 <translation id="8630797597241896082">생성형 AI VC 배경 허용 및 AI 모델 개선</translation>

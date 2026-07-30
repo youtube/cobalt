@@ -16,7 +16,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
-import android.os.Process;
 import android.os.StrictMode;
 import android.os.SystemClock;
 import android.os.storage.StorageManager;
@@ -237,17 +236,6 @@ public final class AwBrowserProcess {
         }
     }
 
-    public static boolean shouldDeferGmsCalls() {
-        return WebViewCachedFlags.get()
-                        .isCachedFeatureEnabled(
-                                AwFeatures.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION)
-                || WebViewCachedFlags.get()
-                        .isCachedFeatureEnabled(AwFeatures.WEBVIEW_DEFER_STARTUP_GMS_CALLS)
-                || CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_DEFER_STARTUP_GMS_CALLS)
-                || CommandLine.getInstance()
-                        .hasSwitch(AwSwitches.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION);
-    }
-
     /**
      * Finishes the chromium browser process initialization. Starts the browser process
      * synchronously if not already started.
@@ -277,10 +265,6 @@ public final class AwBrowserProcess {
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 AwContentsLifecycleNotifier.initialize();
-            }
-
-            if (!shouldDeferGmsCalls()) {
-                setupSupervisedUser();
             }
 
             PostTask.postTask(
@@ -322,9 +306,6 @@ public final class AwBrowserProcess {
             try (DualTraceEvent e2 =
                     DualTraceEvent.scoped("AwBrowserProcess.maybeEnableSafeBrowsingFromManifest")) {
                 AwSafeBrowsingConfigHelper.maybeEnableSafeBrowsingFromManifest();
-            }
-            if (!shouldDeferGmsCalls()) {
-                maybeEnableSafeBrowsingFromGms();
             }
         }
     }
@@ -783,9 +764,7 @@ public final class AwBrowserProcess {
                                     AwFeatures.WEBVIEW_USE_METRICS_UPLOAD_SERVICE_ONLY_SDK_RUNTIME);
 
             if (metricServiceEnabledOnlySdkRuntime) {
-                boolean isAsync =
-                        AwFeatureMap.isEnabled(AwFeatures.ANDROID_METRICS_ASYNC_METRIC_LOGGING);
-                AwMetricsLogUploader uploader = new AwMetricsLogUploader(isAsync);
+                AwMetricsLogUploader uploader = new AwMetricsLogUploader();
                 // Open a connection during startup while connecting to other services such as
                 // ComponentsProviderService and VariationSeedServer to try to avoid spinning the
                 // nonembedded ":webview_service" twice.
@@ -809,10 +788,7 @@ public final class AwBrowserProcess {
             boolean forceUpdateNetworkState =
                     !AwFeatureMap.isEnabled(
                             AwFeatures.WEBVIEW_USE_INITIAL_NETWORK_STATE_AT_STARTUP);
-            if (applicationContext.checkPermission(
-                            Manifest.permission.ACCESS_NETWORK_STATE,
-                            Process.myPid(),
-                            Process.myUid())
+            if (applicationContext.checkSelfPermission(Manifest.permission.ACCESS_NETWORK_STATE)
                     == PackageManager.PERMISSION_GRANTED) {
                 NetworkChangeNotifier.init();
                 NetworkChangeNotifier.setAutoDetectConnectivityState(

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.side_ui;
 
+import android.app.Activity;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 
@@ -11,6 +12,7 @@ import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 
 /** Factory for creating a {@link SideUiCoordinator}. */
@@ -21,6 +23,9 @@ public final class SideUiCoordinatorFactory {
     /**
      * Creates a {@link SideUiCoordinator}.
      *
+     * @param parentActivity The {@link Activity} containing all Side UIs.
+     * @param lifecycleDispatcher The {@link ActivityLifecycleDispatcher} for {@code
+     *     parentActivity}.
      * @param anchorContainerParent The {@link ViewGroup} that is the parent for the side UI
      *     containers.
      * @param startAnchorContainerStub The {@link ViewStub} for the start-anchored container.
@@ -30,6 +35,8 @@ public final class SideUiCoordinatorFactory {
      */
     @Nullable
     public static SideUiCoordinator create(
+            Activity parentActivity,
+            ActivityLifecycleDispatcher lifecycleDispatcher,
             @Nullable ViewGroup anchorContainerParent,
             @Nullable ViewStub startAnchorContainerStub,
             @Nullable ViewStub endAnchorContainerStub,
@@ -45,8 +52,9 @@ public final class SideUiCoordinatorFactory {
         if (topMarginSupplier == null) {
             topMarginSupplier = ObservableSuppliers.createNonNull(0);
         }
-
         return new SideUiCoordinatorImpl(
+                parentActivity,
+                lifecycleDispatcher,
                 anchorContainerParent,
                 startAnchorContainerStub,
                 endAnchorContainerStub,

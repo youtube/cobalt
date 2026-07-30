@@ -392,7 +392,6 @@
 <translation id="1595731774593926493">Redress Number मिटाएं</translation>
 <translation id="1597307423671074806">WebM वीडियो</translation>
 <translation id="159800670740560023">Chrome से जुड़ी सलाह का लिंक, <ph name="IPH_LINK_FOCUSED_LINK_TEXT" /> को खोलने के लिए Enter दबाएं</translation>
-<translation id="1599079390582151174">भेजा गया. अपने दूसरे डिवाइस पर Chrome खोलें.</translation>
 <translation id="1599199147673445968">नया कार्ड है? <ph name="BEGIN_LINK" />कार्ड की जानकारी डालें<ph name="END_LINK" /></translation>
 <translation id="1601786938618212857">Zip फ़ाइल बनाएं</translation>
 <translation id="1604192142734009334">ब्यूटी और फ़िटनेस</translation>
@@ -472,6 +471,7 @@
 <translation id="1717688554309417925">डेबिट और जांच सेवाएं</translation>
 <translation id="1719434663396780149">कीमत में कमी से जुड़ी सूचनाएं पाने की सुविधा चालू है. <ph name="BEGIN_LINK" /><ph name="NOTIFICATION_SETTINGS" /><ph name="END_LINK" /> पर जाकर, इसे बंद किया जा सकता है.</translation>
 <translation id="1719838434204287058">24 x 30 इंच</translation>
+<translation id="1720318856472900922">TLS WWW सर्वर प्रमाणीकरण</translation>
 <translation id="1720941539803966190">ट्यूटोरियल बंद करें</translation>
 <translation id="1721424275792716183">* फ़ील्ड ज़रूरी है</translation>
 <translation id="1723636263173393300">इस नीति में <ph name="MAX_ITEMS_LIMIT" /> से ज़्यादा शॉर्टकट नहीं हो सकते.</translation>
@@ -480,6 +480,7 @@
 <translation id="1727613060316725209">प्रमाणपत्र मान्य है</translation>
 <translation id="1728677426644403582">एक वेब पेज का सोर्स देखा जा रहा है</translation>
 <translation id="173080396488393970">इस तरह का कार्ड काम नहीं करता</translation>
+<translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">इसके बजाय, व्यक्तिगत तौर पर ऐक्सेस मांगें</translation>
 <translation id="1733064249834771892">फ़ॉन्ट</translation>
 <translation id="1733631169686303142">ऑडियो इक्विपमेंट</translation>
@@ -747,6 +748,7 @@
 <translation id="21613918653299710">ऑनलाइन इमेज गैलरी</translation>
 <translation id="2161656808144014275">लेख संदेश</translation>
 <translation id="2162435186600002085">प्राइमरी हेडर लोगो</translation>
+<translation id="2162535140284745414">रीयल-टाइम में ऐसे सुझाव पाएं जो आपको एआई से ब्राउज़ करने के नए तरीके खोजने में मदद कर सकते हैं.</translation>
 <translation id="2162620598375156287">अब <ph name="SOURCE_WEBSITE" /> पर कीमत <ph name="CURRENT_PRICE" /> है</translation>
 <translation id="2164510882479075877">देखें कि <ph name="HOST_NAME" /> की स्पेलिंग गलत तो नहीं है.</translation>
 <translation id="2166049586286450108">पूरा एडमिन एक्सेस</translation>
@@ -754,6 +756,7 @@
 <translation id="2168151236314517198">एडमिन नीति के तहत, इस कॉन्टेंट की प्रिंटिंग को ब्लॉक किया गया</translation>
 <translation id="2171244127100824330"><ph name="ACCOUNT" /> के लिए <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" /> में</translation>
 <translation id="2172089022819052306">वाहन की मरम्मत और रखरखाव</translation>
+<translation id="217231402430591139">अपना खाता जोड़ें</translation>
 <translation id="2173302385160625112">अपना इंटरनेट कनेक्शन जाँचें</translation>
 <translation id="2174875517416416684">लेन-देन पूरा नहीं हुआ. आपके खाते से पैसे नहीं कटे.</translation>
 <translation id="2175630235841878061">100 एमबी से बड़ी फ़ाइलें डाउनलोड नहीं की जा सकतीं</translation>
@@ -849,7 +852,6 @@
 <translation id="2302571905116831849">लॉयल्टी कार्ड की जानकारी ऑटोमैटिक भरने की सुविधा</translation>
 <translation id="230286397113210245">'गुप्त विंडो में खोलें' बटन, नई गुप्त विंडो खोलकर निजी तौर पर ब्राउज़ करने के लिए इसे चालू करें</translation>
 <translation id="2303437270440428119">OpenDocument Spreadsheet</translation>
-<translation id="2305294852062272447">क्या आपको ड्राइविंग लाइसेंस की जानकारी सेव करनी है?</translation>
 <translation id="2306124309679506798">क्या आपको इमर्सिव सेशन शुरू करने की अनुमति देनी है?</translation>
 <translation id="2310789833878085574">सेव करें और ऑटोमैटिक भरने की सुविधा चालू करें</translation>
 <translation id="2312234273148520048">चटनी और ड्रेसिंग</translation>
@@ -995,6 +997,7 @@
 <translation id="2521385132275182522">नीचे दाईं ओर स्टेपल</translation>
 <translation id="2521736961081452453">फ़ॉर्म बनाएं</translation>
 <translation id="2524461107774643265">ज़्यादा जानकारी जोड़ें</translation>
+<translation id="2524962131655207565"><ph name="BEGIN_BOLD" />चेकआउट पेज का कॉन्टेंट Google के साथ शेयर किया जाता है, ताकि ये विकल्प दिखाए जा सकें.<ph name="END_BOLD" /> बिलिंग प्लान, ज़रूरी शर्तें पूरी करने पर ही उपलब्ध होते हैं. बाद में पेमेंट करने के विकल्प छिपाने के लिए, <ph name="BEGIN_LINK" />पेमेंट सेटिंग<ph name="END_LINK" /> पर जाएं.</translation>
 <translation id="2526062290525841862">इस ऐप्लिकेशन को चलाने के लिए, आइसोलेटेड वेब ऐप्लिकेशन डेवलपर मोड को फिर से चालू करें</translation>
 <translation id="2526280916094749336">सेव किए गए पतों का इस्तेमाल, Google के सभी प्रॉडक्ट के लिए किया जा सकता है. यह पता, आपके Google खाते <ph name="ACCOUNT" /> में सेव किया जाएगा.</translation>
 <translation id="2527451058878391043">आपका सीवीसी आपके कार्ड के सामने वाले हिस्से पर होता है. यह आपके कार्ड नंबर के ऊपर दाईं ओर मौजूद, चार अंकों का कोड होता है.</translation>
@@ -1096,6 +1099,7 @@
 <translation id="2677748264148917807">छोड़ें</translation>
 <translation id="2679216653373462289">मोशन और लाइट सेंसर का इस्तेमाल करें</translation>
 <translation id="2679659833697380">आपकी जानकारी आपके डिवाइस में सेव हो गई है</translation>
+<translation id="2680837394649649718">आपके <ph name="DEVICE_NAME" /> पर Chrome भेजा गया.</translation>
 <translation id="2683195745483370038">अन्य नतीजे मिले</translation>
 <translation id="2686919536310834199">'लिखने में मेरी मदद करें' सुविधा के लिए सुझाव/राय भेजें या शिकायत करें.</translation>
 <translation id="2687555958734450033">सबसे बढ़िया फ़िटिंग</translation>
@@ -1142,7 +1146,6 @@
 <translation id="2740531572673183784">ठीक है</translation>
 <translation id="2742128390261873684">होम ऑटोमेशन</translation>
 <translation id="2743512410823092182">डीजे रिसॉर्स और इक्विपमेंट</translation>
-<translation id="2743934314332613923">क्या आपको ड्राइविंग लाइसेंस की जानकारी अपडेट करनी है?</translation>
 <translation id="2757727729385895652">Google Drive में <ph name="COUNT" /> फ़ाइलें अपलोड की जा रही हैं</translation>
 <translation id="2759299890026163685">फिर से कोशिश करने से पहले, पक्का करें कि आपके पास बेहतर इंटरनेट कनेक्शन हो</translation>
 <translation id="2759825833388495838"><ph name="APP_NAME" /> पर अपना पासवर्ड भरने की अनुमति दें</translation>
@@ -1206,7 +1209,6 @@
 <translation id="2891963978019740012">Chrome में आपका सर्च इंजन</translation>
 <translation id="2893773853358652045">चौथा रोल</translation>
 <translation id="2894137550885451583">ये <ph name="CURRENCY" /> में प्रॉडक्ट <ph name="PRODUCT" /> की कीमतें हैं</translation>
-<translation id="2894233157216554317">क्या आपको पासपोर्ट की जानकारी अपडेट करनी है?</translation>
 <translation id="2898398337339787921">Microsoft Excel</translation>
 <translation id="2900528713135656174">इवेंट बनाएं</translation>
 <translation id="2902312830803030883">और क्रियाएं</translation>
@@ -1286,7 +1288,7 @@
 <translation id="2995517112308048736">फ़ाइल का साइज़:</translation>
 <translation id="299990983510665749">हैचबैक</translation>
 <translation id="3002501248619246229">इनपुट ट्रे मीडिया को चुनें</translation>
-<translation id="3005723025932146533">सहेजी गई कॉपी दिखाएं</translation>
+<translation id="3005723025932146533">सेव की गई कॉपी दिखाएं</translation>
 <translation id="300580149047131921">इस सुविधा का हाल ही में इस्तेमाल किया गया है</translation>
 <translation id="3006864083554020786">घर का पता</translation>
 <translation id="3007110814003834680">चुनिंदा साइटों के लिए रेफ़रंस न लिए जाने की सुविधा</translation>
@@ -1303,7 +1305,6 @@
 <translation id="3024663005179499861">गलत नीति प्रकार</translation>
 <translation id="3027915437837548462">SVG इमेज</translation>
 <translation id="3030331669969285614">ये फ़्लैग, नुकसान पहुंचा सकने वाले बदलाव को रोकते या उन्हें पहले जैसा करते हैं. साथ ही, ये फ़्लैग सिर्फ़ कुछ समय के लिए उपलब्ध रहते हैं.</translation>
-<translation id="3030542417256082866">क्या आपको वाहन से जुड़ी जानकारी सेव करनी है?</translation>
 <translation id="3033200136993730761">अगर आपने Chrome में अपने घर का पता सेट किया है, तो Google की अलग-अलग सेवाओं का आसानी से फ़ायदा लिया जा सकता है. जैसे, ज़्यादा काम के नतीजे पाना और Google Maps में घर जाने का रास्ता देखना. <ph name="BEGIN_LINK" />Google खाते <ph name="ACCOUNT" /><ph name="END_LINK" /> में जाकर, अपने पते में बदलाव किया जा सकता है या उसे मिटाया जा सकता है.</translation>
 <translation id="3033777742142108756">फ़िलहाल, मोशन और लाइट सेंसर इस्तेमाल करने की अनुमति मिल गई है</translation>
 <translation id="3034526003882782781">स्क्रोल और ज़ूम करने की अनुमति है</translation>
@@ -1463,6 +1464,7 @@
 <translation id="3261488570342242926">वर्चुअल कार्ड के बारे में जानें</translation>
 <translation id="3262698603497362968">खरीदने के विकल्प</translation>
 <translation id="3264315627780269177">यह टैब शेयर नहीं किया जा सकता</translation>
+<translation id="3264637689694266148">सुझाव पाने की सुविधा बंद होने पर भी Chrome की अन्य सुविधाओं के लिए, आपके टैब के पेज टाइटल और यूआरएल प्रोसेस किए जा सकते हैं. इस डेटा के लिए ब्राउज़र का ऐक्सेस, यहां जाकर मैनेज किया जा सकता है:</translation>
 <translation id="3266793032086590337">मान (मेल नहीं खा रहा)</translation>
 <translation id="3268451620468152448">खुले सत्र</translation>
 <translation id="3270041629388773465">सीवीसी सेव होने पर तेज़ी से पेमेंट किया जा सकता है</translation>
@@ -1598,6 +1600,7 @@
 <translation id="350069200438440499">फ़ाइल नाम:</translation>
 <translation id="3501300228850242680">मेटल (संगीत)</translation>
 <translation id="350421688684366066">लेबल (हाई-ग्लॉस)</translation>
+<translation id="3507062913298382727">आईडी कार्ड सेव करें</translation>
 <translation id="350763432931695541">अगले कुछ पेजों से टेक्स्ट निकाला जा रहा है</translation>
 <translation id="3507869775212388416">कानूनी क्षेत्र की नौकरियां</translation>
 <translation id="3507936815618196901">आपके आस-पास की जगह का 3D मैप बनाना और कैमरे की स्थिति ट्रैक करना चाहती है</translation>
@@ -1637,7 +1640,6 @@
 <translation id="3558573058928565255">दिन के समय</translation>
 <translation id="3559897352860026926">अपने एडमिन से कहें कि वह <ph name="CLOUD_PROVIDER" /> की कॉन्फ़िगरेशन सेटिंग की पुष्टि करे.</translation>
 <translation id="3560824484345057728">मिलती-जुलती साइटें देखें</translation>
-<translation id="356359327498380603">क्या आपको वाहन की जानकारी अपडेट करनी है?</translation>
 <translation id="3566021033012934673">आपका कनेक्शन निजी नहीं है</translation>
 <translation id="3566336457819493938">215 x 315 मि॰मी॰</translation>
 <translation id="3566649245868131295">हेल्थ और मेडिकल सेक्टर की नौकरियां</translation>
@@ -1908,7 +1910,6 @@
 <translation id="3965672182149944205">क्या आपको पता सेव करना है?</translation>
 <translation id="3966044442021752214">प्रॉडक्ट सुरक्षा</translation>
 <translation id="396761677631735618">टच करके भरे जाने वाले लॉयल्टी कार्ड की सूची, आधी स्क्रीन पर खुली है.</translation>
-<translation id="3969869202926863008">लोकल नेटवर्क का ऐक्सेस</translation>
 <translation id="3970239200223030389">जारी होने की तारीख</translation>
 <translation id="397105322502079400">गणना की जा रही है...</translation>
 <translation id="3973234410852337861"><ph name="HOST_NAME" /> को ब्लॉक किया गया है</translation>
@@ -1934,7 +1935,6 @@
 <translation id="4014895360827978999">व्यापारी सेवाएं और पेमेंट सिस्टम</translation>
 <translation id="4018819349042761761">सार्वजनिक पासकोड</translation>
 <translation id="4023431997072828269">यह फ़ॉर्म किसी ऐसे इंटरनेट कनेक्शन की मदद से सबमिट किया जा रहा है जो सुरक्षित नहीं है, इसलिए आपकी जानकारी दूसरे लोग भी देख सकेंगे.</translation>
-<translation id="4024673763872230929">अपनी जानकारी सेव करें और फ़ॉर्म को ज़्यादा तेज़ी से भरें. यह आपके डिवाइस में सेव होती है.</translation>
 <translation id="4025325634010721551">नीतियों को फिर से लोड किया गया</translation>
 <translation id="4025338605225449265">करंसी और फ़ॉरेन एक्सचेंज</translation>
 <translation id="4025777154208238692">उलटे क्रम में</translation>
@@ -1994,12 +1994,14 @@
 <translation id="4098306082496067348">वर्चुअल कार्ड की जानकारी पर टैप करके उसे चेकआउट में जोड़ें.</translation>
 <translation id="4099048595830172239">जब गोपनीय कॉन्टेंट दिख रहा हो, तो एडमिन नीति आपको <ph name="APPLICATION_TITLE" /> के साथ अपनी स्क्रीन शेयर करने का सुझाव नहीं देती है:</translation>
 <translation id="4099391883283080991"><ph name="CUSTOMIZE_CHROME_FONTS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome में फ़ॉन्ट साइज़ और टाइपफ़ेस को पसंद के मुताबिक बनाने के लिए, पहले Tab और फिर Enter दबाएं</translation>
+<translation id="4100421230355095925">ML-DSA-44</translation>
 <translation id="4101413244023615925">टेक्स्ट और ग्राफ़िक</translation>
 <translation id="4101917550061398111">चुने हुए आइटम मिटाएं</translation>
 <translation id="4102567721634170493">स्थानीय समाचार</translation>
 <translation id="4103249731201008433">डिवाइस की क्रम संख्या गलत है</translation>
 <translation id="4103592298805904008">कार्डबोर्ड (सिंगल वॉल)</translation>
 <translation id="4104702906064390950">IBAN से जुड़ी जानकारी सेव की जा रही है</translation>
+<translation id="4106101218644797743">सिंक करने की सेटिंग</translation>
 <translation id="4106887816571530227">एम्बेड किया गया कॉन्टेंट ऐक्सेस करने की अनुमति नहीं है</translation>
 <translation id="4107047499377819067">वीपीएन की बैकग्राउंड सेवाएं इंस्टॉल होना शुरू हो गई हैं. इसमें कुछ मिनट लग सकते हैं.</translation>
 <translation id="4110642094637545339">Google Pay, AfterPay का लोगो</translation>
@@ -2220,6 +2222,7 @@
 <translation id="4415156962929755728">प्लास्टिक (हाई ग्लॉस)</translation>
 <translation id="4415426530740016218">पिकअप का पता</translation>
 <translation id="4415748029120993980">SECG अंडाकार वक्र secp384r1 (अर्थात NIST P-384)</translation>
+<translation id="4418150423720608641">ML-DSA-87</translation>
 <translation id="4419287616181386201">मैनेजमेंट सेटिंग में जाकर, पासवर्ड मिटाए जा सकते हैं</translation>
 <translation id="4424024547088906515">यह सर्वर यह नहीं प्रमाणित कर सका कि यह <ph name="DOMAIN" /> है; इसका सुरक्षा प्रमाणपत्र Chrome द्वारा विश्वसनीय नहीं है. ऐसा गलत कॉन्फ़िगरेशन या किसी आक्रमणकर्ता द्वारा आपके कनेक्शन में अवरोध डालने के कारण हो सकता है.</translation>
 <translation id="4425750422187370446">ऐथलेटिक कपड़े</translation>
@@ -2335,6 +2338,7 @@
 <translation id="4640225694041297329">पिछले सात दिनों में की गई खोजों की जानकारी दिखाएं</translation>
 <translation id="4642296966515958616">इस टैब ग्रुप में शामिल होने के लिए, Chrome को अपडेट करें</translation>
 <translation id="464342062220857295">खोज सुविधाएं</translation>
+<translation id="4643958597583594452">Chrome आपके डिवाइस पर या क्लाउड में किसी निजी जगह पर, पेजों के टाइटल और यूआरएल प्रोसेस करता है</translation>
 <translation id="4644567637638438744">Microsoft OneDrive में साइन इन करने के बाद ही फ़ाइलें अपलोड की जा सकती हैं</translation>
 <translation id="4644670975240021822">दूसरी तरफ़ उलटा करके रखें</translation>
 <translation id="4648262692072505866">हैश का फ़ॉर्मैट SHA-256 होना चाहिए.</translation>
@@ -2472,6 +2476,7 @@
 <translation id="4855395119669662878">आपका एडमिन, <ph name="DATE_TIME" /> को <ph name="CLOUD_PROVIDER" /> पर आपकी फ़ाइलें अपलोड करना शुरू करेगा. फ़ाइल अपलोड होने तक, अपने डिवाइस को इंटरनेट से कनेक्ट रखें. इस दौरान, डिवाइस में सेव की गई फ़ाइलों को सिर्फ़ पढ़ा जा सकेगा.</translation>
 <translation id="485902285759009870">कोड की पुष्टि की जा रही है...</translation>
 <translation id="4860260582253463350">YouTube पर जारी रखने के लिए, आपको अपनी पहचान की पुष्टि करनी होगी. आपको वहीं सेटिंग मिलेंगी जो Family Link में आपके माता-पिता ने तय की हैं.</translation>
+<translation id="4862642413395066333">OCSP प्रतिसाद हस्ताक्षरित करना</translation>
 <translation id="4864406669374375262">वर्शन स्ट्रिंग को क्लिपबोर्ड पर कॉपी किया गया</translation>
 <translation id="486459320933704969">इस वेबसाइट पर जाने के लिए, आपके पास अपने माता-पिता या अभिभावक की अनुमति होनी चाहिए</translation>
 <translation id="4864801646102013152">होम इंप्रूवमेंट</translation>
@@ -2486,7 +2491,6 @@
 <translation id="4877422487531841831"><ph name="TEXT" /> खोज</translation>
 <translation id="4877521229462766300">एम्बेड किया गया कॉन्टेंट ऐक्सेस करने की अनुमति दें?</translation>
 <translation id="4879491255372875719">अपने आप (डिफ़ॉल्ट)</translation>
-<translation id="4880328155169081699">क्या आपको आईडी कार्ड की जानकारी अपडेट करनी है?</translation>
 <translation id="4880827082731008257">खोज इतिहास</translation>
 <translation id="4881695831933465202">खोलें</translation>
 <translation id="4881808915112408168">24 x 31.5 इंच</translation>
@@ -2583,6 +2587,7 @@
 <translation id="5019293549442035120">सेव किए गए पतों का इस्तेमाल, Google के सभी प्रॉडक्ट के लिए किया जा सकता है. यह पता, आपके Google खाते <ph name="USER_EMAIL" /> में सेव किया जाएगा.</translation>
 <translation id="5019819206251569004">मोशन और लाइट सेंसर</translation>
 <translation id="5019952743397118625"><ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> नीति सेट है. <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, एक्सटेंशन पेज पर डेवलपर मोड की उपलब्धता को कंट्रोल नहीं करेगी.</translation>
+<translation id="5020862932518041900">अगर आपने कोई सुझाव चुना है या अनदेखा किया है, तो Chrome इस जानकारी के हिसाब से काम करेगा और आपको सिर्फ़ काम के सुझाव दिखेंगे</translation>
 <translation id="5021500396464456616">जिस व्यक्ति ने यह लिंक भेजा है उससे संपर्क करें</translation>
 <translation id="5021557570875267742">Chrome की मदद से कीमतों को ट्रैक करें</translation>
 <translation id="5023310440958281426">अपने एडमिन की नीतियां देखें</translation>
@@ -2691,7 +2696,6 @@
 <translation id="5191315092027169558">आपकी प्रोफ़ाइल को <ph name="DOMAIN" /> मैनेज करता है</translation>
 <translation id="51918995459521422"><ph name="ORIGIN" /> को एक से ज़्यादा फ़ाइलें डाउनलोड करनी हैं</translation>
 <translation id="519528950056409240">Wallet को डेटा शेयर करने की अनुमति दें</translation>
-<translation id="5199121357983849992">क्या आपको आईडी कार्ड सेव करना है?</translation>
 <translation id="5200063972779787617">खाते में पता सेव करें</translation>
 <translation id="5201306358585911203">इस पेज पर एम्बेड किए गए पेज का कहना है कि</translation>
 <translation id="5203716867500274632">एडमिन ने ChromeOS डिवाइसों पर आपके पिछले और मौजूदा सेशन के बीच, इन चीज़ों को सिंक करने की सुविधा चालू कर दी है:</translation>
@@ -2707,7 +2711,6 @@
 <translation id="5217759126664161410">प्रोटोकॉल का फ़ॉर्मैट अमान्य है.</translation>
 <translation id="5221377878828867877">आपका संगठन यह ट्रैक करता है कि क्या अलग-अलग खातों में एक ही पासवर्ड का इस्तेमाल किया जा रहा है</translation>
 <translation id="5222812217790122047">ईमेल आवश्यक है</translation>
-<translation id="5225215474235602477">क्या आपको पासपोर्ट की जानकारी सेव करनी है?</translation>
 <translation id="5228269245420405804">डिस्टेंस लर्निंग</translation>
 <translation id="5229844812197559338"><ph name="SELECT_PROVIDER_TITLE" />. <ph name="LOGO_DESCRIPTION" /></translation>
 <translation id="5230733896359313003">शिपिंग पता</translation>
@@ -2811,7 +2814,6 @@
 <translation id="5375686690914744327">SRA1</translation>
 <translation id="5377026284221673050">"आपकी घड़ी पीछे चल रही है" या "आपकी घड़ी आगे चल रही है" या "&lt;span class="error-code"&gt;NET::ERR_CERT_DATE_INVALID&lt;/span&gt;"</translation>
 <translation id="5379618281582508161">इस पासवर्ड को अपने सभी डिवाइसों पर सेव करने के लिए, अपनी पहचान की पुष्टि करें</translation>
-<translation id="5380539543938195166">क्या आपको नोन ट्रैवलर नंबर अपडेट करना है?</translation>
 <translation id="5380953781541843508">बढ़ते क्रम में</translation>
 <translation id="5381318171304904246">जारी रखने पर, आपको आपके बैंक की वेबसाइट पर भेजा जाएगा. पुष्टि करने के बाद, आपको खरीदारी पूरी करने के लिए अपने-आप वापस भेज दिया जाएगा.</translation>
 <translation id="5381952079334035181"><ph name="MEMBER_FIRST_NAME" /> ने “<ph name="WEBSITE_TITLE" />” टैब को अपडेट किया</translation>
@@ -2961,6 +2963,7 @@
 <translation id="5573641252776268565">पासपोर्ट की जानकारी में बदलाव करें</translation>
 <translation id="5578606540385219379">सेवा देने वाली कंपनी</translation>
 <translation id="5580958916614886209">अपने क्रेडिट कार्ड की समय सीमा खत्म होने का महीना जांचें और फिर से कोशिश करें</translation>
+<translation id="5582453333200265572">आईडी कार्ड अपडेट करें</translation>
 <translation id="5583442610070676234">तुलना करने वाली टेबल <ph name="COMPARE_SET_NAME" /> के लिए अन्य कार्रवाइयां</translation>
 <translation id="55841966151154662">इस आईबीएएन को आपके Google Wallet में सेव नहीं किया जा सका. इसके बजाय, इसे इस डिवाइस पर Chrome में सेव किया गया है.</translation>
 <translation id="558420943003240152">Manage passwords and passkeys…</translation>
@@ -3016,7 +3019,6 @@
 <translation id="5660122698869360728">एक नया स्मार्ट फ़ोल्डर, जो खरीदारी वाले सभी पेजों को एक ही जगह पर सेव करने और कीमतों को अपने-आप ट्रैक करने की सुविधा देता है. इसकी मदद से, कीमत की अहम जानकारी पाने के साथ-साथ और भी बहुत कुछ किया जा सकता है.</translation>
 <translation id="5663955426505430495">इस डिवाइस के एडमिन ने और फ़ंक्शन के एक्सटेंशन इंस्टॉल किए हैं. एक्सटेंशन आपका कुछ डेटा ऐक्सेस कर सकते हैं.</translation>
 <translation id="5667827081946850877">ऑडियो बुक</translation>
-<translation id="5674082555327905359">साइट, आपके लोकल नेटवर्क पर मौजूद किसी भी डिवाइस से कनेक्ट करने की अनुमति मांग सकती है</translation>
 <translation id="5675650730144413517">यह पेज काम नहीं कर रहा है</translation>
 <translation id="5675809467256309336">डांस और इलेक्ट्रॉनिक म्यूज़िक</translation>
 <translation id="5675959228867414813">तारीख के हिसाब से दिखाएं</translation>
@@ -3088,6 +3090,7 @@
 <translation id="5787146423283493983">मुख्य अनुबंध</translation>
 <translation id="5793317771769868848">इस डिवाइस से, पेमेंट का यह तरीका मिटा दिया जाएगा</translation>
 <translation id="5794065675298686371">कीमत ट्रैक करने से जुड़ी सूचनाएं पाने की सुविधा चालू करें</translation>
+<translation id="5797984091151707075">एडमिन की नीति के तहत ब्लॉक किया गया</translation>
 <translation id="5800727402210090597">मोबाइल फ़ोन ठीक करने की और इससे जुड़ी सेवाएं</translation>
 <translation id="580241730938216256">अपडेट करना शुरू करें</translation>
 <translation id="5804241973901381774">अनुमतियां</translation>
@@ -3095,6 +3098,7 @@
 <translation id="5808435672482059465">अपना 'Chrome इतिहास' देखें</translation>
 <translation id="5810442152076338065"><ph name="DOMAIN" /> से आपके कनेक्शन को किसी आधुनिक साइफ़र सुइट का इस्तेमाल करके सुरक्षित किया गया है.</translation>
 <translation id="5813119285467412249">&amp;जोड़ना फिर से करें</translation>
+<translation id="5813274153495000141">अपनी जानकारी सेव करें और फ़ॉर्म को ज़्यादा तेज़ी से भरें. यह जानकारी आपके डिवाइस में सेव होती है.</translation>
 <translation id="5813753398265398978">भौतिक विज्ञान</translation>
 <translation id="5817918615728894473">युग्‍मित करें</translation>
 <translation id="5820625124144807242">ऑर्डर की समीक्षा करने के बाद, आपको अपने <ph name="BNPL_ISSUER_NAME" /> खाते से साइन इन करना होगा या एक नया खाता बनाना होगा. यह खाता, Google Pay से अपने-आप लिंक हो जाएगा.</translation>
@@ -3139,7 +3143,6 @@
 <translation id="5887400589839399685">कार्ड सेव किया गया</translation>
 <translation id="5887687176710214216">साइट पर पिछली बार कल गए</translation>
 <translation id="5889251770650310375">अन्य डिवाइसों में की गई गतिविधि का इतिहास ऐक्सेस करने के लिए, अपनी पहचान की पुष्टि करें. साथ ही, अपनी गतिविधि के इतिहास का डेटा और टैब का डेटा सिंक करें. सेटिंग में जाकर, सिंक करने की सुविधा को किसी भी समय बंद किया जा सकता है. Google आपके इतिहास के आधार पर, Search और अन्य सेवाओं को आपकी दिलचस्पी के मुताबिक बना सकता है.</translation>
-<translation id="5890248301649767931">क्या आपको Redress Number सेव करना है?</translation>
 <translation id="5895138241574237353">फिर से प्रारंभ करें</translation>
 <translation id="5895187275912066135">जारी करने की तारीख</translation>
 <translation id="5895694128043506580">Google Chrome, संवेदनशील जानकारी दिखाने की कोशिश कर रहा है</translation>
@@ -3217,10 +3220,10 @@
 <translation id="6006365096047131769">3 x 5 इंच</translation>
 <translation id="6008122969617370890">N-से-1 के क्रम में</translation>
 <translation id="6008256403891681546">JCB</translation>
+<translation id="6012135807160718387">Google, एन्क्रिप्ट करने का तरीका इस्तेमाल करके आपकी जानकारी को सुरक्षित रखता है</translation>
 <translation id="6014801569448771146">अपना पासवर्ड जांचें</translation>
 <translation id="6014851866995737824">नज़रअंदाज़ किया गया, क्योंकि "चालू है" या "बंद है" वाली सूची मौजूद नहीं है.</translation>
 <translation id="6015796118275082299">वर्ष</translation>
-<translation id="6017028474478839719">क्या आपको आईडी कार्ड सेव करना है?</translation>
 <translation id="6017514345406065928">हरा</translation>
 <translation id="6018650639991193045">Chrome की सेटिंग में जाकर, अपना ब्राउज़िंग इतिहास, कुकी, कैश मेमोरी वगैरह मिटाएं</translation>
 <translation id="6019118530636932154">Google Apps Script</translation>
@@ -3425,7 +3428,6 @@
 <translation id="6321917430147971392">अपनी DNS सेटिंग जांचे</translation>
 <translation id="6322182122604171028">Windows Hello का इस्तेमाल नहीं किया जा सका</translation>
 <translation id="6326947323444967009">iOS की सेटिंग में, Chrome को सिस्टम के डिफ़ॉल्ट ब्राउज़र के रूप में सेट करें</translation>
-<translation id="6327065120806001832">लोकल नेटवर्क का ऐक्सेस</translation>
 <translation id="6328639280570009161">नेटवर्क पूर्वानुमान को अक्षम करके देखें</translation>
 <translation id="6329742260390895689">अपनी जानकारी ऑटोमैटिक तरीके से भरने के लिए, Wallet की सेटिंग में जाकर "Google के सभी प्लैटफ़ॉर्म पर पास इस्तेमाल करें" को चालू करें</translation>
 <translation id="6329815962353376655">&lt;कोई सवाल टाइप करें&gt;</translation>
@@ -3529,6 +3531,7 @@
 <translation id="6451458296329894277">फ़ार्म फिर से जमा करने की पुष्टि करें</translation>
 <translation id="6452429044474066211">डाइविंग और अंडरवॉटर ऐक्टिविटी</translation>
 <translation id="6452889436791091116">ISO ID-1</translation>
+<translation id="6453646205942063831">आपको काम के सुझाव देने के लिए, खुले हुए टैब के पेज टाइटल और यूआरएल इस्तेमाल किए जाते हैं</translation>
 <translation id="6455632609396391811">स्वास्थ्य बीमा</translation>
 <translation id="6456955391422100996">विज्ञापन हटाया गया.</translation>
 <translation id="6457206614190510200">सैडल स्टिच</translation>
@@ -4175,7 +4178,6 @@
 <translation id="746412105358554870">JavaScript ऑप्टिमाइज़ेशन और सुरक्षा</translation>
 <translation id="7465036432780054056"><ph name="EMBEDDED_URL" /> को पता चल जाएगा कि आपने <ph name="TOP_LEVEL_URL" /> पर विज़िट किया है</translation>
 <translation id="7465963048299965912">10 x 13 इंच</translation>
-<translation id="7467332121947433617">क्या आपको आईडी कार्ड की जानकारी अपडेट करनी है?</translation>
 <translation id="7469935732330206581">यह फ़ॉर्म सुरक्षित नहीं है</translation>
 <translation id="7470854469646445678">कॉपी करने की वजह बताएं (ज़रूरी है)</translation>
 <translation id="7471007961486718967">ट्रांसफ़र करने की वजह बताएं (ज़रूरी है)</translation>
@@ -4424,6 +4426,7 @@
 <translation id="7819605256207059717">आपके संगठन ने इसे ब्लॉक किया है</translation>
 <translation id="7822611063308883975">हैंडहेल्ड गेम कंसोल</translation>
 <translation id="7825558994363763489">माइक्रोवेव</translation>
+<translation id="7827688884439021871">रीयल-टाइम में ऐसे सुझाव पाएं जो आपको एआई से ब्राउज़ करने के नए तरीके खोजने में मदद कर सकते हैं</translation>
 <translation id="782886543891417279">आप जिस वाई-फ़ाई का उपयोग कर रहे हैं (<ph name="WIFI_NAME" />) आपको उसके लॉगिन पेज पर जाने की ज़रूरत पड़ सकती है.</translation>
 <translation id="7831993212387676366">खरीदारी की सूची क्या है?</translation>
 <translation id="7840103971441592723">स्क्रीन कैप्चर करने की सुविधा चालू हो गई है</translation>
@@ -4495,6 +4498,7 @@
 <translation id="7947285636476623132">अपने क्रेडिट कार्ड की समय सीमा खत्म होने का साल जांचें और फिर से कोशिश करें</translation>
 <translation id="7947310711271925113">पॉप म्यूज़िक</translation>
 <translation id="7947813448670013867"><ph name="SEE_CHROME_TIPS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome की सुविधाओं के बारे में जानने के लिए, पहले Tab दबाएं और फिर Enter दबाएं</translation>
+<translation id="7948579849190819732">मौजूदा टैब</translation>
 <translation id="7949135979217012031">एंटीवायरस और मैलवेयर</translation>
 <translation id="7950027195171824198">Chrome की सेटिंग में कुकी की सेटिंग मैनेज करें</translation>
 <translation id="7951415247503192394">(32-बिट)</translation>
@@ -4715,6 +4719,7 @@
 <translation id="8289355894181816810">अगर आप पक्का नहीं हैं कि इसका क्या मतलब है, तो अपने नेटवर्क व्यवस्थापक से संपर्क करें.</translation>
 <translation id="8291367150570302588">आईडी कार्ड</translation>
 <translation id="829335040383910391">आवाज़</translation>
+<translation id="8294425747071240447">एआई से मिलने वाले सुझाव</translation>
 <translation id="8294431847097064396">स्रोत</translation>
 <translation id="8297545700510100061">कुकी और अन्य साइट डेटा का इस्तेमाल, आपकी विज़िट की जानकारी याद रखने के लिए किया जाता है. उदाहरण के लिए, आपको साइन इन करने देना या आपके हिसाब से विज्ञापन दिखाना. सभी साइटों की कुकी मैनेज करने के लिए, <ph name="SETTINGS" /> देखें.</translation>
 <translation id="8298115750975731693">आप जिस वाई-फ़ाई का उपयोग कर रहे हैं (<ph name="WIFI_NAME" />) उसके लिए आपको <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" /> पर जाने की ज़रूरत हो सकती है.</translation>
@@ -4902,6 +4907,7 @@
 <translation id="8597726363542221027">सेकंड हैंड वाहन</translation>
 <translation id="8600271352425265729">सिर्फ़ इस बार अनुमति दें</translation>
 <translation id="860043288473659153">कार्डधारक का नाम</translation>
+<translation id="8601206103050338563">TLS WWW क्लाइंट प्रमाणीकरण</translation>
 <translation id="8601456038554914806">वॉटर स्पोर्ट्स इक्विपमेंट</translation>
 <translation id="8601782593888534566">साइंस फ़िक्शन और फ़ैंटसी</translation>
 <translation id="8604103095921958091">'अभी खरीदें, बाद में पेमेंट करें' सुविधा की सेवा की शर्तों वाला पेज, पूरी स्क्रीन पर खुला है.</translation>
@@ -5001,7 +5007,6 @@
 <translation id="877348612833018844">{0,plural, =1{क्या गोपनीय फ़ाइल को किसी दूसरी जगह ट्रांसफ़र करना है?}one{क्या गोपनीय फ़ाइल को किसी दूसरी जगह ट्रांसफ़र करना है?}other{क्या गोपनीय फ़ाइलों को किसी दूसरी जगह ट्रांसफ़र करना है?}}</translation>
 <translation id="8775347646940100151">पेपर (लेटरहेड)</translation>
 <translation id="8775863327608679820">'अभी खरीदें, बाद में पेमेंट करें' सुविधा देने वाली कंपनियों की सूची, आधी स्क्रीन पर खुली है. ये कंपनियां, किस्तों में पेमेंट करने की सुविधा देती हैं.</translation>
-<translation id="8776941011841875705">क्या आपको नोन ट्रैवलर नंबर को सेव करना है?</translation>
 <translation id="877985182522063539">ए4</translation>
 <translation id="8781278378794969337">'पेज का अनुवाद करें' बटन, Google Translate की मदद से इस पेज का अनुवाद करने के लिए इसे चालू करें</translation>
 <translation id="8785658048882205566">मोटरसाइकल</translation>
@@ -5144,7 +5149,6 @@
 <translation id="9026253329950610248">Google Sites</translation>
 <translation id="9027020981272345766">Chrome Enterprise Core आज़माएं</translation>
 <translation id="9027531288681624875">फ़ुल स्क्रीन से बाहर निकलने के लिए, |<ph name="ACCELERATOR" />| दबाकर रखें</translation>
-<translation id="9031426777610376427">क्या आपको Redress Number अपडेट करना है?</translation>
 <translation id="9035022520814077154">सुरक्षा गड़बड़ी</translation>
 <translation id="9035824888276246493">सुरक्षा कोड सेव करें</translation>
 <translation id="9036306139374661733">क्या आप Chromium को माइक्रोफ़ोन ऐक्सेस करने की अनुमति देना चाहते हैं?</translation>
@@ -5242,6 +5246,7 @@
 <translation id="9169664750068251925">इस साइट पर हमेशा अवरोधित करें</translation>
 <translation id="9169931577761441333">होम स्क्रीन पर <ph name="APP_NAME" /> जोड़ें</translation>
 <translation id="9170848237812810038">&amp;पूर्ववत् करें</translation>
+<translation id="9170906125144697215">ऐप्लिकेशन स्विच किए बिना, Pix से पेमेंट करें</translation>
 <translation id="9171296965991013597">ऐप्लिकेशन बंद करें?</translation>
 <translation id="9173282814238175921">एक दस्तावेज़/नई शीट</translation>
 <translation id="9173995187295789444">ब्लूटूथ डिवाइस के लिए स्कैन किया जा रहा है...</translation>
@@ -5258,7 +5263,6 @@
 <translation id="9186371298532546532">इस पते का इस्तेमाल अन्य जगहों पर भी करें</translation>
 <translation id="9189468832660648522"><ph name="MEMBER_FIRST_NAME" /> ने यह टैब बदला है</translation>
 <translation id="9189789270972826888">अगर कार्ड की जानकारी नहीं भरी गई है, तो कार्ड की यहां दी गई जानकारी को कॉपी करके चिपकाने के लिए, उस पर क्लिक करें. <ph name="IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL" /></translation>
-<translation id="9190557999028587593">चार हफ़्तों से ज़्यादा पुराने विषय अपने-आप मिट जाते हैं</translation>
 <translation id="9191834167571392248">नीचे बाईं ओर पंच</translation>
 <translation id="9192361865877479444">मेटल (मैट)</translation>
 <translation id="9192947025498305328">पर्यावरण और स्वास्थ्य को ध्यान में रखकर बनाए गए प्रॉडक्ट</translation>

@@ -24,7 +24,7 @@ import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.MENU_IT
 import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.MENU_ITEM_ID;
 import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.MENU_ITEM_SUBMENU_HEADER;
 import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.MENU_ITEM_WITH_SUBMENU;
-import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.SUBMENU_ITEMS;
+import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.SUBMENU_PROVIDER;
 import static org.chromium.ui.hierarchicalmenu.HierarchicalMenuTestUtils.TITLE;
 
 import android.content.Context;
@@ -52,6 +52,7 @@ import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Unit tests for {@link HierarchicalMenuControllerUnitTest}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -114,7 +115,9 @@ public class HierarchicalMenuControllerUnitTest {
                         new PropertyModel.Builder(ALL_SUBMENU_ITEM_KEYS)
                                 .with(TITLE, SUBMENU_LEVEL_1)
                                 .with(ENABLED, true)
-                                .with(SUBMENU_ITEMS, List.of(mListItemWithModelClickCallback))
+                                .with(
+                                        SUBMENU_PROVIDER,
+                                        () -> List.of(mListItemWithModelClickCallback))
                                 .with(IS_HIGHLIGHTED, false)
                                 .build());
 
@@ -133,7 +136,9 @@ public class HierarchicalMenuControllerUnitTest {
                         new PropertyModel.Builder(ALL_SUBMENU_ITEM_KEYS)
                                 .with(TITLE, SUBMENU_LEVEL_0)
                                 .with(ENABLED, true)
-                                .with(SUBMENU_ITEMS, List.of(mSubmenuLevel1, mSubmenu0Child1))
+                                .with(
+                                        SUBMENU_PROVIDER,
+                                        () -> List.of(mSubmenuLevel1, mSubmenu0Child1))
                                 .with(IS_HIGHLIGHTED, false)
                                 .build());
         mModelList.add(mSubmenuLevel0);
@@ -156,8 +161,7 @@ public class HierarchicalMenuControllerUnitTest {
 
     @Test
     public void getItemList_submenuNavigation_noStaticHeader() {
-        mController.setupCallbacksRecursively(
-                /* headerModelList= */ null, mModelList, mDismissDialog);
+        mController.setupCallbacks(/* headerModelList= */ null, mModelList, mDismissDialog);
         // Click into submenu 0
         activateClickListener(mSubmenuLevel0);
         assertEquals(
@@ -208,7 +212,7 @@ public class HierarchicalMenuControllerUnitTest {
     @Test
     public void getItemList_submenuNavigation_withStaticHeader() {
         // Begin test
-        mController.setupCallbacksRecursively(mHeaderModelList, mModelList, mDismissDialog);
+        mController.setupCallbacks(mHeaderModelList, mModelList, mDismissDialog);
         // Click into submenu 0
         activateClickListener(mSubmenuLevel0);
         assertEquals(
@@ -296,9 +300,29 @@ public class HierarchicalMenuControllerUnitTest {
     }
 
     @Test
+    public void testSubmenuObserver_notifiedOnLoad() {
+        mController.setupCallbacks(mHeaderModelList, mModelList, mDismissDialog);
+
+        AtomicReference<List<ListItem>> loadedItems = new AtomicReference<>();
+        AtomicReference<Integer> callCount = new AtomicReference<>(0);
+        mController.addObserver(
+                items -> {
+                    loadedItems.set(items);
+                    callCount.set(callCount.get() + 1);
+                });
+
+        // Click into submenu 0. This should trigger the load and notify the observer.
+        activateClickListener(mSubmenuLevel0);
+
+        assertEquals("Observer should be notified once", 1, (int) callCount.get());
+        assertEquals("Should be notified with correct items", 2, loadedItems.get().size());
+        assertEquals(SUBMENU_LEVEL_1, getTitle(loadedItems.get().get(0)));
+        assertEquals(SUBMENU_0_CHILD_1, getTitle(loadedItems.get().get(1)));
+    }
+
+    @Test
     public void getItemList_withoutModelClickCallback_noClickCallbackAdded() {
-        mController.setupCallbacksRecursively(
-                /* headerModelList= */ null, mModelList, mDismissDialog);
+        mController.setupCallbacks(/* headerModelList= */ null, mModelList, mDismissDialog);
         boolean hasClickListener =
                 mListItemWithoutModelClickCallback.model.containsKey(CLICK_LISTENER);
         assertTrue(
@@ -315,16 +339,30 @@ public class HierarchicalMenuControllerUnitTest {
 
     @Test
     public void getItemList_withModelClickCallback_dismissAdded() {
-        mController.setupCallbacksRecursively(
-                /* headerModelList= */ null, mModelList, mDismissDialog);
+        mController.setupCallbacks(/* headerModelList= */ null, mModelList, mDismissDialog);
+
+        // Before expansion, the nested item is untouched. Its click listener is
+        // just the original one, so clicking it will not trigger the dismiss
+        // runnable.
+        mListItemWithModelClickCallback.model.get(CLICK_LISTENER).onClick(mListView);
+        verify(mDismissDialog, never()).run();
+
+        // Navigate through the submenus to trigger the just-in-time loading.
+        activateClickListener(mSubmenuLevel0);
+        activateClickListener(mSubmenuLevel1);
+
+        // After expansion, the callback has now been wrapped. Clicking it will
+        // execute both the original listener AND the dismiss runnable.
         mListItemWithModelClickCallback.model.get(CLICK_LISTENER).onClick(mListView);
         verify(mDismissDialog, times(1)).run();
+
+        // Ensure the original click listener was still executed in both cases.
+        verify(mItemClickListener, times(2)).onClick(mListView);
     }
 
     @Test
     public void getItemList_submenuNavigation_noOneByOneDataChange() {
-        mController.setupCallbacksRecursively(
-                /* headerModelList= */ null, mModelList, mDismissDialog);
+        mController.setupCallbacks(/* headerModelList= */ null, mModelList, mDismissDialog);
         mModelList.addObserver(mListObserver);
         // Click into submenu 0
         activateClickListener(mSubmenuLevel0);
@@ -344,7 +382,7 @@ public class HierarchicalMenuControllerUnitTest {
         mHeaderModelList.addObserver(observer);
         mModelList.addObserver(observer);
 
-        mController.setupCallbacksRecursively(mHeaderModelList, mModelList, mDismissDialog);
+        mController.setupCallbacks(mHeaderModelList, mModelList, mDismissDialog);
 
         // Click into submenu 0
         activateClickListener(mSubmenuLevel0);
@@ -369,8 +407,7 @@ public class HierarchicalMenuControllerUnitTest {
                         mModelList);
         mModelList.addObserver(observer);
 
-        mController.setupCallbacksRecursively(
-                /* headerModelList= */ null, mModelList, mDismissDialog);
+        mController.setupCallbacks(/* headerModelList= */ null, mModelList, mDismissDialog);
 
         // Click into submenu 0
         activateClickListener(mSubmenuLevel0);
@@ -506,7 +543,8 @@ public class HierarchicalMenuControllerUnitTest {
     }
 
     private void triggerHoverEnter(ListItem item, int level, List<ListItem> path) {
-        mController.handleHoverEvent(createHoverEnterEvent(), item, mListView, level, path);
+        mController.handleHoverEvent(
+                createHoverEnterEvent(), item, mListView, level, path, () -> {});
     }
 
     private MotionEvent createHoverEnterEvent() {

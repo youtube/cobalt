@@ -15,6 +15,7 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/webui/boca_ui/boca_util.h"
+#include "ash/webui/boca_ui/mojom/boca.mojom-shared.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
 #include "ash/webui/boca_ui/provider/classroom_page_handler_impl.h"
 #include "ash/webui/boca_ui/provider/content_settings_handler.h"
@@ -68,6 +69,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "url/origin.h"
 
 namespace ash::boca {
 
@@ -89,6 +91,28 @@ std::string GetReceiverName(std::string receiver_id,
   return receiver_name ? *receiver_name : "";
 }
 
+std::optional<mojom::UrlType> ConvertUrlTypeProtoToMojom(
+    ::boca::UrlType url_type_proto) {
+  switch (url_type_proto) {
+    case ::boca::URL_TYPE_GEMINI_REGULAR:
+      return mojom::UrlType::kGeminiRegular;
+    case ::boca::URL_TYPE_GEMINI_GUIDED_LEARNING:
+      return mojom::UrlType::kGeminiGuidedLearning;
+    default:
+      return std::nullopt;
+  }
+}
+
+::boca::UrlType ConvertUrlTypeMojomToProto(mojom::UrlType url_type) {
+  switch (url_type) {
+    case mojom::UrlType::kGeminiRegular:
+      return ::boca::URL_TYPE_GEMINI_REGULAR;
+    case mojom::UrlType::kGeminiGuidedLearning:
+      return ::boca::URL_TYPE_GEMINI_GUIDED_LEARNING;
+  }
+  return ::boca::URL_TYPE_UNSPECIFIED;
+}
+
 std::unique_ptr<::boca::OnTaskConfig> OnTaskConfigMojomToProto(
     const mojom::OnTaskConfigPtr& config) {
   auto on_task_config = std::make_unique<::boca::OnTaskConfig>();
@@ -103,6 +127,10 @@ std::unique_ptr<::boca::OnTaskConfig> OnTaskConfigMojomToProto(
     content_config->set_favicon_url(item->tab->favicon.spec());
     content_config->mutable_locked_navigation_options()->set_navigation_type(
         ::boca::LockedNavigationOptions::NavigationType(item->navigation_type));
+    if (item->tab->url_type.has_value()) {
+      content_config->set_url_type(
+          ConvertUrlTypeMojomToProto(item->tab->url_type.value()));
+    }
   }
   return on_task_config;
 }
@@ -159,7 +187,8 @@ mojom::ConfigPtr SessionConfigProtoToMojom(
     for (auto tab : session_on_task_config.active_bundle().content_configs()) {
       tabs.push_back(mojom::ControlledTab::New(
           mojom::TabInfo::New(std::nullopt, tab.title(), GURL(tab.url()),
-                              GURL(tab.favicon_url())),
+                              GURL(tab.favicon_url()),
+                              ConvertUrlTypeProtoToMojom(tab.url_type())),
           mojom::NavigationType(
               tab.locked_navigation_options().navigation_type())));
     }
@@ -351,7 +380,11 @@ BocaAppHandler::~BocaAppHandler() {
 }
 
 void BocaAppHandler::GetWindowsTabsList(GetWindowsTabsListCallback callback) {
-  tab_info_collector_.GetWindowTabInfo(std::move(callback));
+  std::move(callback).Run(GetWindowTabInfoSync());
+}
+
+std::vector<mojom::WindowPtr> BocaAppHandler::GetWindowTabInfoSync() {
+  return tab_info_collector_.GetWindowTabInfo();
 }
 
 void BocaAppHandler::ListCourses(ListCoursesCallback callback) {
@@ -709,6 +742,46 @@ void BocaAppHandler::SetSitePermission(const std::string& url,
                                        mojom::Permission permission,
                                        mojom::PermissionSetting setting,
                                        SetSitePermissionCallback callback) {
+  if (is_producer_) {
+    receiver_.ReportBadMessage("SetSitePermission called by producer.");
+    std::move(callback).Run(false);
+    return;
+  }
+
+  GURL request_gurl(url);
+  if (!request_gurl.is_valid()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  url::Origin request_origin = url::Origin::Create(request_gurl);
+
+  // For consumers, `GetWindowTabInfoSync` should only return the single window
+  // containing the Boca app (and its tabs).
+  std::vector<mojom::WindowPtr> windows = GetWindowTabInfoSync();
+  if (windows.size() != 1) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  bool is_allowed = false;
+  for (const auto& window : windows) {
+    for (const auto& tab : window->tab_list) {
+      if (url::Origin::Create(tab->url).IsSameOriginWith(request_origin)) {
+        is_allowed = true;
+        break;
+      }
+    }
+    if (is_allowed) {
+      break;
+    }
+  }
+
+  if (!is_allowed) {
+    receiver_.ReportBadMessage("Unauthorized site permission request.");
+    std::move(callback).Run(false);
+    return;
+  }
+
   const bool success = content_settings_handler_->SetContentSettingForOrigin(
       url, permission, setting);
   std::move(callback).Run(success);
@@ -734,6 +807,17 @@ void BocaAppHandler::StartSpotlight(const std::string& crd_connection_code,
                                     StartSpotlightCallback callback) {
   if (!ash::features::IsBocaSpotlightRobotRequesterEnabled()) {
     std::move(callback).Run();
+    return;
+  }
+  if (!is_producer_) {
+    receiver_.ReportBadMessage(
+        "StartSpotlight without active producer session");
+    return;
+  }
+  auto* session = GetSessionManager()->GetCurrentSession();
+  if (!session || !IsActiveSession(session->session_id())) {
+    std::move(callback).Run();
+    return;
   }
   GetSessionManager()->StartCrdClient(
       crd_connection_code,

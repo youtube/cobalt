@@ -8,14 +8,21 @@
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "content/common/content_export.h"
-#include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
+
+namespace gfx {
+class Size;
+}
 
 namespace blink {
+namespace mojom {
+enum class FrameVisibility : int32_t;
+}  // namespace mojom
 struct FrameVisualProperties;
 }  // namespace blink
 
 namespace content {
 
+class RenderFrameHost;
 class WebContents;
 
 // This connector embeds a child/inner WebContents within a parent/outer
@@ -49,12 +56,15 @@ class CONTENT_EXPORT SurfaceEmbedConnector {
 
     // Called when the process for the child frame crashed.
     virtual void ChildProcessGone() = 0;
+
+    // Requests focus for the embedding element in the parent.
+    virtual void RequestFocus() = 0;
   };
 
   // Attach a child WebContents to a parent WebContents. This creates a
   // SurfaceEmbedConnector owned by the child WebContents.
   static void Attach(WebContents* child_web_contents,
-                     WebContents* parent_web_contents,
+                     RenderFrameHost* outer_document_rfh,
                      SurfaceEmbedConnector::Delegate* delegate);
 
   // Detach the SurfaceEmbedConnector from the child WebContents. This destroys

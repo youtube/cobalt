@@ -359,6 +359,11 @@ static void JNI_AudioManagerAndroid_OnDevicesChanged(JNIEnv* env, bool added) {
   }
 }
 
+static bool JNI_AudioManagerAndroid_IsAudioPlaybackCaptureAllowedFeatureEnabled(
+    JNIEnv* env) {
+  return base::FeatureList::IsEnabled(media::kAllowAudioPlaybackCapture);
+}
+
 std::unique_ptr<AudioManager> CreateAudioManager(
     std::unique_ptr<AudioThread> audio_thread,
     AudioLogFactory* audio_log_factory) {
@@ -1169,9 +1174,7 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
 
     // These features are checked for on the native side in order to avoid build
     // dependency conflicts when using the Java `ChromeFeatureList`.
-    if (base::FeatureList::IsEnabled(features::kAndroidAudioDeviceListener)) {
-      jni_delegate_->InitDeviceListener();
-    }
+    jni_delegate_->InitDeviceListener();
     if (base::FeatureList::IsEnabled(
             features::kAAudioPerStreamDeviceSelection)) {
       // Listen for SCO state changes to forward them to

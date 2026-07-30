@@ -653,7 +653,8 @@ TEST_F(NetworkServiceTest, DnsClientEnableDisable) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_TRUE(dns_client_ptr->CanUseInsecureDnsTransactions());
   EXPECT_EQ(net::SecureDnsMode::kOff,
             dns_client_ptr->GetEffectiveConfig()->secure_dns_mode);
@@ -663,7 +664,8 @@ TEST_F(NetworkServiceTest, DnsClientEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_FALSE(dns_client_ptr->CanUseInsecureDnsTransactions());
   EXPECT_EQ(net::SecureDnsMode::kOff,
             dns_client_ptr->GetEffectiveConfig()->secure_dns_mode);
@@ -673,7 +675,8 @@ TEST_F(NetworkServiceTest, DnsClientEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kAutomatic,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_FALSE(dns_client_ptr->CanUseInsecureDnsTransactions());
   EXPECT_EQ(net::SecureDnsMode::kAutomatic,
             dns_client_ptr->GetEffectiveConfig()->secure_dns_mode);
@@ -683,7 +686,8 @@ TEST_F(NetworkServiceTest, DnsClientEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kAutomatic,
       *net::DnsOverHttpsConfig::FromString("https://foo/"),
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_FALSE(dns_client_ptr->CanUseInsecureDnsTransactions());
   EXPECT_EQ(net::SecureDnsMode::kAutomatic,
             dns_client_ptr->GetEffectiveConfig()->secure_dns_mode);
@@ -705,7 +709,8 @@ TEST_F(NetworkServiceTest, HandlesAdditionalDnsQueryTypesEnableDisable) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_TRUE(dns_client_ptr->CanQueryAdditionalTypesViaInsecureDns());
 
   service()->ConfigureStubHostResolver(
@@ -713,7 +718,8 @@ TEST_F(NetworkServiceTest, HandlesAdditionalDnsQueryTypesEnableDisable) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/false,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_FALSE(dns_client_ptr->CanQueryAdditionalTypesViaInsecureDns());
 }
 
@@ -732,7 +738,8 @@ TEST_F(NetworkServiceTest, HappyEyeballsV3EnableDisable) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_TRUE(service()->host_resolver_manager()->IsHappyEyeballsV3Enabled());
 
   service()->ConfigureStubHostResolver(
@@ -740,7 +747,8 @@ TEST_F(NetworkServiceTest, HappyEyeballsV3EnableDisable) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/false,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_FALSE(service()->host_resolver_manager()->IsHappyEyeballsV3Enabled());
 }
 
@@ -766,7 +774,8 @@ TEST_F(NetworkServiceTest, DnsOverHttpsEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kAutomatic,
       kConfig1,
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_EQ(kConfig1, dns_client_ptr->GetEffectiveConfig()->doh_config);
 
   // Enable DNS over HTTPS for two servers.
@@ -775,7 +784,8 @@ TEST_F(NetworkServiceTest, DnsOverHttpsEnableDisable) {
       /*insecure_dns_client_enabled=*/true, /*happy_eyeballs_v3_enabled=*/false,
       net::SecureDnsMode::kSecure, kConfig2,
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_EQ(kConfig2, dns_client_ptr->GetEffectiveConfig()->doh_config);
 }
 
@@ -799,7 +809,8 @@ TEST_F(NetworkServiceTest, AutomaticWithDohFallbackEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kAutomatic,
       kConfig,
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_EQ(kConfig, dns_client_ptr->GetEffectiveConfig()->doh_config);
   EXPECT_TRUE(dns_client_ptr->GetConfigOverridesForTesting()
                   .fallback_doh_nameservers->empty());
@@ -815,7 +826,8 @@ TEST_F(NetworkServiceTest, AutomaticWithDohFallbackEnableDisable) {
       /*insecure_dns_client_enabled=*/true, /*happy_eyeballs_v3_enabled=*/false,
       net::SecureDnsMode::kAutomatic, kConfig,
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/fallback_doh_nameservers);
+      /*fallback_doh_nameservers=*/fallback_doh_nameservers,
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_EQ(
       dns_client_ptr->GetConfigOverridesForTesting().fallback_doh_nameservers,
       fallback_doh_nameservers);
@@ -827,7 +839,8 @@ TEST_F(NetworkServiceTest, AutomaticWithDohFallbackEnableDisable) {
       /*happy_eyeballs_v3_enabled=*/false, net::SecureDnsMode::kAutomatic,
       kConfig,
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   EXPECT_EQ(kConfig, dns_client_ptr->GetEffectiveConfig()->doh_config);
   EXPECT_TRUE(dns_client_ptr->GetConfigOverridesForTesting()
                   .fallback_doh_nameservers->empty());
@@ -856,7 +869,8 @@ TEST_F(NetworkServiceTest, DisableDohUpgradeProviders) {
       net::SecureDnsMode::kAutomatic,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/true,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
 
   // Set valid DnsConfig.
   net::DnsConfig config;
@@ -1212,6 +1226,10 @@ static size_t GetGlobalMaxConnectionsPerProxyChainForWebSocket() {
       net::HttpNetworkSession::SocketPoolType::kWebSocket);
 }
 
+static bool GetGlobalAllowSizeRandomizationForProxy() {
+  return net::ClientSocketPoolManager::allow_size_randomization_for_proxy();
+}
+
 // Tests that NetworkService::SetMaxConnectionsPerProxyChain() (1) modifies
 // globals in net::ClientSocketPoolManager (2) saturates out of bound values.
 TEST_F(NetworkServiceTest, SetMaxConnectionsPerProxyChain) {
@@ -1222,44 +1240,52 @@ TEST_F(NetworkServiceTest, SetMaxConnectionsPerProxyChain) {
   // Starts off at default value.
   EXPECT_EQ(kDefault, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(kDefault, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(true, GetGlobalAllowSizeRandomizationForProxy());
 
   // Anything less than kMin saturates to kMin.
-  service()->SetMaxConnectionsPerProxyChain(kMin - 1, kMin - 1);
+  service()->SetMaxConnectionsPerProxyChain(kMin - 1, kMin - 1, false);
   EXPECT_EQ(kMin, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(kMin, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(false, GetGlobalAllowSizeRandomizationForProxy());
 
   // Anything larger than kMax saturates to kMax
-  service()->SetMaxConnectionsPerProxyChain(kMax + 1, kMax + 1);
+  service()->SetMaxConnectionsPerProxyChain(kMax + 1, kMax + 1, true);
   EXPECT_EQ(kMax, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(kMax, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(true, GetGlobalAllowSizeRandomizationForProxy());
 
   // Anything in between kMin and kMax should be set exactly.
-  service()->SetMaxConnectionsPerProxyChain(58, 58);
+  service()->SetMaxConnectionsPerProxyChain(58, 58, false);
   EXPECT_EQ(58u, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(58u, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(false, GetGlobalAllowSizeRandomizationForProxy());
 
   // It's possible to update neither if that's you're thing.
-  service()->SetMaxConnectionsPerProxyChain(std::nullopt, std::nullopt);
+  service()->SetMaxConnectionsPerProxyChain(std::nullopt, std::nullopt, true);
   EXPECT_EQ(58u, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(58u, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(true, GetGlobalAllowSizeRandomizationForProxy());
 
   // It's possible to update just one or the other.
-  service()->SetMaxConnectionsPerProxyChain(56, std::nullopt);
+  service()->SetMaxConnectionsPerProxyChain(56, std::nullopt, false);
   EXPECT_EQ(56u, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(58u, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(false, GetGlobalAllowSizeRandomizationForProxy());
 
   // It's possible to update just one or the other.
-  service()->SetMaxConnectionsPerProxyChain(std::nullopt, 60);
+  service()->SetMaxConnectionsPerProxyChain(std::nullopt, 60, true);
   EXPECT_EQ(56u, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(60u, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(true, GetGlobalAllowSizeRandomizationForProxy());
 
   // It's possible to update both to different values.
-  service()->SetMaxConnectionsPerProxyChain(57, 59);
+  service()->SetMaxConnectionsPerProxyChain(57, 59, false);
   EXPECT_EQ(57u, GetGlobalMaxConnectionsPerProxyChain());
   EXPECT_EQ(59u, GetGlobalMaxConnectionsPerProxyChainForWebSocket());
+  EXPECT_EQ(false, GetGlobalAllowSizeRandomizationForProxy());
 
   // Restore the default value to minize sideffects.
-  service()->SetMaxConnectionsPerProxyChain(kDefault, kDefault);
+  service()->SetMaxConnectionsPerProxyChain(kDefault, kDefault, true);
 }
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
@@ -1808,7 +1834,8 @@ TEST_F(NetworkServiceTestWithService, EnableDisableHappyEyeballsV3AndLoad) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/false,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   LoadURL(test_server()->GetURL("/echo"));
   EXPECT_EQ(net::OK, client()->completion_status().error_code);
 
@@ -1817,7 +1844,8 @@ TEST_F(NetworkServiceTestWithService, EnableDisableHappyEyeballsV3AndLoad) {
       net::SecureDnsMode::kOff,
       /*dns_over_https_config=*/{},
       /*additional_dns_types_enabled=*/false,
-      /*fallback_doh_nameservers=*/{});
+      /*fallback_doh_nameservers=*/{},
+      /*insecure_dns_via_platform_apis_enabled=*/false);
   LoadURL(test_server()->GetURL("/echo"));
   EXPECT_EQ(net::OK, client()->completion_status().error_code);
 }

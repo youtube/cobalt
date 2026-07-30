@@ -346,7 +346,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ChoiceCompletedOnMonth.OnProfileLoad2{Profile}"
-    enum="SearchEngineChoiceDate" expires_after="2026-09-06">
+    enum="SearchEngineChoiceDate" expires_after="2026-11-08">
 <!-- When bumping expiry date, also update the enum (making the enumeration in
 sync with existing values). Escalate when data count exceeds 1000 entries:
 https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/README.md#When-To-Use-Sparse-Histograms -->
@@ -1162,6 +1162,22 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   </summary>
 </histogram>
 
+<histogram name="Search.Integrity.Enterprise.IsDefaultEnforcedWithoutPolicy"
+    enum="Boolean" expires_after="2026-10-20">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records whether the default search engine has the enforced_by_policy flag
+    set to True, but the DefaultSearchProviderEnabled policy is not active for a
+    managed profile. This helps detect cases where search settings might be
+    incorrectly claiming policy enforcement.
+
+    Recorded once per profile at startup when the search engine allowlist is
+    initialized and the configuration is checked.
+  </summary>
+</histogram>
+
 <histogram name="Search.Integrity.Enterprise.Referral.ParameterFound"
     enum="SearchReferralParam" expires_after="2026-10-20">
   <owner>musalmaan@chromium.org</owner>
@@ -1218,6 +1234,22 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   </summary>
 </histogram>
 
+<histogram name="Search.Integrity.IsDefaultEnforcedWithoutPolicy"
+    enum="Boolean" expires_after="2026-10-20">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records whether the default search engine has the enforced_by_policy flag
+    set to True, but the DefaultSearchProviderEnabled policy is not active. This
+    helps detect cases where search settings might be incorrectly claiming
+    policy enforcement.
+
+    Recorded once per profile at startup when the search engine allowlist is
+    initialized and the configuration is checked.
+  </summary>
+</histogram>
+
 <histogram name="Search.Integrity.IsDefaultSearchEngineCustom" enum="Boolean"
     expires_after="2026-10-20">
   <owner>musalmaan@chromium.org</owner>
@@ -1267,7 +1299,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.KeywordTable.HashValidationStatus"
-    enum="KeywordTableHashValidationStatus" expires_after="2026-03-22">
+    enum="KeywordTableHashValidationStatus" expires_after="2026-09-22">
   <owner>wfh@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1291,6 +1323,20 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     metric is recorded when a Web Data database before v137 is loaded, which
     happens at profile load. A failure here means one or more rows have been
     dropped, but the table was migrated to v137 anyway.
+  </summary>
+</histogram>
+
+<histogram name="Search.KeywordTable.MigrationSuccess.V152"
+    enum="BooleanSuccess" expires_after="2026-11-24">
+  <owner>wfh@chromium.org</owner>
+  <owner>jdonnelly@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether or not the migration of the keywords table in the Web Data
+    sqlite database successfully completed without dropping any rows. This
+    metric is recorded when a Web Data database before v152 is loaded, which
+    happens at profile load. A failure here means one or more rows have been
+    dropped, but the table was migrated to v152 anyway.
   </summary>
 </histogram>
 

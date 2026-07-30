@@ -5,15 +5,16 @@
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_view.h"
 
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_ui.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/view_utils.h"
-#include "ui/views/widget/widget.h"
 
 namespace {
 constexpr int kDefaultWidth = 800;
@@ -26,10 +27,18 @@ DrivePickerHostView::DrivePickerHostView(Profile* profile) {
   // before the WebUI content determines the final layout.
   SetPreferredSize(gfx::Size(kDefaultWidth, kDefaultHeight));
 
+  // Set the view to paint to a layer so that the view can be transparent over
+  // the web contents. This allows the web contents to appear like a floating
+  // dialog over the browser window.
+  SetPaintToLayer();
+  layer()->SetFillsBoundsOpaquely(false);
+  SetBackground(nullptr);
+  SetBorder(nullptr);
   SetLayoutManager(std::make_unique<views::FillLayout>());
   views::WebView* web_view =
       AddChildView(std::make_unique<views::WebView>(profile));
   view_tracker_.SetView(web_view);
+  web_view->SetBackground(nullptr);
 
   // Since the WebView was just created with a valid profile, GetWebContents()
   // is guaranteed to return a valid pointer. We use a CHECK here to assert
@@ -54,11 +63,17 @@ void DrivePickerHostView::TriggerDrivePickerHostUi(
     mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>
         result_handler) {
   if (!view_tracker_.view()) {
+    mojo::Remote<drive_picker_host::mojom::DrivePickerResultHandler>(
+        std::move(result_handler))
+        ->OnError(drive_picker_host::mojom::DrivePickerError::kViewNotFound);
     return;
   }
   views::WebView* web_view =
       views::AsViewClass<views::WebView>(view_tracker_.view());
   if (!web_view) {
+    mojo::Remote<drive_picker_host::mojom::DrivePickerResultHandler>(
+        std::move(result_handler))
+        ->OnError(drive_picker_host::mojom::DrivePickerError::kViewNotFound);
     return;
   }
   content::WebContents* contents = web_view->GetWebContents();
@@ -67,8 +82,13 @@ void DrivePickerHostView::TriggerDrivePickerHostUi(
         contents->GetWebUI()->GetController()->GetAs<DrivePickerHostUI>();
     if (drive_picker_host_ui) {
       drive_picker_host_ui->TriggerDrivePickerHost(std::move(result_handler));
+      return;
     }
   }
+
+  mojo::Remote<drive_picker_host::mojom::DrivePickerResultHandler>(
+      std::move(result_handler))
+      ->OnError(drive_picker_host::mojom::DrivePickerError::kWebUINotFound);
 }
 
 BEGIN_METADATA(DrivePickerHostView)

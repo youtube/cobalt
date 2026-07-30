@@ -381,6 +381,10 @@ source_set("browser_sources") {
     "extension_system.h",
     "extension_system_provider.cc",
     "extension_system_provider.h",
+    "extension_user_activation_service.cc",
+    "extension_user_activation_service.h",
+    "extension_user_activation_service_factory.cc",
+    "extension_user_activation_service_factory.h",
     "extension_user_script_loader.cc",
     "extension_user_script_loader.h",
     "extension_util.cc",
@@ -905,6 +909,8 @@ source_set("webstore_installer") {
     "webstore_data_fetcher_delegate.h",
     "webstore_install_helper.cc",
     "webstore_install_helper.h",
+    "webstore_install_result.cc",
+    "webstore_install_result.h",
     "webstore_installer.cc",
     "webstore_installer.h",
   ]
@@ -1101,6 +1107,7 @@ source_set("unit_tests") {
     "extension_pref_value_map_unittest.cc",
     "extension_registrar_unittest.cc",
     "extension_registry_unittest.cc",
+    "extension_user_activation_service_unittest.cc",
     "extension_util_unittest.cc",
     "file_highlighter_unittest.cc",
     "file_reader_unittest.cc",
@@ -1210,7 +1217,6 @@ source_set("unit_tests") {
     deps += [
       "//components/storage_monitor:test_support",
       "//extensions/browser/api/declarative_net_request/filter_list_converter:unit_tests",
-      "//extensions/shell:app_shell_lib",
     ]
 
     if (!is_android) {
@@ -1265,11 +1271,11 @@ source_set("unit_tests") {
       "//chromeos/dbus/power",
       "//components/account_id",
       "//components/feedback",
+      "//components/feedback/content:factory",
       "//components/prefs",
       "//components/prefs:test_support",
       "//components/user_manager",
       "//components/user_manager:test_support",
-      "//extensions/shell:app_shell_lib",
       "//google_apis",
     ]
   }

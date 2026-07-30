@@ -37,6 +37,7 @@ import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -55,6 +56,8 @@ import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
@@ -628,6 +631,37 @@ public class OptionalButtonViewTest {
     }
 
     @Test
+    public void testUpdateButtonWithAnimation_actionChipWithCustomColors() {
+        ButtonDataImpl actionChipButtonData = getDataForReaderModeActionChip();
+
+        // Use custom background and text color attributes.
+        int backgroundColorAttr = R.attr.colorTertiaryContainer;
+        int textColorAttr = R.attr.colorOnTertiaryContainer;
+
+        actionChipButtonData.setButtonSpec(
+                new ButtonSpec.Builder(actionChipButtonData.getButtonSpec())
+                        .setActionChipBackgroundColorResId(backgroundColorAttr)
+                        .setActionChipTextColorResId(textColorAttr)
+                        .build());
+
+        mOptionalButtonView.updateButtonWithAnimation(actionChipButtonData);
+
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        int expectedTextColor =
+                com.google.android.material.color.MaterialColors.getColor(
+                        mOptionalButtonView, textColorAttr);
+        assertEquals(expectedTextColor, mActionChipLabel.getCurrentTextColor());
+
+        assertEquals(
+                ColorStateList.valueOf(expectedTextColor),
+                ImageViewCompat.getImageTintList(mButton));
+
+        assertNotNull(mButtonBackground.getColorFilter());
+    }
+
+    @Test
     public void testSetIconDrawableWithAnimation_hideIcon() {
         ButtonData buttonData = getDataForStaticNewTabIconButton();
 
@@ -1133,8 +1167,68 @@ public class OptionalButtonViewTest {
     }
 
     @Test
-    public void testSetSuppressBackground() {
-        mOptionalButtonView.setSuppressBackground(true);
+    public void testOnDetachedFromWindow_cancelsPendingActionChipCollapse() {
+        ButtonDataImpl actionChipButtonData = getDataForReaderModeActionChip();
+        int collapseDelay =
+                actionChipButtonData.getButtonSpec().getActionChipCollapseDelayMs();
+
+        Callback<Integer> transitionStartedCallback = MockitoHelper.mockCallback();
+        mOptionalButtonView.setTransitionStartedCallback(transitionStartedCallback);
+
+        mOptionalButtonView.updateButtonWithAnimation(actionChipButtonData);
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        mOptionalButtonView.onDetachedFromWindow();
+
+        mShadowLooper.idleFor(collapseDelay + 1, TimeUnit.MILLISECONDS);
+        verify(transitionStartedCallback, never())
+                .onResult(TransitionType.COLLAPSING_ACTION_CHIP);
+    }
+
+    @Test
+    public void testCancelTransition_cancelsPendingActionChipCollapse() {
+        ButtonDataImpl actionChipButtonData = getDataForReaderModeActionChip();
+        int collapseDelay =
+                actionChipButtonData.getButtonSpec().getActionChipCollapseDelayMs();
+
+        Callback<Integer> transitionStartedCallback = MockitoHelper.mockCallback();
+        mOptionalButtonView.setTransitionStartedCallback(transitionStartedCallback);
+
+        mOptionalButtonView.updateButtonWithAnimation(actionChipButtonData);
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        mOptionalButtonView.cancelTransition();
+
+        mShadowLooper.idleFor(collapseDelay + 1, TimeUnit.MILLISECONDS);
+        verify(transitionStartedCallback, never())
+                .onResult(TransitionType.COLLAPSING_ACTION_CHIP);
+    }
+
+    @Test
+    public void testHide_cancelsPendingActionChipCollapse() {
+        ButtonDataImpl actionChipButtonData = getDataForReaderModeActionChip();
+        int collapseDelay =
+                actionChipButtonData.getButtonSpec().getActionChipCollapseDelayMs();
+
+        Callback<Integer> transitionStartedCallback = MockitoHelper.mockCallback();
+        mOptionalButtonView.setTransitionStartedCallback(transitionStartedCallback);
+
+        mOptionalButtonView.updateButtonWithAnimation(actionChipButtonData);
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        mOptionalButtonView.updateButtonWithAnimation(null);
+
+        mShadowLooper.idleFor(collapseDelay + 1, TimeUnit.MILLISECONDS);
+        verify(transitionStartedCallback, never())
+                .onResult(TransitionType.COLLAPSING_ACTION_CHIP);
+    }
+
+    @Test
+    public void testSetSuppressCollapsedBackground() {
+        mOptionalButtonView.setSuppressCollapsedBackground(true);
 
         ButtonDataImpl buttonData = getDataForStaticNewTabIconButton();
         mOptionalButtonView.updateButtonWithAnimation(buttonData);
@@ -1144,7 +1238,46 @@ public class OptionalButtonViewTest {
         assertNull(mButton.getBackground());
         assertEquals(View.GONE, mButtonBackground.getVisibility());
 
-        mOptionalButtonView.setSuppressBackground(false);
+        mOptionalButtonView.setSuppressCollapsedBackground(false);
         assertNotNull(mButton.getBackground());
+    }
+
+    @Test
+    public void testActionChipShowsBackgroundEvenIfSuppressed() {
+        mOptionalButtonView.setSuppressCollapsedBackground(true);
+
+        ButtonDataImpl buttonData = getDataForReaderModeActionChip();
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        // Background should be visible when expanded, despite suppression.
+        assertEquals(View.VISIBLE, mButtonBackground.getVisibility());
+
+        // Advance looper to begin collapse transition.
+        mShadowLooper.runToEndOfTasks();
+        mOptionalButtonView.onTransitionStart(null);
+        mOptionalButtonView.onTransitionEnd(null);
+
+        // Background should be hidden after collapse because it's suppressed.
+        assertEquals(View.GONE, mButtonBackground.getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testBackgroundMargins_Enabled() {
+        ButtonDataImpl buttonData = getDataForReaderModeIconButton();
+        mOptionalButtonView.updateButtonWithAnimation(buttonData);
+
+        FrameLayout.LayoutParams backgroundLayoutParams =
+                (FrameLayout.LayoutParams) mButtonBackground.getLayoutParams();
+        int expectedMargin =
+                mOptionalButtonView
+                        .getContext()
+                        .getResources()
+                        .getDimensionPixelSize(
+                                R.dimen.toolbar_phone_optional_button_background_vertical_margin);
+        assertEquals(expectedMargin, backgroundLayoutParams.topMargin);
+        assertEquals(expectedMargin, backgroundLayoutParams.bottomMargin);
     }
 }

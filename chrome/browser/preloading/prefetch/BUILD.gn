@@ -133,10 +133,13 @@ if (!is_android) {
     deps = [
       ":test_support",
       "//base/test:test_support",
+      "//chrome/browser:chrome_content_browser_client",
       "//chrome/browser/browsing_data:constants",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/devtools",
       "//chrome/browser/devtools:test_support",
+      "//chrome/browser/history",
+      "//chrome/browser/omnibox",
       "//chrome/browser/preloading",
       "//chrome/browser/preloading:prefs",
       "//chrome/browser/preloading:test_support",

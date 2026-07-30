@@ -27,12 +27,17 @@ chromium-metrics-reviews@google.com.
   <variant name="Startup"/>
 </variants>
 
+<!-- LINT.IfChange(ModuleType) -->
+
 <variants name="ModuleType">
   <variant name="AddressBarPlacementPromo"/>
   <variant name="AuxiliarySearch"/>
   <variant name="DefaultBrowserPromo"/>
+  <variant name="DeprecatedTabResumption"/>
+  <variant name="DeprecatedTipsNotificationsPromo"/>
   <variant name="EnhancedSafeBrowsingPromo"/>
   <variant name="HistorySyncPromo"/>
+  <variant name="NtpThemePromo"/>
   <variant name="PasswordCheckupPromo"/>
   <variant name="PriceChange"/>
   <variant name="QuickDeletePromo"/>
@@ -43,9 +48,9 @@ chromium-metrics-reviews@google.com.
   <variant name="SingleTab"/>
   <variant name="TabGroupPromo"/>
   <variant name="TabGroupSyncPromo"/>
-  <variant name="TabResumption"/>
-  <variant name="TipsNotificationsPromo"/>
 </variants>
+
+<!-- LINT.ThenChange(//chrome/browser/magic_stack/android/java/src/org/chromium/chrome/browser/magic_stack/ModuleDelegate.java:HomeModuleTypes) -->
 
 <variants name="ScrollState">
   <variant name="NotScrolled"/>
@@ -178,7 +183,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MagicStack.Clank.NewTabPage.Module.TopImpressionV2"
-    enum="ModuleType" expires_after="2026-09-06">
+    enum="ModuleType" expires_after="2026-11-08">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>

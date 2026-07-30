@@ -336,6 +336,7 @@ class CONTENT_EXPORT NavigationRequest
       bool is_same_document,
       const GURL& url,
       const url::Origin& origin,
+      const std::optional<url::Origin>& initiator_origin,
       const std::optional<GURL>& initiator_base_url,
       const net::IsolationInfo& isolation_info_for_subresources,
       blink::mojom::ReferrerPtr referrer,
@@ -514,6 +515,8 @@ class CONTENT_EXPORT NavigationRequest
   bool NeedsUrlLoader() override;
   bool IsInitialWebUISyncNavigation() override;
   bool IsInitialWebUINavigation() override;
+  bool IsPageActivation() const override;
+  bool IsNavigatingFromInitialEmptyDocument() const override;
   // End of NavigationHandle implementation.
 
   // Returns a perfetto Track that represents this navigation, nested under the
@@ -1077,10 +1080,6 @@ class CONTENT_EXPORT NavigationRequest
   // committed entry.
   const GURL& GetPreviousMainFrameURL() const;
 
-  // Whether this navigation is activating an existing page (e.g. served from
-  // the BackForwardCache or Prerender)
-  bool IsPageActivation() const override;
-
   // Returns whether the navigation type is a restore navigation.
   bool IsRestore() const;
 
@@ -1222,6 +1221,21 @@ class CONTENT_EXPORT NavigationRequest
       base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context);
   void SetFetchLaterLoaderFactoryContextForTesting(
       base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context);
+
+  // Outcome of Content Security Policy Embedded Enforcement (CSPEE).
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(NavigationCSPEmbeddedEnforcementOutcome)
+  enum class NavigationCSPEmbeddedEnforcementOutcome {
+    kAllowLocalScheme = 0,
+    kAllowAllowCSPFromHeader = 1,
+    kAllowSubsumes = 2,
+    kBlock = 3,
+    kAllowMHTML = 4,
+    kMaxValue = kAllowMHTML,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/enums.xml:NavigationCSPEmbeddedEnforcementOutcome)
 
   // Helper for logging crash keys related to a NavigationRequest (e.g.
   // "navigation_request_url", "navigation_request_initiator", and
@@ -2127,6 +2141,7 @@ class CONTENT_EXPORT NavigationRequest
   // the 'csp' attribute should be installed into the child. This might also
   // block it and display an error page instead.
   void SetupCSPEmbeddedEnforcement();
+
   enum class CSPEmbeddedEnforcementResult {
     ALLOW_RESPONSE,
     BLOCK_RESPONSE,

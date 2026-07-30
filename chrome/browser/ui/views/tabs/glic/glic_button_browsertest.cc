@@ -8,6 +8,7 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -52,7 +53,7 @@ class GlicButtonTest : public InProcessBrowserTest {
 
   void WaitForGlicPanelShow() {
     ASSERT_TRUE(base::test::RunUntil([&]() {
-      return glic_service()->IsWindowShowing();
+      return glic_service()->instance_coordinator().IsAnyPanelShowing();
     })) << "Glic panel should have been shown";
   }
 
@@ -87,7 +88,7 @@ IN_PROC_BROWSER_TEST_F(GlicButtonTest, UnpinCommand) {
 }
 
 IN_PROC_BROWSER_TEST_F(GlicButtonTest, TooltipAndA11yTextForOpening) {
-  EXPECT_FALSE(glic_service()->IsWindowOrFreShowing());
+  EXPECT_FALSE(glic_service()->instance_coordinator().IsAnyPanelShowing());
   EXPECT_EQ(glic_button()->GetViewAccessibility().GetCachedName(),
             l10n_util::GetStringUTF16(IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP));
 }

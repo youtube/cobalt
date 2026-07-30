@@ -51,8 +51,14 @@ class SaveUpdateBubbleController
   // Returns true iff the password account store is used.
   bool IsUsingAccountStore();
 
+  // Returns true if the user dismissed the bubble a maximum number of times.
+  bool IsMaxDismissalCountReached() const;
+
   // PasswordBubbleControllerBase methods:
   std::u16string GetTitle() const override;
+
+  // Returns the domain to be used as a subhead if the title requires it.
+  std::optional<std::u16string> GetDomainForSubhead() const;
 
 #if defined(UNIT_TEST)
   void set_clock(base::Clock* clock) { clock_ = clock; }

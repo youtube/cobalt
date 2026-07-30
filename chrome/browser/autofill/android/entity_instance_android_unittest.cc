@@ -16,6 +16,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
@@ -24,6 +25,7 @@ namespace {
 
 // ID of the dummy profile used for filling in tests.
 constexpr char kGuid[] = "00000000-0000-0000-0000-000000000001";
+constexpr char kNickname[] = "Nickname";
 
 class EntityInstanceAndroidTest : public testing::Test {
  protected:
@@ -44,8 +46,9 @@ TEST_F(EntityInstanceAndroidTest, ToEntityInstance_BasicConversion) {
   AttributeInstanceAndroid attribute_instance_android(
       passport_name_attribute_type_android, passport_name);
   EntityInstanceAndroid entity_instance_android(
-      entity_type_android, kGuid, EntityInstance::RecordType::kLocal,
-      {attribute_instance_android}, EntityMetadataAndroid(base::Time::Now(), 0),
+      entity_type_android, EntityInstance::RecordType::kLocal,
+      {attribute_instance_android}, kNickname,
+      EntityMetadataAndroid(kGuid, base::Time::Now(), 0, base::Time::Now()),
       /*requires_reauth_to_see=*/false, /*is_masked_server_entity=*/false);
 
   EntityInstance entity_instance =
@@ -58,6 +61,8 @@ TEST_F(EntityInstanceAndroidTest, ToEntityInstance_BasicConversion) {
   EXPECT_EQ(entity_instance.attributes()[0].type(), attribute_type);
   EXPECT_EQ(entity_instance.attributes()[0].GetCompleteRawInfo(),
             passport_name);
+  EXPECT_FALSE(entity_instance.IsMaskedEntity());
+  EXPECT_FALSE(entity_instance.IsServerInstance());
 }
 
 // Test that if an existing entity attribute did not change when converting an
@@ -91,8 +96,9 @@ TEST_F(EntityInstanceAndroidTest, ToEntityInstance_ReuseExistingAttribute) {
   AttributeInstanceAndroid attribute_instance_android(
       password_name_attribute_type_android, passport_name);
   EntityInstanceAndroid entity_instance_android(
-      entity_type_android, kGuid, EntityInstance::RecordType::kLocal,
-      {attribute_instance_android}, EntityMetadataAndroid(base::Time::Now(), 0),
+      entity_type_android, EntityInstance::RecordType::kLocal,
+      {attribute_instance_android}, kNickname,
+      EntityMetadataAndroid(kGuid, base::Time::Now(), 0, base::Time::Now()),
       /*requires_reauth_to_see=*/false, /*is_masked_server_entity=*/false);
 
   EntityInstance converted_entity =
@@ -167,10 +173,11 @@ TEST_F(EntityInstanceAndroidTest, ToEntityInstance_UpdateExistingAttribute) {
   AttributeInstanceAndroid passport_number_attribute_instance_android(
       passport_number_attribute_type_android, number);
   EntityInstanceAndroid entity_instance_android(
-      entity_type_android, kGuid, EntityInstance::RecordType::kLocal,
+      entity_type_android, EntityInstance::RecordType::kLocal,
       {passport_name_attribute_instance_android,
        passport_number_attribute_instance_android},
-      EntityMetadataAndroid(base::Time::Now(), 0),
+      kNickname,
+      EntityMetadataAndroid(kGuid, base::Time::Now(), 0, base::Time::Now()),
       /*requires_reauth_to_see=*/false, /*is_masked_server_entity=*/false);
 
   EntityInstance converted_entity =
@@ -200,6 +207,33 @@ TEST_F(EntityInstanceAndroidTest, ToEntityInstance_UpdateExistingAttribute) {
   EXPECT_EQ(updated_entity_passport_number->GetVerificationStatus(
                 passport_number_attribute_type.field_type()),
             VerificationStatus::kNoStatus);
+}
+
+// Makes sure the `EntityInstance` C++ -> Java -> C++ conversion results in the
+// object equal to the initial entity. This process has to known caveats:
+// * The name attributes have a parsed substructure in C++, which is not stored
+//   in Java. An existing entity instance is provided to the conversion method
+//   to keep the substructure.
+// * The dates (modified date and use date) are stored with microsecond
+//   precision in C++ and millisecond precision in Java. This means the test
+//   will work as long as the dates have zero microseconds.
+TEST_F(EntityInstanceAndroidTest, DoubleConversion) {
+  EntityInstance passport = test::GetPassportEntityInstance();
+  EntityInstanceAndroid entity_instance_android(
+      passport, /*is_enabled=*/true, /*is_eligible_for_wallet_storage=*/true,
+      /*requires_reauth_to_see=*/true);
+
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  jni_zero::ScopedJavaLocalRef<jobject> java_instance =
+      jni_zero::ToJniType<EntityInstanceAndroid>(env, entity_instance_android);
+
+  EntityInstanceAndroid converted_entity =
+      jni_zero::FromJniType<EntityInstanceAndroid>(env, java_instance);
+
+  EntityInstance converted_passport =
+      converted_entity.ToEntityInstance(passport);
+
+  EXPECT_EQ(passport, converted_passport);
 }
 
 }  // namespace

@@ -12,7 +12,6 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
@@ -93,6 +92,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("isTopChromeSearchbox", true);
   source->AddBoolean("omniboxAimPopupEnabled",
                      omnibox::IsAimPopupFeatureEnabled());
+  source->AddBoolean("omniboxShowContextButtonSuggestionLabel",
+                     omnibox::kContextButtonShowSuggestionLabel.Get());
   source->AddBoolean(
       "omniboxPopupDebugEnabled",
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug));
@@ -126,6 +127,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                      omnibox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("composeboxShowContextMenu",
                      omnibox::kShowContextMenu.Get());
+  // TODO (crbug.com/509939902) - Clean up composeboxShowContextMenuDescription
+  // and determine if it should be removed in all instances.
   source->AddBoolean(
       "composeboxShowContextMenuDescription",
       omnibox::kShowContextMenuDescription.Get() &&

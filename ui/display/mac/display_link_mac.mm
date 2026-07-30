@@ -31,15 +31,6 @@ bool DisplayLinkMac::SupportsDisplayLinkMacInBrowser() {
       display::features::kCADisplayLinkInBrowser);
 }
 
-// Static
-bool DisplayLinkMac::IsDisplayLinkAllowed(int64_t display_id) {
-  if (DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    return ExternalDisplayLinkMac::IsDisplayLinkSupported(display_id);
-  }
-
-  return true;
-}
-
 // static
 scoped_refptr<DisplayLinkMac> DisplayLinkMac::GetForDisplay(
     int64_t vsync_display_id) {
@@ -53,18 +44,25 @@ scoped_refptr<DisplayLinkMac> DisplayLinkMac::GetForDisplay(
   // CADisplayLink is available only for MacOS 14.0+.
   if (@available(macos 14.0, *)) {
     if (base::FeatureList::IsEnabled(kCADisplayLinkInGpu)) {
-      return CADisplayLinkMac::GetForDisplay(display_id);
+      return CADisplayLinkMac::GetForDisplay(display_id,
+                                             /*in_gpu_process=*/true);
     }
   }
 
   if (SupportsDisplayLinkMacInBrowser()) {
     if (CADisplayLinkMac::IsValidInGpuProcess(display_id)) {
-      return CADisplayLinkMac::GetForDisplay(display_id);
+      return CADisplayLinkMac::GetForDisplay(display_id,
+                                             /*in_gpu_process=*/true);
     }
     return ExternalDisplayLinkMac::GetForDisplay(display_id);
   }
 
   return CVDisplayLinkMac::GetForDisplay(display_id);
+}
+
+// static
+bool DisplayLinkMac::IsCADisplayLinkValidInGpuProcess(int64_t display_id) {
+  return CADisplayLinkMac::IsValidInGpuProcess(display_id);
 }
 
 void DisplayLinkMac::RecordDisplayLinkCreation(bool success) {

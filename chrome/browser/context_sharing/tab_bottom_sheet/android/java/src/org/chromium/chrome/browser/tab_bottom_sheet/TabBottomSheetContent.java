@@ -6,11 +6,11 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import android.content.Context;
 import android.view.View;
-import android.view.ViewGroup;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.StringRes;
 
+import org.chromium.build.NullUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
@@ -18,6 +18,8 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.GlowSpec;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
+
+import java.util.function.BooleanSupplier;
 
 /** The bottom sheet content for the tab bottom sheet. */
 @NullMarked
@@ -27,22 +29,27 @@ public class TabBottomSheetContent implements BottomSheetContent {
     private final int mPeekViewHeight;
     private final @ColorInt int mBackgroundColor;
     private final @Nullable GlowSpec mGlowSpec;
-    private final ViewGroup mPeekContainer;
+    private final BooleanSupplier mCanNotBeSuppressedSupplier;
 
     /**
+     * Constructor.
+     *
      * @param contentView The inflated view for the bottom sheet.
      * @param fullHeightRatio The full height ratio for the bottom sheet.
      * @param backgroundColor The background color for the bottom sheet.
      * @param clientType The client using the bottom sheet.
+     * @param canNotBeSuppressedSupplier Supplier for whether the bottom sheet can be suppressed.
      */
     public TabBottomSheetContent(
             View contentView,
             float fullHeightRatio,
             @ColorInt int backgroundColor,
-            @TabBottomSheetClientType int clientType) {
+            @TabBottomSheetClientType int clientType,
+            BooleanSupplier canNotBeSuppressedSupplier) {
         mContentView = contentView;
         mFullHeightRatio = fullHeightRatio;
         mBackgroundColor = backgroundColor;
+        mCanNotBeSuppressedSupplier = canNotBeSuppressedSupplier;
         // TODO(crbug.com/502611927): Remove or tweak this for AIM.
         mGlowSpec =
                 clientType == TabBottomSheetClientType.GLIC
@@ -54,9 +61,10 @@ public class TabBottomSheetContent implements BottomSheetContent {
                 mContentView
                         .getResources()
                         .getDimensionPixelSize(R.dimen.tab_bottom_sheet_peek_height_total);
-        mPeekContainer = (ViewGroup) mContentView.findViewById(R.id.actor_control_container);
-        assert mPeekContainer != null;
-        mPeekContainer.setBackgroundColor(mBackgroundColor);
+
+        View view = mContentView.findViewById(R.id.actor_control_container);
+        View peekContainer = NullUtil.assertNonNull(view);
+        peekContainer.setBackgroundColor(mBackgroundColor);
     }
 
     @Override
@@ -81,9 +89,7 @@ public class TabBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public void destroy() {
-        mPeekContainer.removeAllViews();
-    }
+    public void destroy() {}
 
     @Override
     public int getPriority() {
@@ -171,7 +177,7 @@ public class TabBottomSheetContent implements BottomSheetContent {
 
     @Override
     public boolean canBeSuppressed(BottomSheetContent nextContent) {
-        return true;
+        return !mCanNotBeSuppressedSupplier.getAsBoolean();
     }
 
     @Override
@@ -183,6 +189,11 @@ public class TabBottomSheetContent implements BottomSheetContent {
 
     @Override
     public boolean allowInSheetContentSnackbars() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldRestoreStateOnUnsuppress() {
         return false;
     }
 }

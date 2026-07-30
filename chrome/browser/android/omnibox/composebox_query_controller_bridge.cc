@@ -26,16 +26,18 @@
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/common/channel_info.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/internal/composebox_query_controller.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
@@ -76,7 +78,8 @@ static int64_t JNI_ComposeboxQueryControllerBridge_Init(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& java_obj,
     Profile* profile,
-    content::WebContents* contextual_tasks_web_contents) {
+    content::WebContents* web_contents,
+    bool is_task_scoped) {
   auto* aim_service = AimEligibilityServiceFactory::GetForProfile(profile);
   if (!aim_service || !aim_service->IsAimEligible()) {
     return 0L;
@@ -90,21 +93,23 @@ static int64_t JNI_ComposeboxQueryControllerBridge_Init(
   }
 
   ComposeboxQueryControllerBridge* instance =
-      new ComposeboxQueryControllerBridge(java_obj, profile,
-                                          contextual_tasks_web_contents);
+      new ComposeboxQueryControllerBridge(java_obj, profile, web_contents,
+                                          is_task_scoped);
   return reinterpret_cast<intptr_t>(instance);
 }
 
 ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
     const base::android::JavaRef<jobject>& java_obj,
     Profile* profile,
-    content::WebContents* contextual_tasks_web_contents)
-    : profile_{profile}, java_obj_(java_obj) {
-  is_task_scoped_ = contextual_tasks_web_contents != nullptr;
-  if (contextual_tasks_web_contents &&
-      !contextual_tasks_web_contents->IsBeingDestroyed()) {
+    content::WebContents* web_contents,
+    bool is_task_scoped)
+    : profile_{profile}, is_task_scoped_(is_task_scoped), java_obj_(java_obj) {
+  if (is_task_scoped_) {
+    DCHECK(base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks));
+  }
+  if (is_task_scoped_ && web_contents && !web_contents->IsBeingDestroyed()) {
     contextual_tasks_web_ui_interface_ =
-        contextual_tasks::GetWebUiInterface(contextual_tasks_web_contents);
+        contextual_tasks::GetWebUiInterface(web_contents);
     if (contextual_tasks_web_ui_interface_) {
       contextual_tasks_web_ui_interface_->SetComposeboxHandler(this);
     }
@@ -673,17 +678,19 @@ void ComposeboxQueryControllerBridge::InitializeInputStateModel() {
   if (OmniboxFieldTrial::kOmniboxShowModelPicker.Get()) {
     AimEligibilityService* aim_service =
         AimEligibilityServiceFactory::GetForProfile(profile_);
-    const signin::IdentityManager* identity_manager =
-        profile_ ? IdentityManagerFactory::GetForProfile(profile_) : nullptr;
-    bool has_primary_account =
-        identity_manager &&
-        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
+    auto* ui_service = profile_
+                           ? contextual_tasks::ContextualTasksUiServiceFactory::
+                                 GetForBrowserContext(profile_)
+                           : nullptr;
+    bool browser_identity_matches_aim_identity =
+        ui_service && ui_service->IsSignedInToBrowserWithValidCredentials() &&
+        ui_service->IsUrlForPrimaryAccount(GURL());
     const omnibox::SearchboxConfig* config_ptr =
         aim_service->GetSearchboxConfig();
     input_state_model_ = std::make_unique<contextual_search::InputStateModel>(
         *session_handle_, config_ptr ? *config_ptr : omnibox::SearchboxConfig(),
         GURL(), profile_ ? profile_->IsOffTheRecord() : false,
-        has_primary_account);
+        browser_identity_matches_aim_identity);
     input_state_subscription_ =
         input_state_model_->subscribe(base::BindRepeating(
             &ComposeboxQueryControllerBridge::OnInputStateChanged,
@@ -714,9 +721,18 @@ void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
     active_model = input_state.active_model;
   }
 
+  std::string query_text = query;
+  GURL url(query);
+  if (url.is_valid()) {
+    std::string extracted_query;
+    if (net::GetValueForKeyInQuery(url, "q", &extracted_query)) {
+      query_text = extracted_query;
+    }
+  }
+
   auto callback = base::BindOnce(
       [](base::WeakPtr<ComposeboxQueryControllerBridge> self,
-         const std::string& query, omnibox::ToolMode active_tool,
+         const std::string& query_text, omnibox::ToolMode active_tool,
          omnibox::ModelMode active_model,
          base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
              session_handle) {
@@ -724,7 +740,7 @@ void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
           return;
         }
         auto request_info = contextual_tasks::PrepareClientToAimRequestInfo(
-            query, self->session_handle_.get(),
+            query_text, self->session_handle_.get(),
             self->contextual_tasks_web_ui_interface_, active_tool, active_model,
             /*active_tab_context_id=*/std::nullopt,
             /*overlay_token=*/std::nullopt);
@@ -733,10 +749,10 @@ void ComposeboxQueryControllerBridge::SubmitQueryToAimPage(
             std::move(request_info), self->session_handle_.get(),
             self->contextual_tasks_web_ui_interface_);
       },
-      weak_ptr_factory_.GetWeakPtr(), query, active_tool, active_model);
+      weak_ptr_factory_.GetWeakPtr(), query_text, active_tool, active_model);
 
   query_contextualizer_->Contextualize(
-      /*task_id=*/std::nullopt, query, /*tabs_to_recontextualize=*/{},
+      /*task_id=*/std::nullopt, query_text, /*tabs_to_recontextualize=*/{},
       /*tabs_to_force_contextualize=*/{},
       /*on_ineligible_callback=*/base::DoNothing(),
       /*on_processed_callback=*/base::DoNothing(), std::move(callback),

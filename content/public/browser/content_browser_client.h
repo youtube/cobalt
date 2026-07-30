@@ -3037,6 +3037,38 @@ class CONTENT_EXPORT ContentBrowserClient {
   // extension origins.
   virtual bool ShouldUseFirstPartyStorageKey(const url::Origin& origin);
 
+  // Returns the RenderFrameHost that should act as the effective top-level
+  // frame for `render_frame_host`, or nullptr to fall back to the document
+  // tree. Used in:
+  //   - partitioning (StorageKey, IsolationInfo, NetworkIsolationKey,
+  //     SiteForCookies)
+  //   - ancestor-policy walks (CSP frame-ancestors, X-Frame-Options
+  //     SAMEORIGIN, Embedding-requires-opt-in, Location.ancestorOrigins)
+  //
+  // The primary use case is MIME handler extensions (e.g., a full-page PDF
+  // where Chrome wants the extension RFH, not the wrapper that embeds it,
+  // to act as the effective top). Other embedders may decide to use this
+  // hook for analogous cases.
+  //
+  // Implementations must return a non-null frame only when that frame is
+  // genuinely the outermost user-meaningful frame. When an HTML page
+  // explicitly iframes a sub-resource (e.g., `<iframe src="foo.pdf">`),
+  // the embedder is a real web ancestor and must not be hidden;
+  // implementations should return nullptr in that case.
+  virtual RenderFrameHost* GetEffectiveTopFrameForPartitioning(
+      RenderFrameHost* render_frame_host);
+
+  // Browser-side authoritative permission check, allowing embedders to grant
+  // a file picker exemption to a known-trusted cross-origin subframe.
+  // Called only when `render_frame_host`'s `requesting_origin` differs from
+  // the outermost main frame's origin; the same-origin case is allowed by
+  // default and never reaches this hook. Returns true if the embedder
+  // considers `render_frame_host` exempt (e.g., a MIME handler extension
+  // frame). Default: false.
+  virtual bool IsCrossOriginSubframeAllowedToShowFilePicker(
+      RenderFrameHost* render_frame_host,
+      const url::Origin& requesting_origin);
+
   // Checks if the BeforeUnload Dialog event should be skipped.
   virtual bool ShouldSkipBeforeUnloadDialog(content::RenderFrameHost* rfh);
 
@@ -3304,8 +3336,8 @@ class CONTENT_EXPORT ContentBrowserClient {
   // the destination.
   virtual bool ShouldAnimateBackForwardTransitions();
 
-  // Returns the enterprise policy override for the CPU performance tier,
-  // if one is configured.
+  // Returns the enterprise policy or user setting override for the CPU
+  // performance tier, if one is configured.
   virtual std::optional<int> GetCpuPerformanceTierOverride(
       BrowserContext* browser_context);
 

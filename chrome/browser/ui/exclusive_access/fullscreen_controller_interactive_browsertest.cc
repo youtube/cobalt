@@ -65,6 +65,7 @@
 #endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE)
 
 #if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
 #include "ui/base/cocoa/nswindow_test_util.h"
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -1034,7 +1035,8 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
                            : content::EXECUTE_SCRIPT_NO_USER_GESTURE;
     rfh = rfh ? rfh : web_contents_->GetPrimaryMainFrame();
     content::WebContents* tab = content::WebContents::FromRenderFrameHost(rfh);
-    Browser* browser = chrome::FindBrowserWithTab(tab);
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(tab);
     if (!gesture) {
       // Ensure nothing inadvertently triggered user activation beforehand.
       EXPECT_EQ(false, EvalJs(rfh, "navigator.userActivation.isActive",
@@ -1045,12 +1047,14 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
     if (result.is_ok() && result.ExtractBool()) {
       waiter.Wait();
     }
-    return browser->window()->IsFullscreen();
+    return browser->GetWindow()->IsFullscreen();
   }
 
   bool ExitFullscreen(WebContents* web_contents = nullptr) {
     web_contents = web_contents ? web_contents : web_contents_.get();
-    Browser* browser = chrome::FindBrowserWithTab(web_contents);
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents);
     ui_test_utils::FullscreenWaiter waiter(browser, {.tab_fullscreen = false});
     const std::string script = R"((() => {
       window.lastExit = Date.now();
@@ -1060,7 +1064,7 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
     auto result =
         EvalJs(web_contents, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE);
     waiter.Wait();
-    return result.is_ok() && !browser->window()->IsFullscreen();
+    return result.is_ok() && !browser->GetWindow()->IsFullscreen();
   }
 
   std::pair<bool, Browser*> OpenPopupAndRequestFullscreenOnLoad() {
@@ -1075,7 +1079,9 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
       });
     })())";
 
-    Browser* browser = chrome::FindBrowserWithTab(web_contents_);
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents_);
     auto result = EvalJs(web_contents_, script);
     Browser* popup = browser_created_observer.Wait();
     if (!popup) {
@@ -1129,7 +1135,8 @@ IN_PROC_BROWSER_TEST_P(AutomaticFullscreenTest, RequestFullscreenNoGesture) {
   EXPECT_TRUE(RequestFullscreen());
 
   // Navigate away in order to flush use counters.
-  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents_);
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser, GURL(url::kAboutBlankURL)));
   metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
   if (!GetParam()) {  // TODO(crbug.com/41497058): Test use counter in IWA too.
@@ -1257,7 +1264,8 @@ IN_PROC_BROWSER_TEST_P(AutomaticFullscreenTest, BlockingContentsDoesNotExit) {
   EXPECT_TRUE(web_contents_->IsFullscreen());
   // Blocking the tab for a modal dialog does not exit fullscreen if the origin
   // has been granted the automatic fullscreen content setting.
-  Browser* browser = chrome::FindBrowserWithTab(web_contents_);
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents_);
   BrowserWindowModalDialogDelegate::From(browser)->SetWebContentsBlocked(
       web_contents_, true);
   EXPECT_TRUE(web_contents_->IsFullscreen());
@@ -1538,6 +1546,11 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
   SetUpWindowManagementTab();
 #if !BUILDFLAG(IS_MAC)
   const gfx::Rect original_bounds = browser()->window()->GetBounds();
+#else
+  // TODO(crbug.com/510801992): Re-enable on macOS 26 once test is deflaked
+  if (base::mac::MacOSMajorVersion() == 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  }
 #endif
   const display::Display original_display = GetCurrentDisplay(browser());
 
@@ -1623,6 +1636,11 @@ IN_PROC_BROWSER_TEST_F(MAYBE_MultiScreenFullscreenControllerInteractiveTest,
   SetUpWindowManagementTab();
 #if !BUILDFLAG(IS_MAC)
   const gfx::Rect original_bounds = browser()->window()->GetBounds();
+#else
+  // TODO(crbug.com/510801992): Re-enable on macOS 26 once test is deflaked
+  if (base::mac::MacOSMajorVersion() == 26) {
+    GTEST_SKIP() << "Disabled on macOS Tahoe.";
+  }
 #endif
   const display::Display original_display = GetCurrentDisplay(browser());
 

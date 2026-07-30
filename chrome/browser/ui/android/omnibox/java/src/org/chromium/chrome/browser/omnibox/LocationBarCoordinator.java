@@ -84,6 +84,7 @@ import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
@@ -532,6 +533,13 @@ public class LocationBarCoordinator
         return mUrlBar.getHeight();
     }
 
+    /**
+     * Sets the callback to be executed when the status view is hidden due to the Page Info removal.
+     */
+    public void setOnStatusViewHiddenForPageInfoRemoval(Runnable runnable) {
+        mStatusCoordinator.setOnStatusViewHiddenForPageInfoRemoval(runnable);
+    }
+
     @SuppressWarnings("NullAway")
     @Override
     public void destroy() {
@@ -916,6 +924,11 @@ public class LocationBarCoordinator
     /** Returns the {@link UrlBarCoordinator} for the LocationBar. */
     public UrlBarCoordinator getUrlBarCoordinator() {
         return mUrlCoordinator;
+    }
+
+    /** Returns the {@link FuseboxCoordinator} for the LocationBar. */
+    public FuseboxCoordinator getFuseboxCoordinator() {
+        return mFuseboxCoordinator;
     }
 
     /**
@@ -1375,7 +1388,9 @@ public class LocationBarCoordinator
 
             mOptionalButtonCoordinator.setCollapsedStateWidth(
                     context.getResources().getDimensionPixelSize(R.dimen.min_touch_target_size));
-            mOptionalButtonCoordinator.setSuppressBackground(true);
+            mOptionalButtonCoordinator.setSuppressCollapsedBackground(true);
+            mOptionalButtonCoordinator.setBackgroundColorFilter(
+                    SemanticColorUtils.getColorSurface(context));
 
             // The optional button should hide when the URL bar gains focus and reappear when it
             // loses focus.

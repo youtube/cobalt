@@ -80,7 +80,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://extensions-zero-state",
       "chrome://family-link-user-internals",
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-      "chrome://feature-showcase",
+      "chrome://feature-showcase/?steps=example",
 #endif
       "chrome://flags",
       "chrome://gcm-internals",
@@ -109,6 +109,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://media-internals",
       "chrome://media-router-internals",
       "chrome://metrics-internals",
+      "chrome://multistep-filter-internals",
       "chrome://net-export",
       "chrome://net-internals",
       "chrome://network-errors",
@@ -129,7 +130,12 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://password-manager-internals",
       "chrome://policy",
       "chrome://predictors",
+
+  // TODO(crbug.com/511254271): Flaky on some Linux builders.
+#if !BUILDFLAG(IS_LINUX)
       "chrome://prefs-internals",
+#endif
+
       "chrome://privacy-sandbox-internals",
       "chrome://private-aggregation-internals",
       "chrome://private-ai-internals",
@@ -301,6 +307,7 @@ base::span<const std::string_view> GetUntestedChromeUrlsForTest() {
       "chrome://feedback",
       "chrome://glic",
       "chrome://glic-fre",
+      "chrome://glic-experimental-opt-in",
       "chrome-untrusted://glic",
       "chrome://history-sync-optin",
       // Not a valid URL; only internals/session-service is valid.

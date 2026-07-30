@@ -21,6 +21,7 @@ group("resources") {
     "borealis_installer:resources",
     "cloud_upload:resources",
     "crostini_installer:resources",
+    "cryptohome:resources",
     "desk_api:resources",
     "drive_internals:resources",
     "edu_coexistence:resources",
@@ -51,6 +52,7 @@ group("resources") {
     "set_time_dialog:resources",
     "skyvault:resources",
     "slow:resources",
+    "smb_shares:resources",
     "supervision:resources",
     "sys_internals:resources",
     "vm:resources",
@@ -88,8 +90,5 @@ grit("multidevice_setup_resources") {
 }
 
 group("closure_compile") {
-  deps = [
-    "multidevice_internals:closure_compile",
-    "smb_shares:closure_compile",
-  ]
+  deps = [ "multidevice_internals:closure_compile" ]
 }

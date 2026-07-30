@@ -106,9 +106,10 @@ class GlicInstanceCoordinatorImpl
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
 
-  // GlicInstanceCoordinator and GlicInstanceCoordinatorMetrics::DataProvider
-  // implementation
-  std::vector<GlicInstance*> GetInstances() override;
+  // GlicInstanceCoordinatorMetrics::DataProvider implementation
+  int GetVisibleInstanceCount() const override;
+
+  bool IsAnyPanelShowing() const override;
   // GlicInstanceCoordinator implementation
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
   // Sorts instances by recency and returns the instance id and
@@ -139,8 +140,7 @@ class GlicInstanceCoordinatorImpl
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
               mojom::InvocationSource source,
-              std::optional<std::string> deprecated_prompt_suggestion,
-              std::optional<std::string> deprecated_conversation_id) override;
+              std::optional<std::string> deprecated_prompt_suggestion) override;
   void EnsurePreload() override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
@@ -186,6 +186,7 @@ class GlicInstanceCoordinatorImpl
   void SetWarmingEnabledForTesting(bool warming_enabled);
   GlicWebContentsWarmingPool& GetWebContentsWarmingPoolForTesting();
   std::string DescribeForTesting();
+  std::vector<GlicInstanceImpl*> GetInstancesForTesting();
 
   // Testing support. These methods should not be added to the public interface.
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
@@ -217,6 +218,9 @@ class GlicInstanceCoordinatorImpl
   // Helper method to get a list of recently active instances sorted by time.
   std::vector<GlicInstanceImpl*> GetSortedRecentInstances(size_t limit) const;
 
+  // GlicInstanceCoordinatorMetrics::DataProvider implementation
+  std::vector<Host*> GetAllUnhibernatedHosts() override;
+
   void ShowInstanceForTabs(GlicInstanceImpl* instance,
                            const std::vector<tabs::TabInterface*>& tabs,
                            GlicPinTrigger pin_trigger);
@@ -227,13 +231,11 @@ class GlicInstanceCoordinatorImpl
   void ToggleSidePanel(BrowserWindowInterface* browser,
                        bool prevent_close,
                        glic::mojom::InvocationSource source,
-                       std::optional<std::string> prompt_suggestion,
-                       std::optional<std::string> conversation_id);
+                       std::optional<std::string> prompt_suggestion);
 
   void CloseFloaty(const CloseOptions& options = {});
 
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
-  void CheckMemoryUsage();
   void ApplyMaxAwakeInstancesLimit();
 
   void RemoveInstance(GlicInstanceImpl* instance) override;
@@ -248,6 +250,7 @@ class GlicInstanceCoordinatorImpl
   void OnTabsInserted(const TabStripModelChange::Insert* insert);
   void MaybeDaisyChainNewTab(const TabCreationEvent& event);
   void MaybeDaisyChainFromLinkClick(const TabCreationEvent& event);
+  void MaybeDaisyChainFromBookmark(const TabCreationEvent& event);
 
   void OnInvokeHandlerComplete(GlicInstance* instance,
                                GlicInvokeHandler* handler);
@@ -278,7 +281,6 @@ class GlicInstanceCoordinatorImpl
 
   base::MemoryPressureListenerRegistration
       memory_pressure_listener_registration_;
-  base::RepeatingTimer memory_monitor_timer_;
 
   bool warming_enabled_ = true;
 

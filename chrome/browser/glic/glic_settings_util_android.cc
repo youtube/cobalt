@@ -4,8 +4,10 @@
 
 #include "chrome/browser/glic/glic_settings_util.h"
 
+#include <string>
+
 #include "base/notimplemented.h"
-#include "chrome/browser/glic/android/glic_settings_navigation_android.h"
+#include "chrome/browser/glic/android/glic_navigation_utils_android.h"
 
 namespace glic {
 
@@ -23,6 +25,10 @@ void OpenGlicKeyboardShortcutSetting(Profile* profile) {
 
 void OpenPasswordManagerSettingsPage(Profile* profile) {
   NOTIMPLEMENTED();
+}
+
+std::string_view GetPlatformHelpSuffix() {
+  return "_android";
 }
 
 }  // namespace glic

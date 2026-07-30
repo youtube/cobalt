@@ -211,7 +211,7 @@ ActionItemToPinnedToolbarAction(actions::ActionItem* item) {
       return toolbar_ui_api::mojom::PinnedToolbarAction::
           kSidePanelShowLensOverlayResults;
     case kActionShowTranslate:
-      CHECK_EQ(icon, &kTranslateIcon);
+      CHECK_EQ(icon, &vector_icons::kGTranslateIcon);
       return toolbar_ui_api::mojom::PinnedToolbarAction::kShowTranslate;
     case kActionQrCodeGenerator:
       CHECK_EQ(icon, &kQrCodeChromeRefreshIcon);
@@ -258,7 +258,7 @@ ActionItemToPinnedToolbarAction(actions::ActionItem* item) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       CHECK_EQ(icon, &vector_icons::kPageInsightsIcon);
 #else
-      CHECK_EQ(icon, &views::kInfoChromeRefreshIcon);
+      CHECK_EQ(icon, &views::kInfoChromeRefreshOldIcon);
 #endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
       return toolbar_ui_api::mojom::PinnedToolbarAction::
           kSidePanelShowAboutThisSite;

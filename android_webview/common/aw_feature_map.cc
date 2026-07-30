@@ -31,7 +31,6 @@ namespace {
 const base::Feature* const kFeaturesExposedToJava[] = {
     // Ordered alphabetically on feature name.
     // keep-sorted start allow_yaml_lists=yes by_regex=['\w+,']
-    &features::kAndroidMetricsAsyncMetricLogging,
     &::features::kEnablePerfettoSystemTracing,
     &safe_browsing::kHashPrefixRealTimeLookups,
     &features::kPostChromiumStartupInWebViewConstructor,
@@ -46,11 +45,11 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewCacheSizeLimitDerivedFromAppCacheQuota,
     &features::kWebViewConnectToComponentProviderInBackground,
     &features::kWebViewContentRestrictionSupport,
-    &features::kWebViewDeferStartupGmsCalls,
     &features::kWebViewEarlyStartupTracing,
     &features::kWebViewEarlyTracingInit,
     &features::kWebViewEnableApiCallUserActions,
     &features::kWebViewEnableCrash,
+    &features::kWebViewEnableDnsPlatform,
     &features::kWebViewFasterGetDefaultUserAgent,
     &features::kWebViewFetchOriginTrialsComponent,
     &features::kWebViewFileSystemAccess,
@@ -71,13 +70,13 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewRendererKeepAlive,
     &features::kWebViewSkipInterceptsForPrefetch,
     &features::kWebViewStartupTasksYieldToNative,
+    &features::kWebViewStaticMethodsNotTriggerStartup,
     &features::kWebViewTestFeature,
     &features::kWebViewUseInitialNetworkStateAtStartup,
     &features::kWebViewUseMetricsUploadServiceOnlySdkRuntime,
     &features::kWebViewUseNonembeddedLowEntropySource,
     &features::kWebViewUseStartupTasksLogic,
     &features::kWebViewUseStartupTasksLogicP2,
-    &features::kWebViewWebauthn,
     // keep-sorted end
 };
 

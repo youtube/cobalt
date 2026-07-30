@@ -20,6 +20,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
@@ -570,6 +571,22 @@ TEST_F(MP4StreamParserTest, MissingSampleEncryptionInfo) {
   scoped_refptr<DecoderBuffer> buffer =
       ReadTestDataFile("bear-1280x720-a_frag-cenc_missing-saiz-saio.mp4");
   EXPECT_MEDIA_LOG(SampleEncryptionInfoUnavailableLog());
+  EXPECT_FALSE(AppendAllDataThenParseInPieces(*buffer, 512));
+}
+
+// Test that files with duplicate track IDs across different track types are
+// rejected.
+TEST_F(MP4StreamParserTest, DuplicateTrackIdRejected) {
+  InSequence s;
+
+  InitializeParser();
+
+  scoped_refptr<DecoderBuffer> buffer =
+      ReadTestDataFile("duplicate_track_id.mp4");
+
+  // We expect an error log about duplicate track ID.
+  EXPECT_MEDIA_LOG(testing::HasSubstr("Duplicate track ID in moov"));
+
   EXPECT_FALSE(AppendAllDataThenParseInPieces(*buffer, 512));
 }
 
@@ -1175,7 +1192,13 @@ TEST_F(MP4StreamParserTest, MultiTrackFile) {
   EXPECT_EQ(audio_track2.language().value(), "und");
 }
 
-TEST_F(MP4StreamParserTest, TimedMetadataTrack) {
+// The test depends on AV1 codec.
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+#define MAYBE_TimedMetadataTrack TimedMetadataTrack
+#else
+#define MAYBE_TimedMetadataTrack DISABLED_TimedMetadataTrack
+#endif
+TEST_F(MP4StreamParserTest, MAYBE_TimedMetadataTrack) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures({kMP4TimedMetadataTrack, features::kHdrAgtm},
                                 {});

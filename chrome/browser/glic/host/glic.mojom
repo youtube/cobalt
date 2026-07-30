@@ -7,6 +7,7 @@ module glic.mojom;
 import "chrome/browser/glic/host/glic_features.mojom";
 import "chrome/common/actor_webui.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
+import "mojo/public/mojom/base/absl_status.mojom";
 import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/byte_string.mojom";
 import "mojo/public/mojom/base/proto_wrapper.mojom";
@@ -261,14 +262,6 @@ struct NewTabMojo {
 union InvokeTargetSurface {
   DefaultSurfaceMojo default_surface;
   NewTabMojo new_tab;
-};
-
-// The level of in-flight navigation events allowed without canceling the
-// invocation.
-enum AllowedInflightNavigation {
-  kNone,
-  kSameDomain,
-  kAll,
 };
 
 // @generate glic_api
@@ -1236,14 +1229,6 @@ interface WebClientHandler {
   // ducked, even if ducking other applications has failed.
   SetAudioDucking(bool enable) => (bool result);
 
-  // Set the areas of the Glic panel from which it should be draggable. If
-  // `draggable_areas` is empty, the panel will use the top bar area by default.
-  // Returns when the browser has updated the draggable area.
-  // Any web elements that are in the draggable area must set "draggable=false"
-  // to avoid conflicting with dragging the Glic panel. Also, elements with text
-  // like <h1> should have style 'user-select: none'.
-  SetPanelDraggableAreas(array<gfx.mojom.Rect> draggable_areas) => ();
-
   // Sets the minimum possible size that a user can manually resize to for the
   // widget hosting the WebUI.
   SetMinimumPanelSize(gfx.mojom.Size size);
@@ -1298,6 +1283,10 @@ interface WebClientHandler {
   // `shown_dialog_type` is null when no dialog is shown (e.g., it was closed).
   ClientErrorDialogStateChanged(ClientErrorDialogType? shown_dialog_type);
 
+  // Reports that the web client encountered a transient error. These errors may
+  // be presented to the user, but may not prevent further use of Glic.
+  ReportClientTransientError(mojo_base.mojom.AbslStatusCode status_code);
+
   // Log a begin event in the journal.
   LogBeginAsyncEvent(
       uint64 event_async_id, int32 task_id, string event, string details);
@@ -1325,6 +1314,9 @@ interface WebClientHandler {
   // as the feedback description exactly as is without being parsed or processed
   // in the browser process.
   JournalRecordFeedback(bool positive, string reason);
+
+  // Called when the opt-in CTA is shown.
+  OnOptinImpression();
 
   // Called when the user submits input.
   OnUserInputSubmitted(WebClientMode mode);
@@ -1611,6 +1603,10 @@ enum InvocationSource {
   // Used exclusively for invocations originating from the
   // GlicExperimentalTriggeringMessageHandler.
   [MinVersion=19] kExperimentalTriggering = 28,
+  // Actuation triggered by the password change feature.
+  [MinVersion=20] kPasswordChange = 29,
+  // From an Autofill action.
+  [MinVersion=21] kAutofill = 30,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation)
@@ -1641,6 +1637,16 @@ enum ActuationTarget {
   kCurrentTab = 2,
   // Forces actuation in a new tab.
   kNewTab = 3,
+};
+
+struct UniversalCartPayload {
+  // This metadata is received from the same Google endpoint we receive the
+  // actual invocation prompt from. Opaque to the browser.
+  array<uint8> serialized_metadata;
+};
+
+union InvocationPayload {
+  UniversalCartPayload universal_cart;
 };
 
 // @generate glic_api
@@ -1674,6 +1680,9 @@ struct InvokeOptions {
 
   // Configuration to override the default ZSS behavior for the invocation.
   ZssConfig? zss_config;
+
+  // Source-specific payload for the invocation.
+  InvocationPayload? payload;
 };
 
 // @generate glic_api

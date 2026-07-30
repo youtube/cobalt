@@ -37,7 +37,6 @@ import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager.MaybeBlockingResult;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -68,7 +67,7 @@ public class TabUiUtils {
     /**
      * Closes a tab group and maybe shows a confirmation dialog.
      *
-     * @param filter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param tabId The ID of one of the tabs in the tab group.
      * @param tabClosingSource The tab closing source, e.g. the tablet tab strip.
      * @param allowUndo Whether to allow undo of the tab group closure.
@@ -76,20 +75,19 @@ public class TabUiUtils {
      * @param didCloseCallback Run after the close confirmation to indicate if a close happened.
      */
     public static void closeTabGroup(
-            TabGroupModelFilter filter,
+            TabModel tabModel,
             int tabId,
             @TabClosingSource int tabClosingSource,
             boolean allowUndo,
             boolean hideTabGroups,
             @Nullable Callback<Boolean> didCloseCallback) {
-        TabModel tabModel = filter.getTabModel();
         @Nullable Tab tab = tabModel.getTabById(tabId);
         if (tab == null) {
             Callback.runNullSafe(didCloseCallback, false);
             return;
         }
         TabClosureParams.CloseTabsBuilder builder =
-                TabClosureParams.forCloseTabGroup(filter, tab.getTabGroupId());
+                TabClosureParams.forCloseTabGroup(tabModel, tab.getTabGroupId());
         if (builder == null) {
             Callback.runNullSafe(didCloseCallback, false);
             return;
@@ -135,31 +133,31 @@ public class TabUiUtils {
     /**
      * Ungroups a tab group and maybe shows a confirmation dialog.
      *
-     * @param filter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param tabGroupId The id of the tab group.
      */
-    public static void ungroupTabGroup(TabGroupModelFilter filter, Token tabGroupId) {
-        if (!filter.tabGroupExists(tabGroupId)) return;
+    public static void ungroupTabGroup(TabModel tabModel, Token tabGroupId) {
+        if (!tabModel.tabGroupExists(tabGroupId)) return;
 
-        filter.getTabUngrouper()
+        tabModel.getTabUngrouper()
                 .ungroupTabGroup(tabGroupId, /* trailing= */ false, /* allowDialog= */ true);
     }
 
     /**
      * Update the tab group color.
      *
-     * @param filter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param tabGroupId The group id of the interacting tab group.
      * @param newGroupColor The new group color being assigned to the tab group.
      * @return Whether the tab group color is updated.
      */
     public static boolean updateTabGroupColor(
-            TabGroupModelFilter filter, Token tabGroupId, @TabGroupColorId int newGroupColor) {
-        if (!filter.tabGroupExists(tabGroupId)) return false;
+            TabModel tabModel, Token tabGroupId, @TabGroupColorId int newGroupColor) {
+        if (!tabModel.tabGroupExists(tabGroupId)) return false;
 
-        int curGroupColor = filter.getTabGroupColor(tabGroupId);
+        int curGroupColor = tabModel.getTabGroupColor(tabGroupId);
         if (curGroupColor != newGroupColor) {
-            filter.setTabGroupColor(tabGroupId, newGroupColor);
+            tabModel.setTabGroupColor(tabGroupId, newGroupColor);
             return true;
         }
         return false;
@@ -168,19 +166,19 @@ public class TabUiUtils {
     /**
      * Update the tab group title.
      *
-     * @param filter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param tabGroupId The group id of the interacting tab group.
      * @param newGroupTitle The new group title being assigned to the tab group.
      * @return Whether the tab group title is updated.
      */
     public static boolean updateTabGroupTitle(
-            TabGroupModelFilter filter, Token tabGroupId, String newGroupTitle) {
+            TabModel tabModel, Token tabGroupId, String newGroupTitle) {
         assert newGroupTitle != null;
-        if (!filter.tabGroupExists(tabGroupId)) return false;
+        if (!tabModel.tabGroupExists(tabGroupId)) return false;
 
-        String curGroupTitle = filter.getTabGroupTitle(tabGroupId);
+        String curGroupTitle = tabModel.getTabGroupTitle(tabGroupId);
         if (!newGroupTitle.equals(curGroupTitle)) {
-            filter.setTabGroupTitle(tabGroupId, newGroupTitle);
+            tabModel.setTabGroupTitle(tabGroupId, newGroupTitle);
             return true;
         }
         return false;
@@ -190,21 +188,20 @@ public class TabUiUtils {
      * Leave or deletes a shared tab group, prompting to user to verify first.
      *
      * @param context Used to load resources.
-     * @param filter Used to pull dependencies from.
+     * @param tabModel Used to pull dependencies from.
      * @param actionConfirmationManager Used to show a confirmation dialog.
      * @param modalDialogManager Used to show error dialogs.
      * @param tabId The local id of the tab being left.
      */
     public static void exitSharedTabGroupWithDialog(
             Context context,
-            TabGroupModelFilter filter,
+            TabModel tabModel,
             ActionConfirmationManager actionConfirmationManager,
             ModalDialogManager modalDialogManager,
             int tabId) {
         assert isDataSharingFunctionalityEnabled();
         assert actionConfirmationManager != null;
 
-        TabModel tabModel = filter.getTabModel();
         Profile profile = assumeNonNull(tabModel.getProfile());
         TabGroupSyncService tabGroupSyncService =
                 assumeNonNull(TabGroupSyncServiceFactory.getForProfile(profile));
@@ -258,7 +255,7 @@ public class TabUiUtils {
         Tab tab = tabModel.getTabById(tabId);
         if (tab != null || TextUtils.isEmpty(title)) {
             Token tabGroupId = tab == null ? null : tab.getTabGroupId();
-            title = TabGroupTitleUtils.getDisplayableTitle(context, filter, tabGroupId);
+            title = TabGroupTitleUtils.getDisplayableTitle(context, tabModel, tabGroupId);
         }
 
         if (memberRole == MemberRole.OWNER) {
@@ -327,7 +324,7 @@ public class TabUiUtils {
      * Create share flows to initiate tab group share.
      *
      * @param activity that contains the current tab group.
-     * @param filter The {@link TabGroupModelFilter} to act on.
+     * @param tabModel The {@link TabModel} to act on.
      * @param dataSharingTabManager The {@link} DataSharingTabManager managing communication between
      *     UI and DataSharing services.
      * @param tabId The local id of the tab.
@@ -335,12 +332,12 @@ public class TabUiUtils {
      */
     public static void startShareTabGroupFlow(
             Activity activity,
-            TabGroupModelFilter filter,
+            TabModel tabModel,
             DataSharingTabManager dataSharingTabManager,
             int tabId,
             String tabGroupDisplayName,
             @CollaborationServiceShareOrManageEntryPoint int entry) {
-        Tab tab = filter.getTabModel().getTabById(tabId);
+        Tab tab = tabModel.getTabById(tabId);
         // The tab may have been closed in parallel with the share starting. Skip if this happens.
         if (tab == null) return;
 

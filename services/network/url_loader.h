@@ -254,11 +254,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   void ContinueWithoutCertificate() override;
   void CancelRequest() override;
 
-  // Cancel the request because network revocation was triggered.
-  void CancelRequestIfNonceMatchesAndUrlNotExempted(
-      const base::UnguessableToken& nonce,
-      const std::set<GURL>& exemptions);
-
   // Called when the browser process responds to a request for platform-specific
   // local network permission. If the user granted the permission, this will
   // restart the transaction. Otherwise, it will cancel the request.
@@ -517,9 +512,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
   void ReportFlaggedResponseCookies(bool call_cookie_observer);
   void StartReading();
-
-  // Whether `force_ignore_site_for_cookies` should be set on net::URLRequest.
-  bool ShouldForceIgnoreSiteForCookies(const ResourceRequest& request);
 
   mojom::DevToolsObserver* GetDevToolsObserver() const;
   mojom::CookieAccessObserver* GetCookieAccessObserver() const;

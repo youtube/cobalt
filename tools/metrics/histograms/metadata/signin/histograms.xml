@@ -96,6 +96,18 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/signin/bound_session_credentials/bound_session_refresh_cookie_fetcher_impl.cc:GetRotationHistogramTriggerSuffix) -->
 
+<!-- LINT.IfChange(PartitionSuffix) -->
+
+<variants name="PartitionSuffix">
+  <variant name="" summary="Overall result across all partitions."/>
+  <variant name=".ContextualTasks"
+      summary="For the ContextualTasks partition."/>
+  <variant name=".Default" summary="For the default partition."/>
+  <variant name=".Glic" summary="For the Glic partition."/>
+</variants>
+
+<!-- LINT.ThenChange(//components/signin/public/identity_manager/accounts_cookie_mutator.h:PartitionSuffix) -->
+
 <!-- LINT.IfChange(ReauthFlowEvent) -->
 
 <variants name="ReauthFlowEvent">
@@ -126,6 +138,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(SigninPromoAccessPoint) -->
 
 <variants name="SigninPromoAccessPoint">
+  <variant name="AutofillAndPasswords" summary="autofill and passwords page"/>
   <variant name="Bookmarks" summary="bookmark page"/>
   <variant name="HistoryPage" summary="history page"/>
   <variant name="Ntp" summary="new tab page"/>
@@ -167,7 +180,7 @@ chromium-metrics-reviews@google.com.
 <!-- TODO(crbug.com/432174785): Mark this histogram as never_expires. -->
 
 <histogram name="Signin.AccessTokenFetch.Success" enum="OAuthConsumerId"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>triploblastic@google.com</owner>
   <owner>bsazonov@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -607,7 +620,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.AccountTracker.RefreshAccountInfo.IsAlreadyTrackingAccount"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -645,7 +658,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AddAccountState" enum="SigninAndroidAddAccountState"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>triploblastic@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1228,7 +1241,7 @@ prefs when the profile is loaded.  -->
 
 <histogram name="Signin.BoundSessionCredentials.SessionRegistrationResult"
     enum="BoundSessionCredentialsSessionRegistrationResult"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1336,7 +1349,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.CctAccountMismatchNoticeSuppressed"
-    enum="SuppressedReason" expires_after="2026-08-22">
+    enum="SuppressedReason" expires_after="2026-11-01">
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1510,17 +1523,11 @@ prefs when the profile is loaded.  -->
     for Chrome instances that support DBSC standard and OAuthMultilogin cookies
     binding. {PartitionSuffix}
   </summary>
-  <token key="PartitionSuffix">
-    <variant name="" summary="Overall result across all partitions."/>
-    <variant name=".ContextualTasks"
-        summary="For the ContextualTasks partition."/>
-    <variant name=".Default" summary="For the default partition."/>
-    <variant name=".Glic" summary="For the Glic partition."/>
-  </token>
+  <token key="PartitionSuffix" variants="PartitionSuffix"/>
 </histogram>
 
 <histogram
-    name="Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError"
+    name="Signin.DeviceBoundSessions.OAuthMultilogin.SessionCreationError{PartitionSuffix}"
     enum="DeviceBoundSessionError" expires_after="2026-10-04">
   <owner>ernn@google.com</owner>
   <owner>alexilin@chromium.org</owner>
@@ -1532,8 +1539,9 @@ prefs when the profile is loaded.  -->
     result is recorded in
     `Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult`. Only
     recorded for Chrome instances that support DBSC standard and OAuthMultilogin
-    cookies binding.
+    cookies binding. {PartitionSuffix}
   </summary>
+  <token key="PartitionSuffix" variants="PartitionSuffix"/>
 </histogram>
 
 <histogram name="Signin.DiceAuthorizationCode" enum="BooleanPresent"
@@ -1758,7 +1766,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.GaiaPageVisited" enum="GaiaPage"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -2533,7 +2541,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ManageAccountsResponse.ServiceType"
-    enum="GaiaServiceType" expires_after="2026-08-30">
+    enum="GaiaServiceType" expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>chrome-signin-team@chromium.org</owner>
   <summary>
@@ -2546,7 +2554,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ManagedUserProfileCreationConflict" enum="BooleanHit"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-desktop-team@google.com</owner>
   <summary>
@@ -2557,7 +2565,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.MoveAccount.CanMoveToService"
-    enum="AccountMoveDecision" expires_after="2026-08-30">
+    enum="AccountMoveDecision" expires_after="2026-11-01">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2642,7 +2650,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.OAuth2MintToken.ApiCallResult"
-    enum="OAuth2MintTokenApiCallResult" expires_after="2026-09-06">
+    enum="OAuth2MintTokenApiCallResult" expires_after="2026-11-08">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -2760,13 +2768,7 @@ should be kept to monitor/debug signin Multilogin issues-->
   <summary>
     Response status received from gaia Multilogin. {PartitionSuffix}
   </summary>
-  <token key="PartitionSuffix">
-    <variant name="" summary="Overall result across all partitions."/>
-    <variant name=".ContextualTasks"
-        summary="For the ContextualTasks partition."/>
-    <variant name=".Default" summary="For the default partition."/>
-    <variant name=".Glic" summary="For the Glic partition."/>
-  </token>
+  <token key="PartitionSuffix" variants="PartitionSuffix"/>
 </histogram>
 
 <histogram name="Signin.OpenTabsCount.{ConsentLevel}" units="count"
@@ -3102,7 +3104,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.Settings.ChromeSigninSettingModification"
-    enum="ChromeSigninSettingModification" expires_after="2026-08-30">
+    enum="ChromeSigninSettingModification" expires_after="2026-11-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3822,7 +3824,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.TokenBinding.BoundTokenPrevalence"
-    enum="TokenBindingBoundTokenPrevalence" expires_after="2026-09-06">
+    enum="TokenBindingBoundTokenPrevalence" expires_after="2026-11-08">
   <owner>alexilin@chromium.org</owner>
   <owner>ahijazi@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>

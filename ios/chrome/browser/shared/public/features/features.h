@@ -46,7 +46,7 @@ enum class TabGridSetupMode {
 
 // Feature flag to control Tab Grid setup mode.
 BASE_DECLARE_FEATURE(kTabGridSetupMode);
-extern const base::FeatureParam<int> kTabGridSetupModeParam;
+extern const base::FeatureParam<std::string> kTabGridSetupModeParam;
 extern const char kTabGridSetupModeParamName[];
 TabGridSetupMode GetTabGridSetupMode();
 
@@ -72,8 +72,14 @@ extern const char kIOSDockingPromoV2VariationHeader3[];
 // Feature flag to enable the Docking Promo V2.
 BASE_DECLARE_FEATURE(kIOSDockingPromoV2);
 
+// Feature flag to enable the "Level Up" feature.
+BASE_DECLARE_FEATURE(kIOSLevelUp);
+
 // Helper function to check if `kIOSDockingPromoV2` is enabled.
 bool IsDockingPromoV2Enabled();
+
+// Helper function to check if `kIOSLevelUp` is enabled.
+bool IsLevelUpEnabled();
 
 // Feature flag to use direct upload for Lens searches.
 BASE_DECLARE_FEATURE(kIOSLensUseDirectUpload);
@@ -105,8 +111,6 @@ BASE_DECLARE_FEATURE(kLensOverlayCustomBottomSheet);
 // Feature flag to check headers for lens searches.
 BASE_DECLARE_FEATURE(kLensSearchHeadersCheckEnabled);
 
-// Used to gate the immersive SRP in the Composebox.
-BASE_DECLARE_FEATURE(kComposeboxImmersiveSRP);
 
 // Variations of Composebox.
 extern const char kComposeboxParam[];
@@ -997,11 +1001,8 @@ BASE_DECLARE_FEATURE(kOpenEditGroupViewByTappingTitle);
 // Returns true if the OpenEditGroupViewByTappingTitle feature is enabled.
 bool IsOpenEditGroupViewByTappingTitleEnabled();
 
-// Enables the SyncedGroupColor feature.
-BASE_DECLARE_FEATURE(kSyncedGroupColor);
-
-// Returns true if the SyncedGroupColor feature is enabled.
-bool IsSyncedGroupColorEnabled();
+// Returns true if the UpdateTabGroupColors feature is enabled.
+bool IsUpdateTabGroupColorsEnabled();
 
 // Enables the plus button in NTP fakebox.
 BASE_DECLARE_FEATURE(kPlusButtonInFakebox);
@@ -1021,7 +1022,19 @@ BASE_DECLARE_FEATURE(kAssistantAimMinimizedState);
 // Returns true if the `AssistantAimMinimizedState` feature is enabled.
 bool IsAssistantAimMinimizedStateEnabled();
 
+// Feature flag to enable Backend Promo Service integration.
+BASE_DECLARE_FEATURE(kIOSBackendPromoServiceIntegration);
+
+// Returns true if kIOSBackendPromoServiceIntegration is enabled.
+bool IsIOSBackendPromoServiceIntegrationEnabled();
+
 // Feature flag to enable the use of UIGraphicsImageRenderer for fallback icons.
 BASE_DECLARE_FEATURE(kUseUIGraphicsImageRendererForFallbackIcons);
+
+// Enables the Native Dark Mode Detection feature.
+BASE_DECLARE_FEATURE(kIOSDarkModeDetection);
+
+// Returns true if the Native Dark Mode Detection feature is enabled.
+bool IsIOSDarkModeDetectionEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

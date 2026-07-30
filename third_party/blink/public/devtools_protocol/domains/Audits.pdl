@@ -346,6 +346,10 @@ experimental domain Audits
       ValidationFailedInvalidLength
       ValidationFailedSignatureMismatch
       ValidationFailedIntegrityMismatch
+      SignatureBaseUnknownDerivedComponent
+      SignatureBaseMissingHeader
+      SignatureBaseInvalidUnencodedDigest
+      SignatureBaseUnsupportedComponent
 
   type UnencodedDigestError extends string
     enum
@@ -425,6 +429,7 @@ experimental domain Audits
       FormInputHasWrongButWellIntendedAutocompleteValueError
       ResponseWasBlockedByORB
       NavigationEntryMarkedSkippable
+      BackUINavigationWouldSkipAd
       AutofillAndManualTextPolicyControlledFeaturesInfo
       AutofillPolicyControlledFeatureInfo
       ManualTextPolicyControlledFeatureInfo

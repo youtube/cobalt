@@ -23,6 +23,8 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
@@ -94,6 +96,31 @@ GlicE2ETest::GlicE2ETest() {
           features::kGlicCountryFiltering,
           features::kGlicLocaleFiltering,
       });
+}
+
+GlicE2ETest::GlicE2ETest(
+    const std::vector<base::test::FeatureRef>& additional_enabled_features,
+    const std::vector<base::test::FeatureRef>& additional_disabled_features) {
+  // TODO(crbug.com/440578183): ZeroStateSuggestionsV2 is enabled here
+  // due to the associated bug and should be removed here once fixed.
+  std::vector<base::test::FeatureRef> enabled = {
+      features::kGlic, features::kGlicKeyboardShortcutNewBadge,
+      features::kGlicRollout, kContextualCueing,
+      mojom::features::kZeroStateSuggestionsV2};
+  enabled.insert(enabled.end(), additional_enabled_features.begin(),
+                 additional_enabled_features.end());
+
+  std::vector<base::test::FeatureRef> disabled = {
+      syncer::kReplaceSyncPromosWithSignInPromos,
+      syncer::kReplaceSyncPromosWithSigninPromosNewSignin,
+      // Don't disable glic based on country/locale.
+      features::kGlicCountryFiltering,
+      features::kGlicLocaleFiltering,
+  };
+  disabled.insert(disabled.end(), additional_disabled_features.begin(),
+                  additional_disabled_features.end());
+
+  scoped_feature_list_.InitWithFeatures(enabled, disabled);
 }
 
 GlicE2ETest::~GlicE2ETest() = default;
@@ -333,9 +360,14 @@ void GlicE2ETest::ThrottleWebContentsNetwork(
 }
 
 void GlicE2ETest::ThrottleGlicNetwork() {
-  for (auto* guest_contents :
-       glic::GetAllGlicGuestWebContentsForTesting(browser()->profile())) {
-    ThrottleWebContentsNetwork(guest_contents);
+  auto& coordinator =
+      static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator());
+  for (GlicInstanceImpl* instance : coordinator.GetInstancesForTesting()) {
+    content::WebContents* guest_contents =
+        instance->host().web_client_contents();
+    if (guest_contents) {
+      ThrottleWebContentsNetwork(guest_contents);
+    }
   }
 }
 

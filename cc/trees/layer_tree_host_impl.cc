@@ -474,9 +474,9 @@ LayerTreeHostImpl::LayerTreeHostImpl(
     RasterDarkModeFilter* dark_mode_filter,
     int id,
     scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner,
-    LayerTreeHostSchedulingClient* scheduling_client)
+    LayerTreeHostSchedulingDelegate* scheduling_delegate)
     : delegate_(delegate),
-      scheduling_client_(scheduling_client),
+      scheduling_delegate_(scheduling_delegate),
       task_runner_provider_(task_runner_provider),
       current_begin_frame_tracker_(FROM_HERE),
       settings_(settings),
@@ -555,7 +555,7 @@ LayerTreeHostImpl::LayerTreeHostImpl(
       base::BindRepeating(&LayerTreeHostImpl::MaybeFlushPendingWork,
                           weak_factory_.GetWeakPtr()));
   DCHECK(mutator_host_);
-  mutator_host_->SetMutatorHostClient(this);
+  mutator_host_->SetMutatorHostDelegate(this);
   mutator_events_ = mutator_host_->CreateEvents();
 
   DCHECK(task_runner_provider_->IsImplThread());
@@ -635,7 +635,7 @@ LayerTreeHostImpl::~LayerTreeHostImpl() {
   resource_provider_->ShutdownAndReleaseAllResources();
 
   mutator_host_->ClearMutators();
-  mutator_host_->SetMutatorHostClient(nullptr);
+  mutator_host_->SetMutatorHostDelegate(nullptr);
 
   // The `compositor_frame_reporting_controller_`
   // was given a `this` pointer for the event_latency_tracker and thus needs
@@ -719,14 +719,6 @@ bool LayerTreeHostImpl::CanDraw() const {
   return true;
 }
 
-void LayerTreeHostImpl::AnimatePendingTreeAfterCommit() {
-  // Animate the pending tree layer animations to put them at initial positions
-  // and starting state. There is no need to run other animations on pending
-  // tree because they depend on user inputs so the state is identical to what
-  // the active tree has.
-  AnimateLayers(CurrentBeginFrameArgs().frame_time, /* is_active_tree */ false);
-}
-
 void LayerTreeHostImpl::Animate() {
   AnimateInternal();
 }
@@ -767,6 +759,7 @@ void LayerTreeHostImpl::AnimateInternal() {
 }
 
 bool LayerTreeHostImpl::PrepareTiles() {
+  TRACE_EVENT("cc", __PRETTY_FUNCTION__);
   DCHECK(!settings_.trees_in_viz_in_viz_process);
 
   tile_priorities_dirty_ |= active_tree() && active_tree()->UpdateTiles();
@@ -774,6 +767,11 @@ bool LayerTreeHostImpl::PrepareTiles() {
 
   if (!tile_priorities_dirty_) {
     return false;
+  }
+
+  if (active_tree()) {
+    global_tile_state_.viewport_size =
+        active_tree()->GetDeviceViewport().size();
   }
 
   bool did_prepare_tiles = tile_manager_.PrepareTiles(global_tile_state_);
@@ -1039,9 +1037,11 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
         SCOPED_CRASH_KEY_STRING64("cc", "device_viewport",
                                   active_tree_->GetDeviceViewport().ToString());
 
-        DUMP_WILL_BE_CHECK(viz_damage_rect.Contains(root_layer_damage_rect_))
-            << "crbug.com/454680865: Viz damage does not contain client "
-               "damage!";
+        if (metrics_subsampler_.ShouldSample(0.1)) {
+          DUMP_WILL_BE_CHECK(viz_damage_rect.Contains(root_layer_damage_rect_))
+              << "crbug.com/454680865: Viz damage does not contain client "
+                 "damage!";
+        }
       }
     }
 
@@ -2302,8 +2302,7 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
     // Uses InnerViewportScrollNode's container bounds in since it represents
     // visual scroll layers.
     metadata.visible_viewport_size =
-        gfx::ScaleToFlooredSize(InnerViewportScrollNode()->container_bounds,
-                                1 / metadata.device_scale_factor);
+        InnerViewportScrollNode()->container_bounds;
   }
 
   metadata.root_background_color = active_tree_->background_color();
@@ -2428,14 +2427,20 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
   }
 
   metadata.capture_bounds = CollectRegionCaptureBounds();
-  metadata.tracked_element_rects = CollectTrackedElementRects(
-      /*is_for_compositor_frame_metadata=*/true);
+  if (settings().trees_in_viz_in_viz_process) {
+    metadata.tracked_element_rects = tracked_element_rects_from_client_;
+  } else {
+    metadata.tracked_element_rects = CollectTrackedElementRects(
+        /*is_for_compositor_frame_metadata=*/true);
+  }
 
   if (!screenshot_destination_.is_empty()) {
     metadata.screenshot_destination =
         blink::SameDocNavigationScreenshotDestinationToken(
             screenshot_destination_);
-    screenshot_destination_ = base::UnguessableToken();
+    if (!settings().TreesInVizInClientProcess()) {
+      screenshot_destination_ = base::UnguessableToken();
+    }
   }
 
   metadata.is_software = GetDrawMode() != DrawMode::DRAW_MODE_HARDWARE;
@@ -2603,7 +2608,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
 
     // Send updates to Viz even for no damage case when TreesInViz is enabled.
     if (settings_.TreesInVizInClientProcess()) {
-      UpdateDisplayTree(*frame, {});
+      UpdateDisplayTree(*frame, {}, viz::TrackedElementRects());
     }
 
     active_tree()->ResetAllChangeTracking();
@@ -2694,7 +2699,8 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     send_frame_token_to_embedder_ =
         compositor_frame.metadata.send_frame_token_to_embedder;
     trees_in_viz_submit_time = UpdateDisplayTree(
-        *frame, std::move(compositor_frame.metadata.latency_info));
+        *frame, std::move(compositor_frame.metadata.latency_info),
+        std::move(compositor_frame.metadata.tracked_element_rects));
 
     layer_tree_frame_sink_->ExportFrameTiming();
   } else {
@@ -2889,9 +2895,11 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   }
 
   {
-    TRACE_EVENT("cc", "DrawLayers.FrameViewerTracing",
-                perfetto::Flow::ProcessScoped(id_, "LayerTreeHostImpl"),
-                "snapshot", AsValueWithFrame(frame));
+    TRACE_EVENT0("cc", "DrawLayers.FrameViewerTracing");
+    TRACE_EVENT_INSTANT(frame_viewer_instrumentation::CategoryLayerTree(),
+                        "LayerTreeHostImpl:snapshot",
+                        perfetto::Flow::ProcessScoped(id_, "LayerTreeHostImpl"),
+                        "snapshot", AsValueWithFrame(frame));
   }
 
   const DrawMode draw_mode = GetDrawMode();
@@ -2957,8 +2965,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
         metadata.transition_directives.push_back(request->ConstructDirective(
             view_transition_element_map, display_color_spaces,
             request->delay_layer_tree_view_deletion()));
-        if (features::ShouldAckCOREarlyForViewTransition() &&
-            request->delay_layer_tree_view_deletion()) {
+        if (request->delay_layer_tree_view_deletion()) {
           OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
           if (request->type() ==
               ViewTransitionRequest::Type::kAnimateRenderer) {
@@ -2977,16 +2984,13 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     if (active_tree_->HasViewTransitionRequests()) {
       active_tree_->set_needs_update_draw_properties();
     }
-    if (features::ShouldAckCOREarlyForViewTransition()) {
-      for (auto& request : active_tree_->view_transition_requests()) {
-        if (request->delay_layer_tree_view_deletion()) {
-          OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
-          if (request->type() ==
-              ViewTransitionRequest::Type::kAnimateRenderer) {
-            has_view_transition_with_animate = true;
-          }
-          delay_layer_tree_view_deletion = true;
+    for (auto& request : active_tree_->view_transition_requests()) {
+      if (request->delay_layer_tree_view_deletion()) {
+        OnCompositorFrameTransitionDirectiveProcessed(request->sequence_id());
+        if (request->type() == ViewTransitionRequest::Type::kAnimateRenderer) {
+          has_view_transition_with_animate = true;
         }
+        delay_layer_tree_view_deletion = true;
       }
     }
   }
@@ -3001,8 +3005,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   //
   // Use the cached values because `TakeViewTransitionRequests()` clears the
   // requests from the tree.
-  if (features::ShouldAckCOREarlyForViewTransition() &&
-      delay_layer_tree_view_deletion && has_view_transition_with_animate) {
+  if (delay_layer_tree_view_deletion && has_view_transition_with_animate) {
     frame_deadline = 240;
   }
   metadata.deadline =
@@ -3196,6 +3199,7 @@ void LayerTreeHostImpl::DidDrawAllLayers(const FrameData& frame) {
 base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(
     FrameData& frame,
     std::vector<ui::LatencyInfo> latency_info,
+    viz::TrackedElementRects tracked_element_rects,
     bool is_flush) {
   DCHECK(settings_.TreesInVizInClientProcess());
   DCHECK(layer_context_);
@@ -3205,8 +3209,8 @@ base::TimeTicks LayerTreeHostImpl::UpdateDisplayTree(
   return layer_context_->UpdateDisplayTreeFrom(
       *active_tree(), *resource_provider(),
       layer_tree_frame_sink_->shared_image_interface().get(),
-      frame.origin_begin_main_frame_args, viewport_damage_rect_,
-      !frame.has_no_damage, is_flush, std::move(latency_info));
+      viewport_damage_rect_, !frame.has_no_damage, is_flush,
+      std::move(latency_info), std::move(tracked_element_rects));
 }
 
 void LayerTreeHostImpl::FlushDisplayTree() {
@@ -3235,7 +3239,7 @@ void LayerTreeHostImpl::FlushDisplayTree() {
   // activation of this specific update and ensures that subsequent metadata
   // (like frame tokens in ACKs) remains consistent.
   ++next_frame_token_;
-  UpdateDisplayTree(frame, {}, /*is_flush=*/true);
+  UpdateDisplayTree(frame, {}, viz::TrackedElementRects(), /*is_flush=*/true);
 
   // A flush update synchronizes state (e.g. tile evictions) to Viz but does not
   // result in a frame draw. We reset internal damage tracking and tree change

@@ -25,6 +25,7 @@ virtual/unload-allowed/wpt_internal/*
 virtual/indexeddb_leveldb/wpt_internal/*
 virtual/cpu-compositing/wpt_internal/*
 virtual/gpu/wpt_internal/*
+virtual/unbounded-element-disabled/wpt_internal/*
 
 # Blocklisted tests fail unexpectedly on headless shell for at least one
 # platform, so continue running them on content shell.
@@ -63,15 +64,6 @@ external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-svg.html
 external/wpt/css/compositing/mix-blend-mode/mix-blend-mode-with-transform-and-preserve-3D.html
 external/wpt/css/compositing/root-element-opacity-change.html
 external/wpt/css/compositing/svg/mix-blend-mode-svg-rectangle.html
-external/wpt/css/CSS2/backgrounds/background-applies-to-006.xht
-external/wpt/css/CSS2/backgrounds/background-applies-to-012.xht
-external/wpt/css/CSS2/backgrounds/background-color-applies-to-006.xht
-external/wpt/css/CSS2/backgrounds/background-color-applies-to-012.xht
-external/wpt/css/CSS2/backgrounds/background-image-applies-to-006.xht
-external/wpt/css/CSS2/backgrounds/background-image-applies-to-012.xht
-external/wpt/css/CSS2/backgrounds/background-position-applies-to-012.xht
-external/wpt/css/CSS2/backgrounds/background-repeat-applies-to-006.xht
-external/wpt/css/CSS2/backgrounds/background-repeat-applies-to-012.xht
 external/wpt/css/CSS2/borders/border-applies-to-006.xht
 external/wpt/css/CSS2/borders/border-applies-to-012.xht
 external/wpt/css/CSS2/borders/border-color-applies-to-006.xht
@@ -328,15 +320,6 @@ external/wpt/css/css-shadow/css-scoping-shadow-with-rules.html
 external/wpt/css/css-shadow/css-scoping-shadow-with-rules-no-style-leak.html
 external/wpt/css/css-shadow/part/interaction-with-nested-pseudo-class.html
 external/wpt/css/css-shadow/shadow-host-with-before-after.html
-external/wpt/css/css-shapes/shape-outside/values/shape-margin-001.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-circle-004.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-circle-005.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-computed-shape-000.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-ellipse-004.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-ellipse-005.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-inset-003.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-polygon-004.html
-external/wpt/css/css-shapes/shape-outside/values/shape-outside-shape-arguments-000.html
 # Known to be very flaky: https://crbug.com/375344326
 external/wpt/css/css-sizing/*
 external/wpt/css/css-tables/tentative/baseline-table.html
@@ -397,29 +380,10 @@ external/wpt/css/css-transforms/ttwf-transform-skewy-001.html
 external/wpt/css/css-transitions/transition-behavior.html
 external/wpt/css/css-ui/compute-kind-widget-no-fallback-props-001.html
 external/wpt/css/css-ui/outline-020.html
-external/wpt/css/css-ui/text-overflow-027.html
-external/wpt/css/css-ui/text-overflow-028.html
-external/wpt/css/css-ui/text-overflow-029.html
 external/wpt/css/css-values/viewport-units-scrollbars*
 external/wpt/css/css-variables/variable-presentation-attribute.html
 external/wpt/css/css-will-change/will-change-fixedpos-cb-*
 external/wpt/css/css-will-change/will-change-transform-zero-size-child-overflow-visible.html
-external/wpt/css/css-writing-modes/bidi-embed-011.html
-external/wpt/css/css-writing-modes/bidi-isolate-011.html
-external/wpt/css/css-writing-modes/bidi-isolate-override-001.html
-external/wpt/css/css-writing-modes/bidi-isolate-override-005.html
-external/wpt/css/css-writing-modes/bidi-isolate-override-011.html
-external/wpt/css/css-writing-modes/bidi-normal-011.html
-external/wpt/css/css-writing-modes/bidi-override-001.html
-external/wpt/css/css-writing-modes/bidi-override-005.html
-external/wpt/css/css-writing-modes/bidi-override-006.html
-external/wpt/css/css-writing-modes/bidi-override-011.html
-external/wpt/css/css-writing-modes/bidi-plaintext-001.html
-external/wpt/css/css-writing-modes/bidi-plaintext-002.html
-external/wpt/css/css-writing-modes/block-plaintext-001.html
-external/wpt/css/css-writing-modes/block-plaintext-003.html
-external/wpt/css/css-writing-modes/block-plaintext-004.html
-external/wpt/css/css-writing-modes/block-plaintext-006.html
 external/wpt/css/css-writing-modes/forms/text-input-vertical-overflow-no-scroll.html
 external/wpt/css/css-writing-modes/forms/select-multiple-keyboard-selection.optional.html
 external/wpt/css/css-writing-modes/margin-collapse-vrl-030.xht
@@ -721,7 +685,11 @@ external/wpt/video-rvfc/request-video-frame-callback-during-xr-session.https.htm
 external/wpt/video-rvfc/request-video-frame-callback-webrtc.https.html
 external/wpt/visual-viewport/page-and-offset-in-iframe.html
 external/wpt/visual-viewport/resize-event-order.html
+external/wpt/wai-aria/accessibility_properties_basic.tentative.html
+external/wpt/wai-aria/checked/checked.tentative.html
+external/wpt/wai-aria/pressed/pressed.tentative.html
 external/wpt/wai-aria/role/invalid-roles.html
+external/wpt/wai-aria/subtree/tablist.tentative.html
 external/wpt/web-animations/interfaces/Animation/finished.html
 external/wpt/web-animations/interfaces/Animation/onremove.html
 external/wpt/web-animations/timing-model/timelines/timelines.html
@@ -976,5 +944,8 @@ virtual/lna-webrtc/wpt_internal/*
 # > Requires content plugin:
 virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-web-plugin.tentative.https.html
 # > Requires site isolation:
-virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-remote-frame-in-local-frame.tentative.https.html
-virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-remote-frame.tentative.sub.https.html
+virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-cross-origin-frame-in-same-origin-frame.tentative.https.html
+virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-cross-origin-frame.tentative.sub.https.html
+virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-cross-origin-navigation-in-srcdoc-frame.tentative.sub.https.html
+virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-same-origin-frame-reload-as-sandbox.tentative.https.html
+virtual/prevent-svg-filter-paint/external/wpt/svg/styling/svg-filter-render-sandbox-frame.tentative.https.html

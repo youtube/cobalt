@@ -81,8 +81,8 @@ class CredentialProviderService
       password_manager::PasswordStoreInterface* store,
       const password_manager::PasswordStoreChangeList& changes) override;
   void OnLoginsRetained(password_manager::PasswordStoreInterface* store,
-                        const std::vector<password_manager::PasswordForm>&
-                            retained_passwords) override;
+                        const std::vector<password_manager::StoredCredential>&
+                            retained_credentials) override;
 
  private:
   // Request all the credentials to sync them. Before adding the fresh ones,
@@ -161,14 +161,8 @@ class CredentialProviderService
   // Syncs whether or not automatic passkey upgrade is enabled.
   void UpdateAutomaticPasskeyUpgradeSetting();
 
-  // Syncs whether or not PRF is enabled.
-  void UpdatePasskeyPRFSetting();
-
   // Syncs whether or not Large Blob is enabled.
   void UpdatePasskeyLargeBlobSetting();
-
-  // Syncs whether or not signal API is enabled.
-  void UpdateSignalAPISetting();
 
   // PasswordStoreConsumer:
   void OnGetPasswordStoreResultsOrErrorFrom(
@@ -226,7 +220,7 @@ class CredentialProviderService
   const raw_ptr<signin::IdentityManager> identity_manager_;
 
   // Sync Service to observe.
-  const raw_ptr<syncer::SyncService> sync_service_;
+  raw_ptr<syncer::SyncService> sync_service_;
 
   // Helper which injects branding information from affiliation service.
   const std::unique_ptr<password_manager::AffiliatedMatchHelper>

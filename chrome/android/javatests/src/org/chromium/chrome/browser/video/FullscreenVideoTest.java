@@ -23,6 +23,7 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Restriction;
@@ -39,6 +40,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.TestTouchUtils;
 import org.chromium.media.MediaSwitches;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.DeviceRestriction;
 
 import java.util.concurrent.TimeoutException;
@@ -102,6 +104,8 @@ public class FullscreenVideoTest {
     @Test
     @MediumTest
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO) // PiP not supported on AAOS.
+    // Fullscreen PiP disabled on Desktop crbug.com/486262122#comment5.
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM)
     public void testFullscreenToPip() throws TimeoutException {
         loadUrlAndEnterFullscreen("/content/test/data/media/video-player-pip.html");
         // Test framework requirement. This will prevent visual transition but should keep all the

@@ -334,7 +334,6 @@ third_party/blink/renderer/core/scheduler
 third_party/blink/renderer/modules/accessibility
 third_party/blink/renderer/modules/ad_auction
 third_party/blink/renderer/modules/badging
-third_party/blink/renderer/modules/canvas/canvas2d
 third_party/blink/renderer/modules/credentialmanagement
 third_party/blink/renderer/modules/csspaint
 third_party/blink/renderer/modules/device_orientation
@@ -428,7 +427,6 @@ third_party/blink/web_tests/wpt_internal/attribution-reporting
 third_party/blink/web_tests/wpt_internal/fenced_frame/resources
 third_party/blink/web_tests/wpt_internal/hid
 third_party/blink/web_tests/wpt_internal/html/semantics/parser-blocking-stylesheets
-third_party/blink/web_tests/wpt_internal/webgpu/canvas_webgpu_transfer
 third_party/brotli/enc
 third_party/byte_buddy
 third_party/chevron
@@ -548,7 +546,6 @@ third_party/mediapipe/src/mediapipe/modules/pose_landmark
 third_party/mediapipe/src/mediapipe/modules/selfie_segmentation
 third_party/mediapipe/src/mediapipe/tasks/cc/components/calculators
 third_party/mediapipe/src/mediapipe/tasks/cc/components/processors
-third_party/mediapipe/src/mediapipe/tasks/cc/genai/inference/proto
 third_party/mediapipe/src/mediapipe/tasks/cc/metadata/utils
 third_party/mediapipe/src/mediapipe/tasks/cc/text/custom_ops/sentencepiece
 third_party/mediapipe/src/mediapipe/util/tflite/operations
@@ -610,6 +607,7 @@ third_party/protobuf/upb/conformance
 third_party/pyjson5/src
 third_party/pylint/pylint
 third_party/rapidhash
+third_party/rust/chromium_crates_io/patches/regex-lite-v0_1
 third_party/rust/chromium_crates_io/supply-chain
 third_party/rust/chromium_crates_io/vendor/addr2line-v0_25
 third_party/rust/chromium_crates_io/vendor/ahash-v0_8
@@ -622,8 +620,6 @@ third_party/rust/chromium_crates_io/vendor/antlr4rust-v0_5/src
 third_party/rust/chromium_crates_io/vendor/anyhow-v1
 third_party/rust/chromium_crates_io/vendor/anyhow-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/array-init-v2/.github/workflows
-third_party/rust/chromium_crates_io/vendor/arrayvec-v0_7
-third_party/rust/chromium_crates_io/vendor/arrayvec-v0_7/.github/workflows
 third_party/rust/chromium_crates_io/vendor/backtrace-v0_3/.github/workflows
 third_party/rust/chromium_crates_io/vendor/base64-v0_22
 third_party/rust/chromium_crates_io/vendor/bit-set-v0_8
@@ -649,8 +645,6 @@ third_party/rust/chromium_crates_io/vendor/cxx-v1/src
 third_party/rust/chromium_crates_io/vendor/displaydoc-v0_2
 third_party/rust/chromium_crates_io/vendor/displaydoc-v0_2/src
 third_party/rust/chromium_crates_io/vendor/either-v1/.github/workflows
-third_party/rust/chromium_crates_io/vendor/encoding_rs-v0_8
-third_party/rust/chromium_crates_io/vendor/encoding_rs-v0_8/src
 third_party/rust/chromium_crates_io/vendor/equivalent-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/erased-serde-v0_4
 third_party/rust/chromium_crates_io/vendor/erased-serde-v0_4/.github/workflows
@@ -739,7 +733,12 @@ third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/dfa
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/hybrid
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/meta
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/nfa/thompson/backtrack
+third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1
+third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/tests
 third_party/rust/chromium_crates_io/vendor/regex-syntax-v0_8
+third_party/rust/chromium_crates_io/vendor/regex-v1
+third_party/rust/chromium_crates_io/vendor/regex-v1/src
+third_party/rust/chromium_crates_io/vendor/regex-v1/tests
 third_party/rust/chromium_crates_io/vendor/rustfft-v6
 third_party/rust/chromium_crates_io/vendor/rustfft-v6/.github/workflows
 third_party/rust/chromium_crates_io/vendor/rustversion-v1
@@ -762,14 +761,7 @@ third_party/rust/chromium_crates_io/vendor/strum-v0_27/src
 third_party/rust/chromium_crates_io/vendor/strum-v0_28/src
 third_party/rust/chromium_crates_io/vendor/subtle-v2
 third_party/rust/chromium_crates_io/vendor/subtle-v2/src
-third_party/rust/chromium_crates_io/vendor/symphonia-bundle-flac-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-bundle-mp3-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-codec-pcm-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-codec-vorbis-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-core-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-metadata-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-utils-xiph-v0_5
-third_party/rust/chromium_crates_io/vendor/symphonia-v0_5
+third_party/rust/chromium_crates_io/vendor/symphonia-metadata-v0_6/src/utils
 third_party/rust/chromium_crates_io/vendor/syn-v2
 third_party/rust/chromium_crates_io/vendor/syn-v2/src
 third_party/rust/chromium_crates_io/vendor/termcolor-v1/.github/workflows

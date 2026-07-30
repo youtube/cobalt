@@ -11,6 +11,7 @@ import org.chromium.chrome.browser.educational_tip.cards.AddressBarPlacementProm
 import org.chromium.chrome.browser.educational_tip.cards.DefaultBrowserPromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.EnhancedSafeBrowsingPromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.HistorySyncPromoCoordinator;
+import org.chromium.chrome.browser.educational_tip.cards.NtpThemePromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.PasswordCheckupPromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.QuickDeletePromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.SavePasswordsPromoCoordinator;
@@ -18,7 +19,6 @@ import org.chromium.chrome.browser.educational_tip.cards.SetupListCelebratoryPro
 import org.chromium.chrome.browser.educational_tip.cards.SignInPromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.TabGroupPromoCoordinator;
 import org.chromium.chrome.browser.educational_tip.cards.TabGroupSyncPromoCoordinator;
-import org.chromium.chrome.browser.educational_tip.cards.TipsNotificationsPromoCoordinator;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 
 /** A factory interface for building a EducationalTipCardProvider instance. */
@@ -51,9 +51,6 @@ public class EducationalTipCardProviderFactory {
                         callbackController,
                         actionDelegate,
                         removeModuleCallback);
-            case ModuleType.TIPS_NOTIFICATIONS_PROMO:
-                return new TipsNotificationsPromoCoordinator(
-                        onModuleClickedCallback, callbackController, actionDelegate);
             case ModuleType.ENHANCED_SAFE_BROWSING_PROMO:
                 return new EnhancedSafeBrowsingPromoCoordinator(
                         onModuleClickedCallback, actionDelegate);
@@ -70,6 +67,9 @@ public class EducationalTipCardProviderFactory {
             case ModuleType.SETUP_LIST_CELEBRATORY_PROMO:
                 return new SetupListCelebratoryPromoCoordinator(
                         onModuleClickedCallback, actionDelegate);
+            case ModuleType.NTP_THEME_PROMO:
+                return new NtpThemePromoCoordinator(
+                        onModuleClickedCallback, callbackController, actionDelegate);
             default:
                 assert false : "Educational tip module's card type not supported!";
                 return null;

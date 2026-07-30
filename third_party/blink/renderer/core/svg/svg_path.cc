@@ -134,26 +134,28 @@ SVGParsingError SVGPath::SetValueAsString(const String& string) {
   return parse_status;
 }
 
-void SVGPath::Add(const SVGPropertyBase* other, const SVGElement*) {
+bool SVGPath::Add(const SVGPropertyBase* other, const SVGElement*) {
   const auto& other_path_byte_stream = To<SVGPath>(other)->ByteStream();
 
-  if (ByteStream().IsEmpty() || other_path_byte_stream.IsEmpty()) {
-    return;
+  if (ByteStream().IsEmpty()) {
+    return false;
+  }
+
+  // Empty other (e.g. absent from in by-animation) acts as neutral value.
+  if (other_path_byte_stream.IsEmpty()) {
+    return true;
   }
 
   if (ByteStream().size() != other_path_byte_stream.size()) {
-    // Mismatched sizes - signal invalid animation.
-    path_value_ = CSSPathValue::EmptyPathValue();
-    return;
+    return false;
   }
 
   auto result = AddPathByteStreams(ByteStream(), other_path_byte_stream);
-  if (result) {
-    path_value_ = MakeGarbageCollected<CSSPathValue>(std::move(*result));
-  } else {
-    // Addition failed (e.g., mismatched commands) - signal invalid animation.
-    path_value_ = CSSPathValue::EmptyPathValue();
+  if (!result) {
+    return false;
   }
+  path_value_ = MakeGarbageCollected<CSSPathValue>(std::move(*result));
+  return true;
 }
 
 void SVGPath::CalculateAnimatedValue(
@@ -167,12 +169,24 @@ void SVGPath::CalculateAnimatedValue(
   const auto& to = To<SVGPath>(*to_value);
   const SVGPathByteStream& to_stream = to.ByteStream();
 
-  // If no 'to' value is given, nothing to animate.
-  if (!to_stream.size())
-    return;
-
   const auto& from = To<SVGPath>(*from_value);
   const SVGPathByteStream& from_stream = from.ByteStream();
+
+  // Additive with empty to (includes both-empty): can't add empty result to
+  // base. No animation.
+  if (to_stream.IsEmpty() && parameters.is_additive) {
+    return;
+  }
+
+  // Non-additive with incompatible empty endpoint: use discrete animation.
+  // Empty from with additive (by-animation) falls through to
+  // BlendPathByteStreams which treats it as a zero-valued path matching to's
+  // structure.
+  if (!parameters.is_additive &&
+      (from_stream.IsEmpty() || to_stream.IsEmpty())) {
+    path_value_ = percentage < 0.5 ? from.PathValue() : to.PathValue();
+    return;
+  }
 
   std::optional<SVGPathByteStream> new_stream =
       BlendPathByteStreams(from_stream, to_stream, percentage);

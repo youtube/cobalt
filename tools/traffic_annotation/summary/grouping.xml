@@ -23,7 +23,6 @@ after discussions on the right group.
       <annotation id="customtabs_parallel_request"/>
       <annotation id="download_bitmap"/>
       <annotation id="minidump_uploader_android"/>
-      <annotation id="oma_download_handler_android"/>
       <annotation id="partner_bookmarks_reader_get_favicon"/>
       <annotation id="rlz"/>
       <annotation id="webapk_create"/>
@@ -182,7 +181,6 @@ after discussions on the right group.
       <annotation id="bidirectional_stream"/>
       <annotation id="proxy_config_system"/>
       <annotation id="quic_chromium_incoming_session"/>
-      <annotation id="quic_chromium_incoming_pending_session"/>
       <annotation id="quic_chromium_packet_writer"/>
       <annotation id="proxy_config_direct"/>
       <annotation id="reporting"/>
@@ -357,7 +355,6 @@ after discussions on the right group.
       <annotation id="metrics_report_dwa"/>
       <annotation id="version_history"/>
       <annotation id="chromeos_scanner_provider"/>
-      <annotation id="glic_fre_preconnect"/>
       <annotation id="chromeos_lens_web_image_search"/>
       <annotation id="chromeos_inline_image_request"/>
       <annotation id="baguette_image_download"/>
@@ -403,6 +400,7 @@ after discussions on the right group.
       <annotation id="device_management_enrollment"/>
       <annotation id="device_management_reporting"/>
       <annotation id="device_management_remote_commands"/>
+      <annotation id="private_verification_tokens_service_get_tokens"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">
@@ -455,6 +453,7 @@ after discussions on the right group.
       <annotation id="safe_browsing_ohttp_key_fetch"/>
       <annotation id="safe_browsing_v4_get_hash"/>
       <annotation id="safe_browsing_v4_update"/>
+      <annotation id="safe_browsing_v5_update"/>
       <annotation id="safe_browsing_binary_upload_app"/>
       <annotation id="safe_browsing_binary_upload_connector"/>
       <annotation id="safe_browsing_realtime_url_lookup"/>

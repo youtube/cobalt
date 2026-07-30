@@ -789,6 +789,7 @@ chromium-metrics-reviews@google.com.
   <int value="96" label="Indigo"/>
   <int value="97" label="Glic Invoke API"/>
   <int value="98" label="Secure Gateway Service"/>
+  <int value="99" label="Drive Picker Host"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1021,6 +1022,7 @@ chromium-metrics-reviews@google.com.
   <int value="100" label="Page Action Menu (iOS only)"/>
   <int value="101"
       label="Autofill and passwords settings page on iOS and Android"/>
+  <int value="102" label="Sign-in deep link (e.g. from cross-device QR code)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

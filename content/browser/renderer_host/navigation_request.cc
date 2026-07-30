@@ -50,6 +50,7 @@
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/agent_cluster_key.h"
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
+#include "content/browser/bad_message.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/browsing_topics/header_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -140,6 +141,7 @@
 #include "content/public/browser/reduce_accept_language_utils.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/runtime_feature_state/runtime_feature_state_document_data.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/tracing_support.h"
@@ -189,6 +191,7 @@
 #include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "services/network/public/mojom/device_bound_sessions.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/network/public/mojom/link_header.mojom.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -410,42 +413,32 @@ void AddAdditionalRequestHeaders(
   // Next, set the HTTP Origin if needed.
   std::optional<std::string> existing_origin =
       headers->GetHeader(net::HttpRequestHeaders::kOrigin);
-  if (NeedsHTTPOrigin(method)) {
-    // TODO(https://crbug.com/491783215): investigate whether it is possible to
-    // set Origin headers (at least on navigation requests) exclusively in the
-    // browser process and kill any renderer that provides Origin itself.
+  bool needs_http_origin = NeedsHTTPOrigin(method);
+  if (needs_http_origin) {
     url::Origin origin_header_value = initiator_origin.value_or(url::Origin());
     origin_header_value = Referrer::SanitizeOriginForRequest(
         url, origin_header_value, referrer->policy);
     std::string serialized_origin = origin_header_value.Serialize();
-    if (existing_origin && existing_origin != serialized_origin &&
-        !is_browser_initiated && !is_history &&
-        base::FeatureList::IsEnabled(features::kDumpOnOriginHeaderMismatch)) {
-      // TODO(https://crbug.com/487795397): this should
-      // be a `bad_message::ReceivedBadMessage` and return `false` once
-      // DumpWithoutCrashing data is evaluated.
-      SCOPED_CRASH_KEY_STRING64("Bug487795397", "invalid_header",
-                                net::HttpRequestHeaders::kOrigin);
-      SCOPED_CRASH_KEY_STRING64("Bug487795397", "existing_origin",
-                                existing_origin.value());
-      SCOPED_CRASH_KEY_STRING64("Bug487795397", "serialized_origin",
-                                serialized_origin);
-      SCOPED_CRASH_KEY_BOOL("Bug487795397", "needs_origin_header", true);
-      base::debug::DumpWithoutCrashing();
-    }
     headers->SetHeader(net::HttpRequestHeaders::kOrigin, serialized_origin);
-  } else if (existing_origin && !is_browser_initiated && !is_history &&
-             base::FeatureList::IsEnabled(
-                 features::kDumpOnUnexpectedOriginHeader)) {
-    // TODO(https://crbug.com/40093290): this should
-    // be a `bad_message::ReceivedBadMessage` and return `false` once
-    // DumpWithoutCrashing() data is evaluated.
-    SCOPED_CRASH_KEY_STRING64("Bug487795397", "invalid_header",
-                              net::HttpRequestHeaders::kOrigin);
-    SCOPED_CRASH_KEY_STRING64("Bug487795397", "existing_origin",
+  } else if (!is_browser_initiated && !is_history) {
+    headers->RemoveHeader(net::HttpRequestHeaders::kOrigin);
+  }
+  if (existing_origin && !is_browser_initiated && !is_history &&
+      base::FeatureList::IsEnabled(features::kKillOnUnexpectedOriginHeader)) {
+    // A well-behaved renderer will never provide an Origin header on a
+    // navigation request, and will instead rely on the browser process to set
+    // it. History navigations are excluded from this enforcement because it is
+    // valid behavior for a renderer-initiated history navigation to reach this
+    // point with an Origin header populated from an existing navigation entry.
+    SCOPED_CRASH_KEY_STRING64("Bug487795397", "renderer_provided_origin",
                               existing_origin.value());
-    SCOPED_CRASH_KEY_BOOL("Bug487795397", "needs_origin_header", false);
-    base::debug::DumpWithoutCrashing();
+    SCOPED_CRASH_KEY_STRING64(
+        "Bug487795397", "current_header_origin",
+        headers->GetHeader(net::HttpRequestHeaders::kOrigin).value_or(""));
+    SCOPED_CRASH_KEY_BOOL("Bug487795397", "needs_origin_header",
+                          needs_http_origin);
+    bad_message::ReceivedBadMessage(render_view_host->GetProcess(),
+                                    bad_message::NR_BAD_ORIGIN_HEADER);
   }
 
   if (base::FeatureList::IsEnabled(features::kDocumentPolicyNegotiation)) {
@@ -1440,7 +1433,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*should_have_sticky_user_activation=*/false,
           /*old_page_info=*/nullptr, /*http_response_code=*/-1,
           blink::mojom::NavigationApiHistoryEntryArrays::New(),
-          /*early_hints_preloaded_resources=*/std::vector<GURL>(),
+          std::vector<network::mojom::LinkHeaderPtr>(),
           // This timestamp will be populated when the commit IPC is sent.
           /*commit_sent=*/base::TimeTicks(), /*srcdoc_value=*/std::string(),
           /*should_load_data_url=*/false,
@@ -1512,6 +1505,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
     bool is_same_document,
     const GURL& url,
     const url::Origin& origin,
+    const std::optional<url::Origin>& initiator_origin,
     const std::optional<GURL>& initiator_base_url,
     const net::IsolationInfo& isolation_info_for_subresources,
     blink::mojom::ReferrerPtr referrer,
@@ -1532,10 +1526,8 @@ NavigationRequest::CreateForSynchronousRendererCommit(
   // copying so many parameters here.
   blink::mojom::CommonNavigationParamsPtr common_params =
       blink::mojom::CommonNavigationParams::New(
-          url,
-          // TODO(nasko): Investigate better value to pass for
-          // |initiator_origin|.
-          origin, initiator_base_url, std::move(referrer), transition,
+          url, initiator_origin, initiator_base_url, std::move(referrer),
+          transition,
           is_same_document ? blink::mojom::NavigationType::SAME_DOCUMENT
                            : blink::mojom::NavigationType::DIFFERENT_DOCUMENT,
           blink::NavigationDownloadPolicy(), should_replace_current_entry,
@@ -1599,7 +1591,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*should_have_sticky_user_activation=*/false,
           /*old_page_info=*/nullptr, http_response_code,
           blink::mojom::NavigationApiHistoryEntryArrays::New(),
-          /*early_hints_preloaded_resources=*/std::vector<GURL>(),
+          std::vector<network::mojom::LinkHeaderPtr>(),
           // This timestamp will be populated when the commit IPC is sent.
           /*commit_sent=*/base::TimeTicks(), /*srcdoc_value=*/std::string(),
           /*should_load_data_url=*/false,
@@ -1811,7 +1803,8 @@ NavigationRequest::NavigationRequest(
       GetContentClient()->browser()->IsInitialWebUIURL(
           frame_tree_node_->current_frame_host()
               ->GetSiteInstance()
-              ->GetSiteURL());
+              ->GetSecurityPrincipal()
+              .GetDeprecatedSiteURL());
   CHECK(!current_rfh_is_initial_webui || IsInitialWebUINavigation());
   if (IsInitialWebUINavigation()) {
     // Initial WebUI navigations must satisfy all these conditions
@@ -3608,10 +3601,6 @@ void NavigationRequest::OnRequestRedirected(
   // for the redirected one.
   commit_params_->not_restored_reasons = nullptr;
 
-  // Reset the LCPP hint as the hint is for the original page and not for the
-  // redirected one.
-  commit_params_->lcpp_hint = nullptr;
-
   // Reset the tentative origin_to_commit, as the redirected one is different.
   tentative_data_origin_to_commit_ = std::nullopt;
 
@@ -3764,6 +3753,12 @@ void NavigationRequest::OnRequestRedirected(
           .IsSameOriginWith(redirect_info.new_url);
 
   did_encounter_cross_origin_redirect_ |= !is_same_origin_redirect;
+
+  // Reset the LCPP hint as the hint is for the original page and not for the
+  // redirected one. Only for cross-origin redirects.
+  if (!is_same_origin_redirect) {
+    commit_params_->lcpp_hint = nullptr;
+  }
 
   // Only same-origin navigations without cross-origin redirects can
   // expose response details (status-code / mime-type).
@@ -5745,6 +5740,14 @@ void NavigationRequest::OnStartChecksComplete(
             ->GetWeakPtr();
   }
 
+  // DevTools throttling profiles are only associated with local frame roots,
+  // not each individual frame.
+  RenderFrameHostImpl* local_root_rfh = frame_tree_node_->current_frame_host();
+  while (!local_root_rfh->is_local_root()) {
+    local_root_rfh = local_root_rfh->GetParent();
+  }
+  CHECK(local_root_rfh);
+
   loader_ = NavigationURLLoader::Create(
       browser_context, partition,
       std::make_unique<NavigationRequestInfo>(
@@ -5758,8 +5761,7 @@ void NavigationRequest::OnStartChecksComplete(
           upgrade_if_insecure_,
           blob_url_loader_factory_ ? blob_url_loader_factory_->Clone()
                                    : nullptr,
-          devtools_navigation_token(),
-          frame_tree_node_->current_frame_host()->devtools_frame_token(),
+          devtools_navigation_token(), local_root_rfh->devtools_frame_token(),
           BuildClientSecurityStateForNavigationFetch(),
           devtools_accepted_stream_types, is_pdf_, GetInitiatorProcessId(),
           initiator_document_token_, std::move(serving_page_metrics_container),
@@ -6876,7 +6878,7 @@ void NavigationRequest::CommitNavigation() {
 
   if (early_hints_manager_) {
     commit_params_->early_hints_preloaded_resources =
-        early_hints_manager_->TakePreloadedResourceURLs();
+        early_hints_manager_->TakePreloadedResources();
   }
 
   if (response_head_) {
@@ -7848,6 +7850,15 @@ NavigationRequest::CheckCSPEmbeddedEnforcement() {
   if (network::AllowsBlanketEnforcementOfRequiredCSP(
           GetParentFrame()->GetLastCommittedOrigin(), GetURL(), allow_csp_from,
           required_csp_)) {
+    if (GetURL().SchemeIsLocal() || GetURL().SchemeIsFile()) {
+      base::UmaHistogramEnumeration(
+          "Navigation.CSPEmbeddedEnforcement.Outcome",
+          NavigationCSPEmbeddedEnforcementOutcome::kAllowLocalScheme);
+    } else {
+      base::UmaHistogramEnumeration(
+          "Navigation.CSPEmbeddedEnforcement.Outcome",
+          NavigationCSPEmbeddedEnforcementOutcome::kAllowAllowCSPFromHeader);
+    }
     // Enforce the required CSPs on the frame by passing them down to blink.
     policy_container_builder_->AddContentSecurityPolicy(required_csp_->Clone());
     return CSPEmbeddedEnforcementResult::ALLOW_RESPONSE;
@@ -7862,6 +7873,9 @@ NavigationRequest::CheckCSPEmbeddedEnforcement() {
     // documents are handled through the standard code path with its own
     // URLLoaderFactory.
     CHECK(IsForMhtmlSubframe());
+    base::UmaHistogramEnumeration(
+        "Navigation.CSPEmbeddedEnforcement.Outcome",
+        NavigationCSPEmbeddedEnforcementOutcome::kAllowMHTML);
     return CSPEmbeddedEnforcementResult::ALLOW_RESPONSE;
   }
 
@@ -7878,9 +7892,15 @@ NavigationRequest::CheckCSPEmbeddedEnforcement() {
 
   if (network::Subsumes(*required_csp_,
                         response()->parsed_headers->content_security_policy)) {
+    base::UmaHistogramEnumeration(
+        "Navigation.CSPEmbeddedEnforcement.Outcome",
+        NavigationCSPEmbeddedEnforcementOutcome::kAllowSubsumes);
     return CSPEmbeddedEnforcementResult::ALLOW_RESPONSE;
   }
 
+  base::UmaHistogramEnumeration(
+      "Navigation.CSPEmbeddedEnforcement.Outcome",
+      NavigationCSPEmbeddedEnforcementOutcome::kBlock);
   AddDeferredConsoleMessage(
       blink::mojom::ConsoleMessageLevel::kError,
       base::StringPrintf(
@@ -11246,6 +11266,10 @@ bool NavigationRequest::IsServedFromBackForwardCache() const {
 bool NavigationRequest::IsPageActivation() const {
   return const_cast<NavigationRequest*>(this)->IsPrerenderedPageActivation() ||
          IsServedFromBackForwardCache();
+}
+
+bool NavigationRequest::IsNavigatingFromInitialEmptyDocument() const {
+  return frame_tree_node_->is_on_initial_empty_document();
 }
 
 std::unique_ptr<NavigationEntryImpl>

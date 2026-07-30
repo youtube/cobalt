@@ -156,7 +156,6 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   CreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator() override;
   bool IsRiskBasedAuthEffectivelyAvailable() const override;
   bool IsMandatoryReauthEnabled() override;
-  bool IsUsingCustomCardIconEnabled() const override;
   void ShowMandatoryReauthOptInPrompt(
       base::OnceClosure accept_mandatory_reauth_callback,
       base::OnceClosure cancel_mandatory_reauth_callback,
@@ -223,6 +222,14 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   // Begin IOSChromePaymentsAutofillClient-specific section.
 
  private:
+  // Resets/clears the transient unmasking origin in the virtual card cache.
+  void ClearUnmaskingOrigin();
+
+  // Wraps a cancellation/failure closure to ensure that the transient unmasking
+  // origin is cleared from the virtual card cache upon execution.
+  base::OnceClosure WrapClosureWithUnmaskingOriginCleanup(
+      base::OnceClosure closure);
+
   // Shows save card UI offering upload or local save.
   void ShowSaveCreditCard(
       AutofillSaveCardUiInfo ui_info,

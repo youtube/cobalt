@@ -26,6 +26,14 @@ enum InfoBarType {
   [EnableIf=is_win_and_chrome_branded]
   kInstallerDownloader,
 
+  // Keystone promotion infobar. Can only be triggered on Mac.
+  [EnableIf=is_mac]
+  kKeystone,
+
+  // Reload plugin infobar.
+  [EnableIf=enable_plugins]
+  kReloadPlugin,
+
   // Session restore infobar. Can only be triggered on Win, Mac and Linux.
   [EnableIf=is_win|is_mac|is_linux]
   kSessionRestore,
@@ -33,6 +41,10 @@ enum InfoBarType {
   // Startup launch infobar. Can only be triggered on Windows.
   [EnableIf=is_win]
   kStartupLaunch,
+
+  // Theme installed infobar.
+  [EnableIf=enable_extensions]
+  kThemeInstalled,
 };
 
 // Metadata describing an individual infobar that can be triggered.

@@ -3346,9 +3346,9 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
   {
     // Test REMOVE_HISTORY.
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
-        kOrigin1, ContentSettingsType::GEOLOCATION));
+        kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
-        kOrigin1, ContentSettingsType::GEOLOCATION));
+        kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
         kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_FALSE(tester.RecordDismissAndEmbargo(
@@ -3372,7 +3372,8 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
 
     // kOrigin1 should be gone, but kOrigin2 remains.
     EXPECT_EQ(
-        0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::GEOLOCATION));
+        0, tester.GetIgnoreCount(
+               kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_EQ(
         0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_EQ(
@@ -3389,7 +3390,8 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
 
     // Everything should be gone.
     EXPECT_EQ(
-        0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::GEOLOCATION));
+        0, tester.GetIgnoreCount(
+               kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_EQ(
         0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_EQ(
@@ -3404,9 +3406,9 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
   {
     // Test REMOVE_SITE_DATA.
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
-        kOrigin1, ContentSettingsType::GEOLOCATION));
+        kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
-        kOrigin1, ContentSettingsType::GEOLOCATION));
+        kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_FALSE(tester.RecordIgnoreAndEmbargo(
         kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_FALSE(tester.RecordDismissAndEmbargo(
@@ -3423,7 +3425,8 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
 
     // kOrigin2 should be gone, but kOrigin1 remains.
     EXPECT_EQ(
-        2, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::GEOLOCATION));
+        2, tester.GetIgnoreCount(
+               kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_EQ(
         1, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_EQ(
@@ -3446,7 +3449,8 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionPromptCounts) {
 
     // Everything should be gone.
     EXPECT_EQ(
-        0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::GEOLOCATION));
+        0, tester.GetIgnoreCount(
+               kOrigin1, content_settings::GeolocationContentSettingsType()));
     EXPECT_EQ(
         0, tester.GetIgnoreCount(kOrigin1, ContentSettingsType::NOTIFICATIONS));
     EXPECT_EQ(
@@ -3467,7 +3471,8 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearPermissionHeuristicData) {
       {});
   constexpr int kHeuristicGrantThreshold = 3;
   auto* history = PermissionActionsHistoryFactory::GetForProfile(GetProfile());
-  ContentSettingsType permission = ContentSettingsType::GEOLOCATION;
+  ContentSettingsType permission =
+      content_settings::GeolocationContentSettingsType();
 
   std::unique_ptr<BrowsingDataFilterBuilder> filter_builder_1(
       BrowsingDataFilterBuilder::Create(
@@ -4734,3 +4739,65 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(FilterOrigins::kByPrimaryUrl,
                         FilterOrigins::kBySecondaryUrl,
                         FilterOrigins::kByBothUrls)));
+
+// Regression test for https://crbug.com/502363986.
+TEST_F(ChromeBrowsingDataRemoverDelegateTest,
+       RWSRevocationIncludesSubdomainKeyedRSAForGrants) {
+  HostContentSettingsMap* settings_map =
+      HostContentSettingsMapFactory::GetForProfile(GetProfile());
+
+  // a.test & b.test are assumed to be in an RWS together, but b.test will be
+  // removed from the set and have its data cleared.
+  const GURL kTopLevel("https://a.test");
+  const GURL kRequestedSubdomain("https://accounts.b.test");
+
+  content_settings::ContentSettingConstraints rws_constraints;
+  rws_constraints.set_lifetime(base::Days(30));
+  rws_constraints.set_decided_by_related_website_sets(true);
+  settings_map->SetContentSettingDefaultScope(
+      kRequestedSubdomain, kTopLevel,
+      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, CONTENT_SETTING_ALLOW,
+      rws_constraints);
+  settings_map->SetContentSettingCustomScope(
+      ContentSettingsPattern::FromURLNoWildcard(kRequestedSubdomain),
+      ContentSettingsPattern::FromURLToSchemefulSitePattern(kTopLevel),
+      ContentSettingsType::STORAGE_ACCESS, CONTENT_SETTING_ALLOW,
+      rws_constraints);
+
+  // 1 wildcard setting each, plus 1 specific setting each.
+  ASSERT_EQ(
+      settings_map->GetSettingsForOneType(ContentSettingsType::STORAGE_ACCESS)
+          .size(),
+      2u);
+  ASSERT_EQ(
+      settings_map
+          ->GetSettingsForOneType(ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS)
+          .size(),
+      2u);
+
+  std::unique_ptr<BrowsingDataFilterBuilder> filter_builder(
+      BrowsingDataFilterBuilder::Create(
+          BrowsingDataFilterBuilder::Mode::kDelete));
+  // RWS data clearing is site-based (see FirstPartySetsSiteDataRemover).
+  filter_builder->AddOrigin(
+      url::Origin::Create(net::SchemefulSite(kRequestedSubdomain).GetURL()));
+
+  BlockUntilOriginDataRemoved(
+      base::Time(), base::Time::Max(),
+      content::BrowsingDataRemover::DATA_TYPE_RELATED_WEBSITE_SETS_PERMISSIONS,
+      std::move(filter_builder));
+
+  EXPECT_EQ(
+      settings_map
+          ->GetSettingsForOneType(ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS)
+          .size(),
+      1u);
+  EXPECT_EQ(
+      settings_map->GetSettingsForOneType(ContentSettingsType::STORAGE_ACCESS)
+          .size(),
+      1u);
+  EXPECT_EQ(
+      settings_map->GetContentSetting(kRequestedSubdomain, kTopLevel,
+                                      ContentSettingsType::STORAGE_ACCESS),
+      CONTENT_SETTING_ASK);
+}

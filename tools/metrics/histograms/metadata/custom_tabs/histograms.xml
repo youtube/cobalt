@@ -60,16 +60,6 @@ chromium-metrics-reviews@google.com.
                wrapper started"/>
 </variants>
 
-<histogram name="CustomTab.AdaptiveToolbarButton.ActionButtons"
-    enum="CustomTabsToolbarButtons" expires_after="2026-09-20">
-  <owner>jinsukkiim@google.com</owner>
-  <owner>clank-app-team@google.com</owner>
-  <summary>
-    Records which buttons are shown in top toolbar. Recorded when CCT is closed
-    to capture the list of buttons finally presented to users. Android only.
-  </summary>
-</histogram>
-
 <histogram name="CustomTab.AdaptiveToolbarButton.FallbackUi"
     enum="AdaptiveToolbarButtonVariant" expires_after="2026-10-04">
   <owner>jinsukkiim@google.com</owner>
@@ -619,7 +609,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Omnibox.EnabledState" enum="BooleanEnabled"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>ender@google.com</owner>
   <owner>sinansahin@google.com</owner>
   <summary>
@@ -642,7 +632,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Omnibox.NumNavigationsPerSession" units="count"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>ender@google.com</owner>
   <owner>sinansahin@google.com</owner>
   <summary>
@@ -948,7 +938,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.TimeSpentInEngagementEventIpc" units="ms"
-    expires_after="2026-08-09">
+    expires_after="2026-11-01">
   <owner>nafisabedin@google.com</owner>
   <summary>
     The time spent in milliseconds processing IPCs on the UI thread related to

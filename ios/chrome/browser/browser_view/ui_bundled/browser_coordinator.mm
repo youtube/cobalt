@@ -235,6 +235,7 @@
 #import "ios/chrome/browser/shared/coordinator/default_browser_promo/non_modal_default_browser_promo_scheduler_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
@@ -753,8 +754,7 @@ const char kChromeAppStoreUrl[] =
   DockingPromoCoordinator* _dockingPromoCoordinator;
   // Used to display the Voice Search UI.  Nil if not visible.
   id<VoiceSearchController> _voiceSearchController;
-  raw_ptr<UrlLoadingNotifierBrowserAgent>
-      _urlLoadingNotifierBrowserAgent;
+  raw_ptr<UrlLoadingNotifierBrowserAgent> _urlLoadingNotifierBrowserAgent;
   id<OmniboxCommands> _omniboxCommandsHandler;
   LayoutGuideCenter* _layoutGuideCenter;
   raw_ptr<WebNavigationBrowserAgent> _webNavigationBrowserAgent;
@@ -874,8 +874,9 @@ const char kChromeAppStoreUrl[] =
   if (self.sceneState.controller.isTabGridVisible) {
     // The tab grid is being shown so use the tab grid bottom bar.
     // kTabGridBottomToolbarGuide is stored in the shared layout guide center.
-    UIView* tabGridBottomToolbarView = [LayoutGuideCenterForBrowser(nil)
-        referencedViewUnderName:kTabGridBottomToolbarGuide];
+    UIView* tabGridBottomToolbarView =
+        [LayoutGuideCenterForBrowser(self.browser)
+            referencedViewUnderName:kTabGridBottomToolbarGuide];
     if (IsChromeNextIaEnabled()) {
       CGPoint originOfBottomToolbar =
           [tabGridBottomToolbarView convertPoint:CGPointZero toView:nil];
@@ -1580,6 +1581,7 @@ const char kChromeAppStoreUrl[] =
 
   [_dispatcher startDispatchingToTarget:viewController
                             forProtocol:@protocol(BrowserCommands)];
+  viewController.layoutState = self.browser->GetSceneState().layoutState;
   _browserLayoutCoordinator.browserViewController = viewController;
 }
 
@@ -2510,7 +2512,8 @@ const char kChromeAppStoreUrl[] =
 - (void)showSaveEntityDialog:(autofill::SaveEntityParams)params {
   if (_autofillAISaveEntityCoordinator) {
     std::move(params.callback)
-        .Run(autofill::AutofillClient::AutofillAiBubbleResult::kUnknown, {});
+        .Run(autofill::AutofillClient::AutofillAiBubbleResult::kUnknown,
+             std::nullopt, {});
     return;
   }
 
@@ -4293,6 +4296,10 @@ const char kChromeAppStoreUrl[] =
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetDelegate(nil);
   }
+
+  // Disconnect the presenter from the context to cancel active overlays.
+  OverlayPresenter::FromBrowser(self.browser, OverlayModality::kInfobarBanner)
+      ->SetPresentationContext(nullptr);
 }
 
 #pragma mark - ParentAccessCommands
@@ -5774,6 +5781,9 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)showDownloadList {
+  if (self.downloadListCoordinator) {
+    [self hideDownloadList];
+  }
   self.downloadListCoordinator = [[DownloadListCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];

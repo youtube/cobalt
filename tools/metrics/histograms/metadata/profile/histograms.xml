@@ -184,7 +184,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.ForcedByPolicy" enum="BooleanForced"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>duellweber@chromium.org</owner>
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -217,7 +217,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MainFrameNavigationsPerSession"
-    units="navigations" expires_after="2026-09-06">
+    units="navigations" expires_after="2026-11-08">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -705,7 +705,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.ZombieProfileCount" units="profiles"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>nicolaso@chromium.org</owner>
   <owner>cbe-eng@google.com</owner>
   <summary>
@@ -810,6 +810,17 @@ chromium-metrics-reviews@google.com.
     this metric is intended to capture the startup latency for a common case
     where Startup.FirstWebContents.NonEmptyPaint3 is not recorded due to the
     profile picker interrupting browser startup.
+  </summary>
+</histogram>
+
+<histogram
+    name="ProfilePicker.FirstProfileTime.FirstWebContentsNonEmptyPaint.AutoLaunchByOs"
+    units="ms" expires_after="2026-10-25">
+  <owner>atharvmaan@google.com</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Same as ProfilePicker.FirstProfileTime.FirstWebContentsNonEmptyPaint, but
+    recorded only for browser launches initiated automatically by the OS.
   </summary>
 </histogram>
 

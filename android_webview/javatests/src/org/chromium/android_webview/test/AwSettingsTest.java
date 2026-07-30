@@ -52,6 +52,7 @@ import org.chromium.base.test.util.TestFileUtil;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.blink_public.common.BlinkFeatures;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
+import org.chromium.components.webauthn.WebauthnMode;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.content_public.browser.test.util.HistoryUtils;
@@ -3549,9 +3550,9 @@ public class AwSettingsTest {
         mOverriddenFactory = new EmptyDocumentPersistenceTestDependencyFactory(allow);
 
         final TestAwContentsClient client = new TestAwContentsClient();
-        final AwTestContainerView mContainerView =
+        final AwTestContainerView containerView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(client);
-        final AwContents awContents = mContainerView.getAwContents();
+        final AwContents awContents = containerView.getAwContents();
         AwActivityTestRule.enableJavaScriptOnUiThread(awContents);
         JSUtils.executeJavaScriptAndWaitForResult(
                 InstrumentationRegistry.getInstrumentation(),
@@ -3633,9 +3634,9 @@ public class AwSettingsTest {
         mOverriddenFactory = new SelectionRangeTestDependencyFactory(doNotUpdate);
 
         final TestAwContentsClient client = new TestAwContentsClient();
-        final AwTestContainerView mContainerView =
+        final AwTestContainerView containerView =
                 mActivityTestRule.createAwTestContainerViewOnMainSync(client);
-        final AwContents awContents = mContainerView.getAwContents();
+        final AwContents awContents = containerView.getAwContents();
         AwActivityTestRule.enableJavaScriptOnUiThread(awContents);
         final String testPageHtml =
                 "<html><head></head><body><div id='a' contenteditable></div><script>"
@@ -4045,5 +4046,25 @@ public class AwSettingsTest {
         settings.setIgnoreDuplicateNavThreshold(customThreshold);
         Assert.assertTrue(settings.getIgnoreDuplicateNavEnabled());
         Assert.assertEquals(customThreshold, settings.getIgnoreDuplicateNavThreshold());
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Preferences"})
+    public void testSetWebauthnSupportFromNonUIThread() throws Throwable {
+        final TestAwContentsClient contentClient = new TestAwContentsClient();
+        final AwTestContainerView testContainerView =
+                mActivityTestRule.createAwTestContainerViewOnMainSync(contentClient);
+        final AwContents awContents = testContainerView.getAwContents();
+        final AwSettings settings = mActivityTestRule.getAwSettingsOnUiThread(awContents);
+
+        // Call setWebauthnSupport from the instrumentation thread (non-UI thread).
+        // This should not crash.
+        settings.setWebauthnSupport(WebauthnMode.APP);
+
+        // Verify the setting was applied.
+        Assert.assertEquals(
+                WebauthnMode.APP,
+                mActivityTestRule.getAwSettingsOnUiThread(awContents).getWebauthnSupport());
     }
 }

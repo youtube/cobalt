@@ -64,6 +64,7 @@
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -175,7 +176,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 @interface TabGridCoordinator () <BringAndroidTabsCommands,
                                   GridCoordinatorAudience,
                                   GridMediatorDelegate,
-                                  GuidedTourCoordinatorDelegate,
+
                                   HistoryCoordinatorDelegate,
                                   HistoryPresentationDelegate,
                                   InactiveTabsCoordinatorDelegate,
@@ -276,8 +277,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 @implementation TabGridCoordinator {
   // Coordinator for the long press step of the guided tour.
   GuidedTourCoordinator* _guidedTourCoordinator;
-  // Completion block for when the `_guidedTourCoordinator` finishes.
-  ProceduralBlock _guidedTourCompletionBlock;
 
   // The view controller for the Tab Grid, defined manually so that the type can
   // be specified.
@@ -577,7 +576,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       viewController.view.alpha = 1.0;
       [_viewController addChildViewController:viewController];
       if (IsChromeNextIaEnabled()) {
-        UIView* appContentGuide = [LayoutGuideCenterForBrowser(nil)
+        UIView* appContentGuide = [LayoutGuideCenterForScene(sceneState)
             referencedViewUnderName:kAppContentGuide];
         if (IsFullscreenRefactoringEnabled()) {
           [_viewController.view addSubview:viewController.view];
@@ -675,6 +674,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
 #pragma mark - Private
 
+// Handles the completion of a guided tour step.
+- (void)guidedTourStepCompleted {
+  [_guidedTourCoordinator stop];
+  _guidedTourCoordinator = nil;
+}
+
 // Hides tab group views.
 - (void)hideTabGroupsViews {
   [_incognitoGridCoordinator hideTabGroup];
@@ -729,13 +734,20 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
     animationEnabled = NO;
   }
 
-  UIView* appContentView = IsChromeNextIaEnabled()
-                               ? [LayoutGuideCenterForBrowser(nil)
-                                     referencedViewUnderName:kAppContentGuide]
-                               : nil;
+  UIView* appContentView =
+      IsChromeNextIaEnabled()
+          ? [LayoutGuideCenterForScene(browser->GetSceneState())
+                referencedViewUnderName:kAppContentGuide]
+          : nil;
+
+  UIViewController* parentViewController = _viewController;
+  if (IsChromeNextIaEnabled()) {
+    parentViewController = _viewController.parentViewController;
+  }
+
   auto params = std::make_unique<TabGridTransitionHandlerInitParams>(
       direction, self.browserLayoutViewController, _viewController,
-      appContentView);
+      parentViewController, appContentView);
 
   if (animationEnabled) {
     // Use reduced animation on TabGroup panel to avoid weird animation where
@@ -1012,9 +1024,10 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 #pragma mark - ChromeCoordinator
 
 - (void)start {
+  SceneState* sceneState = _regularBrowser->GetSceneState();
   TRACE_EVENT("ui", "-[TabGridCoordinator start]");
-  _modeHolder = [[TabGridModeHolder alloc]
-      initWithTabGridState:_regularBrowser->GetSceneState().tabGridState];
+  _modeHolder =
+      [[TabGridModeHolder alloc] initWithTabGridState:sceneState.tabGridState];
 
   [_regularBrowser->GetCommandDispatcher()
       startDispatchingToTarget:self
@@ -1031,7 +1044,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                                    GetForProfile(profile)
                     modeHolder:_modeHolder];
 
-  _mediator.tabGridState = _regularBrowser->GetSceneState().tabGridState;
+  _mediator.tabGridState = sceneState.tabGridState;
 
   id<SceneCommands> sceneHandler =
       HandlerForProtocol(self.dispatcher, SceneCommands);
@@ -1040,10 +1053,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   _viewController = [[TabGridViewController alloc]
       initWithPageConfiguration:_pageConfiguration];
+  _viewController.layoutState =
+      self.regularBrowser->GetSceneState().layoutState;
   _viewController.handler = sceneHandler;
   _viewController.geminiHandler = geminiHandler;
   _viewController.tabPresentationDelegate = self;
-  _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
+  _viewController.layoutGuideCenter = LayoutGuideCenterForScene(sceneState);
   _viewController.delegate = self;
   _viewController.tabGridHandler = self;
   _viewController.mutator = _mediator;
@@ -1158,7 +1173,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   self.firstPresentation = YES;
 
-  SceneState* sceneState = self.regularBrowser->GetSceneState();
   if (!IsUseSceneViewControllerEnabled()) {
     sceneState.window.rootViewController = _viewController;
   }
@@ -1847,17 +1861,22 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
 - (void)showGuidedTourLongPressStepWithDismissalCompletion:
     (ProceduralBlock)completion {
+  __weak __typeof(self) weakSelf = self;
+  ProceduralBlock completionBlock = ^{
+    [weakSelf guidedTourStepCompleted];
+    if (completion) {
+      completion();
+    }
+  };
   _guidedTourCoordinator = [[GuidedTourCoordinator alloc]
             initWithStep:GuidedTourStep::kTabGridLongPress
       baseViewController:_viewController
                  browser:self.regularBrowser
-                delegate:self];
+         completionBlock:completionBlock];
   [_guidedTourCoordinator start];
-  _guidedTourCompletionBlock = completion;
 }
 
 - (void)hideTabGridGuidedTour {
-  _guidedTourCompletionBlock = nil;
   [_guidedTourCoordinator stop];
   _guidedTourCoordinator = nil;
 }
@@ -1885,22 +1904,15 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [self.pageActionMenuCoordinator start];
 }
 
-#pragma mark - GuidedTourCoordinatorDelegate
 
-- (void)nextTappedForStep:(GuidedTourStep)step {
-}
 
-- (void)stepCompleted:(GuidedTourStep)step {
-  [_guidedTourCoordinator stop];
-  _guidedTourCoordinator = nil;
-  _guidedTourCompletionBlock();
-}
 
 #pragma mark - TabGroupPositioner
 
 - (UIView*)viewAboveTabGroup {
   if (IsChromeNextIaEnabled() && !IsFullscreenRefactoringEnabled()) {
-    return [LayoutGuideCenterForBrowser(nil)
+    SceneState* sceneState = self.regularBrowser->GetSceneState();
+    return [LayoutGuideCenterForScene(sceneState)
         referencedViewUnderName:kAppContentGuide];
   }
   return self.browserLayoutViewController.view;

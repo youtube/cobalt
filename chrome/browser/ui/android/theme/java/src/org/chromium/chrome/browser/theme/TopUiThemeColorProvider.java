@@ -74,7 +74,7 @@ public class TopUiThemeColorProvider extends ThemeColorProvider {
                         tabSupplier,
                         new EmptyTabObserver() {
                             @Override
-                            public void onDidChangeThemeColor(Tab tab, int themeColor) {
+                            public void onDidChangeThemeColor(Tab tab, @ColorInt int themeColor) {
                                 updateColor(tab, themeColor, true);
                             }
 
@@ -95,12 +95,58 @@ public class TopUiThemeColorProvider extends ThemeColorProvider {
         mAllowThemingOnTablets = allowThemingOnTablets;
     }
 
+    @Override
+    public void destroy() {
+        super.destroy();
+        mTabObserver.destroy();
+    }
+
     /**
-     * @return Theme color or the given fallback color if the default color is
-     *         used or there is no current tab.
+     * @param tab The {@link Tab} on which the theme color is used.
+     * @param fallbackColor The fallback color to use if the default color is used or there is no
+     *     current tab.
+     * @return Theme color or the given fallback color if the default color is used or there is no
+     *     current tab.
      */
-    public int getThemeColorOrFallback(@Nullable Tab tab, int fallbackColor) {
+    public @ColorInt int getThemeColorOrFallback(@Nullable Tab tab, @ColorInt int fallbackColor) {
         return (tab == null || mIsDefaultColorUsed) ? fallbackColor : getThemeColor();
+    }
+
+    /**
+     * @param tab The {@link Tab} on which the toolbar background color is used.
+     * @return Returns the toolbar background color.
+     */
+    public @ColorInt int getToolbarBackgroundColor(Tab tab) {
+        NativePage nativePage = tab.getNativePage();
+        @ColorInt int defaultColor = calculateColor(tab, tab.getThemeColor());
+        return nativePage != null
+                ? nativePage.getToolbarSceneLayerBackground(defaultColor)
+                : defaultColor;
+    }
+
+    /**
+     * Calculate theme color to be used for a given tab.
+     *
+     * @param tab Tab to get the theme color for.
+     * @param themeColor Initial color to calculate the theme color with.
+     * @return Final theme color for a given tab, with other signals taken into account.
+     */
+    protected @ColorInt int calculateColor(Tab tab, @ColorInt int themeColor) {
+        // This method is used not only for the current tab but also for
+        // any given tab. Therefore it should not alter any class state.
+        if (!isUsingTabThemeColor(tab, themeColor)) {
+            themeColor = ChromeColors.getDefaultThemeColor(mContext, tab.isIncognito());
+            if (isThemingAllowed(tab)) {
+                @ColorInt int customThemeColor = mActivityThemeColorSupplier.get();
+                if (customThemeColor != TabState.UNSPECIFIED_THEME_COLOR) {
+                    themeColor = customThemeColor;
+                }
+            }
+        }
+
+        // Ensure there is no alpha component to the theme color as that is not supported in the
+        // dependent UI.
+        return ColorUtils.getOpaqueColor(themeColor);
     }
 
     protected void updateColor(Tab tab, @ColorInt int themeColor, boolean shouldAnimate) {
@@ -113,43 +159,7 @@ public class TopUiThemeColorProvider extends ThemeColorProvider {
         updateTint(iconTint, iconTint, brandedColorScheme);
     }
 
-    private int calculateBrandedColorScheme(boolean isIncognito, boolean isDefaultColor) {
-        if (isIncognito) return BrandedColorScheme.INCOGNITO;
-        if (isDefaultColor) return BrandedColorScheme.APP_DEFAULT;
-
-        final boolean isDarkTheme =
-                ColorUtils.shouldUseLightForegroundOnBackground(getThemeColor());
-        return isDarkTheme
-                ? BrandedColorScheme.DARK_BRANDED_THEME
-                : BrandedColorScheme.LIGHT_BRANDED_THEME;
-    }
-
-    /**
-     * Calculate theme color to be used for a given tab.
-     *
-     * @param tab Tab to get the theme color for.
-     * @param themeColor Initial color to calculate the theme color with.
-     * @return Final theme color for a given tab, with other signals taken into account.
-     */
-    public @ColorInt int calculateColor(Tab tab, @ColorInt int themeColor) {
-        // This method is used not only for the current tab but also for
-        // any given tab. Therefore it should not alter any class state.
-        if (!isUsingTabThemeColor(tab, themeColor)) {
-            themeColor = ChromeColors.getDefaultThemeColor(mContext, tab.isIncognito());
-            if (isThemingAllowed(tab)) {
-                int customThemeColor = mActivityThemeColorSupplier.get();
-                if (customThemeColor != TabState.UNSPECIFIED_THEME_COLOR) {
-                    themeColor = customThemeColor;
-                }
-            }
-        }
-
-        // Ensure there is no alpha component to the theme color as that is not supported in the
-        // dependent UI.
-        return ColorUtils.getOpaqueColor(themeColor);
-    }
-
-    private boolean isUsingDefaultColor(Tab tab, int themeColor) {
+    private boolean isUsingDefaultColor(Tab tab, @ColorInt int themeColor) {
         // This method is used not only for the current tab but also for
         // any given tab. Therefore it should not alter any class state.
         return !(isUsingTabThemeColor(tab, themeColor)
@@ -158,23 +168,11 @@ public class TopUiThemeColorProvider extends ThemeColorProvider {
     }
 
     /**
-     * The default background color used for {@link Tab} if the associate web content doesn't
-     * specify a background color.
-     *
-     * @param tab {@link Tab} object to get the background color for.
-     * @return The background color of {@link Tab}.
-     */
-    public int getBackgroundColor(Tab tab) {
-        // This method makes it easy to mock, test-friendly.
-        return ThemeUtils.getBackgroundColor(tab);
-    }
-
-    /**
      * @param tab Tab to get the theme color for.
      * @param themeColor Initial color to calculate the theme color with.
      * @return Whether the given tab is using the tab theme color.
      */
-    private boolean isUsingTabThemeColor(Tab tab, int themeColor) {
+    private boolean isUsingTabThemeColor(Tab tab, @ColorInt int themeColor) {
         return isThemingAllowed(tab)
                 && themeColor != TabState.UNSPECIFIED_THEME_COLOR
                 && (mAllowBrightThemeColors || !ColorUtils.isThemeColorTooBright(themeColor));
@@ -196,22 +194,15 @@ public class TopUiThemeColorProvider extends ThemeColorProvider {
                 && !tab.isIncognito();
     }
 
-    /**
-     * @param tab The {@link Tab} on which the toolbar scene layer color is used.
-     * @return The toolbar (or browser controls) color used in the compositor scene layer. Note that
-     *         this is primarily used for compositor animation, and doesn't affect the Android view.
-     */
-    public int getSceneLayerBackground(Tab tab) {
-        NativePage nativePage = tab.getNativePage();
-        int defaultColor = calculateColor(tab, tab.getThemeColor());
-        return nativePage != null
-                ? nativePage.getToolbarSceneLayerBackground(defaultColor)
-                : defaultColor;
-    }
+    private @BrandedColorScheme int calculateBrandedColorScheme(
+            boolean isIncognito, boolean isDefaultColor) {
+        if (isIncognito) return BrandedColorScheme.INCOGNITO;
+        if (isDefaultColor) return BrandedColorScheme.APP_DEFAULT;
 
-    @Override
-    public void destroy() {
-        super.destroy();
-        mTabObserver.destroy();
+        final boolean isDarkTheme =
+                ColorUtils.shouldUseLightForegroundOnBackground(getThemeColor());
+        return isDarkTheme
+                ? BrandedColorScheme.DARK_BRANDED_THEME
+                : BrandedColorScheme.LIGHT_BRANDED_THEME;
     }
 }

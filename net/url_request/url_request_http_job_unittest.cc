@@ -114,6 +114,10 @@ const std::string_view kSimpleHeadMockWrite =
 
 const char kTrustAnchorRequestHistogram[] =
     "Net.Certificate.TrustAnchor.Request";
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+const char kTrustAnchorRequestHistogram2[] =
+    "Net.Certificate.TrustAnchor2.Request";
+#endif
 
 // Inherit from URLRequestHttpJob to expose the priority and some
 // other hidden functions.
@@ -788,6 +792,68 @@ TEST_F(URLRequestHttpJobWithMockSocketsTest,
                                 priority + 1);
   }
 }
+
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+TEST_F(URLRequestHttpJobWithMockSocketsTest,
+       TestHttpJobRecordsCrsTrustAnchorHistograms) {
+  SSLSocketDataProvider ssl_socket_data(net::ASYNC, net::OK);
+  ssl_socket_data.ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem");
+
+  const int32_t kFakeCrsID = 8379;
+  ssl_socket_data.ssl_info.crs_root_id = kFakeCrsID;
+
+  socket_factory_.AddSSLSocketDataProvider(&ssl_socket_data);
+
+  MockWrite writes[] = {MockWrite(kSimpleGetMockWrite)};
+  MockRead reads[] = {MockRead("HTTP/1.1 200 OK\r\n"
+                               "Content-Length: 12\r\n\r\n"),
+                      MockRead("Test Content")};
+  StaticSocketDataProvider socket_data(reads, writes);
+  socket_factory_.AddSocketDataProvider(&socket_data);
+
+  base::HistogramTester histograms;
+  TestDelegate delegate;
+  std::unique_ptr<URLRequest> request = context_->CreateRequest(
+      GURL("https://www.example.com/"), DEFAULT_PRIORITY, &delegate,
+      TRAFFIC_ANNOTATION_FOR_TESTS);
+  request->Start();
+  delegate.RunUntilComplete();
+  EXPECT_THAT(delegate.request_status(), IsOk());
+
+  histograms.ExpectUniqueSample(kTrustAnchorRequestHistogram2, kFakeCrsID, 1);
+}
+
+TEST_F(URLRequestHttpJobWithMockSocketsTest,
+       TestHttpJobDoesNotRecordCrsTrustAnchorHistogramsWhenNoNetworkLoad) {
+  SSLSocketDataProvider ssl_socket_data(net::ASYNC, net::OK);
+  ssl_socket_data.ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem");
+  // Simulate a request loaded from a non-network source, such as a disk
+  // cache.
+  ssl_socket_data.ssl_info.crs_root_id = std::nullopt;
+
+  socket_factory_.AddSSLSocketDataProvider(&ssl_socket_data);
+
+  MockWrite writes[] = {MockWrite(kSimpleGetMockWrite)};
+  MockRead reads[] = {MockRead("HTTP/1.1 200 OK\r\n"
+                               "Content-Length: 12\r\n\r\n"),
+                      MockRead("Test Content")};
+  StaticSocketDataProvider socket_data(reads, writes);
+  socket_factory_.AddSocketDataProvider(&socket_data);
+
+  base::HistogramTester histograms;
+  TestDelegate delegate;
+  std::unique_ptr<URLRequest> request = context_->CreateRequest(
+      GURL("https://www.example.com/"), DEFAULT_PRIORITY, &delegate,
+      TRAFFIC_ANNOTATION_FOR_TESTS);
+  request->Start();
+  delegate.RunUntilComplete();
+  EXPECT_THAT(delegate.request_status(), IsOk());
+
+  histograms.ExpectTotalCount(kTrustAnchorRequestHistogram2, 0);
+}
+#endif
 
 TEST_F(URLRequestHttpJobWithMockSocketsTest,
        TestHttpJobRecordsTrustAnchorHistograms) {
@@ -2391,6 +2457,13 @@ bool CreateAndSetCookie(CookieStore* cs,
   return callback.result().status.IsInclude();
 }
 
+class SameSiteBypassNetworkDelegate : public TestNetworkDelegate {
+ public:
+  bool OnShouldForceIgnoreSiteForCookies(const URLRequest&) override {
+    return true;
+  }
+};
+
 void RunRequest(URLRequestContext* context, const GURL& url) {
   TestDelegate delegate;
   std::unique_ptr<URLRequest> request = context->CreateRequest(
@@ -2940,6 +3013,52 @@ TEST_F(URLRequestHttpJobTest, IgnoreUnsafeMethodForSameSiteLax) {
     req->Start();
     delegate.RunUntilComplete();
     EXPECT_EQ("name=value", delegate.data_received());
+  }
+}
+
+TEST_F(URLRequestHttpJobTest, ForceIgnoreSiteForCookiesFromNetworkDelegate) {
+  EmbeddedTestServer https_test(EmbeddedTestServer::TYPE_HTTPS);
+  https_test.AddDefaultHandlers(base::FilePath());
+  ASSERT_TRUE(https_test.Start());
+
+  auto context_builder = CreateTestURLRequestContextBuilder();
+  context_builder->SetCookieStore(
+      std::make_unique<CookieMonster>(/*store=*/nullptr, /*net_log=*/nullptr));
+  context_builder->set_network_delegate(
+      std::make_unique<SameSiteBypassNetworkDelegate>());
+  auto context = context_builder->Build();
+
+  const url::Origin kCrossSiteOrigin =
+      url::Origin::Create(GURL("https://www.toplevelsite.com"));
+  auto create_cross_site_request = [&](const GURL& url,
+                                       TestDelegate& delegate) {
+    std::unique_ptr<URLRequest> req = context->CreateRequest(
+        url, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS);
+    req->set_site_for_cookies(SiteForCookies::FromOrigin(kCrossSiteOrigin));
+    req->set_initiator(kCrossSiteOrigin);
+    return req;
+  };
+
+  {
+    TestDelegate delegate;
+    std::unique_ptr<URLRequest> req = create_cross_site_request(
+        https_test.GetURL(
+            "/set-cookie?strict=value;SameSite=Strict;Secure;Path=/"),
+        delegate);
+    req->Start();
+    delegate.RunUntilComplete();
+    EXPECT_THAT(delegate.request_status(), IsOk());
+  }
+
+  {
+    TestDelegate delegate;
+    std::unique_ptr<URLRequest> req = create_cross_site_request(
+        https_test.GetURL("/echoheader?Cookie"), delegate);
+    req->Start();
+    delegate.RunUntilComplete();
+
+    EXPECT_THAT(delegate.request_status(), IsOk());
+    EXPECT_EQ("strict=value", delegate.data_received());
   }
 }
 

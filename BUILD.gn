@@ -291,7 +291,6 @@ group("gn_all") {
       deps += [
         "//extensions:extensions_unittests",
         "//extensions/browser/api/declarative_net_request/filter_list_converter",
-        "//extensions/shell:app_shell_unittests",
       ]
     }
 
@@ -552,10 +551,6 @@ group("gn_all") {
           "//third_party/leveldatabase:env_chromium_unittests",
           "//third_party/libaddressinput:libaddressinput_unittests",
         ]
-      }
-
-      if (enable_extensions) {
-        deps += [ "//extensions/shell:app_shell" ]
       }
 
       if (media_use_ffmpeg && !is_android) {
@@ -1556,9 +1551,9 @@ if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
   group("chromium_builder_asan") {
     testonly = true
 
-    deps = [
+    deps = [ "//third_party/blink/public/mojom:mojom_modules_js" ]
+    data_deps = [
       "//content/shell:content_shell",
-      "//third_party/blink/public/mojom:mojom_modules_js",
       "//v8:d8",
     ]
     if (!is_fuchsia) {

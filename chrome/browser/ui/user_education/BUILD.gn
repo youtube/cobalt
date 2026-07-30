@@ -43,9 +43,11 @@ source_set("impl") {
   deps = [
     ":user_education",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/focus",
     "//chrome/browser/ui/interaction",
     "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/webui:webui_util",
     "//components/user_education/webui",
     "//ui/base/unowned_user_data",
   ]
@@ -68,7 +70,6 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
-    "show_promo_in_page_browsertest.cc",
     "start_tutorial_in_page_browsertest.cc",
     "user_education_configuration_provider_browsertest.cc",
   ]

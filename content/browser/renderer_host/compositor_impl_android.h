@@ -19,7 +19,7 @@
 #include "cc/paint/element_id.h"
 #include "cc/slim/layer_tree.h"
 #include "cc/slim/layer_tree_client.h"
-#include "cc/trees/layer_tree_host_single_thread_client.h"
+#include "cc/trees/layer_tree_host_single_thread_delegate.h"
 #include "cc/trees/paint_holding_commit_trigger.h"
 #include "cc/trees/paint_holding_reason.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
@@ -127,6 +127,7 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
   const gfx::Size& GetWindowBounds() override;
   void SetRequiresAlphaChannel(bool flag) override;
   void SetNeedsComposite() override;
+  void SetDrawPaused(bool paused) override;
   base::WeakPtr<ui::UIResourceProvider> GetUIResourceProvider() override;
   ui::ResourceManager& GetResourceManager() override;
   void CacheBackBufferForCurrentSurface() override;
@@ -247,6 +248,8 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
 
   // Whether we need to update animations on the next composite.
   bool needs_animate_;
+
+  bool draw_paused_ = false;
 
   // The number of SubmitFrame calls that have not returned and ACK'd from
   // the GPU thread.

@@ -14,8 +14,10 @@
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
+#include "base/feature_list.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -23,6 +25,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "cc/base/container_util.h"
+#include "cc/base/features.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -35,6 +38,9 @@ using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpLevelOfDetail;
 
 namespace cc {
+
+BASE_FEATURE(kInvalidateResourcesOnSizeChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 ResourcePool::Backing::Backing(const gfx::Size& size,
                                viz::SharedImageFormat format,
@@ -162,6 +168,16 @@ bool ResourceMeetsSizeRequirements(const gfx::Size& requested_size,
 
 }  // namespace
 
+void ResourcePool::DecrementSizeCount(
+    std::map<gfx::Size, size_t, SizeComparator>& unused_resources_by_size,
+    const gfx::Size& size) {
+  auto it = unused_resources_by_size.find(size);
+  DCHECK(it != unused_resources_by_size.end());
+  if (--(it->second) == 0) {
+    unused_resources_by_size.erase(it);
+  }
+}
+
 constexpr base::TimeDelta ResourcePool::kDefaultExpirationDelay;
 constexpr base::TimeDelta ResourcePool::kDefaultMaxFlushDelay;
 
@@ -177,6 +193,14 @@ ResourcePool::ResourcePool(
       resource_expiration_delay_(expiration_delay),
       disallow_non_exact_reuse_(disallow_non_exact_reuse),
       tracing_id_(g_next_tracing_id.GetNext()),
+      total_memory_track_name_(
+          base::StringPrintf("ResourcePoolTotalMemory_%d", tracing_id_)),
+      in_use_memory_track_name_(
+          base::StringPrintf("ResourcePoolInUseMemory_%d", tracing_id_)),
+      total_memory_track_(perfetto::DynamicString(total_memory_track_name_),
+                          perfetto::ProcessTrack::Current()),
+      in_use_memory_track_(perfetto::DynamicString(in_use_memory_track_name_),
+                           perfetto::ProcessTrack::Current()),
       flush_evicted_resources_deadline_(base::TimeTicks::Max()),
       clock_(base::DefaultTickClock::GetInstance()) {
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
@@ -186,6 +210,12 @@ ResourcePool::ResourcePool(
 ResourcePool::~ResourcePool() {
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
+
+  UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
+      "Compositing.ResourcePool.PeakMemoryUsage",
+      peak_total_memory_usage_bytes_ / (1024 * 1024));
+  UMA_HISTOGRAM_COUNTS_10000("Compositing.ResourcePool.PeakResourceCount",
+                             peak_total_resource_count_);
 
   DCHECK_EQ(0u, in_use_resources_.size());
 
@@ -207,30 +237,63 @@ ResourcePool::PoolResource* ResourcePool::ReuseResource(
   // Finding resources in |unused_resources_| from MRU to LRU direction, touches
   // LRU resources only if needed, which increases possibility of expiring more
   // LRU resources within kResourceExpirationDelayMs.
+
+  auto size_it = unused_resources_by_size_.find(size);
+  bool could_have_exact_match = size_it != unused_resources_by_size_.end();
+
+  const bool prefer_exact_reuse =
+      base::FeatureList::IsEnabled(features::kResourcePoolPreferExactSizeReuse);
+
+  if (disallow_non_exact_reuse_ && !could_have_exact_match) {
+    return nullptr;
+  }
+
+  auto first_fit_it = unused_resources_.end();
+  auto exact_fit_it = unused_resources_.end();
   for (auto it = unused_resources_.begin(); it != unused_resources_.end();
        ++it) {
     PoolResource* resource = it->get();
     DCHECK(!resource->resource_id());
 
-    if (resource->format() != format) {
+    if (resource->format() != format ||
+        resource->color_space() != color_space) {
       continue;
     }
-    if (!ResourceMeetsSizeRequirements(size, resource->size(),
-                                       disallow_non_exact_reuse_))
-      continue;
-    if (resource->color_space() != color_space)
-      continue;
 
-    // Transfer resource to |in_use_resources_|.
-    in_use_resources_[resource->unique_id()] = std::move(*it);
-    unused_resources_.erase(it);
-    DCHECK_GE(unused_memory_usage_bytes_, resource->memory_usage());
-    unused_memory_usage_bytes_ -= resource->memory_usage();
-    DCHECK_EQ(resource->state(), PoolResource::kUnused);
-    resource->set_state(PoolResource::kInUse);
-    return resource;
+    if (resource->size() == size) {
+      exact_fit_it = it;
+      if (prefer_exact_reuse) {
+        break;
+      }
+    }
+
+    if (first_fit_it == unused_resources_.end() &&
+        ResourceMeetsSizeRequirements(size, resource->size(),
+                                      disallow_non_exact_reuse_)) {
+      first_fit_it = it;
+      // If we're not preferring exact matches, or we know there isn't one, we
+      // can early out.
+      if (!prefer_exact_reuse || !could_have_exact_match) {
+        break;
+      }
+    }
   }
-  return nullptr;
+
+  auto it =
+      exact_fit_it != unused_resources_.end() ? exact_fit_it : first_fit_it;
+  if (it == unused_resources_.end()) {
+    return nullptr;
+  }
+
+  PoolResource* resource = it->get();
+  in_use_resources_[resource->unique_id()] = std::move(*it);
+  unused_resources_.erase(it);
+  DecrementSizeCount(unused_resources_by_size_, resource->size());
+  DCHECK_GE(unused_memory_usage_bytes_, resource->memory_usage());
+  unused_memory_usage_bytes_ -= resource->memory_usage();
+  DCHECK_EQ(resource->state(), PoolResource::kUnused);
+  resource->set_state(PoolResource::kInUse);
+  return resource;
 }
 
 ResourcePool::PoolResource* ResourcePool::CreateResource(
@@ -245,6 +308,8 @@ ResourcePool::PoolResource* ResourcePool::CreateResource(
   // No backing, the memory_usage() should be 0.
   DCHECK_EQ(pool_resource->memory_usage(), 0u);
   ++total_resource_count_;
+  peak_total_resource_count_ =
+      std::max(peak_total_resource_count_, total_resource_count_);
 
   PoolResource* resource = pool_resource.get();
   in_use_resources_[resource->unique_id()] = std::move(pool_resource);
@@ -262,6 +327,7 @@ ResourcePool::InUsePoolResource ResourcePool::AcquireResource(
   if (!resource)
     resource = CreateResource(size, format, color_space);
   resource->set_debug_name(debug_name);
+  UpdateTracingCounters();
   return InUsePoolResource(resource);
 }
 
@@ -342,6 +408,7 @@ ResourcePool::TryAcquireResourceForPartialRaster(
     in_use_resources_[resource->unique_id()] =
         std::move(*iter_resource_to_return);
     unused_resources_.erase(iter_resource_to_return);
+    DecrementSizeCount(unused_resources_by_size_, resource->size());
     DCHECK_GE(unused_memory_usage_bytes_, resource->memory_usage());
     unused_memory_usage_bytes_ -= resource->memory_usage();
     *total_invalidated_rect = resource->invalidated_rect();
@@ -351,6 +418,7 @@ ResourcePool::TryAcquireResourceForPartialRaster(
     resource->set_invalidated_rect(gfx::Rect());
     resource->set_content_id(0);
     resource->set_debug_name(debug_name);
+    UpdateTracingCounters();
     return InUsePoolResource(resource);
   }
 
@@ -360,13 +428,22 @@ ResourcePool::TryAcquireResourceForPartialRaster(
 void ResourcePool::OnBackingAllocated(PoolResource* resource) {
   size_t size = resource->memory_usage();
   total_memory_usage_bytes_ += size;
+  peak_total_memory_usage_bytes_ =
+      std::max(peak_total_memory_usage_bytes_, total_memory_usage_bytes_);
   if (resource->state() == PoolResource::kUnused)
     unused_memory_usage_bytes_ += size;
+  UpdateTracingCounters();
+}
+
+void ResourcePool::UpdateTracingCounters() {
+  TRACE_COUNTER("cc", total_memory_track_, total_memory_usage_bytes_);
+  TRACE_COUNTER("cc", in_use_memory_track_, memory_usage_bytes());
 }
 
 void ResourcePool::OnResourceReleased(size_t unique_id,
                                       const gpu::SyncToken& sync_token,
                                       bool lost) {
+  TRACE_EVENT("cc", __PRETTY_FUNCTION__);
   // If this fails we've removed a resource from the ResourceProvider somehow
   // while it was still in use by the ResourcePool client. That would prevent
   // the client from being able to use the ResourceId on the InUsePoolResource,
@@ -394,6 +471,8 @@ void ResourcePool::OnResourceReleased(size_t unique_id,
     resource->backing()->returned_sync_token = sync_token;
   DidFinishUsingResource(std::move(*busy_it));
   busy_resources_.erase(busy_it);
+
+  UpdateTracingCounters();
 }
 
 bool ResourcePool::PrepareForExport(
@@ -424,7 +503,24 @@ bool ResourcePool::PrepareForExport(
   return true;
 }
 
+void ResourcePool::NotifyOfViewportSizeChange(gfx::Size old_size,
+                                              gfx::Size new_size) {
+  TRACE_EVENT("cc", __PRETTY_FUNCTION__, "old_size", old_size.ToString(),
+              "new_size", new_size.ToString());
+  if (base::FeatureList::IsEnabled(kInvalidateResourcesOnSizeChange)) {
+    // The viewport size has changed, meaning that many tilings (but not all)
+    // have also changed size.
+    //
+    // We could try to find out which ones by setting a very low TTL on the
+    // available tiles, but we might as well discard all available ones, and
+    // remember that the currently in-flight tiles should also be discarded.
+    InvalidateResources();
+  }
+}
+
 void ResourcePool::InvalidateResources() {
+  TRACE_EVENT("cc", __PRETTY_FUNCTION__);
+  unused_resources_by_size_.clear();
   while (!unused_resources_.empty()) {
     DCHECK_GE(unused_memory_usage_bytes_,
               unused_resources_.back()->memory_usage());
@@ -504,6 +600,7 @@ void ResourcePool::ReleaseResource(InUsePoolResource in_use_resource) {
   // Now that we have evictable resources, schedule an eviction call for this
   // resource if necessary.
   ScheduleEvictExpiredResourcesIn(resource_expiration_delay_);
+  UpdateTracingCounters();
 }
 
 void ResourcePool::OnContentReplaced(const InUsePoolResource& in_use_resource,
@@ -534,9 +631,10 @@ void ResourcePool::ReduceResourceUsage() {
     // can't be locked for write might also not be truly free-able.
     // We can free the resource here but it doesn't mean that the
     // memory is necessarily returned to the OS.
-    DCHECK_GE(unused_memory_usage_bytes_,
-              unused_resources_.back()->memory_usage());
-    unused_memory_usage_bytes_ -= unused_resources_.back()->memory_usage();
+    PoolResource* resource = unused_resources_.back().get();
+    DecrementSizeCount(unused_resources_by_size_, resource->size());
+    DCHECK_GE(unused_memory_usage_bytes_, resource->memory_usage());
+    unused_memory_usage_bytes_ -= resource->memory_usage();
     DeleteResource(PopBack(&unused_resources_));
   }
 }
@@ -557,6 +655,7 @@ void ResourcePool::DeleteResource(std::unique_ptr<PoolResource> resource) {
     flush_evicted_resources_deadline_ =
         clock_->NowTicks() + kDefaultMaxFlushDelay;
   }
+  UpdateTracingCounters();
 }
 
 void ResourcePool::UpdateResourceContentIdAndInvalidation(
@@ -574,6 +673,7 @@ void ResourcePool::UpdateResourceContentIdAndInvalidation(
 void ResourcePool::DidFinishUsingResource(
     std::unique_ptr<PoolResource> resource) {
   unused_memory_usage_bytes_ += resource->memory_usage();
+  unused_resources_by_size_[resource->size()]++;
   unused_resources_.push_front(std::move(resource));
 }
 
@@ -625,9 +725,10 @@ void ResourcePool::EvictResourcesNotUsedSince(base::TimeTicks time_limit) {
     if (unused_resources_.back()->last_usage() > time_limit)
       return;
 
-    DCHECK_GE(unused_memory_usage_bytes_,
-              unused_resources_.back()->memory_usage());
-    unused_memory_usage_bytes_ -= unused_resources_.back()->memory_usage();
+    PoolResource* resource = unused_resources_.back().get();
+    DecrementSizeCount(unused_resources_by_size_, resource->size());
+    DCHECK_GE(unused_memory_usage_bytes_, resource->memory_usage());
+    unused_memory_usage_bytes_ -= resource->memory_usage();
     DeleteResource(PopBack(&unused_resources_));
   }
 }

@@ -26,6 +26,7 @@
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/content/common/visual_utils.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/phishing_classifier_delegate.h"
+#include "components/safe_browsing/content/renderer/phishing_classifier/phishing_dom_utils.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/phishing_visual_feature_extractor.h"
 #include "components/safe_browsing/content/renderer/phishing_classifier/scorer.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -82,18 +83,16 @@ void PhishingClassifier::BeginClassification(DoneCallback done_callback) {
 
   blink::WebLocalFrame* frame = render_frame_->GetWebFrame();
 
-  // Check whether the URL is one that we should classify.
-  // Currently, we only classify http/https URLs that are GET requests.
-  GURL url(frame->GetDocument().Url());
-  if (!url.SchemeIsHTTPOrHTTPS()) {
-    RunFailureCallback(Result::kInvalidURLFormatRequest);
-    return;
-  }
-
-  blink::WebDocumentLoader* document_loader = frame->GetDocumentLoader();
-  if (!document_loader || document_loader->HttpMethod().Ascii() != "GET") {
-    RunFailureCallback(Result::kInvalidDocumentLoader);
-    return;
+  PhishingProcessStatus status = CanPerformPhishingDetection(frame);
+  switch (status) {
+    case PhishingProcessStatus::kInvalidUrlFormat:
+      RunFailureCallback(PhishingClassifier::Result::kInvalidURLFormatRequest);
+      return;
+    case PhishingProcessStatus::kInvalidDomLoader:
+      RunFailureCallback(PhishingClassifier::Result::kInvalidDocumentLoader);
+      return;
+    case PhishingProcessStatus::kValid:
+      break;
   }
 
   // For consistency, we always want to invoke the DoneCallback
@@ -170,25 +169,10 @@ void PhishingClassifier::VisualExtractionFinished(bool success) {
 void PhishingClassifier::OnVisualTfLiteModelDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::vector<double> result) {
-  Scorer* scorer = ScorerStorage::GetInstance()->GetScorer();
-  if (!base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
-    if (static_cast<int>(result.size()) != scorer->tflite_thresholds().size()) {
-      // Model is misconfigured, so bail out.
-      RunFailureCallback(Result::kInvalidScore);
-      return;
-    }
-  }
-
-  if (!base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
-    verdict->set_tflite_model_version(scorer->tflite_model_version());
-  }
-
   for (size_t i = 0; i < result.size(); i++) {
     ClientPhishingRequest::CategoryScore* category =
         verdict->add_tflite_model_scores();
-    if (!base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
-      category->set_label(scorer->tflite_thresholds().at(i).label());
-    }
+
     category->set_value(result[i]);
   }
 
@@ -214,11 +198,6 @@ void PhishingClassifier::OnVisualTfLiteModelImageEmbeddingDone(
   bool has_image_feature_embedding =
       image_feature_embedding.embedding_value_size() > 0;
   if (has_image_feature_embedding) {
-    if (!base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
-      Scorer* scorer = ScorerStorage::GetInstance()->GetScorer();
-      image_feature_embedding.set_embedding_model_version(
-          scorer->image_embedding_tflite_model_version());
-    }
     *verdict->mutable_image_feature_embedding() = image_feature_embedding;
   }
   base::UmaHistogramBoolean(

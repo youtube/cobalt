@@ -179,6 +179,11 @@ declare namespace chrome {
     // distillation method.
     let distillationTypeReadability: number;
 
+    // Returns the AXTree mapping segments for the distilled block at the given
+    // index. A segment links a character range within the block to its AXnode.
+    function getAxMapping(index: number):
+        Array<{axNodeId: number, start: number, end: number}>;
+
     // Returns whether the reading highlight is currently on.
     function isHighlightOn(): boolean;
 
@@ -462,6 +467,10 @@ declare namespace chrome {
 
     // Resets the granularity index.
     function resetGranularityIndex(): void;
+
+    // Called after the ReadAnythingAppController maps the readability text
+    // blocks to the AXTree.
+    function onRenderedTextMappingReady(): void;
 
     // Increments the processed_granularity_index_ in ReadAnythingAppModel,
     // effectively updating ReadAloud's state of the current granularity to

@@ -35,14 +35,10 @@ public final class TabHelpers {
     static void initTabHelpers(Tab tab, @Nullable Tab parentTab) {
         TabUma.createForTab(tab);
         TabStateAttributes.createForTab(tab, ((TabImpl) tab).getCreationState());
-        TabDistillabilityProvider.createForTab(tab);
         InterceptNavigationDelegateTabHelper.createForTab(tab);
-        ContextualSearchTabHelper.createForTab(tab);
-        MediaSessionTabHelper.createForTab(tab);
         TaskTabHelper.createForTab(tab, parentTab);
         TabBrowserControlsConstraintsHelper.createForTab(tab);
         if (ReaderModeManager.isEnabled()) ReaderModeManager.createForTab(tab);
-        AccessibilityTabHelper.createForTab(tab);
 
         // The following will start prefetching data for the price drops feature, so
         // we should only do it if the user is eligible for the feature (e.g. has sync enabled).
@@ -51,6 +47,7 @@ public final class TabHelpers {
                 && PriceTrackingFeatures.isPriceAnnotationsEligible(tab.getProfile())) {
             ShoppingPersistedTabData.initialize(tab);
         }
+        RedirectHandlerTabHelper.getOrCreateHandlerFor(tab);
     }
 
     /**
@@ -66,6 +63,10 @@ public final class TabHelpers {
 
         TabWebContentsObserver.from(tab);
         SwipeRefreshHandler.from(tab);
+        AccessibilityTabHelper.from(tab);
+        ContextualSearchTabHelper.from(tab);
+        MediaSessionTabHelper.from(tab);
+        TabDistillabilityProvider.from(tab);
         TabFavicon.from(tab);
         TrustedCdn.from(tab);
         TabAssociatedApp.from(tab);

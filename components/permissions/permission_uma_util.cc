@@ -184,8 +184,6 @@ std::string GetPermissionRequestString(RequestTypeForUma type) {
       return "KeyboardAndPointerLock";
     case RequestTypeForUma::PERMISSION_WEB_APP_INSTALLATION:
       return "WebAppInstallation";
-    case RequestTypeForUma::PERMISSION_LOCAL_NETWORK_ACCESS:
-      return "LocalNetworkAccess";
     case RequestTypeForUma::PERMISSION_LOCAL_NETWORK:
       return "LocalNetwork";
     case RequestTypeForUma::PERMISSION_LOOPBACK_NETWORK:
@@ -1879,8 +1877,8 @@ void PermissionUmaUtil::RecordPageInfoCameraMicPermissionChange(
 // static
 void PermissionUmaUtil::RecordPageInfoPermissionChange(
     ContentSettingsType type,
-    ContentSetting setting_before,
-    ContentSetting setting_after,
+    PermissionSetting setting_before,
+    PermissionSetting setting_after,
     bool is_subscribed_to_permission_change_event) {
   // This method supports only media permissions and permissions that have the
   // quiet UI.

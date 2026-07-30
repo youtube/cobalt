@@ -12,7 +12,6 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_view_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_promo_view_controller.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_action_delegate.h"
-#import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -24,14 +23,17 @@
 // Test fixture for GeminiFREWrapperViewController.
 class GeminiFREWrapperViewControllerTest : public PlatformTest {
  public:
-  GeminiFREWrapperViewController* CreateController(bool with_promo,
-                                                   bool is_account_managed) {
+  GeminiFREWrapperViewController* CreateController(
+      bool with_promo,
+      bool is_account_managed,
+      bool use_strict_consent = false) {
     GeminiFREWrapperViewController* view_controller =
         [[GeminiFREWrapperViewController alloc]
-               initWithPromo:with_promo
-            isAccountManaged:is_account_managed
-                     FREType:GeminiFREType::kNewUser
-                     country:@"us"];
+                    initWithPromo:with_promo
+                 isAccountManaged:is_account_managed
+            useStrictLegalConsent:use_strict_consent
+                          FREType:GeminiFREType::kNewUser
+                          country:@"us"];
     mock_mutator_ =
         [OCMockObject mockForProtocol:@protocol(GeminiConsentMutator)];
     [[[mock_mutator_ stub] andReturnValue:@NO] shouldShowImageRemixRow];
