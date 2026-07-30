@@ -25,4 +25,21 @@ DemuxerStream* MediaResource::GetFirstStream(DemuxerStream::Type type) {
   return nullptr;
 }
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+GURL MediaResource::GetMediaUrl() const {
+  return GURL();
+}
+
+void MediaResource::ForwardDurationChangeToDemuxerHost(
+    base::TimeDelta duration) {}
+
+void MediaResource::ForwardBufferedTimeRangesToDemuxerHost(
+    base::TimeDelta start,
+    base::TimeDelta length) {}
+
+void MediaResource::ForwardEncryptedMediaInitData(
+    EmeInitDataType init_data_type,
+    const std::vector<uint8_t>& init_data) {}
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

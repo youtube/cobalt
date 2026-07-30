@@ -62,6 +62,10 @@ jclass DefaultClassResolver(JNIEnv* env, const char* class_name) {
   return g_class_loader->loadClass(env, j_class_name).Release();
 }
 
+/* Cobalt specific hack to move Java classes to a custom namespace.
+   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
+   This works around link-time conflicts when building the final
+   package against other Chromium release artifacts. */
 jclass GetClassInternal(JNIEnv* env, const char* class_name) {
   if (g_class_resolver != nullptr) {
     return g_class_resolver(env, class_name);
