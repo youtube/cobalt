@@ -15,6 +15,7 @@
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -276,8 +277,15 @@ void SpdyStream::IncreaseRecvWindowSize(int32_t delta_window_size) {
   if (unacked_recv_window_bytes_ > max_recv_window_size_ / 2 ||
       elapsed >= session_->TimeToBufferSmallWindowUpdates()) {
     last_recv_window_update_ = base::TimeTicks::Now();
+    // SendStreamWindowUpdate() can result in session draining and stream
+    // destruction if the number of queued capped frames exceeds the limit.
+    // Check weak_this after the call to detect this.
+    base::WeakPtr<SpdyStream> weak_this = weak_ptr_factory_.GetWeakPtr();
     session_->SendStreamWindowUpdate(
         stream_id_, static_cast<uint32_t>(unacked_recv_window_bytes_));
+    if (!weak_this) {
+      return;
+    }
     unacked_recv_window_bytes_ = 0;
   }
 }
@@ -292,9 +300,10 @@ void SpdyStream::DecreaseRecvWindowSize(int32_t delta_window_size) {
   if (delta_window_size > recv_window_size_ - unacked_recv_window_bytes_) {
     session_->ResetStream(
         stream_id_, ERR_HTTP2_FLOW_CONTROL_ERROR,
-        "delta_window_size is " + base::NumberToString(delta_window_size) +
-            " in DecreaseRecvWindowSize, which is larger than the receive " +
-            "window size of " + base::NumberToString(recv_window_size_));
+        base::StrCat(
+            {"delta_window_size is ", base::NumberToString(delta_window_size),
+             " in DecreaseRecvWindowSize, which is larger than the receive ",
+             "window size of ", base::NumberToString(recv_window_size_)}));
     return;
   }
 

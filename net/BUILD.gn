@@ -1118,6 +1118,8 @@ component("net") {
     "ssl/client_cert_store.h",
     "ssl/client_cert_store_empty.cc",
     "ssl/client_cert_store_empty.h",
+    "ssl/crypto_private_key.cc",
+    "ssl/crypto_private_key.h",
     "ssl/openssl_private_key.cc",
     "ssl/openssl_private_key.h",
     "ssl/openssl_ssl_util.cc",
@@ -3128,6 +3130,7 @@ target(_test_target_type, "net_unittests") {
     "spdy/spdy_write_queue_unittest.cc",
     "ssl/client_cert_identity_unittest.cc",
     "ssl/client_cert_store_unittest-inl.h",
+    "ssl/crypto_private_key_unittest.cc",
     "ssl/openssl_private_key_unittest.cc",
     "ssl/ssl_cipher_suite_names_unittest.cc",
     "ssl/ssl_client_auth_cache_unittest.cc",
@@ -3198,6 +3201,7 @@ target(_test_target_type, "net_unittests") {
   if (is_mac) {
     sources += [
       "cert/internal/trust_store_mac_unittest.cc",
+      "proxy_resolution/mac/mac_system_proxy_resolution_service_unittest.cc",
       "socket/ephemeral_port_randomizer_mac_unittest.cc",
       "ssl/client_cert_store_mac_unittest.cc",
       "ssl/ssl_platform_key_mac_unittest.cc",

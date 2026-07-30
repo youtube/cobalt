@@ -948,7 +948,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   user_session_manager_ = std::make_unique<UserSessionManager>(
       g_browser_process->local_state(),
       g_browser_process->GetFeatures()->application_locale_storage(),
-      g_browser_process->shared_url_loader_factory());
+      g_browser_process->shared_url_loader_factory(),
+      g_browser_process->platform_part()->browser_policy_connector_ash());
 
   bluetooth_log_controller_ = std::make_unique<ash::BluetoothLogController>(
       user_manager::UserManager::Get());
@@ -1156,7 +1157,7 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
       // completely unavailable. Exit the session in that case, rather than
       // allowing it to continue without policy. Allow the initialization flow
       // to finish before exiting to avoid dead-lock issues on D-Bus, as
-      // encountered on crbug/836388.
+      // encountered on crbug.com/40091196.
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce([]() {
             session_manager::SessionManager::Get()->RequestSignOut();
@@ -1772,7 +1773,7 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
     auto* primary_user = user_manager::UserManager::Get()->GetPrimaryUser();
     if (primary_user) {
       // During a login restart-to-apply-flags the primary profile may not be
-      // loaded yet. See http://crbug.com/1432237
+      // loaded yet. See http://crbug.com/40263838
       auto* primary_profile = Profile::FromBrowserContext(
           BrowserContextHelper::Get()->GetBrowserContextByUser(primary_user));
       if (primary_profile) {

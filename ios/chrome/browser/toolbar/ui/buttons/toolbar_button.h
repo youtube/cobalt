@@ -26,8 +26,13 @@ using ToolbarButtonImageLoader = UIImage* (^)(void);
 // When true, the button has a blue dot in the top right corner.
 @property(nonatomic, assign) BOOL hasBlueDot;
 
-// The `imageLoader` for this button.
-- (instancetype)initWithImageLoader:(ToolbarButtonImageLoader)imageLoader;
+// The string to be used for the accessibility label when the blue dot is
+// visible.
+@property(nonatomic, copy) NSString* blueDotAccessibilityLabel;
+
+// Initializer for this button in `incognito` with an `imageLoader`.
+- (instancetype)initWithImageLoader:(ToolbarButtonImageLoader)imageLoader
+                          incognito:(BOOL)incognito;
 
 @end
 

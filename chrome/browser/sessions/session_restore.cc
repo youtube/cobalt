@@ -54,7 +54,6 @@
 #include "chrome/browser/sessions/session_service_utils.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabrestore.h"
@@ -63,6 +62,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
@@ -134,7 +134,7 @@ bool HasSingleNewTabPage(Browser* browser) {
   }
   content::WebContents* active_tab =
       browser->tab_strip_model()->GetWebContentsAt(0);
-  return active_tab->GetURL() == chrome::kChromeUINewTabURL ||
+  return active_tab->GetURL() == chrome::ChromeUINewTabURLAsGURL() ||
          search::IsInstantNTP(active_tab);
 }
 
@@ -475,7 +475,7 @@ class SessionRestoreImpl : public BrowserCollectionObserver {
         // No tab browsers were created and no URLs were supplied on the command
         // line, or only the What's New page is specified at startup and may or
         // may not add a tab. Open the new tab page.
-        startup_tabs_.emplace_back(GURL(chrome::kChromeUINewTabURL));
+        startup_tabs_.emplace_back(chrome::ChromeUINewTabURLAsGURL());
       }
       AppendURLsToBrowser(browser, startup_tabs_);
       browser->window()->Show();
@@ -1004,7 +1004,7 @@ class SessionRestoreImpl : public BrowserCollectionObserver {
               ->RecreateSessionStorage(tab.session_storage_persistent_id);
     }
 
-    // Relabel group IDs to prevent duplicating groups. See crbug.com/1202102.
+    // Relabel group IDs to prevent duplicating groups. See crbug.com/40055647.
     std::optional<tab_groups::TabGroupId> new_group;
     if (tab.group) {
       auto it = new_group_ids->find(*tab.group);
@@ -1480,7 +1480,8 @@ WebContents* SessionRestore::RestoreForeignSessionTab(
     WindowOpenDisposition disposition,
     bool skip_renderer_creation) {
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithTab(source_web_contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          source_web_contents);
   Profile* profile = browser->GetProfile();
   StartupTabs startup_tabs;
   SessionRestoreImpl restorer(profile, browser->GetBrowserForMigrationOnly(),

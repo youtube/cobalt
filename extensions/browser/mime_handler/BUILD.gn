@@ -6,10 +6,25 @@ import("//extensions/buildflags/buildflags.gni")
 
 assert(enable_extensions_core)
 
-source_set("mime_handler_stream_delegate") {
+source_set("mime_handler") {
   sources = [
     "mime_handler_stream_delegate.cc",
     "mime_handler_stream_delegate.h",
+    "mime_handler_stream_manager.cc",
+    "mime_handler_stream_manager.h",
+    "stream_info.cc",
+    "stream_info.h",
+  ]
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+    "//extensions/common:mojom",
+    "//mojo/public/cpp/bindings",
+  ]
+  deps = [
+    ":stream_container",
+    "//components/crash/core/common:crash_key",
+    "//extensions/common:common_constants",
   ]
 }
 
@@ -44,22 +59,27 @@ source_set("mime_handler_registry_unittest") {
   ]
 }
 
-source_set("stream_info") {
+source_set("test_helpers") {
+  testonly = true
   sources = [
-    "stream_info.cc",
-    "stream_info.h",
+    "mime_handler_test_helpers.cc",
+    "mime_handler_test_helpers.h",
+    "mock_mime_handler_stream_delegate.cc",
+    "mock_mime_handler_stream_delegate.h",
   ]
   public_deps = [
-    "//content/public/browser",
-    "//extensions/common:mojom",
-    "//mojo/public/cpp/bindings",
+    ":mime_handler",
+    "//testing/gmock",
   ]
   deps = [
-    ":mime_handler_stream_delegate",
     ":stream_container",
     "//base",
+    "//net",
+    "//services/network/public/mojom",
+    "//url",
   ]
 }
+
 source_set("stream_container") {
   sources = [
     "stream_container.cc",

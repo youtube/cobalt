@@ -117,13 +117,6 @@ bool IsNewTabGridTransitionsEnabled();
 // When enabled, a Tab Group button will appear in the overflow menu.
 BASE_DECLARE_FEATURE(kTabGroupInOverflowMenu);
 
-// When enabled, a Tab Group button will appear in the Tab Icon context menu.
-BASE_DECLARE_FEATURE(kTabGroupInTabIconContextMenu);
-
-// When enabled, a "New Tab Button" will be added to the Tab Group recall
-// surface.
-BASE_DECLARE_FEATURE(kTabRecallNewTabGroupButton);
-
 // When enabled, an overflow menu will replace the edit menu on the GTS.
 BASE_DECLARE_FEATURE(kTabSwitcherOverflowMenu);
 
@@ -575,6 +568,9 @@ extern const char kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName[];
 extern const base::FeatureParam<double>
     kIOSOneTapMiniMapRestrictionMinAlphanumProportionParam;
 
+// Feature flag to forward Maps Universal links to native maps.
+BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLink);
+
 // Returns whether notification collision management is enabled.
 bool IsNotificationCollisionManagementEnabled();
 
@@ -636,6 +632,9 @@ bool IsBestOfAppLensInteractivePromoEnabled();
 
 // Whether the Lens Animated Promo variant of `kBestOfAppFRE` is enabled.
 bool IsBestOfAppLensAnimatedPromoEnabled();
+
+// Whether the Best Features variant of `kBestOfAppFRE` is enabled.
+bool IsBestOfAppBestFeaturesEnabled();
 
 // Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
 bool IsDefaultBrowserPromoPropensityModelEnabled();
@@ -798,9 +797,8 @@ extern const char kAssistantContainerMediumDetentPercentParam[];
 // Returns true if the Assistant Container is enabled.
 bool IsAssistantContainerEnabled();
 
-// Returns true if debug elements (like detents) should be added to the
-// Assistant Container.
-bool ShouldShowAssistantContainerDebugElements();
+// Returns true if the Assistant Container debug mode is enabled.
+bool IsAssistantContainerDebugEnabled();
 
 // Returns the experimental percentage for the Assistant medium detent height.
 // Returns 0 if no experimental percentage is selected.
@@ -811,6 +809,12 @@ BASE_DECLARE_FEATURE(kComposeboxIpad);
 
 // Returns true if the ComposeboxIpad feature is enabled.
 bool IsComposeboxIpadEnabled();
+
+// Enables the ComposeboxPlusButtonBottomSheet feature.
+BASE_DECLARE_FEATURE(kComposeboxPlusButtonBottomSheet);
+
+// Returns true if the ComposeboxIpad feature is enabled.
+bool IsComposeboxPlusButtonBottomSheet();
 
 // Enables the ChromeNextIa feature.
 BASE_DECLARE_FEATURE(kChromeNextIa);
@@ -981,5 +985,11 @@ BASE_DECLARE_FEATURE(kCobrowseAimHistory);
 
 // Returns true if the CobrowseAimHistory feature is enabled.
 bool IsCobrowseAimHistoryEnabled();
+
+// Enables the `AssistantAimMinimizedState` feature.
+BASE_DECLARE_FEATURE(kAssistantAimMinimizedState);
+
+// Returns true if the `AssistantAimMinimizedState` feature is enabled.
+bool IsAssistantAimMinimizedStateEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -13,7 +13,6 @@ namespace feature_engagement {
 class Tracker;
 }
 namespace base {
-class Time;
 class TimeDelta;
 }  // namespace base
 @protocol PictureInPictureCommands;
@@ -107,45 +106,6 @@ extern NSString* const kUserInteractedWithNonModalPromoCount;
 // already seen the promo.
 extern NSString* const kLastTimeUserInteractedWithFullscreenPromo;
 
-// Key in storage containing all the recent timestamps of browser cold starts up
-// to allowed maximum number of past events.
-extern NSString* const kAllTimestampsAppLaunchColdStart;
-
-// Key in storage containing all the recent timestamps of browser warm starts up
-// to allowed maximum number of past events.
-extern NSString* const kAllTimestampsAppLaunchWarmStart;
-
-// Key in storage containing all the recent timestamps of browser indirect
-// starts up to allowed maximum number of past events.
-extern NSString* const kAllTimestampsAppLaunchIndirectStart;
-
-// Key in storage containing an array of dates. Each date correspond to
-// a stay safe event of interest for Default Browser Promo modals.
-extern NSString* const kLastSignificantUserEventStaySafe;
-
-// Key in storage containing an array of dates. Each date correspond to
-// a omnibox copy-paste event up to allowed maximum number of past events.
-extern NSString* const kOmniboxUseCount;
-
-// Key in storage containing an array of dates. Each date correspond to
-// a bookmark or bookmark manager use event up to allowed maximum number of past
-// events.
-extern NSString* const kBookmarkUseCount;
-
-// Key in storage containing an array of dates. Each date correspond to
-// a autofill suggestion use event up to allowed maximum number of past
-// events.
-extern NSString* const kAutofillUseCount;
-
-// Key in storage containing an array of dates where each date correspond to
-// a pinned tab or remote tab use event.
-extern NSString* const kSpecialTabsUseCount;
-
-// Param names used for the default browser video promo.
-extern const char kVideoFullscreenPromo[];
-extern const char kVideoHalfscreenPromo[];
-extern const char kDefaultBrowserVideoPromoVariant[];
-
 // Key in storage containing a bool indicating if the user has
 // previously interacted with a regular fullscreen promo.
 extern NSString* const kUserHasInteractedWithFullscreenPromo;
@@ -170,35 +130,17 @@ extern NSString* const kGenericPromoInteractionCount;
 // promo has been displayed.
 extern NSString* const kTailoredPromoInteractionCount;
 
-// Key in storage containing the timestamp of when trigger criteria experiment
-// started.
-extern NSString* const kTimestampTriggerCriteriaExperimentStarted;
-
 // Specifies how long blue dot occurrence should last.
 extern base::TimeDelta const kBlueDotPromoDuration;
 
 // Specifies how often blue dot should reoccur.
 extern base::TimeDelta const kBlueDotPromoReoccurrancePeriod;
 
-// Loads from NSUserDefaults the time of the non-expired events for the
-// given promo type.
-std::vector<base::Time> LoadTimestampsForPromoType(DefaultPromoType type);
-
-// Stores the time of the last recorded events for `type`.
-void StoreTimestampsForPromoType(DefaultPromoType type,
-                                 std::vector<base::Time> times);
-
 // Helper function to set `data` for `key` into the storage object.
 void SetObjectIntoStorageForKey(NSString* key, NSObject* data);
 
 // Logs the timestamp of opening an HTTP(S) link sent and opened by the app.
 void LogOpenHTTPURLFromExternalURL();
-
-// Logs the timestamp of user activity that is deemed to be an indication of
-// a user that would likely benefit from having Chrome set as their default
-// browser. Before logging the current activity, this method will also clear all
-// past expired logs for `type` that have happened too far in the past.
-void LogLikelyInterestedDefaultBrowserUserActivity(DefaultPromoType type);
 
 // Logs to the FET that a default browser promo has been shown.
 void LogToFETDefaultBrowserPromoShown(feature_engagement::Tracker* tracker);
@@ -216,14 +158,6 @@ void RecordDefaultBrowserBlueDotFirstDisplay();
 // Returns true if the default browser blue dot should be shown.
 bool ShouldTriggerDefaultBrowserHighlightFeature(
     feature_engagement::Tracker* tracker);
-
-// Returns true if the default browser promo generic tailored experiment is
-// enabled.
-bool IsDefaultBrowserPromoGenericTailoredTrainEnabled();
-
-// Returns true if the only-generic arm of the default browser promo generic
-// tailored experiment is enabled.
-bool IsDefaultBrowserPromoOnlyGenericArmTrain();
 
 // Returns true if the user has interacted with the Fullscreen Promo previously.
 // Returns false otherwise.
@@ -278,10 +212,6 @@ bool IsChromeLikelyDefaultBrowser7Days();
 bool IsChromePotentiallyNoLongerDefaultBrowser(int likelyDefaultInterval,
                                                int likelyNotDefaultInterval);
 
-// Return YES if the user has seen a full screen promo recently, and shouldn't
-// see another one.
-bool UserInFullscreenPromoCooldown();
-
 // List of all key used to store data in NSUserDefaults. Still used as key
 // in the NSDictionary stored under `kBrowserDefaultsKey`.
 const NSArray<NSString*>* DefaultBrowserUtilsLegacyKeysForTesting();
@@ -290,21 +220,10 @@ const NSArray<NSString*>* DefaultBrowserUtilsLegacyKeysForTesting();
 // post restore default browser promo.
 bool IsPostRestoreDefaultBrowserEligibleUser();
 
-// Converts Default browser promo type NSEnum to an enum that can be used by
-// UMA.
-DefaultPromoTypeForUMA GetDefaultPromoTypeForUMA(DefaultPromoType type);
-
 // Log given default browser promo action to the UMA histogram coorespnding to
 // the given promo type.
 void LogDefaultBrowserPromoHistogramForAction(
     DefaultPromoType type,
-    IOSDefaultBrowserPromoAction action);
-
-// Below collect and compute data to record for an experiment. It is potentially
-// a lot of data but this is planned as a short and small experiment.
-
-// Returns string representation of the enum value.
-const std::string IOSDefaultBrowserPromoActionToString(
     IOSDefaultBrowserPromoAction action);
 
 // Returns the feature associated with a given promo reason.
@@ -330,18 +249,6 @@ const std::string GetFeatureEventNameForPromoReason(
 void RecordPromoDisplayStatsToUMA();
 
 // Migration to FET.
-
-// Returns Default Browser FRE promo timestamp if it was the last default
-// browser promo user seen. Otherwise, returns unix epoch.
-base::Time GetDefaultBrowserFREPromoTimestampIfLast();
-
-// Returns generic Default Browser timestamp if user seen a generic promo
-// before. Otherwise, returns unix epoch.
-base::Time GetGenericDefaultBrowserPromoTimestamp();
-
-// Returns tailored Default Browser timestamp if user seen a tailored promo
-// before. Otherwise, returns unix epoch.
-base::Time GetTailoredDefaultBrowserPromoTimestamp();
 
 // Records the last action the user took when a Default Browser Promo was
 // presented.

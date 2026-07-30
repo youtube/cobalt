@@ -302,7 +302,7 @@ TEST_F(TokenBindingHelperTest, StartGarbageCollectionDeletesUnusedKeys) {
   auto* raw_unused_unexportable_key1 = unused_unexportable_key1.get();
   auto* raw_unused_unexportable_key2 = unused_unexportable_key2.get();
 
-  EXPECT_CALL(mock_key_provider, GetAllSigningKeysSlowly())
+  EXPECT_CALL(mock_key_provider, GetAllKeysSlowly())
       .WillOnce(Return(
           base::ToVector<std::unique_ptr<crypto::UnexportableSigningKey>>({
               std::move(used_unexportable_key_in_memory),
@@ -317,8 +317,8 @@ TEST_F(TokenBindingHelperTest, StartGarbageCollectionDeletesUnusedKeys) {
   helper().StartGarbageCollection({used_wrapped_key_in_db});
 
   EXPECT_CALL(mock_key_provider,
-              DeleteSigningKeysSlowly(ElementsAre(
-                  raw_unused_unexportable_key1, raw_unused_unexportable_key2)))
+              DeleteKeysSlowly(ElementsAre(raw_unused_unexportable_key1,
+                                           raw_unused_unexportable_key2)))
       .WillOnce(Return(2));
   RunBackgroundTasks();
 

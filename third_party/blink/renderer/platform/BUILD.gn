@@ -1925,6 +1925,10 @@ component("platform") {
       "/wd4334",  # Result of 32-bit shift implicitly converted to 64 bits.
       "/wd4724",  # Modulo by 0.
     ]
+    deps += [
+      # For FontDataService mojom used by FontUniqueNameLookupWin.
+      "//components/services/font_data/public/mojom:mojom_blink",
+    ]
 
     # TODO(crbug.com/40915226): Remove the need to ignore this warning.
     if (is_component_build) {
@@ -2419,6 +2423,7 @@ source_set("blink_platform_unittests_sources") {
     "widget/input/mock_input_handler_proxy_client.h",
     "widget/input/prediction/filter_factory_unittest.cc",
     "widget/input/scroll_predictor_unittest.cc",
+    "widget/input/widget_base_input_handler_unittest.cc",
     "widget/input/widget_input_handler_manager_unittest.cc",
   ]
 
@@ -2466,6 +2471,7 @@ source_set("blink_platform_unittests_sources") {
     "//components/input",
     "//components/viz/common/resources:shared_image_format",
     "//gin",
+    "//media:media_buildflags",
     "//media:test_support",
     "//media/capture/mojom:video_capture",
     "//media/mojo:test_support",

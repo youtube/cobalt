@@ -90,6 +90,7 @@
 #include "content/public/test/test_web_ui.h"
 #include "content/public/test/web_contents_tester.h"
 #include "crypto/crypto_buildflags.h"
+#include "device/fido/public/features.h"
 #include "extensions/buildflags/buildflags.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "media/media_buildflags.h"
@@ -425,7 +426,7 @@ TEST_F(ChromeContentBrowserClientWindowTest, OverrideNavigationParams) {
   transition = ui::PAGE_TRANSITION_LINK;
   is_renderer_initiated = true;
   initiator_origin = url::Origin::Create(GURL("https://www.example.com"));
-  client.OverrideNavigationParams(GURL(chrome::kChromeUINewTabPageURL),
+  client.OverrideNavigationParams(chrome::ChromeUINewTabPageURLAsGURL(),
                                   &transition, &is_renderer_initiated,
                                   &referrer, &initiator_origin);
   EXPECT_TRUE(ui::PageTransitionCoreTypeIs(ui::PAGE_TRANSITION_AUTO_BOOKMARK,
@@ -435,7 +436,7 @@ TEST_F(ChromeContentBrowserClientWindowTest, OverrideNavigationParams) {
 
   // No change for transitions that are not PAGE_TRANSITION_LINK.
   transition = ui::PAGE_TRANSITION_TYPED;
-  client.OverrideNavigationParams(GURL(chrome::kChromeUINewTabPageURL),
+  client.OverrideNavigationParams(chrome::ChromeUINewTabPageURLAsGURL(),
                                   &transition, &is_renderer_initiated,
                                   &referrer, &initiator_origin);
   EXPECT_TRUE(
@@ -809,7 +810,7 @@ class InstantNTPURLRewriteTest : public BrowserWithTestWindowTest {
 };
 
 TEST_F(InstantNTPURLRewriteTest, UberURLHandler_InstantExtendedNewTabPage) {
-  const GURL url_original(chrome::kChromeUINewTabURL);
+  const GURL& url_original = chrome::ChromeUINewTabURLAsGURL();
   const GURL url_rewritten("https://www.example.com/newtab");
   InstallTemplateURLWithNewTabPage(url_rewritten);
   ASSERT_TRUE(base::FieldTrialList::CreateFieldTrial(
@@ -1758,7 +1759,7 @@ TEST_F(DisableWebAuthnWithBrokenCertsTest, SecurityLevelAcceptable) {
       main_rfh(), url::Origin::Create(url)));
 }
 
-// Regression test for crbug.com/1421174.
+// Regression test for crbug.com/40896115.
 TEST_F(DisableWebAuthnWithBrokenCertsTest, IgnoreCertificateErrorsFlag) {
   base::test::ScopedCommandLine scoped_command_line;
   scoped_command_line.GetProcessCommandLine()->AppendSwitch(
@@ -1776,6 +1777,45 @@ TEST_F(DisableWebAuthnWithBrokenCertsTest, IgnoreCertificateErrorsFlag) {
   EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
       main_rfh(), url::Origin::Create(url)));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+class IWAWebAuthnTest : public ChromeRenderViewHostTestHarness {
+ protected:
+  static constexpr char kTestIsolatedAppOrigin[] =
+      "isolated-app://aerugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic";
+};
+
+TEST_F(IWAWebAuthnTest, IWASupportedWithPolicyOn) {
+  // Enabling the kWebAuthnIWARemoteDesktopAllowedOriginsPolicy.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {device::kWebAuthnIWARemoteDesktopAllowedOriginsPolicy,
+       features::kIsolatedWebApps},
+      {});
+
+  TestChromeContentBrowserClient client;
+
+  // For IWA accepted level for webauthn calls requires
+  // device::kWebAuthnIWARemoteDesktopAllowedOriginsPolicy to be enabled.
+  EXPECT_TRUE(client.IsSecurityLevelAcceptableForWebAuthn(
+      main_rfh(), url::Origin::Create(GURL(kTestIsolatedAppOrigin))));
+}
+
+TEST_F(IWAWebAuthnTest, IWANotSupportedWithoutPolicy) {
+  // Disabling the kWebAuthnIWARemoteDesktopAllowedOriginsPolicy.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {features::kIsolatedWebApps},
+      {device::kWebAuthnIWARemoteDesktopAllowedOriginsPolicy});
+
+  TestChromeContentBrowserClient client;
+
+  // For IWA accepted level for webauthn calls requires
+  // device::kWebAuthnIWARemoteDesktopAllowedOriginsPolicy to be enabled.
+  EXPECT_FALSE(client.IsSecurityLevelAcceptableForWebAuthn(
+      main_rfh(), url::Origin::Create(GURL(kTestIsolatedAppOrigin))));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(ChromeContentBrowserClientTest, ShouldUseSpareRenderProcessHost) {
   using SpareProcessRefusedByEmbedderReason =
@@ -2101,6 +2141,32 @@ TEST_F(ChromeContentBrowserClientAIPrefsTest, NonDevToolsScheme) {
   EXPECT_FALSE(web_preferences.ai_ot_apis_enabled);
 }
 
+TEST_F(ChromeContentBrowserClientAIPrefsTest,
+       ContextualTasksScheme_CsParamDark) {
+  const GURL url("chrome://contextual-tasks?cs=1");
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())->NavigateAndCommit(url);
+  blink::web_pref::WebPreferences web_preferences;
+  // Initialize to light mode to verify it changes to dark.
+  web_preferences.preferred_color_scheme =
+      blink::mojom::PreferredColorScheme::kLight;
+  RunOverrideWebPreferences(web_contents.get(), &web_preferences);
+  EXPECT_EQ(web_preferences.preferred_color_scheme,
+            blink::mojom::PreferredColorScheme::kDark);
+}
+TEST_F(ChromeContentBrowserClientAIPrefsTest,
+       ContextualTasksScheme_CsParamLight) {
+  const GURL url("chrome://contextual-tasks?cs=0");
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())->NavigateAndCommit(url);
+  blink::web_pref::WebPreferences web_preferences;
+  // Initialize to dark mode to verify it changes to light.
+  web_preferences.preferred_color_scheme =
+      blink::mojom::PreferredColorScheme::kDark;
+  RunOverrideWebPreferences(web_contents.get(), &web_preferences);
+  EXPECT_EQ(web_preferences.preferred_color_scheme,
+            blink::mojom::PreferredColorScheme::kLight);
+}
 #if BUILDFLAG(ENABLE_PDF)
 class ChromeContentBrowserClientOopifPdfTest
     : public ChromeRenderViewHostTestHarness {

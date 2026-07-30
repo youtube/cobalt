@@ -43,6 +43,8 @@ import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.webapk.lib.client.WebApkServiceConnectionManager;
 import org.chromium.webapk.lib.runtime_library.IWebApkApi;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Provides APIs for browsers to communicate with WebAPK services. Each WebAPK has its own "WebAPK
  * service".
@@ -115,9 +117,11 @@ public class WebApkServiceClient {
     }
 
     private static Handler createPermissionHandler(Callback<Integer> permissionCallback) {
+        final AtomicBoolean called = new AtomicBoolean(false);
         return new Handler(
                 Looper.getMainLooper(),
                 message -> {
+                    if (called.getAndSet(true)) return true;
                     @ContentSetting
                     int settingValue =
                             toContentSettingValue(
@@ -196,7 +200,7 @@ public class WebApkServiceClient {
                     @ContentSetting
                     int settingValue = toContentSettingValue(api.checkNotificationPermission());
 
-                    // See http://crbug.com/1340854. Temporary fallback in case the shell has not
+                    // See http://crbug.com/40850667. Temporary fallback in case the shell has not
                     // yet been updated to support checkNotificationPermission(). Delete this
                     // after shell v154 has been fully launched.
                     if (settingValue != ContentSetting.ALLOW

@@ -71,7 +71,6 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
 namespace blink {
@@ -398,10 +397,7 @@ void TextFinder::SetFindEndstateFocusAndSelection() {
       auto* element = DynamicTo<Element>(runner);
       if (!element)
         continue;
-      bool focusable =
-          RuntimeEnabledFeatures::KeyboardFocusabilityAfterFindInPageEnabled()
-              ? element->IsKeyboardFocusableSlow()
-              : element->IsFocusable();
+      bool focusable = element->IsKeyboardFocusableSlow();
       if (focusable) {
         // Found a focusable parent node. Set the active match as the
         // selection and focus to the focusable node.

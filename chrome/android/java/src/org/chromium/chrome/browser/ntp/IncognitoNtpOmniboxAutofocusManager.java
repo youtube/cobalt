@@ -31,6 +31,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.url.GURL;
@@ -464,7 +465,9 @@ public class IncognitoNtpOmniboxAutofocusManager {
     /** Performs the actual focus action and updates the state. */
     private void autofocus(Tab tab) {
         mIsAutofocusing = true;
-        mOmniboxStub.beginInput(new AutocompleteInput());
+        // Focused Omnibox should not be showing scrim or proactively retrieve suggestions.
+        mOmniboxStub.beginInput(
+                new AutocompleteInput().setAutocompleteState(AutocompleteState.STANDBY));
 
         // Mark the tab as processed to prevent future autofocus attempts.
         markTabAsProcessed(tab);

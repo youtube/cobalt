@@ -13,13 +13,15 @@
 namespace features {
 
 // Please keep features in alphabetical order.
+#if BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityAriaInvalidAndErrorMessage);
+#endif  // BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityExpandEventMetadata);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityExposeNonAtomicTextFieldChildren);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAllowContentInitiatedDataUrlNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDesktopStyleScrollbars);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDownloadableFontsMatching);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDragDropOopif);
 #if BUILDFLAG(IS_WIN)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kArabicIndicDigitInput);
 #endif
@@ -145,7 +147,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kGroupNIKByJoiningOrigin);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kHidePastePopupOnGSB);
 #endif
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kHoldbackDebugReasonStringRemoval);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kIgnoreDuplicateNavsOnlyWithUserGesture);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kInMemoryCodeCache);
@@ -167,7 +168,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigationsWarningOnly);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkAccessPromptDirectSockets);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kMainFrameProcessReuseAllowDevToolsAttached);
@@ -206,6 +206,10 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread);
 #if BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSandboxedProcessServiceLimitOnAndroid);
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kSandboxedProcessServiceLimitOnAndroidCount);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kScrollAfterOSKViewportShrinkFix);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSendBeaconThrowForBlobWithNonSimpleType);
@@ -232,6 +236,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerVerifyMainScriptUrl);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSoftUpdateOnFunctionalEvent);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kSharedWorkerSecureContextDerivationFromBrowser);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kRestrictSharedWorkerWebSocketCrossSiteCookies);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipRendererCancellationThrottle);
 #if BUILDFLAG(IS_ANDROID)

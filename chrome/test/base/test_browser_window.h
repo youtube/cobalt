@@ -33,18 +33,6 @@ class LocationBarTesting;
 class GlobalBrowserCollection;
 class OmniboxView;
 
-namespace qrcode_generator {
-class QRCodeGeneratorBubbleView;
-}  // namespace qrcode_generator
-
-namespace send_tab_to_self {
-class SendTabToSelfBubbleView;
-}  // namespace send_tab_to_self
-
-namespace sharing_hub {
-class SharingHubBubbleView;
-}  // namespace sharing_hub
-
 // WARNING WARNING WARNING WARNING
 // Do not use this class. See docs/chrome_browser_design_principles.md for
 // details.  Either write a browser test which provides both a "class Browser"
@@ -90,8 +78,6 @@ class TestBrowserWindow : public BrowserWindow,
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
   std::vector<StatusBubble*> GetStatusBubbles() override;
   void UpdateTitleBar() override {}
-  void UpdateDevTools(content::WebContents* inspected_web_contents) override {}
-  bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override {}
   void SetStarredState(bool is_starred) override {}
   void OnActiveTabChanged(content::WebContents* old_contents,
@@ -133,7 +119,6 @@ class TestBrowserWindow : public BrowserWindow,
   void UpdateToolbar(content::WebContents* contents) override {}
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override {}
-  void SetDevToolsScrimVisibility(bool visible) override {}
   void ResetToolbarTabState(content::WebContents* contents) override {}
   void FocusToolbar() override {}
   void ToolbarSizeChanged(bool is_animating) override {}
@@ -161,18 +146,9 @@ class TestBrowserWindow : public BrowserWindow,
   bool IsUnframedModeEnabled() const override;
   void ShowChromeLabs() override {}
   BrowserView* AsBrowserView() override;
-  SharingDialog* ShowSharingDialog(content::WebContents* contents,
-                                   SharingDialogData data) override;
   void ShowUpdateChromeDialog() override {}
   void ShowBookmarkBubble(const GURL& url, bool already_bookmarked) override {}
-  qrcode_generator::QRCodeGeneratorBubbleView* ShowQRCodeGeneratorBubble(
-      content::WebContents* contents,
-      const GURL& url,
-      bool show_back_button) override;
 #if !BUILDFLAG(IS_ANDROID)
-  sharing_hub::ScreenshotCapturedBubble* ShowScreenshotCapturedBubble(
-      content::WebContents* contents,
-      const gfx::Image& image) override;
   void ShowIntentPickerBubble(
       std::vector<apps::IntentPickerAppInfo> app_info,
       bool show_stay_in_chrome,
@@ -181,16 +157,8 @@ class TestBrowserWindow : public BrowserWindow,
       const std::optional<url::Origin>& initiating_origin,
       IntentPickerResponse callback) override {}
 #endif  //  !define(OS_ANDROID)
-  send_tab_to_self::SendTabToSelfBubbleView*
-  ShowSendTabToSelfDevicePickerBubble(content::WebContents* contents) override;
-  send_tab_to_self::SendTabToSelfBubbleView* ShowSendTabToSelfPromoBubble(
-      content::WebContents* contents,
-      bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
   void ToggleMultitaskMenu() override;
-#else
-  sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
-      share::ShareAttempt attempt) override;
 #endif  // BUILDFLAG(IS_CHROMEOS)
   ShowTranslateBubbleResult ShowTranslateBubble(
       content::WebContents* contents,

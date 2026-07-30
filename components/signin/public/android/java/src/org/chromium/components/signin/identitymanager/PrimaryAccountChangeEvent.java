@@ -38,31 +38,27 @@ public class PrimaryAccountChangeEvent {
         int CLEARED = 2;
     }
 
-    private final @Type int mEventTypeForConsentLevelSync;
-    private final @Type int mEventTypeForConsentLevelNotRequired;
+    private final @Type int mEventType;
 
     @CalledByNative
     @VisibleForTesting
-    public PrimaryAccountChangeEvent(
-            @Type int eventTypeForConsentLevelNotRequired, @Type int eventTypeForConsentLevelSync) {
-        mEventTypeForConsentLevelNotRequired = eventTypeForConsentLevelNotRequired;
-        mEventTypeForConsentLevelSync = eventTypeForConsentLevelSync;
-        assert mEventTypeForConsentLevelNotRequired != Type.NONE
-                        || mEventTypeForConsentLevelSync != Type.NONE
+    public PrimaryAccountChangeEvent(@Type int eventType) {
+        mEventType = eventType;
+        assert mEventType != Type.NONE
                 : "PrimaryAccountChangeEvent should not be fired for no-change events";
     }
 
     /**
-     * Returns primary account change event type for the corresponding consentLevel.
-     * @param consentLevel The consent level for the primary account change.
-     * @return The event type for the change.
-     *         NONE - No change in primary account for consentLevel.
-     *         SET - A new primary account is set or changed for consentLevel.
-     *         CLEARED - The primary account set for consentLevel is cleared.
+     * Returns primary account change event type.
+     *
+     * @return The event type for the change:
+     *     <ul>
+     *       <li>NONE - No change in primary account.
+     *       <li>SET - A new primary account is set or changed.
+     *       <li>CLEARED - The primary account set is cleared.
+     *     </ul>
      */
-    public @Type int getEventTypeFor(@ConsentLevel int consentLevel) {
-        return consentLevel == ConsentLevel.SYNC
-                ? mEventTypeForConsentLevelSync
-                : mEventTypeForConsentLevelNotRequired;
+    public @Type int getEventTypeFor() {
+        return mEventType;
     }
 }

@@ -35,6 +35,7 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.TestFileUtil;
 import org.chromium.base.test.util.UrlUtils;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
@@ -63,6 +64,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tests Android printing. TODO(cimamoglu): Add a test with cancellation. TODO(cimamoglu): Add a
@@ -197,7 +199,7 @@ public class PrintingControllerTest {
     }
 
     /**
-     * Test for http://crbug.com/528909 Simulating while a printing job is triggered and about to
+     * Test for http://crbug.com/40434612 Simulating while a printing job is triggered and about to
      * call Android framework to show UI, the corresponding tab is closed, this behaviour is mostly
      * from JavaScript code. Make sure we don't crash and won't call into framework.
      */
@@ -230,9 +232,10 @@ public class PrintingControllerTest {
     }
 
     /**
-     * Test for http://crbug.com/528909 Simulating while a printing job is triggered and printing UI
-     * is showing, the corresponding tab is closed, this behaviour is mostly from JavaScript code.
-     * Make sure we don't crash and let framework notify user that we can't perform printing job.
+     * Test for http://crbug.com/40434612 Simulating while a printing job is triggered and printing
+     * UI is showing, the corresponding tab is closed, this behaviour is mostly from JavaScript
+     * code. Make sure we don't crash and let framework notify user that we can't perform printing
+     * job.
      */
     @Test
     @LargeTest
@@ -305,7 +308,7 @@ public class PrintingControllerTest {
     }
 
     /**
-     * Test for http://crbug.com/863297 This bug shows Android printing framework could call
+     * Test for http://crbug.com/41401371 This bug shows Android printing framework could call
      * |PrintDocumentAdapter.onFinish()| before one of |WriteResultCallback.onWrite{Cancelled,
      * Failed, Finished}()| get called. Crash test, pass if there is no crash.
      */
@@ -368,9 +371,9 @@ public class PrintingControllerTest {
     }
 
     /**
-     * Regresstion test for crbug.com/974581. In some cases, native printing code will fail without
-     * starting a printing task in Java side. pdfWritingDone() will be called with |pageCount| = 0
-     * in this case. We don't need to do anything for this in Java side for now.
+     * Regresstion test for crbug.com/40632299. In some cases, native printing code will fail
+     * without starting a printing task in Java side. pdfWritingDone() will be called with
+     * |pageCount| = 0 in this case. We don't need to do anything for this in Java side for now.
      */
     @Test
     @SmallTest
@@ -439,8 +442,8 @@ public class PrintingControllerTest {
                     assertTrue("Should be a native page.", currentTab.isNativePage());
                     assertFalse(
                             "Should return false to indicate the print is not allowed (by showing a"
-                                + " toast).",
-                            cta.onMenuOrKeyboardAction(org.chromium.chrome.R.id.print_id, false));
+                                    + " toast).",
+                            cta.onMenuOrKeyboardAction(R.id.print_id, false));
                 });
 
         ArgumentCaptor<Toast> toastCaptor = ArgumentCaptor.forClass(Toast.class);
@@ -604,8 +607,7 @@ public class PrintingControllerTest {
         WebPageStation page = mActivityTestRule.startOnUrl(URL);
 
         // Used in our callback to verify that cleanup occurred
-        final java.util.concurrent.atomic.AtomicBoolean called =
-                new java.util.concurrent.atomic.AtomicBoolean(false);
+        final AtomicBoolean called = new AtomicBoolean(false);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

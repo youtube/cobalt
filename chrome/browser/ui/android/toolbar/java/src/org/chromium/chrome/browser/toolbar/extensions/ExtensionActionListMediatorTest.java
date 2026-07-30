@@ -176,6 +176,8 @@ public class ExtensionActionListMediatorTest {
                                     action.getTitle());
                         });
 
+        when(mExtensionsToolbarBridge.getAllActionIds())
+                .thenReturn(new String[] {ACTION1_ID, ACTION2_ID, ACTION3_ID});
         when(mExtensionsToolbarBridge.getPinnedActionIds())
                 .thenReturn(new String[] {ACTION1_ID, ACTION2_ID});
 
@@ -345,10 +347,7 @@ public class ExtensionActionListMediatorTest {
         assertEquals(2, mModels.size());
 
         Context context = ApplicationProvider.getApplicationContext();
-        int itemWidth =
-                context.getResources()
-                        .getDimensionPixelSize(
-                                org.chromium.chrome.browser.toolbar.R.dimen.toolbar_button_width);
+        int itemWidth = context.getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
 
         // Test ample width.
         mMediator.fitActionsWithinWidth(itemWidth * 5);
@@ -407,8 +406,7 @@ public class ExtensionActionListMediatorTest {
         int buttonWidth =
                 ApplicationProvider.getApplicationContext()
                         .getResources()
-                        .getDimensionPixelSize(
-                                org.chromium.chrome.browser.toolbar.R.dimen.toolbar_button_width);
+                        .getDimensionPixelSize(R.dimen.toolbar_button_width);
 
         // Constrain width so only 1 action fits (we have 2 pinned actions).
         mMediator.fitActionsWithinWidth(buttonWidth);
@@ -455,8 +453,7 @@ public class ExtensionActionListMediatorTest {
         int buttonWidth =
                 ApplicationProvider.getApplicationContext()
                         .getResources()
-                        .getDimensionPixelSize(
-                                org.chromium.chrome.browser.toolbar.R.dimen.toolbar_button_width);
+                        .getDimensionPixelSize(R.dimen.toolbar_button_width);
 
         // Initially, no width is reserved because nothing is popped out.
         int reservedWidth = mMediator.setCanShowPoppedOutAction(1000);
@@ -472,6 +469,35 @@ public class ExtensionActionListMediatorTest {
                 "Should return button width when an action is popped out",
                 buttonWidth,
                 reservedWidth);
+    }
+
+    @Test
+    public void testPendingPopup_DestroyedOnCancellation() {
+        // Trigger a popup.
+        long nativeHostPtr = 123L;
+        mBridgeDelegateCaptor.getValue().triggerPopup(ACTION1_ID, nativeHostPtr);
+
+        // Verify the native contents were created.
+        verify(mPopupContentsJniMock).create(nativeHostPtr);
+
+        // Simulate a cancellation by opening a context menu for another action.
+        mBridgeDelegateCaptor.getValue().showContextMenu(ACTION2_ID);
+
+        // The pending popup contents must be destroyed to prevent memory leaks.
+        verify(mPopupContentsMock).destroy();
+    }
+
+    @Test
+    public void testPendingPopup_DestroyedOnMediatorTeardown() {
+        // Trigger a popup to enter the PopupPending state.
+        long nativeHostPtr = 123L;
+        mBridgeDelegateCaptor.getValue().triggerPopup(ACTION1_ID, nativeHostPtr);
+
+        // Destroy the mediator before the UI animation finishes.
+        mMediator.destroy();
+
+        // The pending popup contents must be destroyed during teardown.
+        verify(mPopupContentsMock).destroy();
     }
 
     private static Bitmap createSimpleIcon(int color) {

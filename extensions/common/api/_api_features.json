@@ -73,7 +73,8 @@
   "appViewEmbedderInternal": {
     "internal": true,
     "contexts": ["privileged_extension"],
-    "dependencies": ["permission:appview"]
+    "dependencies": ["permission:appview"],
+    "platforms": ["chromeos"]
   },
   // Note that exposing this doesn't necessarily expose AppView,
   // appViewEmbedderInternal is required for that.
@@ -82,8 +83,7 @@
     "internal": true,
     "channel": "stable",
     "contexts": ["privileged_extension"],
-    // "desktop_android" is not supported.
-    "platforms": ["chromeos", "linux", "mac", "win"]
+    "platforms": ["chromeos"]
   },
   "audio": {
     "dependencies": ["permission:audio"],
@@ -709,6 +709,15 @@
   "runtime.sendNativeMessage": {
     "dependencies": ["permission:nativeMessaging"],
     "contexts": ["privileged_extension"]
+  },
+  "scripting": {
+    "dependencies": ["permission:scripting"],
+    "contexts": ["privileged_extension"]
+  },
+  "scripting.globalParams": {
+    "channel": "trunk",
+    "dependencies": ["permission:scripting"],
+    "contexts": ["content_script"]
   },
   "serial": {
     "dependencies": ["permission:serial"],

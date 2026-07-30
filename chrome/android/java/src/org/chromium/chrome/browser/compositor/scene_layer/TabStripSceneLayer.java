@@ -24,6 +24,7 @@ import org.chromium.chrome.browser.compositor.layouts.components.TintedComposito
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTab;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTrailingButtonsCoordinator;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneOverlayLayer;
@@ -92,18 +93,24 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
      * unnecessary follow up renders.
      *
      * @param layoutHelper A layout helper for the tab strip.
+     * @param trailingButtonsCoordinator The coordinator for trailing buttons like Glic.
      * @param layerTitleCache A layer title cache.
      * @param resourceManager A resource manager.
      * @param stripLayoutTabsToRender Array of strip layout tabs.
+     * @param stripLayoutGroupTitlesToRender Array of strip layout group titles.
      * @param yOffset Current browser controls offset in dp.
      * @param selectedTabId The ID of the selected tab.
      * @param hoveredTabId The ID of the hovered tab, if any. If no tab is hovered on, this ID will
      *     be invalid.
      * @param scrimColor The color of the scrim overlay that covers the tab strip.
      * @param scrimOpacity The opacity of the scrim overlay that covers the tab strip.
+     * @param leftPaddingDp The left padding for the tab strip in dp.
+     * @param rightPaddingDp The right padding for the tab strip in dp.
+     * @param topPaddingDp The top padding for the tab strip in dp.
      */
     public void pushAndUpdateStrip(
             StripLayoutHelperManager layoutHelper,
+            StripLayoutTrailingButtonsCoordinator trailingButtonsCoordinator,
             LayerTitleCache layerTitleCache,
             ResourceManager resourceManager,
             StripLayoutTab[] stripLayoutTabsToRender,
@@ -133,6 +140,7 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
 
             pushButtonsAndBackground(
                     layoutHelper,
+                    trailingButtonsCoordinator,
                     yOffset,
                     scrimColor,
                     scrimOpacity,
@@ -152,6 +160,7 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
     @VisibleForTesting
     /* package */ void pushButtonsAndBackground(
             StripLayoutHelperManager layoutHelper,
+            StripLayoutTrailingButtonsCoordinator trailingButtonsCoordinator,
             float yOffset,
             @ColorInt int scrimColor,
             float scrimOpacity,
@@ -192,9 +201,11 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                         TabUiThemeUtil.getCircularButtonKeyboardFocusDrawableRes(),
                         newTabButton.getKeyboardFocusRingColor());
 
-        TintedCompositorTextButton glicButton = layoutHelper.getGlicButton();
-        if (glicButton != null) {
+        TintedCompositorTextButton glicButton = trailingButtonsCoordinator.getGlicButton();
+        if (glicButton != null && glicButton.getDismissButton() != null) {
+            TintedCompositorButton dismissNudge = glicButton.getDismissButton();
             boolean glicButtonVisible = glicButton.isVisible();
+            boolean dismissVisible = dismissNudge.isVisible() && glicButtonVisible;
             TabStripSceneLayerJni.get()
                     .updateGlicButton(
                             mNativePtr,
@@ -206,16 +217,31 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             glicButtonVisible,
                             glicButton.getShouldApplyHoverBackground(),
                             glicButton.getTint(),
-                            layoutHelper.isGlicUIVisible(),
+                            trailingButtonsCoordinator.isGlicUiVisible(),
                             glicButton.getBackgroundTint(),
                             glicButton.getOpacity(),
                             glicButton.isKeyboardFocused(),
                             TabUiThemeUtil.getCircularButtonKeyboardFocusDrawableRes(),
                             glicButton.getKeyboardFocusRingColor(),
                             glicButton.getTextResourceId(),
-                            Math.round(layoutHelper.getGlicButtonStartPadding() * mDpToPx),
-                            Math.round(layoutHelper.getGlicIconTextPadding() * mDpToPx),
-                            Math.round(layoutHelper.getGlicButtonCornerRadius() * mDpToPx));
+                            Math.round(
+                                    StripLayoutTrailingButtonsCoordinator
+                                                    .GLIC_BUTTON_START_PADDING_DP
+                                            * mDpToPx),
+                            Math.round(
+                                    StripLayoutTrailingButtonsCoordinator.GLIC_ICON_TEXT_PADDING_DP
+                                            * mDpToPx),
+                            Math.round(
+                                    StripLayoutTrailingButtonsCoordinator.GLIC_BUTTON_CORNER_RADIUS
+                                            * mDpToPx),
+                            dismissNudge.getResourceId(),
+                            Math.round(dismissNudge.getDrawX() * mDpToPx),
+                            Math.round(dismissNudge.getDrawY() * mDpToPx),
+                            dismissVisible,
+                            dismissNudge.getTint(),
+                            dismissNudge.isKeyboardFocused(),
+                            TabUiThemeUtil.getCircularButtonKeyboardFocusDrawableRes(),
+                            dismissNudge.getKeyboardFocusRingColor());
         }
 
         CompositorButton modelSelectorButton = layoutHelper.getModelSelectorButton();
@@ -473,7 +499,15 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 int textTextureId,
                 float buttonStartPadding,
                 float buttonTextPadding,
-                float cornerRadius);
+                float cornerRadius,
+                @DrawableRes int dismissResourceId,
+                float dismissX,
+                float dismissY,
+                boolean dismissVisible,
+                @ColorInt int dismissTint,
+                boolean dismissIsKeyboardFocused,
+                @DrawableRes int dismissKeyboardFocusRingResourceId,
+                @ColorInt int dismissKeyboardFocusRingColor);
 
         void updateModelSelectorButton(
                 long nativeTabStripSceneLayer,

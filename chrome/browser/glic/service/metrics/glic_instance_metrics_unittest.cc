@@ -527,17 +527,18 @@ TEST_F(GlicInstanceMetricsTest, OnTurnCompleted_LogsHistograms) {
                                            base::Milliseconds(200), 1);
 }
 
-TEST_F(GlicInstanceMetricsTest, OnReaction_LogsUserActions) {
+TEST_F(GlicInstanceMetricsTest, ScrollToMetrics) {
+  base::test::ScopedFeatureList features(features::kGlicScrollTo);
   metrics_.OnVisibilityChanged(true);
   metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
   metrics_.OnResponseStarted();
+  metrics_.OnGlicScrollAttempt();
+  task_environment_.FastForwardBy(base::Milliseconds(400));
   metrics_.OnResponseStopped(mojom::ResponseStopCause::kUnknown);
+  metrics_.OnGlicScrollComplete(true);
 
-  metrics_.OnReaction(mojom::MetricUserInputReactionType::kCanned);
-  EXPECT_EQ(1, user_action_tester_.GetActionCount("GlicReactionCanned"));
-
-  metrics_.OnReaction(mojom::MetricUserInputReactionType::kModel);
-  EXPECT_EQ(1, user_action_tester_.GetActionCount("GlicReactionModelled"));
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.ScrollTo.UserPromptToScrollTime.Text", base::Milliseconds(400), 1);
 }
 
 TEST_F(GlicInstanceMetricsTest, SelectionUsed) {
@@ -714,6 +715,18 @@ TEST_F(GlicInstanceMetricsTest, OnInstanceDestroyed_LogsPerProfileTurnCount) {
   histogram_tester_.ExpectUniqueSample("Glic.Instance.TurnCount", 2, 1);
   histogram_tester_.ExpectUniqueSample("Glic.Instance.TurnCount.Profile1", 2,
                                        1);
+}
+
+TEST_F(GlicInstanceMetricsTest, ZoomChangeCount) {
+  {
+    GlicInstanceMetrics metrics(&profile_metrics_service_);
+    metrics.OnZoomLevelChange();
+    metrics.OnZoomLevelChange();
+    metrics.OnZoomLevelChange();
+    metrics.OnClose();
+  }  // Destructor calls OnInstanceDestroyed
+
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.ZoomChangeCount", 3, 1);
 }
 
 }  // namespace glic

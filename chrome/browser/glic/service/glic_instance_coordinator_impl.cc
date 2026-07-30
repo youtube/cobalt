@@ -12,7 +12,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -44,10 +43,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/browser_list.h"
-#endif
 
 namespace glic {
 
@@ -87,11 +82,6 @@ BASE_FEATURE(kGlicMaxAwakeInstances, base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int> kGlicMaxAwakeInstancesLimit{
     &kGlicMaxAwakeInstances, "limit", 15};
 
-// TODO(refactor): Remove after launching kGlicMultiInstance.
-HostManager& GlicInstanceCoordinatorImpl::host_manager() {
-  return *host_manager_;
-}
-
 GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
     Profile* profile,
     signin::IdentityManager* identity_manager,
@@ -107,7 +97,9 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
           FROM_HERE,
           base::MemoryPressureListenerTag::kGlicKeyedService,
           this),
-      metrics_(this) {
+      metrics_(this),
+      web_contents_warming_pool_(
+          std::make_unique<GlicWebContentsWarmingPool>(profile)) {
   if (identity_manager) {
     identity_manager_observation_.Observe(identity_manager);
   }
@@ -124,7 +116,6 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
         base::BindRepeating(&GlicInstanceCoordinatorImpl::CheckMemoryUsage,
                             base::Unretained(this)));
   }
-  host_manager_ = std::make_unique<HostManager>(profile, GetWeakPtr());
 }
 
 GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
@@ -143,6 +134,11 @@ GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
   last_active_instance_ = nullptr;
   auto instances = std::exchange(instances_, {});
   instances.clear();
+}
+
+GlicWebContentsWarmingPool&
+GlicInstanceCoordinatorImpl::GetWebContentsWarmingPoolForTesting() {
+  return *web_contents_warming_pool_;
 }
 
 void GlicInstanceCoordinatorImpl::OnInstanceActivationChanged(
@@ -284,16 +280,15 @@ void GlicInstanceCoordinatorImpl::Toggle(
                   deprecated_auto_send, deprecated_conversation_id);
 }
 
-void GlicInstanceCoordinatorImpl::ShowAfterSignIn(
-    base::WeakPtr<Browser> browser) {
-  // TODO(crbug/4263869): Used by GlicPageHandler::SignInAndClosePanel(), which
-  // should close glic and reopen it after signin is complete. This flow likely
-  // still makes sense for the floating panel, but not for the side panel.
-  NOTIMPLEMENTED();
+void GlicInstanceCoordinatorImpl::EnsurePreload() {
+  web_contents_warming_pool_->EnsurePreload();
 }
 
 void GlicInstanceCoordinatorImpl::Shutdown() {
-  host_manager().Shutdown();
+  for (auto& [instance_id, instance] : instances_) {
+    instance->Shutdown();
+  }
+  web_contents_warming_pool_->Clear();
 }
 
 void GlicInstanceCoordinatorImpl::Close(const CloseOptions& options) {
@@ -316,6 +311,17 @@ void GlicInstanceCoordinatorImpl::InvokeWithAutoSubmit(
     InvokeWithAutoSubmitPasskey auto_submit_passkey,
     GlicInvokeOptions options) {
   InvokeInternal(auto_submit_passkey, std::move(options));
+}
+
+void GlicInstanceCoordinatorImpl::GetExperimentalTriggeringUpdates(
+    mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
+    base::OnceCallback<void(bool)> success_status_callback) {
+  if (active_instance_) {
+    active_instance_->host().getExperimentalTriggeringUpdates(
+        std::move(handler), std::move(success_status_callback));
+  } else {
+    std::move(success_status_callback).Run(false);
+  }
 }
 
 void GlicInstanceCoordinatorImpl::InvokeInternal(
@@ -453,55 +459,8 @@ GlicInstanceCoordinatorImpl::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-GlicWidget* GlicInstanceCoordinatorImpl::GetGlicWidget() const {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
-  return nullptr;
-}
-
-Browser* GlicInstanceCoordinatorImpl::attached_browser() {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
-  return nullptr;
-}
-
-GlicInstanceCoordinator::State GlicInstanceCoordinatorImpl::state() const {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
-  return GlicInstanceCoordinator::State::kClosed;
-}
-
 Profile* GlicInstanceCoordinatorImpl::profile() {
   return profile_;
-}
-
-gfx::Rect GlicInstanceCoordinatorImpl::GetInitialBounds(Browser* browser) {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
-  return gfx::Rect();
-}
-
-void GlicInstanceCoordinatorImpl::ShowDetachedForTesting() {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
-}
-
-void GlicInstanceCoordinatorImpl::SetPreviousPositionForTesting(
-    gfx::Point position) {
-  // TODO(crbug.com/454112198) - Remove as part of GlicInstanceCoordinator
-  // cleanup. Method should only be called on individual panels not the
-  // coordinator.
-  NOTIMPLEMENTED();
 }
 
 base::CallbackListSubscription GlicInstanceCoordinatorImpl::
@@ -566,7 +525,7 @@ GlicInstanceCoordinatorImpl::GetOrCreateGlicInstanceImplForTab(
       last_active_instance_->GetTimeSinceLastActive() <
           features::kGlicDefaultToLastActiveConversationMaxRecency.Get() &&
       !last_active_instance_->IsActuating()) {
-    last_active_instance_->instance_metrics()->OnDaisyChain(
+    last_active_instance_->instance_metrics().OnDaisyChain(
         DaisyChainSource::kLastActiveInstance,
         /*success=*/true, tab,
         /*source_tab=*/nullptr);
@@ -633,7 +592,7 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance(
   auto* instance_ptr = instance.get();
   instances_[instance->id()] = std::move(instance);
   // TODO(harringtond): Figure out what to do about this metric.
-  instance_ptr->instance_metrics()->OnInstanceCreatedWithoutWarming();
+  instance_ptr->instance_metrics().OnInstanceCreatedWithoutWarming();
   return instance_ptr;
 }
 
@@ -767,11 +726,6 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   ShowOptions mutable_options = options;
   mutable_options.focus_on_show = source_instance.HasFocus();
   mutable_options.reinitialize_if_already_active = true;
-  if (auto* side_panel_options = std::get_if<SidePanelShowOptions>(
-          &mutable_options.embedder_options)) {
-    // TODO(b/499283891): Remove this after the animation bug is fixed.
-    side_panel_options->suppress_opening_animation = true;
-  }
 
   GlicInstanceImpl* target_instance = nullptr;
   if (!info->conversation_id.empty()) {
@@ -796,7 +750,7 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
 
   target_instance->RegisterConversation(std::move(info), base::DoNothing());
   target_instance->Show(mutable_options);
-  target_instance->instance_metrics()->OnSwitchToConversation(mutable_options);
+  target_instance->instance_metrics().OnSwitchToConversation(mutable_options);
   std::move(callback).Run(std::nullopt);
 }
 
@@ -869,6 +823,11 @@ void GlicInstanceCoordinatorImpl::ContextAccessIndicatorChanged(
     GlicInstanceImpl& source_instance,
     bool enabled) {
   ComputeContentAccessIndicator();
+}
+
+std::unique_ptr<WebUIContentsContainer>
+GlicInstanceCoordinatorImpl::CreateWebUIContentsContainer() {
+  return web_contents_warming_pool_->TakeContainer();
 }
 
 void GlicInstanceCoordinatorImpl::SetWarmingEnabledForTesting(
@@ -954,7 +913,7 @@ void GlicInstanceCoordinatorImpl::MaybeDaisyChainNewTab(
   side_panel_options.pin_trigger = GlicPinTrigger::kNewTabDaisyChain;
   instance->Show(ShowOptions{side_panel_options});
 
-  instance->instance_metrics()->OnDaisyChain(
+  instance->instance_metrics().OnDaisyChain(
       DaisyChainSource::kNewTab,
       /*success=*/true, creation_event.new_tab, creation_event.old_tab);
 }
@@ -967,7 +926,7 @@ void GlicInstanceCoordinatorImpl::OnMemoryPressure(
     return;
   }
 
-  service_->web_contents_warming_pool().Clear();
+  web_contents_warming_pool_->Clear();
 
   for (auto& [_, instance] : instances_) {
     if (instance->IsShowing() || instance->IsActuating() ||

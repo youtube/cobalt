@@ -13,9 +13,9 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.text.TextUtils;
-import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewGroup.MarginLayoutParams;
+import android.widget.FrameLayout;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.filters.MediumTest;
@@ -34,8 +34,6 @@ import org.chromium.chrome.browser.logo.LogoBridge.Logo;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.TestActivity;
-import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 /** Instrumentation tests for {@link LogoView}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -47,7 +45,7 @@ public class LogoViewTest {
             new ActivityScenarioRule<>(TestActivity.class);
 
     @Mock public TemplateUrlService mTemplateUrlService;
-    @Mock public LogoView.ClickHandler mLogoClickHandler;
+    @Mock public LogoProperties.ClickHandler mLogoClickHandler;
 
     private static final String LOGO_URL = "https://www.google.com";
     private static final String ANIMATED_LOGO_URL =
@@ -56,8 +54,6 @@ public class LogoViewTest {
 
     private LogoView mView;
     private Bitmap mBitmap;
-    private PropertyModelChangeProcessor mPropertyModelChangeProcessor;
-    private PropertyModel mModel;
 
     @Before
     public void setup() {
@@ -68,15 +64,17 @@ public class LogoViewTest {
                 .getScenario()
                 .onActivity(
                         activity -> {
+                            FrameLayout parent = new FrameLayout(activity);
                             mView = new LogoView(activity, null);
-                            LayoutParams params =
+                            parent.addView(
+                                    mView,
                                     new LayoutParams(
+                                            LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+                            MarginLayoutParams params =
+                                    new MarginLayoutParams(
                                             LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-                            activity.setContentView(mView, params);
-                            mModel = new PropertyModel(LogoProperties.ALL_KEYS);
-                            mPropertyModelChangeProcessor =
-                                    PropertyModelChangeProcessor.create(
-                                            mModel, mView, new LogoViewBinder());
+                            activity.setContentView(parent, params);
                         });
     }
 
@@ -85,7 +83,7 @@ public class LogoViewTest {
         doReturn(true).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
         mView.setDefaultGoogleLogoDrawable(
                 mView.getContext().getDrawable(R.drawable.ic_google_logo));
-        mView.updateLogo(null);
+        mView.maybeShowDefaultLogoDrawable();
         mView.endAnimationsForTesting();
 
         Assert.assertFalse("Default logo should not be clickable.", mView.isClickable());
@@ -145,18 +143,6 @@ public class LogoViewTest {
     }
 
     @Test
-    public void testShowLoadingView() {
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8), null, null, null);
-        mModel.set(LogoProperties.LOGO, logo);
-        mView.endAnimationsForTesting();
-        Assert.assertNotNull(mView.getLogoDrawableForTesting());
-        mView.setLoadingViewVisibilityForTesting(View.VISIBLE);
-        mModel.set(LogoProperties.SHOW_LOADING_VIEW, true);
-        Assert.assertNull(mView.getLogoDrawableForTesting());
-        Assert.assertEquals(View.GONE, mView.getLoadingViewVisibilityForTesting());
-    }
-
-    @Test
     @MediumTest
     public void testDoodleAnimation() {
         // Test default google logo drawable.
@@ -175,14 +161,14 @@ public class LogoViewTest {
         int doodleTopMargin = LogoUtils.getTopMarginForDoodle(res);
         MarginLayoutParams logoLayoutParams = (MarginLayoutParams) mView.getLayoutParams();
 
-        mView.updateLogo(null);
+        mView.maybeShowDefaultLogoDrawable();
         mView.endAnimationsForTesting();
         Assert.assertEquals(logoHeight, logoLayoutParams.height);
         Assert.assertEquals(logoTopMargin, logoLayoutParams.topMargin);
 
         // Test doodle animation.
         Logo logo = new Logo(mBitmap, null, ALT_TEXT, null);
-        mModel.set(LogoProperties.LOGO, logo);
+        mView.updateLogo(logo);
         ObjectAnimator fadeAnimation = mView.getFadeAnimationForTesting();
         Assert.assertNotNull(fadeAnimation);
 
@@ -223,13 +209,6 @@ public class LogoViewTest {
         MarginLayoutParams params = (MarginLayoutParams) mView.getLayoutParams();
         mView.setLogoTopMargin(100);
         Assert.assertEquals(100, params.topMargin);
-    }
-
-    @Test
-    public void testSetLogoBottomMargin() {
-        MarginLayoutParams params = (MarginLayoutParams) mView.getLayoutParams();
-        mView.setLogoBottomMargin(50);
-        Assert.assertEquals(50, params.bottomMargin);
     }
 
     @Test

@@ -21,6 +21,23 @@ class MockContextualTasksUiService : public ContextualTasksUiService {
                                AimEligibilityService* aim_eligibility_service);
   ~MockContextualTasksUiService() override;
 
+  MOCK_METHOD(void,
+              OnTaskChanged,
+              (BrowserWindowInterface * browser_window_interface,
+               content::WebContents* web_contents,
+               const std::optional<base::Uuid>& old_task_id,
+               const std::optional<base::Uuid>& new_task_id,
+               bool is_shown_in_tab),
+              (override));
+  MOCK_METHOD(void,
+              OnWebUIReady,
+              (const base::Uuid& task_id, content::WebContents* web_contents),
+              (override));
+  MOCK_METHOD(void,
+              OnWebUIDestroyed,
+              (BrowserWindowInterface * browser_window_interface,
+               const std::optional<base::Uuid>& task_id),
+              (override));
   MOCK_METHOD(GURL, GetDefaultAiPageUrl, (), (override));
   MOCK_METHOD(GURL,
               GetDefaultAiPageUrlForTask,

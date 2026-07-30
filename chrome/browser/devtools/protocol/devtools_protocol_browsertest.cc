@@ -196,7 +196,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   content::WebContents* wc = agent_host->GetWebContents();
   ASSERT_TRUE(wc);
   ASSERT_TRUE(content::WaitForLoadStop(wc));
-  EXPECT_EQ(chrome::kChromeUINewTabURL, wc->GetLastCommittedURL().spec());
+  EXPECT_EQ(chrome::ChromeUINewTabURLAsGURL(), wc->GetLastCommittedURL());
 
   // Should not crash by this point.
 }
@@ -720,7 +720,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Ensure that a failed pending entry is cleared when the DevTools protocol
   // attaches, so that any modified page content is not attributed to the failed
-  // URL. (crbug/1192417)
+  // URL. (crbug.com/40055319)
   EXPECT_EQ(nullptr, navigation_controller.GetPendingEntry());
   EXPECT_EQ(GURL(""), navigation_controller.GetVisibleEntry()->GetURL());
 }

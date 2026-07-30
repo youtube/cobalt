@@ -54,6 +54,7 @@ bool ShouldSerializeEvent(Event event_type) {
     case Event::kActiveDescendantChanged:
     case Event::kCheckedStateChanged:
     case Event::kChildrenChanged:
+    case Event::kEnabledChanged:
     case Event::kExpandedChanged:
     case Event::kLiveRegionChanged:
     case Event::kTextChanged:
@@ -87,7 +88,6 @@ bool ShouldSerializeEvent(Event event_type) {
   switch (event_type) {
     case Event::kFocusAfterMenuClose:
     case Event::kFocusContext:
-    case Event::kEnabledChanged:
     case Event::kMenuEnd:
     case Event::kMenuPopupEnd:
     case Event::kMenuPopupStart:
@@ -390,6 +390,49 @@ bool WidgetAXManager::AccessibilityIsWebContentSource() {
   return false;
 }
 
+void WidgetAXManager::OnDidChangeFocus(View* focused_before,
+                                       View* focused_now) {
+  // focused_node_id_ persists when the widget deactivates, matching web
+  // content behavior. The BAM gates on AccessibilityViewHasFocus() to
+  // suppress events when the window isn't active.
+  focused_node_id_ = GetFocusedViewNodeId();
+  if (is_enabled_) {
+    SchedulePendingUpdate();
+  }
+}
+
+void WidgetAXManager::OnFocusManagerDestroying(FocusManager* focus_manager) {
+  focus_manager_observation_.Reset();
+  focused_node_id_ = ui::kInvalidAXNodeID;
+}
+
+void WidgetAXManager::StartObservingFocus() {
+  if (focus_manager_observation_.IsObserving() || !widget_) {
+    return;
+  }
+  FocusManager* fm = widget_->GetFocusManager();
+  if (!fm) {
+    return;
+  }
+  focus_manager_observation_.Observe(fm);
+  focused_node_id_ = GetFocusedViewNodeId();
+}
+
+// Returns the focused view's AXNodeID, or kInvalidAXNodeID if no view
+// has focus. Active descendants are not resolved here; the AXTree
+// applies the activedescendant relationship when resolving focus,
+// matching how Blink populates focus_id.
+ui::AXNodeID WidgetAXManager::GetFocusedViewNodeId() const {
+  if (!widget_) {
+    return ui::kInvalidAXNodeID;
+  }
+  FocusManager* fm = widget_->GetFocusManager();
+  if (!fm || !fm->GetFocusedView()) {
+    return ui::kInvalidAXNodeID;
+  }
+  return fm->GetFocusedView()->GetViewAccessibility().GetUniqueId();
+}
+
 void WidgetAXManager::SchedulePendingUpdate() {
   if (processing_update_posted_ || !is_enabled_) {
     return;
@@ -435,6 +478,8 @@ void WidgetAXManager::Enable() {
     InitAXTreeManager();
   }
   cache_->Init(widget_->GetRootView()->GetViewAccessibility());
+
+  StartObservingFocus();
 
   // Fully serialize the tree starting from the root immediately.
   pending_data_updates_.insert(

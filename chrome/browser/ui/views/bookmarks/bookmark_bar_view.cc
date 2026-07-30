@@ -74,7 +74,6 @@
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
-#include "chrome/browser/ui/views/toolbar/live_toolbar_background.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/chrome_switches.h"
@@ -263,7 +262,7 @@ class BookmarkFolderButton : public BookmarkMenuButtonBase {
     if (event.IsOnlyLeftMouseButton()) {
       // TODO(bruthig): The ACTION_PENDING triggering logic should be in
       // MenuButton::OnPressed() however there is a bug with the pressed state
-      // logic in MenuButton. See http://crbug.com/567252.
+      // logic in MenuButton. See http://crbug.com/41227327.
       views::InkDrop::Get(this)->AnimateToState(
           views::InkDropState::ACTION_PENDING, &event);
     }
@@ -374,7 +373,6 @@ class BookmarkBarView::ButtonSeparatorView : public views::Separator {
   ButtonSeparatorView() {
     const int leading_padding = 8;
     const int trailing_padding = 8;
-    separator_thickness_ = kBookmarkBarSeparatorThickness;
     const gfx::Insets border_insets =
         gfx::Insets::TLBR(0, leading_padding, 0, trailing_padding);
     const ui::ColorId color_id = kColorBookmarkBarSeparatorChromeRefresh;
@@ -390,18 +388,25 @@ class BookmarkBarView::ButtonSeparatorView : public views::Separator {
   ButtonSeparatorView& operator=(const ButtonSeparatorView&) = delete;
   ~ButtonSeparatorView() override = default;
 
-  void UpdateBorderAndPreferredSize(gfx::Insets border_insets) {
-    SetPreferredSize(gfx::Size(
-        border_insets.left() + separator_thickness_ + border_insets.right(),
-        gfx::kFaviconSize));
+  void UpdateBorderAndPreferredSize(const gfx::Insets& border_insets) {
+    const int border_thickness = kBookmarkBarSeparatorThickness / 2;
+
+    // For RoundedRectBorder, Border::GetInsets() is equal to border thickness
+    // + paint insets.
+    if (GetBorder() && GetBorder()->GetInsets() ==
+                           border_insets + gfx::Insets(border_thickness)) {
+      return;
+    }
+
+    SetPreferredSize(gfx::Size(border_insets.left() +
+                                   kBookmarkBarSeparatorThickness +
+                                   border_insets.right(),
+                               gfx::kFaviconSize));
 
     SetBorder(views::CreateRoundedRectBorder(
-        separator_thickness_ / 2, separator_thickness_ / 2, border_insets,
+        border_thickness, border_thickness, border_insets,
         kColorBookmarkBarSeparatorChromeRefresh));
   }
-
- private:
-  int separator_thickness_;
 };
 
 BEGIN_METADATA(BookmarkBarView, ButtonSeparatorView)
@@ -423,12 +428,7 @@ BookmarkBarView::BookmarkBarView(Browser* browser, BrowserView* browser_view)
 
   // May be null for tests.
   if (browser_view) {
-    if (base::FeatureList::IsEnabled(features::kGlassToolbar)) {
-      SetBackground(
-          std::make_unique<LiveToolbarBackground>(browser_view, this));
-    } else {
-      SetBackground(std::make_unique<ThemedBackground>(browser_view));
-    }
+    SetBackground(std::make_unique<ThemedBackground>(browser_view));
   }
 
   views::SetCascadingColorProviderColor(this, views::kCascadingBackgroundColor,
@@ -1869,7 +1869,7 @@ void BookmarkBarView::ConfigureButton(const BookmarkNode* node,
       if (ui::TouchUiController::Get()->touch_ui() && cp) {
         // This favicon currently does not match the default favicon icon used
         // elsewhere in the codebase.
-        // See https://crbug/814447
+        // See https://crbug.com/41371804
         const gfx::ImageSkia icon =
             gfx::CreateVectorIcon(kDefaultTouchFaviconIcon, text_color);
         // The color used in `mask` is not relevant as long it is opaque; Only

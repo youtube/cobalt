@@ -62,12 +62,20 @@ inline constexpr base::FeatureParam<int>
     kOmniboxAimDeferShowUntilVisualStateReadyTimeoutMs{
         &kOmniboxAimDeferShowUntilVisualStateReady,
         "omnibox_aim_defer_show_until_visual_state_ready_timeout_ms", 250};
+BASE_DECLARE_FEATURE(kOmniboxWebUIDeferShowUntilVisualStateReady);
+inline constexpr base::FeatureParam<int>
+    kOmniboxWebUIDeferShowUntilVisualStateReadyTimeoutMs{
+        &kOmniboxWebUIDeferShowUntilVisualStateReady,
+        "omnibox_webui_defer_show_until_visual_state_ready_timeout_ms", 250};
+BASE_DECLARE_FEATURE(kOmniboxAimDetachWebContentsOnHide);
+BASE_DECLARE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide);
 
 // Omnibox UI - these affect the UI or function of the location bar (not the
 // popup).
 BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPoint);
 BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
+BASE_DECLARE_FEATURE(kAndroidDesktopAimGate);
 
 // Navigation experiments.
 BASE_DECLARE_FEATURE(kDefaultTypedNavigationsToHttps);
@@ -121,9 +129,6 @@ BASE_DECLARE_FEATURE(kNumWebZpsRelatedSearches);
 BASE_DECLARE_FEATURE(kNumWebZpsMostVisitedUrls);
 BASE_DECLARE_FEATURE(kNumSrpZpsRecentSearches);
 BASE_DECLARE_FEATURE(kNumSrpZpsRelatedSearches);
-
-// Caret animation for omnibox
-BASE_DECLARE_FEATURE(kOmniboxAnimatedCaret);
 
 // Enterprise search aggregators features.
 BASE_DECLARE_FEATURE(kEnableSearchAggregatorPolicy);

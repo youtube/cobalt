@@ -439,6 +439,7 @@ class CORE_EXPORT Element : public ContainerNode {
   // Call this to get the value of an attribute that is known not to be the
   // style attribute or one of the SVG animatable attributes.
   bool FastHasAttribute(const QualifiedName&) const;
+  bool FastHasAttribute(const QualifiedNameWithHash&) const;
   const AtomicString& FastGetAttribute(const QualifiedName&) const;
 #if DCHECK_IS_ON()
   bool FastAttributeLookupAllowed(const QualifiedName&) const;
@@ -702,7 +703,8 @@ class CORE_EXPORT Element : public ContainerNode {
   Element& CloneWithChildren(NodeCloningData& data,
                              Document*,
                              ContainerNode*,
-                             CustomElementRegistry*,
+                             CustomElementRegistry* registry,
+                             CustomElementRegistry* fallback_registry,
                              ExceptionState& = ASSERT_NO_EXCEPTION) const;
   Element& CloneWithoutChildren(NodeCloningData& data,
                                 CustomElementRegistry*,
@@ -837,6 +839,9 @@ class CORE_EXPORT Element : public ContainerNode {
   // matching the given name. Is allowed to return false positives.
   bool CouldHaveAttribute(const QualifiedName& attribute_name) const {
     return CouldMatchFilter(FilterForAttribute(attribute_name));
+  }
+  bool CouldHaveAttribute(const QualifiedNameWithHash& attribute_name) const {
+    return CouldMatchFilter(attribute_name.bloom_filter);
   }
   bool CouldHaveClass(const AtomicString& class_name) const {
     return CouldMatchFilter(FilterForString(class_name));
@@ -1468,6 +1473,7 @@ class CORE_EXPORT Element : public ContainerNode {
   // script elements and some SVG elements for similar purposes, but making
   // parsing a special case in this respect should be avoided if possible.
   virtual void FinishParsingChildren();
+  void DidFinishParsingChildren();
 
   void BeginParsingChildren() { SetIsFinishedParsingChildren(false); }
 
@@ -2364,7 +2370,7 @@ class CORE_EXPORT Element : public ContainerNode {
   }
 
   void AttachSucceedingPseudoElements(AttachContext& context) {
-    AttachPseudoElement(kPseudoIdInterestHint, context);
+    AttachPseudoElement(kPseudoIdInterestButton, context);
     AttachPseudoElement(kPseudoIdPickerIcon, context);
     AttachPseudoElement(kPseudoIdExpandIcon, context);
     AttachPseudoElement(kPseudoIdAfter, context);
@@ -2402,7 +2408,7 @@ class CORE_EXPORT Element : public ContainerNode {
   }
 
   void DetachSucceedingPseudoElements(bool performing_reattach) {
-    DetachPseudoElement(kPseudoIdInterestHint, performing_reattach);
+    DetachPseudoElement(kPseudoIdInterestButton, performing_reattach);
     DetachPseudoElement(kPseudoIdPickerIcon, performing_reattach);
     DetachPseudoElement(kPseudoIdExpandIcon, performing_reattach);
     DetachPseudoElement(kPseudoIdAfter, performing_reattach);
@@ -2690,6 +2696,15 @@ inline bool Node::HasPreviousSibling() const {
 }
 
 inline bool Element::FastHasAttribute(const QualifiedName& name) const {
+#if DCHECK_IS_ON()
+  DCHECK(FastAttributeLookupAllowed(name))
+      << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();
+#endif
+  return CouldHaveAttribute(name) && HasElementData() &&
+         GetElementData()->Attributes().Find(name);
+}
+
+inline bool Element::FastHasAttribute(const QualifiedNameWithHash& name) const {
 #if DCHECK_IS_ON()
   DCHECK(FastAttributeLookupAllowed(name))
       << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();

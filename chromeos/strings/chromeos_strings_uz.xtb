@@ -951,7 +951,7 @@
 <translation id="5145331109270917438">O‘zgartirilgan sanasi</translation>
 <translation id="5154917547274118687">Operativ xotira</translation>
 <translation id="5160857336552977725"><ph name="DEVICE_TYPE" /> hisobingizga kiring</translation>
-<translation id="5168185087976003268">Quvvat darajasi</translation>
+<translation id="5168185087976003268">Batareya holati</translation>
 <translation id="5170568018924773124">&amp;Jildda ko‘rsatish</translation>
 <translation id="517075088756846356">Yangilashda davom etish <ph name="DEVICE_NAME" /> quvvat kabelini uzib, qayta ulang</translation>
 <translation id="5180108905184566358">baobablar</translation>
@@ -1184,6 +1184,7 @@
 <translation id="6234024205316847054">Konturlarni chiqarish</translation>
 <translation id="6243280677745499710">Hozirda tanlangan</translation>
 <translation id="6250316632541035980">choʻchqa goʻshti va tuxumlar</translation>
+<translation id="6262413940100821797">notanish qabul qiluvchi</translation>
 <translation id="6265268291107409527">Tugma tanlandi: <ph name="KEYS" />. <ph name="ASSIGN_INSTRUCTION" /></translation>
 <translation id="6275224645089671689">Oʻngga strelka</translation>
 <translation id="6278428485366576908">Mavzu</translation>

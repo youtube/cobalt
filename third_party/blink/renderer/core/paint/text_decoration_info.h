@@ -57,13 +57,15 @@ struct ResolvedDecoration {
   float ascent = 0.f;
   float computed_font_size = 0.f;
   float resolved_thickness = 0.f;
+  float effective_zoom = 1.0f;
+  // This field is available only if a decorating box is applied and `lines`
+  // has underline.
+  LayoutUnit offset_from_decorating_box;
   ResolvedUnderlinePosition underline_position =
       ResolvedUnderlinePosition::kNearAlphabeticBaselineAuto;
   bool has_underline = false;
   bool has_overline = false;
   bool is_flipped_underline_and_overline = false;
-
-  // TODO(crbug.com/501752810): Move more fields from TextDecorationInfo.
 
   bool HasUnderline() const { return has_underline; }
   bool HasOverline() const { return has_overline; }
@@ -153,10 +155,8 @@ class CORE_EXPORT TextDecorationInfo {
   void SetHighlightOverrideColor(const std::optional<Color>&);
 
  private:
-  LayoutUnit OffsetFromDecoratingBox() const;
+  LayoutUnit OffsetFromDecoratingBox(const DecoratingBox& decorating_box) const;
   float ComputeThickness(const ResolvedDecoration& decoration) const;
-
-  const ResolvedDecoration UpdateForDecorationIndex();
 
   LayoutUnit Width() const { return width_; }
 
@@ -167,14 +167,11 @@ class CORE_EXPORT TextDecorationInfo {
   // [decorating box]: https://drafts.csswg.org/css-text-decor-3/#decorating-box
   const ComputedStyle* decorating_box_style_ = nullptr;
 
-  // Decorating box properties for the current |decoration_index_|.
   const InlinePaintContext* const inline_context_ = nullptr;
-  const DecoratingBox* decorating_box_ = nullptr;
 
   const TextDecorationLine selection_decoration_line_ =
       TextDecorationLine::kNone;
   const Color selection_decoration_color_;
-  const Font* font_ = nullptr;
 
   // These "overrides" fields force using the specified style or font instead
   // of the one from the decorating box. Note that using them means that the
@@ -188,9 +185,8 @@ class CORE_EXPORT TextDecorationInfo {
   const float target_ascent_ = 0.f;
   const float svg_resource_scaling_factor_;
 
-  wtf_size_t decoration_index_ = 0;
-
-  // |union_all_lines_| represents the lines found in any |decoration_index_|.
+  // |union_all_lines_| represents the lines found in all
+  // AppliedTextDecorations.
   //
   // Ideally we would build a vector of the TextDecorationLine instances needing
   // ‘line-through’, but this is a rare case so better to avoid vector overhead.

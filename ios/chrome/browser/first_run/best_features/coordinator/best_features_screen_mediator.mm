@@ -115,6 +115,9 @@
                      kAutofillPasswordsInOtherApps};
       }
       break;
+    case kBestOfApp:
+      itemTypes = {kLensSearch, kEnhancedSafeBrowsing, kIncognitoBrowsing};
+      break;
     case kDisabled:
     case kAddressBarPromoInsteadOfBestFeaturesScreen:
       NOTREACHED();

@@ -135,6 +135,9 @@ suite('ContextualTasksComposeboxTest', () => {
     mockSearchboxPageHandler.setResultFor(
         'getRecentTabs', Promise.resolve({tabs: []}));
     mockSearchboxPageHandler.setResultFor(
+        'getPageClassification',
+        Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+    mockSearchboxPageHandler.setResultFor(
         'addTabContext', Promise.resolve({high: BigInt(1), low: BigInt(2)}));
     mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
       state: {
@@ -477,6 +480,9 @@ suite('ContextualTasksComposeboxTest', () => {
     await composebox.updateComplete;
     assertEquals(
         '', inputElement.value, 'Input should be cleared after submit');
+    assertEquals(
+        null, composebox.getDropdownElement().result,
+        'Matches should be cleared after submit');
 
     // 5. Action: Press Enter again on empty input.
     mockSearchboxPageHandler.reset();
@@ -516,6 +522,9 @@ suite('ContextualTasksComposeboxTest', () => {
     // Clear the body and reset the mock to test a fresh instance.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     mockSearchboxPageHandler.reset();
+    mockSearchboxPageHandler.setResultFor(
+        'getPageClassification',
+        Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
     mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
       state: {
         allowedModels: [],
@@ -572,6 +581,9 @@ suite('ContextualTasksComposeboxTest', () => {
     // Clear the body and reset the mock to test a fresh instance.
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     mockSearchboxPageHandler.reset();
+    mockSearchboxPageHandler.setResultFor(
+        'getPageClassification',
+        Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
     mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
       state: {
         allowedModels: [],
@@ -613,6 +625,9 @@ suite('ContextualTasksComposeboxTest', () => {
         // Clear the body and reset the mock to test a fresh instance.
         document.body.innerHTML = window.trustedTypes!.emptyHTML;
         mockSearchboxPageHandler.reset();
+        mockSearchboxPageHandler.setResultFor(
+            'getPageClassification',
+            Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
         mockSearchboxPageHandler.setResultFor('getInputState', Promise.resolve({
           state: {
             allowedModels: [],
@@ -763,6 +778,9 @@ suite('ContextualTasksComposeboxTest', () => {
     // After submission, verify the input is cleared by your component logic.
     await innerComposebox.updateComplete;
     assertEquals('', innerComposebox.input);
+    assertEquals(
+        null, innerComposebox.getDropdownElement().result,
+        'Matches should be cleared after submit');
   });
 
   test('OfflineStatusReconsideredOnReload', async () => {
@@ -776,6 +794,9 @@ suite('ContextualTasksComposeboxTest', () => {
     const composebox = contextualTasksApp.$.composebox;
 
     mockSearchboxPageHandler.reset();
+    mockSearchboxPageHandler.setResultFor(
+        'getPageClassification',
+        Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
 
     // Set to zero state to ensure autocomplete is queried.
     testProxy.callbackRouterRemote.onZeroStateChange(true);

@@ -91,6 +91,8 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
                      features::IsWebUIBackForwardButtonEnabled());
   source->AddBoolean("enablePinnedToolbarActions",
                      features::IsWebUIPinnedToolbarActionsEnabled());
+  source->AddBoolean("enableAvatarButton",
+                     features::IsWebUIAvatarButtonEnabled());
 
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui->GetWebContents());
@@ -110,7 +112,9 @@ WebUIToolbarConfig::WebUIToolbarConfig()
 
 bool WebUIToolbarConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return features::IsWebUIToolbarEnabled();
+  return features::IsWebUIToolbarEnabled() ||
+         base::FeatureList::IsEnabled(
+             features::kWebUIToolbarProcessOverheadExperiment);
 }
 
 bool WebUIToolbarConfig::ShouldKeepVisibleUntilFirstVisuallyNonEmptyPaint() {
@@ -238,12 +242,14 @@ void WebUIToolbarUI::PopulateLocalResourceLoaderConfig(
 const std::vector<ui::ElementIdentifier>
 WebUIToolbarUI::GetKnownElementIdentifiers() {
   static const base::NoDestructor<std::vector<ui::ElementIdentifier>> ids(
-      {kLocationBarElementId, kOmniboxElementId, kReloadButtonElementId,
-       kToolbarSplitTabsToolbarButtonElementId, kToolbarHomeButtonElementId,
-       kToolbarBackButtonElementId, kToolbarForwardButtonElementId,
-       kSharedTabGroupFeedbackElementId, kSharedTabGroupCommentsActionElementId,
+      {kLocationBarElementId, kLocationIconElementId, kOmniboxElementId,
+       kReloadButtonElementId, kToolbarSplitTabsToolbarButtonElementId,
+       kToolbarHomeButtonElementId, kToolbarBackButtonElementId,
+       kToolbarForwardButtonElementId, kSharedTabGroupFeedbackElementId,
+       kSharedTabGroupCommentsActionElementId,
        kPinnedToolbarActionShowSidePanelLensOverlayResultsElementId,
-       kPinnedToolbarActionShowSidePanelBookmarksElementId});
+       kPinnedToolbarActionShowSidePanelBookmarksElementId,
+       kToolbarAvatarButtonElementId});
   auto pinned_ids = webui_toolbar::GetPinnedToolbarActionElementIds();
   pinned_ids.reserve(pinned_ids.size() + ids->size());
   pinned_ids.insert(pinned_ids.end(), ids->begin(), ids->end());

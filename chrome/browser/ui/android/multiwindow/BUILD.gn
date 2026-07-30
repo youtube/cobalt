@@ -8,6 +8,7 @@ import("//third_party/protobuf/proto_library.gni")
 android_library("java") {
   sources = [
     "java/src/org/chromium/chrome/browser/multiwindow/CloseConfirmationDialogView.java",
+    "java/src/org/chromium/chrome/browser/multiwindow/CrashRecoveryWindowInfo.java",
     "java/src/org/chromium/chrome/browser/multiwindow/DialogListItemDecoration.java",
     "java/src/org/chromium/chrome/browser/multiwindow/InstanceInfo.java",
     "java/src/org/chromium/chrome/browser/multiwindow/InstanceSwitcherActionsDelegate.java",
@@ -134,6 +135,7 @@ robolectric_library("junit") {
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
+    "//ui/android:ui_java_test_support",
   ]
 }
 

@@ -2711,12 +2711,6 @@ base::ScopedClosureRunner WebContentsImpl::IncrementCapturerCount(
       stay_hidden, stay_awake, is_activity));
 }
 
-const blink::mojom::CaptureHandleConfig&
-WebContentsImpl::GetCaptureHandleConfig() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  return capture_handle_config_;
-}
-
 bool WebContentsImpl::IsBeingCaptured() {
   return visible_capturer_count_ + hidden_capturer_count_ > 0;
 }
@@ -5418,6 +5412,15 @@ FrameTree* WebContentsImpl::CreateNewWindow(
                "opener", opener, "params", params);
   DCHECK(opener);
 
+  // Block Document Picture-in-Picture window creation if the delegate reports
+  // that the OS currently prevents it (e.g., Android in app fullscreen).
+  // `NEW_PICTURE_IN_PICTURE` is specific to Document PiP and does not affect
+  // traditional video PiP or regular popups.
+  if (params.disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE &&
+      delegate_ && delegate_->IsDocumentPictureInPictureBlockedBySystem()) {
+    return nullptr;
+  }
+
   if (active_file_chooser_) {
     // Do not allow opening a new window or tab while a file select is active
     // file chooser to avoid user confusion over which tab triggered the file
@@ -6074,21 +6077,24 @@ bool WebContentsImpl::CheckMediaAccessPermission(
                           render_frame_host, security_origin, type);
 }
 
-void WebContentsImpl::SetCaptureHandleConfig(
-    blink::mojom::CaptureHandleConfigPtr config) {
+void WebContentsImpl::OnCaptureHandleConfigUpdate(Page& page) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  if (capture_handle_config_ == *config) {
-    return;  // Avoid unnecessary notifications.
+  // Only broadcast to tab-level observers if the update comes from the primary
+  // page.
+  if (!page.IsPrimary()) {
+    return;
   }
 
-  capture_handle_config_ = std::move(*config);
-
-  // Propagates the capture-handle-config inside of the browser process.
-  // Only render processes which are eligible based on |permittedOrigins|
-  // will get this.
-  observers_.NotifyObservers(&WebContentsObserver::OnCaptureHandleConfigUpdate,
-                             capture_handle_config_);
+  const auto& config = page.GetCaptureHandleConfig();
+  const url::Origin& origin = page.GetMainDocument().GetLastCommittedOrigin();
+  if (config != last_notified_capture_handle_config_ ||
+      (origin != last_notified_capture_handle_origin_ &&
+       config.expose_origin)) {
+    last_notified_capture_handle_config_ = config;
+    last_notified_capture_handle_origin_ = origin;
+    observers_.NotifyObservers(
+        &WebContentsObserver::OnCaptureHandleConfigUpdate, config);
+  }
 }
 
 bool WebContentsImpl::IsJavaScriptDialogShowing() const {
@@ -7592,13 +7598,6 @@ void WebContentsImpl::ReadyToCommitNavigation(
                "navigation_handle", navigation_handle);
   CHECK(!navigation_handle->IsSameDocument());
 
-  // Cross-document navigation of the top-level frame resets the capture
-  // handle config. Using IsInPrimaryMainFrame is valid here since the browser
-  // caches this state for the active main frame only.
-  if (navigation_handle->IsInPrimaryMainFrame()) {
-    SetCaptureHandleConfig(blink::mojom::CaptureHandleConfig::New());
-  }
-
   // Notify the OS that the workload is about to increase for main frame
   // navigations only. This a trade off between latency and power - we don't
   // want to do it for every navigation.
@@ -7691,6 +7690,10 @@ void WebContentsImpl::DidFinishNavigation(NavigationHandle* navigation_handle) {
     if (navigation_handle->IsInPrimaryMainFrame() &&
         !navigation_handle->IsSameDocument()) {
       was_ever_audible_ = false;
+    }
+
+    if (navigation_handle->IsInPrimaryMainFrame()) {
+      OnCaptureHandleConfigUpdate(GetPrimaryPage());
     }
 
     if (!navigation_handle->IsSameDocument()) {

@@ -630,6 +630,9 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_CONTENT_CONTEXT_READING_MODE" desc="Context menu menuitem to open page in reading mode view">
            Open in reading mode
           </message>
+          <message name="IDS_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE" desc="Context menu item to listen to this page">
+           Listen to this page
+          </message>
           <message name="IDS_CONTENT_CONTEXT_CLOSE_GLIC" desc="Context menu item to close glic view">
            Close
           </message>
@@ -934,6 +937,9 @@ are declared in tools/grit/grit_args.gni.
           </message>
           <message name="IDS_CONTENT_CONTEXT_READING_MODE" desc="Context menu menuitem to open page in reading mode view">
            Open in Reading Mode
+          </message>
+          <message name="IDS_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE" desc="In Title Case: Context menu item to listen to this page">
+           Listen to This Page
           </message>
           <message name="IDS_CONTENT_CONTEXT_CLOSE_GLIC" desc="Context menu item to close glic view">
            Close
@@ -3552,6 +3558,15 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_INSTALL_PWA_DIALOG_TITLE" meaning="Shown only on PWA install dialogs" desc="Title for dialog that shows up when a web app needs to be installed to the operating system.">
         Install app
       </message>
+      <message name="IDS_WEB_APP_INSTALL_SUCCESS_TITLE" desc="Title for PWA install dialog that appears when a web app is installed successfully.">
+        Successfully installed
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_SUCCESS_OPEN_APP" desc="Text for button that opens the current tab in the newly installed app.">
+        Open tab in app
+      </message>
+      <message name="IDS_INSTALL_PWA_DIALOG_INSTALLING" desc="Text shown when the app is installing.">
+        Installing app…
+      </message>
       <message name="IDS_WEB_APP_DETAILED_INSTALL_DIALOG_DESCRIPTION_TITLE" desc="Title above app description to explain the content below is from this app">
         From the app
       </message>
@@ -3560,6 +3575,9 @@ are declared in tools/grit/grit_args.gni.
       </message>
       <message name="IDS_DIY_APP_INSTALL_DIALOG_SUBTITLE" desc="Subtitle of the DIY app install dialog containing information about how the app opens">
         Apps open in a window
+      </message>
+      <message name="IDS_WEB_APP_INSTALL_PIN_TO_SHELF" desc="Checkbox label to pin the web app to the shelf during installation.">
+        Pin to shelf
       </message>
       <message name="IDS_DIY_APP_AX_BUBBLE_NAME_LABEL" desc="Text preceding the name of a DIY app, read by spoken feedback.">
         App name
@@ -4121,7 +4139,7 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_TRACKING_PROTECTION_BUBBLE_SITE_NOT_WORKING_DESCRIPTION" desc="Descriptive text in the trackings protection bubble mentioning the option to enable third-party cookies and mentions the trade off of doing so.">
         Try temporarily allowing third-party cookies, which means less browsing protection but site features are more likely to work as expected.
       </message>
-      <message name="IDS_COOKIE_CONTROLS_BUBBLE_SITE_NOT_WORKING_DESCRIPTION" desc="Descriptive text in the third-party cookies bubble describing the option to allow third-party cookies and the trade offs of doing so." translateable="false">
+      <message name="IDS_COOKIE_CONTROLS_BUBBLE_SITE_NOT_WORKING_DESCRIPTION" desc="Descriptive text in the third-party cookies bubble describing the option to allow third-party cookies and the trade offs of doing so.">
         Try allowing third-party cookies, which means less browsing protection but site features are more likely to work as expected.
       </message>
       <message name="IDS_TRACKING_PROTECTION_BUBBLE_BLOCKING_RESTART_TITLE" desc="Subtitle shown on the tracking protection bubble indicating how long until cookies are blocked again.">
@@ -4177,22 +4195,22 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_JS_OPTIMIZATIONS_DISABLED_ICON_TOOLTIP" desc="Tooltip for the JS Optimizations chip in the toolbar when it's disabled.">
         JavaScript optimizations are disabled.
       </message>
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_TITLE" desc="Title for the V8 optimization bubble.">
-        V8 optimization is off
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_TITLE" desc="Title for the JavaScript optimization disabled bubble.">
+        JavaScript optimization is off
       </message>
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_POLICY_BODY" desc="Body text for the V8 optimization bubble when disabled by enterprise policy.">
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled by enterprise policy.">
         JavaScript optimization is off for this site.
       </message>
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the V8 optimization bubble when disabled for other reasons.">
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled for other reasons.">
         JavaScript optimization is off for this site. Enable for better performance.
       </message>
      <if expr="not use_titlecase">
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="Button text to enable V8 optimization for the current site.">
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="Button text to enable JavaScript optimization for the current site.">
         Allow for this site
       </message>
     </if>
     <if expr="use_titlecase">
-      <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="In Title Case: Button text to enable V8 optimization for the current site.">
+      <message name="IDS_JS_OPTIMIZATION_BUBBLE_ENABLE_BUTTON" desc="In Title Case: Button text to enable JavaScript optimization for the current site.">
         Allow for This Site
       </message>
     </if>
@@ -5039,7 +5057,7 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_TASK_MANAGER_PRELOADED_RENDERER_FOR_UI" desc="Task Manager row for the render process that is preloaded with Top Chrome WebUI resources.">
         Preloaded UI Renderer
       </message>
-      <!-- TODO(liuwilliam): crbug/1325318 renaming the rest of existing Prerender to NoStatePrefetch -->
+      <!-- TODO(liuwilliam): crbug.com/40225436 renaming the rest of existing Prerender to NoStatePrefetch -->
       <message name="IDS_TASK_MANAGER_NO_STATE_PREFETCH_PREFIX" desc="The prefix for a Task Manager No State Prefetch row">
         Prerender: <ph name="PRERENDER_CONTENTS_NAME">$1<ex>http://www.google.com</ex></ph>
       </message>
@@ -6787,6 +6805,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
         No thanks
       </message>
 
+      <message name="IDS_WEB_APP_UNINSTALL_BUTTON_FRAME_TOOLTIP" desc="The tooltip text for the uninstall button in the web app frame toolbar.">
+        Uninstall App
+      </message>
+      <message name="IDS_WEB_APP_UNINSTALL_BUTTON_FRAME" desc="The text for the uninstall button in the web app frame toolbar.">
+        Uninstall
+      </message>
       <message name="IDS_WEB_APP_MENU_BUTTON_TOOLTIP" desc="The tooltip to show for the three-dot menu in a web app window">
         Customize and control <ph name="APP_NAME">$1<ex>GMail</ex></ph>
       </message>
@@ -7010,7 +7034,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Verify
       </message>
       <if expr="is_android">
-        <message name="IDS_PASSWORD_ERROR_SIGN_IN_BUTTON_TITLE" desc="The title of the sign in button in the password manager error message." formatter_data="android_java">
+        <message name="IDS_PASSWORD_ERROR_SIGN_IN_BUTTON_TITLE" desc="The title of the sign in button in the password manager error message.">
           Sign in
         </message>
       </if>
@@ -7572,7 +7596,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <!-- NTP -->
       <!-- Google Drive integration disclaimer for New Tab Page -->
       <message name="IDS_NTP_DRIVE_CONNECT_TITLE" desc="Title of the dialog asking to connect Google Drive to AIM.">
-        Allow Search to Access Drive Content?
+        Allow Search to access Drive content?
       </message>
       <message name="IDS_NTP_DRIVE_DISCLAIMER_BODY" desc="Body text explaining how Drive data is handled in AIM.">
         Your Google Drive content is accessed only to provide this file search feature. It is not used to improve Google Search. Google will not access your Google Drive content unless you explicitly upload a file.
@@ -8601,7 +8625,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Can't upload. File appears to be empty.
       </message>
       <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE" desc="The text to display when a file upload exceeds the allowed size">
-        Can't upload. File exceeds maximum supported size.
+        Can't upload. File exceeds maximum supported size of <ph name="MAX_FILE_SIZE">$1<ex>100</ex></ph> MB.
       </message>
       <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR" desc="The text to display when an file upload image can't be processed.">
         Can't upload. Failed to process image file.
@@ -9814,6 +9838,43 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_LINE_FOCUS_OFF_LABEL" desc="Dropdown option for turning off line focus.">
         Off
       </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_SMALL_FOCUS_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the small height window line focus option.">
+        Small focus style
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_MEDIUM_FOCUS_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the medium height window line focus option.">
+        Medium focus style
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_LARGE_FOCUS_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the large height window line focus option.">
+        Large focus style
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_UNDERLINE_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the single-line underline line focus option.">
+        Underline style
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_STATIC_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the line focus option of staying in the middle of the panel.">
+        Static movement
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_CURSOR_LINE_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for the line focus option of a single line following the cursor.">
+        Follow cursor movement
+      </message>
+      <message name="IDS_READING_MODE_LINE_FOCUS_OFF_LABEL_SCREENREADER" desc="Screen reader label for the dropdown option for turning off line focus.">
+        Off (no line focus)
+      </message>
+      <if expr="is_macosx">
+        <message name="IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_BODY" desc="Text for the help bubble describing the keyboard shortcut used to open and close reading mode.">
+          Open reading mode faster with a shortcut. Press ⌥ + ⌘ + R to toggle reading mode.
+        </message>
+        <message name="IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_SCREENREADER" is_accessibility_with_no_ui="true" desc="Accessible text for the help bubble describing the keyboard shortcut used to open and close reading mode.">
+          Open reading mode faster with a shortcut. Press ⌥ + ⌘ + R to toggle reading mode.
+        </message>
+      </if>
+      <if expr="not is_macosx">
+        <message name="IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_BODY" desc="Text for the help bubble describing the keyboard shortcut used to open and close reading mode.">
+          Open reading mode faster with a shortcut. Press Alt + Shift + R to toggle reading mode.
+        </message>
+        <message name="IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_SCREENREADER" is_accessibility_with_no_ui="true" desc="Accessible text for the help bubble describing the keyboard shortcut used to open and close reading mode.">
+          Open reading mode faster with a shortcut. Press Alt + Shift + R to toggle reading mode.
+        </message>
+      </if>
       <message name="IDS_READ_ANYTHING_LOADING" desc="Message to show while Read Anything is figuring out what text to display.">
         Getting ready
       </message>
@@ -10050,19 +10111,19 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Hidden toolbar buttons
       </message>
       <if expr="enable_extensions_core">
-      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The tooltip for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
+      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The tooltip for the extensions button when all the extensions are blocked on the current site.">
         Extensions not allowed on this site
       </message>
-      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The tooltip for the extensions button when any extension has access to the current site." formatter_data="android_java">
+      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The tooltip for the extensions button when any extension has access to the current site.">
         Extensions allowed on this site
       </message>
-      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON" desc="The accessible text for the extensions button.">
+      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON" desc="The accessible text for the extensions button." formatter_data="android_java">
         Extensions menu
       </message>
-          <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The accessible text for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
+      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The accessible text for the extensions button when all the extensions are blocked on the current site."  formatter_data="android_java">
         Extensions not allowed on this site. Select to open menu
       </message>
-      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The accessible text for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
+      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The accessible text for the extensions button when any extension has access."  formatter_data="android_java">
         Extensions allowed on this site. Select to open menu
       </message>
       </if>
@@ -18536,6 +18597,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_MESSAGE" desc="Button text to allow the user to save a file to cloud storage">
       <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive data. Your organization will let you save it to cloud storage or discard it
     </message>
+    <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_CUSTOM_MESSAGE" desc="Message shown for force save with a custom message.">
+      <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive data. Your organization will let you save it to cloud storage or discard it. Your administrator says: <ph name="CUSTOM_MESSAGE">$2<ex>Please don't upload this type of data.</ex></ph>
+    </message>
 
     <!-- Data sharing UI strings -->
     <message name="IDS_DATA_SHARING_BUBBLE_DIALOG_TITLE" desc="Title of the data sharing bubble">
@@ -20122,6 +20186,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_URL_LABEL" desc="Label which denotes URL of the unsafe-site in report-unsafe-site dialog">
       URL
+    </message>
+    <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_SENDING_BUTTON_LABEL" desc="Dialog button label while unsafe-site-report is sending to Google">
+      Sending...
     </message>
 
     <!-- Indigo -->

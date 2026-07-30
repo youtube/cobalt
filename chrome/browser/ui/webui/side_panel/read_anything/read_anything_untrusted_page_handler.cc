@@ -28,8 +28,6 @@
 #include "chrome/browser/screen_ai/screen_ai_service_router_factory.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_api.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
@@ -83,8 +81,8 @@
 #include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "chrome/browser/pdf/mime_handler_stream_manager.h"
 #include "components/pdf/common/pdf_util.h"
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
 #include "pdf/pdf_features.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
@@ -388,6 +386,9 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
   tab_discard_subscription_ = tab_->RegisterWillDiscardContents(
       base::BindRepeating(&ReadAnythingUntrustedPageHandler::OnTabDiscarded,
                           weak_factory_.GetWeakPtr()));
+  tab_detach_subscription_ = tab_->RegisterWillDetach(
+      base::BindRepeating(&ReadAnythingUntrustedPageHandler::OnTabWillDetach,
+                          weak_factory_.GetWeakPtr()));
 
   PrefService* prefs = profile_->GetPrefs();
   base::DictValue voices = base::DictValue();
@@ -474,7 +475,6 @@ ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
   extensions::ExtensionRegistry::Get(profile_)->RemoveObserver(this);
 #endif
   translate_observation_.Reset();
-  web_screenshotter_.reset();
   main_observer_.reset();
   pdf_observer_.reset();
   LogTextStyle();
@@ -850,7 +850,8 @@ bool ReadAnythingUntrustedPageHandler::IsObservingTree(
 
   bool are_contents_pdf =
       chrome_pdf::features::IsOopifPdfEnabled()
-          ? !!pdf::MimeHandlerStreamManager::FromWebContents(contents)
+          ? !!extensions::mime_handler::MimeHandlerStreamManager::
+                 FromWebContents(contents)
           : !!pdf_observer_;
 
   if (!are_contents_pdf) {
@@ -1143,22 +1144,6 @@ void ReadAnythingUntrustedPageHandler::OnCollapseSelection() {
   }
 }
 
-void ReadAnythingUntrustedPageHandler::OnScreenshotRequested() {
-  if (!features::IsDataCollectionModeForScreen2xEnabled()) {
-    return;
-  }
-  if (!main_observer_ || !main_observer_->web_contents()) {
-    VLOG(2) << "The main observer didn't observe the main web contents";
-    return;
-  }
-
-  if (!web_screenshotter_) {
-    web_screenshotter_ = std::make_unique<ReadAnythingScreenshotter>();
-  }
-  VLOG(2) << "Requesting a screenshot for the main web contents";
-  web_screenshotter_->RequestScreenshot(main_observer_->web_contents());
-}
-
 void ReadAnythingUntrustedPageHandler::OnDistillationStatus(
     read_anything::mojom::DistillationStatus status,
     int word_count) {
@@ -1247,7 +1232,9 @@ void ReadAnythingUntrustedPageHandler::OnDestroyed() {
   read_anything_controller_ = nullptr;
 }
 
-void ReadAnythingUntrustedPageHandler::OnTabWillDetach() {
+void ReadAnythingUntrustedPageHandler::OnTabWillDetach(
+    tabs::TabInterface* tab,
+    tabs::TabInterface::DetachReason reason) {
   OnReadAloudAudioStateChange(false);
 
   // When multiple tabs are open, we receive this call multiple times, so only
@@ -1296,7 +1283,8 @@ void ReadAnythingUntrustedPageHandler::CheckIfActiveAXTreeChangedToPdf() {
                                        : main_observer_->web_contents();
   bool are_contents_pdf =
       chrome_pdf::features::IsOopifPdfEnabled()
-          ? !!pdf::MimeHandlerStreamManager::FromWebContents(contents)
+          ? !!extensions::mime_handler::MimeHandlerStreamManager::
+                 FromWebContents(contents)
           : !!pdf_observer_;
   if (!are_contents_pdf) {
     return;

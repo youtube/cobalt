@@ -533,40 +533,7 @@ void MaybeRegisterChromeFeaturePromos(
                        "Triggered after autofill popup appears featuring an "
                        "externally-saved card.")));
 
-  // kIPHCreatePlusAddressSuggestionFeature:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForToastPromo(
-          feature_engagement::kIPHPlusAddressCreateSuggestionFeature,
-          kPlusAddressCreateSuggestionElementId,
-          IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH,
-          IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH_SCREENREADER,
-          FeaturePromoSpecification::AcceleratorInfo())
-          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
-          .SetMetadata(128, "vidhanj@google.com",
-                       "Triggered after create plus address popup appears.")));
 
-  // kIPHPlusAddressFirstSaveFeature:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForCustomAction(
-          feature_engagement::kIPHPlusAddressFirstSaveFeature,
-          kToolbarAvatarButtonElementId,
-          IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_DESCRIPTION,
-          IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_ACCEPT,
-          CreateNavigationAction(
-              GURL(plus_addresses::features::kPlusAddressManagementUrl.Get())))
-          .SetCustomActionIsDefault(true)
-          .SetBubbleIcon(
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-              &plus_addresses::kPlusAddressLogoSmallIcon
-#else
-              &vector_icons::kEmailIcon
-#endif
-              )
-          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
-          .SetBubbleTitleText(IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_TITLE)
-          .SetMetadata(
-              131, "jkeitel@google.com",
-              "Triggered after first creation of a plus address on Desktop.")));
 
   // TODO(crbug.com/404437008): Update with final IPH strings.
   // kIPHAutofillEnableLoyaltyCardsFeature:
@@ -634,7 +601,7 @@ void MaybeRegisterChromeFeaturePromos(
                   if (web_contents &&
                       web_contents->GetURL() != browser->GetNewTabURL()) {
                     NavigateParams params(browser->profile(),
-                                          GURL(chrome::kChromeUINewTabPageURL),
+                                          chrome::ChromeUINewTabPageURLAsGURL(),
                                           ui::PAGE_TRANSITION_LINK);
                     params.disposition =
                         WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -652,7 +619,7 @@ void MaybeRegisterChromeFeaturePromos(
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetCustomActionIsDefault(true)
           .SetCustomActionDismissText(IDS_PROMO_SNOOZE_BUTTON)
-          // See: crbug.com/1494923
+          // See: crbug.com/40075441
           .OverrideFocusOnShow(false)
           .SetMetadata(143, "rsult@google.com",
                        "Intro for the Customize Chrome Tutorial. Triggered "
@@ -1108,6 +1075,20 @@ void MaybeRegisterChromeFeaturePromos(
           kToolbarAppMenuButtonElementId,
           IDS_READING_LIST_IN_SIDE_PANEL_PROMO_PINNING)
           .SetHighlightedMenuItem(BookmarkSubMenuModel::kReadingListMenuItem)));
+
+  // kIPHReadingModeKeyboardShortcutFeature:
+  registry.RegisterFeature(std::move(
+      user_education::FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::kIPHReadingModeKeyboardShortcutFeature,
+          kReadAnythingViewModeElementId,
+          IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_BODY,
+          IDS_READING_MODE_KEYBOARD_SHORTCUT_IPH_SCREENREADER,
+          user_education::FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(user_education::HelpBubbleArrow::kNone)
+          .SetInAnyContext(true)
+          .SetMetadata(147, "martinglopez@google.com",
+                       "Triggered to educate users about the keyboard shortcut "
+                       "for Reading Mode.")));
 
   // kIPHReadingModeSidePanelFeature:
   registry.RegisterFeature(std::move(

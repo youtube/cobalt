@@ -56,10 +56,6 @@ class UserCloudPolicyManagerAsh;
 #endif
 }  // namespace policy
 
-namespace network {
-class SharedURLLoaderFactory;
-}
-
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
@@ -88,7 +84,7 @@ class Profile : public content::BrowserContext {
     // WARNING:
     // The use of this class to create non-primary OTR profiles in Desktop
     // platforms is restricted exclusively for cases where extensions should not
-    // be applicable to run. Please see crbug.com/1098697#c3 for more details.
+    // be applicable to run. Please see crbug.com/40137149#c3 for more details.
     static OTRProfileID CreateUnique(const std::string& profile_id_prefix);
 
     // Creates a unique OTR profile id to be used for DevTools browser contexts.
@@ -308,10 +304,6 @@ class Profile : public content::BrowserContext {
   // Gives a read-only view of prefs that can be used even if there's no OTR
   // profile at the moment (i.e. HasOffTheRecordProfile is false).
   virtual PrefService* GetReadOnlyOffTheRecordPrefs();
-
-  // Returns the main URLLoaderFactory.
-  virtual scoped_refptr<network::SharedURLLoaderFactory>
-  GetURLLoaderFactory() = 0;
 
   // Return whether two profiles are the same or one is the OffTheRecord version
   // of the other.

@@ -105,7 +105,6 @@
 #include "third_party/blink/renderer/core/loader/mixed_content_checker.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
-#include "third_party/blink/renderer/core/speech/speech_synthesis_base.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_source_provider_client.h"
@@ -352,9 +351,6 @@ HTMLMediaElement::PlayPromiseError PauseReasonToPlayPromiseError(
       return HTMLMediaElement::PlayPromiseError::kPaused_RemovedFromDocument;
     case WebMediaPlayer::PauseReason::kAutoplayAutoPause:
       return HTMLMediaElement::PlayPromiseError::kPaused_AutoplayAutoPause;
-    case WebMediaPlayer::PauseReason::kLetAudioDescriptionFinish:
-      return HTMLMediaElement::PlayPromiseError::
-          kPaused_LetAudioDescriptionFinish;
   }
   NOTREACHED();
 }
@@ -443,50 +439,13 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tag_name,
       async_event_queue_(
           MakeGarbageCollected<EventQueue>(GetExecutionContext(),
                                            TaskType::kMediaElementEvent)),
-      playback_rate_(1.0f),
-      default_playback_rate_(1.0f),
-      network_state_(kNetworkEmpty),
-      ready_state_(kHaveNothing),
-      ready_state_maximum_(kHaveNothing),
-      volume_(1.0f),
-      last_seek_time_(0),
-      duration_(std::numeric_limits<double>::quiet_NaN()),
-      last_time_update_event_media_time_(
-          std::numeric_limits<double>::quiet_NaN()),
-      default_playback_start_position_(0),
-      load_state_(kWaitingForSource),
-      deferred_load_state_(kNotDeferred),
       deferred_load_timer_(document.GetTaskRunner(TaskType::kInternalMedia),
                            this,
                            &HTMLMediaElement::DeferredLoadTimerFired),
-      cc_layer_(nullptr),
-      official_playback_position_(0),
-      official_playback_position_needs_update_(true),
-      fragment_end_time_(std::numeric_limits<double>::quiet_NaN()),
-      pending_action_flags_(0),
-      playing_(false),
-      should_delay_load_event_(false),
-      have_fired_loaded_data_(false),
-      can_autoplay_(true),
-      muted_(false),
-      paused_(true),
-      seeking_(false),
-      show_poster_flag_(true),
-      sent_stalled_event_(false),
-      ignore_preload_none_(false),
-      text_tracks_visible_(false),
-      should_perform_automatic_track_selection_(true),
-      tracks_are_ready_(true),
-      processing_preference_change_(false),
-      was_always_muted_(true),
       audio_tracks_(MakeGarbageCollected<AudioTrackList>(*this)),
       video_tracks_(MakeGarbageCollected<VideoTrackList>(*this)),
-      audio_source_node_(nullptr),
-      speech_synthesis_(nullptr),
       autoplay_policy_(MakeGarbageCollected<AutoplayPolicy>(this)),
-      media_controls_(nullptr),
-      controls_list_(MakeGarbageCollected<HTMLMediaElementControlsList>(this)),
-      player_lazy_load_intersection_observer_(nullptr) {
+      controls_list_(MakeGarbageCollected<HTMLMediaElementControlsList>(this)) {
   DVLOG(1) << "HTMLMediaElement(" << *this << ")";
 
   ResetMojoState();
@@ -543,12 +502,6 @@ void HTMLMediaElement::DidMoveToNewDocument(Document& old_document) {
     cue_timeline_->DidMoveToNewDocument(old_document);
   }
 
-  // Stop speaking and set speech_synthesis_ to nullptr so that it is
-  // re-created on-demand when SpeechSynthesis() is called.
-  if (speech_synthesis_) {
-    speech_synthesis_->Cancel();
-    speech_synthesis_.Clear();
-  }
 
   if (should_delay_load_event_) {
     GetDocument().IncrementLoadEventDelayCount();
@@ -1144,6 +1097,7 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
     // state.
     ready_state_ = kHaveNothing;
     ready_state_maximum_ = kHaveNothing;
+    network_state_maximum_ = kNetworkEmpty;
 
     DCHECK(!paused_ || play_promise_resolvers_.empty());
 
@@ -1968,6 +1922,11 @@ bool HTMLMediaElement::IsSafeToLoadURL(const KURL& url,
 bool HTMLMediaElement::IsMediaDataCorsSameOrigin() const {
   if (!web_media_player_)
     return true;
+
+  // MSE content is always same origin since it must be provided by JS.
+  if (media_source_attachment_) {
+    return true;
+  }
 
   const auto network_state = web_media_player_->GetNetworkState();
   if (network_state == WebMediaPlayer::kNetworkStateNetworkError)
@@ -3150,18 +3109,8 @@ void HTMLMediaElement::PlayInternal() {
 void HTMLMediaElement::pause() {
   DVLOG(2) << "pause(" << *this << ")";
 
-  // When updating pause, be sure to update PauseToLetDescriptionFinish().
   autoplay_policy_->StopAutoplayMutedWhenVisible();
   PauseInternal(WebMediaPlayer::PauseReason::kPauseCalled);
-}
-
-void HTMLMediaElement::PauseToLetDescriptionFinish() {
-  DVLOG(2) << "pauseExceptSpeech(" << *this << ")";
-
-  autoplay_policy_->StopAutoplayMutedWhenVisible();
-
-  // Pause everything except the speech.
-  PauseInternal(WebMediaPlayer::PauseReason::kLetAudioDescriptionFinish);
 }
 
 void HTMLMediaElement::PauseInternal(WebMediaPlayer::PauseReason pause_reason) {
@@ -4151,8 +4100,6 @@ void HTMLMediaElement::UpdatePlayState(
       web_media_player_->SetRate(playbackRate());
       web_media_player_->SetVolume(EffectiveMediaVolume());
       web_media_player_->Play();
-      if (::features::IsTextBasedAudioDescriptionEnabled())
-        SpeechSynthesis()->Resume();
 
       // These steps should not be necessary, but if `play()` is called before
       // a source change, we may get into a state where `paused_ == false` and
@@ -4177,11 +4124,6 @@ void HTMLMediaElement::UpdatePlayState(
         web_media_player_->Pause(pause_reason.value());
       }
 
-      if ((pause_reason ==
-           WebMediaPlayer::PauseReason::kLetAudioDescriptionFinish) &&
-          is_playing && ::features::IsTextBasedAudioDescriptionEnabled()) {
-        SpeechSynthesis()->Pause();
-      }
     }
 
     playback_progress_timer_.Stop();
@@ -4460,15 +4402,6 @@ void HTMLMediaElement::UpdateTextTrackDisplay() {
       *this, TextTrackContainer::kDidNotStartExposingControls);
 }
 
-SpeechSynthesisBase* HTMLMediaElement::SpeechSynthesis() {
-  if (!speech_synthesis_) {
-    speech_synthesis_ =
-        SpeechSynthesisBase::Create(*(GetDocument().domWindow()));
-    speech_synthesis_->SetOnSpeakingCompletedCallback(BindRepeating(
-        &HTMLMediaElement::OnSpeakingCompleted, WrapWeakPersistent(this)));
-  }
-  return speech_synthesis_.Get();
-}
 
 void HTMLMediaElement::MediaControlsDidBecomeVisible() {
   DVLOG(3) << "mediaControlsDidBecomeVisible(" << *this << ")";
@@ -4694,14 +4627,9 @@ void HTMLMediaElement::BindMediaPlayerReceiver(
       GetDocument().GetTaskRunner(TaskType::kInternalMedia));
 }
 
-void HTMLMediaElement::OnSpeakingCompleted() {
-  if (paused())
-    Play();
-}
 
 void HTMLMediaElement::Trace(Visitor* visitor) const {
   visitor->Trace(audio_source_node_);
-  visitor->Trace(speech_synthesis_);
   visitor->Trace(load_timer_);
   visitor->Trace(audio_tracks_timer_);
   visitor->Trace(removed_from_document_timer_);
@@ -4759,6 +4687,9 @@ void HTMLMediaElement::SetNetworkState(NetworkState state,
     return;
 
   network_state_ = state;
+  if (network_state_ > network_state_maximum_) {
+    network_state_maximum_ = network_state_;
+  }
   if (update_media_controls && GetMediaControls())
     GetMediaControls()->NetworkStateChanged();
 }
@@ -4876,9 +4807,6 @@ void HTMLMediaElement::RejectScheduledPlayPromises() {
       reason =
           " because the media playback is not allowed by the "
           "media-playback-while-not-visible permission policy";
-      break;
-    case PlayPromiseError::kPaused_LetAudioDescriptionFinish:
-      reason = " because the audio description has not finished yet";
       break;
     case PlayPromiseError::kNotSupported:
       NOTREACHED();
@@ -5195,7 +5123,7 @@ void HTMLMediaElement::RecordAutoPictureInPictureInfo(
 
 bool HTMLMediaElement::MediaShouldBeOpaque() const {
   return !IsMediaDataCorsSameOrigin() && ready_state_ < kHaveMetadata &&
-         EffectivePreloadType() != WebMediaPlayer::kPreloadNone;
+         network_state_maximum_ >= NetworkState::kNetworkLoading;
 }
 
 void HTMLMediaElement::SetError(MediaError* error) {

@@ -15,6 +15,8 @@ experimental domain WebMCP
     properties
       # A hint indicating that the tool does not modify any state.
       optional boolean readOnly
+      # A hint indicating that the tool output may contain untrusted content, ex: UGC, 3rd party data.
+      optional boolean untrustedContent
       # If the declarative tool was declared with the autosubmit attribute.
       optional boolean autosubmit
 
@@ -76,11 +78,19 @@ experimental domain WebMCP
       # Array of tools that were added.
       array of Tool tools
 
+  # Definition of a tool that was removed.
+  type RemovedTool extends object
+    properties
+      # Tool name.
+      string name
+      # Frame identifier associated with the tool registration.
+      Page.FrameId frameId
+
   # Event fired when tools are removed.
   event toolsRemoved
     parameters
       # Array of tools that were removed.
-      array of Tool tools
+      array of RemovedTool tools
 
   # Event fired when a tool invocation starts.
   event toolInvoked

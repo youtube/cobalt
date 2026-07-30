@@ -325,9 +325,17 @@ IN_PROC_BROWSER_TEST_P(
   }
 }
 
+// TODO(crbug.com/505163310): Reenable once deflaked.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_DumpDomWithBeforeUnloadPreventDefault \
+  DISABLED_DumpDomWithBeforeUnloadPreventDefault
+#else
+#define MAYBE_DumpDomWithBeforeUnloadPreventDefault \
+  DumpDomWithBeforeUnloadPreventDefault
+#endif
 HEADLESS_MODE_COMMAND_BROWSER_TEST_WITH_TARGET_URL(
     HeadlessModeDumpDomCommandBrowserTestBase,
-    DumpDomWithBeforeUnloadPreventDefault,
+    MAYBE_DumpDomWithBeforeUnloadPreventDefault,
     "/before_unload_prevent_default.html") {
   // Make sure that 'beforeunload' that prevents default action does not stall
   // the command processing. The "Leave site" popup should not appear because
@@ -346,7 +354,7 @@ class HeadlessModeScreenshotCommandBrowserTest
 #if BUILDFLAG(IS_WIN)
   void SetUp() override {
     // Use software compositing instead of GL which causes blank screenshots on
-    // Windows, especially under ASAN. See https://crbug.com/1442606 and
+    // Windows, especially under ASAN. See https://crbug.com/40267033 and
     // https://crbug.com/328195816.
     UseSoftwareCompositing();
 

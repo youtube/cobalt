@@ -32,6 +32,8 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Activity not found"/>
 </enum>
 
+<!-- LINT.IfChange(AdaptiveToolbarRadioButtonState) -->
+
 <enum name="AdaptiveToolbarRadioButtonState">
   <int value="0" label="Unknown"/>
   <int value="1" label="Auto with new tab"/>
@@ -46,13 +48,15 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="Auto with add to bookmarks"/>
   <int value="11" label="Read Aloud (Listen to this page)"/>
   <int value="12" label="Auto with Read Aloud (Listen to this page)"/>
-  <int value="13" label="Page summary"/>
-  <int value="14" label="Auto with Page summary"/>
+  <int value="13" label="Page summary (deprecated)"/>
+  <int value="14" label="Auto with Page summary (deprecated)"/>
   <int value="15" label="Open in browser"/>
   <int value="16" label="Auto with Open in browser"/>
   <int value="17" label="Glic"/>
   <int value="18" label="Auto with Glic"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/AdaptiveToolbarStats.java:AdaptiveToolbarRadioButtonState) -->
 
 <enum name="AgsaProcessName">
   <int value="0" label=":googleapp"/>
@@ -301,14 +305,6 @@ chromium-metrics-reviews@google.com.
   <summary>See Android.DarkTheme.ThemeSettingsEntry.</summary>
   <int value="0" label="Settings"/>
   <int value="1" label="Auto dark mode message"/>
-</enum>
-
-<enum name="AndroidToolbarDropType">
-  <int value="0" label="Invalid"/>
-  <int value="1" label="Chrome Text"/>
-  <int value="2" label="Text"/>
-  <int value="3" label="Chrome Link"/>
-  <int value="4" label="Chrome Image"/>
 </enum>
 
 <!-- LINT.IfChange(AndroidUidType) -->
@@ -1028,6 +1024,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Setting Card Promo"/>
   <int value="2" label="Educational Tip Promo"/>
   <int value="3" label="FRE Promo"/>
+  <int value="4" label="App Menu Deep-link"/>
+  <int value="5" label="Settings Row Deep-link"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/android/default_browser_promo/java/src/org/chromium/chrome/browser/ui/default_browser_promo/DefaultBrowserPromoMetrics.java:DefaultBrowserPromoSourceType) -->
@@ -1705,6 +1703,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="HISTORY_ACTIVITY"/>
   <int value="6" label="SETTINGS_ACTIVITY"/>
   <int value="7" label="BOOKMARK_ACTIVITY"/>
+  <int value="8" label="FUSEBOX_POPUP"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/scrim/ScrimManager.java:ScrimClient) -->
@@ -1895,6 +1894,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="First time user"/>
   <int value="9" label="User prompted survey"/>
   <int value="10" label="Other survey displayed recently"/>
+  <int value="11" label="Profile too new"/>
 </enum>
 
 <enum name="SurveyPresentationStatusCode">
@@ -2635,15 +2635,6 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="OS yes, WebView off"/>
   <int value="7" label="OS yes, WebView auto"/>
   <int value="8" label="OS yes, WebView on"/>
-</enum>
-
-<enum name="WebViewInDarkModeVsLightTheme">
-  <int value="0" label="WebView dark, light theme undefined"/>
-  <int value="1" label="WebView dark, light theme no"/>
-  <int value="2" label="WebView dark, light theme yes"/>
-  <int value="3" label="WebView light, light theme undefined"/>
-  <int value="4" label="WebView light, light theme no"/>
-  <int value="5" label="WebView light, light theme yes"/>
 </enum>
 
 <enum name="WebViewInDarkModeVsNightMode">

@@ -146,6 +146,9 @@ class TabAndroid : public tabs::TabInterface,
   // it.
   bool IsUserInteractable() const;
 
+  // Return whether the tab is currently being used for offscreen rendering.
+  bool IsOffscreenRendering() const;
+
   sync_sessions::SyncedTabDelegate* GetSyncedTabDelegate() const;
 
   // Whether this tab is an incognito tab. Prefer
@@ -196,6 +199,8 @@ class TabAndroid : public tabs::TabInterface,
   // Methods called from Java via JNI -----------------------------------------
 
   void Destroy();
+  void AttachWebContentsToContentLayer(JNIEnv* env,
+                                       content::WebContents* web_contents);
   bool HasParentCollection();
   void InitWebContents(
       JNIEnv* env,
@@ -205,6 +210,8 @@ class TabAndroid : public tabs::TabInterface,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,
       const base::android::JavaRef<jobject>& jcontext_menu_populator_factory);
   void InitializeAutofillIfNecessary();
+  void GetMemoryUsageBytes(JNIEnv* env,
+                           const base::android::JavaRef<jobject>& j_callback);
   void UpdateDelegates(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents_delegate,

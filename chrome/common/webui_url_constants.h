@@ -24,6 +24,7 @@
 #include "content/public/common/url_constants.h"
 #include "media/media_buildflags.h"
 #include "printing/buildflags/buildflags.h"
+#include "url/gurl.h"
 
 namespace chrome {
 
@@ -137,6 +138,11 @@ inline constexpr char kChromeUIDiceWebSigninInterceptURL[] =
 inline constexpr char kChromeUIDownloadInternalsHost[] = "download-internals";
 inline constexpr char kChromeUIDownloadsHost[] = "downloads";
 inline constexpr char kChromeUIDownloadsURL[] = "chrome://downloads/";
+inline constexpr char kChromeUIDrivePickerHostHost[] = "drive-picker-host";
+inline constexpr char kChromeUIDrivePickerHostURL[] =
+    "chrome://drive-picker-host/";
+inline constexpr char kChromeUIDrivePickerHostUntrustedURL[] =
+    "chrome-untrusted://drive-picker-host/";
 inline constexpr char kChromeUIEDUCoexistenceLoginURLV2[] =
     "chrome://chrome-signin/edu-coexistence";
 inline constexpr char kChromeUIExtensionIconHost[] = "extension-icon";
@@ -219,7 +225,9 @@ inline constexpr char kChromeUINewTabPageThirdPartyHost[] =
 inline constexpr char kChromeUINewTabPageThirdPartyURL[] =
     "chrome://new-tab-page-third-party/";
 inline constexpr char kChromeUINewTabPageURL[] = "chrome://new-tab-page/";
+const GURL& ChromeUINewTabPageURLAsGURL();
 inline constexpr char kChromeUINewTabURL[] = "chrome://newtab/";
+const GURL& ChromeUINewTabURLAsGURL();
 inline constexpr char kChromeUINewTabFooterURL[] = "chrome://newtab-footer/";
 inline constexpr char kChromeUIUntrustedNtpMicrosoftAuthHost[] =
     "ntp-microsoft-auth";

@@ -8,6 +8,7 @@ source_set("best_features_item") {
     "best_features_item.mm",
   ]
   deps = [
+    ":features",
     "//base",
     "//ios/chrome/app/strings:ios_branded_strings_grit",
     "//ios/chrome/app/strings:ios_strings_grit",
@@ -31,6 +32,7 @@ source_set("features") {
     "//ios/chrome/browser/regional_capabilities/model",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/public/features",
   ]
 }
 

@@ -194,38 +194,6 @@ h1 {
     font-weight: bold
 }
 
-@supports blink-feature(SpecialRulesForNestedH1Elements) {
-  :-webkit-any(article,aside,nav,section) h1 {
-      font-size: 1.5em;
-      margin-block-start: 0.83__qem;
-      margin-block-end: 0.83em;
-  }
-
-  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-      font-size: 1.17em;
-      margin-block-start: 1__qem;
-      margin-block-end: 1em;
-  }
-
-  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-      font-size: 1.00em;
-      margin-block-start: 1.33__qem;
-      margin-block-end: 1.33em;
-  }
-
-  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-      font-size: .83em;
-      margin-block-start: 1.67__qem;
-      margin-block-end: 1.67em;
-  }
-
-  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-      font-size: .67em;
-      margin-block-start: 2.33__qem;
-      margin-block-end: 2.33em;
-  }
-}
-
 h2 {
     display: block;
     font-size: 1.5em;
@@ -1584,20 +1552,29 @@ button[interestfor] {
   user-select: none;
 }
 
-[interestfor]::interest-hint {
-  user-select: none;
-  color: buttontext;
+[interestfor]::interest-button {
+  content: "?";
   display: inline-block;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 0.5em;
+  color: inherit;
+  background-color: transparent;
+  padding-block: 0.25em;
+  padding-inline: 0.5em;
+  min-block-size: max(24px, 1lh);
+  min-inline-size: 24px;
   text-align: center;
-  cursor: default;
-  background-color: buttonface;
   margin-inline-start: 0.5em;
-  padding-block: 1px;
-  padding-inline: 6px;
-  border-width: 1px;
-  border-radius: 5px;
-  border-style: outset;
-  border-color: buttonborder;
+  user-select: none;
+  cursor: help;
+}
+
+[interestfor]::interest-button:hover {
+  background-color: color-mix(in lab, currentColor 10%, transparent);
+}
+[interestfor]::interest-button:active {
+  background-color: color-mix(in lab, currentColor 20%, transparent);
 }
 
 html:focus-visible, body:focus-visible {
@@ -2015,14 +1992,8 @@ dialog:where(:modal) {
   interactivity: auto;
 }
 
-/* Remove this when the InteractivityInertImportant flag is removed. */
 [inert] {
-  interactivity: inert;
-}
-@supports blink-feature(InteractivityInertImportant) {
-  [inert] {
-    interactivity: inert !important;
-  }
+  interactivity: inert !important;
 }
 
 /* noscript is handled internally, as it depends on settings. */
@@ -2280,6 +2251,8 @@ select::-internal-select-autofill-preview-text {
   text-overflow: ellipsis;
   text-align: center;
   white-space: nowrap;
+  font: -webkit-small-control !important;
+  font-feature-settings: normal !important;
 }
 
 @supports not blink-feature(CustomizableSelectMultiplePopup) {

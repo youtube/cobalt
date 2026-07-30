@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/web_applications/test/web_app_navigation_browsertest.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -54,7 +55,7 @@ size_t GetNumberOfSettingsWindows() {
 
 // Give the underlying function a clearer name.
 BrowserWindowInterface* GetLastActiveBrowser() {
-  return chrome::FindLastActive();
+  return GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
 }
 
 using ArcOpenUrlDelegateImplBrowserTest = InProcessBrowserTest;
@@ -90,7 +91,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
     ArcOpenUrlDelegateImpl::GetForTesting()->OpenWebAppFromArc(url);
     observer->WaitForNavigationFinished();
 
-    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
     EXPECT_NE(GetLastActiveBrowser()->GetType(),
               BrowserWindowInterface::TYPE_APP);
     content::WebContents* contents =
@@ -106,7 +107,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
     ArcOpenUrlDelegateImpl::GetForTesting()->OpenWebAppFromArc(app_url);
     observer->WaitForNavigationFinished();
 
-    EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
     EXPECT_EQ(GetLastActiveBrowser()->GetType(),
               BrowserWindowInterface::TYPE_APP);
     content::WebContents* contents =
@@ -154,7 +155,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest,
         url, std::move(intent));
     observer->WaitForNavigationFinished();
 
-    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
     EXPECT_NE(GetLastActiveBrowser()->GetType(),
               BrowserWindowInterface::TYPE_APP);
     content::WebContents* contents =
@@ -177,7 +178,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest,
         app_url, std::move(intent));
     observer->WaitForNavigationFinished();
 
-    EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
     EXPECT_EQ(GetLastActiveBrowser()->GetType(),
               BrowserWindowInterface::TYPE_APP);
     content::WebContents* contents =
@@ -201,7 +202,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest,
         app_url, std::move(intent));
     observer->WaitForNavigationFinished();
 
-    EXPECT_EQ(3u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(3u, GlobalBrowserCollection::GetInstance()->GetSize());
     EXPECT_EQ(GetLastActiveBrowser()->GetType(),
               BrowserWindowInterface::TYPE_APP);
     content::WebContents* contents =

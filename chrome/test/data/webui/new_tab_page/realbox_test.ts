@@ -8,6 +8,7 @@ import type {NtpSearchboxElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {ContextType} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxState, FileUpload, TabUpload} from 'chrome://resources/cr_components/composebox/common.js';
+import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
@@ -147,6 +148,21 @@ suite('NewTabPageRealboxTabsTest', () => {
     await microtasksFinished();
     assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 0);
   });
+
+  test('NtpRealboxMountDisableAutoReposition', async () => {
+    const entrypointAndMenu =
+        realbox.shadowRoot.querySelector<ContextualEntrypointAndMenuElement>(
+            'cr-composebox-contextual-entrypoint-and-menu');
+    assertTrue(!!entrypointAndMenu);
+    await entrypointAndMenu.updateComplete;
+    assertTrue(entrypointAndMenu.disableAutoReposition);
+
+    const contextualActionMenu = entrypointAndMenu.$.menu;
+    await contextualActionMenu.updateComplete;
+    const crActionMenu = contextualActionMenu.$.menu;
+    assertFalse(crActionMenu.autoReposition);
+    assertFalse(crActionMenu.hasAttribute('auto-reposition'));
+  });
 });
 
 suite('NewTabPageRealboxNextTest', () => {
@@ -161,6 +177,7 @@ suite('NewTabPageRealboxNextTest', () => {
       reportMetrics: true,
       searchboxCyclingPlaceholders: false,
       searchboxDefaultIcon: 'search.svg',
+      searchboxLensSearch: true,
       searchboxSeparator: ' - ',
       searchboxVoiceSearch: true,
     });
@@ -787,4 +804,93 @@ suite('NewTabPageRealboxNextTest', () => {
     assertEquals(1, metrics.count(metricName, ContextType.THINKING_MODEL));
     assertEquals(0, metrics.count(metricName, ContextType.AUTO_MODEL));
   });
+
+  test(
+      'clicking composebox button with a URL clears text and opens composebox',
+      async () => {
+        const inputEl = realbox.shadowRoot.querySelector('#input');
+        assertTrue(!!inputEl);
+        inputEl.shadowRoot!.querySelector<HTMLInputElement>('#input')!.value =
+            'https://example.com';
+        inputEl.shadowRoot!.querySelector('#input')!.dispatchEvent(
+            new InputEvent('input'));
+
+        const matches = [createSearchMatchForTesting({
+          allowedToBeDefaultMatch: true,
+          isSearchType: false,
+        })];
+
+        testProxy.callbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResultForTesting({
+              input: 'https://example.com',
+              matches: matches,
+            }));
+        await microtasksFinished();
+
+        const composeButton =
+            realbox.shadowRoot.querySelector<HTMLElement>('#composeButton');
+        assertTrue(!!composeButton);
+
+        const whenOpenComposeBox = eventToPromise<CustomEvent<ComposeboxState>>(
+            'open-composebox', realbox);
+
+        composeButton.dispatchEvent(new CustomEvent('compose-click', {
+          detail: {
+            button: 0,
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+          },
+          bubbles: true,
+          composed: true,
+        }));
+
+        const event = await whenOpenComposeBox;
+        assertEquals('', event.detail.text);
+        assertEquals('', realbox.$.input.inputElement.value);
+      });
+
+  test(
+      'composebox button with URL and composebox disabled sends empty query',
+      async () => {
+        realbox.composeboxEnabled = false;
+
+        const inputEl = realbox.shadowRoot.querySelector('#input');
+        assertTrue(!!inputEl);
+        inputEl.shadowRoot!.querySelector<HTMLInputElement>('#input')!.value =
+            'https://example.com';
+        inputEl.shadowRoot!.querySelector('#input')!.dispatchEvent(
+            new InputEvent('input'));
+
+        const matches = [createSearchMatchForTesting({
+          allowedToBeDefaultMatch: true,
+          isSearchType: false,
+        })];
+
+        testProxy.callbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResultForTesting({
+              input: 'https://example.com',
+              matches: matches,
+            }));
+        await microtasksFinished();
+
+        const composeButton =
+            realbox.shadowRoot.querySelector<HTMLElement>('#composeButton');
+        assertTrue(!!composeButton);
+
+        composeButton.dispatchEvent(new CustomEvent('compose-click', {
+          detail: {
+            button: 0,
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+          },
+          bubbles: true,
+          composed: true,
+        }));
+
+        assertEquals(1, testProxy.handler.getCallCount('submitQuery'));
+        const args = testProxy.handler.getArgs('submitQuery')[0];
+        assertEquals('', args.queryText);
+      });
 });

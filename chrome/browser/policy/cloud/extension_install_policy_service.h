@@ -40,6 +40,7 @@ class ExtensionInstallPolicyService
  public:
   class Observer : public base::CheckedObserver {
    public:
+    virtual void OnManagerInitializationComplete(CloudPolicyManager* manager);
     virtual void OnExtensionInstallPolicyUpdated() = 0;
   };
 
@@ -104,6 +105,8 @@ class ExtensionInstallPolicyServiceImpl
       ExtensionInstallPolicyService::Observer* observer) override;
 
   // PolicyService::Observer impl:
+  void OnPolicyServiceInitialized(PolicyDomain domain) override;
+  void OnFirstPoliciesLoaded(PolicyDomain domain) override;
   void OnPolicyUpdated(const PolicyNamespace& ns,
                        const PolicyMap& previous,
                        const PolicyMap& current) override;

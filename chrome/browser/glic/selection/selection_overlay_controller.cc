@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -354,8 +355,7 @@ SelectionOverlayController::GetPreselectionBubbleConfig() {
   return {
       .message_string_id = IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT,
       .show_cancel_button = true,
-      // TODO(b:503000173): Add a new color code alias for this.
-      .cancel_button_color = ui::kColorSysInversePrimary,
+      .cancel_button_color = kColorGlicSelectionOverlayToastCancelButton,
       .bubble_background_color = kColorGlicSelectionOverlayToast,
       .icon = &vector_icons::kCropFreeIcon};
 }
@@ -444,13 +444,13 @@ void SelectionOverlayController::RenderRegions() {
 
   page_->SetPostRegionSelections(std::move(regions_mojo));
 
-  mojom::AdditionalContextPtr additional_context =
-      CreateAdditionalContext(gfx_regions);
   GlicKeyedService* service =
       GlicKeyedService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
-  service->SendAdditionalContext(tab_->GetHandle(),
-                                 std::move(additional_context));
   if (GlicInstance* instance = service->GetInstanceForTab(tab_)) {
+    mojom::AdditionalContextPtr additional_context =
+        CreateAdditionalContext(gfx_regions);
+    service->SendAdditionalContext(tab_->GetHandle(),
+                                   std::move(additional_context));
     instance->OnSelectionAreasChanged(selected_regions_.size());
     if (instance->IsActive()) {
       if (content::WebContents* web_contents =
@@ -471,12 +471,35 @@ SelectionOverlayController::CreateAdditionalContext(
   parts.push_back(glic::mojom::AdditionalContextPart::NewTabContext(
       std::move(tab_context)));
   for (const auto& region : regions) {
+    glic::mojom::CapturedRegionPtr captured_region;
+    // TODO(b/501134201): this is a temporary test of line.
+    if (base::FeatureList::IsEnabled(features::kGlicRegionSelectionLine)) {
+      std::vector<gfx::Point> line_points;
+
+      // 4 corners of the rectangle + closing point
+      gfx::Point p0(region.second.x(), region.second.y());
+      gfx::Point p1(region.second.right(), region.second.y());
+      gfx::Point p2(region.second.right(), region.second.bottom());
+      gfx::Point p3(region.second.x(), region.second.bottom());
+      gfx::Point p4(region.second.x(), region.second.y());
+
+      line_points.push_back(p0);
+      line_points.push_back(p1);
+      line_points.push_back(p2);
+      line_points.push_back(p3);
+      line_points.push_back(p4);
+
+      captured_region =
+          glic::mojom::CapturedRegion::NewPolyline(std::move(line_points));
+    } else {
+      captured_region = glic::mojom::CapturedRegion::NewRect(region.second);
+    }
+
     parts.push_back(glic::mojom::AdditionalContextPart::NewPendingRegion(
-        glic::mojom::PendingCapturedRegion::New(
-            region.first,
-            glic::mojom::CapturedRegion::NewRect(region.second))));
+        glic::mojom::PendingCapturedRegion::New(region.first,
+                                                captured_region.Clone())));
     parts.push_back(glic::mojom::AdditionalContextPart::NewRegion(
-        glic::mojom::CapturedRegion::NewRect(region.second)));
+        std::move(captured_region)));
   }
   context->source = glic::mojom::AdditionalContextSource::kRegionSelection;
   context->tab_id = tab_->GetHandle().raw_value();

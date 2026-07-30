@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,8 +34,6 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridgeJni;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -69,8 +68,6 @@ public class FeedStreamCtrlClickTest {
     @Mock private FeedSurfaceRendererBridge mFeedSurfaceRendererBridgeMock;
     @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
     @Mock private FeedReliabilityLoggingBridge.Natives mFeedReliabilityLoggingBridgeJniMock;
-    @Mock private WebFeedBridge.Natives mWebFeedBridgeJni;
-
     @Mock private SnackbarManager mSnackbarManager;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private ModalDialogManager mModalDialogManager;
@@ -79,7 +76,7 @@ public class FeedStreamCtrlClickTest {
     @Mock private HybridListRenderer mRenderer;
     @Mock private ListLayoutHelper mListLayoutHelper;
     @Mock private FeedSurfaceScope mSurfaceScope;
-    @Mock private RecyclerView.Adapter mAdapter;
+    @Mock private RecyclerView.Adapter<?> mAdapter;
     @Mock private FeedReliabilityLogger mReliabilityLogger;
     @Mock private FeedActionDelegate mActionDelegate;
     @Mock private FeedContentFirstLoadWatcher mFeedContentFirstLoadWatcher;
@@ -93,8 +90,7 @@ public class FeedStreamCtrlClickTest {
                 Profile profile,
                 FeedSurfaceRendererBridge.Renderer renderer,
                 FeedReliabilityLoggingBridge reliabilityLoggingBridge,
-                @StreamKind int streamKind,
-                SingleWebFeedParameters webFeedParameters) {
+                @StreamKind int streamKind) {
             mBridgeRenderer = renderer;
             return mFeedSurfaceRendererBridgeMock;
         }
@@ -106,11 +102,10 @@ public class FeedStreamCtrlClickTest {
 
         FeedServiceBridgeJni.setInstanceForTesting(mFeedServiceBridgeJniMock);
         FeedReliabilityLoggingBridgeJni.setInstanceForTesting(mFeedReliabilityLoggingBridgeJniMock);
-        WebFeedBridgeJni.setInstanceForTesting(mWebFeedBridgeJni);
         ProfileManager.setLastUsedProfileForTesting(mProfileMock);
 
         when(mWindowAndroid.getModalDialogManager()).thenReturn(mModalDialogManager);
-        when(mRenderer.getAdapter()).thenReturn(mAdapter);
+        doReturn(mAdapter).when(mRenderer).getAdapter();
         when(mRenderer.getListLayoutHelper()).thenReturn(mListLayoutHelper);
 
         mFeedStream =
@@ -125,7 +120,6 @@ public class FeedStreamCtrlClickTest {
                         mActionDelegate,
                         mFeedContentFirstLoadWatcher,
                         mStreamsMediator,
-                        null,
                         new FeedSurfaceRendererBridgeFactory());
 
         mContentManager = new FeedListContentManager();

@@ -739,9 +739,9 @@ public class ContextMenuTest {
     @Test
     @LargeTest
     @Restriction({
-        DeviceFormFactor.TABLET_OR_DESKTOP,
-        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO
-    }) // crbug.com/502983881
+        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
+        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO // crbug.com/502983881
+    })
     @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSavePageLongPress() throws TimeoutException {
@@ -1311,7 +1311,10 @@ public class ContextMenuTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    @Restriction({
+        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
+        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO // crbug.com/502983881
+    })
     @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testSharePageLongPress() throws Exception {
@@ -1392,7 +1395,11 @@ public class ContextMenuTest {
 
     @Test
     @MediumTest
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    @Restriction({
+        DeviceFormFactor.DESKTOP, // Re-enable on tablets once the crbug.com/500650152 is fixed.
+        // Re-enable on automotive once crbug.com/504680967 is fixed
+        DeviceRestriction.RESTRICTION_TYPE_NON_AUTO
+    })
     @EnableFeatures({ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE})
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
     public void testPrintPageLongPress() throws Exception {

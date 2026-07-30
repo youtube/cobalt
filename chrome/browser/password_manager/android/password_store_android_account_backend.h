@@ -18,8 +18,6 @@ class SyncService;
 
 namespace password_manager {
 
-class AffiliatedMatchHelper;
-
 // This class processes passwords only from an account.
 class PasswordStoreAndroidAccountBackend : public PasswordStoreBackend,
                                            public PasswordStoreAndroidBackend {
@@ -41,28 +39,28 @@ class PasswordStoreAndroidAccountBackend : public PasswordStoreBackend,
                    base::OnceCallback<void(bool)> completion) override;
   void Shutdown(base::OnceClosure shutdown_completed) override;
   ActionableError GetError() override;
-  void GetAllLoginsAsync(LoginsOrErrorReply callback) override;
+  void GetAllLoginsAsync(BackendLoginsOrErrorReply callback) override;
   void GetAllLoginsWithAffiliationAndBrandingAsync(
-      LoginsOrErrorReply callback) override;
-  void GetAutofillableLoginsAsync(LoginsOrErrorReply callback) override;
+      BackendLoginsOrErrorReply callback) override;
+  void GetAutofillableLoginsAsync(BackendLoginsOrErrorReply callback) override;
   void FillMatchingLoginsAsync(
-      LoginsOrErrorReply callback,
+      BackendLoginsOrErrorReply callback,
       bool include_psl,
       const std::vector<PasswordFormDigest>& forms) override;
-  void GetGroupedMatchingLoginsAsync(const PasswordFormDigest& form_digest,
-                                     LoginsOrErrorReply callback) override;
-  void AddLoginAsync(const PasswordForm& form,
+  void GetGroupedMatchingLoginsAsync(
+      const PasswordFormDigest& form_digest,
+      BackendLoginsOrErrorReply callback) override;
+  void AddLoginAsync(StoredCredential cred,
                      PasswordChangesOrErrorReply callback) override;
-  void UpdateLoginAsync(const PasswordForm& form,
+  void UpdateLoginAsync(StoredCredential cred,
                         PasswordChangesOrErrorReply callback) override;
   void RemoveLoginAsync(const base::Location& location,
-                        const PasswordForm& form,
+                        StoredCredential cred,
                         PasswordChangesOrErrorReply callback) override;
   void RemoveLoginsCreatedBetweenAsync(
       const base::Location& location,
       base::Time delete_begin,
       base::Time delete_end,
-      base::OnceCallback<void(bool)> sync_completion,
       PasswordChangesOrErrorReply callback) override;
   void DisableAutoSignInForOriginsAsync(
       const base::RepeatingCallback<bool(const GURL&)>& origin_filter,
@@ -80,15 +78,6 @@ class PasswordStoreAndroidAccountBackend : public PasswordStoreBackend,
   PasswordStoreBackendMetricsRecorder::PasswordStoreAndroidBackendType
   GetStorageType() override;
 
-  // If |forms_or_error| contains forms, it retrieves and fills in affiliation
-  // and branding information for Android credentials in the forms and invokes
-  // |callback| with the result. If an error was received instead, it directly
-  // invokes |callback| with it, as no forms could be fetched. Called on
-  // the main sequence.
-  void InjectAffiliationAndBrandingInformation(
-      LoginsOrErrorReply callback,
-      LoginsResultOrError forms_or_error);
-
   // Called when password sync flips from disabled to enabled and vice-versa.
   // If the sync status changes, all pending jobs should be replied to
   // with the corresponding error since their results are no longer relevant.
@@ -100,7 +89,6 @@ class PasswordStoreAndroidAccountBackend : public PasswordStoreBackend,
   // called.
   void SyncShutdown();
 
-  raw_ptr<AffiliatedMatchHelper> affiliated_match_helper_ = nullptr;
   raw_ptr<syncer::SyncService> sync_service_ = nullptr;
 
   // Legacy delegate to handle sync events.

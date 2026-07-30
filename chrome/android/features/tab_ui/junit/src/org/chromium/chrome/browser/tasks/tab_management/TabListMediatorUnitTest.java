@@ -200,6 +200,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
+import org.chromium.ui.modelutil.PropertyObservable;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -381,6 +382,7 @@ public class TabListMediatorUnitTest {
     @Mock HandoffButtonState mHandoffButtonState;
     @Mock UndoBarExplicitTrigger mUndoBarExplicitTrigger;
     @Mock MultiInstanceOrchestrator mMultiInstanceOrchestrator;
+    @Mock PropertyObservable.PropertyObserver<PropertyKey> mPropertyObserver;
 
     @Captor ArgumentCaptor<TabModelObserver> mTabModelObserverCaptor;
     @Captor ArgumentCaptor<TabObserver> mTabObserverCaptor;
@@ -1117,7 +1119,7 @@ public class TabListMediatorUnitTest {
         verify(mTracker).notifyEvent(eq(EventConstants.TAB_DRAG_AND_DROP_TO_GROUP));
     }
 
-    // Regression test for https://crbug.com/1372487
+    // Regression test for https://crbug.com/40871078
     @Test
     public void handlesGroupMergeCorrectly_InOrder() {
         Tab tab3 = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
@@ -5796,6 +5798,49 @@ public class TabListMediatorUnitTest {
         assertNull(groupModel.get(TabProperties.ACTOR_UI_STATE));
     }
 
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @Test
+    public void testActorUiState_RefreshOnReset() {
+        // Initial state: Active task.
+        setUpActorState(mTab1, TabIndicatorStatus.DYNAMIC);
+        mMediator.resetWithListOfTabs(List.of(mTab1), null, false);
+        PropertyModel model = mModelList.get(0).model;
+        assertEquals(
+                TabIndicatorStatus.DYNAMIC, model.get(TabProperties.ACTOR_UI_STATE).tabIndicator);
+
+        // Exit Tab Switcher.
+        mMediator.resetWithListOfTabs(null, null, false);
+
+        // Task ends while hidden.
+        setUpActorState(mTab1, TabIndicatorStatus.NONE);
+
+        // Re-enter Tab Switcher.
+        mMediator.resetWithListOfTabs(List.of(mTab1), null, false);
+        model = mModelList.get(0).model;
+
+        assertNull(model.get(TabProperties.ACTOR_UI_STATE));
+    }
+
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @Test
+    public void testActorUiState_RefreshOnUpdateTab() {
+        // Initial state: No task.
+        setUpActorState(mTab1, TabIndicatorStatus.NONE);
+        mMediator.resetWithListOfTabs(List.of(mTab1), null, false);
+        PropertyModel model = mModelList.get(0).model;
+        assertNull(model.get(TabProperties.ACTOR_UI_STATE));
+
+        // Task starts while Tab Switcher is reset with same list.
+        setUpActorState(mTab1, TabIndicatorStatus.DYNAMIC);
+        mMediator.resetWithListOfTabs(List.of(mTab1), null, false);
+
+        model = mModelList.get(0).model;
+
+        assertNotNull(model.get(TabProperties.ACTOR_UI_STATE));
+        assertEquals(
+                TabIndicatorStatus.DYNAMIC, model.get(TabProperties.ACTOR_UI_STATE).tabIndicator);
+    }
+
     private void setUpTabGroupCardDescriptionString() {
         doAnswer(
                         invocation -> {
@@ -6035,9 +6080,7 @@ public class TabListMediatorUnitTest {
                             new Answer<>() {
                                 @Override
                                 public Void answer(InvocationOnMock invocation) {
-                                    OptimizationGuideCallback callback =
-                                            (OptimizationGuideCallback)
-                                                    invocation.getArguments()[2];
+                                    OptimizationGuideCallback callback = invocation.getArgument(2);
                                     callback.onOptimizationGuideDecision(
                                             decision, responseEntry.getValue());
                                     return null;
@@ -6101,7 +6144,7 @@ public class TabListMediatorUnitTest {
     /** Asserts that the given key is null (aka "unset") in the given model. */
     private void assertUnset(PropertyModel model, PropertyKey propertyKey) {
         if (propertyKey instanceof ReadableObjectPropertyKey) {
-            ReadableObjectPropertyKey objectKey = (ReadableObjectPropertyKey) propertyKey;
+            ReadableObjectPropertyKey<?> objectKey = (ReadableObjectPropertyKey<?>) propertyKey;
             assertNull(
                     "Expected property to be unset, property=" + objectKey, model.get(objectKey));
         } else {
@@ -6172,20 +6215,17 @@ public class TabListMediatorUnitTest {
         initAndAssertAllProperties();
 
         PropertyModel model = mModelList.get(0).model;
-        org.chromium.ui.modelutil.PropertyObservable.PropertyObserver<
-                        org.chromium.ui.modelutil.PropertyKey>
-                observer =
-                        mock(org.chromium.ui.modelutil.PropertyObservable.PropertyObserver.class);
-        model.addObserver(observer);
+        model.addObserver(mPropertyObserver);
 
         mMediator.setThumbnailSpinnerVisibility(mTab1, true);
-        verify(observer).onPropertyChanged(eq(model), eq(TabProperties.SHOW_THUMBNAIL_SPINNER));
+        verify(mPropertyObserver)
+                .onPropertyChanged(eq(model), eq(TabProperties.SHOW_THUMBNAIL_SPINNER));
         assertTrue(model.get(TabProperties.SHOW_THUMBNAIL_SPINNER));
 
         mMediator.setThumbnailSpinnerVisibility(mTab1, false);
-        verify(observer, times(2))
+        verify(mPropertyObserver, times(2))
                 .onPropertyChanged(eq(model), eq(TabProperties.SHOW_THUMBNAIL_SPINNER));
         assertFalse(model.get(TabProperties.SHOW_THUMBNAIL_SPINNER));
-        verify(observer).onPropertyChanged(eq(model), eq(TabProperties.THUMBNAIL_FETCHER));
+        verify(mPropertyObserver).onPropertyChanged(eq(model), eq(TabProperties.THUMBNAIL_FETCHER));
     }
 }

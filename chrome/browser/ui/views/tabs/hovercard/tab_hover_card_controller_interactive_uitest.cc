@@ -15,9 +15,9 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_utils.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
@@ -186,7 +186,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest,
                        HoverCardHidesOnAnyKeyPressInSameWindow) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
-      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUINewTabURL)),
+      NavigateWebContents(kFirstTabContents, chrome::ChromeUINewTabURLAsGURL()),
       HoverTabAt(0), CheckHovercardIsOpen(),
       Check(base::BindLambdaForTesting([=, this]() {
         return ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_DOWN, false,
@@ -201,7 +201,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest,
                        HoverCardHidesOnMouseExit) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
-      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUINewTabURL)),
+      NavigateWebContents(kFirstTabContents, chrome::ChromeUINewTabURLAsGURL()),
       HoverTabAt(0), CheckHovercardIsOpen(), UnhoverTarget(),
       CheckHovercardIsClosed());
 }
@@ -210,7 +210,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest,
                        HoverCardDomainLabelHiddenWhenEmpty) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
-      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUINewTabURL)),
+      NavigateWebContents(kFirstTabContents, chrome::ChromeUINewTabURLAsGURL()),
       HoverTabAt(0),
       WaitForShow(TabHoverCardBubbleView::kHoverCardBubbleElementId),
       WaitForHide(TabHoverCardBubbleView::kHoverCardDomainLabelElementId),
@@ -281,7 +281,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest,
                        WidgetNotVisibleOnMousePressAfterHover) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
-      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUINewTabURL)),
+      NavigateWebContents(kFirstTabContents, chrome::ChromeUINewTabURLAsGURL()),
       HoverTabAt(0), CheckHovercardIsOpen(), SelectTab(kTabStripElementId, 0),
       CheckHovercardIsClosed());
 }
@@ -315,7 +315,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest,
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::NEW_WINDOW,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_BROWSER);
-  ASSERT_EQ(2u, chrome::GetTotalBrowserCount());
+  ASSERT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Choose one browser to be active; the other to be inactive.
   BrowserWindowInterface* const active_window =
@@ -962,7 +962,7 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardInteractiveUiTest, HideHoverCardLock) {
   std::unique_ptr<TabHoverCardController::ScopedHideHoverCardLock> lock;
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
-      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUINewTabURL)),
+      NavigateWebContents(kFirstTabContents, chrome::ChromeUINewTabURLAsGURL()),
       HoverTabAt(0), CheckHovercardIsOpen(), UnhoverTarget(),
       CheckHovercardIsClosed(), Do([this, &lock]() {
         lock = GetTabStrip(browser())

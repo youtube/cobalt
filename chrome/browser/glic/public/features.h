@@ -54,9 +54,32 @@ const base::flat_set<int32_t>& GetGlicTieredRolloutV2EligibleTiers();
 
 BASE_DECLARE_FEATURE(kGlicHorizontalTabToolbarButton);
 
+enum class GlicToolbarButtonLocation {
+  kRightOfOmnibox,
+  kLeftOfProfileChip,
+};
+BASE_DECLARE_FEATURE(kGlicToolbarButtonLocation);
+extern const base::FeatureParam<GlicToolbarButtonLocation>
+    kGlicToolbarButtonLocationParam;
+
+// String constants for GlicToolbarButtonLocation.
+inline constexpr char kGlicToolbarButtonLocationRightOfOmnibox[] =
+    "RightOfOmnibox";
+inline constexpr char kGlicToolbarButtonLocationLeftOfProfileChip[] =
+    "LeftOfProfileChip";
+
 BASE_DECLARE_FEATURE(kGlicButtonAutoSummarize);
 
 BASE_DECLARE_FEATURE(kGlicGetTabFaviconById);
+
+BASE_DECLARE_FEATURE(kGlicSkipCookieSyncOnOpen);
+BASE_DECLARE_FEATURE(kGlicCookieSyncOnTokenChange);
+
+BASE_DECLARE_FEATURE(kGlicWebClientLoadTimes);
+extern const base::FeatureParam<int> kGlicPreLoadingTimeMs;
+extern const base::FeatureParam<int> kGlicMinLoadingTimeMs;
+extern const base::FeatureParam<int> kGlicMaxLoadingTimeMs;
+extern const base::FeatureParam<int> kGlicReloadMaxLoadingTimeMs;
 
 }  // namespace features
 

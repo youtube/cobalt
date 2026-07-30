@@ -242,7 +242,7 @@ void WebNNContextImpl::CreateTensor(
     mojom::TensorInfoPtr tensor_info,
     mojo_base::BigBuffer tensor_data,
     mojom::WebNNContext::CreateTensorCallback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   ScopedTrace scoped_trace("WebNNContextImpl::CreateTensor");
 
@@ -302,8 +302,7 @@ void WebNNContextImpl::CreateTensor(
   tensor_impls_.emplace(*std::move(result));
 }
 
-scoped_refptr<base::SequencedTaskRunner>
-WebNNContextImpl::scheduler_task_runner() const {
+scoped_refptr<base::SequencedTaskRunner> WebNNContextImpl::task_runner() const {
   if (gpu_sequence_) {
     return gpu_sequence_->scheduler_task_runner();
   }
@@ -352,7 +351,7 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
                                                const gpu::Mailbox& mailbox,
                                                const gpu::SyncToken& fence,
                                                CreateTensorCallback callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   ScopedTrace scoped_trace("WebNNContextImpl::CreateTensorFromMailbox");
 
@@ -392,10 +391,10 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
   // it directly on the GPU sequence can violate Mojo's sequence checks,
   // even if executing on the same thread.
   auto mojo_callback_wrapper =
-      base::BindPostTask(scheduler_task_runner(), std::move(callback));
+      base::BindPostTask(task_runner(), std::move(callback));
 
   // Must be a scheduled task since this depends on shared image creation task.
-  ScheduleGpuTaskWithThisContext(
+  RunOrScheduleTaskWithThisContext(
       base::BindOnce(
           [](mojom::TensorInfoPtr tensor_info, const gpu::Mailbox& mailbox,
              CreateTensorCallback callback, ScopedTrace scoped_trace,
@@ -472,34 +471,35 @@ void WebNNContextImpl::RemoveWebNNGraphImpl(
 }
 
 void WebNNContextImpl::OnLost(const std::string& reason) {
-  auto task = base::BindOnce(
+  RunOrScheduleTaskWithThisContext(base::BindOnce(
       [](const std::string& reason, WebNNContextImpl& self) {
         self.GetMojoReceiver().ResetWithReason(
             /*custom_reason_code=*/0, reason);
         self.OnDisconnect();
       },
-      reason);
-
-  if (gpu_sequence_) {
-    ScheduleGpuTaskWithThisContext(std::move(task));
-  } else {
-    // Run directly on the current sequence when there is no GPU sequence.
-    std::move(task).Run(*this);
-  }
+      reason));
 }
 
-void WebNNContextImpl::ScheduleGpuTaskWithThisContext(
-    ScheduleGpuTaskCallback task) {
-  ScheduleGpuTaskWithThisContext(std::move(task), {});
-}
-
-void WebNNContextImpl::ScheduleGpuTaskWithThisContext(
-    ScheduleGpuTaskCallback task,
+void WebNNContextImpl::RunOrScheduleTaskWithThisContext(
+    RunOrScheduleTaskCallback task,
     const gpu::SyncToken& fence) {
   // Safe to use std::ref because `this` owns gpu_sequence_ and
   // its deletion drops all pending tasks before the context is destroyed.
-  gpu_sequence_->ScheduleGpuTask(
-      base::BindOnce(std::move(task), std::ref(*this)), fence);
+  RunOrScheduleTask(base::BindOnce(std::move(task), std::ref(*this)), fence);
+}
+
+void WebNNContextImpl::RunOrScheduleTask(base::OnceClosure task,
+                                         const gpu::SyncToken& fence,
+                                         const gpu::SyncToken& release) {
+  if (gpu_sequence_) {
+    gpu_sequence_->ScheduleGpuTask(std::move(task), fence, release);
+    return;
+  }
+
+  DCHECK(!fence.HasData());
+  DCHECK(!release.HasData());
+  DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
+  std::move(task).Run();
 }
 
 scoped_refptr<WebNNTensorImpl> WebNNContextImpl::GetWebNNTensorImpl(

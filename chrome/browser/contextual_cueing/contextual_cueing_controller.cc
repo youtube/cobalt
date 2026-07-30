@@ -16,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_cueing/features.h"
@@ -23,17 +24,28 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui_provider.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "components/google/core/common/google_util.h"
 #include "components/optimization_guide/core/optimization_guide_common.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
+#include "components/search_engines/template_url_service.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_utils.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "third_party/re2/src/re2/re2.h"
 #include "ui/actions/actions.h"
 #include "ui/menus/simple_menu_model.h"
 
@@ -45,6 +57,10 @@
 namespace contextual_cueing {
 
 namespace {
+
+const char kHomepagePathRegex[] =
+    "(?i)(/(en\\/)?((index|default|home|homepage|main|welcome)(\\.[^/"
+    "?;]+)?)?)?";
 
 // Convenience macro for emitting OPTIMIZATION_GUIDE_LOGs where
 // optimization_keyed_service_ is defined.
@@ -105,7 +121,11 @@ ContextualCueingController::ContextualCueingController(
               browser_window_interface_->GetProfile())),
       optimization_guide_keyed_service_(
           OptimizationGuideKeyedServiceFactory::GetForProfile(
-              browser_window_interface_->GetProfile())) {
+              browser_window_interface_->GetProfile())),
+      sync_service_(SyncServiceFactory::GetForProfile(
+          browser_window_interface_->GetProfile())),
+      template_url_service_(TemplateURLServiceFactory::GetForProfile(
+          browser_window_interface_->GetProfile())) {
   if (page_content_annotations_service_) {
     page_content_annotations_service_->AddObserver(
         page_content_annotations::AnnotationType::kCategoryClassifier, this);
@@ -117,6 +137,22 @@ ContextualCueingController::~ContextualCueingController() {
     page_content_annotations_service_->RemoveObserver(
         page_content_annotations::AnnotationType::kCategoryClassifier, this);
   }
+}
+
+// static
+ContextualCueingController* ContextualCueingController::GetForWebContents(
+    content::WebContents& contents) {
+#if BUILDFLAG(IS_ANDROID)
+  NOTIMPLEMENTED();
+#else
+  if (auto* tab = tabs::TabInterface::GetFromContents(&contents)) {
+    if (auto* browser_window_interface = tab->GetBrowserWindowInterface()) {
+      return browser_window_interface->GetFeatures()
+          .contextual_cueing_controller();
+    }
+  }
+#endif
+  return nullptr;
 }
 
 void ContextualCueingController::RegisterCueTarget(
@@ -144,6 +180,27 @@ void ContextualCueingController::OnPageContentAnnotated(
     return;
   }
 
+  if (!IsUrlEligibleForCue(active_web_contents->GetLastCommittedURL())) {
+    MODEL_EXECUTION_LOG(
+        base::StringPrintf("%s ineligible for cue: URL is ineligible.",
+                           active_web_contents->GetLastCommittedURL().spec()));
+    RecordContextualCueingDecision(ContextualCueingDecision::kUrlNotEligible);
+    return;
+  }
+
+  if (GetEligibleCueSurfaces().empty()) {
+    MODEL_EXECUTION_LOG(
+        base::StringPrintf("%s ineligible for cue: No eligible cue surfaces.",
+                           active_web_contents->GetLastCommittedURL().spec()));
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kNoEligibleCueSurfaces);
+    return;
+  }
+
+  if (!IsAllowedToShowCue()) {
+    return;
+  }
+
   // Check classification to see if we should proceed to next step.
   bool is_supported_category = false;
   for (const page_content_annotations::Category& category :
@@ -168,6 +225,17 @@ void ContextualCueingController::OnPageContentAnnotated(
         active_web_contents->GetLastCommittedURL().spec()));
     RecordContextualCueingDecision(
         ContextualCueingDecision::kFailedCategoryClassification);
+    return;
+  }
+
+  if (auto decision = contextual_cueing_service_->CanShowCue(
+          active_web_contents->GetLastCommittedURL());
+      decision != ContextualCueingDecision::kSuccess) {
+    MODEL_EXECUTION_LOG(
+        base::StringPrintf("%s ineligible for cue with reason: %d.",
+                           active_web_contents->GetLastCommittedURL().spec(),
+                           static_cast<int>(decision)));
+    RecordContextualCueingDecision(decision);
     return;
   }
 
@@ -230,12 +298,18 @@ void ContextualCueingController::InitiateModelExecutionRequest() {
     *request.add_background_tabs() =
         GetTabProtoFromWebContents(background_tabs[i].contents);
   }
+  auto eligible_cue_surfaces = GetEligibleCueSurfaces();
+  *request.mutable_supported_surfaces() = {eligible_cue_surfaces.begin(),
+                                           eligible_cue_surfaces.end()};
 
   LOCAL_HISTOGRAM_COUNTS_100("ContextualCueing.V2.NumRequestedBackgroundTabs",
                              request.background_tabs_size());
   optimization_guide_keyed_service_->ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey::kContextualCueing, request,
-      /*options=*/{},
+      {.service_type =
+           kUsePrivateAi.Get()
+               ? optimization_guide::ModelExecutionServiceType::kPrivateAi
+               : optimization_guide::ModelExecutionServiceType::kDefault},
       base::BindOnce(
           &ContextualCueingController::OnModelExecutionResponseReceived,
           weak_ptr_factory_.GetWeakPtr(),
@@ -314,7 +388,58 @@ void ContextualCueingController::OnModelExecutionResponseReceived(
     return;
   }
 
-  ShowCue(*target_type, *target, std::move(*response));
+  if (IsAllowedToShowCue()) {
+    ShowCue(*target_type, *target, std::move(*response));
+  }
+}
+
+bool ContextualCueingController::IsUrlEligibleForCue(const GURL& url) {
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  if (google_util::IsGoogleSearchUrl(url)) {
+    return false;
+  }
+  if (template_url_service_ &&
+      template_url_service_->ExtractSearchMetadata(url)) {
+    return false;
+  }
+  if (RE2::FullMatch(url.path(), kHomepagePathRegex)) {
+    return false;
+  }
+  return true;
+}
+
+bool ContextualCueingController::IsAllowedToShowCue() {
+  if (!sync_service_ ||
+      !sync_service_->GetUserSettings()->GetSelectedTypes().Has(
+          syncer::UserSelectableType::kHistory)) {
+    // If history sync is off, we cannot proceed to generate or show the cue.
+    RecordContextualCueingDecision(ContextualCueingDecision::kHistorySyncOff);
+    return false;
+  }
+
+#if !BUILDFLAG(IS_ANDROID)
+  auto* browser_user_education_interface =
+      BrowserUserEducationInterface::From(browser_window_interface_);
+  if (browser_user_education_interface &&
+      browser_user_education_interface->IsAnyFeaturePromoActive()) {
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kFeaturePromoActive);
+    return false;
+  }
+#endif
+
+  if (auto* side_panel_ui =
+          SidePanelUIProvider::From(browser_window_interface_);
+      side_panel_ui &&
+      (side_panel_ui->IsSidePanelShowing(SidePanelType::kContent) ||
+       side_panel_ui->IsSidePanelShowing(SidePanelType::kToolbar))) {
+    RecordContextualCueingDecision(ContextualCueingDecision::kSidePanelShowing);
+    return false;
+  }
+
+  return true;
 }
 
 void ContextualCueingController::ShowCue(
@@ -325,15 +450,6 @@ void ContextualCueingController::ShowCue(
   NOTIMPLEMENTED()
       << "Contextual cueing anchored message UI is not implemented for Android";
 #else
-  auto* browser_user_education_interface =
-      BrowserUserEducationInterface::From(browser_window_interface_);
-  if (browser_user_education_interface &&
-      browser_user_education_interface->IsAnyFeaturePromoActive()) {
-    RecordContextualCueingDecision(
-        ContextualCueingDecision::kFeaturePromoActive);
-    return;
-  }
-
   tabs::TabInterface* tab = tab_list_interface_->GetActiveTab();
   CHECK(tab);
 
@@ -377,7 +493,11 @@ void ContextualCueingController::ShowCue(
   MODEL_EXECUTION_LOG(base::StringPrintf(
       "Showing cue for CUJ %s: %s [%s]", response.suggested_cuj(),
       strings.anchored_message_text(), strings.action_text()));
+
+  contextual_cueing_service_->OnCueShown(
+      tab->GetContents()->GetLastCommittedURL());
 #endif
+
   RecordContextualCueingDecision(ContextualCueingDecision::kSuccess);
 }
 
@@ -391,12 +511,43 @@ void ContextualCueingController::OnCueClicked(
   if (CueTarget* target = GetTarget(cue_type)) {
     target->OnClick(std::move(data));
   }
-  contextual_cueing_service_->OnClick(cue_type);
+  contextual_cueing_service_->OnCueClicked(cue_type);
+
+  HideCue();
+}
+
+void ContextualCueingController::HideCue() {
+#if !BUILDFLAG(IS_ANDROID)
+  tabs::TabInterface* active_tab = tab_list_interface_->GetActiveTab();
+  if (!active_tab) {
+    return;
+  }
+  page_actions::PageActionController* page_action_controller =
+      active_tab->GetTabFeatures()->page_action_controller();
+  if (!page_action_controller) {
+    return;
+  }
+  page_action_controller->Hide(kActionAnchoredContextualCue);
+#endif
 }
 
 CueTarget* ContextualCueingController::GetTarget(CueTargetType type) {
   auto iter = cue_targets_.find(type);
   return iter != cue_targets_.end() ? iter->second.get() : nullptr;
+}
+
+absl::flat_hash_set<optimization_guide::proto::ContextualCueingSurface>
+ContextualCueingController::GetEligibleCueSurfaces() {
+  absl::flat_hash_set<optimization_guide::proto::ContextualCueingSurface>
+      eligible_cue_surfaces;
+  for (const auto& [cue_type, target] : cue_targets_) {
+    if (target->IsEligible() &&
+        target->GetSurface() !=
+            optimization_guide::proto::CONTEXTUAL_CUEING_SURFACE_UNSPECIFIED) {
+      eligible_cue_surfaces.insert(target->GetSurface());
+    }
+  }
+  return eligible_cue_surfaces;
 }
 
 }  // namespace contextual_cueing

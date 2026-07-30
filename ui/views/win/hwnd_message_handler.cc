@@ -442,6 +442,10 @@ HWNDMessageHandler::~HWNDMessageHandler() {
   // Clear pointer to this in `hwnd()`'s user data, to prevent installed hooks
   // from calling back into this after deletion.
   ClearUserData();
+
+  // If the window is a fullscreen window then remove its references from the
+  // full screen window map.
+  RemoveCurrentWindowFromFullscreenMonitorMap();
 }
 
 void HWNDMessageHandler::Init(HWND parent, const gfx::Rect& bounds) {
@@ -1022,12 +1026,7 @@ void HWNDMessageHandler::SetWindowIcons(const gfx::ImageSkia& window_icon,
 void HWNDMessageHandler::SetFullscreen(bool fullscreen,
                                        int64_t target_display_id) {
   // Erase any prior reference to this window in the fullscreen window map.
-  HMONITOR monitor = ::MonitorFromWindow(hwnd(), MONITOR_DEFAULTTOPRIMARY);
-  FullscreenWindowMonitorMap::iterator iter =
-      fullscreen_monitor_map_.Get().find(monitor);
-  if (iter != fullscreen_monitor_map_.Get().end()) {
-    fullscreen_monitor_map_.Get().erase(iter);
-  }
+  RemoveCurrentWindowFromFullscreenMonitorMap();
 
   background_fullscreen_hack_ = false;
   auto ref = msg_handler_weak_factory_.GetWeakPtr();
@@ -1570,7 +1569,11 @@ void HWNDMessageHandler::PostProcessActivateMessage(
     MONITORINFO monitor_info = {sizeof(monitor_info)};
     ::GetMonitorInfo(::MonitorFromWindow(hwnd(), MONITOR_DEFAULTTOPRIMARY),
                      &monitor_info);
+    auto ref = msg_handler_weak_factory_.GetWeakPtr();
     SetBoundsInternal(gfx::Rect(monitor_info.rcMonitor), false);
+    if (!ref) {
+      return;
+    }
     // Inform the taskbar that this window is now a fullscreen window so it go
     // behind the window in the Z-Order. The taskbar heuristics to detect
     // fullscreen windows are not reliable. Marking it explicitly seems to work
@@ -2012,8 +2015,15 @@ LRESULT HWNDMessageHandler::OnDpiChanged(UINT msg,
   // in which the display a window is on has a different scale factor than the
   // window, when the window handles the scale factor change.
   // See https://crbug.com/1368455 for more info.
+  auto ref = msg_handler_weak_factory_.GetWeakPtr();
   display::win::GetScreenWin()->UpdateDisplayInfos();
+  if (!ref) {
+    return 0;
+  }
   SetBoundsInternal(gfx::Rect(*reinterpret_cast<RECT*>(l_param)), false);
+  if (!ref) {
+    return 0;
+  }
   delegate_->HandleWindowScaleFactorChanged(scaling_factor);
   return 0;
 }
@@ -2117,6 +2127,7 @@ LRESULT HWNDMessageHandler::OnGetObject(UINT message,
   // only the low-order 32-bits are preserved.
   switch (static_cast<LONG>(l_param)) {
     case UiaRootObjectId:
+      ui::AXPlatform::GetInstance().SetUiaRequested();
       if (ui::AXPlatform::GetInstance().IsUiaProviderEnabled()) {
         // Return the IRawElementProviderSimple for the window's client area to
         // a UI Automation client.
@@ -2134,6 +2145,7 @@ LRESULT HWNDMessageHandler::OnGetObject(UINT message,
       break;
 
     case OBJID_CLIENT:
+      ui::AXPlatform::GetInstance().SetMsaaRequested();
       // Return the IAccessible for the window's client area to an MSAA client.
       if (auto root_accessible = delegate_->GetNativeViewAccessible()) {
         return ::LresultFromObject(IID_IAccessible, w_param, root_accessible);
@@ -3805,16 +3817,19 @@ void HWNDMessageHandler::SetBoundsInternal(const gfx::Rect& bounds_in_pixels,
                                            bool force_size_changed) {
   gfx::Size old_size = GetClientAreaBounds().size();
 
+  auto ref = msg_handler_weak_factory_.GetWeakPtr();
   ::SetWindowPos(hwnd(), nullptr, bounds_in_pixels.x(), bounds_in_pixels.y(),
                  bounds_in_pixels.width(), bounds_in_pixels.height(),
                  SWP_NOACTIVATE | SWP_NOZORDER);
+  if (!ref) {
+    return;
+  }
 
   // If HWND size is not changed, we will not receive standard size change
   // notifications. If |force_size_changed| is |true|, we should pretend size is
   // changed.
   if (old_size == bounds_in_pixels.size() && force_size_changed &&
       !background_fullscreen_hack_) {
-    auto ref = msg_handler_weak_factory_.GetWeakPtr();
     delegate_->HandleClientSizeChanged(GetClientAreaBounds().size());
     if (!ref) {
       return;
@@ -3847,7 +3862,11 @@ void HWNDMessageHandler::OnBackgroundFullscreen() {
   gfx::Rect shrunk_rect(monitor_info.rcMonitor);
   shrunk_rect.set_height(shrunk_rect.height() - 1);
   background_fullscreen_hack_ = true;
+  auto ref = msg_handler_weak_factory_.GetWeakPtr();
   SetBoundsInternal(shrunk_rect, false);
+  if (!ref) {
+    return;
+  }
   // Inform the taskbar that this window is no longer a fullscreen window so it
   // can bring itself to the top of the Z-Order. The taskbar heuristics to
   // detect fullscreen windows are not reliable. Marking it explicitly seems to
@@ -3891,12 +3910,8 @@ POINT HWNDMessageHandler::GetCursorPos() const {
 }
 
 void HWNDMessageHandler::RemoveCurrentWindowFromFullscreenMonitorMap() {
-  auto& map = fullscreen_monitor_map_.Get();
-  const auto i = std::ranges::find(
-      map, this, &FullscreenWindowMonitorMap::value_type::second);
-  if (i != map.end()) {
-    map.erase(i);
-  }
+  std::erase_if(fullscreen_monitor_map_.Get(),
+                [this](const auto& kv) { return kv.second == this; });
 }
 
 void HWNDMessageHandler::UpdateFullscreenMonitorMap() {

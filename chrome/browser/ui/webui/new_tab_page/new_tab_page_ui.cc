@@ -84,7 +84,6 @@
 #include "chrome/common/search/instant_types.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/new_tab_page_resources.h"
 #include "chrome/grit/new_tab_page_resources_map.h"
@@ -686,7 +685,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
 
   source->AddBoolean("composeboxShowContextMenuDescription", false);
 
-  source->AddBoolean("composeboxCloseByEscape", false);
   source->AddBoolean("composeboxSmartComposeEnabled",
                      ntp_composebox::kShowSmartCompose.Get());
   const auto* aim_eligibility_service =
@@ -758,7 +756,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   // Allow embedding of iframes for the doodle and
   // chrome-untrusted://new-tab-page for other external content and resources.
   // NOTE: Use caution when overriding content security policies as that cean
-  // lead to subtle security bugs such as https://crbug.com/1251541.
+  // lead to subtle security bugs such as https://crbug.com/40057334.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ChildSrc,
       base::StringPrintf("child-src https: %s %s %s;",
@@ -918,7 +916,7 @@ NewTabPageUI::~NewTabPageUI() {
 // static
 bool NewTabPageUI::IsNewTabPageOrigin(const GURL& url) {
   return url.DeprecatedGetOriginAsURL() ==
-         GURL(chrome::kChromeUINewTabPageURL).DeprecatedGetOriginAsURL();
+         chrome::ChromeUINewTabPageURLAsGURL().DeprecatedGetOriginAsURL();
 }
 
 // static
@@ -1238,7 +1236,7 @@ void NewTabPageUI::CreatePageHandler(
   DCHECK(pending_page.is_valid());
   most_visited_page_handler_ = std::make_unique<MostVisitedHandler>(
       std::move(pending_page_handler), std::move(pending_page), profile_,
-      web_contents(), GURL(chrome::kChromeUINewTabPageURL),
+      web_contents(), chrome::ChromeUINewTabPageURLAsGURL(),
       navigation_start_time_);
   UpdateMostVisitedTileTypes();
   most_visited_page_handler_->SetShortcutsVisible(IsShortcutsVisible());
@@ -1358,7 +1356,7 @@ void NewTabPageUI::ClearContextualSessionHandle() {
 void NewTabPageUI::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
   if (navigation_handle->IsInPrimaryMainFrame() &&
-      navigation_handle->GetURL() == GURL(chrome::kChromeUINewTabPageURL)) {
+      navigation_handle->GetURL() == chrome::ChromeUINewTabPageURLAsGURL()) {
     navigation_start_time_ = base::Time::Now();
 
     OnLoad();

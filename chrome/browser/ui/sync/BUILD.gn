@@ -39,6 +39,7 @@ source_set("impl") {
     "//base",
     "//chrome/browser/complex_tasks",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/supervised_user",
     "//components/sessions",
     "//components/sync/base:features",
     "//components/sync_sessions",
@@ -58,7 +59,6 @@ source_set("impl") {
       "browser_synced_window_delegates_getter.cc",
     ]
     deps += [
-      "//chrome/browser/history",
       "//chrome/browser/sync",
       "//chrome/browser/ui/tabs:tab_strip",
       "//components/bookmarks/browser",
@@ -103,7 +103,6 @@ source_set("unit_tests") {
     deps += [
       "//chrome/browser:browser_process",
       "//chrome/browser/extensions:test_support",
-      "//chrome/browser/history",
       "//chrome/browser/prefs",
       "//components/bookmarks/test",
       "//components/pref_registry",

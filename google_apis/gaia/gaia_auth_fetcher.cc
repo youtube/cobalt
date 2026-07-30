@@ -30,6 +30,7 @@
 #include "google_apis/gaia/bound_oauth_token.pb.h"
 #include "google_apis/gaia/gaia_auth_consumer.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_config.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -67,8 +68,9 @@ ExtractOAuth2TokenPairResponse(const std::string& data) {
   // Extract ID token when obtaining refresh token. Do not fail if absent,
   // but log to keep track.
   std::string* id_token = dict->FindString("id_token");
-  if (!id_token)
+  if (!id_token) {
     LOG(ERROR) << "Missing ID token on refresh token fetch response.";
+  }
   gaia::TokenServiceFlags service_flags =
       gaia::ParseServiceFlags(id_token ? *id_token : std::string());
 
@@ -82,7 +84,6 @@ ExtractOAuth2TokenPairResponse(const std::string& data) {
 
   return std::make_unique<const GaiaAuthConsumer::ClientOAuthResult>(
       *refresh_token, *access_token, *expires_in_secs,
-      service_flags.is_child_account,
       service_flags.is_under_advanced_protection, is_bound_to_key);
 }
 
@@ -90,11 +91,13 @@ ExtractOAuth2TokenPairResponse(const std::string& data) {
 GaiaAuthConsumer::TokenRevocationStatus
 GetTokenRevocationStatusFromResponseData(const std::string& data,
                                          int response_code) {
-  if (response_code == net::HTTP_OK)
+  if (response_code == net::HTTP_OK) {
     return GaiaAuthConsumer::TokenRevocationStatus::kSuccess;
+  }
 
-  if (response_code == net::HTTP_INTERNAL_SERVER_ERROR)
+  if (response_code == net::HTTP_INTERNAL_SERVER_ERROR) {
     return GaiaAuthConsumer::TokenRevocationStatus::kServerError;
+  }
 
   std::optional<base::DictValue> dict =
       base::JSONReader::ReadDict(data, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
@@ -103,13 +106,16 @@ GetTokenRevocationStatusFromResponseData(const std::string& data,
   }
 
   std::string* error = dict->FindString("error");
-  if (!error)
+  if (!error) {
     return GaiaAuthConsumer::TokenRevocationStatus::kUnknownError;
+  }
 
-  if (*error == "invalid_token")
+  if (*error == "invalid_token") {
     return GaiaAuthConsumer::TokenRevocationStatus::kInvalidToken;
-  if (*error == "invalid_request")
+  }
+  if (*error == "invalid_request") {
     return GaiaAuthConsumer::TokenRevocationStatus::kInvalidRequest;
+  }
 
   return GaiaAuthConsumer::TokenRevocationStatus::kUnknownError;
 }
@@ -248,9 +254,12 @@ void GaiaAuthFetcher::CreateAndStartGaiaFetcher(
   if (credentials_mode != network::mojom::CredentialsMode::kOmit &&
       credentials_mode !=
           network::mojom::CredentialsMode::kOmitBug_775438_Workaround) {
-    CHECK(gaia::HasGaiaSchemeHostPort(gaia_gurl)) << gaia_gurl;
+    CHECK(gaia::HasGaiaSchemeHostPort(gaia_gurl) ||
+          gaia_gurl.DomainIs("googleapis.com") ||
+          GaiaConfig::GetInstance() != nullptr)
+        << gaia_gurl;
 
-    url::Origin origin = GaiaUrls::GetInstance()->gaia_origin();
+    url::Origin origin = url::Origin::Create(gaia_gurl);
     resource_request->site_for_cookies =
         net::SiteForCookies::FromOrigin(origin);
     resource_request->trusted_params =
@@ -259,8 +268,9 @@ void GaiaAuthFetcher::CreateAndStartGaiaFetcher(
         net::IsolationInfo::CreateForInternalRequest(origin);
   }
 
-  if (!body.empty())
+  if (!body.empty()) {
     resource_request->method = "POST";
+  }
 
   resource_request->headers = request_headers;
 
@@ -440,10 +450,14 @@ void GaiaAuthFetcher::StartAuthCodeForOAuth2TokenExchangeWithDeviceId(
             }
           }
         })");
-  CreateAndStartGaiaFetcher(
-      request_body_, kFormEncodedContentType, headers,
-      GetOAuth2TokenUrl(mtls_token_binding),
-      google_apis::GetOmitCredentialsModeForGaiaRequests(), traffic_annotation);
+  // `CredentialsMode::kInclude` is required for enabling client mTLS
+  // certificates.
+  network::mojom::CredentialsMode credentials_mode =
+      mtls_token_binding ? network::mojom::CredentialsMode::kInclude
+                         : google_apis::GetOmitCredentialsModeForGaiaRequests();
+  CreateAndStartGaiaFetcher(request_body_, kFormEncodedContentType, headers,
+                            GetOAuth2TokenUrl(mtls_token_binding),
+                            credentials_mode, traffic_annotation);
 }
 
 void GaiaAuthFetcher::StartListAccounts() {
@@ -480,9 +494,8 @@ void GaiaAuthFetcher::StartListAccounts() {
   headers.SetHeader("Origin", "https://www.google.com");
   CreateAndStartGaiaFetcher(
       " ",  // To force an HTTP POST.
-      kFormEncodedContentType, headers,
-      list_accounts_gurl_, network::mojom::CredentialsMode::kInclude,
-      traffic_annotation);
+      kFormEncodedContentType, headers, list_accounts_gurl_,
+      network::mojom::CredentialsMode::kInclude, traffic_annotation);
 }
 
 void GaiaAuthFetcher::StartOAuthMultilogin(
@@ -790,10 +803,11 @@ void GaiaAuthFetcher::OnListAccountsFetched(const std::string& data,
   base::UmaHistogramSparse("Gaia.AuthFetcher.ListAccounts.NetErrorCodes",
                            -net_error);
 
-  if (net_error == net::OK && response_code == net::HTTP_OK)
+  if (net_error == net::OK && response_code == net::HTTP_OK) {
     consumer_->OnListAccountsSuccess(data);
-  else
+  } else {
     consumer_->OnListAccountsFailure(GenerateAuthError(data, net_error));
+  }
 }
 
 void GaiaAuthFetcher::OnLogOutFetched(const std::string& data,
@@ -866,8 +880,9 @@ void GaiaAuthFetcher::OnURLLoadComplete(
 
   int response_code = 0;
   if (url_loader_->ResponseInfo()) {
-    if (url_loader_->ResponseInfo()->headers)
+    if (url_loader_->ResponseInfo()->headers) {
       response_code = url_loader_->ResponseInfo()->headers->response_code();
+    }
   }
   OnURLLoadCompleteInternal(net_error, response_code,
                             std::move(response_body).value_or(""));

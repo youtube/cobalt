@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.view.View;
+import android.widget.CompoundButton;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -54,7 +55,6 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionActionsBridgeRule;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -107,6 +107,9 @@ public class ExtensionsMenuMediatorTest {
     @Captor private ArgumentCaptor<ExtensionsMenuBridge> mBridgeCaptor;
     @Captor private ArgumentCaptor<ListMenuHost.PopupMenuShownListener> mPopupListenerCaptor;
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
+
+    @Captor
+    private ArgumentCaptor<List<ExtensionsMenuTypes.HostAccessRequest>> mHostAccessRequestsCaptor;
 
     private final SettableNullableObservableSupplier<Tab> mCurrentTabSupplier =
             ObservableSuppliers.createNullable();
@@ -209,8 +212,8 @@ public class ExtensionsMenuMediatorTest {
         // Verify action models are populated, property model is updated to hide zero state and the
         // onReady runnable is called.
         assertEquals(2, mActionModels.size());
-        assertItemAt(0, "Extension A", ICON_RED, ICON_KEEP);
-        assertItemAt(1, "Extension B", ICON_BLUE, ICON_MORE);
+        assertItemAt(0, "Extension A", ICON_RED);
+        assertItemAt(1, "Extension B", ICON_BLUE);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, false);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.DISCOVER_EXTENSIONS_VISIBLE, true);
         verify(mOnReadyRunnable).run();
@@ -246,7 +249,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify it should have populated immediately without needing a callback.
         assertEquals(1, mActionModels.size());
-        assertItemAt(0, "Extension A", ICON_RED, ICON_MORE);
+        assertItemAt(0, "Extension A", ICON_RED);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, false);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.DISCOVER_EXTENSIONS_VISIBLE, true);
 
@@ -268,8 +271,8 @@ public class ExtensionsMenuMediatorTest {
         mBridgeCaptor.getValue().onReady();
 
         // Verify icons are correct.
-        assertItemAt(0, "Extension A", null, ICON_MORE);
-        assertItemAt(1, "Extension B", null, ICON_MORE);
+        assertItemAt(0, "Extension A", null);
+        assertItemAt(1, "Extension B", null);
 
         // Simulate the native callback triggered when the icon for the first item is updated.
         int entryIndex = 0;
@@ -278,8 +281,8 @@ public class ExtensionsMenuMediatorTest {
         mBridgeCaptor.getValue().onActionIconUpdated(entryIndex);
 
         // Verify the firstaction model's icon has been updated to the green one.
-        assertItemAt(0, "Extension A", ICON_GREEN, ICON_MORE);
-        assertItemAt(1, "Extension B", null, ICON_MORE);
+        assertItemAt(0, "Extension A", ICON_GREEN);
+        assertItemAt(1, "Extension B", null);
     }
 
     /**
@@ -380,8 +383,8 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify that the new item is added at the correct index.
         assertEquals(2, mActionModels.size());
-        assertItemAt(0, "Extension A", ICON_RED, ICON_MORE);
-        assertItemAt(1, "Extension B", ICON_BLUE, ICON_MORE);
+        assertItemAt(0, "Extension A", ICON_RED);
+        assertItemAt(1, "Extension B", ICON_BLUE);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, false);
     }
 
@@ -410,7 +413,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify that the new item is added and zero state is hidden.
         assertEquals(1, mActionModels.size());
-        assertItemAt(0, "Extension A", ICON_RED, ICON_MORE);
+        assertItemAt(0, "Extension A", ICON_RED);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, false);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.DISCOVER_EXTENSIONS_VISIBLE, true);
     }
@@ -441,7 +444,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify that the first item is removed and the second item shifted to index 0.
         assertEquals(1, mActionModels.size());
-        assertItemAt(0, "Extension B", ICON_BLUE, ICON_MORE);
+        assertItemAt(0, "Extension B", ICON_BLUE);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, false);
     }
 
@@ -502,8 +505,8 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify "Extension A" is updated at its current index.
         assertEquals(2, mActionModels.size());
-        assertItemAt(0, "Extension A Updated", ICON_RED, ICON_MORE);
-        assertItemAt(1, "Extension B", ICON_BLUE, ICON_MORE);
+        assertItemAt(0, "Extension A Updated", ICON_RED);
+        assertItemAt(1, "Extension B", ICON_BLUE);
 
         // Simulate the native callback for Extension A updated, moving to a new index.
         ExtensionsMenuTypes.MenuEntryState updatedEntryB =
@@ -514,8 +517,8 @@ public class ExtensionsMenuMediatorTest {
 
         // Verify "Extension B" moved to index 0 and "Extension A" moved to index 1.
         assertEquals(2, mActionModels.size());
-        assertItemAt(0, "Extension B Updated", ICON_BLUE, ICON_MORE);
-        assertItemAt(1, "Extension A Updated", ICON_RED, ICON_MORE);
+        assertItemAt(0, "Extension B Updated", ICON_BLUE);
+        assertItemAt(1, "Extension A Updated", ICON_RED);
     }
 
     /**
@@ -596,12 +599,12 @@ public class ExtensionsMenuMediatorTest {
      * Tests that clicking on the context menu button of an extension item opens the context menu.
      */
     @Test
-    public void testContextClick_showMenu() {
+    public void testContextMenuButton_showMenuOnClick() {
         // Initialize the action models.
         List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createSimpleMenuEntry(
-                        "id_a", "Extension A", ICON_RED, /* isPinned= */ true));
+                        "id_a", "Extension A", ICON_RED, /* isPinned= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
 
         mBridgeCaptor.getValue().onReady();
@@ -627,6 +630,8 @@ public class ExtensionsMenuMediatorTest {
         // trigger bridge.destroy() and pass the test framework's leak check.
         verify(mockContextMenuButton).addPopupListener(mPopupListenerCaptor.capture());
         mPopupListenerCaptor.getValue().onPopupMenuDismissed();
+
+        // Verify context menu button is no longer selected after dismissal.
         verify(mActionContextMenuBridgeJniMock).destroy(eq(ACTION_CONTEXT_MENU_BRIDGE_POINTER));
     }
 
@@ -805,7 +810,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState));
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
 
         // Open extensions menu by simulating the native callback triggering onReady.
@@ -835,7 +841,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState);
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false);
         when(mExtensionsMenuBridgeJniMock.getMenuEntry(anyLong(), eq(0))).thenReturn(updatedEntry);
         mBridgeCaptor.getValue().onActionUpdated(0);
 
@@ -864,7 +871,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState);
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false);
         when(mExtensionsMenuBridgeJniMock.getMenuEntry(anyLong(), eq(0))).thenReturn(updatedEntry);
         mBridgeCaptor.getValue().onActionUpdated(0);
 
@@ -906,7 +914,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState));
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
 
         // Open extensions menu by simulating the native callback triggering onReady.
@@ -914,7 +923,7 @@ public class ExtensionsMenuMediatorTest {
 
         // Get the toggle listener for the menu item.
         PropertyModel model = mActionModels.get(0).model;
-        android.widget.CompoundButton.OnCheckedChangeListener listener =
+        CompoundButton.OnCheckedChangeListener listener =
                 model.get(ExtensionsMenuItemProperties.SITE_ACCESS_TOGGLE_ON_CLICK);
 
         // Simulate a toggle change.
@@ -957,7 +966,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState));
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false));
         when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
 
         // Open extensions menu.
@@ -986,7 +996,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState);
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false);
         when(mExtensionsMenuBridgeJniMock.getMenuEntry(anyLong(), eq(0))).thenReturn(updatedEntry);
         mBridgeCaptor.getValue().onActionUpdated(0);
 
@@ -1018,7 +1029,8 @@ public class ExtensionsMenuMediatorTest {
                         ICON_RED,
                         /* isPinned= */ false,
                         toggleState,
-                        sitePermissionsButtonState);
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ false);
         when(mExtensionsMenuBridgeJniMock.getMenuEntry(anyLong(), eq(0))).thenReturn(updatedEntry);
         mBridgeCaptor.getValue().onActionUpdated(0);
 
@@ -1066,10 +1078,11 @@ public class ExtensionsMenuMediatorTest {
                         ExtensionsMenuTypes.OptionalSectionType.RELOAD_PAGE);
 
         // Verify that the HOST_ACCESS_REQUESTS property is cleared to an empty list
-        ArgumentCaptor<List> listCaptor = ArgumentCaptor.forClass(List.class);
         verify(mMenuPropertyModel)
-                .set(eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS), listCaptor.capture());
-        assertTrue(listCaptor.getValue().isEmpty());
+                .set(
+                        eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS),
+                        mHostAccessRequestsCaptor.capture());
+        assertTrue(mHostAccessRequestsCaptor.getValue().isEmpty());
     }
 
     @Test
@@ -1081,10 +1094,11 @@ public class ExtensionsMenuMediatorTest {
         mMenuMediator.onModelChanged();
 
         // Verify that the HOST_ACCESS_REQUESTS property is cleared to an empty list
-        ArgumentCaptor<List> listCaptor = ArgumentCaptor.forClass(List.class);
         verify(mMenuPropertyModel)
-                .set(eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS), listCaptor.capture());
-        assertTrue(listCaptor.getValue().isEmpty());
+                .set(
+                        eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS),
+                        mHostAccessRequestsCaptor.capture());
+        assertTrue(mHostAccessRequestsCaptor.getValue().isEmpty());
     }
 
     /**
@@ -1249,9 +1263,8 @@ public class ExtensionsMenuMediatorTest {
                 .set(SitePermissionsPageProperties.SHOW_REQUESTS_TOGGLE_CHECKED, true);
 
         // Verify toggle click listener.
-        ArgumentCaptor<android.widget.CompoundButton.OnCheckedChangeListener> listenerCaptor =
-                ArgumentCaptor.forClass(
-                        android.widget.CompoundButton.OnCheckedChangeListener.class);
+        ArgumentCaptor<CompoundButton.OnCheckedChangeListener> listenerCaptor =
+                ArgumentCaptor.forClass(CompoundButton.OnCheckedChangeListener.class);
         verify(mSitePermissionsPropertyModel)
                 .set(
                         eq(SitePermissionsPageProperties.SHOW_REQUESTS_TOGGLE_CLICK_LISTENER),
@@ -1270,7 +1283,7 @@ public class ExtensionsMenuMediatorTest {
     public void testSitePermissionsPage_OnSiteAccessSelected() {
         String extensionName = "Extension A";
         Bitmap extensionIcon = ICON_RED;
-        List<ExtensionsMenuTypes.MenuEntryState> entries = new java.util.ArrayList<>();
+        List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
         entries.add(
                 ExtensionTestUtils.createMenuEntryWithHostPermissions(
                         "id_a", extensionName, extensionIcon, /* isPinned= */ false));
@@ -1340,8 +1353,55 @@ public class ExtensionsMenuMediatorTest {
                         ExtensionsMenuTypes.UserSiteAccess.ON_SITE);
     }
 
+    /**
+     * Tests that an extension marked as enterprise (installed by policy) is correctly identified
+     * and represented in the menu item property model.
+     */
+    @Test
+    public void testEnterpriseExtension() {
+        // Create a MenuEntryState with isEnterprise = true.
+        ExtensionsMenuTypes.ControlState toggleState =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.HIDDEN,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ true,
+                        /* icon= */ null);
+        ExtensionsMenuTypes.ControlState sitePermissionsButtonState =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.HIDDEN,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        /* icon= */ null);
+        ExtensionsMenuTypes.MenuEntryState enterpriseEntry =
+                ExtensionTestUtils.createMenuEntry(
+                        "id_enterprise",
+                        "Enterprise Extension",
+                        ICON_RED,
+                        /* isPinned= */ false,
+                        toggleState,
+                        sitePermissionsButtonState,
+                        /* isEnterprise= */ true);
+
+        List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
+        entries.add(enterpriseEntry);
+        when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        // Open the menu.
+        mBridgeCaptor.getValue().onReady();
+
+        // Verify the PropertyModel reflects the enterprise state.
+        PropertyModel model = mActionModels.get(0).model;
+        assertTrue(
+                "PropertyModel IS_ENTERPRISE should be true",
+                model.get(ExtensionsMenuItemProperties.IS_ENTERPRISE));
+    }
+
     /** Helper to assert that the item at the given index has the correct information. */
-    private void assertItemAt(int index, String title, @Nullable Bitmap icon, int contextMenuIcon) {
+    private void assertItemAt(int index, String title, @Nullable Bitmap icon) {
         ListItem item = mActionModels.get(index);
         assertEquals(0, item.type);
         assertEquals(title, item.model.get(ExtensionsMenuItemProperties.TITLE));
@@ -1350,9 +1410,6 @@ public class ExtensionsMenuMediatorTest {
         } else {
             assertTrue(icon.sameAs(item.model.get(ExtensionsMenuItemProperties.ICON)));
         }
-        assertEquals(
-                contextMenuIcon,
-                item.model.get(ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ICON));
     }
 
     private ExtensionsMenuTypes.SiteSettingsState createSiteSettingsState(

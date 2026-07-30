@@ -53,7 +53,6 @@ import org.chromium.components.signin.GAIAServiceType;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.AccountConsistencyPromoAction;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
@@ -125,7 +124,7 @@ final class SigninBridge {
         WindowAndroid windowAndroid = tab.getWindowAndroid();
         if (windowAndroid == null || !tab.isUserInteractable()) {
             // The page is opened in the background, ignore the header. See
-            // https://crbug.com/1145031#c5 and https://crbug.com/323424409 for details.
+            // https://crbug.com/40729225#c5 and https://crbug.com/323424409 for details.
             return;
         }
         GURL initialTabURL = tab.getUrl();
@@ -171,7 +170,7 @@ final class SigninBridge {
                 // If the account is added to the device but there is no primary
                 // account then surface the bottom sheet otherwise wait for
                 // cookies to be minted.
-                if (identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN) == null) {
+                if (identityManager.getPrimaryAccountInfo() == null) {
                     openAccountPickerBottomSheet(
                             tab,
                             continueUrl,
@@ -263,7 +262,7 @@ final class SigninBridge {
         WindowAndroid windowAndroid = tab.getWindowAndroid();
         if (windowAndroid == null || !tab.isUserInteractable()) {
             // The page is opened in the background, ignore the header. See
-            // https://crbug.com/1145031#c5 and https://crbug.com/323424409 for details.
+            // https://crbug.com/40729225#c5 and https://crbug.com/323424409 for details.
             return;
         }
         Profile profile = tab.getProfile().getOriginalProfile();
@@ -373,7 +372,7 @@ final class SigninBridge {
         WindowAndroid windowAndroid = tab.getWindowAndroid();
         if (windowAndroid == null || !tab.isUserInteractable()) {
             // The page is opened in the background, ignore the header. See
-            // https://crbug.com/1145031#c5 and https://crbug.com/323424409 for details.
+            // https://crbug.com/40729225#c5 and https://crbug.com/323424409 for details.
             return;
         }
         GURL initialTabURL = tab.getUrl();

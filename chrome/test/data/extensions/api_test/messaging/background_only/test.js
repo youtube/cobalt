@@ -28,22 +28,22 @@ chrome.test.runTests([
   },
 
   function sendMessageExpectingNoAnswerWithCallback() {
-    chrome.runtime.sendMessage('hello with callback',
-        chrome.test.callbackFail(kPortErrorMessage));
+    chrome.runtime.sendMessage(
+        'hello with callback', chrome.test.callbackFail(kPortErrorMessage));
   },
 
   function connectAndDisconnect() {
-    chrome.runtime.connect({ name: 'The First Port'}).disconnect();
+    chrome.runtime.connect({name: 'The First Port'}).disconnect();
     // Like sendMessageExpectingNoAnswer; onConnect should not be triggered.
     setTimeout(chrome.test.callbackPass(), 100);
   },
 
   function connectExpectDisconnect() {
-    chrome.runtime.connect({ name: 'The Last Port'}).onDisconnect.addListener(
-        chrome.test.callbackFail(kPortErrorMessage));
+    chrome.runtime.connect({name: 'The Last Port'})
+        .onDisconnect.addListener(chrome.test.callbackFail(kPortErrorMessage));
   },
 
-  // Regression test for crbug.com/597698
+  // Regression test for crbug.com/41245808
   function sendMessageNoCallback() {
     const f = document.createElement('iframe');
     const onMessageInFrame = chrome.test.callbackPass(function(msg) {
@@ -61,7 +61,7 @@ chrome.test.runTests([
     document.body.appendChild(f);
   },
 
-  // Regression test for crbug.com/597698
+  // Regression test for crbug.com/41245808
   function connectAndDisconnectInIframe() {
     const gotMessage = chrome.test.callbackAdded();
     const gotDisconnect = chrome.test.callbackAdded();
@@ -85,7 +85,7 @@ chrome.test.runTests([
         });
       });
 
-      senderPort = chrome.runtime.connect({ name: 'port with active frame' });
+      senderPort = chrome.runtime.connect({name: 'port with active frame'});
       senderPort.postMessage('fire and forget');
       senderPort.disconnect();
       senderPort = null;

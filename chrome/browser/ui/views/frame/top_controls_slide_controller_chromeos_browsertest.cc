@@ -1034,7 +1034,7 @@ class PageStateUpdateWaiter : content::WebContentsObserver {
 
 // Verifies that we ignore the shown ratios sent from widgets other than that of
 // the main frame (such as widgets of the drop-down menus in web pages).
-// https://crbug.com/891471.
+// https://crbug.com/41418552.
 IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, TestDropDowns) {
   browser_view()->browser_widget()->Maximize();
   ToggleTabletMode();
@@ -1388,8 +1388,7 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, TestPermissionBubble) {
                     const permissions::PermissionRequestData&) {};
   auto permission_request = std::make_unique<permissions::PermissionRequest>(
       std::make_unique<permissions::PermissionRequestData>(
-          std::make_unique<permissions::ContentSettingPermissionResolver>(
-              ContentSettingsType::GEOLOCATION),
+          permissions::RequestType::kGeolocation,
           /*user_gesture*/ true, url),
       base::BindRepeating(decided));
   auto* permission_manager =
@@ -1461,7 +1460,7 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest,
                                TopChromeShownState::kFullyHidden);
 }
 
-// Regression test for https://crbug.com/1163276.
+// Regression test for https://crbug.com/40740045.
 IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest,
                        NoCrashOnNewTabWhileScrolling) {
   ToggleTabletMode();

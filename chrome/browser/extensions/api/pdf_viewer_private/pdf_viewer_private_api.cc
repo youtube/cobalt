@@ -15,7 +15,6 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/pdf/mime_handler_stream_manager.h"
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
@@ -25,18 +24,23 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
 #include "extensions/browser/mime_handler/stream_container.h"
 #include "pdf/buildflags.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+#include "base/strings/string_number_conversions.h"
+#include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/save_to_drive/content_reader.h"
 #include "chrome/browser/save_to_drive/pdf_content_reader.h"
 #include "chrome/browser/save_to_drive/save_to_drive_event_dispatcher.h"
 #include "chrome/browser/save_to_drive/save_to_drive_flow.h"
+#include "chrome/browser/save_to_drive/save_to_drive_utils.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"  // nogncheck
 #include "chrome/browser/ui/save_to_drive/get_account.h"
+#include "extensions/common/error_utils.h"
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 namespace extensions {
@@ -84,7 +88,8 @@ base::WeakPtr<StreamContainer> GetStreamContainer(
   }
 
   auto* mime_handler_stream_manager =
-      pdf::MimeHandlerStreamManager::FromRenderFrameHost(embedder_host);
+      mime_handler::MimeHandlerStreamManager::FromRenderFrameHost(
+          embedder_host);
   if (!mime_handler_stream_manager) {
     return nullptr;
   }
@@ -191,6 +196,14 @@ PdfViewerPrivateSaveToDriveFunction::RunSaveToDriveFlow(
   if (!event_dispatcher) {
     return RespondNow(Error("Failed to create event dispatcher"));
   }
+
+  // It is possible the tab associated with this call has been closed.
+  if (!SaveToDriveFlow::HasValidTabId(render_frame_host())) {
+    return RespondNow(Error(ErrorUtils::FormatErrorMessage(
+        ExtensionTabUtil::kTabNotFoundError,
+        base::NumberToString(save_to_drive::GetTabId(render_frame_host())))));
+  }
+
   auto content_reader = std::make_unique<save_to_drive::PDFContentReader>(
       render_frame_host(), ToMojomSaveRequestType(request_type));
   auto account_chooser = std::make_unique<save_to_drive::AccountChooser>();

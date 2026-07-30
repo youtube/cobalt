@@ -1583,8 +1583,12 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     // allows us to verify that it matches the viz service calculation.
     // Note: The client might report damage outside the root surface content
     // rect (e.g. from a filter), so we must intersect with the content rect.
-    gfx::Rect damage_rect = tree.RootRenderSurface()->GetDamageRect();
-    damage_rect.Intersect(tree.RootRenderSurface()->content_rect());
+    gfx::Rect damage_rect;
+    if (frame_has_damage) {
+      damage_rect = tree.RootRenderSurface()->GetDamageRect();
+      damage_rect.Subtract(viewport_damage_rect);
+      damage_rect.Intersect(tree.RootRenderSurface()->content_rect());
+    }
     update->root_layer_damage_rect = damage_rect;
   }
   update->full_tree_damaged = property_trees.full_tree_damaged();
@@ -1848,6 +1852,10 @@ VizLayerContext::MaybeSerializeAnimationTimeline(
   wire->new_animations = std::move(new_animations);
   wire->removed_animations = std::move(removed_animations);
   return wire;
+}
+
+void VizLayerContext::FlushReceiverForTesting() {
+  client_receiver_.FlushForTesting();  // IN-TEST
 }
 
 void VizLayerContext::OnMojoConnectionError(uint32_t custom_reason,

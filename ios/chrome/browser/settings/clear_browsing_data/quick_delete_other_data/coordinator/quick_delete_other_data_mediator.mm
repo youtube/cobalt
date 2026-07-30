@@ -6,6 +6,7 @@
 
 #import "components/search_engines/template_url.h"
 #import "components/search_engines/template_url_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
@@ -48,8 +49,7 @@ using quick_delete_util::DefaultSearchEngineState;
   if ((self = [super init])) {
     _authenticationService = authenticationService;
     _identityManager = identityManager;
-    _isSignedIn = _authenticationService->HasPrimaryIdentity(
-        signin::ConsentLevel::kSignin);
+    _isSignedIn = _authenticationService->HasPrimaryIdentity();
     _identityManagerObserver =
         std::make_unique<signin::IdentityManagerObserverBridge>(
             _identityManager, self);

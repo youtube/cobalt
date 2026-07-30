@@ -1126,7 +1126,7 @@ Node* Element::Clone(Document& factory,
     }
   } else {
     copy = &CloneWithChildren(data, &factory, append_to, registry,
-                              append_exception_state);
+                              fallback_registry, append_exception_state);
   }
   // 6. If node is a shadow host whose shadow root’s clonable is true:
   auto* shadow_root = GetShadowRoot();
@@ -1191,6 +1191,7 @@ Element& Element::CloneWithChildren(
     Document* nullable_factory,
     ContainerNode* append_to,
     CustomElementRegistry* registry,
+    CustomElementRegistry* fallback_registry,
     ExceptionState& append_exception_state) const {
   InvalidateNodeListCachesScope deferred_invalidation_scope(GetDocument());
   Element& clone = CloneWithoutAttributesAndChildren(
@@ -1208,7 +1209,11 @@ Element& Element::CloneWithChildren(
   if (append_to) {
     append_to->AppendChild(&clone, append_exception_state);
   }
-  clone.CloneChildNodesFrom(*this, data, registry);
+  // Pass the original fallback_registry (not the resolved registry) so that
+  // descendants with null registries fall back to the registry originally
+  // provided to importNode/cloneNode, rather than an intermediate ancestor's
+  // resolved registry. See https://crbug.com/491031515.
+  clone.CloneChildNodesFrom(*this, data, fallback_registry);
   return clone;
 }
 
@@ -5245,9 +5250,9 @@ void Element::RecalcStyle(const StyleRecalcChange change,
         }
       }
 
-      if (RuntimeEnabledFeatures::HTMLInterestForInterestHintPseudoEnabled(
+      if (RuntimeEnabledFeatures::HTMLInterestForInterestButtonPseudoEnabled(
               GetExecutionContext())) {
-        UpdatePseudoElement(kPseudoIdInterestHint, child_change,
+        UpdatePseudoElement(kPseudoIdInterestButton, child_change,
                             child_recalc_context);
       }
 
@@ -5903,8 +5908,11 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
     // layout tree siblings.
     WhitespaceAttacher local_attacher;
     WhitespaceAttacher* child_attacher;
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupAfter,
-                                   local_attacher);
+    const bool has_pseudo_elements = HasPseudoElements();
+    if (has_pseudo_elements) {
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupAfter,
+                                     local_attacher);
+    }
     LayoutObject* layout_object = GetLayoutObject();
     if (layout_object || !HasDisplayContentsStyle()) {
       whitespace_attacher.DidVisitElement(this);
@@ -5918,32 +5926,38 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
     }
     RebuildTransitionLayoutTree(*child_attacher);
     RebuildOverscrollAreaLayoutTree(*child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdAfter, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdExpandIcon, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdPickerIcon, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdInterestHint, *child_attacher);
+    if (has_pseudo_elements) {
+      RebuildPseudoElementLayoutTree(kPseudoIdAfter, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdExpandIcon, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdPickerIcon, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdInterestButton, *child_attacher);
+    }
     if (GetShadowRoot()) {
       RebuildShadowRootLayoutTree(*child_attacher);
     } else {
       RebuildChildrenLayoutTrees(*child_attacher);
     }
-    RebuildPseudoElementLayoutTree(kPseudoIdCheckMark, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdBefore, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdMarker, *child_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockEnd,
-                                   local_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineEnd,
-                                   local_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineStart,
-                                   local_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockStart,
-                                   local_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupBefore,
-                                   local_attacher);
-    RebuildPseudoElementLayoutTree(kPseudoIdBackdrop, *child_attacher);
+    if (has_pseudo_elements) {
+      RebuildPseudoElementLayoutTree(kPseudoIdCheckMark, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdBefore, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdMarker, *child_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockEnd,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineEnd,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonInlineStart,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollButtonBlockStart,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollMarkerGroupBefore,
+                                     local_attacher);
+      RebuildPseudoElementLayoutTree(kPseudoIdBackdrop, *child_attacher);
+    }
     RebuildFirstLetterLayoutTree();
-    RebuildPseudoElementLayoutTree(kPseudoIdScrollMarker, *child_attacher);
-    RebuildColumnLayoutTrees(*child_attacher);
+    if (has_pseudo_elements) {
+      RebuildPseudoElementLayoutTree(kPseudoIdScrollMarker, *child_attacher);
+      RebuildColumnLayoutTrees(*child_attacher);
+    }
     ClearChildNeedsReattachLayoutTree();
   }
   DCHECK(!NeedsStyleRecalc());
@@ -7320,7 +7334,12 @@ void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
   // "explicitly_set" flag so we can ensure the registry is retained in
   // scenarios like cross document/scope adoption.
   if (registry == GetTreeScope().customElementRegistry() && !explicitly_set) {
-    EnsureRareData().ClearCustomElementRegistry();
+    // Only touch rare data if it already exists and has a registry set.
+    if (const ElementRareDataVector* data = RareData()) {
+      if (data->HasCustomElementRegistrySet()) {
+        EnsureRareData().ClearCustomElementRegistry();
+      }
+    }
   } else {
     data_ = EnsureRareData().SetCustomElementRegistry(registry);
     GetDocument().SetScopedCustomElementRegistryUsed();
@@ -7581,6 +7600,7 @@ bool Element::AttachDeclarativeShadowRoot(
   if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
       waiting_for_scoped_registry) {
     shadow_root.SetKeepCustomElementRegistryNull(true);
+    GetDocument().SetScopedCustomElementRegistryUsed();
   }
   // 10.8.NEW. Process shadowrootadoptedstylesheets attribute.
   if (RuntimeEnabledFeatures::ShadowRootAdoptedStyleSheetEnabled(
@@ -7794,6 +7814,10 @@ void Element::ChildrenChanged(const ChildrenChange& change) {
 
 void Element::FinishParsingChildren() {
   SetIsFinishedParsingChildren(true);
+  DidFinishParsingChildren();
+}
+
+void Element::DidFinishParsingChildren() {
   CheckForEmptyStyleChange(this, this);
   CheckForSiblingStyleChanges(kFinishedParsingChildren, nullptr, lastChild(),
                               nullptr);
@@ -8150,8 +8174,8 @@ void Element::Focus(const FocusParams& params) {
   LocalFrame* initiator = params.initiator_frame ? params.initiator_frame
                                                  : GetDocument().GetFrame();
 
-  if (!initiator || !GetDocument().IsFocusAllowed(params.focus_trigger,
-                                                    *initiator)) {
+  if (!initiator ||
+      !GetDocument().IsFocusAllowed(params.focus_trigger, *initiator)) {
     return;
   }
 
@@ -9372,6 +9396,20 @@ void Element::SetOuterHTMLInternal(const String& html,
     context_element = To<Element>(p);
   }
 
+  // The registry should reflect the parent scope where replacement nodes will
+  // live, not the fabricated context_element. When scoped registries aren't in
+  // use, all elements share the tree scope's global registry so no distinction
+  // is needed.
+  CustomElementRegistry* registry;
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+      GetDocument().ScopedCustomElementRegistryUsed()) {
+    auto* parent_element = DynamicTo<Element>(p);
+    registry = parent_element ? parent_element->customElementRegistry()
+                              : p->GetTreeScope().customElementRegistry();
+  } else {
+    registry = GetTreeScope().customElementRegistry();
+  }
+
   Node* prev = previousSibling();
   Node* next = nextSibling();
 
@@ -9381,7 +9419,7 @@ void Element::SetOuterHTMLInternal(const String& html,
                             .interface_name = trusted_types_names::kElement,
                             .property_name = trusted_types_names::kOuterHTML,
                             .context_element = context_element,
-                            .registry = customElementRegistry(),
+                            .registry = registry,
                         },
                         FragmentParserOptions(), exception_state);
 
@@ -9645,6 +9683,22 @@ void Element::InsertAdjacentHTMLInternal(const String& where,
     context_element = To<Element>(context_node);
   }
 
+  // The registry should reflect where new nodes will be inserted (i.e., under
+  // context_node), not the fabricated context_element which may differ for
+  // non-Element parents like ShadowRoot. When scoped registries aren't in use,
+  // all elements share the tree scope's global registry so no distinction is
+  // needed.
+  CustomElementRegistry* registry;
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+      GetDocument().ScopedCustomElementRegistryUsed()) {
+    auto* context_element_for_registry = DynamicTo<Element>(context_node);
+    registry = context_element_for_registry
+                   ? context_element_for_registry->customElementRegistry()
+                   : context_node->GetTreeScope().customElementRegistry();
+  } else {
+    registry = GetTreeScope().customElementRegistry();
+  }
+
   // Step 3 of http://domparsing.spec.whatwg.org/#insertadjacenthtml()
   if (DocumentFragment* fragment = ParseHTMLFragment(
           html,
@@ -9652,7 +9706,7 @@ void Element::InsertAdjacentHTMLInternal(const String& where,
               .interface_name = trusted_types_names::kElement,
               .property_name = trusted_types_names::kInsertAdjacentHTML,
               .context_element = context_element,
-              .registry = customElementRegistry(),
+              .registry = registry,
           },
           FragmentParserOptions(), exception_state)) {
     InsertAdjacent(where, fragment, exception_state);
@@ -10874,7 +10928,7 @@ const ComputedStyle* Element::StyleForPseudoElement(
   const bool is_before_or_after_like =
       pseudo_id == kPseudoIdCheckMark || pseudo_id == kPseudoIdBefore ||
       pseudo_id == kPseudoIdAfter || pseudo_id == kPseudoIdExpandIcon ||
-      pseudo_id == kPseudoIdPickerIcon || pseudo_id == kPseudoIdInterestHint;
+      pseudo_id == kPseudoIdPickerIcon || pseudo_id == kPseudoIdInterestButton;
 
   if (is_before_or_after_like) {
     DCHECK(request.parent_override);
@@ -11015,7 +11069,7 @@ bool Element::CanGeneratePseudoElement(PseudoId pseudo_id) const {
       return false;
     }
   }
-  if (pseudo_id == kPseudoIdInterestHint && !InterestForElement()) {
+  if (pseudo_id == kPseudoIdInterestButton && !InterestForElement()) {
     return false;
   }
   if (const ComputedStyle* style = GetComputedStyle()) {
@@ -13527,7 +13581,7 @@ Element* Element::ImplicitAnchorElement() const {
       case kPseudoIdAfter:
       case kPseudoIdExpandIcon:
       case kPseudoIdPickerIcon:
-      case kPseudoIdInterestHint:
+      case kPseudoIdInterestButton:
       case kPseudoIdBackdrop:
       case kPseudoIdScrollMarkerGroupBefore:
       case kPseudoIdScrollMarkerGroupAfter:

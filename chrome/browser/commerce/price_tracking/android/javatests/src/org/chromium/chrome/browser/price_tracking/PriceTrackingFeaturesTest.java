@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.price_tracking;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 import androidx.test.annotation.UiThreadTest;
@@ -65,7 +64,7 @@ public class PriceTrackingFeaturesTest {
 
         setMbbStatus(true);
         setSignedInStatus(true);
-        setTabSyncStatus(true, true);
+        setTabSyncStatus(true);
         PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(true);
     }
 
@@ -125,7 +124,7 @@ public class PriceTrackingFeaturesTest {
     public void testIsPriceTrackingEligibleTestHook() {
         setMbbStatus(false);
         setSignedInStatus(false);
-        setTabSyncStatus(false, false);
+        setTabSyncStatus(false);
         PriceTrackingFeatures.setIsSignedInAndSyncEnabledForTesting(true);
 
         Assert.assertTrue(
@@ -141,11 +140,10 @@ public class PriceTrackingFeaturesTest {
     }
 
     private void setSignedInStatus(boolean isSignedIn) {
-        when(mIdentityManagerMock.hasPrimaryAccount(anyInt())).thenReturn(isSignedIn);
+        when(mIdentityManagerMock.hasPrimaryAccount()).thenReturn(isSignedIn);
     }
 
-    private void setTabSyncStatus(boolean isSyncFeatureEnabled, boolean hasSessions) {
-        when(mSyncServiceMock.isSyncFeatureEnabled()).thenReturn(isSyncFeatureEnabled);
+    private void setTabSyncStatus(boolean hasSessions) {
         when(mSyncServiceMock.getActiveDataTypes())
                 .thenReturn(hasSessions ? Set.of(DataType.SESSIONS) : Set.of(DataType.AUTOFILL));
     }

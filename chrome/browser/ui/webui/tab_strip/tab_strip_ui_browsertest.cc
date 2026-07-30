@@ -60,14 +60,6 @@ class MockTabStripUIEmbedder : public TabStripUIEmbedder {
 
 class TabStripUIBrowserTest : public InProcessBrowserTest {
  public:
-  void SetUp() override {
-    // In this test, we create our own TabStripUI instance with a mock
-    // Embedder. Disable the production one to avoid conflicting with
-    // it.
-    feature_override_.InitAndDisableFeature(features::kWebUITabStrip);
-    InProcessBrowserTest::SetUp();
-  }
-
   void SetUpOnMainThread() override {
     const TabStripUILayout default_layout =
         TabStripUILayout::CalculateForWebViewportSize(gfx::Size(200, 200));
@@ -97,9 +89,6 @@ class TabStripUIBrowserTest : public InProcessBrowserTest {
 
   ::testing::NiceMock<MockTabStripUIEmbedder> mock_embedder_;
   std::unique_ptr<content::WebContents> webui_contents_;
-
- private:
-  base::test::ScopedFeatureList feature_override_;
 };
 
 // static
@@ -108,9 +97,9 @@ const std::string TabStripUIBrowserTest::tab_query_js(
     "    .shadowRoot.querySelector('tabstrip-tab')"
     "    .shadowRoot.querySelector('#tab')");
 
-// https://crbug.com/1246369: Test is flaky on Linux/Windows, disabled for
+// https://crbug.com/40789199: Test is flaky on Linux/Windows, disabled for
 // investigation.
-// https://crbug.com/1263485: Also flaky on chromeos.
+// https://crbug.com/40800244: Also flaky on chromeos.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ActivatingTabClosesEmbedder DISABLED_ActivatingTabClosesEmbedder
 #else

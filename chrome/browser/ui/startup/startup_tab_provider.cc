@@ -34,6 +34,7 @@
 #include "chrome/browser/ui/startup/google_chrome_scheme_util.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_types.h"
+#include "chrome/browser/ui/startup/url_util.h"
 #include "chrome/browser/ui/tabs/pinned_tab_codec.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/settings/reset_settings_handler.h"
@@ -209,7 +210,7 @@ StartupTabs StartupTabProviderImpl::GetInitialPrefsTabsForState(
     tabs.reserve(first_run_tabs.size());
     for (GURL url : first_run_tabs) {
       if (url.host() == kNewTabUrlHost) {
-        url = GURL(chrome::kChromeUINewTabURL);
+        url = chrome::ChromeUINewTabURLAsGURL();
       }
       if (IsWelcomePageUrl(url)) {
         // These URLs are still referenced from some of the installers. As
@@ -269,7 +270,7 @@ StartupTabs StartupTabProviderImpl::GetNewTabPageTabsForState(
     const SessionStartupPref& pref) {
   StartupTabs tabs;
   if (!pref.ShouldRestoreLastSession()) {
-    tabs.emplace_back(GURL(chrome::kChromeUINewTabURL));
+    tabs.emplace_back(chrome::ChromeUINewTabURLAsGURL());
   }
   return tabs;
 }
@@ -326,11 +327,11 @@ StartupTabProviderImpl::ParseTabFromCommandLineArg(
 
     // This call can (in rare circumstances) block the UI thread.
     // FixupRelativeFile may access to current working directory, which is a
-    // blocking API. http://crbug.com/60641
-    // http://crbug.com/371030: Only use URLFixerUpper if we don't have a
+    // blocking API. http://crbug.com/40466600
+    // http://crbug.com/40364501: Only use URLFixerUpper if we don't have a
     // valid URL, otherwise we will look in the current directory for a file
     // named 'about' if the browser was started with a about:foo argument.
-    // http://crbug.com/424991: Always use URLFixerUpper on file:// URLs,
+    // http://crbug.com/40389934: Always use URLFixerUpper on file:// URLs,
     // otherwise we wouldn't correctly handle '#' in a file name.
     if (!url.is_valid() || url.SchemeIsFile()) {
       base::ScopedAllowBlocking allow_blocking;

@@ -47,7 +47,7 @@ class MockUnexportableKeyProvider
   // crypto::StatefulUnexportableKeyProvider:
   MOCK_METHOD(std::optional<
                   std::vector<std::unique_ptr<crypto::UnexportableSigningKey>>>,
-              GetAllSigningKeysSlowly,
+              GetAllKeysSlowly,
               (),
               (override));
   MOCK_METHOD(std::optional<size_t>,
@@ -55,14 +55,10 @@ class MockUnexportableKeyProvider
               (base::span<const base::span<const uint8_t>> wrapped_keys),
               (override));
   MOCK_METHOD(std::optional<size_t>,
-              DeleteSigningKeysSlowly,
-              (base::span<const crypto::StatefulUnexportableSigningKey* const>
-                   signing_keys),
+              DeleteKeysSlowly,
+              (base::span<const crypto::UnexportableKey* const> keys),
               (override));
-  MOCK_METHOD(std::optional<size_t>,
-              DeleteAllSigningKeysSlowly,
-              (),
-              (override));
+  MOCK_METHOD(std::optional<size_t>, DeleteAllKeysSlowly, (), (override));
 };
 
 }  // namespace unexportable_keys

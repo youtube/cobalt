@@ -16,6 +16,7 @@
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/google/core/common/google_util.h"
 #import "components/regional_capabilities/regional_capabilities_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
@@ -423,8 +424,7 @@ enum class ActionAfterReauth {
 - (void)openWebAppActivityDialog {
   base::RecordAction(base::UserMetricsAction(
       "Signin_AccountSettings_GoogleActivityControlsClicked"));
-  id<SystemIdentity> identity =
-      self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = self.authService->GetPrimaryIdentity();
   _dismissWebAndAppSettingDetailsController =
       GetApplicationContext()
           ->GetSystemIdentityManager()
@@ -466,7 +466,7 @@ enum class ActionAfterReauth {
 }
 
 - (void)signOutFromTargetRect:(CGRect)targetRect {
-  if (!self.authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin)) {
+  if (!self.authService->HasPrimaryIdentity()) {
     // This could happen in very rare cases, if the account somehow got removed
     // after the settings UI was created.
     return;
@@ -538,8 +538,7 @@ enum class ActionAfterReauth {
 }
 
 - (void)showManageYourGoogleAccount {
-  id<SystemIdentity> identity =
-      self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = self.authService->GetPrimaryIdentity();
   if (!identity.hasValidAuth) {
     [self openPrimaryAccountReauthDialogWithAction:
               ActionAfterReauth::kShowManageYourGoogleAccount];
@@ -550,9 +549,7 @@ enum class ActionAfterReauth {
       GetApplicationContext()
           ->GetSystemIdentityManager()
           ->PresentAccountDetailsController(
-              self.authService->GetPrimaryIdentity(
-                  signin::ConsentLevel::kSignin),
-              self.viewController,
+              self.authService->GetPrimaryIdentity(), self.viewController,
               /*animated=*/YES,
               base::BindOnce(
                   [](__typeof(self) weakSelf) {
@@ -783,8 +780,7 @@ enum class ActionAfterReauth {
 }
 
 - (void)openAccountStorage {
-  id<SystemIdentity> identity =
-      self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = self.authService->GetPrimaryIdentity();
   if (!identity.hasValidAuth) {
     [self openPrimaryAccountReauthDialogWithAction:ActionAfterReauth::
                                                        kOpenAccountStorage];

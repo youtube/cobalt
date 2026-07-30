@@ -27,11 +27,9 @@
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/browser/plus_address_types.h"
-#include "components/plus_addresses/core/common/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/elide_url.h"
 #include "content/public/browser/web_contents.h"
@@ -154,12 +152,6 @@ void AddressAccessoryControllerImpl::OnFillingTriggered(
   if (selection.suggestion_type() == AccessorySuggestionType::kPlusAddress &&
       plus_address_service_) {
     plus_address_service_->DidFillPlusAddress();
-    if (autofill::ContentAutofillClient* autofill_client =
-            autofill::ContentAutofillClient::FromWebContents(
-                &GetWebContents())) {
-      autofill_client->TriggerPlusAddressUserPerceptionSurvey(
-          plus_addresses::hats::SurveyType::kFilledPlusAddressViaManualFallack);
-    }
   }
 }
 

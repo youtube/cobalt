@@ -25,6 +25,7 @@
 #include "base/apple/bridging.h"
 #include "base/apple/foundation_util.h"
 #include "base/apple/scoped_cftyperef.h"
+#include "base/check_deref.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
@@ -257,7 +258,8 @@ std::optional<std::vector<uint8_t>> Convertx963ToDerSpki(
 
 // UnexportableSigningKeyApple is an implementation of the
 // UnexportableSigningKey interface on top of Apple's Secure Enclave.
-class UnexportableSigningKeyApple : public StatefulUnexportableSigningKey {
+class UnexportableSigningKeyApple : public UnexportableSigningKey,
+                                    public StatefulKey {
  public:
   explicit UnexportableSigningKeyApple(CFDictionaryRef key_attributes)
       : UnexportableSigningKeyApple(
@@ -327,12 +329,11 @@ class UnexportableSigningKeyApple : public StatefulUnexportableSigningKey {
 
   SecKeyRef GetSecKeyRef() const override { return key_.get(); }
 
-  StatefulUnexportableSigningKey* AsStatefulUnexportableSigningKey()
-      LIFETIME_BOUND override {
+  const StatefulKey* AsStatefulKey() const LIFETIME_BOUND override {
     return this;
   }
 
-  // StatefulUnexportableSigningKey:
+  // StatefulKey:
   std::string GetKeyTag() const override { return application_tag_; }
 
   base::Time GetCreationTime() const override { return creation_time_; }
@@ -539,7 +540,7 @@ UnexportableKeyProviderApple::AsStatefulUnexportableKeyProvider() {
 }
 
 std::optional<std::vector<std::unique_ptr<UnexportableSigningKey>>>
-UnexportableKeyProviderApple::GetAllSigningKeysSlowly() {
+UnexportableKeyProviderApple::GetAllKeysSlowly() {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
 
@@ -588,17 +589,17 @@ std::optional<size_t> UnexportableKeyProviderApple::DeleteWrappedKeysSlowly(
       keys, [&](const auto& key) { return DeleteKey(key.get()); });
 }
 
-std::optional<size_t> UnexportableKeyProviderApple::DeleteSigningKeysSlowly(
-    base::span<const StatefulUnexportableSigningKey* const> signing_keys) {
+std::optional<size_t> UnexportableKeyProviderApple::DeleteKeysSlowly(
+    base::span<const UnexportableKey* const> keys) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
 
-  if (signing_keys.empty()) {
+  if (keys.empty()) {
     return 0;
   }
 
   ASSIGN_OR_RETURN(
-      std::vector<base::apple::ScopedCFTypeRef<CFDictionaryRef>> keys,
+      std::vector<base::apple::ScopedCFTypeRef<CFDictionaryRef>> keychain_keys,
       FindUnexportableKeys({
           .access_group = objc_storage_->keychain_access_group_,
           .application_tag_prefix =
@@ -609,12 +610,15 @@ std::optional<size_t> UnexportableKeyProviderApple::DeleteSigningKeysSlowly(
         return std::nullopt;
       });
 
-  const auto keys_and_tags_to_delete =
-      ToFlatHashSet(signing_keys, [](const auto* key) {
-        return std::pair{key->GetWrappedKey(), key->GetKeyTag()};
-      });
+  const auto keys_and_tags_to_delete = ToFlatHashSet(keys, [](const auto* key) {
+    // NOTE: The keys passed to this method should always be instances of
+    // `UnexportableSigningKeyApple`, which are guaranteed to be stateful.
+    // Thus we can confidently `CHECK` here.
+    return std::pair{key->GetWrappedKey(),
+                     CHECK_DEREF(key->AsStatefulKey()).GetKeyTag()};
+  });
 
-  std::erase_if(keys, [&](const auto& key) {
+  std::erase_if(keychain_keys, [&](const auto& key) {
     return !keys_and_tags_to_delete.contains({
         base::ToVector(GetApplicationLabel(key.get())),
         GetApplicationTag(key.get()),
@@ -622,11 +626,10 @@ std::optional<size_t> UnexportableKeyProviderApple::DeleteSigningKeysSlowly(
   });
 
   return std::ranges::count_if(
-      keys, [&](const auto& key) { return DeleteKey(key.get()); });
+      keychain_keys, [&](const auto& key) { return DeleteKey(key.get()); });
 }
 
-std::optional<size_t>
-UnexportableKeyProviderApple::DeleteAllSigningKeysSlowly() {
+std::optional<size_t> UnexportableKeyProviderApple::DeleteAllKeysSlowly() {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
 
@@ -660,13 +663,16 @@ std::unique_ptr<UnexportableKeyProviderApple> GetUnexportableKeyProviderApple(
   CHECK(!config.keychain_access_group.empty())
       << "A keychain access group must be set when using unexportable keys on "
          "Apple platforms";
+#if !BUILDFLAG(IS_IOS)
+  // Secure Enclave on iOS is available since the iPhone 5s (A7 chip). This
+  // redundant check causes crashes because of the synchronous initialization of
+  // `TKTokenWatcher` on every call.
   if (![crypto::apple::KeychainV2::GetInstance().GetTokenIDs()
           containsObject:CFToNSPtrCast(kSecAttrTokenIDSecureEnclave)]) {
     return nullptr;
   }
   // Inspecting the binary for the entitlement is not available on iOS, assume
   // it is available.
-#if !BUILDFLAG(IS_IOS)
   if (!crypto::apple::ExecutableHasKeychainAccessGroupEntitlement(
           config.keychain_access_group)) {
     return nullptr;

@@ -315,6 +315,7 @@ LRESULT LegacyRenderWidgetHostHWND::OnGetObject(UINT message,
 
   switch (obj_id) {
     case UiaRootObjectId:
+      ui::AXPlatform::GetInstance().SetUiaRequested();
       if (ui::AXPlatform::GetInstance().IsUiaProviderEnabled()) {
         // Return the IRawElementProviderSimple for the window's client area to
         // a UI Automation client.
@@ -332,6 +333,7 @@ LRESULT LegacyRenderWidgetHostHWND::OnGetObject(UINT message,
       break;
 
     case OBJID_CLIENT:
+      ui::AXPlatform::GetInstance().SetMsaaRequested();
       // Return the IAccessible for the web content to an MSAA client.
       if (IAccessible* root =
               GetOrCreateWindowRootAccessible(/*is_uia_request=*/false)) {
@@ -432,7 +434,11 @@ LRESULT LegacyRenderWidgetHostHWND::OnMouseRange(UINT message,
   if (!msg_handled &&
       (message >= WM_NCMOUSEMOVE && message <= WM_NCXBUTTONDBLCLK)) {
     ret = ::DefWindowProc(GetParent(), message, w_param, l_param);
-    SetMsgHandled(TRUE);
+    // DefWindowProc() may result in |this| being deleted (e.g. if a nested
+    // modal loop is entered and the tab is closed). See crbug.com/503793153.
+    if (ref) {
+      SetMsgHandled(TRUE);
+    }
   }
   return ret;
 }

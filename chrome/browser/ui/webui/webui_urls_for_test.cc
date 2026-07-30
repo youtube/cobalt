@@ -29,7 +29,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
 #endif
       "chrome://accessibility-annotator-info",
       "chrome://accessibility-annotator-internals",
-// TODO:(https://crbug.com/1439754): Flakily crashes on ChromeOS.
+// TODO:(https://crbug.com/40265685): Flakily crashes on ChromeOS.
 #if !BUILDFLAG(IS_CHROMEOS)
       "chrome://app-service-internals",
 #endif
@@ -74,6 +74,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://device-log",
       "chrome://download-internals",
       "chrome://downloads",
+      "chrome://drive-picker-host",
       "chrome://extensions",
       "chrome://extensions-internals",
       "chrome://extensions-zero-state",
@@ -276,6 +277,7 @@ base::span<const std::string_view> GetUntestedChromeUrlsForTest() {
       "chrome-untrusted://ai-overlay-dialog",
       "chrome-untrusted://compose",
       "chrome-untrusted://data-sharing",
+      "chrome-untrusted://drive-picker-host",
       "chrome-untrusted://lens",
       "chrome-untrusted://lens-overlay",
       "chrome-untrusted://ntp-microsoft-auth",
@@ -362,7 +364,7 @@ base::span<const std::string_view> GetUntestedChromeUrlsForTest() {
       "chrome-untrusted://terminal",
       "chrome://add-supervision",
       "chrome://app-install-dialog",
-      // TODO:(https://crbug.com/1439754): Flakily crashes on ChromeOS.
+      // TODO:(https://crbug.com/40265685): Flakily crashes on ChromeOS.
       "chrome://app-service-internals",
       "chrome://arc-overview-tracing",
       "chrome://arc-power-control",

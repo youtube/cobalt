@@ -291,13 +291,6 @@ std::string_view AutofillDataProviderImpl::GetHistogramSuffix() const {
 void AutofillDataProviderImpl::RetrieveAll(
     EntryType entry_type,
     base::OnceCallback<void(std::vector<MemorySearchResult>)> callback) {
-  if (entry_type == EntryType::kCreditCardFull) {
-    // TODO(crbug.com/497795513): Handle credit card data once re-auth
-    // flow is implemented.
-    std::move(callback).Run({});
-    return;
-  }
-
   std::optional<AtMemoryDataType> at_memory_type =
       ToAtMemoryDataType(entry_type);
   if (!at_memory_type) {
@@ -361,13 +354,22 @@ std::vector<MemorySearchResult> AutofillDataProviderImpl::FetchIbanData() {
   std::vector<MemorySearchResult> entries;
   for (const Iban* iban :
        personal_data_manager_->payments_data_manager().GetIbans()) {
+    std::u16string obfuscated_value =
+        iban->GetIdentifierStringForAutofillDisplay();
     MemorySearchResult entry(
         EntryType::kIban, GetEntryTypeNameForI18n(EntryType::kIban),
-        GetObfuscatedIban(iban->value()),
+        obfuscated_value,
         iban->usage_history().GetRankingScore(base::Time::Now()));
     entry.is_obfuscated = true;
-    entry.reveal_callback = base::BindRepeating(
-        [](std::u16string value) { return value; }, iban->value());
+    switch (iban->record_type()) {
+      case Iban::kLocalIban:
+        entry.identifier = iban->guid();
+        break;
+      default:
+        entry.identifier = iban->instrument_id();
+        break;
+    }
+
     if (!iban->nickname().empty()) {
       entry.metadata_list.emplace_back(
           EntryType::kIbanNickname,
@@ -403,10 +405,26 @@ std::vector<MemorySearchResult> AutofillDataProviderImpl::FetchCreditCardData(
     MemorySearchResult entry(
         entry_type, GetEntryTypeNameForI18n(entry_type), std::move(value),
         credit_card->usage_history().GetRankingScore(base::Time::Now()));
+    entry.identifier = credit_card->guid();
 
-    // TODO(crbug.com/497795513): Add obfuscated credit card number.
     std::string app_locale =
         personal_data_manager_->address_data_manager().app_locale();
+
+    // All of the types different than the one being requested are added as
+    // metadata.
+    if (entry_type != EntryType::kCreditCardNumber) {
+      entry.metadata_list.emplace_back(
+          EntryType::kCreditCardNumber,
+          GetEntryTypeNameForI18n(EntryType::kCreditCardNumber),
+          credit_card->ObfuscatedNumberWithVisibleLastFourDigits());
+    }
+    if (entry_type != EntryType::kCreditCardSecurityCode) {
+      entry.metadata_list.emplace_back(
+          EntryType::kCreditCardSecurityCode,
+          GetEntryTypeNameForI18n(EntryType::kCreditCardSecurityCode),
+          std::u16string(3, kMidlineEllipsisPlainDot));
+    }
+
     AddMetadataToResult(entry, *credit_card, EntryType::kCreditCardNameOnCard,
                         field_type, app_locale);
     AddMetadataToResult(entry, *credit_card,

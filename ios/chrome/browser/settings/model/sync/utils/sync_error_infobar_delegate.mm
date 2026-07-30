@@ -14,6 +14,7 @@
 #import "components/infobars/core/infobar_delegate.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_switches.h"
 #import "components/sync/service/sync_service.h"
 #import "components/sync/service/sync_service_utils.h"
@@ -148,8 +149,7 @@ bool SyncErrorInfoBarDelegate::Accept() {
       CHECK(ShouldShowSyncSettings(error_state_), base::NotFatalUntil::M151);
       AuthenticationService* authService =
           AuthenticationServiceFactory::GetForProfile(profile_);
-      if (!authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin) ||
-          !authService->SigninEnabled()) {
+      if (!authService->HasPrimaryIdentity() || !authService->SigninEnabled()) {
         // Due to race condition, the user may be signed-out, or sign-in may be
         // disabled between the time the user tap on the button and the
         // execution of this method. In this case, do nothing, the button will

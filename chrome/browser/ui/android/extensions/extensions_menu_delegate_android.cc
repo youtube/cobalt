@@ -23,9 +23,7 @@ namespace {
 
 using base::android::ScopedJavaLocalRef;
 
-// TODO(crbug.com/471016915): Placeholder size. Replace with size provided from
-// Java.
-constexpr gfx::Size kActionIconSize = gfx::Size(40, 40);
+constexpr gfx::Size kActionIconSize = gfx::Size(24, 24);
 
 ScopedJavaLocalRef<jobject> ConvertToJavaBitmap(
     const ui::ImageModel& image_model) {
@@ -81,6 +79,12 @@ void ExtensionsMenuDelegateAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
+void ExtensionsMenuDelegateAndroid::ExecuteAction(
+    JNIEnv* env,
+    const extensions::ExtensionId& extension_id) {
+  menu_model_->ExecuteAction(extension_id);
+}
+
 ScopedJavaLocalRef<jobject> ExtensionsMenuDelegateAndroid::GetActionIcon(
     JNIEnv* env,
     int action_index) {
@@ -128,7 +132,8 @@ ScopedJavaLocalRef<jobject> ExtensionsMenuDelegateAndroid::GetMenuEntry(
       env, id, CreateJavaControlState(env, state.action_button),
       CreateJavaControlState(env, state.context_menu_button),
       CreateJavaControlState(env, state.site_access_toggle),
-      CreateJavaControlState(env, state.site_permissions_button));
+      CreateJavaControlState(env, state.site_permissions_button),
+      state.is_enterprise);
 }
 
 int ExtensionsMenuDelegateAndroid::GetOptionalSection(JNIEnv* env) {
@@ -253,7 +258,6 @@ void ExtensionsMenuDelegateAndroid::OnHostAccessRequestsCleared() {
 void ExtensionsMenuDelegateAndroid::OnHostAccessRequestRemoved(
     const extensions::ExtensionId& extension_id,
     int index) {
-  // TODO(crbug.com/473213114)
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ExtensionsMenuBridge_onHostAccessRequestRemoved(env, java_object_,
                                                        extension_id);
@@ -266,7 +270,8 @@ void ExtensionsMenuDelegateAndroid::OnShowHostAccessRequestsInToolbarChanged(
 }
 
 void ExtensionsMenuDelegateAndroid::OnToolbarPinnedActionsChanged() {
-  // TODO(crbug.com/473213114)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ExtensionsMenuBridge_onPinnedActionsChanged(env, java_object_);
 }
 
 void ExtensionsMenuDelegateAndroid::OnUserPermissionsSettingsChanged() {

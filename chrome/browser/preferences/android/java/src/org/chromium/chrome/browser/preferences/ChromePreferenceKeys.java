@@ -315,6 +315,13 @@ public final class ChromePreferenceKeys {
     public static final String DEFAULT_BROWSER_PROMO_PROMOED_BY_SYSTEM_SETTINGS =
             "Chrome.DefaultBrowserPromo.PromoedBySystemSettings";
 
+    /**
+     * Indicates whether we should check the default browser state on the next Activity's onResume
+     * after deep-linking to Settings OS and returning to Chrome.
+     */
+    public static final String DEFAULT_BROWSER_PROMO_DEEP_LINK_COMPARE_OUTCOME_SOURCE =
+            "Chrome.DefaultBrowserPromo.DeepLinkCompareOutcomeSource";
+
     /** Indicates whether the desktop site global setting was enabled by default for a device. */
     public static final String DEFAULT_ENABLED_DESKTOP_SITE_GLOBAL_SETTING =
             "Chrome.RequestDesktopSiteGlobalSetting.DefaultEnabled";
@@ -685,6 +692,13 @@ public final class ChromePreferenceKeys {
 
     /**
      * The number at the end should be consistent with {@link
+     * org.chromium.chrome.browser.ntp_customization.theme_history.data.NtpBackgroundDataBase.PlatformType}
+     */
+    public static final KeyPrefix NTP_CUSTOMIZATION_SYNC_HISTORY_DATA =
+            new KeyPrefix("Chrome.NtpCustomizationSync.HistoryData.*");
+
+    /**
+     * The number at the end should be consistent with {@link
      * org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType}
      */
     public static final KeyPrefix HOME_MODULES_FRESHNESS_COUNT =
@@ -1046,25 +1060,8 @@ public final class ChromePreferenceKeys {
     /** Key for deferred recording of list of uninstalled WebAPK packages. */
     public static final String WEBAPK_UNINSTALLED_PACKAGES = "webapk_uninstalled_packages";
 
-    /**
-     * Key used to save the time in milliseconds since epoch that the WebFeed intro was last shown.
-     */
-    public static final String WEB_FEED_INTRO_LAST_SHOWN_TIME_MS =
-            "Chrome.WebFeed.IntroLastShownTimeMs";
-
     public static final String WEB_SIGNIN_ACCOUNT_PICKER_ACTIVE_DISMISSAL_COUNT =
             "Chrome.AccountPickerBottomSheet.ConsecutiveActiveDismissalCount";
-
-    /**
-     * Key used to save the time in milliseconds since epoch that the WebFeed intro for the WebFeed
-     * ID was last shown.
-     */
-    public static final KeyPrefix WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_TIME_MS_PREFIX =
-            new KeyPrefix("Chrome.WebFeed.IntroWebFeedIdShownTimeMs.*");
-
-    /** Key used to save the number of times the WebFeed intro for the WebFeed ID was shown. */
-    public static final KeyPrefix WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_COUNT_PREFIX =
-            new KeyPrefix("Chrome.WebFeed.IntroWebFeedIdShownCount.*");
 
     /**
      * Key used to track the names of client packages that requested the Window Controls Overlay
@@ -1174,6 +1171,7 @@ public final class ChromePreferenceKeys {
                 DEFAULT_BROWSER_PROMO_LAST_SESSION_COUNT,
                 DEFAULT_BROWSER_PROMO_LAST_PROMO_TIME,
                 DEFAULT_BROWSER_PROMO_PROMOED_BY_SYSTEM_SETTINGS,
+                DEFAULT_BROWSER_PROMO_DEEP_LINK_COMPARE_OUTCOME_SOURCE,
                 DEFAULT_BROWSER_PROMO_PROMOED_COUNT,
                 DEFAULT_BROWSER_PROMO_SESSION_COUNT,
                 DEFAULT_ENABLED_DESKTOP_SITE_GLOBAL_SETTING,
@@ -1196,6 +1194,7 @@ public final class ChromePreferenceKeys {
                 HISTORY_APP_SPECIFIC_INFO_SEEN,
                 HOME_MODULE_CARDS_ENABLED,
                 HOME_MODULES_MODULE_TYPE.pattern(),
+                NTP_CUSTOMIZATION_SYNC_HISTORY_DATA.pattern(),
                 HOME_MODULES_FRESHNESS_COUNT.pattern(),
                 HOME_MODULES_FRESHNESS_TIMESTAMP_MS.pattern(),
                 HOMEPAGE_CUSTOM_GURL,
@@ -1300,9 +1299,6 @@ public final class ChromePreferenceKeys {
                 UMA_ON_RESUME_COUNTER,
                 USB_NOTIFICATION_IDS,
                 USER_ENABLED_DESKTOP_SITE_GLOBAL_SETTING_PREFERENCE_KEY,
-                WEB_FEED_INTRO_LAST_SHOWN_TIME_MS,
-                WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_TIME_MS_PREFIX.pattern(),
-                WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_COUNT_PREFIX.pattern(),
                 WEB_SIGNIN_ACCOUNT_PICKER_ACTIVE_DISMISSAL_COUNT,
                 WINDOW_CONTROLS_OVERLAY_ENABLED_PACKAGES);
     }

@@ -18,13 +18,16 @@ namespace {
 std::unique_ptr<UnexportableKeyProvider> (*g_mock_provider)() = nullptr;
 }  // namespace
 
-UnexportableSigningKey::~UnexportableSigningKey() = default;
 UnexportableKeyProvider::~UnexportableKeyProvider() = default;
 VirtualUnexportableSigningKey::~VirtualUnexportableSigningKey() = default;
 VirtualUnexportableKeyProvider::~VirtualUnexportableKeyProvider() = default;
 
-bool UnexportableSigningKey::IsHardwareBacked() const {
+bool UnexportableKey::IsHardwareBacked() const {
   return false;
+}
+
+const StatefulKey* UnexportableKey::AsStatefulKey() const {
+  return nullptr;
 }
 
 std::unique_ptr<UnexportableKeyProvider> GetUnexportableKeyProvider(

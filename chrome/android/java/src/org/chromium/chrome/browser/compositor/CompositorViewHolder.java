@@ -24,6 +24,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.util.Size;
 import android.view.DragAndDropPermissions;
 import android.view.DragEvent;
 import android.view.KeyEvent;
@@ -59,6 +60,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
+import org.chromium.chrome.browser.compositor.layouts.Layout;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
@@ -217,6 +219,10 @@ public class CompositorViewHolder extends FrameLayout
     // Cache objects that should not be created frequently.
     private final Rect mCacheRect = new Rect();
     private final Point mCachePoint = new Point();
+
+    // Cache the last known normal size of the view to be used when entering offscreen rendering
+    // mode like Actor Picture-in-Picture.
+    private final Point mLastNormalSize = new Point();
 
     private boolean mControlsResizeView;
     private boolean mInGesture;
@@ -485,6 +491,11 @@ public class CompositorViewHolder extends FrameLayout
     }
 
     private Point getViewportSize() {
+        updateCachedSizes();
+        return mCachePoint;
+    }
+
+    private void updateCachedSizes() {
         // When in fullscreen mode, the window does not get resized when showing the onscreen
         // keyboard[1].  To work around this, we monitor the visible display frame to mimic the
         // resize state to ensure the web contents has the correct width and height.
@@ -503,14 +514,26 @@ public class CompositorViewHolder extends FrameLayout
 
             // On certain devices, getWindowVisibleDisplayFrame is larger than the screen size, so
             // this ensures we never draw beyond the underlying dimensions of the view.
-            // https://crbug.com/854109
+            // https://crbug.com/41395396
             mCachePoint.set(
                     Math.min(mCacheRect.width(), getWidth()),
                     Math.min(mCacheRect.height(), getHeight()));
         } else {
             mCachePoint.set(getWidth(), getHeight());
         }
-        return mCachePoint;
+
+        // Cache the latest valid normal size to be used when entering offscreen rendering mode like
+        // Actor Picture-in-Picture. We only update the cache when we are not in PiP mode to avoid
+        // picking up the shrinking dimensions during transition.
+        int width = mCachePoint.x;
+        int height = mCachePoint.y;
+        if (width > 0
+                && height > 0
+                && (mActivity == null || !mActivity.isInPictureInPictureMode())) {
+            if (mLastNormalSize.x != width || mLastNormalSize.y != height) {
+                mLastNormalSize.set(width, height);
+            }
+        }
     }
 
     @VisibleForTesting
@@ -954,6 +977,11 @@ public class CompositorViewHolder extends FrameLayout
      */
     public @Nullable View getActiveSurfaceView() {
         return mCompositorView.getActiveSurfaceView();
+    }
+
+    public Size getLastNormalSize() {
+        updateCachedSizes();
+        return new Size(mLastNormalSize.x, mLastNormalSize.y);
     }
 
     @VisibleForTesting
@@ -1577,7 +1605,7 @@ public class CompositorViewHolder extends FrameLayout
     public void hideKeyboard(Runnable postHideTask) {
         // When this is called we actually want to hide the keyboard whatever owns it.
         // This includes hiding the keyboard, and dropping focus from the URL bar.
-        // See http://crbug/236424
+        // See http://crbug.com/40315624
         // TODO(aberent) Find a better place to put this, possibly as part of a wider
         // redesign of focus control.
         if (mUrlBar != null && mUrlBar.isFocused()) mUrlBar.clearFocus();
@@ -1703,6 +1731,17 @@ public class CompositorViewHolder extends FrameLayout
         mControlsResizeView = true;
         updateWebContentsSize(getCurrentTab());
         onControlsResizeViewChanged(getWebContents(), mControlsResizeView);
+    }
+
+    /**
+     * Override the content view for the current tab and makes sure the WebContents is sized
+     * correctly. Used only for offscreen rendering mode.
+     *
+     * @param tab The tab to set as the current tab.
+     */
+    public void overrideTab(@Nullable Tab tab) {
+        assert tab == null || !tab.getIsOffscreenRenderingSupplier().get();
+        setTab(tab);
     }
 
     private void setTab(@Nullable Tab tab) {
@@ -2111,7 +2150,7 @@ public class CompositorViewHolder extends FrameLayout
         protected void onPopulateEventForVirtualView(int virtualViewId, AccessibilityEvent event) {
             if (mVirtualViews == null || mVirtualViews.size() <= virtualViewId) {
                 // TODO(clholgat): Remove this work around when the Android bug is fixed.
-                // crbug.com/420177
+                // crbug.com/40387595
                 event.setContentDescription(PLACE_HOLDER_STRING);
                 return;
             }
@@ -2126,7 +2165,7 @@ public class CompositorViewHolder extends FrameLayout
                 int virtualViewId, AccessibilityNodeInfoCompat node) {
             if (mVirtualViews == null || mVirtualViews.size() <= virtualViewId) {
                 // TODO(clholgat): Remove this work around when the Android bug is fixed.
-                // crbug.com/420177
+                // crbug.com/40387595
                 node.setBoundsInParent(mPlaceHolderRect);
                 node.setContentDescription(PLACE_HOLDER_STRING);
                 return;

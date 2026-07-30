@@ -21,6 +21,7 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -55,8 +56,8 @@ public class BottomSheetManagerUnitTest {
     @Mock private BottomSheetContent mSheetContent;
 
     private final ActivityTabProvider mTabProvider = new ActivityTabProvider();
-    private final org.chromium.base.supplier.SettableMonotonicObservableSupplier<Boolean>
-            mOmniboxFocusStateSupplier = ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<Boolean> mOmniboxFocusStateSupplier =
+            ObservableSuppliers.createMonotonic();
     private final SettableNullableObservableSupplier<Tab> mTabObservableSupplier =
             ObservableSuppliers.createNullable();
     private final OneshotSupplierImpl<LayoutStateProvider> mLayoutStateProviderSupplier =
@@ -98,6 +99,7 @@ public class BottomSheetManagerUnitTest {
         when(mSheetContent.actsAsBrowserControls()).thenReturn(true);
         when(mSheetController.getCurrentPeekHeightPx()).thenReturn(100);
         when(mSheetController.getSheetState()).thenReturn(BottomSheetController.SheetState.PEEK);
+        when(mSheetController.isFullWidth()).thenReturn(true);
 
         mObserver.onSheetStateChanged(BottomSheetController.SheetState.PEEK, 0);
         assertEquals(100, mLayer.getHeight());
@@ -110,6 +112,7 @@ public class BottomSheetManagerUnitTest {
         when(mSheetContent.actsAsBrowserControls()).thenReturn(false);
         when(mSheetController.getCurrentPeekHeightPx()).thenReturn(100);
         when(mSheetController.getSheetState()).thenReturn(BottomSheetController.SheetState.PEEK);
+        when(mSheetController.isFullWidth()).thenReturn(true);
 
         assertEquals(0, mLayer.getHeight());
     }
@@ -230,6 +233,30 @@ public class BottomSheetManagerUnitTest {
 
         clearInvocations(mBottomControlsStacker);
         mObserver.onSheetContentChanged(mSheetContent);
+        verify(mBottomControlsStacker).requestLayerUpdate(false);
+    }
+
+    @Test
+    public void testCalculateContributedHeight_notFullWidth() {
+        when(mSheetController.getCurrentSheetContent()).thenReturn(mSheetContent);
+        when(mSheetContent.actsAsBrowserControls()).thenReturn(true);
+        when(mSheetController.isFullWidth()).thenReturn(false);
+        when(mSheetController.getCurrentPeekHeightPx()).thenReturn(100);
+        when(mSheetController.getSheetState()).thenReturn(BottomSheetController.SheetState.PEEK);
+
+        assertEquals(0, mLayer.getHeight());
+    }
+
+    @Test
+    public void testOnContainerSizeChanged_heightChanged() {
+        when(mSheetController.getCurrentSheetContent()).thenReturn(mSheetContent);
+        when(mSheetContent.actsAsBrowserControls()).thenReturn(true);
+        when(mSheetController.isFullWidth()).thenReturn(true);
+        when(mSheetController.getCurrentPeekHeightPx()).thenReturn(100);
+        when(mSheetController.getSheetState()).thenReturn(BottomSheetController.SheetState.PEEK);
+
+        clearInvocations(mBottomControlsStacker);
+        mObserver.onContainerSizeChanged(200, 400);
         verify(mBottomControlsStacker).requestLayerUpdate(false);
     }
 }

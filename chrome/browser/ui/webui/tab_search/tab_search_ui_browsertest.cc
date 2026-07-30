@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/base64.h"
+#include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/run_until.h"
@@ -21,6 +22,7 @@
 #include "components/metrics/mapping/metrics_mapping_features.h"
 #include "components/metrics/mapping/metrics_name_mapping.pb.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
@@ -153,7 +155,7 @@ IN_PROC_BROWSER_TEST_F(TabSearchUIBrowserTest, DISABLED_CloseTabAction) {
 
 // When hosting the Tab Search UI as a browser tab, ensure that closing the tab
 // hosting Tab Search does not result in any UAF errors. Test for regression
-// (https://crbug.com/1175507).
+// (https://crbug.com/40054717).
 IN_PROC_BROWSER_TEST_F(TabSearchUIBrowserTest,
                        CloseTabSearchAsBrowserTabDoesNotCrash) {
   AppendTab(chrome::kChromeUITabSearchURL);
@@ -270,6 +272,12 @@ class TabSearchUIBundledCodeCacheBrowserTest
 
 IN_PROC_BROWSER_TEST_P(TabSearchUIBundledCodeCacheBrowserTest,
                        SuccessfullyLoadsCodeCache) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+      ShouldEnableFieldTrialTestingConfig()) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See crbug.com/464087732.";
+  }
+
   // Assert the bundled code-cache map is non-empty.
   EXPECT_FALSE(webui::GetWebUIResourceUrlToCodeCacheMap().empty());
 

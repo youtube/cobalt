@@ -13,6 +13,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.keyboard_accessory.R;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
+import org.chromium.components.browser_ui.widget.chips.ChipView;
 import org.chromium.components.browser_ui.widget.textbubble.TextBubble;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
@@ -37,6 +38,9 @@ class KeyboardAccessoryIphUtils {
     static void emitFillingEvent(Tracker tracker, String feature) {
         if (!tracker.isInitialized()) return;
         switch (feature) {
+            case FeatureConstants.KEYBOARD_ACCESSORY_AT_MEMORY_FEATURE:
+                tracker.notifyEvent(EventConstants.KEYBOARD_ACCESSORY_AT_MEMORY_USED);
+                return;
             case FeatureConstants.KEYBOARD_ACCESSORY_AUTOFILL_AI_VALUABLES_FEATURE:
                 tracker.notifyEvent(
                         EventConstants.KEYBOARD_ACCESSORY_AUTOFILL_AI_VALUABLES_AUTOFILLED);
@@ -127,9 +131,10 @@ class KeyboardAccessoryIphUtils {
             String feature,
             RectProvider rectProvider,
             Context context,
-            View rootView) {
+            View rootView,
+            Runnable dismissCallback) {
         TextBubble helpBubble =
-                createBubble(tracker, feature, rectProvider, context, rootView, null);
+                createBubble(tracker, feature, rectProvider, context, rootView, null, dismissCallback);
         if (helpBubble != null) helpBubble.show();
         return helpBubble != null;
     }
@@ -152,7 +157,8 @@ class KeyboardAccessoryIphUtils {
             String feature,
             View view,
             View rootView,
-            @Nullable String helpText) {
+            @Nullable String helpText,
+            Runnable dismissCallback) {
         TextBubble helpBubble =
                 createBubble(
                         tracker,
@@ -160,7 +166,8 @@ class KeyboardAccessoryIphUtils {
                         new ViewRectProvider(view),
                         view.getContext(),
                         rootView,
-                        helpText);
+                        helpText,
+                        dismissCallback);
         if (helpBubble == null) return false;
         // To emphasize which chip is pointed to, set selected to true for the built-in highlight.
         // Prefer ViewHighlighter for views without a LayerDrawable background.
@@ -179,7 +186,8 @@ class KeyboardAccessoryIphUtils {
             RectProvider rectProvider,
             Context context,
             View rootView,
-            @Nullable String helpText) {
+            @Nullable String helpText,
+            Runnable dismissCallback) {
         if (tracker == null) return null;
         if (!tracker.isInitialized()) return null;
         if (!tracker.shouldTriggerHelpUi(feature)) return null; // This call records the IPH intent.
@@ -210,6 +218,7 @@ class KeyboardAccessoryIphUtils {
         helpBubble.addOnDismissListener(
                 () -> {
                     tracker.dismissed(feature);
+                    dismissCallback.run();
                 });
         return helpBubble;
     }
@@ -248,6 +257,8 @@ class KeyboardAccessoryIphUtils {
                 return R.string.iph_keyboard_accessory_account_name_email_suggestion;
             case FeatureConstants.KEYBOARD_ACCESSORY_AUTOFILL_AI_VALUABLES_FEATURE:
                 return R.string.iph_keyboard_accessory_autofill_ai_valuables_iph;
+            case FeatureConstants.KEYBOARD_ACCESSORY_AT_MEMORY_FEATURE:
+                return R.string.iph_keyboard_accessory_at_memory;
         }
         assert false : "Unknown help text for feature: " + feature;
         return 0;
@@ -268,7 +279,8 @@ class KeyboardAccessoryIphUtils {
             @Nullable Tracker tracker,
             KeyboardAccessoryProperties.AutofillBarItem item,
             View chipView,
-            View rootView) {
+            View rootView,
+            Runnable dismissCallback) {
         String iphFeature = item.getFeatureForIph();
         if (tracker == null) return false;
         if (iphFeature == null) return false;
@@ -281,10 +293,10 @@ class KeyboardAccessoryIphUtils {
             return showHelpBubble(
                     tracker,
                     iphFeature,
-                    ((org.chromium.components.browser_ui.widget.chips.ChipView) chipView)
-                            .getStartIconViewRect(),
+                    ((ChipView) chipView).getStartIconViewRect(),
                     chipView.getContext(),
-                    rootView);
+                    rootView,
+                    dismissCallback);
         }
 
         if (iphFeature.equals(
@@ -294,9 +306,10 @@ class KeyboardAccessoryIphUtils {
                     iphFeature,
                     chipView,
                     rootView,
-                    item.getSuggestion().getIphDescriptionText());
+                    item.getSuggestion().getIphDescriptionText(),
+                    dismissCallback);
         }
 
-        return showHelpBubble(tracker, iphFeature, chipView, rootView, null);
+        return showHelpBubble(tracker, iphFeature, chipView, rootView, null, dismissCallback);
     }
 }

@@ -861,7 +861,7 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
   }
 
   // Helper to simulate that KeyboardReplacingSurface was closed in order to
-  // test regular popups, e.g. `ShowPasswordSuggestions`.
+  // test regular popups.
   void SimulateClosingKeyboardReplacingSurfaceIfAndroid(
       const std::string& element_id) {
 #if BUILDFLAG(IS_ANDROID)
@@ -2618,30 +2618,6 @@ TEST_F(PasswordAutofillAgentTest,
   base::RunLoop().RunUntilIdle();
 }
 
-// Tests that the popup is suppressed when the user selects address or payments
-// fallback even when the triggering field that is classified as password.
-// TODO(crbug.com/494507627): Re-enable after fixing.
-TEST_F(
-    PasswordAutofillAgentTest,
-    DISABLED_NoPopupOnPasswordFieldWhereAddressOrPaymentsManualFallbackWasSelected) {
-  SimulateOnFillPasswordForm(fill_data_);
-  // This call is necessary to setup the autofill agent appropriate for the
-  // user selection; simulates the menu actually popping up.
-  SimulatePointClick(gfx::Point(1, 1));
-
-  // No popup request when using address/payment/plus address manual fallback.
-  EXPECT_CALL(fake_driver_, ShowPasswordSuggestions).Times(0);
-  autofill_agent_->TriggerSuggestions(
-      form_util::GetFieldRendererId(username_element_),
-      AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses);
-
-  // However, the popup is requested for password manual fallback.
-  EXPECT_CALL(fake_driver_, ShowPasswordSuggestions);
-  autofill_agent_->TriggerSuggestions(
-      form_util::GetFieldRendererId(username_element_),
-      AutofillSuggestionTriggerSource::kManualFallbackPasswords);
-}
-
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Users in pending state are shown a suggestion to "verify it's you" even when
 // there are no passwords.
@@ -3515,7 +3491,7 @@ TEST_F(PasswordAutofillAgentTest, PasswordGenerationSupersedesAutofill) {
 // Tests the following scenario: 1) user triggers manual generation, 2) user
 // erases the generated password from the field, 3) password suggestions should
 // be displayed when available after the field is focused again.
-// Regression test for crbug/1495325.
+// Regression test for crbug.com/40286484.
 TEST_F(PasswordAutofillAgentTest, CanShowSuggestionsAfterManualGeneration) {
   // Simulate receiving credentials for filling from the browser.
   SimulateOnFillPasswordForm(fill_data_);
@@ -4323,7 +4299,7 @@ TEST_F(PasswordAutofillAgentTest, ShowAutofillSignaturesFlag) {
       EnableShowAutofillSignatures();
 
     // An empty DOMSubtreeModified event listener is added for
-    // https://crbug.com/1219852.
+    // https://crbug.com/40186225.
     std::string dom_with_dom_subtree_modified_listener =
         base::StrCat({"<SCRIPT>"
                       "window.addEventListener('DOMSubtreeModified', () => {});"

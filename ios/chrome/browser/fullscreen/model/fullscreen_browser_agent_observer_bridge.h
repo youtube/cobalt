@@ -28,6 +28,13 @@
 // Called after the obscured inset range updates.
 - (void)fullscreenDidUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent;
 
+// Called when the fullscreen transition completes.
+- (void)fullscreen:(FullscreenBrowserAgent*)agent
+     didTransition:(FullscreenTransition)transition;
+
+// Called when the FullscreenBrowserAgent is shutting down.
+- (void)fullscreenWillShutDown:(FullscreenBrowserAgent*)agent;
+
 @end
 
 // Bridge class that listens for `FullscreenBrowserAgent` notifications and
@@ -46,6 +53,9 @@ class FullscreenBrowserAgentObserverBridge
   void DidUpdateState(FullscreenBrowserAgent* agent) override;
   void WillUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override;
   void DidUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override;
+  void FullscreenDidTransition(FullscreenBrowserAgent* agent,
+                               FullscreenTransition transition) override;
+  void WillShutDown(FullscreenBrowserAgent* agent) override;
 
   __weak id<FullscreenBrowserAgentObserving> observer_;
   base::ScopedObservation<FullscreenBrowserAgent,

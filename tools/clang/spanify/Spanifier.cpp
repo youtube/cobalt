@@ -2881,8 +2881,7 @@ void RewriteFunctionParamAndReturnType(const MatchFinder::MatchResult& result) {
   if (const clang::Decl* previous_decl = fct_decl->getPreviousDecl()) {
     const std::string& previous_key =
         NodeKey(previous_decl, source_manager, parm_or_return_id);
-    if (raw_ptr_plugin::isNodeInThirdPartyLocation(*previous_decl,
-                                                   source_manager)) {
+    if (GetProject()->IsExcludedFromProject(*previous_decl)) {
       // A declaration in third party codebase is found, so we do not want to
       // rewrite the parameter/return type in a third party function. This one-
       // way edge prevents making a flow from a source to a sink, hence the
@@ -2911,8 +2910,7 @@ void RewriteFunctionParamAndReturnType(const MatchFinder::MatchResult& result) {
     for (auto* overridden_method_decl : method_decl->overridden_methods()) {
       const std::string& overridden_method_key =
           NodeKey(overridden_method_decl, source_manager, parm_or_return_id);
-      if (raw_ptr_plugin::isNodeInThirdPartyLocation(*overridden_method_decl,
-                                                     source_manager)) {
+      if (GetProject()->IsExcludedFromProject(*overridden_method_decl)) {
         // A declaration in third party codebase is found, so we do not want to
         // rewrite the parameter/return type in a third party function. This
         // one-way edge prevents making a flow from a source to a sink, hence
@@ -3122,13 +3120,8 @@ AST_MATCHER_P(clang::Expr,
   return InnerMatcher.matches(Node, Finder, Builder);
 }
 
-AST_MATCHER_P(clang::Decl,
-              isExcludedFromProject,
-              const raw_ptr_plugin::FilterFile*,
-              excluded_paths) {
-  using namespace clang::ast_matchers;
-  return GetProject()->IsExcludedFromProject(Node, Finder, Builder,
-                                             excluded_paths);
+AST_MATCHER(clang::Decl, isExcludedFromProject) {
+  return GetProject()->IsExcludedFromProject(Node);
 }
 
 class Spanifier {
@@ -3144,7 +3137,7 @@ class Spanifier {
         raw_ptr_plugin::isInExternCContext(),
 
         // 2. Project-Specific Exclusions
-        isExcludedFromProject(&paths_to_exclude_));
+        isExcludedFromProject());
 
     // Standard exclusions include `raw_ptr` and `span`.
     auto exclusions = anyOf(
@@ -3863,7 +3856,6 @@ class Spanifier {
     match_callbacks_.push_back(std::move(match_callback));
   }
 
-  raw_ptr_plugin::FilterFile paths_to_exclude_ = GetProject()->PathsToExclude();
   MatchFinder& match_finder_;
   std::vector<std::unique_ptr<MatchCallback>> match_callbacks_;
 };

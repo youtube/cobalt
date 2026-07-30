@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.signin.services;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -48,7 +47,6 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.SigninFeatures;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManagerImpl;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
@@ -130,7 +128,7 @@ public class SigninManagerImplTest {
         verify(callback, never()).onSignInAborted();
 
         // The primary account is now present and consented to sign in.
-        assertTrue(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN));
+        assertTrue(mIdentityManager.hasPrimaryAccount());
     }
 
     @Test
@@ -145,20 +143,6 @@ public class SigninManagerImplTest {
     public void testDataNotWipedOnSignOutWithManagedAccount() {
         mSigninTestRule.addAccountThenSignin(TestAccounts.MANAGED_ACCOUNT);
         verifyDataNotWipedOnSignout();
-    }
-
-    @Test
-    @MediumTest
-    public void testDataWipedOnSignOutWithForceWipeData() {
-        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
-        verifyDataWipedOnSignOutWithForceWipeData();
-    }
-
-    @Test
-    @MediumTest
-    public void testDataWipedOnSignOutWithForceWipeDataAndManagedAccount() {
-        mSigninTestRule.addAccountThenSignin(TestAccounts.MANAGED_ACCOUNT);
-        verifyDataWipedOnSignOutWithForceWipeData();
     }
 
     @Test
@@ -178,56 +162,6 @@ public class SigninManagerImplTest {
                                 assertEquals(
                                         0,
                                         ChromeSharedPreferences.getInstance().readInt(keyPrefix));
-                            });
-                });
-    }
-
-    // TODO(crbug.com/40820738): add test for revokeSyncConsentFromJavaWithManagedDomain() and
-    // revokeSyncConsentFromJavaWipeData() - this requires making the BookmarkModel mockable in
-    // SigninManagerImpl.
-
-    @Test
-    @MediumTest
-    public void testDataNotWipedOnRevokeSyncConsent() {
-        mSigninTestRule.addAccountThenSigninWithConsentLevelSync(TestAccounts.ACCOUNT1);
-        GURL url = new GURL(UrlConstants.ABOUT_URL);
-        BookmarkId bookmarkId = addBookmark("test", url);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mSigninManager.revokeSyncConsent(
-                            SignoutReason.TEST,
-                            mock(SigninManager.SignOutCallback.class),
-                            /* forceWipeUserData= */ false);
-                    mSigninManager.runAfterOperationInProgress(
-                            () -> {
-                                // Disabling sync should only clear the service worker cache when
-                                // the user is neither managed or syncing.
-                                assertNotNull(
-                                        "Bookmark should not have been wiped",
-                                        mBookmarkModel.getBookmarkById(bookmarkId));
-                            });
-                });
-    }
-
-    @Test
-    @MediumTest
-    public void testDataNotWipedOnRevokeSyncConsentWithForceWipeData() {
-        mSigninTestRule.addAccountThenSigninWithConsentLevelSync(TestAccounts.ACCOUNT1);
-        GURL url = new GURL(UrlConstants.ABOUT_URL);
-        BookmarkId bookmarkId = addBookmark("test", url);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mSigninManager.revokeSyncConsent(
-                            SignoutReason.TEST,
-                            mock(SigninManager.SignOutCallback.class),
-                            /* forceWipeUserData= */ true);
-                    mSigninManager.runAfterOperationInProgress(
-                            () -> {
-                                assertNull(
-                                        "Bookmark should be null after wipe",
-                                        mBookmarkModel.getBookmarkById(bookmarkId));
                             });
                 });
     }
@@ -267,7 +201,9 @@ public class SigninManagerImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mSigninManager.signin(
-                            TestAccounts.ACCOUNT1, SigninAccessPoint.WEB_SIGNIN, null);
+                            TestAccounts.ACCOUNT1,
+                            SigninAccessPoint.WEB_SIGNIN,
+                            new SigninManager.SignInCallback() {});
                     mSigninManager.runAfterOperationInProgress(callCount::incrementAndGet);
                     assertEquals(0, callCount.get());
                 });
@@ -284,7 +220,9 @@ public class SigninManagerImplTest {
                 () -> {
                     assertTrue(mSigninManager.isSigninAllowed());
                     mSigninManager.signin(
-                            TestAccounts.ACCOUNT1, SigninAccessPoint.START_PAGE, null);
+                            TestAccounts.ACCOUNT1,
+                            SigninAccessPoint.START_PAGE,
+                            new SigninManager.SignInCallback() {});
                 });
 
         verify(mSignInStateObserver, timeout(CriteriaHelper.DEFAULT_MAX_TIME_TO_POLL).times(3))
@@ -325,7 +263,7 @@ public class SigninManagerImplTest {
     @MediumTest
     public void testSignOutNotAllowedForChildAccounts() {
         mSigninTestRule.addChildTestAccountThenWaitForSignin();
-        assertTrue(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN));
+        assertTrue(mIdentityManager.hasPrimaryAccount());
 
         ThreadUtils.runOnUiThreadBlocking(() -> assertFalse(mSigninManager.isSignOutAllowed()));
     }
@@ -348,15 +286,6 @@ public class SigninManagerImplTest {
         assertTrue(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ false));
     }
 
-    @Test
-    @MediumTest
-    public void testDidAccountFetchSucceed() {
-        assertTrue(mSigninManager.didAccountFetchSucceed());
-
-        mSigninTestRule.setAccountFetchFailed();
-        assertFalse(mSigninManager.didAccountFetchSucceed());
-    }
-
     private void verifyDataNotWipedOnSignout() {
         GURL url = new GURL(UrlConstants.ABOUT_URL);
         BookmarkId bookmarkId = addBookmark("test", url);
@@ -369,25 +298,6 @@ public class SigninManagerImplTest {
                             () -> {
                                 assertNotNull(
                                         "Bookmark should not have been wiped",
-                                        mBookmarkModel.getBookmarkById(bookmarkId));
-                            });
-                });
-    }
-
-    private void verifyDataWipedOnSignOutWithForceWipeData() {
-        GURL url = new GURL(UrlConstants.ABOUT_URL);
-        BookmarkId bookmarkId = addBookmark("test", url);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    // Trigger the sign out flow and force wipe user data.
-                    mSigninManager.signOut(SignoutReason.TEST, null, /* forceWipeUserData= */ true);
-                    mSigninManager.runAfterOperationInProgress(
-                            () -> {
-                                // Sign-out should only clear the profile when the user is syncing
-                                // and has decided to wipe data.
-                                assertNull(
-                                        "Bookmark should be null after wipe",
                                         mBookmarkModel.getBookmarkById(bookmarkId));
                             });
                 });

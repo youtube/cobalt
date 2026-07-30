@@ -8,10 +8,10 @@ import type {PageCallbackRouter} from './ai_overlay_dialog.mojom-webui.js';
 import {ApiSession} from './api_session.js';
 import type {ApiSessionConfig, ApiSessionDelegate, Tool, ToolCall} from './api_session.js';
 import {Journal} from './journal.js';
-import {debugLog, DebugLogTag, log} from './logging.js';
+import {debugLog, DebugLogTag, errorLog, log} from './logging.js';
 import type {PageContext, PageContextChangeEvent} from './page_context_manager.js';
 import {PageContextChangeType, PageContextManager} from './page_context_manager.js';
-import {buildSystemInstruction, formatPageVisitHistory, formatTranscript} from './persona.js';
+import {buildContextPrimingTurn, buildSystemInstruction, formatPageVisitHistory, formatTranscript} from './persona.js';
 
 
 const FILE = 'Conversation';
@@ -95,7 +95,9 @@ export class Conversation implements ApiSessionDelegate {
     log(FILE, `Conversation with ${config.persona.name}, config`, config);
     this.config = config;
     this.uiDelegate = uiDelegate;
-    this.toolExecutor = new ToolExecutor(toolsRemote);
+    this.toolExecutor = new ToolExecutor(
+        toolsRemote, this.pageContextManager, this.journal,
+        config.persona.name);
 
     this.pageContextManager.registerListener((event) => {
       this.onPageContextChange(event);
@@ -193,13 +195,33 @@ export class Conversation implements ApiSessionDelegate {
     this.session?.sendAudio(sampleRate, data);
   }
 
+  sendText(text: string) {
+    if (!this.connected) {
+      return;
+    }
+
+    this.session?.sendText(text);
+  }
+
   /**
    * Connects to the server and establishes a new session, moves the
    * conversation into a live state once the connection is ready.
    */
   async start() {
     const toolDefinitionsJson = this.toolExecutor.getToolDefinitions();
-    this.toolDefinitions = JSON.parse(toolDefinitionsJson);
+    try {
+      if (toolDefinitionsJson && toolDefinitionsJson.trim() !== '') {
+        this.toolDefinitions = JSON.parse(toolDefinitionsJson);
+      } else {
+        this.toolDefinitions = [];
+      }
+    } catch (e) {
+      errorLog(
+          FILE,
+          'Failed to parse toolDefinitionsJson: ' + e +
+              '\nJSON start: ' + toolDefinitionsJson.substring(0, 500));
+      this.toolDefinitions = [];
+    }
 
     await this.createNewApiSession();
   }
@@ -277,9 +299,8 @@ export class Conversation implements ApiSessionDelegate {
     const transcript = formatTranscript(turns, this.config.persona.name);
     const pageHistory = formatPageVisitHistory(pages);
 
-    const systemInstruction = buildSystemInstruction(
-        this.config, context?.url || '', context?.title ?? '',
-        context?.content ?? '', transcript, pageHistory);
+    // Behavioral rules are sent in the system instruction (Static/Trusted).
+    const systemInstruction = buildSystemInstruction(this.config);
 
     debugLog(FILE, DebugLogTag.SYSTEM_INSTRUCTION, systemInstruction);
 
@@ -293,7 +314,22 @@ export class Conversation implements ApiSessionDelegate {
 
     this.session = new ApiSession(apiSessionConfig, this.toolDefinitions, this);
     await this.session.connect();
+
+    // Untrusted page context and history are sent as a priming turn
+    // (Dynamic/Untrusted).
+    let content = context?.content ?? '';
+    if (content.length > 1000) {
+      content = content.substring(0, 1000) +
+          '... (truncated, use get_page_content for more)';
+    }
+
+    const primingTurn = buildContextPrimingTurn(
+        context?.url || '', context?.title ?? '', content, transcript,
+        pageHistory);
+
+    this.session.sendContextUpdate(primingTurn);
   }
+
 
   private onPageContextChange(event: PageContextChangeEvent) {
     if (!this.connected) {

@@ -7,12 +7,15 @@
 #include <optional>
 #include <string>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/test/gtest_util.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace multistep_filter {
+namespace {
+constexpr int64_t kTestNavigationId = 12345;
 
 TEST(LogEntryTest, AllEventTypes) {
   struct {
@@ -39,7 +42,7 @@ TEST(LogEntryTest, AllEventTypes) {
   };
 
   for (const auto& test_case : test_cases) {
-    LogEntry entry("", test_case.event_type, "");
+    LogEntry entry(kTestNavigationId, test_case.event_type, "");
     base::Value value_container = entry.ToValue();
     auto* event_type_str = value_container.GetDict().FindString("event_type");
     ASSERT_TRUE(event_type_str);
@@ -48,12 +51,12 @@ TEST(LogEntryTest, AllEventTypes) {
 }
 
 TEST(LogEntryTest, InvalidEventTypeDCHECKs) {
-  LogEntry entry("", static_cast<LogEventType>(999), "");
+  LogEntry entry(0, static_cast<LogEventType>(999), "");
   EXPECT_DCHECK_DEATH_WITH(entry.ToValue(), "NOTREACHED");
 }
 
 TEST(LogEntryTest, ToValueConversion) {
-  LogEntry entry("test-nav-id", LogEventType::kUrlEligibilityCheck,
+  LogEntry entry(kTestNavigationId, LogEventType::kUrlEligibilityCheck,
                  "example.com");
   entry.timestamp = base::Time::FromMillisecondsSinceUnixEpoch(123456789LL);
   entry.details.Set("key", "value");
@@ -65,9 +68,9 @@ TEST(LogEntryTest, ToValueConversion) {
   ASSERT_TRUE(timestamp.has_value());
   EXPECT_DOUBLE_EQ(timestamp.value(), 123456.789);
 
-  auto* nav_id = dict.FindString("navigation_id");
-  ASSERT_TRUE(nav_id);
-  EXPECT_EQ(*nav_id, "test-nav-id");
+  auto* navigation_id = dict.FindString("navigation_id");
+  ASSERT_TRUE(navigation_id);
+  EXPECT_EQ(*navigation_id, base::NumberToString(kTestNavigationId));
 
   auto* event_type = dict.FindString("event_type");
   ASSERT_TRUE(event_type);
@@ -84,4 +87,5 @@ TEST(LogEntryTest, ToValueConversion) {
   EXPECT_EQ(*key_val, "value");
 }
 
+}  // namespace
 }  // namespace multistep_filter

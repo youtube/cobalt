@@ -82,6 +82,7 @@ enum class ApplyPendingManifestUpdateResult;
 enum class FallbackBehavior;
 enum class InstallableCheckResult;
 enum class IsolatedInstallabilityCheckResult;
+enum class LaunchOrReparentResult;
 enum class LaunchWebAppWindowSetting;
 enum class RunOnOsLoginMode;
 enum class ManifestSilentUpdateCheckResult;
@@ -378,6 +379,13 @@ class WebAppCommandScheduler {
           callback,
       const base::Location& location = FROM_HERE);
 
+  // Decoupled post-install action to reparent or launch the app.
+  void LaunchOrReparentWebContentsIntoApp(
+      const webapps::AppId& app_id,
+      base::WeakPtr<content::WebContents> web_contents,
+      base::OnceCallback<void(LaunchOrReparentResult)> callback,
+      const base::Location& location = FROM_HERE);
+
   // Installs a web app using data from a sync update. It first tries to fetch a
   // live manifest from the app's start URL. If that fails, it falls back to
   // using the information from the sync data to ensure the app is installed.
@@ -549,14 +557,15 @@ class WebAppCommandScheduler {
 
   // Launches the given app. This call also uses keep-alives to guarantee that
   // the browser and profile will not destruct before the launch is complete.
-  void LaunchApp(const webapps::AppId& app_id,
-                 const base::CommandLine& command_line,
-                 const base::FilePath& current_directory,
-                 const std::optional<GURL>& protocol_handler_launch_url,
-                 const std::optional<GURL>& file_launch_url,
-                 const std::vector<base::FilePath>& launch_files,
-                 LaunchWebAppCallback callback,
-                 const base::Location& location = FROM_HERE);
+  void LaunchAppFromCommandLine(
+      const webapps::AppId& app_id,
+      const base::CommandLine& command_line,
+      const base::FilePath& current_directory,
+      const std::optional<GURL>& protocol_handler_launch_url,
+      const std::optional<GURL>& file_launch_url,
+      const std::vector<base::FilePath>& launch_files,
+      LaunchWebAppCallback callback,
+      const base::Location& location = FROM_HERE);
 
   // Launches the given app to the given url if specified, or the app
   // `start_url` if not. This uses keep-alives to guarantee the
@@ -564,6 +573,7 @@ class WebAppCommandScheduler {
   void LaunchApp(const webapps::AppId& app_id,
                  const std::optional<GURL>& url,
                  LaunchWebAppCallback callback,
+                 std::optional<apps::LaunchSource> launch_source = std::nullopt,
                  const base::Location& location = FROM_HERE);
 
   // Used to launch apps with a custom launch params. This does not respect the
@@ -611,7 +621,7 @@ class WebAppCommandScheduler {
 
   // Finds web apps that share the same install URLs (possibly across different
   // install sources) and dedupes the install URL configs into the most
-  // recently installed non-placeholder-like web app. See crbug.com/1427340.
+  // recently installed non-placeholder-like web app. See crbug.com/40261748.
   void ScheduleDedupeInstallUrls(base::OnceClosure callback,
                                  const base::Location& location = FROM_HERE);
 

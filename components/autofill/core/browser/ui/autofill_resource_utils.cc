@@ -56,7 +56,6 @@ constexpr auto kOldDataResources = base::MakeFixedFlatMap<Suggestion::Icon,
     {Suggestion::Icon::kHome, IDR_ANDROID_AUTOFILL_HOME},
     {Suggestion::Icon::kScanCreditCard, IDR_ANDROID_AUTOFILL_CC_SCAN_NEW},
     {Suggestion::Icon::kOfferTag, IDR_ANDROID_AUTOFILL_OFFER_TAG_GREEN},
-    {Suggestion::Icon::kPlusAddress, IDR_AUTOFILL_PLUS_ADDRESS},
     {Suggestion::Icon::kWork, IDR_ANDROID_AUTOFILL_WORK},
     {Suggestion::Icon::kAndroidMessages, IDR_ANDROID_AUTOFILL_ANDROID_MESSAGES},
     {Suggestion::Icon::kRecoveryPassword, IDR_ANDROID_PASSWORD_HISTORY},
@@ -65,6 +64,7 @@ constexpr auto kOldDataResources = base::MakeFixedFlatMap<Suggestion::Icon,
     {Suggestion::Icon::kPersonCheck, IDR_ANDROID_AUTOFILL_PERSON_CHECK},
     {Suggestion::Icon::kVehicle, IDR_ANDROID_AUTOFILL_VEHICLE},
     {Suggestion::Icon::kPassport, IDR_ANDROID_AUTOFILL_PASSPORT},
+    {Suggestion::Icon::kSpark, IDR_ANDROID_AUTOFILL_SPARK},
 #endif  // BUILDFLAG(IS_ANDROID)
 });
 
@@ -91,7 +91,6 @@ constexpr auto kDataResources = base::MakeFixedFlatMap<Suggestion::Icon, int>({
     {Suggestion::Icon::kHome, IDR_ANDROID_AUTOFILL_HOME},
     {Suggestion::Icon::kScanCreditCard, IDR_ANDROID_AUTOFILL_CC_SCAN_NEW},
     {Suggestion::Icon::kOfferTag, IDR_ANDROID_AUTOFILL_OFFER_TAG_GREEN},
-    {Suggestion::Icon::kPlusAddress, IDR_AUTOFILL_PLUS_ADDRESS},
     {Suggestion::Icon::kWork, IDR_ANDROID_AUTOFILL_WORK},
     {Suggestion::Icon::kAndroidMessages, IDR_ANDROID_AUTOFILL_ANDROID_MESSAGES},
     {Suggestion::Icon::kRecoveryPassword, IDR_ANDROID_PASSWORD_HISTORY},
@@ -100,6 +99,7 @@ constexpr auto kDataResources = base::MakeFixedFlatMap<Suggestion::Icon, int>({
     {Suggestion::Icon::kPersonCheck, IDR_ANDROID_AUTOFILL_PERSON_CHECK},
     {Suggestion::Icon::kVehicle, IDR_ANDROID_AUTOFILL_VEHICLE},
     {Suggestion::Icon::kPassport, IDR_ANDROID_AUTOFILL_PASSPORT},
+    {Suggestion::Icon::kSpark, IDR_ANDROID_AUTOFILL_SPARK},
 #endif  // BUILDFLAG(IS_ANDROID)
 });
 

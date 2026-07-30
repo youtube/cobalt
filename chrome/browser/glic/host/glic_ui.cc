@@ -23,6 +23,7 @@
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -328,10 +329,7 @@ GlicUI::GlicUI(content::WebUI* web_ui)
                     admin_blocked_redirect_patterns);
 
   source->AddString("glicFreURL", GetFreURL(profile).spec());
-  source->AddBoolean(
-      "shouldShowFre",
-      !GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile) &&
-          !GlicEnabling::HasConsentedForProfile(profile));
+  source->AddBoolean("shouldShowFre", false);
   source->AddInteger("reloadMaxLoadingTimeMs",
                      features::kGlicReloadMaxLoadingTimeMs.Get());
   source->AddBoolean("caaGuestError", base::FeatureList::IsEnabled(

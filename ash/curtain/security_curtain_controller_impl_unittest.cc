@@ -364,7 +364,8 @@ TEST_F(SecurityCurtainControllerImplTest,
 }
 
 TEST_F(SecurityCurtainControllerImplTest, CurtainShouldNotOccludeOtherWindows) {
-  auto other_window = CreateTestWindow(gfx::Rect(100, 100));
+  auto other_window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 100});
   other_window->TrackOcclusionState();
   ASSERT_THAT(other_window->GetOcclusionState(),
               Eq(aura::Window::OcclusionState::VISIBLE));
@@ -376,7 +377,8 @@ TEST_F(SecurityCurtainControllerImplTest, CurtainShouldNotOccludeOtherWindows) {
 }
 
 TEST_F(SecurityCurtainControllerImplTest, CurtainShouldNotStealFocus) {
-  auto other_window = CreateTestWindow(gfx::Rect(100, 100));
+  auto other_window =
+      CreateWindowWithAppType(chromeos::AppType::NON_APP, {100, 100});
   other_window->Focus();
   ASSERT_THAT(other_window->HasFocus(), Eq(true));
 
@@ -450,7 +452,8 @@ TEST_F(SecurityCurtainControllerImplTest,
   auto params = init_params();
   params.mute_audio_output_after = base::TimeDelta();
   security_curtain_controller().Enable(params);
-  task_environment()->RunUntilIdle();  // Audio is muted asynchronously.
+  // The zero-delay mute is still scheduled on a timer.
+  task_environment()->FastForwardBy(base::Milliseconds(1));
   EXPECT_TRUE(IsAudioOutputMuted());
 
   security_curtain_controller().Disable();

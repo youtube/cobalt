@@ -240,16 +240,17 @@ enum class PixIframeUrlType {
   kAboutBlank = 1,
   kEmpty = 2,
   kAboutSrcDoc = 3,
-  kMaxValue = kAboutSrcDoc
+  kNonEmptyAndSameOriginAsMainFrame = 4,
+  kMaxValue = kNonEmptyAndSameOriginAsMainFrame
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/facilitated_payments/enums.xml:FacilitatedPayments.Pix.IframeUrlType)
 
 // Converts `PaymentLinkValidator::Scheme` to a string for logging.
 std::string SchemeToString(PaymentLinkValidator::Scheme scheme);
 
-// Log when a Pix code is copied to the clippboard on any merchant
-// website.
-void LogPixCodeCopied(ukm::SourceId ukm_source_id);
+// Log when a Pix code is copied to the clipboard on any merchant
+// website. It includes whether the copy event occurred within an iframe.
+void LogPixCodeCopied(ukm::SourceId ukm_source_id, bool has_iframe);
 
 // Log that a Pix code is copied to the clipboard within any iframe.
 void LogPixCodeCopiedInIframe();

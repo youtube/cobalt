@@ -38,7 +38,7 @@ public class AutocorrectManagerUnitTest {
         // Ensuring that AutocorrectManager has Underline
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", "testing");
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         mAutocorrectManager.handlePendingCorrection(mCorrectionInfo);
 
@@ -53,77 +53,77 @@ public class AutocorrectManagerUnitTest {
     }
 
     @Test
-    public void testMaybeAppendAutocorrectUnderlineSpanEnterCase() {
+    public void testMaybeApplyDeferredUnderlineEnterCase() {
         String text = "receive";
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", text);
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
 
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         verify(mImeAdapterImpl).appendAutocorrectUnderlineSpan(0, text.length());
     }
 
     @Test
-    public void testMaybeAppendAutocorrectUnderlineSpanPunctuationCase() {
+    public void testMaybeApplyDeferredUnderlinePunctuationCase() {
         String text = "good morning!";
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", text);
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
 
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         verify(mImeAdapterImpl).appendAutocorrectUnderlineSpan(0, text.length() - 1);
     }
 
     @Test
-    public void testMaybeAppendAutocorrectUnderlineSpanSpaceCase() {
+    public void testMaybeApplyDeferredUnderlineSpaceCase() {
         String text = "receive ";
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", text);
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
 
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         verify(mImeAdapterImpl).appendAutocorrectUnderlineSpan(0, text.length() - 1);
     }
 
     @Test
-    public void testMaybeAppendAutocorrectUnderlineSpanWhileHasUnderline() {
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+    public void testMaybeApplyDeferredUnderlineWhileHasUnderline() {
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         verify(mImeAdapterImpl, never()).appendAutocorrectUnderlineSpan(anyInt(), anyInt());
     }
 
     @Test
-    public void testOnCommitTextWhenCounterNotZero() {
+    public void testOnCommitTextOrSendKeyEventWhenCounterNotZero() {
         // Ensuring that AutocorrectManager has Underline
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", "testing");
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         for (int i = 0; i < AutocorrectManager.USER_ACTION_CLEAR_UNDERLINE_THRESHOLD - 1; i++) {
-            mAutocorrectManager.onCommitText();
+            mAutocorrectManager.onCommitTextOrSendKeyEvent();
         }
 
         verify(mImeAdapterImpl, never()).clearAllAutocorrectUnderlineSpans();
     }
 
     @Test
-    public void testOnCommitTextWhenCounterZero() {
+    public void testOnCommitTextOrSendKeyEventWhenCounterZero() {
         // Ensuring that AutocorrectManager has Underline
         CorrectionInfo correctionInfo = new CorrectionInfo(0, "", "testing");
         mAutocorrectManager.handlePendingCorrection(correctionInfo);
-        mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
+        mAutocorrectManager.maybeApplyDeferredUnderline();
 
         for (int i = 0; i < AutocorrectManager.USER_ACTION_CLEAR_UNDERLINE_THRESHOLD; i++) {
-            mAutocorrectManager.onCommitText();
+            mAutocorrectManager.onCommitTextOrSendKeyEvent();
         }
 
         verify(mImeAdapterImpl).clearAllAutocorrectUnderlineSpans();
     }
 
     @Test
-    public void testOnCommitTextWhileHasNoUnderline() {
+    public void testOnCommitTextOrSendKeyEventWhileHasNoUnderline() {
         for (int i = 0; i < AutocorrectManager.USER_ACTION_CLEAR_UNDERLINE_THRESHOLD; i++) {
-            mAutocorrectManager.onCommitText();
+            mAutocorrectManager.onCommitTextOrSendKeyEvent();
         }
 
         verify(mImeAdapterImpl, never()).clearAllAutocorrectUnderlineSpans();

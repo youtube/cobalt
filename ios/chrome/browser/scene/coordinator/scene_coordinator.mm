@@ -16,6 +16,7 @@
 #import "components/autofill/core/browser/data_model/payments/credit_card.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/supervised_user/core/browser/kids_management_api_fetcher.h"
@@ -69,6 +70,8 @@
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
@@ -214,6 +217,8 @@ void OnListFamilyMembersResponse(
   // The view controller to use as a the rootViewController for this scene's
   // window.
   SceneViewController* _viewController;
+  // The layout state for this scene.
+  LayoutState* _layoutState;
   // Fetches the Family Link member role asynchronously from KidsManagement API.
   std::unique_ptr<supervised_user::ListFamilyMembersFetcher>
       _familyMembersFetcher;
@@ -251,8 +256,10 @@ void OnListFamilyMembersResponse(
                    incognitoBrowser:_incognitoBrowser.get()];
   _tabGridCoordinator.delegate = self.tabGridDelegate;
   [_tabGridCoordinator start];
+  _layoutState = self.sceneState.layoutState;
   if (IsUseSceneViewControllerEnabled()) {
     _viewController = [[SceneViewController alloc] init];
+    _viewController.layoutState = _layoutState;
     _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
     _viewController.delegate = self;
     UIViewController* tabGridViewController =
@@ -557,7 +564,10 @@ void OnListFamilyMembersResponse(
     baseViewController = self.activeViewController;
   }
 
-  DCHECK(!self.isSigninInProgress);
+  if (self.isSigninInProgress) {
+    [self stopSigninCoordinatorWithCompletionAnimated:NO];
+  }
+
   if (_settingsNavigationController) {
     DCHECK(_settingsNavigationController.presentingViewController)
         << base::SysNSStringToUTF8(
@@ -647,6 +657,10 @@ void OnListFamilyMembersResponse(
 - (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command {
   DCHECK([command fromChrome]);
   UrlLoadParams params = UrlLoadParams::InNewTab([command URL]);
+  if (command.textFragment.length) {
+    params.web_params.internal_scroll_to_text_fragment =
+        base::SysNSStringToUTF8(command.textFragment);
+  }
   params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
   id<TabOpening> tabOpener = _tabOpener;
   ProceduralBlock completion = ^{
@@ -756,6 +770,10 @@ void OnListFamilyMembersResponse(
 
   UrlLoadParams params =
       UrlLoadParams::InNewTab(command.URL, command.virtualURL);
+  if (command.textFragment.length) {
+    params.web_params.internal_scroll_to_text_fragment =
+        base::SysNSStringToUTF8(command.textFragment);
+  }
   params.SetInBackground(command.inBackground);
   params.web_params.referrer = command.referrer;
   params.web_params.extra_headers = [command.extraHeaders copy];
@@ -999,7 +1017,7 @@ void OnListFamilyMembersResponse(
   AuthenticationService* authenticationService =
       AuthenticationServiceFactory::GetForProfile(self.profile);
   id<SystemIdentity> systemIdentity =
-      authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+      authenticationService->GetPrimaryIdentity();
   _managedConfirmationScreenCoordinator =
       [[ManagedProfileCreationCoordinator alloc]
           initWithBaseViewController:self.activeViewController
@@ -1838,8 +1856,7 @@ void OnListFamilyMembersResponse(
   if (IsDisableU18FeedbackIosEnabled()) {
     AuthenticationService* authenticationService =
         AuthenticationServiceFactory::GetForProfile(self.profile);
-    configuration.primaryIdentity = authenticationService->GetPrimaryIdentity(
-        signin::ConsentLevel::kSignin);
+    configuration.primaryIdentity = authenticationService->GetPrimaryIdentity();
   }
 
   NSError* error;

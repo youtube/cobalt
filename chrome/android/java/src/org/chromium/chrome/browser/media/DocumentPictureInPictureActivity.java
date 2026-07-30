@@ -10,14 +10,12 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityManager.AppTask;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -25,6 +23,7 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.CallSuper;
 import androidx.annotation.VisibleForTesting;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import org.jni_zero.NativeMethods;
 
@@ -46,7 +45,7 @@ import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.browser.media.document_picture_in_picture_header.DocumentPictureInPictureHeaderCoordinator;
 import org.chromium.chrome.browser.media.document_picture_in_picture_header.DocumentPictureInPictureHeaderDelegate;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
-import org.chromium.chrome.browser.night_mode.NightModeUtils;
+import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils.WebContentsOfflinePageLoadUrlDelegate;
 import org.chromium.chrome.browser.page_info.ChromePageInfoControllerDelegate;
 import org.chromium.chrome.browser.page_info.ChromePageInfoHighlight;
@@ -56,6 +55,7 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabUtils;
+import org.chromium.chrome.browser.toolbar.AppThemeColorProvider;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderCoordinator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
@@ -84,6 +84,8 @@ import org.chromium.url.GURL;
 public class DocumentPictureInPictureActivity extends AsyncInitializationActivity
         implements DocumentPictureInPictureHeaderDelegate {
     private static final String TAG = "DocumentPiPActivity";
+    // Tolerance in DP to filter out small rounding drifts and system snaps in PiP mode.
+    private static final int SIZE_TOLERANCE_DP = 3;
     public static final String WEB_CONTENTS_KEY =
             "org.chromium.chrome.browser.media.DocumentPictureInPicture.WebContents";
     public static final String WINDOW_OPTIONS_KEY =
@@ -98,10 +100,16 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
     private @MonotonicNonNull PictureInPictureWindowOptions mWindowOptions;
     private @MonotonicNonNull AppHeaderCoordinator mAppHeaderCoordinator;
     private @MonotonicNonNull DocumentPictureInPictureHeaderCoordinator mHeaderCoordinator;
+    private @MonotonicNonNull AppThemeColorProvider mAppThemeColorProvider;
     private boolean mIsRecreating;
     private boolean mIsFromActivityRecreation;
     private @MonotonicNonNull Configuration mConfig;
     private boolean mIsPinned;
+    private @Nullable Rect mPromptEnforcedBounds;
+    private @Nullable Integer mMinPromptWidthPx;
+    private @Nullable Integer mMinPromptHeightPx;
+    private @MonotonicNonNull DocumentPictureInPictureNightModeStateProvider
+            mNightModeStateProvider;
 
     private static @Nullable WebContents sWebContentsForTesting;
     private static @Nullable WebContents sParentWebContentsForTesting;
@@ -241,6 +249,10 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                         getPersistentInstanceState(),
                         edgeToEdgeStateProvider,
                         null);
+
+        mAppThemeColorProvider =
+                new AppThemeColorProvider(this, getLifecycleDispatcher(), mAppHeaderCoordinator);
+        mAppThemeColorProvider.onIncognitoStateChanged(mInitiatorTab.isIncognitoBranded());
     }
 
     private void goIntoPinnedMode() {
@@ -299,12 +311,8 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                         .setWebContentsDelegate(new DocumentPictureInPictureWebContentsDelegate())
                         .build());
 
-        Context context =
-                NightModeUtils.wrapContextWithNightModeConfig(
-                        this, R.style.Theme_Chromium_Activity, /* nightMode= */ true);
         View rootLayout =
-                LayoutInflater.from(context)
-                        .inflate(R.layout.document_picture_in_picture_main_layout, null);
+                getLayoutInflater().inflate(R.layout.document_picture_in_picture_main_layout, null);
         FrameLayout contentLayout =
                 rootLayout.findViewById(R.id.document_picture_in_picture_content);
         contentLayout.addView(
@@ -317,6 +325,7 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                 new DocumentPictureInPictureHeaderCoordinator(
                         findViewById(R.id.document_picture_in_picture_header),
                         assumeNonNull(mAppHeaderCoordinator),
+                        assumeNonNull(mAppThemeColorProvider),
                         /* context= */ this,
                         /* delegate= */ this,
                         !assumeNonNull(mWindowOptions).disallowReturnToOpener,
@@ -337,6 +346,10 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
             }
         }
 
+        setupInitialBoundsListener(contentLayout);
+    }
+
+    private void setupInitialBoundsListener(View contentLayout) {
         if (mWindowOptions != null && mWindowOptions.windowBounds != null) {
             contentLayout
                     .getViewTreeObserver()
@@ -344,16 +357,74 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                             new ViewTreeObserver.OnGlobalLayoutListener() {
                                 @Override
                                 public void onGlobalLayout() {
-                                    resizeContents(
-                                            assumeNonNull(mWindowOptions.windowBounds).width(),
-                                            assumeNonNull(mWindowOptions.windowBounds).height());
-
+                                    applyInitialLayoutAndEnlargement();
                                     contentLayout
                                             .getViewTreeObserver()
                                             .removeOnGlobalLayoutListener(this);
                                 }
                             });
         }
+    }
+
+    /**
+     * Applies the initial layout bounds to the PiP window on startup.
+     *
+     * <p>If an Auto-PiP permission prompt is needed, this method ensures the window is large enough
+     * to fit the prompt comfortably by enlarging it to the minimum required dimensions if
+     * necessary.
+     */
+    private void applyInitialLayoutAndEnlargement() {
+        var windowOptions = assumeNonNull(mWindowOptions);
+        var windowBounds = assumeNonNull(windowOptions.windowBounds);
+        int width = windowBounds.width();
+        int height = windowBounds.height();
+
+        // Check if we need to show the permission prompt and thus might need to enlarge the window.
+        boolean isPermissionPromptNeeded = false;
+        if (ChromeFeatureList.sAutoDocPipPermissionPromptAndroid.isEnabled()) {
+            isPermissionPromptNeeded =
+                    AutoPictureInPicturePermissionController.isPermissionPromptNeeded(
+                            mParentWebContents);
+        }
+
+        // Enforce minimum dimensions if the prompt is needed and requested bounds are too small.
+        if (isPermissionPromptNeeded) {
+            DisplayAndroid display = getDisplayAndroid();
+
+            mMinPromptWidthPx =
+                    mMinPromptWidthPx == null
+                            ? getResources()
+                                    .getDimensionPixelSize(
+                                            R.dimen
+                                                    .document_picture_in_picture_min_width_with_prompt)
+                            : mMinPromptWidthPx;
+            mMinPromptHeightPx =
+                    mMinPromptHeightPx == null
+                            ? getResources()
+                                    .getDimensionPixelSize(
+                                            R.dimen
+                                                    .document_picture_in_picture_min_height_with_prompt)
+                            : mMinPromptHeightPx;
+
+            final int minWidthDp = DisplayUtil.pxToDp(display, mMinPromptWidthPx);
+            final int minHeightDp = DisplayUtil.pxToDp(display, mMinPromptHeightPx);
+
+            if (width < minWidthDp || height < minHeightDp) {
+                final int newWidth = Math.max(width, minWidthDp);
+                final int newHeight = Math.max(height, minHeightDp);
+                mPromptEnforcedBounds =
+                        new Rect(
+                                windowBounds.left,
+                                windowBounds.top,
+                                windowBounds.left + newWidth,
+                                windowBounds.top + newHeight);
+                width = newWidth;
+                height = newHeight;
+            }
+        }
+
+        // Apply the final calculated bounds (either site-requested or prompt-enforced).
+        resizeContents(width, height);
     }
 
     /**
@@ -404,6 +475,53 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                         currentWindowBounds.top - heightDiffDp,
                         currentWindowBounds.right,
                         currentWindowBounds.bottom));
+    }
+
+    private static boolean areDimensionsApproximatelyEqual(
+            int width1, int height1, int width2, int height2) {
+        return Math.abs(width1 - width2) <= SIZE_TOLERANCE_DP
+                && Math.abs(height1 - height2) <= SIZE_TOLERANCE_DP;
+    }
+
+    /**
+     * Reverts the window size back to the originally requested bounds once the permission prompt is
+     * dismissed.
+     *
+     * <p>If the user has manually resized the window while the prompt was visible (determined by a
+     * {@value #SIZE_TOLERANCE_DP}dp tolerance check against the enforced bounds), the revert is
+     * skipped to respect the user's manual adjustment.
+     */
+    void revertToRequestedBounds() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return;
+        }
+
+        // If mPromptEnforcedBounds is null, the window wasn't enlarged for the prompt,
+        // so no reversion is needed.
+        if (mPromptEnforcedBounds == null) {
+            return;
+        }
+
+        if (mWindowOptions != null && mWindowOptions.windowBounds != null) {
+            DisplayAndroid display = getDisplayAndroid();
+            FrameLayout contentLayout = findViewById(R.id.document_picture_in_picture_content);
+            final int curContentWidth = DisplayUtil.pxToDp(display, contentLayout.getWidth());
+            final int curContentHeight = DisplayUtil.pxToDp(display, contentLayout.getHeight());
+
+            // Allow a small tolerance for density conversion rounding errors.
+            if (!areDimensionsApproximatelyEqual(
+                    curContentWidth,
+                    curContentHeight,
+                    mPromptEnforcedBounds.width(),
+                    mPromptEnforcedBounds.height())) {
+                return;
+            }
+
+            final int requestedWidth = mWindowOptions.windowBounds.width();
+            final int requestedHeight = mWindowOptions.windowBounds.height();
+
+            resizeContents(requestedWidth, requestedHeight);
+        }
     }
 
     @Override
@@ -464,7 +582,7 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
     }
 
     /**
-     * Saves the current window bounds to the cache if conditions are met.
+     * Saves the current content area bounds to the cache if conditions are met.
      *
      * <p>This requires that the parent WebContents is still valid, we are not recreating the
      * activity, and the API level is 30 or higher (required for {@code getCurrentWindowMetrics()}).
@@ -477,11 +595,6 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                 && getWindowAndroid() != null
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             DisplayAndroid display = getDisplayAndroid();
-            Rect currentWindowBounds =
-                    DisplayUtil.convertLocalPxToGlobalDipCoordinates(
-                            display,
-                            new Rect(getWindowManager().getCurrentWindowMetrics().getBounds()));
-
             int openerDisplayId = INVALID_DISPLAY;
             WindowAndroid openerWindow = mParentWebContents.getTopLevelNativeWindow();
             if (openerWindow != null) {
@@ -490,8 +603,54 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
 
             int pipDisplayId = display.getDisplayId();
 
+            FrameLayout contentLayout = findViewById(R.id.document_picture_in_picture_content);
+            if (contentLayout == null
+                    || contentLayout.getWidth() <= 0
+                    || contentLayout.getHeight() <= 0) {
+                return;
+            }
+            int[] location = new int[2];
+            contentLayout.getLocationOnScreen(location);
+
+            Rect contentBoundsPx =
+                    new Rect(
+                            location[0],
+                            location[1],
+                            location[0] + contentLayout.getWidth(),
+                            location[1] + contentLayout.getHeight());
+
+            Rect contentBounds =
+                    DisplayUtil.convertLocalPxToGlobalDipCoordinates(display, contentBoundsPx);
+
+            if (mWindowOptions != null && mWindowOptions.windowBounds != null) {
+                final int requestedWidthDp = mWindowOptions.windowBounds.width();
+                final int requestedHeightDp = mWindowOptions.windowBounds.height();
+
+                // Avoid redundant caching if the size hasn't changed from the target bounds.
+                // We allow a small tolerance to prevent slow size creeps caused by density
+                // rounding drifts or system snaps.
+                if (areDimensionsApproximatelyEqual(
+                        contentBounds.width(),
+                        contentBounds.height(),
+                        requestedWidthDp,
+                        requestedHeightDp)) {
+                    return;
+                }
+
+                // Avoid caching the temporary prompt enlargement if the user closed the window
+                // before dismissing the prompt and without manually resizing it further.
+                if (mPromptEnforcedBounds != null
+                        && areDimensionsApproximatelyEqual(
+                                contentBounds.width(),
+                                contentBounds.height(),
+                                mPromptEnforcedBounds.width(),
+                                mPromptEnforcedBounds.height())) {
+                    return;
+                }
+            }
+
             PictureInPictureBoundsCacheBridge.updateCachedBounds(
-                    mParentWebContents, currentWindowBounds, openerDisplayId, pipDisplayId);
+                    mParentWebContents, contentBounds, openerDisplayId, pipDisplayId);
         }
     }
 
@@ -541,6 +700,11 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
             mHeaderCoordinator = null;
         }
 
+        if (mAppThemeColorProvider != null) {
+            mAppThemeColorProvider.destroy();
+            mAppThemeColorProvider = null;
+        }
+
         super.onDestroy();
     }
 
@@ -587,6 +751,19 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
         }
 
         mConfig = newConfig;
+    }
+
+    @Override
+    protected void initializeNightModeStateProvider() {
+        if (mNightModeStateProvider != null) {
+            mNightModeStateProvider.initialize(getDelegate());
+        }
+    }
+
+    @Override
+    protected NightModeStateProvider createNightModeStateProvider() {
+        mNightModeStateProvider = new DocumentPictureInPictureNightModeStateProvider();
+        return mNightModeStateProvider;
     }
 
     @CallSuper
@@ -657,10 +834,35 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
         ResettersForTesting.register(() -> sIgnoreSdkVersionForTesting = false);
     }
 
+    void setWindowOptionsForTesting(PictureInPictureWindowOptions windowOptions) {
+        mWindowOptions = windowOptions;
+    }
+
+    void setPromptEnforcedBoundsForTesting(Rect bounds) {
+        mPromptEnforcedBounds = bounds;
+    }
+
     @NativeMethods
     public interface Natives {
         void onActivityStart(WebContents parentWebContent, WebContents webContents);
 
         void onBackToTab();
+    }
+
+    static class DocumentPictureInPictureNightModeStateProvider implements NightModeStateProvider {
+        public void initialize(AppCompatDelegate delegate) {
+            delegate.setLocalNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        }
+
+        @Override
+        public boolean isInNightMode() {
+            return true;
+        }
+
+        @Override
+        public void addObserver(Observer observer) {}
+
+        @Override
+        public void removeObserver(Observer observer) {}
     }
 }

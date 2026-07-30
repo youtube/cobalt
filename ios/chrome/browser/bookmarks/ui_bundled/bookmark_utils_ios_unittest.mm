@@ -15,6 +15,7 @@
 #import "base/time/time.h"
 #import "components/bookmarks/browser/bookmark_model.h"
 #import "components/bookmarks/browser/bookmark_node.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_ios_unit_test_support.h"
@@ -248,7 +249,7 @@ TEST_F(BookmarkIOSUtilsUnitTest, TestVisibleNonDescendantNodes) {
   obstructions.insert(gaga);
   obstructions.insert(lindsey);
 
-  NodeVector result = VisibleNonDescendantNodes(
+  auto result = VisibleNonDescendantNodes(
       obstructions, bookmark_model_, BookmarkStorageType::kLocalOrSyncable);
   ASSERT_EQ(13u, result.size());
 
@@ -283,7 +284,7 @@ TEST_F(BookmarkIOSUtilsUnitTest, TestVisibleNonDescendantNodesSearch) {
   AddFolder(metal, u"F12");
   AddFolder(metal, u"f31");
 
-  NodeVector result = VisibleNonDescendantNodes(
+  auto result = VisibleNonDescendantNodes(
       {}, bookmark_model_, BookmarkStorageType::kLocalOrSyncable, {u"op"});
   ASSERT_EQ(2u, result.size());
 

@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.toolbar.extensions;
 import android.view.View;
 
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -28,9 +27,7 @@ class ExtensionsMenuButtonViewBinder {
                 if (defaultBg != 0) {
                     view.setBackgroundResource(defaultBg);
                 } else {
-                    view.setBackgroundResource(
-                            org.chromium.components.browser_ui.widget.R.drawable
-                                    .default_icon_background);
+                    view.setBackgroundResource(R.drawable.default_icon_background);
                 }
             }
         }

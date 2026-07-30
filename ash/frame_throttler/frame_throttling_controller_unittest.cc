@@ -26,6 +26,8 @@
 #include "ui/gfx/geometry/rect.h"
 
 namespace ash {
+
+using chromeos::AppType;
 namespace {
 
 using ::testing::Eq;
@@ -86,7 +88,7 @@ class FrameThrottlingControllerTest : public AshTestBase {
   std::unique_ptr<aura::Window> CreateTestBrowserWindow(
       const viz::FrameSinkId frame_sink_id) {
     std::unique_ptr<aura::Window> browser_window =
-        CreateAppWindow(gfx::Rect(100, 100), chromeos::AppType::BROWSER);
+        CreateWindowWithAppType(AppType::BROWSER, {100, 100});
     browser_window->SetEmbedFrameSinkId(frame_sink_id);
     return browser_window;
   }
@@ -97,9 +99,9 @@ class FrameThrottlingControllerTest : public AshTestBase {
 };
 
 TEST_F(FrameThrottlingControllerTest, ManualThrottling) {
-  std::unique_ptr<aura::Window> window_1 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window_1 = CreateWindowWithAppType();
   window_1->SetEmbedFrameSinkId({1, 1});
-  std::unique_ptr<aura::Window> window_2 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window_2 = CreateWindowWithAppType();
   window_2->SetEmbedFrameSinkId({2, 2});
 
   // 10 Hz is lower than the default, but there are no other windows actively
@@ -152,7 +154,7 @@ TEST_F(FrameThrottlingControllerTest, ManualAndCompositingBasedThrottling) {
       ash_test_helper()->GetHost(), {kBrowserWindowFrameSinkId});
   base::RunLoop().RunUntilIdle();
 
-  std::unique_ptr<aura::Window> manual_window = CreateTestWindow();
+  std::unique_ptr<aura::Window> manual_window = CreateWindowWithAppType();
   manual_window->SetEmbedFrameSinkId(kManualWindowFrameSinkId);
 
   // 10 Hz is lower than the default frame rate, so it should be rejected.

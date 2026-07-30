@@ -9,6 +9,7 @@
 
 #include "base/clang_profiling_buildflags.h"
 #include "build/build_config.h"
+#include "components/vrp_flags/buildflags.h"
 #include "media/media_buildflags.h"
 #include "services/viz/privileged/mojom/gl/gpu_service.mojom.h"
 
@@ -27,6 +28,7 @@ class StubGpuService : public mojom::GpuService {
                            uint64_t client_tracing_id,
                            bool is_gpu_host,
                            bool enable_extra_handles_validation,
+                           mojo::ScopedMessagePipeHandle channel_handle,
                            EstablishGpuChannelCallback callback) override;
   void SetChannelClientPid(int32_t client_id,
                            base::ProcessId client_pid) override;
@@ -98,6 +100,9 @@ class StubGpuService : public mojom::GpuService {
   void Crash() override;
   void Hang() override;
   void ThrowJavaException() override;
+#if BUILDFLAG(ENABLE_VRP_FLAGS)
+  void GetVrpFlags(GetVrpFlagsCallback callback) override;
+#endif
 };
 
 }  // namespace viz

@@ -10,6 +10,7 @@
 #import "components/enterprise/common/proto/connectors.pb.h"
 #import "components/enterprise/connectors/core/cloud_content_scanning/deep_scanning_utils.h"
 #import "components/enterprise/connectors/core/content_area_user_provider.h"
+#import "components/signin/public/base/consent_level.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/web/public/web_state.h"
@@ -19,16 +20,16 @@ namespace enterprise_connectors {
 ContentAnalysisInfo::ContentAnalysisInfo(const GURL& url,
                                          AnalysisSettings settings,
                                          ContentAnalysisRequest::Reason reason,
-                                         base::WeakPtr<web::WebState> web_state)
+                                         const web::WebState& web_state)
     : settings_(std::move(settings)), url_(url) {
-  CHECK(web_state);
-  tab_url_ = web_state->GetLastCommittedURL();
-  title_ = base::UTF16ToUTF8(web_state->GetTitle());
+  tab_url_ = web_state.GetLastCommittedURL();
+  title_ = base::UTF16ToUTF8(web_state.GetTitle());
   reason_ = reason;
   user_action_id_ = base::HexEncode(base::RandBytesAsVector(128));
 
-  auto* identity_manager = IdentityManagerFactory::GetForProfile(
-      ProfileIOS::FromBrowserState(web_state->GetBrowserState()));
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(
+          ProfileIOS::FromBrowserState(web_state.GetBrowserState()));
 
   if (identity_manager) {
     identity_manager_ = identity_manager->GetWeakPtr();

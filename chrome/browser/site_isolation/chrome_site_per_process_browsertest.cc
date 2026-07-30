@@ -362,8 +362,9 @@ class ChromeSitePerProcessOopifPDFTest : public ChromeSitePerProcessTest {
   ~ChromeSitePerProcessOopifPDFTest() override = default;
 
   // Return value could be nullptr.
-  pdf::MimeHandlerStreamManager* GetMimeHandlerStreamManager() {
-    return pdf::MimeHandlerStreamManager::FromWebContents(
+  extensions::mime_handler::MimeHandlerStreamManager*
+  GetMimeHandlerStreamManager() {
+    return extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
         browser()->tab_strip_model()->GetActiveWebContents());
   }
 
@@ -1211,7 +1212,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 }
 
 // Test that opening a window with `noopener` consumes user activation.
-// crbug.com/1264543, crbug.com/1291210
+// crbug.com/40057754, crbug.com/40058598
 IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
                        UserActivationConsumptionNoopener) {
   // Start on a page a.com.
@@ -1313,8 +1314,8 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
 
 // Tests that a same-site iframe runs its beforeunload handler when closing a
 // tab.  Same as the test above, but for a same-site rather than cross-site
-// iframe.  See https://crbug.com/1010456.
-// Flaky (timeout) on Linux, ChromeOS, MacOS, and Windows (crbug.com/1033002)
+// iframe.  See https://crbug.com/40651135.
+// Flaky (timeout) on Linux, ChromeOS, MacOS, and Windows (crbug.com/40663129)
 IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
                        DISABLED_TabCloseWithSameSiteBeforeUnloadIframe) {
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
@@ -1494,7 +1495,7 @@ IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest, JSPrintDuringSwap) {
 // This test verifies that an OOPIF created in a tab on a secondary display
 // doesn't initialize its device scale factor based on the primary display.
 // Note: This test could probably be expanded to run on all ASH platforms.
-// Disabled due to flakiness. https://crbug.com/1359423
+// Disabled due to flakiness. https://crbug.com/40862378
 IN_PROC_BROWSER_TEST_F(ChromeSitePerProcessTest,
                        DISABLED_TestInitialDSFForOOPIF) {
   // Spec for a two-display system, where the primary display has non-unit

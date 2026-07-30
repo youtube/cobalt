@@ -357,6 +357,9 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the result of the serialization that occurred when
     {ImportantFileWriter} saves bookmarks to disk.
+
+    JSON error can't occur for immediate file writer as they receive a json
+    string to save instead of the bookmark model.
   </summary>
 </histogram>
 
@@ -631,7 +634,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.ParentFolderType" enum="BookmarkFolderType"
-    expires_after="2026-06-07">
+    expires_after="2026-12-01">
   <owner>emshack@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -965,7 +968,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolderDepth.UrlOpened" units="folders"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>yzshen@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -1011,7 +1014,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UtilizationPerBookmark.OnProfileLoad.DaysSinceUsed"
-    units="Days" expires_after="2026-06-07">
+    units="Days" expires_after="2026-12-01">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>

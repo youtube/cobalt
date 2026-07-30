@@ -22,14 +22,19 @@
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
+#include "ui/views/controls/throbber.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/metadata/view_factory.h"
+#include "ui/views/view.h"
 
 namespace autofill {
 
 PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
-                                       Delegate& delegate)
+                                       Delegate& delegate,
+                                       bool show_indicator,
+                                       bool is_loading)
     : delegate_(delegate) {
   ChromeLayoutProvider* layout_provider = ChromeLayoutProvider::Get();
 
@@ -42,11 +47,15 @@ PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
           gfx::Insets::VH(0, layout_provider->GetDistanceMetric(
                                  views::DISTANCE_RELATED_LABEL_HORIZONTAL)));
 
-  AddChildView(
+  int icon_size = layout_provider->GetDistanceMetric(
+      views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE);
+
+  search_icon_ = AddChildView(
       std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
-          vector_icons::kSearchChromeRefreshIcon, ui::kColorIcon,
-          layout_provider->GetDistanceMetric(
-              views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE))));
+          vector_icons::kSearchChromeRefreshIcon, ui::kColorIcon, icon_size)));
+
+  throbber_ = AddChildView(std::make_unique<views::Throbber>(icon_size));
+  SetLoading(is_loading);
 
   input_ = AddChildView(
       views::Builder<views::Textfield>()
@@ -84,6 +93,15 @@ PopupSearchBarView::PopupSearchBarView(const std::u16string& placeholder,
   clear_->SetFocusBehavior(FocusBehavior::ALWAYS);
   views::InstallCircleHighlightPathGenerator(clear_);
   clear_->SetVisible(false);
+
+  if (show_indicator) {
+    indicator_ = AddChildView(views::Builder<views::Label>()
+                                  .SetText(u"@@")
+                                  .SetAutoColorReadabilityEnabled(false)
+                                  .Build());
+    indicator_->SetEnabledColor(ui::kColorTextfieldForegroundPlaceholder);
+    indicator_->SetVisible(true);
+  }
 }
 
 void PopupSearchBarView::AddedToWidget() {
@@ -109,6 +127,16 @@ bool PopupSearchBarView::HandleKeyEvent(views::Textfield* sender,
   return false;
 }
 
+void PopupSearchBarView::SetLoading(bool is_loading) {
+  search_icon_->SetVisible(!is_loading);
+  throbber_->SetVisible(is_loading);
+  if (is_loading) {
+    throbber_->Start();
+  } else {
+    throbber_->Stop();
+  }
+}
+
 void PopupSearchBarView::Focus() {
   input_->RequestFocus();
 }
@@ -130,10 +158,18 @@ bool PopupSearchBarView::IsClearButtonVisibleForTesting() const {
   return clear_->GetVisible();
 }
 
+bool PopupSearchBarView::IsIndicatorVisibleForTesting() const {
+  return indicator_ ? indicator_->GetVisible() : false;
+}
+
 PopupSearchBarView::~PopupSearchBarView() = default;
 
 void PopupSearchBarView::OnInputChanged() {
-  clear_->SetVisible(!input_->GetText().empty());
+  bool empty = input_->GetText().empty();
+  clear_->SetVisible(!empty);
+  if (indicator_) {
+    indicator_->SetVisible(empty);
+  }
   input_change_notification_timer_.Start(
       FROM_HERE, kInputChangeCallbackDelay,
       // `delegate_` is expected to outlive `this`, the timer will either be

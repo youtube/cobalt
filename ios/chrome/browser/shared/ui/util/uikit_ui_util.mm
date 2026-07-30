@@ -253,6 +253,17 @@ bool IsLandscape(UIWindow* window) {
   return UIInterfaceOrientationIsLandscape(GetInterfaceOrientation(window));
 }
 
+bool IsWindowedMode(UIWindow* window) {
+  if (!window) {
+    return false;
+  }
+  UIWindowScene* scene = window.windowScene;
+  if (!scene) {
+    return false;
+  }
+  return !CGRectEqualToRect(window.bounds, scene.screen.bounds);
+}
+
 bool CanShowTabStrip(UITraitCollection* traitCollection) {
   if (IsRegularXRegularSizeClass(traitCollection)) {
     return true;
@@ -534,4 +545,12 @@ NSArray<UITrait>* TraitCollectionSetForTraits(NSArray<UITrait>* traits) {
   });
 
   return everyUIMutableTrait;
+}
+
+size_t MemoryFootprintForImage(UIImage* image) {
+  CGImageRef cgImage = [image CGImage];
+  size_t bytesPerRow = CGImageGetBytesPerRow(cgImage);
+  size_t height = CGImageGetHeight(cgImage);
+  size_t totalBytes = bytesPerRow * height;
+  return totalBytes / 1024;
 }

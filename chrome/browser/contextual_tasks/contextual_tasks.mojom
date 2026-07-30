@@ -210,6 +210,14 @@ interface Page {
   RestoreInput();
 
   // Called by the browser process (C++) when the AIM server sends an
+  // EnterBasicMode command to enter basic mode.
+  EnterBasicMode();
+
+  // Called by the browser process (C++) when the AIM server sends an
+  // ExitBasicMode command to exit basic mode.
+  ExitBasicMode();
+
+  // Called by the browser process (C++) when the AIM server sends an
   // InjectInput command to inject an input into the compose box and specifies
   // a thumbnail source. `file_token` is an identifier for the input generated
   // by ContextualSearchSessionHandle. `supports_unimodal` specifies whether the
@@ -240,6 +248,10 @@ interface Page {
   // Communicates to WebUI that the AIM page that is loaded is the zero state.
   // Zero state means no queries have been submitted yet in this thread.
   OnZeroStateChange(bool is_zero_state);
+
+  // Called by the browser process (C++) to notify the UI if the current page
+  // is in NLM mode.
+  SetInNlm(bool in_nlm);
 
   // Called by the browser process (C++) to notify the UI if the current page
   // is an AI page or not.
@@ -280,6 +292,10 @@ interface Page {
   // Called by the browser process (C++) to notify the UI when the pin state
   // changes.
   OnSidePanelPinStateChanged(bool is_pinned);
+
+  // Called by the browser process (C++) to notify the UI whether the expand
+  // button should be enabled.
+  SetExpandButtonEnabled(bool enabled);
 };
 
 // Used to bootstrip bi-directional communication between the browser and webui.

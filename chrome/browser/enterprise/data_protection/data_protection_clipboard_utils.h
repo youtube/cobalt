@@ -5,11 +5,20 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_DATA_PROTECTION_DATA_PROTECTION_CLIPBOARD_UTILS_H_
 #define CHROME_BROWSER_ENTERPRISE_DATA_PROTECTION_DATA_PROTECTION_CLIPBOARD_UTILS_H_
 
+#include <string>
+
+#include "base/functional/callback.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/files_scan_data.h"
 #include "content/public/browser/content_browser_client.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/clipboard_metadata.h"
+
+namespace content {
+class RenderFrameHost;
+class WebContents;
+struct DropData;
+}  // namespace content
 
 namespace enterprise_data_protection {
 
@@ -109,6 +118,24 @@ bool ReplaceCopyFromFindBar(std::u16string_view selected_text,
 void ReplacePasteToFindBar(
     content::WebContents* web_contents,
     base::OnceCallback<void(std::optional<std::u16string>)> callback);
+
+// Checks if the user is allowed to use the "Search for..." context menu item
+// in the given WebContents based on DataControlsRules policies.
+// Returns true if search is allowed, false otherwise.
+bool IsSearchWithAllowed(content::WebContents* web_contents);
+
+// Checks if the user is allowed to use the "Search for..." context menu item
+// in the given WebContents based on DataControlsRules policies.
+// If the action is allowed (or reported/warned and bypassed),
+// `on_allowed_callback` will be run.
+void ShouldAllowSearchWith(content::WebContents* web_contents,
+                           size_t selection_size,
+                           base::OnceClosure on_allowed_callback);
+
+// Copies `text` to the user's clipboard. This checks the Data Controls rules to
+// ensure the copy is allowed.
+void CopyTextToClipboard(content::RenderFrameHost* rfh,
+                         const std::u16string& text);
 
 }  // namespace enterprise_data_protection
 

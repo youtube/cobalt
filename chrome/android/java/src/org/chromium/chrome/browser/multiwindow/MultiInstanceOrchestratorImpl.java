@@ -11,7 +11,6 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.annotation.StringRes;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
@@ -28,6 +27,7 @@ import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTabsTask;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabUtils;
@@ -36,6 +36,7 @@ import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.content_public.browser.WebContents;
 
 import java.util.HashMap;
 import java.util.List;
@@ -78,72 +79,53 @@ import java.util.Set;
     }
 
     @Override
-    public void createNewWindow(
+    public boolean createNewWindow(
             Activity sourceActivity,
             boolean isIncognito,
             @Nullable Bundle additionalIntentExtras,
             @Nullable Bundle startActivityOptions,
             @NewWindowAppSource int source) {
-        Intent intent = createNewWindowIntent(sourceActivity, isIncognito, source);
-        if (intent == null) return;
+        Intent intent = MultiWindowUtils.createNewWindowIntent(sourceActivity, isIncognito, source);
+        if (intent == null) return false;
 
         if (additionalIntentExtras != null) {
             intent.putExtras(additionalIntentExtras);
         }
 
         MultiInstanceManager.onMultiInstanceModeStarted();
-        if (startActivityOptions == null) {
-            sourceActivity.startActivity(intent);
-        } else {
+        try {
             sourceActivity.startActivity(intent, startActivityOptions);
+            return true;
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 
-    @VisibleForTesting
-    /* package */ static @Nullable Intent createNewWindowIntent(
-            Activity sourceActivity, boolean isIncognito, @NewWindowAppSource int source) {
-        boolean isInMultiWindowMode =
-                MultiWindowUtils.getInstance().isInMultiWindowMode(sourceActivity);
-        boolean isInMultiDisplayMode =
-                MultiWindowUtils.getInstance().isInMultiDisplayMode(sourceActivity);
+    @Override
+    public boolean createNewWindowFromWebContents(
+            Activity sourceActivity,
+            Profile profile,
+            WebContents webContents,
+            @Nullable Bundle additionalIntentExtras,
+            @Nullable Bundle startActivityOptions,
+            @NewWindowAppSource int source) {
+        if (!MultiWindowUtils.isMultiInstanceApi31Enabled()) return false;
 
-        if (MultiWindowUtils.isMultiInstanceApi31Enabled()) {
-            boolean openAdjacently =
-                    (MultiWindowUtils.canEnterMultiWindowMode()
-                                    || isInMultiWindowMode
-                                    || isInMultiDisplayMode)
-                            && MultiWindowUtils.shouldOpenInAdjacentWindow(sourceActivity);
-
-            Intent intent =
-                    MultiWindowUtils.createNewWindowIntent(
-                            sourceActivity,
-                            MultiInstanceManager.INVALID_WINDOW_ID,
-                            /* preferNew= */ true,
-                            openAdjacently,
-                            source);
-            intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, isIncognito);
-            return intent;
+        if (!MultiWindowUtils.isWithinInstanceLimit()) {
+            var multiInstanceManager = getMultiInstanceManager(sourceActivity);
+            if (multiInstanceManager != null) {
+                multiInstanceManager.showInstanceCreationLimitMessage();
+            }
+            return false;
         }
 
-        assert !isIncognito : "Opening an incognito window isn't supported";
-        assert isInMultiWindowMode || isInMultiDisplayMode
-                : "Current windowing mode doesn't support opening a new window";
-
-        Class<? extends Activity> targetActivity =
-                MultiWindowUtils.getInstance().getOpenInOtherWindowActivity(sourceActivity);
-        if (targetActivity == null) return null;
-
-        Intent intent = new Intent(sourceActivity, targetActivity);
-        MultiWindowUtils.setOpenInOtherWindowIntentExtras(intent, sourceActivity, targetActivity);
-
-        intent.putExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, source);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        if (MultiWindowUtils.shouldOpenInAdjacentWindow(sourceActivity)) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-        }
-
-        return intent;
+        return mTabReparentingDelegate.createNewWindowFromWebContents(
+                sourceActivity,
+                profile,
+                webContents,
+                additionalIntentExtras,
+                startActivityOptions,
+                source);
     }
 
     @Override

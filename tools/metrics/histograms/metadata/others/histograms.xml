@@ -247,7 +247,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessCodeCast.Session.FreezeCount" units="instances"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>bzielinski@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -328,7 +328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessCodeCast.Ui.AccessCodeNotFoundCount" units="instances"
-    expires_after="2026-06-12">
+    expires_after="2026-10-25">
   <owner>bzielinski@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -2962,7 +2962,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.AcceptCHFrame" enum="AcceptCHFrameRestart"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -2975,7 +2975,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.CriticalCHRestart" enum="CriticalCHRestart"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -2985,7 +2985,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.FetchLatency{OperationType}" units="microseconds"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3121,21 +3121,21 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteError"
-    enum="UpdateClientErrors" expires_after="2026-05-31">
+    enum="UpdateClientErrors" expires_after="2026-12-31">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>The result of an install or an update check.</summary>
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteResult" enum="BooleanError"
-    expires_after="2026-05-31">
+    expires_after="2026-12-31">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>The result of an install or an update check.</summary>
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteTime" units="ms"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3357,7 +3357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.AppListUpdate.Latency" units="ms"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3370,7 +3370,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.AppStream.LaunchAttempt" enum="AppStreamLaunchEntryPoint"
-    expires_after="2026-10-04">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3381,7 +3381,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Connection.Duration" units="ms"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3392,7 +3392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Connection.Result" enum="BooleanSuccess"
-    expires_after="2026-08-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3406,7 +3406,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Eche.Connection.Result.FailureReason"
     enum="SecureChannelConnectionAttemptFailureReason"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
   <summary>
@@ -3417,7 +3417,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Connectivity.Latency" units="ms"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3428,7 +3428,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.MultiDeviceFeatureState" enum="MultiDevice_FeatureState"
-    expires_after="2026-10-04">
+    expires_after="2027-05-30">
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
   <summary>
@@ -3439,7 +3439,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.NetworkCheck.FailureReason" enum="ConnectionFailReason"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>jonmann@google.com</owner>
   <owner>nayebi@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3450,7 +3450,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.NetworkCheck.Result" enum="BooleanSuccess"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>jonmann@google.com</owner>
   <owner>nayebi@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3461,7 +3461,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Onboarding.UserAction" enum="OnboardingUserActionMetric"
-    expires_after="2026-10-04">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>samchiu@google.com</owner>
@@ -3472,7 +3472,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent" enum="StreamState"
-    expires_after="2026-10-04">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3484,7 +3484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent.ConnectionFail" enum="ConnectionFailReason"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3495,7 +3495,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent.Duration.FromInitializeToClose" units="ms"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3508,7 +3508,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent.FromLauncher" enum="StreamState"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>pushi@google.com</owner>
   <owner>jonmann@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3520,7 +3520,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent.FromNotification" enum="StreamState"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>pushi@google.com</owner>
   <owner>jonmann@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3533,7 +3533,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Eche.StreamEvent.FromNotification.PreviousNetworkCheckFailed.ConnectionFail"
-    enum="ConnectionFailReason" expires_after="2026-05-30">
+    enum="ConnectionFailReason" expires_after="2027-05-30">
   <owner>pushi@google.com</owner>
   <owner>jonmann@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3547,7 +3547,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Eche.StreamEvent.FromNotification.PreviousNetworkCheckFailed.Result"
-    enum="StreamState" expires_after="2026-05-30">
+    enum="StreamState" expires_after="2027-05-30">
   <owner>pushi@google.com</owner>
   <owner>jonmann@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3560,7 +3560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent.FromRecentApps" enum="StreamState"
-    expires_after="2026-05-30">
+    expires_after="2027-05-30">
   <owner>pushi@google.com</owner>
   <owner>jonmann@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3572,7 +3572,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.UniqueAppsStreamed.PerDay" units="count"
-    expires_after="2026-10-04">
+    expires_after="2027-05-30">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3955,7 +3955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.NotAllowed.RequestSource" enum="FeedbackSource"
-    expires_after="2026-08-09">
+    expires_after="2026-10-18">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -5185,7 +5185,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.EndToEndLatencyUs.{ThreadName}" units="microseconds"
-    expires_after="2026-08-16">
+    expires_after="2026-10-25">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <owner>mthiesse@chromium.org</owner>
@@ -5212,6 +5212,7 @@ chromium-metrics-reviews@google.com.
     <variant name="NetworkServiceOutOfProcess"/>
     <variant name="RendererMain"/>
     <variant name="VizCompositor"/>
+    <variant name="VizWebView"/>
   </token>
 </histogram>
 
@@ -5813,7 +5814,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend.OptimizationGuide.Result{ClientId}"
-    enum="PageImageServiceResult" expires_after="2026-08-23">
+    enum="PageImageServiceResult" expires_after="2026-10-25">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1456757</component>
@@ -6181,7 +6182,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PushMessaging.PushSubscriptionChangeForNotificationPermissionChangeFired"
-    units="count" expires_after="2026-08-23">
+    units="count" expires_after="2026-10-25">
   <owner>peter@chromium.org</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>
@@ -7121,16 +7122,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
-<histogram name="SiteIsolatedCodeCache.JS.PotentialMemoryBackedCodeCacheHit"
-    enum="Boolean" expires_after="2023-10-08">
-  <owner>yhirano@chromium.org</owner>
-  <owner>loading-dev@chromium.org</owner>
-  <summary>
-    Represents whether fetching from the memory-backed code cache would succeed.
-    Recorded when the code cache result gets available.
-  </summary>
-</histogram>
-
 <histogram name="SiteIsolatedCodeCache.JS.WebUI.Behaviour"
     enum="SiteIsolatedCodeCacheJSBehaviour" expires_after="2025-07-01">
   <owner>tluk@chromium.org</owner>
@@ -7560,186 +7551,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     The number of each volume adjust type in tablet mode. Logged when starts
     volume adjust while in tablet mode.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Certificates.Microsoft" units="certificates"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of certificates for modules loaded (or potentially loaded)
-    into the browser process that are signed by Microsoft. A catalog counts as a
-    single certificate, and may refer to many modules. Measured shortly after
-    startup. Windows only. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Certificates.Total" units="certificates"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of certificates for modules loaded (or potentially loaded)
-    into the browser process. A catalog counts as a single certificate, and may
-    refer to many modules. Measured shortly after startup. Windows only. This
-    histogram was expired between 2019-12-31 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.GetDriveLetterPathFound" enum="BooleanFound"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    Records whether an equivalent driver letter path was found for a device
-    path. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Heartbeat.BlockedModulesCount"
-    units="modules" expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    Records the number of modules that were blocked from loading into the
-    browser process by the third-party DLL blocking feature. This is recorded
-    every 5 minutes. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram
-    name="ThirdPartyModules.Heartbeat.PrintingWorkaround.BlockingEnabled"
-    enum="BooleanEnabled" expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    Records whether or not Chrome is still blocking third-party DLLs. This is a
-    bit that turns to false when the in-process printing is invoked. Recorded
-    every 5 minutes. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Heartbeat.UniqueBlockedModulesCount"
-    units="modules" expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    Records the number of unique modules that were blocked from loading into the
-    browser process by the third-party DLL blocking feature. This is recorded
-    every 5 minutes. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.InputMethodEditorsCount" units="counts"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The number of registered input method editors found on the user's machine.
-    This is emitted shortly after startup when the IME enumeration takes place.
-    This histogram was expired between M77 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Loaded" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of third-party modules (neither Microsoft nor Google) that
-    are loaded in the browser process. Measured shortly after startup. Windows
-    only. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.NotLoaded" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of third-party modules (neither Microsoft nor Google) that
-    are not yet loaded in the browser process, but may potentially be (shell
-    extensions, for example). Measured shortly after startup. Windows only. This
-    histogram was expired between 2019-12-31 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Signed" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of signed modules loaded (or potentially loaded) into the
-    browser process. Measured shortly after startup. Windows only. This
-    histogram was expired between 2019-12-31 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Signed.Catalog" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of modules loaded (or potentially loaded) into the browser
-    process that are signed via a catalog. Measured shortly after startup.
-    Windows only. This histogram was expired between 2019-12-31 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Signed.Microsoft" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of modules loaded (or potentially loaded) into the browser
-    process that are signed by Microsoft. Measured shortly after startup.
-    Windows only. This histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Total" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of modules loaded (or potentially loaded) into the browser
-    process. Measured shortly after startup. Windows only. This histogram was
-    expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Modules.Unsigned" units="modules"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The total number of unsigned modules loaded (or potentially loaded) into the
-    browser process. Measured shortly after startup. Windows only. This
-    histogram was expired between M85 and M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.ShellExtensionsCount3" units="counts"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    The number of registered shell extensions found on the user's machine. This
-    is emitted shortly after startup when the shell extensions enumeration is
-    done. Doesn't count duplicates. This histogram was expired between M85 and
-    M114.
-  </summary>
-</histogram>
-
-<histogram name="ThirdPartyModules.Uninstallable" enum="BooleanUninstallable"
-    expires_after="M121">
-  <owner>pmonette@chromium.org</owner>
-  <owner>kristianm@chromium.org</owner>
-  <summary>
-    Records whether or not a loaded third party module could be uninstalled
-    using the Windows Apps &amp; Features page. This histogram was expired
-    between M85 and M114.
   </summary>
 </histogram>
 
@@ -8496,7 +8307,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebUsb.DetachKernelDriverOutcome"
-    enum="DetachKernelDriverOutcome" expires_after="2026-08-16">
+    enum="DetachKernelDriverOutcome" expires_after="2026-10-18">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

@@ -1094,7 +1094,7 @@ void LocalFrameView::RunIntersectionObserverSteps() {
     LayoutObject* layout_object = GetLayoutView();
     gfx::Rect main_frame_dimensions(ToRoundedSize(
         To<LayoutBox>(layout_object)->ScrollableOverflowRect().size));
-    GetFrame().Client()->OnMainFrameIntersectionChanged(main_frame_dimensions);
+    GetFrame().Client()->OnMainFrameRectangleChanged(main_frame_dimensions);
     GetFrame().Client()->OnMainFrameViewportRectangleChanged(
         gfx::Rect(frame_->GetOutermostMainFrameScrollPosition(),
                   frame_->GetOutermostMainFrameSize()));
@@ -4936,7 +4936,7 @@ String LocalFrameView::MainThreadScrollingReasonsAsText() {
     CHECK(compositor);
     reasons = compositor->GetMainThreadRepaintReasons(*properties->Scroll());
   }
-  return String(cc::MainThreadScrollingReason::AsText(reasons).c_str());
+  return String(cc::MainThreadScrollingReason::AsText(reasons));
 }
 
 bool LocalFrameView::MapToVisualRectInRemoteRootFrame(

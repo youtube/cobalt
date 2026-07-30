@@ -268,7 +268,11 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
                             R.string.omnibox_ai_mode_scope_placeholder_text;
                     case AutocompleteRequestType.IMAGE_GENERATION ->
                             R.string.omnibox_empty_hint_for_image_generation;
-                    default -> R.string.omnibox_empty_hint_with_dse_name;
+                    default ->
+                            OmniboxFeatures.sUseAskHintForNtp.getValue()
+                                            && mTemplateUrlService.isDefaultSearchEngineGoogle()
+                                    ? R.string.omnibox_empty_ask_hint_with_dse_name
+                                    : R.string.omnibox_empty_hint_with_dse_name;
                 };
 
         return OmniboxResourceProvider.getString(mContext, res, mSearchEngineName);
@@ -354,6 +358,7 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
                         mProfile,
                         originUrl,
                         mSearchEngineLogoTargetSizePixels,
+                        /* fallbackToHost= */ true,
                         (image, iconUrl) -> {
                             if (image == null) {
                                 recordEvent(Events.FETCH_FAILED_RETURNED_BITMAP_NULL);
@@ -409,10 +414,13 @@ public class SearchEngineUtils implements Destroyable, TemplateUrlServiceObserve
         try {
             return LocaleManager.getInstance().needToCheckForSearchEnginePromo();
         } catch (SecurityException e) {
-            Log.e(TAG, "Can be thrown by a failed IPC, see crbug.com/1027709\n", e);
+            Log.e(TAG, "Can be thrown by a failed IPC, see crbug.com/40660387\n", e);
             return null;
         } catch (RuntimeException e) {
-            Log.e(TAG, "Can be thrown if underlying services are dead, see crbug.com/1121602\n", e);
+            Log.e(
+                    TAG,
+                    "Can be thrown if underlying services are dead, see crbug.com/40715590\n",
+                    e);
             return null;
         }
     }

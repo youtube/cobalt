@@ -56,6 +56,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
@@ -466,6 +467,9 @@ class DISABLED_GlicApiTestWithOneTabAndPreloading
         {{features::kGlic,
           {
               {"glic-default-hotkey", "Ctrl+G"},
+          }},
+         {features::kGlicWebClientLoadTimes,
+          {
               // Shorten load timeouts.
               {features::kGlicPreLoadingTimeMs.name, "20"},
               {features::kGlicMinLoadingTimeMs.name, "40"},
@@ -529,6 +533,9 @@ class GlicApiTestWithOneTabAndContextualCueing : public GlicApiTestWithOneTab {
         {{features::kGlic,
           {
               {"glic-default-hotkey", "Ctrl+G"},
+          }},
+         {features::kGlicWebClientLoadTimes,
+          {
               // Shorten load timeouts.
               {features::kGlicPreLoadingTimeMs.name, "20"},
               {features::kGlicMinLoadingTimeMs.name, "40"},
@@ -586,7 +593,7 @@ class GlicApiTestWithFastTimeout : public GlicApiTest {
     features2_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {{
-            features::kGlic,
+            features::kGlicWebClientLoadTimes,
             {
 // For slow binaries, use a longer timeout.
 #if defined(SLOW_BINARY)
@@ -1176,6 +1183,25 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testCreateTabFailsIfNotActive) {
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTest, testCreateTabSucceedsIfInvoking) {
+  RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
+  GetGlicInstanceImpl()->host().NotifyIsInvoking(true);
+  auto options = mojom::InvokeOptions::New();
+  options->invocation_source = mojom::InvocationSource::kTopChromeButton;
+  GetGlicInstanceImpl()->host().GetPrimaryWebClient()->Invoke(
+      std::move(options), base::DoNothing());
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTest, testInvoke) {
+  RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
+  auto options = mojom::InvokeOptions::New();
+  options->invocation_source = mojom::InvocationSource::kTopChromeButton;
+  GetGlicInstanceImpl()->host().GetPrimaryWebClient()->Invoke(
+      std::move(options), base::DoNothing());
   ExecuteJsTest();
 }
 
@@ -1864,28 +1890,36 @@ IN_PROC_BROWSER_TEST_P(DISABLED_GlicApiTestWithOneTabAndPreloading,
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
   expected_count_hidden = 0;
 #endif
+  // Per-request metrics
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, expected_count_hidden);
+      GlicRequestEvent::kRequestReceivedWhileInactive, expected_count_hidden);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
       GlicRequestEvent::kRequestHandlerException, 1);
   histogram_tester->ExpectTotalCount("Glic.Api.RequestCounts.GetContextFromTab",
                                      0);
+  // Per-status metrics
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Inactive",
+                                      9 /*GetContextFromFocusedTab*/,
+                                      expected_count_hidden);
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Error",
+                                      9 /*GetContextFromFocusedTab*/, 1);
 
   // Open the glic panel and attempt to extract focused and arbitrary tab
   // context.
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   ContinueJsTest();
+  // Per-request metrics
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, expected_count_hidden);
+      GlicRequestEvent::kRequestReceivedWhileInactive, expected_count_hidden);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
       GlicRequestEvent::kRequestHandlerException, 1);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, 0);
+      GlicRequestEvent::kRequestReceivedWhileInactive, 0);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromTab",
       GlicRequestEvent::kRequestHandlerException, 0);
@@ -1894,18 +1928,30 @@ IN_PROC_BROWSER_TEST_P(DISABLED_GlicApiTestWithOneTabAndPreloading,
   // context.
   RunTestSequence(CloseGlic());
   ContinueJsTest();
+  // Per-request metrics
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, ++expected_count_hidden);
+      GlicRequestEvent::kRequestReceivedWhileInactive, ++expected_count_hidden);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromFocusedTab",
       GlicRequestEvent::kRequestHandlerException, 2);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, 1);
+      GlicRequestEvent::kRequestReceivedWhileInactive, 1);
   histogram_tester->ExpectBucketCount(
       "Glic.Api.RequestCounts.GetContextFromTab",
       GlicRequestEvent::kRequestHandlerException, 1);
+  // Per-status metrics
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Inactive",
+                                      9 /*GetContextFromFocusedTab*/,
+                                      expected_count_hidden);
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Error",
+                                      9 /*GetContextFromFocusedTab*/, 2);
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Inactive",
+                                      10 /*GetContextFromTab*/,
+                                      expected_count_hidden);
+  histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Error",
+                                      10 /*GetContextFromTab*/, 2);
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetFocusedTabStateV2) {
@@ -2650,7 +2696,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCallingApiWhileHiddenRecordsMetrics) {
                                      GlicRequestEvent::kRequestReceived, 1);
   histogram_tester.ExpectBucketCount(
       "Glic.Api.RequestCounts.CreateTab",
-      GlicRequestEvent::kRequestReceivedWhileHidden, 1);
+      GlicRequestEvent::kRequestReceivedWhileInactive, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testPinTabs) {
@@ -3325,7 +3371,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testRegisterConversationWithEmptyId) {
 // TODO(b/498955581): Clean up glic hibernation experiments, and test in the
 // coordinator test.
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testHibernateAllOnMemoryPressure) {
-  GetService()->web_contents_warming_pool().EnsurePreload();
+  GetInstanceCoordinator().EnsurePreload();
 
   // Open 3 instances, with instance 2 being the active one.
   GlicInstanceImpl* instance1 = OpenGlicInNewTabAndGetInstance(0, kFirstTab);
@@ -3346,9 +3392,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testHibernateAllOnMemoryPressure) {
 
   // There is a warmed contents initially. It should be non-showing and
   // non-actuating.
-  GetService()->web_contents_warming_pool().EnsurePreload();
-  ASSERT_TRUE(
-      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
+  GetInstanceCoordinator().EnsurePreload();
+  ASSERT_TRUE(GetInstanceCoordinator()
+                  .GetWebContentsWarmingPoolForTesting()
+                  .HasWarmedContainerForTesting());
 
   // Simulate memory pressure.
   base::MemoryPressureListener::NotifyMemoryPressure(
@@ -3360,8 +3407,9 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testHibernateAllOnMemoryPressure) {
   }));
 
   // Verify the warmed contents is reset.
-  ASSERT_FALSE(
-      GetService()->web_contents_warming_pool().HasWarmedContainerForTesting());
+  ASSERT_FALSE(GetInstanceCoordinator()
+                   .GetWebContentsWarmingPoolForTesting()
+                   .HasWarmedContainerForTesting());
 
   // Active instance should not be hibernated.
   ASSERT_TRUE(instance1->IsShowing());

@@ -17,10 +17,16 @@ import org.chromium.chrome.browser.omnibox.BackKeyBehaviorDelegate;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
+import org.chromium.chrome.browser.omnibox.OmniboxStub;
+import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorSupplier;
 import org.chromium.chrome.browser.ui.edge_to_edge.NoOpTopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.base.WindowAndroid;
 
 /** The fusebox (omnibox) component for contextual tasks. */
@@ -79,6 +85,12 @@ public class ContextualTasksFusebox {
         uiOverrides.setLensEntrypointAllowed(true);
         uiOverrides.setVoiceEntrypointAllowed(true);
 
+        MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier =
+                TabModelSelectorSupplier.from(windowAndroid);
+        if (tabModelSelectorSupplier == null) {
+            tabModelSelectorSupplier = ObservableSuppliers.alwaysNull();
+        }
+
         mLocationBarCoordinator =
                 new LocationBarCoordinator(
                         locationBarLayout,
@@ -93,8 +105,7 @@ public class ContextualTasksFusebox {
                         /* incognitoStateProvider= */ null,
                         lifecycleDispatcher,
                         (params, isIncognitoBranded) -> {
-                            loadUrlCallback.onResult(params.url);
-                            return true;
+                            return onUrlLoad(params.url, loadUrlCallback);
                         },
                         /* backKeyBehavior= */ mBackKeyBehaviorDelegate,
                         /* pageInfoAction= */ (tab, pageInfoHighlight) -> {},
@@ -106,7 +117,7 @@ public class ContextualTasksFusebox {
                         /* browserControlsVisibilityDelegate= */ null,
                         /* backPressManager= */ null,
                         /* omniboxSuggestionsDropdownScrollListener= */ null,
-                        /* tabModelSelectorSupplier= */ ObservableSuppliers.alwaysNull(),
+                        /* tabModelSelectorSupplier= */ tabModelSelectorSupplier,
                         /* topInsetProvider= */ new NoOpTopInsetProvider(),
                         new LocationBarEmbedder() {},
                         uiOverrides,
@@ -119,15 +130,47 @@ public class ContextualTasksFusebox {
                         /* tabFaviconFunction= */ (tab) -> null,
                         snackbarManager,
                         bottomContainer,
-                        /* omniboxChipManager= */ null);
+                        /* omniboxChipManager= */ null,
+                        /* scrimHandler= */ null);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         mLocationBarCoordinator.setShouldShowLensButtonWhenUnfocused(true);
         mLocationBarCoordinator.onFinishNativeInitialization();
+
+        // Listen for focus changes to automatically toggle the Expanded/Compact state.
+        OmniboxStub stub = mLocationBarCoordinator.getOmniboxStub();
+        if (stub != null) {
+            stub.addUrlFocusChangeListener(
+                    new UrlFocusChangeListener() {
+                        @Override
+                        public void onUrlFocusChange(boolean hasFocus) {
+                            if (hasFocus) {
+                                // If user clicked/tapped, ensure we transition to Expanded
+                                // (AI_MODE).
+                                var session = mDataProvider.getFuseboxSessionState();
+                                if (session != null) {
+                                    session.getAutocompleteInput()
+                                            .setRequestType(AutocompleteRequestType.AI_MODE);
+                                }
+                            }
+                        }
+                    });
+        }
     }
 
     public void destroy() {
         mLocationBarCoordinator.destroy();
+    }
+
+    private boolean onUrlLoad(String url, Callback<String> loadUrlCallback) {
+        ComposeboxQueryControllerBridge bridge = mDataProvider.getComposeboxQueryControllerBridge();
+        if (bridge == null) {
+            loadUrlCallback.onResult(url);
+        } else {
+            bridge.submitQueryToAimPage(url);
+            mLocationBarCoordinator.setOmniboxEditingText("");
+        }
+        return true;
     }
 
     /** Returns the fusebox view. */

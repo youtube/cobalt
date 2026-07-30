@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
 #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/text/copy_lchars_from_uchar_source.h"
+#include "third_party/blink/renderer/platform/wtf/text/integer_to_string_conversion.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_internal.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
@@ -274,6 +275,36 @@ String String::EncodeForDebugging() const {
   return StringView(*this).EncodeForDebugging();
 }
 
+String String::Number(int value) {
+  IntegerToStringConverter<int> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
+String String::Number(unsigned value) {
+  IntegerToStringConverter<unsigned> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
+String String::Number(long value) {
+  IntegerToStringConverter<long> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
+String String::Number(unsigned long value) {
+  IntegerToStringConverter<unsigned long> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
+String String::Number(long long value) {
+  IntegerToStringConverter<long long> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
+String String::Number(unsigned long long value) {
+  IntegerToStringConverter<unsigned long long> converter(value);
+  return StringImpl::Create(converter.Span());
+}
+
 String String::Number(float number) {
   return Number(static_cast<double>(number));
 }
@@ -292,6 +323,11 @@ String String::NumberToStringFixedWidth(double number,
                                         unsigned decimal_places) {
   DoubleToStringConverter converter;
   return String(converter.ToStringWithFixedWidth(number, decimal_places));
+}
+
+String String::HexNumber(uint64_t value) {
+  IntegerToStringConverter<uint64_t, 16, false> converter(value);
+  return StringImpl::Create(converter.Span());
 }
 
 Vector<String> String::Split(const StringView& separator) const {
@@ -385,9 +421,9 @@ String String::FromUtf8(base::span<const uint8_t> bytes) {
 
   Vector<UChar, 1024> buffer(length);
 
-  blink::unicode::ConversionResult result =
-      blink::unicode::ConvertUtf8ToUtf16(bytes, base::span(buffer));
-  if (result.status != blink::unicode::kConversionOK) {
+  unicode::ConversionResult result =
+      unicode::ConvertUtf8ToUtf16(bytes, base::span(buffer));
+  if (!result.IsSuccess()) {
     return String();
   }
 

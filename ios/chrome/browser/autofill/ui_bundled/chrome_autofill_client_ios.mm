@@ -27,7 +27,6 @@
 #import "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #import "components/autofill/core/browser/form_import/addresses/autofill_save_update_address_profile_delegate_ios.h"
 #import "components/autofill/core/browser/form_import/form_data_importer.h"
-#import "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #import "components/autofill/core/browser/logging/log_manager.h"
 #import "components/autofill/core/browser/logging/log_router.h"
 #import "components/autofill/core/browser/payments/payments_network_interface.h"
@@ -131,8 +130,7 @@ ChromeAutofillClientIOS::ChromeAutofillClientIOS(
     AuthenticationService* authenticationService =
         AuthenticationServiceFactory::GetForProfile(profile);
     if (authenticationService) {
-      id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity(
-          signin::ConsentLevel::kSignin);
+      id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity();
       // Tries to create kAccountNameEmail profile using the current primary
       // account data.
       if (identity) {
@@ -443,17 +441,6 @@ ChromeAutofillClientIOS::ShowAutofillSuggestions(
   return SuggestionUiSessionId();
 }
 
-void ChromeAutofillClientIOS::ShowPlusAddressEmailOverrideNotification(
-    const std::string& original_email,
-    EmailOverrideUndoCallback email_override_undo_callback) {
-  [bridge_ showPlusAddressEmailOverrideNotification:
-               std::move(email_override_undo_callback)];
-}
-
-AutofillPlusAddressDelegate* ChromeAutofillClientIOS::GetPlusAddressDelegate() {
-  return PlusAddressServiceFactory::GetForProfile(profile_);
-}
-
 void ChromeAutofillClientIOS::UpdateAutofillDataListValues(
     base::span<const autofill::SelectOption> datalist) {
   // No op. ios/web_view does not support display datalist.
@@ -534,8 +521,7 @@ std::optional<std::u16string> ChromeAutofillClientIOS::GetUserEmail() {
   AuthenticationService* authenticationService =
       AuthenticationServiceFactory::GetForProfile(profile_);
   DCHECK(authenticationService);
-  id<SystemIdentity> identity =
-      authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity();
   if (identity) {
     return base::SysNSStringToUTF16(identity.userEmail);
   }

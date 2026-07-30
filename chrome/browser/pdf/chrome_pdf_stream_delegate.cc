@@ -13,7 +13,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
-#include "chrome/browser/pdf/mime_handler_stream_manager.h"
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/pdf_resources.h"
@@ -25,6 +24,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
 #include "extensions/browser/mime_handler/stream_container.h"
 #include "extensions/common/api/mime_handler.mojom.h"
 #include "extensions/common/constants.h"
@@ -130,7 +130,8 @@ std::optional<GURL> ChromePdfStreamDelegate::MapToOriginalUrl(
       // The `StreamContainer` is stored using the PDF viewer's embedder frame,
       // which is the parent of the extension frame.
       auto* mime_handler_stream_manager =
-          pdf::MimeHandlerStreamManager::FromWebContents(contents);
+          extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
+              contents);
       if (mime_handler_stream_manager) {
         stream = mime_handler_stream_manager->GetStreamContainer(
             embedder_parent_frame);
@@ -236,7 +237,8 @@ bool ChromePdfStreamDelegate::MaybeDeleteSandboxedStream(
   // Only delete if a stream exists. The stream should always be unclaimed,
   // since the navigation hasn't committed.
   auto* mime_handler_stream_manager =
-      pdf::MimeHandlerStreamManager::FromWebContents(web_contents);
+      extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
+          web_contents);
   if (!mime_handler_stream_manager ||
       !mime_handler_stream_manager->ContainsUnclaimedStreamInfo(
           frame_tree_node_id)) {
@@ -284,7 +286,7 @@ bool ChromePdfStreamDelegate::ShouldAllowPdfFrameNavigation(
   }
 
   auto* mime_handler_stream_manager =
-      pdf::MimeHandlerStreamManager::FromWebContents(
+      extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
           navigation_handle->GetWebContents());
   if (!mime_handler_stream_manager) {
     return true;
@@ -308,20 +310,20 @@ bool ChromePdfStreamDelegate::ShouldAllowPdfFrameNavigation(
       navigation_handle->GetFrameTreeNodeId();
   if (stream) {
     // Allow navigations for unrelated frames, which might be injected by
-    // unrelated extensions. Only allow the PDF extension frame to navigate to
-    // the extension URL once.
-    return !mime_handler_stream_manager->IsPdfExtensionFrameTreeNodeId(
+    // unrelated extensions. Only allow the MIME handler extension frame to
+    // navigate to the extension URL once.
+    return !mime_handler_stream_manager->IsExtensionFrameTreeNodeId(
                parent_frame, frame_tree_node_id) ||
-           (!mime_handler_stream_manager->DidPdfExtensionFinishNavigation(
+           (!mime_handler_stream_manager->DidExtensionFrameFinishNavigation(
                 parent_frame) &&
             url == stream->handler_url());
   }
 
-  // If this navigation is for a PDF content frame, then there should be a
-  // grandparent frame (the PDF embedder frame) with a stream container. If this
-  // navigation is unrelated to PDFs, then there may or may not be a grandparent
-  // frame, and there will not be a stream container. In that case, the
-  // navigation should not be blocked.
+  // If this navigation is for a content frame, then there should be a
+  // grandparent frame (the embedder frame) with a stream container. If this
+  // navigation is unrelated to MIME handlers, then there may or may not be a
+  // grandparent frame, and there will not be a stream container. In that case,
+  // the navigation should not be blocked.
   content::RenderFrameHost* grandparent_frame = parent_frame->GetParent();
   if (!grandparent_frame) {
     return true;
@@ -332,11 +334,11 @@ bool ChromePdfStreamDelegate::ShouldAllowPdfFrameNavigation(
   }
 
   // Allow navigations for unrelated frames, which might be injected by
-  // unrelated extensions. Only allow the PDF content frame to navigate to the
-  // original PDF URL once.
-  return !mime_handler_stream_manager->IsPdfContentFrameTreeNodeId(
+  // unrelated extensions. Only allow the content frame to navigate to the
+  // original URL once.
+  return !mime_handler_stream_manager->IsContentFrameTreeNodeId(
              grandparent_frame, frame_tree_node_id) ||
-         (!mime_handler_stream_manager->DidPdfContentNavigate(
+         (!mime_handler_stream_manager->DidContentFrameFinishNavigation(
               grandparent_frame) &&
           url == stream->original_url());
 }

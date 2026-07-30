@@ -23,6 +23,7 @@
 #import "components/content_settings/core/browser/host_content_settings_map.h"
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/dom_distiller/core/distilled_page_prefs.h"
+#import "components/enterprise/browser/groups/groups_prefs.h"
 #import "components/enterprise/browser/identifiers/identifiers_prefs.h"
 #import "components/enterprise/browser/reporting/common_pref_names.h"
 #import "components/enterprise/client_certificates/core/prefs.h"
@@ -40,6 +41,7 @@
 #import "components/lens/lens_overlay_permission_utils.h"
 #import "components/metrics/demographics/user_demographics.h"
 #import "components/metrics/metrics_pref_names.h"
+#import "components/metrics/metrics_reporting_choice_service.h"
 #import "components/metrics/metrics_reporting_level.h"
 #import "components/network_time/network_time_tracker.h"
 #import "components/ntp_tiles/custom_links_manager_impl.h"
@@ -109,7 +111,6 @@
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_home_mediator.h"
 #import "ios/chrome/browser/content_suggestions/coordinator/content_suggestions_mediator.h"
 #import "ios/chrome/browser/content_suggestions/price_tracking_promo/model/price_tracking_promo_prefs.h"
-#import "ios/chrome/browser/content_suggestions/safety_check/model/safety_check_prefs.h"
 #import "ios/chrome/browser/content_suggestions/shop_card/model/shop_card_prefs.h"
 #import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
@@ -148,16 +149,6 @@
 #endif  // !BUILDFLAG(IS_IOS_MACCATALYST)
 
 namespace {
-
-// Deprecated 06/2025.
-inline constexpr char kVariationsLimitedEntropySyntheticTrialSeed[] =
-    "variations_limited_entropy_synthetic_trial_seed";
-inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
-    "variations_limited_entropy_synthetic_trial_seed_v2";
-inline constexpr char kGaiaCookiePeriodicReportTimeDeprecated[] =
-    "gaia_cookie.periodic_report_time";
-inline constexpr char kSyncedDefaultSearchProviderGUID[] =
-    "default_search_provider.synced_guid";
 
 // Deprecated 07/2025.
 inline constexpr char kFirstSyncCompletedInFullSyncMode[] =
@@ -329,10 +320,12 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   ProfileAttributesStorageIOS::RegisterPrefs(registry);
   chrome_urls::RegisterPrefs(registry);
   client_certificates::RegisterLocalStatePrefs(registry);
+  enterprise_groups::RegisterLocalStatePrefs(registry);
   flags_ui::PrefServiceFlagsStorage::RegisterPrefs(registry);
   signin::IdentityManager::RegisterLocalStatePrefs(registry);
   IOSChromeMetricsServiceClient::RegisterPrefs(registry);
   metrics::RegisterDemographicsLocalStatePrefs(registry);
+  metrics::MetricsReportingChoiceService::RegisterPrefs(registry);
   network_time::NetworkTimeTracker::RegisterPrefs(registry);
   omnibox::RegisterLocalStatePrefs(registry);
   policy::BrowserPolicyConnector::RegisterPrefs(registry);
@@ -378,11 +371,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
                                std::string());
   registry->RegisterBooleanPref(prefs::kEulaAccepted, false);
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
-                                false);
-  registry->RegisterIntegerPref(
-      metrics::prefs::kMetricsReportingLevel,
-      static_cast<int>(metrics::MetricsReportingLevel::kNone));
-  registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingMigrationDone,
                                 false);
 
   // Deprecated 07/2025 (migrated to profile prefs).
@@ -553,20 +541,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kMigrateWidgetsPrefs, false);
 
   registry->RegisterTimePref(prefs::kLensOverlayLastPresented, base::Time());
-
-  // Deprecated 06/2025.
-  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeed, 0);
-  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeedV2,
-                               0);
-
-  // Deprecated 06/2025.
-  registry->RegisterBooleanPref(
-      prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager, false);
-
-  // Deprecated 06/2025.
-  registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
-  registry->RegisterIntegerPref(
-      prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
 
   registry->RegisterBooleanPref(prefs::kWidgetsForMultiProfile, false);
 
@@ -849,8 +823,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(
       ntp_tiles::prefs::kTabResumptionHomeModuleEnabled, true);
 
-  safety_check_prefs::RegisterPrefs(registry);
-
   registry->RegisterIntegerPref(
       prefs::kIosMagicStackSegmentationMVTImpressionsSinceFreshness, -1);
   registry->RegisterIntegerPref(
@@ -929,6 +901,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(
       prefs::kIOSGeminiLiveConsent, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      prefs::kIOSGeminiLiveIntroPlayed, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(prefs::kIOSBWGPreciseLocationSetting, false);
   registry->RegisterBooleanPref(prefs::kIOSBWGPageContentSetting, true);
   registry->RegisterIntegerPref(prefs::kIOSBWGPromoImpressionCount, 0);
@@ -952,10 +927,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Prefs for the Synced Set Up Feature.
   registry->RegisterIntegerPref(prefs::kSyncedSetUpImpressionCount, 0);
-
-  // Deprecated 06/2025.
-  registry->RegisterDoublePref(kGaiaCookiePeriodicReportTimeDeprecated, 0);
-  registry->RegisterStringPref(kSyncedDefaultSearchProviderGUID, std::string());
 
   // Deprecated 07/2025.
   registry->RegisterBooleanPref(kFirstSyncCompletedInFullSyncMode, false);
@@ -1045,18 +1016,6 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
   prefs->ClearPref(
       prefs::kIosMagicStackSegmentationParcelTrackingImpressionsSinceFreshness);
 
-  // Added 06/2025.
-  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeed);
-  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeedV2);
-
-  // Added 06/2025.
-  prefs->ClearPref(
-      prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager);
-
-  // Added 06/2025.
-  prefs->ClearPref(prefs::kNTPLensEntryPointNewBadgeShownCount);
-  prefs->ClearPref(prefs::kNTPHomeCustomizationNewBadgeImpressionCount);
-
   // Added 07/2025.
   prefs->ClearPref(prefs::kTabPickupEnabled);
 
@@ -1081,14 +1040,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Added 09/2024.
   browsing_data::prefs::MaybeMigrateToQuickDeletePrefValues(prefs);
-
-  // Added 06/2025.
-  prefs->ClearPref(kGaiaCookiePeriodicReportTimeDeprecated);
-
-  // Added 06/2025.
-  prefs->ClearPref(safety_check_prefs::kSafetyCheckInMagicStackDisabledPref);
-  prefs->ClearPref(tab_resumption_prefs::kTabResumptionDisabledPref);
-  prefs->ClearPref(kSyncedDefaultSearchProviderGUID);
 
   // Added 07/2025.
   prefs->ClearPref(kFirstSyncCompletedInFullSyncMode);

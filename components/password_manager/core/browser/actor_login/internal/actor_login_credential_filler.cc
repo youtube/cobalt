@@ -166,10 +166,7 @@ void ActorLoginCredentialFiller::AttemptLogin(
   // strongly affiliated.
   affiliations::AffiliationService* affiliation_service =
       client_->GetAffiliationService();
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::
-              kActorLoginPermissionsUseStrongAffiliations) &&
-      affiliation_service) {
+  if (affiliation_service) {
     affiliation_service->GetAffiliationsAndBranding(
         affiliations::FacetURI::FromPotentiallyInvalidSpec(
             credential_.request_origin.GetURL().spec()),
@@ -222,18 +219,10 @@ void ActorLoginCredentialFiller::FetchEligibleForms(
         return std::move(form_finder_result.eligible_managers);
       };
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFieldVisibilityCheck)) {
-    login_form_finder_->GetEligibleLoginFormManagersAsync(
-        origin_,
-        base::BindOnce(log_parsed_forms_details, weak_ptr_factory_.GetWeakPtr())
-            .Then(std::move(on_forms_retrieved_cb)));
-  } else {
-    std::move(on_forms_retrieved_cb)
-        .Run(log_parsed_forms_details(
-            weak_ptr_factory_.GetWeakPtr(),
-            login_form_finder_->GetEligibleLoginFormManagers(origin_)));
-  }
+  login_form_finder_->GetEligibleLoginFormManagersAsync(
+      origin_,
+      base::BindOnce(log_parsed_forms_details, weak_ptr_factory_.GetWeakPtr())
+          .Then(std::move(on_forms_retrieved_cb)));
 }
 
 void ActorLoginCredentialFiller::ProcessRetrievedForms(
@@ -538,6 +527,7 @@ void ActorLoginCredentialFiller::OnFillingDone() {
     case LoginStatusResult::kErrorFederatedExpectedAccountNotPresent:
     case LoginStatusResult::kErrorFederatedTimeout:
     case LoginStatusResult::kRequiresButtonClick:
+    case LoginStatusResult::kErrorPageChangedDuringFilling:
       NOTREACHED();
   }
 

@@ -4,13 +4,19 @@
 
 package org.chromium.chrome.browser.toolbar.adaptive;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
+
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,6 +33,8 @@ import org.chromium.chrome.browser.actor.ActorKeyedService;
 import org.chromium.chrome.browser.actor.ActorKeyedServiceFactory;
 import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
+import org.chromium.chrome.browser.glic.GlicEnablingJni;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -39,9 +47,15 @@ public class AdaptiveToolbarFeaturesUnitTest {
 
     @Mock private Profile mProfile;
     @Mock private ActorKeyedService mActorKeyedService;
+    @Mock private GlicEnabling.Natives mGlicEnablingJniMock;
+
+    private Context mContext;
 
     @Before
     public void setUp() {
+        GlicEnablingJni.setInstanceForTesting(mGlicEnablingJniMock);
+        when(mGlicEnablingJniMock.isEnabledForProfile(any())).thenReturn(true);
+        mContext = ApplicationProvider.getApplicationContext();
         ActorKeyedServiceFactory.setForTesting(mActorKeyedService);
     }
 
@@ -54,7 +68,7 @@ public class AdaptiveToolbarFeaturesUnitTest {
     @SmallTest
     @DisableFeatures(ChromeFeatureList.GLIC)
     public void testShouldForciblyShowGlicButton_FeatureDisabled() {
-        Assert.assertFalse(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mProfile));
+        assertFalse(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mContext, mProfile));
     }
 
     @Test
@@ -62,7 +76,7 @@ public class AdaptiveToolbarFeaturesUnitTest {
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testShouldForciblyShowGlicButton_NoActiveTask() {
         when(mActorKeyedService.getCurrentActiveTask()).thenReturn(null);
-        Assert.assertFalse(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mProfile));
+        assertFalse(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mContext, mProfile));
     }
 
     @Test
@@ -71,6 +85,38 @@ public class AdaptiveToolbarFeaturesUnitTest {
     @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
     public void testShouldForciblyShowGlicButton_WithActiveTask() {
         when(mActorKeyedService.getCurrentActiveTask()).thenReturn(mock(ActorTask.class));
-        Assert.assertTrue(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mProfile));
+        assertTrue(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.ANDROID_BOTTOM_BAR})
+    @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testShouldForciblyShowGlicButton_BottomBarEnabled() {
+        when(mActorKeyedService.getCurrentActiveTask()).thenReturn(mock(ActorTask.class));
+        assertFalse(AdaptiveToolbarFeatures.shouldForciblyShowGlicButton(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    @DisableFeatures({
+        ChromeFeatureList.ANDROID_BOTTOM_BAR,
+        ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL
+    })
+    public void testGetDefaultButtonVariant_BottomBarDisabled_GlicEnabled() {
+        assertEquals(
+                AdaptiveToolbarButtonVariant.GLIC,
+                AdaptiveToolbarFeatures.getDefaultButtonVariant(mContext, mProfile));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.ANDROID_BOTTOM_BAR})
+    @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testGetDefaultButtonVariant_BottomBarEnabled_GlicEnabled() {
+        assertEquals(
+                AdaptiveToolbarButtonVariant.SHARE,
+                AdaptiveToolbarFeatures.getDefaultButtonVariant(mContext, mProfile));
     }
 }

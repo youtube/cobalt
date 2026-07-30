@@ -754,10 +754,15 @@ bool SyncPrefs::IsTypeSupportedInTransportMode(UserSelectableType type) {
     case UserSelectableType::kSavedTabGroups:
       return IsReplaceSyncPromosWithSignInPromosEnabled();
     case UserSelectableType::kExtensions:
-      return switches::IsExtensionsExplicitBrowserSigninEnabled();
+#if BUILDFLAG(IS_CHROMEOS)
+      return base::FeatureList::IsEnabled(kReplaceSyncPromosWithSignInPromos);
+#else
+      return true;
+#endif  // BUILDFLAG(IS_CHROMEOS)
     case UserSelectableType::kThemes:
 #if BUILDFLAG(IS_ANDROID)
-      return false;
+      return base::FeatureList::IsEnabled(
+          syncer::kNewTabPageCustomizationThemeSync);
 #elif BUILDFLAG(IS_IOS)
       // Allow 'Themes' toggle on iOS if the feature is enabled.
       return base::FeatureList::IsEnabled(syncer::kSyncThemesIos);

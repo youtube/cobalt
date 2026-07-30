@@ -71,6 +71,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/search/search_tab_helper.h"
@@ -436,7 +437,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, NoTitle) {
 // query parameters following it if the content does not have a <title> tag.
 // Specifically verify the cases where the ref or query parameters have a '/'
 // character in them. This is a regression test for
-// https://crbug.com/503003.
+// https://crbug.com/40423811.
 IN_PROC_BROWSER_TEST_F(BrowserTest, NoTitleFileUrl) {
   // Note that the host names used and the order of these cases are by design.
   // There must be unique query parameters and references per case (i.e. the
@@ -580,7 +581,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, NoJavaScriptDialogsActivateTab) {
 // verifying that we don't crash when we pass this limit.
 // Warning: this test can take >30 seconds when running on a slow (low
 // memory?) Mac builder.
-// Test is flaky on Win, Linux, Mac: https://crbug.com/1099186.
+// Test is flaky on Win, Linux, Mac: https://crbug.com/40702340.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 #define MAYBE_ThirtyFourTabs DISABLED_ThirtyFourTabs
 #else
@@ -616,13 +617,13 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, MAYBE_ThirtyFourTabs) {
 
 // Test that a browser-initiated navigation to an aborted URL load leaves around
 // a pending entry if we start from the NTP but not from a normal page.
-// See http://crbug.com/355537.
+// See http://crbug.com/40079181.
 IN_PROC_BROWSER_TEST_F(BrowserTest, ClearPendingOnFailUnlessNTP) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(chrome::kChromeUINewTabURL)));
+                                           chrome::ChromeUINewTabURLAsGURL()));
 
   // Navigate to a 204 URL (aborts with no content) on the NTP and make sure it
   // sticks around so that the user can edit it.
@@ -656,7 +657,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, ClearPendingOnFailUnlessNTP) {
   }
 }
 
-// Test for crbug.com/1232447. Ensure that a non-user-initiated navigation
+// Test for crbug.com/40780261. Ensure that a non-user-initiated navigation
 // doesn't commit while a JS dialog is showing.
 IN_PROC_BROWSER_TEST_F(BrowserTest, DialogDefersNavigationCommit) {
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
@@ -719,7 +720,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, DialogDefersNavigationCommit) {
   ASSERT_TRUE(manager.WaitForNavigationFinished());
 }
 
-// Test for crbug.com/297289.  Ensure that modal dialogs are closed when a
+// Test for crbug.com/40334128.  Ensure that modal dialogs are closed when a
 // cross-process navigation is ready to commit.
 IN_PROC_BROWSER_TEST_F(BrowserTest, CrossProcessNavCancelsDialogs) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -728,7 +729,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, CrossProcessNavCancelsDialogs) {
 
   // Test this with multiple alert dialogs to ensure that we can navigate away
   // even if the renderer tries to synchronously create more.
-  // See http://crbug.com/312490.
+  // See http://crbug.com/40078304.
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
   auto* js_dialog_manager =
       javascript_dialogs::TabModalDialogManager::FromWebContents(contents);
@@ -831,7 +832,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, DownloadDoesntDismissDialog) {
 }
 
 #if BUILDFLAG(IS_MAC)
-// Flaky on Mac 10.11 CI builder. See https://crbug.com/1251684.
+// Flaky on Mac 10.11 CI builder. See https://crbug.com/40792686.
 #define MAYBE_SadTabCancelsDialogs DISABLED_SadTabCancelsDialogs
 #else
 #define MAYBE_SadTabCancelsDialogs SadTabCancelsDialogs
@@ -870,7 +871,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, MAYBE_SadTabCancelsDialogs) {
 }
 
 // Make sure that dialogs opened by subframes are closed when the process dies.
-// See http://crbug.com/366510.
+// See http://crbug.com/40079401.
 IN_PROC_BROWSER_TEST_F(BrowserTest, SadTabCancelsSubframeDialogs) {
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -904,9 +905,9 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, SadTabCancelsSubframeDialogs) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url2));
 }
 
-// Test for crbug.com/22004.  Reloading a page with a before unload handler and
-// then canceling the dialog should not leave the throbber spinning.
-// https://crbug.com/898370: Test is flakily timing out
+// Test for crbug.com/40999745.  Reloading a page with a before unload handler
+// and then canceling the dialog should not leave the throbber spinning.
+// https://crbug.com/40599465: Test is flakily timing out
 IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_ReloadThenCancelBeforeUnload) {
   GURL url(std::string("data:text/html,") + kBeforeUnloadHTML);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -927,9 +928,8 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_ReloadThenCancelBeforeUnload) {
       content::ISOLATED_WORLD_ID_GLOBAL);
 }
 
-// Test for crbug.com/11647.  A page closed with window.close() should not have
-// two beforeunload dialogs shown.
-// http://crbug.com/410891
+// Test for crbug.com/40163641.  A page closed with window.close() should not
+// have two beforeunload dialogs shown. http://crbug.com/40382821
 IN_PROC_BROWSER_TEST_F(BrowserTest,
                        DISABLED_SingleBeforeUnloadAfterWindowClose) {
   browser()
@@ -1269,7 +1269,8 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, OverscrollEnabledInPopups) {
 
 IN_PROC_BROWSER_TEST_F(BrowserTest, OverscrollDisabledInDevToolsWindows) {
   DevToolsWindowTesting::OpenDevToolsWindowSync(browser(), false);
-  BrowserWindowInterface* dev_tools_browser = chrome::FindLastActive();
+  BrowserWindowInterface* dev_tools_browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   ASSERT_EQ(dev_tools_browser->GetType(),
             BrowserWindowInterface::Type::TYPE_DEVTOOLS);
   EXPECT_FALSE(
@@ -1323,7 +1324,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, ShouldShowLocationBar) {
   DevToolsWindowTesting::CloseDevToolsWindowSync(devtools_window);
 }
 
-// Regression test for crbug.com/702505.
+// Regression test for crbug.com/41307933.
 IN_PROC_BROWSER_TEST_F(BrowserTest, ReattachDevToolsWindow) {
   ASSERT_TRUE(embedded_test_server()->Start());
   net::EmbeddedTestServer https_test_server(
@@ -1901,7 +1902,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, WindowOpenClose2) {
 }
 
 // Disabled because of timeouts in several builders.
-// https://crbug.com/1129313
+// https://crbug.com/40720134
 IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_WindowOpenClose3) {
 #if BUILDFLAG(IS_MAC)
   // Ensure that tests don't wait for frames that will never come.
@@ -1923,7 +1924,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_WindowOpenClose3) {
   EXPECT_EQ(title, title_watcher.WaitAndGetTitle());
 }
 
-// TODO(linux_aura) http://crbug.com/163931
+// TODO(linux_aura) http://crbug.com/40295645
 #if !BUILDFLAG(IS_LINUX)
 IN_PROC_BROWSER_TEST_F(BrowserTest, FullscreenBookmarkBar) {
 #if BUILDFLAG(IS_MAC)
@@ -2037,8 +2038,8 @@ class KioskModeTest : public BrowserTest {
 };
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Mac: http://crbug.com/103912
-// Linux: http://crbug.com/163931
+// Mac: http://crbug.com/40113467
+// Linux: http://crbug.com/40295645
 #define MAYBE_EnableKioskModeTest DISABLED_EnableKioskModeTest
 #else
 #define MAYBE_EnableKioskModeTest EnableKioskModeTest
@@ -2186,13 +2187,13 @@ IN_PROC_BROWSER_TEST_F(RunInBackgroundTest, RunInBackgroundBasicTest) {
   // Close the browser window, then open a new one - the browser should keep
   // running.
   Profile* profile = browser()->profile();
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   CloseBrowserSynchronously(browser());
-  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   chrome::NewEmptyWindow(profile);
 
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 #endif  // BUILDFLAG(ENABLE_BACKGROUND_MODE)
 
@@ -2218,12 +2219,12 @@ class NoStartupWindowTest : public BrowserTest {
 
 IN_PROC_BROWSER_TEST_F(NoStartupWindowTest, NoStartupWindowBasicTest) {
   // No browser window should be started by default.
-  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
 
   // Starting a browser window should work just fine.
   CreateBrowser(ProfileManager::GetLastUsedProfile());
 
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 // Chromeos needs to track app windows because it considers them to be part of
@@ -2638,7 +2639,7 @@ void CheckDisplayModeMQ(const std::u16string& display_mode,
 
 }  // namespace
 
-// flaky new test: http://crbug.com/471703
+// flaky new test: http://crbug.com/41165267
 IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_ChangeDisplayMode) {
   CheckDisplayModeMQ(u"browser",
                      browser()->tab_strip_model()->GetActiveWebContents());
@@ -2671,7 +2672,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, DISABLED_ChangeDisplayMode) {
 IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
   // TODO(tdanderson|pkasting): Change this to verify that the contents bounds
   // set by params.initial_bounds are the same as the contents bounds in the
-  // initialized window. See crbug.com/585856.
+  // initialized window. See crbug.com/41238992.
   {
     // Minimum height a popup window should have added to the supplied content
     // bounds when drawn. This accommodates the browser toolbar.
@@ -2687,7 +2688,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     gfx::Rect bounds = browser->window()->GetBounds();
 
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
-    // See https://crbug.com/567925.
+    // See https://crbug.com/41227805.
     EXPECT_GE(bounds.width(), 100);
 
     // EXPECT_GE as Mac will have a larger height with the additional title bar.
@@ -2706,7 +2707,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     gfx::Rect bounds = browser->window()->GetBounds();
 
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
-    // See https://crbug.com/567925.
+    // See https://crbug.com/41227805.
     EXPECT_GE(bounds.width(), 100);
 
     // EXPECT_GE as Mac will have a larger height with the additional title bar.
@@ -2724,7 +2725,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     gfx::Rect bounds = browser->window()->GetBounds();
 
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
-    // See https://crbug.com/567925.
+    // See https://crbug.com/41227805.
     EXPECT_GE(bounds.width(), 100);
     EXPECT_EQ(122, bounds.height());
     browser->window()->Close();
@@ -2740,7 +2741,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     gfx::Rect bounds = browser->window()->GetBounds();
 
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
-    // See https://crbug.com/567925.
+    // See https://crbug.com/41227805.
     EXPECT_GE(bounds.width(), 100);
     EXPECT_EQ(122, bounds.height());
     browser->window()->Close();
@@ -2756,7 +2757,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestPopupBounds) {
     gfx::Rect bounds = browser->window()->GetBounds();
 
     // Should be EXPECT_EQ, but this width is inconsistent across platforms.
-    // See https://crbug.com/567925.
+    // See https://crbug.com/41227805.
     EXPECT_GE(bounds.width(), 100);
 
     // EXPECT_GE as Mac will have a larger height with the additional title bar.
@@ -2840,7 +2841,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestTabCountMetrics) {
 
   // This test assumes there's only one browser with one tab at the start of the
   // test.
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   ASSERT_EQ(1, browser()->tab_strip_model()->count());
 
   // Create an additional browser with two tabs.
@@ -2848,7 +2849,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestTabCountMetrics) {
   chrome::NewTab(browser2);
   ASSERT_TRUE(content::WaitForLoadStop(
       browser2->tab_strip_model()->GetActiveWebContents()));
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   ASSERT_EQ(1, browser()->tab_strip_model()->count());
   ASSERT_EQ(2, browser2->tab_strip_model()->count());
 
@@ -2970,7 +2971,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, TestActiveBrowserChangedUserAction) {
   EXPECT_EQ(user_action_tester.GetActionCount("ActiveBrowserChanged"), 1);
 }
 
-// DISABLED for flakiness. See https://crbug.com/1184168
+// DISABLED for flakiness. See https://crbug.com/40752437
 IN_PROC_BROWSER_TEST_F(
     BrowserTest,
     DISABLED_SameDocumentNavigationWithNothingCommittedAfterCrash) {
@@ -3050,7 +3051,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(nav_observer.was_same_document());
 }
 
-// DISABLED for flakiness. See https://crbug.com/1184168
+// DISABLED for flakiness. See https://crbug.com/40752437
 IN_PROC_BROWSER_TEST_F(
     BrowserTest,
     DISABLED_SameDocumentHistoryNavigationWithNothingCommittedAfterCrash) {
@@ -3205,9 +3206,9 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, BrowserCloseEmitsClosedNotificationsOnce) {
   base::CallbackListSubscription subscription =
       browser()->RegisterBrowserDidClose(browser_did_close_callback.Get());
 
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   CloseBrowserSynchronously(browser());
-  EXPECT_EQ(0u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 // Asserts that browser propagates browser closed notifications in the case the
@@ -3224,9 +3225,9 @@ IN_PROC_BROWSER_TEST_F(BrowserTest,
   base::CallbackListSubscription subscription =
       new_browser->RegisterBrowserDidClose(browser_did_close_callback.Get());
 
-  EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(2u, GlobalBrowserCollection::GetInstance()->GetSize());
   new_browser->SynchronouslyDestroyBrowser();
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserTest, ClosedBrowsersShouldNotShow) {

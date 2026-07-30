@@ -60,13 +60,13 @@ BASE_FEATURE(kAppShimRemoteCocoa, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This is used to control the new app close behavior on macOS wherein closing
 // all windows for an app leaves the app running.
-// https://crbug.com/1080729
+// https://crbug.com/40130206
 BASE_FEATURE(kAppShimNewCloseBehavior, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, app shims try to launch chrome silently if chrome isn't already
 // running, rather than have chrome launch visibly with a new tab/profile
 // selector.
-// https://crbug.com/1205537
+// https://crbug.com/40180521
 BASE_FEATURE(kAppShimLaunchChromeSilently, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, notifications coming from PWAs will be displayed via their app
@@ -179,7 +179,7 @@ BASE_FEATURE(kEnableFullscreenToAnyScreenAndroid,
 BASE_FEATURE(kShowResetProfileBannerV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Controls whether Chrome Apps are supported. See https://crbug.com/1221251.
+// Controls whether Chrome Apps are supported. See https://crbug.com/40186761.
 // If the feature is disabled, Chrome Apps continue to work. If enabled, Chrome
 // Apps will not launch and will be marked in the UI as deprecated.
 BASE_FEATURE(kChromeAppsDeprecation, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -435,13 +435,8 @@ BASE_FEATURE(kGlicLocaleFiltering, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicUseMainPartitionForUnifiedFre,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls the Glic Trust First Onboarding experience.
-BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kGlicMessageFirstFre, base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<int> kGlicTrustFirstOnboardingArmParam{
-    &kGlicTrustFirstOnboarding, "arm", 2 /* kWelcomeScreen */};
 // Controls whether the Glic feature is enabled.
 // IMPORTANT: this feature should never be expired! It is used as the main
 // kill-switch for Glic and can be used in the future to handle unsupported
@@ -506,27 +501,12 @@ BASE_FEATURE(kGlicForceSimplifiedBorder, base::FEATURE_DISABLED_BY_DEFAULT);
 // cc::PaintShader::MakeSkSLCommand.
 BASE_FEATURE(kGlicForceNonSkSLBorder, base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<int> kGlicPreLoadingTimeMs{
-    &kGlic, "glic-pre-loading-time-ms", 200};
 
-const base::FeatureParam<int> kGlicMinLoadingTimeMs{
-    &kGlic, "glic-min-loading-time-ms", 1000};
-
-const base::FeatureParam<int> kGlicMaxLoadingTimeMs{
-    &kGlic, "glic-max-loading-time-ms", 30000};
-
-const base::FeatureParam<int> kGlicReloadMaxLoadingTimeMs{
-    &kGlic, "glic-reload-max-loading-time-ms", 30000};
 
 const base::FeatureParam<int> kGlicInitialWidth{&kGlic, "glic-initial-width",
                                                 352};
 const base::FeatureParam<int> kGlicInitialHeight{&kGlic, "glic-initial-height",
                                                  86};
-
-const base::FeatureParam<int> kGlicFreInitialWidth{
-    &kGlic, "glic-fre-initial-width", 512};
-const base::FeatureParam<int> kGlicFreInitialHeight{
-    &kGlic, "glic-fre-initial-height", 512};
 
 // Quality value in the range [0, 100]. For use with gfx::JPEGCodec::Encode().
 const base::FeatureParam<int> kGlicScreenshotEncodeQuality{
@@ -818,6 +798,8 @@ BASE_FEATURE(kGlicRecordMemoryFootprintMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicRegionSelectionNew, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicRegionSelectionLine, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1151,7 +1133,7 @@ BASE_FEATURE(kHttpsFirstBalancedMode, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHttpsFirstBalancedModeAutoEnable,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Kill switch for crbug.com/1414633.
+// Kill switch for crbug.com/40892208.
 BASE_FEATURE(kHttpsFirstModeForAdvancedProtectionUsers,
              "HttpsOnlyModeForAdvancedProtectionUsers",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1709,6 +1691,8 @@ BASE_FEATURE(kInitialWebUIMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 // chrome://webui-toolbar.top-chrome will be loaded as the content.
 // crbug.com/444358999
 BASE_FEATURE(kWebUIReloadButton, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebUIToolbarProcessOverheadExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // Switches location bar over to a WebUI implementation.
 // See crbug.com/470042732
 BASE_FEATURE(kWebUILocationBar, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1775,6 +1759,10 @@ BASE_FEATURE(kWebUISplitTabsButton, base::FEATURE_DISABLED_BY_DEFAULT);
 // crbug.com/470039765
 BASE_FEATURE(kWebUIHomeButton, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the app menu button will be replaced with WebUI loaded from
+// chrome://webui-toolbar.top-chrome.
+BASE_FEATURE(kWebUIAppMenuButton, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, the back/forward buttons will be replaced with WebUI loaded
 // from chrome://webui-toolbar.top-chrome.
 // crbug.com/470038385
@@ -1825,6 +1813,11 @@ BASE_FEATURE(kClassManagementEnabledMetricsProvider,
 // will be used to make informed decisions about the future of the smart restart
 // feature.
 BASE_FEATURE(kSmartRestartMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSmartRestart, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kSmartRestartDelay{
+    &kSmartRestart, "restart_delay", base::Minutes(5)};
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace features

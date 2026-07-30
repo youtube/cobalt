@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.actions;
 
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.View.OnLongClickListener;
 import android.widget.ImageView;
@@ -12,6 +13,7 @@ import androidx.appcompat.widget.TooltipCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ui.actions.button.ButtonState;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.util.TextResolver;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -21,8 +23,23 @@ import org.chromium.ui.modelutil.PropertyModel;
 @NullMarked
 public class ActionButtonBinder {
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
-        if (ActionProperties.ICON == propertyKey) {
-            if (view instanceof ImageView v) v.setImageDrawable(model.get(ActionProperties.ICON));
+        if (view instanceof DelegatingActionView delegatingView) {
+            View target = delegatingView.getTargetView();
+            if (target != view) {
+                bind(model, target, propertyKey);
+                return;
+            }
+        }
+
+        if (ActionProperties.ICON_ID == propertyKey
+                || ActionProperties.ICON_DRAWABLE == propertyKey) {
+            Drawable drawable = model.get(ActionProperties.ICON_DRAWABLE);
+            if (drawable != null) {
+                if (view instanceof ImageView v) v.setImageDrawable(drawable);
+            } else {
+                int resId = model.get(ActionProperties.ICON_ID);
+                if (view instanceof ImageView v) v.setImageResource(resId);
+            }
         } else if (ActionProperties.CONTENT_DESCRIPTION_RESOLVER == propertyKey) {
             TextResolver resolver = model.get(ActionProperties.CONTENT_DESCRIPTION_RESOLVER);
             view.setContentDescription(resolver != null ? resolver.resolve(view.getContext()) : "");
@@ -35,7 +52,11 @@ public class ActionButtonBinder {
             Callback<View> callback = model.get(ActionProperties.ON_PRESS_CALLBACK);
             boolean hasPressCallback = callback != null;
             view.setOnClickListener(hasPressCallback ? callback::onResult : null);
-            int buttonState = model.get(ActionProperties.BUTTON_STATE);
+            @ButtonState
+            int buttonState =
+                    model.containsKey(ActionProperties.BUTTON_STATE)
+                            ? model.get(ActionProperties.BUTTON_STATE)
+                            : ButtonState.DEFAULT;
             ActionUtils.applyButtonState(view, buttonState, hasPressCallback);
         } else if (ActionProperties.ON_LONG_PRESS_CALLBACK == propertyKey) {
             Callback<View> callback = model.get(ActionProperties.ON_LONG_PRESS_CALLBACK);

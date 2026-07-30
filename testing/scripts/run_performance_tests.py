@@ -1015,8 +1015,9 @@ class CrossbenchTest(object):
 
   def _generate_command_list(self, benchmark, benchmark_args, working_dir):
     if self._is_alum():
-      # Disabled logs collection because their size was causing the bot to die.
-      return ['vpython3', '-Xutf8'] + [ALUM_RUNNER] + [f'--adb-bin={ADB_TOOL}']
+      return (['vpython3', '-Xutf8'] + [ALUM_RUNNER] +
+              [self.OUTDIR % working_dir] + [f'--adb-bin={ADB_TOOL}'] +
+              self._get_default_args())
     extra_browser_args = []
     if self.cb_options.extra_browser_args:
       extra_browser_args = ['--']
@@ -1031,10 +1032,8 @@ class CrossbenchTest(object):
           f'--variations-test-seed-path={resolved_path}',
           '--accept-empty-variations-seed-signature',
       ]
-    if (self.is_chrome and self.cb_options.official_browser
-        and sys.platform == 'darwin'):
-      # CBB running Chrome on MacOS, add a flag to disable updater process
-      # (see crbug.com/492924102).
+    if self.is_chrome and sys.platform == 'darwin':
+      # On MacOS, disable chrome updater process (see crbug.com/492924102).
       if not extra_browser_args:
         extra_browser_args = ['--']
       extra_browser_args += ['--disable-updater-scheduler']

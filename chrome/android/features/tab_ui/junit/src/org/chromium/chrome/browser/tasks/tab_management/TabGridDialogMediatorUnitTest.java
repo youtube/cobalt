@@ -236,6 +236,8 @@ public class TabGridDialogMediatorUnitTest {
 
     @Captor private ArgumentCaptor<BottomSheetObserver> mBottomSheetObserverCaptor;
 
+    @Captor private ArgumentCaptor<List<TabListEditorAction>> mTabListEditorActionListCaptor;
+
     private final MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier =
             ObservableSuppliers.alwaysNull();
     private final SettableMonotonicObservableSupplier<TabGroupModelFilter>
@@ -378,18 +380,17 @@ public class TabGridDialogMediatorUnitTest {
                 mModel.get(TabGridDialogProperties.MENU_CLICK_LISTENER),
                 instanceOf(View.OnClickListener.class));
 
-        ArgumentCaptor<List<TabListEditorAction>> captor =
-                ArgumentCaptor.forClass((Class) List.class);
         mMediator.setCurrentTabGroupIdForTesting(TAB_GROUP_ID);
         mMediator.onToolbarMenuItemClick(
                 R.id.select_tabs,
                 TAB_GROUP_ID,
                 /* collaborationId= */ null,
                 /* listViewTouchTracker= */ null);
-        verify(mTabListEditorController).configureToolbarWithMenuItems(captor.capture());
+        verify(mTabListEditorController)
+                .configureToolbarWithMenuItems(mTabListEditorActionListCaptor.capture());
         verify(mRecyclerViewPositionSupplier, times(1)).get();
         verify(mTabListEditorController).show(any(), eq(new ArrayList<>()), eq(null));
-        List<TabListEditorAction> actions = captor.getValue();
+        List<TabListEditorAction> actions = mTabListEditorActionListCaptor.getValue();
         assertThat(actions.get(0), instanceOf(TabListEditorSelectionAction.class));
         assertThat(actions.get(1), instanceOf(TabListEditorCloseAction.class));
         assertThat(actions.get(2), instanceOf(TabListEditorUngroupAction.class));
@@ -1632,7 +1633,7 @@ public class TabGridDialogMediatorUnitTest {
         when(mTabGroupModelFilter.getTabGroupTitle(any(Token.class))).thenReturn(GROUP_TITLE);
         CoreAccountInfo coreAccountInfo =
                 CoreAccountInfo.createFromEmailAndGaiaId(EMAIL1, GAIA_ID1);
-        when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(coreAccountInfo);
+        when(mIdentityManager.getPrimaryAccountInfo()).thenReturn(coreAccountInfo);
         when(mCollaborationService.getCurrentUserRoleForGroup(COLLABORATION_ID1))
                 .thenReturn(MemberRole.OWNER);
 
@@ -1651,7 +1652,7 @@ public class TabGridDialogMediatorUnitTest {
         when(mTabGroupModelFilter.getTabGroupTitle(any(Token.class))).thenReturn(GROUP_TITLE);
         CoreAccountInfo coreAccountInfo =
                 CoreAccountInfo.createFromEmailAndGaiaId(EMAIL2, GAIA_ID2);
-        when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(coreAccountInfo);
+        when(mIdentityManager.getPrimaryAccountInfo()).thenReturn(coreAccountInfo);
         when(mCollaborationService.getCurrentUserRoleForGroup(COLLABORATION_ID1))
                 .thenReturn(MemberRole.MEMBER);
 

@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
+#include "chrome/browser/web_applications/model/web_app_icon_types.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
@@ -37,7 +38,6 @@
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
@@ -191,7 +191,7 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 // Check that toolbar is not shown for shortcut apps within extensions pages.
 // This simulates a case where the user has manually navigated to a page hosted
 // within an extension, then added it as a shortcut app.
-// Regression test for https://crbug.com/828233.
+// Regression test for https://crbug.com/40569785.
 //
 // TODO(crbug.com/40793595): Remove chrome-extension scheme for web apps.
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
@@ -233,7 +233,7 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest,
 }
 
 // Tests that Create Shortcut doesn't timeout on a page that has a delayed
-// iframe load. Context: crbug.com/1046883
+// iframe load. Context: crbug.com/40671065
 IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserTest, WorksAfterDelayedIFrameLoad) {
   ASSERT_TRUE(embedded_test_server()->Start());
   NavigateViaLinkClickToURLAndWait(

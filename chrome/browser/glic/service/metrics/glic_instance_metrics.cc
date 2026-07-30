@@ -75,7 +75,8 @@ GlicInstanceMetrics::GlicInstanceMetrics(
     const metrics::ProfileMetricsService* profile_metrics_service)
     : creation_time_(base::TimeTicks::Now()),
       session_manager_(this),
-      profile_metrics_service_(CHECK_DEREF(profile_metrics_service)) {
+      profile_metrics_service_(CHECK_DEREF(profile_metrics_service)),
+      pref_service_(nullptr) {
   // Used in the unit tests.
   base::RecordAction(base::UserMetricsAction("Glic.Instance.Created"));
   activity_tracker_ = std::make_unique<GlicStateTracker>(
@@ -87,7 +88,8 @@ GlicInstanceMetrics::GlicInstanceMetrics(
 
 GlicInstanceMetrics::GlicInstanceMetrics(
     const metrics::ProfileMetricsService* profile_metrics_service,
-    GlicSharingManager* sharing_manager)
+    GlicSharingManager* sharing_manager,
+    PrefService* pref_service)
     : creation_time_(base::TimeTicks::Now()),
       session_manager_(this),
       pinned_tabs_changed_subscription_(
@@ -99,7 +101,8 @@ GlicInstanceMetrics::GlicInstanceMetrics(
               &GlicInstanceMetrics::RecordTabPinningStatusEvent,
               base::Unretained(this)))),
       profile_metrics_service_(CHECK_DEREF(profile_metrics_service)),
-      sharing_manager_(sharing_manager) {
+      sharing_manager_(sharing_manager),
+      pref_service_(pref_service) {
   base::RecordAction(base::UserMetricsAction("Glic.Instance.Created"));
   activity_tracker_ = std::make_unique<GlicStateTracker>(
       false, "Glic.Instance.UninterruptedActiveDuration");
@@ -216,6 +219,10 @@ void GlicInstanceMetrics::OnInstanceDestroyed() {
     modes_used = InputModesUsed::kOnlyText;
   }
   base::UmaHistogramEnumeration("Glic.Instance.InputModesUsed", modes_used);
+
+  base::UmaHistogramCounts100("Glic.Instance.ZoomChangeCount",
+                              zoom_change_count_);
+  zoom_change_count_ = 0;
 }
 
 void GlicInstanceMetrics::OnActivationChanged(bool is_active) {
@@ -555,6 +562,11 @@ void GlicInstanceMetrics::OnOpen(glic::mojom::InvocationSource source,
     base::UmaHistogramEnumeration("Glic.Instance.Floaty.OpenSource", source);
   } else {
     base::UmaHistogramEnumeration("Glic.Instance.SidePanel.OpenSource", source);
+  }
+
+  if (pref_service_) {
+    base::UmaHistogramSparse("Glic.ZoomLevel.OnOpen",
+                             pref_service_->GetInteger(prefs::kGlicZoomLevel));
   }
 }
 
@@ -1004,10 +1016,6 @@ void GlicInstanceMetrics::OnUserResizeEnded(const gfx::Size& end_size) {
 void GlicInstanceMetrics::OnReaction(
     mojom::MetricUserInputReactionType reaction_type) {
   LogEvent(GlicInstanceEvent::kReaction);
-  if (last_turn_.input_submitted_time_.is_null() ||
-      input_mode_ != mojom::WebClientMode::kText) {
-    return;
-  }
 
   switch (reaction_type) {
     case mojom::MetricUserInputReactionType::kUnknown:
@@ -1015,21 +1023,9 @@ void GlicInstanceMetrics::OnReaction(
       return;
     case mojom::MetricUserInputReactionType::kCanned:
       base::RecordAction(base::UserMetricsAction("GlicReactionCanned"));
-      if (!last_turn_.reported_reaction_time_canned_) {
-        base::UmaHistogramMediumTimes(
-            "Glic.Turn.FirstReaction.Text.Canned.Time",
-            base::TimeTicks::Now() - last_turn_.input_submitted_time_);
-        last_turn_.reported_reaction_time_canned_ = true;
-      }
       return;
     case mojom::MetricUserInputReactionType::kModel:
       base::RecordAction(base::UserMetricsAction("GlicReactionModelled"));
-      if (!last_turn_.reported_reaction_time_modelled_) {
-        base::UmaHistogramMediumTimes(
-            "Glic.Turn.FirstReaction.Text.Modelled.Time",
-            base::TimeTicks::Now() - last_turn_.input_submitted_time_);
-        last_turn_.reported_reaction_time_modelled_ = true;
-      }
       return;
   }
 }
@@ -1063,6 +1059,10 @@ void GlicInstanceMetrics::OnSessionFinished() {
     scroll_attempt_count_ = 0;
   }
   last_session_end_time_ = base::TimeTicks::Now();
+}
+
+void GlicInstanceMetrics::OnZoomLevelChange() {
+  ++zoom_change_count_;
 }
 
 void GlicInstanceMetrics::RecordAttachedContextTabCount(int tab_count) {
@@ -1124,17 +1124,19 @@ void GlicInstanceMetrics::RecordSkillsWebClientEvent(
       base::UmaHistogramEnumeration("Glic.Skills.Invoke.Funnel",
                                     SkillsInvokeFunnel::kInvokedSkill);
       break;
-    // --- Management Page Metrics ---
     case kClickedManageFromMenu:
-      // TODO(crbug.com/483411707): Add routing for management page metrics.
-      break;
-    // --- Dialog Metrics ---
     case kClickedAddFromMenu:
     case kClickedSaveAsSkillHoverChip:
     case kClickedEditSkillHoverChip:
     case kClickedAddOn1pSkill:
     case kClickedEditFromMenu:
-      // TODO(crbug.com/483411707): Add routing for dialog metrics.
+    case kClickedBrowseSkillFromPlusMenu:
+    case kClickedSkillFromPlusMenu:
+    case kClickedManageSkillFromPlusMenu:
+    case kClickedMoreFromMenu:
+    case kClickedManageSkillFromMenu:
+    case kClickedSkillFromMenu:
+    case kClickedBrowseSkillsFromMenu:
       break;
     // --- SkillBuilder Metrics ---
     case kSkillBuilderClickedPromoChip:

@@ -97,11 +97,13 @@ class VideoFrameHandleReleaserImpl final
             : "null");
     auto it = video_frames_.find(release_token);
     if (it == video_frames_.end()) {
+      CHECK(mojo::IsInMessageDispatch());
       mojo::ReportBadMessage("Unknown |release_token|.");
       return;
     }
     if (it->second->HasReleaseMailboxCB()) {
       if (!release_export_result) {
+        CHECK(mojo::IsInMessageDispatch());
         mojo::ReportBadMessage(
             "A SyncToken is required to release frames that have a callback "
             "for releasing mailboxes.");
@@ -191,6 +193,7 @@ void MojoVideoDecoderService::Construct(
   TRACE_EVENT0("media", "MojoVideoDecoderService::Construct");
 
   if (media_log_) {
+    CHECK(mojo::IsInMessageDispatch());
     mojo::ReportBadMessage("Construct() already called");
     return;
   }
@@ -238,8 +241,6 @@ void MojoVideoDecoderService::Initialize(const VideoDecoderConfig& config,
   std::optional<base::UnguessableToken> cdm_id = std::nullopt;
   if (cdm) {
     if (!cdm->is_cdm_id()) {
-      std::move(callback).Run(DecoderStatus::Codes::kFailed, false, 1,
-                              VideoDecoderType::kUnknown, false);
       CHECK(mojo::IsInMessageDispatch());
       mojo::ReportBadMessage(
           "Unexpected call to Initialize with a cdm context");
@@ -255,8 +256,6 @@ void MojoVideoDecoderService::Initialize(const VideoDecoderConfig& config,
   DCHECK(callback);
 
   if (!config.IsValidConfig()) {
-    std::move(callback).Run(DecoderStatus::Codes::kUnsupportedConfig, false, 1,
-                            VideoDecoderType::kUnknown, false);
     CHECK(mojo::IsInMessageDispatch());
     mojo::ReportBadMessage("Invalid VideoDecoderConfig");
     return;
@@ -296,8 +295,9 @@ void MojoVideoDecoderService::Initialize(const VideoDecoderConfig& config,
       cdm_context_ref_ =
           mojo_cdm_service_context_->GetCdmContextRef(cdm_id.value());
     } else if (cdm_id != cdm_id_) {
-      // TODO(xhwang): Replace with mojo::ReportBadMessage().
-      NOTREACHED() << "The caller should not switch CDM";
+      CHECK(mojo::IsInMessageDispatch());
+      mojo::ReportBadMessage("The caller should not switch CDM");
+      return;
     }
   }
 
@@ -340,14 +340,12 @@ void MojoVideoDecoderService::Decode(mojom::DecoderBufferPtr buffer,
     DVLOG(3) << __func__ << " EOS";
     if (auto& config = buffer->get_eos()->next_config) {
       if (!config->is_next_video_config()) {
-        std::move(callback).Run(DecoderStatus::Codes::kUnsupportedConfig);
         CHECK(mojo::IsInMessageDispatch());
         mojo::ReportBadMessage("Invalid AudioConfig in VideoBuffer");
         return;
       }
       const auto& video_config = config->get_next_video_config();
       if (!video_config.IsValidConfig()) {
-        std::move(callback).Run(DecoderStatus::Codes::kUnsupportedConfig);
         CHECK(mojo::IsInMessageDispatch());
         mojo::ReportBadMessage("Invalid VideoDecoderConfig");
         return;
@@ -467,6 +465,20 @@ void MojoVideoDecoderService::OnReaderRead(
   if (!DecoderBuffer::DoSubsamplesMatch(*buffer)) {
     std::move(bad_message_callback)
         .Run("Invalid DecoderBuffer::subsamples for video.");
+    return;
+  }
+
+  // The renderer must never set secure_handle. Legitimate secure handles are
+  // always attached on the GPU side by V4L2VideoDecoder::AttachSecureBuffer
+  // (via the V4L2_CID_MPEG_MTK_GET_SECURE_HANDLE ioctl) AFTER the buffer has
+  // crossed the Mojo boundary. A non-zero handle arriving from the renderer is
+  // a forgery: it would cause DecoderBufferTranscryptor::DecryptPendingBuffer
+  // to skip AttachSecureBuffer and propagate an attacker-chosen value through
+  // the browser process to the cdm-oemcrypto daemon and the TrustZone TA.
+  if (!buffer->end_of_stream() && buffer->side_data() &&
+      buffer->side_data()->secure_handle) {
+    std::move(bad_message_callback)
+        .Run("Renderer sent non-zero DecoderBufferSideData.secure_handle.");
     return;
   }
 

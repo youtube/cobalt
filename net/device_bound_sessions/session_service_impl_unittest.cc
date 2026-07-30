@@ -597,7 +597,7 @@ TEST_F(SessionServiceImplTest, EventObserverOnAddSession) {
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::vector<uint8_t> wrapped_key = key_service()->GetWrappedKey(key).value();
 
   EXPECT_CALL(event_callback, Run(_)).WillOnce([](const SessionEvent& event) {
@@ -617,10 +617,10 @@ TEST_F(SessionServiceImplTest, EventObserverOnAddSession) {
 
   SessionParams::Scope scope;
   scope.origin = kOrigin;
-  SessionParams params(kSessionId, kTestUrl, kRefreshUrlString,
-                       std::move(scope),
-                       /*creds=*/{}, unexportable_keys::UnexportableKeyId(),
-                       /*allowed_refresh_initiators=*/{});
+  SessionParams params(
+      kSessionId, kTestUrl, kRefreshUrlString, std::move(scope),
+      /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
+      /*allowed_refresh_initiators=*/{});
 
   base::test::TestFuture<SessionError::ErrorType> add_session_future;
   service().AddSession(SchemefulSite(kTestUrl), std::move(params), wrapped_key,
@@ -1555,7 +1555,7 @@ TEST_F(SessionServiceImplTest, RefreshWithInvalidParams) {
             nullptr, RegistrationResult(Session::CreateIfValid(SessionParams(
                          kSessionId, GURL(), "", SessionParams::Scope(),
                          std::vector<SessionParams::Credential>(),
-                         unexportable_keys::UnexportableKeyId(),
+                         unexportable_keys::UnexportableSigningKeyId(),
                          /*allowed_refresh_initiators=*/{}))));
       }));
   service().DeferRequestForRefresh(
@@ -1806,7 +1806,7 @@ TEST_F(SessionServiceImplTest, LatestSignedRefreshChallenges) {
   SessionService::SignedRefreshChallenge signed_refresh_challenge = {
       .signed_challenge = "signed_challenge",
       .challenge = "challenge",
-      .key_id = unexportable_keys::UnexportableKeyId()};
+      .key_id = unexportable_keys::UnexportableSigningKeyId()};
   service().SetLatestSignedRefreshChallenge(session_key1,
                                             signed_refresh_challenge);
   const SessionService::SignedRefreshChallenge* retrieved_challenge =
@@ -1986,7 +1986,7 @@ TEST_F(SessionServiceImplTestWithFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -2027,7 +2027,7 @@ TEST_F(SessionServiceImplTestWithFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   provider_session->set_unexportable_key_id(key);
 
   // Attempt a registration with a session provider
@@ -2065,7 +2065,7 @@ TEST_F(SessionServiceImplTestWithFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -2106,7 +2106,7 @@ TEST_F(SessionServiceImplTestWithFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -2202,7 +2202,7 @@ TEST_F(SessionServiceImplTestWithFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -2252,7 +2252,7 @@ TEST_F(SessionServiceImplTestWithoutFederatedSessions,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -2590,7 +2590,7 @@ TEST_F(SessionServiceImplWithStoreTest, GetAllSessionsWaitsForSessionsToLoad) {
   scope.origin = "https://example.com";
   auto session_or_error = Session::CreateIfValid(SessionParams(
       "session_id", kTestUrl, "https://example.com/refresh", std::move(scope),
-      /*creds=*/{}, unexportable_keys::UnexportableKeyId(),
+      /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
       /*allowed_refresh_initiators=*/{}));
   ASSERT_TRUE(session_or_error.has_value());
   std::unique_ptr<Session> session = std::move(*session_or_error);
@@ -2728,7 +2728,8 @@ TEST_F(SessionServiceImplWithStoreTest, SessionKeyRestoredOnUse) {
       store(),
       RestoreSessionBindingKey(
           SessionKey(SchemefulSite(kTestUrl), Session::Id(kSessionId)), _))
-      .WillOnce(RunOnceCallback<1>(unexportable_keys::UnexportableKeyId()));
+      .WillOnce(
+          RunOnceCallback<1>(unexportable_keys::UnexportableSigningKeyId()));
 
   base::test::TestFuture<RefreshResult> future;
   service().DeferRequestForRefresh(dbsc_request, *maybe_deferral,
@@ -2777,7 +2778,7 @@ TEST_F(SessionServiceImplWithStoreTest,
       {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
       unexportable_keys::BackgroundTaskPriority::kBestEffort,
       key_future.GetCallback());
-  unexportable_keys::UnexportableKeyId key = *key_future.Take();
+  unexportable_keys::UnexportableSigningKeyId key = *key_future.Take();
   std::string key_thumbprint = CreateJwkThumbprint(
       crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256,
       *key_service()->GetSubjectPublicKeyInfo(key));
@@ -3300,7 +3301,7 @@ TEST_F(SessionServiceImplTest, SessionDeletionDuringRefresh_ConfigChange) {
       std::unique_ptr<Session> session,
       Session::CreateIfValid(SessionParams(
           kSessionId, kTestUrl, "https://example.com/refresh", std::move(scope),
-          /*creds=*/{}, unexportable_keys::UnexportableKeyId(),
+          /*creds=*/{}, unexportable_keys::UnexportableSigningKeyId(),
           /*allowed_refresh_initiators=*/{})));
   ASSERT_TRUE(session);
 

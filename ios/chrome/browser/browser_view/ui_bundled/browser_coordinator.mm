@@ -99,7 +99,8 @@
 #import "ios/chrome/browser/commerce/model/push_notification/push_notification_feature.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_coordinator.h"
-#import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
+#import "ios/chrome/browser/composebox/public/composebox_entrypoint.h"
+#import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
 #import "ios/chrome/browser/context_menu/ui_bundled/context_menu_configuration_provider.h"
 #import "ios/chrome/browser/contextual_panel/coordinator/contextual_sheet_coordinator.h"
@@ -218,6 +219,7 @@
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_service.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_service_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
+#import "ios/chrome/browser/search_engine_choice/coordinator/search_engine_choice_coordinator.h"
 #import "ios/chrome/browser/send_tab_to_self/coordinator/send_tab_to_self_coordinator.h"
 #import "ios/chrome/browser/send_tab_to_self/coordinator/send_tab_to_self_coordinator_delegate.h"
 #import "ios/chrome/browser/settings/clear_browsing_data/coordinator/quick_delete_coordinator.h"
@@ -288,6 +290,7 @@
 #import "ios/chrome/browser/shared/public/commands/save_to_drive_commands.h"
 #import "ios/chrome/browser/shared/public/commands/save_to_photos_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/search_engine_choice_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/share_highlight_command.h"
 #import "ios/chrome/browser/shared/public/commands/shared_tab_group_last_tab_closed_alert_command.h"
@@ -470,6 +473,8 @@ const char kChromeAppStoreUrl[] =
     ReSigninPresenter,
     SaveToDriveCommands,
     SaveToPhotosCommands,
+    SearchEngineChoiceCommands,
+    SearchEngineChoiceCoordinatorDelegate,
     SigninPresenter,
     SnapshotGeneratorDelegate,
     StoreKitCoordinatorDelegate,
@@ -830,6 +835,10 @@ const char kChromeAppStoreUrl[] =
 
   // The coordinator for the passkey incognito interstitial.
   PasskeyIncognitoInterstitialCoordinator* _passkeyIncognitoCoordinator;
+
+  // The coordinator and block for the SearchEngineChoiceCommands.
+  SearchEngineChoiceCoordinator* _searchEngineChoiceCoordinator;
+  ProceduralBlock _searchEngineChoiceClosedBlock;
 
   // The coordinator for Cobalt.
   ChromeCoordinator* _cobaltCoordinator;
@@ -1273,6 +1282,7 @@ const char kChromeAppStoreUrl[] =
     @protocol(QuickDeleteCommands),
     @protocol(SaveToDriveCommands),
     @protocol(SaveToPhotosCommands),
+    @protocol(SearchEngineChoiceCommands),
     @protocol(SharedTabGroupLastTabAlertCommands),
     @protocol(SyncedSetUpCommands),
     @protocol(SyncPresenterCommands),
@@ -2951,9 +2961,16 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showComposeboxFromEntrypoint:(ComposeboxEntrypoint)entrypoint
                            withQuery:(NSString*)query {
+  ComposeboxFocusParams* params =
+      [[ComposeboxFocusParams alloc] initWithEntrypoint:entrypoint];
+  params.query = query;
+  [self showComposeboxWithParams:params];
+}
+
+- (void)showComposeboxWithParams:(ComposeboxFocusParams*)params {
   if (!IsComposeboxIOSEnabled()) {
     [_omniboxCommandsHandler focusOmnibox];
-    [_omniboxCommandsHandler insertTextToOmnibox:query];
+    [_omniboxCommandsHandler insertTextToOmnibox:params.query];
     return;
   }
 
@@ -2964,8 +2981,7 @@ const char kChromeAppStoreUrl[] =
   _composeboxCoordinator = [[ComposeboxCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
-                      entrypoint:entrypoint
-                           query:query
+                     focusParams:params
          composeboxAnimationBase:_toolbarCoordinator];
   [_composeboxCoordinator start];
   _browserOmniboxStateProvider.composeboxStateProvider = _composeboxCoordinator;
@@ -3339,9 +3355,13 @@ const char kChromeAppStoreUrl[] =
   if (!tab_helper || !tab_helper->IsChoosingFiles()) {
     return;
   }
-  if (!AuthenticationServiceFactory::GetForProfile(self.profile)
-           ->HasPrimaryIdentity(signin::ConsentLevel::kSignin)) {
-    // Drive can’t be accessed if the user has no primary identity.
+  if (!(base::FeatureList::IsEnabled(kIOSChooseFromDriveSignedOut) ||
+        AuthenticationServiceFactory::GetForProfile(self.profile)
+            ->HasPrimaryIdentity())) {
+    // Drive can be accessed if either:
+    //   - The user has a primary identity, or
+    //   - The kIOSChooseFromDriveSignedOut flag is enabled.
+    // Since neither of these are true, the file picker is not presented.
     tab_helper->SetIsPresentingFilePicker(false);
     return;
   }
@@ -4399,6 +4419,41 @@ const char kChromeAppStoreUrl[] =
 - (void)stopSaveToPhotos {
   [self.saveToPhotosCoordinator stop];
   self.saveToPhotosCoordinator = nil;
+}
+
+#pragma mark - SearchEngineChoiceCommands
+
+- (void)showSearchEngineChoiceScreenWithCompletion:(ProceduralBlock)completion {
+  if (_searchEngineChoiceCoordinator) {
+    [_searchEngineChoiceCoordinator stop];
+    _searchEngineChoiceCoordinator = nil;
+  }
+
+  _searchEngineChoiceClosedBlock = completion;
+  _searchEngineChoiceCoordinator = [[SearchEngineChoiceCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser];
+  _searchEngineChoiceCoordinator.delegate = self;
+  [_searchEngineChoiceCoordinator start];
+}
+
+- (void)stopSearchEngineChoiceScreen {
+  if (_searchEngineChoiceCoordinator) {
+    [_searchEngineChoiceCoordinator stop];
+    _searchEngineChoiceCoordinator = nil;
+    _searchEngineChoiceClosedBlock = nil;
+  }
+}
+
+#pragma mark - SearchEngineChoiceCoordinatorDelegate
+
+- (void)choiceScreenWasDismissed:(SearchEngineChoiceCoordinator*)coordinator {
+  if (_searchEngineChoiceCoordinator == coordinator) {
+    if (ProceduralBlock block =
+            std::exchange(_searchEngineChoiceClosedBlock, nil)) {
+      block();
+    }
+  }
 }
 
 #pragma mark - SharedTabGroupLastTabAlertCommands

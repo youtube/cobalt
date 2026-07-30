@@ -6,8 +6,6 @@
 #define CHROME_BROWSER_UI_PLUS_ADDRESSES_PLUS_ADDRESS_CREATION_CONTROLLER_DESKTOP_H_
 
 #include "chrome/browser/ui/plus_addresses/plus_address_creation_controller.h"
-#include "components/autofill/core/common/plus_address_survey_type.h"
-#include "components/plus_addresses/core/browser/metrics/plus_address_metrics.h"
 #include "components/plus_addresses/core/browser/plus_address_types.h"
 #include "components/plus_addresses/core/browser/settings/plus_address_setting_service.h"
 #include "content/public/browser/web_contents.h"
@@ -65,9 +63,6 @@ class PlusAddressCreationControllerDesktop
   void OnPlusAddressReserved(const PlusProfileOrError& maybe_plus_profile);
   // Autofills `plus_address` in the targeted field by running callback_.
   void OnPlusAddressConfirmed(const PlusProfileOrError& maybe_plus_profile);
-  // Shows an applicable user perception survey after the generated plus address
-  // was accepted.
-  void TriggerUserPerceptionSurvey(hats::SurveyType survey_type);
 
   base::WeakPtr<PlusAddressCreationControllerDesktop> GetWeakPtr();
 
@@ -81,12 +76,10 @@ class PlusAddressCreationControllerDesktop
   // Records the time between `modal_shown_time_` and now as modal shown
   // duration and the number of refresh attempts. Resets both
   // `modal_shown_time_` and `reserve_response_count_`.
-  void RecordModalShownOutcome(metrics::PlusAddressModalCompletionStatus status,
-                               bool was_notice_shown);
+  void RecordModalShownOutcome(bool was_notice_shown);
 
   // This is set on `OfferCreation`.
   std::optional<base::TimeTicks> modal_shown_time_;
-  std::optional<metrics::PlusAddressModalCompletionStatus> modal_error_status_;
   // The number of responses from calls to reserve a plus address that a user
   // has made. This equals 1 + number of refreshes.
   int reserve_response_count_ = 0;

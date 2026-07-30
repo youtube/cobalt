@@ -52,6 +52,7 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "components/input/render_input_router.mojom.h"
 #include "components/input/render_widget_host_input_event_router.h"
+#include "components/input/switches.h"
 #include "components/input/timeout_monitor.h"
 #include "components/input/utils.h"
 #include "components/viz/common/features.h"
@@ -91,15 +92,18 @@
 #include "content/common/input/synthetic_gesture_target.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/render_frame_metadata_provider.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_process_host_priority_client.h"
 #include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/render_widget_host_observer.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/tracked_element_observer.h"
+#include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -162,6 +166,11 @@
 #include "services/device/public/mojom/wake_lock_provider.mojom.h"
 #include "ui/accelerated_widget_mac/window_resize_helper_mac.h"
 #include "ui/base/cocoa/cursor_accessibility_scale_factor.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 #endif
 
 using blink::DragOperationsMask;
@@ -585,7 +594,7 @@ void RenderWidgetHostImpl::SetView(RenderWidgetHostViewBase* view) {
   GetRenderInputRouter()->SetView(view);
 }
 
-RenderProcessHost* RenderWidgetHostImpl::GetProcess() {
+RenderProcessHost* RenderWidgetHostImpl::GetProcess() const {
   return agent_scheduling_group_->GetProcess();
 }
 
@@ -2091,6 +2100,14 @@ void RenderWidgetHostImpl::InsertVisualStateCallback(
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false)));
 }
 
+void RenderWidgetHostImpl::SetReadyForInputCallbackForTesting(  // IN-TEST
+    base::OnceClosure callback) {
+  ready_for_input_callback_for_testing_ = std::move(callback);
+  if (input_router_active_ && ready_for_input_callback_for_testing_) {
+    std::move(ready_for_input_callback_for_testing_).Run();
+  }
+}
+
 void RenderWidgetHostImpl::SetHungRendererDelay(const base::TimeDelta& delay) {
   hung_renderer_delay_ = delay;
   GetRenderInputRouter()->SetHungRendererDelay(delay);
@@ -2623,10 +2640,31 @@ void RenderWidgetHostImpl::ForwardDelegatedInkPoint(
     return;
   }
 
-  TRACE_EVENT("delegated_ink_trails",
-              "Forwarding delegated ink point from browser.",
-              perfetto::Flow::Global(delegated_ink_point.trace_id()),
-              "delegated point", delegated_ink_point.ToString());
+  TRACE_EVENT(
+      "delegated_ink_trails",
+      "RenderWidgetHostImpl::ForwardDelegatedInkPoint - forwarding "
+      "delegated ink point from browser.",
+      perfetto::Flow::Global(delegated_ink_point.trace_id()),
+      [&](perfetto::EventContext ctx) {
+        ctx.AddDebugAnnotation("delegated point",
+                               delegated_ink_point.ToString());
+#if BUILDFLAG(IS_WIN)
+        aura::Window* root_window = view_->GetNativeView()->GetRootWindow();
+        if (root_window) {
+          const HWND hwnd = root_window->GetHost()->GetAcceleratedWidget();
+          POINT client_pt = {
+              static_cast<LONG>(delegated_ink_point.point().x()),
+              static_cast<LONG>(delegated_ink_point.point().y())};
+          ::ClientToScreen(hwnd, &client_pt);
+          const gfx::PointF screen_point =
+              gfx::PointF(client_pt.x, client_pt.y);
+          ctx.AddDebugAnnotation("screen point", screen_point.ToString());
+        } else {
+          ctx.AddDebugAnnotation(
+              "screen point", "Can't convert to screen point - no root window");
+        }
+#endif
+      });
 
   // Calling this will result in IPC calls to get |delegated_ink_point| to
   // viz. The decision to do this here was made with the understanding that
@@ -2698,6 +2736,15 @@ void RenderWidgetHostImpl::NotifyObserversOfInputEventAcks(
 bool RenderWidgetHostImpl::PreHandleGestureEvent(
     const blink::WebGestureEvent& event) {
   return delegate()->PreHandleGestureEvent(event);
+}
+
+bool RenderWidgetHostImpl::IsPinchToZoomEnabled() const {
+  if (!input::switches::IsPinchToZoomEnabled()) {
+    return false;
+  }
+
+  return GetContentClient()->browser()->IsPinchToZoomAllowed(
+      GetProcess()->GetBrowserContext());
 }
 
 std::unique_ptr<viz::PeakGpuMemoryTracker>
@@ -3198,6 +3245,13 @@ void RenderWidgetHostImpl::OnStartStylusWriting() {
 void RenderWidgetHostImpl::OnUnconfirmedTapConvertedToTap() {
   if (view_) {
     view_->OnUnconfirmedTapConvertedToTap();
+  }
+}
+
+void RenderWidgetHostImpl::OnInputRouterActive() {
+  input_router_active_ = true;
+  if (ready_for_input_callback_for_testing_) {
+    std::move(ready_for_input_callback_for_testing_).Run();
   }
 }
 

@@ -14,7 +14,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/apps/link_capturing/intent_picker_info.h"
 #include "chrome/browser/lifetime/browser_close_manager.h"
-#include "chrome/browser/share/share_attempt.h"
 #include "chrome/browser/signin/chrome_signin_helper.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
 #include "chrome/browser/ui/browser.h"
@@ -45,9 +44,7 @@ class ExclusiveAccessContext;
 class FindBar;
 class GURL;
 class LocationBar;
-class SharingDialog;
 class StatusBubble;
-struct SharingDialogData;
 
 namespace autofill {
 class AutofillBubbleHandler;
@@ -62,19 +59,6 @@ enum class KeyboardEventProcessingResult;
 namespace gfx {
 class Size;
 }
-
-namespace qrcode_generator {
-class QRCodeGeneratorBubbleView;
-}  // namespace qrcode_generator
-
-namespace send_tab_to_self {
-class SendTabToSelfBubbleView;
-}  // namespace send_tab_to_self
-
-namespace sharing_hub {
-class ScreenshotCapturedBubble;
-class SharingHubBubbleView;
-}  // namespace sharing_hub
 
 namespace signin_metrics {
 enum class AccessPoint;
@@ -225,13 +209,6 @@ class BrowserWindow : public ui::BaseWindow {
   // frames may need to refresh their title bar.
   virtual void UpdateTitleBar() = 0;
 
-  // Inform the frame that the dev tools window for the selected tab has
-  // changed.
-  virtual void UpdateDevTools(content::WebContents* inspected_web_contents) = 0;
-
-  // Returns true if the browser window can dock a DevTools panel.
-  virtual bool CanDockDevTools() const = 0;
-
   // Update any loading animations running in the window. |is_visible| is true
   // if the window is visible.
   virtual void UpdateLoadingAnimations(bool is_visible) = 0;
@@ -322,9 +299,6 @@ class BrowserWindow : public ui::BaseWindow {
   // transition if |animate| is true.
   virtual void UpdateCustomTabBarVisibility(bool visible, bool animate) = 0;
 
-  // Updates the visibility of the scrim that covers the devtools area.
-  virtual void SetDevToolsScrimVisibility(bool visible) = 0;
-
   // Resets the toolbar's tab state for |contents|.
   virtual void ResetToolbarTabState(content::WebContents* contents) = 0;
 
@@ -379,10 +353,6 @@ class BrowserWindow : public ui::BaseWindow {
   // Returns whether the location bar is visible.
   virtual bool IsLocationBarVisible() const = 0;
 
-  // Shows the dialog for a sharing feature.
-  virtual SharingDialog* ShowSharingDialog(content::WebContents* contents,
-                                           SharingDialogData data) = 0;
-
   // Shows the Update Recommended dialog box.
   virtual void ShowUpdateChromeDialog() = 0;
 
@@ -405,36 +375,9 @@ class BrowserWindow : public ui::BaseWindow {
   // |already_bookmarked| is true if the url is already bookmarked.
   virtual void ShowBookmarkBubble(const GURL& url, bool already_bookmarked) = 0;
 
-  // Shows the Screenshot bubble.
-  virtual sharing_hub::ScreenshotCapturedBubble* ShowScreenshotCapturedBubble(
-      content::WebContents* contents,
-      const gfx::Image& image) = 0;
-
-  // Shows the QR Code generator bubble. |url| is the URL for the initial code.
-  virtual qrcode_generator::QRCodeGeneratorBubbleView*
-  ShowQRCodeGeneratorBubble(content::WebContents* contents,
-                            const GURL& url,
-                            bool show_back_button) = 0;
-
-  // Shows the "send tab to self" device picker bubble. This must only be called
-  // as a direct result of user action.
-  virtual send_tab_to_self::SendTabToSelfBubbleView*
-  ShowSendTabToSelfDevicePickerBubble(content::WebContents* contents) = 0;
-
-  // Shows the "send tab to self" promo bubble. This must only be called as a
-  // direct result of user action.
-  virtual send_tab_to_self::SendTabToSelfBubbleView*
-  ShowSendTabToSelfPromoBubble(content::WebContents* contents,
-                               bool show_signin_button) = 0;
-
 #if BUILDFLAG(IS_CHROMEOS)
   // Toggles the multitask menu on the browser frame size button.
   virtual void ToggleMultitaskMenu() = 0;
-#else
-  // Shows the Sharing Hub bubble. This must only be called as a direct result
-  // of user action.
-  virtual sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
-      share::ShareAttempt attempt) = 0;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Shows the Full Page Translate bubble.

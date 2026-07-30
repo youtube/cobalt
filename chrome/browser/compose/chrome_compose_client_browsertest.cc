@@ -1594,9 +1594,16 @@ IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
               1)));
 }
 
-// Failing consistently. crbug.com/496788430
+// Failing consistently on CrOS. crbug.com/503432696
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_TestComposeQualityLoggedOnSubsequentError \
+  DISABLED_TestComposeQualityLoggedOnSubsequentError
+#else
+#define MAYBE_TestComposeQualityLoggedOnSubsequentError \
+  TestComposeQualityLoggedOnSubsequentError
+#endif
 IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
-                       DISABLED_TestComposeQualityLoggedOnSubsequentError) {
+                       MAYBE_TestComposeQualityLoggedOnSubsequentError) {
   base::HistogramTester histograms;
   base::ScopedMockElapsedTimersForTest test_timer;
   ShowDialogAndBindMojo();
@@ -2026,7 +2033,9 @@ IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
       1);
 }
 
-#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/503556973): Re-enable after fixing flakiness on Windows,
+// ChromeOS and Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 #define MAYBE_TestShouldTriggerProactiveNudgeEnabled \
   DISABLED_TestShouldTriggerProactiveNudgeEnabled
 #else
@@ -2605,4 +2614,279 @@ IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
        ukm::builders::Compose_PageEvents::kProactiveNudgeShouldShowName});
 
   EXPECT_EQ(ukm_entries.size(), 0UL);
+}
+
+// Tests that Undo is not possible when Compose is never called and no response
+// is ever received.
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest, TestEmptyUndo) {
+  ShowDialogAndBindMojo();
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> test_future;
+  page_handler()->Undo(test_future.GetCallback());
+  EXPECT_FALSE(test_future.Take());
+}
+
+// Tests that Undo is not possible after only one Compose() invocation.
+// TODO(b/334007229): incorporate redo testing.
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
+                       TestUndoUnavailableFirstCompose) {
+  ShowDialogAndBindMojo();
+  SetupMockModelExecution(1);
+  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
+  BindComposeFutureToOnResponseReceived(compose_future);
+
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+  compose::mojom::ComposeResponsePtr response = compose_future.Take();
+  EXPECT_FALSE(response->undo_available)
+      << "First Compose() response should say undo not available.";
+
+  base::test::TestFuture<compose::mojom::OpenMetadataPtr> open_future;
+  page_handler()->RequestInitialState(open_future.GetCallback());
+  compose::mojom::OpenMetadataPtr open_metadata = open_future.Take();
+  EXPECT_FALSE(open_metadata->compose_state->response->undo_available)
+      << "RequestInitialState() should return a response that undo is "
+         "not available after only one Compose() invocation.";
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
+  page_handler()->Undo(undo_future.GetCallback());
+  compose::mojom::ComposeStatePtr state = undo_future.Take();
+  EXPECT_FALSE(state)
+      << "Undo should return null after only one Compose() invocation.";
+}
+
+// Tests Undo after calling Compose() twice.
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
+                       TestComposeTwiceThenUpdateWebUIStateThenUndo) {
+  base::HistogramTester histograms;
+  ShowDialogAndBindMojo();
+  SetupMockModelExecution(2);
+
+  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
+  BindComposeFutureToOnResponseReceived(compose_future);
+
+  page_handler()->SaveWebUIState("this state should be restored with undo");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  compose::mojom::ComposeResponsePtr response = compose_future.Take();
+  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
+                                            "say undo is not available.";
+  page_handler()->SaveWebUIState("second state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  response = compose_future.Take();
+  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
+                                           "say undo is available.";
+  page_handler()->SaveWebUIState("user edited the input field further");
+
+  base::test::TestFuture<compose::mojom::OpenMetadataPtr> open_future;
+
+  page_handler()->RequestInitialState(open_future.GetCallback());
+  compose::mojom::OpenMetadataPtr open_metadata = open_future.Take();
+  EXPECT_TRUE(open_metadata->compose_state->response->undo_available)
+      << "RequestInitialState() should return a response that undo is "
+         "available after second Compose() invocation.";
+  EXPECT_EQ("user edited the input field further",
+            open_metadata->compose_state->webui_state);
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
+  page_handler()->Undo(undo_future.GetCallback());
+  compose::mojom::ComposeStatePtr state = undo_future.Take();
+  EXPECT_TRUE(state)
+      << "Undo should return valid state after second Compose() invocation.";
+  EXPECT_EQ("this state should be restored with undo", state->webui_state);
+
+  client_page_handler()->CloseUI(compose::mojom::CloseReason::kCloseButton);
+  // Make sure the async call to CloseUI() completes before navigating away.
+  FlushPageHandler();
+
+  // Check Compose Session Event Counts.
+  histograms.ExpectBucketCount(
+      compose::kComposeSessionEventCounts,
+      compose::ComposeSessionEventTypes::kMainDialogShown, 1);
+  histograms.ExpectBucketCount(compose::kComposeSessionEventCounts,
+                               compose::ComposeSessionEventTypes::kUndoClicked,
+                               1);
+  histograms.ExpectBucketCount(compose::kComposeSessionEventCounts,
+                               compose::ComposeSessionEventTypes::kCloseClicked,
+                               1);
+
+  // Navigate page away to upload UKM metrics to the collector.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+
+  // Check session level UKM metrics.
+  auto session_ukm_entries = ukm_recorder().GetEntries(
+      ukm::builders::Compose_SessionProgress::kEntryName,
+      {ukm::builders::Compose_SessionProgress::kUndoCountName});
+
+  EXPECT_EQ(session_ukm_entries.size(), 1UL);
+
+  EXPECT_THAT(session_ukm_entries[0].metrics,
+              testing::UnorderedElementsAre(testing::Pair(
+                  ukm::builders::Compose_SessionProgress::kUndoCountName, 1)));
+}
+
+// Tests if Undo can be done more than once.
+// TODO(b/334007229): incorporate redo testing.
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
+                       TestUndoStackMultipleUndos) {
+  ShowDialogAndBindMojo();
+  SetupMockModelExecution(3);
+
+  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
+  BindComposeFutureToOnResponseReceived(compose_future);
+
+  page_handler()->SaveWebUIState("first state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  compose::mojom::ComposeResponsePtr response = compose_future.Take();
+  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
+                                            "say undo is not available.";
+  page_handler()->SaveWebUIState("second state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+  response = compose_future.Take();
+  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
+                                           "say undo is available.";
+
+  page_handler()->SaveWebUIState("third state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  response = compose_future.Take();
+  EXPECT_TRUE(response->undo_available) << "Third Compose() response should "
+                                           "say undo is available.";
+
+  page_handler()->SaveWebUIState("fourth state");
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
+  page_handler()->Undo(undo_future.GetCallback());
+  compose::mojom::ComposeStatePtr state = undo_future.Take();
+  EXPECT_EQ("second state", state->webui_state);
+  EXPECT_TRUE(state->response->undo_available);
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future2;
+  page_handler()->Undo(undo_future2.GetCallback());
+  compose::mojom::ComposeStatePtr state2 = undo_future2.Take();
+  EXPECT_EQ("first state", state2->webui_state);
+  EXPECT_FALSE(state2->response->undo_available);
+}
+
+// Tests scenario: Undo returns state A, Compose, then undo again returns to
+// state A.
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientBrowserTest,
+                       TestUndoComposeThenUndoAgain) {
+  ShowDialogAndBindMojo();
+  SetupMockModelExecution(3);
+
+  base::test::TestFuture<compose::mojom::ComposeResponsePtr> compose_future;
+  BindComposeFutureToOnResponseReceived(compose_future);
+
+  page_handler()->SaveWebUIState("first state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  compose::mojom::ComposeResponsePtr response = compose_future.Take();
+  EXPECT_FALSE(response->undo_available) << "First Compose() response should "
+                                            "say undo is not available.";
+
+  page_handler()->SaveWebUIState("second state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  response = compose_future.Take();
+  EXPECT_TRUE(response->undo_available) << "Second Compose() response should "
+                                           "say undo is available.";
+  page_handler()->SaveWebUIState("wip web ui state");
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo_future;
+  page_handler()->Undo(undo_future.GetCallback());
+  EXPECT_EQ("first state", undo_future.Take()->webui_state);
+
+  page_handler()->SaveWebUIState("third state");
+  page_handler()->Compose("", compose::mojom::InputMode::kPolish, false);
+
+  response = compose_future.Take();
+  EXPECT_TRUE(response->undo_available) << "Third Compose() response should "
+                                           "say undo is available.";
+
+  base::test::TestFuture<compose::mojom::ComposeStatePtr> undo2_future;
+  page_handler()->Undo(undo2_future.GetCallback());
+  EXPECT_EQ("first state", undo2_future.Take()->webui_state);
+}
+
+class ChromeComposeClientLinksBrowserTest
+    : public ChromeComposeClientBrowserTest {
+ public:
+  ChromeComposeClientLinksBrowserTest() {
+    links_feature_list_.InitWithFeatures(
+        {compose::features::kEnableCompose},
+        {compose::features::kEnableComposeProactiveNudge});
+  }
+
+ private:
+  base::test::ScopedFeatureList links_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientLinksBrowserTest,
+                       BugReportOpensCorrectURL) {
+  GURL bug_url("https://goto.google.com/ccbrfd");
+
+  ShowDialogAndBindMojo();
+
+  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
+  page_handler()->OpenBugReportingLink();
+
+  // Wait for the resulting new tab to be created.
+  tab_add_waiter.Wait();
+  // Check that the new foreground tab is opened.
+  EXPECT_EQ(2, browser()->tab_strip_model()->count());
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+  // This test uses web_contents->GetController()->GetPendingEntry() as it only
+  // verifies that a navigation has started, regardless of whether it commits or
+  // not.
+  content::WebContents* new_tab_webcontents =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+  EXPECT_EQ(bug_url,
+            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientLinksBrowserTest,
+                       LearnMoreLinkOpensCorrectURL) {
+  GURL learn_more_url("https://support.google.com/chrome?p=help_me_write");
+
+  ShowDialogAndBindMojo();
+
+  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
+  page_handler()->OpenComposeLearnMorePage();
+
+  // Wait for the resulting new tab to be created.
+  tab_add_waiter.Wait();
+  // Check that the new foreground tab is opened.
+  EXPECT_EQ(2, browser()->tab_strip_model()->count());
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+  // This test uses web_contents->GetController()->GetPendingEntry() as it only
+  // verifies that a navigation has started, regardless of whether it commits or
+  // not.
+  content::WebContents* new_tab_webcontents =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+  EXPECT_EQ(learn_more_url,
+            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_F(ChromeComposeClientLinksBrowserTest,
+                       SurveyLinkOpensCorrectURL) {
+  GURL survey_url("https://goto.google.com/ccfsfd");
+
+  ShowDialogAndBindMojo();
+
+  ui_test_utils::TabAddedWaiter tab_add_waiter(browser());
+  page_handler()->OpenFeedbackSurveyLink();
+
+  // Wait for the resulting new tab to be created.
+  tab_add_waiter.Wait();
+  // Check that the new foreground tab is opened.
+  EXPECT_EQ(2, browser()->tab_strip_model()->count());
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+  // This test uses web_contents->GetController()->GetPendingEntry() as it only
+  // verifies that a navigation has started, regardless of whether it commits or
+  // not.
+  content::WebContents* new_tab_webcontents =
+      browser()->tab_strip_model()->GetWebContentsAt(1);
+  EXPECT_EQ(survey_url,
+            new_tab_webcontents->GetController().GetPendingEntry()->GetURL());
 }

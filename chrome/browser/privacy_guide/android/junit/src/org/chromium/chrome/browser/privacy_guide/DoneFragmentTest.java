@@ -36,7 +36,6 @@ import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridge;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridgeJni;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 
 /** Tests for {@link DoneFragment} */
@@ -51,7 +50,7 @@ public class DoneFragmentTest {
     @Mock private IdentityManager mIdentityManager;
     @Mock private PrivacySandboxBridge.Natives mPrivacySandboxBridge;
 
-    private FragmentScenario mScenario;
+    private FragmentScenario<DoneFragment> mScenario;
     private DoneFragment mFragment;
     private View mPsButton;
     private View mWaaButton;
@@ -88,7 +87,7 @@ public class DoneFragmentTest {
     }
 
     private void setSignedInState(boolean isSignedIn) {
-        when(mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(isSignedIn);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(isSignedIn);
     }
 
     private void setPrivacySandboxState(boolean isRestricted, boolean isRestrictedNoticeEnabled) {

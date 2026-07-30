@@ -64,6 +64,7 @@ import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.components.ukm.UkmRecorderJni;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.concurrent.TimeUnit;
@@ -104,7 +105,7 @@ public class PageContentProviderImplUnitTest {
         InnerTextBridgeJni.setInstanceForTesting(mInnerTextNatives);
         PageContentProtoProviderBridgeJni.setInstanceForTesting(mPageContentProtoProviderNatives);
         mActivityTabProvider.setForTesting(mTab);
-        org.chromium.url.GURL url = JUnitTestGURLs.GOOGLE_URL;
+        GURL url = JUnitTestGURLs.GOOGLE_URL;
         when(mWebContents.getMainFrame()).thenReturn(mRenderFrameHost);
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.getUrl()).thenReturn(url);
@@ -462,9 +463,7 @@ public class PageContentProviderImplUnitTest {
     private void setInnerTextExtractionResult(String result, int resultDelayMs) {
         doAnswer(
                         invocationOnMock -> {
-                            Callback<String> callback =
-                                    (Callback<String>)
-                                            invocationOnMock.getArgument(1, Callback.class);
+                            Callback<String> callback = invocationOnMock.getArgument(1);
                             mFakeTimeTestRule.advanceMillis(resultDelayMs);
                             callback.onResult(result);
                             return null;
@@ -476,9 +475,7 @@ public class PageContentProviderImplUnitTest {
     private void setProtoContentExtractionResult(AnnotatedPageContent proto, int resultDelayMs) {
         doAnswer(
                         invocationOnMock -> {
-                            Callback<byte[]> callback =
-                                    (Callback<byte[]>)
-                                            invocationOnMock.getArgument(1, Callback.class);
+                            Callback<byte[]> callback = invocationOnMock.getArgument(1);
                             mFakeTimeTestRule.advanceMillis(resultDelayMs);
                             callback.onResult(proto.toByteArray());
                             return null;
@@ -490,9 +487,7 @@ public class PageContentProviderImplUnitTest {
     private void setInnerTextExtractionError(int resultDelayMs) {
         doAnswer(
                         invocationOnMock -> {
-                            Callback<String> callback =
-                                    (Callback<String>)
-                                            invocationOnMock.getArgument(1, Callback.class);
+                            Callback<String> callback = invocationOnMock.getArgument(1);
                             mFakeTimeTestRule.advanceMillis(resultDelayMs);
                             callback.onResult(null);
                             return null;

@@ -602,6 +602,13 @@ class GLES2DecoderImpl : public GLES2Decoder,
   void RestoreVertexAttribArray(unsigned index) override {
     RestoreStateForAttrib(index, true);
   }
+  void PauseTransformFeedback() override {
+    if (state_.bound_transform_feedback.get() &&
+        state_.bound_transform_feedback->active() &&
+        !state_.bound_transform_feedback->paused()) {
+      state_.api()->glPauseTransformFeedbackFn();
+    }
+  }
   void RestoreBufferBinding(unsigned int target) override;
   void RestoreFramebufferBindings() const override;
   void RestoreRenderbufferBindings() override;
@@ -5447,6 +5454,8 @@ void GLES2DecoderImpl::DoBeginTransformFeedback(GLenum primitive_mode) {
   }
   transform_feedback->DoBeginTransformFeedback(primitive_mode);
   DCHECK(transform_feedback->active());
+
+  transform_feedback->SetActiveProgram(program);
 }
 
 void GLES2DecoderImpl::DoEndTransformFeedback() {
@@ -5459,6 +5468,11 @@ void GLES2DecoderImpl::DoEndTransformFeedback() {
   }
   // TODO(zmo): Validate binding points.
   state_.bound_transform_feedback->DoEndTransformFeedback();
+
+  Program* program = state_.bound_transform_feedback->active_program();
+  if (program) {
+    state_.bound_transform_feedback->ClearActiveProgram();
+  }
 }
 
 void GLES2DecoderImpl::DoPauseTransformFeedback() {
@@ -8183,6 +8197,12 @@ void GLES2DecoderImpl::DoLinkProgram(GLuint program_id) {
     return;
   }
 
+  if (program->IsActiveForTransformFeedback()) {
+    LOCAL_SET_GL_ERROR(GL_INVALID_OPERATION, "glLinkProgram",
+                       "program is active for transform feedback");
+    return;
+  }
+
   LogClientServiceForInfo(program, program_id, "glLinkProgram");
   if (program->Link(shader_manager(),
                     client())) {
@@ -8516,14 +8536,11 @@ void GLES2DecoderImpl::DoUniform1iv(GLint fake_location,
   auto values_copy = std::make_unique<GLint[]>(count);
   GLint* safe_values = values_copy.get();
   std::copy(values, UNSAFE_TODO(values + count), safe_values);
-  if (type == GL_SAMPLER_2D || type == GL_SAMPLER_2D_RECT_ANGLE ||
-      type == GL_SAMPLER_CUBE || type == GL_SAMPLER_EXTERNAL_OES) {
-    if (!state_.current_program->SetSamplers(
-            state_.texture_units.size(), fake_location, count, safe_values)) {
-      LOCAL_SET_GL_ERROR(
-          GL_INVALID_VALUE, "glUniform1iv", "texture unit out of range");
-      return;
-    }
+  if (!state_.current_program->SetSamplers(state_.texture_units.size(),
+                                           fake_location, count, safe_values)) {
+    LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, "glUniform1iv",
+                       "texture unit out of range");
+    return;
   }
   api()->glUniform1ivFn(real_location, count, safe_values);
 }
@@ -16655,7 +16672,8 @@ bool GLES2DecoderImpl::UnmapBufferHelper(Buffer* buffer, GLenum target) {
     DCHECK(mapped_range->pointer);
     UNSAFE_TODO(memcpy(mapped_range->pointer, mem, mapped_range->size));
     if (buffer->shadowed()) {
-      buffer->SetRange(mapped_range->offset, mapped_range->size, mem);
+      buffer->SetRange(mapped_range->offset, mapped_range->size,
+                       mapped_range->pointer);
     }
   }
   buffer->RemoveMappedRange();
@@ -16746,7 +16764,7 @@ void GLES2DecoderImpl::DoFlushMappedBufferRange(
   UNSAFE_TODO(memcpy(gpu_data + offset, client_data + offset, size));
   if (buffer->shadowed()) {
     buffer->SetRange(mapped_range->offset + offset, size,
-                     UNSAFE_TODO(client_data + offset));
+                     UNSAFE_TODO(gpu_data + offset));
   }
   api()->glFlushMappedBufferRangeFn(target, offset, size);
 }

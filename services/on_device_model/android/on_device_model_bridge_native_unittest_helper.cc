@@ -14,6 +14,7 @@ OnDeviceModelBridgeNativeUnitTestHelper::
     OnDeviceModelBridgeNativeUnitTestHelper() {
   JNIEnv* env = base::android::AttachCurrentThread();
   java_helper_ = Java_OnDeviceModelBridgeNativeUnitTestHelper_create(env);
+  settings_.Init(&java_helper_);
 }
 
 OnDeviceModelBridgeNativeUnitTestHelper::
@@ -48,11 +49,25 @@ void OnDeviceModelBridgeNativeUnitTestHelper::VerifyGenerateOptions(
       env, java_helper_, index, max_output_tokens);
 }
 
-void OnDeviceModelBridgeNativeUnitTestHelper::SetGenerateResult(
+OnDeviceModelBridgeNativeUnitTestSettings::
+    OnDeviceModelBridgeNativeUnitTestSettings() = default;
+
+OnDeviceModelBridgeNativeUnitTestSettings::
+    ~OnDeviceModelBridgeNativeUnitTestSettings() = default;
+
+void OnDeviceModelBridgeNativeUnitTestSettings::Init(
+    base::android::ScopedJavaGlobalRef<jobject>* java_helper) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  java_settings_ =
+      Java_OnDeviceModelBridgeNativeUnitTestHelper_getMockAiCoreSettings(
+          env, *java_helper);
+}
+
+void OnDeviceModelBridgeNativeUnitTestSettings::SetGenerateResult(
     BackendSessionImplAndroid::GenerateResult result) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_OnDeviceModelBridgeNativeUnitTestHelper_setGenerateResult(
-      env, java_helper_, static_cast<int>(result));
+  Java_MockAiCoreSettings_setGenerateResult(env, java_settings_,
+                                            static_cast<int>(result));
 }
 
 void OnDeviceModelBridgeNativeUnitTestHelper::SetCompleteAsync() {
@@ -118,6 +133,14 @@ void OnDeviceModelBridgeNativeUnitTestHelper::TriggerDownloaderOnAvailable(
       base::android::ConvertUTF8ToJavaString(env, version);
   Java_OnDeviceModelBridgeNativeUnitTestHelper_triggerDownloaderOnAvailable(
       env, java_helper_, j_name, j_version);
+}
+
+void OnDeviceModelBridgeNativeUnitTestHelper::
+    TriggerDownloaderOnDownloadProgress(int64_t downloaded_bytes,
+                                        int64_t total_bytes) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_OnDeviceModelBridgeNativeUnitTestHelper_triggerDownloaderOnDownloadProgress(
+      env, java_helper_, downloaded_bytes, total_bytes);
 }
 
 void OnDeviceModelBridgeNativeUnitTestHelper::

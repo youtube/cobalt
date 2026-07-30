@@ -27,6 +27,7 @@
 #include "cc/resources/ui_resource_manager.h"
 #include "cc/scheduler/commit_earlyout_reason.h"
 #include "cc/scheduler/scheduler.h"
+#include "cc/trees/client_layer_tree_host_impl.h"
 #include "cc/trees/compositor_commit_data.h"
 #include "cc/trees/latency_info_swap_promise.h"
 #include "cc/trees/layer_tree_frame_sink.h"
@@ -363,7 +364,8 @@ void SingleThreadProxy::SetDeferMainFrameUpdate(bool defer_main_frame_update) {
   scheduler_on_impl_thread_->SetDeferBeginMainFrame(defer_main_frame_update_);
 }
 
-void SingleThreadProxy::SetPauseRendering(bool pause_rendering) {
+void SingleThreadProxy::SetPauseRendering(bool pause_rendering,
+                                          bool delay_until_visibility_change) {
   DCHECK(task_runner_provider_->IsMainThread());
   // Pause updates only makes sense if there's a scheduler. In synchronous mode,
   // the client controls when a frame is produced.

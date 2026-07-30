@@ -15,6 +15,7 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -26,6 +27,9 @@ class GlicInvokeTask {
  public:
   virtual ~GlicInvokeTask() = default;
   virtual void Start(base::OnceClosure done_callback) = 0;
+  // Called when the sequence of tasks completes (successfully or not).
+  // This is where tasks should do cleanup.
+  virtual void OnSequenceCompleted(bool success) {}
 };
 
 // Executes tasks sequentially in the order they were added.
@@ -39,6 +43,9 @@ class SequentialTaskGroup : public GlicInvokeTask {
   ~SequentialTaskGroup() override;
 
   void Start(base::OnceClosure done_callback) override;
+
+  // Notifies all tasks in the group that the sequence has completed.
+  void NotifySequenceCompleted(bool success);
 
  private:
   void RunNextTask();
@@ -113,6 +120,29 @@ class WaitForClientConnectedTask : public GlicInvokeTask,
   base::OnceClosure done_callback_;
 };
 
+// Task that notifies the host of invoking state.
+class NotifyIsInvokingTask : public GlicInvokeTask {
+ public:
+  NotifyIsInvokingTask(Host* host, bool is_invoking);
+  ~NotifyIsInvokingTask() override;
+  void Start(base::OnceClosure done_callback) override;
+
+ private:
+  raw_ptr<Host> host_;
+  bool is_invoking_;
+};
+
+// Task that posts a callback asynchronously.
+class PostCallbackTask : public GlicInvokeTask {
+ public:
+  explicit PostCallbackTask(base::OnceClosure callback);
+  ~PostCallbackTask() override;
+  void Start(base::OnceClosure done_callback) override;
+
+ private:
+  base::OnceClosure callback_;
+};
+
 // Task that waits for the layout to stabilize after showing the panel.
 class StabilizationTask : public GlicInvokeTask,
                           public content::WebContentsObserver {
@@ -143,6 +173,56 @@ class WaitForFreCompletionTask : public GlicInvokeTask {
   raw_ptr<::Profile> profile_;
   mojom::FreOverride fre_override_;
   base::OnceClosure done_callback_;
+  base::CallbackListSubscription subscription_;
+};
+
+// Task that sends the invocation to the client.
+class SendToClientTask : public GlicInvokeTask {
+ public:
+  SendToClientTask(
+      GlicInstanceImpl* instance,
+      mojom::InvokeOptionsPtr mojo_options,
+      std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey);
+  ~SendToClientTask() override;
+  void Start(base::OnceClosure done_callback) override;
+
+ private:
+  void OnAck();
+
+  raw_ptr<GlicInstanceImpl> instance_;
+  mojom::InvokeOptionsPtr mojo_options_;
+  std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey_;
+  base::OnceClosure done_callback_;
+  base::WeakPtrFactory<SendToClientTask> weak_ptr_factory_{this};
+};
+
+// Task that waits for actuation (both start and complete).
+class WaitForActuationTask : public GlicInvokeTask {
+ public:
+  WaitForActuationTask(GlicInstanceImpl* instance,
+                       base::TimeDelta start_timeout,
+                       base::OnceCallback<void(GlicInvokeError)> error_callback,
+                       base::OnceClosure on_actuation_started);
+  ~WaitForActuationTask() override;
+  void Start(base::OnceClosure done_callback) override;
+
+ private:
+ private:
+  void OnTimeout();
+  void OnActuatingChanged(bool actuating);
+  void Update();
+
+  raw_ptr<GlicInstanceImpl> instance_;
+  base::TimeDelta start_timeout_;
+  base::OnceCallback<void(GlicInvokeError)> error_callback_;
+  base::OnceClosure done_callback_;
+  base::OnceClosure on_actuation_started_;
+
+  base::OneShotTimer timer_;
+
+  bool task_started_ = false;
+  bool did_start_ = false;
+  bool did_finish_ = false;
   base::CallbackListSubscription subscription_;
 };
 

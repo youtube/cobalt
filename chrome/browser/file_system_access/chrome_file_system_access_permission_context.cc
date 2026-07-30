@@ -84,7 +84,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_page_action_controller.h"
-#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"  // nogncheck
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -2332,7 +2332,7 @@ void ChromeFileSystemAccessPermissionContext::DidCheckPathAgainstBlocklist(
   // If attempting to save a file with a dangerous extension, prompt the user
   // to make them confirm they actually want to save the file.
   if (handle_type == HandleType::kFile && user_action == UserAction::kSave) {
-    // See https://crbug.com/1320877#c4 for justification for why we show the
+    // See https://crbug.com/40059513#c4 for justification for why we show the
     // prompt if `danger_level` is ALLOW_ON_USER_GESTURE as well as DANGEROUS.
     auto danger_level = GetFileTypeDangerLevel(
         path_info.path, origin, Profile::FromBrowserContext(profile_));

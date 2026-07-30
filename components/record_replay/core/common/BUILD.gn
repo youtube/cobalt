@@ -4,8 +4,6 @@
 
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(is_win || is_mac || is_linux || is_chromeos)
-
 static_library("common") {
   sources = [
     "aliases.h",
@@ -13,6 +11,8 @@ static_library("common") {
     "element_id.h",
     "record_replay_features.cc",
     "record_replay_features.h",
+    "record_replay_switches.cc",
+    "record_replay_switches.h",
   ]
   deps = [ "//base" ]
 }

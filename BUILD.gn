@@ -1215,7 +1215,6 @@ if (use_blink && !is_cronet_build) {
       "//third_party/catapult/third_party/typ",
       "//third_party/hyphenation-patterns:test_data",
       "//tools/imagediff",
-      "//ui/base:goldctl",
     ]
 
     if (is_android) {
@@ -1267,7 +1266,6 @@ if (use_blink && !is_cronet_build) {
     }
 
     data = [
-      "//build/skia_gold_common/",
       "//testing/scripts/common.py",
       "//testing/scripts/run_isolated_script_test.py",
       "//testing/xvfb.py",
@@ -1336,10 +1334,6 @@ if (use_blink && !is_cronet_build) {
     }
   }
 
-  if (is_chrome_branded) {
-    _common_web_test_args += [ "--chrome-branded" ]
-  }
-
   if (is_android) {
     _common_web_test_args += [
       "--platform",
@@ -1385,17 +1379,7 @@ if (use_blink && !is_cronet_build) {
     args = _common_web_test_args
 
     # Use --wpt-only to skip tests under web_tests/virtual/
-    args += [
-      "--wpt-only",
-      "--inverted-test-launcher-filter-file",
-      "@WrappedPath(" +
-          rebase_path("//third_party/blink/web_tests/TestLists/chrome.filter",
-                      root_out_dir) + ")",
-      "--test-launcher-filter-file",
-      "@WrappedPath(" + rebase_path(
-              "//third_party/blink/web_tests/TestLists/content_shell.filter",
-              root_out_dir) + ")",
-    ]
+    args += [ "--wpt-only" ]
 
     data_deps = [
       ":blink_web_tests_support_data",
@@ -1469,7 +1453,6 @@ if (use_blink && !is_cronet_build) {
       "//build/android/",
       "//build/gn_helpers.py",
       "//build/config/gclient_args.gni",
-      "//build/skia_gold_common/",
       "//components/crash/content/tools/generate_breakpad_symbols.py",
       "//testing/unexpected_passes_common/",
       "//testing/flake_suppressor_common/",
@@ -1504,8 +1487,6 @@ if (use_blink && !is_cronet_build) {
     if (is_ios) {
       data += [ "//third_party/blink/web_tests/IOSTestExpectations" ]
     }
-
-    data_deps = [ "//ui/base:goldctl" ]
   }
 }
 

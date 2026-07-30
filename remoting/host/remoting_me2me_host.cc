@@ -136,10 +136,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "remoting/host/pam_authorization_factory_posix.h"
 #include "remoting/host/posix/signal_handler.h"
 #include "remoting/host/security_key/security_key_auth_handler_posix.h"
 #endif  // BUILDFLAG(IS_POSIX)
+
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
+#include "remoting/host/pam_authorization_factory_posix.h"
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_APPLE)
 #include "remoting/host/audio_capturer_mac.h"
@@ -432,10 +435,9 @@ class HostProcess : public ConfigWatcher::Delegate,
       ::mojo::PlatformHandle privileged_handle,
       ::mojo::PlatformHandle unprivileged_handle) override;
 #endif
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC)
   void BindChromotingHostServices(
-      mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
-      int peer_pid) override;
+      mojo::PendingReceiver<mojom::ChromotingHostServices> receiver) override;
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -980,14 +982,14 @@ void HostProcess::CreateAuthenticatorFactory() {
           base::BindRepeating(&HostProcess::CheckAccessPermission, this),
           std::move(auth_config));
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
   // For Linux and Mac single-process hosts, perform a PAM authorization step
   // after authentication. For multi-process hosts, the check will be done by
   // the daemon process.
   if (!multi_process_) {
     factory = std::make_unique<PamAuthorizationFactory>(std::move(factory));
   }
-#endif  // BUILDFLAG(IS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
   host_->SetAuthenticatorFactory(std::move(factory));
 }
 
@@ -1310,14 +1312,13 @@ void HostProcess::InitializePairingRegistry(
 
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC)
 void HostProcess::BindChromotingHostServices(
-    mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
-    int peer_pid) {
+    mojo::PendingReceiver<mojom::ChromotingHostServices> receiver) {
   if (context_->ui_task_runner()->BelongsToCurrentThread()) {
     context_->network_task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&HostProcess::BindChromotingHostServices,
-                                  this, std::move(receiver), peer_pid));
+                                  this, std::move(receiver)));
     return;
   }
   // This IPC is handled on the UI thread and bounced over to the network thread
@@ -1327,7 +1328,7 @@ void HostProcess::BindChromotingHostServices(
     LOG(ERROR) << "Binding rejected. Host has not started.";
     return;
   }
-  host_->BindChromotingHostServices(std::move(receiver), peer_pid);
+  host_->BindChromotingHostServices(std::move(receiver));
 }
 #endif
 
@@ -2020,8 +2021,7 @@ void HostProcess::StartHost() {
   host_ = std::make_unique<ChromotingHost>(
       desktop_environment_factory_.get(), std::move(session_manager),
       std::move(corp_session_manager), transport_context,
-      context_->audio_task_runner(), context_->video_encode_task_runner(),
-      desktop_environment_options_,
+      context_->audio_task_runner(), desktop_environment_options_,
       base::BindRepeating(&HostProcess::OnSessionPoliciesReceived,
                           base::Unretained(this)),
       &local_session_policies_provider_);

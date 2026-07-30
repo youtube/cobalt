@@ -79,8 +79,8 @@
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
+#include "chrome/browser/web_applications/model/web_app_icon_types.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "media/base/media_switches.h"
@@ -343,13 +343,13 @@ bool ChromeWebUIControllerFactory::IsWebUIAllowedToMakeNetworkRequests(
   // Allowlist to work around exceptional cases.
   //
   // If you are adding a new host to this list, please file a corresponding bug
-  // to track its removal. See https://crbug.com/829412 for the metabug.
+  // to track its removal. See https://crbug.com/40091019 for the metabug.
   return
-      // https://crbug.com/831812
+      // https://crbug.com/40571286
       origin.host() == chrome::kChromeUISyncConfirmationHost ||
-      // https://crbug.com/831813
+      // https://crbug.com/41382586
       origin.host() == chrome::kChromeUIInspectHost ||
-      // https://crbug.com/859345
+      // https://crbug.com/40583261
       origin.host() == chrome::kChromeUIDownloadsHost ||
       // https://crbug.com/376417346
       origin.host() == chrome::kChromeUIExtensionsHost;

@@ -22,7 +22,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/chrome_features.h"
-#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 #include "components/webapps/isolated_web_apps/types/source.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -33,6 +32,7 @@
 #include "chrome/browser/web_applications/isolated_web_apps/commands/copy_bundle_to_cache_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/get_bundle_cache_path_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "chromeos/components/mgs/managed_guest_session_utils.h"
 #include "components/webapps/isolated_web_apps/error/uma_logging.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -136,24 +136,7 @@ ManagedSessionType GetCurrentManagedSessionType() {
 
 }  // namespace
 
-IwaInstaller::IwaInstallCommandWrapperImpl::IwaInstallCommandWrapperImpl(
-    web_app::WebAppProvider* provider)
-    : provider_(provider) {}
 
-void IwaInstaller::IwaInstallCommandWrapperImpl::Install(
-    const IsolatedWebAppInstallSource& install_source,
-    const IsolatedWebAppUrlInfo& url_info,
-    const IwaVersion& expected_version,
-    WebAppCommandScheduler::InstallIsolatedWebAppCallback callback) {
-  // There is no need to keep the browser or profile alive when
-  // policy-installing an IWA. If the browser or profile shut down, installation
-  // will be re-attempted the next time they start, assuming that the policy is
-  // still set.
-  provider_->scheduler().InstallIsolatedWebApp(
-      url_info, install_source, expected_version,
-      /*optional_keep_alive=*/nullptr,
-      /*optional_profile_keep_alive=*/nullptr, std::move(callback));
-}
 
 IwaInstallerResult::IwaInstallerResult(Type type, std::string message)
     : type_(type), message_(std::move(message)) {}
@@ -168,14 +151,12 @@ IwaInstaller::IwaInstaller(
     IsolatedWebAppExternalInstallOptions install_options,
     InstallSourceType install_source_type,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    std::unique_ptr<IwaInstallCommandWrapper> install_command_wrapper,
     base::ListValue& log,
     WebAppProvider* provider,
     ResultCallback callback)
     : install_options_(std::move(install_options)),
       install_source_type_(install_source_type),
       url_loader_factory_(std::move(url_loader_factory)),
-      install_command_wrapper_(std::move(install_command_wrapper)),
       log_(log),
       provider_(provider),
       callback_(std::move(callback)) {
@@ -254,11 +235,14 @@ void IwaInstaller::InstallFromCache(const base::FilePath& cache_file,
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           install_options_.web_bundle_id());
 
-  install_command_wrapper_->Install(
+  provider_->scheduler().InstallIsolatedWebApp(
+      url_info,
       GetIsolatedWebAppInstallSource(install_source_type_,
                                      std::move(cache_file),
                                      IwaSourceBundleProdFileOp::kCopy),
-      url_info, std::move(version),
+      std::move(version),
+      /*optional_keep_alive=*/nullptr,
+      /*optional_profile_keep_alive=*/nullptr,
       base::BindOnce(&IwaInstaller::OnIwaInstalledFromCache,
                      weak_factory_.GetWeakPtr()));
 }
@@ -411,10 +395,13 @@ void IwaInstaller::RunInstallFromInternetCommand(IwaVersion expected_version) {
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           install_options_.web_bundle_id());
 
-  install_command_wrapper_->Install(
+  provider_->scheduler().InstallIsolatedWebApp(
+      url_info,
       GetIsolatedWebAppInstallSource(install_source_type_, bundle_.path(),
                                      IwaSourceBundleProdFileOp::kMove),
-      url_info, expected_version,
+      expected_version,
+      /*optional_keep_alive=*/nullptr,
+      /*optional_profile_keep_alive=*/nullptr,
       base::BindOnce(&IwaInstaller::OnIwaInstalledFromInternet,
                      weak_factory_.GetWeakPtr(), expected_version));
 }
@@ -456,44 +443,6 @@ void IwaInstaller::OnIwaInstalledFromInternet(
 
 void IwaInstaller::Finish(Result result) {
   std::move(callback_).Run(std::move(result));
-}
-
-std::unique_ptr<IwaInstaller> IwaInstallerFactory::Create(
-    IsolatedWebAppExternalInstallOptions install_options,
-    IwaInstaller::InstallSourceType install_source_type,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    base::ListValue& log,
-    WebAppProvider* provider,
-    IwaInstaller::ResultCallback callback) {
-  return GetIwaInstallerFactory().Run(
-      std::move(install_options), install_source_type,
-      std::move(url_loader_factory), log, provider, std::move(callback));
-}
-
-IwaInstallerFactory::IwaInstallerFactoryCallback&
-IwaInstallerFactory::GetIwaInstallerFactory() {
-  static base::NoDestructor<IwaInstallerFactoryCallback> iwa_installer_factory;
-  if (!*iwa_installer_factory) {
-    *iwa_installer_factory = GetDefaultIwaInstallerFactory();
-  }
-  return *iwa_installer_factory;
-}
-
-IwaInstallerFactory::IwaInstallerFactoryCallback
-IwaInstallerFactory::GetDefaultIwaInstallerFactory() {
-  return base::BindRepeating(
-      [](IsolatedWebAppExternalInstallOptions install_options,
-         IwaInstaller::InstallSourceType install_source_type,
-         scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-         base::ListValue& log, WebAppProvider* provider,
-         IwaInstaller::ResultCallback callback) {
-        return std::make_unique<IwaInstaller>(
-            std::move(install_options), install_source_type,
-            std::move(url_loader_factory),
-            std::make_unique<IwaInstaller::IwaInstallCommandWrapperImpl>(
-                provider),
-            log, provider, std::move(callback));
-      });
 }
 
 std::ostream& operator<<(std::ostream& os,

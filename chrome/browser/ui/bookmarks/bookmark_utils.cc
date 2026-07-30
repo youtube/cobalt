@@ -185,7 +185,7 @@ bool GetURLAndTitleToBookmark(content::WebContents* web_contents,
   }
 
   // Use "New tab" as title if the current page is NTP even in incognito mode.
-  if (u == GURL(chrome::kChromeUINewTabURL)) {
+  if (u == chrome::ChromeUINewTabURLAsGURL()) {
     *title = l10n_util::GetStringUTF16(IDS_NEW_TAB_TITLE);
   }
 
@@ -211,7 +211,7 @@ std::u16string FormatBookmarkURLForDisplay(const GURL& url) {
       ~url_formatter::kFormatUrlOmitUsernamePassword;
 
   // If username is present, we must not omit the scheme because FixupURL() will
-  // subsequently interpret the username as a scheme. crbug.com/639126
+  // subsequently interpret the username as a scheme. crbug.com/40085150
   if (url.has_username()) {
     format_types &= ~url_formatter::kFormatUrlOmitHTTP;
   }

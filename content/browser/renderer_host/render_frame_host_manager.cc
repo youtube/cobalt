@@ -1923,13 +1923,6 @@ RenderFrameHostManager::GetFrameHostForNavigation(
   // since we did load the current document, but we don't want to reload it if
   // that is the case. See crbug.com/1125106.
   CHECK(!request->IsSameDocument());
-  // TODO(crbug.com/40055210): Verify that we're not resetting the document
-  // sequence number in a same-document navigation. This method will reset it
-  // if the site instance changed. But this method should not be called for a
-  // same document history navigation. Change back to a CHECK() once this is
-  // resolved.
-  if (request->IsSameDocument())
-    base::debug::DumpWithoutCrashing();
 
   // Navigations for inactive frames should be disallowed, except for the
   // following two cases:
@@ -1983,22 +1976,9 @@ RenderFrameHostManager::GetFrameHostForNavigation(
 
   // Now compute the SiteInstance to use for the navigation.
   IsSameSiteGetter is_same_site_getter(is_same_site);
-  std::string site_instance_reason;
-  std::string* reason_output =
-      (base::FeatureList::IsEnabled(
-           features::kHoldbackDebugReasonStringRemoval) ||
-       request->IsInitialWebUINavigation())
-          ? &site_instance_reason
-          : reason;
   scoped_refptr<SiteInstanceImpl> dest_site_instance =
       GetSiteInstanceForNavigationRequest(request, is_same_site_getter,
-                                          browsing_context_group_swap,
-                                          reason_output);
-  if (reason && (base::FeatureList::IsEnabled(
-                     features::kHoldbackDebugReasonStringRemoval) ||
-                 request->IsInitialWebUINavigation())) {
-    reason->append(site_instance_reason);
-  }
+                                          browsing_context_group_swap, reason);
 
   // A subframe should always be in the same BrowsingInstance as the parent
   // (see also https://crbug.com/1107269).
@@ -2545,8 +2525,10 @@ RenderFrameHostManager::UnsetSpeculativeRenderFrameHost(
                   kSpeculativeMainFrameForNavigationCancelled);
   } else {
     // TODO(dcheng): Upgrade this to a CHECK()?
-    CHECK_EQ(speculative_render_frame_host_->lifecycle_state(),
-             LifecycleStateImpl::kPendingCommit);
+    // TODO(https://crbug.com/503784536): CHECK-exclusion: Convert to CHECK once
+    // we are sure this isn't hit.
+    DCHECK_EQ(speculative_render_frame_host_->lifecycle_state(),
+              LifecycleStateImpl::kPendingCommit);
 
     // A reasonable person might wonder: shouldn't a RenderFrameHostImpl in
     // kPendingCommit always have a... pending commit?
@@ -4651,7 +4633,9 @@ RenderFrameHostManager::CreateSpeculativeRenderFrame(
     render_view_host->GetWidget()->GetView()->Hide();
   }
 
-  CHECK(render_view_host->IsRenderViewLive());
+  // TODO(https://crbug.com/503784536): CHECK-exclusion: Convert to CHECK once
+  // we are sure this isn't hit.
+  DCHECK(render_view_host->IsRenderViewLive());
   // RenderViewHost for |instance| might exist prior to calling
   // CreateRenderFrame. In such a case, InitRenderView will not create the
   // RenderFrame in the renderer process and it needs to be done

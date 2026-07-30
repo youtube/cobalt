@@ -32,6 +32,7 @@
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/css/css_default_style_sheets.h"
 #include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
 #include "third_party/blink/renderer/core/css/media_feature_overrides.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
@@ -688,6 +689,15 @@ void Page::InitialStyleChanged() {
   }
 }
 
+void Page::UAStyleChanged() {
+  for (Frame* frame = MainFrame(); frame;
+       frame = frame->Tree().TraverseNext()) {
+    if (auto* local_frame = DynamicTo<LocalFrame>(frame)) {
+      local_frame->GetDocument()->GetStyleEngine().UAStyleChanged();
+    }
+  }
+}
+
 PluginData* Page::GetPluginData() {
   if (!plugin_data_)
     plugin_data_ = MakeGarbageCollected<PluginData>();
@@ -1215,6 +1225,10 @@ void Page::SettingsChanged(ChangeType change_type) {
     case ChangeType::kAcceptLanguages:
       AcceptLanguagesChanged();
       break;
+    case ChangeType::kTextTrackStyle:
+      CSSDefaultStyleSheets::Instance().ResetTextTrackStyleSheet();
+      UAStyleChanged();
+      break;
   }
 }
 
@@ -1593,6 +1607,31 @@ void Page::PrepareForLeakDetection() {
     // V8CrowdsourcedCompileHintsProducer keeps v8::Script objects alive until
     // the page becomes interactive. Give it a chance to clean up.
     page->v8_compile_hints_producer_->ClearData();
+  }
+}
+
+void Page::UpgradePrerenderUntilScriptToFullPrerender() {
+  CHECK(IsPrerendering());
+  CHECK(ShouldPauseJavaScriptExecutionOnPrerender());
+  should_pause_javascript_execution_on_prerender_ = false;
+
+  // Collect local documents first. Unblocking script execution can
+  // synchronously run parser scripts, which may mutate the frame tree
+  // (e.g. inserting or removing iframes). Snapshotting avoids issues with
+  // iterating a tree that changes under us. This mirrors the pattern used
+  // by WebViewImpl::ActivatePrerenderedPage().
+  HeapVector<Member<Document>> documents;
+  for (Frame* frame = MainFrame(); frame;
+       frame = frame->Tree().TraverseNext()) {
+    if (auto* local_frame = DynamicTo<LocalFrame>(frame)) {
+      if (Document* document = local_frame->GetDocument()) {
+        documents.push_back(document);
+      }
+    }
+  }
+
+  for (auto& document : documents) {
+    document->UnblockScriptExecutionForPrerenderUpgrade();
   }
 }
 

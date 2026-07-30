@@ -31,7 +31,7 @@
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_LOCKED_DARK" file="resources/webauthn/gpm_pin_locked_dark.json" compress="brotli" />
 
         <!-- Autofill Lottie resources -->
-        <structure type="lottie" name="IDR_AUTOFILL_AT_MEMORY_PROMO_HEADER_OPTED_IN" file="resources/autofill/autofill_at_memory_promo_header_opted_in.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_AT_MEMORY_PROMO_HEADER" file="resources/autofill/autofill_at_memory_promo_header.json" compress="brotli"/>
         <structure type="lottie" name="IDR_AUTOFILL_SAVE_PASSWORD_LOTTIE" file="resources/autofill/autofill_save_password.json" compress="brotli"/>
         <structure type="lottie" name="IDR_AUTOFILL_SAVE_ADDRESS_LOTTIE" file="resources/autofill/autofill_save_address.json" compress="brotli"/>
         <structure type="lottie" name="IDR_AUTOFILL_VIRTUAL_CARD_ENROLL_SUCCESS_LOTTIE" file="resources/autofill/autofill_virtual_card_enroll_confirmation.json" compress="brotli"/>
@@ -107,19 +107,13 @@
         <include name="IDR_CRYPTOHOME_HTML" file="resources\chromeos\cryptohome.html" type="BINDATA" />
         <include name="IDR_CRYPTOHOME_JS" file="resources\chromeos\cryptohome.js" type="BINDATA" />
 
-        <include name="IDR_DRIVE_INTERNALS_CSS" file="resources\chromeos\drive_internals.css" type="BINDATA" />
-        <include name="IDR_DRIVE_INTERNALS_HTML" file="resources\chromeos\drive_internals.html" type="BINDATA" />
-        <include name="IDR_DRIVE_INTERNALS_JS" file="resources\chromeos\drive_internals.js" type="BINDATA" />
-
         <include name="IDR_GUEST_SESSION_TAB_HTML" file="resources\chromeos\guest_session_tab.html" flattenhtml="true" type="BINDATA" />
 
         <!-- Note: mobile_setup_ui.cc does not support compressed resources. -->
         <include name="IDR_MOBILE_SETUP_PORTAL_PAGE_HTML" file="resources\chromeos\mobile_setup_portal.html" flattenhtml="true" type="BINDATA" />
 
         <include name="IDR_OS_CREDITS_HTML" file="resources\chromeos\about_os_credits.html" type="BINDATA" />
-        <include name="IDR_SLOW_CSS" file="resources\chromeos\slow.css" type="BINDATA" />
-        <include name="IDR_SLOW_HTML" file="resources\chromeos\slow.html" type="BINDATA" />
-        <include name="IDR_SLOW_JS" file="resources\chromeos\slow.js" type="BINDATA" />
+
         <include name="IDR_ARC_SUPPORT_MANIFEST" file="resources\chromeos\arc_support\manifest.json" type="BINDATA" />
 
         <!-- Fingerprint resources. -->
@@ -170,25 +164,6 @@
         <include name="IDR_SMB_SHARES_DIALOG_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\smb_shares\smb_share_dialog.js" use_base_dir="false" type="chrome_html" />
         <include name="IDR_SMB_CREDENTIALS_DIALOG_CONTAINER_HTML" file="resources\chromeos\smb_shares\smb_credentials_dialog_container.html" type="chrome_html" />
         <include name="IDR_SMB_CREDENTIALS_DIALOG_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\smb_shares\smb_credentials_dialog.js" use_base_dir="false" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_HTML" file="resources\chromeos\sys_internals\index.html" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_CSS" file="resources\chromeos\sys_internals\index.css" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_JS" file="resources\chromeos\sys_internals\index.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_MAIN_JS" file="resources\chromeos\sys_internals\main.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_CONSTANT_JS" file="resources\chromeos\sys_internals\constants.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_TYPES_JS" file="resources\chromeos\sys_internals\types.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_CONSTANTS_JS" file="resources\chromeos\sys_internals\line_chart\constants.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_CSS" file="resources\chromeos\sys_internals\line_chart\line_chart.css" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_DATA_SERIES_JS" file="resources\chromeos\sys_internals\line_chart\data_series.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_LINE_CHART_JS" file="resources\chromeos\sys_internals\line_chart\line_chart.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_MENU_JS" file="resources\chromeos\sys_internals\line_chart\menu.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_SCROLLBAR_JS" file="resources\chromeos\sys_internals\line_chart\scrollbar.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_SUB_CHART_JS" file="resources\chromeos\sys_internals\line_chart\sub_chart.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_LINE_CHART_UNIT_LABEL_JS" file="resources\chromeos\sys_internals\line_chart\unit_label.js" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_IMAGE_MENU_SVG" file="resources\chromeos\sys_internals\img\menu.svg" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_IMAGE_INFO_SVG" file="resources\chromeos\sys_internals\img\info.svg" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_IMAGE_CPU_SVG" file="resources\chromeos\sys_internals\img\cpu.svg" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_IMAGE_MEMORY_SVG" file="resources\chromeos\sys_internals\img\memory.svg" type="BINDATA" />
-        <include name="IDR_SYS_INTERNALS_IMAGE_ZRAM_SVG" file="resources\chromeos\sys_internals\img\zram.svg" type="BINDATA" />
         <include name="IDR_SMART_DIM_20190521_EXAMPLE_PREPROCESSOR_CONFIG_PB" file="ash\power\ml\smart_dim\20190521_example_preprocessor_config.pb" type="BINDATA" />
         <include name="IDR_ARC_OVERVIEW_TRACING_HTML" file="resources\chromeos\arc_overview_tracing\arc_overview_tracing.html" type="BINDATA"/>
         <include name="IDR_ARC_OVERVIEW_TRACING_JS" file="resources\chromeos\arc_overview_tracing\arc_overview_tracing.js" type="BINDATA" />

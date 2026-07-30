@@ -6,6 +6,7 @@
     "isolated_scripts": [
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -56,6 +57,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -107,6 +109,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -157,6 +160,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -207,6 +211,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -257,6 +262,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -310,6 +316,7 @@
           "--git-revision=${got_revision}",
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.blink_platform_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -365,6 +372,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -415,6 +423,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -465,6 +474,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -515,6 +525,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -566,8 +577,8 @@
       {
         "args": [
           "--test-launcher-bot-mode",
-          "--test-launcher-filter-file=testing/buildbot/filters/ios.cc_unittests.filter",
           "--use-gpu-in-tests",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -620,6 +631,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.use_blink.components_browsertests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -672,6 +684,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.use_blink.components_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -724,6 +737,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.compositor_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -776,6 +790,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.content_browsertests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -829,6 +844,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.content_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -879,6 +895,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -929,6 +946,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -979,6 +997,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1029,6 +1048,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1079,6 +1099,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1129,6 +1150,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1179,6 +1201,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1231,6 +1254,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.gfx_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1281,6 +1305,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1331,6 +1356,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1381,6 +1407,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1433,6 +1460,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.gpu_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1483,6 +1511,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1533,6 +1562,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1583,6 +1613,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1633,6 +1664,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1683,6 +1715,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1735,6 +1768,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.media_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1790,6 +1824,7 @@
           "--use-gpu-in-tests",
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.media_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1840,6 +1875,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1892,6 +1928,7 @@
         "args": [
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.mojo_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1942,6 +1979,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -1992,6 +2030,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2042,6 +2081,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2092,6 +2132,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2142,6 +2183,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2193,6 +2235,7 @@
       {
         "args": [
           "--test-launcher-filter-file=testing/buildbot/filters/ios.services_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2243,6 +2286,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2293,6 +2337,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2343,6 +2388,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2393,6 +2439,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2444,6 +2491,7 @@
       {
         "args": [
           "--test-launcher-filter-file=testing/buildbot/filters/ios.ui_base_unittests.filter",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2494,6 +2542,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2544,6 +2593,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2594,6 +2644,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2647,6 +2698,7 @@
           "--test-launcher-bot-mode",
           "--test-launcher-filter-file=testing/buildbot/filters/ios.viz_unittests.filter",
           "--use-gpu-in-tests",
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2697,6 +2749,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",
@@ -2747,6 +2800,7 @@
       },
       {
         "args": [
+          "--use-simulator-cache",
           "--platform",
           "iPhone 15",
           "--version",

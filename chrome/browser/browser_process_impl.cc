@@ -181,6 +181,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_pref_names.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/soda/soda_installer_impl_chromeos.h"
@@ -683,7 +684,7 @@ void BrowserProcessImpl::StartTearDown() {
   sessions::SessionIdGenerator::GetInstance()->Shutdown();
 
   // Resetting the status tray will result in calls to
-  // |g_browser_process->local_state()|. See crbug.com/1187418
+  // |g_browser_process->local_state()|. See crbug.com/40754301
   status_tray_.reset();
 
   local_state_->CommitPendingWrite();
@@ -852,7 +853,8 @@ void BrowserProcessImpl::EndSession() {
     // writing the updated prefs to disk, so schedule a Local State write now.
     //
     // Do not schedule a write on ChromeOS because writing to disk multiple
-    // times during shutdown was causing shutdown problems. See crbug/302578.
+    // times during shutdown was causing shutdown problems. See
+    // crbug.com/41062061.
     local_state_->CommitPendingWrite(base::OnceClosure(),
                                      rundown_counter->GetRundownClosure());
 #endif
@@ -1083,7 +1085,8 @@ bool BrowserProcessImpl::IsShuttingDown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // TODO (crbug.com/41222012): Fix the tests that make the check of
   // |tearing_down_| necessary here.
-  // TODO (crbug/1155597): Maybe use browser_shutdown::HasShutdownStarted here.
+  // TODO (crbug.com/40160014): Maybe use browser_shutdown::HasShutdownStarted
+  // here.
   return shutting_down_ || tearing_down_;
 }
 
@@ -1292,19 +1295,15 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(language::prefs::kApplicationLocale,
                                std::string());
 #if BUILDFLAG(IS_CHROMEOS)
-  registry->RegisterStringPref(prefs::kOwnerLocale, std::string());
-  registry->RegisterStringPref(prefs::kHardwareKeyboardLayout, std::string());
+  registry->RegisterStringPref(ash::prefs::kOwnerLocale, std::string());
+  registry->RegisterStringPref(ash::prefs::kHardwareKeyboardLayout,
+                               std::string());
   registry->RegisterBooleanPref(
       password_manager::prefs::kPinAuthenticationAvailableOnChromeOS, false);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                 GoogleUpdateSettings::GetCollectStatsConsent());
-  registry->RegisterIntegerPref(
-      metrics::prefs::kMetricsReportingLevel,
-      static_cast<int>(GoogleUpdateSettings::GetMetricsReportingLevel()));
-  registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingMigrationDone,
-                                false);
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingAllowed, true);
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingEnabled, false);
 

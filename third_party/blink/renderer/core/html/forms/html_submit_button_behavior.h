@@ -13,7 +13,6 @@
 namespace blink {
 
 class ExceptionState;
-class ExecutionContext;
 class HTMLFormElement;
 class LabelsNodeList;
 
@@ -24,7 +23,7 @@ class CORE_EXPORT HTMLSubmitButtonBehavior final : public ElementBehavior {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static HTMLSubmitButtonBehavior* Create(ExecutionContext*);
+  static HTMLSubmitButtonBehavior* Create();
 
   HTMLSubmitButtonBehavior();
   ~HTMLSubmitButtonBehavior() override;
@@ -70,6 +69,10 @@ class CORE_EXPORT HTMLSubmitButtonBehavior final : public ElementBehavior {
   void Trace(Visitor* visitor) const override;
 
  private:
+  // Returns the associated ElementInternals, or throws InvalidStateError
+  // and returns nullptr if the behavior is not attached to an element.
+  ElementInternals* GetInternalsOrThrow(ExceptionState& exception_state) const;
+
   bool disabled_ = false;
   String form_action_;
   String form_enctype_;

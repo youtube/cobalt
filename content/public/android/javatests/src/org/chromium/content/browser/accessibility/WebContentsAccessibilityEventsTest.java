@@ -459,6 +459,14 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
+    public void test_ariaInvalidStatusChanged() {
+        performTest(
+                "aria-invalid-status-changed.html",
+                "aria-invalid-status-changed-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaLevelChanged() {
         performTest("aria-level-changed.html", "aria-level-changed-expected-android.txt");
     }
@@ -1522,7 +1530,7 @@ public class WebContentsAccessibilityEventsTest {
         performTest(
                 "scoped-content-changed.html",
                 "scoped-content-changed-enabled-expected-android.txt",
-                false);
+                /* shouldFilterTrivialEvents= */ false);
     }
 
     @Test
@@ -1532,6 +1540,6 @@ public class WebContentsAccessibilityEventsTest {
         performTest(
                 "scoped-content-changed.html",
                 "scoped-content-changed-disabled-expected-android.txt",
-                false);
+                /* shouldFilterTrivialEvents= */ false);
     }
 }

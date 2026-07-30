@@ -22,8 +22,6 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.SigninManager;
-import org.chromium.chrome.browser.signin.services.SigninManager.DataWipeOption;
-import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -124,29 +122,27 @@ public class MissingDeviceLockLauncher {
 
         signinManager.runAfterOperationInProgress(
                 () -> {
-                    if (identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN) != null) {
+                    if (identityManager.getPrimaryAccountInfo() != null) {
                         signinManager.signOut(
                                 SignoutReason.DEVICE_LOCK_REMOVED_ON_AUTOMOTIVE,
-                                () -> {
-                                    if (!wipeAllData) {
-                                        deletePasswordsAndCreditCards();
-                                    }
-                                    wipeDataCallback.run();
-                                },
-                                wipeAllData);
+                                () -> wipeData(signinManager, wipeAllData, wipeDataCallback));
                     } else {
-                        if (wipeAllData) {
-                            signinManager.wipeSyncUserData(
-                                    wipeDataCallback, DataWipeOption.WIPE_ALL_PROFILE_DATA);
-                        } else {
-                            deletePasswordsAndCreditCards();
-                            wipeDataCallback.run();
-                        }
+                        wipeData(signinManager, wipeAllData, wipeDataCallback);
                     }
                     ChromeSharedPreferences.getInstance()
                             .writeBoolean(
                                     ChromePreferenceKeys.DEVICE_LOCK_SHOW_ALERT_IF_REMOVED, false);
                 });
+    }
+
+    private void wipeData(
+            SigninManager signinManager, boolean wipeAllData, Runnable wipeDataCallback) {
+        if (wipeAllData) {
+            signinManager.wipeSyncUserData(wipeDataCallback);
+        } else {
+            deletePasswordsAndCreditCards();
+            wipeDataCallback.run();
+        }
     }
 
     void setPasswordStoreBridgeForTesting(PasswordStoreBridge passwordStoreBridge) {

@@ -11,7 +11,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -115,11 +115,9 @@ class DefaultLinkCapturingInteractiveUiTest
   std::tuple<webapps::AppId, webapps::AppId> InstallOuterAppAndInnerApp() {
     // The inner app must be installed first so that it is installable.
     webapps::AppId inner_app_id =
-        web_app::InstallWebAppFromPageAndCloseAppBrowser(browser(),
-                                                         GetInnerNestedUrl());
+        web_app::InstallWebAppInNewTabAndClose(browser(), GetInnerNestedUrl());
     webapps::AppId outer_app_id =
-        web_app::InstallWebAppFromPageAndCloseAppBrowser(browser(),
-                                                         GetOuterUrl());
+        web_app::InstallWebAppInNewTabAndClose(browser(), GetOuterUrl());
     return {outer_app_id, inner_app_id};
   }
 
@@ -174,7 +172,7 @@ IN_PROC_BROWSER_TEST_P(DefaultLinkCapturingInteractiveUiTest, BubbleCancel) {
   EXPECT_EQ(1, user_action_tester.GetActionCount(
                    "IntentPickerViewClosedStayInChrome"));
   // Verify no new browsers have opened.
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 IN_PROC_BROWSER_TEST_P(DefaultLinkCapturingInteractiveUiTest, BubbleIgnored) {
@@ -188,7 +186,7 @@ IN_PROC_BROWSER_TEST_P(DefaultLinkCapturingInteractiveUiTest, BubbleIgnored) {
 
   EXPECT_EQ(1, user_action_tester.GetActionCount("IntentPickerViewIgnored"));
   // Verify no new browsers have opened.
-  EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+  EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
 }
 
 #if BUILDFLAG(IS_MAC)

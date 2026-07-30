@@ -25,6 +25,7 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -34,9 +35,11 @@
 #include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
+#include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/webui_split_tabs_control.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
@@ -47,6 +50,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/ukm/content/source_url_recorder.h"
+#include "components/user_education/common/user_education_class_properties.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/navigation_handle.h"
@@ -183,6 +187,7 @@ WebUIToolbarWebView::WebUIToolbarWebView(
       reload_control_(this),
       split_tabs_control_(this),
       home_control_(this),
+      avatar_control_(this, browser->GetBrowserForMigrationOnly()),
       location_bar_(std::move(location_bar)),
       back_control_(this, BackForwardButton::Direction::kBack),
       forward_control_(this, BackForwardButton::Direction::kForward),
@@ -229,6 +234,7 @@ WebUIToolbarWebView::WebUIToolbarWebView(
   }
   if (pre_created_contents) {
     is_preloaded_ = true;
+    SetInitializationState(InitializationState::kPending);
     // When preload is not enabled, the `WebUIToolbarUI` init is done in
     // `WebUIToolbarWebView::DidFinishNavigation()`. Here since the
     // `WebContents` is pre-created, it might finish navigation before we
@@ -293,6 +299,11 @@ void WebUIToolbarWebView::AddedToWidget() {
   // The reload_control_ will be initialized once the WebUI is ready.
 }
 
+void WebUIToolbarWebView::OnThemeChanged() {
+  views::View::OnThemeChanged();
+  avatar_control_.UpdateIcon();
+}
+
 gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   int button_count = 0;
@@ -301,9 +312,10 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
                   split_tabs_control_.IsVisible();
   button_count += features::IsWebUIBackForwardButtonEnabled();
   button_count += features::IsWebUIBackForwardButtonEnabled() &&
-                  forward_control_.GetVisible();
+                  forward_control_.IsPinned();
   button_count +=
-      features::IsWebUIHomeButtonEnabled() && home_control_.IsVisible();
+      features::IsWebUIHomeButtonEnabled() && home_control_.IsPinned();
+  button_count += features::IsWebUIAvatarButtonEnabled();
 
   const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
   int width = button_count * size;
@@ -360,6 +372,52 @@ void WebUIToolbarWebView::HandleContextMenu(
     case toolbar_ui_api::mojom::ContextMenuType::kHome:
       home_control_.HandleContextMenu(screen_rect, source);
       break;
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionNewIncognitoWindow:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionShowPasswordsBubbleOrPage:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionShowPaymentsBubbleOrPage:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionShowAddressesBubbleOrPage:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowBookmarks:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowReadingList:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowHistoryCluster:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionShowDownloads:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionClearBrowsingData:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionPrint:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowLensOverlayResults:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionShowTranslate:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionQrCodeGenerator:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionRouteMedia:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowReadAnything:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionCopyUrl:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionSendTabToSelf:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionTaskManager:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionDevTools:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionTabSearch:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowContextualTasks:
+    case toolbar_ui_api::mojom::ContextMenuType::kPinnedActionSidePanelShowLens:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowAboutThisSite:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowCustomizeChrome:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowShoppingInsights:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowMerchantTrust:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSendSharedTabGroupFeedback:
+    case toolbar_ui_api::mojom::ContextMenuType::
+        kPinnedActionSidePanelShowComments:
+      pinned_toolbar_actions_.HandleContextMenu(menu_type, screen_rect, source);
+      break;
     case toolbar_ui_api::mojom::ContextMenuType::kUnspecified:
       NOTREACHED() << "Unexpected ClickDispositionFlag::kUnspecified.";
   }
@@ -388,6 +446,10 @@ void WebUIToolbarWebView::OnPageInitialized() {
       !reload_control_.is_initialized()) {
     reload_control_.Init();
   }
+  if (features::IsWebUIAvatarButtonEnabled() &&
+      !avatar_control_.is_initialized()) {
+    avatar_control_.Initialize();
+  }
 
   InitialWebUIManager::From(browser_)->OnWebUIToolbarLoaded();
 }
@@ -397,8 +459,20 @@ void WebUIToolbarWebView::InvokePinnedToolbarAction(
   pinned_toolbar_actions_.Invoke(action_id);
 }
 
+void WebUIToolbarWebView::OnOmniboxAction(
+    toolbar_ui_api::mojom::OmniboxActionPtr action) {
+  if (location_bar_) {
+    location_bar_->OnOmniboxAction(std::move(action));
+  }
+}
+
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
   return &reload_control_;
+}
+
+AvatarToolbarButtonInterface*
+WebUIToolbarWebView::GetAvatarToolbarButtonInterface() {
+  return &avatar_control_;
 }
 
 browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*
@@ -472,7 +546,7 @@ void WebUIToolbarWebView::SetBackForwardEnabled(int command_id, bool enabled) {
 }
 
 void WebUIToolbarWebView::SetForwardVisible(bool visible) {
-  forward_control_.SetVisible(visible);
+  forward_control_.SetIsPinned(visible);
   PreferredSizeChanged();
 }
 
@@ -559,7 +633,9 @@ void WebUIToolbarWebView::SetInitializationState(
           {State::kPending, {State::kInitialized}},
           {State::kInitialized, {State::kPending}},
       }));
-  CHECK(transitions->IsTransitionValid(initialization_state_, new_state));
+  CHECK(transitions->IsTransitionValid(initialization_state_, new_state))
+      << "from " << static_cast<int>(initialization_state_) << " to "
+      << static_cast<int>(new_state);
   initialization_state_ = new_state;
 }
 
@@ -674,9 +750,10 @@ void WebUIToolbarWebView::OnLhsChipMousePressed(
 }
 
 void WebUIToolbarWebView::OnLhsChipClicked(
-    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier,
+    bool is_mouse_interaction) {
   if (location_bar_) {
-    location_bar_->OnLhsChipClicked(identifier);
+    location_bar_->OnLhsChipClicked(identifier, is_mouse_interaction);
   }
 }
 

@@ -163,7 +163,7 @@ void SearchEnginesHandler::OnJavascriptAllowed() {
       TemplateURLServiceFactory::GetForProfile(profile_);
   CHECK(template_url_service);
   scoped_url_service_observation_.Observe(template_url_service);
-  list_controller_.UpdateIdToTemplateURLMapping();
+  list_controller_.Refresh();
 }
 
 void SearchEnginesHandler::OnJavascriptDisallowed() {
@@ -204,6 +204,8 @@ base::DictValue SearchEnginesHandler::GetCategorizedTemplateUrls() {
 }
 
 base::DictValue SearchEnginesHandler::GetSearchEnginesList() {
+  CHECK(!base::FeatureList::IsEnabled(switches::kSearchSettingsUpdate));
+
   // Build the first list (default search engines).
   base::ListValue defaults;
   size_t last_default_engine_index =
@@ -232,7 +234,7 @@ base::DictValue SearchEnginesHandler::GetSearchEnginesList() {
   size_t last_other_engine_index =
       list_controller_.table_model()->last_other_engine_index();
 
-  // Sanity check for https://crbug.com/781703.
+  // Sanity check for https://crbug.com/40548229.
   CHECK_LE(last_active_engine_index, last_other_engine_index);
 
   for (size_t i = last_active_engine_index; i < last_other_engine_index; ++i) {
@@ -242,9 +244,9 @@ base::DictValue SearchEnginesHandler::GetSearchEnginesList() {
 
   // Build the third list (omnibox extensions).
   base::ListValue extensions;
-  size_t engine_count = list_controller_.table_model()->RowCount();
+  size_t engine_count = list_controller_.table_model()->engine_count();
 
-  // Sanity check for https://crbug.com/781703.
+  // Sanity check for https://crbug.com/40548229.
   CHECK_LE(last_other_engine_index, engine_count);
 
   for (size_t i = last_other_engine_index; i < engine_count; ++i) {
@@ -263,7 +265,7 @@ base::DictValue SearchEnginesHandler::GetSearchEnginesList() {
 void SearchEnginesHandler::OnTemplateURLServiceChanged() {
   AllowJavascript();
 
-  list_controller_.UpdateIdToTemplateURLMapping();
+  list_controller_.Refresh();
 
   FireWebUIListener(
       "search-engines-changed",

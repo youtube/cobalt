@@ -11,44 +11,59 @@ found in the LICENSE file.
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginTop="2dp"
+    android:layout_marginBottom="2dp"
     android:orientation="vertical"
-    android:background="?android:attr/selectableItemBackground"
-    android:paddingStart="@dimen/extensions_menu_horizontal_padding"
     android:paddingEnd="@dimen/extensions_menu_horizontal_padding"
-    android:clickable="true"
-    android:focusable="true"
     tools:ignore="UnusedResources" >
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="48dp" >
 
-        <ImageView
-            android:id="@+id/extensions_menu_item_icon"
-            style="@style/ListMenuItemIconStyle.Start"
-            android:layout_width="34dp"
-            android:layout_height="34dp"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/extensions_menu_item_primary_action"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="@dimen/extensions_menu_horizontal_padding"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            android:importantForAccessibility="no" />
+            app:layout_constraintEnd_toStartOf="@id/extensions_menu_item_toggle">
 
-        <TextView
-            android:id="@+id/extensions_menu_item_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="8dp"
-            app:layout_constraintEnd_toStartOf="@id/extensions_menu_item_toggle"
-            app:layout_constraintStart_toEndOf="@id/extensions_menu_item_icon"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintHorizontal_bias="0.0" />
+            <ImageView
+                android:id="@+id/extensions_menu_item_icon"
+                android:scaleType="fitCenter"
+                style="@style/ListMenuItemIconStyle.Start"
+                android:layout_width="@dimen/extensions_menu_extension_icon_size"
+                android:layout_height="@dimen/extensions_menu_extension_icon_size"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:importantForAccessibility="no" />
+
+            <TextView
+                android:id="@+id/extensions_menu_item_title"
+                android:textAppearance="@style/TextAppearance.TextMedium.Primary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/extensions_menu_item_icon"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHorizontal_bias="0.0" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <org.chromium.components.browser_ui.widget.MaterialSwitchWithText
             android:id="@+id/extensions_menu_item_toggle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_marginEnd="8dp"
             app:layout_constraintEnd_toStartOf="@id/extensions_menu_item_context_menu"
             app:layout_constraintTop_toTopOf="parent"
@@ -58,7 +73,7 @@ found in the LICENSE file.
             android:id="@+id/extensions_menu_item_context_menu"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_more_vert"
+            android:src="@drawable/extensions_menu_context_menu_icon_selector"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/extensions_menu_context_menu_tooltip"
             app:layout_constraintEnd_toEndOf="parent"
@@ -69,16 +84,45 @@ found in the LICENSE file.
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <TextView
-        android:id="@+id/extensions_menu_item_site_permissions_button"
+    <LinearLayout
+        android:id="@+id/extensions_menu_item_site_permissions_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="50dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
+        android:layout_marginStart="60dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
         android:background="?android:attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
-        android:textAppearance="@style/TextAppearance.TextSmall.Secondary" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/extensions_menu_item_site_permissions_enterprise_icon"
+            android:layout_width="@dimen/extensions_menu_site_permissions_icon_size"
+            android:layout_height="@dimen/extensions_menu_site_permissions_icon_size"
+            android:layout_marginEnd="8dp"
+            android:layout_marginTop="1dp"
+            android:src="@drawable/ic_domain"
+            app:tint="@macro/default_icon_color_secondary"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/extensions_menu_item_site_permissions_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.TextMedium.Secondary" />
+
+        <ImageView
+            android:id="@+id/extensions_menu_item_site_permissions_icon"
+            android:layout_width="@dimen/extensions_menu_site_permissions_icon_size"
+            android:layout_height="@dimen/extensions_menu_site_permissions_icon_size"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="1dp"
+            android:src="@drawable/outline_chevron_right_24dp"
+            app:tint="@macro/default_icon_color_secondary"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
 
 </LinearLayout>
+

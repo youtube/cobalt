@@ -18,7 +18,9 @@
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data.h"
+#include "components/autofill/core/common/signatures.h"
 #include "components/send_tab_to_self/page_context.h"
+#include "components/send_tab_to_self/test_matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -35,37 +37,14 @@ using autofill::FormStructure;
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::Not;
 using ::testing::SizeIs;
 using ::testing::Test;
 
-MATCHER_P4(MatchesFormField,
-           id_attribute,
-           name_attribute,
-           form_control_type,
-           value,
-           "") {
-  return testing::ExplainMatchResult(
-             testing::Field("id_attribute",
-                            &PageContext::FormField::id_attribute,
-                            id_attribute),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             testing::Field("name_attribute",
-                            &PageContext::FormField::name_attribute,
-                            name_attribute),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             testing::Field("form_control_type",
-                            &PageContext::FormField::form_control_type,
-                            form_control_type),
-             arg, result_listener) &&
-         testing::ExplainMatchResult(
-             testing::Field("value", &PageContext::FormField::value, value),
-             arg, result_listener);
-}
+
 
 class OutgoingTabFormFieldExtractorTest
     : public Test,
@@ -112,11 +91,12 @@ TEST_F(OutgoingTabFormFieldExtractorTest, ShouldExtractFields) {
   autofill::test_api(autofill_manager())
       .AddSeenFormStructure(std::move(form_structure));
 
-  EXPECT_THAT(ExtractOutgoingTabFormFields(autofill_manager(),
-                                           url::Origin::Create(kUrl))
-                  .fields,
-              ElementsAre(MatchesFormField(u"id1", _, _, u"value1"),
-                          MatchesFormField(u"id2", _, _, u"value2")));
+  EXPECT_THAT(
+      ExtractOutgoingTabFormFields(autofill_manager(),
+                                   url::Origin::Create(kUrl))
+          .fields,
+      ElementsAre(MatchesFormField(Eq(u"id1"), _, _, Eq(u"value1"), _),
+                  MatchesFormField(Eq(u"id2"), _, _, Eq(u"value2"), _)));
 }
 
 TEST_F(OutgoingTabFormFieldExtractorTest, ShouldFilterUninteractedFields) {
@@ -140,7 +120,7 @@ TEST_F(OutgoingTabFormFieldExtractorTest, ShouldFilterUninteractedFields) {
   EXPECT_THAT(ExtractOutgoingTabFormFields(autofill_manager(),
                                            url::Origin::Create(kUrl))
                   .fields,
-              ElementsAre(MatchesFormField(u"id1", _, _, _)));
+              ElementsAre(MatchesFormField(Eq(u"id1"), _, _, _, _)));
 }
 
 TEST_F(OutgoingTabFormFieldExtractorTest, ShouldFilterEmptyFields) {
@@ -238,7 +218,45 @@ TEST_F(OutgoingTabFormFieldExtractorTest,
   EXPECT_THAT(ExtractOutgoingTabFormFields(autofill_manager(),
                                            url::Origin::Create(kUrl))
                   .fields,
-              ElementsAre(MatchesFormField(u"id1", _, _, _)));
+              ElementsAre(MatchesFormField(Eq(u"id1"), _, _, _, _)));
+}
+
+TEST_F(OutgoingTabFormFieldExtractorTest, ShouldExtractSignatures) {
+  const GURL kUrl("https://www.example.com");
+  auto form_structure =
+      std::make_unique<FormStructure>(autofill::test::GetFormData(
+          {.fields = {{.id_attribute = u"id1",
+                       .value = u"value1",
+                       .origin = url::Origin::Create(kUrl)},
+                      {.id_attribute = u"id2",
+                       .value = u"value2",
+                       .origin = url::Origin::Create(kUrl)}},
+           .url = kUrl.spec()}));
+
+  form_structure->field(0)->AddFieldModifier(autofill::FieldModifier::kUser);
+  form_structure->field(1)->AddFieldModifier(autofill::FieldModifier::kUser);
+
+  // Hardcoded values are used to detect changes in Autofill's signature
+  // calculation algorithms, to know if the protocol potentially needs to be
+  // updated.
+  const autofill::FormSignature expected_form_signature(3892079296185715679ULL);
+  const autofill::FieldSignature expected_field_sig1(1318412689);
+  const autofill::FieldSignature expected_field_sig2(1318412689);
+
+  autofill::test_api(autofill_manager())
+      .AddSeenFormStructure(std::move(form_structure));
+
+  EXPECT_THAT(
+      ExtractOutgoingTabFormFields(autofill_manager(),
+                                   url::Origin::Create(kUrl))
+          .fields,
+      ElementsAre(
+          MatchesFormField(_, _, _, _,
+                           MatchesAutofillSignature(expected_form_signature,
+                                                    expected_field_sig1)),
+          MatchesFormField(_, _, _, _,
+                           MatchesAutofillSignature(expected_form_signature,
+                                                    expected_field_sig2))));
 }
 
 }  // namespace

@@ -5,15 +5,15 @@
 #import "ios/chrome/browser/signin/model/system_identity_util.h"
 
 #import "base/check.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_info.h"
 
 id<SystemIdentity> GetPrimarySystemIdentity(
-    signin::ConsentLevel consent_level,
     signin::IdentityManager* identity_manager,
     ChromeAccountManagerService* account_manager) {
   CHECK(identity_manager);
   CHECK(account_manager);
-  if (!identity_manager->HasPrimaryAccount(consent_level)) {
+  if (!identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
     return nil;
   }
 
@@ -21,7 +21,7 @@ id<SystemIdentity> GetPrimarySystemIdentity(
   // the CoreAccountInfo returned by GetPrimaryAccountInfo(...) should be
   // valid. This return should be a CHECK(...).
   const CoreAccountInfo account_info =
-      identity_manager->GetPrimaryAccountInfo(consent_level);
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   if (account_info.gaia.empty()) {
     return nil;
   }

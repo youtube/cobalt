@@ -85,10 +85,6 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/window/caption_button_layout_constants.h"
 
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-#include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
-#endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-
 DEFINE_UI_CLASS_PROPERTY_TYPE(BrowserFrameViewChromeOS*)
 
 namespace {
@@ -316,8 +312,7 @@ int BrowserFrameViewChromeOS::GetTopInset(bool restored) const {
     // but the inset is still calculated below, so the overview code can align
     // the window content with a fake header.
     if (!GetOverviewMode() || browser_widget()->IsFullscreen() ||
-        GetBrowserView()->GetTabStripVisible() ||
-        GetBrowserView()->webui_tab_strip()) {
+        GetBrowserView()->GetTabStripVisible()) {
       return 0;
     }
   }
@@ -743,7 +738,7 @@ void BrowserFrameViewChromeOS::OnWindowPropertyChanged(aura::Window* window,
 
     // The client view (in particular the tab strip) has different layout in
     // restored vs. maximized/fullscreen. Invalidate the layout because the
-    // window bounds may not have changed. https://crbug.com/1342414
+    // window bounds may not have changed. https://crbug.com/40230996
     if (browser_widget()->client_view()) {
       browser_widget()->client_view()->InvalidateLayout();
     }
@@ -752,7 +747,7 @@ void BrowserFrameViewChromeOS::OnWindowPropertyChanged(aura::Window* window,
   if (key == chromeos::kWindowStateTypeKey) {
     // Update window controls when window state changes as whether or not these
     // are shown can depend on the window state (e.g. hiding the caption buttons
-    // in non-immersive full screen mode, see crbug.com/1336470).
+    // in non-immersive full screen mode, see crbug.com/40228932).
     ResetWindowControls();
 
     // Update the window controls if we are entering or exiting float state.
@@ -808,7 +803,7 @@ void BrowserFrameViewChromeOS::OnImmersiveRevealStarted() {
   // However, BrowserFrameViewChromeOS is a sibling of TopContainerView
   // not a child. As a result, when the frame caption buttons are set to
   // paint_to_layer as a result of an ink drop effect, they will disappear.
-  // https://crbug.com/840242. To fix this, we'll make the caption buttons
+  // https://crbug.com/40575107. To fix this, we'll make the caption buttons
   // temporarily children of the TopContainerView while they're all painting to
   // their layers.
   auto* container = GetBrowserView()->top_container();
@@ -942,13 +937,8 @@ bool BrowserFrameViewChromeOS::GetShowCaptionButtonsWhenNotInOverview() const {
     return true;
   }
 
-  // Browsers in tablet mode still show their caption buttons in float state,
-  // even with the webUI tab strip.
-  if (display::Screen::Get()->InTabletMode()) {
-    return IsFloated();
-  }
-
-  return !UseWebUITabStrip();
+  // Browsers in tablet mode still show their caption buttons in float state.
+  return !display::Screen::Get()->InTabletMode() || IsFloated();
 }
 
 int BrowserFrameViewChromeOS::GetToolbarLeftInset() const {
@@ -979,14 +969,6 @@ bool BrowserFrameViewChromeOS::GetShouldPaint() const {
   if (IsFloated()) {
     return true;
   }
-
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-  // Normal windows that have a WebUI-based tab strip do not need a browser
-  // frame as no tab strip is drawn on top of the browser frame.
-  if (UseWebUITabStrip()) {
-    return false;
-  }
-#endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
   // We need to paint when the top-of-window views are revealed in immersive
   // fullscreen.
@@ -1053,7 +1035,7 @@ bool BrowserFrameViewChromeOS::GetShowProfileIndicatorIcon() const {
   }
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-  // TODO(http://crbug.com/1059514): This check shouldn't be necessary.  Provide
+  // TODO(http://crbug.com/40121645): This check shouldn't be necessary. Provide
   // an appropriate affordance for the profile icon with the webUI tabstrip and
   // remove this block.
   if (!GetBrowserView()->GetTabStripVisible()) {
@@ -1190,7 +1172,7 @@ void BrowserFrameViewChromeOS::MaybeAnimateThemeChanged() {
   // view so that repainting of the web contents (which is janky) is hidden from
   // user. Note that opacity is set just above `0.f` to pass a DCHECK that
   // exists in `aura::Window` that might otherwise be tripped when changing
-  // window visibility (see https://crbug.com/351553).
+  // window visibility (see https://crbug.com/41094269).
   layer->SetOpacity(std::nextafter(0.f, 1.f));
 
   // Cache a callback to invoke to animate the layer back in. Note that because
@@ -1241,12 +1223,6 @@ bool BrowserFrameViewChromeOS::IsFloated() const {
 bool BrowserFrameViewChromeOS::IsSnapped() const {
   return ash::WindowState::Get(browser_widget()->GetNativeWindow())
       ->IsSnapped();
-}
-
-bool BrowserFrameViewChromeOS::UseWebUITabStrip() const {
-  return WebUITabStripContainerView::UseTouchableTabStrip(
-             GetBrowserView()->browser()) &&
-         GetBrowserView()->GetSupportsTabStrip();
 }
 
 const aura::Window* BrowserFrameViewChromeOS::GetFrameWindow() const {

@@ -51,6 +51,16 @@ public class ExtensionsMenuBridge implements Destroyable {
         LifetimeAssert.destroy(mLifetimeAssert);
     }
 
+    /**
+     * Executes the extension action.
+     *
+     * @param extensionId The ID of the extension to execute.
+     */
+    public void executeAction(String extensionId) {
+        ExtensionsMenuBridgeJni.get()
+                .executeAction(mNativeExtensionsMenuDelegateAndroid, extensionId);
+    }
+
     /** Returns the icon for the given extension index from native. */
     public @Nullable Bitmap getActionIcon(int actionIndex) {
         return ExtensionsMenuBridgeJni.get()
@@ -209,6 +219,12 @@ public class ExtensionsMenuBridge implements Destroyable {
         mObserver.onActionUpdated(actionIndex);
     }
 
+    /** Callback from native indicating the list of pinned actions changed. */
+    @CalledByNative
+    public void onPinnedActionsChanged() {
+        mObserver.onPinnedActionsChanged();
+    }
+
     /**
      * Callback from native indicating that the menu data is ready. This will not be called if the
      * menu data is ready at the menu bridge initialization.
@@ -258,6 +274,9 @@ public class ExtensionsMenuBridge implements Destroyable {
         /** Called when an extension has been updated on actionIndex. */
         void onActionUpdated(int actionIndex);
 
+        /** Called when the pinned actions in the model are changed. */
+        void onPinnedActionsChanged();
+
         /** Called when the menu data is ready to be consumed. */
         void onReady();
 
@@ -297,7 +316,12 @@ public class ExtensionsMenuBridge implements Destroyable {
         /** Destroys the native ExtensionsMenuDelegateAndroid. */
         void destroy(long nativeExtensionsMenuDelegateAndroid);
 
-        // Returns the icon for an extension's action at actionIndex.
+        /** Executes the extension action. */
+        void executeAction(
+                long nativeExtensionsMenuDelegateAndroid,
+                @JniType("std::string") String extensionId);
+
+        /** Returns the icon for an extension's action at actionIndex. */
         @Nullable Bitmap getActionIcon(long nativeExtensionsMenuDelegateAndroid, int actionIndex);
 
         /** Returns the extension site permissions state from native. */

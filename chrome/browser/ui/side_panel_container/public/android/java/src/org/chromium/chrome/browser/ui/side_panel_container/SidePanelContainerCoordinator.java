@@ -4,9 +4,12 @@
 
 package org.chromium.chrome.browser.ui.side_panel_container;
 
+import android.graphics.Rect;
+
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelType;
 
 /** Coordinator of the side panel container UI. */
@@ -25,8 +28,11 @@ public interface SidePanelContainerCoordinator {
      *   <li>Allow {@link SidePanelContainerCoordinator} to listen for events,
      *   <li>etc.
      * </ul>
+     *
+     * @param sidePanelCoordinatorAndroid For communicating with the native {@code
+     *     SidePanelCoordinatorAndroid}, which manages states for all side panel features.
      */
-    void init();
+    void init(SidePanelCoordinatorAndroid sidePanelCoordinatorAndroid);
 
     /**
      * Populates {@link SidePanelContent} into this side panel container.
@@ -38,9 +44,14 @@ public interface SidePanelContainerCoordinator {
      *
      * @param content Wrapper object for the content to show in the side panel.
      * @param onAnimationFinishedCallback Callback to invoke after content is populated.
+     * @param startingBounds Optional bounds for the animation to start from.
+     * @param suppressAnimations Whether or not to suppress animations for this populate request.
      */
     void populateContent(
-            SidePanelContent content, Callback<@Nullable Void> onAnimationFinishedCallback);
+            SidePanelContent content,
+            Callback<@Nullable Void> onAnimationFinishedCallback,
+            @Nullable Rect startingBounds,
+            boolean suppressAnimations);
 
     /**
      * Removes {@link SidePanelContent} from this side panel container and closes the container.

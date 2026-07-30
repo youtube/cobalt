@@ -128,7 +128,7 @@ const base::FeatureParam<bool> kWebViewPrefetchFromRenderer{
     &kWebViewPrefetchNativeLibrary, "WebViewPrefetchFromRenderer", true};
 
 // This enables to start main resource prefetch request from off the main thread
-// for WebView Prefetch API. See crbug.com/452406598, crbug.com//452389538 for
+// for WebView Prefetch API. See crbug.com/452406598, crbug.com/452389538 for
 // more details.
 BASE_FEATURE(kWebViewPrefetchOffTheMainThread,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -205,7 +205,7 @@ BASE_FEATURE(kWebViewUseStartupTasksLogicP2, base::FEATURE_DISABLED_BY_DEFAULT);
 // Note:This also enables the same behaviour as WebViewUseStartupTasksLogic and
 // WebViewUseStartupTasksLogicP2, with minor additions.
 BASE_FEATURE(kWebViewStartupTasksYieldToNative,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This results in the metric logging being run on a separate thread and
 // blocking until the results are retrieved.
@@ -330,5 +330,11 @@ BASE_FEATURE(kPostChromiumStartupInWebViewConstructor,
 // When enabled, HttpServerProperties will be persisted to disk across
 // app restarts.
 BASE_FEATURE(kWebViewPersistHttpServerProperties,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, binds FrameSinkManager as a DirectReceiver, allowing IPCs
+// targeting that interface, and any other interfaces passed through it to
+// arrive without the intermediate I/O thread hop.
+BASE_FEATURE(kWebViewVizDirectCompositorThreadIpcFrameSinkManager,
              base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace android_webview::features

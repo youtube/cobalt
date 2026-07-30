@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
@@ -45,11 +46,13 @@
 #include "cc/trees/layer_tree_settings.h"
 #include "cc/trees/property_tree.h"
 #include "cc/trees/task_runner_provider.h"
+#include "cc/trees/tree_synchronizer.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
+#include "components/viz/service/layers/viz_layer_tree_host_impl.h"
 #include "ui/gfx/animation/keyframe/keyframed_animation_curve.h"
 
 namespace viz {
@@ -213,10 +216,10 @@ base::expected<void, std::string> CreateLayer(
       break;
     }
 
-    default:
-      // TODO(rockot): Support other layer types.
-      layer = cc::SolidColorLayerImpl::Create(&tree, id);
-      break;
+    case cc::mojom::LayerType::kHeadsUpDisplay:
+    case cc::mojom::LayerType::kPicture:
+    case cc::mojom::LayerType::kVideo:
+      return base::unexpected("Invalid LayerType for CreateLayer.");
   }
   return base::ok();
 }
@@ -985,8 +988,17 @@ base::expected<void, std::string> UpdateLayer(const mojom::Layer& wire,
             general.layer_extra->get_view_transition_content_layer_extra(),
             static_cast<cc::ViewTransitionContentLayerImpl&>(layer));
         break;
-      default:
-        // TODO(zmo): handle other types of LayerImpl.
+      case cc::mojom::LayerType::kHeadsUpDisplay:
+      case cc::mojom::LayerType::kPicture:
+      case cc::mojom::LayerType::kVideo:
+        return base::unexpected("Invalid LayerType for UpdateLayer.");
+      case cc::mojom::LayerType::kLayer:
+        RETURN_IF_FALSE(!general.layer_extra,
+                        "Unexpected layer_extra for LayerImpl");
+        break;
+      case cc::mojom::LayerType::kSolidColor:
+        RETURN_IF_FALSE(!general.layer_extra,
+                        "Unexpected layer_extra for SolidColorLayerImpl");
         break;
     }
   }
@@ -1001,53 +1013,33 @@ base::expected<void, std::string> CreateOrUpdateLayers(
     cc::LayerTreeImpl& layers) {
   TRACE_EVENT1("viz", "CreateOrUpdateLayers", "LayerCount", updates.size());
 
-  // First, apply all updates. This may create new layers or update existing
-  // ones.
+  // First add new layers to the tree
   for (auto& wire : updates) {
     cc::LayerImpl* layer = layers.LayerById(wire->id);
-    if (layer) {
-      RETURN_IF_ERROR(UpdateLayer(*wire, *layer));
-    } else {
+    if (!layer) {
       if (!layer_order) {
         // If there's a new layer, there must also be a new |layer_order|.
         return base::unexpected("Invalid layer ID");
       }
       std::unique_ptr<cc::LayerImpl> new_layer;
       RETURN_IF_ERROR(CreateLayer(host_impl, layers, *wire, new_layer));
-      cc::LayerImpl* layer_ptr = new_layer.get();
-      RETURN_IF_ERROR(UpdateLayer(*wire, *layer_ptr));
       layers.AddLayer(std::move(new_layer));
     }
   }
 
+  // Reorder layers if necessary; obsolete layers will be deleted.
   if (layer_order) {
-    cc::OwnedLayerImplList old_layers = layers.DetachLayers();
-    std::vector<std::pair<int, size_t>> layer_indices_vector;
-    layer_indices_vector.reserve(old_layers.size());
-    for (size_t i = 0; i < old_layers.size(); ++i) {
-      layer_indices_vector.emplace_back(old_layers[i]->id(), i);
-    }
+    RETURN_IF_ERROR(cc::TreeSynchronizer::SynchronizeLayerOrder(
+        layer_order.value(), layers));
+  }
 
-    // Layer ids should be unique here, so doing a std::sort and
-    // base::sorted_unique initializer is the most efficient, avoiding
-    // a std::stable_sort inside base::flat_map.
-    std::sort(layer_indices_vector.begin(), layer_indices_vector.end());
-    base::flat_map<int, size_t> layer_indices(base::sorted_unique,
-                                              std::move(layer_indices_vector));
-
-    layers.ReserveLayers(layer_order->size());
-    for (auto id : *layer_order) {
-      auto it = layer_indices.find(id);
-      if (it == layer_indices.end()) {
-        return base::unexpected("Invalid or duplicate layer ID");
-      }
-      size_t index = it->second;
-      auto& layer = old_layers[index];
-      if (!layer) {
-        return base::unexpected("Invalid or duplicate layer ID");
-      }
-      layers.AddLayer(std::move(layer));
+  // Apply layer updates
+  for (auto& wire : updates) {
+    cc::LayerImpl* layer = layers.LayerById(wire->id);
+    if (!layer) {
+      return base::unexpected("Layer ID not found after synchronization");
     }
+    RETURN_IF_ERROR(UpdateLayer(*wire, *layer));
   }
 
   return base::ok();
@@ -1587,7 +1579,7 @@ LayerContextImpl::LayerContextImpl(
       task_runner_provider_(cc::TaskRunnerProvider::CreateForDisplayTree(
           base::SingleThreadTaskRunner::GetCurrentDefault())),
       rendering_stats_(cc::RenderingStatsInstrumentation::Create()),
-      host_impl_(cc::LayerTreeHostImpl::Create(
+      host_impl_(VizLayerTreeHostImpl::Create(
           GetDisplayTreeSettings(std::move(settings)),
           this,
           task_runner_provider_.get(),
@@ -1866,6 +1858,15 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   TRACE_EVENT0("viz", "LayerContextImpl::DoUpdateDisplayTree");
   cc::LayerTreeImpl& layers = *host_impl_->active_tree();
   cc::PropertyTrees& property_trees = *layers.property_trees();
+
+  // Any update to the display tree requires a new draw properties update if
+  // validation fails and returns early, because we may have already mutated
+  // some state (like taking render surfaces or resizing trees).
+  base::ScopedClosureRunner cleanup(base::BindOnce(
+      [](cc::LayerTreeImpl* layers) {
+        layers->set_needs_update_draw_properties();
+      },
+      &layers));
 
   std::vector<std::unique_ptr<cc::RenderSurfaceImpl>> old_render_surfaces;
   property_trees.effect_tree_mutable().TakeRenderSurfaces(&old_render_surfaces);
@@ -2208,6 +2209,7 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   // updates. As this is a transient property, we should set but not clear it.
   if (update->full_tree_damaged) {
     property_trees.set_full_tree_damaged(true);
+    layers.set_needs_update_draw_properties();
   }
 
   // Safe down-cast: AnimationHost is the only subclass of MutatorHost.
@@ -2220,10 +2222,11 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   // flagging draw properties as needing an update when no relevant properties
   // have changed.
   if (any_tree_changed || scroll_properties_changed ||
-      transform_layer_properties_changed) {
+      transform_layer_properties_changed || update->full_tree_damaged) {
     layers.MoveChangeTrackingToLayers();
   }
 
+  cleanup.ReplaceClosure(base::DoNothing());
   return base::ok();
 }
 

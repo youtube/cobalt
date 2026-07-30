@@ -228,9 +228,35 @@ std::string GetThreatTypeStringForInterstitial(
     case SB_THREAT_TYPE_ENTERPRISE_PASSWORD_REUSE:
     case SB_THREAT_TYPE_APK_DOWNLOAD:
     case SB_THREAT_TYPE_HIGH_CONFIDENCE_ALLOWLIST:
+    case SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST:
       NOTREACHED();
   }
   return {};
+}
+
+// Information on ClientSideDetectionType bucket allocation can be found at
+// go/crca-csd-trigger-priority.
+int GetClientSideDetectionTypeTier(ClientSideDetectionType type) {
+  switch (type) {
+    case ClientSideDetectionType::NOTIFICATION_PERMISSION_PROMPT:
+      return 0;
+    case ClientSideDetectionType::FORCE_REQUEST:
+    case ClientSideDetectionType::KEYBOARD_LOCK_REQUESTED:
+    case ClientSideDetectionType::USER_REPORT:
+      return 1;
+    case ClientSideDetectionType::VIBRATION_API:
+    case ClientSideDetectionType::CLIPBOARD_COPY_API:
+    case ClientSideDetectionType::CREDIT_CARD_FORM:
+    case ClientSideDetectionType::UNFAMILIAR_LOGIN_PAGE:
+      return 2;
+    case ClientSideDetectionType::TRIGGER_MODELS:
+    case ClientSideDetectionType::IMAGE_EMBEDDING_MATCH:
+      return 3;
+    case ClientSideDetectionType::CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED:
+    case ClientSideDetectionType::POINTER_LOCK_REQUESTED:
+    case ClientSideDetectionType::FULLSCREEN_API:
+      NOTREACHED();
+  }
 }
 
 }  // namespace safe_browsing

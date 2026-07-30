@@ -701,6 +701,7 @@
 <translation id="1471034383866732283">Не удается найти основной контент на этой странице для открытия в режиме чтения.</translation>
 <translation id="1472675084647422956">Показать больше</translation>
 <translation id="1473223074251193484">Настроить режим модема</translation>
+<translation id="1473616112002966036">&amp;Кадр видео</translation>
 <translation id="1473927070149284123">Попробуйте ещё раз или подключитесь к сети вручную.</translation>
 <translation id="1474785664565228650">Изменено разрешение на доступ к микрофону. Чтобы продолжить, перезапустите Parallels Desktop.</translation>
 <translation id="1476088332184200792">Копировать на мое устройство</translation>
@@ -834,6 +835,7 @@
 <translation id="1567579616025300478">Этому сайту запрещено сохранять данные на вашем устройстве</translation>
 <translation id="156793199942386351">Клавиша "<ph name="CURRENTKEY" />" уже используется для действия "<ph name="ACTION" />". Нажмите любую клавишу, чтобы <ph name="RESPONSE" />.</translation>
 <translation id="1567993339577891801">Консоль JavaScript</translation>
+<translation id="157005186601751931">Открыть вкладку в приложении</translation>
 <translation id="1570604804919108255">Включить звук уведомлений</translation>
 <translation id="1570990174567554976">Папка с закладками "<ph name="BOOKMARK_TITLE" />" создана.</translation>
 <translation id="1571041387761170095">Нет простых или повторяющихся паролей</translation>
@@ -1114,7 +1116,6 @@
 <translation id="1756963401828337401">Выберите экран, снимок которого сделать</translation>
 <translation id="1757132445735080748">Чтобы завершить настройку Linux, обновите Chrome OS Flex и повторите попытку.</translation>
 <translation id="175772926354468439">Включить тему</translation>
-<translation id="1757786065507923842">Не удалось запросить разрешение родителя.</translation>
 <translation id="17584710573359123">Перейти в Интернет-магазин Chrome</translation>
 <translation id="1761402971842586829">Кнопка "<ph name="BUTTON_NAME" />" переназначена для действия "<ph name="REMAPPING_OPTION" />".</translation>
 <translation id="1761845175367251960"><ph name="NAME" /> – аккаунты</translation>
@@ -1757,7 +1758,6 @@
 <translation id="219283042927675668">Вкладки в группе</translation>
 <translation id="2192881772486983655">Вашей страницей быстрого доступа управляет сервис "<ph name="THIRD_PARTY_NTP_MANAGER" />". Ссылка откроется в новой вкладке.</translation>
 <translation id="2192982266585216032">&amp;Платежные данные</translation>
-<translation id="2193567467390483943">Родитель не одобрил это расширение.</translation>
 <translation id="2194856509914051091">Важная информация</translation>
 <translation id="2195331105963583686">После этого срока вы по-прежнему сможете пользоваться устройством <ph name="DEVICE_TYPE" />, но оно больше не будет получать обновления ПО и безопасности.</translation>
 <translation id="2198625180564913276">Профиль добавляется. Это может занять несколько минут.</translation>
@@ -1843,6 +1843,7 @@
 <translation id="2253927598983295051">Выберите, чем поделиться с <ph name="APP_NAME" /></translation>
 <translation id="2255077166240162850">Устройство уже заблокировано в другом домене или режиме.</translation>
 <translation id="2255317897038918278">Штамп времени Microsoft</translation>
+<translation id="2256049182613019001">Закрыть режим чтения (<ph name="SHORTCUT" />)</translation>
 <translation id="2256115617011615191">Перезапустить</translation>
 <translation id="2257053455312861282">Чтобы упростить доступ к используемым в учебе сайтам, приложениям и расширениям, можно добавить учебный аккаунт. Родительский контроль будет по-прежнему включен.</translation>
 <translation id="225716114209817872">Максимальное</translation>
@@ -3026,6 +3027,7 @@
 <translation id="3038628620670416486">Переназначьте кнопки мыши</translation>
 <translation id="3039491566278747710">Не удалось применить к устройству политику работы в офлайн-режиме.</translation>
 <translation id="303955801043931176">Вкладка закрыта</translation>
+<translation id="3040435070100611531">Ваши карты и билеты в Google Кошельке</translation>
 <translation id="304169924727249890">Присоединитесь к группе, в которой состоит <ph name="OWNER_FIRST_NAME" /></translation>
 <translation id="3042097545107738107">Изменить режим оптимизированной зарядки.</translation>
 <translation id="3043016484125065343">Чтобы получить доступ к закладкам, войдите в Chrome</translation>
@@ -3444,7 +3446,6 @@
 <translation id="3362651095484543782">Используйте быстрые клавиши, чтобы закрыть или снова открыть интерфейс Gemini.</translation>
 <translation id="3362915550009543917">Луг в желтых тонах. Картина маслом, вызывающая чувство покоя и задумчивое настроение.</translation>
 <translation id="3363202073972776113">Новым профилем будет управлять ваша организация. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
-<translation id="3364986687961713424">Сообщение от администратора: "<ph name="ADMIN_MESSAGE" />"</translation>
 <translation id="3365598184818502391">Необходимо использовать Ctrl или Alt</translation>
 <translation id="3365651640097487828">Чтобы взаимодействовать с другими пользователями и делиться с ними вкладками, подтвердите личность и включите синхронизацию истории и вкладок.</translation>
 <translation id="3368662179834713970">Дом</translation>
@@ -3749,6 +3750,7 @@
 <translation id="3572031449439748861">Расширения (<ph name="NUM_EXTENSIONS" />) отключены</translation>
 <translation id="3575121482199441727">Разрешить для этого сайта</translation>
 <translation id="3575224072358507281">Сбор IP-адреса и результатов оценки сети для Measurement Lab в соответствии с политикой конфиденциальности этой платформы (measurementlab.net/privacy)</translation>
+<translation id="3576324189521867626">Установлено</translation>
 <translation id="3577036603268648505">Защити себя в интернете</translation>
 <translation id="3577473026931028326">Произошла ошибка. Повторите попытку.</translation>
 <translation id="3577487026101678864">Синхронизация файлов включена</translation>
@@ -4234,6 +4236,7 @@
 <translation id="3874532133373654352">Ваша организация определяет, как могут использоваться данные, собранные при работе с этими функциями. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="3874845889165401548">Это экспериментальная функция, использующая искусственный интеллект.</translation>
 <translation id="3875511946736639169">Показывать изображения</translation>
+<translation id="3875777964669698078">Преобразование речи в текст…</translation>
 <translation id="3875815154304214043">Приложение "<ph name="APP_NAME" />" и поддерживаемые ссылки будут открываться в новой вкладке браузера. <ph name="BEGIN_LINK_LEARN_MORE" />Подробнее…<ph name="END_LINK_LEARN_MORE" /></translation>
 <translation id="3876219572815410515">Границы окон перемещены вверх</translation>
 <translation id="3877075909000773256">Настройки функции "Обмен с окружением" для устройства пользователя <ph name="USER_NAME" /> с аккаунтом <ph name="USER_EMAIL" />.</translation>
@@ -4705,6 +4708,7 @@
 <translation id="4223404254440398437">Доступ к микрофону запрещен</translation>
 <translation id="4224541845943007092">Чтение и сохранение текста из адресной строки, который вы вводите с клавиатуры</translation>
 <translation id="4225397296022057997">На всех сайтах</translation>
+<translation id="4225895483398857530">Кнопка на панели инструментов</translation>
 <translation id="4226303886821889519">Версия обновления: <ph name="VERSION" /></translation>
 <translation id="4228071595943929139">Использовать адрес электронной почты организации</translation>
 <translation id="4228209296591583948">{NUM_EXTENSIONS,plural, =1{Это расширение запрещено}one{Некоторые расширения запрещены}few{Некоторые расширения запрещены}many{Некоторые расширения запрещены}other{Некоторые расширения запрещены}}</translation>
@@ -4723,6 +4727,7 @@
 <translation id="4241224519481557898">Часть речи</translation>
 <translation id="4242145785130247982">Использование нескольких сертификатов клиента не поддерживается.</translation>
 <translation id="4242245038391716252">Скачано с помощью расширения &lt;a href="<ph name="URL" />"&gt;<ph name="EXTENSION" />&lt;/a&gt;</translation>
+<translation id="4242344119782070019">Теперь вы можете разворачивать вкладки, наводя на них указатель мыши. Чтобы включить эту функцию, нажмите здесь правой кнопкой мыши.</translation>
 <translation id="4242533952199664413">Открыть настройки</translation>
 <translation id="4242577469625748426">Не удалось применить к устройству настройки политики: <ph name="VALIDATION_ERROR" />.</translation>
 <translation id="4242825475818569385">Вашим <ph name="BEGIN_LINK" />браузером и профилем управляет<ph name="END_LINK" /> <ph name="DOMAIN" />.</translation>
@@ -5436,6 +5441,7 @@
 <translation id="4739639199548674512">Билеты</translation>
 <translation id="4740546261986864539">Было открыто недавно</translation>
 <translation id="4742334355511750246">Запретить сайтам показывать изображения</translation>
+<translation id="4742599569576370821">&amp;Кадр видео</translation>
 <translation id="4742795653798179840">Данные из Chrome удалены</translation>
 <translation id="4742970037960872810">Снять выделение</translation>
 <translation id="4743990041512863976">Разрешено (<ph name="PERMISSION_DETAILS" />). Предоставьте <ph name="LINK_BEGIN" />доступ к микрофону на уровне системы<ph name="LINK_END" />.</translation>
@@ -6104,6 +6110,7 @@
 <translation id="5204967432542742771">Введите пароль</translation>
 <translation id="5205484256512407285">Не использовать для передачи данных мобильный Интернет</translation>
 <translation id="520568280985468584">Сеть добавлена. Она станет активна в течение нескольких минут.</translation>
+<translation id="5207395053540207113">Разрешить Поиску использовать файлы на Диске?</translation>
 <translation id="5207949376430453814">Выделять курсор при вводе текста</translation>
 <translation id="520840839826327499"><ph name="SERVICE_NAME" /> запрашивает информацию об устройстве Chrome OS.</translation>
 <translation id="5208926629108082192">Информация о мобильной сети устройства</translation>
@@ -6326,6 +6333,7 @@
 <translation id="5372990315769030589">Сохранить расширение "<ph name="EXTENSION_NAME" />"?</translation>
 <translation id="5375318608039113175">Чтобы с помощью функции "Обмен с окружением" отправлять пользователям контент и принимать от них файлы или ссылки, добавьте в контакты адреса электронной почты, связанные с аккаунтами Google нужных пользователей.</translation>
 <translation id="5375374982898812658">Группа вкладок "<ph name="GROUP_NAME" />" сразу станет недоступна вам и будет удалена со всех ваших устройств.</translation>
+<translation id="5375517140689139594">Режим чтения (<ph name="READING_MODE_SHORTCUT" />)</translation>
 <translation id="5375577102295339548">Сайты могут предоставлять данные о том, что вы реальный пользователь</translation>
 <translation id="5376094717770783089">Запрашивают доступ</translation>
 <translation id="5376169624176189338">Нажмите, чтобы вернуться. Удерживайте, чтобы просмотреть историю.</translation>
@@ -6403,6 +6411,7 @@
 <translation id="5423753908060469325">Создать &amp;ярлык</translation>
 <translation id="5423829801105537712">Базовая проверка правописания</translation>
 <translation id="5425042808445046667">Продолжить скачивание</translation>
+<translation id="542570217857307910">Теперь вы можете разворачивать вкладки, наводя на них указатель мыши. Чтобы отключить эту функцию, нажмите здесь правой кнопкой мыши.</translation>
 <translation id="5425863515030416387">Быстрый вход на всех устройствах</translation>
 <translation id="5427278936122846523">Всегда переводить</translation>
 <translation id="5427459444770871191">Повернуть &amp;по часовой стрелке</translation>
@@ -6593,6 +6602,7 @@
 <translation id="5555639311269196631">Отключить точку доступа</translation>
 <translation id="5555760010546505198">Настройки дисплея, лупы, инверсии и коррекции цвета</translation>
 <translation id="555604722231274592">Включить функцию "<ph name="FEATURE_NAME" />"</translation>
+<translation id="5556191579768914260">Показать сведения об ошибке</translation>
 <translation id="5556459405103347317">Перезагрузить</translation>
 <translation id="555671485580955310">Синхронизировать историю и вкладки</translation>
 <translation id="5558129378926964177">&amp;Увеличить</translation>
@@ -6974,7 +6984,6 @@
 <translation id="583673505367439042">Разрешить сайтам отправлять запрос на редактирование файлов или папок на устройстве</translation>
 <translation id="5836999627049108525">Исходный язык</translation>
 <translation id="583756221537636748">Чехол</translation>
-<translation id="5839104899226944765">Закрыть режим чтения</translation>
 <translation id="5840656138956959276">Улучшенная защита: строгая</translation>
 <translation id="5840680448799937675">Всегда передавать файлы в офлайн-режиме</translation>
 <translation id="5841270259333717135">Настроить Ethernet</translation>
@@ -8135,6 +8144,7 @@
 <translation id="6657180931610302174">Добавить имя пользователя?</translation>
 <translation id="6657240842932274095">Разрешить системным службам доступ к данным о местоположении?</translation>
 <translation id="6657585470893396449">Пароль</translation>
+<translation id="6658957691413122395">Изменение размера Gemini…</translation>
 <translation id="6659213950629089752">Масштаб этой страницы изменен расширением "<ph name="NAME" />"</translation>
 <translation id="6659594942844771486">Tab</translation>
 <translation id="6660099350750552197"><ph name="WINDOW_TITLE" />, включена запись с камеры</translation>
@@ -9015,6 +9025,7 @@
 <translation id="727595954130325265">Купить</translation>
 <translation id="7277275452721470458">Действия в режиме ИИ</translation>
 <translation id="727952162645687754">Не удалось скачать</translation>
+<translation id="7280265656690268844">Оптимизация JavaScript отключена</translation>
 <translation id="7280649757394340890">Настройки синтеза речи</translation>
 <translation id="7280683802406059877">Настройка быстрых клавиш</translation>
 <translation id="7280877790564589615">Требуется разрешение</translation>
@@ -9539,7 +9550,6 @@
 <translation id="764178579712141045">Пользователь <ph name="USER_EMAIL" /> добавлен</translation>
 <translation id="7642778300616172920">Скрыть конфиденциальные данные</translation>
 <translation id="7643117827468520640">Прочитайте условия</translation>
-<translation id="7644953783774050577">Отменить выбор</translation>
 <translation id="7645176681409127223"><ph name="USER_NAME" /> (владелец)</translation>
 <translation id="7645681574855902035">Отмена резервного копирования контейнера Linux…</translation>
 <translation id="7646425900255826066">Чтобы сохранять пароли в Google Менеджере паролей, войдите в Chrome</translation>
@@ -10132,7 +10142,6 @@
 <translation id="8032569120109842252">Вы подписаны</translation>
 <translation id="8033827949643255796">Выделено.</translation>
 <translation id="8033958968890501070">Время истекло</translation>
-<translation id="8034399942062051455">Оптимизация V8 отключена</translation>
 <translation id="8034697324150621782">Поменять местами с верхним окном</translation>
 <translation id="8035059678007243127">Страница возвратного кеша в режиме инкогнито: <ph name="BACK_FORWARD_CACHE_INCOGNITO_PAGE_URL" /></translation>
 <translation id="8036143516314698610">Показывать кнопку сохраненных групп вкладок</translation>
@@ -11355,6 +11364,7 @@
 <translation id="8866424952450451412">Управляйте рабочими процессами, созданными с помощью</translation>
 <translation id="8867102760244540173">Поиск по вкладкам…</translation>
 <translation id="8867228703146808825">Скопировать данные о сборке в буфер обмена</translation>
+<translation id="8867568208303837180">Отправка...</translation>
 <translation id="8868333925931032127">Запуск демонстрационного режима</translation>
 <translation id="8868626022555786497">Занято</translation>
 <translation id="8868838761037459823">Сведения о мобильной сети</translation>
@@ -11784,7 +11794,6 @@
 <translation id="914031120300235526">Не удается разблокировать профиль</translation>
 <translation id="9143298529634201539">Удалить подсказку?</translation>
 <translation id="9143922477019434797">Защитите свои пароли</translation>
-<translation id="914621365454686586">Разрешить Поиску использовать файлы на Диске?</translation>
 <translation id="9147392381910171771">&amp;Параметры</translation>
 <translation id="9148058034647219655">Выйти</translation>
 <translation id="9148126808321036104">Войти снова</translation>

@@ -43,23 +43,41 @@ public class IdentityMutator {
     /**
      * Marks the account with |accountId| as the primary account, and returns whether the operation
      * succeeded or not. To succeed, this requires that:
-     *   - the account is known by the IdentityManager.
-     *   - setting the primary account is allowed,
-     *   - the account username is allowed by policy,
-     *   - there is not already a primary account set.
+     *
+     * <ul>
+     *   <li>the account is known by the IdentityManager.
+     *   <li>setting the primary account is allowed,
+     *   <li>the account username is allowed by policy,
+     *   <li>there is not already a primary account set.
+     * </ul>
      */
     public @PrimaryAccountError int setPrimaryAccount(
             CoreAccountId accountId,
-            @ConsentLevel int consentLevel,
             @SigninAccessPoint int accessPoint,
             Runnable prefsSavedCallback) {
         return IdentityMutatorJni.get()
                 .setPrimaryAccount(
-                        mNativeIdentityMutator,
-                        accountId,
-                        consentLevel,
-                        accessPoint,
-                        prefsSavedCallback);
+                        mNativeIdentityMutator, accountId, accessPoint, prefsSavedCallback);
+    }
+
+    /**
+     * Marks the account with |accountId| as the primary account with sync consent, and returns
+     * whether the operation succeeded or not. To succeed, this requires that:
+     *
+     * <ul>
+     *   <li>the account is known by the IdentityManager.
+     *   <li>setting the primary account is allowed,
+     *   <li>the account username is allowed by policy,
+     *   <li>there is not already a primary account set.
+     * </ul>
+     */
+    public @PrimaryAccountError int setPrimaryAccountWithSyncConsentForTesting(
+            CoreAccountId accountId,
+            @SigninAccessPoint int accessPoint,
+            Runnable prefsSavedCallback) {
+        return IdentityMutatorJni.get()
+                .setPrimaryAccountWithSyncConsentForTesting(
+                        mNativeIdentityMutator, accountId, accessPoint, prefsSavedCallback);
     }
 
     // Removes the primary account and revokes the sync consent, but keep the
@@ -68,11 +86,6 @@ public class IdentityMutator {
     public boolean removePrimaryAccountButKeepTokens(@SignoutReason int sourceMetric) {
         return IdentityMutatorJni.get()
                 .removePrimaryAccountButKeepTokens(mNativeIdentityMutator, sourceMetric);
-    }
-
-    /** Revokes sync consent for the primary account. */
-    public void revokeSyncConsent(@SignoutReason int sourceMetric) {
-        IdentityMutatorJni.get().revokeSyncConsent(mNativeIdentityMutator, sourceMetric);
     }
 
     /**
@@ -94,14 +107,18 @@ public class IdentityMutator {
         int setPrimaryAccount(
                 long nativeJniIdentityMutator,
                 @JniType("CoreAccountId") CoreAccountId accountId,
-                @ConsentLevel int consentLevel,
+                @SigninAccessPoint int accessPoint,
+                @JniType("base::OnceClosure") Runnable prefsSavedCallback);
+
+        @PrimaryAccountError
+        int setPrimaryAccountWithSyncConsentForTesting(
+                long nativeJniIdentityMutator,
+                @JniType("CoreAccountId") CoreAccountId accountId,
                 @SigninAccessPoint int accessPoint,
                 @JniType("base::OnceClosure") Runnable prefsSavedCallback);
 
         boolean removePrimaryAccountButKeepTokens(
                 long nativeJniIdentityMutator, @SignoutReason int sourceMetric);
-
-        void revokeSyncConsent(long nativeJniIdentityMutator, @SignoutReason int sourceMetric);
 
         void seedAccountsThenReloadAllAccountsWithPrimaryAccount(
                 long nativeJniIdentityMutator,

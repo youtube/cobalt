@@ -24,6 +24,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/actor/core/actor_features.h"
+#include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
@@ -277,12 +278,28 @@ void PageTool::Validate(ToolCallback callback) {
 
   const EnterprisePolicyChecker& checker =
       tool_delegate().GetEnterprisePolicyChecker();
+
+  std::unique_ptr<AggregatedJournal::PendingAsyncEntry> trace_entry =
+      journal().CreatePendingAsyncEntry(JournalURL(), task_id(),
+                                        journal().AllocateDynamicTrackUUID(),
+                                        "ContentAnalysisScan", {});
+
   checker.ValidateContentSentToRenderer(
       frame, text,
       base::BindOnce(
           [](base::WeakPtr<PageTool> self, ToolCallback callback,
              mojom::ToolInvocationPtr invocation, bool validation_supported,
+             std::unique_ptr<AggregatedJournal::PendingAsyncEntry> trace_entry,
              EnterprisePolicyChecker::ContentValidationReason reason) {
+            trace_entry->EndEntry(
+                JournalDetailsBuilder()
+                    .Add("result", reason ==
+                                           EnterprisePolicyChecker::
+                                               ContentValidationReason::kAllowed
+                                       ? "Allowed"
+                                       : "Blocked")
+                    .Build());
+            trace_entry.reset();
             if (!self) {
               return;
             }
@@ -294,6 +311,9 @@ void PageTool::Validate(ToolCallback callback) {
                   MakeResult(mojom::ActionResultCode::kFrameWentAway));
               return;
             }
+
+            // TODO(crbug.com/473047343): Add specific handling for kWarned
+            // verdicts when the policy checker starts returning them.
             if (reason ==
                 EnterprisePolicyChecker::ContentValidationReason::kBlocked) {
               std::move(callback).Run(
@@ -311,7 +331,7 @@ void PageTool::Validate(ToolCallback callback) {
             }
           },
           weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-          std::move(invocation), validation_supported));
+          std::move(invocation), validation_supported, std::move(trace_entry)));
 }
 
 void PageTool::OnInitializeToolComplete(ToolCallback callback,

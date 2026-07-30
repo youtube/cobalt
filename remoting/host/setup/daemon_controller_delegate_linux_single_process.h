@@ -24,6 +24,9 @@ class DaemonControllerDelegateLinuxSingleProcess
 
   ~DaemonControllerDelegateLinuxSingleProcess() override;
 
+  // Returns the path to the host configuration file.
+  static base::FilePath GetConfigPath();
+
   // DaemonController::Delegate interface.
   DaemonController::State GetState() override;
   std::optional<base::DictValue> GetConfig() override;
@@ -36,6 +39,7 @@ class DaemonControllerDelegateLinuxSingleProcess
   void Stop(DaemonController::CompletionCallback done) override;
   DaemonController::UsageStatsConsent GetUsageStatsConsent() override;
   bool is_privileged() const override;
+  bool is_multi_process() const override;
 
   // If |start_host| is true (the default), then SetConfigAndStart includes
   // the final step of starting the host (this step requires root, and hence

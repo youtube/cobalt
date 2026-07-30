@@ -83,6 +83,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
 
   static override get properties() {
     return {
+      inNlm: {
+        type: Boolean,
+        reflect: true,
+      },
       enableNativeZeroStateSuggestions: {type: Boolean},
       isZeroState: {
         type: Boolean,
@@ -135,10 +139,12 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       lensButtonDisabled_: {type: Boolean},
       isCanvasQuerySubmitted: {type: Boolean},
       caretAnimationsEnabled_: {type: Boolean},
+      energyEffectEnabled_: {type: Boolean, reflect: true},
     };
   }
 
   accessor enableNativeZeroStateSuggestions: boolean = false;
+  accessor inNlm: boolean = false;
   accessor isZeroState: boolean = false;
   accessor isSidePanel: boolean = false;
   accessor isLensOverlayShowing: boolean = false;
@@ -187,6 +193,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   private forceSkipSubmitGlifAnimation_: boolean = false;
   protected accessor caretAnimationsEnabled_: boolean =
       loadTimeData.getBoolean('caretAnimationEnabled');
+  protected accessor energyEffectEnabled_: boolean =
+      loadTimeData.getBoolean('energyEffectEnabled');
 
   constructor() {
     super();
@@ -206,6 +214,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
             }));
     const composebox = this.$.composebox;
     if (composebox) {
+      // Do not play the glow animation if opening on a thread.
+      if (!this.isZeroState) {
+        composebox.animationState = GlowAnimationState.NONE;
+      }
       this.eventTracker_.add(composebox, 'composebox-focus-in', () => {
         this.isComposeboxFocused_ = true;
       });
@@ -337,7 +349,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   }
 
   protected shouldShowSuggestions_() {
-    return this.isZeroState;
+    return this.isZeroState && !this.inNlm;
   }
 
   protected isDropdownNeeded_() {

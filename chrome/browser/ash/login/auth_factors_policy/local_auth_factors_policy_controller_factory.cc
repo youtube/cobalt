@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/login/auth_factors_policy/local_auth_factors_policy_controller_factory.h"
 
 #include "chrome/browser/ash/login/auth_factors_policy/local_auth_factors_policy_controller.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
@@ -59,9 +60,15 @@ LocalAuthFactorsPolicyControllerFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
 
+  if (!ash::UserDataAuthClient::Get()) {
+    LOG(WARNING)
+        << "UserDataAuthClient was null not building service instance.";
+    return nullptr;
+  }
+
   const AccountId& account_id = user->GetAccountId();
   return std::make_unique<LocalAuthFactorsPolicyController>(
-      *profile->GetPrefs(), account_id);
+      *g_browser_process->local_state(), profile, account_id);
 }
 
 bool LocalAuthFactorsPolicyControllerFactory::

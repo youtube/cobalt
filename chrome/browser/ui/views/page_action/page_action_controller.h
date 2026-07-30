@@ -49,7 +49,6 @@ class PageActionMetricsRecorderFactory;
 class PageActionMetricsRecorderInterface;
 class ChipSelector;
 class PageActionController;
-struct PageActionProperties;
 class PageActionPropertiesProviderInterface;
 
 // Indicates the source used to color the page action icon.
@@ -151,12 +150,18 @@ class PageActionController {
     using IsChipShowingChangedCallback =
         base::RepeatingCallback<void(bool is_chip_showing)>;
     using AnchoredMessageCloseCallback = base::RepeatingClosure;
+    using AnchoredMessagePauseCallback = base::RepeatingClosure;
+    using AnchoredMessageResumeCallback = base::RepeatingClosure;
     using ClickCallback = base::RepeatingCallback<void(PageActionTrigger)>;
 
     virtual void SetIsChipShowingChangedCallback(
         IsChipShowingChangedCallback callback) = 0;
     virtual void SetAnchoredMessageCloseCallback(
         AnchoredMessageCloseCallback callback) = 0;
+    virtual void SetAnchoredMessagePauseCallback(
+        AnchoredMessagePauseCallback callback) = 0;
+    virtual void SetAnchoredMessageResumeCallback(
+        AnchoredMessageResumeCallback callback) = 0;
     virtual void SetClickCallback(ClickCallback callback) = 0;
   };
 
@@ -183,6 +188,9 @@ class PageActionController {
   virtual void ShowAnchoredMessage(actions::ActionId action_id,
                                    const AnchoredMessageConfig& config) = 0;
   virtual void HideAnchoredMessage(actions::ActionId action_id) = 0;
+
+  // Get the ID of the active anchored message, or nullopt if none is showing.
+  virtual std::optional<actions::ActionId> GetActiveAnchoredMessage() const = 0;
 
   // By default, in suggestion chip mode, the ActionItem text will be used as
   // the control label. However, features can provide a custom text to use
@@ -303,6 +311,7 @@ class PageActionControllerImpl : public PageActionController,
   void HideSuggestionChip(actions::ActionId action_id) override;
   void ShowAnchoredMessage(actions::ActionId action_id,
                            const AnchoredMessageConfig& config) override;
+  std::optional<actions::ActionId> GetActiveAnchoredMessage() const override;
   void HideAnchoredMessage(actions::ActionId action_id) override;
   void OverrideText(actions::ActionId action_id,
                     const std::u16string& override_text) override;
@@ -350,9 +359,6 @@ class PageActionControllerImpl : public PageActionController,
  private:
   using PageActionModelsMap =
       std::map<actions::ActionId, std::unique_ptr<PageActionModelInterface>>;
-  using PageActionMetricsRecordersMap =
-      std::map<actions::ActionId,
-               std::unique_ptr<PageActionPerActionMetricsRecorderInterface>>;
 
   // Called by ScopedPageActionActivity when it's destroyed.
   void DecrementActivityCounter(actions::ActionId action_id) override;
@@ -381,20 +387,11 @@ class PageActionControllerImpl : public PageActionController,
       actions::ActionId action_id,
       bool is_ephemeral);
 
-  // Helper used to create per-action metric recorder.
-  std::unique_ptr<PageActionPerActionMetricsRecorderInterface>
-  CreatePerActionMetricsRecorder(
+  // Helper used to create a metric recorder.
+  std::unique_ptr<PageActionMetricsRecorderInterface> CreateMetricsRecorder(
       tabs::TabInterface& tab_interface,
-      const PageActionProperties& properties,
-      PageActionModelInterface& model,
       VisibleEphemeralPageActionsCountCallback
           visible_ephemeral_page_actions_count_callback);
-
-  // Helper used to create a page-level metric recorder.
-  std::unique_ptr<PageActionPageMetricsRecorderInterface>
-  CreatePageMetricsRecorder(tabs::TabInterface& tab_interface,
-                            VisibleEphemeralPageActionsCountCallback
-                                visible_ephemeral_page_actions_count_callback);
 
   // Issues internally a metric recording for the provided `action_id`.
   void RecordClickMetric(actions::ActionId action_id,
@@ -410,6 +407,10 @@ class PageActionControllerImpl : public PageActionController,
   void DoShowAnchoredMessage(actions::ActionId action_id,
                              const AnchoredMessageConfig& config);
   void DoHideAnchoredMessage(actions::ActionId action_id);
+  void DowngradeAnchoredMessage(actions::ActionId action_id);
+
+  void PauseAnchoredMessageTimeout(actions::ActionId action_id);
+  void ResumeAnchoredMessageTimeout(actions::ActionId action_id);
 
   const raw_ptr<PageActionModelFactory> page_action_model_factory_ = nullptr;
   const raw_ptr<PageActionMetricsRecorderFactory>
@@ -420,14 +421,9 @@ class PageActionControllerImpl : public PageActionController,
   // Tracks the number of active scopes for each action.
   std::map<actions::ActionId, int> activity_counters_;
 
-  // Metrics recorders associated with ephemeral page actions.
-  // Each recorder handles logging UMA metrics for one specific action id.
-  PageActionMetricsRecordersMap metrics_recorders_;
-
-  // Page-level metric recorder. It's will recorder global metrics that is not
-  // scoped to a single page action.
-  std::unique_ptr<PageActionPageMetricsRecorderInterface>
-      page_metrics_recorder_;
+  // Metrics recorder.
+  // Handles logging UMA metrics for all actions in this tab.
+  std::unique_ptr<PageActionMetricsRecorderInterface> metrics_recorder_;
 
   base::ScopedObservation<PinnedToolbarActionsModel,
                           PinnedToolbarActionsModel::Observer>

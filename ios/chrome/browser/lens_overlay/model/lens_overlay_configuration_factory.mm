@@ -63,8 +63,7 @@ LensEntrypoint LensEntrypointFromOverlayEntrypoint(
   if (!isIncognito) {
     AuthenticationService* authenticationService =
         AuthenticationServiceFactory::GetForProfile(profile);
-    id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity(
-        ::signin::ConsentLevel::kSignin);
+    id<SystemIdentity> identity = authenticationService->GetPrimaryIdentity();
     configuration.identity = identity;
   }
   configuration.localState = GetApplicationContext()->GetLocalState();

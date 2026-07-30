@@ -1016,7 +1016,8 @@ TEST_F(TabContainerTest, GroupUnderlineBasics) {
 
 TEST_F(TabContainerTest, UnderlineBoundsTabVisibilityChange) {
   // Validates that group underlines are updated correctly in a single Layout
-  // call when the visibility of tabs in the group change. See crbug.com/1356177
+  // call when the visibility of tabs in the group change. See
+  // crbug.com/40860257
 
   SetTabContainerWidth(200);
   // Add tabs to a single group until the last one is not visible.
@@ -1048,7 +1049,7 @@ TEST_F(TabContainerTest, UnderlineBoundsTabVisibilityChange) {
 TEST_F(TabContainerTest, UnderlineBoundsCollapsedGroupHeaderVisibilityChange) {
   // Validates that group underlines are updated correctly in a single Layout
   // call when the visibility of the group header changes, even if the group is
-  // collapsed. See crbug.com/1374614
+  // collapsed. See crbug.com/40872448
 
   SetTabContainerWidth(200);
   // Create a tab group with one tab and collapse it.
@@ -1476,4 +1477,45 @@ TEST_F(TabContainerTest, ZOrderCacheUpdatesAfterCRUDOperations) {
   container_impl->CompleteAnimationAndLayout();
   container_impl->UpdateZOrderCacheForTesting();
   EXPECT_EQ(container_impl->GetZOrderCacheForTesting().size(), 2u);
+}
+
+TEST_F(TabContainerTest, TabAccessibleNameUpdatesOnGroupTitleChange) {
+  Tab* tab_0 = AddTab(0, std::nullopt, TabActive::kInactive);
+  AddTab(1, std::nullopt, TabActive::kActive);
+  tab_container_->CompleteAnimationAndLayout();
+
+  // Create a tab group and add a tab to it.
+  tab_groups::TabGroupId group = tab_groups::TabGroupId::GenerateNew();
+  AddTabToGroup(0, group);
+  tab_container_->CompleteAnimationAndLayout();
+
+  // Inject a temporary accessibility name. The visual update of the tab group
+  // should trigger an a11y recalculation, clearing this stale value.
+  tab_0->GetViewAccessibility().SetName(u"Tab Name");
+
+  // Get AX Name Before Title Change.
+  ui::AXNodeData initial_ax_data;
+  tab_0->GetViewAccessibility().GetAccessibleNodeData(&initial_ax_data);
+  std::u16string initial_accessible_name =
+      initial_ax_data.GetString16Attribute(ax::mojom::StringAttribute::kName);
+
+  // Update tab group title.
+  tab_groups::TabGroupVisualData old_visuals(
+      u"Untitled Tab Group", tab_groups::TabGroupColorId::kRed, false);
+
+  std::u16string new_group_title = u"Work";
+  tab_groups::TabGroupVisualData new_visuals(
+      new_group_title, tab_groups::TabGroupColorId::kBlue, false);
+
+  // Force OnGroupVisualsChanged notification.
+  auto* container_impl = views::AsViewClass<TabContainerImpl>(tab_container_);
+  container_impl->OnGroupVisualsChanged(group, &old_visuals, &new_visuals);
+
+  // Validate tab name after change.
+  ui::AXNodeData updated_ax_data;
+  tab_0->GetViewAccessibility().GetAccessibleNodeData(&updated_ax_data);
+  std::u16string updated_accessible_name =
+      updated_ax_data.GetString16Attribute(ax::mojom::StringAttribute::kName);
+
+  EXPECT_NE(initial_accessible_name, updated_accessible_name);
 }

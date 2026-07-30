@@ -84,7 +84,6 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
     ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.ANDROID_THEME_MODULE,
 })
-@Features.EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
 public class TabStripGroupContextMenuTest {
@@ -568,9 +567,7 @@ public class TabStripGroupContextMenuTest {
                         .getActivity()
                         .getResources()
                         .getQuantityString(
-                                org.chromium.chrome.tab_ui.R.plurals
-                                        .move_group_to_another_window_context_menu_item,
-                                2);
+                                R.plurals.move_group_to_another_window_context_menu_item, 2);
 
         // Click on "Move tab to other window" to open a submenu.
         onView(withText(moveToAnotherWindow)).perform(click());

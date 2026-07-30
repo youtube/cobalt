@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.text.SpannableStringBuilder;
@@ -769,7 +770,7 @@ public abstract class PaymentRequestSection extends LinearLayout implements View
 
             if (isValueBold) {
                 valueBuilder.setSpan(
-                        new StyleSpan(android.graphics.Typeface.BOLD),
+                        new StyleSpan(Typeface.BOLD),
                         boldStartIndex,
                         boldStartIndex + value.length(),
                         0);
@@ -1018,7 +1019,7 @@ public abstract class PaymentRequestSection extends LinearLayout implements View
                     labelView.setText(
                             convertOptionToString(
                                     mOption,
-                                    false, /* excludeMainLabel */
+                                    /* excludeMainLabel= */ false,
                                     mDelegate.isBoldLabelNeeded(OptionSection.this),
                                     /* singleLine= */ false));
                     labelView.setEnabled(isEnabled);
@@ -1470,7 +1471,9 @@ public abstract class PaymentRequestSection extends LinearLayout implements View
             int firstOptionIndex = INVALID_OPTION_INDEX;
             for (int i = 0; i < information.getSize(); i++) {
                 int currentRow = mOptionRows.size();
-                if (firstOptionIndex == INVALID_OPTION_INDEX) firstOptionIndex = currentRow;
+                if (firstOptionIndex == INVALID_OPTION_INDEX) {
+                    firstOptionIndex = currentRow;
+                }
 
                 EditableOption item = information.getItem(i);
                 OptionRow currentOptionRow =
@@ -1516,8 +1519,7 @@ public abstract class PaymentRequestSection extends LinearLayout implements View
             if (!excludeMainLabel) {
                 builder.append(item.getLabel());
                 if (useBoldLabel) {
-                    builder.setSpan(
-                            new StyleSpan(android.graphics.Typeface.BOLD), 0, builder.length(), 0);
+                    builder.setSpan(new StyleSpan(Typeface.BOLD), 0, builder.length(), 0);
                 }
             }
 

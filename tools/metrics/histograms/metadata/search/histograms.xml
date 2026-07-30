@@ -250,7 +250,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.DelayTime" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -262,7 +262,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.DonateTime" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -274,7 +274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.Favicon.DonateCount"
-    units="count" expires_after="2026-08-23">
+    units="count" expires_after="2026-10-25">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -286,7 +286,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.Favicon.FetchTime" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -298,7 +298,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.FaviconDonateResult"
-    enum="DonateResult" expires_after="2026-08-23">
+    enum="DonateResult" expires_after="2026-10-25">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -386,7 +386,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 
 <histogram
     name="Search.ChoiceDebug.UnexpectedRecordDisplayStateReentryHasCompletion"
-    enum="Boolean" expires_after="2026-08-19">
+    enum="Boolean" expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -401,7 +401,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceDebug.UnhandledChoiceStatusAtLoadTime"
-    enum="SearchEngineChoiceStatus" expires_after="2026-08-19">
+    enum="SearchEngineChoiceStatus" expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -418,7 +418,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceDebug.UnknownCountryIdStored"
-    enum="UnknownCountryIdStored" expires_after="2026-08-19">
+    enum="UnknownCountryIdStored" expires_after="2026-10-18">
   <owner>cschlosser@chromium.org</owner>
   <owner>chromeos-privacyhub@google.com</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -435,7 +435,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoicePrefsCheck.PendingChoiceScreenDisplayStateStatus"
-    enum="PendingChoiceScreenDisplayStateStatus" expires_after="2026-08-19">
+    enum="PendingChoiceScreenDisplayStateStatus" expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -455,7 +455,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoicePrefsCheck.WipeOnMissingDse" enum="Boolean"
-    expires_after="2026-08-19">
+    expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -468,7 +468,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceReprompt{Category}"
-    enum="SearchEngineChoiceReprompt" expires_after="2026-08-19">
+    enum="SearchEngineChoiceReprompt" expires_after="2026-10-25">
   <owner>droger@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -484,7 +484,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenDefaultSearchEngineType2{Profile}"
-    enum="OmniboxSearchEngineType" expires_after="2026-08-19">
+    enum="OmniboxSearchEngineType" expires_after="2026-10-25">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -501,7 +501,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenDefaultSearchEngineType{Profile}"
-    enum="OmniboxSearchEngineType" expires_after="2026-08-19">
+    enum="OmniboxSearchEngineType" expires_after="2026-10-25">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -536,7 +536,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenNavigationConditions{Context}{Profile}"
-    enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
+    enum="SearchEngineChoiceScreenConditions" expires_after="2026-10-25">
   <owner>dgn@chromium.org</owner>
   <owner>ljjlee@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -556,7 +556,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenProfileInitConditions{Context}{Profile}"
-    enum="SearchEngineChoiceScreenConditions" expires_after="2026-08-19">
+    enum="SearchEngineChoiceScreenConditions" expires_after="2026-10-25">
   <owner>dgn@chromium.org</owner>
   <owner>ljjlee@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
@@ -575,7 +575,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenSelectedEngineIndex" units="index"
-    expires_after="2026-08-19">
+    expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -586,7 +586,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenShowedEngineAt.CountryMismatch"
-    enum="BooleanSkipped" expires_after="2026-08-19">
+    enum="BooleanSkipped" expires_after="2026-10-18">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -598,7 +598,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceScreenShowedEngineAt.Index{Index}{Profile}"
-    enum="OmniboxSearchEngineType" expires_after="2026-08-19">
+    enum="OmniboxSearchEngineType" expires_after="2026-10-25">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -632,7 +632,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ChoiceWipeReason" enum="SearchEngineChoiceWipeReason"
-    expires_after="2026-08-19">
+    expires_after="2026-10-18">
   <owner>droger@chromium.org</owner>
   <owner>chrome-regionalcapabilities@google.com</owner>
   <summary>
@@ -1121,6 +1121,35 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
   <summary>
     Records camera results such as successful image capture, user exited, etc.
     This is recorded every time the user opens the Lens viewfinder camera.
+  </summary>
+</histogram>
+
+<histogram
+    name="Search.Integrity.Enterprise.IsDefaultCustomWithMatchingPolicyEngine"
+    enum="Boolean" expires_after="2026-10-20">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records whether the user's default search engine is a custom one that is
+    similar the name of an official, policy-enforced engine but uses a different
+    URL on a managed profile.
+
+    Recorded once per profile at startup when the search engine allowlist is
+    initialized and the configuration is checked.
+  </summary>
+</histogram>
+
+<histogram name="Search.Integrity.Enterprise.Referral.ParameterFound"
+    enum="SearchReferralParam" expires_after="2026-10-20">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>iclelland@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Records which referral parameter is found in the URL of a custom search
+    engine that is not on the allowlist on a managed profile. Recorded once per
+    profile at startup if a custom search engine is present on a managed
+    profile.
   </summary>
 </histogram>
 

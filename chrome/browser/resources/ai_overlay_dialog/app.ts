@@ -4,7 +4,6 @@
 
 import '/strings.m.js';
 
-import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
@@ -16,7 +15,7 @@ import {BlobAudioCapturer, MicrophoneAudioCapturer} from './audio_capturer.js';
 import {AudioPlayer} from './audio_player.js';
 import {Conversation, State} from './conversation.js';
 import type {ApiConfig, ConversationConfig, OutputTranscriptionMessage, Persona} from './conversation.js';
-import {errorLog, log} from './logging.js';
+import {errorLog, log, warnLog} from './logging.js';
 import type {PageContext} from './page_context_manager.js';
 import {AiOverlayToolsRemote} from './tools.mojom-webui.js';
 
@@ -43,7 +42,13 @@ enum UiState {
 
 interface MockAudioButton {
   name: string;
-  wavdata: string;
+  wavdata?: string;
+  text?: string;
+}
+
+interface Sequence {
+  name: string;
+  buttons: Array<string|number>;
 }
 
 interface PersonaConfig {
@@ -78,6 +83,9 @@ export class AppElement extends CrLitElement {
       mockButtons: {
         type: Array,
       },
+      sequences: {
+        type: Array,
+      },
       transcription: {
         type: String,
       },
@@ -105,6 +113,7 @@ export class AppElement extends CrLitElement {
   protected accessor initializationState = InitializationState.UNINITIALIZED;
   protected accessor uiState = UiState.LISTENING;
   protected accessor mockButtons: MockAudioButton[] = [];
+  protected accessor sequences: Sequence[] = [];
   protected accessor transcription: string = '';
   protected accessor speakingBlobUrl: string = '';
   protected accessor listeningBlobUrl: string = '';
@@ -167,15 +176,15 @@ export class AppElement extends CrLitElement {
         return;
       }
       this.usePersona = usePersona;
-      if (this.conversation?.connected) {
+      if (this.conversation?.connected || this.initializationState === InitializationState.ERROR) {
         log(FILE, 'Restarting conversation for persona change');
         // TODO(gklassen): Make it so that conversation can trigger and block on
         // an initial page context, instead of pulling it out of the old
         // conversation or having AppElement proxy it during initialization.
-        this.initialPageContext = this.conversation.pageContext ?? undefined;
+        this.initialPageContext = this.conversation?.pageContext ?? undefined;
         this.stopConversation();
         this.conversation = null;
-        assert(this.initializationState === InitializationState.UNINITIALIZED);
+        this.initializationState = InitializationState.UNINITIALIZED;
         this.startConversation();
       }
     });
@@ -256,14 +265,19 @@ export class AppElement extends CrLitElement {
     this.audioPlayer?.play(audioData);
   }
 
-  protected onInjectAudioClick(e: Event) {
-    if (!this.blobCapturer) {
+  private runButtonByIndex(index: number) {
+    const button = this.mockButtons[index];
+    if (!button) {
       return;
     }
 
-    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
-    const button = this.mockButtons[index];
-    if (!button) {
+    if (button.text) {
+      log(FILE, `Injecting text: ${button.name}, text: ${button.text}`);
+      this.conversation?.sendText(button.text);
+      return;
+    }
+
+    if (!this.blobCapturer || !button.wavdata) {
       return;
     }
 
@@ -280,6 +294,52 @@ export class AppElement extends CrLitElement {
     });
   }
 
+  protected onInjectAudioClick = (e: Event) => {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    this.runButtonByIndex(index);
+  };
+
+  protected onTextInputKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      const input = e.target as HTMLInputElement;
+      const text = input.value.trim();
+      if (text) {
+        log(FILE, `Injecting text: ${text}`);
+        this.conversation?.sendText(text);
+        input.value = '';
+      }
+    }
+  };
+
+  protected onSequenceClick = async (e: Event) => {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    const sequence = this.sequences[index];
+    if (!sequence) {
+      return;
+    }
+
+    log(FILE, `Running sequence: ${sequence.name}`);
+    for (const item of sequence.buttons) {
+      if (typeof item === 'number') {
+        log(FILE, `Sequence pause: ${item}s`);
+        await new Promise(resolve => setTimeout(resolve, item * 1000));
+        continue;
+      }
+
+      const buttonName = item;
+      const buttonIndex =
+          this.mockButtons.findIndex(b => b.name === buttonName);
+      if (buttonIndex !== -1) {
+        this.runButtonByIndex(buttonIndex);
+        // Add a small default delay between commands if no explicit pause is
+        // provided, to avoid overwhelming the API.
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        warnLog(FILE, `Button not found for sequence: ${buttonName}`);
+      }
+    }
+  };
+
   private createAudioPlayer(): AudioPlayer {
     return new AudioPlayer(/*onStart=*/
                            () => {
@@ -293,30 +353,36 @@ export class AppElement extends CrLitElement {
 
   private async createAudioCapturer(): Promise<AudioCapturer|null> {
     try {
+      const {jsonData} = await this.pageHandler.getMockAudioData();
+      if (jsonData) {
+        log(FILE,
+            'Received mock audio data:', jsonData.substring(0, 100) + '...');
+        try {
+          const config = JSON.parse(jsonData);
+          this.mockButtons = config.buttons || [];
+          this.sequences = config.sequences || [];
+          log(FILE,
+              `Loaded ${this.mockButtons.length} mock buttons and ${
+                  this.sequences.length} sequences`);
+        } catch (parseError) {
+          errorLog(FILE, 'Failed to parse mock audio JSON:', parseError);
+        }
+      }
+    } catch (mojoError) {
+      log(FILE, 'Failed to get mock audio data', mojoError);
+    }
+
+    if (this.mockButtons.length > 0) {
+      this.blobCapturer = new BlobAudioCapturer();
+    }
+
+    try {
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
       return new MicrophoneAudioCapturer(stream);
     } catch (e) {
       log(FILE, 'No Microphone Found', e);
-
-      try {
-        const {jsonData} = await this.pageHandler.getMockAudioData();
-        if (jsonData) {
-          log(FILE,
-              'Received mock audio data:', jsonData.substring(0, 100) + '...');
-          const config = JSON.parse(jsonData);
-          this.mockButtons = config.buttons || [];
-          log(FILE, `Loaded ${this.mockButtons.length} mock buttons`);
-          this.blobCapturer = new BlobAudioCapturer();
-          return this.blobCapturer;
-        } else {
-          log(FILE, 'No mock audio data provided or found');
-        }
-      } catch (mojoError) {
-        log(FILE, 'Failed to get mock audio data', mojoError);
-      }
+      return this.blobCapturer;
     }
-
-    return null;
   }
 
   private async startConversation() {
@@ -351,7 +417,6 @@ export class AppElement extends CrLitElement {
         this.conversation = this.createConversation(config);
       }
 
-      log(FILE, 'Attempting to connect. conversation state is not connected.');
       await this.conversation.start();
 
       this.audioPlayer = this.createAudioPlayer();
@@ -417,6 +482,7 @@ export class AppElement extends CrLitElement {
 
     const base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
 
+    const signal = AbortSignal.timeout(10000);
     const [
       personaResponse,
       apiConfigResponse,
@@ -424,11 +490,11 @@ export class AppElement extends CrLitElement {
       listeningResponse,
       instructionResponse,
     ] = await Promise.all([
-      fetch(base + 'persona.json'),
-      fetch(base + 'api_config.json'),
-      fetch(base + 'talking.webm'),
-      fetch(base + 'listening.webm'),
-      fetch(base + 'instruction.tmpl'),
+      fetch(base + 'persona.json', {signal}),
+      fetch(base + 'api_config.json', {signal}),
+      fetch(base + 'talking.webm', {signal}),
+      fetch(base + 'listening.webm', {signal}),
+      fetch(base + 'instruction.tmpl', {signal}),
     ]);
 
     const personaConfig: PersonaConfig = await personaResponse.json();

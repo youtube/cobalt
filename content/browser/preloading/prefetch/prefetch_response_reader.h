@@ -166,6 +166,11 @@ class CONTENT_EXPORT PrefetchResponseReader final
 
   LoadState load_state() const { return load_state_; }
 
+  const std::optional<network::URLLoaderCompletionStatus>& completion_status()
+      const {
+    return completion_status_;
+  }
+
   base::WeakPtr<PrefetchResponseReader> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -175,11 +180,6 @@ class CONTENT_EXPORT PrefetchResponseReader final
   using ServingUrlLoaderClientId = mojo::RemoteSetElementId;
 
   friend class base::RefCounted<PrefetchResponseReader>;
-  // This is necessary because `PrefetchContainerObserver` emulates a callback
-  // that we will provide in the future.
-  //
-  // TODO(crbug.com/400761083): Remove it.
-  friend class PrefetchContainerObserver;
 
   ~PrefetchResponseReader() override;
 

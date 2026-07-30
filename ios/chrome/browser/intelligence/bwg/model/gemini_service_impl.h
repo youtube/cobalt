@@ -41,6 +41,8 @@ class GeminiServiceImpl : public GeminiService,
   bool IsProfileEligibleForGemini() override;
   std::optional<gemini::IneligibilityReasons> GeminiIneligibilityForProfile()
       override;
+  bool IsWorkspacePolicyCheckPending() override;
+  void CheckGeminiEnterpriseEligibilityIfNeeded() override;
 
   // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(

@@ -6,9 +6,11 @@ package org.chromium.base.test.transit;
 
 import android.util.Pair;
 
+import org.chromium.base.test.BaseJUnit4ClassRunner.ClassCleanupHook;
 import org.chromium.base.test.transit.ConditionalState.Phase;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.ServiceImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,10 +22,16 @@ import java.util.List;
  */
 @NullMarked
 public class TrafficControl {
+
     private static final List<Pair<String, String>> sAllStationNames = new ArrayList<>();
     private static @Nullable String sCurrentTestCase;
 
     private static final List<Station<?>> sActiveStations = new ArrayList<>();
+    private static final List<Runnable> sHopOffListeners = new ArrayList<>();
+
+    public static void addHopOffListener(Runnable listener) {
+        sHopOffListeners.add(listener);
+    }
 
     static void notifyCreatedStation(Station<?> station) {
         sAllStationNames.add(Pair.create(sCurrentTestCase, station.getName()));
@@ -61,6 +69,9 @@ public class TrafficControl {
      */
     public static void hopOffPublicTransit() {
         sActiveStations.clear();
+        for (Runnable listener : sHopOffListeners) {
+            listener.run();
+        }
     }
 
     public static List<Pair<String, String>> getAllStationsNames() {
@@ -81,5 +92,17 @@ public class TrafficControl {
 
     static @Nullable String getCurrentTestCase() {
         return sCurrentTestCase;
+    }
+
+    /**
+     * {@link ClassCleanupHook} implementation for TrafficControl. ServiceImpl makes it so that this
+     * is called after every test class.
+     */
+    @ServiceImpl(ClassCleanupHook.class)
+    public static class CleanupHook implements ClassCleanupHook {
+        @Override
+        public void onAfterTestClass(Class<?> clazz) {
+            hopOffPublicTransit();
+        }
     }
 }

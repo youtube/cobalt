@@ -184,6 +184,15 @@ declare_args() {
   clang_warning_suppression_file = ""
 }
 
+declare_args() {
+  # Whether to enable strict deps checks. This ensures that your dependencies
+  # are correctly declared (no missing deps and no accessing transitive deps).
+  enable_strict_deps = false
+}
+if (enable_strict_deps) {
+  generate_modulemap = "textual"
+}
+
 # ==============================================================================
 # TOOLCHAIN SETUP
 # ==============================================================================
@@ -545,6 +554,9 @@ TESTONLY_AND_VISIBILITY = [
 # Variables
 #   use_libcxx_modules: If true, libc++'s modules are added to deps.
 #       This is true by default.
+#   strict_deps: If false, the strict deps check will be disabled even when the
+#       feature is enabled in args.gn.
+#       This is true by default.
 foreach(_target_type,
         [
           "source_set",
@@ -593,9 +605,26 @@ foreach(_target_type,
         use_libcxx_modules = false
       }
 
+      if (!defined(strict_deps)) {
+        strict_deps = enable_strict_deps
+      }
+
+      if (use_libcxx_modules && is_clang) {
+        if (strict_deps) {
+          configs += [ "//build/modules:strict_deps" ]
+        }
+      } else {
+        not_needed([ "strict_deps" ])
+      }
+
       if (use_libcxx_modules) {
         # Add a dependency needed for Clang modules builds.
         deps += [ "//buildtools/third_party/libc++:all_modules" ]
+
+        if (!defined(invoker.generate_modulemap) &&
+            defined(generate_modulemap)) {
+          generate_modulemap = generate_modulemap
+        }
       }
 
       # Consumed by the unsafe-buffers plugin during compile.
@@ -628,6 +657,9 @@ foreach(_target_type,
 #       "//build/config/compiler:runtime_library" from configs (to remove
 #       its subconfig "//build/config/c++:runtime_library").
 #   use_libcxx_modules: If true, libc++'s modules are added to deps.
+#       This is true by default.
+#   strict_deps: If false, the strict deps check will be disabled even when the
+#       feature is enabled in args.gn.
 #       This is true by default.
 foreach(_target_type,
         [
@@ -711,9 +743,26 @@ foreach(_target_type,
         use_libcxx_modules = false
       }
 
+      if (!defined(strict_deps)) {
+        strict_deps = enable_strict_deps
+      }
+
+      if (use_libcxx_modules && is_clang) {
+        if (strict_deps) {
+          configs += [ "//build/modules:strict_deps" ]
+        }
+      } else {
+        not_needed([ "strict_deps" ])
+      }
+
       if (use_libcxx_modules) {
         # Add a dependency needed for Clang modules builds.
         deps += [ "//buildtools/third_party/libc++:all_modules" ]
+
+        if (!defined(invoker.generate_modulemap) &&
+            defined(generate_modulemap)) {
+          generate_modulemap = generate_modulemap
+        }
       }
 
       # On Android, write shared library output file to metadata. We will use

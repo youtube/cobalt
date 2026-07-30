@@ -17,6 +17,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/window.h"
 
+using chromeos::AppType;
+
 constexpr int kThumbnailSize = 100;
 
 using testing::AtLeast;
@@ -91,11 +93,12 @@ TEST_F(DesktopMediaListAshTest, WindowOnly) {
     loop2.Run();
   }
   // Tests that a floated window shows up on the list. Regression test for
-  // crbug.com/1462516.
+  // crbug.com/40066933.
   {
     base::RunLoop loop1;
     base::RunLoop loop2;
-    std::unique_ptr<aura::Window> float_window = CreateAppWindow();
+    std::unique_ptr<aura::Window> float_window =
+        CreateWindowWithAppType(AppType::SYSTEM_APP);
     ui::test::EventGenerator event_generator(float_window->GetRootWindow());
     event_generator.PressAndReleaseKey(ui::VKEY_F,
                                        ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);

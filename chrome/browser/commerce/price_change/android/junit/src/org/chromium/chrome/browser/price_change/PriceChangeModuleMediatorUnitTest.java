@@ -7,6 +7,8 @@ package org.chromium.chrome.browser.price_change;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -69,7 +71,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /** Test relating to {@link PriceChangeModuleMediator} */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -172,11 +173,7 @@ public class PriceChangeModuleMediatorUnitTest {
         showModuleWithInitializedService();
 
         assertEquals(
-                mContext.getResources()
-                        .getQuantityString(
-                                org.chromium.chrome.browser.price_change.R.plurals
-                                        .price_change_module_title,
-                                1),
+                mContext.getResources().getQuantityString(R.plurals.price_change_module_title, 1),
                 mModel.get(PriceChangeModuleProperties.MODULE_TITLE));
         assertEquals(
                 PRODUCT_TITLE, mModel.get(PriceChangeModuleProperties.MODULE_PRODUCT_NAME_STRING));
@@ -206,6 +203,7 @@ public class PriceChangeModuleMediatorUnitTest {
                         eq(mProfile),
                         eq(PRODUCT_URL),
                         eq(mFaviconSize),
+                        anyBoolean(),
                         faviconCallbackCaptor.capture());
         faviconCallbackCaptor.getValue().onFaviconAvailable(mFaviconBitmap, new GURL(""));
 
@@ -240,6 +238,7 @@ public class PriceChangeModuleMediatorUnitTest {
                         eq(mProfile),
                         eq(PRODUCT_URL),
                         eq(mFaviconSize),
+                        anyBoolean(),
                         faviconCallbackCaptor.capture());
         faviconCallbackCaptor.getValue().onFaviconAvailable(null, new GURL(""));
 
@@ -258,7 +257,7 @@ public class PriceChangeModuleMediatorUnitTest {
                 MockitoHelper.callbackCaptor();
         verify(mService).getAllShoppingPersistedTabDataWithPriceDrop(dataCallbackCaptor.capture());
         dataCallbackCaptor.getValue().onResult(new ArrayList<>());
-        verify(mService, times(0)).initialize(any(Set.class));
+        verify(mService, times(0)).initialize(anySet());
         verify(mModuleDelegate).onDataFetchFailed(eq(ModuleType.PRICE_CHANGE));
     }
 
@@ -318,7 +317,7 @@ public class PriceChangeModuleMediatorUnitTest {
                 MockitoHelper.callbackCaptor();
         verify(mService).getAllShoppingPersistedTabDataWithPriceDrop(dataCallbackCaptor.capture());
         dataCallbackCaptor.getValue().onResult(new ArrayList<>(Arrays.asList(item)));
-        verify(mService, times(0)).initialize(any(Set.class));
+        verify(mService, times(0)).initialize(anySet());
         verify(mModuleDelegate).onDataFetchFailed(eq(ModuleType.PRICE_CHANGE));
     }
 
@@ -338,7 +337,7 @@ public class PriceChangeModuleMediatorUnitTest {
                 MockitoHelper.callbackCaptor();
         verify(mService).getAllShoppingPersistedTabDataWithPriceDrop(dataCallbackCaptor.capture());
         dataCallbackCaptor.getValue().onResult(new ArrayList<>(Arrays.asList(item)));
-        verify(mService, times(0)).initialize(any(Set.class));
+        verify(mService, times(0)).initialize(anySet());
         verify(mModuleDelegate).onDataFetchFailed(eq(ModuleType.PRICE_CHANGE));
     }
 
@@ -386,6 +385,6 @@ public class PriceChangeModuleMediatorUnitTest {
         verify(mService).getAllShoppingPersistedTabDataWithPriceDrop(dataCallbackCaptor.capture());
         PriceChangeItem item = new PriceChangeItem(mTab, data);
         dataCallbackCaptor.getValue().onResult(new ArrayList<>(Arrays.asList(item)));
-        verify(mService, times(0)).initialize(any(Set.class));
+        verify(mService, times(0)).initialize(anySet());
     }
 }

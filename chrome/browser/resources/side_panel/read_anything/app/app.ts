@@ -20,7 +20,7 @@ import type {ContentListener, ContentState} from '../content/content_controller.
 import {LineFocusController} from '../content/line_focus_controller.js';
 import type {LineFocusListener} from '../content/line_focus_controller.js';
 import {NodeStore} from '../content/node_store.js';
-import {DEFAULT_SETTINGS, LineFocusType} from '../content/read_anything_types.js';
+import {DEFAULT_SETTINGS} from '../content/read_anything_types.js';
 import type {LineFocusMovement, LineFocusStyle, SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
@@ -32,7 +32,6 @@ import {VoiceLanguageController} from '../read_aloud/voice_language_controller.j
 import type {VoiceLanguageListener} from '../read_aloud/voice_language_controller.js';
 import {VoiceNotificationManager} from '../read_aloud/voice_notification_manager.js';
 import {getWordCount, isDistilledByReadability, minOverflowLengthToScroll} from '../shared/common.js';
-import {isForwardArrow, isLineFocusShortcut, isVerticalArrow} from '../shared/keyboard_util.js';
 import {ReadAnythingLogger, TimeFrom} from '../shared/read_anything_logger.js';
 
 import {getCss} from './app.css.js';
@@ -468,14 +467,13 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.speechController_.onPlayPauseToggle(this.$.container);
   }
 
-  onLineFocusMove(): void {
+  ///////////////////////// LineFocusListener methods //////////////////////////
+  onLineFocusMove(newTop: number, newHeight: number): void {
     if (!chrome.readingMode.isLineFocusEnabled) {
       return;
     }
 
-    this.styleUpdater_.setLineFocusPos(
-        this.lineFocusController_.getTop(),
-        this.lineFocusController_.getHeight());
+    this.styleUpdater_.setLineFocusPos(newTop, newHeight);
   }
 
   onNeedScrollForLineFocus(scrollDiff: number, instant: boolean = false): void {
@@ -504,9 +502,28 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.lineFocusStyle_ = this.lineFocusController_.getCurrentLineFocusStyle();
     this.lineFocusMovement_ =
         this.lineFocusController_.getCurrentLineFocusMovement();
-    this.setLineFocus_();
+    this.setLineFocusStyle_();
     this.requestUpdate();
   }
+
+  onScrollBufferForLineFocusChange(needsBuffer: boolean): void {
+    if (!chrome.readingMode.isLineFocusEnabled) {
+      return;
+    }
+
+    const oldPadding = this.styleUpdater_.getPaddingForLineFocus();
+    const newPadding =
+        needsBuffer ? Math.floor(this.$.containerParent.offsetHeight / 2) : 0;
+    if (oldPadding !== newPadding) {
+      this.styleUpdater_.setPaddingForLineFocus(newPadding);
+      const paddingDiff = newPadding - oldPadding;
+      // Maintain the same scroll position even after adding or removing padding
+      // by scrolling by the difference in padding.
+      this.$.containerScroller.scrollBy(
+          {top: paddingDiff, behavior: 'instant'});
+    }
+  }
+  /////////////////////// end LineFocusListener methods ////////////////////////
 
   onContentStateChange(): void {
     this.contentState_ = this.contentController_.getState();
@@ -623,7 +640,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
           chrome.readingMode.lastNonDisabledLineFocus,
           chrome.readingMode.isLineFocusOn, this.$.container,
           this.$.appFlexParent.clientHeight);
-      this.setLineFocus_();
+      this.setLineFocusStyle_();
     }
     // TODO: crbug.com/40927698 - Remove this call. Using this.settingsPrefs_
     // should replace this direct call to the toolbar.
@@ -648,11 +665,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
   protected onFontSizeChange_() {
     this.styleUpdater_.setFontSize();
     this.onTextLocationsChange_();
-    if (chrome.readingMode.isLineFocusEnabled &&
-        this.lineFocusController_.getCurrentLineFocusType() ===
-            LineFocusType.LINE) {
-      this.styleUpdater_.setLineFocusHeight();
-    }
+    this.setLineFocusStyle_();
   }
 
   protected onThemeChange_() {
@@ -689,7 +702,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
           this.$.appFlexParent.clientHeight);
       this.lineFocusStyle_ =
           this.lineFocusController_.getCurrentLineFocusStyle();
-      this.setLineFocus_();
+      this.setLineFocusStyle_();
     }
   }
 
@@ -701,43 +714,20 @@ export class AppElement extends AppElementBase implements SpeechListener,
           this.$.appFlexParent.clientHeight);
       this.lineFocusMovement_ =
           this.lineFocusController_.getCurrentLineFocusMovement();
-      this.setLineFocus_();
+      this.setLineFocusStyle_();
     }
   }
 
-  private setLineFocus_() {
+  private setLineFocusStyle_() {
     if (!chrome.readingMode.isLineFocusEnabled) {
       return;
     }
     this.styleUpdater_.setLineFocusStyle(
         this.lineFocusController_.getCurrentLineFocusType());
-
-    const oldPadding = this.styleUpdater_.getPaddingForLineFocus();
-    // Add padding so the top and bottom lines of the page can still be
-    // focused even though static line focus stays in the middle.
-    const shouldAddPadding = this.lineFocusController_.isEnabled() &&
-        this.lineFocusController_.isStatic();
-    const newPadding = shouldAddPadding ?
-        Math.floor(this.$.containerParent.clientHeight / 2) :
-        0;
-    if (oldPadding !== newPadding) {
-      this.styleUpdater_.setPaddingForLineFocus(newPadding);
-      const paddingDiff = newPadding - oldPadding;
-      // Maintain the same scroll position even after adding or removing padding
-      // by scrolling by the difference in padding.
-      this.$.containerScroller.scrollBy(
-          {top: paddingDiff, behavior: 'instant'});
-    }
   }
 
   private onTextLocationsChange_() {
     if (chrome.readingMode.isLineFocusEnabled) {
-      if (this.lineFocusController_.isEnabled()) {
-        const padding = this.lineFocusController_.isStatic() ?
-            Math.floor(this.$.containerParent.clientHeight / 2) :
-            0;
-        this.styleUpdater_.setPaddingForLineFocus(padding);
-      }
       this.lineFocusController_.onTextLocationsChange(
           this.$.container, this.$.appFlexParent.clientHeight);
     }
@@ -766,17 +756,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
       e.stopPropagation();
       e.preventDefault();
       this.speechController_.onPlayPauseKeyPress(this.$.container);
-    } else if (
-        this.lineFocusController_.isEnabled() && isVerticalArrow(e.key)) {
+    } else if (this.lineFocusController_.onKeyDown(
+                   e, this.$.container, this.$.appFlexParent.offsetHeight)) {
       e.stopPropagation();
       e.preventDefault();
-      this.lineFocusController_.snapToNextLine(isForwardArrow(e.key));
-    } else if (
-        chrome.readingMode.isLineFocusEnabled && isLineFocusShortcut(e)) {
-      this.lineFocusController_.toggle(
-          this.$.container, this.$.appFlexParent.offsetHeight);
-      this.styleUpdater_.setLineFocusStyle(
-          this.lineFocusController_.getCurrentLineFocusType());
     }
   }
 

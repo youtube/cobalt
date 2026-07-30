@@ -123,7 +123,7 @@ This collects each top-level device metric type. For example,
 </variants>
 
 <histogram name="Cras.A2dp100msFailureOverStream" units="units"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>hychao@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>
@@ -134,7 +134,7 @@ This collects each top-level device metric type. For example,
 </histogram>
 
 <histogram name="Cras.A2dp20msFailureOverStream" units="units"
-    expires_after="2026-08-16">
+    expires_after="2026-10-18">
   <owner>hychao@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>
@@ -297,19 +297,8 @@ This collects each top-level device metric type. For example,
   <token key="Device" variants="CrasFinalDeviceBreakdown"/>
 </histogram>
 
-<histogram name="Cras.DeviceNoiseCancellationStatus{Device}"
-    enum="CrasNoiseCancellationStatus" expires_after="2025-02-10">
-  <owner>johnylin@chromium.org</owner>
-  <owner>chromeos-audio@google.com</owner>
-  <summary>
-    Record the staus of Noise Cancellation (blocked/disabled/enabled) for the
-    supported device. It is recorded when the device is opened.
-  </summary>
-  <token key="Device" variants="CrasFinalDeviceBreakdown"/>
-</histogram>
-
 <histogram name="Cras.DeviceOpenStatus.Input{Device}"
-    enum="CrasDeviceOpenStatus" expires_after="2026-08-16">
+    enum="CrasDeviceOpenStatus" expires_after="2026-10-25">
   <owner>yuhsuan@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>
@@ -319,7 +308,7 @@ This collects each top-level device metric type. For example,
 </histogram>
 
 <histogram name="Cras.DeviceOpenStatus.Output{Device}"
-    enum="CrasDeviceOpenStatus" expires_after="2026-08-16">
+    enum="CrasDeviceOpenStatus" expires_after="2026-10-25">
   <owner>yuhsuan@chromium.org</owner>
   <owner>chromeos-audio@google.com</owner>
   <summary>

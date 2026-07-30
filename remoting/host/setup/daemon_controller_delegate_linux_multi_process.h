@@ -24,6 +24,14 @@ class DaemonControllerDelegateLinuxMultiProcess
 
   ~DaemonControllerDelegateLinuxMultiProcess() override;
 
+  // Returns the config path that is the source of truth. It may contain
+  // sensitive information, and may not be readable by the current user.
+  static base::FilePath GetPrivilegedConfigPath();
+
+  // Returns a config path that can be accessed by an unprivileged user. Note
+  // that the returned config file could still contain sensitive information.
+  static base::FilePath GetUnprivilegedConfigPath();
+
   // DaemonController::Delegate interface.
   DaemonController::State GetState() override;
   std::optional<base::DictValue> GetConfig() override;
@@ -37,6 +45,7 @@ class DaemonControllerDelegateLinuxMultiProcess
   void Stop(DaemonController::CompletionCallback done) override;
   DaemonController::UsageStatsConsent GetUsageStatsConsent() override;
   bool is_privileged() const override;
+  bool is_multi_process() const override;
 };
 
 }  // namespace remoting

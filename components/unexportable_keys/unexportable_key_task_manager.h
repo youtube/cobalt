@@ -18,7 +18,7 @@
 #include "components/unexportable_keys/background_long_task_scheduler.h"
 #include "components/unexportable_keys/background_task_origin.h"
 #include "components/unexportable_keys/background_task_priority.h"
-#include "components/unexportable_keys/ref_counted_unexportable_signing_key.h"
+#include "components/unexportable_keys/ref_counted_unexportable_key.h"
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "crypto/signature_verifier.h"
@@ -58,10 +58,10 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyTaskManager {
   static std::unique_ptr<crypto::UnexportableKeyProvider>
   GetUnexportableKeyProvider(crypto::UnexportableKeyProvider::Config config);
 
-  // Retrieves all signing keys that are currently stored on the platform.
+  // Retrieves all keys that are currently stored on the platform.
   // Invokes `callback` with a list of all keys, or `ServiceError` if an error
   // occurs during retrieval.
-  void GetAllSigningKeysForGarbageCollectionSlowlyAsync(
+  void GetAllKeysForGarbageCollectionSlowlyAsync(
       BackgroundTaskOrigin origin,
       crypto::UnexportableKeyProvider::Config config,
       BackgroundTaskPriority priority,
@@ -116,20 +116,20 @@ class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyTaskManager {
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback);
 
-  // Deletes a list of signing keys asynchronously.
+  // Deletes a list of keys asynchronously.
   // Invokes `callback` with a `ServiceError` if an error occurs during deletion
   // and the number of deleted keys otherwise.
-  void DeleteSigningKeysSlowlyAsync(
+  void DeleteKeysSlowlyAsync(
       BackgroundTaskOrigin origin,
       crypto::UnexportableKeyProvider::Config config,
-      std::vector<scoped_refptr<RefCountedUnexportableSigningKey>> signing_keys,
+      std::vector<scoped_refptr<RefCountedUnexportableKey>> keys,
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<size_t>)> callback);
 
-  // Deletes all signing keys asynchronously matching the given config.
+  // Deletes all keys asynchronously matching the given config.
   // Invokes `callback` with a `ServiceError` if an error occurs during deletion
   // and the number of deleted keys otherwise.
-  void DeleteAllSigningKeysSlowlyAsync(
+  void DeleteAllKeysSlowlyAsync(
       BackgroundTaskOrigin origin,
       crypto::UnexportableKeyProvider::Config config,
       BackgroundTaskPriority priority,

@@ -11,8 +11,15 @@
 #import "base/types/id_type.h"
 #import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
+#import "ios/web/public/web_state_id.h"
 
 namespace actor {
+
+class ActorTool;
+
+// Result of creating a batch of ActorTools from Action protos.
+using CreateActorToolsResult =
+    base::expected<std::vector<std::unique_ptr<ActorTool>>, ActorToolError>;
 
 // Strongly typed, performant unique ID representing an ActorTask.
 using ActorTaskId = base::IdType32<class ActorTaskIdMarker>;
@@ -58,23 +65,67 @@ enum class ActorTaskStoppedReason {
   kUserStartedNewChat = 6
 };
 
+// Represents the result code for actions execution.
+enum ActionResultCode {
+  kActionResultSuccess = 0,
+  kActionResultFailure = 1,
+};
+
 // Represents the result of an action execution.
+// TODO(crbug.com/505085267): Add latency and stabilization information.
 struct ActionResult {
-  ActionResult();
+  explicit ActionResult(ToolExecutionResult result);
   ~ActionResult();
   ActionResult(const ActionResult&) = delete;
   ActionResult& operator=(const ActionResult&) = delete;
   ActionResult(ActionResult&&);
   ActionResult& operator=(ActionResult&&);
-  explicit ActionResult(ToolExecutionResult result);
 
   // The result of the tool execution.
   ToolExecutionResult tool_result;
 };
 
+// Callback for when ActorTask/ActorEngine's `Act` finishes executing actions.
+using ActCallback = base::OnceCallback<void(std::vector<ActionResult>)>;
+
+// Represents a response for a tab observation (PageContext extraction),
+// associating the WebStateID with the extraction response or failure reason.
+struct TabObservationResponse {
+  TabObservationResponse();
+  TabObservationResponse(
+      web::WebStateID tab_id,
+      PageContextWrapperCallbackResponse page_context_response,
+      bool web_state_exists);
+  ~TabObservationResponse();
+  TabObservationResponse(const TabObservationResponse&) = delete;
+  TabObservationResponse& operator=(const TabObservationResponse&) = delete;
+  TabObservationResponse(TabObservationResponse&&);
+  TabObservationResponse& operator=(TabObservationResponse&&);
+
+  web::WebStateID tab_id;
+  PageContextWrapperCallbackResponse page_context_response;
+  bool web_state_exists = true;
+};
+
+// Result of a set of actions execution, including relevant PageContext
+// extractions for the task's controlled WebStates.
+struct PerformActionsResult {
+  PerformActionsResult();
+  ~PerformActionsResult();
+  PerformActionsResult(const PerformActionsResult&) = delete;
+  PerformActionsResult& operator=(const PerformActionsResult&) = delete;
+  PerformActionsResult(PerformActionsResult&&);
+  PerformActionsResult& operator=(PerformActionsResult&&);
+
+  // The action results for each action that was executed.
+  std::vector<ActionResult> action_results;
+
+  // The PageContext extractions for the task's controlled WebStates.
+  std::vector<std::unique_ptr<TabObservationResponse>> page_contexts;
+};
+
 // Callback for when a set of actions finishes execution.
-using PerformActionsCallback =
-    base::OnceCallback<void(std::vector<ActionResult>)>;
+using PerformActionsCallback = base::OnceCallback<void(PerformActionsResult)>;
 
 // Callback for a "tab observation" (nomenclature aligned with
 // `chrome/browser/actor`). Tab is equivalent to WebState and observation is

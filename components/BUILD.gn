@@ -189,6 +189,7 @@ test("components_unittests") {
     "//components/accessibility_annotator/core:unit_tests",
     "//components/account_settings:unit_tests",
     "//components/activity_reporter:unit_tests",
+    "//components/actor/core:unit_tests",
     "//components/affiliations/core/browser:unit_tests",
     "//components/aggregation_service:unit_tests",
     "//components/apdu:unit_tests",
@@ -311,6 +312,7 @@ test("components_unittests") {
     "//components/power_metrics:unit_tests",
     "//components/prefs:unit_tests",
     "//components/privacy_sandbox:unit_tests",
+    "//components/private_verification_tokens:unit_tests",
     "//components/profile_metrics:unit_tests",
     "//components/proto_extras:unit_tests",
     "//components/proxy_config:unit_tests",
@@ -547,6 +549,7 @@ test("components_unittests") {
       "//components/permissions:unit_tests",
       "//components/policy/content:unit_tests",
       "//components/push_messaging:unit_tests",
+      "//components/record_replay/content/browser:unit_tests",
       "//components/reduce_accept_language/browser:unit_tests",
       "//components/reporting/resources:unit_tests",
       "//components/services/heap_profiling:unit_tests",
@@ -1043,6 +1046,7 @@ repack("components_tests_pak") {
     "$root_gen_dir/components/strings/components_branded_strings_en-US.pak",
     "$root_gen_dir/components/strings/components_locale_settings_en-US.pak",
     "$root_gen_dir/components/strings/components_strings_en-US.pak",
+    "$root_gen_dir/components/strings/components_variant_strings_en-US.pak",
     "$root_gen_dir/third_party/libaddressinput/address_input_strings_en-US.pak",
   ]
 
@@ -1058,6 +1062,7 @@ repack("components_tests_pak") {
     "//components/plus_addresses/core/browser/resources/strings",
     "//components/resources",
     "//components/strings",
+    "//components/strings:components_variant_strings",
     "//third_party/libaddressinput:strings",
   ]
 }

@@ -19,7 +19,10 @@
 
 namespace views {
 class Button;
+class Label;
 class Textfield;
+class Throbber;
+class ImageView;
 }  // namespace views
 
 namespace autofill {
@@ -63,7 +66,11 @@ class PopupSearchBarView : public views::View,
   static constexpr base::TimeDelta kInputChangeCallbackDelay =
       base::Milliseconds(250);
 
-  PopupSearchBarView(const std::u16string& placeholder, Delegate& delegate);
+  // TODO(crbug.com/504977286) Rename show_indicator when launched.
+  PopupSearchBarView(const std::u16string& placeholder,
+                     Delegate& delegate,
+                     bool show_indicator = false,
+                     bool is_loading = false);
   PopupSearchBarView(const PopupSearchBarView&) = delete;
   PopupSearchBarView& operator=(const PopupSearchBarView&) = delete;
   ~PopupSearchBarView() override;
@@ -85,9 +92,15 @@ class PopupSearchBarView : public views::View,
   // Returns the current text in the input field.
   std::u16string GetText() const;
 
+  // Sets the loading state of the search bar, showing a throbber if loading.
+  void SetLoading(bool is_loading);
+
   void SetInputTextForTesting(const std::u16string& text);
   gfx::Point GetClearButtonScreenCenterPointForTesting() const;
   bool IsClearButtonVisibleForTesting() const;
+  bool IsIndicatorVisibleForTesting() const;
+  views::ImageView* GetSearchIconForTesting() const { return search_icon_; }
+  views::Throbber* GetThrobberForTesting() const { return throbber_; }
 
   // TODO(crbug.com/325246516): Add methods to support communication with its
   // hosting poopup view.
@@ -100,6 +113,9 @@ class PopupSearchBarView : public views::View,
 
   raw_ptr<views::Textfield> input_ = nullptr;
   raw_ptr<views::Button> clear_ = nullptr;
+  raw_ptr<views::Label> indicator_ = nullptr;
+  raw_ptr<views::ImageView> search_icon_ = nullptr;
+  raw_ptr<views::Throbber> throbber_ = nullptr;
 
   base::CallbackListSubscription input_changed_subscription_;
   base::OneShotTimer input_change_notification_timer_;

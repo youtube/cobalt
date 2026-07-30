@@ -197,6 +197,11 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
   request->Cancel();
 }
 
+void URLRequest::Delegate::OnPlatformLocalNetworkAccessPermissionRequired(
+    URLRequest* request) {
+  request->CancelWithError(ERR_LOCAL_NETWORK_PERMISSION_MISSING);
+}
+
 void URLRequest::Delegate::OnResponseStarted(URLRequest* request,
                                              int net_error) {
   NOTREACHED();
@@ -263,26 +268,28 @@ void URLRequest::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {
   // for request headers are implemented.
 }
 
-int64_t URLRequest::GetTotalReceivedBytes() const {
-  if (!job_.get())
-    return 0;
-
-  return job_->GetTotalReceivedBytes().InBytes();
-}
-
-int64_t URLRequest::GetTotalSentBytes() const {
-  if (!job_.get())
-    return 0;
-
-  return job_->GetTotalSentBytes().InBytes();
-}
-
-int64_t URLRequest::GetRawBodyBytes() const {
+base::ByteSize URLRequest::GetTotalReceivedBytes() const {
   if (!job_.get()) {
-    return 0;
+    return base::ByteSize(0);
   }
 
-  if (int64_t bytes = job_->GetReceivedBodyBytes().InBytes()) {
+  return job_->GetTotalReceivedBytes();
+}
+
+base::ByteSize URLRequest::GetTotalSentBytes() const {
+  if (!job_.get()) {
+    return base::ByteSize(0);
+  }
+
+  return job_->GetTotalSentBytes();
+}
+
+base::ByteSize URLRequest::GetRawBodyBytes() const {
+  if (!job_.get()) {
+    return base::ByteSize(0);
+  }
+
+  if (base::ByteSize bytes = job_->GetReceivedBodyBytes(); !bytes.is_zero()) {
     return bytes;
   }
 
@@ -293,7 +300,7 @@ int64_t URLRequest::GetRawBodyBytes() const {
   // Note: For shared dictionary cached responses, the correct encoded body
   // size is stored in HttpResponseInfo::encoded_body_size and should be used
   // instead of this method when the total encoded size is needed.
-  return job_->prefilter_bytes_read().InBytes();
+  return job_->prefilter_bytes_read();
 }
 
 LoadStateWithParam URLRequest::GetLoadState() const {
@@ -1018,6 +1025,26 @@ void URLRequest::ContinueDespiteLastError() {
   job_->ContinueDespiteLastError();
 }
 
+void URLRequest::SetPlatformLocalNetworkAccessGranted() {
+  CHECK(job_.get());
+
+  // Matches the call in NotifyPlatformLocalNetworkAccessPermissionRequired.
+  OnCallToDelegateComplete();
+
+  status_ = ERR_IO_PENDING;
+  job_->SetPlatformLocalNetworkAccessGranted();
+}
+
+void URLRequest::CancelPlatformLocalNetworkAccessRequest() {
+  DCHECK(job_.get());
+
+  // Matches the call in NotifyPlatformLocalNetworkAccessPermissionRequired.
+  OnCallToDelegateComplete();
+
+  status_ = ERR_IO_PENDING;
+  job_->CancelPlatformLocalNetworkAccessRequest();
+}
+
 void URLRequest::AbortAndCloseConnection() {
   DCHECK_EQ(OK, status_);
   DCHECK(!has_notified_completion_);
@@ -1200,6 +1227,15 @@ void URLRequest::NotifyCertificateRequested(
 
   OnCallToDelegate(NetLogEventType::URL_REQUEST_DELEGATE_CERTIFICATE_REQUESTED);
   delegate_->OnCertificateRequested(this, cert_request_info);
+}
+
+void URLRequest::NotifyPlatformLocalNetworkAccessPermissionRequired() {
+  status_ = OK;
+
+  OnCallToDelegate(
+      NetLogEventType::
+          URL_REQUEST_DELEGATE_PLATFORM_LOCAL_NETWORK_ACCESS_PERMISSION_REQUIRED);
+  delegate_->OnPlatformLocalNetworkAccessPermissionRequired(this);
 }
 
 void URLRequest::NotifySSLCertificateError(int net_error,

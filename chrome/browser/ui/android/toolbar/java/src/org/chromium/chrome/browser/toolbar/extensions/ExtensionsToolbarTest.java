@@ -8,13 +8,18 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.PositionAssertions.isLeftOf;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
+import static androidx.test.espresso.matcher.ViewMatchers.hasSibling;
+import static androidx.test.espresso.matcher.ViewMatchers.isActivated;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
+import static androidx.test.espresso.matcher.ViewMatchers.isSelected;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +34,9 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
+import androidx.test.espresso.ViewInteraction;
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -52,7 +59,6 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.ui.extensions.ExtensionTestMessageListener;
 import org.chromium.chrome.browser.ui.extensions.ExtensionTestUtils;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
@@ -226,7 +232,7 @@ public class ExtensionsToolbarTest {
         ViewUtils.onViewWaiting(
                         allOf(
                                 withId(R.id.extensions_menu_button),
-                                withContentDescription(R.string.accessibility_btn_extensions)))
+                                withContentDescription(R.string.acc_name_extensions_button)))
                 .check(matches(isDisplayed()));
 
         // Open the extensions menu.
@@ -296,6 +302,76 @@ public class ExtensionsToolbarTest {
         CriteriaHelper.pollInstrumentationThread(
                 () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, id) == 0,
                 "Popup should have closed");
+    }
+
+    @Test
+    @LargeTest
+    public void testUninstallPoppedOutExtension() throws IOException {
+        String extensionId = loadPopupExtension("extension", "Extension", "Action", "popup opened");
+
+        // Open the extensions menu.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button))
+                .check(matches(isDisplayed()))
+                .perform(click());
+
+        try (ExtensionTestMessageListener listener =
+                new ExtensionTestMessageListener("popup opened")) {
+            // Click on the extension item.
+            ViewUtils.onViewWaiting(withText("Extension")).perform(click());
+            assertTrue(listener.waitUntilSatisfied());
+        }
+
+        // Ensure the popup has opened.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 1,
+                "Popup did not open");
+
+        // Uninstall the extension.
+        uninstallTestExtension(extensionId);
+
+        // The extension should disappear from the toolbar.
+        onView(isRoot())
+                .check(
+                        withEventualExpectedViewState(
+                                withContentDescription("Test Action"), VIEW_GONE | VIEW_NULL));
+
+        // The popup should be gone.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 0,
+                "Popup should have closed");
+    }
+
+    @Test
+    @LargeTest
+    public void testPinnedExtensionContextMenuIcon() throws IOException {
+        String extensionName = "Test Extension";
+        String extensionId = loadBasicExtension("extension", extensionName, "Test Action");
+
+        // Open the extensions menu.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button)).perform(click());
+
+        // Find the context menu button for the pinned extension.
+        ViewInteraction contextMenuButton =
+                onView(
+                        allOf(
+                                withId(R.id.extensions_menu_item_context_menu),
+                                hasSibling(hasDescendant(withText(extensionName)))));
+
+        // Verify the button does not have the activate state, which reflects that the action is
+        // unpinned.
+        contextMenuButton
+                .check(matches(isDisplayed()))
+                .check(matches(not(isActivated())))
+                .check(matches(not(isSelected())));
+
+        // Pin the extension.
+        ExtensionTestUtils.setExtensionActionVisible(mProfile, extensionId, true);
+
+        // Verify the button now has activate state.
+        contextMenuButton
+                .check(matches(isDisplayed()))
+                .check(matches(isActivated()))
+                .check(matches(not(isSelected())));
     }
 
     private String loadBasicExtension(String dirName, String name, String actionTitle)
@@ -538,7 +614,7 @@ public class ExtensionsToolbarTest {
         ViewUtils.onViewWaiting(
                         allOf(
                                 withId(R.id.extensions_menu_button),
-                                withContentDescription(R.string.accessibility_btn_extensions)))
+                                withContentDescription(R.string.acc_name_extensions_button)))
                 .check(matches(isDisplayed()));
 
         // Navigate back to site 1 (where extensions are blocked).
@@ -609,10 +685,8 @@ public class ExtensionsToolbarTest {
                                 withId(R.id.extensions_menu_button), VIEW_GONE | VIEW_NULL));
 
         // Open the extensions menu via the app menu.
-        ViewUtils.onViewWaiting(withId(org.chromium.chrome.R.id.menu_button_wrapper))
-                .perform(click());
-        ViewUtils.onViewWaiting(withId(org.chromium.chrome.R.id.extensions_menu_menu_id))
-                .perform(click());
+        ViewUtils.onViewWaiting(withId(R.id.menu_button_wrapper)).perform(click());
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_menu_id)).perform(click());
 
         // Pin the menu icon using the toggle.
         ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button_pinning_toggle))
@@ -658,7 +732,7 @@ public class ExtensionsToolbarTest {
         // Verify the button text changes to "Allowed" and it becomes disabled.
         CriteriaHelper.pollUiThread(
                 () -> {
-                    android.widget.TextView btn =
+                    TextView btn =
                             mActivityTestRule
                                     .getActivity()
                                     .findViewById(R.id.extensions_request_access_button);
@@ -977,5 +1051,53 @@ public class ExtensionsToolbarTest {
         CriteriaHelper.pollInstrumentationThread(
                 () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 0,
                 "Popup should have closed after Ctrl+T was pressed and tab model has changed.");
+    }
+
+    @Test
+    @LargeTest
+    public void testTriggerUnpinnedActionFromExtensionsMenu() throws IOException {
+        String extensionId = loadPopupExtension("extension", "Extension", "Action", "popup opened");
+
+        // Open the extensions menu.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button))
+                .check(matches(isDisplayed()))
+                .perform(click());
+
+        try (ExtensionTestMessageListener listener =
+                new ExtensionTestMessageListener("popup opened")) {
+            // Click on the extension item.
+            ViewUtils.onViewWaiting(withText("Extension")).perform(click());
+            assertTrue(listener.waitUntilSatisfied());
+        }
+
+        // Ensure the popup has opened.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 1,
+                "Popup did not open");
+    }
+
+    @Test
+    @LargeTest
+    public void testTriggerPinnedActionFromExtensionsMenu() throws IOException {
+        String extensionId = loadPopupExtension("extension", "Extension", "Action", "popup opened");
+        ExtensionTestUtils.setExtensionActionVisible(mProfile, extensionId, true);
+        ViewUtils.onViewWaiting(withContentDescription("Action")).check(matches(isDisplayed()));
+
+        // Open the extensions menu.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button))
+                .check(matches(isDisplayed()))
+                .perform(click());
+
+        try (ExtensionTestMessageListener listener =
+                new ExtensionTestMessageListener("popup opened")) {
+            // Click on the extension item.
+            ViewUtils.onViewWaiting(withText("Extension")).perform(click());
+            assertTrue(listener.waitUntilSatisfied());
+        }
+
+        // Ensure the popup has opened.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 1,
+                "Popup did not open");
     }
 }

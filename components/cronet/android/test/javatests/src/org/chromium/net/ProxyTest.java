@@ -85,7 +85,7 @@ public class ProxyTest {
                                 /* scheme= */ Proxy.SCHEME_HTTPS,
                                 /* host= */ "this-hostname-does-not-exist.com",
                                 /* port= */ 8080,
-                                Executors.newSingleThreadExecutor(),
+                                Runnable::run,
                                 /* callback= */ null));
     }
 
@@ -101,7 +101,7 @@ public class ProxyTest {
                                 /* scheme= */ Proxy.SCHEME_HTTP,
                                 /* host= */ null,
                                 /* port= */ 8080,
-                                Executors.newSingleThreadExecutor(),
+                                Runnable::run,
                                 /* callback= */ proxyCallbackMock));
     }
 
@@ -133,7 +133,7 @@ public class ProxyTest {
                                 /* scheme= */ -1,
                                 /* host= */ "localhost",
                                 /* port= */ 8080,
-                                Executors.newSingleThreadExecutor(),
+                                Runnable::run,
                                 /* callback= */ proxyCallbackMock));
         assertThrows(
                 IllegalArgumentException.class,
@@ -142,7 +142,7 @@ public class ProxyTest {
                                 /* scheme= */ 2,
                                 /* host= */ "localhost",
                                 /* port= */ 8080,
-                                Executors.newSingleThreadExecutor(),
+                                Runnable::run,
                                 /* callback= */ proxyCallbackMock));
     }
 
@@ -199,7 +199,8 @@ public class ProxyTest {
                                                                 /* port= */ 8080,
                                                                 Executors.newSingleThreadExecutor(),
                                                                 /* callback= */ proxyCallback)),
-                                                                ProxyOptions.ALL_PROXIES_FAILED_BEHAVIOR_ALLOW_DIRECT)));
+                                                ProxyOptions
+                                                        .ALL_PROXIES_FAILED_BEHAVIOR_ALLOW_DIRECT)));
         ExperimentalCronetEngine cronetEngine = mTestRule.getTestFramework().startEngine();
         TestUrlRequestCallback callback = new TestUrlRequestCallback();
         UrlRequest.Builder urlRequestBuilder =
@@ -253,7 +254,8 @@ public class ProxyTest {
                                                                 /* port= */ 8080,
                                                                 Executors.newSingleThreadExecutor(),
                                                                 /* callback= */ proxyCallback)),
-                                                                ProxyOptions.ALL_PROXIES_FAILED_BEHAVIOR_DISALLOW_DIRECT)));
+                                                ProxyOptions
+                                                        .ALL_PROXIES_FAILED_BEHAVIOR_DISALLOW_DIRECT)));
         ExperimentalCronetEngine cronetEngine = mTestRule.getTestFramework().startEngine();
         TestUrlRequestCallback callback = new TestUrlRequestCallback();
         UrlRequest.Builder urlRequestBuilder =
@@ -764,6 +766,8 @@ public class ProxyTest {
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
+    @SuppressWarnings(
+            "unchecked") // ArgumentCaptor.forClass(List.class): no @Captor infra in this file.
     public void testCallback_proxyResponseSuccessIsReported() {
         try (NativeTestServer proxyServer = mNativeTestServer;
                 NativeTestServer originServer =
@@ -869,6 +873,8 @@ public class ProxyTest {
     // Mockito fails on Marshmallow with NoClassDefFoundError:
     // org.mockito.internal.invocation.TypeSafeMatching$$ExternalSyntheticLambda0
     @RequiresMinAndroidApi(Build.VERSION_CODES.N)
+    @SuppressWarnings(
+            "unchecked") // ArgumentCaptor.forClass(List.class): no @Captor infra in this file.
     public void testCallback_bidiStream_isSuccessfullyProxied() throws Exception {
         try (NativeTestServer proxyServer = mNativeTestServer) {
             assertThat(
@@ -1478,16 +1484,12 @@ public class ProxyTest {
 
             try (Proxy.HttpConnectCallback.Request proxyRequest =
                     proxyRequestExchanger.exchange(null)) {
+                var extraHeaders = Arrays.asList(new Pair<>(":", "valid header value"));
                 assertThrows(
-                        IllegalArgumentException.class,
-                        () ->
-                                proxyRequest.proceed(
-                                        Arrays.asList(new Pair<>(":", "valid header value"))));
+                        IllegalArgumentException.class, () -> proxyRequest.proceed(extraHeaders));
+                var extraHeaders2 = Arrays.asList(new Pair<>("Authorization", "\r"));
                 assertThrows(
-                        IllegalArgumentException.class,
-                        () ->
-                                proxyRequest.proceed(
-                                        Arrays.asList(new Pair<>("Authorization", "\r"))));
+                        IllegalArgumentException.class, () -> proxyRequest.proceed(extraHeaders2));
                 proxyRequest.proceed(Collections.emptyList());
             }
 

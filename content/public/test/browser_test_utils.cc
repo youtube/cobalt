@@ -2277,10 +2277,17 @@ uint32_t DeleteCookies(BrowserContext* browser_context,
 void FetchHistogramsFromChildProcesses() {
   // Wait for all initialized processes to be ready before fetching histograms
   // for the first time.
+  // Use a vector of IDs to avoid race condition caused by process shutdown
+  // when waiting for the `RenderProcessHostWatcher`.
+  std::vector<ChildProcessId> process_ids;
   for (RenderProcessHost::iterator it(RenderProcessHost::AllHostsIterator());
        !it.IsAtEnd(); it.Advance()) {
-    RenderProcessHost* process = it.GetCurrentValue();
-    if (process->IsInitializedAndNotDead() && !process->IsReady()) {
+    process_ids.push_back(it.GetCurrentValue()->GetID());
+  }
+
+  for (ChildProcessId id : process_ids) {
+    RenderProcessHost* process = RenderProcessHost::FromID(id);
+    if (process && process->IsInitializedAndNotDead() && !process->IsReady()) {
       RenderProcessHostWatcher ready_watcher(
           process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_READY);
       ready_watcher.Wait();
@@ -3126,6 +3133,36 @@ void MainThreadFrameObserver::Quit(bool) {
   if (quit_closure_) {
     std::move(quit_closure_).Run();
   }
+}
+
+ReadyForInputObserver::ReadyForInputObserver(WebContents* web_contents) {
+  rwhi_ = RenderWidgetHostImpl::From(
+      web_contents->GetPrimaryMainFrame()->GetRenderWidgetHost());
+  rwhi_->AddObserver(this);
+  rwhi_->SetReadyForInputCallbackForTesting(base::BindOnce(
+      &ReadyForInputObserver::OnReadyForInput, base::Unretained(this)));
+}
+
+ReadyForInputObserver::~ReadyForInputObserver() {
+  if (rwhi_) {
+    rwhi_->RemoveObserver(this);
+    rwhi_->SetReadyForInputCallbackForTesting(base::DoNothing());
+  }
+}
+
+void ReadyForInputObserver::Wait() {
+  run_loop_.Run();
+}
+
+void ReadyForInputObserver::RenderWidgetHostDestroyed(
+    RenderWidgetHost* widget_host) {
+  if (widget_host == rwhi_) {
+    rwhi_ = nullptr;
+  }
+}
+
+void ReadyForInputObserver::OnReadyForInput() {
+  run_loop_.Quit();
 }
 
 InputMsgWatcher::InputMsgWatcher(RenderWidgetHost* render_widget_host,

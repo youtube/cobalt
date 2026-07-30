@@ -10,7 +10,6 @@
 
 #include "base/supports_user_data.h"
 #include "build/build_config.h"
-#include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -44,6 +43,17 @@ extern const void* const kManageAccountsHeaderReceivedUserDataKey;
 
 // The source to use when constructing the Mirror header.
 extern const char kChromeMirrorHeaderSource[];
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(MirrorHeaderEvent)
+enum class MirrorHeaderEvent {
+  kAccountNotOnDevice = 0,
+  kAccountInPersistentError = 1,
+  kAccountRecentlyAdded = 2,
+  kMaxValue = kAccountRecentlyAdded,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:MirrorHeaderEvent)
 
 class ChromeRequestAdapter : public RequestAdapter {
  public:

@@ -509,21 +509,6 @@ TEST_F(GlicEnablingTrustFirstOnboardingTest, NotConsented_ReturnsReady) {
             mojom::ProfileReadyState::kReady);
 }
 
-TEST_F(GlicEnablingTrustFirstOnboardingTest, Consented_ReturnsFalse) {
-  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
-      prefs::FreStatus::kCompleted);
-
-  EXPECT_FALSE(
-      GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile()));
-}
-
-TEST_F(GlicEnablingTrustFirstOnboardingTest, NotConsented_ReturnsTrue) {
-  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
-      prefs::FreStatus::kIncomplete);
-
-  EXPECT_TRUE(GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile()));
-}
-
 TEST_F(GlicEnablingTrustFirstOnboardingTest, Consented_ReturnsReady) {
   glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
       prefs::FreStatus::kCompleted);
@@ -743,6 +728,27 @@ TEST_F(GlicEnablingProfileEligibilityTest,
   glic::GlicKeyedService::Get(profile())
       ->enabling()
       .SetUserEnabledActuationOnWeb(false);
+  EXPECT_TRUE(callback_called);
+}
+
+TEST_F(GlicEnablingProfileEligibilityTest,
+       ExperimentalTriggeringEnabledChangedCallback) {
+  bool callback_called = false;
+  auto subscription =
+      glic::GlicKeyedService::Get(profile())
+          ->enabling()
+          .RegisterOnExperimentalTriggeringEnabledChanged(
+              base::BindLambdaForTesting([&]() { callback_called = true; }));
+
+  glic::GlicKeyedService::Get(profile())
+      ->enabling()
+      .SetExperimentalTriggeringEnabled(false);
+  EXPECT_TRUE(callback_called);
+
+  callback_called = false;
+  glic::GlicKeyedService::Get(profile())
+      ->enabling()
+      .SetExperimentalTriggeringEnabled(true);
   EXPECT_TRUE(callback_called);
 }
 

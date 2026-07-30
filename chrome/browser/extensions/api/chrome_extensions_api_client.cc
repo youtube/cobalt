@@ -50,7 +50,6 @@
 #include "extensions/browser/api/messaging/native_message_host.h"
 #include "extensions/browser/api/messaging/native_message_port.h"
 #include "extensions/browser/api/system_display/display_info_provider.h"
-#include "extensions/browser/api/virtual_keyboard_private/virtual_keyboard_delegate.h"
 #include "extensions/browser/api/web_request/web_request_info.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
@@ -67,8 +66,9 @@
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
 
-#if BUILDFLAG(ENABLE_PLATFORM_APPS)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/guest_view/app_view/chrome_app_view_guest_delegate.h"
+#include "extensions/browser/api/virtual_keyboard_private/virtual_keyboard_delegate.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -167,13 +167,13 @@ bool ChromeExtensionsAPIClient::ShouldHideBrowserNetworkRequest(
   is_sensitive_request |=
       is_browser_request &&
       request.initiator ==
-          url::Origin::Create(GURL(chrome::kChromeUINewTabURL));
+          url::Origin::Create(chrome::ChromeUINewTabURLAsGURL());
 
   // Hide requests made by the browser on behalf of the 1P WebUI NTP.
   is_sensitive_request |=
       is_browser_request &&
       request.initiator ==
-          url::Origin::Create(GURL(chrome::kChromeUINewTabPageURL));
+          url::Origin::Create(chrome::ChromeUINewTabPageURLAsGURL());
 
   // Android does not support instant.
 #if !BUILDFLAG(IS_ANDROID)
@@ -332,7 +332,7 @@ void ChromeExtensionsAPIClient::OpenFileUrlForTesting(
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
 
-#if BUILDFLAG(ENABLE_PLATFORM_APPS)
+#if BUILDFLAG(IS_CHROMEOS)
 std::unique_ptr<AppViewGuestDelegate>
 ChromeExtensionsAPIClient::CreateAppViewGuestDelegate() const {
   return std::make_unique<ChromeAppViewGuestDelegate>();
@@ -412,17 +412,13 @@ bool ChromeExtensionsAPIClient::ShouldAllowDetachingUsb(int vid,
 
   return false;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 std::unique_ptr<VirtualKeyboardDelegate>
 ChromeExtensionsAPIClient::CreateVirtualKeyboardDelegate(
     content::BrowserContext* browser_context) const {
-#if BUILDFLAG(IS_CHROMEOS)
   return std::make_unique<ChromeVirtualKeyboardDelegate>(browser_context);
-#else
-  return nullptr;
-#endif
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 ManagementAPIDelegate* ChromeExtensionsAPIClient::CreateManagementAPIDelegate()
     const {

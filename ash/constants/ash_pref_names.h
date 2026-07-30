@@ -2710,11 +2710,41 @@ inline constexpr char kExtendedUpdatesNotificationDismissed[] =
 inline constexpr char kGlanceablesTimeManagementLastExpandedBubble[] =
     "ash.glanceables_time_management.last_expanded";
 
+// String containing a space-separated list of effective DNS over HTTPS URI
+// templates. If `kDnsOverHttpsTemplatesWithIdentifiers` is set, this string is
+// the result of evaluating `kDnsOverHttpsTemplatesWithIdentifiers` against real
+// user and device data; the identity placeholders are replaced with the
+// hex-encoded hashed value of the user and device identifier. When
+// `kDnsOverHttpsTemplatesWithIdentifiers` is empty or not set,
+// `kDnsOverHttpsEffectiveTemplates` is equal to `kDnsOverHttpsTemplates`.
+// This pref is set at runtime by ash::SecureDnsManager.
+inline constexpr char kDnsOverHttpsEffectiveTemplatesChromeOS[] =
+    "dns_over_https.effective_templates_with_identifiers";
+
 // Lists of strings containing excluded and included domains for DNS-over-HTTPs.
 inline constexpr char kDnsOverHttpsExcludedDomains[] =
     "dns_over_https.excluded_domains";
 inline constexpr char kDnsOverHttpsIncludedDomains[] =
     "dns_over_https.included_domains";
+
+// String containing a space-separated list of DNS over HTTPS URI templates,
+// with placeholders for user and device identifiers, to use in secure mode or
+// automatic mode. If no templates are specified in automatic mode, we will
+// attempt discovery of DoH servers associated with the configured insecure
+// resolvers. This is very similar to kDnsOverHttpsTemplates except that on
+// ChromeOS it supports additional placeholder variables which are used to
+// transport identity information to the DNS provider. This is ignored on all
+// other platforms than ChromeOS. On ChromeOS if it exists it will override
+// kDnsOverHttpsTemplates, otherwise kDnsOverHttpsTemplates will be used. This
+// pref is controlled by an enterprise policy.
+inline constexpr char kDnsOverHttpsTemplatesWithIdentifiers[] =
+    "dns_over_https.templates_with_identifiers";
+
+// String containing a salt value. This is used together with
+// kDnsOverHttpsTemplatesWithIdentifiers, only. The value will be used as a salt
+// to a hash applied to the various identity variables to prevent dictionary
+// attacks. This pref is controlled by an enterprise policy.
+inline constexpr char kDnsOverHttpsSalt[] = "dns_over_https.salt";
 
 // Dictionary pref representing information related to whether the Graduation
 // app should be enabled for a user. This corresponds to the policy defined in
@@ -2805,6 +2835,10 @@ inline constexpr char kLastSessionLength[] = "session.last_session_length";
 // on shutdown so that it could be reported on the next run.
 inline constexpr char kLastSessionType[] = "session.last_session_type";
 
+// System uptime, when last logout started.
+// This is saved to file and cleared after chrome process starts.
+inline constexpr char kLogoutStartedLast[] = "chromeos.logout-started";
+
 // Holds the maximum session time in milliseconds. If this pref is set, the
 // user is logged out when the maximum session time is reached. The user is
 // informed about the remaining time by a countdown timer shown in the ash
@@ -2871,6 +2905,10 @@ inline constexpr char kKioskChromeAppsForceAllowed[] =
 // This setting resides in local state.
 inline constexpr char kKioskMetrics[] = "kiosk-metrics";
 
+// A boolean pref that controls whether pinch-to-zoom is allowed in kiosk mode.
+inline constexpr char kKioskPinchToZoomAllowed[] =
+    "policy.kiosk_pinch_to_zoom_allowed";
+
 // A boolean pref which determines whether kiosk troubleshooting tools are
 // enabled.
 inline constexpr char kKioskTroubleshootingToolsEnabled[] =
@@ -2885,6 +2923,53 @@ inline constexpr char kKioskWebAppOfflineEnabled[] =
 // browser window.
 inline constexpr char kNewWindowsInKioskAllowed[] =
     "new_windows_in_kiosk_allowed";
+
+//-----------------------------------------------------------------------------
+// Internationalization/locale related Prefs
+//-----------------------------------------------------------------------------
+
+// List of locales the UI is allowed to be displayed in by policy. The list is
+// empty if no restriction is being enforced.
+inline constexpr char kAllowedLanguages[] = "intl.allowed_languages";
+
+// Locale accepted by user.  Non-syncable.
+// Used to determine whether we need to show Locale Change notification.
+inline constexpr char kApplicationLocaleAccepted[] = "intl.app_locale_accepted";
+
+// Non-syncable item.
+// It is used in two distinct ways.
+// (1) Used for two-step initialization of locale in ChromeOS
+//     because synchronization of kApplicationLocale is not instant.
+// (2) Used to detect locale change.  Locale change is detected by
+//     LocaleChangeGuard in case values of kApplicationLocaleBackup and
+//     kApplicationLocale are both non-empty and differ.
+// Following is a table showing how state of those prefs may change upon
+// common real-life use cases:
+//                                  AppLocale Backup Accepted
+// Initial login                       -        A       -
+// Sync                                B        A       -
+// Accept (B)                          B        B       B
+// -----------------------------------------------------------
+// Initial login                       -        A       -
+// No sync and second login            A        A       -
+// Change options                      B        B       -
+// -----------------------------------------------------------
+// Initial login                       -        A       -
+// Sync                                A        A       -
+// Locale changed on login screen      A        C       -
+// Accept (A)                          A        A       A
+// -----------------------------------------------------------
+// Initial login                       -        A       -
+// Sync                                B        A       -
+// Revert                              A        A       -
+inline constexpr char kApplicationLocaleBackup[] = "intl.app_locale_backup";
+
+// A string pref with initial locale set in VPD or manifest.
+inline constexpr char kInitialLocale[] = "intl.initial_locale";
+
+// Locale preference of device' owner.  ChromeOS device appears in this locale
+// after startup/wakeup/signout.
+inline constexpr char kOwnerLocale[] = "intl.owner_locale";
 
 //-----------------------------------------------------------------------------
 // Language related Prefs
@@ -2936,6 +3021,14 @@ inline constexpr char kLanguagePreviousInputMethod[] =
 // input methods. False after the initial post-OOBE sync.
 inline constexpr char kLanguageShouldMergeInputMethods[] =
     "settings.language.merge_input_methods";
+
+//-----------------------------------------------------------------------------
+// Input related Prefs
+//-----------------------------------------------------------------------------
+
+// The hardware keyboard layout of the device. This should look like
+// "xkb:us::eng".
+inline constexpr char kHardwareKeyboardLayout[] = "intl.hardware_keyboard";
 
 //-----------------------------------------------------------------------------
 // Clock/Timezone related Prefs
@@ -3021,6 +3114,19 @@ inline constexpr char kKerberosUseCustomPrefilledConfig[] =
     "kerberos.use_custom_prefilled_config";
 
 //-----------------------------------------------------------------------------
+// Certificate related Prefs
+//-----------------------------------------------------------------------------
+
+inline constexpr char kRequiredClientCertificateForUser[] =
+    "required_client_certificate_for_user";
+inline constexpr char kRequiredClientCertificateForDevice[] =
+    "required_client_certificate_for_device";
+inline constexpr char kCertificateProvisioningStateForUser[] =
+    "cert_provisioning_user_state";
+inline constexpr char kCertificateProvisioningStateForDevice[] =
+    "cert_provisioning_device_state";
+
+//-----------------------------------------------------------------------------
 // TPM related Prefs
 //-----------------------------------------------------------------------------
 
@@ -3046,6 +3152,9 @@ inline constexpr char kTPMUpdatePlannedNotificationShownTime[] =
 // File manager/file system related Prefs
 //-----------------------------------------------------------------------------
 
+// Whether the user can remove OneDrive.
+inline constexpr char kAllowUserToRemoveODFS[] = "allow_user_to_remove_odfs";
+
 // Map of default tasks, associated by MIME type.
 inline constexpr char kDefaultTasksByMimeType[] =
     "filebrowser.tasks.default_by_mime_type";
@@ -3066,6 +3175,10 @@ inline constexpr char kDefaultHandlersForFileExtensions[] =
 inline constexpr char kFilesAppDefaultLocation[] =
     "filebrowser.default_location";
 
+// Pref that contains the value of the GoogleWorkspaceCloudUpload policy.
+inline constexpr char kGoogleWorkspaceCloudUpload[] =
+    "filebrowser.office.google_workspace_cloud_upload";
+
 // Pref that contains the value of the LocalUserFilesAllowed policy.
 inline constexpr char kLocalUserFilesAllowed[] =
     "filebrowser.local_user_files_allowed";
@@ -3075,10 +3188,51 @@ inline constexpr char kLocalUserFilesAllowed[] =
 inline constexpr char kLocalUserFilesMigrationDestination[] =
     "filebrowser.local_user_files_migration_destination";
 
+// Whether M365 has been already been set as default to open supported links.
+inline constexpr char kM365SupportedLinkDefaultSet[] =
+    "filebrowser.m365_supported_link_default_set";
+
+// Pref that contains the value of the MicrosoftOfficeCloudUpload policy.
+inline constexpr char kMicrosoftOfficeCloudUpload[] =
+    "filebrowser.office.microsoft_office_cloud_upload";
+
+// Pref that contains the value of the MicrosoftOneDriveAccountRestrictions
+// policy.
+inline constexpr char kMicrosoftOneDriveAccountRestrictions[] =
+    "filebrowser.office.microsoft_one_drive_account_restrictions";
+
+// Pref that contains the value of the MicrosoftOneDriveMount policy.
+inline constexpr char kMicrosoftOneDriveMount[] =
+    "filebrowser.office.microsoft_one_drive_mount";
+
+// URL path string of the most recently used SMB NetworkFileShare path.
+inline constexpr char kMostRecentlyUsedNetworkFileShareURL[] =
+    "network_file_shares.most_recently_used_url";
+
+// Boolean pref indicating whether the NetBios Name Query Request Protocol is
+// used for discovering shares on the user's network by the Network File
+// Shares for Chrome OS feature.
+inline constexpr char kNetBiosShareDiscoveryEnabled[] =
+    "network_file_shares.netbios_discovery.enabled";
+
 // Boolean pref indicating whether a user is allowed to use the Network File
 // Shares for Chrome OS feature.
 inline constexpr char kNetworkFileSharesAllowed[] =
     "network_file_shares.allowed";
+
+// List of preconfigured network file shares.
+inline constexpr char kNetworkFileSharesPreconfiguredShares[] =
+    "network_file_shares.preconfigured_shares";
+
+// List of network files shares added by the user.
+inline constexpr char kNetworkFileSharesSavedShares[] =
+    "network_file_shares.saved_shares";
+
+// Boolean pref indicating whether the NTLM authentication protocol should be
+// enabled when mounting an SMB share with a user credential by the Network File
+// Shares for Chrome OS feature.
+inline constexpr char kNTLMShareAuthenticationEnabled[] =
+    "network_file_shares.ntlm_share_authentication.enabled";
 
 // Whether we should always move office files to Google Drive without prompting
 // the user first.
@@ -3149,6 +3303,39 @@ inline constexpr char kOfficeMoveConfirmationShownForOneDrive[] =
 
 inline constexpr char kOfficeMoveConfirmationShownForOneDriveSyncable[] =
     "filebrowser.office.move_confirmation_shown_for_onedrive_syncable";
+
+//-----------------------------------------------------------------------------
+// Shelf related Prefs
+//-----------------------------------------------------------------------------
+
+inline constexpr char kPolicyPinnedLauncherApps[] =
+    "policy_pinned_launcher_apps";
+
+// Keeps names of rolled default pin layouts for shelf in order not to apply
+// this twice. Names are separated by comma.
+inline constexpr char kShelfDefaultPinLayoutRolls[] =
+    "shelf_default_pin_layout_rolls";
+
+// Same as kShelfDefaultPinLayoutRolls, but for tablet form factor devices.
+inline constexpr char kShelfDefaultPinLayoutRollsForTabletFormFactor[] =
+    "shelf_default_pin_layout_rolls_for_tablet_form_factor";
+
+// Keeps track of whether the Gemini app was pinned to shelf as a default app,
+// to prevent applying the default pin twice (after the user unpins the app).
+// NOTE: The Gemini app was previously referred to as the container app.
+inline constexpr char kShelfGeminiAppPinRolls[] =
+    "shelf_container_app_pin_layout_rolls";
+
+// Keeps track of whether the Mall app was pinned to shelf as a default app,
+// to prevent applying the default pin twice (after the user unpins the app).
+inline constexpr char kShelfMallAppPinRolls[] =
+    "shelf_mall_app_pin_layout_rolls";
+
+// Keeps track of whether the NotebookLM app was pinned to shelf as a default
+// app, to prevent applying the default pin twice (after the user unpins the
+// app).
+inline constexpr char kShelfNotebookLmAppPinRolls[] =
+    "shelf_notebook_lm_app_pin_layout_rolls";
 
 //-----------------------------------------------------------------------------
 // End of Life related Prefs
@@ -3657,6 +3844,26 @@ inline constexpr char kTimeLimitLocalOverride[] = "screen_time.local_override";
 
 // A dictionary preference holding the usage time limit definitions for a user.
 inline constexpr char kUsageTimeLimit[] = "screen_time.limit";
+
+//-----------------------------------------------------------------------------
+// SkyVault related Prefs
+//-----------------------------------------------------------------------------
+
+// The state of the SkyVault migration of local files to the cloud.
+inline constexpr char kSkyVaultMigrationState[] = "skyvault.migration_state";
+
+// The number of times SkyVault migration was retried after some upload errors.
+inline constexpr char kSkyVaultMigrationRetryCount[] =
+    "skyvault.migration_retry_count";
+
+// The time at which the SkyVault local files upload or deletion is scheduled to
+// start.
+inline constexpr char kSkyVaultMigrationScheduledStartTime[] =
+    "skyvault.migration_scheduled_start_time";
+
+// The time at which the SkyVault local files upload actually started.
+inline constexpr char kSkyVaultMigrationStartTime[] =
+    "skyvault.migration_start_time";
 
 // NOTE: New prefs should start with the "ash." prefix. Existing prefs moved
 // into this file should not be renamed, since they may be synced.

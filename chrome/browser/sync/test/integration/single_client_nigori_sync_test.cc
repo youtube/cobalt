@@ -626,7 +626,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriSyncTest,
 // Tests that client can decrypt |pending_keys| with implicit passphrase in
 // backward-compatible keystore mode, when |keystore_decryptor_token| is
 // non-decryptable (corrupted). Additionally verifies that there is no
-// regression causing crbug.com/1042203.
+// regression causing crbug.com/40668359.
 IN_PROC_BROWSER_TEST_P(
     SingleClientNigoriSyncTest,
     ShouldDecryptWithImplicitPassphraseInBackwardCompatibleKeystoreMode) {
@@ -1368,7 +1368,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 
-// Regression test for crbug.com/1479879: test verifies that client is able to
+// Regression test for crbug.com/40930088: test verifies that client is able to
 // fix degraded recoverability if trusted vault keys were obtained by key
 // retrieval. In particular, this requires plumbing correct key version
 // (verified by FakeSecurityDomainsServer).
@@ -2271,7 +2271,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
       /*expected_bucket_count=*/1);
 }
 
-// Regression test for crbug.com/1267391: after following key rotation the
+// Regression test for crbug.com/40802753: after following key rotation the
 // client should still send all trusted vault keys (including keys that predate
 // key rotation) to the server when adding recovery method.
 IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
@@ -2417,9 +2417,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientNigoriWithWebApiTest,
   SetNigoriInFakeServer(BuildTrustedVaultNigoriSpecifics({kTestEncryptionKey}),
                         GetFakeServer());
 
-  ASSERT_TRUE(SetupClients());
-  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
+  ASSERT_TRUE(SignIn());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
 
   // The error is now shown, because PASSWORDS is trying to sync. The data
@@ -2475,8 +2473,7 @@ IN_PROC_BROWSER_TEST_P(
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch(),
       /*trigger=*/std::nullopt);
 
-  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
-  ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
+  ASSERT_TRUE(SignIn());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
 
   ASSERT_TRUE(TrustedVaultRecoverabilityDegradedStateChecker(GetSyncService(0),

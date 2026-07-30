@@ -243,6 +243,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
     LegacyTabGridTransitionHandler* legacyTransitionHandler;
 // New handler for the transitions between the TabGrid and the Browser.
 @property(nonatomic, strong) TabGridTransitionHandler* transitionHandler;
+// YES if a transition between browser and tab grid is in progress.
+@property(nonatomic, assign) BOOL transitionInProgress;
 // Mediator for regular Tabs.
 @property(nonatomic, weak) RegularGridMediator* regularTabsMediator;
 // Mediator for incognito Tabs.
@@ -404,6 +406,9 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 }
 
 - (void)showTabGridPage:(TabGridPage)page {
+  if (self.transitionInProgress) {
+    return;
+  }
   if (page == TabGridPage::TabGridPageTabGroups) {
     if (MobilePromoOnDesktopTypeEnabled(
             MobilePromoOnDesktopPromoType::kTabGroups)) {
@@ -495,6 +500,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // If a BVC is currently being presented, dismiss it.  This will trigger any
   // necessary animations.
   if (self.browserLayoutViewController) {
+    self.transitionInProgress = YES;
     [_viewController contentWillAppearAnimated:animated];
     __weak __typeof(self) weakSelf = self;
     ProceduralBlock transitionBlock = ^{
@@ -534,6 +540,9 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
             (BrowserLayoutViewController*)viewController
                               incognito:(BOOL)incognito
                              completion:(ProceduralBlock)completion {
+  if (self.transitionInProgress) {
+    return;
+  }
   DCHECK(viewController || self.browserLayoutViewController);
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
@@ -578,10 +587,25 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       [self.browserLayoutViewController removeFromParentViewController];
       self.browserLayoutViewController = viewController;
 
-      viewController.view.frame = frame;
+      if (!IsChromeNextIaEnabled()) {
+        viewController.view.frame = frame;
+      }
       viewController.view.alpha = 1.0;
       [_viewController addChildViewController:viewController];
-      [_viewController.view addSubview:viewController.view];
+      if (IsChromeNextIaEnabled()) {
+        UIView* appContentGuide = [LayoutGuideCenterForBrowser(nil)
+            referencedViewUnderName:kAppContentGuide];
+        if (IsFullscreenRefactoringEnabled()) {
+          [_viewController.view addSubview:viewController.view];
+          AddSameConstraints(appContentGuide, viewController.view);
+        } else {
+          [appContentGuide addSubview:viewController.view];
+          viewController.view.frame = frame;
+        }
+      } else {
+        [_viewController.view addSubview:viewController.view];
+      }
+
       [viewController.view layoutIfNeeded];
       [viewController didMoveToParentViewController:_viewController];
     }
@@ -593,6 +617,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
     return;
   }
 
+  self.transitionInProgress = YES;
   self.browserLayoutViewController = viewController;
 
   BOOL animated = !self.animationsDisabledForTesting;
@@ -615,28 +640,34 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // on top of the tab switcher) transition has completed.
   // Finally, the launch mask view should be removed.
   ProceduralBlock extendedCompletion = ^{
-    [self.delegate tabGridDismissTransitionDidEnd:self];
+    __strong __typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+    [strongSelf.delegate tabGridDismissTransitionDidEnd:strongSelf];
     // In search mode, the tabgrid mode is not reset before the animation so
     // the animation can start from the correct cell. Once the animation is
     // complete, reset the tab grid mode.
-    [self setActiveMode:TabGridMode::kNormal];
-    Browser* browser = incognito ? self.incognitoBrowser : self.regularBrowser;
+    [strongSelf setActiveMode:TabGridMode::kNormal];
+    Browser* browser =
+        incognito ? strongSelf.incognitoBrowser : strongSelf.regularBrowser;
     if (!GetFirstResponderInWindowScene(
-            self.viewController.view.window.windowScene) &&
+            strongSelf.viewController.view.window.windowScene) &&
         !FindNavigatorShouldBePresentedInBrowser(browser)) {
       // It is possible to already have a first responder (for example the
 
-      [self.browserLayoutViewController
+      [strongSelf.browserLayoutViewController
               .browserViewController becomeFirstResponder];
     }
     if (completion) {
       completion();
     }
-    self.firstPresentation = NO;
+    strongSelf.firstPresentation = NO;
 
     if (IsNewTabGridTransitionsEnabled()) {
-      self.transitionHandler = nil;
+      strongSelf.transitionHandler = nil;
     }
+    strongSelf.transitionInProgress = NO;
   };
 
   _viewController.childViewControllerForStatusBarStyle =
@@ -749,6 +780,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 // guided tour.
 - (void)handleTransitionToTabGridCompletionWithBringAndroidTabsPrompt:
     (BOOL)shouldDisplayBringAndroidTabsPrompt {
+  self.transitionInProgress = NO;
   Browser* browser = self.regularBrowser;
   if (!browser) {
     return;
@@ -1603,7 +1635,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   } else {
     coordinator = _regularGridCoordinator;
   }
-  [coordinator showTabGroupEditionForGroup:group.get()];
+  [coordinator showTabGroupEditionForGroup:group];
 }
 
 - (void)closeTabWithIdentifier:(web::WebStateID)identifier
@@ -1813,8 +1845,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
 - (void)exitTabGrid {
   // Prevent exiting if a transition is currently in progress.
-  // `self.transitionHandler` is set to nil at the end of a transition.
-  if (self.transitionHandler) {
+  if (self.transitionInProgress) {
     return;
   }
 
@@ -1825,11 +1856,23 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // being triggered on release after tabs have been closed and the button
   // disabled. Ensure that action is only taken on a valid state.
   if (![self tabsPresentForPage:targetPage]) {
-    return;
+    if (!IsChromeNextIaEnabled()) {
+      return;
+    }
+
+    // TODO(crbug.com/503398101): Fix the page transition being visible when
+    // the grid exits from the tab groups page with ChromeNextIa enabled.
+    if (self.regularBrowser->GetWebStateList()->empty()) {
+      [self openLinkWithURL:GURL(kChromeUINewTabURL)];
+      return;
+    }
+
+    // If there are no tabs on the current page (e.g., empty Tab Groups page),
+    // switch the target to the regular tabs page.
+    targetPage = TabGridPageRegularTabs;
   }
 
   [self activateTabGroupWebStateIfNecessaryInPage:targetPage];
-
   [self showActiveTabInPage:targetPage focusOmnibox:NO];
 }
 

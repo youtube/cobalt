@@ -165,6 +165,9 @@ BASE_FEATURE(kRichAutocompletion, "OmniboxRichAutocompletion", ENABLED);
 // When enabled, the multimodal input button is shown in the Omnibox.
 BASE_FEATURE(kOmniboxMultimodalInput, DISABLED);
 
+// An additional gate to the behavior of OmniboxMultimodalInput on desktop.
+BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
+
 // Whether the AI Mode entrypoint is shown in the Omnibox as a RHS button. Only
 // used on desktop platforms.
 BASE_FEATURE(kAiModeOmniboxEntryPoint, ENABLED);
@@ -178,10 +181,20 @@ BASE_FEATURE(kHideAimEntrypointOnUserInput,
 // When enabled, AI mode will remove verbatim suggestions from the suggestions
 // list.
 BASE_FEATURE(kAIMSuppressVerbatimMatch, ENABLED);
+
 // When enabled, the AIM WebUI popup will defer showing until the WebUI has
 // painted a clean frame, avoiding the issue of the popup being shown with a
 // stale frame.
 BASE_FEATURE(kOmniboxAimDeferShowUntilVisualStateReady, ENABLED);
+// When enabled, the Omnibox WebUI popup will defer showing until the WebUI has
+// painted a clean frame, avoiding the issue of the popup being shown with a
+// stale frame.
+BASE_FEATURE(kOmniboxWebUIDeferShowUntilVisualStateReady, DISABLED);
+// When enabled, the AIM WebUI popup will detach its web contents when hidden.
+BASE_FEATURE(kOmniboxAimDetachWebContentsOnHide, ENABLED);
+// When enabled, the Omnibox WebUI popup will detach its web contents when
+// hidden.
+BASE_FEATURE(kOmniboxWebUIDetachWebContentsOnHide, ENABLED);
 
 // Feature used to default typed navigations to use HTTPS instead of HTTP.
 // This only applies to navigations that don't have a scheme such as
@@ -354,9 +367,6 @@ BASE_FEATURE(kOmniboxDebugLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThinkingModelIconUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, animates the caret in the omnibox.
-BASE_FEATURE(kOmniboxAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_ANDROID)
 // Accelerates time from cold start to focused Omnibox on low-end devices,
 // prioritizing Omnibox focus and background initialization.
@@ -410,6 +420,7 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kPlatformAgnosticXGeo,
       &kOmniboxSiteSearch,
       &kOmniboxMultimodalInput,
+      &kAndroidDesktopAimGate,
       &kMultilineEditField,
       &kOmniboxImprovementForLFF,
       &kServeJavaCachedZeroSuggest,

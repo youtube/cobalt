@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -211,6 +212,14 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
                                        int net_error,
                                        const SSLInfo& ssl_info,
                                        bool fatal);
+
+    // Called when a request is blocked because the platform local network
+    // permission is required. The delegate should call
+    // SetPlatformLocalNetworkAccessGranted() or
+    // CancelPlatformLocalNetworkAccessRequest() to continue or cancel the
+    // request.
+    virtual void OnPlatformLocalNetworkAccessPermissionRequired(
+        URLRequest* request);
 
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed. |net_error| will be set to OK
@@ -486,19 +495,19 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // proxy handling. Pertains only to the last URLRequestJob issued by this
   // URLRequest, i.e., reset on redirects, but not reset when multiple round
   // trips are used for range requests or auth.
-  int64_t GetTotalReceivedBytes() const;
+  base::ByteSize GetTotalReceivedBytes() const;
 
   // Gets the total amount of data sent over the network before SSL encoding and
   // proxy handling. Pertains only to the last URLRequestJob issued by this
   // URLRequest, i.e., reset on redirects, but not reset when multiple round
   // trips are used for range requests or auth.
-  int64_t GetTotalSentBytes() const;
+  base::ByteSize GetTotalSentBytes() const;
 
   // The size of the response body before removing any content encodings.
   // Does not include redirects or sub-requests issued at lower levels (range
   // requests or auth). Only includes bytes which have been read so far,
   // including bytes from the cache.
-  int64_t GetRawBodyBytes() const;
+  base::ByteSize GetRawBodyBytes() const;
 
   // Returns the current load state for the request. The returned value's
   // |param| field is an optional parameter describing details related to the
@@ -741,6 +750,14 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   // certificate. Pass NULL if the user doesn't have a client certificate.
   void ContinueWithCertificate(scoped_refptr<X509Certificate> client_cert,
                                scoped_refptr<SSLPrivateKey> client_private_key);
+
+  // Instructs this URLRequest to continue with the request because the local
+  // network access permission has been granted.
+  void SetPlatformLocalNetworkAccessGranted();
+
+  // Instructs this URLRequest to cancel the request because the local
+  // network access permission has been denied.
+  void CancelPlatformLocalNetworkAccessRequest();
 
   // This method can be called after some error notifications to instruct this
   // URLRequest to ignore the current error and continue with the request. To
@@ -1071,6 +1088,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
                       CompletionOnceCallback callback);
   void NotifyAuthRequired(std::unique_ptr<AuthChallengeInfo> auth_info);
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
+  void NotifyPlatformLocalNetworkAccessPermissionRequired();
   void NotifySSLCertificateError(int net_error,
                                  const SSLInfo& ssl_info,
                                  bool fatal);

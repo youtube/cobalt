@@ -16,12 +16,14 @@
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/predictors/predictor_database.h"
 #include "chrome/browser/predictors/predictor_database_factory.h"
+#include "chrome/browser/predictors/predictors_features.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/browser/preloading/prerender/prerender_manager.h"
@@ -33,6 +35,7 @@
 #include "components/omnibox/browser/base_search_provider.h"
 #include "components/omnibox/browser/omnibox_log.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/preloading_data.h"
@@ -193,9 +196,12 @@ void AutocompleteActionPredictor::RegisterTransitionalMatches(
   }
 }
 
-void AutocompleteActionPredictor::ClearTransitionalMatches() {
-  transitional_matches_.clear();
+std::vector<AutocompleteActionPredictor::TransitionalMatch>
+AutocompleteActionPredictor::TakeTransitionalMatches() {
+  std::vector<TransitionalMatch> matches;
+  matches.swap(transitional_matches_);
   transitional_matches_size_ = 0;
+  return matches;
 }
 
 void AutocompleteActionPredictor::StartPrerendering(
@@ -323,14 +329,34 @@ void AutocompleteActionPredictor::OnOmniboxOpenedUrl(const OmniboxLog& log) {
         PrerenderPredictionStatus::kNotStarted);
   }
 
-  UpdateDatabaseFromTransitionalMatches(opened_url);
+  if (base::FeatureList::IsEnabled(features::kAsyncPredictorDbUpdate)) {
+    content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+        ->PostTask(
+            FROM_HERE,
+            base::BindOnce(&AutocompleteActionPredictor::
+                               UpdateDatabaseFromTransitionalMatchesInternal,
+                           weak_ptr_factory_.GetWeakPtr(), opened_url,
+                           TakeTransitionalMatches()));
+  } else {
+    UpdateDatabaseFromTransitionalMatches(opened_url);
+  }
 }
 
 void AutocompleteActionPredictor::UpdateDatabaseFromTransitionalMatches(
     const GURL& opened_url) {
+  UpdateDatabaseFromTransitionalMatchesInternal(opened_url,
+                                                TakeTransitionalMatches());
+}
+
+void AutocompleteActionPredictor::UpdateDatabaseFromTransitionalMatchesInternal(
+    const GURL& opened_url,
+    std::vector<TransitionalMatch> transitional_matches) {
+  TRACE_EVENT("omnibox",
+              "AutocompleteActionPredictor::"
+              "UpdateDatabaseFromTransitionalMatchesInternal");
   std::vector<AutocompleteActionPredictorTable::Row> rows_to_add;
   std::vector<AutocompleteActionPredictorTable::Row> rows_to_update;
-  for (const TransitionalMatch& transitional_match : transitional_matches_) {
+  for (const TransitionalMatch& transitional_match : transitional_matches) {
     DCHECK_GE(transitional_match.user_text.length(), kMinimumUserTextLength);
     DCHECK_LE(transitional_match.user_text.length(), kMaximumStringLength);
     // Add entries to the database for those matches.
@@ -376,8 +402,6 @@ void AutocompleteActionPredictor::UpdateDatabaseFromTransitionalMatches(
         FROM_HERE, base::BindOnce(&AutocompleteActionPredictorTable::DeleteRows,
                                   table_, std::move(ids_to_delete)));
   }
-
-  ClearTransitionalMatches();
 }
 
 void AutocompleteActionPredictor::DeleteAllRows() {

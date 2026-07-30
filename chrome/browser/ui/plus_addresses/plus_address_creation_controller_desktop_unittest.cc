@@ -10,7 +10,6 @@
 
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
@@ -22,9 +21,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_content_autofill_client.h"
-#include "components/autofill/core/common/plus_address_survey_type.h"
 #include "components/plus_addresses/core/browser/fake_plus_address_service.h"
-#include "components/plus_addresses/core/browser/metrics/plus_address_metrics.h"
 #include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "components/plus_addresses/core/browser/plus_address_types.h"
 #include "components/plus_addresses/core/browser/settings/fake_plus_address_setting_service.h"
@@ -46,36 +43,9 @@ using ::testing::IsEmpty;
 using ::testing::Optional;
 using ::testing::SizeIs;
 
-constexpr char kPlusAddressModalEventHistogram[] = "PlusAddresses.Modal.Events";
-constexpr char kPlusAddressModalEventHistogramWithNotice[] =
-    "PlusAddresses.ModalWithNotice.Events";
 
 constexpr base::TimeDelta kDuration = base::Milliseconds(2400);
 
-std::string FormatModalDurationMetrics(
-    metrics::PlusAddressModalCompletionStatus status) {
-  return base::ReplaceStringPlaceholders(
-      "PlusAddresses.Modal.$1.ShownDuration",
-      {metrics::PlusAddressModalCompletionStatusToString(status)},
-      /*offsets=*/nullptr);
-}
-
-std::string FormatModalWithNoticeDurationMetrics(
-    metrics::PlusAddressModalCompletionStatus status) {
-  return base::ReplaceStringPlaceholders(
-      "PlusAddresses.ModalWithNotice.$1.ShownDuration",
-      {metrics::PlusAddressModalCompletionStatusToString(status)},
-      /*offsets=*/nullptr);
-}
-
-class MockAutofillClient : public autofill::TestContentAutofillClient {
- public:
-  using autofill::TestContentAutofillClient::TestContentAutofillClient;
-  MOCK_METHOD(void,
-              TriggerPlusAddressUserPerceptionSurvey,
-              (plus_addresses::hats::SurveyType),
-              (override));
-};
 
 // Testing very basic functionality for now. As UI complexity increases, this
 // class will grow and mutate.
@@ -109,7 +79,6 @@ class PlusAddressCreationControllerDesktopEnabledTest
         web_contents());
   }
 
-  base::HistogramTester& histogram_tester() { return histogram_tester_; }
 
   FakePlusAddressService& plus_address_service() {
     return *static_cast<FakePlusAddressService*>(
@@ -122,7 +91,7 @@ class PlusAddressCreationControllerDesktopEnabledTest
             browser_context()));
   }
 
-  MockAutofillClient& autofill_client() {
+  autofill::TestContentAutofillClient& autofill_client() {
     return *autofill_client_injector_[web_contents()];
   }
 
@@ -140,8 +109,7 @@ class PlusAddressCreationControllerDesktopEnabledTest
   // Ensures that the feature is known to be enabled, such that
   // `PlusAddressServiceFactory` doesn't bail early with a null return.
   base::test::ScopedFeatureList features_{features::kPlusAddressesEnabled};
-  base::HistogramTester histogram_tester_;
-  autofill::TestAutofillClientInjector<MockAutofillClient>
+  autofill::TestAutofillClientInjector<autofill::TestContentAutofillClient>
       autofill_client_injector_;
 };
 
@@ -159,21 +127,8 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   ASSERT_FALSE(future.IsReady());
 
   task_environment()->FastForwardBy(kDuration);
-  EXPECT_CALL(autofill_client(),
-              TriggerPlusAddressUserPerceptionSurvey(
-                  plus_addresses::hats::SurveyType::kAcceptedFirstTimeCreate));
   controller().OnConfirmed();
   EXPECT_TRUE(future.IsReady());
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(
-          kPlusAddressModalEventHistogramWithNotice),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalWithNoticeDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalConfirmed),
-      kDuration, 1);
   // The pref is set only when the first time onboarding notice is shown.
   EXPECT_EQ(profile()->GetTestingPrefService()->GetTime(
                 prefs::kFirstPlusAddressCreationTime),
@@ -197,24 +152,11 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   task_environment()->FastForwardBy(kDuration);
   // HaTS survey should be shown if the user declined the first time plus
   // address creation flow.
-  EXPECT_CALL(autofill_client(),
-              TriggerPlusAddressUserPerceptionSurvey(
-                  plus_addresses::hats::SurveyType::kDeclinedFirstTimeCreate));
 
   controller().OnCanceled();
 
   EXPECT_FALSE(future.IsReady());
 
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(
-          kPlusAddressModalEventHistogramWithNotice),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalCanceled, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalWithNoticeDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalCanceled),
-      kDuration, 1);
   // The pref is set only when the first time onboarding notice is shown.
   EXPECT_EQ(profile()->GetTestingPrefService()->GetTime(
                 prefs::kFirstPlusAddressCreationTime),
@@ -238,10 +180,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   plus_address_service().set_should_fail_to_confirm(true);
 
   task_environment()->FastForwardBy(kDuration);
-  // Feature perception surveys shown after the first plus address creation
-  // flow should not be triggered if the plus address wasn't confirmed.
-  EXPECT_CALL(autofill_client(), TriggerPlusAddressUserPerceptionSurvey)
-      .Times(0);
 
   controller().OnConfirmed();
 
@@ -251,17 +189,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   // `OnConfirmed`.
   controller().OnCanceled();
 
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(
-          kPlusAddressModalEventHistogramWithNotice),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalCanceled, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalWithNoticeDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kConfirmPlusAddressError),
-      kDuration, 1);
   // The pref is not set of the first plus address creation flow failed.
   EXPECT_EQ(profile()->GetTestingPrefService()->GetTime(
                 prefs::kFirstPlusAddressCreationTime),
@@ -279,19 +206,8 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest, DirectCallback) {
   ASSERT_FALSE(future.IsReady());
 
   task_environment()->FastForwardBy(kDuration);
-  EXPECT_CALL(autofill_client(), TriggerPlusAddressUserPerceptionSurvey)
-      .Times(0);
   controller().OnConfirmed();
   EXPECT_TRUE(future.IsReady());
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalConfirmed),
-      kDuration, 1);
   // The pref is not set after the first time onboarding notice has been already
   // shown.
   EXPECT_EQ(profile()->GetTestingPrefService()->GetTime(
@@ -321,16 +237,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest, OnConfirmedError) {
   controller().OnCanceled();
   // Ensure that plus address can be canceled after erroneous confirm event and
   // metric is recorded.
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalCanceled, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kConfirmPlusAddressError),
-      kDuration, 1);
 }
 
 // Tests that the user can retry creating a plus address after the previous
@@ -359,16 +265,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   controller().OnConfirmed();
   EXPECT_TRUE(future.IsReady());
 
-  // Ensure that plus address can be confirmed after a confirm error is shown.
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 2)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalConfirmed),
-      2 * kDuration, 1);
 }
 
 TEST_F(PlusAddressCreationControllerDesktopEnabledTest, OnReservedError) {
@@ -387,15 +283,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest, OnReservedError) {
   controller().OnCanceled();
   // Ensure that plus address can be canceled after erroneous reserve event and
   // metric is recorded.
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalCanceled, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kReservePlusAddressError),
-      kDuration, 1);
 }
 
 // Tests that the user can retry confirming a plus address after the previous
@@ -425,15 +312,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   ASSERT_TRUE(future.IsReady());
   // Ensure that plus address can be confirmed after an error is shown and then
   // the plus address is successfully reserved.
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalConfirmed),
-      2 * kDuration, 1);
 }
 
 TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
@@ -459,15 +337,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
   EXPECT_FALSE(confirm_future.IsReady());
 
   // Verify that the plus address modal is still shown.
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalConfirmed, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalConfirmed),
-      kDuration, 1);
 }
 
 TEST_F(PlusAddressCreationControllerDesktopEnabledTest,
@@ -496,15 +365,6 @@ TEST_F(PlusAddressCreationControllerDesktopEnabledTest, ModalCanceled) {
   controller().OnCanceled();
   EXPECT_FALSE(future.IsReady());
 
-  EXPECT_THAT(
-      histogram_tester().GetAllSamples(kPlusAddressModalEventHistogram),
-      BucketsAre(
-          base::Bucket(metrics::PlusAddressModalEvent::kModalShown, 1),
-          base::Bucket(metrics::PlusAddressModalEvent::kModalCanceled, 1)));
-  histogram_tester().ExpectUniqueTimeSample(
-      FormatModalDurationMetrics(
-          metrics::PlusAddressModalCompletionStatus::kModalCanceled),
-      kDuration, 1);
 }
 
 // With the feature disabled, the `KeyedService` is not present; ensure this is

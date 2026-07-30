@@ -85,6 +85,14 @@ class GlicWebClientAccess {
   // Informs the web client that the browser wants to invoke Glic.
   virtual void Invoke(mojom::InvokeOptionsPtr options,
                       base::OnceClosure callback) = 0;
+
+  // Register a handler to observe experimental triggering related updates.
+  virtual void GetExperimentalTriggeringUpdates(
+      mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
+      base::OnceCallback<void(bool)> success_status_callback) = 0;
+
+  // Informs the client whether the browser is currently invoking Glic.
+  virtual void NotifyIsInvoking(bool is_invoking) = 0;
 };
 
 }  // namespace glic

@@ -17,6 +17,7 @@
 #include "ui/views/view.h"
 
 class BrowserView;
+class ContentsCaptureBorderView;
 class ContentsContainerOutline;
 class ContentsWebView;
 class MultiContentsViewMiniToolbar;
@@ -38,11 +39,10 @@ class NewTabFooterWebView;
 
 namespace views {
 class WebView;
-class Widget;
 }  // namespace views
 
 namespace enterprise_watermark {
-class WatermarkView;
+class DataProtectionOverlayView;
 }  // namespace enterprise_watermark
 
 // ContentsContainerView holds the ContentsWebView and the outlines and
@@ -89,11 +89,12 @@ class ContentsContainerView : public views::View,
   new_tab_footer::NewTabFooterWebView* new_tab_footer_view() {
     return new_tab_footer_view_;
   }
-  views::Widget* capture_contents_border_widget() {
-    return capture_contents_border_widget_.get();
+  ContentsCaptureBorderView* capture_contents_border_view() {
+    return capture_contents_border_view_;
   }
-  enterprise_watermark::WatermarkView* watermark_view() {
-    return watermark_view_;
+  enterprise_watermark::DataProtectionOverlayView*
+  data_protection_overlay_view() {
+    return data_protection_overlay_view_;
   }
   views::WebView* ai_overlay_dialog_view() { return ai_overlay_dialog_view_; }
   const ContentsContainerOutline* contents_outline_view() const {
@@ -136,8 +137,6 @@ class ContentsContainerView : public views::View,
       std::optional<gfx::Outsets> target_contents_bounds);
 
  private:
-  void CreateCaptureContentsBorder();
-  void UpdateCaptureContentsBorderLocation();
   void UpdateContentsClip();
 
   // Updates the DevTools docked placement. It infers the docked placement from
@@ -151,6 +150,7 @@ class ContentsContainerView : public views::View,
   // views::View:
   void ChildVisibilityChanged(View* child) override;
   void Layout(PassKey) override;
+  views::View::Views GetChildrenInZOrder() override;
 
   // views::ViewObserver:
   void OnViewBoundsChanged(View* observed_view) override;
@@ -185,8 +185,9 @@ class ContentsContainerView : public views::View,
   // Separator between the web contents and the Footer.
   raw_ptr<views::View> new_tab_footer_view_separator_ = nullptr;
 
-  // The view that overlays a watermark on the contents container.
-  raw_ptr<enterprise_watermark::WatermarkView> watermark_view_ = nullptr;
+  // The view that overlays the contents container.
+  raw_ptr<enterprise_watermark::DataProtectionOverlayView>
+      data_protection_overlay_view_ = nullptr;
 
   // The overlay dialog view that is displayed on top of the web contents.
   raw_ptr<views::WebView> ai_overlay_dialog_view_ = nullptr;
@@ -210,8 +211,7 @@ class ContentsContainerView : public views::View,
 
   raw_ptr<ContentsContainerOutline> container_outline_ = nullptr;
 
-  std::unique_ptr<views::Widget> capture_contents_border_widget_;
-  std::optional<gfx::Rect> dynamic_capture_content_border_bounds_;
+  raw_ptr<ContentsCaptureBorderView> capture_contents_border_view_ = nullptr;
 
   // See `SetTargetContentSize()`.
   std::optional<gfx::Outsets> target_content_bounds_;

@@ -135,6 +135,7 @@ LIGHTWEIGHT_TESTERS = [
     'win-10_laptop_low_end-perf',
     'win-11-perf',
     'mac-m4-mini-perf',
+    'mac-m4-pro-perf',
 ]
 
 UPLOAD_SKIA_JSON_BUILDERS = frozenset([
@@ -175,6 +176,7 @@ UPLOAD_SKIA_JSON_BUILDERS = frozenset([
     'mac-m2-pro-perf',
     'mac-m3-pro-perf',
     'mac-m4-mini-processor-perf',
+    'mac-m4-pro-processor-perf',
     'win-10-processor-perf',
     'win-10_amd_laptop-perf',
     'win-10_laptop_low_end-processor-perf',
@@ -218,11 +220,16 @@ PUBLIC_PERF_BUILDERS = [
     'mac-m1_mini_2020-perf-pgo',
     'mac-m2-pro-perf',
     'mac-m3-pro-perf',
+    'mac-m4-mini-perf',
     'mac-m4-mini-processor-perf',
+    'mac-m4-pro-perf',
+    'mac-m4-pro-processor-perf',
     'win-10-processor-perf',
     'win-10_amd_laptop-perf',
+    'win-10_laptop_low_end-perf',
     'win-10_laptop_low_end-processor-perf',
     'win-10_laptop_low_end-perf_HP-Candidate',
+    'win-11-perf',
     'win-11-processor-perf',
     'win-falcon-rak-5070-perf',
     'win64-builder-perf',
@@ -1180,6 +1187,34 @@ BUILDERS = {
         },
     },
     'mac-m4-mini-processor-perf': {
+        'platform': 'linux',
+        'perf_processor': True,
+    },
+    'mac-m4-pro-perf': {
+        'tests': [
+            {
+                'isolate': 'performance_test_suite',
+                'extra_args': [
+                    '--assert-gpu-compositing',
+                ],
+            },
+        ],
+        'platform':
+        'mac',
+        'dimension': {
+            'cpu':
+            'arm',
+            'mac_model':
+            'Mac16,8',
+            'os':
+            'Mac',
+            'pool':
+            'chrome.tests.perf',
+            'synthetic_product_name':
+            'Mac16,8_arm64-64-Apple_M4_Pro_apple m4 pro_24576_APPLE SSD AP0512Z',
+        },
+    },
+    'mac-m4-pro-processor-perf': {
         'platform': 'linux',
         'perf_processor': True,
     },

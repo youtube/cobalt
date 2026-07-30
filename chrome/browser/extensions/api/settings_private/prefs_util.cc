@@ -327,7 +327,7 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
 #if BUILDFLAG(IS_CHROMEOS)
   (*s_allowlist)[ash::prefs::kNetworkFileSharesAllowed] =
       settings_api::PrefType::kBoolean;
-  (*s_allowlist)[::prefs::kMostRecentlyUsedNetworkFileShareURL] =
+  (*s_allowlist)[ash::prefs::kMostRecentlyUsedNetworkFileShareURL] =
       settings_api::PrefType::kString;
   (*s_allowlist)[drive::prefs::kDriveFsBulkPinningEnabled] =
       settings_api::PrefType::kBoolean;
@@ -394,8 +394,9 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
   (*s_allowlist)[::prefs::kDnsOverHttpsAutomaticModeFallbackToDoh] =
       settings_api::PrefType::kBoolean;
 #if BUILDFLAG(IS_CHROMEOS)
-  (*s_allowlist)[::prefs::kDnsOverHttpsSalt] = settings_api::PrefType::kString;
-  (*s_allowlist)[::prefs::kDnsOverHttpsTemplatesWithIdentifiers] =
+  (*s_allowlist)[ash::prefs::kDnsOverHttpsSalt] =
+      settings_api::PrefType::kString;
+  (*s_allowlist)[ash::prefs::kDnsOverHttpsTemplatesWithIdentifiers] =
       settings_api::PrefType::kString;
 #endif
 
@@ -1359,8 +1360,6 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
         settings_api::PrefType::kDictionary;
     (*s_allowlist)[prefs::kGeminiSettings] = settings_api::PrefType::kNumber;
     (*s_allowlist)[glic::prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled] =
-        settings_api::PrefType::kBoolean;
-    (*s_allowlist)[glic::prefs::kGlicExperimentalTriggeringEnabled] =
         settings_api::PrefType::kBoolean;
   }
 

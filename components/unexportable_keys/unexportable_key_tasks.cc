@@ -15,7 +15,7 @@
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
 #include "components/unexportable_keys/background_task_type.h"
-#include "components/unexportable_keys/ref_counted_unexportable_signing_key.h"
+#include "components/unexportable_keys/ref_counted_unexportable_key.h"
 #include "components/unexportable_keys/service_error.h"
 #include "crypto/signature_verifier.h"
 #include "crypto/unexportable_key.h"
@@ -31,20 +31,22 @@ MakeSigningKeyRefCounted(std::unique_ptr<crypto::UnexportableSigningKey> key) {
   }
 
   return base::MakeRefCounted<RefCountedUnexportableSigningKey>(
-      std::move(key), UnexportableKeyId());
+      std::move(key), UnexportableSigningKeyId());
 }
 
+// TOOD(crbug.com/501307030): Return the more generic
+// `RefCountedUnexportableKey`.
 ServiceErrorOr<std::vector<scoped_refptr<RefCountedUnexportableSigningKey>>>
-GetAllSigningKeysSlowly(crypto::UnexportableKeyProvider* key_provider,
-                        void* task_ptr_for_tracing) {
-  TRACE_EVENT("browser", "unexportable_keys::GetAllSigningKeysSlowly",
+GetAllKeysSlowly(crypto::UnexportableKeyProvider* key_provider,
+                 void* task_ptr_for_tracing) {
+  TRACE_EVENT("browser", "unexportable_keys::GetAllKeysSlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
   CHECK(key_provider);
 
   ASSIGN_OR_RETURN(
       std::vector<std::unique_ptr<crypto::UnexportableSigningKey>> keys,
       CHECK_DEREF(key_provider->AsStatefulUnexportableKeyProvider())
-          .GetAllSigningKeysSlowly(),
+          .GetAllKeysSlowly(),
       [] { return ServiceError::kCryptoApiFailed; });
 
   return base::ToVector(keys, [](auto& key) {
@@ -104,35 +106,28 @@ ServiceErrorOr<std::vector<uint8_t>> SignSlowlyWithRefCountedKey(
   return *std::move(signature);
 }
 
-ServiceErrorOr<size_t> DeleteSigningKeysSlowly(
+ServiceErrorOr<size_t> DeleteKeysSlowly(
     crypto::UnexportableKeyProvider* key_provider,
-    base::span<const scoped_refptr<RefCountedUnexportableSigningKey>>
-        signing_keys,
+    base::span<const scoped_refptr<RefCountedUnexportableKey>> keys,
     void* task_ptr_for_tracing) {
-  TRACE_EVENT("browser", "unexportable_keys::DeleteSigningKeysSlowly",
+  TRACE_EVENT("browser", "unexportable_keys::DeleteKeysSlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
   return base::OptionalToExpected(
-      CHECK_DEREF(CHECK_DEREF(key_provider).AsStatefulUnexportableKeyProvider())
-          .DeleteSigningKeysSlowly(base::ToVector(
-              signing_keys,
-              [](auto& signing_key) {
-                auto* stateful_key =
-                    signing_key->key().AsStatefulUnexportableSigningKey();
-                CHECK(stateful_key);
-                return stateful_key;
-              })),
+      CHECK_DEREF(key_provider->AsStatefulUnexportableKeyProvider())
+          .DeleteKeysSlowly(
+              base::ToVector(keys, [](auto& key) { return &key->key(); })),
       ServiceError::kCryptoApiFailed);
 }
 
-ServiceErrorOr<size_t> DeleteAllSigningKeysSlowly(
+ServiceErrorOr<size_t> DeleteAllKeysSlowly(
     crypto::UnexportableKeyProvider* key_provider,
     void* task_ptr_for_tracing) {
-  TRACE_EVENT("browser", "unexportable_keys::DeleteAllSigningKeysSlowly",
+  TRACE_EVENT("browser", "unexportable_keys::DeleteAllKeysSlowly",
               perfetto::Flow::FromPointer(task_ptr_for_tracing));
 
   return base::OptionalToExpected(
       CHECK_DEREF(key_provider->AsStatefulUnexportableKeyProvider())
-          .DeleteAllSigningKeysSlowly(),
+          .DeleteAllKeysSlowly(),
       ServiceError::kCryptoApiFailed);
 }
 
@@ -143,7 +138,7 @@ GetAllKeysTask::GetAllKeysTask(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(GetAllKeysTask::ReturnType, size_t)> callback)
     : internal::BackgroundTaskImpl<GetAllKeysTask::ReturnType>(
-          base::BindRepeating(&GetAllSigningKeysSlowly,
+          base::BindRepeating(&GetAllKeysSlowly,
                               base::Owned(std::move(key_provider)),
                               this),
           std::move(callback),
@@ -209,13 +204,13 @@ bool SignTask::ShouldRetryBasedOnResult(
 
 DeleteKeysTask::DeleteKeysTask(
     std::unique_ptr<crypto::UnexportableKeyProvider> key_provider,
-    std::vector<scoped_refptr<RefCountedUnexportableSigningKey>> signing_keys,
+    std::vector<scoped_refptr<RefCountedUnexportableKey>> keys,
     BackgroundTaskPriority priority,
     base::OnceCallback<void(DeleteKeysTask::ReturnType, size_t)> callback)
     : internal::BackgroundTaskImpl<DeleteKeysTask::ReturnType>(
-          base::BindRepeating(&DeleteSigningKeysSlowly,
+          base::BindRepeating(&DeleteKeysSlowly,
                               base::Owned(std::move(key_provider)),
-                              std::move(signing_keys),
+                              std::move(keys),
                               this),
           std::move(callback),
           priority,
@@ -227,7 +222,7 @@ DeleteAllKeysTask::DeleteAllKeysTask(
     BackgroundTaskPriority priority,
     base::OnceCallback<void(DeleteAllKeysTask::ReturnType, size_t)> callback)
     : internal::BackgroundTaskImpl<DeleteAllKeysTask::ReturnType>(
-          base::BindRepeating(&DeleteAllSigningKeysSlowly,
+          base::BindRepeating(&DeleteAllKeysSlowly,
                               base::Owned(std::move(key_provider)),
                               this),
           std::move(callback),

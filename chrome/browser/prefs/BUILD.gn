@@ -75,6 +75,7 @@ source_set("impl") {
     "//chrome/browser/glic",
     "//chrome/browser/glic/suggestions",
     "//chrome/browser/gpu",
+    "//chrome/browser/lifetime",
     "//chrome/browser/login_detection",
     "//chrome/browser/media",
     "//chrome/browser/media/prefs",
@@ -100,6 +101,7 @@ source_set("impl") {
     "//chrome/browser/serial",
     "//chrome/browser/signin",
     "//chrome/browser/signin:signin_promo",
+    "//chrome/browser/ssl",
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/task_manager",
@@ -130,6 +132,7 @@ source_set("impl") {
     "//components/contextual_search:public",
     "//components/custom_handlers",
     "//components/domain_reliability:prefs",
+    "//components/enterprise/browser/groups:prefs",
     "//components/enterprise/browser/identifiers",
     "//components/enterprise/browser/promotion:prefs",
     "//components/enterprise/connectors/core",
@@ -348,6 +351,7 @@ source_set("impl") {
       "//chrome/browser/actor/ui",
       "//chrome/browser/desktop_to_mobile_promos:utils",
       "//chrome/browser/device_identity",
+      "//chrome/browser/new_tab_page",
       "//chrome/browser/screen_ai:prefs",
       "//chrome/browser/search_engine_choice",
       "//chrome/browser/search_engines",
@@ -412,7 +416,10 @@ source_set("impl") {
   }
 
   if (!is_android) {
-    deps += [ "//chrome/browser/ui/read_anything:prefs" ]
+    deps += [
+      "//chrome/browser/hid",
+      "//chrome/browser/ui/read_anything:prefs",
+    ]
   }
 
   if (!is_android && !is_chromeos) {
@@ -492,6 +499,7 @@ source_set("unit_tests") {
     "//chrome/browser:browser_process",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles:profiles_extra_parts",
+    "//chrome/browser/ssl",
     "//chrome/common:constants",
     "//chrome/common:non_code_constants",
     "//chrome/test:test_support",

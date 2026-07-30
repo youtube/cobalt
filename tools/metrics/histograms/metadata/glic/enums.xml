@@ -85,30 +85,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/fre/glic_fre_controller.cc:FreErrorStateReason) -->
 
-<!-- LINT.IfChange(FreWebUiState) -->
-
-<enum name="FreWebUiState">
-  <int value="0" label="Glic fre app controller not started."/>
-  <int value="1" label="Web client begins loading; no visible UI."/>
-  <int value="2"
-      label="Loading panel is displayed. This state, combined with the
-             `hold-loading` state, will be held for `kMinHoldLoadingTimeMs`
-             if entered."/>
-  <int value="3"
-      label="Loading panel is still displayed, but the web client is ready.
-             This state will be held for the remainder of
-             `kMinHoldLoadingTimeMs`."/>
-  <int value="4"
-      label="Loading panel is displayed until web client is ready, or until
-             `kMaxWaitTimeMs` timeout is reached."/>
-  <int value="5" label="'Something went wrong' error panel is displayed."/>
-  <int value="6" label="Connection offline panel is displayed."/>
-  <int value="7" label="Web view is displayed."/>
-  <int value="8" label="'Disabled by Admin' error panel is displayed."/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/glic/fre/glic_fre.mojom:FreWebUiState) -->
-
 <!-- LINT.IfChange(GeminiNavigationCaptureResult) -->
 
 <enum name="GeminiNavigationCaptureResult">
@@ -145,6 +121,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.cc:BrowserActiveState) -->
+
+<!-- LINT.IfChange(ClientErrorDialogType) -->
+
+<enum name="GlicClientErrorDialogType">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Disabled By Organization"/>
+  <int value="2" label="Generic Availability"/>
+  <int value="3" label="Ineligible Account"/>
+  <int value="4" label="Signout"/>
+  <int value="5" label="Unsupported Location"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:ClientErrorDialogType) -->
 
 <!-- LINT.IfChange(GlicDaisyChainFirstAction) -->
 
@@ -354,7 +343,7 @@ chromium-metrics-reviews@google.com.
   <int value="70" label="OnModeChange"/>
   <int value="71" label="SubscribeToCaptureRegion"/>
   <int value="72" label="UnsubscribeFromCaptureRegion"/>
-  <int value="73" label="OnRecordUseCounter"/>
+  <int value="73" label="(Obsolete) OnRecordUseCounter"/>
   <int value="74" label="InterruptActorTask"/>
   <int value="75" label="UninterruptActorTask"/>
   <int value="76" label="ActivateTab"/>
@@ -375,6 +364,8 @@ chromium-metrics-reviews@google.com.
   <int value="92" label="DeleteCapturedRegion"/>
   <int value="93" label="OnActionSubmitted"/>
   <int value="94" label="SubscribeToTabFavicon"/>
+  <int value="95" label="ShowBrowseSkillsUi"/>
+  <int value="96" label="OnExperimentalTriggeringUpdate"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->
@@ -633,11 +624,19 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(GlicRequestEvent) -->
 
 <enum name="GlicRequestEvent">
-  <int value="0" label="Request received."/>
-  <int value="1" label="Response sent."/>
-  <int value="2" label="Request handling exception caught."/>
-  <int value="3"
-      label="Request received while hidden (whether or not this is expected)."/>
+  <int value="0" label="Received">The request was received.</int>
+  <int value="1" label="Responded">A response for the request was sent.</int>
+  <int value="2" label="Exception caught">
+    An exception was caught while handling the request.
+  </int>
+  <int value="3" label="(Obsolete) Hidden; replaced by Inactive">
+    (Obsolete) Request received while hidden (whether or not this is expected).
+    Replaced by Inactive in 2026/04
+  </int>
+  <int value="4" label="Inactive">
+    Request received while the panel was inactive (whether or not this is
+    expected).
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/host/glic_api_host.ts:GlicRequestEvent, //chrome/browser/glic/glic_metrics.h:GlicRequestEvent) -->
@@ -978,7 +977,7 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(ShareImageResult) -->
 
 <enum name="ShareImageResult">
-  <int value="0" label="kSuccess"/>
+  <int value="0" label="kSentImageToClient"/>
   <int value="1" label="kFailedNoTab"/>
   <int value="2" label="kFailedNoFrame"/>
   <int value="3" label="kFailedNoBrowser"/>
@@ -993,6 +992,11 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="kFailedClipboardPastePolicy"/>
   <int value="13" label="kFailedNoInstance"/>
   <int value="14" label="kFailedClientUnreadied"/>
+  <int value="15" label="kFailedTimedOutNoInstance"/>
+  <int value="16" label="kFailedTimedOutNoWebClient"/>
+  <int value="17" label="kFailedTimedOutDidNotCompleteOnboarding"/>
+  <int value="18" label="kFailedLostInstance"/>
+  <int value="19" label="kFailedSawNavigationDidNotCompleteOnboarding"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ShareImageResult) -->
@@ -1024,12 +1028,19 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Used User-Created Skill"/>
   <int value="3" label="Used Derived First-Party Skill"/>
   <int value="4" label="Opened Menu"/>
-  <int value="5" label="Clicked Manage from Menu"/>
-  <int value="6" label="Clicked Add from Menu"/>
-  <int value="7" label="Clicked Edit from Menu"/>
-  <int value="8" label="Clicked + on 1p Skill from Menu"/>
+  <int value="5" label="Clicked Manage Skills from Slash Menu"/>
+  <int value="6" label="Clicked Add Skill from Slash Menu"/>
+  <int value="7" label="Clicked Edit on a Skill from Slash Menu"/>
+  <int value="8" label="Clicked + on 1p Skill from Slash Menu"/>
   <int value="9" label="Clicked Save as Skill Hover Chip"/>
   <int value="10" label="Clicked Edit Skill Hover Chip"/>
+  <int value="11" label="Clicked Browse Skills from Plus Menu"/>
+  <int value="12" label="Clicked Skill from Plus Menu"/>
+  <int value="13" label="Clicked Manage Skills from Plus Menu"/>
+  <int value="14" label="Clicked More from Slash Menu"/>
+  <int value="15" label="(Obsolete) Clicked Manage Skills from Menu"/>
+  <int value="16" label="Clicked Skill from Slash Menu"/>
+  <int value="17" label="Clicked Browse Skills from Slash Menu"/>
   <int value="20" label="Skill Builder: Clicked Promo Chip"/>
   <int value="21" label="Skill Builder: Prompt Generated"/>
   <int value="22" label="Skill Builder: Clicked Save as Skill"/>
@@ -1063,13 +1074,11 @@ chromium-metrics-reviews@google.com.
 
 <enum name="WebUiState">
   <int value="0" label="Glic app controller not started"/>
-  <int value="1" label="Web client begins loading; no visible UI"/>
-  <int value="2" label="Loading panel is displayed"/>
+  <int value="1" label="Begin loading web client; no visible UI"/>
+  <int value="2" label="Display loading panel"/>
   <int value="3"
-      label="Loading panel is still displayed, but the web client is ready"/>
-  <int value="4"
-      label="Loading panel is displayed until web client is ready, or timeout
-             is reached"/>
+      label="Web client is ready, but wait for minimum loading timer"/>
+  <int value="4" label="Loading panel waiting for web client or timeout"/>
   <int value="5" label="'Something went wrong' error panel is displayed"/>
   <int value="6" label="Connection offline panel is displayed"/>
   <int value="7" label="Glic is not available for profile"/>

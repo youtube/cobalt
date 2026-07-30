@@ -349,15 +349,6 @@ CHAR_LIMIT guidelines:
         Link Chrome and other Google services for personalization and other purposes
       </message>
       <!-- Unified consent preferences -->
-      <message name="IDS_SIGN_OUT_AND_TURN_OFF_SYNC" desc="The text for a preferences row that for signs out the user and turns off sync.">
-        Sign out and turn off sync
-      </message>
-      <message name="IDS_TURN_OFF_SYNC" desc="The text for a preferences row that turns off sync without signing the user out.">
-        Turn off sync
-      </message>
-      <message name="IDS_SYNC_CATEGORY_TITLE" desc="Title for the group of Sync-related entries in Settings. This group contains preferences for data tied to user's Google Account.">
-        Sync
-      </message>
       <message name="IDS_PREFS_GOOGLE_SERVICES" desc="Title for the group of preferences that control non-personalized Google services. This group contains preferences for data that is not tied to user's Google Account. [CHAR_LIMIT=40]">
         Google services
       </message>
@@ -2318,26 +2309,8 @@ Your Google account may have other forms of browsing history like searches and a
       </message>
 
       <!-- Sync strings in account management dialog -->
-      <message name="IDS_SYNC_ON" desc="The text is displayed as a gray subtitle of a settings item titled 'Sync' and indicates that sync is on.">
-        On
-      </message>
-      <message name="IDS_SYNC_OFF" desc="The text is displayed as a gray subtitle of a settings item titled 'Sync' and indicates that sync is off.">
-        Off
-      </message>
-      <message name="IDS_SYNC_DATA_TYPES_OFF" desc="Message to show when all sync data types are off">
-        No data selected to sync
-      </message>
-      <message name="IDS_SYNC_SETTINGS_NOT_CONFIRMED" desc="The error message to display when sign-in was interrupted and the user didn't review the sync settings.">
-        Tap to set up sync
-      </message>
-      <message name="IDS_SYNC_IS_DISABLED_BY_ADMINISTRATOR" desc="Message to show when Chrome sync is disabled by administrator">
-        Sync is disabled by your administrator
-      </message>
       <message name="IDS_SYNC_NEED_PASSPHRASE" desc="Error message when a passphrase is needed for decrypting sync data.">
         Passphrase required
-      </message>
-      <message name="IDS_SYNC_SETUP_PROGRESS" desc="Message indicating that sync setup is in progress">
-        Setup in progress…
       </message>
 
       <!-- Legal information preferences -->
@@ -2373,30 +2346,6 @@ Your Google account may have other forms of browsing history like searches and a
       </message>
 
       <!-- Sign-in strings -->
-      <message name="IDS_SIGNOUT_TITLE" desc="The text is displayed as the title of a dialog to confirm if the user wants to sign out of Chrome. The user can cancel and stay signed in, or confirm and sign out.">
-        Sign out of Chrome?
-      </message>
-      <message name="IDS_TURN_OFF_SYNC_AND_SIGNOUT_TITLE" desc="Title for sign out of Chrome dialog [CHAR_LIMIT=40]">
-        Sign out and turn off sync?
-      </message>
-      <message name="IDS_TURN_OFF_SYNC_TITLE" desc="Title for turn off sync dialog [CHAR_LIMIT=40]">
-        Turn off sync?
-      </message>
-      <message name="IDS_SIGNOUT_MANAGED_ACCOUNT_TITLE" desc="Title for sign out of Chrome dialog for enterprise account [CHAR_LIMIT=40]">
-        Delete your Chrome data from this device?
-      </message>
-      <message name="IDS_SIGNOUT_MESSAGE" desc="The text is displayed as the message of a dialog to confirm whether the user wants to sign out of Chrome. The dialog is titled ‘Sign out of Chrome?’. The user can cancel and stay signed in, or confirm and sign out.">
-        Some Chrome features won\u2019t be available anymore
-      </message>
-      <message name="IDS_TURN_OFF_SYNC_AND_SIGNOUT_MESSAGE_WITHOUT_PASSWORDS" desc="Message to display in 'Sign out and turn off sync?' dialog, without explicitly mentioning passwords. Similar to IDS_TURN_OFF_SYNC_AND_SIGNOUT_MESSAGE">
-        Your bookmarks, history, and other Chrome data will no longer be synced to your Google Account
-      </message>
-      <message name="IDS_REMOVE_LOCAL_DATA" desc="Checkbox to delete all existing data in local device storage">
-        Also delete your Chrome data from this device
-      </message>
-      <message name="IDS_SIGNOUT_MANAGED_ACCOUNT_MESSAGE" desc="Message to display for sign out of Chrome dialog when the account has enterprise management, and all user data will be erased">
-        Because you're signing out of an account managed by <ph name="DOMAIN_NAME">%1$s<ex>google.com</ex></ph>, your Chrome data will be deleted from this device. It will remain in your Google Account.
-      </message>
       <message name="IDS_SIGN_OUT_SNACKBAR_MESSAGE" desc="Snackbar message shown after signing out from account settings">
         Signed out. Sign back in to use the bookmarks, passwords and more in your account.
       </message>
@@ -2441,50 +2390,11 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_RECENT_TABS_SYNC_PROMO_ENABLE_CHROME_SYNC" desc="Text that displayed in a textview encouraging the user to enable sync.">
         To get your tabs from your other devices, turn on sync.
       </message>
-      <message name="IDS_NTP_RECENT_TABS_SYNC_PROMO_INSTRUCTIONS" desc="Information about sync displayed on the NTP when the user has signed in on mobile but not on desktop">
-        Tabs that you've opened in Chrome on your other devices will appear here.
-      </message>
       <message name="IDS_RECENT_TABS_NO_TABS_EMPTY_STATE" desc="Text appearing on an empty recent tab page that indicates that recently closed tabs will appear here">
         You’ll find your recent tabs here
       </message>
       <message name="IDS_RECENT_TABS_SIGN_IN_ON_OTHER_DEVICES" desc="Text appearing on an empty recent tab page that indicates user can see tabs from other devices here">
         To see your tabs from wherever you use Chrome, sign in on all your devices
-      </message>
-      <message name="IDS_SYNC_EVERYTHING_PREF" desc="Title for preference which enables sync'ing of all data types. [CHAR_LIMIT=32]">
-        Sync everything
-      </message>
-      <message name="IDS_SYNC_AUTOFILL" desc="Title for preference which enables sync'ing of autofill. [CHAR_LIMIT=32]">
-        Addresses and more
-      </message>
-      <message name="IDS_SYNC_BOOKMARKS" desc="Title for preference which enables sync'ing of bookmarks. [CHAR_LIMIT=32]">
-        Bookmarks
-      </message>
-      <message name="IDS_SYNC_EXTENSIONS" desc="Title for preference which enables sync'ing of Chrome browser extensions. [CHAR_LIMIT=32]">
-        Extensions
-      </message>
-      <message name="IDS_SYNC_HISTORY" desc="Title for preference which enables sync'ing of history data. [CHAR_LIMIT=32]">
-        History
-      </message>
-      <message name="IDS_SYNC_PASSWORDS" desc="Title for preference which enables sync'ing of passwords. [CHAR_LIMIT=32]">
-        Passwords
-      </message>
-      <message name="IDS_SYNC_READING_LIST" desc="Title for preference which enables sync'ing of reading list. [CHAR_LIMIT=32]">
-        Reading list
-      </message>
-      <message name="IDS_SYNC_RECENT_TABS" desc="Title for preference which enables sync'ing of open tabs. [CHAR_LIMIT=32]">
-        Open tabs
-      </message>
-      <message name="IDS_SYNC_SETTINGS" desc="Title for preference which enables sync'ing of settings. [CHAR_LIMIT=32]">
-        Settings
-      </message>
-      <message name="IDS_SYNC_APPS" desc="Title for preference which enables sync'ing of WebAPKs. [CHAR_LIMIT=32]">
-        Apps
-      </message>
-      <message name="IDS_SYNC_PAYMENTS_INTEGRATION" desc="Title for preference which enables import of Google Pay data for Autofill. 'Google Pay' should not be translated as it is the product name.">
-        Payment methods, offers, and addresses using Google Pay
-      </message>
-      <message name="IDS_SYNC_PAYMENTS_AND_INFO_INTEGRATION" desc="Title for preference which enables import of Google Wallet data for Autofill. 'Google Wallet' should not be translated as it is the product name.">
-        Payment methods and other info from Google Wallet
       </message>
       <message name="IDS_ACCOUNT_SETTINGS_TITLE" desc="Title for the account settings page. [CHAR_LIMIT=32]">
         Account
@@ -2621,9 +2531,6 @@ Your Google account may have other forms of browsing history like searches and a
           =1 {Item saved in your Google Account, <ph name="ACCOUNT_EMAIL">%1$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
           other {Items saved in your Google Account, <ph name="ACCOUNT_EMAIL">%1$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
       </message>
-      <message name="IDS_SYNC_REVIEW_DATA" desc="Title for link to https://chrome.google.com/data Dashboard to manage sync data.">
-        Review your synced data
-      </message>
       <message name="IDS_SYNC_PASSPHRASE_TYPE_TITLE" desc="Title of sync passphrase type dialog. [CHAR_LIMIT=24]">
         Encryption
       </message>
@@ -2642,10 +2549,6 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_SYNC_ENCRYPTION_CREATE_PASSPHRASE"  desc="The message displayed when the signed in user needs to enter its sync passphrase.">
         Payment methods and addresses won’t be encrypted. Browsing history from Chrome won’t sync.
 Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>clear the Chrome data in your account<ph name="END_LINK">END_LINK</ph>.
-      </message>
-      <message name="IDS_LEGACY_SYNC_ENCRYPTION_CREATE_PASSPHRASE" desc="Prompt user to create a custom sync password.">
-        Payment methods and addresses from Google Pay won’t be encrypted. Browsing history from Chrome won’t sync.
-Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome data in your account<ph name="END_LINK">END_LINK</ph>.
       </message>
       <message name="IDS_SYNC_ENTER_CUSTOM_PASSPHRASE_HINT" desc="Hint for the passphrase field when user is to type in a passphrase. [CHAR_LIMIT=30]">
         Passphrase
@@ -2699,90 +2602,18 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_BOOKMARK_SYNC_LIMIT_ERROR_DESCRIPTION" desc="Description for the error when the user has too many bookmarks and sync is paused.">
         To save bookmarks in your account, delete your unused bookmarks
       </message>
-      <message name="IDS_PASSWORD_SYNC_ERROR_SUMMARY" desc="Short message shown in various UIs (e.g. Sync Error Card body) to inform that passwords can't be synced (due to missing trusted vault keys). [CHAR_LIMIT=32]">
-        Password sync isn't working
-      </message>
       <message name="IDS_PASSWORD_SYNC_TRUSTED_VAULT_ERROR_TITLE" desc="Short message shown in various UIs (e.g. Sync Error Card body) to inform that passwords stored in the user's Google Account can't be synced to the device (due to missing trusted vault keys). The message prompts the user to fix this issue.">
         Get all your passwords
       </message>
-      <message name="IDS_SYNC_SETTINGS_NOT_CONFIRMED_TITLE" desc="Title of the error message shown when sync setup was not complete. [CHAR_LIMIT=60]">
-        Initial sync setup not finished
-      </message>
-      <message name="IDS_SYNC_NEEDS_VERIFICATION_TITLE" desc="Title of the error message shown when sync needs to verify the user.">
-        Sync needs to verify it's you
-      </message>
-      <message name="IDS_HINT_SYNC_AUTH_ERROR_MODERN" desc="Hint message to resolve sync auth error updated to align with the UPM error message.">
-        Sign back in to start sync
-      </message>
-      <message name="IDS_HINT_SYNC_RECOVERABILITY_DEGRADED_FOR_EVERYTHING" desc="Hint message to resolve sync degraded recoverability, for users that have not chosen to encrypt all sync data">
-        Make sure you can always access your sync data
-      </message>
-      <message name="IDS_HINT_SYNC_RECOVERABILITY_DEGRADED_FOR_PASSWORDS" desc="Hint message to resolve sync degraded recoverability, for users that have chosen to encrypt all sync data.">
-        Make sure you can always access your saved passwords
-      </message>
-      <message name="IDS_HINT_SYNC_RETRIEVE_KEYS_FOR_EVERYTHING" desc="Hint message to resolve sync encryption error, required to resume sync.">
-        To start sync, verify it's you
-      </message>
-      <message name="IDS_HINT_SYNC_RETRIEVE_KEYS_FOR_PASSWORDS" desc="Hint message to resolve sync encryption error, required to resume syncing passwords.">
-        To sync your passwords, verify it's you
-      </message>
       <message name="IDS_PASSWORD_SYNC_TRUSTED_VAULT_ERROR_HINT" desc="Hint message that explains a sync error: Passwords stored in the user's Google Account can't be synced to the device (due to missing trusted vault keys).">
          Verify it’s you to get all your passwords on this device
-      </message>
-      <message name="IDS_HINT_PASSPHRASE_REQUIRED" desc="Hint message to resolve passphrase required error.">
-        To start sync, enter your passphrase
-      </message>
-      <message name="IDS_HINT_SYNC_SETTINGS_NOT_CONFIRMED_DESCRIPTION" desc="The error message to display when sign-in was interrupted and the user didn't review the sync settings.">
-        Choose what to sync below
-      </message>
-      <message name="IDS_HINT_OTHER_SYNC_ERRORS" desc="Hint message to resolve sync errors not listed independently.">
-        Try signing in again
-      </message>
-      <message name="IDS_HINT_CLIENT_OUT_OF_DATE" desc="Hint message to resolve sync protocol error for out-of-date client.">
-        Update <ph name="PRODUCT_NAME">%1$s<ex>Chrome</ex></ph> to start sync
       </message>
       <message name="IDS_SYNC_ERROR_CARD_OUTDATED_GMS" desc="Error message to update Google Play services to continue syncing passwords.">
         To save and use new passwords in your Google Account, update Google Play services
       </message>
 
-      <!-- Sync error card button strings -->
-      <message name="IDS_CLIENT_OUT_OF_DATE_ERROR_CARD_BUTTON" desc="Button text for client out of date error in sync error cards.">
-          Update <ph name="PRODUCT_NAME">%1$s<ex>Chrome</ex></ph>
-      </message>
-      <message name="IDS_PASSPHRASE_REQUIRED_ERROR_CARD_BUTTON" desc="Button text for passphrase required error in sync error cards.">
-        Enter passphrase
-      </message>
       <message name="IDS_AUTH_ERROR_CARD_BUTTON" desc="Button text for auth error in sync error cards.">
         Sign in again
-      </message>
-      <message name="IDS_TRUSTED_VAULT_ERROR_CARD_BUTTON" desc="Button text for trusted vault error in sync error cards.">
-        Verify it's you
-      </message>
-
-      <!-- Sync error strings -->
-      <message name="IDS_SYNC_ERROR_GENERIC" desc="Sync error string for generic error. [CHAR_LIMIT=80]">
-        Sync has stopped working
-      </message>
-      <message name="IDS_SYNC_ERROR_GA" desc="Sync error string for when the needs to update the sign-in details [CHAR_LIMIT=80]">
-        Please update your sign-in details.
-      </message>
-      <message name="IDS_SYNC_ERROR_CONNECTION" desc="Sync error string for network connection. [CHAR_LIMIT=80]">
-        Could not connect to the sync server.
-      </message>
-      <message name="IDS_SYNC_ERROR_UPGRADE_CLIENT" desc="Sync error string for out-of-date client. [CHAR_LIMIT=80]">
-        <ph name="PRODUCT_NAME">%1$s<ex>Chrome</ex></ph> is out of date.
-      </message>
-      <message name="IDS_SYNC_ERROR_SERVICE_UNAVAILABLE" desc="Sync error string for service unavailable. [CHAR_LIMIT=80]">
-        The service is not available; try again later.
-      </message>
-      <message name="IDS_WIPING_PROFILE_DATA_TITLE" desc="Title for the progress dialog shown while profile data is being wiped after signing out of an enterprise account">
-        Deleting account data
-      </message>
-      <message name="IDS_WIPING_PROFILE_DATA_MESSAGE" desc="Message for the progress dialog shown while profile data is being wiped after signing out of an enterprise account">
-        Please wait…
-      </message>
-      <message name="IDS_SYNC_ERROR_OUTDATED_GMS" desc="Sync error string for the Sync row in the main menu, and also the title for the sync error card, in case Google Play services needs to be updated to continue syncing passwords.">
-        Update Google Play services
       </message>
 
       <!-- Identity error card message strings -->
@@ -3971,9 +3802,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SIGNIN_PROMO_CHOOSE_ANOTHER_ACCOUNT" desc="Button that the user can press if they want to select a different account before signing in. This button is shown below 'Continue as Joe Doe' button that signs user in with default account.">
         Choose another account
       </message>
-      <message name="IDS_SYNC_PROMO_TURN_ON_SYNC" desc="Button that the user can press if they want to turn on sync with this account.">
-        Turn on sync
-      </message>
       <message name="IDS_SIGNIN_PROMO_TURN_ON" desc="Button to turn on sync for history and tabs">
         Turn on
       </message>
@@ -4101,12 +3929,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_DISCOVER_NO_CARDS_INSTRUCTIONS" desc="Message body for the article feed on the New Tab Page. Instructs the user to come back later when new feed content is available. Please translate 'stories' to match its use in TC ID 792300740424433300. Also see TC ID 7331961212006720987 for the corresponding message in Discover.">Check back later for new stories</message>
       <message name="IDS_DISCOVER_CANT_REFRESH" desc="Message title for the article feed on the New Tab Page. Shown when feed content is not available because there is no internet connection. Please use the branded term for Discover, as listed under Product Names in the Google Glossary Manager (TC ID 1799975766543019278). Also see TC ID 6114827482740570724 for the corresponding message in Discover.">Can't refresh Discover</message>
       <message name="IDS_DISCOVER_CANT_REFRESH_INSTRUCTIONS" desc="Message body for the article feed on the New Tab Page. Instructs the user to wait and try to refresh the feed once the internet connection returns. Please translate 'stories' to match its use in TC ID 792300740424433300. Also see TC ID 6114827482740570724 for the corresponding message in Discover.">Check back later for new stories</message>
-      <message name="IDS_WEB_FEED_NO_CARDS_TITLE" desc="Message title for the user-customizable web feed on the New Tab Page. Shown when the user either has not followed any websites or when the user has followed some websites but the sites do not have any new articles.">
-        Keep up with your favorite sites
-      </message>
-      <message name="IDS_WEB_FEED_NO_CARDS_INSTRUCTIONS" desc="Message body for the user-customizable web feed on the New Tab Page. Shown when the user either has not followed any websites or when the user has followed some websites but the sites do not have any new articles. Instructs the user to follow more sites or check back later. Please translate 'Follow' (with capital F) to match its use in TC ID 4108314971463891922.">
-        To follow a site, go to the site, open the Chrome menu, and tap Follow.
-      </message>
       <message name="IDS_FEED_SWIPE_REFRESH_IPH" desc="In-product help that prompts the user to use pull-down gesture to refresh the feed content.">
         For new stories, pull down to refresh
       </message>
@@ -4213,12 +4035,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_PREFERENCE_READ_ALOUD" desc="Title name for the read aloud option in the preference.">
         Listen to this page
       </message>
-      <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_PREFERENCE_PAGE_SUMMARY" desc="Title name for the page_summary option in the preference.">
-        Summarize this page
-      </message>
-      <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_PREFERENCE_PAGE_SUMMARY_DESCRIPTION" desc="Description for the page_summary option in the preference.">
-        Invokes AI Assistant
-      </message>
       <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_PREFERENCE_BASED_ON_YOUR_USAGE" desc="Title name for the based on your usage option in the preference.">
         Based on your usage
       </message>
@@ -4264,12 +4080,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_VOICE_SEARCH_IPH_SETTINGS" desc="An in-product-help message for the voice search button referring to toolbar settings.">
         Quickly search with your voice. To edit this shortcut, go to Settings.
       </message>
-      <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_PAGE_SUMMARY_IPH" desc="An in-product-help message for the page summary button.">
-        Summarize page with AI
-      </message>
-      <message name="IDS_ADAPTIVE_TOOLBAR_BUTTON_REVIEW_PDF_IPH" desc="An in-product-help message for the review PDF button.">
-        Review PDF with AI
-      </message>
       <message name="IDS_ADAPTIVE_TOOLBAR_MENU_EDIT_SHORTCUT" desc="The menu option for opening adaptive toolbar settings.">
         Edit shortcut
       </message>
@@ -4284,9 +4094,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_TOOLBAR_COPY_LINK" desc="The menu option for copying link in the address bar.">
         Copy link
-      </message>
-      <message name="IDS_AI_ASSISTANT_SERVICE_ERROR_TOAST" desc="Text to be shown in a toast when unable to invoke an AI assistant">
-        Couldn’t open AI assistant. Try again.
       </message>
 
       <!-- Main menu items -->
@@ -4401,20 +4208,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_FIND_IN_PAGE" desc="Menu item allowing users to find text within the current page. [CHAR_LIMIT=27]">
         Find in page
       </message>
-      <message name="IDS_MENU_FOLLOW" desc="Menu item allowing users to follow the current website. [CHAR_LIMIT=27]">
-        Follow
-      </message>
-      <message name="IDS_MENU_FOLLOWING"
-        meaning="Toggle button text for something that is being followed."
-        desc="Menu item indicating the current website is followed, allowing users to unfollow the current website. [CHAR_LIMIT=27]">
-        Following
-      </message>
-      <message name="IDS_FOLLOW_ACCELERATOR" desc="IPH text for letting a user know that a website can be followed with minimal context. [CHAR_LIMIT=50]">
-        Follow this site here
-      </message>
-      <message name="IDS_ACCESSIBILITY_FOLLOW_ACCELERATOR_IPH" desc="In-product help that points at the menu icon for the news feed on Chrome's new tab page. This string informs the user about the  following feature.">
-        Adds the current web site to the list of web sites that you are following.
-      </message>
       <message name="IDS_MENU_PAINT_PREVIEW_SHOW" desc="Menu item allowing users to capture and show a paint preview of a page. [CHAR_LIMIT=27]" translateable="false">
         Show Paint Preview
       </message>
@@ -4485,12 +4278,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_OPEN_WITH" desc="Menu item to open the content with another app.">
         Open with…
-      </message>
-      <message name="IDS_MENU_SUMMARIZE_WITH_AI" desc="Menu item to summarize a page with AI.">
-        Summarize with AI
-      </message>
-      <message name="IDS_MENU_REVIEW_PDF_WITH_AI" desc="Menu item to review a PDF file with AI.">
-        Review PDF with AI
       </message>
       <message name="IDS_MENU_ITEM_CONTENT_FILTER_HELP_CENTER_LINK" desc="Menu item to explain that the content filter is on and to direct the user to the help center article about content filters. Only available when the content filter is on.">
         Content filter is on
@@ -5070,12 +4857,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_FIND_TOOLBAR_BTN_PREV" desc="Content description for the button to go to the previous find in page result.">
         Previous
       </message>
-
-      <if expr="enable_extensions_core">
-        <message name="IDS_ACCESSIBILITY_BTN_EXTENSIONS" desc="Content description for the extension button.">
-          Extensions
-        </message>
-      </if>
 
       <!-- Accessibility strings for tablet tab strip -->
       <message name="IDS_ACCESSIBILITY_TABSTRIP_BTN_INCOGNITO_TOGGLE_STANDARD" desc="Content description for the Incognito tabs toggle button when viewing standard tabs.">
@@ -5663,59 +5444,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_GOOGLE_BOTTOM_BAR_SEARCHBOX_LENS_NOT_ENABLED_TOOLTIP_MESSAGE" desc="Tooltip message when lens button is not enabled">
       Lens is not available on this account.
-      </message>
-
-      <!-- WebFeed -->
-      <message name="IDS_WEB_FEED_FOLLOW_LOADING_DESCRIPTION" desc="The content description of the loading spinner after the user presses Follow and is waiting for a response.">
-        Following...
-      </message>
-      <message name="IDS_WEB_FEED_FOLLOW_SUCCESS_SNACKBAR_MESSAGE" desc="The snackbar message after a successful Web Feed follow request.">
-        Following <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph>
-      </message>
-      <message name="IDS_WEB_FEED_FOLLOW_SUCCESS_SNACKBAR_ACTION_GO_TO_FOLLOWING" desc="The snackbar action after a successful Web Feed follow request, that will take the user to the Following feed.">
-        Go to Following
-      </message>
-      <message name="IDS_WEB_FEED_FOLLOW_SUCCESS_SNACKBAR_ACTION_REFRESH" desc="The snackbar action after a successful Web Feed follow request, that will refresh the Following feed contents. [CHAR_LIMIT=20]">
-        Refresh
-      </message>
-      <message name="IDS_WEB_FEED_FOLLOW_GENERIC_FAILURE_SNACKBAR_MESSAGE" desc="The generic snackbar message after an unsuccessful Web Feed follow request.">
-        Can’t follow. Something went wrong.
-      </message>
-      <message name="IDS_WEB_FEED_UNFOLLOW_GENERIC_FAILURE_SNACKBAR_MESSAGE" desc="The generic snackbar message after an unsuccessful Web Feed unfollow request.">
-        Can’t unfollow. Something went wrong.
-      </message>
-      <message name="IDS_WEB_FEED_OFFLINE_FAILURE_SNACKBAR_MESSAGE" desc="The failure snackbar message after an unsuccessful Web Feed follow or unfollow request due to being offline.">
-        You're offline. Check your internet connection and try again.
-      </message>
-      <message name="IDS_WEB_FEED_GENERIC_FAILURE_SNACKBAR_ACTION" desc="The snackbar action after an unsuccessful Web Feed follow or unfollow request.">
-        Try again
-      </message>
-      <message name="IDS_WEB_FEED_UNFOLLOW_SUCCESS_SNACKBAR_MESSAGE" desc="The snackbar message after a successful Web Feed unfollow request.">
-        Unfollowed <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph>
-      </message>
-      <message name="IDS_WEB_FEED_UNFOLLOW_SUCCESS_SNACKBAR_ACTION" desc="The snackbar action after a successful Web Feed unfollow request.">
-        Refollow
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_TITLE" desc="The title of the dialog presented a few times after a successful Web Feed follow request.">
-        You’re following <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph>
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_STORIES_READY_DESCRIPTION" desc="The body text of the dialog presented a few times after a successful Web Feed follow request, when content from that Web Feed is immediately available. Please use the branded term for Discover, as listed under Product Names in the Google Glossary Manager (TC ID 1799975766543019278).">
-        You'll now see stories from <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph> when you open a new tab. Sites you follow are saved in your Google account. You can manage them in Discover settings.
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_STORIES_READY_DESCRIPTION_WITH_UI_UPDATE" desc="The body text of the dialog presented a few times after a successful Web Feed follow request, when content from that Web Feed is immediately available.">
-        You'll now see content from and about <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph> in Following. The sites and searches you follow are saved in your Google Account. You can manage your follows in settings at any time.
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_STORIES_NOT_READY_DESCRIPTION" desc="The body text of the dialog presented a few times after a successful Web Feed follow request, when content from that Web Feed is not readily available. Please use the branded term for Discover, as listed under Product Names in the Google Glossary Manager (TC ID 1799975766543019278).">
-        Soon, you’ll see stories from <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph> when you open a new tab. Sites you follow are saved in your Google account. You can manage them in Discover settings.
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_STORIES_NOT_READY_DESCRIPTION_WITH_UI_UPDATE" desc="The body text of the dialog presented a few times after a successful Web Feed follow request, when content from that Web Feed is not readily available.">
-        Soon, you'll see content from and about <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph> in Following. The sites and searches you follow are saved in your Google Account. You can manage your follows in settings at any time.
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_GO_TO_FOLLOWING" desc="The main action of the dialog presented a few times after a successful Web Feed follow request, when content from from that Web Feed is immediately available. It will take the user to the Following feed.">
-        Go to Following
-      </message>
-      <message name="IDS_WEB_FEED_POST_FOLLOW_DIALOG_GOT_IT" desc="The main action of the dialog presented a few times after a successful Web Feed follow request, when content from from that Web Feed is immediately available. The user is already at the Following feed so it will do nothing.">
-        Got it
       </message>
 
       <!-- Storage Preference UI strings for clearing storage. -->

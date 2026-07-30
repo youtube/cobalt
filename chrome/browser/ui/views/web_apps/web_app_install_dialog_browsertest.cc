@@ -19,6 +19,7 @@
 #include "chrome/browser/shortcuts/shortcut_icon_generator.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
+#include "chrome/browser/ui/views/web_apps/progress_delay.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_flow_dialog_delegate.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
@@ -46,15 +47,17 @@ namespace web_app {
 
 namespace {
 
-int GetTimesToAcceptDialog(const std::string& name) {
+int GetTimesToAcceptDialog(const std::string& name, InstallOsType os_type) {
   if (name == "Intro") {
     return 0;
   } else if (name == "InstallOptions") {
     return 1;
   } else if (name == "Progress") {
-    return 2;
+    // Adjust the click count for `kOther` because the `InstallOptions` step is
+    // skipped on this OS.
+    return os_type == InstallOsType::kOther ? 1 : 2;
   } else if (name == "Successful") {
-    return 3;
+    return os_type == InstallOsType::kOther ? 2 : 3;
   }
 
   NOTREACHED();
@@ -114,7 +117,6 @@ class WebAppInstallDialogBrowserTest
   void ShowUi(const std::string& name) override {
     InstallOsType os_type = GetOsType();
     InstallDialogType dialog_type = GetDialogType();
-
     auto install_info = WebAppInstallInfo::CreateWithStartUrlForTesting(
         GURL("https://example.com"));
     install_info->title = u"Test App";
@@ -140,7 +142,9 @@ class WebAppInstallDialogBrowserTest
         dialog_type == InstallDialogType::kDetailed
             ? screenshot_fetcher_.GetWeakPtr()
             : base::WeakPtr<WebAppScreenshotFetcher>(),
-        /*show_initiating_origin=*/false, dialog_type, os_type);
+        /*show_initiating_origin=*/false, dialog_type, os_type,
+        std::make_unique<ProgressDelay>(/*delay_time=*/base::Seconds(0),
+                                        /*steps=*/1));
 
     views::Widget* widget = waiter.WaitIfNeededAndGet();
     ASSERT_NE(nullptr, widget);
@@ -149,9 +153,9 @@ class WebAppInstallDialogBrowserTest
         name, "_", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     std::vector<int> parts_to_accept_times;
     // Map the separate parts into their "number of times to accept".
-    // "Successful_Cancel" -> [3, -1]
+    // "Successful" -> [2]
     for (const std::string& part : parts) {
-      parts_to_accept_times.push_back(GetTimesToAcceptDialog(part));
+      parts_to_accept_times.push_back(GetTimesToAcceptDialog(part, os_type));
     }
 
     int total_accepts = std::accumulate(parts_to_accept_times.begin(),
@@ -195,6 +199,9 @@ IN_PROC_BROWSER_TEST_P(WebAppInstallDialogBrowserTest, InvokeUi_Intro) {
 
 IN_PROC_BROWSER_TEST_P(WebAppInstallDialogBrowserTest,
                        InvokeUi_InstallOptions) {
+  if (std::get<0>(GetParam()) == InstallOsType::kOther) {
+    GTEST_SKIP() << "InstallOptions step does not exist for kOther";
+  }
   ShowAndVerifyUi();
 }
 

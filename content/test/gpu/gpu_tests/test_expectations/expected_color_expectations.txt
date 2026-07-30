@@ -42,7 +42,7 @@
 #             intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912 intel-0x9bc5
 #         microsoft microsoft-0xffff
 #         nvidia nvidia-0x1cb3 nvidia-0x2184 nvidia-0x2783
-#         qualcomm qualcomm-0x41333430 qualcomm-0x36333630 qualcomm-0x36334330 ]
+#         qualcomm qualcomm-0x36333630 qualcomm-0x36334330 ]
 # Architecture
 # tags: [ arch-arm64 arch-x86_64 ]
 # Decoder
@@ -133,8 +133,6 @@ crbug.com/425745937 [ fuchsia web-engine-shell fuchsia-board-nelson ] ExpectedCo
 crbug.com/426594100 [ android-14 android-pixel-6 graphite-disabled ] ExpectedColor_MediaRecorderFromVideoElement [ RetryOnFailure ]
 crbug.com/426594100 [ win ] ExpectedColor_MediaRecorderFromVideoElement [ RetryOnFailure ]
 
-# Crop Boundaries Fails
-crbug.com/446124895 [ android android-pixel-10 ] ExpectedColor_MediaRecorderFromVideoElement [ Failure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

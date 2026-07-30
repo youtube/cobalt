@@ -290,7 +290,7 @@
       "transforms/rotate.html"
     ],
     "args": [
-      "--enable-blink-features=AIPageContentBuildOnLoadForTesting,AIPageContentOuterBoxMapToAncestorSpace"
+      "--enable-blink-features=AIPageContentBuildOnLoadForTesting"
     ],
     "owners": [
       "aleventhal@chromium.org"
@@ -1696,7 +1696,7 @@
     "expires": "never"
   },
   {
-    "prefix": "indexeddb_sqlite",
+    "prefix": "indexeddb_leveldb",
     "owners": [
       "abhishek.shanthkumar@microsoft.com",
       "evanstade@microsoft.com",
@@ -1726,12 +1726,11 @@
       "external/wpt/webcodecs/video-frame-serialization.any.html",
       "external/wpt/workers/data-url-shared.html",
       "external/wpt/workers/data-url.html",
-      "http/tests/devtools/indexeddb/database-names.js",
-      "http/tests/devtools/indexeddb/upgrade-events.js",
+      "http/tests/devtools/indexeddb",
       "http/tests/inspector-protocol/storage/indexed-db-storage-key-request-database-names.js"
     ],
     "args": [
-      "--enable-features=IdbSqliteBackingStore"
+      "--enable-features=IdbSqliteOnDiskRollout:stage/UseLevelDbOnly"
     ],
     "expires": "never"
   },
@@ -1819,7 +1818,7 @@
   {
     "prefix": "javascript-source-phase-imports",
     "owners": [
-      "lpardosixtos@microsoft.com"
+      "olivf@chromium.org"
     ],
     "platforms": [
       "Linux",
@@ -1841,7 +1840,7 @@
     "args": [
       "--enable-features=JavaScriptSourcePhaseImports"
     ],
-    "expires": "Apr 4, 2026"
+    "expires": "Apr 15, 2027"
   },
   {
     "prefix": "javascript-defer-phase-imports",
@@ -2593,6 +2592,25 @@
       "almaher@microsoft.com"
     ]
   },
+  {
+    "prefix": "prefetch-force-off-the-main-thread",
+    "owners": [
+      "hiroshige@chromium.org",
+      "taiyo@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/speculation-rules/prefetch/"
+    ],
+    "args": [
+      "--enable-features=PrefetchOffTheMainThread,PrefetchOffTheMainThreadForceForTesting"
+    ],
+    "expires": "Dec 31, 2026"
+  },
   "These tests involve requiring a prefetch proxy, but since WPT origins are ",
   "not allowed to use the proxy in Chromium, we pass an argument telling ",
   "Chromium to bypass the proxy and pretend it was used instead. See also",
@@ -2660,11 +2678,12 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/speculation-rules/prerender/activation-by-form-submission.https.html"
+      "external/wpt/speculation-rules/prerender/activation-by-form-submission.https.html",
+      "external/wpt/speculation-rules/prerender/csp-form-action.https.html"
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-blink-features=PrerenderActivationByFormSubmission"
+      "--enable-blink-features=PrerenderActivationByFormSubmission,PrerenderUntilScript"
     ],
     "owners": [
       "robertlin@chromium.org"
@@ -2999,27 +3018,6 @@
       "guidou@chromium.org"
     ],
     "expires": "Nov 11, 2026"
-  },
-  {
-    "prefix": "selective-permissions-intervention",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win",
-      "Android",
-      "Fuchsia"
-    ],
-    "bases": [
-      "http/tests/inspector-protocol/issues/selective-permissions-intervention-issue.js"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=SelectivePermissionsIntervention"
-    ],
-    "owners": [
-      "jkarlin@google.com"
-    ],
-    "expires": "Jan 24, 2027"
   },
   {
     "prefix": "selectedcontent-spec-disabled",
@@ -4732,6 +4730,7 @@
       "view-transition",
       "wpt_internal/html/canvas/drawElementImage/invalidation-during-onpaint.html",
       "wpt_internal/html/canvas/drawElementImage/onpaint-invalidation-crash.html",
+      "wpt_internal/html/canvas/drawElementImage/onpaint-outside-invalidation-crash.html",
       "wpt_internal/html/script-execution",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
@@ -5509,7 +5508,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--enable-features=WebMachineLearningNeuralNetwork",
       "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",
@@ -5779,7 +5778,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--enable-features=WebMachineLearningNeuralNetwork",
       "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",
@@ -6051,7 +6050,7 @@
     "exclusive_tests": "ALL",
     "args": [
       "--use-gpu-in-tests",
-      "--enable-features=WebMachineLearningNeuralNetwork,WebNNDirectML",
+      "--enable-features=WebMachineLearningNeuralNetwork",
       "--disable-features=WebNNOnnxRuntime"
     ],
     "expires": "Jun 1, 2026",

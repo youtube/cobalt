@@ -49,6 +49,22 @@ IN_PROC_BROWSER_TEST_F(GlicContextMenuBrowserTest, GlicItemPresent) {
   EXPECT_TRUE(menu->IsItemEnabled(IDC_CONTENT_CONTEXT_GLIC));
 }
 
+IN_PROC_BROWSER_TEST_F(GlicContextMenuBrowserTest, GlicItemPresentForLink) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetSimpleTestUrl()));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::ContextMenuParams params;
+  params.page_url = web_contents->GetVisibleURL();
+  params.link_url = GURL("https://example.com");
+
+  auto menu = std::make_unique<TestRenderViewContextMenu>(
+      *web_contents->GetPrimaryMainFrame(), params);
+  menu->Init();
+
+  EXPECT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_GLIC));
+}
+
 IN_PROC_BROWSER_TEST_F(GlicContextMenuBrowserTest, GlicInvokeStandard) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetSimpleTestUrl()));
   auto menu = CreateContextMenu();
@@ -96,6 +112,34 @@ class GlicContextMenuArm2BrowserTest : public GlicContextMenuBrowserTestBase {
 };
 
 IN_PROC_BROWSER_TEST_F(GlicContextMenuArm2BrowserTest, GlicInvokeArm2) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetSimpleTestUrl()));
+  auto menu = CreateContextMenu();
+
+  // Initially no Glic instance.
+  EXPECT_EQ(nullptr, GetOnlyGlicInstance());
+
+  menu->ExecuteCommand(IDC_CONTENT_CONTEXT_GLIC, 0);
+
+  // Now Glic should be open.
+  ASSERT_OK(WaitForGlicOpen());
+  EXPECT_NE(nullptr, GetOnlyGlicInstance());
+}
+
+class GlicContextMenuArm3BrowserTest : public GlicContextMenuBrowserTestBase {
+ public:
+  GlicContextMenuArm3BrowserTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlic, {}},
+         {features::kGlicContextMenu,
+          {{features::kGlicContextMenuArm.name, "arm3"}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicContextMenuArm3BrowserTest, GlicInvokeArm3) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetSimpleTestUrl()));
   auto menu = CreateContextMenu();
 

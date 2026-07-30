@@ -6,6 +6,7 @@
 
 #include "base/barrier_closure.h"
 #include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
@@ -25,6 +26,12 @@ void SequentialTaskGroup::Start(base::OnceClosure done_callback) {
   CHECK_EQ(current_task_index_, 0u);
   done_callback_ = std::move(done_callback);
   RunNextTask();
+}
+
+void SequentialTaskGroup::NotifySequenceCompleted(bool success) {
+  for (auto& task : tasks_) {
+    task->OnSequenceCompleted(success);
+  }
 }
 
 void SequentialTaskGroup::RunNextTask() {
@@ -116,6 +123,29 @@ void WaitForClientConnectedTask::WebClientConnected() {
   }
 }
 
+NotifyIsInvokingTask::NotifyIsInvokingTask(Host* host, bool is_invoking)
+    : host_(host), is_invoking_(is_invoking) {}
+
+NotifyIsInvokingTask::~NotifyIsInvokingTask() = default;
+
+void NotifyIsInvokingTask::Start(base::OnceClosure done_callback) {
+  host_->NotifyIsInvoking(is_invoking_);
+  std::move(done_callback).Run();
+}
+
+PostCallbackTask::PostCallbackTask(base::OnceClosure callback)
+    : callback_(std::move(callback)) {}
+
+PostCallbackTask::~PostCallbackTask() = default;
+
+void PostCallbackTask::Start(base::OnceClosure done_callback) {
+  if (callback_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(callback_));
+  }
+  std::move(done_callback).Run();
+}
+
 StabilizationTask::StabilizationTask(content::WebContents* web_contents) {
   Observe(web_contents);
 }
@@ -172,14 +202,113 @@ bool WaitForFreCompletionTask::ShouldWaitForFreCompletion() const {
   if (GlicEnabling::HasConsentedForProfile(profile_)) {
     return false;
   }
-  if (fre_override_ == mojom::FreOverride::kTrustFirstClick) {
-    return true;
+  return fre_override_ == mojom::FreOverride::kTrustFirstClick ||
+         fre_override_ == mojom::FreOverride::kUnspecified;
+}
+
+SendToClientTask::SendToClientTask(
+    GlicInstanceImpl* instance,
+    mojom::InvokeOptionsPtr mojo_options,
+    std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey)
+    : instance_(instance),
+      mojo_options_(std::move(mojo_options)),
+      auto_submit_passkey_(std::move(auto_submit_passkey)) {}
+
+SendToClientTask::~SendToClientTask() = default;
+
+void SendToClientTask::Start(base::OnceClosure done_callback) {
+  done_callback_ = std::move(done_callback);
+  if (auto_submit_passkey_) {
+    instance_->host().InvokeWithAutoSubmit(
+        *auto_submit_passkey_, std::move(mojo_options_),
+        base::BindOnce(&SendToClientTask::OnAck,
+                       weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    instance_->host().Invoke(std::move(mojo_options_),
+                             base::BindOnce(&SendToClientTask::OnAck,
+                                            weak_ptr_factory_.GetWeakPtr()));
   }
-  if (fre_override_ == mojom::FreOverride::kUnspecified) {
-    return GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_) &&
-           features::kGlicTrustFirstOnboardingArmParam.Get() == 2;
+}
+
+void SendToClientTask::OnAck() {
+  std::move(done_callback_).Run();
+}
+
+// TODO(b/505088942): Add more robust error handling.
+WaitForActuationTask::WaitForActuationTask(
+    GlicInstanceImpl* instance,
+    base::TimeDelta start_timeout,
+    base::OnceCallback<void(GlicInvokeError)> error_callback,
+    base::OnceClosure on_actuation_started)
+    : instance_(instance),
+      start_timeout_(start_timeout),
+      error_callback_(std::move(error_callback)),
+      on_actuation_started_(std::move(on_actuation_started)) {
+  GlicActorTaskManager* task_manager = instance_->GetActorTaskManager();
+  if (task_manager) {
+    if (task_manager->IsActuating()) {
+      did_start_ = true;
+    }
+    subscription_ =
+        task_manager->AddActuatingChangedCallback(base::BindRepeating(
+            &WaitForActuationTask::OnActuatingChanged, base::Unretained(this)));
   }
-  return false;
+}
+
+WaitForActuationTask::~WaitForActuationTask() = default;
+
+void WaitForActuationTask::Start(base::OnceClosure done_callback) {
+  done_callback_ = std::move(done_callback);
+
+  GlicActorTaskManager* task_manager = instance_->GetActorTaskManager();
+  if (!task_manager) {
+    std::move(error_callback_).Run(GlicInvokeError::kInvalidConfiguration);
+    return;
+  }
+
+  task_started_ = true;
+  Update();
+}
+
+void WaitForActuationTask::OnActuatingChanged(bool actuating) {
+  did_start_ = did_start_ || actuating;
+  did_finish_ = did_start_ && !actuating;
+  Update();
+}
+
+void WaitForActuationTask::Update() {
+  if (!task_started_) {
+    return;
+  }
+
+  if (did_start_ && on_actuation_started_) {
+    std::move(on_actuation_started_).Run();
+  }
+
+  if (did_finish_ && done_callback_) {
+    timer_.Stop();
+    subscription_ = {};  // Stop listening
+    std::move(done_callback_).Run();
+    return;
+  }
+
+  // Not done yet.
+  if (!did_start_) {
+    if (!timer_.IsRunning()) {
+      timer_.Start(FROM_HERE, start_timeout_,
+                   base::BindOnce(&WaitForActuationTask::OnTimeout,
+                                  base::Unretained(this)));
+    }
+  } else {
+    // Actuation started, stop the initial timeout timer if it was running.
+    timer_.Stop();
+  }
+}
+
+void WaitForActuationTask::OnTimeout() {
+  timer_.Stop();
+  subscription_ = {};
+  std::move(error_callback_).Run(GlicInvokeError::kTimeout);
 }
 
 }  // namespace glic

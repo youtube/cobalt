@@ -8,6 +8,9 @@
 // Protocol for handling toolbar button actions.
 @protocol ToolbarMutator
 
+// Exits fullscreen mode.
+- (void)exitFullscreen;
+
 // Navigates back.
 - (void)goBack;
 
@@ -19,6 +22,9 @@
 
 // Stops loading the current page.
 - (void)stop;
+
+// Called when the tab group indicator visibility is updated.
+- (void)tabGroupIndicatorVisibilityUpdated:(BOOL)visible;
 
 @end
 

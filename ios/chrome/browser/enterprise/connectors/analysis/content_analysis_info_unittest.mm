@@ -11,6 +11,7 @@
 #import "components/enterprise/connectors/core/analysis_settings.h"
 #import "components/enterprise/connectors/core/analysis_test_utils.h"
 #import "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/signin/public/identity_manager/identity_test_utils.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -83,7 +84,7 @@ TEST_F(ContentAnalysisInfoTest, SetupCloudBinaryUploadRequest) {
       ContentAnalysisRequest::NORMAL_DOWNLOAD;
   // Passing settings from test utils.
   ContentAnalysisInfo info(GURL(kTestDomain), std::move(settings), reason,
-                           web_state()->GetWeakPtr());
+                           *web_state());
   FakeBinaryUploadRequest request(
       test::NormalDlpAndMalwareSettings()->cloud_or_local_settings);
 

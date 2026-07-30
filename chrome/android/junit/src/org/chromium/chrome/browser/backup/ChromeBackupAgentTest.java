@@ -181,7 +181,7 @@ public class ChromeBackupAgentTest {
 
         editor.putBoolean(SHARED_PREF_NOT_BACKED_UP, false);
 
-        doReturn(mAccountInfo).when(mIdentityManagerMock).getPrimaryAccountInfo(anyInt());
+        doReturn(mAccountInfo).when(mIdentityManagerMock).getPrimaryAccountInfo();
         editor.apply();
     }
 
@@ -252,6 +252,8 @@ public class ChromeBackupAgentTest {
      * user.
      */
     @Test
+    // ObjectInputStream.readObject() returns Object; casts to generic ArrayList are unchecked.
+    @SuppressWarnings("unchecked")
     public void testOnBackup_firstBackup_signedInNotSyncing()
             throws IOException, ClassNotFoundException {
         // Mock the backup data.
@@ -503,7 +505,7 @@ public class ChromeBackupAgentTest {
         String syncingUserEmail = hasSyncingUser ? mAccountInfo.getEmail() : "";
         String signedInUserGaiaId = hasSignedInUser ? mAccountInfo.getGaiaId().toString() : "";
         ArrayList<Pair<String, byte[]>> keysAndValues =
-                new ArrayList(
+                new ArrayList<>(
                         Arrays.asList(
                                 new Pair<>("native." + NATIVE_PREF_NOT_BACKED_UP, new byte[] {1}),
                                 new Pair<>(
@@ -885,7 +887,7 @@ public class ChromeBackupAgentTest {
                         /* hasSignedInUser= */ true,
                         /* hasAccountSettings= */ true);
         mAccountManagerTestRule.addAccount(mAccountInfo);
-        doReturn(true).when(mIdentityManagerMock).hasPrimaryAccount(anyInt());
+        doReturn(true).when(mIdentityManagerMock).hasPrimaryAccount();
 
         try (ParcelFileDescriptor newState =
                 ParcelFileDescriptor.open(
@@ -961,7 +963,7 @@ public class ChromeBackupAgentTest {
 
     /**
      * Test that browser startup fails when in a child process. This is important because of
-     * https://crbug.com/718166
+     * https://crbug.com/40518724
      */
     @Test
     public void testInitializeBrowser_childProcess() {

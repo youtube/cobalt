@@ -1298,7 +1298,7 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
     @Feature({"AndroidWebView", "Network"})
     public void testObserveCorsSuccess() throws Throwable {
         final List<Pair<String, String>> headers = new ArrayList<>();
-        headers.add(new Pair("access-control-allow-origin", "http://some.origin.test"));
+        headers.add(new Pair<>("access-control-allow-origin", "http://some.origin.test"));
         final String destinationUrl = mWebServer.setResponse("/hello.txt", "", headers);
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
@@ -1317,7 +1317,7 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         final List<Pair<String, String>> headers = new ArrayList<>();
-        headers.add(new Pair("access-control-allow-origin", "http://example.com"));
+        headers.add(new Pair<>("access-control-allow-origin", "http://example.com"));
         final String destinationUrl = mWebServer.setResponse("/hello.txt", "", headers);
 
         final Future<String> future = loadDataAndFetch(destinationUrl);
@@ -1337,8 +1337,8 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         final List<Pair<String, String>> headers = new ArrayList<>();
-        headers.add(new Pair("access-control-allow-origin", "http://some.origin.test"));
-        headers.add(new Pair("access-control-allow-methods", "PUT"));
+        headers.add(new Pair<>("access-control-allow-origin", "http://some.origin.test"));
+        headers.add(new Pair<>("access-control-allow-methods", "PUT"));
         final String destinationUrl = mWebServer.setResponse("/hello.txt", "", headers);
 
         // PUT is not a safelisted method and triggers a preflight.
@@ -1365,7 +1365,7 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
 
         final List<Pair<String, String>> headers = new ArrayList<>();
-        headers.add(new Pair("access-control-allow-origin", "http://some.origin.test"));
+        headers.add(new Pair<>("access-control-allow-origin", "http://some.origin.test"));
         final String destinationUrl = mWebServer.setResponse("/hello.txt", "", headers);
 
         // PUT is not a safelisted method and triggers a preflight.
@@ -1516,6 +1516,133 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
         // The set-cookie header in the response should not affect stored cookies.
         Assert.assertEquals("blah=yo", cookieManager.getCookie(destinationUrl));
         histogramExpectation.assertExpected();
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Network"})
+    public void testInterceptedCookieHeaders_sameSiteStrictBlocked() throws Throwable {
+        // This test asserts that same-site=Strict cookies are not provided on a cross-site request
+        // to shouldInterceptRequest or the web server when setIncludeCookiesOnIntercept is enabled.
+        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setIncludeCookiesOnIntercept(true);
+
+        // setAcceptThirdPartyCookies is needed for the cross-site request to even consider cookies
+        // in WebView injection logic.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mAwContents.getSettings().setAcceptThirdPartyCookies(true));
+
+        var cookieManager = mAwContents.getBrowserContextForPublicApi().getCookieManager();
+        cookieManager.removeAllCookies();
+
+        final String resourcePath = "/resource.txt";
+        final List<Pair<String, String>> responseHeaders = new ArrayList<>();
+        // Allow CORS from some.origin.test so the fetch doesn't fail early.
+        responseHeaders.add(new Pair<>("Access-Control-Allow-Origin", "http://some.origin.test"));
+        final String resourceUrl =
+                mWebServer.setResponse(resourcePath, "resource data", responseHeaders);
+
+        // Set a SameSite=Strict cookie for the resource.
+        cookieManager.setCookie(resourceUrl, "session=SECRET; SameSite=Strict");
+
+        // Main page origin: http://some.origin.test (BASE_URL)
+        // fetch(resourceUrl, {credentials: 'omit'})
+        // credentials: 'omit' should definitely prevent cookies from being sent.
+        String fetchArgs = String.format("'%s', {credentials: 'omit'}", resourceUrl);
+        final Future<String> future = loadPageAndFetchInternal(null, fetchArgs);
+
+        Assert.assertEquals(
+                "fetch should succeed",
+                "cors",
+                future.get(SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
+
+        var resourceRequest = mShouldInterceptRequestHelper.getRequestsForUrl(resourceUrl);
+        Assert.assertNotNull(resourceRequest);
+
+        Assert.assertNull(
+                "The same-site=Strict cookie should not be attached to a cross-site request",
+                resourceRequest.getRequestHeaders().get("Cookie"));
+
+        var serverRequest = mWebServer.getLastRequest(resourcePath);
+        Assert.assertEquals(
+                "The server should not receive the same-site=Strict cookie",
+                "",
+                serverRequest.headerValue("Cookie"));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Network"})
+    public void testInterceptedCookieHeaders_sameSiteStrictAllowed() throws Throwable {
+        // This test asserts that same-site=Strict cookies ARE provided on a same-site request
+        // to shouldInterceptRequest when setIncludeCookiesOnIntercept is enabled.
+        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setIncludeCookiesOnIntercept(true);
+
+        var cookieManager = mAwContents.getBrowserContextForPublicApi().getCookieManager();
+        cookieManager.removeAllCookies();
+
+        final String resourcePath = "/resource.txt";
+        final String resourceUrl = mWebServer.setResponse(resourcePath, "resource data", null);
+
+        // Set a SameSite=Strict cookie for the resource.
+        cookieManager.setCookie(resourceUrl, "session=SECRET; SameSite=Strict");
+
+        // Main page origin will be the same as resourceUrl because we don't use
+        // loadDataWithBaseUrl with a different origin.
+        mActivityTestRule.loadUrlSync(
+                mAwContents, mContentsClient.getOnPageFinishedHelper(), resourceUrl);
+
+        var resourceRequest = mShouldInterceptRequestHelper.getRequestsForUrl(resourceUrl);
+        Assert.assertNotNull(resourceRequest);
+
+        Assert.assertEquals(
+                "The same-site=Strict cookie SHOULD be attached to a same-site request",
+                "session=SECRET",
+                resourceRequest.getRequestHeaders().get("Cookie"));
+
+        // Also check that we didn't break anything in sending the cookies to the server.
+        var serverRequest = mWebServer.getLastRequest(resourcePath);
+        Assert.assertEquals(
+                "The server SHOULD receive the same-site=Strict cookie",
+                "session=SECRET",
+                serverRequest.headerValue("Cookie"));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Network"})
+    public void testInterceptedCookieHeaders_sameSiteStrictAllowedNavigation() throws Throwable {
+        // This test asserts that same-site=Strict cookies ARE provided on a navigation request
+        // to shouldInterceptRequest when setIncludeCookiesOnIntercept is enabled.
+        mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setIncludeCookiesOnIntercept(true);
+
+        var cookieManager = mAwContents.getBrowserContextForPublicApi().getCookieManager();
+        cookieManager.removeAllCookies();
+
+        final String pagePath = "/page.html";
+        final String pageUrl = mWebServer.setResponse(pagePath, "page data", null);
+
+        // Set a SameSite=Strict cookie for the page.
+        cookieManager.setCookie(pageUrl, "session=SECRET; SameSite=Strict");
+
+        // Navigate to the page. This is a top-level navigation, so SameSite=Strict cookies
+        // should be sent.
+        mActivityTestRule.loadUrlSync(
+                mAwContents, mContentsClient.getOnPageFinishedHelper(), pageUrl);
+
+        var resourceRequest = mShouldInterceptRequestHelper.getRequestsForUrl(pageUrl);
+        Assert.assertNotNull(resourceRequest);
+
+        Assert.assertEquals(
+                "The same-site=Strict cookie SHOULD be attached to a navigation request",
+                "session=SECRET",
+                resourceRequest.getRequestHeaders().get("Cookie"));
+
+        // Also check that we didn't break anything in sending the cookies to the server.
+        var serverRequest = mWebServer.getLastRequest(pagePath);
+        Assert.assertEquals(
+                "The server SHOULD receive the same-site=Strict cookie",
+                "session=SECRET",
+                serverRequest.headerValue("Cookie"));
     }
 
     @Test
@@ -1770,9 +1897,9 @@ public class AwContentsClientShouldInterceptRequestTest extends AwParameterizedT
         // Craft the expected CORS responses to pass.
         final String fetchPathToPass = "/pass";
         final String preflightTriggeringMethod = "PUT";
-        final List<Pair<String, String>> responseHeaders = new ArrayList<Pair<String, String>>();
-        responseHeaders.add(new Pair("Access-Control-Allow-Origin", customScheme));
-        responseHeaders.add(new Pair("Access-Control-Allow-Methods", preflightTriggeringMethod));
+        final List<Pair<String, String>> responseHeaders = new ArrayList<>();
+        responseHeaders.add(new Pair<>("Access-Control-Allow-Origin", customScheme));
+        responseHeaders.add(new Pair<>("Access-Control-Allow-Methods", preflightTriggeringMethod));
         final String fetchUrlToPass = mWebServer.setResponse(fetchPathToPass, "", responseHeaders);
 
         final Future<String> futureToPass =

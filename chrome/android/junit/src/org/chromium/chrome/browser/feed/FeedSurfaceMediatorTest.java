@@ -45,9 +45,6 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridgeJni;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.new_tab_url.DseNewTabUrlManager;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -69,15 +66,13 @@ import org.chromium.components.signin.identitymanager.IdentityManager;
 /** Tests for {@link FeedSurfaceMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures({ChromeFeatureList.WEB_FEED_SORT, SigninFeatures.ENABLE_SEAMLESS_SIGNIN})
+@EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
 public class FeedSurfaceMediatorTest {
     static final @Px int TOOLBAR_HEIGHT = 10;
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     // Mocked JNI.
     @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
-    @Mock private WebFeedBridge.Natives mWebFeedBridgeJniMock;
-
     @Mock private FeedSurfaceCoordinator mFeedSurfaceCoordinator;
     @Mock private IdentityServicesProvider mIdentityService;
     @Mock private PrefChangeRegistrar mPrefChangeRegistrar;
@@ -103,7 +98,6 @@ public class FeedSurfaceMediatorTest {
 
         mActivity = Robolectric.buildActivity(Activity.class).get();
         FeedServiceBridgeJni.setInstanceForTesting(mFeedServiceBridgeJniMock);
-        WebFeedBridgeJni.setInstanceForTesting(mWebFeedBridgeJniMock);
 
         ApplicationStatus.onStateChangeForTesting(mActivity, ActivityState.CREATED);
 
@@ -112,7 +106,7 @@ public class FeedSurfaceMediatorTest {
                 .thenAnswer(invocation -> mPrefService.getBoolean(Pref.ENABLE_SNIPPETS));
         when(mIdentityService.getSigninManager(any(Profile.class))).thenReturn(mSigninManager);
         when(mSigninManager.getIdentityManager()).thenReturn(mIdentityManager);
-        when(mIdentityManager.hasPrimaryAccount(anyInt())).thenReturn(true);
+        when(mIdentityManager.hasPrimaryAccount()).thenReturn(true);
         when(mFeedSurfaceCoordinator.isActive()).thenReturn(true);
         when(mFeedSurfaceCoordinator.getRecyclerView()).thenReturn(new RecyclerView(mActivity));
         when(mFeedSurfaceCoordinator.createFeedStream(

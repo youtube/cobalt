@@ -20,7 +20,6 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
-import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
@@ -50,6 +49,25 @@ class ExtensionActionListMediator implements Destroyable {
 
         /** State when no menu or popup is active. */
         public static final class Idle extends ActionState {}
+
+        /** State when popup is waiting for UI animations to finish. */
+        public static final class PopupPending extends ActionState {
+            private final String mActionId;
+            private final ExtensionActionPopupContents mContents;
+
+            public PopupPending(String actionId, ExtensionActionPopupContents contents) {
+                mActionId = actionId;
+                mContents = contents;
+            }
+
+            public String getActionId() {
+                return mActionId;
+            }
+
+            public ExtensionActionPopupContents getContents() {
+                return mContents;
+            }
+        }
 
         /** State when a popup is active. */
         public static final class PopupActive extends ActionState {
@@ -147,6 +165,8 @@ class ExtensionActionListMediator implements Destroyable {
 
     @Override
     public void destroy() {
+        mRecyclerViewDelegate.clearOnAnimationsFinishedRunnables();
+
         closePopup();
         closeContextMenu();
 
@@ -188,6 +208,9 @@ class ExtensionActionListMediator implements Destroyable {
      */
     @VisibleForTesting
     void reconcileActionItems() {
+        // The pinned action IDs are a subset of all action IDs.
+        Set<String> allActionIdsSet =
+                new HashSet<>(Arrays.asList(mExtensionsToolbarBridge.getAllActionIds()));
         String[] pinnedActionIds = mExtensionsToolbarBridge.getPinnedActionIds();
 
         Tab currentTab = mCurrentTabSupplier.get();
@@ -240,18 +263,25 @@ class ExtensionActionListMediator implements Destroyable {
 
             currentModelIndex =
                     reconcileItem(
-                            actionId, currentModelIndex, webContents, /* isPoppedOut= */ false);
+                            actionId,
+                            currentModelIndex,
+                            webContents,
+                            /* isPoppedOut= */ false,
+                            allActionIdsSet);
         }
 
         // Deal with the popped out action last, as it should appear on the [right|left] end of the
         // list for [LTR|RTL].
-        if (mPoppedOutActionId != null && mCanShowPoppedOutAction) {
+        if (mPoppedOutActionId != null
+                && allActionIdsSet.contains(mPoppedOutActionId)
+                && mCanShowPoppedOutAction) {
             currentModelIndex =
                     reconcileItem(
                             mPoppedOutActionId,
                             currentModelIndex,
                             webContents,
-                            /* isPoppedOut= */ true);
+                            /* isPoppedOut= */ true,
+                            allActionIdsSet);
         }
 
         // Remove rest of the items.
@@ -267,13 +297,20 @@ class ExtensionActionListMediator implements Destroyable {
      * Helper to calculate whether we should show an action item, and if so to reorder {@link
      * mModels} so that {@code actionId} comes at {@code currentIndex}.
      *
+     * @param actionId The ID of the action in question.
+     * @param currentIndex The current index of the action in {@link mModels}.
+     * @param webContents The WebContents to use.
+     * @param isPoppedOut Whether the action is shown because it's popped out.
+     * @param allActionIds The list of all active actions, pinned or unpinned.
      * @return The next index of {@link mModels} that needs to be evaluated.
      */
     private int reconcileItem(
             String actionId,
             int currentIndex,
             @Nullable WebContents webContents,
-            boolean isPoppedOut) {
+            boolean isPoppedOut,
+            Set<String> allActionIds) {
+        assert allActionIds.contains(actionId);
         ExtensionAction action = mExtensionsToolbarBridge.getAction(actionId, webContents);
         if (action == null) {
             return currentIndex;
@@ -473,15 +510,27 @@ class ExtensionActionListMediator implements Destroyable {
         closePopup();
         closeContextMenu();
 
-        ExtensionActionPopupContents contents = ExtensionActionPopupContents.create(nativeHostPtr);
-        requestActionVisibility(actionId, () -> showPopupOnAnchor(actionId, contents));
+        mActionState =
+                new ActionState.PopupPending(
+                        actionId, ExtensionActionPopupContents.create(nativeHostPtr));
+
+        requestActionVisibility(actionId, () -> showPopupOnAnchor());
     }
 
-    private void showPopupOnAnchor(String actionId, ExtensionActionPopupContents contents) {
+    private void showPopupOnAnchor() {
+        if (!(mActionState instanceof ActionState.PopupPending)) {
+            return;
+        }
+
+        ActionState.PopupPending state = (ActionState.PopupPending) mActionState;
+        String actionId = state.getActionId();
+        ExtensionActionPopupContents contents = state.getContents();
+
         ListMenuButton buttonView =
                 (ListMenuButton) mRecyclerViewDelegate.getButtonViewForId(actionId);
         if (buttonView == null) {
             contents.destroy();
+            mActionState = new ActionState.Idle();
             undoPopout();
             return;
         }
@@ -489,6 +538,7 @@ class ExtensionActionListMediator implements Destroyable {
         Activity activity = mWindowAndroid.getActivity().get();
         if (activity == null) {
             contents.destroy();
+            mActionState = new ActionState.Idle();
             return;
         }
 
@@ -498,7 +548,6 @@ class ExtensionActionListMediator implements Destroyable {
         // ourselves.
         buttonView.setIsPressed(true);
 
-        assert mActionState instanceof ActionState.Idle;
         ExtensionActionPopup popup =
                 new ExtensionActionPopup(
                         activity,
@@ -515,6 +564,14 @@ class ExtensionActionListMediator implements Destroyable {
     }
 
     private void closePopup() {
+        if (mActionState instanceof ActionState.PopupPending pendingState) {
+            // Handle cancellation of a pending popup.
+            pendingState.getContents().destroy();
+            mActionState = new ActionState.Idle();
+            undoPopout();
+            return;
+        }
+
         if (!(mActionState instanceof ActionState.PopupActive)) {
             return;
         }

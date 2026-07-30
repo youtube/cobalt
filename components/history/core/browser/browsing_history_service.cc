@@ -315,12 +315,10 @@ void BrowsingHistoryService::QueryHistoryInternal(
       should_return_results_immediately = false;
       QueryOptions options = OptionsWithEndTime(
           state->original_options, state->remote_end_time_for_continuation);
-      if (base::FeatureList::IsEnabled(kHistoryQueryOnlyLocalFirst)) {
-        options.max_count = desired_count - state->local_results.size();
-        // If no remote results were needed, ShouldQueryRemote() should have
-        // returned false and control flow wouldn't reach here.
-        CHECK(options.max_count > 0);
-      }
+      options.max_count = desired_count - state->local_results.size();
+      // If no remote results were needed, ShouldQueryRemote() should have
+      // returned false and control flow wouldn't reach here.
+      CHECK(options.max_count > 0);
       web_history_request_ = web_history->QueryHistory(
           state->search_text, options,
           base::BindOnce(&BrowsingHistoryService::WebHistoryQueryComplete,
@@ -512,21 +510,14 @@ bool BrowsingHistoryService::ShouldQueryRemote(const QueryHistoryState& state) {
 
   const size_t desired_count =
       static_cast<size_t>(state.original_options.EffectiveMaxCount());
-  if (base::FeatureList::IsEnabled(kHistoryQueryOnlyLocalFirst)) {
-    if (CanRetry(state.local_status)) {
-      // There is more local history to query first, so don't query remote yet.
-      return false;
-    }
-    if (state.local_results.size() + state.remote_results.size() >=
-        desired_count) {
-      // Already have sufficient results, no need to query more.
-      return false;
-    }
-  } else {
-    if (state.remote_results.size() >= desired_count) {
-      // Already have sufficient results, no need to query more.
-      return false;
-    }
+  if (CanRetry(state.local_status)) {
+    // There is more local history to query first, so don't query remote yet.
+    return false;
+  }
+  if (state.local_results.size() + state.remote_results.size() >=
+      desired_count) {
+    // Already have sufficient results, no need to query more.
+    return false;
   }
 
   // App-specific history uses the results from the local database only, since
@@ -799,8 +790,7 @@ void BrowsingHistoryService::QueryComplete(
   state->local_status =
       results.reached_beginning() ? REACHED_BEGINNING : MORE_RESULTS;
 
-  if (base::FeatureList::IsEnabled(kHistoryQueryOnlyLocalFirst) &&
-      results.reached_beginning()) {
+  if (results.reached_beginning()) {
     // Exhausted the local results; continue querying to get remote results.
     // Start querying at the point where local history ends.
     base::Time expiry_treshold =
@@ -868,7 +858,7 @@ void BrowsingHistoryService::ReturnResultsToDriver(
     }
   }
 
-  RecordResultsMetrics(results, has_remote_results);
+  RecordResultsMetrics(results);
 
   QueryResultsInfo info;
   info.search_text = state->search_text;
@@ -885,8 +875,7 @@ void BrowsingHistoryService::ReturnResultsToDriver(
 }
 
 void BrowsingHistoryService::RecordResultsMetrics(
-    const std::vector<HistoryEntry>& results,
-    bool has_remote_results) {
+    const std::vector<HistoryEntry>& results) {
   // Count the number of local, remote, and combined entries, each split by
   // entries before vs after the local expiry threshold (90 days).
   const base::Time local_expiry_threshold =
@@ -922,34 +911,6 @@ void BrowsingHistoryService::RecordResultsMetrics(
   base::UmaHistogramCustomCounts(
       "History.BrowsingHistoryResult.Combined.PostExpiryThreshold",
       post_expiry_counts[HistoryEntry::COMBINED_ENTRY], 0, 150, 50);
-
-  // The "WebHistoryMergeResult" histograms are only recorded if there were any
-  // remote results, i.e. an actual merge happened.
-  // TODO(crbug.com/456079210): Clean up these histograms once the
-  // "History.BrowsingHistoryResult.*" ones are established.
-  if (has_remote_results) {
-    // Note: The histogram max of 150 is chosen to match `RESULTS_PER_PAGE` from
-    // chrome/browser/resources/history/constants.ts and `kMaxQueryCount` from
-    // chrome/browser/android/history/browsing_history_bridge.cc.
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.LocalOnly.PreExpiryThreshold",
-        pre_expiry_counts[HistoryEntry::LOCAL_ENTRY], 0, 150, 50);
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.LocalOnly.PostExpiryThreshold",
-        post_expiry_counts[HistoryEntry::LOCAL_ENTRY], 0, 150, 50);
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.RemoteOnly.PreExpiryThreshold",
-        pre_expiry_counts[HistoryEntry::REMOTE_ENTRY], 0, 150, 50);
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.RemoteOnly.PostExpiryThreshold",
-        post_expiry_counts[HistoryEntry::REMOTE_ENTRY], 0, 150, 50);
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.Combined.PreExpiryThreshold",
-        pre_expiry_counts[HistoryEntry::COMBINED_ENTRY], 0, 150, 50);
-    base::UmaHistogramCustomCounts(
-        "History.WebHistoryMergeResult.Combined.PostExpiryThreshold",
-        post_expiry_counts[HistoryEntry::COMBINED_ENTRY], 0, 150, 50);
-  }
 
   RecordDuplicateVisitsCount(results);
 }

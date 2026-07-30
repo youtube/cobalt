@@ -189,7 +189,7 @@ class CONTENT_EXPORT RenderWidgetHost {
   virtual void ForwardGestureEvent(
       const blink::WebGestureEvent& gesture_event) = 0;
 
-  virtual RenderProcessHost* GetProcess() = 0;
+  virtual RenderProcessHost* GetProcess() const = 0;
 
   virtual int GetRoutingID() = 0;
 
@@ -353,10 +353,12 @@ class CONTENT_EXPORT RenderWidgetHost {
 
   // Roundtrips through the renderer and compositor pipeline to ensure that any
   // changes to the contents resulting from operations executed prior to this
-  // call are visible on screen. The call completes asynchronously (if it
-  // succeeds) by running the supplied |callback| with a value of true upon
-  // successful completion and false otherwise when the widget is destroyed.
-  // This can run synchronously on failure.
+  // call are included in a frame submitted to the display compositor. The call
+  // completes asynchronously (if it succeeds) after the frame is submitted.
+  // Note that frame submission does not guarantee that the changes are already
+  // visible on screen (e.g., Viz might not have activated or drawn the frame
+  // yet). The supplied |callback| runs with a value of true upon successful
+  // completion and false otherwise when the widget is destroyed.
   using VisualStateCallback = base::OnceCallback<void(bool)>;
   virtual void InsertVisualStateCallback(VisualStateCallback callback) {}
 

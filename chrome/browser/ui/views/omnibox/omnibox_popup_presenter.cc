@@ -15,13 +15,14 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "ui/views/view_utils.h"
 
 OmniboxPopupPresenter::OmniboxPopupPresenter(
     LocationBar* location_bar,
     OmniboxPopupPresenterDelegate& presenter_delegate,
     OmniboxController* controller)
-    : OmniboxPopupPresenterBase(location_bar, presenter_delegate) {
+    : OmniboxPopupPresenterBase(location_bar, presenter_delegate, controller) {
   bool full_popup =
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup);
   SetWebUIContent(std::make_unique<OmniboxPopupWebUIContent>(
@@ -38,16 +39,16 @@ void OmniboxPopupPresenter::Hide() {
 }
 
 std::string_view OmniboxPopupPresenter::GetPopupMetricPrefix() const {
-  return "Omnibox.Popup.WebUI";
+  return OmniboxPopupPresenterBase::kWebUIPopupMetricPrefix;
 }
 
 void OmniboxPopupPresenter::WidgetDestroyed() {
   // Update the popup state manager if widget was destroyed externally, e.g., by
   // the OS. This ensures the popup state manager stays in sync.
-  auto* controller = location_bar()->GetOmniboxController();
-  if (controller->popup_state_manager()->popup_state() ==
+  if (controller()->popup_state_manager()->popup_state() ==
       OmniboxPopupState::kClassic) {
-    controller->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
+    controller()->popup_state_manager()->SetPopupState(
+        OmniboxPopupState::kNone);
   }
 }
 
@@ -59,4 +60,19 @@ bool OmniboxPopupPresenter::ShouldShowLocationBarCutout() const {
 bool OmniboxPopupPresenter::ShouldReceiveFocus() const {
   return views::AsViewClass<OmniboxPopupWebUIContent>(GetWebUIContent())
       ->wants_focus();
+}
+
+std::optional<base::TimeDelta>
+OmniboxPopupPresenter::ShouldDeferUntilVisualStateReady() const {
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kOmniboxWebUIDeferShowUntilVisualStateReady)) {
+    return std::nullopt;
+  }
+  return base::Milliseconds(
+      omnibox::kOmniboxWebUIDeferShowUntilVisualStateReadyTimeoutMs.Get());
+}
+
+bool OmniboxPopupPresenter::ShouldDetachWebContentsOnHide() const {
+  return base::FeatureList::IsEnabled(
+      omnibox::kOmniboxWebUIDetachWebContentsOnHide);
 }

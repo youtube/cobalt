@@ -227,7 +227,6 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="3296368748942286671">Chromium bağlı olduqda arxa fon tətbiqləri işləsin?</translation>
 <translation id="3313189106987092621">Chromium təhlükəli bağlantı ilə sayt yükləməzdən əvvəl xəbərdarlıq edəcək</translation>
 <translation id="3316771292331273802">Chromium-a daxil olsanız, Google Hesabı istisna olmaqla bütün Chromium pəncərələrini bağladıqda əksər saytlardan çıxacaqsınız. Saytların sizi xatırlaması üçün <ph name="SETTINGS_LINK" />.</translation>
-<translation id="3322413454779348750">Defolt axtarış mühərrikiniz Chromium-dan kənarda dəyişdirildi. Sizi qorumaq üçün Chromium onu sıfırladı.</translation>
 <translation id="3352986031709923790">axtarış sahəsinin yuxarı sağ küncü: <ph name="RIGHT" />% sağ, <ph name="TOP" />% yuxarı</translation>
 <translation id="3366305173356742781">Hesabdakı Chromium datası</translation>
 <translation id="3369405342922656244">Bu səhifəni Şəkil Axtarışı ilə axtarın</translation>
@@ -475,6 +474,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="6241367896540709610">Chromium faylları endirmək üçün yaddaşa giriş tələb edir</translation>
 <translation id="6245734527075554892">URL'ləri Chromium'da saxlanılan təhlükəli saytların siyahısı ilə yoxlayır</translation>
 <translation id="6248213926982192922">Chromium'u defolt brauzer edin</translation>
+<translation id="6248988683584659830">Axtarış ayarları</translation>
 <translation id="6268381023930128611">Chromium'dan çıxılsın?</translation>
 <translation id="6270547683008298381">Bu tablar əlavə resurslar istifadə edir. Performansı təkmilləşdirmək üçün Chromium-a onları deaktiv etmək imkanı verin.</translation>
 <translation id="6281746429495226318">Chromium profilinizi fərdiləşdirin</translation>
@@ -511,6 +511,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="6542839706527980775">Hər bir profil əlfəcinlər, tarixçələr, parollar və s. kimi öz Chromium məlumatlarını saxlayır</translation>
 <translation id="6563921047760808519"><ph name="BEGIN_LINK" />Chromium-un datanı məxfi saxlaması<ph name="END_LINK" /> haqqında ətraflı</translation>
 <translation id="6564039629497156115">Bu ayara edilən dəyişikliklər Chromium yenidən başladıqda tətbiq olunacaq.</translation>
+<translation id="6567032987737689854">Chromium-un əsas menyusunda Artırmalar seçiminə klikləməklə artırmalarınızı idarə edin.</translation>
 <translation id="656935081669708576">Dəyişməklə parollara başqa Chromium profilindən baxa bilərsiniz</translation>
 <translation id="6570579332384693436">Chromium, yazı səhvlərini düzəltmək üçün mətn sahələrinə yazdığınız mətni Google'a göndərir</translation>
 <translation id="6598877126913850652">Chromium bildiriş ayarlarına keçin</translation>
@@ -632,6 +633,7 @@ Bəzilərini silənə qədər yeni əlfəcinləri hesabınızda yadda saxlamaq o
 <translation id="7810005234485217901">Asan giriş üçün Şəkil Axtarışını bərkidə bilərsiniz</translation>
 <translation id="7828947555739565424">Bu hesab ilə Chromium profili artıq bu cihazda mövcuddur</translation>
 <translation id="7845233973568007926">Quraşdırdığınız üçün təşəkkür edirik. <ph name="BUNDLE_NAME" /> istifadə etməzdən əvvəl kompüterinizi yenidən başlatmalısınız.</translation>
+<translation id="7847673590271334840">Defolt axtarış sisteminiz Chromium-dan kənarda dəyişdirildi. Chromium sizi qorumaq üçün onu orijinal defoltuna sıfırladı. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7853661403199074278">Chromium-un görünüşünü dəyişmək üçün fərdiləşdirin</translation>
 <translation id="7859018312476869945">Ünvan panelinə və ya axtarış xanasına mətn daxil etdiyiniz zaman Chromium sizə daha yaxşı təkliflər təqdim etmək üçün yazdıqlarınızı defolt axtarış sisteminizə göndərir. Bu, Anonim rejimdə deaktivdir.</translation>
 <translation id="7867198900892795913">Chromium ən son versiyaya güncəllənə bilmədi. Yeni funksiyaları və təhlükəsizlik həllərini əldən verirsiniz.</translation>

@@ -39,7 +39,6 @@ public class FakeSyncServiceImpl implements SyncService {
     private boolean mTrustedVaultRecoverabilityDegraded;
     private boolean mEncryptEverythingEnabled;
     private boolean mRequiresClientUpgrade;
-    private boolean mHasUnrecoverableError;
     private boolean mRequiresUpmBackendUpgrade;
     private boolean mBookmarksLimitExceeded;
     private GoogleServiceAuthError mAuthError =
@@ -76,15 +75,6 @@ public class FakeSyncServiceImpl implements SyncService {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mAuthError = authError;
-                    notifySyncStateChanged();
-                });
-    }
-
-    @AnyThread
-    public void setHasUnrecoverableError(boolean hasUnrecoverableError) {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mHasUnrecoverableError = hasUnrecoverableError;
                     notifySyncStateChanged();
                 });
     }
@@ -219,16 +209,6 @@ public class FakeSyncServiceImpl implements SyncService {
     }
 
     @Override
-    public boolean isSyncFeatureEnabled() {
-        return mDelegate.isSyncFeatureEnabled();
-    }
-
-    @Override
-    public boolean isSyncFeatureActive() {
-        return mDelegate.isSyncFeatureActive();
-    }
-
-    @Override
     public boolean isSyncDisabledByEnterprisePolicy() {
         return mDelegate.isSyncDisabledByEnterprisePolicy();
     }
@@ -237,11 +217,6 @@ public class FakeSyncServiceImpl implements SyncService {
     @Override
     public CoreAccountInfo getAccountInfo() {
         return mDelegate.getAccountInfo();
-    }
-
-    @Override
-    public boolean hasSyncConsent() {
-        return mDelegate.hasSyncConsent();
     }
 
     @Override
@@ -266,11 +241,6 @@ public class FakeSyncServiceImpl implements SyncService {
     }
 
     @Override
-    public boolean hasKeepEverythingSynced() {
-        return mDelegate.hasKeepEverythingSynced();
-    }
-
-    @Override
     public boolean isTypeManagedByPolicy(int type) {
         return mDelegate.isTypeManagedByPolicy(type);
     }
@@ -281,28 +251,8 @@ public class FakeSyncServiceImpl implements SyncService {
     }
 
     @Override
-    public void setSelectedTypes(boolean syncEverything, Set<Integer> enabledTypes) {
-        mDelegate.setSelectedTypes(syncEverything, enabledTypes);
-    }
-
-    @Override
     public void setSelectedType(@UserSelectableType int type, boolean isTypeOn) {
         mDelegate.setSelectedType(type, isTypeOn);
-    }
-
-    @Override
-    public void setInitialSyncFeatureSetupComplete() {
-        mDelegate.setInitialSyncFeatureSetupComplete();
-    }
-
-    @Override
-    public boolean isInitialSyncFeatureSetupComplete() {
-        return mDelegate.isInitialSyncFeatureSetupComplete();
-    }
-
-    @Override
-    public SyncSetupInProgressHandle getSetupInProgressHandle() {
-        return mDelegate.getSetupInProgressHandle();
     }
 
     @Override
@@ -332,14 +282,6 @@ public class FakeSyncServiceImpl implements SyncService {
             return UserActionableError.NONE;
         }
 
-        if (hasSyncConsent()) {
-            if (!isInitialSyncFeatureSetupComplete()) {
-                return UserActionableError.NEEDS_SETTINGS_CONFIRMATION;
-            }
-            if (mHasUnrecoverableError) {
-                return UserActionableError.UNRECOVERABLE_ERROR;
-            }
-        }
         if (mAuthError.getState() != GoogleServiceAuthErrorState.NONE) {
             return UserActionableError.SIGN_IN_NEEDS_UPDATE;
         }

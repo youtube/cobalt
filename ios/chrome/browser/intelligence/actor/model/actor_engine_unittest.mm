@@ -6,6 +6,8 @@
 
 #import "base/run_loop.h"
 #import "base/test/task_environment.h"
+#import "components/actor/public/mojom/actor_types.mojom.h"
+#import "ios/chrome/browser/intelligence/actor/model/actor_task.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "testing/gtest/include/gtest/gtest.h"
@@ -22,11 +24,15 @@ class MockTool : public ActorTool {
 
   void Execute(ToolExecutionCallback callback) override {
     if (success_) {
-      std::move(callback).Run(ToolExecutionResult(base::ok()));
+      std::move(callback).Run(ToolExecutionResult::Ok());
     } else {
-      std::move(callback).Run(ToolExecutionResult(
-          base::unexpected(ActorToolError(ActorToolErrorCode::kUnknown))));
+      std::move(callback).Run(
+          ToolExecutionResult(ActorToolErrorCode::kUnsupportedAction));
     }
+  }
+
+  base::WeakPtr<web::WebState> GetTargetWebState() const override {
+    return nullptr;
   }
 
  private:
@@ -37,6 +43,14 @@ class MockTool : public ActorTool {
 // Test fixture for ActorEngine.
 class ActorEngineTest : public PlatformTest {
  protected:
+  ActorEngineTest()
+      : journal_(std::make_unique<AggregatedJournal>()),
+        task_(ActorTaskId(),
+              "Test Task",
+              /*allow_incognito_web_states=*/false,
+              journal_.get()),
+        engine_(ActorTaskId(), journal_.get()) {}
+
   // Wrapper methods to access private members of ActorEngine for testing.
 
   void SetNextActionIndex(size_t index) { engine_.next_action_index_ = index; }
@@ -60,6 +74,8 @@ class ActorEngineTest : public PlatformTest {
   }
 
   base::test::TaskEnvironment task_environment_;
+  std::unique_ptr<AggregatedJournal> journal_;
+  ActorTask task_;
   ActorEngine engine_;
 };
 
@@ -214,11 +230,11 @@ TEST_F(ActorEngineTest, InProgressActionIndex) {
 // overwrites a previously recorded success for the same action (e.g., if a
 // post-invoke step fails).
 TEST_F(ActorEngineTest, CompleteActionsOverwrite) {
-  PushActionResult(ActionResult(ToolExecutionResult(base::ok())));
+  PushActionResult(ActionResult(ToolExecutionResult::Ok()));
   SetNextActionIndex(1);
 
-  CompleteActions(ActionResult(ToolExecutionResult(
-      base::unexpected(ActorToolError(ActorToolErrorCode::kUnknown)))));
+  CompleteActions(ActionResult(
+      ToolExecutionResult(ActorToolErrorCode::kUnsupportedAction)));
 
   EXPECT_EQ(GetActionResults().size(), 1ul);
   EXPECT_FALSE(GetActionResults()[0].tool_result.has_value());

@@ -182,12 +182,45 @@ constexpr net::BackoffEntry::Policy kClusterInfoBackoffPolicy = {
     false,
 };
 
+void PopulateContentMetadata(lens::Payload* payload,
+                             const std::optional<GURL>& page_url,
+                             const std::optional<std::string>& page_title,
+                             const std::optional<std::string>& file_name,
+                             const std::optional<std::string>& drive_id,
+                             const std::optional<std::string>& resource_key) {
+  if (!page_title.has_value() && !file_name.has_value() &&
+      !page_url.has_value() && !drive_id.has_value() &&
+      !resource_key.has_value()) {
+    return;
+  }
+  auto* content_metadata = payload->mutable_content_metadata();
+  if (page_title.has_value()) {
+    content_metadata->set_content_title(page_title.value());
+  }
+  if (file_name.has_value()) {
+    content_metadata->set_file_name(file_name.value());
+  }
+  if (page_url.has_value()) {
+    content_metadata->set_url(page_url->spec());
+  }
+  if (drive_id.has_value()) {
+    content_metadata->mutable_drive_metadata()->set_drive_id(drive_id.value());
+  }
+  if (resource_key.has_value()) {
+    content_metadata->mutable_drive_metadata()->set_resource_key(
+        resource_key.value());
+  }
+}
+
 // Creates a payload for a contextual data upload request, for webpage contents
 // or for uploaded pdf files.
 lens::Payload CreateContentextualDataUploadPayload(
     std::vector<lens::ContextualInput> context_inputs,
     std::optional<GURL> page_url,
-    std::optional<std::string> page_title) {
+    std::optional<std::string> page_title,
+    std::optional<std::string> drive_id,
+    std::optional<std::string> resource_key,
+    std::optional<std::string> file_name) {
   lens::Payload payload;
   auto* content = payload.mutable_content();
 
@@ -197,6 +230,9 @@ lens::Payload CreateContentextualDataUploadPayload(
   if (page_title.has_value() && !page_title.value().empty()) {
     content->set_webpage_title(page_title.value());
   }
+
+  PopulateContentMetadata(&payload, page_url, page_title, file_name, drive_id,
+                          resource_key);
 
   for (const lens::ContextualInput& context_input : context_inputs) {
     auto* content_data = content->add_content_data();
@@ -699,7 +735,8 @@ void ComposeboxQueryController::CreateSearchUrl(
                 is_raw_file
                     ? request_id_generator_.GetNextRequestId(
                           lens::RequestIdUpdateMode::kSearchUrl,
-                          last_active_lens_file->request_id->mime_type())
+                          last_active_lens_file->request_id->mime_type(),
+                          lens::LensOverlayRequestId::MEDIA_TYPE_RAW_FILE)
                     : request_id_generator_.GetNextRequestId(
                           lens::RequestIdUpdateMode::kSearchUrl,
                           context_media_type);
@@ -776,7 +813,6 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
     bool is_region_interaction =
         create_client_to_aim_request_info
             ->force_include_latest_interaction_request_data &&
-        create_client_to_aim_request_info->file_tokens.size() == 1 &&
         latest_interaction_request_data_ &&
         latest_interaction_request_data_->has_image_crop();
 
@@ -798,8 +834,11 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
           cluster_info_->search_session_id());
       lens_image_query_data->mutable_request_id()->CopyFrom(
           file_info->request_id.value());
+      bool is_overlay_token =
+          create_client_to_aim_request_info->overlay_token.has_value() &&
+          file_token == *create_client_to_aim_request_info->overlay_token;
       auto media_type =
-          is_region_interaction
+          (is_region_interaction && is_overlay_token)
               ? lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE
               : file_info->request_id->media_type();
       lens_image_query_data->mutable_request_id()->set_media_type(media_type);
@@ -808,6 +847,21 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
       if (visual_input_type !=
           lens::LensOverlayVisualInputType::VISUAL_INPUT_TYPE_UNKNOWN) {
         lens_image_query_data->set_visual_input_type(visual_input_type);
+      }
+
+      // Only force interaction data for region searches when the overlay is
+      // open.
+      std::optional<lens::LensOverlayVisualSearchInteractionData>
+          visual_search_interaction_data = ConstructVisualSearchInteractionData(
+              static_cast<const FileInfo*>(file_info),
+              create_client_to_aim_request_info->query_text, std::nullopt,
+              is_overlay_token
+                  ? create_client_to_aim_request_info
+                        ->force_include_latest_interaction_request_data
+                  : false);
+      if (visual_search_interaction_data.has_value()) {
+        lens_image_query_data->mutable_visual_search_interaction_data()
+            ->CopyFrom(visual_search_interaction_data.value());
       }
     }
 
@@ -819,31 +873,6 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
         added_inputs.turn_title_thumbnail_size() > 0) {
       submit_query->mutable_payload()->mutable_added_inputs()->CopyFrom(
           added_inputs);
-    }
-  }
-
-  // Add the latest visual search interaction data to the query if it exists.
-  // Only check the first file token since the interaction should be associated
-  // with the a single contextual input.
-  if (!create_client_to_aim_request_info->file_tokens.empty()) {
-    auto* file_info =
-        GetFileInfo(create_client_to_aim_request_info->file_tokens[0]);
-    if (file_info && IsValidContextUploadStatusForMultimodalRequest(
-                         file_info->upload_status)) {
-      std::optional<lens::LensOverlayVisualSearchInteractionData>
-          visual_search_interaction_data = ConstructVisualSearchInteractionData(
-              static_cast<const FileInfo*>(file_info),
-              create_client_to_aim_request_info->query_text, std::nullopt,
-              create_client_to_aim_request_info
-                  ->force_include_latest_interaction_request_data);
-      if (visual_search_interaction_data.has_value()) {
-        for (auto& lens_image_query_data :
-             *submit_query->mutable_payload()
-                  ->mutable_lens_image_query_data()) {
-          lens_image_query_data.mutable_visual_search_interaction_data()
-              ->CopyFrom(visual_search_interaction_data.value());
-        }
-      }
     }
   }
 
@@ -1008,6 +1037,10 @@ void ComposeboxQueryController::StartFileUploadFlow(
     // request was not.
     current_file_info.request_id->set_is_implicit_upload(
         current_file_info.is_implicit_upload);
+  } else if (current_file_info.input_data->drive_id.has_value()) {
+    current_file_info.request_id = *request_id_generator_.GetNextRequestId(
+        base_update_mode, current_file_info.mime_type_string.value(),
+        lens::LensOverlayRequestId::MEDIA_TYPE_UNRESOLVED);
   } else if (IsUnresolvedUrlUpload(current_file_info)) {
     request_id_generator_.SetContextId(RandInt64());
     request_id_generator_.SetHasChromeTabData(false);
@@ -1032,7 +1065,8 @@ void ComposeboxQueryController::StartFileUploadFlow(
         lens::features::IsLensSendRawFileMediaTypesEnabled()) {
       current_file_info.request_id = *request_id_generator_.GetNextRequestId(
           lens::RequestIdUpdateMode::kMultiContextUploadRequest,
-          current_file_info.mime_type_string.value());
+          current_file_info.mime_type_string.value(),
+          lens::LensOverlayRequestId::MEDIA_TYPE_RAW_FILE);
     } else {
       lens::LensOverlayRequestId::MediaType media_type =
           has_context_input
@@ -1118,6 +1152,8 @@ void ComposeboxQueryController::
         lens::LensOverlayClientContext client_context,
         scoped_refptr<lens::RefCountedLensOverlayClientLogs> client_logs,
         RequestBodyProtoCreatedCallback callback,
+        std::optional<GURL> page_url,
+        std::optional<std::string> page_title,
         std::optional<std::string> file_name,
         lens::ImageData image_data) {
   lens::LensOverlayServerRequest request;
@@ -1131,6 +1167,10 @@ void ComposeboxQueryController::
   if (file_name.has_value()) {
     image_data.mutable_image_metadata()->set_file_name(file_name.value());
   }
+
+  PopulateContentMetadata(objects_request->mutable_payload(), page_url,
+                          page_title, file_name, /*drive_id=*/std::nullopt,
+                          /*resource_key=*/std::nullopt);
 
   objects_request->mutable_image_data()->CopyFrom(image_data);
   request.mutable_client_logs()->CopyFrom(client_logs->client_logs());
@@ -1635,6 +1675,8 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
     lens::LensOverlayRequestId request_id,
     const lens::ImageEncodingOptions& image_options,
     RequestBodyProtoCreatedCallback callback,
+    std::optional<GURL> page_url,
+    std::optional<std::string> page_title,
     std::optional<std::string> file_name,
     const SkBitmap& bitmap) {
 #if !BUILDFLAG(IS_IOS)
@@ -1662,7 +1704,7 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
       base::BindOnce(&ComposeboxQueryController::
                          CreateFileUploadRequestProtoWithImageDataAndContinue,
                      request_id, CreateClientContext(), ref_counted_logs,
-                     std::move(callback), file_name));
+                     std::move(callback), page_url, page_title, file_name));
 #endif  // !BUILDFLAG(IS_IOS)
 }
 
@@ -1670,6 +1712,8 @@ void ComposeboxQueryController::CreateImageUploadRequest(
     lens::LensOverlayRequestId request_id,
     std::vector<uint8_t> image_data,
     std::optional<lens::ImageEncodingOptions> image_options,
+    std::optional<GURL> page_url,
+    std::optional<std::string> page_title,
     std::optional<std::string> file_name,
     RequestBodyProtoCreatedCallback callback) {
 #if !BUILDFLAG(IS_IOS)
@@ -1681,7 +1725,8 @@ void ComposeboxQueryController::CreateImageUploadRequest(
       /*desired_image_frame_size=*/gfx::Size(),
       base::BindOnce(&ComposeboxQueryController::ProcessDecodedImageAndContinue,
                      weak_ptr_factory_.GetWeakPtr(), request_id,
-                     image_options.value(), std::move(callback), file_name));
+                     image_options.value(), std::move(callback), page_url,
+                     page_title, file_name));
 #endif  // !BUILDFLAG(IS_IOS)
 }
 
@@ -1707,7 +1752,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
         GetRequestIdForViewportImage(file_token),
         // Pass ownership of the viewport screenshot bytes to the callback.
         std::move(contextual_input_data->viewport_screenshot_bytes.value()),
-        std::move(image_options), /*file_name=*/std::nullopt,
+        std::move(image_options), contextual_input_data->page_url,
+        contextual_input_data->page_title, /*file_name=*/std::nullopt,
         base::BindOnce(
             &ComposeboxQueryController::AddPageIndexToUploadRequestAndContinue,
             weak_ptr_factory_.GetWeakPtr(),
@@ -1738,6 +1784,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                     &ComposeboxQueryController::OnUploadRequestBodyReady,
                     weak_ptr_factory_.GetWeakPtr(), file_token,
                     request_index))),
+        contextual_input_data->page_url, contextual_input_data->page_title,
         /*file_name=*/std::nullopt,
         // Pass ownership of the viewport screenshot to the
         // callback.
@@ -1790,7 +1837,10 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                   ? std::move(contextual_input_data->context_input.value())
                   : std::vector<lens::ContextualInput>(),
               contextual_input_data->page_url,
-              contextual_input_data->page_title),
+              contextual_input_data->page_title,
+              contextual_input_data->drive_id,
+              contextual_input_data->resource_key,
+              contextual_input_data->file_name),
           base::BindOnce(
               &CreateFileUploadRequestProtoWithPayloadAndContinue,
               file_info->request_id.value(), CreateClientContext(),
@@ -1823,7 +1873,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
             file_info->request_id.value(),
             // Pass ownership of the contextual input data to the callback.
             std::move(contextual_input_data->context_input->front().bytes_),
-            std::move(image_options), contextual_input_data->file_name,
+            std::move(image_options), contextual_input_data->page_url,
+            contextual_input_data->page_title, contextual_input_data->file_name,
             base::BindOnce(
                 &ComposeboxQueryController::
                     AddLensUsageIntentToUploadRequestAndContinue,

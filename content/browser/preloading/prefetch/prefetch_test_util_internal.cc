@@ -44,7 +44,7 @@ net::RedirectInfo SyntheticRedirect(const GURL& new_url) {
   return redirect_info;
 }
 
-class TestPrefetchContainerObserver final : public PrefetchContainer::Observer {
+class TestPrefetchContainerObserver final : public PrefetchContainerObserver {
  public:
   explicit TestPrefetchContainerObserver(PrefetchContainer& prefetch_container)
       : prefetch_container_(prefetch_container.GetWeakPtr()) {
@@ -61,12 +61,11 @@ class TestPrefetchContainerObserver final : public PrefetchContainer::Observer {
  private:
   void OnWillBeDestroyed(const PrefetchContainer& prefetch_container) override {
   }
-  void OnGotInitialEligibility(const PrefetchContainer& prefetch_container,
-                               PreloadingEligibility eligibility) override {}
+  void OnGotInitialEligibility(
+      const PrefetchContainer& prefetch_container) override {}
   void OnDeterminedHead(const PrefetchContainer& prefetch_container) override {}
   void OnPrefetchCompletedOrFailed(
-      const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status) override {
+      const PrefetchContainer& prefetch_container) override {
     on_complete_loop_.Quit();
   }
 
@@ -82,21 +81,20 @@ CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     const network::ResourceRequest& prefetch_request,
     NotReachedTagForTestsOr<base::RunLoop*> on_response_received,
-    NotReachedTagForTestsOr<OnPrefetchCompleteTestFuture*> on_complete,
+    NotReachedTagForTestsOr<base::RunLoop*> on_complete,
     NotReachedTagForTestsOr<OnPrefetchReceiveRedirectTestFuture*>
         on_receive_redirect,
     NotReachedTagForTestsOr<base::RunLoop*> on_head_received,
     std::optional<PrefetchErrorOnResponseReceived> error_on_response_received,
     base::TimeDelta timeout_duration) {
   auto on_complete_callback = base::BindOnce(
-      [](NotReachedTagForTestsOr<OnPrefetchCompleteTestFuture*> on_complete,
-         bool is_success,
+      [](NotReachedTagForTestsOr<base::RunLoop*> on_complete, bool is_success,
          const network::URLLoaderCompletionStatus& completion_status) {
         if (std::holds_alternative<NotReachedTagForTests>(on_complete)) {
           NOTREACHED();
         }
-        if (auto future = std::get<0>(on_complete)) {
-          future->SetValue(completion_status);
+        if (auto run_loop = std::get<0>(on_complete)) {
+          run_loop->Quit();
         }
       },
       on_complete);
@@ -541,8 +539,7 @@ void TestPrefetchService::PrefetchUrl(
 }
 
 void TestPrefetchService::OnPrefetchCompletedOrFailed(
-    const PrefetchContainer& prefetch_container,
-    const network::URLLoaderCompletionStatus& completion_status) {
+    const PrefetchContainer& prefetch_container) {
   // Skip `active_prefetch_` check and related prefetch queue processing in
   // `PrefetchService`, because it's not set/used in `TestPrefetchService`.
 }
@@ -824,11 +821,18 @@ WithPrefetchRearchParam::~WithPrefetchRearchParam() = default;
 // static
 std::vector<PrefetchRearchParam> PrefetchRearchParam::Params() {
   return {
-      PrefetchRearchParam{},
+      PrefetchRearchParam{.force_off_the_main_thread = false},
+      PrefetchRearchParam{.force_off_the_main_thread = true},
   };
 }
 
 void WithPrefetchRearchParam::InitRearchFeatures() {
+  if (param_.force_off_the_main_thread) {
+    feature_list_force_off_the_main_thread_.InitWithFeatures(
+        {features::kPrefetchOffTheMainThread,
+         features::kPrefetchOffTheMainThreadForceForTesting},
+        {});
+  }
 }
 
 PrefetchServiceInjectedEligibilityCheckFuture::

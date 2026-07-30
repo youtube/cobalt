@@ -431,7 +431,7 @@ IN_PROC_BROWSER_TEST_F(
   // will call chrome.test.sendMessage('controlled by first').
   ExtensionTestMessageListener listener("controlled by first");
   auto* contents = GetActiveWebContents();
-  ASSERT_TRUE(NavigateToURL(contents, GURL(chrome::kChromeUINewTabURL)));
+  ASSERT_TRUE(NavigateToURL(contents, chrome::ChromeUINewTabURLAsGURL()));
   EXPECT_TRUE(ExtensionControlsPage(contents, extension->id()));
   EXPECT_TRUE(listener.WaitUntilSatisfied());
 
@@ -465,7 +465,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, OverrideHistory) {
   }
 }
 
-// Regression test for http://crbug.com/41442.
+// Regression test for http://crbug.com/40384582.
 IN_PROC_BROWSER_TEST_F(ExtensionOverrideTest, ShouldNotCreateDuplicateEntries) {
   const Extension* extension =
       LoadExtension(test_data_dir_.AppendASCII("override/history"));

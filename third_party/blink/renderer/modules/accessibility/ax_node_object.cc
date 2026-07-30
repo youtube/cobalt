@@ -107,6 +107,7 @@
 #include "third_party/blink/renderer/core/html/html_hr_element.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
+#include "third_party/blink/renderer/core/html/html_install_element.h"
 #include "third_party/blink/renderer/core/html/html_li_element.h"
 #include "third_party/blink/renderer/core/html/html_map_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_bar_element.h"
@@ -2093,25 +2094,26 @@ bool AXNodeObject::IsDataTable() const {
       }
 
       // If a cell has matching bordered sides, call it a (fully) bordered cell.
-      if ((cell_layout_block->BorderTop() > 0 &&
-           cell_layout_block->BorderBottom() > 0) ||
-          (cell_layout_block->BorderLeft() > 0 &&
-           cell_layout_block->BorderRight() > 0)) {
+      const PhysicalBoxStrut cell_border = cell_layout_block->BorderOutsets();
+      if ((cell_border.top > LayoutUnit() &&
+           cell_border.bottom > LayoutUnit()) ||
+          (cell_border.left > LayoutUnit() &&
+           cell_border.right > LayoutUnit())) {
         bordered_cell_count++;
       }
 
       // Also keep track of each individual border, so we can catch tables where
       // most cells have a bottom border, for example.
-      if (cell_layout_block->BorderTop() > 0) {
+      if (cell_border.top > LayoutUnit()) {
         cells_with_top_border++;
       }
-      if (cell_layout_block->BorderBottom() > 0) {
+      if (cell_border.bottom > LayoutUnit()) {
         cells_with_bottom_border++;
       }
-      if (cell_layout_block->BorderLeft() > 0) {
+      if (cell_border.left > LayoutUnit()) {
         cells_with_left_border++;
       }
-      if (cell_layout_block->BorderRight() > 0) {
+      if (cell_border.right > LayoutUnit()) {
         cells_with_right_border++;
       }
 
@@ -2320,11 +2322,8 @@ ax::mojom::blink::Role AXNodeObject::RoleFromLayoutObjectOrNode() const {
     }
   }
 
-  if (IsA<HTMLUserMediaElement>(node)) {
-    return ax::mojom::blink::Role::kButton;
-  }
-
-  if (IsA<HTMLGeolocationElement>(node)) {
+  // Capability elements (install, usermedia, geolocation) act as buttons.
+  if (IsA<HTMLCapabilityElementBase>(node)) {
     return ax::mojom::blink::Role::kButton;
   }
 

@@ -184,8 +184,12 @@ const std::vector<std::unique_ptr<Skill>>& SkillsServiceImpl::GetSkills()
   return skills_;
 }
 
-const SkillIdToProtoMap& SkillsServiceImpl::Get1PSkills() const {
-  return first_party_skills_map_;
+const SkillProtoList& SkillsServiceImpl::Get1PSkills() const {
+  return first_party_data_.skills_list;
+}
+
+const std::vector<std::string>& SkillsServiceImpl::Get1PTopics() const {
+  return first_party_data_.topics_list;
 }
 
 void SkillsServiceImpl::LoadInitialSkills(
@@ -271,27 +275,29 @@ void SkillsServiceImpl::FetchDiscoverySkills() {
     return;
   }
   skills_downloader_->FetchDiscoverySkills(base::BindOnce(
-      &SkillsServiceImpl::Handle1pSkillsMap, weak_ptr_factory_.GetWeakPtr()));
+      &SkillsServiceImpl::Handle1pSkills, weak_ptr_factory_.GetWeakPtr()));
 }
 
-void SkillsServiceImpl::Handle1pSkillsMap(
-    std::unique_ptr<SkillIdToProtoMap> skills_map) {
+void SkillsServiceImpl::Handle1pSkills(
+    std::unique_ptr<FirstPartySkillData> first_party_skill_data) {
   last_discovery_skills_fetch_time_ = base::Time::Now();
-  SkillIdToProtoMap* notification_ptr = nullptr;
-  // If skills_map is null, this means we don't have an updated value so we
-  // shouldn't modify the stored 1p map.
-  if (skills_map) {
-    first_party_skills_map_.swap(*skills_map);
-    notification_ptr = &first_party_skills_map_;
+  FirstPartySkillData* notification_ptr = nullptr;
+  // If first_party_skill_data is null, this means we don't have an updated
+  // value so we shouldn't modify the stored 1p data.
+  if (first_party_skill_data) {
+    first_party_data_ = std::move(*first_party_skill_data);
+    notification_ptr = &first_party_data_;
 
     first_party_skill_objects_map_.clear();
-    first_party_skill_objects_map_.reserve(first_party_skills_map_.size());
-    for (const auto& [id, proto_skill] : first_party_skills_map_) {
-      Skill skill(id, proto_skill.name(), proto_skill.icon(),
+    first_party_skill_objects_map_.reserve(
+        first_party_data_.skills_list.size());
+    for (const auto& proto_skill : first_party_data_.skills_list) {
+      Skill skill(proto_skill.id(), proto_skill.name(), proto_skill.icon(),
                   proto_skill.prompt(), proto_skill.description(),
-                  GURL(proto_skill.image_url()),
+                  proto_skill.curated_by(), GURL(proto_skill.image_url()),
                   sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY);
-      first_party_skill_objects_map_.insert({id, std::move(skill)});
+      first_party_skill_objects_map_.insert(
+          {proto_skill.id(), std::move(skill)});
     }
   }
 
@@ -376,8 +382,8 @@ void SkillsServiceImpl::RefreshDiscoverySkills() {
 
   // Check if any observers require a refresh of discovery skills.
   // Note: call to FetchDiscoverySkills needs to be made outside of traversal
-  // of the observers list. Otherwise, if FetchDiscoverySkills returns too quickly,
-  // Handle1pSkillsMap will be called, triggering another traversal of
+  // of the observers list. Otherwise, if FetchDiscoverySkills returns too
+  // quickly, Handle1pSkills will be called, triggering another traversal of
   // observers list. The observers list is configured so that it can only be
   // traverse once at a time. This race condition would cause a crash.
   bool requires_refresh = false;

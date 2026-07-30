@@ -2030,13 +2030,13 @@ IN_PROC_BROWSER_TEST_P(BundledCodeCacheChromeContentBrowserClientTest,
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL top_chrome_url1(chrome::kChromeUITabSearchURL);
   const GURL top_chrome_url2(chrome::kChromeUIReadLaterURL);
-  const GURL non_top_chrome_url1(chrome::kChromeUINewTabPageURL);
+  const GURL& non_top_chrome_url1 = chrome::ChromeUINewTabPageURLAsGURL();
   const GURL non_top_chrome_url2(
       embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(top_chrome_url1.DomainIs(chrome::kChromeUITopChromeDomain));
   EXPECT_TRUE(top_chrome_url2.DomainIs(chrome::kChromeUITopChromeDomain));
   EXPECT_FALSE(non_top_chrome_url1.DomainIs(chrome::kChromeUITopChromeDomain));
-  EXPECT_FALSE(non_top_chrome_url1.DomainIs(chrome::kChromeUITopChromeDomain));
+  EXPECT_FALSE(non_top_chrome_url2.DomainIs(chrome::kChromeUITopChromeDomain));
 
   // Disallow V8 feature flag overrides should only apply to top-chrome URLs
   // when bundled code caching is enabled.
@@ -2051,7 +2051,7 @@ IN_PROC_BROWSER_TEST_P(BundledCodeCacheChromeContentBrowserClientTest,
   navigate_and_expect_policy_result(top_chrome_url2,
                                     IsBundledCodeCacheEnabled());
   navigate_and_expect_policy_result(non_top_chrome_url1, false);
-  navigate_and_expect_policy_result(non_top_chrome_url1, false);
+  navigate_and_expect_policy_result(non_top_chrome_url2, false);
 }
 
 INSTANTIATE_TEST_SUITE_P(

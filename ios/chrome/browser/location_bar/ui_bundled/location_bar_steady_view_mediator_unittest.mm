@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_steady_view_mediator.h"
 
+#import "base/functional/callback_helpers.h"
+#import "base/test/test_future.h"
 #import "components/omnibox/browser/test_location_bar_model.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/test/fake_location_bar_steady_view_consumer.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
@@ -17,7 +19,9 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "ios/web/public/test/scoped_testing_web_client.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -27,7 +31,8 @@
 class LocationBarSteadyViewMediatorTest : public PlatformTest {
  protected:
   LocationBarSteadyViewMediatorTest()
-      : mediator_([[LocationBarSteadyViewMediator alloc]
+      : web_client_(std::make_unique<web::FakeWebClient>()),
+        mediator_([[LocationBarSteadyViewMediator alloc]
             initWithLocationBarModel:&model_]),
         consumer_([[FakeLocationBarSteadyViewConsumer alloc] init]) {
     // Set up the TestBrowser.
@@ -49,6 +54,7 @@ class LocationBarSteadyViewMediatorTest : public PlatformTest {
   }
 
   web::WebTaskEnvironment task_environment_;
+  web::ScopedTestingWebClient web_client_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   raw_ptr<OverlayPresenter> overlay_presenter_ = nullptr;
@@ -70,6 +76,19 @@ TEST_F(LocationBarSteadyViewMediatorTest, DisableShareForOverlays) {
       WebStateList::InsertionParams::Automatic().Activate());
   ASSERT_TRUE(consumer_.locationShareable);
 
+  // Use TestFuture to wait for the asynchronous overlay presentation signals
+  // to avoid flakiness. We set the callback once and reuse the future.
+  base::test::TestFuture<BOOL> shareable_future;
+  auto* future_ptr = &shareable_future;
+  consumer_.onUpdateLocationShareable = ^(BOOL shareable) {
+    future_ptr->SetValue(shareable);
+  };
+
+  // Scoped cleanup to clear the callback and prevent dangling pointers.
+  base::ScopedClosureRunner cleanup(base::BindOnce(^{
+    consumer_.onUpdateLocationShareable = nil;
+  }));
+
   // Present a JavaScript alert over the WebState and verify that the page is no
   // longer shareable.
   OverlayRequestQueue* queue = OverlayRequestQueue::FromWebState(
@@ -77,11 +96,13 @@ TEST_F(LocationBarSteadyViewMediatorTest, DisableShareForOverlays) {
   queue->AddRequest(
       OverlayRequest::CreateWithConfig<JavaScriptAlertDialogRequest>(
           web_state, kUrl, url::Origin::Create(kUrl), @"message"));
-  EXPECT_FALSE(consumer_.locationShareable);
+
+  EXPECT_FALSE(shareable_future.Take());
 
   // Cancel the request and verify that the location is shareable again.
   queue->CancelAllRequests();
-  EXPECT_TRUE(consumer_.locationShareable);
+
+  EXPECT_TRUE(shareable_future.Take());
 }
 
 // Tests that the share button is enabled when the URL represents a downloaded

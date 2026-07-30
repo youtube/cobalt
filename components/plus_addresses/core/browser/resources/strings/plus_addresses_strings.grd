@@ -307,13 +307,6 @@ if we want to translate this file.
           Cancel
         </message>
 
-        <!-- Snackbar strings for full form filling -->
-        <message name="IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_DESCRIPTION_TEXT_ANDROID" desc="The text displayed on the snackbar at the bottom of the screen. The snackbar is shown when the user's plus address was filled instead of a regular email." translateable="false">
-          Chrome filled your plus address for this site
-        </message>
-        <message name="IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_ACTION_TEXT_ANDROID" desc="The text displayed on the snackbar at the bottom of the screen. The snackbar is shown when the user's plus address was filled instead of a regular email." translateable="false">
-          Undo
-        </message>
 
         <!-- Manual fallback strings -->
         <message name="IDS_PLUS_ADDRESS_FALLBACK_MANUAL_FILLING_SHEET_TITLE" desc="Message in the keyboard accessory manual filling sheet that indicates the origin of the plus addresses in that section." translateable="false">
@@ -438,12 +431,6 @@ if we want to translate this file.
         </message>
 
         <!-- Snackbar strings -->
-        <message name="IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_DESCRIPTION_TEXT_IOS" desc="The text displayed on the snackbar at the bottom of the screen. The snackbar is shown when the user's plus address was filled instead of a regular email." translateable="false">
-          Chrome filled your plus address for this site
-        </message>
-        <message name="IDS_PLUS_ADDRESS_SNACKBAR_UNDO_EMAIL_SWAP_ACTION_TEXT_IOS" desc="The text displayed on the snackbar at the bottom of the screen. The snackbar is shown when the user's plus address was filled instead of a regular email." translateable="false">
-          Undo
-        </message>
       </if>
 
       <!-- Desktop strings -->
@@ -592,31 +579,9 @@ if we want to translate this file.
       </message>
 
       <!-- IPH strings -->
-      <message name="IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH" desc="Text shown in the IPH bubble for educating the user on creating plus addresses." translateable="false">
-        Placeholder Plus Address Create Suggestion IPH String
-      </message>
-      <message name="IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH_SCREENREADER" is_accessibility_with_no_ui="true" desc="Screenreader text shown in the IPH bubble for educating the user on creating plus addresses." translateable="false">
-        Placeholder Plus Address Create Suggestion IPH Screenreader String
-      </message>
       <message name="IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH_ANDROID" desc="Text shown in the IPH bubble for educating the user on creating plus addresses on Android." formatter_data="android_java" translateable="false">
         Placeholder Plus Address Create Suggestion IPH String.
       </message>
-      <message name="IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH_IOS" desc="Text shown in the IPH bubble for educating the user on creating plus addresses in iOS." translateable="false">
-        Placeholder Plus Address Create Suggestion IPH String
-      </message>
-      <message name="IDS_PLUS_ADDRESS_CREATE_SUGGESTION_IPH_SCREENREADER_IOS" is_accessibility_with_no_ui="true" desc="Screenreader text shown in the IPH bubble for educating the user on creating plus addresses in iOS." translateable="false">
-        Placeholder Plus Address Create Suggestion IPH Screenreader String
-      </message>
-      <message name="IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_TITLE" desc="Title of the IPH shown after saving the first plus address on Desktop" translateable="false">
-        Plus address saved
-      </message>
-      <message name="IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_DESCRIPTION" desc="Body of the IPH shown after saving the first plus address on Desktop" translateable="false">
-        You won't need to remember this address. It's saved to your Google Account and can be used from any device.
-      </message>
-      <message name="IDS_PLUS_ADDRESS_FIRST_SAVE_IPH_ACCEPT" desc="Text of the accept button of the IPH shown after saving the first plus address on Desktop" translateable="false">
-        Manage
-      </message>
-
     </messages>
   </release>
 </grit>

@@ -88,6 +88,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 namespace {
 
 constexpr int kCaretHeightForTest = 8;
@@ -999,9 +1001,9 @@ TEST_F(SplitViewControllerTest, SplitDividerHandlesNativeWidgetDestruction) {
 // Tests that the split divider has the correct state when the dragged overview
 // item is destroyed.
 TEST_F(SplitViewControllerTest, DividerStateWhenDraggedOverviewItemDestroyed) {
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window2 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window3 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window3 = CreateWindowWithAppType();
   ToggleOverview();
   split_view_controller()->SnapWindow(window1.get(), SnapPosition::kPrimary);
   EXPECT_EQ(ui::ZOrderLevel::kNormal,
@@ -1035,9 +1037,9 @@ TEST_F(SplitViewControllerTest, DividerStateWhenDraggedOverviewItemDestroyed) {
 // Tests that the split divider has the correct state when the drag of the
 // overview item is cancelled.
 TEST_F(SplitViewControllerTest, DividerStateWhenOverviewItemDragCancelled) {
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window2 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window3 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window3 = CreateWindowWithAppType();
   ToggleOverview();
   split_view_controller()->SnapWindow(window1.get(), SnapPosition::kPrimary);
   EXPECT_EQ(ui::ZOrderLevel::kNormal,
@@ -1706,9 +1708,12 @@ using SplitViewControllerFloatTest = SplitViewControllerTest;
 // snapped windows. It should only get snapped if it's activated from overview.
 TEST_F(SplitViewControllerFloatTest, DontAutosnapFloatedWindow) {
   // Create 2 normal windows and 1 floated window.
-  std::unique_ptr<aura::Window> window1(CreateAppWindow());
-  std::unique_ptr<aura::Window> window2(CreateAppWindow());
-  std::unique_ptr<aura::Window> floated_window(CreateAppWindow());
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
+  std::unique_ptr<aura::Window> floated_window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
   Shell::Get()->float_controller()->ToggleFloat(floated_window.get());
   ASSERT_TRUE(WindowState::Get(floated_window.get())->IsFloated());
 
@@ -1905,7 +1910,8 @@ TEST_F(SplitViewControllerTest, LongPressInOverviewMode) {
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
   EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
-  std::unique_ptr<aura::Window> window = CreateAppWindow();
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
   ASSERT_FALSE(OverviewController::Get()->InOverviewSession());
 
   ToggleOverview();
@@ -1937,7 +1943,8 @@ TEST_F(SplitViewControllerTest, LongPressInOverviewModeHistograms) {
   EXPECT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Activating a window will exit overview.
-  std::unique_ptr<aura::Window> window = CreateAppWindow();
+  std::unique_ptr<aura::Window> window =
+      CreateWindowWithAppType(AppType::SYSTEM_APP);
   CheckOverviewEnterExitHistogram("ExitByActivation", {0, 0}, {0, 0});
 
   ToggleOverview();
@@ -3165,7 +3172,7 @@ TEST_F(SplitViewControllerTest, ItemsRemovedFromOverviewOnSnap) {
 // Test that resizing ends properly if split view ends during divider dragging.
 TEST_F(SplitViewControllerTest, EndSplitViewWhileDragging) {
   // Enter split view mode.
-  std::unique_ptr<aura::Window> window = CreateTestWindow();
+  std::unique_ptr<aura::Window> window = CreateWindowWithAppType();
   ToggleOverview();
   split_view_controller()->SnapWindow(window.get(), SnapPosition::kPrimary);
 
@@ -3432,8 +3439,8 @@ TEST_F(SplitViewControllerTest, SplitViewDividerObserveSnappedWindow) {
 // Tests that the bounds of the window and divider get updated correctly when
 // snapping with different ratios.
 TEST_F(SplitViewControllerTest, SnapBetweenDifferentRatios) {
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window2 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
 
   // Snap `window1` to primary position and `window2` to secondary position,
   // both with default snap ratios.
@@ -3486,8 +3493,8 @@ TEST_F(SplitViewControllerTest, SnapBetweenDifferentRatios) {
 
 // Tests that swap partial windows keeps the window sizes.
 TEST_F(SplitViewControllerTest, SwapPartialWindows) {
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window2 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
 
   // Snap `window1` to primary with 2/3 width and `window2` to secondary with
   // 1/3 width. Verify the divider is at 2/3 of the work area.
@@ -3551,7 +3558,7 @@ TEST_F(SplitViewControllerTest, SnapTwoThirdPartialWindow) {
   std::unique_ptr<aura::Window> window(CreateTestWindowInShell(
       {.delegate = &window_delegate, .bounds = {500, 500}}));
   window_delegate.set_minimum_size(gfx::Size(500, 500));
-  window->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::BROWSER);
+  window->SetProperty(chromeos::kAppTypeKey, AppType::BROWSER);
 
   WindowSnapWMEvent snap_primary(WM_EVENT_SNAP_PRIMARY,
                                  chromeos::kTwoThirdSnapRatio);
@@ -3569,14 +3576,14 @@ TEST_F(SplitViewControllerTest, SelectWindowCannotOneThirdSnap) {
   std::unique_ptr<aura::Window> window1(CreateTestWindowInShell(
       {.delegate = &window_delegate1, .bounds = {500, 500}}));
   window_delegate1.set_minimum_size(gfx::Size(500, 500));
-  window1->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::BROWSER);
+  window1->SetProperty(chromeos::kAppTypeKey, AppType::BROWSER);
 
   // The second window can be snapped 1/2 but not 1/3.
   aura::test::TestWindowDelegate window_delegate2;
   std::unique_ptr<aura::Window> window2(CreateTestWindowInShell(
       {.delegate = &window_delegate2, .bounds = {500, 500}}));
   window_delegate2.set_minimum_size(gfx::Size(400, 400));
-  window2->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::BROWSER);
+  window2->SetProperty(chromeos::kAppTypeKey, AppType::BROWSER);
 
   // Snap `window1` 2/3 to the left.
   wm::ActivateWindow(window1.get());
@@ -3797,8 +3804,8 @@ TEST_F(SplitViewControllerTest, AutoSnapPartialWindows) {
 // below the dragged window. On window drag ended, the divider will be placed
 // back on top of the two observed windows.
 TEST_F(SplitViewControllerTest, StackingOrderWithDivider) {
-  std::unique_ptr<aura::Window> w1(CreateTestWindow());
-  std::unique_ptr<aura::Window> w2(CreateTestWindow());
+  std::unique_ptr<aura::Window> w1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> w2 = CreateWindowWithAppType();
   SplitViewController* controller = split_view_controller();
   controller->SnapWindow(w1.get(), SnapPosition::kPrimary);
   EXPECT_EQ(split_view_controller()->primary_window(), w1.get());
@@ -3827,8 +3834,8 @@ TEST_F(SplitViewControllerTest, StackingOrderWithDivider) {
 // Tests that the divider remains visible when minimizing and restoring the
 // window in tablet split view.
 TEST_F(SplitViewControllerTest, DividerStaysVisibleDuringMinimizeAndRestore) {
-  std::unique_ptr<aura::Window> w1(CreateTestWindow());
-  std::unique_ptr<aura::Window> w2(CreateTestWindow());
+  std::unique_ptr<aura::Window> w1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> w2 = CreateWindowWithAppType();
   SplitViewController* controller = split_view_controller();
   controller->SnapWindow(w1.get(), SnapPosition::kPrimary);
   EXPECT_EQ(split_view_controller()->primary_window(), w1.get());
@@ -3862,8 +3869,8 @@ TEST_F(SplitViewControllerTest, PerformantResize) {
   UpdateDisplay("900x600");
   const gfx::Rect work_area =
       display::Screen::Get()->GetPrimaryDisplay().work_area();
-  std::unique_ptr<aura::Window> w1(CreateTestWindow());
-  std::unique_ptr<aura::Window> w2(CreateTestWindow());
+  std::unique_ptr<aura::Window> w1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> w2 = CreateWindowWithAppType();
   SplitViewController* controller = split_view_controller();
   controller->SnapWindow(w1.get(), SnapPosition::kPrimary);
   controller->SnapWindow(w2.get(), SnapPosition::kSecondary);
@@ -3899,10 +3906,11 @@ TEST_F(SplitViewControllerTest, PerformantResize) {
 // crash. The stacking order and parent of the split view divider will be
 // updated correctly with window activation and dragging operations.
 TEST_F(SplitViewControllerTest, SnapWindowsWithDifferentParentContainers) {
-  std::unique_ptr<aura::Window> always_on_top_window(CreateTestWindow());
+  std::unique_ptr<aura::Window> always_on_top_window =
+      CreateWindowWithAppType();
   always_on_top_window->SetProperty(aura::client::kZOrderingKey,
                                     ui::ZOrderLevel::kFloatingWindow);
-  std::unique_ptr<aura::Window> normal_window(CreateTestWindow());
+  std::unique_ptr<aura::Window> normal_window = CreateWindowWithAppType();
   SplitViewController* controller = split_view_controller();
   controller->SnapWindow(always_on_top_window.get(), SnapPosition::kPrimary);
   controller->SnapWindow(normal_window.get(), SnapPosition::kSecondary);
@@ -4013,8 +4021,10 @@ TEST_F(SplitViewControllerTest,
   constexpr char kDeviceOrientationInSplitView[] =
       "Ash.SplitView.OrientationInSplitView";
   const gfx::Rect bounds(0, 0, 400, 400);
-  std::unique_ptr<aura::Window> window1(CreateAppWindow(bounds));
-  std::unique_ptr<aura::Window> window2(CreateAppWindow(bounds));
+  std::unique_ptr<aura::Window> window1 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, bounds);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowWithAppType(AppType::SYSTEM_APP, bounds);
 
   wm::ActivateWindow(window1.get());
   EXPECT_FALSE(split_view_controller()->InSplitViewMode());
@@ -4615,7 +4625,7 @@ class SplitViewDraggingTest : public SplitViewControllerTest {
   StartTabDrag(aura::Window* source_window) {
     source_window->SetProperty(ash::kIsDraggingTabsKey, true);
     std::unique_ptr<aura::Window> drag_window =
-        CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+        CreateWindowWithAppType(AppType::BROWSER);
     source_window->ClearProperty(ash::kIsDraggingTabsKey);
     drag_window->SetProperty(ash::kIsDraggingTabsKey, true);
     drag_window->SetProperty(ash::kTabDraggingSourceWindowKey, source_window);
@@ -4643,13 +4653,13 @@ class SplitViewDraggingTest : public SplitViewControllerTest {
 
 TEST_F(SplitViewDraggingTest, WindowDraggingDisallowed) {
   std::unique_ptr<aura::Window> window_chrome_app =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::CHROME_APP);
+      CreateWindowWithAppType(AppType::CHROME_APP);
   std::unique_ptr<aura::Window> window_non_app =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::NON_APP);
+      CreateWindowWithAppType(AppType::NON_APP);
   std::unique_ptr<aura::Window> window_arc =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::ARC_APP);
+      CreateWindowWithAppType(AppType::ARC_APP);
   std::unique_ptr<aura::Window> window_browser =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
 
   std::unique_ptr<WindowResizer> resizer;
 
@@ -4693,7 +4703,7 @@ TEST_F(SplitViewDraggingTest, WindowDraggingDisallowed) {
 
 TEST_F(SplitViewDraggingTest, TabDraggingFromMaximized) {
   std::unique_ptr<aura::Window> source_window =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
   EXPECT_TRUE(WindowState::Get(source_window.get())->IsMaximized());
 
   auto [resizer, _] = StartTabDrag(source_window.get());
@@ -4704,7 +4714,7 @@ TEST_F(SplitViewDraggingTest, TabDraggingFromMaximized) {
 
 TEST_F(SplitViewDraggingTest, TabDraggingFromFloated) {
   std::unique_ptr<aura::Window> source_window =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
   Shell::Get()->float_controller()->ToggleFloat(source_window.get());
   EXPECT_TRUE(WindowState::Get(source_window.get())->IsFloated());
 
@@ -4716,9 +4726,9 @@ TEST_F(SplitViewDraggingTest, TabDraggingFromFloated) {
 
 TEST_F(SplitViewDraggingTest, TabDraggingFromSnapped) {
   std::unique_ptr<aura::Window> source_window =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
   std::unique_ptr<aura::Window> other_window =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
 
   split_view_controller()->SnapWindow(source_window.get(),
                                       SnapPosition::kPrimary);
@@ -4736,7 +4746,7 @@ TEST_F(SplitViewDraggingTest, TabDraggingFromSnapped) {
 
 TEST_F(SplitViewDraggingTest, NoBackDropDuringTabDragging) {
   std::unique_ptr<aura::Window> source_window =
-      CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+      CreateWindowWithAppType(AppType::BROWSER);
   EXPECT_TRUE(WindowState::Get(source_window.get())->IsMaximized());
 
   auto [resizer, drag_window] = StartTabDrag(source_window.get());

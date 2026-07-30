@@ -106,8 +106,7 @@ public class TabListFaviconProviderTest {
                 new TabListFaviconProvider(
                         mActivity,
                         /* isTabStrip= */ false,
-                        org.chromium.components.browser_ui.styles.R.dimen
-                                .default_favicon_corner_radius,
+                        R.dimen.default_favicon_corner_radius,
                         mTabWebContentsFaviconDelegate);
         mTabListFaviconProvider.initWithNative(mProfile);
         mTabListFaviconProvider.setFaviconHelperForTesting(mMockFaviconHelper);
@@ -183,10 +182,10 @@ public class TabListFaviconProviderTest {
                                     verify(mTabWebContentsFaviconDelegate).getBitmap(tab);
                                     verify(mMockFaviconHelper, never())
                                             .getForeignFaviconImageForURL(
-                                                    any(), any(), anyInt(), any());
+                                                    any(), any(), anyInt(), anyBoolean(), any());
                                     verify(mMockFaviconHelper, never())
                                             .getLocalFaviconImageForURL(
-                                                    any(), any(), anyInt(), any());
+                                                    any(), any(), anyInt(), anyBoolean(), any());
                                 },
                                 fetcher);
         Assert.assertEquals(favicon, new UrlTabFavicon(newDrawable(), mUrl1));
@@ -209,10 +208,11 @@ public class TabListFaviconProviderTest {
                                                     eq(mProfile),
                                                     eq(mUrl1),
                                                     anyInt(),
+                                                    anyBoolean(),
                                                     mFaviconImageCallbackCaptor.capture());
                                     verify(mMockFaviconHelper, never())
                                             .getLocalFaviconImageForURL(
-                                                    any(), any(), anyInt(), any());
+                                                    any(), any(), anyInt(), anyBoolean(), any());
                                     mFaviconImageCallbackCaptor
                                             .getValue()
                                             .onFaviconAvailable(newBitmap(), mUrl1);
@@ -236,12 +236,13 @@ public class TabListFaviconProviderTest {
                                     verify(mTabWebContentsFaviconDelegate).getBitmap(tab);
                                     verify(mMockFaviconHelper, never())
                                             .getForeignFaviconImageForURL(
-                                                    any(), any(), anyInt(), any());
+                                                    any(), any(), anyInt(), anyBoolean(), any());
                                     verify(mMockFaviconHelper)
                                             .getLocalFaviconImageForURL(
                                                     eq(mOtrProfile),
                                                     eq(mUrl1),
                                                     anyInt(),
+                                                    anyBoolean(),
                                                     mFaviconImageCallbackCaptor.capture());
                                     mFaviconImageCallbackCaptor
                                             .getValue()
@@ -264,12 +265,13 @@ public class TabListFaviconProviderTest {
                                     verify(mTabWebContentsFaviconDelegate).getBitmap(tab);
                                     verify(mMockFaviconHelper, never())
                                             .getForeignFaviconImageForURL(
-                                                    any(), any(), anyInt(), any());
+                                                    any(), any(), anyInt(), anyBoolean(), any());
                                     verify(mMockFaviconHelper)
                                             .getLocalFaviconImageForURL(
                                                     eq(mProfile),
                                                     eq(mUrl1),
                                                     anyInt(),
+                                                    anyBoolean(),
                                                     mFaviconImageCallbackCaptor.capture());
                                     mFaviconImageCallbackCaptor
                                             .getValue()

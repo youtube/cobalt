@@ -12,19 +12,21 @@ import androidx.annotation.StringRes;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.build.NullUtil;
 import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.GlowSpec;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
 
 /** The bottom sheet content for the tab bottom sheet. */
 @NullMarked
 public class TabBottomSheetContent implements BottomSheetContent {
     private final View mContentView;
     private final float mFullHeightRatio;
-    private final GlowSpec mGlowSpec;
     private final int mPeekViewHeight;
     private final @ColorInt int mBackgroundColor;
+    private final @Nullable GlowSpec mGlowSpec;
 
     /**
      * Constructor.
@@ -32,21 +34,31 @@ public class TabBottomSheetContent implements BottomSheetContent {
      * @param contentView The inflated view for the bottom sheet.
      * @param fullHeightRatio The full height ratio for the bottom sheet.
      * @param backgroundColor The background color for the bottom sheet.
+     * @param clientType The client using the bottom sheet.
      */
     public TabBottomSheetContent(
-            View contentView, float fullHeightRatio, @ColorInt int backgroundColor) {
+            View contentView,
+            float fullHeightRatio,
+            @ColorInt int backgroundColor,
+            @TabBottomSheetClientType int clientType) {
         mContentView = contentView;
         mFullHeightRatio = fullHeightRatio;
         mBackgroundColor = backgroundColor;
         // TODO(crbug.com/502611927): Remove or tweak this for AIM.
         mGlowSpec =
-                new GlowSpec(
-                        mContentView.getContext().getColor(R.color.default_bg_color_blue),
-                        GlowSpec.ShadowSize.LONG);
+                clientType == TabBottomSheetClientType.GLIC
+                        ? new GlowSpec(
+                                mContentView.getContext().getColor(R.color.default_bg_color_blue),
+                                GlowSpec.ShadowSize.LONG)
+                        : null;
         mPeekViewHeight =
                 mContentView
                         .getResources()
                         .getDimensionPixelSize(R.dimen.tab_bottom_sheet_peek_height_total);
+
+        View view = mContentView.findViewById(R.id.actor_control_container);
+        View peekContainer = NullUtil.assertNonNull(view);
+        peekContainer.setBackgroundColor(mBackgroundColor);
     }
 
     @Override
@@ -75,7 +87,7 @@ public class TabBottomSheetContent implements BottomSheetContent {
 
     @Override
     public int getPriority() {
-        return BottomSheetContent.ContentPriority.HIGH;
+        return BottomSheetContent.ContentPriority.COBROWSE;
     }
 
     @Override
@@ -121,8 +133,8 @@ public class TabBottomSheetContent implements BottomSheetContent {
     public float getFullHeightRatio() {
         // TODO(crbug.com/502611927): Update this for AIM.
         return ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()
-                ? HeightMode.DEFAULT
-                : mFullHeightRatio;
+                ? HeightMode.RESIZE_CONTENT
+                : HeightMode.WRAP_CONTENT;
     }
 
     @Override

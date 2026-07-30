@@ -9,6 +9,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/common/chrome_switches.h"
@@ -20,9 +21,6 @@
 namespace glic {
 
 namespace {
-// TODO(crbug.com/391378260): Once the web client can request to sync auth
-// reliably, we should not need any timeout.
-base::TimeDelta kCookieSyncRepeatTime = base::Minutes(5);
 
 bool IsAutomationEnabled() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
@@ -69,6 +67,12 @@ void AuthController::CheckAuthBeforeLoad(
                        mojom::PrepareForClientResult::kRequiresSignIn));
     return;
   }
+  if (base::FeatureList::IsEnabled(features::kGlicSkipCookieSyncOnOpen)) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback),
+                                  mojom::PrepareForClientResult::kSuccess));
+    return;
+  }
   cookie_synchronizer_->CopyCookiesToWebviewStoragePartition(
       base::BindOnce(&AuthController::CookieSyncBeforeLoadDone, GetWeakPtr(),
                      std::move(callback)));
@@ -99,18 +103,16 @@ void AuthController::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event_details) {
   switch (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
     case signin::PrimaryAccountChangeEvent::Type::kSet:
-      last_cookie_sync_time_ = std::nullopt;
+      if (base::FeatureList::IsEnabled(
+              features::kGlicCookieSyncOnTokenChange)) {
+        ForceSyncCookies(base::DoNothing());
+      }
       break;
     // Ignore until primary account is set.
     case signin::PrimaryAccountChangeEvent::Type::kNone:
     case signin::PrimaryAccountChangeEvent::Type::kCleared:
       break;
   }
-}
-
-void AuthController::ForceSyncCookies(base::OnceCallback<void(bool)> callback) {
-  last_cookie_sync_time_ = std::nullopt;
-  SyncCookiesIfRequired(std::move(callback));
 }
 
 void AuthController::OnErrorStateOfRefreshTokenUpdatedForAccount(
@@ -122,12 +124,14 @@ void AuthController::OnErrorStateOfRefreshTokenUpdatedForAccount(
     return;
   }
 
-  last_cookie_sync_time_ = std::nullopt;
   if (after_signin_callback_ &&
       after_signin_callback_expiration_time_ > base::TimeTicks::Now()) {
     if (GetTokenState() == TokenState::kOk) {
       std::move(after_signin_callback_).Run();
     }
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicCookieSyncOnTokenChange)) {
+    ForceSyncCookies(base::DoNothing());
   }
 }
 
@@ -137,29 +141,16 @@ void AuthController::OnRefreshTokenUpdatedForAccount(
       account_info.account_id) {
     return;
   }
-  last_cookie_sync_time_ = std::nullopt;
 }
 
-void AuthController::SyncCookiesIfRequired(
+void AuthController::ForceSyncCookies(
     base::OnceCallback<void(bool)> callback) {
-  // If cookies were synced successfully and recently, don't do it again.
-  if (last_cookie_sync_time_ &&
-      base::TimeTicks::Now() - *last_cookie_sync_time_ <
-          kCookieSyncRepeatTime) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), true));
-    return;
-  }
-  last_cookie_sync_time_ = std::nullopt;
   cookie_synchronizer_->CopyCookiesToWebviewStoragePartition(base::BindOnce(
       &AuthController::CookieSyncDone, GetWeakPtr(), std::move(callback)));
 }
 
 void AuthController::CookieSyncDone(base::OnceCallback<void(bool)> callback,
                                     bool sync_success) {
-  if (sync_success) {
-    last_cookie_sync_time_ = base::TimeTicks::Now();
-  }
   std::move(callback).Run(sync_success);
 }
 
@@ -181,7 +172,6 @@ void AuthController::CookieSyncBeforeLoadDone(
     base::OnceCallback<void(mojom::PrepareForClientResult)> callback,
     bool sync_success) {
   if (sync_success) {
-    last_cookie_sync_time_ = base::TimeTicks::Now();
     std::move(callback).Run(mojom::PrepareForClientResult::kSuccess);
     return;
   }

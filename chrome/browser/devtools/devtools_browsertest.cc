@@ -142,7 +142,6 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"  // nogncheck
@@ -155,10 +154,13 @@
 #include "chrome/browser/extensions/api/developer_private/developer_private_functions.h"
 #include "chrome/browser/extensions/chrome_extension_test_notification_observer.h"
 #include "chrome/browser/extensions/component_loader.h"
+#include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/extension_host_test_helper.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/offscreen_document_host.h"
 #include "extensions/browser/service_worker/service_worker_test_utils.h"
@@ -172,11 +174,8 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_apitest.h"
-#include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
-#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/manifest.h"
@@ -291,26 +290,26 @@ void SwitchToExtensionPanel(DevToolsWindow* window,
                                       base::TRIM_TRAILING));
   SwitchToPanel(window, (prefix + panel_name).c_str());
 }
-#endif
 
-#if !BUILDFLAG(IS_ANDROID)
-
-void DisallowDevToolsForForceInstalledExtenions(Browser* browser) {
-  browser->profile()->GetPrefs()->SetInteger(
+void DisallowDevToolsForForceInstalledExtenions(
+    BrowserWindowInterface* browser) {
+  browser->GetProfile()->GetPrefs()->SetInteger(
       prefs::kDevToolsAvailability,
       static_cast<int>(policy::DeveloperToolsPolicyHandler::Availability::
                            kDisallowedForForceInstalledExtensions));
 }
 
-void DisallowDevTools(Browser* browser) {
-  browser->profile()->GetPrefs()->SetInteger(
+#if !BUILDFLAG(IS_ANDROID)
+void DisallowDevTools(BrowserWindowInterface* browser) {
+  browser->GetProfile()->GetPrefs()->SetInteger(
       prefs::kDevToolsAvailability,
       static_cast<int>(
           policy::DeveloperToolsPolicyHandler::Availability::kDisallowed));
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
-void AllowDevTools(Browser* browser) {
-  browser->profile()->GetPrefs()->SetInteger(
+void AllowDevTools(BrowserWindowInterface* browser) {
+  browser->GetProfile()->GetPrefs()->SetInteger(
       prefs::kDevToolsAvailability,
       static_cast<int>(
           policy::DeveloperToolsPolicyHandler::Availability::kAllowed));
@@ -320,7 +319,8 @@ scoped_refptr<DevToolsAgentHost> GetOrCreateDevToolsHostForWebContents(
     WebContents* wc) {
   return content::DevToolsAgentHost::GetOrCreateForTab(wc);
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
+
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 }  // namespace
 
@@ -804,20 +804,29 @@ class DevToolsExperimentalExtensionTest : public DevToolsExtensionTest {
   }
 };
 
-class DevToolsServiceWorkerExtensionTest : public InProcessBrowserTest {
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+class DevToolsServiceWorkerExtensionTest : public PlatformBrowserTest {
  protected:
   void SetUpOnMainThread() override {
-    InProcessBrowserTest::SetUpOnMainThread();
-    Profile* profile = browser()->profile();
+    PlatformBrowserTest::SetUpOnMainThread();
+    Profile* profile = GetProfile();
     extension_registrar_ = extensions::ExtensionRegistrar::Get(profile);
     extension_registry_ = extensions::ExtensionRegistry::Get(profile);
+  }
+
+  void TearDownOnMainThread() override {
+    extension_registry_ = nullptr;
+    extension_registrar_ = nullptr;
+    PlatformBrowserTest::TearDownOnMainThread();
   }
 
   const extensions::Extension* LoadExtension(base::FilePath extension_path) {
     extensions::TestExtensionRegistryObserver observer(extension_registry_);
     ExtensionTestMessageListener activated_listener("WORKER_ACTIVATED");
-    extensions::UnpackedInstaller::Create(browser()->profile())
-        ->Load(extension_path);
+    extensions::UnpackedInstaller::Create(GetProfile())->Load(extension_path);
     observer.WaitForExtensionLoaded();
     const extensions::Extension* extension = nullptr;
     for (const auto& enabled_extension :
@@ -843,8 +852,7 @@ class DevToolsServiceWorkerExtensionTest : public InProcessBrowserTest {
   }
 
   void OpenDevToolsWindow(scoped_refptr<DevToolsAgentHost> host) {
-    Profile* profile = browser()->profile();
-    window_ = DevToolsWindowTesting::OpenDevToolsWindowSync(profile, host);
+    window_ = DevToolsWindowTesting::OpenDevToolsWindowSync(GetProfile(), host);
   }
 
   void CloseDevToolsWindow() {
@@ -883,7 +891,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsServiceWorkerExtensionTest,
   RunTestFunction(window_, "waitForTestResultsInConsole");
   CloseDevToolsWindow();
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if !BUILDFLAG(IS_ANDROID)
 class WorkerDevToolsTest : public InProcessBrowserTest {
@@ -1099,12 +1108,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsBeforeUnloadTest,
   }
   // Try to close browser window.
   {
-    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
     chrome::CloseWindow(browser());
     AcceptModalDialog();
     CancelModalDialog();
     base::RunLoop().RunUntilIdle();
-    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
+    EXPECT_EQ(1u, GlobalBrowserCollection::GetInstance()->GetSize());
   }
   // Try to exit application.
   {
@@ -1519,7 +1528,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
 // Tests that iframes to a non-devtools extension embedded in a devtools
 // extension will be isolated from devtools and the devtools extension.
 // http://crbug.com/41229189
-// Disabled due to flakiness https://crbug.com/1062802
+// Disabled due to flakiness https://crbug.com/40680342
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
                        DISABLED_NonDevToolsExtensionInDevToolsExtension) {
   // Install the dynamically-generated non-devtools extension.
@@ -1742,7 +1751,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, DevToolsExtensionInItself) {
 
 // Tests that a devtools (not a devtools extension) Iframe can be injected into
 // devtools.  http://crbug.com/41229189
-// crbug.com/1124981: flaky on win
+// crbug.com/40717554: flaky on win
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_DevtoolsInDevTools DISABLED_DevtoolsInDevTools
 #else
@@ -2032,7 +2041,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
                         extension_id, "/simple_test_page.html"}));
 }
 
-// Flaky on several platforms: https://crbug.com/1487065
+// Flaky on several platforms: https://crbug.com/40933955
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
                        DISABLED_CantInspectFileUrlWithoutFileAccess) {
   LoadExtension("can_inspect_url");
@@ -2262,12 +2271,11 @@ class DevToolsExtensionFileAccessTest : public DevToolsExtensionTest {
 
 // This test is flaky on Linux MSAN.
 // TODO(https://crbug.com/463490299): Enable the test.
-// TODO(crbug.com/405219356): Enable the test on Android.
 #if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) ||         \
     BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) ||         \
     BUILDFLAG(CFI_ENFORCEMENT_TRAP) ||                                 \
     BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+    BUILDFLAG(IS_LINUX)
 #define MAYBE_CanGetFileResourceWithFileAccess \
   DISABLED_CanGetFileResourceWithFileAccess
 #else
@@ -2279,11 +2287,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
 }
 
 // TODO(crbug.com/463490299): Tests time out on sanitizer bots.
-// TODO(crbug.com/405219356): Enable the test on Android.
 #if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
     BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
-    BUILDFLAG(CFI_ENFORCEMENT_TRAP) ||                         \
-    BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) || BUILDFLAG(IS_ANDROID)
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
 #define MAYBE_CantGetFileResourceWithoutFileAccess \
   DISABLED_CantGetFileResourceWithoutFileAccess
 #else
@@ -2296,11 +2302,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
 }
 
 // TODO(crbug.com/463490299): Tests time out on sanitizer bots.
-// TODO(crbug.com/405219356): Enable the test on Android.
 #if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
     BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
-    BUILDFLAG(CFI_ENFORCEMENT_TRAP) ||                         \
-    BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) || BUILDFLAG(IS_ANDROID)
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
 #define MAYBE_CantGetFileResourceWithoutFileAccessNoSlashes \
   DISABLED_CantGetFileResourceWithoutFileAccessNoSlashes
 #else
@@ -2313,11 +2317,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
 }
 
 // TODO(crbug.com/463490299): Tests time out on sanitizer bots.
-// TODO(crbug.com/405219356): Enable the test on Android.
 #if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
     BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
-    BUILDFLAG(CFI_ENFORCEMENT_TRAP) ||                         \
-    BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) || BUILDFLAG(IS_ANDROID)
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
 #define MAYBE_CantGetFileResourceWithoutFileAccessMixedCase \
   DISABLED_CantGetFileResourceWithoutFileAccessMixedCase
 #else
@@ -2347,7 +2349,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest,
 
 // Tests that debugger works correctly if pause event occurs when DevTools
 // frontend is being loaded.
-// Flaky on win and linux: crbug.com/1092924.
+// Flaky on win and linux: crbug.com/40134806.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_TestPauseWhenLoadingDevTools DISABLED_TestPauseWhenLoadingDevTools
 #else
@@ -2446,7 +2448,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, DISABLED_TestNetworkPushTime) {
 
 // Tests that console messages are not duplicated on navigation back.
 // Flaking on windows swarm try runs: crbug.com/41129305.
-// Also flaking on MSan runs: crbug.com/1182861.
+// Also flaking on MSan runs: crbug.com/40751691.
 // Flaking on Linux: crbug.com/381077063.
 IN_PROC_BROWSER_TEST_F(DevToolsTest, DISABLED_TestConsoleOnNavigateBack) {
   RunTest("testConsoleOnNavigateBack", kNavigateBackTestPage);
@@ -2505,7 +2507,7 @@ class BrowserAutofillManagerTestDelegateDevtoolsImpl
 };
 
 // Disabled. Failing on MacOS MSAN. See https://crbug.com/41392522.
-// Also failing on Linux. See https://crbug.com/1187693.
+// Also failing on Linux. See https://crbug.com/40754441.
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_TestDispatchKeyEventShowsAutoFill \
   DISABLED_TestDispatchKeyEventShowsAutoFill
@@ -2714,7 +2716,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsReattachAfterCrashTest,
   RunTestWithPanel("network");
 }
 
-// Very flaky on Linux only.  http://crbug.com/1216219
+// Very flaky on Linux only.  http://crbug.com/40770357
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_AutoAttachToWindowOpen DISABLED_AutoAttachToWindowOpen
 #else
@@ -2765,7 +2767,7 @@ IN_PROC_BROWSER_TEST_F(WorkerDevToolsTest, InspectSharedWorker) {
   CloseDevToolsWindow();
 }
 
-// Flaky on multiple platforms. See http://crbug.com/1263230
+// Flaky on multiple platforms. See http://crbug.com/40202857
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_MAC)
 #define MAYBE_PauseInSharedWorkerInitialization \
@@ -2816,6 +2818,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsAgentHostTest, TestAgentHostReleased) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+
 class RemoteDebuggingTest : public extensions::ExtensionApiTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     extensions::ExtensionApiTest::SetUpCommandLine(command_line);
@@ -2871,7 +2874,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, PolicyDisallowedCloseConnection) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 using ManifestLocation = extensions::mojom::ManifestLocation;
 class DevToolsDisallowedForForceInstalledExtensionsPolicyTest
     : public extensions::ExtensionBrowserTest {
@@ -2898,8 +2901,8 @@ class DevToolsDisallowedForForceInstalledExtensionsPolicyTest
     std::string extension_id;
     InstallExtensionWithLocation(location, &extension_id);
     GURL url("chrome-extension://" + extension_id + "/options.html");
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-    *out_web_contents = browser()->tab_strip_model()->GetWebContentsAt(0);
+    ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), url));
+    *out_web_contents = GetActiveWebContents();
   }
 
   void PolicyInstallExtensionAndOpen(content::WebContents** out_web_contents) {
@@ -2953,9 +2956,17 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   ASSERT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ExtensionConnectionClosedOnPolicyChange \
+  DISABLED_ExtensionConnectionClosedOnPolicyChange
+#else
+#define MAYBE_ExtensionConnectionClosedOnPolicyChange \
+  ExtensionConnectionClosedOnPolicyChange
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       ExtensionConnectionClosedOnPolicyChange) {
-  AllowDevTools(browser());
+                       MAYBE_ExtensionConnectionClosedOnPolicyChange) {
+  AllowDevTools(browser_window_interface());
   content::WebContents* web_contents = nullptr;
   ASSERT_NO_FATAL_FAILURE(PolicyInstallExtensionAndOpen(&web_contents));
 
@@ -2967,43 +2978,49 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
 
   // Policy change must close the connection with the policy installed
   // extension.
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ClosedAfterNavigationToExtension \
+  DISABLED_ClosedAfterNavigationToExtension
+#else
+#define MAYBE_ClosedAfterNavigationToExtension ClosedAfterNavigationToExtension
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       ClosedAfterNavigationToExtension) {
+                       MAYBE_ClosedAfterNavigationToExtension) {
   // DevTools are disallowed for policy-installed extensions by default.
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(InstallExtensionWithLocation(
       ManifestLocation::kExternalPolicyDownload, &extension_id));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetWebContentsAt(0);
+  content::WebContents* web_contents = GetActiveWebContents();
 
   // It's possible to open DevTools for about:blank.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  ASSERT_TRUE(NavigateToURL(web_contents, GURL("about:blank")));
   DevToolsWindow::OpenDevToolsWindow(web_contents,
                                      DevToolsOpenedByAction::kUnknown);
   auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
   ASSERT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 
   // Navigating to extension page should close DevTools.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL("chrome-extension://" + extension_id + "/options.html")));
+  ASSERT_TRUE(NavigateToURL(
+      web_contents,
+      GURL("chrome-extension://" + extension_id + "/options.html")));
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
                        AboutBlankConnectionKeptOnPolicyChange) {
-  AllowDevTools(browser());
+  AllowDevTools(browser_window_interface());
 
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(InstallExtensionWithLocation(
       ManifestLocation::kExternalPolicyDownload, &extension_id));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetWebContentsAt(0);
+  content::WebContents* web_contents = GetActiveWebContents();
 
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  ASSERT_TRUE(NavigateToURL(web_contents, GURL("about:blank")));
   DevToolsWindow::OpenDevToolsWindow(web_contents,
                                      DevToolsOpenedByAction::kUnknown);
   auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
@@ -3011,12 +3028,20 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
 
   // Policy change to must not disrupt CDP coneciton unrelated to a force
   // installed extension.
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
   ASSERT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage \
+  DISABLED_BlockDevToolsOnRestrictedExtensionErrorPage
+#else
+#define MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage \
+  BlockDevToolsOnRestrictedExtensionErrorPage
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       BlockDevToolsOnRestrictedExtensionErrorPage) {
+                       MAYBE_BlockDevToolsOnRestrictedExtensionErrorPage) {
   // 1. Setup: Load a "force-installed" extension.
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(InstallExtensionWithLocation(
@@ -3028,14 +3053,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   ASSERT_TRUE(extension);
 
   // 2. Set policy to "Disallow for force-installed extensions" (0).
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
 
   // 3. Navigate to a non-existent page of this extension (causes error page).
   GURL error_url = extension->GetResourceURL("non_existent.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), error_url));
-
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
+  ASSERT_FALSE(NavigateToURL(web_contents, error_url));
 
   // 4. Verify DevTools are NOT allowed.
   EXPECT_FALSE(DevToolsWindow::AllowDevToolsFor(profile(), web_contents));
@@ -3047,8 +3070,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_AllowDevToolsOnRegularExtensionErrorPage \
+  DISABLED_AllowDevToolsOnRegularExtensionErrorPage
+#else
+#define MAYBE_AllowDevToolsOnRegularExtensionErrorPage \
+  AllowDevToolsOnRegularExtensionErrorPage
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       AllowDevToolsOnRegularExtensionErrorPage) {
+                       MAYBE_AllowDevToolsOnRegularExtensionErrorPage) {
   // 1. Setup: Load a regular extension.
   std::string extension_id;
   ASSERT_NO_FATAL_FAILURE(
@@ -3060,21 +3091,27 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   ASSERT_TRUE(extension);
 
   // 2. Set policy to "Disallow for force-installed extensions" (0).
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
 
   // 3. Navigate to a non-existent page of this extension.
   GURL error_url = extension->GetResourceURL("non_existent.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), error_url));
-
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
+  ASSERT_FALSE(NavigateToURL(web_contents, error_url));
 
   // 4. Verify DevTools ARE allowed (since it's not a restricted extension).
   EXPECT_TRUE(DevToolsWindow::AllowDevToolsFor(profile(), web_contents));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker \
+  DISABLED_BlockDevToolsOnRestrictedExtensionServiceWorker
+#else
+#define MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker \
+  BlockDevToolsOnRestrictedExtensionServiceWorker
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       BlockDevToolsOnRestrictedExtensionServiceWorker) {
+                       MAYBE_BlockDevToolsOnRestrictedExtensionServiceWorker) {
   // 1. Setup: Load a "force-installed" extension with a service worker.
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir temp_dir;
@@ -3095,7 +3132,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   std::string extension_id = extension->id();
 
   // 2. Set policy.
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
 
   // 3. Find the ServiceWorkerDevToolsAgentHost.
   scoped_refptr<content::DevToolsAgentHost> sw_host;
@@ -3118,8 +3155,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   EXPECT_FALSE(sw_host->AttachClient(&client));
 }
 
+// TODO(crbug.com/405219356): Enable on Android.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage \
+  DISABLED_BlockDevToolsOnRestrictedExtensionDevToolsPage
+#else
+#define MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage \
+  BlockDevToolsOnRestrictedExtensionDevToolsPage
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
-                       BlockDevToolsOnRestrictedExtensionDevToolsPage) {
+                       MAYBE_BlockDevToolsOnRestrictedExtensionDevToolsPage) {
   // 1. Setup: Load a "force-installed" extension with a devtools_page.
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::ScopedTempDir temp_dir;
@@ -3141,12 +3186,11 @@ IN_PROC_BROWSER_TEST_F(DevToolsDisallowedForForceInstalledExtensionsPolicyTest,
   std::string extension_id = extension->id();
 
   // 2. Set policy.
-  DisallowDevToolsForForceInstalledExtenions(browser());
+  DisallowDevToolsForForceInstalledExtenions(browser_window_interface());
 
   // 3. Open DevTools on a normal page to trigger devtools_page loading.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(web_contents, GURL("about:blank")));
   DevToolsWindowTesting::OpenDevToolsWindowSync(web_contents, true);
 
   // 4. Find the DevToolsPage host.
@@ -3204,7 +3248,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsAllowedByCommandLineSwitch,
   EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
 #endif
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 class DevToolsPixelOutputTests : public DevToolsTest {
  public:
@@ -3596,7 +3640,7 @@ IN_PROC_BROWSER_TEST_F(InProcessBrowserTest,
 
 #if !BUILDFLAG(IS_CHROMEOS)
 // Skip for ChromeOS because the keep alive is not created for ChromeOS.
-// See https://crbug.com/1174627.
+// See https://crbug.com/40167603.
 class KeepAliveDevToolsTest : public InProcessBrowserTest {
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -3860,7 +3904,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, IframeBlockedBecauseNotOnAllowlist) {
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 class DevToolsExtensionHostsPolicyTest : public DevToolsExtensionTest {
  protected:
   DevToolsExtensionHostsPolicyTest() {
@@ -3947,7 +3991,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionHostsPolicyTest,
   ASSERT_TRUE(extension);
   RunTest("waitForTestResultsAsMessage", url.spec());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if !BUILDFLAG(IS_ANDROID)
 // Times out. See https://crbug.com/41375011.
@@ -4193,9 +4237,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, HostBindingsSyncIntegration) {
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsTest, NoJavascriptUrlOnDevtools) {
-  // As per crbug/1115460 one could use javascript: url as a homepage URL and
-  // then trigger homepage navigation (e.g. via keyboard shortcut) to execute in
-  // the context of the privileged devtools frontend.
+  // As per crbug.com/40053059 one could use javascript: url as a homepage URL
+  // and then trigger homepage navigation (e.g. via keyboard shortcut) to
+  // execute in the context of the privileged devtools frontend.
   OpenDevToolsWindow("about:blank", true);
 
   WebContents* wc = DevToolsWindowTesting::Get(window_)->main_web_contents();
@@ -4272,7 +4316,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsSyncTest, GetSyncInformation) {
   DevToolsWindowTesting::CloseDevToolsWindowSync(window);
 }
 
-// Regression test for https://crbug.com/1270184.
+// Regression test for https://crbug.com/40804720.
 // TODO(crbug.com/40809266): Fix flakyness. Test is disabled for now.
 IN_PROC_BROWSER_TEST_F(DevToolsTest, DISABLED_NoCrashFor1270184) {
   OpenDevToolsWindow("/devtools/regress-crbug-1270184.html", true);

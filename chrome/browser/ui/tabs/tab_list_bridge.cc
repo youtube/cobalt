@@ -146,7 +146,9 @@ void TabListBridge::ActivateTab(tabs::TabHandle tab) {
   tab_strip_->ActivateTabAt(index);
 }
 
-tabs::TabInterface* TabListBridge::OpenTab(const GURL& url, int index) {
+tabs::TabInterface* TabListBridge::OpenTab(const GURL& url,
+                                           int index,
+                                           bool foreground) {
   // If `index` is specified as `TabStripModel::kNoTab`, then the tab is added
   // to the end of the tab strip.
   CHECK(index == TabStripModel::kNoTab || tab_strip_->ContainsIndex(index));
@@ -155,7 +157,7 @@ tabs::TabInterface* TabListBridge::OpenTab(const GURL& url, int index) {
   // the delegate from TabStripModel, but it avoids introducing new dependencies
   // here.
   TabStripModelDelegate* delegate = tab_strip_->delegate();
-  delegate->AddTabAt(url, index, /*foreground=*/true);
+  delegate->AddTabAt(url, index, foreground);
   int index_to_retrieve =
       index == TabStripModel::kNoTab ? tab_strip_->count() - 1 : index;
   return tab_strip_->GetTabAtIndex(index_to_retrieve);
@@ -598,7 +600,15 @@ void TabListBridge::OnTabStripModelChanged(
                             change.GetMove()->to_index);
       }
       break;
-    case TabStripModelChange::kReplaced:
+    case TabStripModelChange::kReplaced: {
+      auto* replace = change.GetReplace();
+      tabs::TabInterface* tab = tab_strip_->GetTabAtIndex(replace->index);
+      for (auto& observer : observers_) {
+        observer.OnWebContentsReplaced(*this, tab, replace->old_contents,
+                                       replace->new_contents);
+      }
+      break;
+    }
     case TabStripModelChange::kSelectionOnly:
       break;
   }

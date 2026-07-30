@@ -248,8 +248,7 @@ GlicE2ETest::WaitForAndInstrumentGlic() {
       InAnyContext(
           ObserveState(kGlicInstanceCoordinatorState,
                        std::ref(instance_coordinator()), active_tab()),
-          WaitForState(kGlicInstanceCoordinatorState,
-                       GlicInstanceCoordinator::State::kOpen),
+          WaitForState(kGlicInstanceCoordinatorState, GlicPanelState::kOpen),
           Steps(InstrumentNonTabWebView(kGlicHostElementId, kGlicViewElementId),
                 InstrumentInnerWebContents(kGlicContentsElementId,
                                            kGlicHostElementId, 0),
@@ -334,16 +333,9 @@ void GlicE2ETest::ThrottleWebContentsNetwork(
 }
 
 void GlicE2ETest::ThrottleGlicNetwork() {
-  auto* glic_service =
-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
-  for (auto* host : glic_service->host_manager().GetAllHosts()) {
-    auto* webui_contents = host->webui_contents();
-    if (webui_contents) {
-      content::WebContents* inner_contents =
-          webui_contents->GetInnerWebContents()[0];
-      CHECK(inner_contents);
-      ThrottleWebContentsNetwork(inner_contents);
-    }
+  for (auto* guest_contents :
+       glic::GetAllGlicGuestWebContentsForTesting(browser()->profile())) {
+    ThrottleWebContentsNetwork(guest_contents);
   }
 }
 

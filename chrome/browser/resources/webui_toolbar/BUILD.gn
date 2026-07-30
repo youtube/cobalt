@@ -29,6 +29,8 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "avatar_button.html.ts",
+    "avatar_button.ts",
     "back_forward_button.html.ts",
     "back_forward_button.ts",
     "browser_proxy.ts",
@@ -51,12 +53,14 @@ build_webui("build") {
     "split_tabs_button.html.ts",
     "split_tabs_button.ts",
     "split_tabs_button_icons.html.ts",
+    "timer_helper.ts",
     "toolbar_button.ts",
     "toolbar_divider.html.ts",
     "toolbar_divider.ts",
   ]
   css_files = [
     "app.css",
+    "avatar_button.css",
     "back_forward_button.css",
     "home_button.css",
     "location_bar.css",

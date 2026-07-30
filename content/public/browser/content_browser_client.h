@@ -74,6 +74,7 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/fetch_api.mojom-forward.h"
 #include "services/network/public/mojom/ip_address_space.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "services/network/public/mojom/proxy_config.mojom-forward.h"
@@ -646,6 +647,11 @@ class CONTENT_EXPORT ContentBrowserClient {
                                       const std::string& scheme);
 
   // Returns whether a browser context involves WebRequest API.
+  // Note: In ChromeContentBrowserClient, the behavior changes based on the
+  // kOptimizeWebRequestProxyForServiceWorkerAutoPreload feature. When disabled,
+  // it returns true if any extension with 'webview' permission is installed.
+  // When enabled, it returns false for such extensions (returning true only
+  // for actual 'webRequest' or 'declarativeNetRequest' extensions).
   virtual bool HasWebRequestAPIProxy(BrowserContext* browser_context);
 
   // Returns whether the given process is allowed to commit |url|.  This is a
@@ -970,6 +976,10 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool AllowSharedWorkerExtendedLifetime(BrowserContext* context);
 
   virtual bool IsDataSaverEnabled(BrowserContext* context);
+
+  // Returns whether pinch-to-zoom is allowed for the given BrowserContext.
+  // Defaults to true.
+  virtual bool IsPinchToZoomAllowed(BrowserContext* context);
 
   // Updates the given prefs for Service Worker and Shared Worker. The prefs
   // are to be sent to the renderer process when a worker is created. Note that
@@ -1417,8 +1427,10 @@ class CONTENT_EXPORT ContentBrowserClient {
 
   // Returns whether on-device speech recognition is available.
   virtual media::mojom::AvailabilityStatus
-  GetOnDeviceSpeechRecognitionAvailabilityStatus(BrowserContext* context,
-                                                 const std::string& language);
+  GetOnDeviceSpeechRecognitionAvailabilityStatus(
+      BrowserContext* context,
+      const std::string& language,
+      media::mojom::SpeechRecognitionQuality quality);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Allows the embedder to return a delegate for the TtsController.
@@ -1924,6 +1936,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
       BrowserContext* browser_context,
       const std::optional<url::Origin>& request_initiator,
+      network::mojom::RequestDestination request_destination,
       NonNetworkURLLoaderFactoryMap* factories);
 
   // Allows the embedder to register per-scheme URLLoaderFactory

@@ -180,7 +180,7 @@ int HTMLTextAreaElement::scrollWidth() {
   if (!box || !editor_box)
     return TextControlElement::scrollWidth();
   LayoutUnit width =
-      editor_box->ClientWidth() + box->PaddingLeft() + box->PaddingRight();
+      editor_box->ClientWidth() + box->PaddingOutsets().HorizontalSum();
   return AdjustForAbsoluteZoom::AdjustLayoutUnit(width, box->StyleRef())
       .Round();
 }
@@ -198,7 +198,7 @@ int HTMLTextAreaElement::scrollHeight() {
   if (!box || !editor_box)
     return TextControlElement::scrollHeight();
   LayoutUnit height =
-      editor_box->ClientHeight() + box->PaddingTop() + box->PaddingBottom();
+      editor_box->ClientHeight() + box->PaddingOutsets().VerticalSum();
   return AdjustForAbsoluteZoom::AdjustLayoutUnit(height, box->StyleRef())
       .Round();
 }
@@ -546,7 +546,7 @@ void HTMLTextAreaElement::SetValueCommon(const String& new_value,
                                          WebAutofillState autofill_state) {
   // Code elsewhere normalizes line endings added by the user via the keyboard
   // or pasting.  We normalize line endings coming from JavaScript here.
-  String normalized_value = NormalizeLineEndingsToLF(new_value);
+  String normalized_value = NormalizeLineEndingsToLf(new_value);
 
   // Clear the suggested value. Use the base class version to not trigger a view
   // update.
@@ -826,7 +826,7 @@ HTMLElement* HTMLTextAreaElement::UpdatePlaceholderText() {
     placeholder->RemoveInlineStyleProperty(CSSPropertyID::kUserSelect);
   }
   // https://html.spec.whatwg.org/multipage/form-elements.html#attr-textarea-placeholder
-  String normalized_value = NormalizeLineEndingsToLF(placeholder_text);
+  String normalized_value = NormalizeLineEndingsToLf(placeholder_text);
   placeholder->setTextContent(normalized_value);
   return placeholder;
 }

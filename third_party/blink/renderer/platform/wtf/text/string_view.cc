@@ -66,7 +66,7 @@ StringView::~StringView() {
 
 // Helper to write a three-byte UTF-8 code point to the buffer, caller must
 // check room is available.
-static inline void PutUTF8Triple(base::span<uint8_t, 3u> buffer, UChar ch) {
+static inline void PutUtf8Triple(base::span<uint8_t, 3u> buffer, UChar ch) {
   DCHECK_GE(ch, 0x0800);
   buffer[0] = ((ch >> 12) & 0x0F) | 0xE0;
   buffer[1] = ((ch >> 6) & 0x3F) | 0x80;
@@ -117,12 +117,12 @@ std::string StringView::Utf8(Utf8ConversionMode mode) const {
         // Conversion fails when there is an unpaired surrogate.  Put
         // replacement character (U+FFFD) instead of the unpaired
         // surrogate.
-        if (result.status != ConversionStatus::kConversionOK) {
+        if (!result.IsSuccess()) {
           DCHECK_LE(0xD800, characters[result.consumed]);
           DCHECK_LE(characters[result.consumed], 0xDFFF);
           // There should be room left, since one UChar hasn't been
           // converted.
-          PutUTF8Triple(buffer.take_first<3u>(), uchar::kReplacementCharacter);
+          PutUtf8Triple(buffer.take_first<3u>(), uchar::kReplacementCharacter);
           result.consumed++;
         }
         characters = characters.subspan(result.consumed);
@@ -158,7 +158,7 @@ std::string StringView::Utf8(Utf8ConversionMode mode) const {
         // There should be room left, since one UChar hasn't been
         // converted.
         auto unpaired_surrogate_buffer = buffer.first<3u>();
-        PutUTF8Triple(unpaired_surrogate_buffer, characters[result.consumed]);
+        PutUtf8Triple(unpaired_surrogate_buffer, characters[result.consumed]);
         buffer_written = unpaired_surrogate_buffer.size();
       }
       buffer_written += result.converted.size();
@@ -392,8 +392,10 @@ int CodeUnitCompareIgnoringAsciiCase(const StringView& a, const StringView& b) {
 
 UChar32 StringView::CodePointAt(size_type i) const {
   SECURITY_DCHECK(i < length());
-  if (Is8Bit())
-    return UNSAFE_TODO((*this)[i]);
+  if (Is8Bit()) {
+    // SAFETY: required from caller, enforced by UNSAFE_BUFFER_USAGE in header.
+    return UNSAFE_BUFFERS((*this)[i]);
+  }
   return blink::CodePointAt(Span16(), i);
 }
 
@@ -411,7 +413,8 @@ StringView::size_type StringView::NextCodePointOffset(size_type i) const {
 
 UChar32 StringView::CodePointAtAndNext(size_type& i) const {
   if (Is8Bit()) {
-    return UNSAFE_TODO((*this)[i++]);
+    // SAFETY: required from caller, enforced by UNSAFE_BUFFER_USAGE in header.
+    return UNSAFE_BUFFERS((*this)[i++]);
   }
   return blink::CodePointAtAndNext(Span16(), i);
 }

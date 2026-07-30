@@ -3,20 +3,20 @@
 // found in the LICENSE file.
 
 function test() {
-  var testWindowId = null;
+  let testWindowId = null;
 
   chrome.windows.create({url: 'page.html'}, function(w) {
     testWindowId = w.id;
     chrome.windows.remove(w.id);
   });
 
-  // Regression test for http://crbug.com/436593 (dotted api names).
-  chrome.system.storage.onAttached.addListener(function () {
-  });
+  // Regression test for http://crbug.com/40395582 (dotted api names).
+  chrome.system.storage.onAttached.addListener(function() {});
 
   chrome.windows.onRemoved.addListener(function listener(windowId) {
-    if (windowId != testWindowId)
-      return;  // I guess some other window might have closed?
+    if (windowId != testWindowId) {
+      return;
+    }  // I guess some other window might have closed?
 
     // If the event hasn't been overridden there should be a listener.
     chrome.test.assertTrue(chrome.windows.onRemoved.hasListeners());
@@ -25,9 +25,8 @@ function test() {
     chrome.windows.onRemoved.removeListener(listener);
     chrome.windows.onRemoved.addListener(listener);
 
-    // Regression test for http://crbug.com/436593 (dotted api names).
-    chrome.system.storage.onAttached.addListener(function () {
-    })
+    // Regression test for http://crbug.com/40395582 (dotted api names).
+    chrome.system.storage.onAttached.addListener(function() {});
     chrome.test.succeed();
   });
 }

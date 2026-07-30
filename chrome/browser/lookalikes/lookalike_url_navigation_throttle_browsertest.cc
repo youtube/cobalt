@@ -396,7 +396,7 @@ class LookalikeUrlNavigationThrottleBrowserTest : public InProcessBrowserTest {
                                 SecurityInterstitialCommand::CMD_DONT_PROCEED,
                                 /*punycode_interstitial=*/true);
     EXPECT_EQ(
-        GURL(chrome::kChromeUINewTabURL),
+        chrome::ChromeUINewTabURLAsGURL(),
         browser->tab_strip_model()->GetActiveWebContents()->GetVisibleURL());
 
     histograms.ExpectTotalCount(kInterstitialHistogramName, 1);
@@ -613,7 +613,7 @@ IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
 
 // Same as TargetEmbedding_TopDomain_Match, but has a redirect where the first
 // and last URLs are both target embedding matches. Should only record
-// metrics for the first URL. Regression test for crbug.com/1136296.
+// metrics for the first URL. Regression test for crbug.com/40724132.
 IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
                        TargetEmbedding_TopDomain_Redirect_Match) {
   const GURL kNavigatedUrl = GetLongRedirect("google.com-test.com", "site.test",
@@ -664,7 +664,7 @@ IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
 }
 
 // Navigate to a domain target embedding a domain with no separators, but that
-// matches the target allowlist.  Regression test for crbug.com/1127450.
+// matches the target allowlist.  Regression test for crbug.com/40719063.
 IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
                        TargetEmbedding_TargetAllowlistWithNoSeparators) {
   const GURL kNavigatedUrl = GetURL("googlecom.example.com");
@@ -1536,7 +1536,7 @@ IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
 }
 
 // Verify reloading the page does not result in dismissing an interstitial.
-// Regression test for crbug/941886.
+// Regression test for crbug.com/41446855.
 IN_PROC_BROWSER_TEST_F(LookalikeUrlNavigationThrottleBrowserTest,
                        RefreshDoesntDismiss) {
   // Verify it works when the lookalike domain is the first in the chain.

@@ -223,16 +223,10 @@ DEFINE_VARIATION_PARAM(kIPHVideoTutorialTryNowFeature,
                        "IPH_VideoTutorial_TryNow");
 DEFINE_VARIATION_PARAM(kIPHExploreSitesTileFeature, "IPH_ExploreSitesTile");
 DEFINE_VARIATION_PARAM(kIPHFeedHeaderMenuFeature, "IPH_FeedHeaderMenu");
-DEFINE_VARIATION_PARAM(kIPHWebFeedAwarenessFeature, "IPH_WebFeedAwareness");
 DEFINE_VARIATION_PARAM(kIPHFeedSwipeRefresh, "IPH_FeedSwipeRefresh");
 DEFINE_VARIATION_PARAM(kIPHShareScreenshotFeature, "IPH_ShareScreenshot");
 DEFINE_VARIATION_PARAM(kIPHSharingHubLinkToggleFeature,
                        "IPH_SharingHubLinkToggle");
-DEFINE_VARIATION_PARAM(kIPHWebFeedFollowFeature, "IPH_WebFeedFollow");
-DEFINE_VARIATION_PARAM(kIPHWebFeedPostFollowDialogFeature,
-                       "IPH_WebFeedPostFollowDialog");
-DEFINE_VARIATION_PARAM(kIPHWebFeedPostFollowDialogFeatureWithUIUpdate,
-                       "IPH_WebFeedPostFollowDialogWithUIUpdate");
 DEFINE_VARIATION_PARAM(kIPHSharedHighlightingBuilder,
                        "IPH_SharedHighlightingBuilder");
 DEFINE_VARIATION_PARAM(kIPHSharedHighlightingReceiverFeature,
@@ -448,8 +442,6 @@ DEFINE_VARIATION_PARAM(kIPHPdfInkSignaturesFeature, "IPH_PdfInkSignatures");
 DEFINE_VARIATION_PARAM(kIPHPdfSearchifyFeature, "IPH_PdfSearchifyFeature");
 DEFINE_VARIATION_PARAM(kIPHPerformanceInterventionDialogFeature,
                        "IPH_PerformanceInterventionDialogFeature");
-DEFINE_VARIATION_PARAM(kIPHPlusAddressFirstSaveFeature,
-                       "IPH_PlusAddressFirstSaveFeature");
 DEFINE_VARIATION_PARAM(kIPHPowerBookmarksSidePanelFeature,
                        "IPH_PowerBookmarksSidePanel");
 DEFINE_VARIATION_PARAM(kIPHPriceInsightsPageActionIconLabelFeature,
@@ -466,6 +458,8 @@ DEFINE_VARIATION_PARAM(kIPHReadingListInSidePanelFeature,
                        "IPH_ReadingListInSidePanel");
 DEFINE_VARIATION_PARAM(kIPHReadingModeSidePanelFeature,
                        "IPH_ReadingModeSidePanel");
+DEFINE_VARIATION_PARAM(kIPHReadingModeKeyboardShortcutFeature,
+                       "IPH_ReadingModeKeyboardShortcut");
 DEFINE_VARIATION_PARAM(kIPHReadingModePageActionLabelFeature,
                        "IPH_ReadingModePageActionLabel");
 DEFINE_VARIATION_PARAM(kIPHShoppingCollectionFeature,
@@ -546,8 +540,7 @@ DEFINE_VARIATION_PARAM(kIPHAutofillVirtualCardCVCSuggestionFeature,
 DEFINE_VARIATION_PARAM(kIPHAutofillVirtualCardSuggestionFeature,
                        "IPH_AutofillVirtualCardSuggestion");
 DEFINE_VARIATION_PARAM(kIPHCookieControlsFeature, "IPH_CookieControls");
-DEFINE_VARIATION_PARAM(kIPHPlusAddressCreateSuggestionFeature,
-                       "IPH_PlusAddressCreateSuggestion");
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_FUCHSIA)
@@ -590,6 +583,11 @@ DEFINE_VARIATION_PARAM(kIPHiOSPriceTrackingDesktopFeature,
 #if !BUILDFLAG(IS_IOS)
 DEFINE_VARIATION_PARAM(kIPHResumptionRailFeature, "IPH_ResumptionRail");
 #endif  // !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_WIN)
+DEFINE_VARIATION_PARAM(kIPHSearchExtensionSideloadFeature,
+                       "IPH_SearchExtensionSideloadFeature");
+#endif  // BUILDFLAG(IS_WIN)
 
 // Defines the array of which features should be listed in the chrome://flags
 // UI to be able to select them alone for demo-mode. The features listed here
@@ -704,10 +702,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHVideoTutorialNTPSummaryFeature),
         VARIATION_ENTRY(kIPHVideoTutorialNTPVoiceSearchFeature),
         VARIATION_ENTRY(kIPHVideoTutorialTryNowFeature),
-        VARIATION_ENTRY(kIPHWebFeedAwarenessFeature),
-        VARIATION_ENTRY(kIPHWebFeedFollowFeature),
-        VARIATION_ENTRY(kIPHWebFeedPostFollowDialogFeature),
-        VARIATION_ENTRY(kIPHWebFeedPostFollowDialogFeatureWithUIUpdate),
 // VARIATION_ENTRY_ANDROID_END
 // keep-sorted end
 #else
@@ -823,7 +817,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHPdfInkSignaturesFeature),
         VARIATION_ENTRY(kIPHPdfSearchifyFeature),
         VARIATION_ENTRY(kIPHPerformanceInterventionDialogFeature),
-        VARIATION_ENTRY(kIPHPlusAddressFirstSaveFeature),
         VARIATION_ENTRY(kIPHPowerBookmarksSidePanelFeature),
         VARIATION_ENTRY(kIPHPriceInsightsPageActionIconLabelFeature),
         VARIATION_ENTRY(kIPHPriceTrackingEmailConsentFeature),
@@ -834,6 +827,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHReadingListDiscoveryFeature),
         VARIATION_ENTRY(kIPHReadingListEntryPointFeature),
         VARIATION_ENTRY(kIPHReadingListInSidePanelFeature),
+        VARIATION_ENTRY(kIPHReadingModeKeyboardShortcutFeature),
         VARIATION_ENTRY(kIPHReadingModePageActionLabelFeature),
         VARIATION_ENTRY(kIPHReadingModeSidePanelFeature),
         VARIATION_ENTRY(kIPHResumptionRailFeature),
@@ -870,7 +864,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHAutofillVirtualCardCVCSuggestionFeature),
         VARIATION_ENTRY(kIPHAutofillVirtualCardSuggestionFeature),
         VARIATION_ENTRY(kIPHCookieControlsFeature),
-        VARIATION_ENTRY(kIPHPlusAddressCreateSuggestionFeature),
+
 // keep-sorted end
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) ||
@@ -888,6 +882,11 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHSignInBenefitsFeature),
         VARIATION_ENTRY(kIPHSupervisedUserProfileSigninFeature),
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN)
+        VARIATION_ENTRY(kIPHSearchExtensionSideloadFeature),
+#endif  // BUILDFLAG(IS_WIN)
+
         // clang-format on
 };
 

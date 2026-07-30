@@ -399,6 +399,9 @@ try_.builder(
         ],
     ),
     contact_team_email = "clank-engprod@google.com",
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -444,6 +447,7 @@ try_.orchestrator_builder(
         configs = [
             "ci/android-14-arm64-rel",
             "release_try_builder",
+            "minimal_symbols",
             "android_fastbuild",
             "enable_android_secondary_abi",
             "enable_rust_clippy",
@@ -1002,25 +1006,6 @@ try_.builder(
     mirrors = ["ci/android-15-webview-wpt-fyi-rel"],
     gn_args = "ci/android-15-webview-wpt-fyi-rel",
     contact_team_email = "chrome-product-engprod@google.com",
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-)
-
-# Temporary builder for checking structured test ids.
-try_.builder(
-    name = "android-structured-test-ids-16-x64-rel-fyi",
-    mirrors = [
-        "ci/android-structured-test-ids-16-x64-rel-fyi",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/android-structured-test-ids-16-x64-rel-fyi",
-            "release_try_builder",
-        ],
-    ),
-    contact_team_email = "chrome-browser-infra-team@google.com",
-    experiments = {
-        "chromium_tests.resultdb_module": 100,
-    },
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 

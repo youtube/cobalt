@@ -23,7 +23,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
-import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.browser.ui.toolbar.InvocationSource;
 import org.chromium.components.browser_ui.widget.dragreorder.DragReorderableRecyclerViewAdapter;
 import org.chromium.components.browser_ui.widget.dragreorder.DragTouchHandler.DragListener;
@@ -225,12 +224,18 @@ public class ExtensionActionListCoordinator implements Destroyable {
          *
          * <p>Specifically, the runnable will execute on the next layout pass if there are no
          * animations currently running. If an animation is in progress, the runnable will be
-         * deferred and executed as soon as the animation ends.
+         * deferred and executed as soon as the animation ends. The callback is not guaranteed to be
+         * executed because it can be cleared by {@link clearOnAnimationFinishedRunnables()}.
          *
          * @param runnable The {@link Runnable} to execute once layouts/animations are settled.
          */
         public void addOnAnimationsFinishedRunnable(Runnable runnable) {
             mContainer.addOnAnimationsFinishedRunnable(runnable);
+        }
+
+        /** Clears all pending animations-finished runnables from {@link mContainer}. */
+        public void clearOnAnimationsFinishedRunnables() {
+            mContainer.clearOnAnimationsFinishedRunnables();
         }
 
         /** Requests a layout pass on the underlying RecyclerView container. */

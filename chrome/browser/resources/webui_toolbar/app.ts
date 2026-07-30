@@ -8,6 +8,7 @@ import './location_bar.js';
 import './split_tabs_button.js';
 import './home_button.js';
 import './pinned_toolbar_actions.js';
+import './avatar_button.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
@@ -25,23 +26,31 @@ import {SplitTabActiveLocation} from './toolbar_ui_api_data_model.mojom-webui.js
 // Helper so tests can find what they needed when optimization is on.
 // This should probably be a separate file, but rollup support only
 // handles 2 at most now.
-import {LhsChipIdentifier, OmniboxTextColor, SecurityChipIcon} from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {LocationBarState} from './toolbar_ui_api_data_model.mojom-webui.js';
+import {
+  LhsChipIdentifier,
+  OmniboxActionName,
+  OmniboxTextColor,
+  SecurityChipIcon,
+} from './toolbar_ui_api_data_model.mojom-webui.js';
+import type {OmniboxAction, LocationBarState} from './toolbar_ui_api_data_model.mojom-webui.js';
 import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
 import {LocationBarElement} from './location_bar.js';
 import {LocationIconElement} from './location_icon.js';
 
 export {
+  BrowserProxyImpl,
+  LhsChipIdentifier,
   LocationBarElement,
+  LocationIconElement,
+  OmniboxActionName,
   OmniboxTextColor,
   ReadonlyOmniboxElement,
-  TrackedElementManager,
   SecurityChipIcon,
-  LhsChipIdentifier,
-  LocationIconElement,
+  TrackedElementManager,
 };
 export type {
-    LocationBarState,
+  LocationBarState,
+  OmniboxAction,
 };
 // clang-format on
 
@@ -52,6 +61,7 @@ const TRACKED_ELEMENTS: Array<{selector: string, id: string}> = [
   {selector: '#split-tabs', id: 'kToolbarSplitTabsToolbarButtonElementId'},
   {selector: '#location-bar', id: 'kLocationBarElementId'},
   {selector: '#home', id: 'kToolbarHomeButtonElementId'},
+  {selector: '#avatar', id: 'kToolbarAvatarButtonElementId'},
 ];
 
 export class ToolbarAppElement extends CrLitElement {
@@ -76,6 +86,7 @@ export class ToolbarAppElement extends CrLitElement {
       navigationControlsState_: {type: Object},
       isBackForwardButtonEnabled_: {type: Boolean},
       isPinnedToolbarActionsEnabled_: {type: Boolean},
+      isAvatarButtonEnabled_: {type: Boolean},
     };
   }
 
@@ -91,6 +102,8 @@ export class ToolbarAppElement extends CrLitElement {
       loadTimeData.getBoolean('enableBackForwardButtons');
   protected accessor isPinnedToolbarActionsEnabled_: boolean =
       loadTimeData.getBoolean('enablePinnedToolbarActions');
+  protected accessor isAvatarButtonEnabled_: boolean =
+      loadTimeData.getBoolean('enableAvatarButton');
   protected accessor navigationControlsState_: NavigationControlsState = {
     reloadControlState: {
       // While this will be overwritten anyways, this matches the default value
@@ -100,7 +113,7 @@ export class ToolbarAppElement extends CrLitElement {
       canShowMenu: false,
       isNavigationLoading: false,
       isContextMenuVisible: false,
-      resetStateCount: 0,
+      stateToken: 0,
     },
     splitTabsControlState: {
       isCurrentTabSplit: false,
@@ -110,13 +123,13 @@ export class ToolbarAppElement extends CrLitElement {
     },
     backForwardControlState: {
       backButtonState:
-          {enabled: false, visible: true, isContextMenuVisible: false},
+          {enabled: false, shouldBeShown: true, isContextMenuVisible: false},
       forwardButtonState:
-          {enabled: false, visible: true, isContextMenuVisible: false},
+          {enabled: false, shouldBeShown: true, isContextMenuVisible: false},
       backButtonLeadingMargin: 0,
     },
     homeControlState: {
-      isPinned: false,
+      shouldBeShown: false,
       isContextMenuVisible: false,
     },
     locationBarState: {
@@ -127,7 +140,7 @@ export class ToolbarAppElement extends CrLitElement {
       },
       locationBarFlags: {
         userInputInProgress: false,
-        renderFocused: false,
+        popupOpen: false,
       },
       contentSettingImageStates: [],
       lhsChipsState: {
@@ -228,7 +241,7 @@ export class ToolbarAppElement extends CrLitElement {
     }
 
     const waitSelectors =
-        ['#back', '#forward', '#reload', '#split-tabs', '#home'];
+        ['#back', '#forward', '#reload', '#split-tabs', '#home', '#avatar'];
     const promises =
         waitSelectors.map(s => this.shadowRoot.querySelector<CrLitElement>(s))
             .filter(el => !!el)

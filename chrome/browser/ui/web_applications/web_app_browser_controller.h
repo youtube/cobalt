@@ -102,9 +102,11 @@ class WebAppBrowserController : public AppBrowserController,
   bool IsUrlInAppScope(const GURL& url) const override;
   WebAppBrowserController* AsWebAppBrowserController() override;
   bool CanUserUninstall() const override;
+  bool IsPreinstalledOnly() const override;
   void Uninstall(
       webapps::WebappUninstallSource webapp_uninstall_source) override;
   bool IsInstalled() const override;
+  bool IsFirstLaunchAfterInstall() const override;
   std::unique_ptr<TabMenuModelFactory> GetTabMenuModelFactory() const override;
   bool AppUsesWindowControlsOverlay() const override;
   bool AppUsesTabbed() const override;

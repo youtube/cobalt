@@ -237,7 +237,7 @@ int StreamPacketSocket::GetOption(webrtc::Socket::Option option, int* value) {
 
 int StreamPacketSocket::SetOption(webrtc::Socket::Option option, int value) {
   if (!socket_) {
-    NOTREACHED();
+    return -1;
   }
 
   switch (option) {
@@ -257,7 +257,8 @@ int StreamPacketSocket::SetOption(webrtc::Socket::Option option, int value) {
 
     case webrtc::Socket::OPT_NODELAY:
       // Should call TCPClientSocket::SetNoDelay directly.
-      NOTREACHED();
+      NOTIMPLEMENTED();
+      return -1;
 
     case webrtc::Socket::OPT_IPV6_V6ONLY:
       NOTIMPLEMENTED();
@@ -302,12 +303,6 @@ void StreamPacketSocket::DoWrite() {
 
   while (!send_queue_.empty()) {
     PendingPacket& packet = send_queue_.front();
-    if (packet.data->BytesConsumed() == 0) {
-      // Only apply packet options when we are about to send the head of the
-      // packet.
-      packet_processor_->ApplyPacketOptions(packet.data->span(),
-                                            packet.options.packet_time_params);
-    }
     int result = socket_->Write(
         packet.data.get(), packet.data->BytesRemaining(),
         base::BindOnce(&StreamPacketSocket::OnAsyncWriteCompleted,

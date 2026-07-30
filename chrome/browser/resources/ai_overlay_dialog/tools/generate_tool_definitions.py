@@ -90,10 +90,18 @@ def ParseMojomFile(header_path):
 
         main_desc, param_descs = _ParseComments(comments, param_names)
 
+        is_non_blocking = False
+        if '@NON_BLOCKING' in main_desc:
+            is_non_blocking = True
+            main_desc = main_desc.replace('@NON_BLOCKING', '').strip()
+
         decl = {
             "name": _CamelToSnake(name),
             "description": main_desc,
         }
+
+        if is_non_blocking:
+            decl["behavior"] = "NON_BLOCKING"
 
         if len(args) > 0:
             decl["parameters"] = {
@@ -142,9 +150,9 @@ def GenerateToolsJson(header_paths):
                  "Live API based on the\n")
     output.write(" * AiOverlayTools mojom interfaces.\n")
     output.write(" */\n")
-    output.write("export const kBuiltInToolDefinitions = `\n")
+    output.write("export const kBuiltInToolDefinitions = JSON.stringify(\n")
     output.write(json_str)
-    output.write("\n`;\n")
+    output.write("\n);\n")
 
     return output.getvalue()
 

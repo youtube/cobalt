@@ -293,6 +293,40 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
       expected);
 }
 
+// Test is failing on Android b/507114028
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_DidBecomeReadyForInput DISABLED_DidBecomeReadyForInput
+#else
+#define MAYBE_DidBecomeReadyForInput DidBecomeReadyForInput
+#endif
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_DidBecomeReadyForInput) {
+  GURL url(
+      "data:text/html,"
+      "<html><body><script>"
+      "window.receivedEvent = false;"
+      "window.addEventListener('mousemove', () => {"
+      "  window.receivedEvent = true;"
+      "});"
+      "</script></body></html>");
+
+  ReadyForInputObserver observer(shell()->web_contents());
+
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+
+  observer.Wait();
+
+  // Verify that we can now send input and the page receives it.
+  EXPECT_EQ(false, EvalJs(shell(), "window.receivedEvent"));
+
+  SimulateMouseEvent(shell()->web_contents(),
+                     blink::WebInputEvent::Type::kMouseMove,
+                     gfx::Point(10, 10));
+
+  // Wait for the event to be processed.
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return EvalJs(shell(), "window.receivedEvent").ExtractBool(); }));
+}
+
 namespace {
 
 const char kFrameCountUMA[] = "Navigation.MainFrame.FrameCount";

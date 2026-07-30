@@ -207,23 +207,6 @@ enum class LoginDatabaseEncryptionStatus {
   kMaxValue = kEncryptionUnavailable,
 };
 
-// Represents whether undecryptable passwords should be deleted from the login
-// database or the reason if they shouldn't be deleted.
-// Entries should not be renumbered and numeric values should never be
-// reused. Always keep this enum in sync with the corresponding
-// LoginDatabaseShouldDeleteUndecryptablePasswords in enums.xml.
-enum class ShouldDeleteUndecryptablePasswordsResult {
-  kShouldDelete = 0,
-  kUserDataDirEnvVarIsPresent = 1,
-  kUserDataDirSwitchIsPresent = 2,
-  kUserPasswordStoreSwitchIsPresent = 3,
-  kUserEncryptionSelectionSwitchrIsPresent = 4,
-  kEncryptionNotAvailiable = 5,
-  kUserDataDirPolicySet = 6,
-  kDisabledByPolicy = 7,
-  kMaxValue = kDisabledByPolicy,
-};
-
 // Struct to hold table builder for different tables in the LoginDatabase.
 struct SQLTableBuilders {
   raw_ptr<SQLTableBuilder> logins;
@@ -1023,13 +1006,6 @@ EncryptionResult DecryptPasswordFromStatement(
   return encryption_result;
 }
 
-void RecordShouldDeleteUndecryptablePasswordsMetric(
-    ShouldDeleteUndecryptablePasswordsResult should_delete_status) {
-  base::UmaHistogramEnumeration(
-      "PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords",
-      should_delete_status);
-}
-
 bool ShouldDeleteUndecryptablePasswords(
     LoginDatabase::OnUndecryptablePasswordsRemoved
         clearing_undecryptable_passwords,
@@ -1042,56 +1018,37 @@ bool ShouldDeleteUndecryptablePasswords(
   // On Linux user data directory ca be specified using an env variable. If it
   // exists, passwords shouldn't be deleted.
   if (environment->HasVar("CHROME_USER_DATA_DIR")) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::kUserDataDirEnvVarIsPresent);
     return false;
   }
 #endif  // BUILDFLAG(IS_LINUX)
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(password_manager::kUserDataDir)) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::kUserDataDirSwitchIsPresent);
     return false;
   }
 
 #if BUILDFLAG(IS_LINUX)
   if (command_line->HasSwitch(password_manager::kPasswordStore)) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::
-            kUserPasswordStoreSwitchIsPresent);
     return false;
   }
   if (command_line->HasSwitch(password_manager::kEnableEncryptionSelection)) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::
-            kUserEncryptionSelectionSwitchrIsPresent);
     return false;
   }
 #endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (is_user_data_dir_policy_set) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::kUserDataDirPolicySet);
     return false;
   }
 #endif
 
   if (!encryptor || !encryptor->IsEncryptionAvailable()) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::kEncryptionNotAvailiable);
     return false;
   }
 
   if (!is_enabled_by_policy) {
-    RecordShouldDeleteUndecryptablePasswordsMetric(
-        ShouldDeleteUndecryptablePasswordsResult::kDisabledByPolicy);
     return false;
   }
-
-  RecordShouldDeleteUndecryptablePasswordsMetric(
-      ShouldDeleteUndecryptablePasswordsResult::kShouldDelete);
 
   // Needed in order to maintain kClearUndecryptablePasswords experiment groups
   // population.
@@ -2118,16 +2075,7 @@ void LoginDatabase::SyncMetadataStore::DeleteAllSyncMetadata(
   TRACE_EVENT0("passwords", "SyncMetadataStore::DeleteAllSyncMetadata");
   CHECK_EQ(data_type, syncer::PASSWORDS);
   CHECK_EQ(data_type, syncer::PASSWORDS);
-  bool had_unsynced_password_deletions = HasUnsyncedPasswordDeletions();
   ClearAllSyncMetadata(&login_db_->db_, data_type);
-  if (had_unsynced_password_deletions &&
-      password_deletions_have_synced_callback_) {
-    // Note: At this point we can't be fully sure whether the deletions actually
-    // reached the server yet. We might have sent a commit, but haven't received
-    // the commit confirmation. Let's be conservative and assume they haven't
-    // been successfully deleted.
-    password_deletions_have_synced_callback_.Run(/*success=*/false);
-  }
 }
 
 bool LoginDatabase::SyncMetadataStore::UpdateEntityMetadata(
@@ -2160,31 +2108,7 @@ bool LoginDatabase::SyncMetadataStore::UpdateEntityMetadata(
 
   s.BindInt(0, storage_key_int);
   s.BindString(1, encrypted_metadata);
-  if (data_type != syncer::PASSWORDS) {
-    return s.Run();
-  }
-  CHECK_EQ(data_type, syncer::PASSWORDS);
-
-  // This ongoing operation may influence the value returned by
-  // HasUnsyncedPasswordDeletions() only if the storage key being updated
-  // represents a pending deletion AND the new metadata is not (necessary but
-  // not sufficient condition). Because HasUnsyncedPasswordDeletions() may be
-  // expensive, it is evaluated lazily to avoid performance issues.
-  //
-  // Note: No need for an explicit "is unsynced" check: Once the deletion is
-  // committed, the metadata entry is removed.
-  std::unique_ptr<sync_pb::EntityMetadata> previous_metadata =
-      GetSyncEntityMetadataForStorageKey(data_type, storage_key);
-  bool was_unsynced_deletion =
-      previous_metadata && previous_metadata->is_deleted();
-
-  bool result = s.Run();
-  if (result && was_unsynced_deletion && !metadata.is_deleted() &&
-      !HasUnsyncedPasswordDeletions() &&
-      password_deletions_have_synced_callback_) {
-    password_deletions_have_synced_callback_.Run(/*success=*/true);
-  }
-  return result;
+  return s.Run();
 }
 
 bool LoginDatabase::SyncMetadataStore::ClearEntityMetadata(
@@ -2205,30 +2129,7 @@ bool LoginDatabase::SyncMetadataStore::ClearEntityMetadata(
       base::StringPrintf("DELETE FROM %s WHERE storage_key=?",
                          kPasswordsSyncEntitiesMetadataTableName)));
   s.BindInt(0, storage_key_int);
-  if (data_type != syncer::PASSWORDS) {
-    return s.Run();
-  }
-  CHECK_EQ(data_type, syncer::PASSWORDS);
-
-  // This ongoing operation may influence the value returned by
-  // HasUnsyncedPasswordDeletions() only if the storage key being cleared
-  // represents a pending deletion (necessary but not sufficient condition).
-  // Because HasUnsyncedPasswordDeletions() may be expensive, it is evaluated
-  // lazily to avoid performance issues.
-  //
-  // Note: No need for an explicit "is unsynced" check: Once the deletion is
-  // committed, the metadata entry is removed.
-  std::unique_ptr<sync_pb::EntityMetadata> previous_metadata =
-      GetSyncEntityMetadataForStorageKey(data_type, storage_key);
-  bool was_unsynced_deletion =
-      previous_metadata && previous_metadata->is_deleted();
-
-  bool result = s.Run();
-  if (result && was_unsynced_deletion && !HasUnsyncedPasswordDeletions() &&
-      password_deletions_have_synced_callback_) {
-    password_deletions_have_synced_callback_.Run(/*success=*/true);
-  }
-  return result;
+  return s.Run();
 }
 
 bool LoginDatabase::SyncMetadataStore::UpdateDataTypeState(
@@ -2259,36 +2160,6 @@ bool LoginDatabase::SyncMetadataStore::ClearDataTypeState(
                                         kPasswordsSyncModelMetadataTableName)));
 
   return s.Run();
-}
-
-void LoginDatabase::SyncMetadataStore::SetPasswordDeletionsHaveSyncedCallback(
-    base::RepeatingCallback<void(bool)> callback) {
-  password_deletions_have_synced_callback_ = std::move(callback);
-}
-
-bool LoginDatabase::SyncMetadataStore::HasUnsyncedPasswordDeletions() {
-  TRACE_EVENT0("passwords", "SyncMetadataStore::HasUnsyncedDeletions");
-
-  sql::Statement s(login_db_->db_.GetCachedStatement(
-      SQL_FROM_HERE,
-      base::StringPrintf("SELECT metadata FROM %s",
-                         kPasswordsSyncEntitiesMetadataTableName)));
-
-  while (s.Step()) {
-    std::unique_ptr<sync_pb::EntityMetadata> entity_metadata =
-        DecryptAndParseSyncEntityMetadata(s.ColumnString(0),
-                                          login_db_->encryptor_.get());
-    if (!entity_metadata) {
-      return false;
-    }
-    // Note: No need for an explicit "is unsynced" check: Once the deletion is
-    // committed, the metadata entry is removed.
-    if (entity_metadata->is_deleted()) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 LoginDatabase::PrimaryKeyAndPassword LoginDatabase::GetPrimaryKeyAndPassword(

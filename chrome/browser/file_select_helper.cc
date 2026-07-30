@@ -30,6 +30,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/file_select_listener.h"
@@ -557,6 +558,14 @@ void FileSelectHelper::RunFileChooser(
   listener_ = std::move(listener);
   content::WebContentsObserver::Observe(web_contents_);
 
+  tabs::TabInterface* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents_);
+  if (tab_interface) {
+    tab_deactivated_subscription_ =
+        tab_interface->RegisterWillDeactivate(base::BindRepeating(
+            &FileSelectHelper::OnTabDeactivated, base::Unretained(this)));
+  }
+
 #if !BUILDFLAG(IS_ANDROID)
   if (PictureInPictureWindowManager::GetInstance()
           ->ShouldFileDialogBlockPictureInPicture(web_contents_)) {
@@ -669,6 +678,15 @@ void FileSelectHelper::RunFileChooserOnUIThread(
 // dialog or if the renderer was destroyed. Perform any cleanup and release the
 // reference we added in RunFileChooser().
 void FileSelectHelper::RunFileChooserEnd() {
+#if !BUILDFLAG(IS_ANDROID)
+  // Ensure picture-in-picture occlusion mitigation stops, even if we need to
+  // keep this instance alive for temporary files.
+  scoped_disallow_picture_in_picture_.reset();
+  scoped_tuck_picture_in_picture_.reset();
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  tab_deactivated_subscription_ = {};
+
   // If there are temporary files, then this instance needs to stick around
   // until web_contents_ is destroyed, so that this instance can delete the
   // temporary files.
@@ -684,11 +702,6 @@ void FileSelectHelper::RunFileChooserEnd() {
     select_file_dialog_->ListenerDestroyed();
     select_file_dialog_.reset();
   }
-
-#if !BUILDFLAG(IS_ANDROID)
-  scoped_disallow_picture_in_picture_.reset();
-  scoped_tuck_picture_in_picture_.reset();
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   Release();
 }
@@ -751,6 +764,10 @@ void FileSelectHelper::WebContentsDestroyed() {
   web_contents_ = nullptr;
   profile_ = nullptr;
   CleanUp();
+}
+
+void FileSelectHelper::OnTabDeactivated(tabs::TabInterface* tab) {
+  RunFileChooserEnd();
 }
 
 // static

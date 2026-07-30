@@ -46,8 +46,8 @@ void JNI_TabBottomSheetNativeInterface_OnOpened(
 
 TabBottomSheetBridge::TabBottomSheetBridge(Observer* observer,
                                            tabs::TabInterface* tab,
-                                           bool show_fusebox)
-    : observer_(observer), tab_(*tab), show_fusebox_(show_fusebox) {
+                                           TabBottomSheetClientType client_type)
+    : observer_(observer), tab_(*tab), client_type_(client_type) {
   JNIEnv* env = AttachCurrentThread();
   java_bridge_.Reset(Java_TabBottomSheetNativeInterface_Constructor(
       env, reinterpret_cast<intptr_t>(this), GetTabAndroid()->GetJavaObject()));
@@ -68,7 +68,20 @@ void TabBottomSheetBridge::SetWebContents(content::WebContents* web_contents) {
     web_contents->SetIgnoreZoomGestures(true);
   }
 
-  if (!co_browse_views_) {
+  TabAndroid* tab_android = GetTabAndroid();
+  content::WebContents* tab_contents =
+      tab_android ? tab_android->GetContents() : nullptr;
+  ui::WindowAndroid* current_window =
+      (tab_contents && !tab_android->IsOffscreenRendering())
+          ? tab_contents->GetTopLevelNativeWindow()
+          : nullptr;
+
+  if (tab_contents && tab_android->IsOffscreenRendering()) {
+    LOG(WARNING)
+        << "Tab is offscreen rendering, current_window is set to null.";
+  }
+
+  if (!co_browse_views_ || current_window != window_android_) {
     CreateCoBrowseViews(web_contents);
     return;
   }
@@ -137,10 +150,12 @@ void TabBottomSheetBridge::CreateCoBrowseViews(
 
   DestroyCoBrowseViews();
 
+  window_android_ = window_android;
+
   JNIEnv* env = base::android::AttachCurrentThread();
   // Call Factory to get CoBrowseViews and save it
   co_browse_views_.Reset(Java_CoBrowseViewFactory_buildCoBrowseViews(
-      env, window_android, web_contents, show_fusebox_));
+      env, window_android, web_contents, static_cast<int>(client_type_)));
 }
 
 void TabBottomSheetBridge::DestroyCoBrowseViews() {
@@ -152,6 +167,7 @@ void TabBottomSheetBridge::DestroyCoBrowseViews() {
                                     /*webContents=*/nullptr);
   Java_CoBrowseViews_destroy(env, co_browse_views_);
   co_browse_views_.Reset();
+  window_android_ = nullptr;
 }
 
 TabAndroid* TabBottomSheetBridge::GetTabAndroid() const {

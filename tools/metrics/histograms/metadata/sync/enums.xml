@@ -386,6 +386,7 @@ chromium-metrics-reviews@google.com.
   <int value="112" label="AutofillAiReauthBeforeViewingSensitiveData"/>
   <int value="113" label="DriveDisclaimerAccepted"/>
   <int value="114" label="AutofillAiShoppingEntitiesEnabled"/>
+  <int value="115" label="PrefTranslateRecentTargets"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -823,6 +824,7 @@ chromium-metrics-reviews@google.com.
   <int value="200010" label="VoiceSearchLocale"/>
   <int value="200011" label="IOSBwgConsent"/>
   <int value="200012" label="IOSGeminiLiveConsent"/>
+  <int value="200013" label="IOSGeminiLiveIntroPlayed"/>
 <!-- LINT.ThenChange(/ios/chrome/browser/sync/model/prefs/ios_chrome_syncable_prefs_database.cc:IosSyncablePref)-->
 
 </enum>
@@ -1030,6 +1032,7 @@ chromium-metrics-reviews@google.com.
   <int value="77" label="Gemini Thread"/>
   <int value="78" label="Themes (iOS)"/>
   <int value="79" label="Accessibility Annotation"/>
+  <int value="80" label="Themes (Android)"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->

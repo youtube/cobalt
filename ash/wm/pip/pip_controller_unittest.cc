@@ -24,6 +24,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 using ::chromeos::WindowStateType;
 
 namespace {
@@ -55,7 +57,8 @@ class PipControllerTest : public AshTestBase {
 
  protected:
   std::unique_ptr<aura::Window> CreatePipWindow(gfx::Rect bounds) {
-    std::unique_ptr<aura::Window> window(CreateTestWindow(bounds));
+    std::unique_ptr<aura::Window> window =
+        CreateWindowWithAppType(chromeos::AppType::NON_APP, bounds);
     WindowState* window_state = WindowState::Get(window.get());
     const WMEvent enter_pip(WM_EVENT_PIP);
     window_state->OnWMEvent(&enter_pip);
@@ -229,9 +232,9 @@ class PipToggleResizeFeatureTest : public AshTestBase,
   std::unique_ptr<aura::Window> CreateAppWindow(
       const gfx::Rect& bounds,
       WindowStateType window_state_type) {
-    auto window = AshTestBase::CreateAppWindow(
-        bounds, chromeos::AppType::SYSTEM_APP, kShellWindowId_DeskContainerA,
-        new TestWidgetDelegateAsh);
+    auto window = CreateWindowWithAppType(AppType::SYSTEM_APP, bounds,
+                                          kShellWindowId_DeskContainerA,
+                                          new TestWidgetDelegateAsh);
     Shell::Get()->pip_controller()->SetPipWindow(window.get());
 
     auto* custom_frame =

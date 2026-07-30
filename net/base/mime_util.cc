@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -947,23 +948,38 @@ NET_EXPORT std::string GenerateMimeMultipartBoundary() {
   return result;
 }
 
+namespace {
+
+void AddContentTypeAndValue(const std::string& value,
+                            const std::string& content_type,
+                            std::string* post_data) {
+  DCHECK(post_data);
+
+  if (!content_type.empty()) {
+    // If Content-type is specified, the next line is that.
+    base::StrAppend(post_data, {"Content-Type: ", content_type, "\r\n"});
+  }
+  // Leave an empty line and append the value.
+  base::StrAppend(post_data, {"\r\n", value, "\r\n"});
+}
+
+}  // namespace
+
 void AddMultipartValueForUpload(const std::string& value_name,
                                 const std::string& value,
                                 const std::string& mime_boundary,
                                 const std::string& content_type,
                                 std::string* post_data) {
   DCHECK(post_data);
-  // First line is the boundary.
-  post_data->append("--" + mime_boundary + "\r\n");
-  // Next line is the Content-disposition.
-  post_data->append("Content-Disposition: form-data; name=\"" +
-                    value_name + "\"\r\n");
-  if (!content_type.empty()) {
-    // If Content-type is specified, the next line is that.
-    post_data->append("Content-Type: " + content_type + "\r\n");
-  }
-  // Leave an empty line and append the value.
-  post_data->append("\r\n" + value + "\r\n");
+
+  base::StrAppend(
+      post_data,
+      // First line is the boundary.
+      {"--", mime_boundary, "\r\n",
+       // Next line is the Content-disposition.
+       "Content-Disposition: form-data; name=\"", value_name, "\"\r\n"});
+
+  AddContentTypeAndValue(value, content_type, post_data);
 }
 
 void AddMultipartValueForUploadWithFileName(const std::string& value_name,
@@ -973,23 +989,21 @@ void AddMultipartValueForUploadWithFileName(const std::string& value_name,
                                             const std::string& content_type,
                                             std::string* post_data) {
   DCHECK(post_data);
-  // First line is the boundary.
-  post_data->append("--" + mime_boundary + "\r\n");
-  // Next line is the Content-disposition.
-  post_data->append("Content-Disposition: form-data; name=\"" + value_name +
-                    "\"; filename=\"" + file_name + "\"\r\n");
-  if (!content_type.empty()) {
-    // If Content-type is specified, the next line is that.
-    post_data->append("Content-Type: " + content_type + "\r\n");
-  }
-  // Leave an empty line and append the value.
-  post_data->append("\r\n" + value + "\r\n");
+
+  base::StrAppend(post_data,
+                  // First line is the boundary.
+                  {"--", mime_boundary, "\r\n",
+                   // Next line is the Content-disposition.
+                   "Content-Disposition: form-data; name=\"", value_name,
+                   "\"; filename=\"", file_name, "\"\r\n"});
+
+  AddContentTypeAndValue(value, content_type, post_data);
 }
 
 void AddMultipartFinalDelimiterForUpload(const std::string& mime_boundary,
                                          std::string* post_data) {
   DCHECK(post_data);
-  post_data->append("--" + mime_boundary + "--\r\n");
+  base::StrAppend(post_data, {"--", mime_boundary, "--\r\n"});
 }
 
 // TODO(toyoshim): We may prefer to implement a strict RFC2616 media-type
@@ -1005,7 +1019,7 @@ std::optional<std::string> ExtractMimeTypeFromMediaType(
   std::string subtype;
   if (ParseMimeTypeWithoutParameter(type_string.substr(0, end), &top_level_type,
                                     &subtype)) {
-    return top_level_type + "/" + subtype;
+    return base::StrCat({top_level_type, "/", subtype});
   }
   return std::nullopt;
 }

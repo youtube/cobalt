@@ -18,10 +18,10 @@
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #import "chrome/browser/ui/cocoa/accelerators_cocoa.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
@@ -49,7 +49,8 @@ NSString* const kRemindersSharingServiceName =
     @"com.apple.reminders.RemindersShareExtension";
 
 bool CanShare() {
-  BrowserWindowInterface* last_active_browser = chrome::FindLastActive();
+  BrowserWindowInterface* last_active_browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   return last_active_browser &&
          last_active_browser->GetFeatures()
              .location_bar_model()
@@ -88,7 +89,7 @@ bool CanShare() {
     // equivalent. We defer the expensive population of sharing services until
     // the menu is actually opened (see menuNeedsUpdate:).
     // This prevents hangs on key presses when the menu is not open.
-    // See https://crbug.com/1309422.
+    // See https://crbug.com/40829755.
     NSMenuItem* email = [[NSMenuItem alloc]
         initWithTitle:l10n_util::GetNSString(IDS_EMAIL_LINK_MAC)
                action:@selector(emailLink:)
@@ -109,7 +110,7 @@ bool CanShare() {
   // sharing service plugins from the filesystem. This can hang due to TCC
   // (Transparency, Consent, and Control) permissions or slow disk I/O. Never
   // consider the current WatchHangsInScope as hung. HangWatching will resume
-  // when the next task is pumped. See https://crbug.com/1309422.
+  // when the next task is pumped. See https://crbug.com/40829755.
   base::HangWatcher::InvalidateActiveExpectations();
 
   // Using a real URL instead of empty string to avoid system log about relative
@@ -237,7 +238,8 @@ bool CanShare() {
 // Performs the share action using the sharing service represented by |sender|.
 - (void)performShare:(NSMenuItem*)sender {
   CHECK(CanShare());
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   CHECK(browser);
 
   content::WebContents* contents =
@@ -279,7 +281,8 @@ bool CanShare() {
 
 - (void)emailLink:(id)sender {
   CHECK(CanShare());
-  BrowserWindowInterface* browser = chrome::FindLastActive();
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->GetLastActiveBrowser();
   CHECK(browser);
 
   content::WebContents* contents =

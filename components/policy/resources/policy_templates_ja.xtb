@@ -119,6 +119,7 @@
 
 注: 詳しくはプロセス対応ポリシー（https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies）をご覧ください。</translation>
 <translation id="1068801725746725727">セーフ ブラウジングに関するアンケートの受け取りを有効にする</translation>
+<translation id="1069651607236021905">フォアグラウンドの優先度を強制的に適用するオリジンを指定する</translation>
 <translation id="107045325503547419">機能のリリース プロセスに準拠する。</translation>
 <translation id="1073983258515362346">デバイスのバックライトに関する情報を報告します。
 
@@ -674,14 +675,6 @@ PromptInTab に設定した場合は、ユーザーの認証が期限切れに�
 <translation id="1523587744262636189">ポート 10080（ブロックの解除は 2022 年 4 月 1 日まで可能）</translation>
 <translation id="1523774894176285446">設定したウェブサイトに対して起動する代替ブラウザ。</translation>
 <translation id="152657506688053119">デフォルトの検索プロバイダが使用する代替 URL のリスト</translation>
-<translation id="1526766414933532012">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を変更できるようにするかどうかを管理するポリシーです。
-
-このポリシーを無効に設定した場合、ユーザーは広告測定設定を変更できません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定を有効または無効にすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
-
-Attribution Reporting API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="1532928374875633053">ウィンドウの配置に関する権限を自動的に許可するサイトの URL パターンのリストを指定できます。これらのサイトでは、デバイスの画面に関する情報の取得や、その情報を使用したウィンドウの表示と配置、特定の画面での全画面表示のリクエストといった機能が有効になります。
 
       有効なサイトの URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns をご覧ください。ワイルドカード（<ph name="WILDCARD_VALUE" />）を使用できます。このポリシーでは、オリジンのみが照合されるため、URL パターンのパスは無視されます。
@@ -1117,6 +1110,7 @@ Virtual Tasks の場合は <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY
 <translation id="1798559516913615713">GPO のキャッシュ期間</translation>
 <translation id="180130467244315277">このポリシーでは、管理者が <ph name="PRODUCT_NAME" /> の設定で使用言語の順序を設定できるようにします。リストの順序は、chrome://settings/languages の [言語を希望の順序に並べ替えます] の順序と同じになります。ユーザーは、ポリシーで設定された言語を削除したり、並べ替えたりできませんが、ポリシーで設定された言語の下に言語を追加することができます。また、他のポリシーで強制されていない限り、ユーザーはブラウザの UI の言語と翻訳やスペルチェックの設定を自由に管理できます。このポリシーを未設定のままにした場合、ユーザーは使用言語のリスト全体を操作できます。</translation>
 <translation id="1803646570632580723">ランチャーに表示する固定アプリのリスト</translation>
+<translation id="1807539058116290184">キオスクモードで「ピンチしてズーム」を許可しない</translation>
 <translation id="1808715480127969042">これらのサイトの Cookie をブロックする</translation>
 <translation id="1810261428246410396">インスタント テザリングの使用を許可する</translation>
 <translation id="1813638828646876133">ロック画面とログイン画面で PIN の自動送信を有効にする</translation>
@@ -2043,6 +2037,15 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2450392422484526374">このポリシーを true に設定した場合、サイレント印刷が有効になります。サイレント印刷では、印刷プレビュー ウィンドウが開くとすぐに閉じ、デフォルトのプリンタでデフォルトのオプションを使用して印刷します。デフォルトのプリンタが [PDF に保存] の場合、ファイルはダウンロード フォルダに保存されます。
 
 このポリシーを未設定のままにするか false に設定した場合、サイレント印刷は無効になります。印刷プレビュー ウィンドウは自動的に閉じられず、通常どおりユーザーが選択する必要があります。</translation>
+<translation id="2451322901390143329">データ URL から作成されたウェブワーカーに一意の不透明なオリジンを割り当てるかどうかを制御します。
+
+ウェブワーカーは、ワーカーのスクリプトを含むデータ URL を使用して作成できます。従来は、これらのワーカーは作成元のページのオリジンを継承していたため、同じローカル ストレージ、Cookie、その他のオリジン バインドのデータへのアクセスが可能でした。セキュリティを強化し、HTML 仕様に準拠するため、Chrome はマイルストーン 149 でデフォルトの動作を変更し、データ URL から作成されたワーカーに一意の不透明なオリジンが割り当てられるようになります。これにより、作成元のページのデータから分離されます。
+
+このポリシーを有効に設定するか未設定のままにした場合、新しいデフォルト（より安全）の動作が使用され、データ URL から作成されたウェブワーカーには一意の不透明なオリジンが割り当てられます。
+
+このポリシーを無効に設定した場合、Chrome は以前の動作に戻り、データ URL から作成されたウェブワーカーは作成元のオリジンを継承します。これにより、管理者は、セキュリティの変更によって内部アプリケーションの互換性が損なわれた場合、一時的に問題を解決できます。
+
+このポリシーは一時的なもので、マイルストーン 157 で削除される予定です。</translation>
 <translation id="2452225615952836461">リクエスト メソッドを常に大文字にする</translation>
 <translation id="2454228136871844693">安定性を重視します。</translation>
 <translation id="2455033019778127130">デフォルトのブラウザ処理を行い、利用規約を表示してユーザーの同意を待ちます。</translation>
@@ -3182,6 +3185,19 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName バリエーションでは、
           このポリシーを設定しない場合は、デフォルトの時間が使用されます。
 
           このポリシーの値はミリ秒単位で指定します。</translation>
+<translation id="3197981761853858791"><ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトの設定がサポートされなくなったため、このポリシーは非推奨になりました。
+
+このポリシーでは、ユーザーに <ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトを表示するかどうかを制御します。
+
+このプロンプトは、<ph name="PRIVACY_SANDBOX_NAME" /> の設定をユーザーに通知するユーザー ブロッキング フローです。サードパーティ Cookie のサポートを終了する Chrome の取り組みについて、詳しくは <ph name="PRIVACY_SANDBOX_URL" /> をご覧ください。
+
+このポリシーを無効に設定した場合、<ph name="PRODUCT_NAME" /> で <ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトは表示されません。
+このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> が <ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトを表示するかどうかを決定し、可能な場合は表示します。
+
+次のいずれかのポリシーが設定されている場合は、このポリシーを無効に設定する必要があります。
+<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
+<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="3198385910521788907">ログイン時に人感センサーの画面を表示しない</translation>
 <translation id="3205825995289802549">初回実行時に最初に表示されるブラウザ ウィンドウを最大化する</translation>
 <translation id="320607884987562184">このポリシーを 1 に設定した場合、ウェブサイトによる JavaScript の実行が許可されます。このポリシーを 2 に設定した場合、JavaScript は拒否されます。
@@ -3951,6 +3967,12 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
       この設定を無効にした場合、ユーザーは自動入力を利用できません。
 
       この設定を有効にするか値を設定しない場合、ユーザーは自動入力を利用できます。ユーザーは自動入力プロフィールを設定して、自身の判断で自動入力をオンまたはオフにすることができます。</translation>
+<translation id="3730809439296971274">このポリシーでは、ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定をオフにできるかどうかを制御します。
+
+このポリシーを無効に設定した場合、ユーザーはサイトによる広告の提案の設定を変更できません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定をオンまたはオフにすることができます。
+
+Protected Audience API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="3733014427925403568">間隔の基準となる曜日です。</translation>
 <translation id="3736879847913515635">ユーザー管理画面でのユーザー追加を許可する</translation>
 <translation id="3744984310825999317"><ph name="PEPPER_NAME" /> でハードウェア アクセラレーションによる動画のデコードに新しいデコーダを使用することを許可します。</translation>
@@ -4960,6 +4982,7 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4463675333222095358">クイック アンサーの単位変換を有効にする</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> を無効にする</translation>
 <translation id="4467952432486360968">サードパーティの Cookie をブロックする</translation>
+<translation id="4468220154891570994">キオスクモードで「ピンチしてズーム」を許可する</translation>
 <translation id="4472740647327683596">ページの幅（マイクロメートル）</translation>
 <translation id="4474167089968829729">パスワード マネージャーへのパスワード保存を有効にする</translation>
 <translation id="4474266799109921560">このポリシーを 2 に設定した場合、独立したウェブアプリのオリジンによる WebPrinting API の使用が自動的にブロックされます。
@@ -5163,6 +5186,17 @@ URL パターンは、<ph name="CONTROLLED_FRAME_BLOCKED_FOR_URLS_POLICY_NAME" /
           問題はありません。
           </translation>
 <translation id="4578265298946081589">ユーザーのログアウト時に再起動しません。</translation>
+<translation id="4580711645933054901">このポリシーでは、URL パターンのリストを指定できます。これらのパターンに一致するバックグラウンドのウェブ コンテンツには、フォアグラウンドの優先度が強制的に適用されます。
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> ポリシーを有効にしている場合、すべてのタブにフォアグラウンドの優先度が強制的に適用されるため、このリストは無視されます。
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> を無効にするか未設定のままにしている場合、このリストのパターンに一致するコンテンツにのみ、フォアグラウンドの優先度が強制的に適用されます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
+
+このポリシーでは、オリジンのみが照合されるため、パターンでパスやクエリ パラメータを指定した場合は無視されます。スキーム、ホスト、ポートが照合対象となります。
+
+リストを空白にするか未設定のままにした場合、バックグラウンドのコンテンツにフォアグラウンドの優先度が強制的に適用されることはありません。</translation>
 <translation id="4581507927311097234">ユーザー入力が行われなくなってから画面をオフにするまでの時間（ミリ秒）</translation>
 <translation id="4582027661281685066">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトから送信されたリクエストは、<ph name="PRIVATE_NETWORK_ACCESS" />　のチェック対象外となります。
 
@@ -5900,14 +5934,6 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="5063480226653192405">使用状況</translation>
 <translation id="5067143124345820993">ログイン ユーザーのホワイト リスト</translation>
 <translation id="50689955292091946">ログイン画面でユーザー補助仮想キーボードを有効にする</translation>
-<translation id="5069453818168036580">このポリシーでは、ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定を無効にできるかどうかを制御します。
-
-このポリシーを無効に設定した場合、ユーザーがサイトによる広告の提案の設定をオフにすることはできません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> のサイトによる広告の提案の設定をオンまたはオフにすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
-
-Protected Audience API のサポートを終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="5069522005630249098">この設定により、<ph name="LACROS_NAME" /> が無効になった後、どれだけのユーザーデータが保持されるかが決まります。
 
       このポリシーを <ph name="LACROS_BACKWARD_MIGRATION_NONE" /> に設定するか未設定のままにした場合、過去に遡ったデータの移行は行われません。
@@ -6005,6 +6031,12 @@ Protected Audience API のサポートを終了により、このポリシーは
 <translation id="5124368997194894978">AC（交流電流）電源接続時の起動を有効にします</translation>
 <translation id="5130213897914754028">サイトに SharedArrayBuffers の使用を許可しない</translation>
 <translation id="5130935469849337738">常に翻訳を表示する</translation>
+<translation id="513314432051760916">このポリシーでは、ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定をオフにできるかどうかを制御します。
+
+このポリシーを無効に設定した場合、ユーザーは広告測定設定を変更できません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告測定設定をオンまたはオフにすることができます。
+
+Attribution Reporting API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="5138579693170759139">このポリシーを使用すると、管理者は、<ph name="PRODUCT_OS_NAME" /> を通じて Google 検索に送信された　Cookie　とデータが Google でどのように処理されるかを管理できます。
 このポリシーを有効にした場合、ユーザーは　<ph name="PRODUCT_OS_NAME" /> ランチャーの検索ボックスと、<ph name="PRODUCT_OS_NAME" /> で <ph name="PRODUCT_NAME" /> ブラウザのアドレスバーを使用できるようになり、Cookie　とデータは必須の目的でのみ使用されます。
 このポリシーを未設定のままにするか無効にした場合、Cookie とデータは必須でない目的で使用されることがあります。</translation>
@@ -6027,6 +6059,7 @@ Protected Audience API のサポートを終了により、このポリシーは
 
 ドメインの形式が正しくない場合は無視されます。</translation>
 <translation id="5163002264923337812">古いウェブベースのログインフローを有効にする</translation>
+<translation id="5163120075537316507">ウェブワーカーのデータ URL の不透明なオリジンを無効にする（非推奨の従来の動作）</translation>
 <translation id="5163889437570441600"><ph name="PRODUCT_NAME" /> を使用してコンテンツをデバイスにキャストすることを許可します。このポリシーを false に設定した場合、ユーザーはコンテンツをデバイスにキャストできません。このポリシーを true に設定した場合、ユーザーはコンテンツをキャストできます。このポリシーを設定しない場合、ユーザーは登録済みの ChromeOS デバイスにはコンテンツをキャストできませんが、未登録のデバイスにはキャストできます。</translation>
 <translation id="5166766992668636906">複雑さのレベル: 中</translation>
 <translation id="5168529971295111207">このポリシーのサポートは終了しました。代わりに ProxyMode を使用してください。
@@ -6647,6 +6680,11 @@ Microsoft SharePoint と OneDrive のカードには、追加の管理者設定�
 <translation id="5542235730745104308">このポリシーを True に設定した場合、<ph name="PRODUCT_NAME" /> では組み込まれている別のエラーページ（「ページが見つかりません」など）が使用されます。このポリシーを False に設定した場合、<ph name="PRODUCT_NAME" /> では別のエラーページは使用されません。
 
 このポリシーを設定した場合、ユーザーはこの設定を変更できません。設定しなかった場合、ポリシーは有効になりますが、ユーザーはこの設定を変更できます。</translation>
+<translation id="5543124658694855168">このポリシーを設定すると、企業は <ph name="CPU_PERFORMANCE_API_NAME" />（<ph name="CPU_PERFORMANCE_GETTER_NAME" /> など）から返された値をオーバーライドできます。詳細については、https://github.com/WICG/cpu-performance をご覧ください。
+
+このポリシーを設定した場合、<ph name="CPU_PERFORMANCE_GETTER_NAME" /> の値を指定した値でオーバーライドします。このポリシーを設定しない場合、デフォルトのパフォーマンス階層の計算が使用されます。
+
+このポリシーで指定できる値は 0～4 です。</translation>
 <translation id="5544059132156503357">このポリシーでは、<ph name="MS_AD_NAME" /> サーバーに Kerberos チケットをリクエストする際に許可する暗号化タイプを指定できます。
 
 このポリシーには、次のいずれかを指定します。
@@ -6941,6 +6979,7 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5706929446669049441">ユーザー認証情報の共有を無効にする</translation>
 <translation id="57072195677044908">プロファイル分離を無効にする</translation>
 <translation id="5708969689202733975">許可するロックのクイック解除モードを設定する</translation>
+<translation id="5714281972278520176">ウェブワーカーでデータ URL の不透明なオリジンを有効にする</translation>
 <translation id="5714563837055244378">Android からウェブアプリへの共有を有効にする。</translation>
 <translation id="5715739768416614900">キオスクのトラブルシューティング ツールを有効にする。</translation>
 <translation id="5717973246079053225">管理対象プロファイルのクラウド レポートを無効にする</translation>
@@ -7773,6 +7812,7 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <translation id="6287128640500683781">すべてのユーザーにログインを許可する</translation>
 <translation id="6287310684159482272">Cookie の設定</translation>
 <translation id="6287742528823584153"><ph name="PRODUCT_NAME" /> サービスを有効にして、ログイン時にリモートデスクを起動する</translation>
+<translation id="6293411231114989812">ウェブワーカーのデータ URL の不透明なオリジンを有効にする（新しいデフォルトの動作）</translation>
 <translation id="6299147100249359151">ポリシー スコープの検出を許可する。</translation>
 <translation id="6299554629216555326">ウィンドウの管理設定</translation>
 <translation id="6302021021024941085">キオスクのトラブルシューティング ツールを無効にする。</translation>
@@ -9018,6 +9058,9 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 
 このポリシーを設定しない場合、拡大鏡は初期設定ではログイン画面で無効ですが、ユーザーはいつでも有効にできます。</translation>
 <translation id="7109384070286741861">CECPQ2 を無効にする</translation>
+<translation id="711246451611873603">このポリシーを有効に設定するか未設定のままにした場合、キオスク セッションで「ピンチしてズーム」が許可されます。
+
+このポリシーを無効に設定した場合、キオスク セッションで「ピンチしてズーム」は許可されません。</translation>
 <translation id="7113439794629928551">他のデバイスによって開始された <ph name="PRODUCT_NAME" /> セッションのメディア コントロールを表示する</translation>
 <translation id="7113803652772945829">このポリシーを true に設定した場合、ユーザーはサードパーティのパスワード マネージャーを使用できます。そのパスワード マネージャーが、すべてのパスワード、支払い、自動入力データの保存と入力を処理します。このポリシーを true または未設定にした場合、<ph name="PRODUCT_NAME" /> に組み込まれているパスワード マネージャーと Android の設定で設定されたパスワード マネージャーの間で切り替えることができます。
 <ph name="PRODUCT_NAME" /> は Google 自動入力と同じデータを使用するため、サードパーティのパスワード マネージャーを使用するように設定を変更できるのは、Android のシステム設定で Google 自動入力以外のマネージャーが設定されている場合のみです。
@@ -9870,6 +9913,7 @@ URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> �
 
           このポリシーの値はミリ秒単位とし、画面オフ（設定されている場合）およびアイドル待ちの時間と同じかそれより短い時間を指定できます。</translation>
 <translation id="7680437377926096177">最後のウィンドウを閉じたときにログアウト ダイアログを表示しない</translation>
+<translation id="7681075922820376711">CPU パフォーマンス階層をオーバーライドする</translation>
 <translation id="7682409626897786151">キー生成の使用を許可するサイトを指定する URL パターンのリストを設定できます。URL パターンが「KeygenBlockedForUrls」にも含まれる場合、この例外ポリシーは無視されます。
 
           このポリシーが未設定のままの場合、すべてのサイトでグローバルなデフォルト値（「DefaultKeygenSetting」ポリシーで値が設定されていればその値、設定されていなければユーザーの個人設定の値）が使用されます。
@@ -10188,6 +10232,12 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="7891884447851425349"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POLICY_NAME" /> では、デフォルトの検索に使用する検索エンジンの URL を指定できます。この URL には <ph name="SEARCH_TERM_MARKER" /> という文字列を含めます。この文字列は、クエリの送信時にユーザーが指定した検索キーワードに置き換えられます。
 
       Google の検索 URL は次のように指定できます。<ph name="GOOGLE_SEARCH_URL" /></translation>
+<translation id="7892399002226884003">このポリシーでは、ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定をオフにできるようにするかどうかを制御します。
+
+このポリシーを無効に設定した場合、ユーザーは広告トピック設定を変更できません。
+このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定をオンまたはオフにすることができます。
+
+Topics API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="7893719068404928632">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCESS" /> チェックの失敗により <ph name="CHROME_DEVTOOLS_NAME" /> に警告が表示されると想定されるケースでは、代わりにメイン リクエストがブロックされます。
 
 このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
@@ -10685,16 +10735,6 @@ false に設定した場合、管理対象のネットワークに接続され�
 これらの設定を手動で行う必要はありません。Windows、Mac、Linux 向けの使いやすいテンプレートを <ph name="POLICY_TEMPLATE_DOWNLOAD_URL" /> からダウンロードできます。
 
 <ph name="MS_AD_NAME" /> ドメインに参加している Windows インスタンスではレジストリ経由でのポリシーのプロビジョニングもサポートされていますが、Windows でポリシーを設定する場合は GPO を使用することをおすすめします。</translation>
-<translation id="8261008508574620157"><ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトをユーザーに表示するかどうかを管理するポリシーです。
-このプロンプトは、<ph name="PRIVACY_SANDBOX_NAME" /> の設定をユーザーに通知するユーザー ブロッキング フローです。サードパーティ Cookie のサポートを終了する Chrome の取り組みについて、詳しくは <ph name="PRIVACY_SANDBOX_URL" /> をご覧ください。
-
-このポリシーを無効に設定した場合、<ph name="PRODUCT_NAME" /> で <ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトは表示されません。
-このポリシーを有効に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> が <ph name="PRIVACY_SANDBOX_NAME" /> のプロンプトを表示するかどうかを決定し、可能な場合は表示します。
-
-次のいずれかのポリシーが設定されている場合は、このポリシーを無効に設定する必要があります。
-<ph name="PRIVACY_SANDBOX_AD_TOPICS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_SITE_ENABLED_ADS_ENABLED_POLICY_NAME" />
-<ph name="PRIVACY_SANDBOX_AD_MEASUREMENT_ENABLED_POLICY_NAME" /></translation>
 <translation id="826163650738550159">このポリシーでは、ポリシーテストのページへのアクセスを許可します。
 このページでポリシーをテストしている間、他のポリシーはすべて無視されます。
 この機能は Canary チャンネルでのみ使用できます。
@@ -11341,14 +11381,6 @@ JavaScript の最適化を無効にした場合（このポリシーの値を 2 
       このポリシーを無効に設定した場合、悪質な疑いのある不明なコードに対して <ph name="PRODUCT_NAME" /> のブラウザ プロセス内での読み込みが許可されるため、<ph name="PRODUCT_NAME" /> のセキュリティと安定性が低下します。このポリシーは、<ph name="PRODUCT_NAME" /> のブラウザ プロセス内で実行する必要のあるサードパーティ ソフトウェアとの間で互換性の問題が発生する場合にのみ無効にしてください。
 
       注: 詳しくはプロセス対応ポリシー（https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies）をご覧ください。</translation>
-<translation id="8672039014434141545">ユーザーが <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を変更できるようにするかどうかを管理するポリシーです。
-
-このポリシーを無効に設定した場合、ユーザーは広告トピック設定を変更できません。
-このポリシーを有効に設定するか未設定のままにした場合、ユーザーはデバイスで <ph name="PRIVACY_SANDBOX_NAME" /> の広告トピック設定を有効または無効にすることができます。
-
-このポリシーを設定するには、<ph name="PRIVACY_SANDBOX_PROMPT_ENABLED_POLICY_NAME" /> ポリシーを無効に設定する必要があります。
-
-Topics API のサポート終了により、このポリシーは <ph name="PRODUCT_NAME" /> バージョン 144 で非推奨になりました。</translation>
 <translation id="8672321184841719703">自動更新の対象バージョンを指定</translation>
 <translation id="867410340948518937">U2F（Universal Second Factor）</translation>
 <translation id="8675599659717867329">レポートを無効にする</translation>

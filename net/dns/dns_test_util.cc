@@ -38,6 +38,7 @@
 #include "net/dns/dns_names_util.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_session.h"
+#include "net/dns/filtering_details_url_generator.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/resolve_context.h"
@@ -102,6 +103,23 @@ DnsConfig CreateValidDnsConfig() {
   config.secure_dns_mode = SecureDnsMode::kOff;
   EXPECT_TRUE(config.IsValid());
   return config;
+}
+
+ScopedSetFilteringDetailsUrlGeneratorForTesting::
+    ScopedSetFilteringDetailsUrlGeneratorForTesting()
+    : generator_(FilteringDetailsUrlGenerator::CreateForTesting(
+          FilteringDetailsUrlGenerator::FilteringDetailsRegistry{
+              {"example",
+               FilteringDetailsUrlGenerator::RegistryEntry{
+                   .url_template =
+                       "https://resolver.example.com/filtering-incidents/{id}",
+                   .feature = nullptr}}})) {
+  FilteringDetailsUrlGenerator::SetInstanceForTesting(&generator_);
+}
+
+ScopedSetFilteringDetailsUrlGeneratorForTesting::
+    ~ScopedSetFilteringDetailsUrlGeneratorForTesting() {
+  FilteringDetailsUrlGenerator::SetInstanceForTesting(nullptr);
 }
 
 DnsResourceRecord BuildTestDnsRecord(std::string name,
@@ -284,6 +302,22 @@ DnsResourceRecord BuildTestHttpsServiceRecord(
 
   return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeHttps, rdata,
                             ttl);
+}
+
+DnsResourceRecord BuildTestOptRecord(uint16_t udp_payload_size,
+                                     uint32_t extended_rcode_and_flags,
+                                     base::span<const uint8_t> rdata) {
+  DnsResourceRecord record;
+  record.name = "";  // Root domain
+  record.type = dns_protocol::kTypeOPT;
+  record.klass = udp_payload_size;
+  record.ttl = extended_rcode_and_flags;
+
+  if (!rdata.empty()) {
+    record.SetOwnedRdata(rdata);
+  }
+
+  return record;
 }
 
 DnsResponse BuildTestDnsResponse(

@@ -296,7 +296,7 @@
   public <init>();
 }
 
-# To fix crbug/1017396. This is because AppBarLayout$ScrollingViewBehavior
+# To fix crbug.com/40654856. This is because AppBarLayout$ScrollingViewBehavior
 # is instantiated via java.lang.reflect.Constructor in CoordinatorLayout.java.
 # Note that AppBarLayout$Behavior is needed to keep the scrolling behavior.
 -keep class com.google.android.material.appbar.AppBarLayout$Behavior {
@@ -1248,6 +1248,14 @@
 
 # An annotation used for build tooling, won't be directly accessed.
 -dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+# Keep GC anchor fields that prevent the sharing coroutine from being collected.
+-keepclassmembers class kotlinx.coroutines.flow.ReadonlySharedFlow {
+    kotlinx.coroutines.Job job;
+}
+-keepclassmembers class kotlinx.coroutines.flow.ReadonlyStateFlow {
+    kotlinx.coroutines.Job job;
+}
 
 # File: ../../third_party/android_deps/autorolled/cipd/libs/org_jetbrains_kotlinx_kotlinx_serialization_core_jvm/kotlinx-serialization-core-jvm.jar:META-INF/com.android.tools/r8/kotlinx-serialization-common.pro
 # Keep `Companion` object fields of serializable classes.

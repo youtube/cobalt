@@ -105,7 +105,7 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
 
   // WebNNContextImpl:
   base::WeakPtr<WebNNContextImpl> AsWeakPtr() override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return weak_factory_.GetWeakPtr();
   }
 
@@ -128,7 +128,7 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
     // Asynchronously resolve `callback` so there's an opportunity for
     // subsequent messages to be (illegally) sent from the `WebNNGraphBuilder`
     // remote before it's disconnected.
-    gpu_sequence()->ScheduleGpuTask(
+    RunOrScheduleTask(
         base::BindOnce(
             [](mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
                base::WeakPtr<WebNNContextImpl> context,

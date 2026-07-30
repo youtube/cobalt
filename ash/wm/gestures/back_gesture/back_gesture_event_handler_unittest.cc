@@ -42,6 +42,8 @@
 
 namespace ash {
 
+using chromeos::AppType;
+
 namespace {
 
 void StartKioskSession() {
@@ -75,7 +77,7 @@ class BackGestureEventHandlerTest : public AshTestBase {
     set_shell_delegate(std::move(delegate));
     AshTestBase::SetUp();
 
-    RecreateTopWindow(chromeos::AppType::BROWSER);
+    RecreateTopWindow(AppType::BROWSER);
     TabletModeControllerTestApi().EnterTabletMode();
   }
 
@@ -112,8 +114,8 @@ class BackGestureEventHandlerTest : public AshTestBase {
     Shell::Get()->back_gesture_event_handler()->OnTouchEvent(&event);
   }
 
-  void RecreateTopWindow(chromeos::AppType app_type) {
-    top_window_ = CreateAppWindow(gfx::Rect(), app_type);
+  void RecreateTopWindow(AppType app_type) {
+    top_window_ = CreateWindowWithAppType(app_type);
   }
 
   void ResetTopWindow() { top_window_.reset(); }
@@ -336,8 +338,8 @@ TEST_F(BackGestureEventHandlerTest, DestroyWindowDuringDrag) {
 
 // Tests back gesture while in split view mode.
 TEST_F(BackGestureEventHandlerTest, DragFromSplitViewDivider) {
-  std::unique_ptr<aura::Window> window1 = CreateTestWindow();
-  std::unique_ptr<aura::Window> window2 = CreateTestWindow();
+  std::unique_ptr<aura::Window> window1 = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> window2 = CreateWindowWithAppType();
   ui::TestAcceleratorTarget target_back_press, target_back_release;
   gfx::Rect display_bounds =
       screen_util::GetDisplayWorkAreaBoundsInScreenForActiveDeskContainer(
@@ -404,8 +406,8 @@ TEST_F(BackGestureEventHandlerTest, BackGestureInSplitViewMode) {
   ui::TestAcceleratorTarget target_back_press, target_back_release;
   RegisterBackPressAndRelease(&target_back_press, &target_back_release);
 
-  std::unique_ptr<aura::Window> left_window = CreateTestWindow();
-  std::unique_ptr<aura::Window> right_window = CreateTestWindow();
+  std::unique_ptr<aura::Window> left_window = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> right_window = CreateWindowWithAppType();
 
   // Start overview first and then snap window in splitview to make sure
   // window activation order remains the same.
@@ -599,7 +601,7 @@ TEST_F(BackGestureEventHandlerTest, ARCFullscreenedWindow) {
   ui::TestAcceleratorTarget target_back_press, target_back_release;
   RegisterBackPressAndRelease(&target_back_press, &target_back_release);
 
-  RecreateTopWindow(chromeos::AppType::ARC_APP);
+  RecreateTopWindow(AppType::ARC_APP);
 
   WindowState* window_state = WindowState::Get(top_window());
   SendFullscreenEvent(window_state);
@@ -671,8 +673,8 @@ TEST_F(BackGestureEventHandlerTest,
   ui::TestAcceleratorTarget target_back_press, target_back_release;
   RegisterBackPressAndRelease(&target_back_press, &target_back_release);
 
-  std::unique_ptr<aura::Window> left_window = CreateTestWindow();
-  std::unique_ptr<aura::Window> right_window = CreateTestWindow();
+  std::unique_ptr<aura::Window> left_window = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> right_window = CreateWindowWithAppType();
   auto* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
   split_view_controller->SnapWindow(left_window.get(), SnapPosition::kPrimary);
@@ -765,8 +767,8 @@ TEST_F(BackGestureEventHandlerTest,
   ui::TestAcceleratorTarget target_back_press, target_back_release;
   RegisterBackPressAndRelease(&target_back_press, &target_back_release);
 
-  std::unique_ptr<aura::Window> left_window = CreateTestWindow();
-  std::unique_ptr<aura::Window> right_window = CreateTestWindow();
+  std::unique_ptr<aura::Window> left_window = CreateWindowWithAppType();
+  std::unique_ptr<aura::Window> right_window = CreateWindowWithAppType();
   auto* split_view_controller =
       SplitViewController::Get(Shell::GetPrimaryRootWindow());
   split_view_controller->SnapWindow(left_window.get(), SnapPosition::kPrimary);
@@ -955,11 +957,11 @@ TEST_F(BackGestureEventHandlerTestCantGoBack, NonResizableApp) {
 }
 
 TEST_F(BackGestureEventHandlerTestCantGoBack, NonAppAndSystemApps) {
-  RecreateTopWindow(chromeos::AppType::NON_APP);
+  RecreateTopWindow(AppType::NON_APP);
   GenerateBackSequence();
   EXPECT_TRUE(WindowState::Get(top_window())->IsMinimized());
 
-  RecreateTopWindow(chromeos::AppType::SYSTEM_APP);
+  RecreateTopWindow(AppType::SYSTEM_APP);
   GenerateBackSequence();
   EXPECT_TRUE(WindowState::Get(top_window())->IsMinimized());
 }
@@ -974,7 +976,7 @@ TEST_F(BackGestureEventHandlerTestCantGoBack, NonMinimizeableApp) {
 }
 
 TEST_F(BackGestureEventHandlerTestCantGoBack, LockedFullscreen) {
-  RecreateTopWindow(chromeos::AppType::SYSTEM_APP);
+  RecreateTopWindow(AppType::SYSTEM_APP);
   PinWindow(top_window(), /*trusted=*/true);
   GenerateBackSequence();
   ASSERT_FALSE(WindowState::Get(top_window())->IsMinimized());
@@ -986,7 +988,7 @@ TEST_F(BackGestureEventHandlerTestCantGoBack, LockedFullscreen) {
 }
 
 TEST_F(BackGestureEventHandlerTestCantGoBack, PinnedWindow) {
-  RecreateTopWindow(chromeos::AppType::SYSTEM_APP);
+  RecreateTopWindow(AppType::SYSTEM_APP);
   PinWindow(top_window(), /*trusted=*/false);
   GenerateBackSequence();
   EXPECT_TRUE(WindowState::Get(top_window())->IsMinimized());

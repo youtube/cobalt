@@ -101,7 +101,8 @@ ListInfos GetListInfos() {
       ListInfo(kSyncAlways, "UrlBilling.store", GetUrlBillingId(),
                SB_THREAT_TYPE_BILLING),
       ListInfo(kSyncOnDesktopBuilds, "UrlCsdDownloadAllowlist.store",
-               GetUrlCsdDownloadAllowlistId(), SB_THREAT_TYPE_UNUSED),
+               GetUrlCsdDownloadAllowlistId(),
+               SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST),
       ListInfo(kSyncOnChromeDesktopBuilds || kSyncOnIos,
                "UrlCsdAllowlist.store", GetUrlCsdAllowlistId(),
                SB_THREAT_TYPE_CSD_ALLOWLIST),
@@ -203,6 +204,7 @@ ListIdentifier GetUrlIdFromSBThreatType(SBThreatType sb_threat_type) {
     case SB_THREAT_TYPE_HIGH_CONFIDENCE_ALLOWLIST:
     case SB_THREAT_TYPE_MANAGED_POLICY_WARN:
     case SB_THREAT_TYPE_MANAGED_POLICY_BLOCK:
+    case SB_THREAT_TYPE_CSD_DOWNLOAD_ALLOWLIST:
       NOTREACHED();
   }
 }
@@ -259,7 +261,7 @@ V4LocalDatabaseManager::PendingCheck::PendingCheck(
       stores_to_check(stores_to_check),
       urls(urls) {
   for (const auto& url : urls) {
-    V4ProtocolManagerUtil::UrlToFullHashes(url, &full_hashes);
+    SBProtocolManagerUtil::UrlToFullHashes(url, &full_hashes);
   }
   full_hash_threat_types.assign(full_hashes.size(),
                                 SBThreatType::SB_THREAT_TYPE_SAFE);
@@ -925,7 +927,7 @@ void V4LocalDatabaseManager::PopulateArtificialDatabase() {
       ListIdentifier artificial_list_id(GetCurrentPlatformType(), URL,
                                         switch_and_threat_type.threat_type);
       FullHashStr full_hash =
-          V4ProtocolManagerUtil::GetFullHash(GURL(tokenizer.token_piece()));
+          SBProtocolManagerUtil::GetFullHash(GURL(tokenizer.token_piece()));
       artificially_marked_store_and_hash_prefixes_.emplace_back(
           artificial_list_id, full_hash);
     }
@@ -1228,7 +1230,7 @@ bool V4LocalDatabaseManager::AreAnyStoresAvailableNow(
 void V4LocalDatabaseManager::UpdateListClientStates(
     const std::unique_ptr<StoreStateMap>& store_state_map) {
   list_client_states_.clear();
-  V4ProtocolManagerUtil::GetListClientStatesFromStoreStateMap(
+  SBProtocolManagerUtil::GetListClientStatesFromStoreStateMap(
       store_state_map, &list_client_states_);
 }
 

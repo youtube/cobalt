@@ -67,6 +67,7 @@ import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.shadows.ShadowAsyncLayoutInflater;
 
 import java.util.Collections;
 import java.util.EnumSet;
@@ -75,6 +76,7 @@ import java.util.function.Function;
 
 /** Unit tests for {@link FuseboxCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Config(shadows = {ShadowAsyncLayoutInflater.class})
 public class FuseboxCoordinatorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -130,7 +132,8 @@ public class FuseboxCoordinatorUnitTest {
                         parent,
                         mTabModelSelectorSupplier,
                         mTemplateUrlServiceSupplier,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        /* scrimAnchorViewSupplier= */ () -> null);
     }
 
     private FuseboxSessionState createSession() {
@@ -157,6 +160,7 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testBeginInput_initializesMediator() {
         mCoordinator.beginInput(createSession(mProfile));
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNotNull(mCoordinator.getMediatorForTesting());
         assertNotEquals(mMediator, mCoordinator.getMediatorForTesting());
     }
@@ -166,6 +170,7 @@ public class FuseboxCoordinatorUnitTest {
     public void testBeginInput_featureEnabled_noBridge() {
         mComposebox = null;
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mMediator, never()).beginInput(any());
     }
 
@@ -173,6 +178,7 @@ public class FuseboxCoordinatorUnitTest {
     @DisableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testBeginInput_featureDisabled() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mCoordinator.getMediatorForTesting());
     }
 
@@ -182,6 +188,7 @@ public class FuseboxCoordinatorUnitTest {
         mCoordinator.setMediatorForTesting(mMediator);
 
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mMediator).beginInput(any());
 
         mCoordinator.endInput();
@@ -195,6 +202,7 @@ public class FuseboxCoordinatorUnitTest {
 
         doReturn(false).when(mComposebox).isFuseboxEligible();
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         // We never activate the Fusebox in this scenario
         verify(mMediator, never()).beginInput(any());
         // ... but we want to be sure we reset the Fusebox UI if the user jumped tabs.
@@ -212,6 +220,7 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testToolbarVisibility_featureEnabled() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         // ViewHolder should be initialized as part of the init method.
         assertNotNull(mCoordinator.getViewHolderForTesting());
     }
@@ -220,6 +229,7 @@ public class FuseboxCoordinatorUnitTest {
     @DisableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testToolbarVisibility_featureDisabled() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         // Nothing should get initialized.
         assertNull(mCoordinator.getViewHolderForTesting());
     }
@@ -228,11 +238,13 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testToolbarVisibility_basedOnPageClassification() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         mCoordinator.setMediatorForTesting(mMediator);
         final Set<PageClassification> supportedPageClassifications =
                 EnumSet.of(
                         PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS,
                         PageClassification.SEARCH_RESULT_PAGE_NO_SEARCH_TERM_REPLACEMENT,
+                        PageClassification.CO_BROWSING_COMPOSEBOX,
                         PageClassification.OTHER);
 
         for (PageClassification pageClass : PageClassification.values()) {
@@ -252,11 +264,12 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testNonGoogleDse() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         mCoordinator.setMediatorForTesting(mMediator);
         doReturn(false).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
         mCoordinator.beginInput(createSession());
         mTemplateUrlServiceSupplier.set(mTemplateUrlService);
-        RobolectricUtil.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMediator).endInput();
     }
@@ -265,6 +278,7 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testNtpAiModeButtonPress() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         mCoordinator.setMediatorForTesting(mMediator);
         mAutocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
 
@@ -287,6 +301,7 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testNotifyOmniboxSessionEnded() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         mCoordinator.notifyOmniboxSessionEnded(true);
 
         verify(mMetrics).notifyOmniboxSessionEnded(eq(true), anyInt(), anyInt());
@@ -304,6 +319,7 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testPopupDismissed() {
         mCoordinator.beginInput(createSession());
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         mCoordinator.setMediatorForTesting(mMediator);
         mCoordinator.getViewHolderForTesting().addButton.setVisibility(View.VISIBLE);
         mCoordinator.onContextPopupDismissed();

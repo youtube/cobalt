@@ -77,8 +77,8 @@ class WTF_EXPORT StringView {
         heapbuf_.reset(reinterpret_cast<char*>(
             Partitions::BufferMalloc(size, "StackBackingStore")));
         // SAFETY: `heapbuf_` is the result of BufferMalloc() for `length`.
-        return UNSAFE_BUFFERS(
-            base::span(reinterpret_cast<CharT*>(heapbuf_.get()), length));
+        return UNSAFE_BUFFERS(base::span(
+            base::unchecked, reinterpret_cast<CharT*>(heapbuf_.get()), length));
       }
 
       // If the Realloc() shrinks the buffer size, |heapbuf_| will keep a copy
@@ -88,8 +88,8 @@ class WTF_EXPORT StringView {
       static_assert(alignof(decltype(stackbuf16_)) % alignof(CharT) == 0,
                     "stack buffer must be sufficiently aligned");
       // SAFETY: `length` is smaller than the size of `stackbuf16_`.
-      return UNSAFE_BUFFERS(
-          base::span(reinterpret_cast<CharT*>(&stackbuf16_[0]), length));
+      return UNSAFE_BUFFERS(base::span(
+          base::unchecked, reinterpret_cast<CharT*>(&stackbuf16_[0]), length));
     }
 
    public:
@@ -231,7 +231,8 @@ class WTF_EXPORT StringView {
   // string. If the offset points an unpaired surrogate, this function returns
   // the surrogate code unit as is. If you'd like to check such surroagtes,
   // use U_IS_SURROGATE() defined in unicode/utf.h.
-  UChar32 CodePointAt(size_type i) const;
+  // PRECONDITIONS: `i` must be less than `length()`.
+  UNSAFE_BUFFER_USAGE UChar32 CodePointAt(size_type i) const;
 
   // Returns i+2 if a pair of [i] and [i+1] is a valid surrogate pair.
   // Returns i+1 otherwise.
@@ -239,7 +240,8 @@ class WTF_EXPORT StringView {
 
   // Does `CodePointAt()`, and the specified `i` is updated by
   // `NextCodePointOffset()`.
-  UChar32 CodePointAtAndNext(size_type& i) const;
+  // PRECONDITIONS: `i` must be less than `length()`.
+  UNSAFE_BUFFER_USAGE UChar32 CodePointAtAndNext(size_type& i) const;
 
   // [string.view.modifiers] ----------------------------------------
 
@@ -267,19 +269,22 @@ class WTF_EXPORT StringView {
   base::span<const LChar> Span8() const {
     DCHECK(Is8Bit());
     // SAFETY: bytes_ have length_ elements.
-    return UNSAFE_BUFFERS({static_cast<const LChar*>(bytes_), length_});
+    return UNSAFE_BUFFERS(base::span(
+        base::unchecked, static_cast<const LChar*>(bytes_), length_));
   }
 
   base::span<const UChar> Span16() const {
     DCHECK(!Is8Bit());
     // SAFETY: bytes_ have length_ elements.
-    return UNSAFE_BUFFERS({static_cast<const UChar*>(bytes_), length_});
+    return UNSAFE_BUFFERS(base::span(
+        base::unchecked, static_cast<const UChar*>(bytes_), length_));
   }
 
   base::span<const uint16_t> SpanUint16() const {
     DCHECK(!Is8Bit());
     // SAFETY: bytes_ have length_ elements.
-    return UNSAFE_BUFFERS({static_cast<const uint16_t*>(bytes_), length_});
+    return UNSAFE_BUFFERS(base::span(
+        base::unchecked, static_cast<const uint16_t*>(bytes_), length_));
   }
 
   const void* Bytes() const { return bytes_; }

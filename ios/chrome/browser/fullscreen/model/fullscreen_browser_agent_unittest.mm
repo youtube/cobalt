@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/common/material_timing.h"
 #import "testing/platform_test.h"
 
 // A test FullscreenBrowserAgentObserver.
@@ -17,6 +18,7 @@ class TestFullscreenBrowserAgentObserver
  public:
   void WillUpdateState(FullscreenBrowserAgent* agent) override {
     will_update_called_ = true;
+    animation_duration_ = agent->animation_duration();
   }
   void DidUpdateState(FullscreenBrowserAgent* agent) override {
     did_update_called_ = true;
@@ -27,11 +29,24 @@ class TestFullscreenBrowserAgentObserver
   void DidUpdateObscuredInsetRange(FullscreenBrowserAgent* agent) override {
     did_update_obscured_inset_range_called_ = true;
   }
+  void FullscreenDidTransition(FullscreenBrowserAgent* agent,
+                               FullscreenTransition transition) override {
+    did_transition_called_ = true;
+    transition_ = transition;
+  }
+  void WillShutDown(FullscreenBrowserAgent* agent) override {
+    will_shut_down_called_ = true;
+    agent->RemoveObserver(this);
+  }
 
   bool will_update_called_ = false;
   bool did_update_called_ = false;
   bool will_update_obscured_inset_range_called_ = false;
   bool did_update_obscured_inset_range_called_ = false;
+  bool did_transition_called_ = false;
+  bool will_shut_down_called_ = false;
+  FullscreenTransition transition_ = FullscreenTransition::kEnterFullscreen;
+  base::TimeDelta animation_duration_ = base::TimeDelta();
 };
 
 // An observer that adds a specific obscured inset range when requested.
@@ -256,4 +271,111 @@ TEST_F(FullscreenBrowserAgentTest, DisabledCounter) {
   EXPECT_EQ(0u, agent->disabled_count());
   agent->DecrementDisabledCounter(PassKey());  // Should not go below zero.
   EXPECT_EQ(0u, agent->disabled_count());
+}
+
+// Tests that FullscreenDidTransition is called correctly.
+TEST_F(FullscreenBrowserAgentTest, FullscreenDidTransition) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  TestFullscreenBrowserAgentObserver observer;
+  agent->AddObserver(&observer);
+
+  // Enter Fullscreen (non-animated).
+  agent->EnterFullscreen(PassKey(),
+                         FullscreenModeTransitionTrigger::kForcedByCode,
+                         /*animated=*/false);
+  EXPECT_TRUE(observer.did_transition_called_);
+  EXPECT_EQ(FullscreenTransition::kEnterFullscreen, observer.transition_);
+
+  observer.did_transition_called_ = false;
+
+  // Exit Fullscreen (non-animated).
+  agent->ExitFullscreen(PassKey(),
+                        FullscreenModeTransitionTrigger::kForcedByCode,
+                        /*animated=*/false);
+  EXPECT_TRUE(observer.did_transition_called_);
+  EXPECT_EQ(FullscreenTransition::kExitFullscreen, observer.transition_);
+
+  agent->RemoveObserver(&observer);
+}
+
+// Tests that IsEnabled() returns correct values.
+TEST_F(FullscreenBrowserAgentTest, IsEnabled) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  EXPECT_TRUE(agent->IsEnabled());
+
+  // Disable fullscreen.
+  agent->IncrementDisabledCounter(PassKey(), /*animated=*/false);
+  EXPECT_FALSE(agent->IsEnabled());
+
+  // Re-enable.
+  agent->DecrementDisabledCounter(PassKey());
+  EXPECT_TRUE(agent->IsEnabled());
+}
+
+// Tests that the animation duration is set correctly during animated
+// transitions.
+TEST_F(FullscreenBrowserAgentTest, AnimationDuration) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  TestFullscreenBrowserAgentObserver observer;
+  agent->AddObserver(&observer);
+
+  // Initialize ranges.
+  RangeTestFullscreenBrowserAgentObserver observer1(UIRectEdgeTop, 10.0, 50.0);
+  agent->AddObserver(&observer1);
+  agent->InvalidateInsetRange();
+
+  // Enter Fullscreen with animation.
+  agent->EnterFullscreen(PassKey(),
+                         FullscreenModeTransitionTrigger::kForcedByCode,
+                         /*animated=*/true);
+
+  EXPECT_EQ(base::Seconds(kMaterialDuration1), observer.animation_duration_);
+
+  agent->RemoveObserver(&observer);
+  agent->RemoveObserver(&observer1);
+}
+
+// Tests that State() returns correct values.
+TEST_F(FullscreenBrowserAgentTest, State) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  EXPECT_EQ(FullscreenState::kUIExpanded, agent->State());
+
+  // Enter Fullscreen.
+  agent->EnterFullscreen(PassKey(),
+                         FullscreenModeTransitionTrigger::kForcedByCode,
+                         /*animated=*/false);
+  EXPECT_EQ(FullscreenState::kUICollapsed, agent->State());
+
+  // Disable fullscreen (which also exits fullscreen).
+  agent->IncrementDisabledCounter(PassKey(), /*animated=*/false);
+  EXPECT_EQ(FullscreenState::kUIExpanded, agent->State());
+}
+
+// Tests that WillShutDown is called correctly.
+TEST_F(FullscreenBrowserAgentTest, WillShutDown) {
+  FullscreenBrowserAgent::CreateForBrowser(browser_.get());
+  FullscreenBrowserAgent* agent =
+      FullscreenBrowserAgent::FromBrowser(browser_.get());
+
+  TestFullscreenBrowserAgentObserver observer;
+  agent->AddObserver(&observer);
+
+  EXPECT_FALSE(observer.will_shut_down_called_);
+
+  // Destroy the browser, which destroys the agent.
+  browser_.reset();
+
+  EXPECT_TRUE(observer.will_shut_down_called_);
 }

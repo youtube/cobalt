@@ -35,7 +35,6 @@ schema_sources_ = [
   "permissions.json",
   "processes.idl",
   "reading_list.webidl",
-  "scripting.idl",
   "search.idl",
   "sessions.json",
   "tab_capture.idl",
@@ -45,7 +44,6 @@ schema_sources_ = [
 
   # Despite the name, these APIs do not rely on any WebRTC-specific bits and
   # as such do not belong in a conditional.
-  "webrtc_audio_private.idl",
   "webrtc_logging_private.idl",
   "webstore_private.json",
   "windows.json",
@@ -81,7 +79,7 @@ if (enable_extensions) {
     "braille_display_private.webidl",
     "command_line_private.json",
     "crash_report_private.webidl",
-    "enterprise_reporting_private.idl",
+    "enterprise_reporting_private.webidl",
     "experimental_actor.idl",
     "experimental_ai_data.idl",
     "image_writer_private.idl",

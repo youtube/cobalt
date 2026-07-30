@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
@@ -120,7 +121,7 @@ IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, EditProfile_NoBrowser) {
 }
 
 // "Edit" does not unlock the profile (regression test for
-// https://crbug.com/1324958).
+// https://crbug.com/40839569).
 IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, EditProfile_SigninRequired) {
   signin_util::ScopedForceSigninSetterForTesting force_signin_setter(true);
   Profile* profile = browser()->profile();
@@ -181,12 +182,12 @@ IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, PRE_EditProfile_NotLoaded) {
 #endif
 // "Edit" isn't enabled if no profiles are loaded.
 IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, MAYBE_EditProfile_NotLoaded) {
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0U);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 0U);
   EXPECT_FALSE(menu()->ShouldShowEditProfileLink());
   EXPECT_FALSE(menu()->GetActiveProfileIndex().has_value());
 }
 
-// Regression test for https://crbug.com/1382509
+// Regression test for https://crbug.com/40245654
 IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, Guest) {
   // Keep the browser process running while browsers are closed.
   Profile* profile = browser()->profile();
@@ -198,7 +199,7 @@ IN_PROC_BROWSER_TEST_F(AvatarMenuBrowserTest, Guest) {
   ui_test_utils::BrowserDestroyedObserver observer(browser());
   CloseAllBrowsers();
   observer.Wait();
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), 0U);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 0U);
 
   profiles::SwitchToGuestProfile();
   Browser* guest_browser = ui_test_utils::WaitForBrowserToOpen();

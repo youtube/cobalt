@@ -119,6 +119,7 @@
 #include "ipc/constants.mojom.h"
 #include "media/mojo/mojom/audio_processing.mojom.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -4390,12 +4391,12 @@ void RenderFrameImpl::DidChangeSelection(bool is_empty_selection,
   SyncSelectionIfRequired(force_sync);
 }
 
-void RenderFrameImpl::OnMainFrameIntersectionChanged(
-    const gfx::Rect& main_frame_intersection_rect) {
-  if (main_frame_intersection_rect != main_frame_intersection_rect_) {
-    main_frame_intersection_rect_ = main_frame_intersection_rect;
+void RenderFrameImpl::OnMainFrameRectangleChanged(
+    const gfx::Rect& main_frame_rect) {
+  if (main_frame_rect != main_frame_rect_) {
+    main_frame_rect_ = main_frame_rect;
     for (auto& observer : observers_) {
-      observer.OnMainFrameIntersectionChanged(main_frame_intersection_rect);
+      observer.OnMainFrameRectangleChanged(main_frame_rect);
     }
   }
 }
@@ -5239,7 +5240,7 @@ void RenderFrameImpl::DidCommitNavigationInternal(
   // Ensure we will propagate the main frame and viewport rect when the main
   // frame commits even if the rect does not change across navigations.
   if (IsMainFrame()) {
-    main_frame_intersection_rect_.reset();
+    main_frame_rect_.reset();
     main_frame_viewport_rect_.reset();
   }
 
@@ -5754,6 +5755,13 @@ void RenderFrameImpl::SerializeAsMHTML(mojom::SerializeAsMHTMLParamsPtr params,
   auto delegate =
       std::make_unique<MHTMLPartsGenerationDelegateImpl>(std::move(params));
 
+  // Wrap the callback so that if it is destroyed without being run (e.g., if
+  // GenerateMHTMLParts drops it or RenderFrameImpl is destroyed), it will be
+  // run with default arguments to ensure a response is always sent.
+  auto wrapped_callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(callback), mojom::MhtmlSaveStatus::kRenderProcessExited,
+      std::vector<std::string>());
+
   // Generate MHTML header if needed.
   if (IsMainFrame()) {
     TRACE_EVENT0("page-serialization",
@@ -5774,7 +5782,7 @@ void RenderFrameImpl::SerializeAsMHTML(mojom::SerializeAsMHTMLParamsPtr params,
       mhtml_boundary, GetWebFrame(), delegate_ptr,
       base::BindOnce(&RenderFrameImpl::OnSerializeMHTMLComplete,
                      weak_factory_.GetWeakPtr(), std::move(delegate),
-                     std::move(callback), std::move(mhtml_contents)));
+                     std::move(wrapped_callback), std::move(mhtml_contents)));
 }
 
 void RenderFrameImpl::OnSerializeMHTMLComplete(

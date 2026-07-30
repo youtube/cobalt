@@ -135,6 +135,10 @@ class PaintOpSerializationTestUtils {
                        {0.0f, 0.5f, 0.9f, 0.1f}};
     shader->positions_ = {0.f, 0.4f, 1.f};
   }
+
+  static void ResetShaderType(PaintShader* shader, PaintShader::Type type) {
+    shader->shader_type_ = type;
+  }
 };
 
 TEST(PaintOpBufferTest, Empty) {
@@ -2215,8 +2219,8 @@ TEST_P(PaintOpSerializationTest, DeserializationFailures) {
       // serialized_size, here deliberately lie about the serialized_size.
       // This will verify that individual op deserializing code behaves properly
       // when presented with invalid offsets.
-      PaintOpWriter::WriteHeaderForTesting(
-          output_.subspan(current_offset).data(), serialized_type, read_size);
+      PaintOpWriter::WriteHeaderForTesting(output_.subspan(current_offset),
+                                           serialized_type, read_size);
       size_t bytes_read = 0;
       PaintOp* written = PaintOp::Deserialize(
           full_span.subspan(current_offset, read_size),
@@ -2267,7 +2271,7 @@ TEST_P(PaintOpSerializationTest, DeserializationFailures) {
     }
 
     // Restore the correct serialized_size.
-    PaintOpWriter::WriteHeaderForTesting(output_.subspan(current_offset).data(),
+    PaintOpWriter::WriteHeaderForTesting(output_.subspan(current_offset),
                                          serialized_type, serialized_size);
     total_read += serialized_size;
   }
@@ -2562,7 +2566,7 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
                           &serialized_size);
   EXPECT_EQ(serialized_size,
             base::bits::AlignUp(serialized_size, PaintOpWriter::kMaxAlignment));
-  PaintOpWriter::WriteHeaderForTesting(input.data(), serialized_type,
+  PaintOpWriter::WriteHeaderForTesting(input, serialized_type,
                                        serialized_size - 1);
   EXPECT_FALSE(PaintOp::Deserialize(input_span.first(bytes_written), output,
                                     std::size(output), &bytes_read,
@@ -2570,7 +2574,7 @@ TEST(PaintOpBufferTest, PaintOpDeserialize) {
 
   // Bogus types fail to deserialize.
   PaintOpWriter::WriteHeaderForTesting(
-      input.data(), static_cast<uint8_t>(PaintOpType::kLastPaintOpType) + 1,
+      input, static_cast<uint8_t>(PaintOpType::kLastPaintOpType) + 1,
       serialized_size);
   EXPECT_FALSE(PaintOp::Deserialize(input_span.first(bytes_written), output,
                                     std::size(output), &bytes_read,
@@ -3451,7 +3455,7 @@ TEST_P(PaintFilterSerializationTest, Basic) {
                              : PaintOpWriter::SerializedSize(filter.get());
     auto memory = AllocateSerializedBuffer(buffer_size);
 
-    PaintOpWriter writer(memory.data(), buffer_size,
+    PaintOpWriter writer(memory.first(buffer_size),
                          options_provider.serialize_options(), GetParam());
     writer.Write(filter.get(), ctm);
     ASSERT_GT(writer.size(), 0u) << PaintFilter::TypeToString(filter->type());
@@ -3510,7 +3514,7 @@ TEST(PaintOpBufferTest, RecordPaintFilterDeserializationInvalidPaintOp) {
   auto memory = AllocateSerializedBuffer(memory_size);
   base::span<uint8_t> memory_span = memory.as_span();
   std::ranges::fill(memory_span, 0x5A);
-  PaintOpWriter writer(memory.data(), memory_size,
+  PaintOpWriter writer(memory_span.first(memory_size),
                        options_provider.serialize_options(), false);
   writer.Write(filter.get(), SkM44());
   ASSERT_GT(writer.size(), sizeof(float));
@@ -3829,7 +3833,7 @@ TEST(PaintOpBufferTest, SecurityConstrainedImageSerialization) {
 
   auto memory = AllocateSerializedBuffer();
   TestOptionsProvider options_provider;
-  PaintOpWriter writer(memory.data(), kDefaultSerializedBufferSize,
+  PaintOpWriter writer(memory.first(kDefaultSerializedBufferSize),
                        options_provider.serialize_options(),
                        enable_security_constraints);
   writer.Write(filter.get(), SkM44());
@@ -4748,6 +4752,39 @@ TEST(PaintOpBufferTest, ContentColorUsageFromFilter) {
   buffer2.push<DrawRectOp>(SkRect::MakeWH(10, 20), flags2);
   EXPECT_EQ(gfx::ContentColorUsage::kWideColorGamut,
             buffer2.content_color_usage());
+}
+
+TEST(PaintOpBufferTest, SkSLShaderPrivilegeEnforcement) {
+  // Create an sksl shader masquerading as a different type.
+  static constexpr char kSkSLCommand[] =
+      "half4 main(float2 coord) { return half4(0.5); }";
+  auto shader =
+      PaintShader::MakeSkSLCommand(kSkSLCommand, {}, {}, {}, {}, nullptr);
+  PaintOpSerializationTestUtils::ResetShaderType(shader.get(),
+                                                 PaintShader::Type::kColor);
+
+  PaintFlags flags;
+  flags.setShader(std::move(shader));
+
+  PaintOpBuffer buffer;
+  buffer.push<DrawRectOp>(SkRect::MakeXYWH(1, 2, 3, 4), flags);
+
+  auto memory = AllocateSerializedBuffer();
+  TestOptionsProvider options_provider;
+  SimpleBufferSerializer serializer(memory.data(), kDefaultSerializedBufferSize,
+                                    options_provider.serialize_options());
+  serializer.Serialize(buffer);
+  ASSERT_TRUE(serializer.valid());
+
+  PaintOp::DeserializeOptions d_options(options_provider.deserialize_options());
+  // Simulation of unprivileged renderer process.
+  d_options.is_privileged = false;
+
+  auto deserialized_buffer = PaintOpBuffer::MakeFromMemory(
+      memory.first(serializer.written()), d_options);
+
+  // SkSL deserialization should always fail for unprivileged processes.
+  EXPECT_FALSE(deserialized_buffer);
 }
 
 }  // namespace cc

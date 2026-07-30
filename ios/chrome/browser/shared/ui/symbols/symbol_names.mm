@@ -228,6 +228,8 @@ NSString* const kArrowLeftToLineSquareSymbol = @"arrow.left.to.line.square";
 NSString* const kArrowRightToLineSquareSymbol = @"arrow.right.to.line.square";
 NSString* const kClockArrowTriangleheadCounterclockwiseRotate90Symbol =
     @"clock.arrow.trianglehead.counterclockwise.rotate.90";
+NSString* const kArrowTrianglehead2ClockwiseRotate90Symbol =
+    @"arrow.trianglehead.2.clockwise.rotate.90";
 NSString* const kTabsSymbol = @"square.on.square";
 NSString* const kHighlighterSymbol = @"highlighter";
 NSString* const kSealFillSymbol = @"seal.fill";
@@ -279,6 +281,8 @@ NSString* const kPersonTwoSymbol = @"person.2";
 NSString* const kSquareFilledOnSquareSymbol = @"square.filled.on.square";
 NSString* const kPauseButton = @"pause.circle";
 NSString* const kPlayButton = @"play.circle";
+NSString* const kPauseFillSymbol = @"pause.fill";
+NSString* const kPlayFillSymbol = @"play.fill";
 NSString* const kFolderSymbol = @"folder";
 NSString* const kFolderBadgePlusSymbol = @"folder.badge.plus";
 NSString* const kCartSymbol = @"cart";

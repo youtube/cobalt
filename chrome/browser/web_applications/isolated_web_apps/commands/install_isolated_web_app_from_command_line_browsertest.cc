@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
@@ -89,8 +90,15 @@ class InstallIsolatedWebAppFromCommandLineFromUrlBrowserTest
   GURL GetAppUrl() const { return embedded_test_server()->base_url(); }
 };
 
+// TODO(https://crbugs.com/507023073): Remove once the test is fixed.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_UrlAppFromCommandLineIsInstalled \
+  DISABLED_AppFromCommandLineIsInstalled
+#else
+#define MAYBE_UrlAppFromCommandLineIsInstalled AppFromCommandLineIsInstalled
+#endif
 IN_PROC_BROWSER_TEST_F(InstallIsolatedWebAppFromCommandLineFromUrlBrowserTest,
-                       AppFromCommandLineIsInstalled) {
+                       MAYBE_UrlAppFromCommandLineIsInstalled) {
   WebAppTestInstallObserver observer(browser()->profile());
   webapps::AppId id = observer.BeginListeningAndWait();
 
@@ -146,8 +154,15 @@ class InstallIsolatedWebAppFromCommandLineFromFileBrowserTest
   std::optional<web_package::SignedWebBundleId> bundle_id_;
 };
 
+// TODO(https://crbug.com/503784976): Flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_FileAppFromCommandLineIsInstalled \
+  DISABLED_AppFromCommandLineIsInstalled
+#else
+#define MAYBE_FileAppFromCommandLineIsInstalled AppFromCommandLineIsInstalled
+#endif
 IN_PROC_BROWSER_TEST_F(InstallIsolatedWebAppFromCommandLineFromFileBrowserTest,
-                       AppFromCommandLineIsInstalled) {
+                       MAYBE_FileAppFromCommandLineIsInstalled) {
   WebAppTestInstallObserver observer(browser()->profile());
   webapps::AppId id = observer.BeginListeningAndWait();
 

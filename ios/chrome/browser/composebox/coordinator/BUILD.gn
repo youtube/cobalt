@@ -9,10 +9,7 @@ source_set("coordinator") {
     "composebox_navigation_mediator.h",
     "composebox_navigation_mediator.mm",
   ]
-  public_deps = [
-    ":availability",
-    ":entrypoint",
-  ]
+  public_deps = [ ":availability" ]
   deps = [
     ":aim_deps",
     ":clipboard_deps",
@@ -29,6 +26,7 @@ source_set("coordinator") {
     "//ios/chrome/app:tests_hook",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/composebox/debugger",
+    "//ios/chrome/browser/composebox/menu/coordinator",
     "//ios/chrome/browser/composebox/model",
     "//ios/chrome/browser/composebox/public",
     "//ios/chrome/browser/composebox/ui",
@@ -46,17 +44,13 @@ source_set("availability") {
     "composebox_availability.h",
     "composebox_availability.mm",
   ]
-  public_deps = [ ":entrypoint" ]
+  public_deps = [ "//ios/chrome/browser/composebox/public:entrypoint" ]
   deps = [
     "//base",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
   ]
-}
-
-source_set("entrypoint") {
-  sources = [ "composebox_entrypoint.h" ]
 }
 
 source_set("input_plate") {
@@ -67,14 +61,17 @@ source_set("input_plate") {
     "composebox_input_plate_coordinator.mm",
     "composebox_input_plate_mediator.h",
     "composebox_input_plate_mediator.mm",
+    "composebox_input_state_manager.h",
+    "composebox_input_state_manager.mm",
     "composebox_omnibox_client.h",
     "composebox_omnibox_client.mm",
     "composebox_omnibox_client_delegate.h",
+    "composebox_query_contextualizer_delegate_bridge.h",
+    "composebox_query_contextualizer_delegate_bridge.mm",
     "composebox_url_loader.h",
   ]
   public_deps = [
     ":availability",
-    ":entrypoint",
     ":mode_holder",
   ]
   deps = [
@@ -102,6 +99,7 @@ source_set("input_plate") {
     "//ios/chrome/browser/cobrowse/model",
     "//ios/chrome/browser/cobrowse/model:factory",
     "//ios/chrome/browser/composebox/debugger",
+    "//ios/chrome/browser/composebox/menu/coordinator",
     "//ios/chrome/browser/composebox/model",
     "//ios/chrome/browser/composebox/public",
     "//ios/chrome/browser/composebox/ui",
@@ -274,7 +272,10 @@ source_set("constants") {
     "composebox_constants.h",
     "composebox_constants.mm",
   ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/composebox/public:composebox_mode",
+  ]
 }
 
 source_set("unit_tests") {
@@ -282,6 +283,7 @@ source_set("unit_tests") {
   sources = [
     "composebox_cobrowse_omnibox_client_unittest.mm",
     "composebox_input_plate_mediator_unittest.mm",
+    "composebox_input_state_manager_unittest.mm",
   ]
   deps = [
     ":coordinator",
@@ -290,6 +292,7 @@ source_set("unit_tests") {
     ":mode_holder",
     "//base",
     "//base/test:test_support",
+    "//components/contextual_search:prefs",
     "//components/contextual_search:public",
     "//components/contextual_search:test_support",
     "//components/contextual_search/internal:test_support",

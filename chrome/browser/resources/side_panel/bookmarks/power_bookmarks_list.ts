@@ -102,6 +102,7 @@ export interface PowerBookmarksListElement {
     heading: HTMLElement,
     footer: HTMLElement,
     labels: PowerBookmarksLabelsElement,
+    scroller: HTMLElement,
   };
 }
 
@@ -381,10 +382,11 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.bookmarksService_.startListening();
     this.priceTrackingProxy_.getAllPriceTrackedBookmarkProductInfo().then(
         res => {
-          res.productInfos.forEach(
-              product => this.set(
-                  `trackedProductInfos_.${product.bookmarkId.toString()}`,
-                  product));
+          const newTrackedProductInfos = {...this.trackedProductInfos_};
+          res.productInfos.forEach(product => {
+            newTrackedProductInfos[product.bookmarkId.toString()] = product;
+          });
+          this.trackedProductInfos_ = newTrackedProductInfos;
         });
     this.priceTrackingProxy_.getAllShoppingBookmarkProductInfo().then(res => {
       res.productInfos.forEach(
@@ -468,7 +470,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     if (this.bookmarkShouldShow_(bookmark)) {
       this.updateShoppingCollectionFolderId_();
 
-      const scrollTop = this.$.bookmarks.scrollTop;
+      const scrollTop = this.$.scroller.scrollTop;
       this.updateDisplayLists_();
       if (bookmark.url) {
         getAnnouncerInstance().announce(loadTimeData.getStringF(
@@ -487,7 +489,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
             listElement.scrollToIndex(indexInList);
           } else {
             afterNextRender(this, () => {
-              this.$.bookmarks.scrollTop = scrollTop;
+              this.$.scroller.scrollTop = scrollTop;
             });
           }
           break;
@@ -510,13 +512,13 @@ export class PowerBookmarksListElement extends PolymerElement implements
     } else if (
         (shouldShow !== isShowing) ||
         (shouldShow && this.hasSomeActiveFilter_)) {
-      const scrollTop = this.$.bookmarks.scrollTop;
+      const scrollTop = this.$.scroller.scrollTop;
       this.updateDisplayLists_();
       getAnnouncerInstance().announce(loadTimeData.getStringF(
           'bookmarkMoved', getBookmarkName(bookmark),
           getBookmarkName(newParent)));
       afterNextRender(this, () => {
-        this.$.bookmarks.scrollTop = scrollTop;
+        this.$.scroller.scrollTop = scrollTop;
       });
     }
     this.updatedElementIds_ = [newParent.id, oldParent.id];
@@ -534,7 +536,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     if (this.$.contextMenu.anyBookmarkMatches(bookmark.id)) {
       this.$.contextMenu.close();
     }
-    const scrollTop = this.$.bookmarks.scrollTop;
+    const scrollTop = this.$.scroller.scrollTop;
     this.updateDisplayLists_();
     const isShown = this.bookmarkIsShowing_(bookmark);
     if (isShown) {
@@ -542,7 +544,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
       getAnnouncerInstance().announce(loadTimeData.getStringF(
           'bookmarkDeleted', getBookmarkName(bookmark)));
       afterNextRender(this, () => {
-        this.$.bookmarks.scrollTop = scrollTop;
+        this.$.scroller.scrollTop = scrollTop;
       });
     }
 
@@ -550,7 +552,9 @@ export class PowerBookmarksListElement extends PolymerElement implements
       this.shoppingCollectionFolderId_ = '';
     }
     this.updatedElementIds_ = [bookmark.parentId];
-    this.set(`trackedProductInfos_.${bookmark.id}`, null);
+    const newTrackedProductInfos = {...this.trackedProductInfos_};
+    delete newTrackedProductInfos[bookmark.id];
+    this.trackedProductInfos_ = newTrackedProductInfos;
     this.availableProductInfos_.delete(bookmark.id);
     if (this.selectedBookmarks_[bookmark.id]) {
       this.set(`selectedBookmarks_.${bookmark.id}`, false);
@@ -687,11 +691,16 @@ export class PowerBookmarksListElement extends PolymerElement implements
   }
 
   private onBookmarkPriceTracked_(product: BookmarkProductInfo) {
-    this.set(`trackedProductInfos_.${product.bookmarkId.toString()}`, product);
+    this.trackedProductInfos_ = {
+      ...this.trackedProductInfos_,
+      [product.bookmarkId.toString()]: product,
+    };
   }
 
   private onBookmarkPriceUntracked_(product: BookmarkProductInfo) {
-    this.set(`trackedProductInfos_.${product.bookmarkId.toString()}`, null);
+    const newTrackedProductInfos = {...this.trackedProductInfos_};
+    delete newTrackedProductInfos[product.bookmarkId.toString()];
+    this.trackedProductInfos_ = newTrackedProductInfos;
   }
 
   private bookmarkIsShowing_(bookmark: BookmarksTreeNode): boolean {
@@ -1432,7 +1441,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.notifyBookmarksListResize_();
 
     this.hasScrollbars_ =
-        this.$.bookmarks.scrollHeight > this.$.bookmarks.offsetHeight;
+        this.$.scroller.scrollHeight > this.$.scroller.offsetHeight;
   }
 }
 

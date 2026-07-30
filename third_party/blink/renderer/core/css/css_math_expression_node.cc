@@ -1125,6 +1125,12 @@ CSSMathExpressionNode* MaybeSimplifySumOrProductNode(
         CSSMathExpressionOperation::CreateArithmeticOperationSimplified(
             final_node, node, op);
   }
+
+  // Due to simplification, we could be left with only a single term
+  // that contains a sum. If so, we need to mark that there are
+  // de-facto parentheses around it.
+  final_node->SetIsNestedCalc();
+
   return final_node;
 }
 
@@ -5506,25 +5512,22 @@ const CSSPrimitiveValue* RandomCacheKey::GetFixed() const {
   DCHECK(std::holds_alternative<Member<const CSSPrimitiveValue>>(value_));
   return std::get<Member<const CSSPrimitiveValue>>(value_);
 }
-bool RandomCacheKey::IsAuto() const {
-  return std::holds_alternative<RandomName>(value_) &&
-         std::get<RandomName>(value_).ident == "auto";
-}
 AtomicString RandomCacheKey::RandomNameForCaching() const {
   if (!std::holds_alternative<RandomName>(value_)) {
     return g_null_atom;
   }
   RandomName random_name = std::get<RandomName>(value_);
   StringBuilder result;
-  result.Append(random_name.ident);
-  if (random_name.property) {
-    result.Append(";");
-    result.Append(random_name.property);
+  if (random_name.ident) {
+    result.Append(random_name.ident);
   }
-  if (random_name.index.has_value()) {
-    result.Append(";");
-    result.AppendNumber(*random_name.index);
+  if (random_name.ua_ident) {
+    if (!result.empty()) {
+      result.Append(" ");
+    }
+    result.Append(random_name.ua_ident);
   }
+
   return result.ToAtomicString();
 }
 bool RandomCacheKey::IsElementScoped() const {
@@ -5572,52 +5575,39 @@ const RandomCacheKey* RandomCacheKey::Parse(
     return Auto(local_context);
   }
 
-  if (!token.Value().starts_with("--")) {
-    return nullptr;
-  }
-
-  AtomicString ident =
-      stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+  AtomicString ident;
   ElementScoped element_scoped(false);
-  AtomicString property;
-  std::optional<wtf_size_t> index;
-
-  if (stream.Peek().GetType() != kIdentToken) {
-    return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped, property,
-                                                index);
-  }
-  token = stream.Peek();
-  if (token.Value() == "element-scoped") {
-    element_scoped = ElementScoped(true);
-    stream.ConsumeIncludingWhitespace();
-  }
-
-  if (stream.Peek().GetType() != kIdentToken) {
-    return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped, property,
-                                                index);
-  }
-  token = stream.Peek();
-  if (token.Value() == "property-scoped" ||
-      token.Value() == "property-index-scoped") {
-    property = local_context.PropertyName();
-    if (token.Value() == "property-index-scoped") {
-      index = local_context.RandomValueCount();
+  AtomicString random_ua_ident;
+  while (!stream.AtEnd() && stream.Peek().GetType() == kIdentToken) {
+    token = stream.Peek();
+    if (!ident && token.Value().starts_with("--")) {
+      ident = stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+    } else if (!element_scoped && token.Value() == "element-scoped") {
+      element_scoped = ElementScoped(true);
+      stream.ConsumeIncludingWhitespace();
+    } else if (!random_ua_ident && (token.Value() == "property-scoped" ||
+                                    token.Value() == "property-index-scoped")) {
+      StringBuilder ua_ident_builder;
+      ua_ident_builder.Append("ua-");
+      ua_ident_builder.Append(local_context.PropertyName());
+      if (token.Value() == "property-index-scoped") {
+        ua_ident_builder.Append("-");
+        ua_ident_builder.AppendNumber(local_context.CurrentRandomValueIndex());
+      }
+      random_ua_ident = ua_ident_builder.ToAtomicString();
+      stream.ConsumeIncludingWhitespace();
+    } else if (!random_ua_ident && token.Value().starts_with("ua-")) {
+      random_ua_ident =
+          stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+    } else if (!ident && !element_scoped && !random_ua_ident) {
+      return nullptr;
+    } else {
+      return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped,
+                                                  random_ua_ident);
     }
-    stream.ConsumeIncludingWhitespace();
   }
-
-  if (stream.Peek().GetType() != kIdentToken) {
-    return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped, property,
-                                                index);
-  }
-  token = stream.Peek();
-  if (!element_scoped && token.Value() == "element-scoped") {
-    element_scoped = ElementScoped(true);
-    stream.ConsumeIncludingWhitespace();
-  }
-
-  return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped, property,
-                                              index);
+  return MakeGarbageCollected<RandomCacheKey>(ident, element_scoped,
+                                              random_ua_ident);
 }
 
 const RandomCacheKey* RandomCacheKey::Fixed(double fixed_value) {
@@ -5627,9 +5617,13 @@ const RandomCacheKey* RandomCacheKey::Fixed(double fixed_value) {
 
 const RandomCacheKey* RandomCacheKey::Auto(
     const CSSParserLocalContext& local_context) {
+  StringBuilder ua_ident_builder;
+  ua_ident_builder.Append("ua-");
+  ua_ident_builder.Append(local_context.PropertyName());
+  ua_ident_builder.Append("-");
+  ua_ident_builder.AppendNumber(local_context.CurrentRandomValueIndex());
   return MakeGarbageCollected<RandomCacheKey>(
-      AtomicString("auto"), ElementScoped(true), local_context.PropertyName(),
-      local_context.RandomValueCount());
+      g_null_atom, ElementScoped(true), ua_ident_builder.ToAtomicString());
 }
 
 void RandomCacheKey::Trace(Visitor* visitor) const {
@@ -5645,9 +5639,7 @@ String RandomCacheKey::CssText() const {
     result.Append(GetFixed()->CustomCSSText());
     return result.ToString();
   }
-  if (!IsAuto()) {
-    result.Append(std::get<RandomName>(value_).CssText());
-  }
+  result.Append(std::get<RandomName>(value_).CssText());
   return result.ToString();
 }
 

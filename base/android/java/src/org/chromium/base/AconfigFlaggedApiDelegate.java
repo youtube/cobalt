@@ -487,4 +487,23 @@ public interface AconfigFlaggedApiDelegate {
         promise.reject(new UnsupportedOperationException("Not supported"));
         return promise;
     }
+
+    /**
+     * Sends an intent to the Android platform to display a dialog about the restricted content.
+     *
+     * @param uri The URI of the content being restricted.
+     * @return true if the intent was sent successfully, false otherwise.
+     */
+    default boolean sendShowRestrictedContentIntent(Uri uri) {
+        return false;
+    }
+
+    /**
+     * Checks if the Native WebView Zygote is enabled.
+     *
+     * @param delegate the WebViewDelegate used to check the state.
+     */
+    default boolean isNativeWebViewZygoteEnabled(WebViewDelegate delegate) {
+        return false;
+    }
 }

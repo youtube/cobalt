@@ -16,6 +16,7 @@
 #import "components/sync/base/features.h"
 #import "components/sync_preferences/features.h"
 #import "components/variations/service/variations_service.h"
+#import "components/variations/service/variations_service_utils.h"
 #import "components/version_info/channel.h"
 #import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
@@ -87,8 +88,7 @@ BASE_FEATURE(kTCRexKillSwitch,
              "kTCRexKillSwitch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-
-BASE_FEATURE(kTabGridNewTransitions, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTabGridNewTransitions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsNewTabGridTransitionsEnabled() {
   if (IsChromeNextIaEnabled()) {
@@ -98,10 +98,6 @@ bool IsNewTabGridTransitionsEnabled() {
 }
 
 BASE_FEATURE(kTabGroupInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTabGroupInTabIconContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTabRecallNewTabGroupButton, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabSwitcherOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -390,6 +386,10 @@ BASE_FEATURE(kSegmentationPlatformIosModuleRankerCaching,
 BASE_FEATURE(kEnableAppBackgroundRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppBackgroundRefreshEnabled() {
+  if (!base::FeatureList::IsEnabled(
+          crypto::features::kMigrateIOSKeychainAccessibility)) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kEnableAppBackgroundRefresh);
 }
 
@@ -458,12 +458,12 @@ BASE_FEATURE(kIOSOneTimeDefaultBrowserNotification,
 constexpr base::FeatureParam<std::string> kFRESignInHeaderTextUpdateParam{
     &kFRESignInHeaderTextUpdate,
     /*name=*/"FRESignInHeaderTextUpdateParam",
-    /*default_value=*/""};
+    /*default_value=*/"Arm1"};
 
 const std::string_view kFRESignInHeaderTextUpdateParamArm0 = "Arm0";
 const std::string_view kFRESignInHeaderTextUpdateParamArm1 = "Arm1";
 
-BASE_FEATURE(kFRESignInHeaderTextUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFRESignInHeaderTextUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool FRESignInHeaderTextUpdate() {
   return base::FeatureList::IsEnabled(kFRESignInHeaderTextUpdate);
@@ -620,6 +620,8 @@ constexpr base::FeatureParam<double>
         /*name=*/kIOSOneTapMiniMapRestrictionMinAlphanumProportionParamName,
         /*default_value=*/0.8};
 
+BASE_FEATURE(kIOSMiniMapUniversalLink, base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
 }
@@ -692,6 +694,11 @@ bool IsBestOfAppLensInteractivePromoEnabled() {
 bool IsBestOfAppLensAnimatedPromoEnabled() {
   return IsBestOfAppFREEnabled() &&
          std::ranges::contains(GetBestOfAppFREActiveVariants(), "2");
+}
+
+bool IsBestOfAppBestFeaturesEnabled() {
+  return IsBestOfAppFREEnabled() &&
+         std::ranges::contains(GetBestOfAppFREActiveVariants(), "3");
 }
 
 bool IsDefaultBrowserPromoPropensityModelEnabled() {
@@ -945,13 +952,13 @@ bool IsAssistantContainerEnabled() {
   return base::FeatureList::IsEnabled(kAssistantContainer);
 }
 
-bool ShouldShowAssistantContainerDebugElements() {
+bool IsAssistantContainerDebugEnabled() {
   if (!base::FeatureList::IsEnabled(kAssistantContainer)) {
     return false;
   }
   std::string feature_param = base::GetFieldTrialParamValueByFeature(
       kAssistantContainer, kAssistantContainerParam);
-  return feature_param == kAssistantContainerParamDebug;
+  return !feature_param.empty();
 }
 
 NSInteger GetAssistantMediumDetentPercentage() {
@@ -966,6 +973,13 @@ BASE_FEATURE(kComposeboxIpad, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxIpadEnabled() {
   return base::FeatureList::IsEnabled(kComposeboxIpad);
+}
+
+BASE_FEATURE(kComposeboxPlusButtonBottomSheet,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsComposeboxPlusButtonBottomSheet() {
+  return base::FeatureList::IsEnabled(kComposeboxPlusButtonBottomSheet);
 }
 
 BASE_FEATURE(kChromeNextIa, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -998,8 +1012,7 @@ bool IsAIOmniboxLaunchedCountry() {
       GetApplicationContext()->GetVariationsService();
   bool is_launched_country =
       variations_service &&
-      base::ToLowerASCII(variations_service->GetStoredPermanentCountry()) ==
-          "us";
+      base::ToLowerASCII(GetCurrentCountryCode(variations_service)) == "us";
   return is_launched_country;
 }
 
@@ -1213,4 +1226,10 @@ BASE_FEATURE(kCobrowseAimHistory, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsCobrowseAimHistoryEnabled() {
   return base::FeatureList::IsEnabled(kCobrowseAimHistory);
+}
+
+BASE_FEATURE(kAssistantAimMinimizedState, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAssistantAimMinimizedStateEnabled() {
+  return base::FeatureList::IsEnabled(kAssistantAimMinimizedState);
 }

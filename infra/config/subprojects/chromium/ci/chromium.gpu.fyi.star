@@ -1040,7 +1040,7 @@ gpu.ci.mac_builder(
     ),
     targets = targets.bundle(),
     console_view_entry = consoles.console_view_entry(
-        category = "Mac|Builder",
+        category = "Mac|Builder|x64",
         short_name = "rel",
     ),
 )
@@ -1079,7 +1079,7 @@ gpu.ci.mac_builder(
     # from ARM host.
     cpu = cpu.X86_64,
     console_view_entry = consoles.console_view_entry(
-        category = "Mac|Builder",
+        category = "Mac|Builder|x64",
         short_name = "asn",
     ),
 )
@@ -1113,7 +1113,7 @@ gpu.ci.mac_builder(
     ),
     targets = targets.bundle(),
     console_view_entry = consoles.console_view_entry(
-        category = "Mac|Builder",
+        category = "Mac|Builder|x64",
         short_name = "dbg",
     ),
 )
@@ -1148,8 +1148,48 @@ gpu.ci.mac_builder(
         ],
     ),
     console_view_entry = consoles.console_view_entry(
-        category = "Mac|Builder",
-        short_name = "arm",
+        category = "Mac|Builder|arm64",
+        short_name = "rel",
+    ),
+)
+
+gpu.ci.mac_builder(
+    name = "GPU FYI Mac arm64 Builder (asan)",
+    description_html = "Builds release Mac arm64 binaries with ASan enabled for GPU testing",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "arm64",
+            "asan",
+            "gpu_fyi_tests",
+            "mac",
+            "release_builder",
+            "remoteexec",
+            "try_builder",
+        ],
+    ),
+    targets = targets.bundle(),
+    # //tools/grit:brotli_mac_asan_workaround doesn't create bundle
+    # `obj/tools/grit/brotli_mac_asan_workaround/` when cross compiling
+    # from x64 host.
+    cpu = cpu.ARM64,
+    console_view_entry = consoles.console_view_entry(
+        category = "Mac|Builder|arm64",
+        short_name = "asn",
     ),
 )
 
@@ -1879,6 +1919,11 @@ ci.thin_tester(
                     shards = 2,
                 ),
             ),
+            "trace_test": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 2,
+                ),
+            ),
         },
     ),
     targets_settings = targets.settings(
@@ -2304,6 +2349,95 @@ ci.thin_tester(
 )
 
 ci.thin_tester(
+    name = "Mac FYI Retina Release ASAN (Apple M2)",
+    description_html = "Runs release GPU tests with ASan enabled on stable Mac/M2 Macbook Pro configs",
+    parent = "GPU FYI Mac arm64 Builder (asan)",
+    builder_spec = builder_config.builder_spec(
+        execution_mode = builder_config.execution_mode.TEST,
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+        run_tests_serially = True,
+    ),
+    targets = targets.bundle(
+        targets = [
+            "gpu_fyi_mac_release_gtests",
+            "gpu_fyi_only_mac_release_telemetry_tests",
+        ],
+        mixins = [
+            "mac_arm64_apple_m2_retina_gpu_stable",
+        ],
+        per_test_modifications = {
+            "pixel_skia_gold_gl_passthrough_ganesh_test": targets.per_test_modification(
+                mixins = targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 2,
+                    ),
+                ),
+            ),
+            "pixel_skia_gold_metal_passthrough_ganesh_test": targets.per_test_modification(
+                mixins = targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 2,
+                    ),
+                ),
+            ),
+            "pixel_skia_gold_metal_passthrough_graphite_test": targets.per_test_modification(
+                mixins = targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 2,
+                    ),
+                ),
+            ),
+            "trace_test": targets.per_test_modification(
+                mixins = targets.mixin(
+                    swarming = targets.swarming(
+                        shards = 2,
+                    ),
+                ),
+            ),
+            "webgl2_conformance_metal_passthrough_graphite_tests": targets.remove(
+                reason = "crbug.com/1270755",
+            ),
+            # "webgl2_conformance_metal_passthrough_graphite_tests": targets.mixin(
+            #     args = [
+            #         "--extra-browser-args=--disable-metal-shader-cache",
+            #     ],
+            # ),
+            "webgl_conformance_metal_passthrough_ganesh_tests": targets.remove(
+                reason = "crbug.com/1270755",
+            ),
+            "webgl_conformance_metal_passthrough_graphite_tests": targets.remove(
+                reason = "crbug.com/1270755",
+            ),
+            # "webgl_conformance_metal_passthrough_graphite_tests": targets.mixin(
+            #     args = [
+            #         "--extra-browser-args=--disable-metal-shader-cache",
+            #     ],
+            # ),
+        },
+    ),
+    targets_settings = targets.settings(
+        browser_config = targets.browser_config.RELEASE,
+        os_type = targets.os_type.MAC,
+    ),
+    console_view_entry = consoles.console_view_entry(
+        category = "Mac|Apple",
+        short_name = "asn",
+    ),
+)
+
+ci.thin_tester(
     name = "Mac FYI ASAN (Intel)",
     description_html = "Runs release GPU tests with ASan enabled on stable Mac/Intel UHD 630 Mac Mini configs",
     parent = "GPU FYI Mac Builder (asan)",
@@ -2574,6 +2708,11 @@ ci.thin_tester(
         ],
         per_test_modifications = {
             "pixel_skia_gold_gl_passthrough_ganesh_test": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 2,
+                ),
+            ),
+            "trace_test": targets.mixin(
                 swarming = targets.swarming(
                     shards = 2,
                 ),
@@ -3103,6 +3242,9 @@ ci.thin_tester(
             "win10_intel_uhd_630_stable",
         ],
         per_test_modifications = {
+            "webgl_conformance_d3d9_passthrough_tests": targets.remove(
+                reason = "Flaky crashes crbug.com/486945324",
+            ),
             "xr_browser_tests": targets.mixin(
                 args = [
                     # TODO(crbug.com/40937024): Remove this once the flakes on Intel are
@@ -3756,111 +3898,6 @@ ci.thin_tester(
     ),
     console_view_entry = consoles.console_view_entry(
         category = "Windows|10|x86|Nvidia",
-        short_name = "rel",
-    ),
-)
-
-ci.thin_tester(
-    name = "Win11 FYI arm64 Release (Qualcomm Adreno 690)",
-    description_html = "Runs release GPU tests on stable Windows 11/Adreno 690 configs (Dell Inspiron 14 3420)",
-    parent = "GPU FYI Win arm64 Builder",
-    builder_spec = builder_config.builder_spec(
-        execution_mode = builder_config.execution_mode.TEST,
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.WIN,
-        ),
-        run_tests_serially = True,
-    ),
-    targets = targets.bundle(
-        targets = [
-            "gpu_fyi_win_gtests",
-            "gpu_fyi_win_release_telemetry_tests",
-        ],
-        mixins = [
-            "win11_qualcomm_adreno_690_stable",
-        ],
-        per_test_modifications = {
-            "context_lost_passthrough_graphite_tests": targets.remove(
-                reason = "Test is not high priority and win11/arm has limited capacity.",
-            ),
-            "context_lost_passthrough_tests": targets.per_test_modification(
-                mixins = targets.mixin(
-                    # These devices have issues running these tests in parallel.
-                    args = [
-                        "--jobs=1",
-                    ],
-                ),
-                replacements = targets.replacements(
-                    # Magic substitution happens after regular replacement, so remove it
-                    # now since we are manually applying the number of jobs above.
-                    args = {
-                        targets.magic_args.GPU_PARALLEL_JOBS: None,
-                    },
-                ),
-            ),
-            "expected_color_pixel_passthrough_graphite_test": targets.remove(
-                reason = "Graphite on ARM is currently not supported.",
-            ),
-            "gl_unittests": targets.mixin(
-                args = [
-                    # crbug.com/1523061
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/win.win_arm64.gl_unittests.filter",
-                ],
-            ),
-            "pixel_skia_gold_passthrough_graphite_test": targets.remove(
-                reason = "Graphite on ARM is currently not supported.",
-            ),
-            "screenshot_sync_passthrough_graphite_tests": targets.remove(
-                reason = "Graphite on ARM is currently not supported.",
-            ),
-            "services_webnn_unittests": targets.mixin(
-                args = [
-                    # crbug.com/1522972
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/win.win_arm64.services_webnn_unittests.filter",
-                ],
-            ),
-            "webcodecs_tests": targets.per_test_modification(
-                mixins = targets.mixin(
-                    # These devices have issues running these tests in parallel.
-                    # TODO(crbug.com/346406092): Once addressed, remove this block.
-                    args = [
-                        "--jobs=1",
-                    ],
-                ),
-                replacements = targets.replacements(
-                    # Magic substitution happens after regular replacement, so remove it
-                    # now since we are manually applying the number of jobs above.
-                    args = {
-                        targets.magic_args.GPU_PARALLEL_JOBS: None,
-                    },
-                ),
-            ),
-            "webgl_conformance_d3d9_passthrough_tests": targets.remove(
-                reason = "Per discussion on crbug.com/1523698, we aren't interested in testing D3D9 on this newer hardware.",
-            ),
-            "webgl_conformance_vulkan_passthrough_tests": targets.remove(
-                reason = "Vulkan is not supported on these devices.",
-            ),
-            "xr_browser_tests": targets.remove(
-                reason = "No Windows arm64 devices currently support XR features, so don't bother running related tests.",
-            ),
-        },
-    ),
-    targets_settings = targets.settings(
-        browser_config = targets.browser_config.RELEASE,
-        os_type = targets.os_type.WINDOWS,
-    ),
-    console_view_entry = consoles.console_view_entry(
-        category = "Windows|11|arm64|Qualcomm",
         short_name = "rel",
     ),
 )

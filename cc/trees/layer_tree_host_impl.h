@@ -170,17 +170,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     gfx::Size size;
   };
 
-  static std::unique_ptr<LayerTreeHostImpl> Create(
-      const LayerTreeSettings& settings,
-      LayerTreeHostImplClient* client,
-      TaskRunnerProvider* task_runner_provider,
-      RenderingStatsInstrumentation* rendering_stats_instrumentation,
-      TaskGraphRunner* task_graph_runner,
-      std::unique_ptr<MutatorHost> mutator_host,
-      RasterDarkModeFilter* dark_mode_filter,
-      int id,
-      scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner,
-      LayerTreeHostSchedulingClient* scheduling_client);
   LayerTreeHostImpl(const LayerTreeHostImpl&) = delete;
   ~LayerTreeHostImpl() override;
 
@@ -215,6 +204,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool HaveRootScrollNode() const override;
   void SetNeedsCommit() override;
   base::TimeDelta CurrentFrameInterval() const override;
+  float RenderedDeviceScaleFactor() const override;
 
   // ImageAnimationController::Client implementation.
   void RequestBeginFrameForAnimatedImages() override;

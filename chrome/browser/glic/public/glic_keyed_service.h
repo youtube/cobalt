@@ -16,7 +16,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_metrics.h"
-#include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
@@ -41,10 +40,6 @@ namespace actor {
 class ActorKeyedService;
 }  // namespace actor
 
-namespace contextual_cueing {
-class ContextualCueingService;
-}  // namespace contextual_cueing
-
 namespace signin {
 class IdentityManager;
 }  // namespace signin
@@ -52,19 +47,17 @@ class IdentityManager;
 namespace glic {
 
 class AuthController;
+class ContextualCueingService;
 class GlicActorPolicyChecker;
 class GlicEnabling;
 class GlicFreController;
 class GlicMetrics;
-class GlicOcclusionNotifier;
 class GlicProfileManager;
 class GlicRegionCaptureController;
 class GlicShareImageHandler;
 class GlicTabDataObserver;
 class GlicTabFaviconObserver;
 class GlicInstanceCoordinator;
-class HostManager;
-class GlicWebContentsWarmingPool;
 
 enum class GlicPrewarmingChecksResult;
 
@@ -77,12 +70,13 @@ enum class GlicPrewarmingChecksResult;
 class GlicKeyedService : public KeyedService,
                          public base::SupportsUserData {
  public:
-  explicit GlicKeyedService(Profile* profile,
-                            signin::IdentityManager* identity_manager,
-                            ProfileManager* profile_manager,
-                            GlicProfileManager* glic_profile_manager,
-                            ContextualCueingService* contextual_cueing_service,
-                            actor::ActorKeyedService* actor_keyed_service);
+  explicit GlicKeyedService(
+      Profile* profile,
+      signin::IdentityManager* identity_manager,
+      ProfileManager* profile_manager,
+      GlicProfileManager* glic_profile_manager,
+      glic::ContextualCueingService* contextual_cueing_service,
+      actor::ActorKeyedService* actor_keyed_service);
   GlicKeyedService(const GlicKeyedService&) = delete;
   GlicKeyedService& operator=(const GlicKeyedService&) = delete;
   ~GlicKeyedService() override;
@@ -151,9 +145,6 @@ class GlicKeyedService : public KeyedService,
   // Unpins the specified tabs from all instances.
   void UnpinTabsFromAllInstances(base::span<const tabs::TabHandle> tab_handles,
                                  GlicUnpinTrigger trigger);
-
-  // Called when a webview guest is created within a chrome://glic WebUI.
-  void GuestAdded(content::WebContents* guest_contents);
 
   // Virtual for testing.
   virtual bool IsWindowShowing() const;
@@ -231,8 +222,6 @@ class GlicKeyedService : public KeyedService,
   GlicRegionCaptureController& region_capture_controller();
 #endif
 
-  bool IsActiveWebContents(content::WebContents* contents);
-
   void AddPreloadCallback(base::OnceCallback<void()> callback);
 
   virtual void TryPreload();
@@ -251,28 +240,6 @@ class GlicKeyedService : public KeyedService,
 
   base::WeakPtr<GlicKeyedService> GetWeakPtr();
 
-  HostManager& host_manager();
-
-  GlicWebContentsWarmingPool& web_contents_warming_pool() {
-    return *web_contents_warming_pool_;
-  }
-
-  // Null in multi-instance mode.
-  GlicZeroStateSuggestionsManager* zero_state_suggestions_manager() {
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-    return zero_state_suggestions_manager_.get();
-#else
-    return nullptr;
-#endif
-  }
-
-  // Returns whether this process host is either the Glic FRE WebUI or the Glic
-  // main WebUI.
-  bool IsProcessHostForGlic(content::RenderProcessHost* process_host);
-  // Returns whether this web contents contains the Chrome glic WebUI,
-  // chrome://glic.
-  bool IsGlicWebUi(content::WebContents* web_contents);
-
   // Get the GlicInstance associated with the given browser's active tab, or
   // null if there is none. `bwi` can be null if preloaded with no browser open.
   GlicInstance* GetInstanceForActiveTab(BrowserWindowInterface* bwi);
@@ -281,14 +248,14 @@ class GlicKeyedService : public KeyedService,
   bool IsMediaRequestFromGlic(const std::string& request_id) const;
 
   // Get the GlicInstance for a provided tab, or null if there is none.
-  GlicInstance* GetInstanceForTab(tabs::TabInterface* tab);
+  virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab);
 
   // Sends additional context to the web client associated with the given tab.
   // If no web client exists for the tab, then this method does nothing. It is
   // the responsibility of the caller to ensure that a host exists before
   // calling this method.
-  void SendAdditionalContext(tabs::TabHandle tab_handle,
-                             mojom::AdditionalContextPtr context);
+  virtual void SendAdditionalContext(tabs::TabHandle tab_handle,
+                                     mojom::AdditionalContextPtr context);
 
   GlicTabDataObserver& tab_data_observer() { return *tab_data_observer_; }
   GlicTabFaviconObserver& tab_favicon_observer() {
@@ -348,7 +315,7 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<GlicMetrics> metrics_;
   std::unique_ptr<GlicFreController> fre_controller_;
   // Is a GlicInstanceCoordinatorImpl.
-  std::unique_ptr<GlicInstanceCoordinator> window_controller_;
+  std::unique_ptr<GlicInstanceCoordinator> instance_coordinator_;
   std::unique_ptr<GlicSharingManager> sharing_manager_;
   std::unique_ptr<GlicShareImageHandler> share_image_handler_;
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
@@ -356,20 +323,10 @@ class GlicKeyedService : public KeyedService,
 #endif
   std::unique_ptr<AuthController> auth_controller_;
 
-#if !BUILDFLAG(IS_ANDROID)  // Single instance only
-  // Null in multi-instance mode.
-  std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
-  std::unique_ptr<GlicZeroStateSuggestionsManager>
-      zero_state_suggestions_manager_;
-#endif
   base::OnceCallback<void()> preload_callback_;
 
   std::unique_ptr<GlicTabDataObserver> tab_data_observer_;
   std::unique_ptr<GlicTabFaviconObserver> tab_favicon_observer_;
-  std::unique_ptr<GlicWebContentsWarmingPool> web_contents_warming_pool_;
-
-  // Unowned
-  raw_ptr<ContextualCueingService> contextual_cueing_service_;
 
   base::WeakPtrFactory<GlicKeyedService> weak_ptr_factory_{this};
 };

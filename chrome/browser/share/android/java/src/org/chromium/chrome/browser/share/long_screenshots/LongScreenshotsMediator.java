@@ -105,7 +105,12 @@ public class LongScreenshotsMediator
                         if (status == EntryStatus.CAPTURE_IN_PROGRESS) return;
 
                         if (status != EntryStatus.CAPTURE_COMPLETE) {
+                            // If we got a status other than "in progress" or "complete", it means
+                            // we encountered some kind of failure.
                             mEntryManager.removeBitmapGeneratorObserver(this);
+                            // We need to call mDoneCallback to return to the normal browsing mode
+                            // instead of getting stuck.
+                            finishCapture();
                         }
                     }
 
@@ -123,11 +128,7 @@ public class LongScreenshotsMediator
             return;
         }
         if (status != EntryStatus.BITMAP_GENERATED) {
-            Toast.makeText(
-                            mActivity,
-                            R.string.sharing_long_screenshot_unknown_error,
-                            Toast.LENGTH_LONG)
-                    .show();
+            finishCapture();
             return;
         }
         Bitmap entryBitmap = entry.getBitmap();
@@ -135,7 +136,7 @@ public class LongScreenshotsMediator
         // Scale down the bitmap if passing it to
         // ImageView.setImageBitmap() would throw a too-large
         // error due to OOM (out of memory).
-        // TODO(http://crbug.com/1275758): We could include this
+        // TODO(http://crbug.com/40207207): We could include this
         // logic inside the generator and reuse mScaleFactor
         // there.
         if (bitmapByteCount >= DOWNSCALE_AREA_THRESHOLD_BYTES) {
@@ -214,6 +215,10 @@ public class LongScreenshotsMediator
 
     public void areaSelectionDone(View view) {
         assumeNonNull(mDialog).cancel();
+        finishCapture();
+    }
+
+    private void finishCapture() {
         mDone = true;
         if (mDoneCallback != null) {
             mDoneCallback.run();
@@ -303,6 +308,7 @@ public class LongScreenshotsMediator
     // EditorScreenshotSource implementation.
     @Override
     public void capture(@Nullable Runnable callback) {
+        mDone = false;
         mDoneCallback = callback;
         displayInitialScreenshot();
     }
@@ -316,6 +322,10 @@ public class LongScreenshotsMediator
     // Invalidates |mFullBitmap|.
     @Override
     public @Nullable Bitmap getScreenshot() {
+        if (mFullBitmap == null || mTopAreaMaskView == null || mBottomAreaMaskView == null) {
+            return null;
+        }
+
         // Extract bitmap data from the bottom of the top mask to the top of the bottom mask.
         int startY = getTopMaskY();
         int endY = getBottomMaskY();

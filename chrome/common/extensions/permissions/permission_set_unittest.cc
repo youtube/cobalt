@@ -890,7 +890,6 @@ TEST(PermissionsTest, PermissionMessages) {
   skip.insert(APIPermissionID::kTabCaptureForTab);
   skip.insert(APIPermissionID::kTerminalPrivate);
   skip.insert(APIPermissionID::kVirtualKeyboardPrivate);
-  skip.insert(APIPermissionID::kWebrtcAudioPrivate);
   skip.insert(APIPermissionID::kWebrtcDesktopCapturePrivate);
   skip.insert(APIPermissionID::kWebrtcLoggingPrivate);
   skip.insert(APIPermissionID::kWebrtcLoggingPrivateAudioDebug);
@@ -1828,7 +1827,7 @@ TEST(PermissionsTest, SyncFileSystemPermission) {
 // Make sure that we don't crash when we're trying to show the permissions
 // even though everything with a chrome:// scheme except chrome://favicon is
 // not a valid permission.
-// More details here: crbug/246314.
+// More details here: crbug.com/40320274.
 TEST(PermissionsTest, ChromeURLs) {
   URLPatternSet allowed_hosts;
   allowed_hosts.AddPattern(

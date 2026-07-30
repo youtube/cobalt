@@ -27,7 +27,8 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
 };
 
 // TODO(crbug.com/487147580): Re-enable the test
-#if BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/507306254): Failing on ChromeOS.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_App DISABLED_App
 #else
 #define MAYBE_App App
@@ -88,6 +89,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, PostMessageHandler) {
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, TopToolbarTest) {
   RunTest("contextual_tasks/top_toolbar_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, OverflowMenu) {
+  RunTest("contextual_tasks/overflow_menu_test.js", "mocha.run();");
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WebView) {

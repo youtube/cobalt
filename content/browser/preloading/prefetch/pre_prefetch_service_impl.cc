@@ -8,9 +8,11 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool.h"
+#include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
@@ -47,10 +49,14 @@ class PrePrefetchServiceCore {
   PrePrefetchServiceCore(
       mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_factory,
       std::map<PrePrefetchPreCalculatedHeadersKey, PrefetchUpdateHeadersParams>
-          ui_thread_pre_calculated_headers_map)
+          ui_thread_pre_calculated_headers_map,
+      std::vector<PrePrefetchUpdateHeadersCallback>
+          non_ui_thread_update_headers_callbacks)
       : factory_(std::move(pending_factory)),
         ui_thread_pre_calculated_headers_map_(
-            std::move(ui_thread_pre_calculated_headers_map)) {
+            std::move(ui_thread_pre_calculated_headers_map)),
+        non_ui_thread_update_headers_callbacks_(
+            std::move(non_ui_thread_update_headers_callbacks)) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     CHECK(base::FeatureList::IsEnabled(features::kPrefetchOffTheMainThread));
   }
@@ -107,7 +113,8 @@ class PrePrefetchServiceCore {
 
     auto pre_prefetch_container = PrePrefetchContainer::CreateAndStart(
         pass_key, std::move(prefetch_request), std::move(new_factory),
-        *ui_thread_pre_calculated_headers);
+        *ui_thread_pre_calculated_headers,
+        non_ui_thread_update_headers_callbacks_);
 
     // ----------------------------------------------------------------------
     // Epilogue
@@ -132,29 +139,44 @@ class PrePrefetchServiceCore {
   // TODO(crbug.com/452389538): Consider how to refresh these.
   std::map<PrePrefetchPreCalculatedHeadersKey, PrefetchUpdateHeadersParams>
       ui_thread_pre_calculated_headers_map_;
+
+  // Callbacks that can be called on `PrePrefetchContainer::Start()`
+  // (`PrePrefetchServiceCore` sequence) to modify the PrePrefetch initial
+  // request headers. Therefore, for example, this can conceptually emulate
+  // header modifications performed in
+  // `ContentBrowserClient::WillCreateURLLoaderFactory`.
+  std::vector<PrePrefetchUpdateHeadersCallback>
+      non_ui_thread_update_headers_callbacks_;
 };
 
 // static
 std::unique_ptr<PrePrefetchService> PrePrefetchService::Create(
     BrowserContext* browser_context,
+    std::vector<PrePrefetchUpdateHeadersCallback>
+        embedder_non_ui_thread_update_headers_callbacks,
     std::optional<url::Origin> initial_origin_hint,
     std::optional<bool> initial_javascript_enabled_hint,
     std::optional<bool> initial_should_append_variations_header_hint) {
   CHECK(base::FeatureList::IsEnabled(features::kPrefetchOffTheMainThread));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return std::make_unique<PrePrefetchServiceImpl>(
-      browser_context, initial_origin_hint, initial_javascript_enabled_hint,
+      browser_context,
+      std::move(embedder_non_ui_thread_update_headers_callbacks),
+      initial_origin_hint, initial_javascript_enabled_hint,
       initial_should_append_variations_header_hint);
 }
 
 PrePrefetchServiceImpl::PrePrefetchServiceImpl(
     BrowserContext* browser_context,
+    std::vector<PrePrefetchUpdateHeadersCallback>
+        embedder_non_ui_thread_update_headers_callbacks,
     std::optional<url::Origin> initial_origin_hint,
     std::optional<bool> initial_javascript_enabled_hint,
-    std::optional<bool> initial_should_append_variations_header_hint)
-    : browser_context_weak_on_ui_thread_(browser_context->GetWeakPtr()) {
+    std::optional<bool> initial_should_append_variations_header_hint) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT("loading", "PrePrefetchServiceImpl::PrePrefetchServiceImpl");
+
+  browser_context_weak_on_ui_thread_ = browser_context->GetWeakPtr();
 
   // This is the same default network context that should be used in normal
   // prefetch's `URLLoaderFactory` on the UI thread, created via
@@ -201,7 +223,8 @@ PrePrefetchServiceImpl::PrePrefetchServiceImpl(
       {base::MayBlock(), base::TaskPriority::USER_BLOCKING});
   core_ = base::SequenceBound<PrePrefetchServiceCore>(
       core_task_runner_, std::move(pending_factory),
-      std::move(ui_thread_pre_calculated_headers_map));
+      std::move(ui_thread_pre_calculated_headers_map),
+      std::move(embedder_non_ui_thread_update_headers_callbacks));
 }
 
 PrefetchUpdateHeadersParams
@@ -248,7 +271,8 @@ PrePrefetchServiceImpl::PreCalculatePrePrefetchHeadersOnUI(
       is_first_party_context_for_variations_header);
 
   // If we will have additional UI thread dependent headers other than
-  // prefetch standard ones above, that should also be considered here.
+  // prefetch standard ones above, that should also be considered here,
+  // including the one that can come from embedders.
 }
 
 PrePrefetchServiceImpl::~PrePrefetchServiceImpl() {
@@ -307,12 +331,17 @@ PrePrefetchServiceImpl::StartPrePrefetchRequestInternal(
   base::ScopedClosureRunner on_done_runner(
       base::BindOnce(&base::WaitableEvent::Signal, base::Unretained(&event)));
 
+  base::ElapsedTimer timer;
   core_.AsyncCall(&PrePrefetchServiceCore::StartPrePrefetchRequest)
       .WithArgs(base::PassKey<PrePrefetchServiceImpl>(),
                 std::move(prefetch_request), &handle,
                 std::move(on_done_runner));
 
   event.Wait();
+  UMA_HISTOGRAM_TIMES(
+      "Preloading.Prefetch.PrePrefetch.PrePrefetchServiceThreadBlockTime",
+      timer.Elapsed());
+
   return handle;
 }
 

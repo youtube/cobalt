@@ -446,6 +446,10 @@ AppBrowserController::GetTitleBarPageActionTypes() const {
 }
 
 bool AppBrowserController::IsInstalled() const {
+  return true;
+}
+
+bool AppBrowserController::IsFirstLaunchAfterInstall() const {
   return false;
 }
 
@@ -551,6 +555,10 @@ WebAppBrowserController* AppBrowserController::AsWebAppBrowserController() {
 }
 
 bool AppBrowserController::CanUserUninstall() const {
+  return false;
+}
+
+bool AppBrowserController::IsPreinstalledOnly() const {
   return false;
 }
 

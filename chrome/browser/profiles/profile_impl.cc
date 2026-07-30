@@ -191,6 +191,7 @@
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
@@ -363,9 +364,9 @@ std::unique_ptr<Profile> Profile::CreateProfile(const base::FilePath& path,
       if (base::PathExists(path)) {
         creation_time = GetCreationTimeForPath(path);
       } else {
-        // TODO(rogerta): http://crbug/160553 - Bad things happen if we can't
-        // write to the profile directory.  We should eventually be able to run
-        // in this situation.
+        // TODO(rogerta): http://crbug.com/40293891 - Bad things happen if we
+        // can't write to the profile directory.  We should eventually be able
+        // to run in this situation.
         if (!base::CreateDirectory(path)) {
           return nullptr;
         }
@@ -1292,11 +1293,6 @@ const policy::ProfilePolicyConnector* ProfileImpl::GetProfilePolicyConnector()
   return profile_policy_connector_.get();
 }
 
-scoped_refptr<network::SharedURLLoaderFactory>
-ProfileImpl::GetURLLoaderFactory() {
-  return GetDefaultStoragePartition()->GetURLLoaderFactoryForBrowserProcess();
-}
-
 content::BrowserPluginGuestManager* ProfileImpl::GetGuestManager() {
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
   return guest_view::GuestViewManager::FromBrowserContext(this);
@@ -1466,8 +1462,8 @@ void ProfileImpl::ChangeAppLocale(const std::string& new_locale,
       // of kApplicationLocale preference would change due to sync from other
       // device then kApplicationLocaleBackup value will trigger and allow us to
       // show notification about automatic locale change in LocaleChangeGuard.
-      GetPrefs()->SetString(prefs::kApplicationLocaleBackup, new_locale);
-      GetPrefs()->ClearPref(prefs::kApplicationLocaleAccepted);
+      GetPrefs()->SetString(ash::prefs::kApplicationLocaleBackup, new_locale);
+      GetPrefs()->ClearPref(ash::prefs::kApplicationLocaleAccepted);
       // We maintain kApplicationLocale property in both a global storage
       // and user's profile.  Global property determines locale of login screen,
       // while user's profile determines their personal locale preference.
@@ -1487,29 +1483,31 @@ void ProfileImpl::ChangeAppLocale(const std::string& new_locale,
         locale_change_guard_->set_locale_changed_during_login(true);
 
         std::string accepted_locale =
-            GetPrefs()->GetString(prefs::kApplicationLocaleAccepted);
+            GetPrefs()->GetString(ash::prefs::kApplicationLocaleAccepted);
         if (accepted_locale == new_locale) {
           // If locale is accepted then we do not want to show LocaleChange
           // notification.  This notification is triggered by different values
           // of kApplicationLocaleBackup and kApplicationLocale preferences,
           // so make them identical.
-          GetPrefs()->SetString(prefs::kApplicationLocaleBackup, new_locale);
+          GetPrefs()->SetString(ash::prefs::kApplicationLocaleBackup,
+                                new_locale);
         } else {
           // Back up locale of login screen.
           std::string cur_locale = g_browser_process->GetApplicationLocale();
-          GetPrefs()->SetString(prefs::kApplicationLocaleBackup, cur_locale);
+          GetPrefs()->SetString(ash::prefs::kApplicationLocaleBackup,
+                                cur_locale);
           locale_change_guard_->PrepareChangingLocale(cur_locale, new_locale);
         }
       } else {
         std::string cur_locale = g_browser_process->GetApplicationLocale();
         std::string backup_locale =
-            GetPrefs()->GetString(prefs::kApplicationLocaleBackup);
+            GetPrefs()->GetString(ash::prefs::kApplicationLocaleBackup);
         // Profile synchronization takes time and is not completed at that
         // moment at first login.  So we initialize locale preference in steps:
         // (1) first save it to temporary backup;
         // (2) on next login we assume that synchronization is already completed
         //     and we may finalize initialization.
-        GetPrefs()->SetString(prefs::kApplicationLocaleBackup, cur_locale);
+        GetPrefs()->SetString(ash::prefs::kApplicationLocaleBackup, cur_locale);
         if (!new_locale.empty())
           GetPrefs()->SetString(language::prefs::kApplicationLocale,
                                 new_locale);
@@ -1523,7 +1521,7 @@ void ProfileImpl::ChangeAppLocale(const std::string& new_locale,
     case APP_LOCALE_CHANGED_VIA_POLICY: {
       // If the locale change has been triggered by policy, the original locale
       // is not allowed and can't be switched back to.
-      GetPrefs()->SetString(prefs::kApplicationLocaleBackup, new_locale);
+      GetPrefs()->SetString(ash::prefs::kApplicationLocaleBackup, new_locale);
       break;
     }
     case APP_LOCALE_CHANGED_VIA_DEMO_SESSION_REVERT:
@@ -1542,7 +1540,7 @@ void ProfileImpl::ChangeAppLocale(const std::string& new_locale,
 
   if (user_manager::UserManager::Get()->GetOwnerAccountId() ==
       ash::ProfileHelper::Get()->GetUserByProfile(this)->GetAccountId())
-    local_state->SetString(prefs::kOwnerLocale, new_locale);
+    local_state->SetString(ash::prefs::kOwnerLocale, new_locale);
 }
 
 void ProfileImpl::OnLogin() {
@@ -1612,11 +1610,11 @@ GURL ProfileImpl::GetHomePage() {
   }
 
   if (GetPrefs()->GetBoolean(prefs::kHomePageIsNewTabPage))
-    return GURL(chrome::kChromeUINewTabURL);
+    return chrome::ChromeUINewTabURLAsGURL();
   GURL home_page(
       url_formatter::FixupURL(GetPrefs()->GetString(prefs::kHomePage)));
   if (!home_page.is_valid())
-    return GURL(chrome::kChromeUINewTabURL);
+    return chrome::ChromeUINewTabURLAsGURL();
   return home_page;
 }
 

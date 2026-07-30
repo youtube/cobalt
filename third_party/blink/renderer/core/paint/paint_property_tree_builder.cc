@@ -3025,14 +3025,11 @@ void FragmentPaintPropertyTreeBuilder::UpdateOverflowClip() {
               LayoutReplaced::PreSnappedRectForPersistentSizing(content_rect);
         }
         // LayoutReplaced clips the foreground by rounded content box.
+        const PhysicalBoxStrut border_padding =
+            replaced.BorderOutsets() + replaced.PaddingOutsets();
         auto clip_rect =
             ContouredBorderGeometry::PixelSnappedContouredBorderWithOutsets(
-                replaced.StyleRef(), content_rect,
-                PhysicalBoxStrut(
-                    -(replaced.PaddingTop() + replaced.BorderTop()),
-                    -(replaced.PaddingRight() + replaced.BorderRight()),
-                    -(replaced.PaddingBottom() + replaced.BorderBottom()),
-                    -(replaced.PaddingLeft() + replaced.BorderLeft())))
+                replaced.StyleRef(), content_rect, -border_padding)
                 .AsRoundedRect();
         if (replaced.IsLayoutEmbeddedContent()) {
           // Embedded objects are always sized to fit the content rect, but they
@@ -4099,9 +4096,17 @@ void FragmentPaintPropertyTreeBuilder::PopulateBackdropFilterIfNeeded(
     }
   }
   if (!operations.IsEmpty()) {
-    state.backdrop_filter_info =
-        base::WrapUnique(new EffectPaintPropertyNode::BackdropFilterInfo{
-            std::move(operations), bounds, mask_compositor_element_id});
+    bool is_filter_disallowed =
+        RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+            object_.GetDocument().GetExecutionContext()) &&
+        IsA<Element>(object_.GetNode()) &&
+        To<Element>(object_.GetNode())->IsInCanvasSubtree() &&
+        operations.OriginTainted();
+    if (!is_filter_disallowed) {
+      state.backdrop_filter_info =
+          base::WrapUnique(new EffectPaintPropertyNode::BackdropFilterInfo{
+              std::move(operations), bounds, mask_compositor_element_id});
+    }
   }
 }
 

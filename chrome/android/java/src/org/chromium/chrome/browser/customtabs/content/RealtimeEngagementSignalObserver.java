@@ -306,8 +306,10 @@ class RealtimeEngagementSignalObserver extends CustomTabTabObserver {
     private void removeWebContentsDependencies(@Nullable WebContents webContents) {
         if (webContents != null) {
             if (mGestureStateListener != null) {
-                assumeNonNull(GestureListenerManager.fromWebContents(webContents))
-                        .removeListener(mGestureStateListener);
+                var manager = GestureListenerManager.fromWebContents(webContents);
+                if (manager != null) {
+                    manager.removeListener(mGestureStateListener);
+                }
             }
             if (mEngagementSignalWebContentsObserver != null) {
                 mEngagementSignalWebContentsObserver.observe(null);
@@ -353,7 +355,7 @@ class RealtimeEngagementSignalObserver extends CustomTabTabObserver {
         } catch (Exception e) {
             // Catching all exceptions is really bad, but we need it here,
             // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
+            // of exceptions. See crbug.com/40429993.
         }
     }
 
@@ -381,7 +383,7 @@ class RealtimeEngagementSignalObserver extends CustomTabTabObserver {
         } catch (Exception e) {
             // Catching all exceptions is really bad, but we need it here,
             // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
+            // of exceptions. See crbug.com/40429993.
         }
     }
 
@@ -417,7 +419,7 @@ class RealtimeEngagementSignalObserver extends CustomTabTabObserver {
         } catch (Exception e) {
             // Catching all exceptions is really bad, but we need it here,
             // because Android exposes us to client bugs by throwing a variety
-            // of exceptions. See crbug.com/517023.
+            // of exceptions. See crbug.com/40429993.
         }
     }
 

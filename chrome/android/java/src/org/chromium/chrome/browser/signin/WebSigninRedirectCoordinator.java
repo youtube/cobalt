@@ -48,8 +48,9 @@ public class WebSigninRedirectCoordinator {
     }
 
     private static final int SHOW_WEB_SIGNIN_LOADING_DIALOG_DELAY_MS = 1000;
-
-    private final RunnableTimer mShowDialogTimer = new RunnableTimer();
+    private static final int MIN_DIALOG_VISIBLE_DURATION_MS = 500;
+    private RunnableTimer mShowDialogTimer = new RunnableTimer();
+    private RunnableTimer mMinDialogVisibleTimer = new RunnableTimer();
     private @Nullable Tab mTab;
     private @Nullable GURL mContinueUrl;
     private @Nullable GURL mInitialTabURL;
@@ -57,6 +58,8 @@ public class WebSigninRedirectCoordinator {
     private @Nullable WebSigninBridge mWebSigninBridge;
     private @Nullable PropertyModel mModel;
     private @Nullable ModalDialogManager mDialogManager;
+    private boolean mMinShowTimePassed;
+    private @Nullable Integer mDeferredSigninResult;
 
     /**
      * If refresh tokens and cookies are successfully minted for the account associated with the
@@ -77,9 +80,7 @@ public class WebSigninRedirectCoordinator {
                 new WebSigninBridge.Factory()
                         .createWithEmail(tab.getProfile(), email, this::onSigninResult);
 
-        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_WEB_SIGNIN_LOADING_DIALOG)) {
-            mShowDialogTimer.startTimer(SHOW_WEB_SIGNIN_LOADING_DIALOG_DELAY_MS, this::showDialog);
-        }
+        startTimerOrForceShowDialog();
     }
 
     /**
@@ -101,9 +102,7 @@ public class WebSigninRedirectCoordinator {
                 new WebSigninBridge.Factory()
                         .createWithCoreAccountId(tab.getProfile(), accountId, this::onSigninResult);
 
-        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_WEB_SIGNIN_LOADING_DIALOG)) {
-            mShowDialogTimer.startTimer(SHOW_WEB_SIGNIN_LOADING_DIALOG_DELAY_MS, this::showDialog);
-        }
+        startTimerOrForceShowDialog();
     }
 
     /**
@@ -111,6 +110,9 @@ public class WebSigninRedirectCoordinator {
      */
     public void destroy() {
         mShowDialogTimer.cancelTimer();
+        mMinDialogVisibleTimer.cancelTimer();
+        mDeferredSigninResult = null;
+
         if (mWebSigninBridge != null) {
             mWebSigninBridge.destroy();
             mWebSigninBridge = null;
@@ -131,6 +133,14 @@ public class WebSigninRedirectCoordinator {
 
     public @Nullable PropertyModel getDialogModelForTesting() {
         return mModel;
+    }
+
+    public void setShowDialogTimerForTesting(RunnableTimer timer) {
+        mShowDialogTimer = timer;
+    }
+
+    public void setMinDialogVisibleTimerForTesting(RunnableTimer timer) {
+        mMinDialogVisibleTimer = timer;
     }
 
     @VisibleForTesting
@@ -157,6 +167,9 @@ public class WebSigninRedirectCoordinator {
         }
 
         mDialogState = DialogState.SHOWN;
+        mMinShowTimePassed = false;
+        mMinDialogVisibleTimer.startTimer(
+                MIN_DIALOG_VISIBLE_DURATION_MS, this::onMinShowTimePassed);
 
         View customView =
                 LayoutInflater.from(mTab.getContext())
@@ -168,6 +181,10 @@ public class WebSigninRedirectCoordinator {
                         .with(ModalDialogProperties.CONTROLLER, createController())
                         .with(ModalDialogProperties.CUSTOM_VIEW, customView)
                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
+                        .with(
+                                ModalDialogProperties.CONTENT_DESCRIPTION,
+                                mTab.getContext()
+                                        .getString(R.string.signin_web_signin_loading_dialog_title))
                         .build();
 
         mDialogManager.showDialog(mModel, ModalDialogType.TAB);
@@ -187,10 +204,23 @@ public class WebSigninRedirectCoordinator {
         };
     }
 
+    private void onMinShowTimePassed() {
+        mMinShowTimePassed = true;
+        if (mDeferredSigninResult != null) {
+            onSigninResult(mDeferredSigninResult);
+        }
+    }
+
     private void onSigninResult(@WebSigninTrackerResult int result) {
         assert mTab != null;
         assert mContinueUrl != null;
         assert mInitialTabURL != null;
+
+        if (mDialogState == DialogState.SHOWN && !mMinShowTimePassed) {
+            // The dialog has to be displayed for at least {@link MINIMUM_SHOW_TIME_MS}.
+            mDeferredSigninResult = result;
+            return;
+        }
 
         destroy();
 
@@ -205,6 +235,14 @@ public class WebSigninRedirectCoordinator {
                 break;
             case WebSigninTrackerResult.OTHER_ERROR:
                 break;
+        }
+    }
+
+    private void startTimerOrForceShowDialog() {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.FORCE_SHOW_WEB_SIGNIN_LOADING_DIALOG)) {
+            showDialog();
+        } else if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_WEB_SIGNIN_LOADING_DIALOG)) {
+            mShowDialogTimer.startTimer(SHOW_WEB_SIGNIN_LOADING_DIALOG_DELAY_MS, this::showDialog);
         }
     }
 }

@@ -28,6 +28,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -36,7 +37,6 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.WarmupManager;
@@ -147,23 +147,6 @@ public class CustomTabsConnectionTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "Was restricted to low end devices, crbug.com/489156901")
-    public void testDoNotCreateSpareRendererOnLowEnd() throws Exception {
-        CustomTabsTestUtils.warmUpAndWait();
-        // On UI thread because:
-        // 1. hasSpareTab needs to be called from the UI thread.
-        // 2. warmup() is non-blocking and posts tasks to the UI thread, it ensures proper ordering.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    WarmupManager warmupManager = WarmupManager.getInstance();
-                    Assert.assertFalse(
-                            warmupManager.hasSpareTab(
-                                    ProfileManager.getLastUsedRegularProfile(), false));
-                });
-    }
-
-    @Test
-    @SmallTest
     public void testCreateSpareRendererCanBeRecreated() throws Exception {
         CustomTabsTestUtils.warmUpAndWait();
         ThreadUtils.runOnUiThreadBlocking(
@@ -198,7 +181,7 @@ public class CustomTabsConnectionTest {
 
     /*
      * Tests that when the disconnection notification comes from a non-UI thread, Chrome doesn't
-     * crash. Non-regression test for crbug.com/623128.
+     * crash. Non-regression test for crbug.com/41260795.
      */
     @Test
     @SmallTest
@@ -1025,7 +1008,7 @@ public class CustomTabsConnectionTest {
     public void testMaybeAddAdditionalContentExtrasToOutboundIntent() {
         Intent outboundIntent = new Intent();
         BrowserServicesIntentDataProvider browserServicesIntentDataProvider =
-                org.mockito.Mockito.mock(BrowserServicesIntentDataProvider.class);
+                Mockito.mock(BrowserServicesIntentDataProvider.class);
         mCustomTabsConnection.maybeAddAdditionalContentExtrasToOutboundIntent(
                 () -> null, browserServicesIntentDataProvider, outboundIntent, 1);
 

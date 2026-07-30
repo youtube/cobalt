@@ -326,13 +326,18 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             // onConfigurationChanged is not called on orientation changes until the FRE is
             // completed. This means that if a user starts the FRE in one orientation, changes an
             // orientation and then leaves the FRE the UiConfig will have the wrong orientation.
-            // https://crbug.com/683886.
+            // https://crbug.com/41296612.
             mUiConfig.updateDisplayStyle();
         }
 
-        mSearchBoxCoordinator = new SearchBoxCoordinator(mActivity, mNewTabPageLayout, mIsTablet);
-        mSearchBoxCoordinator.initialize(
-                lifecycleDispatcher, mProfile.isOffTheRecord(), mWindowAndroid);
+        mSearchBoxCoordinator =
+                new SearchBoxCoordinator(
+                        mActivity,
+                        mNewTabPageLayout,
+                        mIsTablet,
+                        lifecycleDispatcher,
+                        mProfile.isOffTheRecord(),
+                        mWindowAndroid);
 
         updateSearchBoxTwoSideMargin();
         initializeLogoCoordinator();
@@ -532,7 +537,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     }
 
     private void onComposeplateButtonClicked(View view) {
-        if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
+        if (OmniboxFeatures.isMultimodalInputEnabled(mActivity)
                 && OmniboxFeatures.sRedirectComposeplateButton.getValue()
                 && !mIsTablet
                 && mIsComposeplatePolicyEnabled) {

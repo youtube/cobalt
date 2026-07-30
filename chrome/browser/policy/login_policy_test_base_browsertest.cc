@@ -68,7 +68,7 @@ IN_PROC_BROWSER_TEST_F(LoginPolicyTestBase, AllowedLanguages) {
   Browser* browser = CreateBrowser(profile);
   EXPECT_EQ("fr", prefs->GetString(language::prefs::kApplicationLocale));
   ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(browser, GURL(chrome::kChromeUINewTabURL)));
+      ui_test_utils::NavigateToURL(browser, chrome::ChromeUINewTabURLAsGURL()));
   std::u16string french_title = l10n_util::GetStringUTF16(IDS_NEW_TAB_TITLE);
   std::u16string title;
   EXPECT_TRUE(ui_test_utils::GetCurrentTabTitle(browser, &title));
@@ -314,7 +314,7 @@ IN_PROC_BROWSER_TEST_F(PrimaryUserPoliciesProxiedTest,
 
   // Make sure that session startup finishes before letting chrome exit.
   // Rationale: We've seen CHECK-failures when exiting chrome right after
-  // a new profile is created, see e.g. https://crbug.com/1002066.
+  // a new profile is created, see e.g. https://crbug.com/40097998.
   ash::test::WaitForPrimaryUserSessionStart();
 }
 

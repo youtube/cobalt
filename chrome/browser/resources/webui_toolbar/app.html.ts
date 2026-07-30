@@ -18,7 +18,7 @@ ${this.isBackForwardButtonEnabled_ ? html`
   </back-forward-button>
   <back-forward-button id="forward" direction="forward"
    .state="${this.navigationControlsState_.backForwardControlState.forwardButtonState}"
-   .hidden="${!this.navigationControlsState_.backForwardControlState.forwardButtonState.visible}">
+   .hidden="${!this.navigationControlsState_.backForwardControlState.forwardButtonState.shouldBeShown}">
   </back-forward-button>` : ''}
   ${this.isReloadButtonEnabled_ ? html`
     <reload-button id="reload"
@@ -28,7 +28,7 @@ ${this.isBackForwardButtonEnabled_ ? html`
   ${this.isHomeButtonEnabled_ ? html`
     <home-button id="home"
       .state="${this.navigationControlsState_.homeControlState}"
-      .hidden="${!this.navigationControlsState_.homeControlState.isPinned}">
+      .hidden="${!this.navigationControlsState_.homeControlState.shouldBeShown}">
     </home-button>
   ` : ''}
   ${this.isSplitTabsButtonEnabled_ ? html`
@@ -37,6 +37,11 @@ ${this.isBackForwardButtonEnabled_ ? html`
         .hidden="${!this.navigationControlsState_.splitTabsControlState.isPinned &&
                    !this.navigationControlsState_.splitTabsControlState.isCurrentTabSplit}">
     </split-tabs-button>
+  ` : ''}
+  ${this.isAvatarButtonEnabled_ ? html`
+    <avatar-button id="avatar"
+        .state="${null}">
+    </avatar-button>
   ` : ''}
   ${this.isLocationBarEnabled_ ? html`
     <location-bar id="location-bar"

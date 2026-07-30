@@ -63,15 +63,12 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
-#include "chrome/browser/resource_coordinator/tab_manager.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/tabs/tab_model.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
@@ -188,7 +185,7 @@ bool SetOpenerOfTab(Profile& profile,
                     ::tabs::TabInterface& tab,
                     ::tabs::TabInterface& opener,
                     std::string& error) {
-  // Bug fix for crbug.com/1197888. Don't let the extension update the tab
+  // Bug fix for crbug.com/40055514. Don't let the extension update the tab
   // if the user is dragging tabs.
   if (!ExtensionTabUtil::IsTabStripEditable(profile)) {
     error = ExtensionTabUtil::kTabStripNotEditableError;
@@ -1857,6 +1854,8 @@ bool TabsQueryFunction::MatchesTab(::tabs::TabInterface* candidate_tab,
       resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
           web_contents);
 
+  // TODO(https://crbug.com/505306735): Add support (or appropriately handle)
+  // tab freezing, discarding, and auto-discarding on desktop android.
   if (!MatchesBool(query_info_.frozen,
                    tab_lifecycle_unit_external->GetTabState() ==
                        ::mojom::LifecycleUnitState::FROZEN)) {
@@ -1932,7 +1931,7 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
   index_ = create_properties.index;
   original_url_ = std::move(create_properties.url);
 
-  validated_url_ = GURL(chrome::kChromeUINewTabURL);
+  validated_url_ = chrome::ChromeUINewTabURLAsGURL();
   if (original_url_) {
     base::expected<GURL, std::string> maybe_url =
         ExtensionTabUtil::PrepareURLForNavigation(*original_url_, extension(),
@@ -2435,7 +2434,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
     }
   }
 
-  // TODO(https://crbug.com/447211263): Support on desktop android.
+  // TODO(https://crbug.com/505306735): Support on desktop android.
 #if !BUILDFLAG(IS_ANDROID)
   if (params->update_properties.auto_discardable) {
     bool state = *params->update_properties.auto_discardable;
@@ -2449,7 +2448,7 @@ ExtensionFunction::ResponseAction TabsUpdateFunction::Run() {
     bool pinned = *params->update_properties.pinned;
 
     if (target_tab->IsPinned() != pinned) {
-      // Bug fix for crbug.com/1197888. Don't let the extension update the tab
+      // Bug fix for crbug.com/40055514. Don't let the extension update the tab
       // if the user is dragging tabs.
       if (!ExtensionTabUtil::IsTabStripEditable(*window->profile())) {
         return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
@@ -2559,7 +2558,7 @@ bool TabsUpdateFunction::UpdateActiveTab(
   }
 #endif
 
-  // Bug fix for crbug.com/1197888. Don't let the extension update the tab
+  // Bug fix for crbug.com/40055514. Don't let the extension update the tab
   // if the user is dragging tabs.
   if (!ExtensionTabUtil::IsTabStripEditable(profile)) {
     error = ExtensionTabUtil::kTabStripNotEditableError;
@@ -2591,7 +2590,7 @@ bool TabsUpdateFunction::UpdateHighlightedTab(
     return true;
   }
 
-  // Bug fix for crbug.com/1197888. Don't let the extension update the tab
+  // Bug fix for crbug.com/40055514. Don't let the extension update the tab
   // if the user is dragging tabs.
   if (!ExtensionTabUtil::IsTabStripEditable(profile)) {
     error = ExtensionTabUtil::kTabStripNotEditableError;
@@ -2673,7 +2672,7 @@ bool TabsUpdateFunction::UpdateURL(content::WebContents* web_contents,
       load_params.initiator_origin->GetURL());
 
   // Marking the navigation as initiated via an API means that the focus
-  // will stay in the omnibox - see https://crbug.com/1085779.
+  // will stay in the omnibox - see https://crbug.com/40693812.
   load_params.transition_type = ui::PAGE_TRANSITION_FROM_API;
 
   base::WeakPtr<content::NavigationHandle> navigation_handle =
@@ -3870,8 +3869,7 @@ ExtensionFunction::ResponseAction TabsDiscardFunction::Run() {
   content::WebContents* contents = nullptr;
 
   // If `tab_id` is given, find the web_contents respective to it.
-  // Otherwise invoke discard function in TabManager with null web_contents
-  // that will discard the least important tab.
+  // Otherwise, discard the least important tab.
   if (params->tab_id) {
     int tab_id = *params->tab_id;
     std::string error;

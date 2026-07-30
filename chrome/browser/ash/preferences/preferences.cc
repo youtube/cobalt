@@ -147,7 +147,7 @@ void Preferences::RegisterPrefs(PrefRegistrySimple* registry) {
                                 false);
   registry->RegisterBooleanPref(prefs::kOwnerTapToClickEnabled, true);
   // TODO(jamescook): Move ownership and registration into ash.
-  registry->RegisterStringPref(::prefs::kLogoutStartedLast, std::string());
+  registry->RegisterStringPref(ash::prefs::kLogoutStartedLast, std::string());
   registry->RegisterStringPref(ash::prefs::kSigninScreenTimezone,
                                std::string());
   registry->RegisterIntegerPref(
@@ -191,7 +191,7 @@ void Preferences::RegisterProfilePrefs(
   // TODO(yusukes): Remove the runtime hack.
   if (base::SysInfo::IsRunningOnChromeOS()) {
     hardware_keyboard_id =
-        local_state.GetString(::prefs::kHardwareKeyboardLayout);
+        local_state.GetString(ash::prefs::kHardwareKeyboardLayout);
   } else {
     hardware_keyboard_id = "xkb:us::eng";  // only for testing.
   }
@@ -277,7 +277,7 @@ void Preferences::RegisterProfilePrefs(
   registry->RegisterListPref(ash::prefs::kLanguageAllowedInputMethods);
   registry->RegisterBooleanPref(
       ash::prefs::kLanguageAllowedInputMethodsForceEnabled, false);
-  registry->RegisterListPref(::prefs::kAllowedLanguages);
+  registry->RegisterListPref(ash::prefs::kAllowedLanguages);
   registry->RegisterStringPref(ash::prefs::kLanguagePreloadEngines,
                                hardware_keyboard_id);
   registry->RegisterStringPref(ash::prefs::kLanguageEnabledImes, "");
@@ -683,12 +683,12 @@ void Preferences::RegisterProfilePrefs(
                                std::string());
 
   registry->RegisterIntegerPref(
-      ::prefs::kSkyVaultMigrationState,
+      ash::prefs::kSkyVaultMigrationState,
       static_cast<int>(policy::local_user_files::State::kUninitialized));
-  registry->RegisterIntegerPref(::prefs::kSkyVaultMigrationRetryCount, 0);
-  registry->RegisterTimePref(::prefs::kSkyVaultMigrationScheduledStartTime,
+  registry->RegisterIntegerPref(ash::prefs::kSkyVaultMigrationRetryCount, 0);
+  registry->RegisterTimePref(ash::prefs::kSkyVaultMigrationScheduledStartTime,
                              base::Time());
-  registry->RegisterTimePref(::prefs::kSkyVaultMigrationStartTime,
+  registry->RegisterTimePref(ash::prefs::kSkyVaultMigrationStartTime,
                              base::Time());
   FrozenUpdateNotification::RegisterProfilePrefs(registry);
 }
@@ -746,7 +746,7 @@ void Preferences::InitUserPrefs(sync_preferences::PrefServiceSyncable* prefs) {
                               callback);
   allowed_input_methods_force_enabled_.Init(
       ash::prefs::kLanguageAllowedInputMethodsForceEnabled, prefs, callback);
-  allowed_languages_.Init(::prefs::kAllowedLanguages, prefs, callback);
+  allowed_languages_.Init(ash::prefs::kAllowedLanguages, prefs, callback);
   preferred_languages_.Init(language::prefs::kPreferredLanguages, prefs,
                             callback);
   ime_menu_activated_.Init(ash::prefs::kLanguageImeMenuActivated, prefs,
@@ -1216,7 +1216,7 @@ void Preferences::ApplyPreferences(ApplyReason reason,
     }
   }
   if (reason != REASON_PREF_CHANGED ||
-      pref_name == ::prefs::kAllowedLanguages) {
+      pref_name == ash::prefs::kAllowedLanguages) {
     locale_util::RemoveDisallowedLanguagesFromPreferred(prefs_);
   }
 

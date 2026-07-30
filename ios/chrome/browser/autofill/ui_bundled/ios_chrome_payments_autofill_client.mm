@@ -39,6 +39,7 @@
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_ui_type.h"
+#import "components/autofill/core/browser/ui/payments/bubble_show_options.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_authentication_selection_dialog_controller_impl.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
@@ -48,12 +49,14 @@
 #import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/credit_card_save_metrics_ios.h"
+#import "components/signin/public/base/consent_level.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/credit_card/autofill_save_card_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/ui_bundled/card_expiration_date_fix_flow_view_bridge.h"
 #import "ios/chrome/browser/autofill/ui_bundled/card_name_fix_flow_view_bridge.h"
 #import "ios/chrome/browser/autofill/ui_bundled/card_unmask_prompt_view_bridge.h"
 #import "ios/chrome/browser/autofill/ui_bundled/chrome_autofill_client_ios.h"
+#import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_virtual_card_cache.h"
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
 #import "ios/public/provider/chrome/browser/risk_data/risk_data_api.h"
@@ -264,7 +267,17 @@ void IOSChromePaymentsAutofillClient::VirtualCardEnrollCompleted(
 }
 
 void IOSChromePaymentsAutofillClient::OnCardDataAvailable(
-    const FilledCardInformationBubbleOptions& options) {}
+    const FilledCardInformationBubbleOptions& options) {
+  if (options.filled_card.record_type() ==
+      CreditCard::RecordType::kVirtualCard) {
+    autofill::CreditCard card = options.filled_card;
+    card.set_cvc(options.cvc);
+
+    ManualFillVirtualCardCache::CreateForWebState(web_state_);
+    ManualFillVirtualCardCache::FromWebState(web_state_)
+        ->CacheUnmaskedCard(card);
+  }
+}
 
 void IOSChromePaymentsAutofillClient::ConfirmSaveIbanLocally(
     const Iban& iban,

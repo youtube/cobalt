@@ -44,10 +44,14 @@ class SearchBoxMediator implements DestroyObserver {
     private final List<OnClickListener> mVoiceSearchClickListeners = new ArrayList<>();
     private final List<OnClickListener> mLensClickListeners = new ArrayList<>();
     private final float mTransitionEndOffset;
-    private @Nullable ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
 
-    /** Constructor. */
-    SearchBoxMediator(Context context, PropertyModel model, ViewGroup view, boolean isTablet) {
+    SearchBoxMediator(
+            Context context,
+            PropertyModel model,
+            ViewGroup view,
+            boolean isTablet,
+            ActivityLifecycleDispatcher activityLifecycleDispatcher) {
         mContext = context;
         mModel = model;
         mView = view;
@@ -56,30 +60,16 @@ class SearchBoxMediator implements DestroyObserver {
         mTransitionEndOffset =
                 !isTablet
                         ? context.getResources()
-                                .getDimensionPixelSize(
-                                        org.chromium.chrome.R.dimen
-                                                .ntp_search_box_transition_end_offset)
+                                .getDimensionPixelSize(R.dimen.ntp_search_box_transition_end_offset)
                         : 0;
-    }
 
-    /**
-     * Initializes the SearchBoxContainerView with the given params. This must be called for
-     * classes that use the SearchBoxContainerView.
-     *
-     * @param activityLifecycleDispatcher Used to register for lifecycle events.
-     */
-    void initialize(ActivityLifecycleDispatcher activityLifecycleDispatcher) {
-        assert mActivityLifecycleDispatcher == null;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mActivityLifecycleDispatcher.register(this);
     }
 
     @Override
     public void onDestroy() {
-        if (mActivityLifecycleDispatcher != null) {
-            mActivityLifecycleDispatcher.unregister(this);
-            mActivityLifecycleDispatcher = null;
-        }
+        mActivityLifecycleDispatcher.unregister(this);
 
         mModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, null);
@@ -100,9 +90,7 @@ class SearchBoxMediator implements DestroyObserver {
 
     void setSearchEngineIcon(StatusProperties.@Nullable StatusIconResource newIcon) {
         if (newIcon == null) {
-            mModel.set(
-                    SearchBoxProperties.DSE_ICON_RESOURCE_ID,
-                    org.chromium.chrome.R.drawable.ic_search_24dp);
+            mModel.set(SearchBoxProperties.DSE_ICON_RESOURCE_ID, R.drawable.ic_search_24dp);
             return;
         }
 
@@ -191,10 +179,6 @@ class SearchBoxMediator implements DestroyObserver {
 
     void setEndPadding(int endPadding) {
         mModel.set(SearchBoxProperties.SEARCH_BOX_END_PADDING, endPadding);
-    }
-
-    void setStartPadding(int startPadding) {
-        mModel.set(SearchBoxProperties.SEARCH_BOX_START_PADDING, startPadding);
     }
 
     void setSearchBoxTextAppearance(@StyleRes int resId) {

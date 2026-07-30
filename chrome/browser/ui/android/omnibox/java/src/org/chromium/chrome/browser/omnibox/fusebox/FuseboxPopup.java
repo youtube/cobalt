@@ -7,8 +7,10 @@ package org.chromium.chrome.browser.omnibox.fusebox;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewStub;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.ImageView;
+import android.widget.PopupWindow.OnDismissListener;
 import android.widget.TextView;
 
 import org.chromium.base.task.PostTask;
@@ -56,10 +58,18 @@ class FuseboxPopup {
             Context context,
             AnchoredPopupWindow popupWindow,
             View contentView,
-            DynamicRectProvider dynamicRectProvider) {
+            DynamicRectProvider dynamicRectProvider,
+            boolean isBottomSheet) {
         mPopupWindow = popupWindow;
         mDynamicRectProvider = dynamicRectProvider;
         mViewGroup = contentView.findViewById(R.id.fusebox_view_group);
+
+        ViewStub stub = contentView.findViewById(R.id.fusebox_attachments_stub);
+        stub.setLayoutResource(
+                isBottomSheet
+                        ? R.layout.fusebox_horizontal_attachments
+                        : R.layout.fusebox_vertical_attachments);
+        stub.inflate();
 
         mAddCurrentTab = contentView.findViewById(R.id.fusebox_add_current_tab);
         mTabButton = contentView.findViewById(R.id.fusebox_pick_tabs_button);
@@ -81,6 +91,7 @@ class FuseboxPopup {
                 R.string.omnibox_navattach_tabs,
                 R.drawable.ic_features_24dp,
                 R.string.accessibility_omnibox_add_tabs);
+        // TODO(crbug.com/436888404): either drop clipboard or use proper strings.
         initializeItem(
                 mClipboardButton,
                 R.string.clipboard_permission_title,
@@ -227,5 +238,10 @@ class FuseboxPopup {
     /** Returns whether the popup window is currently showing. */
     boolean isShowing() {
         return mPopupWindow.isShowing();
+    }
+
+    /** Add a listener for when the popup is dismissed. */
+    void addOnDismissListener(OnDismissListener listener) {
+        mPopupWindow.addOnDismissListener(listener);
     }
 }

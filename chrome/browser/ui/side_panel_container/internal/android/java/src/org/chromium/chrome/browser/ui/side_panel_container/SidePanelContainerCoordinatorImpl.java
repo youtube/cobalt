@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.ui.side_panel_container;
 import static org.chromium.chrome.browser.ui.side_panel.SidePanelUtils.log;
 
 import android.app.Activity;
+import android.graphics.Rect;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -19,6 +20,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelType;
 import org.chromium.chrome.browser.ui.side_ui.SideUiContainer;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator;
@@ -40,6 +42,10 @@ final class SidePanelContainerCoordinatorImpl
     private final FrameLayout mContainerView;
     private final SideUiCoordinator mSideUiCoordinator;
     private final @SidePanelType int mPanelType;
+
+    // TODO(crbug.com/496407828): Use this to notify native side of events like "animation ended".
+    @SuppressWarnings("UnusedVariable")
+    private @Nullable SidePanelCoordinatorAndroid mSidePanelCoordinatorAndroid;
 
     private @Nullable SidePanelContent mCurrentContent;
 
@@ -65,16 +71,20 @@ final class SidePanelContainerCoordinatorImpl
     }
 
     @Override
-    public void init() {
+    public void init(SidePanelCoordinatorAndroid sidePanelCoordinatorAndroid) {
         log(TAG, "init");
         ThreadUtils.assertOnUiThread();
+        mSidePanelCoordinatorAndroid = sidePanelCoordinatorAndroid;
         mSideUiCoordinator.registerSideUiContainer(this);
     }
 
     @Override
     public void populateContent(
-            SidePanelContent content, Callback<@Nullable Void> onAnimationFinishedCallback) {
-        log(TAG, "populateContent", content);
+            SidePanelContent content,
+            Callback<@Nullable Void> onAnimationFinishedCallback,
+            @Nullable Rect startingBounds,
+            boolean suppressAnimations) {
+        log(TAG, "populateContent", content, startingBounds, suppressAnimations);
         ThreadUtils.assertOnUiThread();
         mCurrentContent = content;
 
@@ -85,6 +95,8 @@ final class SidePanelContainerCoordinatorImpl
         @Px int sidePanelWidth = ViewUtils.dpToPx(mParentActivity, SIDE_PANEL_MIN_WIDTH_DP);
         mSideUiCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(SIDE_PANEL_DEFAULT_ANCHOR_SIDE, sidePanelWidth));
+
+        onAnimationFinishedCallback.onResult(null);
     }
 
     @Override

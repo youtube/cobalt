@@ -48,8 +48,8 @@ static_assert(
 static_assert(kAlwaysShownRegionMultiplier > 0.0f,
               "Always shown region must be non-zero to minimize the chance of "
               "shifting the web contents when controls are shown.");
-constexpr float kSnapAnimationThresholdMinMultiplier = 0.15f;
-constexpr float kSnapAnimationThresholdMaxMultiplier = 0.75f;
+constexpr float kSnapAnimationThresholdMinMultiplier = 0.2f;
+constexpr float kSnapAnimationReferenceThresholdDp = 30.0f;
 
 float NormalizeShownRatio(float value, float min_shown_ratio) {
   if (min_shown_ratio == 1.0f) {
@@ -246,14 +246,19 @@ float BrowserControlsOffsetManager::SnapAnimationThreshold(
   DCHECK_GE(slowness, 0.0f);
   DCHECK_LE(slowness, 1.0f);
 
+  // Using a fixed reference threshold makes the experience consistent under
+  // browser states that can greatly increase the height of the controls (e.g.
+  // tab groups)
+  const float reference_threshold =
+      client_->RenderedDeviceScaleFactor() * kSnapAnimationReferenceThresholdDp;
+
   // Scale the threshold based on the animation duration. Start the animation
   // early when the animation duration is short, and late when the animation
   // duration is long. This gives the appearance of a consistent, responsive
   // threshold.
-  return ControlsAnimatedHeight() *
-         gfx::Tween::FloatValueBetween(slowness,
-                                       kSnapAnimationThresholdMinMultiplier,
-                                       kSnapAnimationThresholdMaxMultiplier);
+  return reference_threshold *
+         gfx::Tween::FloatValueBetween(
+             slowness, kSnapAnimationThresholdMinMultiplier, 1.0f);
 }
 
 void BrowserControlsOffsetManager::UpdateBrowserControlsState(
@@ -600,7 +605,8 @@ float BrowserControlsOffsetManager::MaximumShownRatioDeltaPerFrame(
 }
 
 gfx::Vector2dF BrowserControlsOffsetManager::ScrollBy(
-    const gfx::Vector2dF& pending_delta) {
+    const gfx::Vector2dF& pending_delta,
+    bool is_inertial) {
   // If one or both of the top/bottom controls are showing, the shown ratio
   // needs to be computed.
   if (!TopControlsHeight() && !BottomControlsHeight())
@@ -616,7 +622,7 @@ gfx::Vector2dF BrowserControlsOffsetManager::ScrollBy(
     return pending_delta;
 
   if (use_snap_animation_) {
-    ScrollBySnap(pending_delta);
+    ScrollBySnap(pending_delta, is_inertial);
     return pending_delta;
   }
 
@@ -731,7 +737,8 @@ gfx::Vector2dF BrowserControlsOffsetManager::ScrollByPrecise(
 }
 
 void BrowserControlsOffsetManager::ScrollBySnap(
-    const gfx::Vector2dF& pending_delta) {
+    const gfx::Vector2dF& pending_delta,
+    bool is_inertial) {
   accumulated_scroll_delta_ += pending_delta.y();
 
   float velocity_y = scroll_velocity_tracker_.CurrentVelocity().y();
@@ -748,10 +755,19 @@ void BrowserControlsOffsetManager::ScrollBySnap(
   AnimationDirection direction = pending_delta.y() >= 0
                                      ? AnimationDirection::kHidingControls
                                      : AnimationDirection::kShowingControls;
+  // Prevent the hide animation from running more than once per scroll until the
+  // user lifts their finger.
   if (direction == AnimationDirection::kHidingControls &&
-      did_hide_this_scroll_) {
+      did_hide_this_scroll_ && !is_inertial) {
     return;
   }
+
+  // Wait for at least two samples to setup the snap animation as the velocity
+  // is not as accurate with a single sample.
+  if (scroll_velocity_tracker_.num_samples() < 2) {
+    return;
+  }
+
   SetupSnapAnimation(direction, pending_delta);
 }
 
@@ -848,7 +864,7 @@ void BrowserControlsOffsetManager::SetupSnapAnimation(
       return;
     }
 
-    curve = gfx::Tween::FAST_OUT_LINEAR_IN;
+    curve = gfx::Tween::ACCEL_30_DECEL_LIN;
     did_hide_this_scroll_ = true;
   } else {
     // Animate to show the controls when the user scrolls up:
@@ -876,7 +892,7 @@ void BrowserControlsOffsetManager::SetupSnapAnimation(
     // the always-shown region, in which case a linear curve is more visually
     // pleasant.
     curve = viewport_offset_y > controls_animated_height
-                ? gfx::Tween::LINEAR_OUT_SLOW_IN
+                ? gfx::Tween::ACCEL_LIN_DECEL_60
                 : gfx::Tween::LINEAR;
   }
 
@@ -983,11 +999,26 @@ gfx::Vector2dF BrowserControlsOffsetManager::Animate(
   if (!new_bottom_ratio.has_value())
     new_bottom_ratio = BottomControlsShownRatio();
 
+  // Upon completion, the animation object is reset and is no longer
+  // initialized.
+  bool animation_completed = !top_controls_animation_.IsInitialized() &&
+                             !bottom_controls_animation_.IsInitialized();
+
   client_->SetCurrentBrowserControlsShownRatio(new_top_ratio.value(),
                                                new_bottom_ratio.value());
 
   float top_offset_delta = ContentTopOffset() - old_top_offset;
   float bottom_offset_delta = ContentBottomOffset() - old_bottom_offset;
+
+  // If the user is in the always-shown region, snap to the shown state after
+  // the animation is completed. This prevents the controls from being hidden
+  // when the user scrolls to the top of the page while a hide animation is
+  // running.
+  if (use_snap_animation_ && animation_completed &&
+      client_->ViewportScrollOffset().y() <=
+          SnapAnimationAlwaysShownRegionHeight()) {
+    SetupSnapAnimation(AnimationDirection::kShowingControls, gfx::Vector2dF());
+  }
 
   if (top_min_height_change_in_progress_) {
     // The change in top offset may be larger than the min-height, resulting in

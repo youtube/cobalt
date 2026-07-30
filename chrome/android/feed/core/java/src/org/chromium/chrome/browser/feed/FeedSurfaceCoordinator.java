@@ -238,7 +238,7 @@ public class FeedSurfaceCoordinator
         }
 
         @Override
-        public void onDraw(android.graphics.Canvas canvas) {
+        public void onDraw(Canvas canvas) {
             try (TraceEvent e = TraceEvent.scoped("Feed.RootView.onDraw")) {
                 super.onDraw(canvas);
             }
@@ -1010,7 +1010,7 @@ public class FeedSurfaceCoordinator
             view.addItemDecoration(mItemDecoration);
         }
 
-        // Work around https://crbug.com/943873 where default focus highlight shows up after
+        // Work around https://crbug.com/41447943 where default focus highlight shows up after
         // toggling dark mode.
         view.setDefaultFocusHighlightEnabled(false);
         if (mOverScrollDisabled) {
@@ -1104,7 +1104,6 @@ public class FeedSurfaceCoordinator
                 mActionDelegate,
                 /* feedContentFirstLoadWatcher= */ this,
                 streamsMediator,
-                /* singleWebFeedParameters= */ null,
                 new FeedSurfaceRendererBridge.Factory() {});
     }
 

@@ -7,6 +7,7 @@
 #import "base/feature_list.h"
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
+#import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/common/unique_ids.h"
 #import "components/autofill/ios/browser/form_suggestion_provider.h"
@@ -37,7 +38,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
-#import "ios/chrome/common/ui/reauthentication/reauthentication_event.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
@@ -194,7 +194,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
   // Vector of forms that have been received via the password sharing feature
   // and the user has not been notified about them yet.
-  std::vector<const password_manager::PasswordForm*> _sharedUnnotifiedForms;
+  std::vector<password_manager::PasswordForm> _sharedUnnotifiedForms;
 
   // Profile images of password senders if any of the passwords were received
   // via the password sharing feature. Empty otherwise.
@@ -403,7 +403,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 #pragma mark - Subclassing
 
-// Perform suggestion selection
+// Performs suggestion selection.
 - (void)selectSuggestion:(FormSuggestion*)suggestion
                  atIndex:(NSInteger)index
               completion:(ProceduralBlock)completion {
@@ -433,7 +433,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 #pragma mark - Private
 
-// Return the active web state, if any.
+// Returns the active web state, if any.
 - (web::WebState*)activeWebState {
   return self.webStateList ? self.webStateList->GetActiveWebState() : nullptr;
 }
@@ -458,11 +458,6 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
                                currentDismissCount + 1);
     }
   }
-}
-
-// Logs reauthentication events.
-- (void)logReauthEvent:(ReauthenticationEvent)event {
-  base::UmaHistogramEnumeration("IOS.Reauth.Password.BottomSheet", event);
 }
 
 // Fetches all credentials for the current form.
@@ -501,7 +496,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
     if (form.type ==
             password_manager::PasswordForm::Type::kReceivedViaSharing &&
         !form.sharing_notification_displayed) {
-      _sharedUnnotifiedForms.push_back(&form);
+      _sharedUnnotifiedForms.push_back(form);
       __weak __typeof__(self) weakSelf = self;
       image_fetcher::ImageFetcherParams params(NO_TRAFFIC_ANNOTATION_YET,
                                                kImageFetcherUmaClient);
@@ -532,14 +527,12 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
     return;
   }
 
-  for (const password_manager::PasswordForm* form : _sharedUnnotifiedForms) {
-    // Make a non-const copy so we can modify it.
-    password_manager::PasswordForm updatedForm = *form;
-    updatedForm.sharing_notification_displayed = true;
-    if (form->IsUsingAccountStore()) {
-      _accountPasswordStore->UpdateLogin(std::move(updatedForm));
+  for (password_manager::PasswordForm& form : _sharedUnnotifiedForms) {
+    form.sharing_notification_displayed = true;
+    if (form.IsUsingAccountStore()) {
+      _accountPasswordStore->UpdateLogin(std::move(form));
     } else {
-      _profilePasswordStore->UpdateLogin(std::move(updatedForm));
+      _profilePasswordStore->UpdateLogin(std::move(form));
     }
   }
   _sharedUnnotifiedForms.clear();
@@ -559,7 +552,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
   if (_sharedUnnotifiedForms.size() == 1) {
     return base::SysUTF16ToNSString(l10n_util::GetStringFUTF16(
         IDS_IOS_PASSWORD_SHARING_NOTIFICATION_SINGLE_PASSWORD_SUBTITLE,
-        _sharedUnnotifiedForms[0]->sender_name,
+        _sharedUnnotifiedForms[0].sender_name,
         base::SysNSStringToUTF16(domain)));
   } else {
     return base::SysUTF16ToNSString(l10n_util::GetStringFUTF16(
@@ -587,7 +580,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 }
 
 // Refocuses the login fields that was blurred to show this bottom sheet, if
-// deemded needed.
+// deemed needed.
 - (void)refocus {
   if (AutofillBottomSheetTabHelper* tabHelper = [self tabHelper]) {
     tabHelper->RefocusElementIfNeeded(_params.frame_id);

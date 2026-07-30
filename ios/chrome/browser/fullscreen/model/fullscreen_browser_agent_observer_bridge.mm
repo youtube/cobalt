@@ -45,3 +45,19 @@ void FullscreenBrowserAgentObserverBridge::DidUpdateObscuredInsetRange(
     [observer_ fullscreenDidUpdateObscuredInsetRange:agent];
   }
 }
+
+void FullscreenBrowserAgentObserverBridge::FullscreenDidTransition(
+    FullscreenBrowserAgent* agent,
+    FullscreenTransition transition) {
+  if ([observer_ respondsToSelector:@selector(fullscreen:didTransition:)]) {
+    [observer_ fullscreen:agent didTransition:transition];
+  }
+}
+
+void FullscreenBrowserAgentObserverBridge::WillShutDown(
+    FullscreenBrowserAgent* agent) {
+  scoped_observation_.Reset();
+  if ([observer_ respondsToSelector:@selector(fullscreenWillShutDown:)]) {
+    [observer_ fullscreenWillShutDown:agent];
+  }
+}

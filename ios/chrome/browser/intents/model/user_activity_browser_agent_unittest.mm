@@ -238,11 +238,6 @@ TEST_F(UserActivityBrowserAgentTest,
       @{CSSearchableItemActivityIdentifier : invalid_action};
   [user_activity addUserInfoEntriesFromDictionary:user_info];
 
-  // Enable the SpotlightActions experiment.
-  base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      switches::kEnableSpotlightActions);
-
   // Action.
   BOOL result =
       user_activity_browser_agent_->ContinueUserActivity(user_activity, NO);
@@ -270,11 +265,6 @@ TEST_F(UserActivityBrowserAgentTest,
   NSDictionary* user_info =
       @{CSSearchableItemActivityIdentifier : invalid_action};
   [user_activity addUserInfoEntriesFromDictionary:user_info];
-
-  // Enable the SpotlightActions experiment.
-  base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      switches::kEnableSpotlightActions);
 
   // Action.
   BOOL result =
@@ -368,27 +358,11 @@ TEST_F(UserActivityBrowserAgentTest, ContinueUserActivityShortcutActions) {
   }
   // Setup.
   NSArray* parametersToTest = @[
-    @[
-      base::SysUTF8ToNSString(spotlight::kSpotlightActionNewTab), @(NO_ACTION)
-    ],
-    @[
-      base::SysUTF8ToNSString(spotlight::kSpotlightActionNewIncognitoTab),
-      @(NO_ACTION)
-    ],
-    @[
-      base::SysUTF8ToNSString(spotlight::kSpotlightActionVoiceSearch),
-      @(START_VOICE_SEARCH)
-    ],
-    @[
-      base::SysUTF8ToNSString(spotlight::kSpotlightActionQRScanner),
-      @(START_QR_CODE_SCANNER)
-    ]
+    @[ spotlight::kSpotlightActionNewTab, @(NO_ACTION) ],
+    @[ spotlight::kSpotlightActionNewIncognitoTab, @(NO_ACTION) ],
+    @[ spotlight::kSpotlightActionVoiceSearch, @(START_VOICE_SEARCH) ],
+    @[ spotlight::kSpotlightActionQRScanner, @(START_QR_CODE_SCANNER) ]
   ];
-
-  // Enable the Spotlight Actions experiment.
-  base::test::ScopedCommandLine scoped_command_line;
-  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
-      switches::kEnableSpotlightActions);
 
   for (id parameters in parametersToTest) {
     NSUserActivity* user_activity = [[NSUserActivity alloc]

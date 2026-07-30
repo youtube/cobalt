@@ -34,10 +34,12 @@ bool IsAllowedByPolicy(const PrefService& local_state) {
   return features::IsOnDeviceExecutionEnabled() &&
          GetGenAILocalFoundationalModelEnterprisePolicySettings(&local_state) ==
              model_execution::prefs::
-                 GenAILocalFoundationalModelEnterprisePolicySettings::
-                     kAllowed &&
-         local_state.GetBoolean(model_execution::prefs::localstate::
-                                    kOnDeviceAiUserSettingsEnabled);
+                 GenAILocalFoundationalModelEnterprisePolicySettings::kAllowed;
+}
+
+bool IsAllowedByUserSetting(const PrefService& local_state) {
+  return local_state.GetBoolean(
+      model_execution::prefs::localstate::kOnDeviceAiUserSettingsEnabled);
 }
 
 }  // namespace
@@ -102,17 +104,21 @@ void ManifestMonitor::OnInputsChanged() {
     return;
   }
   if (!IsAllowedByPolicy(*local_state_)) {
-    UseUninstallManifest();
+    UseUninstallManifest(Manifest::UninstallReason::kDisallowedByPolicy);
+    return;
+  }
+  if (!IsAllowedByUserSetting(*local_state_)) {
+    UseUninstallManifest(Manifest::UninstallReason::kDisallowedByUser);
     return;
   }
   if (performance_classifier_->IsPerformanceClassAvailable() &&
       !performance_classifier_->IsDeviceCapable()) {
-    UseUninstallManifest();
+    UseUninstallManifest(Manifest::UninstallReason::kDeviceNotCapable);
     return;
   }
   if (free_space_.has_value() &&
       features::IsFreeDiskSpaceTooLowForOnDeviceModelInstall(*free_space_)) {
-    UseUninstallManifest();
+    UseUninstallManifest(Manifest::UninstallReason::kInsufficientDisk);
     return;
   }
   if (!manifest_dir_ ||
@@ -126,11 +132,11 @@ void ManifestMonitor::OnInputsChanged() {
                                 weak_ptr_factory_.GetWeakPtr()));
 }
 
-void ManifestMonitor::UseUninstallManifest() {
+void ManifestMonitor::UseUninstallManifest(Manifest::UninstallReason reason) {
   TRACE_EVENT("optimization_guide", "ManifestMonitor::UseUninstallManifest",
               perfetto::Flow::FromPointer(this));
   if (!manifest_ || manifest_->HasAssets()) {
-    manifest_.emplace();
+    manifest_.emplace(reason);
     on_manifest_changed_.Run();
   }
 }
@@ -138,12 +144,35 @@ void ManifestMonitor::UseUninstallManifest() {
 void ManifestMonitor::OnManifestLoaded(
     base::expected<Manifest, Manifest::ParseError> manifest) {
   TRACE_EVENT("optimization_guide", "ManifestMonitor::OnManifestLoaded");
-  if (!manifest.has_value() || !IsAllowedByPolicy(*local_state_)) {
-    UseUninstallManifest();
+  if (!manifest.has_value()) {
+    UseUninstallManifest(Manifest::UninstallReason::kParseError);
+    return;
+  }
+  if (!IsAllowedByPolicy(*local_state_)) {
+    UseUninstallManifest(Manifest::UninstallReason::kDisallowedByPolicy);
+    return;
+  }
+  if (!IsAllowedByUserSetting(*local_state_)) {
+    UseUninstallManifest(Manifest::UninstallReason::kDisallowedByUser);
     return;
   }
   manifest_.emplace(std::move(manifest.value()));
   on_manifest_changed_.Run();
+}
+
+std::vector<mojom::BrokerPropertyInfoPtr> ManifestMonitor::GetBrokerProperties()
+    const {
+  std::vector<mojom::BrokerPropertyInfoPtr> properties;
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Manifest Path",
+      manifest_dir_.has_value() ? manifest_dir_->AsUTF8Unsafe() : "N/A"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Free Disk Space", free_space_.has_value()
+                             ? base::ToString(free_space_->InMiB()) + " MiB"
+                             : "N/A"));
+  properties.push_back(mojom::BrokerPropertyInfo::New(
+      "Manifest Loaded", manifest_.has_value() ? "true" : "false"));
+  return properties;
 }
 
 }  // namespace optimization_guide

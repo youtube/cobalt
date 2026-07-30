@@ -223,9 +223,6 @@
 [submodule "third_party/ink/src"]
 	path = third_party/ink/src
 	url = https://chromium.googlesource.com/external/github.com/google/ink
-[submodule "third_party/ink_stroke_modeler/src"]
-	path = third_party/ink_stroke_modeler/src
-	url = https://chromium.googlesource.com/external/github.com/google/ink-stroke-modeler
 [submodule "third_party/instrumented_libs"]
 	path = third_party/instrumented_libs
 	url = https://chromium.googlesource.com/chromium/third_party/instrumented_libraries
@@ -242,10 +239,6 @@
 [submodule "third_party/libgav1/src"]
 	path = third_party/libgav1/src
 	url = https://chromium.googlesource.com/codecs/libgav1
-[submodule "third_party/google_toolbox_for_mac/src"]
-	path = third_party/google_toolbox_for_mac/src
-	url = https://chromium.googlesource.com/external/github.com/google/google-toolbox-for-mac
-	gclient-condition = checkout_ios or checkout_mac
 [submodule "third_party/google-truth/src"]
 	path = third_party/google-truth/src
 	url = https://chromium.googlesource.com/external/github.com/google/truth
@@ -377,7 +370,7 @@
 	url = https://chromium.googlesource.com/external/liblouis-github
 	gclient-condition = checkout_linux
 [submodule "third_party/libphonenumber/dist"]
-	path = third_party/libphonenumber/dist
+	path = third_party/libphonenumber/src
 	url = https://chromium.googlesource.com/external/libphonenumber
 [submodule "third_party/libprotobuf-mutator/src"]
 	path = third_party/libprotobuf-mutator/src
@@ -766,6 +759,10 @@
 	path = components/crash/core/app/internal
 	url = https://chrome-internal.googlesource.com/chrome/components/crash
 	gclient-condition = checkout_src_internal
+[submodule "components/internal"]
+	path = components/internal
+	url = https://chrome-internal.googlesource.com/chrome/components
+	gclient-condition = checkout_src_internal
 [submodule "components/metrics/internal"]
 	path = components/metrics/internal
 	url = https://chrome-internal.googlesource.com/chrome/components/metrics/internal
@@ -781,6 +778,10 @@
 [submodule "components/plus_addresses/core/browser/resources/internal"]
 	path = components/plus_addresses/core/browser/resources/internal
 	url = https://chrome-internal.googlesource.com/chrome/components/plus_addresses/resources
+	gclient-condition = checkout_src_internal
+[submodule "components/record_replay/internal"]
+	path = components/record_replay/internal
+	url = https://chrome-internal.googlesource.com/chrome/components/record_replay
 	gclient-condition = checkout_src_internal
 [submodule "components/resources/default_100_percent/google_chrome"]
 	path = components/resources/default_100_percent/google_chrome
@@ -906,3 +907,7 @@
 	path = webkit/data/test_shell/plugins
 	url = https://chrome-internal.googlesource.com/chrome/data/webkit_plugin_tests
 	gclient-condition = checkout_src_internal
+[submodule "third_party/libei/src"]
+	path = third_party/libei/src
+	url = https://chromium.googlesource.com/external/gitlab.freedesktop.org/libinput/libei
+	gclient-condition = checkout_linux

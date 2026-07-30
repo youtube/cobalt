@@ -37,7 +37,6 @@
 #include "base/strings/string_view_util.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/text/integer_to_string_conversion.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
@@ -107,14 +106,19 @@ class WTF_EXPORT String {
     return String(buffer.Release());
   }
 
-  template <typename IntegerType>
-  static String Number(IntegerType number) {
-    IntegerToStringConverter<IntegerType> converter(number);
-    return StringImpl::Create(converter.Span());
-  }
-
   static String Boolean(bool value) { return String(value ? "true" : "false"); }
-
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(int value);
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(unsigned value);
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(long value);
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(unsigned long value);
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(long long value);
+  // Serialize an integer value.
+  [[nodiscard]] static String Number(unsigned long long value);
   [[nodiscard]] static String Number(float);
 
   [[nodiscard]] static String Number(double, unsigned precision = 6);
@@ -123,6 +127,12 @@ class WTF_EXPORT String {
   [[nodiscard]] static String NumberToStringEcmaScript(double);
   [[nodiscard]] static String NumberToStringFixedWidth(double,
                                                        unsigned decimal_places);
+
+  // Serializes an unsigned 64-bit integer in hex. This adds no padding,
+  // uses lowercase letters for a-f, and adds no "0x" prefix.
+  //
+  // For example, 266 becomes "10a", and 0 becomes "0".
+  [[nodiscard]] static String HexNumber(uint64_t value);
 
   // Takes a printf format and args and prints into a String.
   // This function supports Latin-1 characters only.
@@ -215,7 +225,8 @@ class WTF_EXPORT String {
     if (!impl_ || index >= impl_->length()) {
       return 0;
     }
-    return (*impl_)[index];
+    // SAFETY: index checked against length above.
+    return UNSAFE_BUFFERS((*impl_)[index]);
   }
 
   // Returns the Unicode code point starting at the specified offset of this

@@ -61,6 +61,12 @@ BASE_FEATURE(kBundledSecuritySettings, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBundledSecuritySettingsSecureDnsV2,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kClientSideDetectionBypassTiers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<std::string> kClientSideDetectionBypassTiersList{
+    &kClientSideDetectionBypassTiers, "ClientSideDetectionBypassTiersList",
+    /*default_value=*/""};
+
 BASE_FEATURE(kClientSideDetectionClipboardCopyApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<double> kCsdClipboardCopyApiHCAcceptanceRate{
@@ -169,10 +175,19 @@ constexpr base::FeatureParam<int> kClientSideDetectionServerModelMaxScansPerDay{
     &kClientSideDetectionServerModelForScamDetectionAndroid,
     "MaxIntelligentScansPerDay",
     /*default_value=*/5};
+
+BASE_FEATURE(kClientSideDetectionServerModelRolloutAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<int>
+    kClientSideDetectionServerModelRolloutVersionAndroid{
+        &kClientSideDetectionServerModelRolloutAndroid, "ModelVersion",
+        /*default_value=*/1000};
 #endif
 
 BASE_FEATURE(kClientSideDetectionSkipErrorPage,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kClientSideDetectionTierSystem, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConditionalImageResize, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -353,6 +368,13 @@ constexpr base::FeatureParam<int> kNotificationTelemetrySwbPollingInterval{
     &kNotificationTelemetrySwb, "NotificationTelemetrySwbPollingInterval",
     /*default_value=*/60};
 
+BASE_FEATURE(kProactivePasswordProtection,
+             "ProactivePasswordProtection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<double> kCsdProactivePasswordProtectionSampleRate{
+    &kProactivePasswordProtection, "CsdProactivePasswordProtectionSampleRate",
+    0.0};
+
 BASE_FEATURE(kRedWarningSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<std::string> kRedWarningSurveyTriggerId{
     &kRedWarningSurvey, "RedWarningSurveyTriggerId", /*default_value=*/""};
@@ -452,6 +474,7 @@ base::ListValue GetFeatureStatusList() {
       &kLocalListsUseSBv5,
       &kMigrateEnhancedSbUserToEnhancedBundle,
       &kNotificationTelemetrySwb,
+      &kProactivePasswordProtection,
       &kReportNotificationContentDetectionData,
       &kShowManualNotificationRevocationsSafetyHub,
       &kShowWarningsForSuspiciousNotifications,
@@ -472,6 +495,8 @@ base::ListValue GetFeatureStatusList() {
   }
 
   // Manually add experimental features that we want param values for.
+  param_list.Append(kCsdProactivePasswordProtectionSampleRate.Get());
+  param_list.Append(kCsdProactivePasswordProtectionSampleRate.name);
   param_list.Append(kHashPrefixRealTimeLookupsRelayUrl.Get());
   param_list.Append(kHashPrefixRealTimeLookupsRelayUrl.name);
   param_list.Append(kHashPrefixRealTimeLookupsKeyFetchUrl.Get());

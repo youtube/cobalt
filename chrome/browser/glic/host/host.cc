@@ -29,18 +29,18 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
+#include "components/guest_view/browser/guest_view_base.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
-#include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
-#include "components/guest_view/browser/guest_view_base.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #endif
 
@@ -133,6 +133,12 @@ void Host::NotifySkillToInvokeChanged(mojom::SkillPtr skill) {
   }
 }
 
+void Host::NotifyIsInvoking(bool is_invoking) {
+  if (auto* client = GetPrimaryWebClient()) {
+    client->NotifyIsInvoking(is_invoking);
+  }
+}
+
 void Host::NotifyContextualSkillsChanged(
     std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) {
   if (auto* client = GetPrimaryWebClient()) {
@@ -140,6 +146,17 @@ void Host::NotifyContextualSkillsChanged(
         std::move(contextual_skill_previews));
   } else {
     pending_contextual_skills_ = std::move(contextual_skill_previews);
+  }
+}
+
+void Host::getExperimentalTriggeringUpdates(
+    mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
+    base::OnceCallback<void(bool)> success_status_callback) {
+  if (auto* client = GetPrimaryWebClient()) {
+    client->GetExperimentalTriggeringUpdates(
+        std::move(handler), std::move(success_status_callback));
+  } else {
+    std::move(success_status_callback).Run(false);
   }
 }
 
@@ -200,7 +217,7 @@ void Host::CreateContents(bool initially_hidden) {
   VLOG(1) << "Glic [Host] CreateContents";
 
   glic_service().fre_controller().RecordFrameworkStartTime();
-  contents_ = glic_service().web_contents_warming_pool().TakeContainer();
+  contents_ = instance_delegate_->CreateWebUIContentsContainer();
   contents_->AttachToHost(this);
 
   metrics_.StartRecording();
@@ -515,7 +532,7 @@ content::WebContents* Host::webui_contents() const {
 }
 
 content::WebContents* Host::web_client_contents() const {
-  return web_client_contents_.get();
+  return content::WebContents::FromRenderFrameHost(GetGuestMainFrame());
 }
 
 bool Host::IsGlicWebUiHost(content::RenderProcessHost* host) const {
@@ -601,10 +618,9 @@ void Host::NotifyAdditionalContext(mojom::AdditionalContextPtr context) {
 }
 
 content::RenderProcessHost* Host::GetWebClientRenderProcessHost() const {
-  if (content::WebContents* contents = web_client_contents()) {
-    if (content::RenderFrameHost* rfh = contents->GetPrimaryMainFrame()) {
-      return rfh->GetProcess();
-    }
+  auto* guest_frame = GetGuestMainFrame();
+  if (guest_frame) {
+    return guest_frame->GetProcess();
   }
   return nullptr;
 }
@@ -744,85 +760,6 @@ void Host::FloatingPanelCanAttachChanged(bool can_attach) {
     return;
   }
   handler_info_->web_client->FloatingPanelCanAttachChanged(can_attach);
-}
-
-void Host::GuestAdded(content::WebContents* guest_contents) {
-  web_client_contents_ = guest_contents->GetWeakPtr();
-}
-
-HostManager::HostManager(
-    Profile* profile,
-    base::WeakPtr<GlicInstanceCoordinator> window_controller)
-    : profile_(profile), window_controller_(window_controller) {}
-
-HostManager::~HostManager() = default;
-
-void HostManager::Shutdown() {
-  for (Host* host : GetAllHosts()) {
-    host->Shutdown();
-  }
-}
-
-void HostManager::GuestAdded(content::WebContents* guest_contents) {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
-  content::WebContents* top =
-      guest_view::GuestViewBase::GetTopLevelWebContents(guest_contents);
-#endif
-
-  for (Host* host : GetPrimaryHosts()) {
-    if (!host->webui_contents()) {
-      continue;
-    }
-
-    host->GuestAdded(guest_contents);
-
-#if !BUILDFLAG(IS_ANDROID)
-    // TODO(harringtond): This looks wrong, either fix or document this.
-    blink::web_pref::WebPreferences prefs(top->GetOrCreateWebPreferences());
-    prefs.default_font_size =
-        host->webui_contents()->GetOrCreateWebPreferences().default_font_size;
-    top->SetWebPreferences(prefs);
-#else
-    // TODO(b/470059315): What do we do for Android?
-#endif
-    return;
-  }
-}
-
-std::vector<Host*> HostManager::GetAllHosts() {
-  return GetPrimaryHosts();
-}
-
-
-
-bool HostManager::IsGlicWebUi(content::WebContents* contents) {
-  for (const Host* host : GetAllHosts()) {
-    if (host->IsGlicWebUi(contents)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool HostManager::IsGlicWebUiHost(content::RenderProcessHost* process_host) {
-  for (const Host* host : GetAllHosts()) {
-    if (host->IsGlicWebUiHost(process_host)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-std::vector<Host*> HostManager::GetPrimaryHosts() {
-  if (!window_controller_) {
-    return {};
-  }
-  std::vector<Host*> hosts;
-  for (GlicInstance* instance : window_controller_->GetInstances()) {
-    hosts.push_back(&instance->host());
-  }
-  return hosts;
 }
 
 }  // namespace glic

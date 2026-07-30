@@ -39,7 +39,6 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
-#include "components/password_manager/core/browser/leak_detection/leak_detection_delegate_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
@@ -842,7 +841,7 @@ TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusRunning) {
 }
 
 // Verifies that the total password count is reported accurately.
-// Regression test for crbug.com/1432734.
+// Regression test for crbug.com/40264087.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusCount) {
   identity_test_env().MakePrimaryAccountAvailable(
       kTestEmail, signin::ConsentLevel::kSignin);

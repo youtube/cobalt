@@ -21,10 +21,6 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "extensions/browser/event_router.h"
 
-namespace content {
-class WebContents;
-}
-
 namespace resource_coordinator {
 class TabLifecycleUnitSource;
 }
@@ -60,11 +56,6 @@ class TabsEventRouterPlatformDelegate
   void OnBrowserCreated(BrowserWindowInterface* browser) override;
 
   // TabStripModelObserver:
-  void OnTabStripModelChanged(
-      TabStripModel* tab_strip_model,
-      const TabStripModelChange& change,
-      const TabStripSelectionChange& selection) override;
-
   void TabGroupedStateChanged(TabStripModel* tab_strip_model,
                               std::optional<tab_groups::TabGroupId> old_group,
                               std::optional<tab_groups::TabGroupId> new_group,
@@ -79,19 +70,6 @@ class TabsEventRouterPlatformDelegate
       ::mojom::LifecycleUnitState previous_state) override;
 
  private:
-  // Methods called from OnTabStripModelChanged.
-  void DispatchTabInsertedAt(TabStripModel* tab_strip_model,
-                             content::WebContents* contents,
-                             int index,
-                             bool active);
-  void DispatchTabReplacedAt(content::WebContents* old_contents,
-                             content::WebContents* new_contents,
-                             int index);
-
-  // "Synthetic" event. Called from DispatchTabInsertedAt if new tab is
-  // detected.
-  void TabCreatedAt(content::WebContents* contents, int index, bool active);
-
   // The platform-agnostic TabsEventRouter.
   // TODO(https://crbug.com/473593117): This should go away; it's just here
   // while we migrate code.

@@ -67,6 +67,7 @@ const TAG_DT = 'DT';
 const TAG_DD = 'DD';
 const TAG_FIGURE = 'FIGURE';
 const TAG_LABEL = 'LABEL';
+const TAG_AREA = 'AREA';
 
 // Tags with annotated role.
 const TAG_HEADER = 'HEADER';
@@ -187,6 +188,7 @@ const ATTR_KEY_ONMOUSEENTER = 'onmouseenter';
 const ATTR_KEY_ONKEYDOWN = 'onkeydown';
 const ATTR_KEY_ONKEYUP = 'onkeyup';
 const ATTR_KEY_ONKEYPRESS = 'onkeypress';
+const ATTR_KEY_HREF = 'href';
 
 // Attribute and style values.
 const ATTR_VALUE_TRUE = 'true';
@@ -692,8 +694,6 @@ function getViewportRect(doc: Document): Rect {
       0, 0, doc.documentElement.clientWidth, doc.documentElement.clientHeight);
 }
 
-// TODO(crbug.com/480945289): Complete this function as more data becomes
-// available throughout iterations.
 /**
  * Determines if an element should be treated as a generic container.
  * This is a fallback classification for elements that don't match specific
@@ -1007,8 +1007,15 @@ function getNodeInteractionInfo(
   // HTMLElement.tabIndex defaults to -1 for non-focusable elements.
   // We also check for contenteditable which makes elements focusable even
   // without tabIndex.
+  // For anchors and area elements, they must have an href to be implicitly
+  // focusable.
+  const isAnchorOrArea = tagName === TAG_A || tagName === TAG_AREA;
+  const isImplicitlyFocusable = isAnchorOrArea ?
+      element.hasAttribute(ATTR_KEY_HREF) :
+      element.tabIndex >= 0;
+
   if (!isDisabled && style?.visibility === ATTR_VISIBILITY_VISIBLE &&
-      (element.tabIndex >= 0 || element.hasAttribute(ATTR_KEY_TABINDEX) ||
+      (isImplicitlyFocusable || element.hasAttribute(ATTR_KEY_TABINDEX) ||
        element.isContentEditable)) {
     interactionInfo.isFocusable = true;
   }
@@ -1053,9 +1060,13 @@ function extractMediaData(document: Document): PageContentMediaData|undefined {
 
   const durationMilliseconds =
       Math.floor(selectedMedia.duration * SECOND_TO_MS_RATIO);
+  const currentPositionMilliseconds =
+      Math.floor(selectedMedia.currentTime * SECOND_TO_MS_RATIO);
 
-  // Duration is required for proto and must be a valid finite number.
-  if (!Number.isFinite(durationMilliseconds)) {
+  // Duration and current position are required for proto and must be a valid
+  // finite number.
+  if (!Number.isFinite(durationMilliseconds) ||
+      !Number.isFinite(currentPositionMilliseconds)) {
     return undefined;
   }
 
@@ -1070,8 +1081,7 @@ function extractMediaData(document: Document): PageContentMediaData|undefined {
   return {
     mediaDataType,
     durationMilliseconds,
-    currentPositionMilliseconds:
-        Math.floor(selectedMedia.currentTime * SECOND_TO_MS_RATIO),
+    currentPositionMilliseconds,
     isPlaying: !selectedMedia.paused && !selectedMedia.ended,
   };
 }
@@ -2786,13 +2796,56 @@ export function extractAnnotatedPageContent(
   // Collect interactive nodes (focused element, selection start/end).
   const interactiveNodeIds = getInteractiveNodeIds(document);
 
-  const walker = document.createTreeWalker(
-      root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-        acceptNode: (node) => shouldAcceptNode(node),
-      });
+  // Create a tree walker to traverse the DOM tree.
+  // Uses `undefined` as the filter lambda to avoid performance penalty since
+  // the walker would have to cross WebCore C++/JS bridge for every node.
+  // Instead, `shouldAcceptNode` will be called at the beginning of the loop
+  // and will skip traversal of subtrees that should not be processed like
+  // the tree walker does natively.
+  const walker = isPageContextIPCOptimizationEnabled() ?
+      document.createTreeWalker(
+          root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, undefined) :
+      document.createTreeWalker(
+          root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, (node) => {
+            return shouldAcceptNode(node);
+          });
+
+  // Helper to find the next sibling after the current node's subtree.
+  const jumpSubtree = (w: TreeWalker): Node|null => {
+    let sibling = w.nextSibling();
+    if (sibling) {
+      return sibling;
+    }
+    let parent = w.parentNode();
+    while (parent) {
+      // Stop traversing up when we reach the extraction root to prevent the
+      // TreeWalker from escaping the intended DOM scope.
+      if (parent === root) {
+        break;
+      }
+      sibling = w.nextSibling();
+      if (sibling) {
+        return sibling;
+      }
+      parent = w.parentNode();
+    }
+    return null;
+  };
 
   let currentNode = walker.nextNode();
   while (currentNode) {
+    if (isPageContextIPCOptimizationEnabled()) {
+      const filterResult = shouldAcceptNode(currentNode);
+      if (filterResult === NodeFilter.FILTER_REJECT) {
+        currentNode = jumpSubtree(walker);
+        continue;
+      }
+      if (filterResult === NodeFilter.FILTER_SKIP) {
+        currentNode = walker.nextNode();
+        continue;
+      }
+    }
+
     // 1. Maintain Stack Invariant & Post-Pruning.
     // Prune (pop) the stack until the top of the stack is an ancestor of the
     // current node so the stack only contains the ancestors of the current

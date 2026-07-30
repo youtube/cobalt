@@ -381,10 +381,6 @@ using segmentation_platform::TipIdentifier;
                        browser:self.browser
       optimizationGuideService:OptimizationGuideServiceFactory::GetForProfile(
                                    profile)
-        impressionLimitService:
-            base::FeatureList::IsEnabled(commerce::kShopCardImpressionLimits)
-                ? ImpressionLimitServiceFactory::GetForProfile(profile)
-                : nil
                shoppingService:commerce::ShoppingServiceFactory::GetForProfile(
                                    profile)
                  bookmarkModel:ios::BookmarkModelFactory::GetForProfile(profile)
@@ -1110,8 +1106,7 @@ using segmentation_platform::TipIdentifier;
 
   LogSafetyCheckNotificationOptIn(viaContextMenu);
 
-  id<SystemIdentity> identity =
-      self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  id<SystemIdentity> identity = self.authService->GetPrimaryIdentity();
 
   const PushNotificationClientId clientId =
       [self pushNotificationClientId:type];

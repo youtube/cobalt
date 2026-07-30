@@ -17,7 +17,6 @@
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/signin/ios/browser/account_consistency_service.h"
 #import "components/signin/ios/browser/signin_enabled_datasource.h"
-#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -106,13 +105,12 @@ class AuthenticationService : public KeyedService,
   // Returns true if the user is signed in.
   // While the AuthenticationService is in background, this will reload the
   // credentials to ensure the value is up to date.
-  bool HasPrimaryIdentity(signin::ConsentLevel consent_level) const;
+  bool HasPrimaryIdentity() const;
 
   // Returns true if the user is signed in and the identity is considered
   // managed.
   // Virtual for testing.
-  virtual bool HasPrimaryIdentityManaged(
-      signin::ConsentLevel consent_level) const;
+  virtual bool HasPrimaryIdentityManaged() const;
 
   // Returns true if data from the signed-in period should be cleared on
   // sign-out.
@@ -121,11 +119,10 @@ class AuthenticationService : public KeyedService,
   // Retrieves the identity of the currently authenticated user or `nil` if
   // the user is not authenticated.
   // Virtual for testing.
-  virtual id<SystemIdentity> GetPrimaryIdentity(
-      signin::ConsentLevel consent_level) const;
+  virtual id<SystemIdentity> GetPrimaryIdentity() const;
 
-  // Grants signin::ConsentLevel::kSignin to `identity` and records the signin
-  // at `access_point`. Virtual for testing.
+  // Signs in `identity` and records the signin at `access_point`. Virtual for
+  // testing.
   virtual void SignIn(id<SystemIdentity> identity,
                       signin_metrics::AccessPoint access_point);
 

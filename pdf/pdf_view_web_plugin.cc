@@ -310,10 +310,25 @@ class PdfViewWebPlugin::PdfInkModuleClientImpl : public PdfInkModuleClient {
   ~PdfInkModuleClientImpl() override = default;
 
   // PdfInkModuleClient:
+  void AddFont(FontId font_id,
+               base::span<const uint8_t> serialized_typeface) override {
+    plugin_->engine_->AddFont(font_id, serialized_typeface);
+  }
+
   void ClearSelection() override { plugin_->engine_->ClearTextSelection(); }
 
   void DiscardStroke(int page_index, InkStrokeId id) override {
     plugin_->engine_->DiscardStroke(page_index, id);
+  }
+
+  void DrawText(int page_index,
+                base::span<const InkTextInfo> text_info,
+                SkColor color,
+                float css_font_size,
+                double pdf_zoom,
+                const gfx::RectF& textbox) override {
+    plugin_->engine_->DrawText(page_index, text_info, color, css_font_size,
+                               pdf_zoom, textbox);
   }
 
   void ExtendSelectionByPoint(const gfx::PointF& point) override {
@@ -3316,8 +3331,7 @@ void PdfViewWebPlugin::LoadAccessibility() {
 }
 
 void PdfViewWebPlugin::ApplyAndObserveRendererPreferences() {
-  if (!features::kPdfInk2TextHighlighting.Get() || IsPrintPreview() ||
-      !Container()) {
+  if (IsPrintPreview() || !Container()) {
     return;
   }
 

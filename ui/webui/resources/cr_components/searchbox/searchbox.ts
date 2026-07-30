@@ -12,7 +12,7 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, PageCallbackRouter, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageCallbackRouter, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
 import {getCss} from './searchbox.css.js';
 import {getHtml} from './searchbox.html.js';
@@ -21,15 +21,6 @@ import type {SearchboxDropdownElement} from './searchbox_dropdown.js';
 import type {SearchboxInputElement} from './searchbox_input.js';
 import type {SearchboxMixinInterface} from './searchbox_mixin.js';
 import {SearchboxMixin} from './searchbox_mixin.js';
-
-// Register --placeholder-opacity as type <number> so that we can animate it.
-CSS.registerProperty({
-  name: '--placeholder-opacity',
-  syntax: '<number>',
-  initialValue: '1',
-  inherits: true,
-});
-
 
 export interface SearchboxElement {
   $: {
@@ -62,32 +53,6 @@ export class SearchboxElement extends SearchboxElementBase implements
       // Public properties
       //========================================================================
 
-      /**
-       * Whether the secondary side can be shown based on the feature state and
-       * the width available to the dropdown.
-       */
-      canShowSecondarySide: {
-        type: Boolean,
-        reflect: true,
-      },
-
-      /**
-       * Whether the secondary side was at any point available to be shown.
-       */
-      hadSecondarySide: {
-        type: Boolean,
-        reflect: true,
-        notify: true,
-      },
-
-      /*
-       * Whether the secondary side is currently available to be shown.
-       */
-      hasSecondarySide: {
-        type: Boolean,
-        reflect: true,
-      },
-
       searchboxChromeRefreshTheming: {
         type: Boolean,
         reflect: true,
@@ -104,16 +69,9 @@ export class SearchboxElement extends SearchboxElementBase implements
         notify: true,
       },
 
-      showThumbnail: {type: Boolean},
-
       //========================================================================
       // Private properties
       //========================================================================
-
-      enableThumbnailSizingTweaks_: {
-        type: Boolean,
-        reflect: true,
-      },
 
       /** Searchbox default icon (i.e., Google G icon or the search loupe). */
       searchboxIcon_: {type: String},
@@ -137,17 +95,11 @@ export class SearchboxElement extends SearchboxElementBase implements
     };
   }
 
-  accessor showThumbnail: boolean = false;
-  accessor canShowSecondarySide: boolean = false;
-  accessor hadSecondarySide: boolean = false;
-  accessor hasSecondarySide: boolean = false;
   accessor searchboxChromeRefreshTheming: boolean =
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
   accessor placeholderText: string = '';
-  protected accessor enableThumbnailSizingTweaks_: boolean =
-      loadTimeData.getBoolean('enableThumbnailSizingTweaks');
   protected accessor searchboxIcon_: string =
       loadTimeData.getString('searchboxDefaultIcon');
   protected accessor searchboxVoiceSearchEnabled_: boolean =
@@ -189,14 +141,6 @@ export class SearchboxElement extends SearchboxElementBase implements
 
     if (changedProperties.has('searchboxChromeRefreshTheming')) {
       this.useWebkitSearchIcons_ = this.searchboxChromeRefreshTheming;
-    }
-
-    const changedPrivateProperties =
-        changedProperties as Map<PropertyKey, unknown>;
-
-    if (changedPrivateProperties.has('result') ||
-        changedPrivateProperties.has('selectedMatchIndex')) {
-      this.selectedMatch = this.computeSelectedMatch_();
     }
   }
 
@@ -245,20 +189,12 @@ export class SearchboxElement extends SearchboxElementBase implements
     return true;
   }
 
-  queryInputAutocomplete() {
-    this.queryAutocomplete(this.$.input.inputElement.value, false);
-  }
-
   setInputText(text: string) {
     this.$.input.setInputText(text);
   }
 
   focusInput() {
     this.$.input.focus();
-  }
-
-  blurInput() {
-    this.$.input.blur();
   }
 
   selectAll() {
@@ -282,10 +218,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.onSearchboxInputTextUpdated(e, /*is_composing=*/ false);
   }
 
-  override onInputWrapperFocusout(e: FocusEvent) {
-    super.onInputWrapperFocusout(e);
-  }
-
   protected onVoiceSearchClick_() {
     this.dispatchEvent(new Event('open-voice-search'));
   }
@@ -299,35 +231,11 @@ export class SearchboxElement extends SearchboxElementBase implements
   // Helpers
   //============================================================================
 
-  private computeSelectedMatch_(): AutocompleteMatch|null {
-    if (!this.result || !this.result.matches) {
-      return null;
-    }
-    return this.result.matches[this.selectedMatchIndex] || null;
-  }
-
-  protected inputHasMatches_(): boolean {
-    return !!this.result && !!this.result.matches &&
-        this.result.matches.length > 0;
-  }
-
   protected computePlaceholderText_(placeholderText: string): string {
     if (placeholderText) {
       return placeholderText;
     }
     return this.i18n('searchBoxHint');
-  }
-
-  protected onSelectedMatchIndexChanged_(e: CustomEvent<{value: number}>) {
-    this.selectedMatchIndex = e.detail.value;
-  }
-
-  protected onHadSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {
-    this.hadSecondarySide = e.detail.value;
-  }
-
-  protected onHasSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {
-    this.hasSecondarySide = e.detail.value;
   }
 }
 

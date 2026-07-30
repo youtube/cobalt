@@ -36,7 +36,7 @@
 - (void)didChangeDate:(NSDate*)date
               forItem:(AutofillAIEntityEditDateItem*)item {
 }
-- (autofill::DenseSet<autofill::AttributeType>)getMissingRequiredFieldsFor:
+- (autofill::DenseSet<autofill::AttributeType>)getMissingImportConstraintsFor:
     (const autofill::DenseSet<autofill::AttributeType>&)presentAttributes {
   return _missingFields;
 }
@@ -291,6 +291,34 @@ TEST_F(AutofillAIEntityEditTableViewControllerTest, TestSaveButtonState) {
   [view_controller tableViewItemDidChange:nil];
 
   EXPECT_TRUE(view_controller.saveButton.enabled);
+}
+
+TEST_F(AutofillAIEntityEditTableViewControllerTest,
+       TestValidationPreventedUntilSetEditItemsCompleted) {
+  AutofillAIEntityEditTableViewController* view_controller =
+      base::apple::ObjCCastStrict<AutofillAIEntityEditTableViewController>(
+          controller());
+
+  FakeMutator* fake_mutator = [[FakeMutator alloc] init];
+  autofill::DenseSet<autofill::AttributeType> missing_fields;
+  missing_fields.insert(
+      autofill::AttributeType(autofill::AttributeTypeName::kPassportName));
+  fake_mutator.missingFields = missing_fields;
+  view_controller.mutator = fake_mutator;
+
+  AutofillAIEntityEditItem* item =
+      [[AutofillAIEntityEditItem alloc] initWithType:kItemTypeEnumZero];
+  item.attributeType = autofill::AttributeTypeName::kPassportName;
+
+  EXPECT_TRUE(item.hasValidValueStatus);
+
+  [view_controller setEditItems:@[ item ]];
+
+  EXPECT_TRUE(item.hasValidValueStatus);
+
+  [view_controller tableViewItemDidChange:item];
+
+  EXPECT_FALSE(item.hasValidValueStatus);
 }
 
 }  // namespace

@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.search_engines.settings.common;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -42,8 +43,6 @@ import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
-
-import java.util.Map;
 
 /** Unit tests for {@link BaseSiteSearchMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -144,6 +143,38 @@ public class BaseSiteSearchMediatorUnitTest {
                         eq(mTemplateUrl),
                         eq(templateUrlHost),
                         any(LargeIconBridge.class),
-                        any(Map.class));
+                        anyMap());
+    }
+
+    @Test
+    public void testUpdatePositions() {
+        PropertyModel model1 = new PropertyModel(SiteSearchProperties.ALL_KEYS);
+        PropertyModel model2 = new PropertyModel(SiteSearchProperties.ALL_KEYS);
+        PropertyModel model3 = new PropertyModel(SiteSearchProperties.ALL_KEYS);
+
+        mModelList.add(new ListItem(SiteSearchProperties.ViewType.SEARCH_ENGINE, model1));
+        mMediator.updatePositions(mModelList);
+        assertEquals(
+                SiteSearchProperties.ItemPosition.SINGLE,
+                model1.get(SiteSearchProperties.POSITION));
+
+        mModelList.add(new ListItem(SiteSearchProperties.ViewType.SEARCH_ENGINE, model2));
+        mMediator.updatePositions(mModelList);
+        assertEquals(
+                SiteSearchProperties.ItemPosition.TOP, model1.get(SiteSearchProperties.POSITION));
+        assertEquals(
+                SiteSearchProperties.ItemPosition.BOTTOM,
+                model2.get(SiteSearchProperties.POSITION));
+
+        mModelList.add(new ListItem(SiteSearchProperties.ViewType.SEARCH_ENGINE, model3));
+        mMediator.updatePositions(mModelList);
+        assertEquals(
+                SiteSearchProperties.ItemPosition.TOP, model1.get(SiteSearchProperties.POSITION));
+        assertEquals(
+                SiteSearchProperties.ItemPosition.MIDDLE,
+                model2.get(SiteSearchProperties.POSITION));
+        assertEquals(
+                SiteSearchProperties.ItemPosition.BOTTOM,
+                model3.get(SiteSearchProperties.POSITION));
     }
 }

@@ -182,8 +182,6 @@ TabStripPageHandler::TabStripPageHandler(
       tab_before_unload_tracker_(
           base::BindRepeating(&TabStripPageHandler::HandleTabCloseCancelled,
                               base::Unretained(this))),
-      context_menu_after_tap_(base::FeatureList::IsEnabled(
-          features::kWebUITabStripContextMenuAfterTap)),
       long_press_timer_(std::make_unique<base::RetainingOneShotTimer>(
           FROM_HERE,
           kTouchLongpressDelay,
@@ -424,18 +422,12 @@ bool TabStripPageHandler::PreHandleGestureEvent(
         should_drag_on_gesture_scroll_ = false;
         return false;
       }
-      if (!context_menu_after_tap_) {
-        page_->ShowContextMenu();
-      }
+      page_->ShowContextMenu();
       return true;
     case blink::WebInputEvent::Type::kGestureTwoFingerTap:
       page_->ShowContextMenu();
       return true;
     case blink::WebInputEvent::Type::kGestureLongTap:
-      if (context_menu_after_tap_) {
-        page_->ShowContextMenu();
-      }
-
       should_drag_on_gesture_scroll_ = false;
       long_press_timer_->Stop();
       return true;
@@ -555,7 +547,7 @@ tab_strip::mojom::TabGroupVisualDataPtr TabStripPageHandler::GetTabGroupData(
 
   // TODO the tab strip should support toggles between inactive and active frame
   // states. Currently the webui tab strip only uses active frame colors
-  // (https://crbug.com/1060398).
+  // (https://crbug.com/40678998).
   const int group_color_id =
       GetThumbnailTabStripTabGroupColorId(visual_data->color(), true);
   const SkColor group_color = embedder_->GetColorProviderColor(group_color_id);

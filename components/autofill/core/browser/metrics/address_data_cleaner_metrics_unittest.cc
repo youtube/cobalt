@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/test/metrics/histogram_tester.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_cleaner.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -17,21 +18,19 @@ namespace {
 // in which no country code is specified.
 TEST(AddressDataCleanerMetricsTest,
      LogNumberOfProfilesConsideredForDedupePerCountryCode) {
-  // Create profiles with different country codes.
-  // 2 profiles from the US, 1 from CA, 1 from PL and 3 with missing country
+  // Compute the expected profile counts for different country codes:
+  // 2 profiles from the US, 1 from CA, 1 from PL, and 3 with missing country
   // code ("").
-  std::vector<AutofillProfile> profiles = {
-      AutofillProfile(AddressCountryCode("US")),
-      AutofillProfile(AddressCountryCode("US")),
-      AutofillProfile(AddressCountryCode("CA")),
-      AutofillProfile(AddressCountryCode("PL")),
-      AutofillProfile(AddressCountryCode("")),
-      AutofillProfile(AddressCountryCode("")),
-      AutofillProfile(AddressCountryCode(""))};
+  absl::flat_hash_map<std::string, int> profile_count_by_country_code;
+
+  profile_count_by_country_code.emplace("", 3);
+  profile_count_by_country_code.emplace("US", 2);
+  profile_count_by_country_code.emplace("CA", 1);
+  profile_count_by_country_code.emplace("PL", 1);
 
   base::HistogramTester histogram_tester;
   autofill_metrics::LogNumberOfProfilesConsideredForDedupePerCountryCode(
-      profiles);
+      profile_count_by_country_code);
 
   // Verify the "CountryMissing" histogram.
   // There are 3 profiles with empty country, so we expect exactly 1 sample in

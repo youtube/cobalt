@@ -4,6 +4,7 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/linux/pkg_config.gni")
+import("//build/config/sanitizers/sanitizers.gni")
 import("//build/util/process_version.gni")
 import("//remoting/build/config/remoting_build.gni")
 import("//remoting/build/config/remoting_logging.gni")
@@ -45,6 +46,10 @@ group("all") {
     if (enable_me2me_host && (is_linux || is_win)) {
       deps += [ "//remoting/host/remote_open_url" ]
     }
+
+    if (enable_me2me_host && is_linux) {
+      deps += [ "//remoting/host/linux:remoting_migrate_host" ]
+    }
   }
 }
 
@@ -84,6 +89,8 @@ source_set("host_main_headers") {
     "//remoting/host/it2me:main_headers",
     "//remoting/host/linux:login_session_reporter_main_headers",
     "//remoting/host/linux:remote_session_info_main_headers",
+    "//remoting/host/linux:remoting_migrate_host_main_headers",
+    "//remoting/host/linux:remoting_migrate_host_main_impl",
     "//remoting/host/mac:agent_process_broker_main_headers",
     "//remoting/host/mac:host_service_main_headers",
     "//remoting/host/mac:remoting_native_messaging_host",
@@ -351,6 +358,20 @@ source_set("mojo_caller_security_checker") {
 }
 
 if (is_posix) {
+  source_set("pam_authorization") {
+    sources = [
+      "pam_authorization_factory_posix.cc",
+      "pam_authorization_factory_posix.h",
+    ]
+    deps = [
+      ":common_headers",
+      "//base",
+      "//remoting/base",
+      "//remoting/host/base",
+    ]
+    public_deps = [ "//remoting/protocol" ]
+  }
+
   source_set("signal_handler") {
     sources = [
       "posix/signal_handler.cc",
@@ -640,10 +661,10 @@ static_library("common") {
     assert(use_glib)
     defines += [ "REMOTING_USE_X11" ]
     sources -= [ "active_display_monitor.cc" ]
-    libs += [ "//third_party/libei/cipd/lib64/libei.a" ]
     deps += [
       "//remoting/host/linux:platform_impls",
       "//remoting/host/linux:utils",
+      "//third_party/libei",
       "//ui/base/x",
       "//ui/events/platform/x11",
       "//ui/gfx/x",
@@ -954,6 +975,10 @@ source_set("unit_tests") {
     sources += [ "setup/host_starter_base_unittest.cc" ]
   }
 
+  if (is_win) {
+    sources += [ "setup/daemon_controller_delegate_win_unittest.cc" ]
+  }
+
   if (is_linux) {
     deps += [
       "//components/dbus",
@@ -1010,6 +1035,13 @@ source_set("unit_tests") {
   if (enable_me2me_host) {
     sources += [ "evaluate_capability_unittest.cc" ]
     data_deps = [ "//remoting/test:capability_test_stub" ]
+  }
+
+  if (is_posix && !is_chromeos && !is_msan) {
+    # PAM tests fail on MSan because libpam is uninstrumented (crbug.com/504793694).
+    # They also don't work on ChromeOS as PAM is not used there for remoting.
+    sources += [ "pam_authorization_factory_posix_unittest.cc" ]
+    deps += [ ":pam_authorization" ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
@@ -1224,11 +1256,10 @@ if (enable_me2me_host) {
     }
 
     if (is_posix) {
-      sources += [
-        "pam_authorization_factory_posix.cc",
-        "pam_authorization_factory_posix.h",
-      ]
       deps += [ ":signal_handler" ]
+      if (!is_chromeos) {
+        deps += [ ":pam_authorization" ]
+      }
     }
 
     if (!is_ios) {
@@ -1288,6 +1319,9 @@ if (enable_me2me_host) {
       "//remoting/host/setup:start_host_main",
       "//remoting/host/webauthn:main",
     ]
+    if (is_linux) {
+      deps += [ "//remoting/host/linux:remoting_migrate_host_main_impl" ]
+    }
     if (is_mac) {
       deps += [
         "//remoting/host/mac:agent_process_broker_main",

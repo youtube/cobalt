@@ -115,7 +115,7 @@ class UserPolicySigninServiceTest : public InProcessBrowserTest {
 
   ~UserPolicySigninServiceTest() override {
     // Ensure that no helper leaked.
-    DCHECK_EQ(helper_created_count_, helper_created_count_);
+    DCHECK_EQ(helper_created_count_, helper_deleted_count_);
   }
 
   Profile* profile() { return browser()->profile(); }
@@ -480,7 +480,7 @@ class UserPolicySigninServiceTestWithReplaceSyncPromosWithSignInPromosDisabled
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// Regression test for https://crbug.com/1061459
+// Regression test for https://crbug.com/40122451
 // Start a new signing flow while the existing one is hanging on a policy
 // request.
 IN_PROC_BROWSER_TEST_F(

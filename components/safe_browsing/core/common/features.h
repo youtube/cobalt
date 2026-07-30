@@ -58,6 +58,14 @@ BASE_DECLARE_FEATURE(kBundledSecuritySettings);
 // also enabled.
 BASE_DECLARE_FEATURE(kBundledSecuritySettingsSecureDnsV2);
 
+// Allows a list of ClientSideDetectionType to bypass the priority tier check.
+BASE_DECLARE_FEATURE(kClientSideDetectionBypassTiers);
+// The tier list below will be in form of the integer value of the
+// ClientSideDetectionType which will bypass the system. Example: "1,2" will
+// allow trigger type FORCE_REQUEST and TRIGGER_MODELS to bypass all others.
+extern const base::FeatureParam<std::string>
+    kClientSideDetectionBypassTiersList;
+
 // Expand CSPP beyond phishing and trigger when clipboard copy API is called on
 // the page.
 BASE_DECLARE_FEATURE(kClientSideDetectionClipboardCopyApi);
@@ -152,9 +160,21 @@ BASE_DECLARE_FEATURE(kClientSideDetectionSamplePing);
 BASE_DECLARE_FEATURE(kClientSideDetectionServerModelForScamDetectionAndroid);
 extern const base::FeatureParam<int>
     kClientSideDetectionServerModelMaxScansPerDay;
+
+// Dedicated long-lived feature flag to control future server model rollout and
+// set the model version. This flag should not be cleaned up after the server
+// model is launched. See go/mes-config-rollouts#roll-out-via-finch on the
+// recommended way to control rollouts.
+BASE_DECLARE_FEATURE(kClientSideDetectionServerModelRolloutAndroid);
+// Note for future finch config: Set an arbitrary integer value associated with
+// the model version (e.g. 1001). Update go/slams-mapping accordingly.
+extern const base::FeatureParam<int>
+    kClientSideDetectionServerModelRolloutVersionAndroid;
 #endif
 
 BASE_DECLARE_FEATURE(kClientSideDetectionSkipErrorPage);
+
+BASE_DECLARE_FEATURE(kClientSideDetectionTierSystem);
 
 // Set a RESIZE_BEST preference for image resizing algorithm in Client Side
 // Detection renderer processes for both image classification and image
@@ -353,6 +373,12 @@ extern const base::FeatureParam<double>
 extern const base::FeatureParam<int> kNotificationTelemetrySwbPollingInterval;
 // Determines whether CSBRRs are sent to Safe Browsing.
 extern const base::FeatureParam<bool> kNotificationTelemetrySwbSendReports;
+
+// Enables proactive password protection, which triggers a CSD scan when
+// focusing on a password field.
+BASE_DECLARE_FEATURE(kProactivePasswordProtection);
+extern const base::FeatureParam<double>
+    kCsdProactivePasswordProtectionSampleRate;
 
 // Enables HaTS surveys for users encountering red warnings.
 BASE_DECLARE_FEATURE(kRedWarningSurvey);

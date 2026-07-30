@@ -129,6 +129,7 @@
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/page_content_annotations/content/annotate_page_content_request.h"
 #include "components/page_content_annotations/content/page_content_annotations_web_contents_observer.h"
 #include "components/page_content_annotations/core/page_content_extraction_types.h"
 #include "components/page_info/core/features.h"
@@ -453,7 +454,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
       download::NavigationMonitorFactory::GetForKey(profile->GetProfileKey()));
   history::WebContentsTopSitesObserver::CreateForWebContents(
       web_contents, TopSitesFactory::GetForProfile(profile).get());
-  {
+  if (!profile->IsOffTheRecord()) {
     auto* history_tab_helper =
         HistoryTabHelper::GetOrCreateForWebContents(web_contents);
     HistoryClustersTabHelper::CreateForWebContents(web_contents,
@@ -496,12 +497,19 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
           PageContentAnnotationsServiceFactory::GetForProfile(profile);
   if (page_content_annotations_service) {
     page_content_annotations::PageContentAnnotationsWebContentsObserver::
-        CreateForWebContents(
-            web_contents, *page_content_annotations_service,
-            page_content_annotations::PageContentExtractionServiceFactory::
-                GetForProfile(profile),
-            base::BindRepeating(&page_content_annotations::FetchPageContext),
-            base::BindRepeating(&GetPageContentAnnotationsTabId));
+        CreateForWebContents(web_contents, *page_content_annotations_service);
+
+    // TODO(b/478883979): Consider decoupling this from
+    // PageContentAnnotationsService.
+    auto* page_content_extraction_service = page_content_annotations::
+        PageContentExtractionServiceFactory::GetForProfile(profile);
+    if (page_content_extraction_service) {
+      page_content_annotations::AnnotatedPageContentRequest::
+          CreateForWebContents(
+              web_contents, *page_content_extraction_service,
+              base::BindRepeating(&page_content_annotations::FetchPageContext),
+              base::BindRepeating(&GetPageContentAnnotationsTabId));
+    }
 
 #if BUILDFLAG(IS_ANDROID)
     // If enabled, save sensitivity data for each non-incognito android tab.
@@ -551,7 +559,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
       web_contents);
 #endif  // BUILDFLAG(IS_ANDROID)
   // TODO(siggi): Remove this once the Resource Coordinator refactoring is done.
-  //     See https://crbug.com/910288.
+  //     See https://crbug.com/40604438.
   resource_coordinator::ResourceCoordinatorTabHelper::CreateForWebContents(
       web_contents);
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -641,7 +649,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
 #if BUILDFLAG(IS_ANDROID)
   webapps::MLInstallabilityPromoter::CreateForWebContents(web_contents);
   {
-    // Remove after fixing https://crbug/905919
+    // Remove after fixing https://crbug.com/41426655
     TRACE_EVENT0("browser", "AppBannerManagerAndroid::CreateForWebContents");
     webapps::AppBannerManagerAndroid::CreateForWebContents(
         web_contents, std::make_unique<webapps::ChromeAppBannerManagerAndroid>(
@@ -708,8 +716,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   }
   SearchTabHelper::CreateForWebContents(web_contents);
   TabDialogs::CreateForWebContents(web_contents);
-  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages) ||
-      base::FeatureList::IsEnabled(features::kWebUITabStrip)) {
+  if (base::FeatureList::IsEnabled(features::kTabHoverCardImages)) {
     ThumbnailTabHelper::CreateForWebContents(web_contents);
   }
   UMABrowsingActivityObserver::TabHelper::CreateForWebContents(web_contents);

@@ -12,6 +12,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/metrics/metrics_pref_names.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/sync/service/sync_service.h"
 #import "components/web_resource/web_resource_pref_names.h"
@@ -201,8 +202,7 @@ enum class SigninScreenState {
 
   // The sign-in screen should not be displayed if the user is already
   // signed-in.
-  CHECK(!_authenticationService->HasPrimaryIdentity(
-            signin::ConsentLevel::kSignin),
+  CHECK(!_authenticationService->HasPrimaryIdentity(),
         base::NotFatalUntil::M145);
   [self.consumer setUIEnabled:NO];
   authenticationFlow.delegate = self;
@@ -212,8 +212,7 @@ enum class SigninScreenState {
 - (void)cancelSignInScreenWithCompletion:(ProceduralBlock)completion {
   // The sign-in screen should not be displayed if the user is already
   // signed-in.
-  CHECK(!_authenticationService->HasPrimaryIdentity(
-            signin::ConsentLevel::kSignin),
+  CHECK(!_authenticationService->HasPrimaryIdentity(),
         base::NotFatalUntil::M140);
   if (completion) {
     completion();

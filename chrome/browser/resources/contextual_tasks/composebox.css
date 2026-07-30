@@ -35,6 +35,7 @@
   --composebox-submit-container-inline-end:
       var(--composebox-last-icon-inline-end);
   --composebox-last-icon-inline-end: 12px;
+  --cr-composebox-tool-chip-animation: none;
   --cr-composebox-tool-chip-height: var(--icon-menu-button-size);
   --cr-searchbox-height: 52px;
   --cr-searchbox-min-width: min(calc(100%), 1100px);
@@ -50,6 +51,12 @@
   --pdf-icon-size: 16px;
   --document-icon-size: 16px;
   --injected-input-icon-size: 24px;
+}
+
+:host([energy-effect-enabled_]) {
+  --cr-composebox-tool-chip-animation:
+    fade-in 100ms cubic-bezier(0, 0, 0, 1) forwards,
+    slide-in 350ms cubic-bezier(0.42, 1.67, 0.21, 0.9) forwards;
 }
 
 /* Composebox default colors are for light mode on AIM results. */
@@ -133,6 +140,9 @@
 
 #composebox {
   --cr-composebox-font-size: 16px;
+  --cr-composebox-submit-height: 36px;
+  --cr-composebox-submit-width: 48px;
+  --cr-composebox-submit-border-radius: 100px;
   --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
   --text-input-inline-start-spacing: 20px;
@@ -323,24 +333,29 @@
    */
   --cr-composebox-submit-container-size:
       var(--composebox-submit-container-size);
-  --cr-icon-button-icon-size: 18px;
+  --cr-icon-button-icon-size: 24px;
 }
 
 #composebox::part(submit-icon),
 #composebox::part(submit-overlay) {
   /* Inline-end to center the button (+ its overlay)
-   * (icon size: 40px; button size: 48px. 4px on each side.
-   * Bottom 0px since wrapper is aligned at the
-   * bottom with other icons (like voice). This,
+   * (icon size: 24px; button size: 48px width, 36px height.
+   * Bottom 2px to align with other icons (like voice). This,
    * to be aligned, must also be at the bottom.)
    * Position absolute is also from action-icon.
    */
-  --cr-icon-button-size: 40px;
-  bottom: 0;
-  inset-inline-end: 4px;
+  bottom: 2px;
+  inset-inline-end: 0;
   inset-inline-start: auto;
   position: absolute;
   top: auto;
+}
+
+#composebox:not([submit-enabled])::part(submit) {
+  display: block; /* Override display: none from shared CSS */
+  opacity: 0;
+  transform: scale(0);
+  visibility: hidden;
 }
 
 #composebox[submit-enabled]::part(submit) {
@@ -350,6 +365,13 @@
   inset-inline-start: auto;
   position: absolute;
   top: auto;
+  opacity: 1;
+  transform: scale(1);
+  visibility: visible;
+  transition:
+    opacity 100ms linear,
+    transform 100ms cubic-bezier(0.4, 0, 1, 1),
+    visibility 0ms;
 }
 
 /* TODO(crbug.com/454388827: - Color the tab chips to spec. */
@@ -600,6 +622,13 @@
 }
 
 /* Needed for space between header and composebox. */
-:host([is-side-panel]) #composebox:not([show-dropdown]) {
+:host([is-side-panel][is-zero-state]) #composebox:not([show-dropdown]) {
   margin-top: 24px;
+}
+
+/* Disable animations if requested */
+@container style(--cr-animations-disabled: 1) {
+  #composebox::part(submit) {
+    transition: none;
+  }
 }

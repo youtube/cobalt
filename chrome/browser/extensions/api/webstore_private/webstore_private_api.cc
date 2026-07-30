@@ -22,6 +22,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/scoped_multi_source_observation.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -40,8 +41,8 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
-#include "chrome/common/pref_names.h"
 #include "components/crx_file/id_util.h"
+#include "components/enterprise/browser/reporting/common_pref_names.h"
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -314,7 +315,7 @@ ExtensionInstallStatus AddExtensionToPendingList(
   }
 
   ScopedDictPrefUpdate pending_requests_update(
-      profile->GetPrefs(), prefs::kCloudExtensionRequestIds);
+      profile->GetPrefs(), enterprise_reporting::kCloudExtensionRequestIds);
   DCHECK(!pending_requests_update->Find(id));
   base::DictValue request_data;
   request_data.Set(extension_misc::kExtensionRequestTimestamp,
@@ -525,9 +526,13 @@ void WebstorePrivateBeginInstallWithManifest3Function::OnWebstoreParseSuccess(
       std::string(), &error);
 
   if (!dummy_extension_.get()) {
+    std::string detailed_error = kWebstoreInvalidManifestError;
+    if (!error.empty()) {
+      detailed_error += ": " + base::UTF16ToUTF8(error);
+    }
     OnWebstoreParseFailure(details().id,
                            WebstoreInstallHelper::Delegate::kManifestError,
-                           kWebstoreInvalidManifestError);
+                           detailed_error);
     return;
   }
 

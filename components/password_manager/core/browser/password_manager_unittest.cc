@@ -171,7 +171,9 @@ class MockLeakDetectionCheck : public LeakDetectionCheck {
  public:
   MOCK_METHOD(void,
               Start,
-              (LeakDetectionInitiator, const PasswordForm&),
+              (LeakDetectionInitiator,
+               const PasswordForm&,
+               LeakDetectionCallback),
               (override));
 };
 
@@ -189,12 +191,13 @@ class MockPasswordChangeService : public PasswordChangeServiceInterface {
   MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const override));
   MOCK_METHOD(bool,
               IsPasswordChangeSupported,
-              (const PasswordForm&, const autofill::LanguageCode&),
+              (const PasswordForm&),
               (const override));
   MOCK_METHOD(void,
               RecordLoginAttemptQuality,
               (password_manager::LogInWithChangedPasswordOutcome, const GURL&),
               (const override));
+  MOCK_METHOD(void, AddChangePasswordUrlOverride, (const GURL&), (override));
 };
 
 class MockPasswordManagerClient : public StubPasswordManagerClient {
@@ -1724,6 +1727,64 @@ TEST_P(PasswordManagerTest, FormSubmit) {
   EXPECT_THAT(
       GetAllLoginsSync(store_.get()),
       ElementsAre(Pair(form.signon_realm, ElementsAre(FormMatches(form)))));
+}
+
+TEST_P(PasswordManagerTest, NonPasswordLoginSuppressesSavePrompt) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kPreventPasswordManagerOnFederatedLogin);
+
+  auto mock_factory =
+      std::make_unique<testing::StrictMock<MockLeakDetectionCheckFactory>>();
+  manager()->set_leak_factory(std::move(mock_factory));
+
+  PasswordForm form(MakeSimpleForm());
+  std::vector<FormData> observed = {form.form_data};
+
+  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form.url))
+      .WillRepeatedly(Return(true));
+
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  OnPasswordFormSubmitted(form.form_data);
+
+  manager()->OnNonPasswordLoginDetected();
+
+  EXPECT_CALL(client_, PromptUserToSaveOrUpdatePassword).Times(0);
+
+  observed.clear();
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_P(PasswordManagerTest, NonPasswordLoginNoSuppressionWhenFeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kPreventPasswordManagerOnFederatedLogin);
+
+  PasswordForm form(MakeSimpleForm());
+  std::vector<FormData> observed = {form.form_data};
+
+  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form.url))
+      .WillRepeatedly(Return(true));
+
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  OnPasswordFormSubmitted(form.form_data);
+
+  manager()->OnNonPasswordLoginDetected();
+
+  EXPECT_CALL(client_, PromptUserToSaveOrUpdatePassword).WillOnce(Return(true));
+
+  observed.clear();
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
 }
 
 TEST_P(PasswordManagerTest, IsPasswordFieldDetectedOnPage) {
@@ -4738,7 +4799,8 @@ TEST_P(PasswordManagerTest, StartLeakDetection) {
                           Field(&PasswordForm::username_value,
                                 Eq(form_data.fields()[0].value())),
                           Field(&PasswordForm::password_value,
-                                Eq(form_data.fields()[1].value())))));
+                                Eq(form_data.fields()[1].value()))),
+                    _));
   EXPECT_CALL(*weak_factory, TryCreateLeakCheck)
       .WillOnce(Return(ByMove(std::move(check_instance))));
 
@@ -6676,159 +6738,6 @@ TEST_P(PasswordManagerTest, HatsSurveyNotTriggeredAfterAutomaticFilling) {
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
-TEST_P(PasswordManagerTest, FormSubmittedRecordsSubmission) {
-  base::HistogramTester histogram_tester;
-  FormData form_data(MakeSimpleFormData());
-  manager()->OnPasswordFormsParsed(&driver_, {form_data});
-  manager()->OnPasswordFormsRendered(&driver_, {form_data});
-  task_environment_.RunUntilIdle();
-
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form_data.url()))
-      .WillRepeatedly(Return(true));
-  OnPasswordFormSubmitted(form_data);
-
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.FormSubmissionsVsSavePrompts",
-      metrics_util::SaveFlowStep::kFormSubmitted, 1);
-}
-
-TEST_P(PasswordManagerTest, FormClearedRecordsSubmission) {
-  base::HistogramTester histogram_tester;
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled).WillRepeatedly(Return(true));
-  // Simulate a change password form being parsed.
-  FormData form_data;
-  form_data.set_renderer_id(FormRendererId(1));
-  form_data.set_url(test_form_url_);
-
-  FormFieldData old_password_field;
-  old_password_field.set_form_control_type(
-      autofill::FormControlType::kInputPassword);
-  old_password_field.set_renderer_id(FieldRendererId(2));
-  old_password_field.set_value(u"oldpass");
-  test_api(form_data).Append(old_password_field);
-
-  FormFieldData new_password_field;
-  new_password_field.set_form_control_type(
-      autofill::FormControlType::kInputPassword);
-  new_password_field.set_renderer_id(FieldRendererId(3));
-  new_password_field.set_autocomplete_attribute("new-password");
-  test_api(form_data).Append(new_password_field);
-
-  manager()->OnPasswordFormsParsed(&driver_, {form_data});
-  task_environment_.RunUntilIdle();
-
-  test_api(form_data).field(0).set_value(u"oldpass");
-  test_api(form_data).field(1).set_value(u"newpass");
-
-  manager()->OnInformAboutUserInput(&driver_, form_data);
-
-  manager()->OnPasswordFormCleared(&driver_, form_data);
-
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.FormSubmissionsVsSavePrompts",
-      metrics_util::SaveFlowStep::kFormSubmitted, 1);
-}
-
-TEST_P(PasswordManagerTest, DynamicFormSubmissionRecordsSubmission) {
-  base::HistogramTester histogram_tester;
-  FormData form_data(MakeSimpleFormData());
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form_data.url()))
-      .WillRepeatedly(Return(true));
-  manager()->OnPasswordFormsParsed(&driver_, {form_data});
-  manager()->OnPasswordFormsRendered(&driver_, {form_data});
-  task_environment_.RunUntilIdle();
-  manager()->OnInformAboutUserInput(&driver_, form_data);
-
-  manager()->OnDynamicFormSubmission(&driver_, form_data.submission_event());
-
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectUniqueSample(
-      "PasswordManager.FormSubmissionsVsSavePrompts",
-      metrics_util::SaveFlowStep::kFormSubmitted, 1);
-}
-
-TEST_P(PasswordManagerTest,
-       FormSubmittedDoesntRecordSubmissionIfSavingDisabled) {
-  base::HistogramTester histogram_tester;
-  FormData form_data(MakeSimpleFormData());
-
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form_data.url()))
-      .WillRepeatedly(Return(false));
-
-  manager()->OnPasswordFormsParsed(&driver_, {form_data});
-  manager()->OnPasswordFormsRendered(&driver_, {form_data});
-  task_environment_.RunUntilIdle();
-  manager()->OnInformAboutUserInput(&driver_, {form_data});
-
-  OnPasswordFormSubmitted(form_data);
-
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectTotalCount(
-      "PasswordManager.FormSubmissionsVsSavePrompts", 0);
-}
-
-TEST_P(PasswordManagerTest, FormSubmittedDoesntRecordSubmissionIfBlocklisted) {
-  base::HistogramTester histogram_tester;
-  std::vector<FormData> observed;
-  PasswordForm form(MakeSimpleForm());
-  observed.push_back(form.form_data);
-
-  // Simulate that blocked form stored in store.
-  PasswordForm blocked_form(form);
-  blocked_form.username_value = u"";
-  blocked_form.password_value = u"";
-  blocked_form.blocked_by_user = true;
-  store_->AddLogin(blocked_form);
-  task_environment_.RunUntilIdle();
-
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form.url))
-      .WillRepeatedly(Return(true));
-  manager()->OnPasswordFormsParsed(&driver_, observed);
-  manager()->OnPasswordFormsRendered(&driver_, observed);
-  task_environment_.RunUntilIdle();
-
-  OnPasswordFormSubmitted(form.form_data);
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectTotalCount(
-      "PasswordManager.FormSubmissionsVsSavePrompts", 0);
-}
-
-TEST_P(PasswordManagerTest,
-       FormSubmittedDoesntRecordSubmissionIfSyncCredential) {
-  base::HistogramTester histogram_tester;
-  FormData form_data(MakeSimpleGAIAFormData());
-  manager()->OnPasswordFormsParsed(&driver_, {form_data});
-  manager()->OnPasswordFormsRendered(&driver_, {form_data});
-  task_environment_.RunUntilIdle();
-
-  EXPECT_CALL(client_, IsSavingAndFillingEnabled(form_data.url()))
-      .WillRepeatedly(Return(true));
-
-  // Pretend that the credential shouldn't be saved (e.g. because it corresponds
-  // to the syncing account).
-  ON_CALL(*client_.GetStoreResultFilter(), ShouldSave)
-      .WillByDefault(Return(false));
-  OnPasswordFormSubmitted(form_data);
-
-  // Reset the manager to also cause the form manager to reset which leads
-  // to the metrics being recorded.
-  ResetManager();
-  histogram_tester.ExpectTotalCount(
-      "PasswordManager.FormSubmissionsVsSavePrompts", 0);
-}
-
 TEST_P(PasswordManagerTest, MarksHasPasswordFormForFirstCctPageLoad) {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   auto first_cct_page_recorder =

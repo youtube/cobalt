@@ -13,6 +13,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
+#include "chrome/browser/glic/test_support/mock_glic_keyed_service.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/common/chrome_features.h"
@@ -21,37 +22,11 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_renderer_host.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace glic {
-
-class MockGlicKeyedServiceForContextMenu : public GlicKeyedService {
- public:
-  explicit MockGlicKeyedServiceForContextMenu(
-      Profile* profile,
-      ProfileManager* profile_manager,
-      signin::IdentityManager* identity_manager,
-      GlicProfileManager* glic_profile_manager)
-      : GlicKeyedService(
-            profile,
-            identity_manager,
-            profile_manager,
-            glic_profile_manager,
-            ContextualCueingServiceFactory::GetForProfile(profile),
-            actor::ActorKeyedServiceFactory::GetActorKeyedService(profile)) {}
-
-  void Invoke(GlicInvokeOptions options) override { InvokeProxy(options); }
-  MOCK_METHOD(void, InvokeProxy, (const GlicInvokeOptions&));
-
-  void InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
-                            GlicInvokeOptions options) override {
-    InvokeWithAutoSubmitProxy(auto_submit_passkey, options);
-  }
-  MOCK_METHOD(void,
-              InvokeWithAutoSubmitProxy,
-              (InvokeWithAutoSubmitPasskey, const GlicInvokeOptions&));
-};
 
 class GlicContextMenuInvocationHelperUnittest : public testing::Test {
  public:
@@ -92,31 +67,45 @@ class GlicContextMenuInvocationHelperUnittest : public testing::Test {
   std::unique_ptr<KeyedService> CreateService(
       content::BrowserContext* context) {
     Profile* profile = Profile::FromBrowserContext(context);
-    auto service = std::make_unique<MockGlicKeyedServiceForContextMenu>(
-        profile, TestingBrowserProcess::GetGlobal()->profile_manager(),
-        IdentityManagerFactory::GetForProfile(profile), &glic_profile_manager_);
+    auto service = std::make_unique<MockGlicKeyedService>(
+        context, IdentityManagerFactory::GetForProfile(profile),
+        TestingBrowserProcess::GetGlobal()->profile_manager(),
+        &glic_profile_manager_,
+        ContextualCueingServiceFactory::GetForProfile(profile),
+        actor::ActorKeyedServiceFactory::GetActorKeyedService(profile));
     mock_service_ = service.get();
     return service;
   }
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
+  content::RenderViewHostTestEnabler enabler_;
   raw_ptr<TestingProfile> profile_;
   GlicProfileManager glic_profile_manager_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
-  raw_ptr<MockGlicKeyedServiceForContextMenu> mock_service_ = nullptr;
+  raw_ptr<MockGlicKeyedService> mock_service_ = nullptr;
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Matcher to check if GlicInvokeOptions has a specific tab as target.
-MATCHER_P(TargetTab, expected_tab, "") {
+// Matcher to check if GlicInvokeOptions has a specific tab as target and
+// specific fre_override.
+MATCHER_P(TargetTabAndFreOverride, expected, "") {
+  auto [expected_tab, expected_fre_override] = expected;
   if (!std::holds_alternative<raw_ptr<tabs::TabInterface>>(
           arg.target.surface)) {
     return false;
   }
   return std::get<raw_ptr<tabs::TabInterface>>(arg.target.surface).get() ==
-         expected_tab;
+             expected_tab &&
+         arg.fre_override == expected_fre_override;
+}
+
+inline auto TargetTabAndFreOverride(
+    tabs::TabInterface* expected_tab,
+    glic::mojom::FreOverride expected_fre_override) {
+  return TargetTabAndFreOverride(
+      std::make_pair(expected_tab, expected_fre_override));
 }
 
 TEST_F(GlicContextMenuInvocationHelperUnittest, HandleClickStandard) {
@@ -130,7 +119,10 @@ TEST_F(GlicContextMenuInvocationHelperUnittest, HandleClickStandard) {
   ON_CALL(mock_tab, GetContents())
       .WillByDefault(testing::Return(web_contents.get()));
 
-  EXPECT_CALL(*mock_service_, InvokeProxy(TargetTab(&mock_tab))).Times(1);
+  EXPECT_CALL(*mock_service_,
+              Invoke(TargetTabAndFreOverride(
+                  &mock_tab, glic::mojom::FreOverride::kTrustFirstInline)))
+      .Times(1);
   GlicContextMenuInvocationHelper::HandleContextualMenuClick(&mock_tab);
 }
 
@@ -149,7 +141,31 @@ TEST_F(GlicContextMenuInvocationHelperUnittest, HandleClickArm2) {
       .WillByDefault(testing::Return(web_contents.get()));
 
   EXPECT_CALL(*mock_service_,
-              InvokeWithAutoSubmitProxy(testing::_, TargetTab(&mock_tab)))
+              InvokeWithAutoSubmit(
+                  testing::_,
+                  TargetTabAndFreOverride(
+                      &mock_tab, glic::mojom::FreOverride::kTrustFirstInline)))
+      .Times(1);
+  GlicContextMenuInvocationHelper::HandleContextualMenuClick(&mock_tab);
+}
+
+TEST_F(GlicContextMenuInvocationHelperUnittest, HandleClickArm3) {
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kGlic, {}},
+       {features::kGlicContextMenu,
+        {{features::kGlicContextMenuArm.name, "arm3"}}}},
+      {});
+
+  tabs::MockTabInterface mock_tab;
+  std::unique_ptr<content::WebContents> web_contents =
+      content::WebContents::Create(
+          content::WebContents::CreateParams(profile_.get()));
+  ON_CALL(mock_tab, GetContents())
+      .WillByDefault(testing::Return(web_contents.get()));
+
+  EXPECT_CALL(*mock_service_,
+              Invoke(TargetTabAndFreOverride(
+                  &mock_tab, glic::mojom::FreOverride::kTrustFirstClick)))
       .Times(1);
   GlicContextMenuInvocationHelper::HandleContextualMenuClick(&mock_tab);
 }
@@ -169,8 +185,8 @@ TEST_F(GlicContextMenuInvocationHelperUnittest, HandleClickDisabled) {
       .WillByDefault(testing::Return(web_contents.get()));
 
   // Should NOT call Invoke.
-  EXPECT_CALL(*mock_service_, InvokeProxy(testing::_)).Times(0);
-  EXPECT_CALL(*mock_service_, InvokeWithAutoSubmitProxy(testing::_, testing::_))
+  EXPECT_CALL(*mock_service_, Invoke(testing::_)).Times(0);
+  EXPECT_CALL(*mock_service_, InvokeWithAutoSubmit(testing::_, testing::_))
       .Times(0);
   GlicContextMenuInvocationHelper::HandleContextualMenuClick(&mock_tab);
 }

@@ -25,12 +25,12 @@ class FakeUnexportableKeyService : public UnexportableKeyService {
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
           callback) override;
-  void GetAllSigningKeysForGarbageCollectionSlowlyAsync(
+  void GetAllKeysForGarbageCollectionSlowlyAsync(
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<UnexportableKeyId>>)>
           callback) override;
   void SignSlowlyAsync(
-      UnexportableKeyId key_id,
+      UnexportableSigningKeyId key_id,
       base::span<const uint8_t> data,
       BackgroundTaskPriority priority,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback)

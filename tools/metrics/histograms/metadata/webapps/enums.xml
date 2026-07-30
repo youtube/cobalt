@@ -547,6 +547,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/chrome/browser/web_applications/commands/scheduler/apply_pending_manifest_update_result.h:ApplyPendingManifestUpdateResult) -->
 
+<!-- LINT.IfChange(WebAppDatabaseOpenResult) -->
+
+<enum name="WebAppDatabaseOpenResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="OpenError"/>
+  <int value="2" label="ReadError"/>
+  <int value="3" label="DowngradeDetected"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/web_applications/web_app_database.h:WebAppDatabaseOpenResult) -->
+
 <enum name="WebAppIconDownloaderResult">
   <int value="0" label="Success"/>
   <int value="1" label="PrimaryPageChanged"/>
@@ -608,6 +619,18 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="NavigateExisting"/>
   <int value="3" label="FocusExisting"/>
 </enum>
+
+<!-- LINT.IfChange(WebAppLaunchOrReparentResult) -->
+
+<enum name="WebAppLaunchOrReparentResult">
+  <int value="0" label="Reparented"/>
+  <int value="1" label="Launched"/>
+  <int value="2" label="Web contents gone"/>
+  <int value="3" label="App not installed as dedicated window"/>
+  <int value="4" label="Shutdown"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/web_applications/scheduler/launch_or_reparent_result.h:LaunchOrReparentResult) -->
 
 <enum name="WebAppManifestIdParseResult">
   <int value="0" label="Success"/>
@@ -832,6 +855,7 @@ chromium-metrics-reviews@google.com.
   <int value="23" label="PWA.uninstall from devtools"/>
   <int value="24" label="Via IWA blocklist"/>
   <int value="25" label="source app is policy installed"/>
+  <int value="26" label="Via toolbar after launch"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/webapps/browser/installable/installable_metrics.h:WebappUninstallSource) -->

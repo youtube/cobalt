@@ -42,6 +42,7 @@
 #include "net/http/http_response_headers.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/signin/android/signin_bridge.h"
 #include "chrome/browser/signin/android/signin_bridge_factory.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
@@ -287,7 +288,7 @@ void ProcessMirrorHeader(
   //    webpages, thereby decreasing their session validity. After their session
   //    expires, they will receive a "Mirror" re-authentication request for all
   //    Google web properties. Another case when this can be triggered is
-  //    https://crbug.com/1012649.
+  //    https://crbug.com/40102460.
   // 3. Displaying an account addition window: when user clicks "Add another
   //    account" in One Google Bar.
   // 4. Displaying the Account Manager for managing accounts.
@@ -380,6 +381,9 @@ void ProcessMirrorHeader(
       base::FeatureList::IsEnabled(switches::kSupportWebSigninAddSession)) {
     if (!target_account_info.has_value()) {
       // Target account is not on the device.
+      base::UmaHistogramEnumeration(
+          "Signin.ProcessMirrorHeaders.Event",
+          signin::MirrorHeaderEvent::kAccountNotOnDevice);
       SigninBridgeFactory::GetForProfile(profile)->StartAddAccountFlow(
           TabAndroid::FromWebContents(web_contents),
           manage_accounts_params.email, continue_url);
@@ -390,6 +394,9 @@ void ProcessMirrorHeader(
     // error.
     if (identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
             target_account_info->account_id)) {
+      base::UmaHistogramEnumeration(
+          "Signin.ProcessMirrorHeaders.Event",
+          signin::MirrorHeaderEvent::kAccountInPersistentError);
       SigninBridgeFactory::GetForProfile(profile)->StartUpdateCredentialsFlow(
           TabAndroid::FromWebContents(web_contents), continue_url,
           target_account_info->account_id);
@@ -398,6 +405,9 @@ void ProcessMirrorHeader(
 
     // If the account is available on the device but is not in error state
     // then we wait for cookies.
+    base::UmaHistogramEnumeration(
+        "Signin.ProcessMirrorHeaders.Event",
+        signin::MirrorHeaderEvent::kAccountRecentlyAdded);
     SigninBridgeFactory::GetForProfile(profile)->WaitForCookiesAndRedirect(
         TabAndroid::FromWebContents(web_contents), continue_url,
         target_account_info->account_id);

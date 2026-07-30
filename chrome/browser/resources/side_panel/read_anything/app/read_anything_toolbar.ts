@@ -20,16 +20,18 @@ import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import '//resources/cr_elements/icons.html.js';
 
+import {HelpBubbleMixinLit} from '//resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
 import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import type {CrLazyRenderLitElement} from '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {CrLitElement, html} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PropertyValues, TemplateResult} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {DEFAULT_SETTINGS, SettingsOption, ToolbarEvent} from '../content/read_anything_types.js';
 import type {LineFocusMovement, LineFocusStyle, SettingsPrefs} from '../content/read_anything_types.js';
@@ -76,7 +78,7 @@ interface MenuButton {
   icon: string;
   ariaLabel: string;
   openMenu: (target: HTMLElement) => void;
-  announceBlock?: TemplateResult;
+  announceId?: string;
 }
 
 
@@ -114,7 +116,7 @@ const flexWrapTypical = 'nowrap';
 const flexWrapOverflow = 'wrap';
 
 const ReadAnythingToolbarElementBase =
-    WebUiListenerMixinLit(I18nMixinLit(CrLitElement));
+    HelpBubbleMixinLit(WebUiListenerMixinLit(I18nMixinLit(CrLitElement)));
 
 export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
   static get is() {
@@ -274,6 +276,12 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     super.disconnectedCallback();
   }
 
+  override firstUpdated(_changedProperties: PropertyValues) {
+    super.firstUpdated(_changedProperties);
+    this.registerHelpBubble(
+        'kReadAnythingViewModeElementId', '#toolbarContainer');
+  }
+
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
     if (changedProperties.has('isSpeechActive') ||
@@ -389,8 +397,7 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
       ariaLabel: loadTimeData.getString('fontSizeTitle'),
       openMenu: (target: HTMLElement) =>
           openMenu(this.$.fontSizeMenu.get(), target),
-      announceBlock: html`<div id='size-announce' class='announce-block'
-            aria-live='polite'></div>`,
+      announceId: 'size-announce',
     };
     if (this.isImmersiveEnabled_) {
       this.textStyleOptions_ = [fontSizeElement];
@@ -740,16 +747,19 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
 
   protected onToolbarKeydown_(e: KeyboardEvent) {
     const toolbar = this.$.toolbarContainer;
-    const buttons =
-        Array.from(toolbar.querySelectorAll<HTMLElement>('.toolbar-button'));
+    const buttons = Array.from(
+        // TODO(crbug.com/342411653): Update the loading spinner to be inside a
+        // button and update the querySelectorAll to use just '.toolbar-button'.
+        toolbar.querySelectorAll<CrIconButtonElement|CrButtonElement>(
+            'cr-icon-button.toolbar-button, cr-button.toolbar-button'));
     assert(buttons, 'no toolbar buttons');
 
     // Only allow focus on the currently visible and actionable elements.
-    const focusableElements = buttons.filter(el => {
+    const focusableElements: HTMLElement[] = buttons.filter(el => {
       return (el.clientHeight > 0) && (el.clientWidth > 0) &&
           (el.getBoundingClientRect().right < toolbar.clientWidth) &&
           (el.style.visibility !== 'hidden') && (el.style.display !== 'none') &&
-          (!(el as any).disabled) && (el.className !== 'separator');
+          (!el.disabled) && (el.className !== 'separator');
     });
 
     // Allow focusing the more options menu if it's visible.

@@ -52,6 +52,16 @@ if (enable_me2me_host) {
     outputs = [ "$root_build_dir/remoting/setup-url-forwarder" ]
   }
 
+  executable("remoting_migrate_host") {
+    output_name = "remoting_migrate_host"
+    sources = [ "migrate_host_entry_point.cc" ]
+
+    deps = [
+      ":remoting_migrate_host_main_headers",
+      "//remoting/host:remoting_core",
+    ]
+  }
+
   executable("remote_session_info") {
     sources = [ "remote_session_info_entry_point.cc" ]
 
@@ -69,6 +79,7 @@ if (enable_me2me_host) {
       ":remoting_me2me_host_copy_pipewire_templates",
       ":remoting_me2me_host_copy_script",
       ":remoting_me2me_host_copy_setup_url_forwarder_script",
+      ":remoting_migrate_host",
       ":remoting_native_messaging_host",
       ":url_forwarder_desktop_entry",
       "//remoting/host:remoting_me2me_host",
@@ -153,6 +164,34 @@ source_set("utils") {
     "//ui/base",
   ]
   configs += [ "//build/linux:gio_config" ]
+}
+
+source_set("host_types") {
+  sources = [
+    "host_types.cc",
+    "host_types.h",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("remoting_migrate_host_main_impl") {
+  sources = [ "migrate_host_main.cc" ]
+  deps = [
+    ":host_types",
+    ":remoting_migrate_host_main_headers",
+    "//base",
+    "//remoting/base",
+    "//remoting/base:logging",
+    "//remoting/host:common",
+    "//remoting/host:host_main_headers",
+    "//remoting/host/base",
+    "//remoting/host/setup:common",
+  ]
+}
+
+source_set("remoting_migrate_host_main_headers") {
+  sources = [ "migrate_host_main.h" ]
+  deps = [ "//remoting/host:host_main_headers" ]
 }
 
 source_set("remote_session_info_main_headers") {
@@ -242,6 +281,8 @@ source_set("platform_impls") {
     "pipewire_mouse_cursor_capturer.h",
     "pipewire_mouse_cursor_monitor.cc",
     "pipewire_mouse_cursor_monitor.h",
+    "pipewire_utils.cc",
+    "pipewire_utils.h",
     "portal_capture_stream_manager.cc",
     "portal_capture_stream_manager.h",
     "portal_curtain_mode.cc",
@@ -298,6 +339,7 @@ source_set("platform_impls") {
     "//remoting/host/security_key",
     "//remoting/proto",
     "//remoting/protocol",
+    "//third_party/libei",
     "//third_party/webrtc_overrides:webrtc_component",
     "//ui/base",
     "//ui/base/x",

@@ -405,7 +405,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, MAYBE_WaitForView) {
   EXPECT_FALSE(IsBackgroundPageAlive(last_loaded_extension_id()));
 }
 
-// Flaky. https://crbug.com/1006634
+// Flaky. https://crbug.com/40099951
 // Tests that the lazy background page stays alive until all network requests
 // are complete.
 IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, DISABLED_WaitForRequest) {
@@ -455,7 +455,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, MAYBE_WaitForNTP) {
   content::WebContents* active_tab = GetActiveWebContents();
   EXPECT_TRUE(content::WaitForLoadStop(active_tab));
   // The extension should've opened a new tab to an extension page.
-  EXPECT_EQ(GURL(chrome::kChromeUINewTabURL),
+  EXPECT_EQ(chrome::ChromeUINewTabURLAsGURL(),
             active_tab->GetLastCommittedURL());
 
   // Lazy Background Page still exists, because the extension created a new tab
@@ -549,7 +549,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest, DISABLED_IncognitoSplitMode) {
 
 // Tests that messages from the content script activate the lazy background
 // page, and keep it alive until all channels are closed.
-// http://crbug.com/1179524; test fails occasionally on OS X 10.15
+// http://crbug.com/40169579; test fails occasionally on OS X 10.15
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_Messaging DISABLED_Messaging
 #else
@@ -701,7 +701,7 @@ IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest,
 
 // Tests that an extension can not fetch a file scheme URL from the lazy
 // background page, if it does not have file access.
-// Flaky on various builders: crbug.com/1284362.
+// Flaky on various builders: crbug.com/40814300.
 IN_PROC_BROWSER_TEST_F(LazyBackgroundPageApiTest,
                        DISABLED_FetchFileSchemeURLWithNoFileAccess) {
   ASSERT_TRUE(RunExtensionTest(

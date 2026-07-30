@@ -109,6 +109,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".ContextualTasks"/>
   <variant name=".CustomizeChrome"/>
   <variant name=".DataSharingBubble"/>
+  <variant name=".DefaultBrowserModal"/>
   <variant name=".Emoji"/>
   <variant name=".ExtensionsWebStoreZeroStatePromo"/>
   <variant name=".Feed"/>
@@ -381,7 +382,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="DefaultBrowser.{DefaultBrowserEntrypointType}.{DefaultBrowserSetterType}.Interaction"
-    enum="DefaultBrowserUserInteraction" expires_after="2026-09-20">
+    enum="DefaultBrowserUserInteraction" expires_after="2027-04-27">
   <owner>alsan@chromium.org</owner>
   <owner>atharvmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
@@ -395,7 +396,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="DefaultBrowser.{DefaultBrowserEntrypointType}.{DefaultBrowserSetterType}.Shown"
-    units="count" expires_after="2026-10-04">
+    units="count" expires_after="2027-04-27">
   <owner>alsan@chromium.org</owner>
   <owner>atharvmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
@@ -407,7 +408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.{DefaultBrowserSetterType}.Result"
-    enum="BooleanSuccess" expires_after="2026-07-01">
+    enum="BooleanSuccess" expires_after="2026-10-25">
   <owner>alsan@chromium.org</owner>
   <owner>atharvmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
@@ -419,7 +420,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.{DefaultBrowserStateValidator}Result"
-    enum="DefaultBrowserStateValidationResult" expires_after="2026-11-25">
+    enum="DefaultBrowserStateValidationResult" expires_after="2027-04-27">
   <owner>alsan@chromium.org</owner>
   <owner>atharvmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
@@ -881,6 +882,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation"
+    enum="Boolean" expires_after="2026-09-06">
+  <owner>leimy@chromium.org</owner>
+  <owner>chrome-webium-product-eng@google.com</owner>
+  <summary>
+    Recorded during `RenderProcessHostImpl::Init()` for TopChromeWebUI
+    processes. Records true if there is already an existing RenderProcessHost
+    for TopChromeWebUI for the same profile that is initialized and not dead.
+  </summary>
+</histogram>
+
 <histogram name="InitialWebUI.Toolbar.RenderProcessGone"
     enum="TerminationStatus" expires_after="2026-07-05">
   <owner>leimy@chromium.org</owner>
@@ -1251,7 +1264,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.Preload.Result" enum="WebUIPreloadResult"
-    expires_after="2026-08-02">
+    expires_after="2026-10-25">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
   <owner>elainechien@chromium.org</owner>
@@ -1264,7 +1277,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToFCP{WebUIName}" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1278,7 +1291,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToLCP{WebUIName}" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-25">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>

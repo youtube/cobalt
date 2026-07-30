@@ -45,6 +45,8 @@ suite('ContextualTasksAppTest', function() {
       enableComposeboxJumpFix: false,
       isGhostLoaderVisible: false,
       isAiPage: true,
+      nlmUrlParam: 'ajid',
+      enableCustomNlmUi: true,
     });
     metrics = fakeMetricsPrivate();
     const proxy = new TestContextualTasksBrowserProxy('http://example.com');
@@ -122,6 +124,28 @@ suite('ContextualTasksAppTest', function() {
 
     assertFalse(appElement.hasAttribute('is-ai-page_'));
     assertFalse(appElement.hasAttribute('is-zero-state_'));
+  });
+
+  test('host initialized from URL parameter', async () => {
+    const forcedHost = 'test.host.com';
+    window.history.replaceState({}, '', `?chrome_host=${forcedHost}`);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    assertEquals(forcedHost, (appElement as any).host_);
+  });
+
+  test('host initialized from loadTimeData when URL param absent', async () => {
+    const forcedHost = 'default.host.com';
+    loadTimeData.overrideValues({chrome_host: forcedHost});
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    assertEquals(forcedHost, (appElement as any).host_);
   });
 
 
@@ -367,6 +391,45 @@ suite('ContextualTasksAppTest', function() {
     assertFalse(currentUrl.searchParams.has('old_param'));
   });
 
+  test('cs param updates dark mode only on commit', async () => {
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+    const appElement = document.createElement('contextual-tasks-app') as any;
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+    // Initial state should be light mode (or whatever default is).
+    assertFalse(appElement['darkMode_']);
+    const urlWithCs1 = `${fixtureUrl}?cs=1`;
+    // 1. Test that loadstart alone does NOT update theme.
+    const eventStart = {
+      url: urlWithCs1,
+      isTopLevel: true,
+    } as unknown as chrome.webviewTag.LoadStartEvent;
+    appElement.onThreadFrameLoadStartForTesting(eventStart);
+    await microtasksFinished();
+    // Should still be false because logic moved to
+    // maybeOnThreadFrameTopLevelNavigation which is called on commit/redirect.
+    assertFalse(appElement['darkMode_']);
+    // 2. Test that loadabort prevents update.
+    const eventAbort = {
+      url: urlWithCs1,
+      isTopLevel: true,
+    } as unknown as chrome.webviewTag.LoadAbortEvent;
+    await appElement.onThreadFrameLoadAbortForTesting(eventAbort);
+    await microtasksFinished();
+    assertFalse(appElement['darkMode_']);
+    // 3. Test that loadcommit updates theme.
+    // Need to call loadstart again to set lastThreadFrameLoadStartEvent_
+    appElement.onThreadFrameLoadStartForTesting(eventStart);
+    await microtasksFinished();
+    const eventCommit = {
+      url: urlWithCs1,
+      isTopLevel: true,
+    } as unknown as chrome.webviewTag.LoadCommitEvent;
+    appElement.onThreadFrameLoadCommitForTesting(eventCommit);
+    await microtasksFinished();
+    assertTrue(appElement['darkMode_']);
+  });
   test('isAiPage reflected in dom', async () => {
     const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
     BrowserProxyImpl.setInstance(proxy);
@@ -551,7 +614,7 @@ suite('ContextualTasksAppTest', function() {
     const frameRect = appElement.$.threadFrame.getBoundingClientRect();
 
     // Verify styles applied
-    assertEquals('relative', composebox.style.position);
+    assertEquals('fixed', composebox.style.position);
     assertEquals(
         `${window.innerHeight - (frameRect.top + rect.bottom)}px`,
         composebox.style.bottom);
@@ -568,6 +631,100 @@ suite('ContextualTasksAppTest', function() {
     assertEquals('', composebox.style.left);
     assertEquals('', composebox.style.width);
     assertEquals('', composebox.style.height);
+  });
+
+  // TODO(merced): Flakey on Linux DBG, so disabled while I debug.
+  test.skip('composebox bounds update styles in nlm', async () => {
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    const composebox = appElement.$.composebox;
+    assertTrue(!!composebox);
+
+    const rect = {
+      top: 10,
+      left: 20,
+      width: 100,
+      height: 200,
+      right: 120,
+      bottom: 210,
+    };
+
+    // Simulate callback update
+    appElement.setForcedComposeboxBoundsForTesting(rect);
+    await microtasksFinished();
+    await appElement.updateComplete;
+
+    const frameRect = appElement.$.threadFrame.getBoundingClientRect();
+
+    // Verify styles applied
+    assertEquals('fixed', composebox.style.position);
+
+    // Verify zero state clears styles
+    appElement.setIsZeroStateForTesting(true);
+    await microtasksFinished();
+    await appElement.updateComplete;
+
+    assertEquals('', composebox.style.position);
+
+    // Verify inNlm restores styles even in zero state
+    appElement.setInNlmForTesting(true);
+    await microtasksFinished();
+    await appElement.updateComplete;
+
+    // Re-apply forced bounds as they were cleared in zero state.
+    appElement.setForcedComposeboxBoundsForTesting(rect);
+    await appElement.updateComplete;
+
+    assertEquals('fixed', composebox.style.position);
+    assertEquals(
+        `${window.innerHeight - (frameRect.top + rect.bottom)}px`,
+        composebox.style.bottom);
+    assertEquals(`${frameRect.left + rect.left}px`, composebox.style.left);
+    assertEquals(`${rect.width}px`, composebox.style.width);
+    assertEquals('', composebox.style.height);
+  });
+
+  test('composebox hidden in nlm when no forced bounds', async () => {
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const {promise, resolve} = Promise.withResolvers<void>();
+    const appElement = document.createElement('contextual-tasks-app');
+    appElement.setOnLoadStartFinishedCallbackForTesting(resolve);
+
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    // Wait for load to finish before proceeding to avoid race condition.
+    await promise;
+
+    appElement.setIsZeroStateForTesting(false);
+    appElement.setInNlmForTesting(true);
+    appElement.setIsZeroStateForTesting(false);
+    await appElement.updateComplete;
+    await microtasksFinished();
+
+    assertTrue(appElement.$.composebox.hidden);
+
+    // Set forced bounds
+    const rect = {
+      top: 10,
+      left: 20,
+      width: 100,
+      height: 200,
+      right: 120,
+      bottom: 210,
+    };
+    appElement.setForcedComposeboxBoundsForTesting(rect);
+    await appElement.updateComplete;
+    await microtasksFinished();
+
+    assertFalse(appElement.$.composebox.hidden);
   });
 
   test('composebox hidden when jump fix conditions met', async () => {

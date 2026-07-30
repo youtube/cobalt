@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/layout/gap/main_gap.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/writing_mode_converter.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/grid_enums.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -105,11 +106,39 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
            main_direction_ == other.main_direction_;
   }
 
+  // Per-side outward extension (in logical space) caused by negative gap
+  // decoration insets pushing decorations past the content box edges.
+  struct GapDecorationInkOutsets {
+    LayoutUnit inline_start;
+    LayoutUnit inline_end;
+    LayoutUnit block_start;
+    LayoutUnit block_end;
+
+    LayoutUnit InlineOutsetThickness() const {
+      return inline_start + inline_end;
+    }
+    LayoutUnit BlockOutsetThickness() const { return block_start + block_end; }
+  };
+
   // Computes the physical bounding rect for gap decorations ink overflow.
-  PhysicalRect ComputeInkOverflowForGaps(WritingDirectionMode writing_direction,
-                                         const PhysicalSize& container_size,
-                                         LayoutUnit inline_thickness,
-                                         LayoutUnit block_thickness) const;
+  // `inline_thickness` / `block_thickness` account for the rule width.
+  // `outsets` accounts for negative insets that push decorations past the
+  // content box edges.
+  PhysicalRect ComputeInkOverflowForGaps(
+      WritingDirectionMode writing_direction,
+      const PhysicalSize& container_size,
+      LayoutUnit inline_thickness,
+      LayoutUnit block_thickness,
+      const GapDecorationInkOutsets& outsets) const;
+
+  // Returns the gap size perpendicular to a rule running in `direction`
+  // (the "crossing" gap for that rule). Used as the percentage basis for
+  // junction gap-decoration insets.
+  //
+  // For flex containers, per-line cross gap sizes can differ due to content
+  // distribution; this returns the maximum across all lines as a conservative
+  // bound (for ink overflow computation).
+  LayoutUnit GetCrossingGapSize(GridTrackSizingDirection direction) const;
 
   ContainerType GetContainerType() const { return container_type_; }
 
@@ -179,40 +208,67 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                                 wtf_size_t gap_index) const;
 
   // Gap Decorations are painted relative to intersection points within a gap.
-  // This methods returns a Vector of ordered intersection offsets for the gap
-  // at `gap_index`. The general pattern is: container content-start ->
+  // This method fills `intersections` with the ordered intersection offsets for
+  // the gap at `gap_index`. The general pattern is: container content-start ->
   // MainxCross intersections -> container content-end. The middle intersections
   // depend on the container type and direction.
-  Vector<GapIntersection> GenerateIntersectionListForGap(
+  //
+  // We reset `intersections` (Shrink(0)) before populating, so the buffer's
+  // capacity is preserved through loop iterations. This makes reuse across a
+  // gap loop allocation-free after the first call.
+  void GenerateIntersectionListForGap(
       GridTrackSizingDirection direction,
-      wtf_size_t gap_index) const;
+      wtf_size_t gap_index,
+      Vector<GapIntersection>& intersections) const;
 
   // Determines whether the intersection at `intersection_index` within
-  // `gap_index` lies on a container edge. Typically, the first and last
-  // intersections are edges, but for flex cross gaps, we must first check if
-  // the gap itself is an edge gap before deciding whether the first or last
-  // intersection is an edge intersection.
-  bool IsEdgeIntersection(wtf_size_t gap_index,
-                          wtf_size_t intersection_index,
-                          wtf_size_t intersection_count,
-                          bool is_main_gap,
-                          const Vector<GapIntersection>& intersections) const;
+  // `gap_index` lies on the container boundary. Typically, the first and last
+  // intersections are at the container edge, but for flex cross gaps, we must
+  // first check if the gap itself is an edge gap before deciding whether the
+  // first or last intersection is at the container edge.
+  bool IsIntersectionAtContainerEdge(
+      wtf_size_t gap_index,
+      wtf_size_t intersection_index,
+      wtf_size_t intersection_count,
+      bool is_main_gap,
+      const Vector<GapIntersection>& intersections) const;
+
+  // Returns true if the intersection should be treated as a "cap" for
+  // decoration purposes (i.e. an endpoint with no visible crossing decoration
+  // to join with). An intersection is a cap if it is either:
+  // - At the container boundary (per IsIntersectionAtContainerEdge), or
+  // - A dangling interior endpoint with no visible crossing decoration
+  //   (https://github.com/w3c/csswg-drafts/issues/13697).
+  // Otherwise the intersection is a "junction" (it has a crossing decoration
+  // that the main decoration joins with). `gap_index` is the index of the gap
+  // itself and `intersection_index` is the index of the intersection point
+  // within that gap.
+  bool IsCapIntersection(GridTrackSizingDirection cross_direction,
+                         wtf_size_t gap_index,
+                         wtf_size_t intersection_index,
+                         bool is_main_gap,
+                         RuleVisibilityItems rule_visibility,
+                         RuleVisibilityItems cross_rule_visibility,
+                         const Vector<GapIntersection>& intersections) const;
 
   // Returns the cross-direction decoration width at the given intersection,
   // used by `overlap-join` to determine how far the decoration should extend.
-  // Edge intersections border the container and have no crossing decoration, so
-  // they return 0.
+  // Cap intersections have no crossing decoration, so they return 0.
+  // `is_cap_intersection` indicates whether the intersection is a cap (at a
+  // container edge or a dangling interior endpoint with no visible crossing
+  // decoration; https://github.com/w3c/csswg-drafts/issues/13697).
   LayoutUnit GetCrossDecorationWidthForIntersection(
       wtf_size_t gap_index,
       wtf_size_t intersection_index,
       bool is_main_gap,
       const Vector<GapIntersection>& intersections,
+      bool is_cap_intersection,
       const Vector<int>& cross_decoration_widths) const;
 
   // Returns the base width used to resolve percentage inset values at the
-  // intersection located at `intersection_index`. Edge intersections return 0.
-  // For most interior intersections, this is the cross width at that point (via
-  // `GetCrossWidthForIntersection()`). For flex main-direction overlap
+  // intersection located at `intersection_index`. Cap intersections return 0.
+  // For most junction intersections, this is the cross width at that point
+  // (via `GetCrossWidthForIntersection()`). For flex main-direction overlap
   // intersections, this instead returns the overlap window size. Takes
   // `intersections` list because logic here depends on neighboring entries to
   // detect overlaps.
@@ -224,11 +280,11 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
       const Vector<GapIntersection>& intersections) const;
 
   // Returns the cross gap width at the intersection located at
-  // `intersection_index`. Returns 0 for edge intersections. For interior
+  // `intersection_index`. Returns 0 for cap intersections. For junction
   // intersections in grid and multicol, returns the cross gutter width. For
   // flex main-direction intersections, returns the per-line cross gap size.
   // Takes `intersections` list because logic here depends on neighboring
-  // entries to identify edge and spanner-adjacent intersections.
+  // entries to identify cap and spanner-adjacent intersections.
   LayoutUnit GetCrossWidthForIntersection(
       GridTrackSizingDirection track_direction,
       wtf_size_t gap_index,
@@ -279,20 +335,28 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   bool IsMultiColSpanner(wtf_size_t gap_index,
                          GridTrackSizingDirection direction = kForRows) const;
 
+  // `is_cap_intersection` indicates whether the intersection is a cap (at a
+  // container edge or a dangling interior endpoint with no visible crossing
+  // decoration; https://github.com/w3c/csswg-drafts/issues/13697).
   LayoutUnit ComputeInsetEnd(const ComputedStyle& style,
                              wtf_size_t gap_index,
                              wtf_size_t intersection_index,
                              const Vector<GapIntersection>& intersections,
+                             bool is_cap_intersection,
                              bool is_column_gap,
                              bool is_main,
                              bool has_joining_decoration,
                              LayoutUnit cross_gap_width,
                              LayoutUnit cross_decoration_width) const;
 
+  // `is_cap_intersection` indicates whether the intersection is a cap (at a
+  // container edge or a dangling interior endpoint with no visible crossing
+  // decoration; https://github.com/w3c/csswg-drafts/issues/13697).
   LayoutUnit ComputeInsetStart(const ComputedStyle& style,
                                wtf_size_t gap_index,
                                wtf_size_t intersection_index,
                                const Vector<GapIntersection>& intersections,
+                               bool is_cap_intersection,
                                bool is_column_gap,
                                bool is_main,
                                bool has_joining_decoration,
@@ -300,15 +364,15 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                                LayoutUnit cross_decoration_width) const;
 
  private:
-  // Returns a list of intersection offsets for a main gap at `gap_index`. This
-  // list includes:
+  // Fills `intersections` for a main gap at `gap_index`. The list includes:
   // - container content start
   // - Intersections with cross gaps (container-specific)
   // - container content end.
   // All offsets are in increasing order along `direction`.
-  Vector<GapIntersection> GenerateMainIntersectionList(
+  void GenerateMainIntersectionList(
       GridTrackSizingDirection direction,
-      wtf_size_t gap_index) const;
+      wtf_size_t gap_index,
+      Vector<GapIntersection>& intersections) const;
 
   // Fills `intersections` for a flex main gap at `gap_index`, which includes:
   // 1. Cross gaps that appear before the main gap
@@ -318,13 +382,14 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
       wtf_size_t gap_index,
       Vector<GapIntersection>& intersections) const;
 
-  // Returns a list of intersection offsets for a cross gap. For grid
-  // containers, this includes the container content edges and every main gap
-  // offset. For flex containers, it includes the cross-gap start offset and its
-  // computed end offset.
-  Vector<GapIntersection> GenerateCrossIntersectionList(
+  // Fills `intersections` for a cross gap at `gap_index`. For grid containers,
+  // this includes the container content edges and every main gap offset. For
+  // flex containers, it includes the cross-gap start offset and its computed
+  // end offset.
+  void GenerateCrossIntersectionList(
       GridTrackSizingDirection direction,
-      wtf_size_t gap_index) const;
+      wtf_size_t gap_index,
+      Vector<GapIntersection>& intersections) const;
 
   // Fills `intersections` for a grid cross gap at `gap_index`, which includes:
   // 1. The content-start edge
@@ -364,9 +429,9 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
 
   // For `overlap-join`, computes the inset so the main-direction decoration
   // extends to meet the far edge of the cross-direction decoration at each
-  // interior intersection. When `has_joining_decoration` is false (e.g. at edge
+  // junction intersection. When `has_joining_decoration` is false (e.g. at cap
   // intersections or when the adjacent segment is not visible), the inset is 0.
-  // At interior intersections the inset is negative, pulling the endpoint
+  // At junction intersections the inset is negative, pulling the endpoint
   // outward to the far edge of the cross decoration width.
   LayoutUnit ComputeOverlapJoinInset(bool has_joining_decoration,
                                      bool is_main,
@@ -430,8 +495,6 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   // considered to be spanner-adjacent "edges". These intersections are
   // adjacent to spanner main gaps and need to be treated as edge
   // intersections so that insets are applied correctly.
-  // TODO(crbug.com/440123087): If we get rid of percentage insets for gaps, we
-  // can remove this.
   mutable HashSet<wtf_size_t> multicol_spanner_adjacent_intersections_;
 };
 

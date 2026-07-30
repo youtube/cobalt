@@ -22,6 +22,7 @@ import android.os.Bundle;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.RemoteInput;
 import androidx.core.graphics.drawable.IconCompat;
 
 import org.chromium.build.annotations.NullMarked;
@@ -550,7 +551,7 @@ public abstract class NotificationBuilderBase {
         if (action.type == Action.Type.TEXT) {
             assert action.placeholder != null;
             actionBuilder.addRemoteInput(
-                    new androidx.core.app.RemoteInput.Builder(NotificationConstants.KEY_TEXT_REPLY)
+                    new RemoteInput.Builder(NotificationConstants.KEY_TEXT_REPLY)
                             .setLabel(action.placeholder)
                             .build());
         }
@@ -574,7 +575,7 @@ public abstract class NotificationBuilderBase {
         // TODO(crbug.com/40498483) Post a group summary notification.
         // Notifications with the same group will only actually be stacked if we post a group
         // summary notification. Calling setGroup at least prevents them being autobundled with
-        // all Chrome notifications on N though (see crbug.com/674015).
+        // all Chrome notifications on N though (see crbug.com/40498015).
     }
 
     private static NotificationCompat.Action.Builder getActionBuilder(Action action) {

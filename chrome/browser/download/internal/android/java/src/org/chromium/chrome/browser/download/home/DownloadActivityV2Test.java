@@ -336,8 +336,8 @@ public class DownloadActivityV2Test {
                 });
         checkItemsDisplayed(true, true, true, true);
 
-        Matcher filesTabMatcher = withText(equalToIgnoringCase("My Files"));
-        Matcher prefetchTabMatcher = withText(equalToIgnoringCase("Explore Offline"));
+        Matcher<View> filesTabMatcher = withText(equalToIgnoringCase("My Files"));
+        Matcher<View> prefetchTabMatcher = withText(equalToIgnoringCase("Explore Offline"));
         onView(filesTabMatcher).check(matches(isDisplayed()));
         onView(prefetchTabMatcher).check(matches(isDisplayed()));
 
@@ -361,15 +361,15 @@ public class DownloadActivityV2Test {
         // Two PAGES and two OTHER files. Should show All, Pages, and Other chips.
         checkItemsDisplayed(true, true, true, true);
 
-        Matcher allChipMatcher =
+        Matcher<View> allChipMatcher =
                 allOf(
                         withText(equalToIgnoringCase("All")),
                         isDescendantOfA(withId(R.id.content_container)));
-        Matcher pagesChipMatcher =
+        Matcher<View> pagesChipMatcher =
                 allOf(
                         withText(equalToIgnoringCase("Pages")),
                         isDescendantOfA(withId(R.id.content_container)));
-        Matcher otherChipMatcher =
+        Matcher<View> otherChipMatcher =
                 allOf(
                         withText(equalToIgnoringCase("Other")),
                         isDescendantOfA(withId(R.id.content_container)));
@@ -798,7 +798,7 @@ public class DownloadActivityV2Test {
 
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/1338140")
+    @DisabledTest(message = "https://crbug.com/40848881")
     public void testRenameItem() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

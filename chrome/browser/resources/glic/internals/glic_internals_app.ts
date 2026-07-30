@@ -7,8 +7,9 @@ import '//resources/cr_elements/cr_tabs/cr_tabs.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {ActuationEligibility, AllowedInflightNavigation, FeatureMode, FreOverride, InternalsPageHandlerFactory, InternalsPageHandlerRemote, InvocationSource} from '../glic.mojom-webui.js';
-import type {InternalsDataPayload} from '../glic.mojom-webui.js';
+import {ActuationEligibility, AllowedInflightNavigation, FeatureMode, FreOverride, InvocationSource} from '../glic.mojom-webui.js';
+import {InternalsPageHandlerFactory, InternalsPageHandlerRemote} from '../glic_internals.mojom-webui.js';
+import type {InternalsDataPayload} from '../glic_internals.mojom-webui.js';
 
 import {getCss} from './glic_internals_app.css.js';
 import {getHtml} from './glic_internals_app.html.js';
@@ -38,6 +39,8 @@ export class GlicInternalsAppElement extends CrLitElement {
       invokeWaitForPanelOpen_: {type: Boolean},
       invokeLogs_: {type: Array},
       invokeSurfaceType_: {type: String},
+      invokeZssOverride_: {type: Boolean},
+      invokeZssAdditionalContent_: {type: String},
       selectedTabIndex_: {type: Number},
       tabNames_: {type: Array},
       featureModeEnumValues_: {type: Array},
@@ -54,6 +57,8 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected accessor invokeWaitForPanelOpen_: boolean = false;
   protected accessor invokeLogs_: string[] = [];
   protected accessor invokeSurfaceType_: string = 'default';
+  protected accessor invokeZssOverride_: boolean = false;
+  protected accessor invokeZssAdditionalContent_: string = '';
   protected accessor selectedTabIndex_: number = 0;
   protected accessor tabNames_: string[] = ['General', 'Debug Controls'];
   protected accessor featureModeEnumValues_:
@@ -254,6 +259,14 @@ export class GlicInternalsAppElement extends CrLitElement {
     this.invokeSurfaceType_ = (e.target as HTMLSelectElement).value;
   }
 
+  protected onInvokeZssOverrideChange_(e: Event) {
+    this.invokeZssOverride_ = (e.target as HTMLInputElement).checked;
+  }
+
+  protected onInvokeZssAdditionalContentInput_(e: Event) {
+    this.invokeZssAdditionalContent_ = (e.target as HTMLInputElement).value;
+  }
+
   protected onTriggerInvokeClick_() {
     this.invokeLogs_ =
         [`[${new Date().toLocaleTimeString()}] TRIGGERING INVOKE...`];
@@ -271,6 +284,9 @@ export class GlicInternalsAppElement extends CrLitElement {
       conversation: {defaultConversation: {}},
       featureMode: this.invokeFeatureMode_,
       disableZss: false,
+      zssConfig: this.invokeZssOverride_ ?
+          {additionalContent: this.invokeZssAdditionalContent_ || null} :
+          null,
       skillId: null,
       errorMessage: null,
       timeout: null,

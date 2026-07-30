@@ -164,47 +164,6 @@ inline constexpr char kUserFeedbackAllowed[] = "feedback_allowed";
 inline constexpr char kRlzPingDelaySeconds[] = "rlz_ping_delay";
 #endif  // BUILDFLAG(ENABLE_RLZ)
 
-#if BUILDFLAG(IS_CHROMEOS)
-
-// Locale preference of device' owner.  ChromeOS device appears in this locale
-// after startup/wakeup/signout.
-inline constexpr char kOwnerLocale[] = "intl.owner_locale";
-// Locale accepted by user.  Non-syncable.
-// Used to determine whether we need to show Locale Change notification.
-inline constexpr char kApplicationLocaleAccepted[] = "intl.app_locale_accepted";
-// Non-syncable item.
-// It is used in two distinct ways.
-// (1) Used for two-step initialization of locale in ChromeOS
-//     because synchronization of kApplicationLocale is not instant.
-// (2) Used to detect locale change.  Locale change is detected by
-//     LocaleChangeGuard in case values of kApplicationLocaleBackup and
-//     kApplicationLocale are both non-empty and differ.
-// Following is a table showing how state of those prefs may change upon
-// common real-life use cases:
-//                                  AppLocale Backup Accepted
-// Initial login                       -        A       -
-// Sync                                B        A       -
-// Accept (B)                          B        B       B
-// -----------------------------------------------------------
-// Initial login                       -        A       -
-// No sync and second login            A        A       -
-// Change options                      B        B       -
-// -----------------------------------------------------------
-// Initial login                       -        A       -
-// Sync                                A        A       -
-// Locale changed on login screen      A        C       -
-// Accept (A)                          A        A       A
-// -----------------------------------------------------------
-// Initial login                       -        A       -
-// Sync                                B        A       -
-// Revert                              A        A       -
-inline constexpr char kApplicationLocaleBackup[] = "intl.app_locale_backup";
-
-// List of locales the UI is allowed to be displayed in by policy. The list is
-// empty if no restriction is being enforced.
-inline constexpr char kAllowedLanguages[] = "intl.allowed_languages";
-#endif
-
 // The default character encoding to assume for a web page in the
 // absence of MIME charset specification
 inline constexpr char kDefaultCharset[] = "intl.charset_default";
@@ -643,11 +602,6 @@ inline constexpr char kTextToSpeechVolume[] = "settings.tts.speech_volume";
 inline constexpr char kManagedSessionUseFullLoginWarning[] =
     "managed_session.use_full_warning";
 
-// Boolean pref indicating whether the NetBios Name Query Request Protocol is
-// used for discovering shares on the user's network by the Network File
-// Shares for Chrome OS feature.
-inline constexpr char kNetBiosShareDiscoveryEnabled[] =
-    "network_file_shares.netbios_discovery.enabled";
 
 // Last time the kChildScreenTimeMilliseconds was saved.
 inline constexpr char kLastChildScreenTimeSaved[] =
@@ -657,32 +611,14 @@ inline constexpr char kLastChildScreenTimeSaved[] =
 inline constexpr char kLastChildScreenTimeReset[] =
     "last_child_screen_time_reset";
 
-// Last milestone on which a Help App notification was shown.
-inline constexpr char kHelpAppNotificationLastShownMilestone[] =
-    "help_app_notification_last_shown_milestone";
-
 // Amount of times the release notes suggestion chip should be
 // shown before it disappears.
 inline constexpr char kReleaseNotesSuggestionChipTimesLeftToShow[] =
     "times_left_to_show_release_notes_suggestion_chip";
 
-// Boolean pref indicating whether the NTLM authentication protocol should be
-// enabled when mounting an SMB share with a user credential by the Network File
-// Shares for Chrome OS feature.
-inline constexpr char kNTLMShareAuthenticationEnabled[] =
-    "network_file_shares.ntlm_share_authentication.enabled";
 
-// List of preconfigured network file shares.
-inline constexpr char kNetworkFileSharesPreconfiguredShares[] =
-    "network_file_shares.preconfigured_shares";
 
-// URL path string of the most recently used SMB NetworkFileShare path.
-inline constexpr char kMostRecentlyUsedNetworkFileShareURL[] =
-    "network_file_shares.most_recently_used_url";
 
-// List of network files shares added by the user.
-inline constexpr char kNetworkFileSharesSavedShares[] =
-    "network_file_shares.saved_shares";
 
 // A string pref storing the path of device wallpaper image file.
 inline constexpr char kDeviceWallpaperImageFilePath[] =
@@ -1489,24 +1425,6 @@ inline constexpr char kNetworkAnnotationBlocklist[] =
 inline constexpr char kViewSourceLineWrappingEnabled[] =
     "view_source.line_wrapping_enabled";
 
-#if BUILDFLAG(IS_CHROMEOS)
-// The state of the SkyVault migration of local files to the cloud.
-inline constexpr char kSkyVaultMigrationState[] = "skyvault.migration_state";
-
-// The number of times SkyVault migration was retried after some upload errors.
-inline constexpr char kSkyVaultMigrationRetryCount[] =
-    "skyvault.migration_retry_count";
-
-// The time at which the SkyVault local files upload or deletion is scheduled to
-// start.
-inline constexpr char kSkyVaultMigrationScheduledStartTime[] =
-    "skyvault.migration_scheduled_start_time";
-
-// The time at which the SkyVault local files upload actually started.
-inline constexpr char kSkyVaultMigrationStartTime[] =
-    "skyvault.migration_start_time";
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 // Boolean that when set overrides the kStaticStorageQuota feature flag.
 inline constexpr char kStaticStorageQuotaEnabled[] =
     "static_storage_quota_enabled";
@@ -1711,34 +1629,6 @@ inline constexpr char kSelectFileLastDirectory[] = "selectfile.last_directory";
 inline constexpr char kAllowFileSelectionDialogs[] =
     "select_file_dialogs.allowed";
 
-#if BUILDFLAG(IS_CHROMEOS)
-
-// Whether the user can remove OneDrive.
-inline constexpr char kAllowUserToRemoveODFS[] = "allow_user_to_remove_odfs";
-
-// Whether M365 has been already been set as default to open supported links.
-inline constexpr char kM365SupportedLinkDefaultSet[] =
-    "filebrowser.m365_supported_link_default_set";
-
-// Pref that contains the value of the MicrosoftOneDriveMount policy.
-inline constexpr char kMicrosoftOneDriveMount[] =
-    "filebrowser.office.microsoft_one_drive_mount";
-
-// Pref that contains the value of the MicrosoftOneDriveAccountRestrictions
-// policy.
-inline constexpr char kMicrosoftOneDriveAccountRestrictions[] =
-    "filebrowser.office.microsoft_one_drive_account_restrictions";
-
-// Pref that contains the value of the MicrosoftOfficeCloudUpload policy.
-inline constexpr char kMicrosoftOfficeCloudUpload[] =
-    "filebrowser.office.microsoft_office_cloud_upload";
-
-// Pref that contains the value of the GoogleWorkspaceCloudUpload policy.
-inline constexpr char kGoogleWorkspaceCloudUpload[] =
-    "filebrowser.office.google_workspace_cloud_upload";
-
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 // Extensions which should be opened upon completion.
 inline constexpr char kDownloadExtensionsToOpen[] =
     "download.extensions_to_open";
@@ -1774,6 +1664,11 @@ inline constexpr char kDNSInterceptionChecksEnabled[] =
 // before shutting everything down.
 inline constexpr char kRestartLastSessionOnShutdown[] =
     "restart.last.session.on.shutdown";
+
+// Whether to restart the current Chrome session automatically in the background
+// as the last thing before shutting everything down.
+inline constexpr char kRestartInBackgroundOnShutdown[] =
+    "restart.in.background.on.shutdown";
 
 #if !BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -2346,36 +2241,6 @@ inline constexpr char kDnsOverHttpsTemplates[] = "dns_over_https.templates";
 inline constexpr char kDnsOverHttpsAutomaticModeFallbackToDoh[] =
     "dns_over_https.automatic_mode_fallback_to_doh";
 
-#if BUILDFLAG(IS_CHROMEOS)
-// String containing a space-separated list of DNS over HTTPS URI templates,
-// with placeholders for user and device identifiers, to use in secure mode or
-// automatic mode. If no templates are specified in automatic mode, we will
-// attempt discovery of DoH servers associated with the configured insecure
-// resolvers. This is very similar to kDnsOverHttpsTemplates except that on
-// ChromeOS it supports additional placeholder variables which are used to
-// transport identity information to the DNS provider. This is ignored on all
-// other platforms than ChromeOS. On ChromeOS if it exists it will override
-// kDnsOverHttpsTemplates, otherwise kDnsOverHttpsTemplates will be used. This
-// pref is controlled by an enterprise policy.
-inline constexpr char kDnsOverHttpsTemplatesWithIdentifiers[] =
-    "dns_over_https.templates_with_identifiers";
-// String containing a salt value. This is used together with
-// kDnsOverHttpsTemplatesWithIdentifiers, only. The value will be used as a salt
-// to a hash applied to the various identity variables to prevent dictionary
-// attacks. This pref is controlled by an enterprise policy.
-inline constexpr char kDnsOverHttpsSalt[] = "dns_over_https.salt";
-// String containing a space-separated list of effective DNS over HTTPS URI
-// templates. If `kDnsOverHttpsTemplatesWithIdentifiers` is set, this string is
-// the result of evaluating `kDnsOverHttpsTemplatesWithIdentifiers` against real
-// user and device data; the identity placeholders are replaced with the
-// hex-encoded hashed value of the user and device identifier. When
-// `kDnsOverHttpsTemplatesWithIdentifiers` is empty or not set,
-// `kDnsOverHttpsEffectiveTemplates` is equal to `kDnsOverHttpsTemplates`.
-// This pref is set at runtime by ash::SecureDnsManager.
-inline constexpr char kDnsOverHttpsEffectiveTemplatesChromeOS[] =
-    "dns_over_https.effective_templates_with_identifiers";
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 // Boolean that specifies whether additional DNS query types (e.g. HTTPS) may be
 // queried alongside the traditional A and AAAA queries.
 inline constexpr char kAdditionalDnsQueryTypesEnabled[] =
@@ -2439,10 +2304,6 @@ inline constexpr char kSameOriginTabCaptureAllowedByOrigins[] =
     "hardware.same_origin_tab_capture_allowed_by_origins";
 
 #if BUILDFLAG(IS_CHROMEOS)
-// The hardware keyboard layout of the device. This should look like
-// "xkb:us::eng".
-inline constexpr char kHardwareKeyboardLayout[] = "intl.hardware_keyboard";
-
 // An any-api scoped refresh token for enterprise-enrolled devices.  Allows
 // for connection to Google APIs when the user isn't logged in.  Currently used
 // for for getting a cloudprint scoped token to allow printing in Guest mode,
@@ -2455,24 +2316,6 @@ inline constexpr char kDeviceRobotAnyApiRefreshTokenV2[] =
 inline constexpr char kDeviceRefreshTokenAnyApiIsV3Used[] =
     "device_refresh_token_is_v3_used.any-api";
 
-// A string pref with initial locale set in VPD or manifest.
-inline constexpr char kInitialLocale[] = "intl.initial_locale";
-
-// Pref name for whether we should show the Getting Started module in the Help
-// app.
-inline constexpr char kHelpAppShouldShowGetStarted[] =
-    "help_app.should_show_get_started";
-
-// Pref name for whether we should show the Parental Control module in the Help
-// app.
-inline constexpr char kHelpAppShouldShowParentalControl[] =
-    "help_app.should_show_parental_control";
-
-// Pref name for whether the device was in tablet mode when going through
-// the OOBE.
-inline constexpr char kHelpAppTabletModeDuringOobe[] =
-    "help_app.tablet_mode_during_oobe";
-
 // A dictionary containing server-provided device state pulled form the cloud
 // after recovery.
 inline constexpr char kServerBackedDeviceState[] = "server_backed_device_state";
@@ -2483,10 +2326,6 @@ inline constexpr char kServerBackedDeviceState[] = "server_backed_device_state";
 // since wallpaper was cached.
 inline constexpr char kCustomizationDefaultWallpaperURL[] =
     "customization.default_wallpaper_url";
-
-// System uptime, when last logout started.
-// This is saved to file and cleared after chrome process starts.
-inline constexpr char kLogoutStartedLast[] = "chromeos.logout-started";
 
 // A boolean preference controlling Android status reporting.
 inline constexpr char kReportArcStatusEnabled[] =
@@ -2697,32 +2536,6 @@ inline constexpr char kMediaGalleriesRememberedGalleries[] =
     "media_galleries.remembered_galleries";
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
-inline constexpr char kPolicyPinnedLauncherApps[] =
-    "policy_pinned_launcher_apps";
-// Keeps names of rolled default pin layouts for shelf in order not to apply
-// this twice. Names are separated by comma.
-inline constexpr char kShelfDefaultPinLayoutRolls[] =
-    "shelf_default_pin_layout_rolls";
-// Same as kShelfDefaultPinLayoutRolls, but for tablet form factor devices.
-inline constexpr char kShelfDefaultPinLayoutRollsForTabletFormFactor[] =
-    "shelf_default_pin_layout_rolls_for_tablet_form_factor";
-// Keeps track of whether the Gemini app was pinned to shelf as a default app,
-// to prevent applying the default pin twice (after the user unpins the app).
-// NOTE: The Gemini app was previously referred to as the container app.
-inline constexpr char kShelfGeminiAppPinRolls[] =
-    "shelf_container_app_pin_layout_rolls";
-// Keeps track of whether the NotebookLM app was pinned to shelf as a default
-// app, to prevent applying the default pin twice (after the user unpins the
-// app).
-inline constexpr char kShelfNotebookLmAppPinRolls[] =
-    "shelf_notebook_lm_app_pin_layout_rolls";
-// Keeps track of whether the Mall app was pinned to shelf as a default app,
-// to prevent applying the default pin twice (after the user unpins the app).
-inline constexpr char kShelfMallAppPinRolls[] =
-    "shelf_mall_app_pin_layout_rolls";
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 #if BUILDFLAG(IS_WIN)
 // Counts how many more times the 'profile on a network share' warning should be
 // shown to the user before the next silence period.
@@ -2846,17 +2659,6 @@ inline constexpr char kCryptAuthInstanceIdToken[] =
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // Policy that indicates how to handle animated images.
 inline constexpr char kAnimationPolicy[] = "settings.a11y.animation_policy";
-
-// Boolean that indicates whether Chrome enterprise extension request is enabled
-// or not.
-inline constexpr char kCloudExtensionRequestEnabled[] =
-    "enterprise_reporting.extension_request.enabled";
-
-// A list of extension ids represents pending extension request. The ids are
-// stored once user sent the request until the request is canceled, approved or
-// denied.
-inline constexpr char kCloudExtensionRequestIds[] =
-    "enterprise_reporting.extension_request.ids";
 
 // Boolean pref indicating whether extension DOM activity logging is enabled
 // for enterprise telemetry.
@@ -3159,16 +2961,6 @@ inline constexpr char kKnownInterceptionDisclosureInfobarLastShown[] =
     "known_interception_disclosure_infobar_last_shown";
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS)
-inline constexpr char kRequiredClientCertificateForUser[] =
-    "required_client_certificate_for_user";
-inline constexpr char kRequiredClientCertificateForDevice[] =
-    "required_client_certificate_for_device";
-inline constexpr char kCertificateProvisioningStateForUser[] =
-    "cert_provisioning_user_state";
-inline constexpr char kCertificateProvisioningStateForDevice[] =
-    "cert_provisioning_device_state";
-#endif
 // A boolean pref that enables certificate prompts when multiple certificates
 // match the auto-selection policy. This pref is controlled exclusively by
 // policies (PromptOnMultipleMatchingCertificates or, in the sign-in profile,
@@ -3359,7 +3151,7 @@ inline constexpr char kVirtualKeyboardResizesLayoutByDefault[] =
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // A boolean indicating whether Access-Control-Allow-Methods matching in CORS
-// preflights is fixed according to the spec. https://crbug.com/1228178
+// preflights is fixed according to the spec. https://crbug.com/40777535
 inline constexpr char
     kAccessControlAllowMethodsInCORSPreflightSpecConformant[] =
         "access_control_allow_methods_in_cors_preflight_spec_conformant";

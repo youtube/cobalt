@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ClientCapabilities, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -63,6 +64,16 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+
+  glicBrowserOnExperimentalTriggeringUpdate: {
+    request: {
+      observationId: number,
+      update?: ExperimentalTriggeringUpdate,
+            observation: SubscriberObservationType,
+    },
+    backgroundAllowed: true,
+  },
+
 
   // The messages that fulfil the GlicBrowserHost public API follow below.
 
@@ -422,12 +433,6 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
-  glicBrowserOnRecordUseCounter: {
-    request: {
-      counter: number,
-    },
-    backgroundAllowed: true,
-  },
   glicBrowserOnResponseRated: {
     request: {
       positive: boolean,
@@ -509,6 +514,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
   },
   glicBrowserShowManageSkillsUi: {
+    backgroundAllowed: true,
+  },
+  glicBrowserShowBrowseSkillsUi: {
     backgroundAllowed: true,
   },
   glicBrowserGetSkill: {
@@ -645,6 +653,20 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserOnMicrophoneStatusChange: {
     request: {
       status: MicrophoneStatus,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserRecordHistogram: {
+    request: {
+      name: string,
+      sparseValue: number,
+      // Add other histogram types as needed.
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserSetErrorDialogState: {
+    request: {
+      shownDialogType?: ClientErrorDialogType,
     },
     backgroundAllowed: true,
   },
@@ -905,120 +927,143 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicWebClientGetExperimentalTriggeringUpdates: {
+    request: {
+      observationId: number,
+    },
+    response: {
+      success: boolean,
+    },
+    backgroundAllowed: true,
+  },
 }>;
 
+// Each host request needs to be added to either UnreportedRequests or
+// RECORDED_REQUEST_IDS. Requests in UnreportedRequests will not record
+// histograms.
+interface UnreportedRequests {
+  RecordHistogram: null;
+  SetErrorDialogState: null;
+}
 
 type RemoveStringPrefix<S extends string, Prefix extends string> =
     S extends `${Prefix}${infer Rest}` ? Rest : 'prefixNotFound!';
 
-export type HostRequestEnumNamesType = {
-  [K in keyof HostRequestTypes as RemoveStringPrefix<K, 'glicBrowser'>]: number;
-};
+type HostRequestEnumNamesType = Omit<
+    {
+      [K in keyof HostRequestTypes as RemoveStringPrefix<K, 'glicBrowser'>]:
+          number;
+    },
+    keyof UnreportedRequests>;
 
 // LINT.IfChange(ApiRequestType)
 // New values here must be added to histograms.xml and to enums.xml.
-export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
-    (() => {
-      const result = {
-        WebClientCreated: 1,
-        WebClientInitialized: 2,
-        CreateTab: 3,
-        OpenGlicSettingsPage: 4,
-        ClosePanel: 5,
-        ClosePanelAndShutdown: 6,
-        ShowProfilePicker: 7,
-        GetModelQualityClientId: 8,
-        GetContextFromFocusedTab: 9,
-        GetContextFromTab: 10,
-        GetContextForActorFromTab: 11,
-        SetMaximumNumberOfPinnedTabs: 12,
-        StopActorTask: 13,
-        PauseActorTask: 14,
-        ResumeActorTask: 15,
-        CaptureScreenshot: 16,
-        ResizeWindow: 17,
-        EnableDragResize: 18,
-        SetWindowDraggableAreas: 19,
-        SetMinimumWidgetSize: 20,
-        SetMicrophonePermissionState: 21,
-        SetLocationPermissionState: 22,
-        SetTabContextPermissionState: 23,
-        SetContextAccessIndicator: 24,
-        GetUserProfileInfo: 25,
-        RefreshSignInCookies: 26,
-        AttachPanel: 27,
-        DetachPanel: 28,
-        SetAudioDucking: 29,
-        LogBeginAsyncEvent: 30,
-        LogEndAsyncEvent: 31,
-        LogInstantEvent: 32,
-        JournalClear: 33,
-        JournalSnapshot: 34,
-        JournalStart: 35,
-        JournalStop: 36,
-        JournalRecordFeedback: 37,
-        OnUserInputSubmitted: 38,
-        OnResponseRated: 39,
-        OnResponseStarted: 40,
-        OnResponseStopped: 41,
-        OnSessionTerminated: 42,
-        OnTurnCompleted: 43,
-        // Do not reuse deleted request ID: 44,
-        ScrollTo: 45,
-        SetSyntheticExperimentState: 46,
-        OpenOsPermissionSettingsMenu: 47,
-        GetOsMicrophonePermissionStatus: 48,
-        PinTabs: 49,
-        UnpinTabs: 50,
-        UnpinAllTabs: 51,
-        SubscribeToPinCandidates: 52,
-        UnsubscribeFromPinCandidates: 53,
-        GetZeroStateSuggestionsForFocusedTab: 54,
-        GetZeroStateSuggestionsAndSubscribe: 55,
-        SetClosedCaptioningSetting: 56,
-        DropScrollToHighlight: 57,
-        MaybeRefreshUserStatus: 58,
-        OnClosedCaptionsShown: 59,
-        CreateTask: 60,
-        PerformActions: 61,
-        // Do not reuse deleted request ID: 62,
-        SubscribeToPageMetadata: 63,
-        SwitchConversation: 64,
-        RegisterConversation: 65,
-        OnReaction: 66,
-        OnContextUploadCompleted: 67,
-        OnContextUploadStarted: 68,
-        SetActuationOnWebSetting: 69,
-        OnModeChange: 70,
-        SubscribeToCaptureRegion: 71,
-        UnsubscribeFromCaptureRegion: 72,
-        OnRecordUseCounter: 73,
-        InterruptActorTask: 74,
-        UninterruptActorTask: 75,
-        ActivateTab: 76,
-        CreateActorTab: 77,
-        OpenPasswordManagerSettingsPage: 78,
-        SetOnboardingCompleted: 80,
-        SubscribeToTabData: 81,
-        CreateSkill: 82,
-        UpdateSkill: 83,
-        GetSkill: 84,
-        CancelActions: 85,
-        ShowManageSkillsUi: 86,
-        AutofillSuggestionDialogOnFormPresented: 87,
-        AutofillSuggestionDialogOnFormPreviewChanged: 88,
-        AutofillSuggestionDialogOnFormConfirmed: 89,
-        OnMicrophoneStatusChange: 90,
-        RecordSkillsWebClientEvent: 91,
-        DeleteCapturedRegion: 92,
-        OnActionSubmitted: 93,
-        SubscribeToTabFavicon: 94,
-      };
-      return {...result, MAX_VALUE: Math.max(...Object.values(result))};
-    })();
-// clang-format off
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType, //tools/metrics/histograms/metadata/glic/enums.xml:GlicHostApiRequestType)
-// clang-format on
+const RECORDED_REQUEST_IDS = {
+  WebClientCreated: 1,
+  WebClientInitialized: 2,
+  CreateTab: 3,
+  OpenGlicSettingsPage: 4,
+  ClosePanel: 5,
+  ClosePanelAndShutdown: 6,
+  ShowProfilePicker: 7,
+  GetModelQualityClientId: 8,
+  GetContextFromFocusedTab: 9,
+  GetContextFromTab: 10,
+  GetContextForActorFromTab: 11,
+  SetMaximumNumberOfPinnedTabs: 12,
+  StopActorTask: 13,
+  PauseActorTask: 14,
+  ResumeActorTask: 15,
+  CaptureScreenshot: 16,
+  ResizeWindow: 17,
+  EnableDragResize: 18,
+  SetWindowDraggableAreas: 19,
+  SetMinimumWidgetSize: 20,
+  SetMicrophonePermissionState: 21,
+  SetLocationPermissionState: 22,
+  SetTabContextPermissionState: 23,
+  SetContextAccessIndicator: 24,
+  GetUserProfileInfo: 25,
+  RefreshSignInCookies: 26,
+  AttachPanel: 27,
+  DetachPanel: 28,
+  SetAudioDucking: 29,
+  LogBeginAsyncEvent: 30,
+  LogEndAsyncEvent: 31,
+  LogInstantEvent: 32,
+  JournalClear: 33,
+  JournalSnapshot: 34,
+  JournalStart: 35,
+  JournalStop: 36,
+  JournalRecordFeedback: 37,
+  OnUserInputSubmitted: 38,
+  OnResponseRated: 39,
+  OnResponseStarted: 40,
+  OnResponseStopped: 41,
+  OnSessionTerminated: 42,
+  OnTurnCompleted: 43,
+  // Do not reuse deleted request ID: 44,
+  ScrollTo: 45,
+  SetSyntheticExperimentState: 46,
+  OpenOsPermissionSettingsMenu: 47,
+  GetOsMicrophonePermissionStatus: 48,
+  PinTabs: 49,
+  UnpinTabs: 50,
+  UnpinAllTabs: 51,
+  SubscribeToPinCandidates: 52,
+  UnsubscribeFromPinCandidates: 53,
+  GetZeroStateSuggestionsForFocusedTab: 54,
+  GetZeroStateSuggestionsAndSubscribe: 55,
+  SetClosedCaptioningSetting: 56,
+  DropScrollToHighlight: 57,
+  MaybeRefreshUserStatus: 58,
+  OnClosedCaptionsShown: 59,
+  CreateTask: 60,
+  PerformActions: 61,
+  // Do not reuse deleted request ID: 62,
+  SubscribeToPageMetadata: 63,
+  SwitchConversation: 64,
+  RegisterConversation: 65,
+  OnReaction: 66,
+  OnContextUploadCompleted: 67,
+  OnContextUploadStarted: 68,
+  SetActuationOnWebSetting: 69,
+  OnModeChange: 70,
+  SubscribeToCaptureRegion: 71,
+  UnsubscribeFromCaptureRegion: 72,
+  // Do not reuse deleted request ID: 73,
+  InterruptActorTask: 74,
+  UninterruptActorTask: 75,
+  ActivateTab: 76,
+  CreateActorTab: 77,
+  OpenPasswordManagerSettingsPage: 78,
+  SetOnboardingCompleted: 80,
+  SubscribeToTabData: 81,
+  CreateSkill: 82,
+  UpdateSkill: 83,
+  GetSkill: 84,
+  CancelActions: 85,
+  ShowManageSkillsUi: 86,
+  AutofillSuggestionDialogOnFormPresented: 87,
+  AutofillSuggestionDialogOnFormPreviewChanged: 88,
+  AutofillSuggestionDialogOnFormConfirmed: 89,
+  OnMicrophoneStatusChange: 90,
+  RecordSkillsWebClientEvent: 91,
+  DeleteCapturedRegion: 92,
+  OnActionSubmitted: 93,
+  SubscribeToTabFavicon: 94,
+  ShowBrowseSkillsUi: 95,
+  OnExperimentalTriggeringUpdate: 96,
+} as const satisfies HostRequestEnumNamesType;
+// LINT.ThenChange(
+//  //tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType,
+//  //tools/metrics/histograms/metadata/glic/enums.xml:GlicHostApiRequestType)
+
+export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&
+    {MAX_VALUE: number} = {
+      ...RECORDED_REQUEST_IDS,
+      MAX_VALUE: Math.max(...Object.values(RECORDED_REQUEST_IDS)),
+    };
 
 export function requestTypeToHistogramSuffix(type: string): string|undefined {
   if (!type.startsWith('glicBrowser')) {
@@ -1139,6 +1184,16 @@ export enum ImageAlphaType {
 export enum ImageColorType {
   BGRA = 0,
   RGBA = 1,
+}
+
+// Types of subscriber observations that may be observed.
+export enum SubscriberObservationType {
+  // An update was observed.
+  UPDATE = 0,
+  // Completed all observations.
+  COMPLETE = 1,
+  // An unexpected error was observed.
+  ERROR = 2,
 }
 
 // FocusedTabData data for postMessage transport.

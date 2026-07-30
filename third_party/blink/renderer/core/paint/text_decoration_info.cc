@@ -161,17 +161,14 @@ TextDecorationInfo::TextDecorationInfo(
                           !font_override_ &&
                           ShouldUseDecoratingBox(target_style)),
       is_svg_text_(is_svg_text) {
-  for (wtf_size_t i = 0; i < AppliedDecorationCount(); i++)
-    union_all_lines_ |= AppliedDecoration(i).Lines();
-  for (wtf_size_t i = 0; i < AppliedDecorationCount(); i++) {
-    if (AppliedDecoration(i).Style() == ETextDecorationStyle::kDotted ||
-        AppliedDecoration(i).Style() == ETextDecorationStyle::kDashed) {
+  for (wtf_size_t i = 0; i < AppliedDecorationCount(); ++i) {
+    const auto& decoration = AppliedDecoration(i);
+    union_all_lines_ |= decoration.Lines();
+    if (!antialias_ && (decoration.Style() == ETextDecorationStyle::kDotted ||
+                        decoration.Style() == ETextDecorationStyle::kDashed)) {
       antialias_ = true;
-      break;
     }
   }
-
-  UpdateForDecorationIndex();
 }
 
 wtf_size_t TextDecorationInfo::AppliedDecorationCount() const {
@@ -190,15 +187,9 @@ const AppliedTextDecoration& TextDecorationInfo::AppliedDecoration(
 const ResolvedDecoration TextDecorationInfo::ResolveDecorationAt(
     wtf_size_t decoration_index) {
   DCHECK_LT(decoration_index, AppliedDecorationCount());
-  decoration_index_ = decoration_index;
-  return UpdateForDecorationIndex();
-}
 
-// Update cached properties of |this| for the |decoration_index_|.
-const ResolvedDecoration TextDecorationInfo::UpdateForDecorationIndex() {
-  DCHECK_LT(decoration_index_, AppliedDecorationCount());
   ResolvedDecoration decoration;
-  decoration.applied_text_decoration = &AppliedDecoration(decoration_index_);
+  decoration.applied_text_decoration = &AppliedDecoration(decoration_index);
   decoration.lines = decoration.applied_text_decoration->Lines();
   decoration.has_underline =
       EnumHasFlags(decoration.lines, TextDecorationLine::kUnderline);
@@ -207,17 +198,18 @@ const ResolvedDecoration TextDecorationInfo::UpdateForDecorationIndex() {
 
   // Compute the |ComputedStyle| of the decorating box.
   const ComputedStyle* decorating_box_style;
+  const DecoratingBox* decorating_box = nullptr;
   if (use_decorating_box_) {
     DCHECK(inline_context_);
     DCHECK_EQ(inline_context_->DecoratingBoxes().size(),
               AppliedDecorationCount());
     bool disable_decorating_box;
-    if (static_cast<wtf_size_t>(decoration_index_) >=
-        inline_context_->DecoratingBoxes().size()) [[unlikely]] {
+    if (decoration_index >= inline_context_->DecoratingBoxes().size())
+        [[unlikely]] {
       disable_decorating_box = true;
     } else {
-      decorating_box_ = &inline_context_->DecoratingBoxes()[decoration_index_];
-      decorating_box_style = &decorating_box_->Style();
+      decorating_box = &inline_context_->DecoratingBoxes()[decoration_index];
+      decorating_box_style = &decorating_box->Style();
 
       // Disable the decorating box when the baseline is central, because the
       // decorating box doesn't produce the ideal position.
@@ -230,11 +222,11 @@ const ResolvedDecoration TextDecorationInfo::UpdateForDecorationIndex() {
 
     if (disable_decorating_box) [[unlikely]] {
       use_decorating_box_ = false;
-      decorating_box_ = nullptr;
+      decorating_box = nullptr;
       decorating_box_style = &target_style_;
     }
   } else {
-    DCHECK(!decorating_box_);
+    DCHECK(!decorating_box);
     decorating_box_style = &target_style_;
   }
   DCHECK(decorating_box_style);
@@ -257,13 +249,20 @@ const ResolvedDecoration TextDecorationInfo::UpdateForDecorationIndex() {
   decoration.is_flipped_underline_and_overline = flip_underline_and_overline_;
 
   // Compute the |Font| and its properties.
-  font_ = font_override_ ? font_override_ : decorating_box_style_->GetFont();
-  DCHECK(font_);
-  const SimpleFontData* font_data = font_->PrimaryFont();
+  const Font* font =
+      font_override_ ? font_override_ : decorating_box_style_->GetFont();
+  DCHECK(font);
+  const SimpleFontData* font_data = font->PrimaryFont();
   decoration.font_data = font_data;
-  decoration.computed_font_size = font_->GetFontDescription().ComputedSize();
+  decoration.computed_font_size = font->GetFontDescription().ComputedSize();
   decoration.ascent =
       font_data ? font_data->GetFontMetrics().FloatAscent() : 0.f;
+
+  decoration.effective_zoom = decorating_box_style_->EffectiveZoom();
+  decoration.offset_from_decorating_box =
+      decoration.HasUnderline() && decorating_box
+          ? OffsetFromDecoratingBox(*decorating_box)
+          : LayoutUnit();
 
   decoration.resolved_thickness = ComputeThickness(decoration);
   return decoration;
@@ -289,10 +288,9 @@ DecorationGeometry TextDecorationInfo::ComputeLineData(
       wavy_offset = -double_offset_from_thickness;
       break;
     case TextDecorationLine::kLineThrough:
-      // Floor double_offset in order to avoid double-line gap to appear
-      // of different size depending on position where the double line
-      // is drawn because of rounding downstream in
-      // GraphicsContext::DrawLineForText.
+      // Floor double_offset in order to avoid double-line gap to appear of
+      // different size depending on position where the double line is drawn
+      // because of rounding downstream in DecorationLinePainter.
       double_offset = floorf(double_offset_from_thickness);
       wavy_offset = 0;
       break;
@@ -313,16 +311,14 @@ DecorationGeometry TextDecorationInfo::ComputeLineData(
       spelling_wave = std::nullopt;
     } else {
       style = kWavyStroke;
-      spelling_wave =
-          MakeSpellingGrammarWave(decorating_box_style_->EffectiveZoom());
+      spelling_wave = MakeSpellingGrammarWave(decoration.effective_zoom);
     }
 #elif BUILDFLAG(IS_APPLE)
     style = kDottedStroke;
     antialias = true;
 #else
     style = kWavyStroke;
-    spelling_wave =
-        MakeSpellingGrammarWave(decorating_box_style_->EffectiveZoom());
+    spelling_wave = MakeSpellingGrammarWave(decoration.effective_zoom);
 #endif
   } else {
     style = TextDecorationStyleToStrokeStyle(
@@ -342,14 +338,14 @@ DecorationGeometry TextDecorationInfo::ComputeLineData(
 
 // Returns the offset of the target text/box (|local_origin_|) from the
 // decorating box.
-LayoutUnit TextDecorationInfo::OffsetFromDecoratingBox() const {
+LayoutUnit TextDecorationInfo::OffsetFromDecoratingBox(
+    const DecoratingBox& decorating_box) const {
   DCHECK(use_decorating_box_);
   DCHECK(inline_context_);
-  DCHECK(decorating_box_);
   // Compute the paint offset of the decorating box. The |local_origin_| is
   // already adjusted to the paint offset.
   const LayoutUnit decorating_box_paint_offset =
-      decorating_box_->ContentOffsetInContainer().top +
+      decorating_box.ContentOffsetInContainer().top +
       inline_context_->PaintOffset().top;
   return decorating_box_paint_offset - local_origin_.line_over;
 }
@@ -368,10 +364,8 @@ DecorationGeometry TextDecorationInfo::ComputeUnderlineLineData(
   float paint_underline_offset = decoration_offset.ComputeUnderlineOffset(
       decoration.underline_position, decoration.computed_font_size,
       decoration.font_data, line_offset, decoration.resolved_thickness);
-  if (use_decorating_box_) {
-    // The offset is for the decorating box. Convert it for the target text/box.
-    paint_underline_offset += OffsetFromDecoratingBox();
-  }
+  // The offset is for the decorating box. Convert it for the target text/box.
+  paint_underline_offset += decoration.offset_from_decorating_box;
   return ComputeLineData(decoration, TextDecorationLine::kUnderline,
                          paint_underline_offset);
 }
@@ -460,12 +454,12 @@ float TextDecorationInfo::ComputeThickness(
     // "TextAppearance.Suggestion"
     // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/res/res/values/styles.xml;l=309
     return (base::FeatureList::IsEnabled(features::kAndroidSpellcheckNativeUi))
-               ? 2.5f * decorating_box_style_->EffectiveZoom()
-               : 1.f * decorating_box_style_->EffectiveZoom();
+               ? 2.5f * decoration.effective_zoom
+               : 1.f * decoration.effective_zoom;
 #elif BUILDFLAG(IS_APPLE)
-    return 2.f * decorating_box_style_->EffectiveZoom();
+    return 2.f * decoration.effective_zoom;
 #else
-    return 1.f * decorating_box_style_->EffectiveZoom();
+    return 1.f * decoration.effective_zoom;
 #endif
   }
   const float thickness = ComputeDecorationThickness(

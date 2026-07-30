@@ -12,6 +12,7 @@
 #include <limits>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -78,6 +79,7 @@
 #include "third_party/pdfium/public/fpdf_annot.h"
 #include "third_party/pdfium/public/fpdf_attachment.h"
 #include "third_party/pdfium/public/fpdf_catalog.h"
+#include "third_party/pdfium/public/fpdf_edit.h"
 #include "third_party/pdfium/public/fpdf_ext.h"
 #include "third_party/pdfium/public/fpdf_fwlevent.h"
 #include "third_party/pdfium/public/fpdf_ppo.h"
@@ -107,10 +109,17 @@
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
 #include "pdf/pdf_ink_metrics_handler.h"
+#include "pdf/pdf_ink_transform.h"
 #include "pdf/pdfium/pdfium_ink_reader.h"
 #include "pdf/pdfium/pdfium_ink_transform.h"
 #include "pdf/pdfium/pdfium_ink_writer.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/ink/src/ink/strokes/stroke.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
+#include "third_party/skia/include/core/SkFontTypes.h"
+#include "third_party/skia/include/core/SkStream.h"
+#include "third_party/skia/include/core/SkTypeface.h"
+#include "ui/gfx/skia_span_util.h"
 #endif
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
@@ -606,7 +615,22 @@ class ScopedPageObjectDeactivator {
   std::vector<FPDF_PAGEOBJECT> page_objects_;
 };
 
-#endif
+// TODO(crbug.com/482060888): Remove this once SkData::MakeFromStream() is able
+// to do this itself.
+sk_sp<const SkData> MakeDataAvoidingCopy(SkStreamAsset* stream) {
+  if (!stream) {
+    return SkData::MakeEmpty();
+  }
+  if (stream->getData()) {
+    return stream->getData();
+  }
+  if (stream->getMemoryBase() && stream->getLength()) {
+    return SkData::MakeWithoutCopy(stream->getMemoryBase(),
+                                   stream->getLength());
+  }
+  return SkData::MakeFromStream(stream, stream->getLength());
+}
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 void CheckBitmapProperties(const SkBitmap& sk_bitmap, FPDF_BITMAP fpdf_bitmap) {
   CHECK_EQ(sk_bitmap.colorType(), SkColorType::kBGRA_8888_SkColorType);
@@ -1291,7 +1315,6 @@ void PDFiumEngine::SearchForFragment(
 }
 
 void PDFiumEngine::SetCaretBrowsingEnabled(bool enabled) {
-  CHECK(features::kPdfInk2TextHighlighting.Get());
   CHECK(!client_->IsPrintPreview());
 
   if (pages_.empty() || (caret_ && caret_->enabled() == enabled)) {
@@ -5025,6 +5048,86 @@ std::optional<AccessibilityTextRunInfo> PDFiumEngine::GetFirstVisibleTextRun(
 }
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
+void PDFiumEngine::AddFont(FontId font_id,
+                           base::span<const uint8_t> serialized_typeface) {
+  SkMemoryStream serialized_typeface_stream(
+      gfx::MakeSkDataFromSpanWithoutCopy(serialized_typeface));
+  sk_sp<SkTypeface> typeface = SkTypeface::MakeDeserialize(
+      &serialized_typeface_stream, skia::DefaultFontMgr());
+  CHECK(typeface);
+
+  std::unique_ptr<SkStreamAsset> font_stream = typeface->openStream(nullptr);
+  sk_sp<const SkData> font_data = MakeDataAvoidingCopy(font_stream.get());
+  base::span<const uint8_t> font_data_span = gfx::SkDataToSpan(font_data);
+  CHECK(!font_data->empty());
+
+  constexpr SkFontTableTag kHeadTag = SkSetFourByteTag('h', 'e', 'a', 'd');
+  const bool is_sfnt = typeface->getTableSize(kHeadTag) > 0;
+
+  // TODO(crbug.com/506133432): Avoid hardcoding the cid parameter?
+  int font_type = is_sfnt ? FPDF_FONT_TRUETYPE : FPDF_FONT_TYPE1;
+  ScopedFPDFFont font(FPDFText_LoadFont(doc(), font_data_span.data(),
+                                        font_data_span.size(),
+                                        /*font_type=*/font_type,
+                                        /*cid=*/true));
+  CHECK(font);
+
+  bool inserted = font_map_.insert({font_id, std::move(font)}).second;
+  CHECK(inserted);
+}
+
+FPDF_FONT PDFiumEngine::GetAddedFont(FontId font_id) {
+  auto it = font_map_.find(font_id);
+  CHECK(it != font_map_.end());
+  return it->second.get();
+}
+
+void PDFiumEngine::DrawText(int page_index,
+                            base::span<const InkTextInfo> text_info,
+                            SkColor color,
+                            float css_font_size,
+                            double pdf_zoom,
+                            const gfx::RectF& textbox) {
+  CHECK(PageIndexInBounds(page_index));
+  FPDF_PAGE page = GetPage(page_index)->GetPage();
+  const gfx::Transform transform = GetCanonicalToPdfTransformForPage(page);
+  const float pdf_font_size = CSSFontSizeToPdfFontSize(css_font_size);
+
+  for (const InkTextInfo& item : text_info) {
+    FPDF_FONT font = GetAddedFont(item.font_id);
+    CHECK(font);
+
+    // TODO(crbug.com/502083480): This baseline alignment isn't exactly right.
+    // Blink actually uses the primary font ascent for alignment. Also Blink
+    // uses a special platform-specific rounded number.
+    float ascent;
+    CHECK(FPDFFont_GetAscent(font, css_font_size, &ascent));
+
+    gfx::RectF run_rect = item.location;
+    run_rect.Scale(1.0 / pdf_zoom);
+    run_rect.set_height(ascent);
+    run_rect = transform.MapRect(run_rect + textbox.OffsetFromOrigin());
+
+    ScopedFPDFPageObject text_object(
+        FPDFPageObj_CreateTextObj(doc(), font, pdf_font_size));
+    CHECK(text_object);
+    CHECK(FPDFPageObj_SetFillColor(text_object.get(), /*R=*/SkColorGetR(color),
+                                   /*G=*/SkColorGetG(color),
+                                   /*B=*/SkColorGetB(color),
+                                   /*A=*/255));
+    CHECK(FPDFText_SetCharcodes(text_object.get(), item.glyphs.data(),
+                                item.glyphs.size()));
+    FS_MATRIX matrix{1, 0, 0, 1, run_rect.x(), run_rect.y()};
+    CHECK(FPDFPageObj_TransformF(text_object.get(), &matrix));
+    CHECK(FPDFPage_InsertObject(page, text_object.release()));
+  }
+
+  CHECK(FPDFPage_GenerateContent(page));
+  // TODO(crbug.com/504689665): Avoid crashing if the page has other edits.
+  GetPage(page_index)->ReloadTextPage();
+  client_->Invalidate(GetPageScreenRect(page_index));
+}
+
 gfx::Size PDFiumEngine::GetThumbnailSize(int page_index,
                                          float device_pixel_ratio) {
   CHECK(PageIndexInBounds(page_index));

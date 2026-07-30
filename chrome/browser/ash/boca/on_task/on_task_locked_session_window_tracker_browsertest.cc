@@ -29,7 +29,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -39,6 +42,7 @@
 #include "chromeos/ash/components/boca/proto/bundle.pb.h"
 #include "chromeos/ash/components/boca/proto/roster.pb.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "content/public/browser/navigation_entry.h"
@@ -52,6 +56,9 @@
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/window/frame_view.h"
+#include "ui/views/window/non_client_view.h"
 #include "url/gurl.h"
 
 using ash::boca::OnTaskSystemWebAppManagerImpl;
@@ -829,12 +836,14 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
   ASSERT_TRUE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
 
   // Attempt to create a new browser window and verify it gets closed.
-  size_t original_browser_count = chrome::GetTotalBrowserCount();
+  size_t original_browser_count =
+      GlobalBrowserCollection::GetInstance()->GetSize();
   const base::WeakPtr<Browser> browser_weak_ptr =
       Browser::Create(Browser::CreateParams(profile(), /*user_gesture=*/true))
           ->AsWeakPtr();
   content::RunAllTasksUntilIdle();
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), original_browser_count);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
+            original_browser_count);
   EXPECT_FALSE(browser_weak_ptr);
 }
 
@@ -858,10 +867,12 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
   ASSERT_FALSE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
 
   // Attempt to create a new browser window and verify it is closed.
-  size_t original_browser_count = chrome::GetTotalBrowserCount();
+  size_t original_browser_count =
+      GlobalBrowserCollection::GetInstance()->GetSize();
   CreateBrowser(profile());
   content::RunAllTasksUntilIdle();
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), original_browser_count + 1);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
+            original_browser_count + 1);
 }
 
 IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
@@ -884,11 +895,13 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
   ASSERT_FALSE(platform_util::IsBrowserLockedFullscreen(boca_app_browser));
 
   // Attempt to create a new popup and verify window tracker picks it up.
-  size_t original_browser_count = chrome::GetTotalBrowserCount();
+  size_t original_browser_count =
+      GlobalBrowserCollection::GetInstance()->GetSize();
   Browser* const popup_browser = Browser::Create(Browser::CreateParams(
       Browser::TYPE_APP_POPUP, profile(), /*user_gesture=*/true));
   content::RunAllTasksUntilIdle();
-  EXPECT_EQ(chrome::GetTotalBrowserCount(), original_browser_count + 1);
+  EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(),
+            original_browser_count + 1);
   auto* const window_tracker =
       LockedSessionWindowTrackerFactory::GetInstance()->GetForBrowserContext(
           profile());
@@ -1055,7 +1068,10 @@ IN_PROC_BROWSER_TEST_F(
   // the browser's backing ui::BaseWindow.
   const auto activate_browser = [](BrowserWindowInterface* browser) {
     // We must fake deactivation the previously activated browser first.
-    chrome::FindLastActive()->GetBrowserForMigrationOnly()->DidBecomeInactive();
+    GlobalBrowserCollection::GetInstance()
+        ->GetLastActiveBrowser()
+        ->GetBrowserForMigrationOnly()
+        ->DidBecomeInactive();
 
     // Simulate activation of `browser`.
     browser->GetBrowserForMigrationOnly()->DidBecomeActive();
@@ -1411,6 +1427,14 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
   ASSERT_TRUE(
       OnTaskLockedController::From(boca_app_browser)->is_locked_for_on_task());
 
+  auto* boca_app_window = boca_app_browser->GetBrowserView().GetNativeWindow();
+  EXPECT_TRUE(
+      boca_app_window->GetProperty(chromeos::kUseImmersiveInTrustedPinned));
+
+  auto* web_app_frame_toolbar =
+      boca_app_browser->GetBrowserView().web_app_frame_toolbar_for_testing();
+  EXPECT_FALSE(web_app_frame_toolbar->bounds().IsEmpty());
+
   // Set up window tracker to track the app window.
   const SessionID window_id =
       system_web_app_manager()->GetActiveSystemWebAppWindowID();
@@ -1431,6 +1455,9 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
   system_web_app_manager()->SetPauseStateForSystemWebAppWindow(/*paused=*/true,
                                                                window_id);
   ASSERT_EQ(boca_app_browser->tab_strip_model()->active_index(), 0);
+  EXPECT_FALSE(
+      boca_app_window->GetProperty(chromeos::kUseImmersiveInTrustedPinned));
+  EXPECT_TRUE(web_app_frame_toolbar->bounds().IsEmpty());
 
   // Enter tablet mode and verify immersive mode remains disabled even when we
   // attempt a toolbar reveal.
@@ -1441,10 +1468,25 @@ IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,
       immersive_mode_controller->GetRevealedLock(
           ImmersiveModeController::ANIMATE_REVEAL_NO);
   EXPECT_FALSE(immersive_mode_controller->IsEnabled());
+  EXPECT_FALSE(
+      boca_app_window->GetProperty(chromeos::kUseImmersiveInTrustedPinned));
+  EXPECT_TRUE(web_app_frame_toolbar->bounds().IsEmpty());
 
   // Exit tablet mode and verify immersive mode remains disabled.
   ash::TabletModeControllerTestApi().LeaveTabletMode();
   EXPECT_FALSE(immersive_mode_controller->IsEnabled());
+  EXPECT_FALSE(
+      boca_app_window->GetProperty(chromeos::kUseImmersiveInTrustedPinned));
+  EXPECT_TRUE(web_app_frame_toolbar->bounds().IsEmpty());
+
+  // Unpause the app, and immersive fullscreen should be re-enabled and
+  // the frame toolbar should become visible.
+  system_web_app_manager()->SetPauseStateForSystemWebAppWindow(/*paused=*/false,
+                                                               window_id);
+  EXPECT_TRUE(immersive_mode_controller->IsEnabled());
+  EXPECT_TRUE(
+      boca_app_window->GetProperty(chromeos::kUseImmersiveInTrustedPinned));
+  EXPECT_FALSE(web_app_frame_toolbar->bounds().IsEmpty());
 }
 
 IN_PROC_BROWSER_TEST_F(OnTaskLockedSessionWindowTrackerBrowserTest,

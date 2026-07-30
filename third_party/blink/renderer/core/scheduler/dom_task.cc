@@ -29,7 +29,6 @@
 #include "third_party/blink/renderer/core/scheduler/web_scheduling_task_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_info.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
 #include "third_party/blink/renderer/platform/scheduler/public/web_scheduling_priority.h"
@@ -168,6 +167,10 @@ void DOMTask::InvokeInternal(ScriptState* script_state) {
   // is no tracker.
   auto* tracker =
       scheduler::TaskAttributionTracker::From(script_state->GetIsolate());
+  // TODO(crbug.com/40919714): When "Initiator url for Resource timing" feature
+  // is mature, the |tracker| will exist in both main thread and worker thread.
+  // The "else" clause below and the clause to clear the context at the end of
+  // this function can be removed then.
   if (tracker) {
     task_attribution_scope = tracker->SetCurrentTaskState(
         web_scheduling_task_state_, TaskScopeType::kSchedulerPostTask);

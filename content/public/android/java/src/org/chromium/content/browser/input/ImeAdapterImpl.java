@@ -825,8 +825,6 @@ public class ImeAdapterImpl
                         // internally for rendering the underline but are not reported to the IME
                         // to prevent unexpected behavior in the IME.
                         if (mAutocorrectManager != null
-                                && ContentFeatureMap.isEnabled(
-                                        ContentFeatures.ANDROID_PK_AUTOCORRECT_UNDERLINE)
                                 && info.getType() == ImeTextSpanType.AUTOCORRECT) {
                             continue;
                         }
@@ -1277,7 +1275,7 @@ public class ImeAdapterImpl
                                 lastKeyDownEvent.getUnicodeChar());
 
                 if (mAutocorrectManager != null) {
-                    mAutocorrectManager.onCommitText();
+                    mAutocorrectManager.onCommitTextOrSendKeyEvent();
                 }
                 return true;
             }
@@ -1307,8 +1305,8 @@ public class ImeAdapterImpl
             // followed by commitText(). We append the underline here because the text
             // must be committed before the span can be applied to it.
             if (mAutocorrectManager != null) {
-                mAutocorrectManager.maybeAppendAutocorrectUnderlineSpan();
-                mAutocorrectManager.onCommitText();
+                mAutocorrectManager.maybeApplyDeferredUnderline();
+                mAutocorrectManager.onCommitTextOrSendKeyEvent();
             }
 
         } else {
@@ -1361,6 +1359,10 @@ public class ImeAdapterImpl
 
         for (ImeEventObserver observer : mEventObservers) observer.onBeforeSendKeyEvent(event);
         onImeEvent();
+
+        if (action == KeyEvent.ACTION_DOWN && mAutocorrectManager != null) {
+            mAutocorrectManager.onCommitTextOrSendKeyEvent();
+        }
 
         return ImeAdapterImplJni.get()
                 .sendKeyEvent(

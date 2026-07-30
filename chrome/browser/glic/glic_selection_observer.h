@@ -10,12 +10,17 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "components/shared_highlighting/core/common/shared_highlighting_metrics.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/mojom/link_to_text/link_to_text.mojom.h"
 
 namespace content {
 class Page;
@@ -53,6 +58,9 @@ class GlicSelectionObserver
   // Virtual for testing.
   virtual void DismissUI(bool keep_nudge);
 
+  // Returns true if the selection prompt is enabled for the current profile.
+  virtual bool IsSelectionPromptEnabled() const;
+
   // content::WebContentsObserver:
   void RenderFrameCreated(content::RenderFrameHost* render_frame_host) override;
   void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
@@ -70,6 +78,7 @@ class GlicSelectionObserver
 
  private:
   void ProcessPendingSelection();
+  void ResetPendingSelection();
 
   static void InvokeGlicFromSelectionAffordance(
       std::u16string selected_text,
@@ -80,6 +89,19 @@ class GlicSelectionObserver
   void ShowSelectionAffordance(const std::u16string& selected_text,
                                BrowserWindowInterface* bwi);
 
+  void CopyLinkToHighlight(content::WeakDocumentPtr weak_document_ptr);
+
+  void WriteLinkToClipboard(content::WeakDocumentPtr weak_document_ptr,
+                            const GURL& url);
+
+  void OnLinkGenerated(
+      const GURL& fallback_url,
+      const std::string& selector,
+      shared_highlighting::LinkGenerationError error,
+      shared_highlighting::LinkGenerationReadyStatus ready_status);
+
+  void RequestLinkGeneration(content::RenderFrameHost* rfh);
+
   raw_ptr<GlicKeyedService> glic_keyed_service_;
 
   // Timer to process the selection after a timeout.
@@ -88,11 +110,10 @@ class GlicSelectionObserver
   // The text of the last selection that was ignored due to rate limiting.
   std::optional<std::u16string> pending_selection_text_;
 
-  content::GlobalRenderFrameHostId last_selection_frame_id_;
+  std::optional<content::GlobalRenderFrameHostToken>
+      last_selection_frame_token_;
 
-  base::flat_map<content::GlobalRenderFrameHostId,
-                 raw_ptr<content::RenderWidgetHost>>
-      rwh_by_frame_;
+  base::flat_set<content::GlobalRenderFrameHostToken> observed_frames_;
 
   bool is_key_selection_ = false;
   int bounds_retry_count_ = 0;
@@ -100,6 +121,11 @@ class GlicSelectionObserver
   bool has_sent_selection_context_ = false;
 
   base::WeakPtr<views::Widget> selection_widget_;
+
+  mojo::Remote<blink::mojom::TextFragmentReceiver> text_fragment_remote_;
+  std::optional<GURL> generated_link_;
+
+  base::WeakPtrFactory<GlicSelectionObserver> weak_ptr_factory_{this};
 
   friend class GlicSelectionObserverTest;
 };
