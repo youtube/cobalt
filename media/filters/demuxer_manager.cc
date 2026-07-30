@@ -259,10 +259,19 @@ PipelineStatus DemuxerManager::CreateDemuxer(
   if (demuxer_override_) {
     // TODO(crbug.com/40128583): Should everything else after this block
     // run in the demuxer override case?
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    demuxer_override_->SetEncryptedMediaInitDataCB(
+        base::BindPostTaskToCurrentDefault(
+            base::BindRepeating(&DemuxerManager::OnEncryptedMediaInitData,
+                                weak_factory_.GetWeakPtr())));
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
     SetDemuxer(std::move(demuxer_override_));
   } else if (!load_media_source) {
 #if BUILDFLAG(ENABLE_FFMPEG)
     SetDemuxer(CreateFFmpegDemuxer());
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+    LOG(INFO) << "Progressive streams are unsupported.";
+    return DEMUXER_ERROR_NO_SUPPORTED_STREAMS;
 #else
     return DEMUXER_ERROR_PROGRESSIVE_DISABLED;
 #endif

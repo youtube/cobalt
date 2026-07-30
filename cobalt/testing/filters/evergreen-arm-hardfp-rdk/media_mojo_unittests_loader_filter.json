@@ -1,0 +1,11 @@
+{
+  "failing_tests": [
+    "MediaServiceTest.*",
+    "MediaTypeConvertersTest.ConvertDecoderBuffer_*",
+    "MojoAudioDecoderTest.*",
+    "MojoDecoderBufferConverterTest.*",
+    "MojoDecryptorTest.*",
+    "MojoDemuxerStreamAdapterTest.*",
+    "MojoVideoDecoderIntegrationTest.*"
+  ]
+}
