@@ -21,6 +21,8 @@ is left in this python script, which list each single test case
 and iterate them.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -29,13 +31,13 @@ import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class CobaltTestRunner:
   """Manages listing, sharding, executing, and reporting browser tests."""
 
-  def __init__(self, args: argparse.Namespace, unknown_args: list[str]):
+  def __init__(self, args: argparse.Namespace, unknown_args: List[str]):
     """Initializes the test runner.
 
     Args:
@@ -224,7 +226,7 @@ class CobaltTestRunner:
       logging.error("Failed to list tests: Binary not found at %s", self.binary)
       sys.exit(1)
 
-  def _get_sort_key(self, test_name: str) -> tuple[str, int]:
+  def _get_sort_key(self, test_name: str) -> Tuple[str, int]:
     """Generates a key for sorting tests, prioritizing PRE_ tests."""
     parts = test_name.split(".", 1)
     if len(parts) != 2:
@@ -244,7 +246,7 @@ class CobaltTestRunner:
     """
     return bool(re.match(r"^[A-Za-z0-9_/.,=()<>]+$", name))
 
-  def parse_and_sort_tests(self, gtest_list_output: str) -> list[str]:
+  def parse_and_sort_tests(self, gtest_list_output: str) -> List[str]:
     """Parses the output of --gtest_list_tests and sorts test names."""
     tests = []
     current_suite = None
@@ -275,7 +277,7 @@ class CobaltTestRunner:
     tests.sort(key=self._get_sort_key)
     return tests
 
-  def filter_tests_for_shard(self, tests: list[str]) -> list[str]:
+  def filter_tests_for_shard(self, tests: List[str]) -> List[str]:
     """Filters the list of tests based on the current shard index."""
     return [
         test for i, test in enumerate(tests)
@@ -303,7 +305,7 @@ class CobaltTestRunner:
       logging.error("Error initializing XML file %s: %s", self.xml_output_file,
                     e)
 
-  def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
+  def _run_command_and_tee(self, cmd: List[str], env: Dict[str, str],
                            log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
     env_copy = env.copy()
@@ -318,7 +320,7 @@ class CobaltTestRunner:
           env=env_copy,
       ) as proc:
         if proc.stdout:
-          for line in proc.stdout:
+          while line := proc.stdout.readline():
             sys.stdout.write(line)
             sys.stdout.flush()
             f_log.write(line)
@@ -327,7 +329,7 @@ class CobaltTestRunner:
         return proc.returncode
 
   def _run_single_test(self, test_name: str,
-                       test_idx: int) -> tuple[int, Optional[str]]:
+                       test_idx: int) -> Tuple[int, Optional[str]]:
     """Executes a single test case."""
     cmd = [
         self.binary,
@@ -437,9 +439,7 @@ class CobaltTestRunner:
     """Writes a milestone file into the XML output directory so MH pulls it."""
     out_dir = (
         os.path.dirname(self.xml_output_file)
-        if self.xml_output_file
-        else "/data/test/results"
-    )
+        if self.xml_output_file else "/data/test/results")
     try:
       os.makedirs(out_dir, exist_ok=True)
       with open(os.path.join(out_dir, filename), "w", encoding="utf-8") as f:
@@ -480,9 +480,7 @@ class CobaltTestRunner:
     failed_count = 0
 
     for i, test in enumerate(tests_to_run):
-      self._write_milestone(
-          f"03_running_test_{i + 1}.txt", f"Test: {test}\n"
-      )
+      self._write_milestone(f"03_running_test_{i + 1}.txt", f"Test: {test}\n")
       logging.info("[%d/%d] RUNNING: %s", i + 1, len(tests_to_run), test)
       retcode, temp_xml_path = self._run_single_test(test, i)
 
@@ -511,7 +509,7 @@ class CobaltTestRunner:
     return failed_count
 
 
-def parse_args() -> tuple[argparse.Namespace, list[str]]:
+def parse_args() -> Tuple[argparse.Namespace, List[str]]:
   """Parses command line arguments."""
   parser = argparse.ArgumentParser(
       description="Cobalt Browser Test Runner Helper", add_help=False)
