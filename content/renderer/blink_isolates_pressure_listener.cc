@@ -6,12 +6,29 @@
 
 #include "base/feature_list.h"
 #include "content/common/buildflags.h"
-// #include "build/build_config.h"
+#include "build/build_config.h"
 #include "content/public/common/content_features.h"
 #include "third_party/blink/public/web/blink.h"
 #include "v8/include/v8-isolate.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace content {
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
 
 BlinkIsolatesPressureListener::BlinkIsolatesPressureListener()
     : memory_pressure_listener_registration_(
@@ -29,10 +46,17 @@ void BlinkIsolatesPressureListener::OnMemoryPressure(
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
+#if BUILDFLAG(IS_COBALT)
+  if (!IsCriticalAllowedInForeground() && is_renderer_visible_ &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical) {
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+  }
+#else
   if (is_renderer_visible_ &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical) {
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
   }
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(

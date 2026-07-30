@@ -1,0 +1,6 @@
+{
+  "comment": "Failing on missing libgio-2.0.so.0",
+  "failing_tests": [
+    "*"
+  ]
+}

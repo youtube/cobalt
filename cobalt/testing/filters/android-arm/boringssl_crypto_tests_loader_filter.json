@@ -1,0 +1,10 @@
+{
+  "failing_tests": [
+    "BNTest.GCDTestVectors",
+    "CBBDeathTest.DiscardMisuse",
+    "ECDHTest.WycheproofP384",
+    "RSATest.GenerateFIPS",
+    "RSATest.KeygenFail",
+    "TrustTokenAllMetadataTest/TrustTokenMetadataTest.SetAndGetMetadata/*"
+  ]
+}
