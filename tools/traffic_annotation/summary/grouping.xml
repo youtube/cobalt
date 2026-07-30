@@ -341,7 +341,6 @@ after discussions on the right group.
       <annotation id="demo_login_controller_account_clean_up"/>
       <annotation id="chromeos_quick_insert_gif_media_fetcher"/>
       <annotation id="chromeos_feedback_report_hpke_public_key_fetch_for_variations"/>
-      <annotation id="shared_storage_worklet_host"/>
       <annotation id="outlook_calendar_page_handler"/>
       <annotation id="omnibox_search_aggregator_suggest"/>
       <annotation id="microsoft_files_page_handler"/>
@@ -358,7 +357,6 @@ after discussions on the right group.
       <annotation id="chromeos_walrus_provider"/>
       <annotation id="forms_classifications_model_execution"/>
       <annotation id="gemini_user_status"/>
-      <annotation id="notification_telemetry"/>
       <annotation id="corp_register_support_host_request"/>
       <annotation id="zero_state_suggestions_model_execution"/>
       <annotation id="certificate_verifier_2qwac_loader"/>
@@ -390,7 +388,6 @@ after discussions on the right group.
       <annotation id="devtools_gca_service"/>
       <annotation id="actor_login_permission_service"/>
       <annotation id="fetch_email_one_time_token"/>
-      <annotation id="multistep_filter_server_requests"/>
       <annotation id="glic_private_api_prompt_fetcher"/>
       <annotation id="finds_model_execution"/>
       <annotation id="device_management_enrollment"/>
@@ -409,6 +406,8 @@ after discussions on the right group.
       <annotation id="web_install_manifest_fetcher"/>
       <annotation id="private_insights_fcp_http"/>
       <annotation id="doodle_impression_android"/>
+      <annotation id="read_aloud_generate_text"/>
+      <annotation id="read_aloud_synthesize"/>
     </sender>
   </group>
   <group name="Admin Features">
@@ -462,6 +461,7 @@ after discussions on the right group.
       <annotation id="safe_browsing_ohttp_key_fetch"/>
       <annotation id="safe_browsing_v4_get_hash"/>
       <annotation id="safe_browsing_v4_update"/>
+      <annotation id="safe_browsing_v5_get_hash"/>
       <annotation id="safe_browsing_v5_update"/>
       <annotation id="safe_browsing_binary_upload_app"/>
       <annotation id="safe_browsing_binary_upload_connector"/>
@@ -480,9 +480,6 @@ after discussions on the right group.
     </sender>
   </group>
   <group name="Cookieless Ads">
-    <sender name="Conversion Measurements">
-      <annotation id="conversion_measurement_report"/>
-    </sender>
     <sender name="Aggregation Service">
       <annotation id="aggregation_service_helper_keys"/>
       <annotation id="aggregation_service_report"/>

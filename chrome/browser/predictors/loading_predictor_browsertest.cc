@@ -505,7 +505,7 @@ class LoadingPredictorBrowserTest : public InProcessBrowserTest {
     preconnecting_test_server_.StartAcceptingConnections();
 
     loading_predictor_ =
-        LoadingPredictorFactory::GetForProfile(browser()->profile());
+        LoadingPredictorFactory::GetForProfile(browser()->GetProfile());
     ASSERT_TRUE(loading_predictor_);
     preconnect_manager_observer_ =
         std::make_unique<TestPreconnectManagerObserver>(
@@ -974,6 +974,19 @@ IN_PROC_BROWSER_TEST_F(LoadingPredictorBrowserTest, PreconnectNonCors) {
 
 class LCPPBrowserTestBase : public LoadingPredictorBrowserTest {
  public:
+  void SetUp() override {
+    embedded_https_test_server().SetCertHostnames(
+        {"a.test", "p.com", "q.com", "exclude.test", "exclude2.test"});
+    embedded_https_test_server().RegisterRequestHandler(base::BindRepeating(
+        &LoadingPredictorBrowserTest::HandleFaviconRequest));
+    LoadingPredictorBrowserTest::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    LoadingPredictorBrowserTest::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_https_test_server().Start());
+  }
+
   void NavigateAndWaitForLcpElement(
       const GURL& url,
       const base::Location& from_here = FROM_HERE) {
@@ -1052,12 +1065,12 @@ class LCPCriticalPathPredictorBrowserTest : public LCPPBrowserTestBase {
 // LCP: https://web.dev/lcp/
 IN_PROC_BROWSER_TEST_F(LCPCriticalPathPredictorBrowserTest,
                        LearnLCPPFromNavigation) {
-  const GURL kUrlA =
-      embedded_test_server()->GetURL("p.com", "/predictors/load_image_a.html");
-  const GURL kUrlB =
-      embedded_test_server()->GetURL("p.com", "/predictors/load_image_b.html");
-  const GURL kUrlC =
-      embedded_test_server()->GetURL("q.com", "/predictors/load_image_a.html");
+  const GURL kUrlA = embedded_https_test_server().GetURL(
+      "p.com", "/predictors/load_image_a.html");
+  const GURL kUrlB = embedded_https_test_server().GetURL(
+      "p.com", "/predictors/load_image_b.html");
+  const GURL kUrlC = embedded_https_test_server().GetURL(
+      "q.com", "/predictors/load_image_a.html");
 
   // There is no knowledge in the beginning.
   ExpectLcpElementLocatorsPrediction(FROM_HERE, kUrlA,
@@ -1110,13 +1123,13 @@ IN_PROC_BROWSER_TEST_F(LCPCriticalPathPredictorBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(LCPCriticalPathPredictorBrowserTest, LearnLCPPFont) {
-  const GURL kUrlA =
-      embedded_test_server()->GetURL("p.com", "/predictors/lcpp_font.html");
+  const GURL kUrlA = embedded_https_test_server().GetURL(
+      "p.com", "/predictors/lcpp_font.html");
   const GURL kFontUrlA =
-      embedded_test_server()->GetURL("p.com", "/predictors/font.ttf");
-  const GURL kUrlB = embedded_test_server()->GetURL(
+      embedded_https_test_server().GetURL("p.com", "/predictors/font.ttf");
+  const GURL kUrlB = embedded_https_test_server().GetURL(
       "exclude.test", "/predictors/lcpp_font.html");
-  const GURL kUrlC = embedded_test_server()->GetURL(
+  const GURL kUrlC = embedded_https_test_server().GetURL(
       "exclude2.test", "/predictors/lcpp_font.html");
 
   EXPECT_EQ(std::vector<std::string>(), GetLCPPFonts(kUrlA));
@@ -1156,7 +1169,7 @@ class LCPPPrefetchSubresourceTest : public LCPPBrowserTestBase {
   }
 
   GURL GetURL(const std::string& path) {
-    return embedded_test_server()->GetURL("a.test", path);
+    return embedded_https_test_server().GetURL("a.test", path);
   }
 
  private:
@@ -1241,13 +1254,14 @@ class LCPPTimingPredictorTestBase : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
 
+    embedded_https_test_server().SetCertHostnames({"a.test"});
     slow_response_manager_ =
         std::make_unique<net::test_server::ControllableHttpResponseManager>(
-            embedded_test_server(), "/image_slow.png");
-    ASSERT_TRUE(embedded_test_server()->Start());
+            &embedded_https_test_server(), "/image_slow.png");
+    ASSERT_TRUE(embedded_https_test_server().Start());
 
     loading_predictor_ =
-        LoadingPredictorFactory::GetForProfile(browser()->profile());
+        LoadingPredictorFactory::GetForProfile(browser()->GetProfile());
     ASSERT_TRUE(loading_predictor_);
     loading_predictor_->EnableLCPPTesting();
     PredictorInitializer initializer(
@@ -1341,7 +1355,7 @@ class LCPPTimingPredictorBrowserTest : public LCPPTimingPredictorTestBase {
   }
 
   void TestPrediction(const base::Location& from_here = FROM_HERE) {
-    const GURL kUrl = embedded_test_server()->GetURL(
+    const GURL kUrl = embedded_https_test_server().GetURL(
         "a.test", "/predictors/lcp_occur_twice.html");
 
     NavigateAndWaitForLcpElement(kUrl,
@@ -1423,10 +1437,12 @@ class LCPPAutoPreconnectTest : public InProcessBrowserTest,
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
 
-    ASSERT_TRUE(embedded_test_server()->Start());
+    embedded_https_test_server().SetCertHostnames(
+        {"a.test", "foo.com", "bar.com"});
+    ASSERT_TRUE(embedded_https_test_server().Start());
 
     loading_predictor_ =
-        LoadingPredictorFactory::GetForProfile(browser()->profile());
+        LoadingPredictorFactory::GetForProfile(browser()->GetProfile());
     ASSERT_TRUE(loading_predictor_);
 
     PredictorInitializer initializer(
@@ -1456,9 +1472,9 @@ class LCPPAutoPreconnectTest : public InProcessBrowserTest,
     EXPECT_TRUE(content::ExecJs(
         web_contents, base::StringPrintf(R"(
     const img_bar = document.getElementById("bar");
-    img_bar.src = "http://bar.com:%d/predictors/lcp-100x50.png";
+    img_bar.src = "https://bar.com:%d/predictors/lcp-100x50.png";
         )",
-                                         embedded_test_server()->port())));
+                                         embedded_https_test_server().port())));
     waiter.Wait();
 
     // Navigate to about:blank to force recording a LCP element.
@@ -1490,9 +1506,10 @@ class LCPPAutoPreconnectTest : public InProcessBrowserTest,
 IN_PROC_BROWSER_TEST_P(LCPPAutoPreconnectTest, DISABLED_EnabledAllOrigins) {
   const bool kEnabledAllOrigins = GetParam();
 
-  const GURL kUrl = embedded_test_server()->GetURL(
-      "a.test", GetPathWithPortReplacement("/predictors/preconnect.html",
-                                           embedded_test_server()->port()));
+  const GURL kUrl = embedded_https_test_server().GetURL(
+      "a.test",
+      GetPathWithPortReplacement("/predictors/preconnect.html",
+                                 embedded_https_test_server().port()));
   base::HistogramTester histogram_tester;
 
   NavigateAndWaitForLcpElement(kUrl);
@@ -1629,7 +1646,7 @@ class LoadingPredictorNetworkIsolationKeyBrowserTest
         network::SimpleURLLoader::Create(std::move(request),
                                          TRAFFIC_ANNOTATION_FOR_TESTS);
     simple_loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-        browser()->profile()->GetURLLoaderFactory().get(),
+        browser()->GetProfile()->GetURLLoaderFactory().get(),
         simple_loader_helper.GetCallback());
     simple_loader_helper.WaitForCallback();
     ASSERT_TRUE(simple_loader_helper.response_body());
@@ -1855,7 +1872,7 @@ IN_PROC_BROWSER_TEST_P(LoadingPredictorNetworkIsolationKeyBrowserTest,
         network::SimpleURLLoader::Create(std::move(request),
                                          TRAFFIC_ANNOTATION_FOR_TESTS);
     simple_loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
-        browser()->profile()->GetURLLoaderFactory().get(),
+        browser()->GetProfile()->GetURLLoaderFactory().get(),
         simple_loader_helper.GetCallback());
     simple_loader_helper.WaitForCallback();
     ASSERT_TRUE(simple_loader_helper.response_body());
@@ -2203,7 +2220,7 @@ class LoadingPredictorBrowserTestWithOptimizationGuide
       const std::vector<Subresource>& predicted_subresources) {
     auto* optimization_guide_keyed_service =
         OptimizationGuideKeyedServiceFactory::GetForProfile(
-            browser()->profile());
+            browser()->GetProfile());
     optimization_guide::proto::LoadingPredictorMetadata
         loading_predictor_metadata;
     for (const auto& subresource : predicted_subresources) {
@@ -2904,8 +2921,8 @@ IN_PROC_BROWSER_TEST_F(LoadingPredictorMultiplePageBrowserTest,
   GURL first_main = embedded_test_server()->GetURL("/title1.html");
   GURL prerender = embedded_test_server()->GetURL("/title2.html");
   GURL second_main = embedded_test_server()->GetURL("/title3.html");
-  auto* loading_predictor =
-      predictors::LoadingPredictorFactory::GetForProfile(browser()->profile());
+  auto* loading_predictor = predictors::LoadingPredictorFactory::GetForProfile(
+      browser()->GetProfile());
 
   // Start navigation in the primary main frame.
   auto first_main_observer = std::make_unique<content::TestNavigationManager>(
@@ -2946,8 +2963,8 @@ IN_PROC_BROWSER_TEST_F(LoadingPredictorMultiplePageBrowserTest,
                        PrerenderActivationNotObserved) {
   GURL main_url = embedded_test_server()->GetURL("/title1.html");
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
-  auto* loading_predictor =
-      predictors::LoadingPredictorFactory::GetForProfile(browser()->profile());
+  auto* loading_predictor = predictors::LoadingPredictorFactory::GetForProfile(
+      browser()->GetProfile());
 
   // Navigate primary main frame.
   GetWebContents()->GetController().LoadURL(
@@ -2976,8 +2993,8 @@ IN_PROC_BROWSER_TEST_F(LoadingPredictorMultiplePageBrowserTest,
                        MAYBE_BackForwardCacheNavigationNotObserved) {
   GURL url_1 = embedded_test_server()->GetURL("a.com", "/title1.html");
   GURL url_2 = embedded_test_server()->GetURL("b.com", "/title2.html");
-  auto* loading_predictor =
-      predictors::LoadingPredictorFactory::GetForProfile(browser()->profile());
+  auto* loading_predictor = predictors::LoadingPredictorFactory::GetForProfile(
+      browser()->GetProfile());
 
   // Navigate primary main frame twice.
   ASSERT_TRUE(content::NavigateToURL(GetWebContents(), url_1));

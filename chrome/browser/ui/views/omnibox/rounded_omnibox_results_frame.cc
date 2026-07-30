@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
@@ -22,10 +21,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/pointer/touch_ui_controller.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
-#include "ui/gfx/color_palette.h"
-#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/layout/layout_provider.h"
@@ -303,7 +299,26 @@ gfx::Insets RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets() {
   if (ui::TouchUiController::Get()->touch_ui()) {
     return gfx::Insets::TLBR(6, 1, 5, 1);
   }
+#if BUILDFLAG(IS_MAC)
+  // On macOS, the popup is hosted in a separate native window. Converting
+  // sub-pixel Views layout coordinates of the location bar to integer screen
+  // coordinates for the OS window positioning introduces rounding discrepancies
+  // (up to 1px). Additionally, differences in visual border rendering thickness
+  // (1px CSS outline in WebUI vs 0.5px native retina border) require a slightly
+  // tighter fit.
+  //
+  // To avoid adding platform-specific 1px hacks or relative offsets in the
+  // shared WebUI CSS:
+  // - We set the vertical inset to 4px (1px smaller than default 5px). This
+  //   effectively offsets the widget top down by 1px, centering the 32px
+  //   WebUI searchbox inside the 34px native height.
+  // - We set the horizontal inset to 5px (1px smaller than default 6px). This
+  //   narrows the widget by 2px overall, aligning the searchbox's visual
+  //   boundaries with the native location bar's visual border.
+  return gfx::Insets::VH(4, 5);
+#else
   return gfx::Insets::VH(5, 6);
+#endif
 }
 
 // static

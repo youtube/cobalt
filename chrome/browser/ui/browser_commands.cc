@@ -753,12 +753,34 @@ bool ExecuteCommand(BrowserWindowInterface* browser,
       command, time_stamp);
 }
 
-bool ExecuteCommandWithDisposition(BrowserWindowInterface* browser,
-                                   int command,
-                                   WindowOpenDisposition disposition) {
+bool ExecuteCommandWithContext(BrowserWindowInterface* browser,
+                               int command,
+                               actions::ActionInvocationContext context,
+                               base::TimeTicks time_stamp) {
   return browser->GetFeatures()
       .browser_command_controller()
-      ->ExecuteCommandWithDisposition(command, disposition);
+      ->ExecuteCommandWithContext(command, std::move(context), time_stamp);
+}
+
+bool ExecuteCommandWithDisposition(BrowserWindowInterface* browser,
+                                   int command,
+                                   WindowOpenDisposition disposition,
+                                   base::TimeTicks time_stamp) {
+  return browser->GetFeatures()
+      .browser_command_controller()
+      ->ExecuteCommandWithDisposition(command, disposition, time_stamp);
+}
+
+bool ExecuteCommandWithDispositionAndContext(
+    BrowserWindowInterface* browser,
+    int command,
+    WindowOpenDisposition disposition,
+    actions::ActionInvocationContext context,
+    base::TimeTicks time_stamp) {
+  return browser->GetFeatures()
+      .browser_command_controller()
+      ->ExecuteCommandWithDispositionAndContext(command, disposition,
+                                                std::move(context), time_stamp);
 }
 
 void UpdateCommandEnabled(BrowserWindowInterface* browser,
@@ -1268,12 +1290,7 @@ content::WebContents& NewTab(BrowserWindowInterface* browser,
 
   if (browser->GetBrowserForMigrationOnly()->SupportsWindowFeature(
           Browser::WindowFeature::kFeatureTabStrip)) {
-    std::optional<tab_groups::TabGroupId> group_id;
-    if (features::IsNewTabAddsToActiveGroupEnabled()) {
-      group_id = active_tab_group_id;
-    }
-
-    return *AddAndReturnTabAt(browser, GURL(), -1, true, group_id);
+    return *AddAndReturnTabAt(browser, GURL(), -1, true, std::nullopt);
   }
 
   ScopedTabbedBrowserDisplayer displayer(browser->GetProfile());

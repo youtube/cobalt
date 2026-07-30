@@ -22,6 +22,7 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -462,7 +463,7 @@ std::vector<PageActionIconType>
 AppBrowserController::GetTitleBarPageActionTypes() const {
 #if BUILDFLAG(IS_CHROMEOS)
   if (system_app()) {
-    return {PageActionIconType::kFind, PageActionIconType::kZoom};
+    return {PageActionIconType::kFind};
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -470,7 +471,6 @@ AppBrowserController::GetTitleBarPageActionTypes() const {
   types_enabled.push_back(PageActionIconType::kFind);
   types_enabled.push_back(PageActionIconType::kManagePasswords);
   types_enabled.push_back(PageActionIconType::kTranslate);
-  types_enabled.push_back(PageActionIconType::kZoom);
   types_enabled.push_back(PageActionIconType::kFileSystemAccess);
   types_enabled.push_back(PageActionIconType::kSaveCard);
 
@@ -891,7 +891,7 @@ void AppBrowserController::OnReceivedInitialURL() {
 
   // If the window bounds have not been overridden, there is no need to resize
   // the window.
-  if (!browser()->bounds_overridden()) {
+  if (!BrowserInitState::From(browser())->bounds_overridden()) {
     return;
   }
 
@@ -908,7 +908,7 @@ void AppBrowserController::OnReceivedInitialURL() {
   // `override_bounds()` represent the outer window bounds, not the content
   // size.
   BrowserWindow::FromBrowser(browser())->SetContentsSize(
-      browser()->override_bounds().size());
+      BrowserInitState::From(browser())->override_bounds().size());
 }
 
 void AppBrowserController::OnTabInserted(content::WebContents* contents) {

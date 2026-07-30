@@ -8,6 +8,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -108,20 +110,21 @@ public class BottomSheetControllerImplUnitTest {
         mController.runSheetInitializerForTesting();
         verify(mBottomSheet)
                 .init(
-                        mWindow,
-                        mKeyboardVisibilityDelegate,
-                        false,
-                        mEdgeToEdgeBottomInsetSupplier,
-                        APP_HEADER_HEIGHT,
-                        0,
-                        mInsetObserver);
+                        eq(mWindow),
+                        eq(mKeyboardVisibilityDelegate),
+                        eq(false),
+                        eq(mEdgeToEdgeBottomInsetSupplier),
+                        eq(APP_HEADER_HEIGHT),
+                        eq(0),
+                        eq(mInsetObserver),
+                        anyBoolean());
     }
 
     @Test
     public void testIsDesktopUi_FeatureDisabled() {
         DeviceInfo.setIsDesktopForTesting(true);
         // mController is initialized with enableLargeFormFactorUi = false in setUp()
-        assertFalse(mController.isDesktopUi());
+        assertFalse(mController.isLargeFormFactor());
     }
 
     @Test
@@ -138,7 +141,7 @@ public class BottomSheetControllerImplUnitTest {
                         mInsetObserver,
                         /* enableLargeFormFactorUi= */ true);
         DeviceInfo.setIsDesktopForTesting(false);
-        assertFalse(controller.isDesktopUi());
+        assertFalse(controller.isLargeFormFactor());
     }
 
     @Test
@@ -155,7 +158,7 @@ public class BottomSheetControllerImplUnitTest {
                         mInsetObserver,
                         /* enableLargeFormFactorUi= */ true);
         DeviceInfo.setIsDesktopForTesting(true);
-        assertTrue(controller.isDesktopUi());
+        assertTrue(controller.isLargeFormFactor());
     }
 
     @Test
@@ -230,6 +233,37 @@ public class BottomSheetControllerImplUnitTest {
         // 3. Trigger callback to hide scrim -> bottom margin should be updated to the offset (100).
         callback.onResult(false);
         verify(mBottomSheet).setBottomMargin(100);
+    }
+
+    // Verify that when a sheet content specifies coversBottomControls() as true, it retains
+    // a zero bottom margin and elevated Z-axis even when the scrim is hidden.
+    @Test
+    public void testBottomControlsOffset_coversBottomControls() {
+        mController.runSheetInitializerForTesting();
+        verify(mBottomSheet).addObserver(mBottomSheetObserverCaptor.capture());
+        doReturn(true).when(mBottomSheet).isSheetOpen();
+        doReturn(mSheetContent).when(mBottomSheet).getCurrentSheetContent();
+        doReturn(true).when(mSheetContent).coversBottomControls();
+        doReturn(ObservableSuppliers.alwaysFalse())
+                .when(mSheetContent)
+                .getBackPressStateChangedSupplier();
+
+        // 1. Simulate sheet opened to trigger showScrim and initial Z-axis / margin adjustment.
+        mBottomSheetObserverCaptor.getValue().onSheetOpened(StateChangeReason.NONE);
+        verify(mScrimManager).showScrim(mScrimPropertyModelCaptor.capture());
+        var callback =
+                mScrimPropertyModelCaptor.getValue().get(ScrimProperties.VISIBILITY_CALLBACK);
+
+        // 2. Set bottom controls offset to 100 while scrim is visible -> margin must stay 0.
+        mController.setBottomControlsOffset(100);
+        verify(mBottomSheet, times(3)).setBottomMargin(0);
+        verify(mRoot, times(3)).setZ(1.0f);
+
+        // 3. Hide scrim via callback -> with coversBottomControls() true, bottom margin must
+        // remain 0 and Z-axis must stay elevated (1.0f) rather than shifting to offset (100).
+        callback.onResult(false);
+        verify(mBottomSheet, times(4)).setBottomMargin(0);
+        verify(mRoot, times(4)).setZ(1.0f);
     }
 
     @Test

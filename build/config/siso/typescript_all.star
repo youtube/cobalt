@@ -46,6 +46,16 @@ def __step_config(ctx, step_config):
             "third_party/node/node.py",
             "third_party/node/node_modules:node_modules",
         ],
+        "ui/webui/resources/tools/minify_js.py": [
+            "third_party/node/node_modules:node_modules",
+        ],
+        "ui/webui/resources/tools/stylelint.py": [
+            "third_party/node/node_modules:node_modules",
+        ],
+        "ui/webui/resources/tools/eslint_ts.py": [
+            "third_party/node/node_modules:node_modules",
+            "third_party/node/node_modules/eslint/bin/eslint",
+        ],
     })
 
     # Do not attach Starlark handlers for local builds to avoid overhead
@@ -85,6 +95,36 @@ def __step_config(ctx, step_config):
             # Only runs on Linux workers.
             "remote_command": "python3",
         },
+        {
+            "name": "webui/minify_js",
+            "command_prefix": platform.python_bin + " ../../ui/webui/resources/tools/minify_js.py",
+            "remote": remote_run,
+            "timeout": "2m",
+            # Only runs on Linux workers.
+            "remote_command": "python3",
+        },
+        {
+            "name": "webui/stylelint",
+            "command_prefix": platform.python_bin + " ../../ui/webui/resources/tools/stylelint.py",
+            "remote": remote_run,
+            "timeout": "2m",
+            # Only runs on Linux workers.
+            "remote_command": "python3",
+        },
+        {
+            "name": "webui/eslint_ts",
+            "command_prefix": platform.python_bin + " ../../ui/webui/resources/tools/eslint_ts.py",
+            "indirect_inputs": {
+                "includes": [
+                    "*.ts",
+                ],
+            },
+            "remote": remote_run,
+            "timeout": "2m",
+            "handler": "webui_eslint_ts" if remote_run else None,
+            # Only runs on Linux workers.
+            "remote_command": "python3",
+        },
     ])
     return step_config
 
@@ -94,8 +134,10 @@ def __filegroups(ctx):
         "third_party/node/node_modules:node_modules": {
             "type": "glob",
             "includes": [
+                "*.cjs",
                 "*.js",
                 "*.json",
+                "*.mjs",
                 "*.ts",
                 "tsc",
             ],
@@ -196,11 +238,27 @@ def _ts_definitions(ctx, cmd):
     print("_ts_definitions: tsconfig=%s, deps=%s" % (tsconfig, deps))
     ctx.actions.fix(inputs = cmd.inputs + deps)
 
+def _webui_eslint_ts(ctx, cmd):
+    tsconfig_path = None
+    for i, arg in enumerate(cmd.args):
+        if arg == "--tsconfig":
+            tsconfig_path = cmd.args[i + 1]
+            break
+    if not tsconfig_path:
+        return
+    tsconfig_path = ctx.fs.canonpath(tsconfig_path)
+    tsconfig = {}
+    if ctx.fs.exists(tsconfig_path):
+        tsconfig = json.decode(str(ctx.fs.read(tsconfig_path)))
+    deps = tsc.scandeps(ctx, tsconfig_path, tsconfig)
+    ctx.actions.fix(inputs = cmd.inputs + deps)
+
 typescript_all = module(
     "typescript_all",
     handlers = {
         "typescript_ts_library": _ts_library,
         "typescript_ts_definitions": _ts_definitions,
+        "webui_eslint_ts": _webui_eslint_ts,
     },
     step_config = __step_config,
     filegroups = __filegroups,

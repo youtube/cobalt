@@ -293,9 +293,6 @@ const char kEnableDevToolsPwaHandler[] = "enable-devtools-pwa-handler";
 // Enables Domain Reliability Monitoring.
 const char kEnableDomainReliability[] = "enable-domain-reliability";
 
-// Enables the experimental GreenDev UI in DevTools.
-const char kEnableDevToolsGreenDevUi[] = "devtools-greendev-ui";
-
 // Enables logging for extension activity.
 const char kEnableExtensionActivityLogging[] =
     "enable-extension-activity-logging";
@@ -484,6 +481,9 @@ const char kNoProxyServer[] = "no-proxy-server";
 // Does not automatically open a browser window on startup (used when
 // launching Chrome for the purpose of hosting background apps).
 const char kNoStartupWindow[] = "no-startup-window";
+
+// Overrides the default URL for the Notebook Home WebUI.
+const char kNotebookHomeURL[] = "notebook-home-url";
 
 // Calculate the hash of an MHTML file as it is being saved.
 // The browser process will write the serialized MHTML contents to a file and

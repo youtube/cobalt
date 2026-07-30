@@ -132,7 +132,7 @@ void ToolController::CreateToolAndValidate(const ActorToolRequest& request,
 
   ActorToolFactory& factory = tool_delegate_->GetToolFactory();
   base::expected<std::unique_ptr<ActorTool>, ToolExecutionResult> tool_result =
-      factory.CreateTool(request.action(), tool_delegate_);
+      factory.CreateTool(request, tool_delegate_);
 
   if (!tool_result.has_value()) {
     LogToolExecutionResult(journal(), GURL(), task_id(),
@@ -158,8 +158,8 @@ void ToolController::CreateToolAndValidate(const ActorToolRequest& request,
                         std::move(journal_entry));
 
   SetState(State::kValidating);
-  // TODO(crbug.com/520098751): Call ActorTool::Validate here.
-  PostValidate(ToolExecutionResult::Ok());
+  active_state_->tool->Validate(base::BindOnce(&ToolController::PostValidate,
+                                               weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ToolController::PostValidate(ToolExecutionResult result) {

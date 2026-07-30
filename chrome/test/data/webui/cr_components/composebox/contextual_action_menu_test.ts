@@ -99,6 +99,61 @@ suite('ContextualActionMenu', () => {
   });
 
   test(
+      'Drop shadows on plus menu and flyout match and use elevation 3',
+      async () => {
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
+        const tabInfo = createTabSuggestion({
+          tabId: 101,
+          title: 'Shadow Verification Tab',
+          url: 'about:blank/1',
+        });
+        actionMenu.tabSuggestions = [tabInfo];
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+        assertTrue(actionMenu.$.menu.open);
+
+        // Verify plus menu drop shadow is elevation 3.
+        const expectedElevation3 =
+            window.getComputedStyle(document.documentElement)
+                .getPropertyValue('--cr-elevation-3')
+                .trim();
+        const menuShadowVariable = window.getComputedStyle(actionMenu.$.menu)
+                                       .getPropertyValue('--cr-menu-shadow')
+                                       .trim();
+        assertEquals(expectedElevation3, menuShadowVariable);
+
+        const menuDialog = actionMenu.$.menu.getDialog();
+        const menuShadow = window.getComputedStyle(menuDialog).boxShadow;
+        assertTrue(!!menuShadow && menuShadow !== 'none');
+
+        // Hover over Share Tabs to open flyout.
+        const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+        assertTrue(!!trigger);
+        trigger.dispatchEvent(new PointerEvent('pointerenter'));
+        await microtasksFinished();
+
+        // Verify flyout drop shadow matches plus menu drop shadow.
+        const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+        assertTrue(!!flyout);
+        assertFalse(flyout.hidden);
+
+        const flyoutShadow = window.getComputedStyle(flyout).boxShadow;
+        assertEquals(menuShadow, flyoutShadow);
+
+        actionMenu.$.menu.close();
+        await microtasksFinished();
+      });
+
+  test(
       'No tabs or tab header displayed when there are no tab suggestions',
       async () => {
         // Arrange & Act.
@@ -1481,6 +1536,38 @@ suite('ContextualActionMenu', () => {
   });
 
   test(
+      'Action menu preserves submitted tab state in favicon group',
+      async () => {
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
+
+        const submittedTab = createTabSuggestion({
+          tabId: 1,
+          title: 'Submitted Tab',
+          url: 'https://google.com',
+        });
+        actionMenu.tabSuggestions = [submittedTab];
+        actionMenu.aimThreadRestoredTabs = [submittedTab];
+
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+
+        document.body.appendChild(actionMenu);
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+
+        const faviconGroup = $$(actionMenu, 'composebox-favicon-group') as
+            ComposeboxFaviconGroupElement;
+        assertTrue(isVisible(faviconGroup));
+
+        assertTrue(faviconGroup.submittedTabIds.has(1));
+        assertEquals(1, faviconGroup.submittedTabIds.size);
+      });
+
+  test(
       'Disables uploads and tabs immediately when maxFileCount is reached',
       async () => {
         // Recreate actionMenu with maxFileCount = 1.
@@ -1685,9 +1772,8 @@ suite('ContextualActionMenu', () => {
     actionMenu.showAt(actionMenu);
     await microtasksFinished();
 
-    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
-    trigger.dispatchEvent(new PointerEvent('pointerenter'));
-    await microtasksFinished();
+    actionMenu.shareTabsFlyoutOpen = true;
+    await actionMenu.updateComplete;
 
     const suffix = $$(actionMenu, '.recent-tabs-suffix');
     assertTrue(isVisible(suffix));
@@ -1721,12 +1807,12 @@ suite('ContextualActionMenu', () => {
     assertTrue(!!trigger);
     assertTrue(trigger.disabled);
 
-    // Hovering should open the flyout.
+    // Hovering should not open the flyout.
     trigger.dispatchEvent(new PointerEvent('pointerenter'));
     await microtasksFinished();
 
     const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
-    assertFalse(flyout.hidden);
+    assertTrue(flyout.hidden);
   });
 
   test(

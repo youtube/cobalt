@@ -9,8 +9,17 @@
 #include <optional>
 
 #include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "media/base/audio_glitch_info.h"
+
+namespace media {
+class MlModelHandle;
+}  // namespace media
+
+namespace audio {
+class MlModelManager;
+}  // namespace audio
 
 namespace media {
 class AudioBus;
@@ -34,27 +43,29 @@ class VoiceIsolationHandler {
       std::optional<double> new_volume,
       const media::AudioGlitchInfo& audio_glitch_info)>;
 
-  explicit VoiceIsolationHandler(
-      std::unique_ptr<media::VoiceIsolation> voice_isolation,
-      const media::AudioParameters& output_params,
-      DeliverProcessedAudioCallback deliver_processed_audio_callback);
-
   VoiceIsolationHandler(const VoiceIsolationHandler&) = delete;
   VoiceIsolationHandler& operator=(const VoiceIsolationHandler&) = delete;
 
   ~VoiceIsolationHandler();
 
-  // Processes the captured audio.
-  //
-  // Currently, it acts as a pass-through wrapper and forwards the audio and
-  // metadata directly to the final destination callback.
-  // Called on the capture/processing thread.
+  static std::unique_ptr<VoiceIsolationHandler> MaybeCreate(
+      MlModelManager& ml_model_manager,
+      const media::AudioParameters& output_params,
+      DeliverProcessedAudioCallback deliver_processed_audio_callback);
+
+  // Processes the captured audio. Called on the capture/processing thread.
   void ProcessCapturedAudio(const media::AudioBus& audio_source,
                             base::TimeTicks audio_capture_time,
                             std::optional<double> volume,
                             const media::AudioGlitchInfo& audio_glitch_info);
 
  private:
+  explicit VoiceIsolationHandler(
+      scoped_refptr<media::MlModelHandle> model_handle,
+      const media::AudioParameters& output_params,
+      DeliverProcessedAudioCallback deliver_processed_audio_callback);
+
+  const scoped_refptr<media::MlModelHandle> model_handle_;
   const std::unique_ptr<media::VoiceIsolation> voice_isolation_;
   const DeliverProcessedAudioCallback deliver_processed_audio_callback_;
   std::unique_ptr<media::AudioBus> output_bus_;

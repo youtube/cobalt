@@ -11,7 +11,6 @@
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/cpp/fetch_retry_options.h"
-#include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/fetch_api.mojom-blink-forward.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink-forward.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
@@ -145,9 +144,6 @@ class CORE_EXPORT FetchRequestData final
   bool Keepalive() const { return keepalive_; }
   void SetKeepalive(bool b) { keepalive_ = b; }
 
-  bool BrowsingTopics() const { return browsing_topics_; }
-  void SetBrowsingTopics(bool b) { browsing_topics_ = b; }
-
   bool AdAuctionHeaders() const { return ad_auction_headers_; }
   void SetAdAuctionHeaders(bool b) { ad_auction_headers_ = b; }
 
@@ -182,23 +178,6 @@ class CORE_EXPORT FetchRequestData final
       std::optional<network::mojom::blink::TrustTokenParams>
           trust_token_params) {
     trust_token_params_ = std::move(trust_token_params);
-  }
-
-  network::mojom::AttributionReportingEligibility
-  AttributionReportingEligibility() const {
-    return attribution_reporting_eligibility_;
-  }
-  void SetAttributionReportingEligibility(
-      network::mojom::AttributionReportingEligibility eligibility) {
-    attribution_reporting_eligibility_ = eligibility;
-  }
-
-  network::mojom::AttributionSupport AttributionSupport() const {
-    return attribution_reporting_support_;
-  }
-  void SetAttributionReportingSupport(
-      network::mojom::AttributionSupport support) {
-    attribution_reporting_support_ = support;
   }
 
   base::UnguessableToken ServiceWorkerRaceNetworkRequestToken() const {
@@ -265,16 +244,10 @@ class CORE_EXPORT FetchRequestData final
   network::mojom::RequestDestination original_destination_ =
       network::mojom::RequestDestination::kEmpty;
   bool keepalive_ = false;
-  bool browsing_topics_ = false;
   bool ad_auction_headers_ = false;
   bool shared_storage_writable_ = false;
   bool is_history_navigation_ = false;
   bool is_reload_navigation_ = false;
-  network::mojom::AttributionReportingEligibility
-      attribution_reporting_eligibility_ =
-          network::mojom::AttributionReportingEligibility::kUnset;
-  network::mojom::AttributionSupport attribution_reporting_support_ =
-      network::mojom::AttributionSupport::kUnset;
   std::optional<network::FetchRetryOptions> retry_options_;
   // A specific factory that should be used for this request instead of whatever
   // the system would otherwise decide to use to load this request.

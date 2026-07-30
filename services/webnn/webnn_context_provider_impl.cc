@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -51,10 +52,6 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include "services/webnn/coreml/context_impl_coreml.h"  // nogncheck
-#endif
-
-#if BUILDFLAG(WEBNN_USE_TFLITE)
-#include "services/webnn/tflite/context_impl_tflite.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
@@ -462,7 +459,7 @@ void WebNNContextProviderImpl::CreateWebNNContext(
   mojo::ScopedDataPipeProducerHandle read_tensor_producer;
   mojo::ScopedDataPipeConsumerHandle read_tensor_consumer;
   if (base::FeatureList::IsEnabled(kWebNNUseDataPipe)) {
-    constexpr base::ByteCount kDataPipeSize = base::MiB(16);
+    constexpr base::ByteSize kDataPipeSize = base::MiBU(16);
     MojoResult result = mojo::CreateDataPipe(
         kDataPipeSize.InBytes(), write_tensor_producer, write_tensor_consumer);
     if (result != MOJO_RESULT_OK) {
@@ -537,9 +534,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
   // (`PreSandboxWebNNInitialization()`). If context creation fails or is not
   // supported, returning `kNotSupportedError` from `OnCreateWebNNContextImpl`
   // lets the renderer's `ML::createContext` fallback path create the in-process
-  // TFLite/LiteRT context instead.
-  if (!context_impl && !should_use_in_process_tflite &&
-      base::FeatureList::IsEnabled(mojom::features::kWebNNLiteRT)) {
+  // LiteRT context instead.
+  if (!context_impl && !should_use_in_process_tflite) {
     CreateLiteRtContext(
         std::move(scoped_trace), std::move(options),
         std::move(write_tensor_producer), std::move(write_tensor_consumer),
@@ -551,18 +547,6 @@ void WebNNContextProviderImpl::CreateWebNNContext(
   }
 #endif  // BUILDFLAG(WEBNN_USE_LITERT)
 
-#if BUILDFLAG(WEBNN_USE_TFLITE)
-  if (!context_impl && !should_use_in_process_tflite) {
-    CreateTFLiteContext(
-        std::move(scoped_trace), std::move(options),
-        std::move(write_tensor_producer), std::move(write_tensor_consumer),
-        std::move(read_tensor_producer), std::move(read_tensor_consumer),
-        std::move(gpu_task_scheduler), std::move(owning_task_runner),
-        std::move(receiver), std::move(remote), std::move(callback),
-        params.is_incognito, memory_tracker);
-    return;
-  }
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE)
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
   // No GPU-process backend was selected and the request should be served by
@@ -704,40 +688,6 @@ void WebNNContextProviderImpl::ReconnectCompilerContext(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(WEBNN_USE_TFLITE)
-void WebNNContextProviderImpl::CreateTFLiteContext(
-    ScopedTrace scoped_trace,
-    mojom::CreateContextOptionsPtr options,
-    mojo::ScopedDataPipeProducerHandle write_tensor_producer,
-    mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
-    mojo::ScopedDataPipeProducerHandle read_tensor_producer,
-    mojo::ScopedDataPipeConsumerHandle read_tensor_consumer,
-    std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    mojo::PendingReceiver<mojom::WebNNContext> receiver,
-    mojo::PendingRemote<mojom::WebNNContext> remote,
-    CreateWebNNContextCallback callback,
-    bool is_incognito,
-    scoped_refptr<gpu::MemoryTracker> memory_tracker) {
-  const gpu::SequenceId sequence_id = gpu_task_scheduler->sequence_id();
-  const gpu::CommandBufferId command_buffer_id =
-      gpu_task_scheduler->command_buffer_id();
-  task_runner->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(
-          &tflite::ContextImplTflite::Create, std::move(receiver), AsWeakPtr(),
-          std::move(options), std::move(write_tensor_consumer),
-          std::move(read_tensor_producer), std::move(gpu_task_scheduler),
-          std::move(memory_tracker), task_runner,
-          base::Unretained(shared_image_manager_.get()),
-          main_thread_task_runner_, std::move(scoped_trace), is_incognito),
-      base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
-                     AsWeakPtr(), std::move(callback), std::move(remote),
-                     std::move(write_tensor_producer),
-                     std::move(read_tensor_consumer), sequence_id,
-                     command_buffer_id));
-}
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE)
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
 void WebNNContextProviderImpl::CreateLiteRtContext(
@@ -799,17 +749,7 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
                << env_creation_results.error();
   } else {
     auto env = std::move(env_creation_results.value());
-
-    // Create session options before posting context creation, so that
-    // if no EP device is available we can fall back to TFLite/LiteRT.
-    auto session_options_result =
-        ort::SessionOptions::Create(options.Clone(), env);
-
-    if (!session_options_result.has_value()) {
-      LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
-                 << session_options_result.error();
-    } else if (base::FeatureList::IsEnabled(
-                   mojom::features::kWebNNCompilerProcess)) {
+    if (base::FeatureList::IsEnabled(mojom::features::kWebNNCompilerProcess)) {
       // When the Compiler process is enabled, create a dispatch-only context
       // that delegates graph building/compilation to a per-EP-device Compiler
       // process. Fall back to another backend if no compatible EP device is
@@ -826,7 +766,6 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
                            std::move(receiver), AsWeakPtr(), std::move(options),
                            std::move(write_tensor_consumer),
                            std::move(read_tensor_producer), std::move(env),
-                           std::move(session_options_result.value()),
                            std::move(gpu_task_scheduler),
                            std::move(memory_tracker), task_runner,
                            base::Unretained(shared_image_manager_.get()),
@@ -839,26 +778,35 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
         return;
       }
     } else {
-      scoped_trace.AddStep("ort::ContextImplOrt::Create");
-      // Safe to use base::Unretained for shared_image_manager_ since it
-      // lives on the GPU service, which is guaranteed to outlive the provider
-      // and its contexts.
-      task_runner->PostTaskAndReplyWithResult(
-          FROM_HERE,
-          base::BindOnce(
-              &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
-              std::move(options), std::move(write_tensor_consumer),
-              std::move(read_tensor_producer), std::move(env),
-              std::move(session_options_result.value()),
-              std::move(gpu_task_scheduler), std::move(memory_tracker),
-              task_runner, base::Unretained(shared_image_manager_.get()),
-              main_thread_task_runner_, std::move(scoped_trace)),
-          base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
-                         AsWeakPtr(), std::move(callback), std::move(remote),
-                         std::move(write_tensor_producer),
-                         std::move(read_tensor_consumer), sequence_id,
-                         command_buffer_id));
-      return;
+      // Create session options before posting context creation, so that
+      // if no EP device is available we can fall back to TFLite/LiteRT.
+      auto session_options_result =
+          ort::SessionOptions::Create(options.Clone(), env);
+      if (!session_options_result.has_value()) {
+        LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
+                   << session_options_result.error();
+      } else {
+        scoped_trace.AddStep("ort::ContextImplOrt::Create");
+        // Safe to use base::Unretained for shared_image_manager_ since it
+        // lives on the GPU service, which is guaranteed to outlive the provider
+        // and its contexts.
+        task_runner->PostTaskAndReplyWithResult(
+            FROM_HERE,
+            base::BindOnce(
+                &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
+                std::move(options), std::move(write_tensor_consumer),
+                std::move(read_tensor_producer), std::move(env),
+                std::move(session_options_result.value()),
+                std::move(gpu_task_scheduler), std::move(memory_tracker),
+                task_runner, base::Unretained(shared_image_manager_.get()),
+                main_thread_task_runner_, std::move(scoped_trace)),
+            base::BindOnce(&WebNNContextProviderImpl::OnCreateWebNNContextImpl,
+                           AsWeakPtr(), std::move(callback), std::move(remote),
+                           std::move(write_tensor_producer),
+                           std::move(read_tensor_consumer), sequence_id,
+                           command_buffer_id));
+        return;
+      }
     }
   }
 
@@ -873,20 +821,7 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
-  if (base::FeatureList::IsEnabled(mojom::features::kWebNNLiteRT)) {
-    CreateLiteRtContext(
-        std::move(scoped_trace), std::move(options),
-        std::move(write_tensor_producer), std::move(write_tensor_consumer),
-        std::move(read_tensor_producer), std::move(read_tensor_consumer),
-        std::move(gpu_task_scheduler), std::move(task_runner),
-        std::move(receiver), std::move(remote), std::move(callback),
-        is_incognito, std::move(memory_tracker));
-    return;
-  }
-#endif  // BUILDFLAG(WEBNN_USE_LITERT)
-
-#if BUILDFLAG(WEBNN_USE_TFLITE)
-  CreateTFLiteContext(
+  CreateLiteRtContext(
       std::move(scoped_trace), std::move(options),
       std::move(write_tensor_producer), std::move(write_tensor_consumer),
       std::move(read_tensor_producer), std::move(read_tensor_consumer),
@@ -901,7 +836,7 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
                            std::move(write_tensor_producer),
                            std::move(read_tensor_consumer), sequence_id,
                            command_buffer_id, std::move(context_impl));
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE)
+#endif  // BUILDFLAG(WEBNN_USE_LITERT)
 }
 
 void WebNNContextProviderImpl::DidEnsureWebNNExecutionProvidersReady(

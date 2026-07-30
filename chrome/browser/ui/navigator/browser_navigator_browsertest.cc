@@ -21,6 +21,7 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -710,10 +711,17 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
 }
 #endif
 
+// TODO(crbug.com/535063373): Flaky on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_Disposition_NewPopupTabModal DISABLED_Disposition_NewPopupTabModal
+#else
+#define MAYBE_Disposition_NewPopupTabModal Disposition_NewPopupTabModal
+#endif
 // This test verifies that navigating with WindowOpenDisposition = NEW_POPUP
 // and is_tab_modal_popup_deprecated = true results in a new WebContents that is
 // a popup and behaves like a tab modal.
-IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest, Disposition_NewPopupTabModal) {
+IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
+                       MAYBE_Disposition_NewPopupTabModal) {
   auto handle = BrowserNavigatorTabModal::ShowForTesting(
       GetGoogleURL(), *browser()->GetActiveTabInterface()->GetContents(),
       gfx::Size(200, 200));
@@ -2105,7 +2113,7 @@ IN_PROC_BROWSER_TEST_P(BrowserNavigatorPictureInPictureTest,
 
   // The window should have respected the initial aspect ratio.
   const gfx::Rect override_bounds =
-      params.browser->GetBrowserForMigrationOnly()->override_bounds();
+      BrowserInitState::From(params.browser)->override_bounds();
   const double aspect_ratio = static_cast<double>(override_bounds.width()) /
                               static_cast<double>(override_bounds.height());
   EXPECT_DOUBLE_EQ(1.0, aspect_ratio);
@@ -2149,7 +2157,7 @@ IN_PROC_BROWSER_TEST_P(BrowserNavigatorPictureInPictureTest,
     ASSERT_TRUE(pip_bounds.has_value());
     bounds = *pip_bounds;
   } else {
-    bounds = params.browser->GetBrowserForMigrationOnly()->override_bounds();
+    bounds = BrowserInitState::From(params.browser)->override_bounds();
   }
   const float expected_aspect_ratio =
       static_cast<float>(bounds.width()) / bounds.height();

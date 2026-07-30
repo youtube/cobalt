@@ -29,13 +29,14 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.R;
@@ -68,14 +69,14 @@ import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /** Tests tabbed mode app menu popup. */
-@DoNotBatch(reason = "Affects sign-in state, which is global.")
+@Batch(Batch.PER_CLASS)
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 // Prevents the sync UI from exposing an error due to outdated GmsCore
 // (UserActionableError.NEEDS_UPM_BACKEND_UPGRADE).
 @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
 public class TabbedAppMenuTest {
-    private static final int RENDER_TEST_REVISION = 2;
+    private static final int RENDER_TEST_REVISION = 3;
 
     private static final String RENDER_TEST_DESCRIPTION =
             "Badge on settings menu item icon on identity and sync errors.";
@@ -112,7 +113,7 @@ public class TabbedAppMenuTest {
         mActivityTestRule.startOnUrl(TEST_URL);
 
         AppMenuTestSupport.overrideOnOptionItemSelectedListener(
-                mActivityTestRule.getAppMenuCoordinator(), unused -> {});
+                mActivityTestRule.getAppMenuCoordinator(), _ -> {});
         mAppMenuHandler = mActivityTestRule.getAppMenuCoordinator().getAppMenuHandler();
 
         showAppMenuAndAssertMenuShown();
@@ -176,6 +177,10 @@ public class TabbedAppMenuTest {
     @Test
     @SmallTest
     @Feature({"Browser", "Main"})
+    @DisableFeatures({
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testKeyboardEnterAfterMovePastBottomItem() {
         moveToBoundary(false, true);
         assertEquals(getCount() - 1, getCurrentFocusedRow());
@@ -200,7 +205,7 @@ public class TabbedAppMenuTest {
     @SmallTest
     @Feature({"Browser", "Main", "Bookmark", "RenderTest"})
     @Restriction(DeviceFormFactor.PHONE)
-    @DisableFeatures({ChromeFeatureList.ANDROID_THEME_MODULE})
+    @EnableFeatures({ChromeFeatureList.ANDROID_THEME_MODULE})
     public void testBookmarkMenuItem() throws IOException {
         PropertyModel bookmarkStarPropertyModel =
                 AppMenuTestSupport.getMenuItemPropertyModel(

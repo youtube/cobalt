@@ -1176,7 +1176,6 @@
 <translation id="1910721550319506122">ようこそ！</translation>
 <translation id="1910736334623230603">複数の画像を検索することはできません。一度につき画像を 1 つだけ追加してください。</translation>
 <translation id="1910908536872421421">Chrome for Testing v<ph name="BROWSER_VERSION" /> は、自動テスト専用です。通常のブラウジングには、自動的に更新される標準版の Chrome をご使用ください。</translation>
-<translation id="1912867150686509584">カレンダーの他の会議を表示</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{ブラウザの動作を遅くしているタブを一時停止}other{ブラウザの動作を遅くしているタブを一時停止}}</translation>
 <translation id="1913749768968678106">キャスト、保存、共有</translation>
 <translation id="19147273405311768">ツールバーをデフォルトの設定にリセット</translation>
@@ -1216,12 +1215,14 @@
 <translation id="1933489278505808700">読み取りと変更を許可しました</translation>
 <translation id="1935303383381416800">位置情報の取得を許可するサイト</translation>
 <translation id="193565226207940518">サポートツール</translation>
+<translation id="1935995810530254458">このままコピー</translation>
 <translation id="1936157145127842922">フォルダで表示</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{リーディング リストにページを追加しました}other{リーディング リストにページを追加しました}}</translation>
 <translation id="1936931585862840749">印刷部数を数値（1～<ph name="MAX_COPIES" />）で指定してください。</translation>
 <translation id="1938351510777341717">外部コマンド</translation>
 <translation id="1940221956626514677">ツールバーをカスタマイズ</translation>
 <translation id="1940546824932169984">接続済みのデバイス</translation>
+<translation id="194081218158106711">変更したパスワードを確認しています...</translation>
 <translation id="1941410638996203291">開始時間: <ph name="TIME" /></translation>
 <translation id="1941553344801134989">バージョン: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">お使いのアカウントを Microsoft OneDrive に自動的に接続するよう管理者によって設定されていますが、エラーが発生しました。</translation>
@@ -1490,6 +1491,7 @@
 <translation id="2158475082070321257">選択箇所へのリンクをコピー</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758"><ph name="EXTENSION_NAME" /> の <ph name="SHORTCUT" /> のスコープ</translation>
+<translation id="2161656808144014275">テキスト</translation>
 <translation id="216169395504480358">Wi-Fi を追加...</translation>
 <translation id="2162705204091149050">ブラウザ、OS、デバイス、インストール済みソフトウェア、ファイルに関する情報の読み取り</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />、<ph name="SECOND_SWITCH" />、<ph name="THIRD_SWITCH" />、他 1 個のスイッチ</translation>
@@ -1536,6 +1538,7 @@
 <translation id="2199298570273670671">エラー</translation>
 <translation id="2200094388063410062">メール</translation>
 <translation id="2200781749203116929">ChromeOS のシステムログ</translation>
+<translation id="2202391868799679245">キーボード ショートカットをオンにする</translation>
 <translation id="2203088913459920044">名前には文字、数字、特殊文字を使用できます</translation>
 <translation id="220321590587754225">接続できませんでした。もう一度お試しください。</translation>
 <translation id="2203903197029773650">Google アカウントでログインすると、<ph name="BRAND" /> でパスワードを確認できるようになります。</translation>
@@ -4252,6 +4255,7 @@
 <translation id="4274673989874969668">ユーザーがサイトから離れた後も、サイトは同期を継続して、写真のアップロードやチャット メッセージの送信などのタスクを完了することがあります</translation>
 <translation id="4275291496240508082">起動音</translation>
 <translation id="4275397969489577657">イベント ストリームのログを有効にする</translation>
+<translation id="4275663329226226506">メディア</translation>
 <translation id="4275788652681621337">サイドパネルを閉じる</translation>
 <translation id="4275830172053184480">デバイスの再起動</translation>
 <translation id="4276390967705106170">新しいブラウザタブで開く</translation>
@@ -4739,6 +4743,7 @@
 <translation id="4657914796247705218">トラック ポイントの速度</translation>
 <translation id="4658648180588730283">アプリケーション <ph name="APPLICATION_NAME" /> はオフラインではご利用いただけません。</translation>
 <translation id="465878909996028221">ブラウザのリダイレクトでは、http、https、file プロトコルのみサポートされています。</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /> <ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">この機能は Google アカウントにログインすると有効になります。</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{画像}other{# 件の画像}}</translation>
 <translation id="4660540330091848931">サイズを変更しています</translation>
@@ -5317,6 +5322,7 @@
 <translation id="5096775069898886423">サイトで安全な接続がサポートされていない場合は、サイトにアクセスする前に警告が表示されます</translation>
 <translation id="5097002363526479830">ネットワーク「<ph name="NAME" />」に接続できませんでした: <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">ユーザーが訪れた広告主のウェブサイトがユーザーの興味 / 関心を判断し、後に訪問する別のウェブサイトで広告を提案することができます</translation>
+<translation id="5097472729724586429">新しい「テキスト アノテーションを追加」ツールでテキスト アノテーションを追加できます</translation>
 <translation id="5097649414558628673">ツール: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">カーソルの停止時に自動的にクリックする</translation>
 <translation id="5098963855433723436">別のアプリケーションで開く</translation>
@@ -5381,6 +5387,7 @@
 <translation id="5146235736676876345">自分で設定</translation>
 <translation id="5146896637028965135">システム音声</translation>
 <translation id="5147113439721488265">おすすめ</translation>
+<translation id="5148020348702787234">リンクを送信するには、本人確認を行ってください。両方のデバイスで同じ Google アカウントにログインしていれば、リンクを送信できます。</translation>
 <translation id="5148285448107770349">パスワードは 8 文字以上で指定してください</translation>
 <translation id="5149602533174716626">動画フレームをコピー(&amp;Y)</translation>
 <translation id="5150254825601720210">Netscape 証明書 SSL サーバー名</translation>
@@ -6343,7 +6350,6 @@
 <translation id="5932881020239635062">シリアル番号</translation>
 <translation id="5933522550144185133"><ph name="APP_NAME" /> がカメラとマイクを使用しています</translation>
 <translation id="5935158534896975820">証明書の署名のリクエストを準備しています（サーバーで待機中）</translation>
-<translation id="5935554994339565449">新しい [テキストを追加] ツールでテキストを追加できます</translation>
 <translation id="5936065461722368675">ページ全体を翻訳</translation>
 <translation id="5937977334791924341"><ph name="APP" /> のロゴ</translation>
 <translation id="5938002010494270685">セキュリティ アップグレードが利用可能です</translation>
@@ -7131,7 +7137,7 @@
 <translation id="6564343790052433242"><ph name="APP_NAME" /> のパスキーを作成するには、Google パスワード マネージャーをオンにする必要があります</translation>
 <translation id="6565899972286925956">あらゆるものを作成できます</translation>
 <translation id="6566648465417201421">閉じた分割ビューを再度開く</translation>
-<translation id="656679903990115526">スマートフォンでスキャンしてパスワードを保存すると、サイトやアプリで自動入力して簡単にログインできます</translation>
+<translation id="656679903990115526">スマートフォンでスキャンしてパスワードを保存すると、サイトやアプリで自動入力して簡単にログインできます。</translation>
 <translation id="6568283005472142698">タブ検索</translation>
 <translation id="6569931898053264308">中量の節約</translation>
 <translation id="6570622975915850879">別のデバイスを使用</translation>
@@ -8899,6 +8905,7 @@
 <translation id="7933486544522242079">保存と共有(&amp;S)</translation>
 <translation id="7933518760693751884">ページを保存して後で読むには、ブックマーク アイコンをクリックします</translation>
 <translation id="7933634003144813719">共有フォルダを管理する</translation>
+<translation id="7935072572536724392">パスワードの自動変更に失敗しました</translation>
 <translation id="7936195481975600746">画面を共有するには、システムの画面選択ツールを使用してください</translation>
 <translation id="7937809006412909895">診断データを収集しています</translation>
 <translation id="7938881824185772026">Labs</translation>
@@ -9036,6 +9043,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{リーディング リスト}=1{リーディング リスト（{SELECTED_ITEMS}）}other{リーディング リスト（{SELECTED_ITEMS}）}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> - 権限がリクエストされました。対応するには、⌘+option+上矢印キーを押してください</translation>
 <translation id="8030169304546394654">切断済み</translation>
+<translation id="8030814978699290230">ログインを試行しています...</translation>
 <translation id="8030852056903932865">承認</translation>
 <translation id="8033827949643255796">選択しました</translation>
 <translation id="8033958968890501070">タイムアウト</translation>
@@ -9449,6 +9457,7 @@
 <translation id="8343578633847737325">最近のチャットとスレッド</translation>
 <translation id="8345848587667658367">スマートフォンの最近の写真、メディア、通知、アプリを表示できるようになりました</translation>
 <translation id="8347227221149377169">印刷ジョブ</translation>
+<translation id="8347728744337089388">デバイスに送信(&amp;D)</translation>
 <translation id="8348430946834215779">可能な限り HTTPS を使用し、HTTPS をサポートしていないサイトは読み込む前に警告を表示します</translation>
 <translation id="8348896480272971199">インターネット接続を確認してから、もう一度お試しください。</translation>
 <translation id="8349305172487531364">ブックマーク バー</translation>
@@ -9498,6 +9507,7 @@
 <translation id="8382197851871630452">各地の天気</translation>
 <translation id="8382913212082956454">メール アドレスをコピー(&amp;E)</translation>
 <translation id="8383614331548401927">おかえりなさい</translation>
+<translation id="8387157483437834731">パスワードを変更しました</translation>
 <translation id="8387361103813440603">位置情報の取得を許可しないサイト</translation>
 <translation id="8389492867173948260">アクセスしたウェブサイト上にある自分の全データの読み取りと変更をこの拡張機能に許可します。</translation>
 <translation id="8390449457866780408">サーバーを使用できません。</translation>
@@ -9892,7 +9902,6 @@
 <translation id="8693862390730570097">「文書作成サポート」を自動的に開くことを許可しない</translation>
 <translation id="8694596275649352090">スリープ状態またはディスプレイを閉じたときにロックする</translation>
 <translation id="8695825812785969222">場所を開く（&amp;L）...</translation>
-<translation id="8696297579102085705">お使いのデバイスに送信</translation>
 <translation id="869884720829132584">アプリケーション メニュー</translation>
 <translation id="869891660844655955">有効期限</translation>
 <translation id="8699296325072357994">パスワード ページのコンテンツと関連情報は Google に送信され、人間のレビュアーによって確認されます。パスワードは暗号化され、人間が見ることはありません。<ph name="PASSWORD_CHANGE" /></translation>
@@ -10240,6 +10249,7 @@
 <translation id="8967427617812342790">リーディング リストに追加</translation>
 <translation id="8968527460726243404">ChromeOS システム イメージ ライター</translation>
 <translation id="8968766641738584599">カードを保存</translation>
+<translation id="8970232194848546151">別のデバイスにリンクを送信</translation>
 <translation id="8970887620466824814">エラーが発生しました。</translation>
 <translation id="89720367119469899">Esc</translation>
 <translation id="8972513834460200407">ファイアウォールが Google のサーバーからのダウンロードをブロックしていないかどうかをネットワーク管理者に確認してください。</translation>
@@ -10506,6 +10516,7 @@
 <translation id="9151906066336345901">End</translation>
 <translation id="9152503903192861480">AI モードで開く</translation>
 <translation id="9153367754133725216">ランチャーと検索結果に新しいアプリやウェブ コンテンツの候補が表示されます。障害レポート、診断データ、使用状況データを ChromeOS に送信するよう選択した場合のみ、候補の精度を向上させるために統計情報を送信します。</translation>
+<translation id="9153451439615847952">通知とアラートに合わせてバックグラウンドの音量を下げる</translation>
 <translation id="9154194610265714752">更新完了</translation>
 <translation id="915485121129452731">ペンタブレット</translation>
 <translation id="9155344700756733162">色の選択を解除</translation>
@@ -10583,6 +10594,7 @@
 <translation id="9220820413868316583">いったん指を放してもう一度お試しください。</translation>
 <translation id="922152298093051471">Chrome をカスタマイズ</translation>
 <translation id="9222839391870847423">期間: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">デバイスに送信(&amp;D)</translation>
 <translation id="923467487918828349">すべて表示</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{管理するには、拡張機能を開きます}other{管理するには、拡張機能を開きます}}</translation>
 <translation id="924818813611903184">ChromeOS の設定で言語を管理する</translation>

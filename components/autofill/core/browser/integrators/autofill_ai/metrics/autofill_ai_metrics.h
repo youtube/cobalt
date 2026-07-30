@@ -31,6 +31,20 @@ enum class AutofillAiOptInFunnelEvents {
 
 void LogOptInFunnelEvent(AutofillAiOptInFunnelEvents event);
 
+// LINT.IfChange(AutofillAiPersonalContextCacheReadinessOnFirstInteraction)
+enum class PersonalContextCacheReadinessOnFirstInteraction {
+  kResolvedWithData = 0,
+  kResolvedEmpty = 1,
+  kPendingInFlight = 2,
+  kFailed = 3,
+  kNotStarted = 4,
+  kMaxValue = kNotStarted,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiPersonalContextCacheReadinessOnFirstInteraction)
+
+void LogPersonalContextCacheReadinessOnFirstInteraction(
+    PersonalContextCacheReadinessOnFirstInteraction readiness);
+
 void LogLocalEntitiesDeduplicationMetrics(
     const base::flat_map<EntityType, size_t>&
         local_entities_considered_for_deduplication_per_type,
@@ -64,6 +78,22 @@ std::string_view EntityPromptTypeToMetricsString(
 // emitted.
 int GetBucketForAutofillAiReauthResultByFieldType(FieldType field_type,
                                                   bool auth_succeeded);
+
+// LINT.IfChange(AutofillAiUnmaskResult)
+enum class AutofillAiUnmaskResult {
+  kSuccess = 0,
+  kCacheHit = 1,
+  kReauthFailed = 2,
+  kNetworkError = 3,
+  kEmptyResponse = 4,
+  kParsingError = 5,
+  kMaxValue = kParsingError,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiUnmaskResult)
+
+// Logs the outcome of unmasking a sensitive Autofill AI suggestion.
+void LogUnmaskResult(EntityInstance::RecordType record_type,
+                     AutofillAiUnmaskResult result);
 
 // Logs the result of the reauthentication flow per field type.
 void LogReauthToFillResultPerFieldType(const FieldTypeSet& ai_field_types,

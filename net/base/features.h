@@ -488,6 +488,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessions);
 // requests.
 NET_EXPORT BASE_DECLARE_FEATURE(
     kDeviceBoundSessionsBypassDeferralsForRefreshRequests);
+// This feature controls whether DBSC retry mechanism is enabled for transient
+// refresh errors (network and proxy errors).
+NET_EXPORT BASE_DECLARE_FEATURE(
+    kDeviceBoundSessionsRetryTransientRefreshErrors);
 // This feature enables the Device Bound Session Credentials signing quota.
 // This behavior is expected by default; disabling it should only be for
 // testing purposes.
@@ -598,6 +602,8 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSynchronousOff);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSqlDiskCacheShardCount);
 // Loads the in-memory index on initialization.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheLoadIndexOnInit);
+// Reduces UMA metrics recorded by the SQL disk cache.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheReduceUma);
 // The maximum size of the write buffer for all entries.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                       kSqlDiskCacheMaxWriteBufferTotalSize);
@@ -717,6 +723,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // a TLS extension to help the server serve a certificate that the client will
 // trust.
 NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
+
+// Controls whether TLS Trust Anchor IDs that are not for MTCs are sent.
+NET_EXPORT BASE_DECLARE_FEATURE(kNonMtcTrustAnchorIDs);
 
 // Enables ML-DSA signature support in TLS (draft-ietf-tls-mldsa-02).
 NET_EXPORT BASE_DECLARE_FEATURE(kTlsMldsaSignatures);
@@ -950,6 +959,17 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
 // TODO(crbug.com/526597789): Clean up this killswitch after successfully
 // deployed.
 NET_EXPORT BASE_DECLARE_FEATURE(kTlsGreaseSigalgs);
+
+// Enables the BackendCleanupTracker for HTTP cache backends (net::DISK_CACHE)
+// to prevent conflicts when multiple backends are created for the same path.
+NET_EXPORT BASE_DECLARE_FEATURE(kEnableBackendCleanupTrackerOnHttpCache);
+
+// If enabled, WebSocketEndpointLockManager partitions locks by
+// NetworkAnonymizationKey.
+// TODO(crbug.com/533028862): Remove the base::Feature after August 2026
+// once it has been verified safe.
+NET_EXPORT BASE_DECLARE_FEATURE(
+    kPartitionWebSocketEndpointLocksByNetworkAnonymizationKey);
 
 }  // namespace net::features
 

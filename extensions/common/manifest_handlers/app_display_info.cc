@@ -16,19 +16,17 @@ namespace errors = manifest_errors;
 
 namespace {
 
-// This info is used for both the kDisplayInLauncher and kDisplayInNewTabPage
-// keys, but we just arbitrarily pick one to store it under in the manifest.
-const char* kAppDisplayInfoKey = keys::kDisplayInLauncher;
-
 const AppDisplayInfo* GetAppDisplayInfo(const Extension& extension) {
-  const AppDisplayInfo* info = static_cast<const AppDisplayInfo*>(
-      extension.GetManifestData(kAppDisplayInfoKey));
+  const AppDisplayInfo* info = extension.GetManifestData<AppDisplayInfo>();
   CHECK(!info || extension.is_app())
       << "Only apps are allowed to be displayed in the NTP or launcher.";
   return info;
 }
 
 }  // namespace
+
+// static
+const char* AppDisplayInfo::kManifestDataKey = keys::kDisplayInLauncher;
 
 AppDisplayInfo::AppDisplayInfo(bool display_in_launcher,
                                bool display_in_new_tab_page)
@@ -79,9 +77,8 @@ bool AppDisplayManifestHandler::Parse(Extension* extension,
     display_in_new_tab_page = display_in_launcher;
   }
 
-  extension->SetManifestData(kAppDisplayInfoKey,
-                             std::make_unique<AppDisplayInfo>(
-                                 display_in_launcher, display_in_new_tab_page));
+  extension->SetManifestData(std::make_unique<AppDisplayInfo>(
+      display_in_launcher, display_in_new_tab_page));
   return true;
 }
 

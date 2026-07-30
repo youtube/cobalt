@@ -1,30 +1,8 @@
-<style include="cr-shared-style settings-shared">
-  .cr-row-no-top-gap {
-    margin-bottom: var(--cr-section-vertical-margin);
-    min-height: auto;
-  }
-
-  .preview-box {
-    all: initial;
-    align-items: center;
-    background-image:
-      url(chrome://theme/IDR_ACCESSIBILITY_CAPTIONS_PREVIEW_BACKGROUND);
-    background-position: center;
-    background-size: cover;
-    border-radius: 4px;
-    display: flex;
-    justify-content: center;
-    margin: var(--cr-section-padding);
-    margin-inline-start: var(--cr-section-indent-padding);
-    min-height: 112px;
-    padding: 20px;
-    text-align: center;
-  }
-</style>
-<settings-subpage page-title="$i18n{captionsTitle}" route-path$="[[routePath]]">
-<template is="dom-if" if="[[enableLiveCaption_]]">
-  <settings-live-caption prefs="{{prefs}}"></settings-live-caption>
-</template>
+<settings-subpage page-title="$i18n{captionsTitle}"
+    route-path="${this.routePath}">
+${this.enableLiveCaption_ ? html`
+  <settings-live-caption></settings-live-caption>
+` : ''}
 <div class="cr-row">
   <h2 class="start">$i18n{captionsPreferencesTitle}</h2>
 </div>
@@ -33,18 +11,12 @@
 </div>
 <div class="preview-box">
   <span style="
-      font-size:[[prefs.accessibility.captions.text_size.value]];
-      font-family:[[getFontFamily_(
-          prefs.accessibility.captions.text_font.value)]];
-      background-color: [[computeBackgroundColor_(
-          prefs.accessibility.captions.background_opacity.value,
-          prefs.accessibility.captions.background_color.value)]];
-      color: [[computeTextColor_(
-          prefs.accessibility.captions.text_opacity.value,
-          prefs.accessibility.captions.text_color.value)]];
-      text-shadow: [[prefs.accessibility.captions.text_shadow.value]];
-      padding: [[computePadding_(
-          prefs.accessibility.captions.text_size.value)]]">
+      font-size:${this.textSizePref_?.value};
+      font-family:${this.getFontFamily_()};
+      background-color: ${this.computeBackgroundColor_()};
+      color: ${this.computeTextColor_()};
+      text-shadow: ${this.textShadowPref_?.value};
+      padding: ${this.computePadding_(this.textSizePref_?.value || '')}">
     $i18n{quickBrownFox}
   </span>
 </div>
@@ -56,7 +28,7 @@
     <settings-dropdown-menu id="captionsTextSize"
         label="$i18n{captionsTextSize}"
         pref-key="accessibility.captions.text_size"
-        menu-options="[[textSizeOptions_]]">
+        .menuOptions="${this.textSizeOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item underbar">
@@ -66,7 +38,7 @@
     <settings-dropdown-menu id="captionsTextFont"
         label="$i18n{captionsTextFont}"
         pref-key="accessibility.captions.text_font"
-        menu-options="[[textFontOptions_]]">
+        .menuOptions="${this.textFontOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item underbar">
@@ -76,7 +48,7 @@
     <settings-dropdown-menu id="captionsTextColor"
         label="$i18n{captionsTextColor}"
         pref-key="accessibility.captions.text_color"
-        menu-options="[[colorOptions_]]">
+        .menuOptions="${this.colorOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item underbar">
@@ -86,7 +58,7 @@
     <settings-dropdown-menu id="captionsTextOpacity"
         label="$i18n{captionsTextOpacity}"
         pref-key="accessibility.captions.text_opacity"
-        menu-options="[[textOpacityOptions_]]">
+        .menuOptions="${this.textOpacityOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item underbar">
@@ -96,7 +68,7 @@
     <settings-dropdown-menu id="captionsTextShadow"
         label="$i18n{captionsTextShadow}"
         pref-key="accessibility.captions.text_shadow"
-        menu-options="[[textShadowOptions_]]">
+        .menuOptions="${this.textShadowOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item underbar">
@@ -106,7 +78,7 @@
     <settings-dropdown-menu id="captionsBackgroundColor"
         label="$i18n{captionsBackgroundColor}"
         pref-key="accessibility.captions.background_color"
-        menu-options="[[colorOptions_]]">
+        .menuOptions="${this.colorOptions_}">
     </settings-dropdown-menu>
   </div>
   <div class="list-item">
@@ -116,7 +88,7 @@
     <settings-dropdown-menu id="captionsBackgroundOpacity"
         label="$i18n{captionsBackgroundOpacity}"
         pref-key="accessibility.captions.background_opacity"
-        menu-options="[[backgroundOpacityOptions_]]">
+        .menuOptions="${this.backgroundOpacityOptions_}">
     </settings-dropdown-menu>
   </div>
 </div>

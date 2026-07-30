@@ -51,7 +51,6 @@
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/features.h"
-#include "chrome/browser/devtools/views/devtools_floaty.h"
 #include "chrome/browser/dictation/features.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_stats.h"
@@ -93,9 +92,6 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
-#include "chrome/browser/sharing/click_to_call/click_to_call_context_menu_observer.h"
-#include "chrome/browser/sharing/click_to_call/click_to_call_metrics.h"
-#include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/spellchecker/spellcheck_service.h"
 #include "chrome/browser/supervised_user/supervised_user_url_filtering_service_factory.h"
@@ -240,6 +236,7 @@
 #include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/url_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "pdf/buildflags.h"
 #include "printing/buildflags/buildflags.h"
@@ -581,10 +578,8 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
        {IDC_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_TOGGLE_ONCE, 100},
        {kAccessibilityLabelsMenuId, 101},
        {IDC_SEND_TAB_TO_SELF, 102},
-       {IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE, 106},
-       {kClickToCallMultipleDevicesMenuId, 107},
-       {IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE, 108},
-       {IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES, 109},
+       // Removed: {IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE, 108},
+       // Removed: {IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES, 109},
        {IDC_CONTENT_CONTEXT_GENERATE_QR_CODE, 110},
        // Removed: {IDC_CONTENT_CLIPBOARD_HISTORY_MENU, 111},
        {IDC_CONTENT_CONTEXT_COPYLINKTOTEXT, 112},
@@ -635,7 +630,7 @@ const std::map<int, int>& GetIdcToUmaMap(UmaEnumIdLookupType type) {
        {IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW, 156},
        {IDC_CONTENT_CONTEXT_GLICSHAREIMAGE, 157},
        {IDC_CONTENT_CONTEXT_ARCHIVE_GLIC, 158},
-       {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI, 159},
+       // Removed: {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI, 159},
        {IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS, 160},
        {IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY, 161},
        {IDC_CONTENT_CONTEXT_GLIC, 162},
@@ -1812,20 +1807,8 @@ void RenderViewContextMenu::AppendDeveloperItems() {
     }
   }
 
-  if (base::FeatureList::IsEnabled(features::kDevToolsGreenDevUi)) {
-    inspect_submenu_model_.AddItemWithStringId(
-        IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI,
-        IDS_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI);
-    inspect_submenu_model_.AddItemWithStringId(
-        IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS,
-        IDS_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS);
-    menu_model_.AddSubMenuWithStringId(IDC_CONTENT_CONTEXT_INSPECTELEMENT,
-                                       IDS_CONTENT_CONTEXT_INSPECTELEMENT,
-                                       &inspect_submenu_model_);
-  } else {
-    menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_INSPECTELEMENT,
-                                    IDS_CONTENT_CONTEXT_INSPECTELEMENT);
-  }
+  menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_INSPECTELEMENT,
+                                  IDS_CONTENT_CONTEXT_INSPECTELEMENT);
 }
 
 void RenderViewContextMenu::AppendDevtoolsForUnpackedExtensions() {
@@ -2088,8 +2071,6 @@ void RenderViewContextMenu::AppendLinkItems() {
                                 /*add_separator*/ false);
     }
 
-    AppendClickToCallItem();
-
     menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
     menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_SAVELINKAS,
                                     IDS_CONTENT_CONTEXT_SAVELINKAS);
@@ -2273,9 +2254,7 @@ void RenderViewContextMenu::AppendSearchWebForImageItems() {
       return;
     }
     menu_model_.AddItemWithStringIdAndIcon(
-        search_for_image_idc,
-        lens::GetLensOverlayImageEntrypointLabelAltIds(
-            IDS_CONTENT_CONTEXT_LENS_OVERLAY),
+        search_for_image_idc, IDS_LENS_OVERLAY_IMAGE_ENTRYPOINT_LABEL_ALT3,
         icon);
   } else {
     menu_model_.AddItemWithIcon(
@@ -2407,9 +2386,7 @@ void RenderViewContextMenu::AppendVideoItems() {
       if (entry_point_controller->AreVisible()) {
         target_model->AddItemWithStringIdAndIcon(
             search_for_video_frame_idc,
-            lens::GetLensOverlayVideoEntrypointLabelAltIds(
-                IDS_CONTENT_CONTEXT_LENS_OVERLAY),
-            icon);
+            IDS_LENS_OVERLAY_VIDEO_ENTRYPOINT_LABEL_ALT3, icon);
         item_added = true;
       }
     } else {
@@ -3163,8 +3140,6 @@ void RenderViewContextMenu::AppendSharingItems() {
   size_t items_before_sharing = menu_model_.GetItemCount();
   bool starting_separator_added = items_before_sharing > items_initial;
 
-  AppendClickToCallItem();
-
   // Add an ending separator if there are sharing items, otherwise remove the
   // starting separator iff we added one above.
   size_t sharing_items = menu_model_.GetItemCount() - items_before_sharing;
@@ -3175,33 +3150,7 @@ void RenderViewContextMenu::AppendSharingItems() {
   }
 }
 
-void RenderViewContextMenu::AppendClickToCallItem() {
-  SharingClickToCallEntryPoint entry_point;
-  std::optional<std::string> phone_number;
-  std::string selection_text;
-  if (ShouldOfferClickToCallForURL(browser_context_, params_.link_url)) {
-    entry_point = SharingClickToCallEntryPoint::kRightClickLink;
-    phone_number = params_.link_url.GetContent();
-  } else if (!params_.selection_text.empty()) {
-    entry_point = SharingClickToCallEntryPoint::kRightClickSelection;
-    selection_text = base::UTF16ToUTF8(params_.selection_text);
-    phone_number =
-        ExtractPhoneNumberForClickToCall(browser_context_, selection_text);
-  }
 
-  if (!phone_number || phone_number->empty()) {
-    return;
-  }
-
-  if (!click_to_call_context_menu_observer_) {
-    click_to_call_context_menu_observer_ =
-        std::make_unique<ClickToCallContextMenuObserver>(this);
-    observers_.AddObserver(click_to_call_context_menu_observer_.get());
-  }
-
-  click_to_call_context_menu_observer_->BuildMenu(*phone_number, selection_text,
-                                                  entry_point);
-}
 
 void RenderViewContextMenu::AppendRegionSearchItem() {
   auto* entry_point_controller =
@@ -3217,9 +3166,7 @@ void RenderViewContextMenu::AppendRegionSearchItem() {
     }
     menu_model_.AddItemWithStringIdAndIcon(
         IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH,
-        lens::GetLensOverlayEntrypointLabelAltIds(
-            IDS_CONTENT_CONTEXT_LENS_OVERLAY),
-        icon);
+        lens::GetLensOverlayEntrypointLabelAltIds(), icon);
     const int command_index =
         menu_model_.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH)
             .value();
@@ -3374,7 +3321,6 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
 
     case IDC_CONTENT_CONTEXT_INSPECTELEMENT:
     case IDC_CONTENT_CONTEXT_INSPECTBACKGROUNDPAGE:
-    case IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI:
     case IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS:
     case IDC_CONTENT_CONTEXT_RELOAD_PACKAGED_APP:
     case IDC_CONTENT_CONTEXT_RESTART_PACKAGED_APP:
@@ -4022,10 +3968,6 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       ExecInspectBackgroundPage();
       break;
 
-    case IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI:
-      ExecInspectElementWithGemini();
-      break;
-
     case IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS:
       ExecInspectElement();
       break;
@@ -4089,8 +4031,14 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       auto disposition = ui::DispositionFromEventFlags(
           event_flags, WindowOpenDisposition::NEW_FOREGROUND_TAB);
 
+      GURL navigation_url = selection_navigation_url_;
+      if (google_util::IsGoogleSearchUrl(navigation_url)) {
+        navigation_url = net::AppendOrReplaceQueryParameter(
+            navigation_url, "source", "chrome.ctxt");
+      }
+
       content::OpenURLParams open_url_params = GetOpenURLParamsWithExtraHeaders(
-          selection_navigation_url_, /*referring_url=*/GURL(),
+          navigation_url, /*referring_url=*/GURL(),
           /*initiator=*/{}, disposition, ui::PAGE_TRANSITION_LINK,
           /*extra_headers=*/std::string(), /*started_from_context_menu=*/true);
 
@@ -4884,16 +4832,6 @@ void RenderViewContextMenu::ExecInspectBackgroundPage() {
       platform_app, GetProfile(), DevToolsOpenedByAction::kContextMenuInspect);
 }
 
-void RenderViewContextMenu::ExecInspectElementWithGemini() {
-  LOG(ERROR) << "ExecInspectElementWithGemini called at " << params_.x << ", "
-             << params_.y;
-  // TOOD(crbug.com/466071312): Send the actual node id.
-  DevToolsFloaty::Show(Profile::FromBrowserContext(browser_context_),
-                       render_process_id_, render_frame_id_,
-                       gfx::Point(params_.x, params_.y),
-                       /* *backend_node_id*/ 1);
-}
-
 void RenderViewContextMenu::CheckSupervisedUserURLFilterAndSaveLinkAs() {
   Profile* const profile = Profile::FromBrowserContext(browser_context_);
   CHECK(profile);
@@ -5457,9 +5395,18 @@ void RenderViewContextMenu::MaybeAppendOpenGlicItem(bool add_separator) {
                        u" ", &params_.selection_text);
     base::TrimWhitespace(params_.selection_text, base::TRIM_ALL,
                          &params_.selection_text);
+    tabs::TabInterface* tab_interface =
+        tabs::TabInterface::MaybeGetFromContents(source_web_contents_);
+    tabs::PageContextEligibilityHelper* helper =
+        tab_interface ? tabs::PageContextEligibilityHelper::From(tab_interface)
+                      : nullptr;
+    const bool is_page_eligible =
+        helper &&
+        helper->IsPageContextEligible() ==
+            optimization_guide::PageContextEligibilityStatus::kEligible;
     const bool show_text_selection_menu_item =
         base::FeatureList::IsEnabled(features::kGlicTextSelectionContextMenu) &&
-        !params_.selection_text.empty();
+        !params_.selection_text.empty() && is_page_eligible;
 
     const std::string arm = features::kGlicContextMenuArm.Get();
     const bool show_summarize_page = (arm == "arm2");

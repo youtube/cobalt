@@ -15,6 +15,8 @@ source_set("picture_in_picture") {
     "document_pip_widget_delegate.h",
     "picture_in_picture_bounds_change_animation.h",
     "picture_in_picture_tucker.h",
+    "pip_child_dialog_observer_helper.h",
+    "pip_top_bar_animation_controller.h",
   ]
 
   sources = [
@@ -25,10 +27,13 @@ source_set("picture_in_picture") {
     "document_pip_widget_delegate.cc",
     "picture_in_picture_bounds_change_animation.cc",
     "picture_in_picture_tucker.cc",
+    "pip_child_dialog_observer_helper.cc",
+    "pip_top_bar_animation_controller.cc",
   ]
 
   public_deps = [
     "//base",
+    "//components/web_modal",
     "//content/public/browser",
     "//third_party/blink/public/common:headers",
     "//ui/gfx",
@@ -63,6 +68,7 @@ source_set("picture_in_picture") {
     "//media",
     "//ui/base",
     "//ui/base/metadata",
+    "//ui/compositor",
     "//ui/display",
     "//ui/strings",
     "//ui/views/controls/webview",
@@ -97,14 +103,17 @@ source_set("unit_tests") {
   deps = [
     ":picture_in_picture",
     "//base",
+    "//chrome/browser/content_settings",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/ssl",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_info",
     "//chrome/test:test_support",
+    "//components/content_settings/browser",
     "//components/input",
     "//components/javascript_dialogs",
     "//components/permissions",
+    "//components/web_modal",
     "//content/public/browser",
     "//content/test:test_support",
     "//testing/gtest",

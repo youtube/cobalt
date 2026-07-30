@@ -261,13 +261,18 @@ enum class SendTabToSelfDeviceCount {
   kFourDevices = 5,
   kFiveDevices = 6,
   kMoreThanFiveDevices = 7,
-  kMaxValue = kMoreThanFiveDevices,
+  kNoTargetDevicesBecauseSigninPending = 8,
+  kMaxValue = kNoTargetDevicesBecauseSigninPending,
 };
 // LINT.ThenChange(/tools/metrics/histograms/enums.xml:SendTabToSelfDeviceCount)
 
 void RecordTargetDeviceCount(ShareEntryPoint entry_point,
                              EntryPointDisplayReason display_reason,
                              size_t device_count);
+
+// Records whether the local device name is available when sending an STTS
+// entry.
+void RecordIsLocalDeviceNameAvailableOnSend(bool is_available);
 
 }  // namespace send_tab_to_self
 

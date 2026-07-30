@@ -1177,7 +1177,6 @@ Verifique as suas palavras-passe em qualquer altura no <ph name="GOOGLE_PASSWORD
 <translation id="1910721550319506122">Bem-vindo!</translation>
 <translation id="1910736334623230603">Não é possível pesquisar várias imagens. Adicione uma imagem de cada vez.</translation>
 <translation id="1910908536872421421">O Chrome for Testing v<ph name="BROWSER_VERSION" /> destina-se apenas a testes automáticos. Para uma navegação normal, use uma versão padrão do Chrome atualizada automaticamente.</translation>
-<translation id="1912867150686509584">Veja mais reuniões no seu Calendário</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{Pause o separador que está a abrandar o navegador}other{Pause os separadores que estão a abrandar o navegador}}</translation>
 <translation id="1913749768968678106">Transmitir, guardar e partilhar</translation>
 <translation id="19147273405311768">Repor predefinições da barra de ferramentas</translation>
@@ -1217,12 +1216,14 @@ Verifique as suas palavras-passe em qualquer altura no <ph name="GOOGLE_PASSWORD
 <translation id="1933489278505808700">Com autorização para ler e alterar</translation>
 <translation id="1935303383381416800">Com autorização para ver a sua localização</translation>
 <translation id="193565226207940518">Ferramenta de apoio técnico</translation>
+<translation id="1935995810530254458">Copiar mesmo assim</translation>
 <translation id="1936157145127842922">Mostrar na pasta</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{Página adicionada à Lista de leitura}other{Páginas adicionadas à Lista de leitura}}</translation>
 <translation id="1936931585862840749">Utilize um número para indicar as cópias a imprimir (1 a <ph name="MAX_COPIES" />).</translation>
 <translation id="1938351510777341717">Comando externo</translation>
 <translation id="1940221956626514677">Personalizar barra de ferramentas</translation>
 <translation id="1940546824932169984">Dispositivos ligados</translation>
+<translation id="194081218158106711">A confirmar a palavra-passe alterada…</translation>
 <translation id="1941410638996203291">Hora de início: <ph name="TIME" /></translation>
 <translation id="1941553344801134989">Versão: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">O seu administrador configurou a sua conta para ser associada automaticamente ao Microsoft OneDrive, mas algo correu mal.</translation>
@@ -1491,6 +1492,7 @@ Pode gerir as definições desta conta ao instalar a aplicação Family Link no 
 <translation id="2158475082070321257">Copiar link para realçar</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758">Âmbito de <ph name="SHORTCUT" /> para <ph name="EXTENSION_NAME" /></translation>
+<translation id="2161656808144014275">Texto</translation>
 <translation id="216169395504480358">Adicionar Wi-Fi...</translation>
 <translation id="2162705204091149050">Ler informações sobre o seu navegador, SO, dispositivo, software instalado e ficheiros</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" />, <ph name="THIRD_SWITCH" /> e mais 1 interruptor.</translation>
@@ -4257,6 +4259,7 @@ Quer pará-lo?</translation>
 <translation id="4274673989874969668">Depois de sair de um site, este pode continuar a sincronizar para concluir tarefas, como carregar fotos ou enviar uma mensagem de chat</translation>
 <translation id="4275291496240508082">Som de arranque</translation>
 <translation id="4275397969489577657">Ativar o registo de transmissões de eventos</translation>
+<translation id="4275663329226226506">Multimédia</translation>
 <translation id="4275788652681621337">Feche o painel lateral</translation>
 <translation id="4275830172053184480">Reiniciar o dispositivo</translation>
 <translation id="4276390967705106170">Abrir num novo separador do navegador</translation>
@@ -4744,6 +4747,7 @@ Quer pará-lo?</translation>
 <translation id="4657914796247705218">Velocidade do TrackPoint</translation>
 <translation id="4658648180588730283">A aplicação <ph name="APPLICATION_NAME" /> não está disponível offline.</translation>
 <translation id="465878909996028221">Apenas são suportados os protocolos HTTP, HTTPS e protocolos de ficheiros para redirecionamento do navegador.</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /> <ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">Quando inicia sessão na sua Conta Google, esta funcionalidade está ativada.</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{Imagem}other{# imagens}}</translation>
 <translation id="4660540330091848931">A redimensionar…</translation>
@@ -5086,7 +5090,6 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="4906490889887219338">Configure ou efetue a gestão de partilhas de ficheiros na rede. <ph name="LINK_BEGIN" />Saber mais<ph name="LINK_END" /></translation>
 <translation id="4906679076183257864">Repor Predefinição</translation>
 <translation id="4907129260985716018">Escolha quando esta extensão pode ler e alterar os seus dados de sites</translation>
-<translation id="4908076691331874303">Ocultado deste site</translation>
 <translation id="4908811072292128752">Abra um novo separador para navegar em dois sites em simultâneo</translation>
 <translation id="4910241725741323970">A app já está instalada</translation>
 <translation id="4912643508233590958">Reativações após inatividade</translation>
@@ -5324,6 +5327,7 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="5096775069898886423">Relativamente aos sites que não suportam ligações seguras, receba um aviso antes de visitar o site</translation>
 <translation id="5097002363526479830">Falha ao ligar à rede "<ph name="NAME" />": <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">Os sites que visita podem determinar aquilo de que gosta e, de seguida, sugerir anúncios enquanto navega</translation>
+<translation id="5097472729724586429">Adicione anotações de texto com a nova ferramenta "Adicionar anotações de texto"</translation>
 <translation id="5097649414558628673">Ferramenta: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">Clicar automaticamente quando o cursor para</translation>
 <translation id="5098963855433723436">Abre numa aplicação separada</translation>
@@ -5388,6 +5392,7 @@ Use Ctrl + Alt + Diminuir o brilho para diminuir o zoom.</translation>
 <translation id="5146235736676876345">Escolher a sua</translation>
 <translation id="5146896637028965135">Voz do sistema</translation>
 <translation id="5147113439721488265">Recomendação</translation>
+<translation id="5148020348702787234">Para enviar links, valide a sua identidade. Pode enviar links quando tem sessão iniciada na mesma Conta Google em ambos os dispositivos.</translation>
 <translation id="5148285448107770349">A palavra-passe tem de ter, no mínimo, 8 carateres</translation>
 <translation id="5149602533174716626">Cop&amp;iar frame do vídeo</translation>
 <translation id="5150254825601720210">Nome do servidor SSL do certificado Netscape</translation>
@@ -6354,7 +6359,6 @@ Certifique-se de que não revela informações confidenciais.</translation>
 <translation id="5932881020239635062">Série</translation>
 <translation id="5933522550144185133">A app <ph name="APP_NAME" /> está a utilizar a sua câmara e microfone.</translation>
 <translation id="5935158534896975820">A preparar pedido de assinatura de certificado (a aguardar servidor)…</translation>
-<translation id="5935554994339565449">Adicione texto com a nova ferramenta "Adicionar texto"</translation>
 <translation id="5936065461722368675">Traduzir página inteira</translation>
 <translation id="5937977334791924341">Logótipo da app <ph name="APP" /></translation>
 <translation id="5938002010494270685">Atualização de segurança disponível</translation>
@@ -8911,6 +8915,7 @@ Prima uma tecla ou um interruptor atribuído para remover a atribuição.</trans
 <translation id="7933486544522242079">&amp;Guardar e partilhar</translation>
 <translation id="7933518760693751884">Para guardar uma página para mais tarde, clique no ícone de marcador.</translation>
 <translation id="7933634003144813719">Gerir pastas partilhadas</translation>
+<translation id="7935072572536724392">Falha na alteração automática da palavra-passe</translation>
 <translation id="7936195481975600746">Para partilhar o ecrã, use o selecionador de ecrãs do sistema</translation>
 <translation id="7937809006412909895">A recolher dados de diagnóstico</translation>
 <translation id="7938881824185772026">Labs</translation>
@@ -9048,6 +9053,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{Lista de leitura}=1{Lista de leitura ({SELECTED_ITEMS})}other{Lista de leitura ({SELECTED_ITEMS})}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> – Autorização solicitada, prima ⌘ + Opção + seta para cima para responder.</translation>
 <translation id="8030169304546394654">Desligado</translation>
+<translation id="8030814978699290230">A tentar iniciar sessão…</translation>
 <translation id="8030852056903932865">Aprovar</translation>
 <translation id="8033827949643255796">selecionado</translation>
 <translation id="8033958968890501070">Limite de tempo</translation>
@@ -9461,6 +9467,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8343578633847737325">Chats e discussões recentes</translation>
 <translation id="8345848587667658367">Agora, pode ver as fotos, o conteúdo multimédia, as notificações e as apps recentes do seu telemóvel</translation>
 <translation id="8347227221149377169">Tarefas de impressão</translation>
+<translation id="8347728744337089388">Enviar para o seu &amp;dispositivo</translation>
 <translation id="8348430946834215779">Use HTTPS sempre que possível e receba um aviso antes de carregar sites que não suportam este protocolo</translation>
 <translation id="8348896480272971199">Verifique a ligação à Internet e tente novamente.</translation>
 <translation id="8349305172487531364">Barra de marcadores</translation>
@@ -9510,6 +9517,7 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8382197851871630452">Meteorologia local</translation>
 <translation id="8382913212082956454">Copiar &amp;endereço de email</translation>
 <translation id="8383614331548401927">Recapitulação de boas-vindas</translation>
+<translation id="8387157483437834731">Palavra-passe alterada com êxito</translation>
 <translation id="8387361103813440603">Sem autorização para ver a sua localização</translation>
 <translation id="8389492867173948260">Permitir que esta extensão leia e altere todos os dados nos Websites que visita:</translation>
 <translation id="8390449457866780408">O servidor não se encontra disponível.</translation>
@@ -9904,7 +9912,6 @@ Mantenha o seu ficheiro de chave num local seguro, pois irá precisar dele para 
 <translation id="8693862390730570097">Não permitir que a funcionalidade "Ajuda-me a escrever" seja aberta automaticamente</translation>
 <translation id="8694596275649352090">Bloquear ao suspender ou quando a tampa for fechada</translation>
 <translation id="8695825812785969222">Abrir &amp;Localização...</translation>
-<translation id="8696297579102085705">Enviar para o dispositivo</translation>
 <translation id="869884720829132584">Menu Apps</translation>
 <translation id="869891660844655955">Data de expiração</translation>
 <translation id="8699296325072357994">O conteúdo das páginas de palavras-passe e as informações relacionadas são enviadas para a Google e revistas por humanos. A sua palavra-passe é encriptada e nunca é visível para ninguém. <ph name="PASSWORD_CHANGE" /></translation>
@@ -10252,6 +10259,7 @@ Pode incluir informações sobre o software instalado, os ficheiros, o navegador
 <translation id="8967427617812342790">Adicionar à lista de leitura</translation>
 <translation id="8968527460726243404">Criador de imagem do sistema do Chrome OS</translation>
 <translation id="8968766641738584599">Guardar cartão</translation>
+<translation id="8970232194848546151">Envie um link para outro dispositivo</translation>
 <translation id="8970887620466824814">Ocorreu um erro.</translation>
 <translation id="89720367119469899">Escape</translation>
 <translation id="8972513834460200407">Consulte o seu gestor de rede para ter a certeza de que a firewall não está a bloquear as transferências dos servidores da Google.</translation>
@@ -10518,6 +10526,7 @@ Pode incluir informações sobre o software instalado, os ficheiros, o navegador
 <translation id="9151906066336345901">fim</translation>
 <translation id="9152503903192861480">Abrir no Modo IA</translation>
 <translation id="9153367754133725216">Veja sugestões de novas apps e conteúdo da Web no Launcher e nos resultados da pesquisa. Apenas envia estatísticas para melhorar as sugestões se tiver optado por enviar relatórios de falhas e dados de diagnóstico e utilização para o ChromeOS.</translation>
+<translation id="9153451439615847952">Reduzir o áudio de fundo para notificações e alertas</translation>
 <translation id="9154194610265714752">Atualizado</translation>
 <translation id="915485121129452731">Tablet com caneta</translation>
 <translation id="9155344700756733162">Desmarcar cor</translation>
@@ -10595,6 +10604,7 @@ Pode incluir informações sobre o software instalado, os ficheiros, o navegador
 <translation id="9220820413868316583">Levante e tente novamente.</translation>
 <translation id="922152298093051471">Personalizar o Chrome</translation>
 <translation id="9222839391870847423">Duração: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">Enviar para o seu &amp;dispositivo</translation>
 <translation id="923467487918828349">Mostrar tudo</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{Para a gerir, abra as Extensões}other{Para as gerir, abra as Extensões}}</translation>
 <translation id="924818813611903184">Gerir idiomas nas definições do ChromeOS</translation>

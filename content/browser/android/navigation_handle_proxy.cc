@@ -52,6 +52,7 @@ void NavigationHandleProxy::DidStart() {
       env, java_navigation_handle_,
       url::GURLAndroid::FromNativeGURL(
           env, cpp_navigation_handle_->GetReferrer().url),
+      static_cast<jint>(cpp_navigation_handle_->GetReferrer().policy),
       url::GURLAndroid::FromNativeGURL(
           env, cpp_navigation_handle_->GetBaseURLForDataURL()),
       cpp_navigation_handle_->IsInPrimaryMainFrame(),
@@ -68,6 +69,7 @@ void NavigationHandleProxy::DidStart() {
       cpp_navigation_handle_->IsPageActivation(),
       cpp_navigation_handle_->IsPdf(),
       base::android::ConvertUTF8ToJavaString(env, GetMimeType()),
+      cpp_navigation_handle_->NavigationStart().ToUptimeMillis(),
       cpp_navigation_handle_->GetWebContents()->GetJavaWebContents());
 }
 

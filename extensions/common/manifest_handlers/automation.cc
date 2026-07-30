@@ -142,7 +142,7 @@ bool AutomationHandler::Parse(Extension* extension, std::u16string* error) {
     return true;
   }
 
-  extension->SetManifestData(keys::kAutomation, std::move(info));
+  extension->SetManifestData(std::move(info));
   return true;
 }
 
@@ -167,9 +167,11 @@ ManifestPermission* AutomationHandler::CreateInitialRequiredPermission(
 }
 
 // static
+const char* AutomationInfo::kManifestDataKey = keys::kAutomation;
+
+// static
 const AutomationInfo* AutomationInfo::Get(const Extension* extension) {
-  return static_cast<const AutomationInfo*>(
-      extension->GetManifestData(keys::kAutomation));
+  return extension->GetManifestData<AutomationInfo>();
 }
 
 // static

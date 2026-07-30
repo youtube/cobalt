@@ -19,6 +19,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/web_modal/web_contents_modal_dialog_host.h"
 #include "content/public/browser/web_contents.h"
 
 DEFINE_USER_DATA(BrowserWindowModalDialogDelegate);
@@ -40,8 +41,8 @@ void BrowserWindowModalDialogDelegate::SetWebContentsBlocked(
     content::WebContents* web_contents,
     bool blocked) {
   TabStripModel* tab_strip_model = browser_->GetTabStripModel();
-  tabs::TabInterface* tab = tab_strip_model->GetTabForWebContents(web_contents);
-  if (!tab) {
+  int index = tab_strip_model->GetIndexOfWebContents(web_contents);
+  if (index == TabStripModel::kNoTab) {
     // The WebContents may no longer exist in the TabStripModel.
     // If the WebContents has a DevTools window, the call is meant for the
     // DevTools area.
@@ -77,11 +78,12 @@ void BrowserWindowModalDialogDelegate::SetWebContentsBlocked(
     }
   }
 
-  tab_strip_model->SetTabBlocked(tab_strip_model->GetIndexOfTab(tab), blocked);
+  tab_strip_model->SetTabBlocked(index, blocked);
 
   const bool browser_active =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile() == browser_;
-  bool contents_is_active = tab_strip_model->GetActiveTab() == tab;
+  bool contents_is_active =
+      tab_strip_model->GetActiveWebContents() == web_contents;
   // If the WebContents is foremost (the active tab in the front-most browser)
   // and is being unblocked, focus it to make sure that input works again.
   if (!blocked && contents_is_active && browser_active) {
@@ -96,4 +98,28 @@ BrowserWindowModalDialogDelegate::GetWebContentsModalDialogHost(
   // tab and non-tab WebContents (e.g. DevTools) with correct fallback.
   return BrowserWindow::FromBrowser(browser_)->GetWebContentsModalDialogHostFor(
       web_contents);
+}
+
+void BrowserWindowModalDialogDelegate::
+    NotifyModalDialogsPositionRequiresUpdate() {
+  BrowserWindow* browser_window = BrowserWindow::FromBrowser(browser_);
+  // window is nullptr during browser startup.
+  if (!browser_window) {
+    return;
+  }
+
+  web_modal::WebContentsModalDialogHost* window_modal_host =
+      browser_window->GetWebContentsModalDialogHost();
+  CHECK(window_modal_host);
+  window_modal_host->NotifyPositionRequiresUpdate();
+
+  // Tab Modals.
+  TabStripModel* tab_strip_model = browser_->GetTabStripModel();
+  for (int i = 0; i < tab_strip_model->count(); ++i) {
+    content::WebContents* web_contents = tab_strip_model->GetWebContentsAt(i);
+    web_modal::WebContentsModalDialogHost* tab_modal_host =
+        GetWebContentsModalDialogHost(web_contents);
+    CHECK(tab_modal_host);
+    tab_modal_host->NotifyPositionRequiresUpdate();
+  }
 }

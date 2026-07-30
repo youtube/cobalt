@@ -6,6 +6,7 @@
 #         fuchsia
 #         linux ubuntu
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
+#             macos26
 #         win win8 win10 win11 ]
 # Devices
 # tags: [ android-pixel-2 android-pixel-4 android-pixel-6 android-pixel-10
@@ -289,6 +290,18 @@ crbug.com/515133241 [ win11 amd-0x7550 ] WebCodecs_FrameSizeChange_hvc1.1.6.L123
 crbug.com/515133241 [ win11 amd-0x7550 ] WebCodecs_FrameSizeChange_hvc1.1.6.L123.00_hw_decoder [ Failure ]
 crbug.com/515133241 [ win11 amd-0x7550 ] WebCodecs_FrameSizeChange_hvc1.1.6.L123.00_sw_decoder [ Failure ]
 
+
+# Fuchsia WebCodecs failures
+# QEMU (no hardware GPU/encoder)
+crbug.com/525137354 [ fuchsia fuchsia-board-qemu-x64 ] WebCodecs_*_prefer-hardware* [ Failure ]
+crbug.com/525137354 [ fuchsia fuchsia-board-qemu-x64 ] WebCodecs_ContentHint_* [ Failure ]
+crbug.com/525137354 [ fuchsia fuchsia-board-qemu-x64 ] WebCodecs_FrameSizeChange_* [ Failure ]
+
+# Sherlock (real device)
+# Fuchsia's H264EncoderSettings FIDL doesn't support setting the profile, so
+# the hardware encoder defaults to Main profile (0x4d) instead of Baseline
+# (0x42) requested by the test, failing the profile validation check.
+crbug.com/525137354 [ fuchsia fuchsia-board-sherlock ] WebCodecs_Encode_*_avc1.42001E_prefer-hardware [ Failure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

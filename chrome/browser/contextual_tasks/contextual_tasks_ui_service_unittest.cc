@@ -812,6 +812,26 @@ TEST_F(ContextualTasksUiServiceTest, HandleNavigation_AiPage_ChecksCobrowse) {
 }
 
 TEST_F(ContextualTasksUiServiceTest,
+       HandleNavigation_BypassedWhenRearchitectureEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      contextual_tasks::kContextualTasksRearchitecture);
+
+  GURL ai_url(kAiPageUrl);
+  auto web_contents = content::WebContentsTester::CreateTestWebContents(
+      profile_.get(), content::SiteInstance::Create(profile_.get()));
+
+  EXPECT_CALL(*service_for_nav_, OnNavigationToAiPageIntercepted(_, _, _))
+      .Times(0);
+
+  EXPECT_FALSE(service_for_nav_->HandleNavigation(
+      CreateOpenUrlParams(ai_url, false), web_contents.get(),
+      /*is_from_embedded_page=*/false, /*from_can_create_window=*/false,
+      /*is_same_site_or_from_ui=*/true, false, std::nullopt, std::nullopt,
+      blink::mojom::WindowFeatures()));
+}
+
+TEST_F(ContextualTasksUiServiceTest,
        HandleNavigation_AiPage_NotSameSite_UntrustedParamAppended) {
   GURL ai_url(kAiPageUrl);
   auto web_contents = content::WebContentsTester::CreateTestWebContents(
@@ -2503,7 +2523,10 @@ class MockCookieSynchronizer : public ContextualTasksCookieSynchronizer {
   MockCookieSynchronizer(content::BrowserContext* context,
                          signin::IdentityManager* identity_manager)
       : ContextualTasksCookieSynchronizer(context, identity_manager) {}
-  MOCK_METHOD(void, CopyCookiesToWebviewStoragePartition, (), (override));
+  MOCK_METHOD(void,
+              CopyCookiesToWebviewStoragePartition,
+              (base::OnceClosure callback),
+              (override));
 };
 
 TEST_F(ContextualTasksUiServiceTest, EnsureCookiesSynced) {
@@ -2519,7 +2542,8 @@ TEST_F(ContextualTasksUiServiceTest, EnsureCookiesSynced) {
           aim_eligibility_service_.get()),
       std::move(mock_synchronizer));
 
-  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition()).Times(1);
+  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition(testing::_))
+      .Times(1);
 
   service.EnsureCookiesSynced();
 }
@@ -2560,7 +2584,8 @@ TEST_F(ContextualTasksUiServiceTest, PrefetchOnEligibilityChange) {
 
   EXPECT_CALL(*aim_eligibility_service_, IsCobrowseEligible())
       .WillOnce(Return(true));
-  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition()).Times(1);
+  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition(testing::_))
+      .Times(1);
 
   captured_callback.Run();
 }
@@ -2586,7 +2611,8 @@ TEST_F(ContextualTasksUiServiceTest, PrefetchOnStartupIfAlreadyEligible) {
       std::make_unique<MockCookieSynchronizer>(profile_.get(), nullptr);
   MockCookieSynchronizer* mock_ptr = mock_synchronizer.get();
 
-  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition()).Times(1);
+  EXPECT_CALL(*mock_ptr, CopyCookiesToWebviewStoragePartition(testing::_))
+      .Times(1);
 
   ContextualTasksUiService service(
       profile_.get(), /*delegate=*/nullptr, contextual_tasks_service_.get(),

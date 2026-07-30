@@ -18,7 +18,7 @@ all,services/network/cors/cors_url_loader_factory.cc
 
 # ChromeOS-specific annotations.
 all,chromeos/ash/components/geolocation/simple_geolocation_request.cc
-all,chrome/browser/ash/policy/uploading/system_log_uploader.cc
+all,chrome/browser/ash/policy/uploading/system_log_uploader_delegate.cc
 all,chromeos/geolocation/simple_geolocation_request.cc
 all,components/quirks/quirks_client.cc
 all,chromeos/ash/services/device_sync/cryptauth_client_impl.cc
@@ -250,7 +250,6 @@ missing_new_fields,components/variations/service/variations_service.cc
 missing_new_fields,components/webapps/services/web_app_origin_association/web_app_origin_association_fetcher.cc
 missing_new_fields,content/browser/aggregation_service/aggregatable_report_sender.cc
 missing_new_fields,content/browser/aggregation_service/aggregation_service_network_fetcher_impl.cc
-missing_new_fields,content/browser/attribution_reporting/attribution_report_network_sender.cc
 missing_new_fields,content/browser/background_fetch/background_fetch_delegate_proxy.cc
 missing_new_fields,content/browser/devtools/devtools_http_handler.cc
 missing_new_fields,content/browser/devtools/protocol/devtools_network_resource_loader.cc

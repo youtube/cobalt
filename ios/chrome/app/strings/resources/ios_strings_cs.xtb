@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Ukládání hesel</translation>
 <translation id="1764070164487214210">Trasa</translation>
 <translation id="1764511703783285459">Druhý správce hesel nesdílel žádná hesla ani přístupové klíče</translation>
+<translation id="1765555082983153259">Chrome žádá o přístup k vašemu mikrofonu</translation>
 <translation id="1767766085187034454">Překladač Google</translation>
 <translation id="1771016937398045251">Nabídka Nástroje</translation>
 <translation id="1772468122139624049">Karty nelze znovu načíst</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Chytře seřadit lištu s nabídkou</translation>
 <translation id="1883255238294161206">Sbalit seznam</translation>
+<translation id="1883898928879467646">Karta byla odstraněna</translation>
 <translation id="1888854257756214946">Vybrat heslo…</translation>
 <translation id="1890237935065108104">Toto nastavení není k dispozici.</translation>
 <translation id="1894023287452300670">Tady můžete sledovat cenu</translation>
@@ -515,7 +517,7 @@
 <translation id="2666092431469916601">Nahoru</translation>
 <translation id="2669454659051515572">Stažené soubory může vidět kdokoli, kdo používá tohle zařízení</translation>
 <translation id="2671423594960767771">Sdílet skupinu</translation>
-<translation id="2673183423393669407">Uhrazení na splátky</translation>
+<translation id="2673183423393669407">Platba na splátky</translation>
 <translation id="2673508731173059946">Navštívit zkopírovaný odkaz</translation>
 <translation id="2679659833697380">Vaše informace se ukládají do zařízení</translation>
 <translation id="2681572445246787428">Podepisování dokumentů</translation>
@@ -1620,6 +1622,7 @@ Funkce Handoff musí být povolena také v Nastavení v sekci Obecné a zaříze
 <translation id="6406506848690869874">Synchronizace</translation>
 <translation id="6410390304316730527">Bezpečné prohlížení vás chrání před útočníky, kteří se vás snaží přimět k nebezpečné akci, jako je instalace škodlivého softwaru nebo vyzrazení osobních údajů (například hesel, telefonních čísel nebo platebních karet). Pokud ji vypnete, budete si muset dávat pozor na neznámé a podezřelé weby.</translation>
 <translation id="6410883413783534063">Pomocí karet můžete mít otevřených několik různých stránek najednou</translation>
+<translation id="6412195388778525440">Odstranit kartu</translation>
 <translation id="6418346271604475326">Příprava souboru PDF</translation>
 <translation id="6420292512900923139">Při importu dat došlo k potížím</translation>
 <translation id="6421038304268477484">Přeložený text</translation>
@@ -2320,7 +2323,6 @@ Pokud chcete pokračovat z počítače, přepněte na <ph name="OTHER_EMAIL" />
 <translation id="8692689525339542358">Získejte ochranu před nebezpečnými weby, soubory ke stažení a rozšířeními.</translation>
 <translation id="8692897097252418799">Vyberte data, která chcete exportovat</translation>
 <translation id="8694281486652655615">Zobrazuje tuto položku</translation>
-<translation id="8696297579102085705">Odeslat na vaše zařízení</translation>
 <translation id="8697136149718343437">Přesunout adresní řádek dolů</translation>
 <translation id="869891660844655955">Datum konce platnosti</translation>
 <translation id="8706253136355675497">Teplota</translation>
@@ -2463,6 +2465,7 @@ Pokud chcete pokračovat z počítače, přepněte na <ph name="OTHER_EMAIL" />
 <translation id="9149866541089851383">Upravit...</translation>
 <translation id="9152637745605628097">Vyberte si z motivů a barev nebo nahrajte obrázek</translation>
 <translation id="9159628751968616911">Odeslat webovou stránku</translation>
+<translation id="9162412286847966593">Data a nahrávky vaší organizace se nebudou používat k vylepšování modelů generativní umělé inteligence. <ph name="BEGIN_LINK" />Vaše soukromí a Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Zapněte Automatické vyplnění hesel</translation>
 <translation id="9165320910061267720">Pokud chcete dostávat upozornění na pokles ceny, v nastavení systému iOS zapněte oznámení.</translation>
 <translation id="9179151630575358778">Skryje tuto položku</translation>

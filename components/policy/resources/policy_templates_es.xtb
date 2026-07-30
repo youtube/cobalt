@@ -14,13 +14,6 @@
 <translation id="1002829167638728809">Permitir informes de datos relacionados con la fiabilidad de dominios</translation>
 <translation id="1004590217607585595">Configuración de gestión de aplicaciones web</translation>
 <translation id="1006218396155867129">Impedir que los usuarios con acceso remoto puedan transferir archivos al host remoto y desde él</translation>
-<translation id="1007043180702842391">Controla si el visor de PDFs de <ph name="PRODUCT_NAME" /> usa un iframe fuera de proceso (OOPIF). Esta será la nueva arquitectura del visor de PDF en el futuro, ya que es más sencilla y facilita la incorporación de nuevas funciones. El visor de PDFs GuestView actual usa una arquitectura compleja y obsoleta que va a dejar de estar disponible.
-
-Si se habilita esta política o no se define, <ph name="PRODUCT_NAME" /> podrá usar la arquitectura del visor de PDFs OOPIF. Cuando se habilite o no se defina, <ph name="PRODUCT_NAME" /> decidirá el comportamiento predeterminado.
-
-Si se inhabilita esta política, <ph name="PRODUCT_NAME" /> usará únicamente el visor de PDFs GuestView actual. Inserta una página web con un árbol de marcos independiente en otra página web.
-
-Esta política se retirará en el futuro, cuando se haya lanzado por completo la función de visor de PDFs OOPIF.</translation>
 <translation id="1007149936182752368">Inhabilitar la edición de marcadores</translation>
 <translation id="1009336698423963085">Permitir la activación automática de la pantalla completa en estos sitios</translation>
 <translation id="1010151305531217567">Cambiar el botón principal del ratón al derecho</translation>
@@ -132,6 +125,7 @@ Nota: Consulta más información sobre las políticas de mitigación de procesos
 <translation id="1076751984131277498">Lista de dispositivos USB desvinculables permitidos</translation>
 <translation id="1077675271127011209">Inhabilitar informes de uso y de datos sobre fallos</translation>
 <translation id="1079498696402787191">Usar el valor predeterminado para los hashes permitidos en los handshakes de TLS</translation>
+<translation id="1079801999187584280">No permitir el uso de herramientas para desarrolladores</translation>
 <translation id="1081263326166769685">Si se habilita la política, <ph name="PRODUCT_OS_NAME" /> enviará a Google métricas de uso y datos de diagnóstico, como informes sobre fallos. Si se inhabilita la política, no se enviarán métricas ni datos de diagnóstico.
 
 En los dispositivos gestionados, esta política está habilitada de forma predeterminada y envía métricas a Google.
@@ -349,6 +343,7 @@ Sin embargo, los patrones de esta política que coinciden con el origen no puede
       <ph name="IMAGE_SEARCH_SOURCE" />,
       <ph name="IMAGE_THUMBNAIL" />,
       <ph name="IMAGE_THUMBNAIL_BASE64" />.</translation>
+<translation id="1238071290662886238">Controla el reinicio automático en segundo plano cuando se cierran todas las ventanas del navegador</translation>
 <translation id="1238150413700645698">Contenido protegido</translation>
 <translation id="1238868319430505522">Configura el flujo de <ph name="CLOUD_UPLOAD_NAME" /> para<ph name="GOOGLE_DRIVE_NAME" /> y <ph name="GOOGLE_WORKSPACE_NAME" /></translation>
 <translation id="1239526922294123540">Controla si se permite que los sitios web envíen solicitudes a puntos finales de red más privados de una manera no segura.
@@ -1265,6 +1260,7 @@ La disponibilidad de las extensiones seguirá estando controlada por otras polí
 <translation id="1851034156561932736">Habilitar sonidos de carga</translation>
 <translation id="1851282952069386119">Los usuarios pueden elegir si quieren compartir con Google los resultados obtenidos al ejecutar Limpiador de Chrome</translation>
 <translation id="1852294065645015766">Permitir reproducción automática de contenido multimedia</translation>
+<translation id="1853303312483982680">Inhabilitar reinicios automáticos cuando se cierran todas las ventanas</translation>
 <translation id="1855963029978337744">Habilitar esta política permite definir una lista de URLs que especifica qué sitios obtendrán permiso automáticamente para acceder a un dispositivo HID que tenga los IDs de proveedor y de producto establecidos. Cada elemento de la lista debe tener los campos <ph name="DEVICES_FIELD_NAME" /> y <ph name="URLS_FIELD_NAME" /> para ser válido. De lo contrario, el elemento se ignorará. Cada elemento del campo <ph name="DEVICES_FIELD_NAME" /> debe tener un campo <ph name="VENDOR_ID_FIELD_NAME" /> y puede tener un campo <ph name="PRODUCT_ID_FIELD_NAME" />. Si se omite el campo <ph name="PRODUCT_ID_FIELD_NAME" />, se creará una política referida a todos los dispositivos con el ID de proveedor especificado. Un elemento que tenga un campo <ph name="PRODUCT_ID_FIELD_NAME" />, pero que no tenga un campo <ph name="VENDOR_ID_FIELD_NAME" />, no se considerará válido y se ignorará.
 
       Si no se le asigna un valor a la política, se aplicará <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> si se ha definido previamente. Si no, se aplicará la configuración personal del usuario.
@@ -1798,6 +1794,21 @@ Esta política es una medida temporal y se eliminará después de la versión 14
 <translation id="2180958780733364832">Controla el uso del modo sin interfaz gráfica</translation>
 <translation id="2182291258410176649">El usuario decide si quiere habilitar la opción para crear una copia de seguridad y restaurar los datos</translation>
 <translation id="2183338188392346527">No informar sobre los contadores de tiempo de ejecución del dispositivo</translation>
+<translation id="2183838844225082873">Si se asigna el valor "0" (predeterminado) a esta política, podrás acceder a las herramientas para desarrolladores y a la consola de JavaScript, pero no en extensiones instaladas por políticas de empresa o, desde la versión 114 y si se trata de un usuario gestionado, no podrás acceder a las herramientas para desarrolladores ni a la consola de JavaScript en extensiones integradas en el navegador. Si se le asigna el valor "1", podrás acceder a las herramientas para desarrolladores y a la consola de JavaScript sin excepciones, incluso en extensiones instaladas por políticas de empresa. Si se le asigna el valor "2", no podrás acceder a las herramientas para desarrolladores ni tampoco podrás inspeccionar elementos de sitios web.
+
+Este ajuste también desactiva las combinaciones de teclas y las entradas de menús o menús contextuales que permiten abrir las herramientas para desarrolladores y la consola de JavaScript.
+
+A partir de la versión 99 de <ph name="PRODUCT_NAME" />, este ajuste también controla los puntos de entrada de la función Ver código fuente de la página. Si se asigna el valor "DeveloperToolsDisallowed" (valor 2) a esta política, los usuarios no podrán visualizar el código fuente a través de una combinación de teclas ni mediante el menú contextual. Para bloquear completamente la visualización del código fuente, también debes añadir "view-source:*" a la política <ph name="URL_BLOCKLIST_POLICY_NAME" />.
+
+A partir de la versión 119 de <ph name="PRODUCT_NAME" />, este ajuste también controla si se puede activar y usar el modo Desarrollador para aplicaciones web aisladas.
+
+A partir de la versión 128 de <ph name="PRODUCT_NAME" />, este ajuste no controlará el modo Desarrollador en la página de extensiones si se define la política <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" />.
+
+La disponibilidad de las herramientas para desarrolladores se determina según este orden de prioridad:
+1. Si una URL coincide con un patrón de la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, se permitirán las herramientas para desarrolladores.
+2. Si se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> y no se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, se bloquearán todas las URLs que no estén incluidas en la lista de permitidas.
+3. Si una URL coincide con un patrón de la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, se bloquearán las herramientas para desarrolladores.
+4. Si una URL no está incluida en la lista de permitidas ni en la de bloqueadas, se usará esta política (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) como alternativa.</translation>
 <translation id="2187361040843865450">Aceptar solicitudes de emparejamiento por Bluetooth "Funciona sin configuración"</translation>
 <translation id="2187372280917024033">La plantilla URI de la resolución de DNS-over-HTTPS deseada. Para especificar varias resoluciones de DNS-over-HTTPS, separa las plantillas URI correspondientes con espacios. Esta política es muy similar a <ph name="DOH_TEMPLATES_POLICY_NAME" />, a la que anulará si se define.
 A diferencia de la política <ph name="DOH_TEMPLATES_POLICY_NAME" />, esta política permite especificar información sobre la identidad.
@@ -1961,13 +1972,6 @@ Si se inhabilita esta política o no se establece, los usuarios podrán transfer
       Los usuarios no podrán modificar ni anular este ajuste.
 
       Nota: Esta política provoca que el encabezado X-GoogApps-Allowed-Domains se añada a todas las solicitudes HTTP y HTTPS en todos los dominios de google.com, como se describe en https://support.google.com/a/answer/1668854.</translation>
-<translation id="2287414160388710497">Permite a los administradores personalizar el aspecto de las marcas de agua aplicadas por las reglas de Prevención de la pérdida de datos (DLP). Esto incluye establecer la opacidad del relleno o del contorno y el tamaño de la fuente.
-Si no se define esta política o algunos valores, Chrome usará su comportamiento predeterminado para las marcas de agua.
-Los valores predeterminados son: opacidad del relleno 4, opacidad del contorno 6 y tamaño de la fuente 24.
-
-La opacidad del relleno es un porcentaje que va del 0 (totalmente transparente) al 100 (totalmente opaco).
-La opacidad del contorno es un porcentaje que va del 0 (totalmente transparente) al 100 (totalmente opaco).
-El tamaño de la fuente se especifica en puntos.</translation>
 <translation id="2288506601233091655">No permitir que se elimine el historial de trabajos de impresión</translation>
 <translation id="2289688405312849186">Cuenta principal del usuario: "usuario@dominio". El marcador de posición <ph name="LOGIN_ID_PLACEHOLDER" /> se reemplazará por el nombre de usuario "usuario". El marcador de posición <ph name="LOGIN_EMAIL_PLACEHOLDER" /> se reemplazará por la cuenta principal completa "usuario@dominio".</translation>
 <translation id="2290270645214705008">Si se inhabilita esta política, el servicio de host de acceso remoto no se podrá iniciar ni configurar para que acepte conexiones entrantes.  Esta política no afecta a las situaciones de asistencia remota.
@@ -2082,6 +2086,7 @@ Si se inhabilita esta política, los usuarios o las variaciones de <ph name="PRO
       A partir de la versión 91, ya no se le pueden asignar los valores "tls1" o "tls1.1" a esta política. Ya no es posible ocultar la advertencia TLS 1.0/1.1.</translation>
 <translation id="2364639863953745682">Modo de la experiencia de incorporación del Asistente</translation>
 <translation id="2366301887862414321">Permitir hosts de mensajería nativa a nivel de sistema y a nivel de usuario</translation>
+<translation id="2371015218815226913">Las conexiones WebSocket activas impedirán que las páginas se guarden en la caché de páginas completas.</translation>
 <translation id="2373014700224092497">Permitir que los usuarios añadan cuentas de Kerberos</translation>
 <translation id="2376134474855349829">Inhabilitar el teclado en pantalla en la pantalla de inicio de sesión y permitir que el usuario lo habilite temporalmente</translation>
 <translation id="2376151922689284770">Nombre que se mostrará en la interfaz del instalador (por ejemplo, Happy VM). Si no se define, se mostrará un nombre de respaldo, ya sea derivado de la primera entrada (por orden de visualización) de la política BruschettaVMConfiguration o, en su ausencia, un nombre genérico.</translation>
@@ -2234,15 +2239,6 @@ Para obtener más información sobre el tratamiento de datos en las funciones de
 <translation id="2479760962196319822">Esta política controla si los usuarios de <ph name="PRODUCT_OS_NAME" /> pueden almacenar datos de forma local o no.
       Si se asigna el valor False a esta política, se bloqueará el almacenamiento local en <ph name="PRODUCT_OS_NAME" /> y los usuarios no podrán almacenar ningún dato de forma local ni acceder a ningún directorio local.
       Si se asigna el valor True a esta política o no se define, se permitirá el almacenamiento local en <ph name="PRODUCT_OS_NAME" /> y no habrá restricciones sobre dónde pueden almacenar datos los usuarios ni a qué directorios pueden acceder.</translation>
-<translation id="2480971699591919564">Habilita la función Clic de llamada, que permite a los usuarios enviar números de teléfono desde Chrome para ordenador a un dispositivo Android si el usuario ha iniciado sesión. Puedes consultar más información en este artículo del Centro de Ayuda: https://support.google.com/chrome/answer/9430554?hl=es
-
-      Si se habilita esta política, el usuario de Chrome podrá enviar números de teléfono a dispositivos Android.
-
-      Si no se habilita esta política, el usuario de Chrome no podrá enviar números de teléfono a dispositivos Android.
-
-      Si estableces esta política, los usuarios no podrán cambiarla ni anularla.
-
-      Si no se establece esta política, la función Clic de llamada se habilitará de forma predeterminada.</translation>
 <translation id="2482676533225429905">Mensajería nativa</translation>
 <translation id="2483146640187052324">Predecir las acciones de red en cualquier conexión de red</translation>
 <translation id="2487495476672607707">La función Sincronización de archivos de <ph name="PRODUCT_OS_NAME" /> permite que los archivos de <ph name="GOOGLE_DRIVE_NAME" /> incluidos en la sección "Mi unidad" del usuario estén disponibles automáticamente sin conexión (si hay espacio) en dispositivos <ph name="CHROMEBOOK_PLUS_NAME" />.
@@ -2255,7 +2251,6 @@ Si se le asigna el valor <ph name="POLICY_VALUE_DISABLEDE" /> a esta política, 
 
 Si no se define esta política, la opción predeterminada será <ph name="POLICY_VALUE_VISIBLE" />.</translation>
 <translation id="2488455166114458307">Permitir la API Device Attributes en estos sitios</translation>
-<translation id="2489454942579368665">No permitir el uso de las herramientas de desarrollo en ningún caso</translation>
 <translation id="2489558694350871332">Permitir que el dispositivo ejecute máquinas virtuales</translation>
 <translation id="2492240920793040106">Habilitar los informes sobre datos del sistema y contenido de páginas para ayudar a mejorar la función Navegación segura</translation>
 <translation id="2496180316473517155">Historial de navegación</translation>
@@ -2689,7 +2684,6 @@ Si se le asigna el valor 2 (inhabilitada) a la política, no se permitirá la in
 <translation id="2707733461906745082">Separación de perfiles</translation>
 <translation id="2707873794476722903">La función Navegación segura está activa en modo estándar.</translation>
 <translation id="2709516037105925701">Autocompletar</translation>
-<translation id="2712089199157322391">Permitir herramientas de desarrollo en la navegación web estándar, pero restringirlas en extensiones instaladas por la empresa y en extensiones integradas de usuarios gestionados (bloqueadas en páginas que incluyan estas extensiones desde la versión M150, excepto en el visor de PDFs integrado).</translation>
 <translation id="2713913573196284609">Este valor no está disponible desde la versión M121. En la versión M121 y en versiones posteriores, los valores se tratarán como EnabledBelowThreshold.</translation>
 <translation id="2713977837384407666">Enviar siempre métricas a Google</translation>
 <translation id="2714359695399346815">Si se habilita esta política o no se le asigna ningún valor, se permitirá el uso de servidores STUN, los clientes remotos podrán detectar estos equipos y establecer conexión con ellos aunque haya un cortafuegos.
@@ -5492,6 +5486,7 @@ Para obtener información detallada sobre los patrones de URL válidos, consulta
 <translation id="4561940244682063697">No permitir que los sitios soliciten al usuario que comparta un stream de vídeo de su pantalla</translation>
 <translation id="4562165737444703281">Permitir a los usuarios [habilitar/configurar] la redirección de puertos a Crostini</translation>
 <translation id="456450545863578630">Habilitar la transferencia de archivos en conexiones de asistencia remota de administradores de empresas</translation>
+<translation id="4567137030726189378">Permite el uso de las herramientas para desarrolladores</translation>
 <translation id="4570859815763368584">Obsoleta en M68. Usa DefaultPopupsSetting en su lugar.
 
       Consulta la explicación completa en la página https://www.chromestatus.com/feature/5675755719622656.
@@ -6765,7 +6760,6 @@ Nota: Esta política no se aplica a las actualizaciones de HSTS.</translation>
       Si no se establece esta política, los usuarios que utilicen el desbloqueo rápido deben introducir su contraseña en la pantalla de bloqueo cada día.</translation>
 <translation id="5306186200045823863">Confiar en la infraestructura de PKI antigua de Symantec Corporation</translation>
 <translation id="5307432759655324440">Disponibilidad del modo Incógnito</translation>
-<translation id="5308289216279695777">Permitir el uso de las herramientas de desarrollo en todos los contextos, incluso en extensiones de políticas de empresa</translation>
 <translation id="5308551343115571396">Después de que se inhabilite <ph name="LACROS_NAME" />, intentaremos conservar tantos datos de usuario como sea posible y eliminaremos todos los datos del navegador.</translation>
 <translation id="53086358353377307">Permite definir una lista de patrones de URL donde se especifica qué sitios pueden establecer cookies.
 
@@ -7165,6 +7159,28 @@ Consulta también la página https://wiki.samba.org/index.php/Samba_4.6_Features
 
       Esta política está obsoleta. Usa <ph name="PROMOTIONS_ENABLED_POLICY_NAME" /> en su lugar.</translation>
 <translation id="5556607617517096419">Borealis</translation>
+<translation id="5556933299171172140">Si se define esta política, podrás especificar qué tipos de datos de Autocompletar se bloquean en patrones de URL concretos.
+
+La política se estructura como una lista de diccionarios. Cada diccionario debe contener:
+* "url_pattern": un patrón de URL de configuración de contenido para el marco principal (por ejemplo, "https://[*.]example.com").
+* "blocked_types": lista de cadenas que representan las categorías de datos de Autocompletar que se deben bloquear.
+
+Los valores admitidos para "blocked_types" son:
+* "contact_info": impide que se rellene y se guarde la información de contacto.
+* "payments": impide que se rellenen y se guarden tarjetas de crédito y métodos de pago.
+* "identity_docs": impide rellenar y guardar documentos de identidad (por ejemplo, pasaporte, carné de conducir o documento nacional de identidad).
+* "travel": impide rellenar y guardar información de viajes (por ejemplo, reservas de vuelos o matrículas de vehículos).
+* "shopping": impide rellenar y guardar información de compras (por ejemplo, pedidos online o envíos).
+* "all": impide rellenar y guardar todos los tipos de datos de Autocompletar.
+
+Si un tipo de datos está bloqueado en un sitio, se inhabilitan tanto la generación de sugerencias como la petición para guardar o importar nuevos datos de ese tipo en ese sitio.
+
+Si una URL coincide con varias entradas de patrón de la lista, los tipos bloqueados de todas las entradas coincidentes se combinan (se fusionan en unión). Los patrones de URL no válidos de la lista se ignoran.
+
+Si no se define esta política, no se bloqueará ningún tipo de datos de Autocompletar por dominio.
+
+Para obtener información detallada sobre los patrones de URL válidos, consulta:
+https://chromeenterprise.google/policies/url-patterns. Se admite el comodín *. Este patrón coincide con cualquier URL, con cualquier esquema, puerto y ruta.</translation>
 <translation id="5557753512027261467">Mostrar la opción de <ph name="GOOGLE_DRIVE_NAME" />.</translation>
 <translation id="5558394213067608844">Habilitar el controlador de diagnóstico y telemetría wilco</translation>
 <translation id="5559079916187891399">Esta política no influye en las aplicaciones para Android.</translation>
@@ -7502,6 +7518,13 @@ Si se habilita esta política, siempre se usará el almacenamiento en búfer ada
 
 Si se inhabilita esta política o no se define, el proceso de lanzamiento de funciones del navegador decidirá si se usa el almacenamiento en búfer adaptable.</translation>
 <translation id="5800329278018669527">Inhabilitar el mensaje de configuración de red si no hay conexión</translation>
+<translation id="5800627752428920394">Esta política controla si las conexiones WebSocket activas se desconectan cuando una página se guarda en la caché de páginas completas. Anteriormente, las conexiones WebSocket activas impedían que una página se almacenara en la caché de páginas completas, pero <ph name="PRODUCT_NAME" /> ha cambiado este comportamiento para desconectar los WebSockets, lo que permite que la página se almacene en la caché y se restaure en un estado desconectado.
+
+Si se habilita esta política o no se define, las conexiones WebSocket se desconectarán cuando una página se guarde en la caché de páginas completas.
+
+Si se inhabilita esta política, los WebSockets no se desconectarán cuando una página se guarde en la caché de páginas completas. Como la caché de páginas completas no admite WebSockets activos, las páginas con WebSockets activos no se almacenarán en la caché.
+
+Esta política es temporal y se eliminará más adelante.</translation>
 <translation id="5802931736499687181">Inhabilitar el flujo de procesamiento de informes cifrados</translation>
 <translation id="5803715507113569033">Esta política permite a los administradores configurar el montaje de <ph name="MICROSOFT_ONE_DRIVE_NAME" />.
 
@@ -8370,6 +8393,11 @@ En <ph name="MAC_OS_NAME" />, esta política solo está disponible en instancias
        Si esta política se inhabilita o no se establece, el cifrado del almacenamiento de los datos del usuario en los directorios principales de este que utilizan <ph name="DM_CRYPT" /> usarán <ph name="AES_NI_NAME" /> de forma predeterminada.</translation>
 <translation id="6316971721180184579">Inhabilitar sonido de batería baja</translation>
 <translation id="6319198883324703402">Define cuándo se envía la primera notificación para que el usuario reinicie</translation>
+<translation id="6319529757992804545">Controla el comportamiento de reinicio automático en segundo plano en macOS cuando hay una actualización de seguridad pendiente y se han cerrado todas las ventanas del navegador.
+
+Si se le asigna el valor True a esta política o no se define, <ph name="PRODUCT_NAME" /> podrá reiniciarse automáticamente para aplicar las actualizaciones pendientes cuando se cierren todas las ventanas del navegador.
+
+Si se le asigna el valor False a esta política, se inhabilitarán los reinicios automáticos cuando se cierren todas las ventanas del navegador.</translation>
 <translation id="6319907968994678054">Si se le asigna el valor Enabled a esta política, se desactivará la sincronización de datos en <ph name="PRODUCT_NAME" /> al usar los servicios de sincronización alojados por Google.
       Para desactivar los servicios de <ph name="CHROME_SYNC_NAME" /> por completo, te recomendamos que desactives el servicio en <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />.
 
@@ -9539,6 +9567,7 @@ Si no se establece esta política para un sitio, se le aplicará la política de
 <translation id="7025153290982655996">Volver al comportamiento anterior de alcance de las cookies</translation>
 <translation id="7025332601572838001">Configuración del comportamiento de los Términos del Servicio durante la primera ejecución de CCT</translation>
 <translation id="7026351325994257733">Permitir que las configuraciones de la red Wi‑Fi se sincronicen en los dispositivos <ph name="PRODUCT_OS_NAME" /> y en un teléfono Android conectado.</translation>
+<translation id="7026488120383693794">Permitir almacenar WebSockets en la caché de páginas completas</translation>
 <translation id="7027057540229843762">Usar el tema claro</translation>
 <translation id="7027785306666625591">Configura la administración de energía en <ph name="PRODUCT_OS_NAME" />.
 
@@ -10800,6 +10829,7 @@ Para obtener más información sobre la política <ph name="IEEM_SITELIST_POLICY
 
       Nota: Para controlar qué sitios web pueden ejecutar <ph name="FLASH_PLUGIN_NAME" />, consulta las políticas <ph name="DEFAULT_PLUGINS_SETTING_POLICY_NAME" />, <ph name="PLUGINS_ALLOWED_FOR_URLS_POLICY_NAME" /> y <ph name="PLUGINS_BLOCKED_FOR_URLS_POLICY_NAME" />.</translation>
 <translation id="7801163363326128751">Cambiar el ahorro del modo Ahorro de memoria</translation>
+<translation id="7802903687499576891">Permitir almacenar WebSockets en la caché de páginas completas (se desconectan al guardarse en la caché).</translation>
 <translation id="7804859754080118507">Informa de eventos de conexión de red y de intensidad de señal en dispositivos registrados.
 
       Si se le asigna el valor false a esta política o no se le asigna ningún valor, no se enviará esta información.
@@ -11600,6 +11630,7 @@ Varias políticas indican orígenes que afectan a las solicitudes al dispositivo
 
           Si no se establece esta política, se utilizará BlockKeygen y el usuario podrá modificarla.</translation>
 <translation id="8314214821702356835">Permite a los usuarios reproducir contenido multimedia cuando el dispositivo está bloqueado</translation>
+<translation id="8314308739926578606">No permite el uso de las herramientas para desarrolladores en aplicaciones ni extensiones instaladas por políticas de empresa o, desde la versión 114 y si se trata de un usuario gestionado, no permite el uso de las herramientas para desarrolladores en extensiones integradas en el navegador. Permite el uso de las herramientas para desarrolladores en otros contextos.</translation>
 <translation id="8316940611391250886">No permitir certificados que no tengan una extensión subjectAlternativeName</translation>
 <translation id="8319678975002906774">Establece valores de la configuración administrada aplicados a sitios web para orígenes determinados</translation>
 <translation id="8320149248919453401">Modo de carga de la batería</translation>
@@ -11979,6 +12010,7 @@ Esta política no tendrá ningún efecto si se habilita, se deja en blanco o no 
       Si se le asigna el valor true a esta política, las aplicaciones y ventanas de aplicaciones se restaurarán o no tras un fallo o reinicio basándose en el ajuste de restauración de la aplicación.
       Si se le asigna el valor false a esta política, solo se abrirán automáticamente las ventanas del navegador.</translation>
 <translation id="8579020983849384175">Editor de texto (compatible desde la versión 136)</translation>
+<translation id="8580740891685654239">Habilitar reinicios automáticos cuando se cierran todas las ventanas</translation>
 <translation id="8583509234908413302">Permitir cambiar la versión de WebRTC a versiones antiguas de TLS/DTLS</translation>
 <translation id="8584279193368801689">Restringe el modo de impresión con PIN. Si no se establece esta política, no se aplicará ninguna restricción. Si el modo no está disponible, se ignorará esta política. Ten en cuenta que la función de impresión con PIN solo está habilitada en impresoras que utilizan uno de los protocolos IPPS, HTTPS, USB o IPP por USB.</translation>
 <translation id="858510846828945657">Lista de excepciones de dominios de servicio bloqueados de servicio de SSO flotante</translation>
@@ -12460,25 +12492,6 @@ Los orígenes no especificados en la política ni en la configuración del usuar
 <translation id="8892286064305622118">Espacio disponible en disco necesario para <ph name="PLUGIN_VM_NAME" /></translation>
 <translation id="8892771980172542172">El nombre del canal de actualización/lanzamiento de la IWA. Este valor puede ser cualquier cadena, no hay restricciones. Si no se proporciona ningún valor, se usará el canal "default".</translation>
 <translation id="8892783613915541293">Retrasos y acciones que se deben llevar a cabo cuando el dispositivo esté inactivo y conectado a la red eléctrica</translation>
-<translation id="8895045875428227171">Valor 0 (predeterminado): las herramientas de desarrollo están disponibles para la navegación web estándar, pero están restringidas para las extensiones instaladas por la empresa y las extensiones integradas de usuarios gestionados. A partir de la versión M150, también se bloquean en cualquier página que incluya estas extensiones, con la única excepción del visor de PDFs integrado.
-
-Valor 1: Las herramientas de desarrollo y la consola están completamente desbloqueadas y son accesibles en todos los contextos, incluso en las extensiones de políticas de empresa.
-
-Valor 2: Las herramientas de desarrollo y la inspección de elementos están totalmente inhabilitadas en todo el navegador.
-
-Este ajuste también desactiva las combinaciones de teclas y las entradas de menús o menús contextuales que permiten abrir las herramientas para desarrolladores y la consola de JavaScript.
-
-A partir de la versión 99 de <ph name="PRODUCT_NAME" />, este ajuste también controla los puntos de entrada de la función Ver código fuente de la página. Si se asigna el valor "DeveloperToolsDisallowed" (valor 2) a esta política, los usuarios no podrán visualizar el código fuente a través de una combinación de teclas ni mediante el menú contextual. Para bloquear completamente la visualización del código fuente, también debes añadir "view-source:*" a la política <ph name="URL_BLOCKLIST_POLICY_NAME" />.
-
-A partir de la versión 119 de <ph name="PRODUCT_NAME" />, este ajuste también controla si se puede activar y usar el modo Desarrollador para aplicaciones web aisladas.
-
-A partir de la versión 128 de <ph name="PRODUCT_NAME" />, este ajuste no controlará el modo Desarrollador en la página de extensiones si se define la política <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" />.
-
-La disponibilidad de las herramientas de desarrollo se determina según este orden de prioridad:
-1. Si una URL coincide con un patrón de la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, se permitirán las herramientas de desarrollo.
-2. Si se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> y no se define <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, se bloquearán todas las URLs que no estén incluidas en la lista de permitidas.
-3. Si una URL coincide con un patrón de la política <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, se bloquearán las herramientas de desarrollo.
-4. Si una URL no está incluida en la lista de permitidas ni en la de bloqueadas, se usará esta política (<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />) como alternativa.</translation>
 <translation id="8897796778265450949">Limita el tiempo durante el que un usuario autenticado mediante GAIA sin SAML puede iniciar sesión sin conexión</translation>
 <translation id="889814528399907891">Permitir que los usuarios habiliten <ph name="LACROS_NAME" /> y lo conviertan en el navegador principal</translation>
 <translation id="8900312706328930425">Frecuencia de los informes en la nube en horas</translation>

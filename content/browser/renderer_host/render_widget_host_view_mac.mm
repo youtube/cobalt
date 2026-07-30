@@ -565,7 +565,9 @@ RenderWidgetHostViewMac::GetFocusedRenderWidgetHostDelegate() {
 }
 
 RenderWidgetHostImpl* RenderWidgetHostViewMac::GetWidgetForKeyboardEvent() {
-  CHECK(in_keyboard_event_, base::NotFatalUntil::M152);
+  // TODO(crbug.com/534500557): CHECK-exclusion: Convert to a CHECK once we are
+  // confident it won't be triggered.
+  DCHECK(in_keyboard_event_);
   return RenderWidgetHostImpl::FromID(keyboard_event_widget_process_id_,
                                       keyboard_event_widget_routing_id_);
 }
@@ -2367,6 +2369,11 @@ bool RenderWidgetHostViewMac::SyncGetFirstRectForRange(
     // which means we have to scale the rect by the device scale factor.
     *rect = gfx::ScaleToEnclosingRect(blink_rect, 1.f / device_scale_factor);
   }
+
+  // Ensure the returned rect is clamped to the viewport to prevent a
+  // compromised renderer from placing IME windows outside the page.
+  // See https://crbug.com/519210950.
+  rect->AdjustToFit(gfx::Rect(GetVisibleViewportSize()));
   return true;
 }
 
@@ -2693,9 +2700,12 @@ RenderWidgetHostViewMac::MaybeUpdateScreenInfosForHiDPI() {
 void RenderWidgetHostViewMac::CreateUnboundedSurface(
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
     mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
-    const gfx::Rect& bounds_in_dips) {
+    const gfx::Rect& bounds_in_dips,
+    base::WeakPtr<RenderWidgetHostViewBase> subframe_view) {
   unbounded_surface_window_ = std::make_unique<UnboundedSurfaceWindowMac>(
-      this, std::move(host), std::move(client), bounds_in_dips);
+      this, std::move(host), std::move(client),
+      ConvertSubframeBoundsToScreen(bounds_in_dips, subframe_view.get()),
+      std::move(subframe_view));
 }
 
 bool RenderWidgetHostViewMac::IsHeadless() const {

@@ -11,6 +11,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.AccumulatingTabCreator;
 import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager;
 import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager.StoreType;
@@ -204,12 +205,16 @@ public class TabPersistentStoreFactory {
                 recordingTabCreatorManager.getRecorder(/* incognito= */ false);
         assert recordingTabCreator != null;
 
+        Profile profile = selector.getProfile(/* offTheRecord= */ false);
+        assert profile != null;
         new ShadowTabStoreValidator(
+                profile,
                 authoritativeStore,
                 shadowTabPersistentStore,
                 recordingTabCreator,
                 regularShadowTabCreator,
                 migrationManager,
+                windowTag,
                 orchestratorTag);
 
         migrationManager.onShadowStoreCreated(shadowStoreType);

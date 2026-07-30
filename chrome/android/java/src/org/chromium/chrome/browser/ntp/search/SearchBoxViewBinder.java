@@ -34,6 +34,8 @@ class SearchBoxViewBinder
                     model.get(SearchBoxProperties.AI_CHIP_VISIBILITY) ? View.VISIBLE : View.GONE);
         } else if (SearchBoxProperties.ALPHA == propertyKey) {
             view.setAlpha(model.get(SearchBoxProperties.ALPHA));
+        } else if (SearchBoxProperties.APPLY_ELEVATION == propertyKey) {
+            view.applyElevation(model.get(SearchBoxProperties.APPLY_ELEVATION));
         } else if (SearchBoxProperties.APPLY_WHITE_BACKGROUND == propertyKey) {
             view.applyWhiteBackground(model.get(SearchBoxProperties.APPLY_WHITE_BACKGROUND));
         } else if (SearchBoxProperties.DSE_ICON_DRAWABLE == propertyKey) {
@@ -77,9 +79,12 @@ class SearchBoxViewBinder
                     model.get(SearchBoxProperties.SEARCH_BOX_END_PADDING),
                     view.getPaddingBottom());
         } else if (SearchBoxProperties.SEARCH_BOX_HEIGHT == propertyKey) {
-            ViewGroup.LayoutParams lp = view.getLayoutParams();
-            lp.height = model.get(SearchBoxProperties.SEARCH_BOX_HEIGHT);
-            view.setLayoutParams(lp);
+            View shadowContainer = view.findViewById(R.id.search_box_shadow_container);
+            if (shadowContainer != null) {
+                ViewGroup.LayoutParams lp = shadowContainer.getLayoutParams();
+                lp.height = model.get(SearchBoxProperties.SEARCH_BOX_HEIGHT);
+                shadowContainer.setLayoutParams(lp);
+            }
         } else if (SearchBoxProperties.SEARCH_BOX_HINT_TEXT == propertyKey) {
             view.mHintTextView.setHint(model.get(SearchBoxProperties.SEARCH_BOX_HINT_TEXT));
         } else if (SearchBoxProperties.SEARCH_BOX_TEXT_STYLE_RES_ID == propertyKey) {

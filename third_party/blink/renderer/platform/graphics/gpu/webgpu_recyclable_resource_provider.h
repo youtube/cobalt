@@ -41,7 +41,6 @@ class Size;
 }  // namespace gfx
 
 namespace gpu {
-class RasterScopedAccess;
 namespace raster {
 class RasterInterface;
 }  // namespace raster
@@ -49,11 +48,8 @@ class RasterInterface;
 
 namespace blink {
 
-class CanvasImageProvider;
-
-class PLATFORM_EXPORT WebGpuRecyclableResourceProvider
-    : public CanvasMemoryDumpClient,
-      public WebGraphicsContext3DProviderWrapper::DestructionObserver {
+class PLATFORM_EXPORT WebGpuRecyclableResourceProvider final
+    : public CanvasMemoryDumpClient {
  public:
   static std::unique_ptr<WebGpuRecyclableResourceProvider> Create(
       gfx::Size size,
@@ -61,7 +57,7 @@ class PLATFORM_EXPORT WebGpuRecyclableResourceProvider
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
       const gfx::HDRMetadata& hdr_metadata);
-  ~WebGpuRecyclableResourceProvider() override;
+  ~WebGpuRecyclableResourceProvider();
 
   gfx::Size Size() const { return size_; }
   viz::SharedImageFormat GetSharedImageFormat() const { return format_; }
@@ -71,8 +67,6 @@ class PLATFORM_EXPORT WebGpuRecyclableResourceProvider
   scoped_refptr<gpu::ClientSharedImage> GetSharedImage() const;
   gpu::SyncToken GetSyncToken() const;
 
-
-  // NOTE: Can only be used if this instance is accelerated.
   bool UploadToBackingSharedImage(const SkPixmap& pixmap,
                                   uint32_t src_x,
                                   uint32_t src_y);
@@ -125,28 +119,13 @@ class PLATFORM_EXPORT WebGpuRecyclableResourceProvider
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>);
 
   bool IsGpuContextLost() const;
-  CanvasImageProvider* GetOrCreateImageProvider();
-
-  // WebGraphicsContext3DProviderWrapper::DestructionObserver implementation.
-  void OnContextDestroyed() override;
 
   // CanvasMemoryDumpClient implementation.
   base::ByteSize EstimatedSizeInBytes() const;
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override;
   size_t GetSize() const override;
 
-
-
   gpu::raster::RasterInterface* RasterInterface() const;
-
-  base::WeakPtr<WebGraphicsContext3DProviderWrapper> ContextProviderWrapper()
-      const {
-    return context_provider_wrapper_;
-  }
-
-
-
-  std::unique_ptr<gpu::RasterScopedAccess> WillDrawInternal();
 
   const gfx::Size size_;
   const viz::SharedImageFormat format_;
@@ -154,7 +133,6 @@ class PLATFORM_EXPORT WebGpuRecyclableResourceProvider
   const gfx::ColorSpace color_space_;
   const gfx::HDRMetadata hdr_metadata_;
 
-  std::unique_ptr<CanvasImageProvider> canvas_image_provider_;
   std::unique_ptr<MemoryManagedPaintRecorder> recorder_for_external_draws_;
 
   scoped_refptr<gpu::ClientSharedImage> shared_image_;

@@ -10,14 +10,12 @@
 wpt_internal/*
 virtual/digital-credentials-fake-ui/wpt_internal/*
 virtual/threaded/wpt_internal/*
-virtual/attribution-reporting-debug-mode/wpt_internal/*
 virtual/background-fetch-service-worker-allowed/wpt_internal/*
 virtual/stable/wpt_internal/*
 virtual/isolated-context/wpt_internal/*
 virtual/isolated-context-stable/wpt_internal/*
 virtual/forced-high-contrast-colors/wpt_internal/*
 virtual/trust-tokens/wpt_internal/*
-virtual/private-aggregation-developer-mode/wpt_internal/*
 virtual/task-tracking/wpt_internal/*
 virtual/fenced-frame-mparch-internal/wpt_internal/*
 virtual/js-shared-memory/wpt_internal/*
@@ -396,8 +394,6 @@ external/wpt/fedcm/fedcm-not-observed-by-service-worker.https.html
 external/wpt/fetch/stale-while-revalidate/stale-css.html
 external/wpt/fetch/stale-while-revalidate/stale-image.html
 external/wpt/fetch/stale-while-revalidate/stale-script.html
-external/wpt/fledge/tentative/component-ads.https.window.html?11-15
-external/wpt/fledge/tentative/reporting-arguments.https.window.html?16-last
 external/wpt/fs/FileSystemObserver-sync-access-handle.https.tentative.*
 external/wpt/html-aam/names.html
 external/wpt/html-aam/roles.html
@@ -814,8 +810,7 @@ virtual/scalefactor200/external/wpt/largest-contentful-paint/animated/observe-cr
 virtual/scalefactor200/external/wpt/largest-contentful-paint/image-not-fully-visible.html
 virtual/scalefactor200/external/wpt/largest-contentful-paint/multiple-image-same-src.html
 virtual/scalefactor200/external/wpt/largest-contentful-paint/video-data-uri.html
-virtual/shared-storage-fenced-frame-mparch/external/wpt/shared-storage/select-url-saved-query-cross-origin-multi-query.tentative.https.sub.html
-virtual/shared-storage-fenced-frame-mparch/external/wpt/shared-storage/select-url-saved-query-same-origin-multi-query.tentative.https.sub.html
+
 external/wpt/speculation-rules/prerender/restriction-background-sync.https.html?target_hint=_blank
 external/wpt/speculation-rules/prerender/restriction-background-sync.https.html?target_hint=_self
 virtual/prefetch-cancel-unrelated-prefetch/external/wpt/speculation-rules/prerender/restriction-background-sync.https.html?target_hint=_blank

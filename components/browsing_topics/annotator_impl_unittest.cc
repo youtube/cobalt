@@ -4,6 +4,8 @@
 
 #include "components/browsing_topics/annotator_impl.h"
 
+#include <vector>
+
 #include "base/containers/flat_map.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -120,14 +122,14 @@ class BrowsingTopicsAnnotatorImplTest : public testing::Test {
             .AppendASCII("data")
             .AppendASCII("browsing_topics")
             .AppendASCII("golden_data_model.tflite");
-    std::unique_ptr<optimization_guide::ModelInfo> model_info =
+    optimization_guide::ModelInfo model_info =
         optimization_guide::TestModelInfoBuilder()
             .SetModelFilePath(model_file_path)
             .SetModelMetadata(model_metadata)
             .Build();
     annotator()->OnModelUpdated(
         optimization_guide::proto::OPTIMIZATION_TARGET_PAGE_TOPICS_V2,
-        *model_info);
+        model_info);
   }
 
   void SendModelToAnnotator(
@@ -517,7 +519,7 @@ class BrowsingTopicsAnnotatorOverrideListTest
   }
 
   void SendModelWithAdditionalFilesToAnnotator(
-      const base::flat_set<base::FilePath>& additional_files) {
+      const std::vector<base::FilePath>& additional_files) {
     optimization_guide::proto::PageTopicsModelMetadata model_metadata;
     model_metadata.set_version(123);
     model_metadata.set_taxonomy_version(kTaxonomyVersionV2);
@@ -537,7 +539,7 @@ class BrowsingTopicsAnnotatorOverrideListTest
             // These tests don't need a valid model to execute as we don't care
             // about the model output or execution.
             .AppendASCII("model_doesnt_exist.tflite");
-    std::unique_ptr<optimization_guide::ModelInfo> model_info =
+    optimization_guide::ModelInfo model_info =
         optimization_guide::TestModelInfoBuilder()
             .SetModelFilePath(model_file_path)
             .SetModelMetadata(any_metadata)
@@ -545,7 +547,7 @@ class BrowsingTopicsAnnotatorOverrideListTest
             .Build();
     annotator()->OnModelUpdated(
         optimization_guide::proto::OPTIMIZATION_TARGET_PAGE_TOPICS_V2,
-        *model_info);
+        model_info);
 
     base::RunLoop run_loop;
     annotator()->NotifyWhenModelAvailable(run_loop.QuitClosure());

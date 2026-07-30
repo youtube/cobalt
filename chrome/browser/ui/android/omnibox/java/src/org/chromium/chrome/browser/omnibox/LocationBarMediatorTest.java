@@ -88,6 +88,7 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.omnibox.SearchEngineService.SearchEngineNameObserver;
 import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge;
+import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridgeJni;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLayoutMode;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
@@ -236,6 +237,7 @@ public class LocationBarMediatorTest {
     @Mock private FuseboxCoordinator mFuseboxCoordinator;
     @Mock private AutocompleteController mAutocompleteController;
     @Mock private ComposeboxQueryControllerBridge mComposeboxBridge;
+    @Mock private ComposeboxQueryControllerBridge.Natives mComposeboxBridgeJni;
     @Mock private OmniboxSuggestionsContainer mSuggestionsContainer;
     @Mock private OmniboxSuggestionsDropdown mDropdown;
     @Mock private VoiceRecognitionHandler mVoiceRecognitionHandler;
@@ -306,6 +308,8 @@ public class LocationBarMediatorTest {
 
         AutocompleteController.setInstanceForTesting(mAutocompleteController);
         ComposeboxQueryControllerBridge.setInstanceForTesting(mComposeboxBridge);
+        ComposeboxQueryControllerBridgeJni.setInstanceForTesting(mComposeboxBridgeJni);
+        lenient().doReturn(true).when(mComposeboxBridgeJni).isFuseboxEligibleForProfile(any());
         MultiInstanceOrchestratorFactory.setInstanceForTesting(mMultiInstanceOrchestrator);
 
         mUrlBarData = UrlBarData.create(null, "text", 0, 0, "text");
@@ -1091,8 +1095,7 @@ public class LocationBarMediatorTest {
         verify(mTab, times(0)).loadUrl(any());
     }
 
-    @Test
-    public void testLoadUrl_openInNewTab_base() {
+    private void testLoadUrl_openInNewTab_base() {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
 
@@ -1354,6 +1357,40 @@ public class LocationBarMediatorTest {
             // Step 4: no other actions can be taken: bail
             assertFalse(mMediator.handleEscPress());
         }
+    }
+
+    @Test
+    public void testEscapePress_resetsRequestTypeToSearch() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+        mMediator.onUrlFocusChange(true);
+
+        AutocompleteInput input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.ENABLED);
+        input.setRequestType(AutocompleteRequestType.AI_MODE);
+
+        assertTrue(mMediator.handleEscPress());
+
+        assertEquals(AutocompleteRequestType.SEARCH, input.getRequestType());
+        assertEquals(AutocompleteState.STANDBY, input.getAutocompleteState());
+    }
+
+    @Test
+    public void testEscapePress_revertChangesResetsRequestTypeToSearch() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+        mMediator.onUrlFocusChange(true);
+
+        AutocompleteInput input = mSessionState.getAutocompleteInput();
+        input.setInitialUserText("initial text");
+        input.setUserText("modified text");
+        input.setAutocompleteState(AutocompleteState.STANDBY);
+        input.setRequestType(AutocompleteRequestType.AI_MODE);
+
+        assertTrue(mMediator.handleEscPress());
+
+        assertEquals(AutocompleteRequestType.SEARCH, input.getRequestType());
+        assertEquals(input.getInitialUserText(), input.getUserText());
     }
 
     @Test
@@ -2710,6 +2747,7 @@ public class LocationBarMediatorTest {
         mMediator.onFinishNativeInitialization();
         mMediator.setVoiceRecognitionHandlerForTesting(mVoiceRecognitionHandler);
         mFuseboxLayoutModeSupplier.set(FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
         doReturn(true).when(mVoiceRecognitionHandler).isVoiceSearchEnabled();
 
         mSessionState.getAutocompleteInput().setRequestType(AutocompleteRequestType.AI_MODE);
@@ -2718,6 +2756,11 @@ public class LocationBarMediatorTest {
         clearInvocations(mLocationBarLayout);
         mMediator.updateButtonVisibility();
         verify(mLocationBarLayout).setMicButtonVisibility(/* shouldShow= */ true);
+
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        clearInvocations(mLocationBarLayout);
+        mMediator.updateButtonVisibility();
+        verify(mLocationBarLayout).setMicButtonVisibility(/* shouldShow= */ false);
     }
 
     @Test
@@ -3516,6 +3559,16 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    public void testAlwaysShowAiMode_disabledWhenNotFuseboxEligible() {
+        mFuseboxLayoutModeSupplier.set(FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        doReturn(false).when(mComposeboxBridgeJni).isFuseboxEligibleForProfile(any());
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        verify(mUrlCoordinator).setShowAiModeCallback(null);
+    }
+
+    @Test
     public void testHandleKeyNavigationEventIneligibleKey() {
         doReturn(KeyEvent.KEYCODE_A).when(mKeyEvent).getKeyCode();
         doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
@@ -3601,6 +3654,56 @@ public class LocationBarMediatorTest {
         assertFalse(selectionController.isAutocompleteSelected());
         verify(mAutocompleteCoordinator, times(2)).resetSelection();
         assertEquals(1, selectionController.getPosition().intValue());
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_ctrlTab_notHandled() {
+        doReturn(KeyEvent.KEYCODE_TAB).when(mKeyEvent).getKeyCode();
+        doReturn(false).when(mKeyEvent).hasNoModifiers();
+        doReturn(false).when(mKeyEvent).hasModifiers(KeyEvent.META_SHIFT_ON);
+        doReturn(true).when(mKeyEvent).isCtrlPressed();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        assertFalse(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_dpadDown_standby_togglesEnabled() {
+        doReturn(KeyEvent.KEYCODE_DPAD_DOWN).when(mKeyEvent).getKeyCode();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY);
+        mMediator.beginInput(input);
+
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_DPAD_DOWN, mKeyEvent));
+        assertEquals(AutocompleteState.ENABLED, input.getAutocompleteState());
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_dpadDown_notStandby_doesNotToggle() {
+        doReturn(KeyEvent.KEYCODE_DPAD_DOWN).when(mKeyEvent).getKeyCode();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.ENABLED);
+        mMediator.beginInput(input);
+
+        mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_DPAD_DOWN, mKeyEvent);
+        assertEquals(AutocompleteState.ENABLED, input.getAutocompleteState());
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_notDpadDown_standby_doesNotToggle() {
+        doReturn(KeyEvent.KEYCODE_DPAD_UP).when(mKeyEvent).getKeyCode();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY);
+        mMediator.beginInput(input);
+
+        mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_DPAD_UP, mKeyEvent);
+        assertEquals(AutocompleteState.STANDBY, input.getAutocompleteState());
     }
 
     @Test

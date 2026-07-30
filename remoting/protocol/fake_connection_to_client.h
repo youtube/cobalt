@@ -32,7 +32,6 @@ class FakeVideoStream : public protocol::VideoStream {
   void SetEventTimestampsSource(scoped_refptr<InputEventTimestampsSource>
                                     event_timestamps_source) override;
   void Pause(bool pause) override;
-  void SetObserver(Observer* observer) override;
   void SelectSource(webrtc::ScreenId id) override;
   void SetComposeEnabled(bool enabled) override;
   void SetMouseCursor(
@@ -42,13 +41,9 @@ class FakeVideoStream : public protocol::VideoStream {
 
   webrtc::ScreenId selected_source() const;
 
-  Observer* observer() { return observer_; }
-
   base::WeakPtr<FakeVideoStream> GetWeakPtr();
 
  private:
-  raw_ptr<Observer> observer_ = nullptr;
-
   webrtc::ScreenId selected_source_ = -200;
 
   base::WeakPtrFactory<FakeVideoStream> weak_factory_{this};
@@ -74,11 +69,13 @@ class FakeConnectionToClient : public ConnectionToClient {
   void SetAudioWriter(std::unique_ptr<FifoBufferWriter> writer) override;
 
   ClientStub* client_stub() override;
+  void Start() override;
   void Disconnect(ErrorCode error,
                   std::string_view error_details,
                   const SourceLocation& error_location) override;
 
   Session* session() override;
+  Transport* transport() override;
 
   void set_clipboard_stub(ClipboardStub* clipboard_stub) override;
   void set_host_stub(HostStub* host_stub) override;

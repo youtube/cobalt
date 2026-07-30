@@ -104,6 +104,7 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -176,6 +177,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardPropert
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListProperties.RailCollapseState;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
 import org.chromium.components.browser_ui.util.motion.MotionEventTestUtils;
 import org.chromium.components.browser_ui.widget.ActionConfirmationResult;
@@ -1447,7 +1449,10 @@ public class TabListMediatorUnitTest {
         when(mTabModel.getCount()).thenReturn(3);
 
         // Hide dialog to complete and ensure the delayed tab is not added.
-        resetWithNullTabs();
+        mMediator.resetWithListOfTabs(null, null, false);
+        verify(mTabModel).removeObserver(any());
+        verify(mTabModel).removeTabGroupObserver(any());
+
         mMediator.postHiding();
         // Assert tab was not added.
         assertThat(mModelList.size(), equalTo(0));
@@ -6166,6 +6171,60 @@ public class TabListMediatorUnitTest {
                 UiType.PRICE_MESSAGE,
                 new PropertyModel.Builder(TabProperties.ALL_KEYS_TAB_GRID).build());
         assertEquals(initialSize, mModelList.size());
+    }
+
+    @Test
+    public void testRailCollapseStateSupplier_updatesExistingTabsAndNewTabs() {
+        SettableNonNullObservableSupplier<@RailCollapseState Integer> railCollapseStateSupplier =
+                ObservableSuppliers.createNonNull(RailCollapseState.EXPANDED);
+        when(mTabListConfigDelegate.getRailCollapseStateSupplier())
+                .thenReturn(railCollapseStateSupplier);
+
+        setUpTabListMediator(TabListMediatorType.VERTICAL_TABS, TabListMode.VERTICAL);
+
+        Tab tab3 = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
+        mockTabIndexes(mTab1, mTab2, tab3);
+
+        mMediator.resetWithListOfTabs(List.of(mTab1, mTab2), null, false);
+        assertEquals(
+                RailCollapseState.EXPANDED,
+                mModelList.get(0).model.get(TabProperties.RAIL_COLLAPSE_STATE));
+        assertEquals(
+                RailCollapseState.EXPANDED,
+                mModelList.get(1).model.get(TabProperties.RAIL_COLLAPSE_STATE));
+
+        railCollapseStateSupplier.set(RailCollapseState.COLLAPSED);
+        assertEquals(
+                RailCollapseState.COLLAPSED,
+                mModelList.get(0).model.get(TabProperties.RAIL_COLLAPSE_STATE));
+        assertEquals(
+                RailCollapseState.COLLAPSED,
+                mModelList.get(1).model.get(TabProperties.RAIL_COLLAPSE_STATE));
+
+        mTabModelObserverCaptor
+                .getValue()
+                .didAddTab(
+                        tab3,
+                        TabLaunchType.FROM_CHROME_UI,
+                        TabCreationState.LIVE_IN_FOREGROUND,
+                        false);
+        assertEquals(
+                RailCollapseState.COLLAPSED,
+                mModelList.get(2).model.get(TabProperties.RAIL_COLLAPSE_STATE));
+    }
+
+    @Test
+    public void testRailCollapseStateSupplier_unregistersOnDestroy() {
+        SettableNonNullObservableSupplier<@RailCollapseState Integer> railCollapseStateSupplier =
+                ObservableSuppliers.createNonNull(RailCollapseState.EXPANDED);
+        when(mTabListConfigDelegate.getRailCollapseStateSupplier())
+                .thenReturn(railCollapseStateSupplier);
+
+        setUpTabListMediator(TabListMediatorType.VERTICAL_TABS, TabListMode.VERTICAL);
+        assertTrue(railCollapseStateSupplier.hasObservers());
+
+        mMediator.destroy();
+        assertFalse(railCollapseStateSupplier.hasObservers());
     }
 
     private void mockTabIndexes(Tab... tabs) {

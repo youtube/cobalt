@@ -14,7 +14,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
-#include "chrome/browser/new_tab_page/ntp_pref_names.h"
+#include "chrome/browser/new_tab_page/prefs/ntp_pref_names.h"
 #include "chrome/browser/ntp_tiles/chrome_most_visited_sites_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_config.h"
@@ -438,12 +438,7 @@ void MostVisitedHandler::OnURLsAvailable(
   result->custom_links_enabled = most_visited_sites_->IsCustomLinksEnabled();
   result->enterprise_shortcuts_enabled =
       most_visited_sites_->IsEnterpriseShortcutsEnabled();
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(b/502297163): Implement for Android.
-  result->visible = true;
-#else
   result->visible = most_visited_sites_->IsShortcutsVisible();
-#endif
   page_->SetMostVisitedInfo(std::move(result));
 }
 

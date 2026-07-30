@@ -20,8 +20,6 @@ import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import type {SearchAnimatedGlowElement} from '//resources/cr_components/search/animated_glow.js';
 import {ComposeboxContextAddedMethod, GlowAnimationState} from '//resources/cr_components/search/constants.js';
-import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
-import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
@@ -71,7 +69,7 @@ export interface ComposeboxElement {
 
 // LINT.IfChange
 export class ComposeboxElement extends ComposeboxEmbedderMixin
-(CrLitElement) implements DragAndDropHost {
+(CrLitElement) {
   static get is() {
     return 'cr-composebox';
   }
@@ -178,7 +176,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
   // Retains the latest version of the pending automatic active tab's title.
   protected pendingAutomaticActiveTabTitle_: string = '';
-  protected dragAndDropHandler_: DragAndDropHandler;
 
   private get webUIOmniboxAskGAboutThisPageEnabled_(): boolean {
     return loadTimeData.valueExists('webUIOmniboxAskGAboutThisPageEnabled') &&
@@ -254,8 +251,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
-    this.dragAndDropHandler_ =
-        new DragAndDropHandler(this, this.dragAndDropEnabled);
   }
 
   override getInputElement(): ComposeboxInputElement {
@@ -366,11 +361,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     }
   }
 
-  /* Used by drag/drop host interface so the
-  drag and drop handler can access addDroppedFiles(). */
-  getDropTarget() {
-    return this;
-  }
 
   playGlowAnimation() {
     // If |animationState_| were still EXPANDING, this function would have no
@@ -528,7 +518,8 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   }
 
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.
-  private async updateAutoSuggestedTabContext_(tab: TabInfo|null) {
+  private async updateAutoSuggestedTabContext_(
+      tab: TabInfo|null, invocationSource: string|null) {
     if (this.smartTabSharingActive) {
       if (this.automaticActiveTab_) {
         this.deleteFile(this.automaticActiveTab_.uuid);
@@ -536,15 +527,19 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       }
       return;
     }
+    // AutoSuggestedTabContext is routed differently for Omnibox Page Action.
+    // when it opens a side panel to cobrowse.
+    // TODO(crbug.com/486707842): Move check to the
+    // Contextual Tasks embedder.
+    const askGAndPageAction = this.webUIOmniboxAskGAboutThisPageEnabled_ &&
+        invocationSource === 'OmniboxPageAction' && this.isSidePanel;
+
     // We should delete the automatic active tab if it is different from the
     // current tab when webUIOmniboxAskGAboutThisPageEnabled_ is true. Make sure
     // to keep the existing tab if we are returning from another tab.
     const hasTabMismatch = !!this.automaticActiveTab_ && !!tab &&
         this.automaticActiveTab_.url !== tab.url;
-    // TODO(crbug.com/486707842): Move `this.isSidePanel` check to the
-    // Contextual Tasks embedder.
-    const shouldDeleteAutomaticActiveTab =
-        (this.webUIOmniboxAskGAboutThisPageEnabled_ || this.isSidePanel) ?
+    const shouldDeleteAutomaticActiveTab = askGAndPageAction ?
         hasTabMismatch :
         this.automaticActiveTab_ && (!tab || hasTabMismatch);
 
@@ -555,7 +550,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       // TODO(crbug.com/482150500): Correctly query for url based suggestions
       // when delayed tab is present. Right now, while url-based suggestions are
       // not set-up, clear the autocomplete matches.
-      if (!this.webUIOmniboxAskGAboutThisPageEnabled_ && !tab) {
+      if (!askGAndPageAction && !tab) {
         this.queryAutocomplete(/* clearMatches= */ true);
       }
       return;
@@ -603,17 +598,12 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
             tabId: tab.tabId,
             title: tab.title,
             url: tab.url,
-            // Immediate upload on load is desired for side panel under the
-            // feature flag. This is so the list of suggestions in zero state
-            // can be guaranteed instead of relying on url only.
-            delayUpload: /*delay_upload=*/
-                !this.webUIOmniboxAskGAboutThisPageEnabled_ &&
-                !this.isSidePanel,
+            delayUpload: !askGAndPageAction,
             origin: TabUploadOrigin.AUTO_ACTIVE,
           } as TabUpload,
           /*replaceAutoActiveTabToken=*/ true);
 
-      if (!this.webUIOmniboxAskGAboutThisPageEnabled_ || !attachment) {
+      if (!askGAndPageAction || !attachment) {
         this.clearAutocompleteMatches();
       }
     }
@@ -928,8 +918,9 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   }
 
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.
-  updateAutoSuggestedTabContextForTesting(tab: TabInfo|null) {
-    this.updateAutoSuggestedTabContext_(tab);
+  updateAutoSuggestedTabContextForTesting(
+      tab: TabInfo|null, invocationSource: string|null = null) {
+    this.updateAutoSuggestedTabContext_(tab, invocationSource);
   }
 
 

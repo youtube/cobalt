@@ -168,10 +168,6 @@
 #include "third_party/skia/include/gpu/ganesh/GrTypes.h"
 #include "ui/gfx/geometry/size.h"
 
-// Killswitch guarding WebGL creating its CanvasResourceProvider with the size
-// of its DrawingBuffer rather than the size of its Host.
-BASE_FEATURE(kWebGLCanvasResourceProviderDrawingBufferSize,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Populates parameters from texImage2D except for border, width, height, and
 // depth (which are not present for all texImage2D functions).
@@ -561,20 +557,17 @@ void WebGLRenderingContextBase::RestoreEvictedContext(
 
 namespace {
 
-void DrawImageToCanvas(StaticBitmapImage* image,
-                       cc::PaintCanvas& canvas,
-                       const gfx::Rect& dest_rect) {
+void DrawImageToCanvas(StaticBitmapImage* image, cc::PaintCanvas& canvas) {
   CHECK(image);
   CHECK(image->PaintImageForCurrentFrame());
-  gfx::Rect src_rect(image->Size());
+  gfx::Rect rect(image->Size());
   cc::PaintFlags flags;
   flags.setBlendMode(SkBlendMode::kSrc);
   // We use this draw helper as we need to take into account the
   // ImageOrientation of the UnacceleratedStaticBitmapImage.
   ImageDrawOptions draw_options;
   draw_options.clamping_mode = Image::kDoNotClampImageToSourceRect;
-  image->Draw(&canvas, flags, gfx::RectF(dest_rect), gfx::RectF(src_rect),
-              draw_options);
+  image->Draw(&canvas, flags, gfx::RectF(rect), gfx::RectF(rect), draw_options);
 }
 
 GLint Clamp(GLint value, GLint min, GLint max) {
@@ -2128,10 +2121,9 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
             kBackBuffer, viz::SharedImageFormat::N32Format(),
             kPremul_SkAlphaType, kBottomLeft_GrSurfaceOrigin);
     if (image && image->PaintImageForCurrentFrame()) {
-      gfx::Rect dest_rect(resource_provider->Size());
       snapshot = resource_provider->DoExternalOverdrawAndSnapshot(
-          [&image, dest_rect](cc::PaintCanvas& canvas) {
-            DrawImageToCanvas(image.get(), canvas, dest_rect);
+          [&image](cc::PaintCanvas& canvas) {
+            DrawImageToCanvas(image.get(), canvas);
           },
           ImageOrientationEnum::kDefault);
       copy_succeeded = true;
@@ -2195,29 +2187,15 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     return nullptr;
   }
 
-  if (!base::FeatureList::IsEnabled(
-          kWebGLCanvasResourceProviderDrawingBufferSize) &&
-      !Host()->IsValidImageSize()) {
-    did_fail_to_create_resource_provider_ = true;
-    return nullptr;
-  }
-
-  if (base::FeatureList::IsEnabled(
-          kWebGLCanvasResourceProviderDrawingBufferSize) &&
-      !GetDrawingBuffer()) {
+  if (!GetDrawingBuffer()) {
     return nullptr;
   }
 
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
-  const gfx::HDRMetadata hdr_metadata =
-      GetDrawingBuffer() ? GetDrawingBuffer()->GetHdrMetadata()
-                         : gfx::HDRMetadata();
-  const gfx::Size size = base::FeatureList::IsEnabled(
-                             kWebGLCanvasResourceProviderDrawingBufferSize)
-                             ? GetDrawingBuffer()->Size()
-                             : Host()->Size();
+  const gfx::HDRMetadata hdr_metadata = GetDrawingBuffer()->GetHdrMetadata();
+  const gfx::Size size = GetDrawingBuffer()->Size();
   // Note: We must not initialize the CRP using Skia. The CRP can have bottom
   // left origin in which case Skia Graphite won't be able to render into it,
   // and WebGL is responsible for clearing the CRP when it renders anyway and
@@ -2295,10 +2273,9 @@ WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBufferToResource(
             kBackBuffer, viz::SharedImageFormat::N32Format(),
             kPremul_SkAlphaType, kBottomLeft_GrSurfaceOrigin);
     if (image && image->PaintImageForCurrentFrame()) {
-      gfx::Rect dest_rect(resource_provider->Size());
       resource = resource_provider->DoExternalOverdrawAndProduceResource(
-          [&image, dest_rect](cc::PaintCanvas& canvas) {
-            DrawImageToCanvas(image.get(), canvas, dest_rect);
+          [&image](cc::PaintCanvas& canvas) {
+            DrawImageToCanvas(image.get(), canvas);
           });
       copy_succeeded = true;
     }

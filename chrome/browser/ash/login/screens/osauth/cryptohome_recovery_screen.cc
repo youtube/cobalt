@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "ash/constants/ash_login_pref_names.h"
 #include "ash/public/cpp/reauth_reason.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -17,6 +18,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/syslog_logging.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
@@ -33,7 +35,10 @@
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/login/auth/recovery/cryptohome_recovery_performer.h"
 #include "chromeos/ash/components/osauth/public/auth_session_storage.h"
+#include "chromeos/ash/components/osauth/public/common_types.h"
 #include "chromeos/ash/services/auth_factor_config/auth_factor_config_utils.h"
+#include "components/device_event_log/device_event_log.h"
+#include "components/prefs/pref_service.h"
 #include "components/user_manager/user_manager.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -64,13 +69,13 @@ std::string CryptohomeRecoveryScreen::GetResultString(Result result) {
 }
 
 CryptohomeRecoveryScreen::CryptohomeRecoveryScreen(
-    PrefService* local_state,
+    PrefService& local_state,
     scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     base::WeakPtr<CryptohomeRecoveryScreenView> view,
     const ScreenExitCallback& exit_callback)
     : BaseScreen(CryptohomeRecoveryScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
-      local_state_(CHECK_DEREF(local_state)),
+      local_state_(local_state),
       shared_url_loader_factory_(std::move(shared_url_loader_factory)),
       auth_factor_editor_(UserDataAuthClient::Get()),
       view_(std::move(view)),
@@ -85,6 +90,16 @@ void CryptohomeRecoveryScreen::ShowImpl() {
     return;
 
   CHECK(context()->user_context);
+
+  if (context()->ShouldTriggerAutoWipe(local_state_.get())) {
+    LOGIN_LOG(EVENT)
+        << "AutoWipe behavior active: skipping cryptohome recovery";
+    SYSLOG(INFO)
+        << "(LOGIN) AutoWipe behavior active: skipping cryptohome recovery";
+    exit_callback_.Run(Result::kFallbackOnline);
+    return;
+  }
+
   auth_factor_editor_.GetAuthFactorsConfiguration(
       std::move(context()->user_context),
       base::BindOnce(&CryptohomeRecoveryScreen::OnGetAuthFactorsConfiguration,

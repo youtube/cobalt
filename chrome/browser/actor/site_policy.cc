@@ -4,28 +4,18 @@
 
 #include "chrome/browser/actor/site_policy.h"
 
-#include <algorithm>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/notimplemented.h"
-#include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
-#include "chrome/browser/actor/enterprise_policy_checker.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/lookalikes/lookalike_url_service.h"
-#include "chrome/browser/lookalikes/lookalike_url_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_io_data.h"
 #include "components/actor/core/actor_features.h"
-#include "components/actor/core/actor_logging.h"
-#include "components/actor/core/actor_util.h"
 #include "components/actor/core/aggregated_journal.h"
 #include "components/actor/core/journal_details_builder.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
@@ -33,19 +23,9 @@
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
-#include "components/origin_gating/core/origin_gating_cache.h"
-#include "components/safe_browsing/buildflags.h"
 #include "components/tabs/public/tab_interface.h"
-#include "components/variations/service/variations_service.h"
 #include "content/public/browser/web_contents.h"
-#include "net/base/url_util.h"
 #include "url/gurl.h"
-#include "url/url_constants.h"
-
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-#include "chrome/browser/safe_browsing/user_interaction_observer.h"
-#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
-#endif
 
 namespace actor {
 
@@ -91,25 +71,6 @@ class DecisionWrapper {
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> journal_entry_;
 };
 
-// Returns true if `url`'s host is in the `allowlist`. If `include_subdomains`
-// is true, subdomains also match if the parent domain is in the list.
-bool IsHostInAllowList(const std::vector<std::string_view>& allowlist,
-                       const GURL& url,
-                       bool include_subdomains) {
-  if (!include_subdomains) {
-    return std::ranges::contains(allowlist, url.host());
-  }
-
-  std::string host = url.GetHost();
-  while (!host.empty()) {
-    if (std::ranges::contains(allowlist, host)) {
-      return true;
-    }
-    host = net::GetSuperdomain(host);
-  }
-  return false;
-}
-
 // Whether to continue with the action or navigation based on the optimization
 // guide decision. Since we want to not block navigation in case the service has
 // an issue, we only stop the actor when the decision is kFalse, explicitly
@@ -119,175 +80,23 @@ bool ShouldContinueFromOptimizationGuideDecision(
   return decision != optimization_guide::OptimizationGuideDecision::kFalse;
 }
 
-void OnOptimizationGuideDecision(
-    std::unique_ptr<DecisionWrapper> decision_wrapper,
-    optimization_guide::OptimizationGuideDecision decision,
-    const optimization_guide::OptimizationMetadata& metadata) {
-  if (ShouldContinueFromOptimizationGuideDecision(decision)) {
-    decision_wrapper->Accept();
-  } else {
-    std::string result("OptimizationGuideDecision ");
-    result +=
-        optimization_guide::GetStringForOptimizationGuideDecision(decision);
-    decision_wrapper->Reject(result,
-                             MayActOnUrlBlockReason::kOptimizationGuideBlock);
-  }
-}
-
-void MayActOnUrlInternal(
-    const GURL& url,
-    bool allow_insecure_http,
-    Profile* profile,
-    const origin_gating::OriginGatingCache& origin_gating_cache,
-    const EnterprisePolicyChecker& policy_checker,
-    bool apply_sensitive_origin_check,
-    std::unique_ptr<DecisionWrapper> decision_wrapper) {
-  if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
-      url.IsAboutBlank()) {
-    decision_wrapper->Accept();
-    return;
-  }
-
-  if (!(url.SchemeIs(url::kHttpsScheme) ||
-        (allow_insecure_http && url.SchemeIs(url::kHttpScheme)))) {
-    decision_wrapper->Reject("Wrong scheme",
-                             ProfileIOData::IsHandledURL(url)
-                                 ? MayActOnUrlBlockReason::kWrongScheme
-                                 : MayActOnUrlBlockReason::kExternalProtocol);
-    return;
-  }
-
-  if (url.HostIsIPAddress()) {
-    decision_wrapper->Reject("IP address", MayActOnUrlBlockReason::kIpAddress);
-    return;
-  }
-
-  if (IsActorSafetyCheckDisabled()) {
-    decision_wrapper->Accept();
-    return;
-  }
-
-  bool is_safe_browsing_enabled = false;
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-  is_safe_browsing_enabled =
-      safe_browsing::IsSafeBrowsingEnabled(*profile->GetPrefs());
-#endif
-  if (!is_safe_browsing_enabled) {
-    // We don't want to risk acting on dangerous sites, so we require
-    // SafeBrowsing.
-    decision_wrapper->Reject("Safebrowsing unavailable",
-                             MayActOnUrlBlockReason::kSafeBrowsing);
-    return;
-  }
-
-  if (base::FeatureList::IsEnabled(kGlicActionAllowlist)) {
-    const std::string allowlist_joined = kAllowlist.Get();
-    const std::vector<std::string_view> allowlist =
-        base::SplitStringPiece(allowlist_joined, ",", base::TRIM_WHITESPACE,
-                               base::SPLIT_WANT_NONEMPTY);
-    if (IsHostInAllowList(allowlist, url, /*include_subdomains=*/true)) {
-      decision_wrapper->Accept();
-      return;
-    }
-
-    const std::string allowlist_exact_joined = kAllowlistExact.Get();
-    const std::vector<std::string_view> allowlist_exact =
-        base::SplitStringPiece(allowlist_exact_joined, ",",
-                               base::TRIM_WHITESPACE,
-                               base::SPLIT_WANT_NONEMPTY);
-    if (IsHostInAllowList(allowlist_exact, url, /*include_subdomains=*/false)) {
-      decision_wrapper->Accept();
-      return;
-    }
-
-    if (kAllowlistOnly.Get()) {
-      if (allowlist.empty() && allowlist_exact.empty()) {
-        if (variations::VariationsService* variations_service =
-                g_browser_process->variations_service()) {
-          if (!variations_service->IsLikelyDogfoodClient()) {
-            ACTOR_LOG() << __func__ << ": Non-dogfood client";
-          }
-          if (variations_service->GetClientFilterableStateForVersion()
-                  ->GoogleGroups()
-                  .empty()) {
-            ACTOR_LOG() << __func__ << ": No Google groups";
-          }
-        }
-        decision_wrapper->Reject("Allowlist is empty",
-                                 MayActOnUrlBlockReason::kUrlNotInAllowlist);
-      } else {
-        decision_wrapper->Reject("URL not in allowlist",
-                                 MayActOnUrlBlockReason::kUrlNotInAllowlist);
-      }
-      return;
-    }
-  }
-
-  const EnterprisePolicyChecker::UrlBlockReason enterprise_reason =
-      policy_checker.Evaluate(url);
-  switch (enterprise_reason) {
-    case EnterprisePolicyChecker::UrlBlockReason::kNotBlocked:
-      break;
-    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyAllowed:
-      decision_wrapper->Accept();
-      return;
-    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyBlocked:
-      decision_wrapper->Reject("Enterprise policy block",
-                               MayActOnUrlBlockReason::kEnterprisePolicy);
-      return;
-  }
-
-  auto* lookalike_service = LookalikeUrlServiceFactory::GetForProfile(profile);
-  LookalikeUrlService::LookalikeUrlCheckResult lookalike_result =
-      lookalike_service->CheckUrlForLookalikes(
-          url, lookalike_service->GetLatestEngagedSites(),
-          /*stop_checking_on_allowlist_or_ignore=*/true);
-  if (lookalike_result.action_type != lookalikes::LookalikeActionType::kNone &&
-      lookalike_result.action_type !=
-          lookalikes::LookalikeActionType::kRecordMetrics) {
-    // Out of caution, do not act on lookalike domains.
-    // For now, we just accept the possibility of false positives.
-    // Note that this is partially redundant in the case where the lookalike
-    // detection shows an interstitial, since we don't act on interstitials.
-    // However, it may be that the navigation is allowed and a safety tip is
-    // shown instead. We consider that sufficient cause for concern for actor
-    // code.
-    decision_wrapper->Reject("Lookalike domain",
-                             MayActOnUrlBlockReason::kLookalikeDomain);
-    return;
-  }
-
-  if (origin_gating_cache.IsNavigationConfirmedByUser(
-          url::Origin::Create(url))) {
-    decision_wrapper->Accept();
-    return;
-  }
-
-  if (apply_sensitive_origin_check) {
-    // Check that the optimization guide component has loaded. It could be
-    // missing, for example, if the user has very recently installed chrome and
-    // the component updater has not yet run. We don't want to reject every URL,
-    // so we check for this and fail open.
-    const bool optimization_guide_component_loaded =
-        optimization_guide::OptimizationHintsComponentUpdateListener::
-            GetInstance()
-                ->hints_component_info()
-                .has_value();
-
-    if (auto* optimization_guide_decider =
-            OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
-        optimization_guide_decider && optimization_guide_component_loaded &&
-        base::FeatureList::IsEnabled(kGlicActionUseOptimizationGuide)) {
-      optimization_guide_decider->CanApplyOptimization(
-          url, optimization_guide::proto::GLIC_ACTION_PAGE_BLOCK,
-          base::BindOnce(&OnOptimizationGuideDecision,
-                         std::move(decision_wrapper)));
-      return;
-    }
-  }
-
-  // Fail open.
-  decision_wrapper->Accept();
+void MayActOnUrlInternal(const GURL& url,
+                         NoVerdictContinuation resolve_no_verdict,
+                         std::unique_ptr<DecisionWrapper> decision_wrapper) {
+  CHECK(resolve_no_verdict);
+  std::move(resolve_no_verdict)
+      .Run(url,
+           base::BindOnce(
+               [](std::unique_ptr<DecisionWrapper> wrapper,
+                  base::expected<void, MayActOnUrlBlockResult> block_result) {
+                 if (block_result.has_value()) {
+                   wrapper->Accept();
+                 } else {
+                   wrapper->Reject(block_result.error().reason,
+                                   block_result.error().reason_code);
+                 }
+               },
+               std::move(decision_wrapper)));
 }
 
 }  // namespace
@@ -306,8 +115,7 @@ void InitActionBlocklist(Profile* profile) {
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const origin_gating::OriginGatingCache& origin_gating_cache,
-                 const EnterprisePolicyChecker& policy_checker,
+                 NoVerdictContinuation resolve_no_verdict,
                  DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
 
@@ -316,48 +124,20 @@ void MayActOnTab(const tabs::TabInterface& tab,
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnTab",
                                         std::move(callback));
 
-  if (web_contents.GetPrimaryMainFrame()->IsErrorDocument()) {
-    decision_wrapper->Reject("Tab is an error document",
-                             MayActOnUrlBlockReason::kTabIsErrorDocument);
-    return;
-  }
-
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-  // SafeBrowsing Delayed Warnings experiment can delay some SafeBrowsing
-  // warnings until user interaction. If the current page has a delayed warning,
-  // it'll have a user interaction observer attached.
-  // Do not act on such a page.
-  if (safe_browsing::SafeBrowsingUserInteractionObserver::FromWebContents(
-          &web_contents) &&
-      !IsActorSafetyCheckDisabled()) {
-    decision_wrapper->Reject("Blocked by safebrowsing",
-                             MayActOnUrlBlockReason::kSafeBrowsing);
-    return;
-  }
-#endif
-
-  MayActOnUrlInternal(
-      url, /*allow_insecure_http=*/false,
-      Profile::FromBrowserContext(web_contents.GetBrowserContext()),
-      origin_gating_cache, policy_checker,
-      /*apply_sensitive_origin_check=*/true, std::move(decision_wrapper));
+  MayActOnUrlInternal(url, std::move(resolve_no_verdict),
+                      std::move(decision_wrapper));
 }
 
 void MayActOnUrl(const GURL& url,
-                 bool allow_insecure_http,
-                 Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const origin_gating::OriginGatingCache& origin_gating_cache,
-                 const EnterprisePolicyChecker& policy_checker,
+                 NoVerdictContinuation resolve_no_verdict,
                  DecisionCallbackWithReason callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",
                                         std::move(callback));
-  MayActOnUrlInternal(
-      url, allow_insecure_http, profile, origin_gating_cache, policy_checker,
-      /*apply_sensitive_origin_check=*/!IsNavigationGatingEnabled(),
-      std::move(decision_wrapper));
+  MayActOnUrlInternal(url, std::move(resolve_no_verdict),
+                      std::move(decision_wrapper));
 }
 
 base::expected<void, DecisionCallback>

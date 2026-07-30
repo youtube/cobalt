@@ -3,10 +3,8 @@
 // found in the LICENSE file.
 
 #include <memory>
-#include <queue>
 #include <string>
 
-#include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
@@ -29,7 +27,6 @@
 #include "chrome/browser/ui/views/permissions/embedded_permission_prompt_system_settings_view.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -55,9 +52,7 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/base_event_utils.h"
-#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
-#include "ui/views/layout/layout_provider.h"
 #include "ui/views/views_switches.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget_deletion_observer.h"
@@ -116,6 +111,7 @@ class EmbeddedPermissionPromptInteractiveTest
     content::SetupCrossSiteRedirector(https_server());
     https_server()->StartAcceptingConnections();
     ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
+    SetSystemMediaPermissions(/*camera_allowed=*/true, /*mic_allowed=*/true);
 
     // Force the window to be large enough.
     BrowserView::GetBrowserViewForBrowser(browser())->GetWidget()->SetBounds(
@@ -528,6 +524,19 @@ class EmbeddedPermissionPromptInteractiveTest
     return Do([this]() { scoped_tab_modal_ui_.reset(); });
   }
 
+  void SetSystemMediaPermissions(bool camera_allowed, bool mic_allowed) {
+    scoped_system_permission_camera_.reset();
+    scoped_system_permission_mic_.reset();
+    scoped_system_permission_camera_ =
+        std::make_unique<system_permission_settings::ScopedSettingsForTesting>(
+            ContentSettingsType::MEDIASTREAM_CAMERA,
+            /*blocked=*/!camera_allowed);
+    scoped_system_permission_mic_ =
+        std::make_unique<system_permission_settings::ScopedSettingsForTesting>(
+            ContentSettingsType::MEDIASTREAM_MIC,
+            /*blocked=*/!mic_allowed);
+  }
+
  protected:
   base::test::ScopedFeatureList feature_list_;
 
@@ -538,6 +547,10 @@ class EmbeddedPermissionPromptInteractiveTest
   // functions will only check the new data.
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
   std::unique_ptr<tabs::ScopedTabModalUI> scoped_tab_modal_ui_;
+  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
+      scoped_system_permission_camera_;
+  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
+      scoped_system_permission_mic_;
 };
 
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
@@ -964,14 +977,7 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
     GTEST_SKIP() << "Linux Wayland does not support window activation";
   }
 #endif
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_camera = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/true);
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_mic = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/true);
+  SetSystemMediaPermissions(/*camera_allowed=*/false, /*mic_allowed=*/false);
 
   RunTestSequence(
       InstrumentTab(kWebContentsElementId),
@@ -980,14 +986,8 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
       InAnyContext(
           WaitForShow(EmbeddedPermissionPromptSystemSettingsView::kMainViewId)),
       Do([&]() {
-        scoped_system_permission_camera.reset();
-        scoped_system_permission_mic.reset();
-        scoped_system_permission_camera = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/false);
-        scoped_system_permission_mic = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/false);
+        SetSystemMediaPermissions(/*camera_allowed=*/true,
+                                  /*mic_allowed=*/true);
 
         // Simulate another window becoming active, and then the current window
         // again.
@@ -1015,14 +1015,7 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 #endif
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        MAYBE_TestOsSystemAutoResolvesOnButton) {
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_camera = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/true);
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_mic = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/true);
+  SetSystemMediaPermissions(/*camera_allowed=*/false, /*mic_allowed=*/false);
 
   RunTestSequence(
       InstrumentTab(kWebContentsElementId),
@@ -1031,14 +1024,8 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
       InAnyContext(
           WaitForShow(EmbeddedPermissionPromptSystemSettingsView::kMainViewId)),
       Do([&]() {
-        scoped_system_permission_camera.reset();
-        scoped_system_permission_mic.reset();
-        scoped_system_permission_camera = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/false);
-        scoped_system_permission_mic = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/false);
+        SetSystemMediaPermissions(/*camera_allowed=*/true,
+                                  /*mic_allowed=*/true);
       }),
 
       PushPEPCPromptButton(
@@ -1061,14 +1048,7 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 IN_PROC_BROWSER_TEST_P(
     EmbeddedPermissionPromptInteractiveTest,
     MAYBE_TestOsSystemAutoResolvesOnlyIfAllPermissionsAllowed) {
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_camera = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/true);
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_mic = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/true);
+  SetSystemMediaPermissions(/*camera_allowed=*/false, /*mic_allowed=*/false);
 
   RunTestSequence(
       InstrumentTab(kWebContentsElementId),
@@ -1078,10 +1058,8 @@ IN_PROC_BROWSER_TEST_P(
           WaitForShow(EmbeddedPermissionPromptSystemSettingsView::kMainViewId)),
       Do([&]() {
         // Only allow camera system permission. Mic remains blocked.
-        scoped_system_permission_camera.reset();
-        scoped_system_permission_camera = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/false);
+        SetSystemMediaPermissions(/*camera_allowed=*/true,
+                                  /*mic_allowed=*/false);
 
         // Simulate deactivation and reactivation.
         Browser* focused_window = CreateBrowser(browser()->GetProfile());
@@ -1101,14 +1079,7 @@ IN_PROC_BROWSER_TEST_P(
 
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        TestOsSystemReentrantActivationDoesNotCrash) {
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_camera = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/true);
-  std::unique_ptr<system_permission_settings::ScopedSettingsForTesting>
-      scoped_system_permission_mic = std::make_unique<
-          system_permission_settings::ScopedSettingsForTesting>(
-          ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/true);
+  SetSystemMediaPermissions(/*camera_allowed=*/false, /*mic_allowed=*/false);
 
   RunTestSequence(
       InstrumentTab(kWebContentsElementId),
@@ -1118,14 +1089,8 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           WaitForShow(EmbeddedPermissionPromptSystemSettingsView::kMainViewId)),
       Do([&]() {
         // Allow both camera and mic system permissions.
-        scoped_system_permission_camera.reset();
-        scoped_system_permission_mic.reset();
-        scoped_system_permission_camera = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_CAMERA, /*blocked=*/false);
-        scoped_system_permission_mic = std::make_unique<
-            system_permission_settings::ScopedSettingsForTesting>(
-            ContentSettingsType::MEDIASTREAM_MIC, /*blocked=*/false);
+        SetSystemMediaPermissions(/*camera_allowed=*/true,
+                                  /*mic_allowed=*/true);
       }),
 
       // Trigger OnWidgetTreeActivated twice rapidly.

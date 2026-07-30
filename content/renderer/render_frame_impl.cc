@@ -96,6 +96,7 @@
 #include "content/renderer/effective_connection_type_helper.h"
 #include "content/renderer/frame_owner_properties_converter.h"
 #include "content/renderer/gpu_benchmarking_extension.h"
+#include "content/renderer/lazy_shared_url_loader_factory.h"
 #include "content/renderer/local_resource_url_loader_factory.h"
 #include "content/renderer/media/media_permission_dispatcher.h"
 #include "content/renderer/mhtml_handle_writer.h"
@@ -161,7 +162,6 @@
 #include "third_party/blink/public/common/loader/record_load_histograms.h"
 #include "third_party/blink/public/common/loader/resource_type_util.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
-#include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/common/navigation/navigation_params.h"
 #include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
 #include "third_party/blink/public/common/navigation/navigation_policy.h"
@@ -3052,12 +3052,23 @@ void RenderFrameImpl::CommitNavigationWithParams(
     navigation_params->service_worker_network_provider =
         ServiceWorkerNetworkProviderForFrame::CreateInvalidInstance();
   } else {
+    scoped_refptr<network::SharedURLLoaderFactory> fallback_loader_factory;
+    if (base::FeatureList::IsEnabled(
+            features::kReduceMojoURLLoaderFactoryCloning) &&
+        features::kUseLazyURLLoaderFactoryForServiceWorkerFallback.Get()) {
+      fallback_loader_factory = network::SharedURLLoaderFactory::Create(
+          CreateLazyPendingURLLoaderFactory(
+              new_loader_factories,
+              GetTaskRunner(blink::TaskType::kInternalLoading)));
+    } else {
+      fallback_loader_factory = network::SharedURLLoaderFactory::Create(
+          new_loader_factories->Clone());
+    }
     navigation_params->service_worker_network_provider =
         ServiceWorkerNetworkProviderForFrame::Create(
             this, std::move(container_info),
             std::move(controller_service_worker_info),
-            network::SharedURLLoaderFactory::Create(
-                new_loader_factories->Clone()));
+            std::move(fallback_loader_factory));
   }
 
   DCHECK(!pending_loader_factories_);
@@ -5999,8 +6010,6 @@ void RenderFrameImpl::OpenURL(std::unique_ptr<blink::WebNavigationInfo> info) {
   // navigations performed via OpenURL.
   params->source_location = network::mojom::SourceLocation::New();
 
-  params->impression = info->impression;
-
   if (GetContentClient()->renderer()->AllowPopup())
     params->user_gesture = true;
 
@@ -6334,9 +6343,8 @@ void RenderFrameImpl::BeginNavigationInternal(
           info->url_request.TrustTokenParams()
               ? info->url_request.TrustTokenParams()->Clone()
               : nullptr,
-          info->impression, renderer_before_unload_start,
-          renderer_before_unload_end, before_unload_dialog_opened,
-          before_unload_dialog_closed,
+          renderer_before_unload_start, renderer_before_unload_end,
+          before_unload_dialog_opened, before_unload_dialog_closed,
           /*started_with_transient_activation=*/
           info->url_request.HasUserGesture(),
           /*started_by_ad=*/
@@ -6912,7 +6920,6 @@ WebView* RenderFrameImpl::CreateNewWindow(
     network::mojom::WebSandboxFlags sandbox_flags,
     const blink::SessionStorageNamespaceId& session_storage_namespace_id,
     bool& consumed_user_gesture,
-    const std::optional<blink::Impression>& impression,
     const std::optional<blink::WebPictureInPictureWindowOptions>& pip_options,
     const blink::WebURL& base_url) {
   consumed_user_gesture = false;
@@ -6967,8 +6974,6 @@ WebView* RenderFrameImpl::CreateNewWindow(
   params->form_submission_post_data =
       blink::GetRequestBodyForWebURLRequest(request);
   params->form_submission_post_content_type = request.HttpContentType().Utf8();
-
-  params->impression = impression;
 
   if (pip_options) {
     CHECK_EQ(policy, blink::kWebNavigationPolicyPictureInPicture);

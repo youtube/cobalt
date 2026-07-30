@@ -67,6 +67,10 @@ public class TabGroupListBottomSheetTest {
     @MediumTest
     @EnableFeatures(
             ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2 + ":show_tip_bottom_sheet/false")
+    @DisableFeatures({
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testNewGroup_RegularNewTabPageStation() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         WebPageStation pageStation =
@@ -92,6 +96,10 @@ public class TabGroupListBottomSheetTest {
 
     @Test
     @MediumTest
+    @DisableFeatures({
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testNewGroup_RegularWebPageStation() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         WebPageStation pageStation =
@@ -153,6 +161,11 @@ public class TabGroupListBottomSheetTest {
         DeviceRestriction.RESTRICTION_TYPE_NON_FOLDABLE
     })
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableFeatures({
+        // "Add to tab group" menu item doesn't exist if the submenu is enabled in the app menu.
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testNewGroup_IncognitoNewTabPageStation_Tablet() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         Pair<WebPageStation, WebPageStation> pageStations =
@@ -221,6 +234,11 @@ public class TabGroupListBottomSheetTest {
         DeviceRestriction.RESTRICTION_TYPE_NON_FOLDABLE
     })
     @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableFeatures({
+        // "Add to tab group" menu item doesn't exist if the submenu is enabled in the app menu.
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testNewGroup_IncognitoWebPageStation_Tablet() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         Pair<WebPageStation, WebPageStation> pageStations =

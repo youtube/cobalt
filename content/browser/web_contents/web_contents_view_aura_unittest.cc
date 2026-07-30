@@ -711,7 +711,7 @@ TEST_F(WebContentsViewAuraTest, DragDropUrlData) {
       data->GetVirtualFilenames();
   ASSERT_TRUE(file_infos.has_value());
   ASSERT_EQ(1ULL, file_infos.value().size());
-  EXPECT_EQ(base::FilePath(base::UTF16ToWide(url_title) + L".url"),
+  EXPECT_EQ(base::FilePath(base::UTF16ToWide(url_title) + L".download"),
             file_infos.value()[0].display_name);
 
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
@@ -910,13 +910,6 @@ TEST_F(WebContentsViewAuraTest, RejectDragFromOutsideView) {
   DropData drop_data;
   drop_data.url_infos = {ui::ClipboardUrlInfo{GURL(kGoogleUrl), u""}};
 
-#if BUILDFLAG(IS_CHROMEOS)
-  // This condition is needed to avoid calling WebContentsViewAura::EndDrag
-  // which will result NOTREACHED being called in
-  // `RenderWidgetHostViewBase::TransformPointToCoordSpaceForView`.
-  view->drag_in_progress_ = true;
-#endif  //  BUILDFLAG(IS_CHROMEOS)
-
   view->StartDragging(
       *main_rfh(), drop_data, blink::DragOperationsMask::kDragOperationNone,
       gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
@@ -926,14 +919,7 @@ TEST_F(WebContentsViewAuraTest, RejectDragFromOutsideView) {
           ui::mojom::DragEventSource::kMouse));
 
   ui::OSExchangeData* exchange_data = drag_drop_client.GetDragDropData();
-#if BUILDFLAG(IS_CHROMEOS)
-  // TODO(https://crbug.com/454552204): Remove #if when either ChromeOS
-  // fixes split screen mode web ui tab strip drag, or web ui tab strip is
-  // fully deprecated.
-  EXPECT_TRUE(exchange_data);
-#else
   EXPECT_FALSE(exchange_data);
-#endif  //  BUILDFLAG(IS_CHROMEOS)
 }
 
 // For a touch-initiated drag, the renderer-supplied screen location must

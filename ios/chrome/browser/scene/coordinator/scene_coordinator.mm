@@ -43,6 +43,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_notification_infobar_delegate.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signout_action_sheet/undo_signout/coordinator/undo_signout_coordinator.h"
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_coordinator.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
@@ -61,6 +62,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_availability.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_entry_flow_result.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -107,6 +109,8 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity_manager.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
@@ -195,6 +199,7 @@ inline LayoutStateScenePassKey PassKey() {
                                 SafariDataImportMainCoordinatorDelegate,
                                 SceneViewControllerDelegate,
                                 SettingsNavigationControllerDelegate,
+                                UndoSignoutCoordinatorDelegate,
                                 YoutubeIncognitoCoordinatorDelegate>
 
 // The SceneState for this scene.
@@ -270,6 +275,8 @@ inline LayoutStateScenePassKey PassKey() {
   ProceduralBlock _settingsDismissalCompletion;
   // Coordinator for the first step of the guided tour (NTP).
   GuidedTourCoordinator* _guidedTourCoordinator;
+  // Coordinator for the undo sign-out flow.
+  UndoSignoutCoordinator* _undoSignoutCoordinator;
 }
 
 - (instancetype)initWithTabOpener:(id<TabOpening>)tabOpener {
@@ -372,6 +379,7 @@ inline LayoutStateScenePassKey PassKey() {
   _policyWatcherObserverBridge.reset();
   [self stopAccountMenu];
   [self stopSigninCoordinatorWithCompletionAnimated:NO];
+  [self stopUndoSignoutCoordinator];
   [self stopSafariDataImportCoordinator];
   [self stopPasswordCheckupCoordinator];
   [self stopHistoryCoordinator];
@@ -727,7 +735,7 @@ inline LayoutStateScenePassKey PassKey() {
 }
 
 - (void)showAssistantInMinimizedState:(BOOL)minimized {
-  if (!IsAssistantContainerEnabled()) {
+  if (!IsAssistantContainerEnabled() || !IsAimCobrowseEnabled()) {
     return;
   }
   if (_assistantAIMCoordinator) {
@@ -1004,6 +1012,24 @@ inline LayoutStateScenePassKey PassKey() {
       infoBarManager, self.profile, settingsHandler, baseViewController);
 }
 
+- (void)showUndoSignoutFromSnackbarForIdentity:(id<SystemIdentity>)identity {
+  CHECK(IsIdentityAwarenessEnabled());
+  ChromeAccountManagerService* accountManagerService =
+      ChromeAccountManagerServiceFactory::GetForProfile(self.profile);
+  if (!accountManagerService ||
+      !accountManagerService->GetIdentityOnDeviceWithGaiaID(identity.gaiaId)) {
+    // The identity is not available anymore.
+    return;
+  }
+
+  _undoSignoutCoordinator = [[UndoSignoutCoordinator alloc]
+               initWithBrowser:self.currentBrowser
+                      identity:identity
+      presentingViewController:self.activeViewController];
+  _undoSignoutCoordinator.delegate = self;
+  [_undoSignoutCoordinator start];
+}
+
 - (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible {
   self.sceneState.incognitoState.incognitoContentVisible =
       incognitoContentVisible;
@@ -1025,15 +1051,7 @@ inline LayoutStateScenePassKey PassKey() {
   if (@available(iOS 26.0, *)) {
     // For iOS26 windowing, ensure the new window doesn't fully overlap the
     // prior window.
-    BOOL should_skip_prominent_placement = NO;
-#if TARGET_OS_SIMULATOR
-    // Workaround Metal compositor crash on iOS 27.0 beta simulator.
-    should_skip_prominent_placement = base::ios::IsRunningOnOrLater(27, 0, 0) &&
-                                      !base::ios::IsRunningOnOrLater(27, 0, 1);
-#endif
-    if (!should_skip_prominent_placement) {
-      options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
-    }
+    options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
   }
 
   AttachProfileNameToActivity(userActivity, profile->GetProfileName());
@@ -1348,10 +1366,21 @@ inline LayoutStateScenePassKey PassKey() {
 // TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
 - (void)showSavedPasswordsSettingsFromViewController:
     (UIViewController*)baseViewController {
+  [self showSavedPasswordsSettingsFromViewController:baseViewController
+                     shouldShowLevelUpWalkthroughIPH:NO];
+}
+
+- (void)showSavedPasswordsSettingsFromViewController:
+            (UIViewController*)baseViewController
+                     shouldShowLevelUpWalkthroughIPH:
+                         (BOOL)shouldShowLevelUpWalkthroughIPH {
   __weak SceneCoordinator* weakSelf = self;
   [self dismissModalDialogsWithCompletion:^{
-    [weakSelf showSavedPasswordsSettingsAfterModalDismissFromViewController:
-                  baseViewController];
+    [weakSelf
+        showSavedPasswordsSettingsAfterModalDismissFromViewController:
+            baseViewController
+                                      shouldShowLevelUpWalkthroughIPH:
+                                          shouldShowLevelUpWalkthroughIPH];
   }];
 }
 
@@ -1719,6 +1748,13 @@ inline LayoutStateScenePassKey PassKey() {
   }
 }
 
+#pragma mark - UndoSignoutCoordinatorDelegate
+
+- (void)undoSignoutCoordinatorDidFinish:(UndoSignoutCoordinator*)coordinator {
+  CHECK_EQ(_undoSignoutCoordinator, coordinator);
+  [self stopUndoSignoutCoordinator];
+}
+
 #pragma mark - Private
 
 // Presents the Settings UI using the regular browser, base view controller,
@@ -1907,7 +1943,10 @@ inline LayoutStateScenePassKey PassKey() {
 
 // Shows the saved passwords settings in the settings UI.
 - (void)showSavedPasswordsSettingsAfterModalDismissFromViewController:
-    (UIViewController*)baseViewController {
+            (UIViewController*)baseViewController
+                                      shouldShowLevelUpWalkthroughIPH:
+                                          (BOOL)
+                                              shouldShowLevelUpWalkthroughIPH {
   if (!baseViewController) {
     // TODO(crbug.com/41352590): Don't pass base view controller through
     // dispatched command.
@@ -1917,11 +1956,14 @@ inline LayoutStateScenePassKey PassKey() {
 
   if (_settingsNavigationController) {
     [_settingsNavigationController
-        showSavedPasswordsSettingsFromViewController:baseViewController];
+        showSavedPasswordsSettingsFromViewController:baseViewController
+                     shouldShowLevelUpWalkthroughIPH:
+                         shouldShowLevelUpWalkthroughIPH];
     return;
   }
   _settingsNavigationController = [SettingsNavigationController
       savePasswordsControllerForBrowser:_regularBrowser.get()
+        shouldShowLevelUpWalkthroughIPH:shouldShowLevelUpWalkthroughIPH
                                delegate:self];
   [baseViewController presentViewController:_settingsNavigationController
                                    animated:YES
@@ -1986,6 +2028,13 @@ inline LayoutStateScenePassKey PassKey() {
 // whether or not child coordinators exist.
 - (void)stopChildCoordinatorsWithCompletion:(ProceduralBlock)completion {
   [_tabGridCoordinator stopChildCoordinatorsWithCompletion:completion];
+}
+
+// Stops `_undoSignoutCoordinator`.
+- (void)stopUndoSignoutCoordinator {
+  _undoSignoutCoordinator.delegate = nil;
+  [_undoSignoutCoordinator stop];
+  _undoSignoutCoordinator = nil;
 }
 
 // Presents the Report an Issue UI.
@@ -2414,14 +2463,11 @@ inline LayoutStateScenePassKey PassKey() {
   if (!_regularBrowser) {
     return;
   }
-  GeminiService* geminiService =
-      GeminiServiceFactory::GetForProfile(self.profile);
   web::WebState* activeWebState =
       _regularBrowser->GetWebStateList()->GetActiveWebState();
-  GeminiTabHelper* geminiTabHelper =
-      activeWebState ? GeminiTabHelper::FromWebState(activeWebState) : nullptr;
-  if (geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState() &&
-      geminiService && geminiService->IsProfileEligibleForGemini()) {
+  if (gemini::IsGeminiAvailable(gemini::EntryPoint::Promo, self.profile,
+                                activeWebState)
+          .enabled) {
     [self startGeminiFlowWithStartupState:
               [[GeminiStartupState alloc]
                   initWithEntryPoint:gemini::EntryPoint::Promo]];
@@ -2538,8 +2584,9 @@ inline LayoutStateScenePassKey PassKey() {
     return;
   }
 
-  bool eligibleSite = geminiTabHelper->IsGeminiAvailableForWebState() &&
-                      geminiService->IsProfileEligibleForGemini();
+  bool eligibleSite = gemini::IsGeminiAvailable(gemini::EntryPoint::Unknown,
+                                                self.profile, activeWebState)
+                          .enabled;
   if (!eligibleSite) {
     // Reset presented sources before hiding the floaty due to an ineligible
     // site.

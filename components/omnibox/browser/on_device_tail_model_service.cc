@@ -6,13 +6,14 @@
 
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
-#include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
@@ -34,16 +35,23 @@ constexpr std::string_view kModelValidationSwitchName =
     "omnibox-on-device-tail-model-validation";
 
 constexpr base::MemoryConsumerTraits kMemoryConsumerTraits(
+    // Hosts TFLite model and runtime tensors; under 10MB.
     base::MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+    // Unloading unmaps model files and frees memory in bulk.
     base::MemoryConsumerTraits::ReleaseMemoryCost::kFreesPagesWithoutTraversal,
+    // Model is stateless and can be reloaded.
     base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // The unload task is posted to a background thread runner.
     base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Handles pressure as a binary gate to unload.
+    base::MemoryConsumerTraits::SupportsMemoryLimit::kNo,
+    // Stateless, as it unloads completely under pressure.
     base::MemoryConsumerTraits::IsStateful::kNo);
 
 void InitializeTailModelExecutor(
     OnDeviceTailModelExecutor* executor,
     const base::FilePath& model_file,
-    const base::flat_set<base::FilePath>& additional_files,
+    const std::vector<base::FilePath>& additional_files,
     const optimization_guide::proto::OnDeviceTailSuggestModelMetadata&
         metadata) {
   if (executor == nullptr) {

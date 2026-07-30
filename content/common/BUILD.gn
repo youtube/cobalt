@@ -517,7 +517,6 @@ mojom("mojo_bindings") {
         "//content/common/input/synthetic_smooth_drag_gesture_params.h",
         "//content/common/input/synthetic_smooth_scroll_gesture_params.h",
         "//content/common/input/synthetic_tap_gesture_params.h",
-        "//third_party/blink/public/common/navigation/impression.h",
         "//third_party/blink/public/common/widget/visual_properties.h",
         "//ui/events/types/scroll_types.h",
         "//ui/native_theme/native_theme.h",
@@ -585,7 +584,6 @@ mojom("mojo_bindings") {
 
   public_deps = [
     "//cc/mojom",
-    "//components/attribution_reporting:mojom",
     "//components/metrics/public/mojom:histogram_fetcher_mojo_bindings",
     "//components/variations:variations_mojom",
     "//content/public/common:interfaces",
@@ -677,4 +675,12 @@ if (is_android) {
     # files, they should be added here as necessary.
     srcjar_deps = [ ":java_features_srcjar" ]
   }
+}
+
+rust_static_library("common_id_types") {
+  crate_name = "content_common_id_types"
+  crate_root = "child_process_id.rs"
+  sources = [ crate_root ]
+  allow_unsafe = true
+  deps = [ "//third_party/rust/cxx/v1:lib" ]
 }

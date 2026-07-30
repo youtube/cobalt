@@ -311,7 +311,7 @@ bool IsEyeDropperEnabled() {
 // (i.e., inside Blink). See
 // ::views::features::kKeyboardAccessibleTooltipInViews for
 // keyboard-accessible tooltips in Views UI.
-BASE_FEATURE(kKeyboardAccessibleTooltip, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kKeyboardAccessibleTooltip, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsKeyboardAccessibleTooltipEnabled() {
   static const bool keyboard_accessible_tooltip_enabled =
@@ -508,11 +508,8 @@ BASE_FEATURE(kSplitViewLinkOpen, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDesktopGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlassFrame, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(bool, kUseLiquidGlassEffect, &kGlassFrame, true);
 BASE_FEATURE_PARAM(double, kTintOpacityForLightMode, &kGlassFrame, -1.0);
 BASE_FEATURE_PARAM(double, kTintOpacityForDarkMode, &kGlassFrame, -1.0);
-BASE_FEATURE_PARAM(int, kVisualEffectMaterialForTitlebar, &kGlassFrame, -1);
-BASE_FEATURE_PARAM(int, kVisualEffectMaterialForSidebar, &kGlassFrame, -1);
 BASE_FEATURE_PARAM(double, kBackgroundBlurOpacity, &kGlassFrame, 1.0);
 BASE_FEATURE_PARAM(double, kBackgroundBlurBlurRadius, &kGlassFrame, 5.0);
 

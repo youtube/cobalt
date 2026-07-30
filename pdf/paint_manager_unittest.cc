@@ -40,12 +40,12 @@ using ::testing::NiceMock;
 constexpr char kRenderAndPaintTimeMetric[] = "PDF.RenderAndPaintTime";
 constexpr char kRenderPaintAndFlushTimeMetric[] = "PDF.RenderPaintAndFlushTime";
 
-base::FilePath GetTestDataFilePath(std::string_view filename) {
+base::FilePath GetPaintManagerTestDataFilePath(std::string_view filename) {
   return base::FilePath(FILE_PATH_LITERAL("paint_manager"))
       .AppendASCII(filename);
 }
 
-class FakeClient : public PaintManager::Client {
+class MockPaintManagerClient : public PaintManager::Client {
  public:
   MOCK_METHOD(void, InvalidatePluginContainer, (), (override));
   MOCK_METHOD(SkBitmap*,
@@ -239,11 +239,12 @@ class PaintManagerTest : public testing::TestWithParam<bool> {
         skcpu::Recorder::TODO(),
         SkIRect::MakeWH(plugin_size.width(), plugin_size.height()), {});
     ASSERT_TRUE(snapshot);
-    EXPECT_TRUE(MatchesPngFile(*snapshot, GetTestDataFilePath(expected_png)));
+    EXPECT_TRUE(MatchesPngFile(*snapshot,
+                               GetPaintManagerTestDataFilePath(expected_png)));
   }
 
   base::test::ScopedFeatureList list_;
-  NiceMock<FakeClient> client_;
+  NiceMock<MockPaintManagerClient> client_;
   SkBitmap client_bitmap_;
   PaintManager paint_manager_{&client_};
 };
@@ -336,8 +337,8 @@ TEST_P(PaintManagerTest, DoPaintFirst) {
   sk_sp<SkImage> subset =
       snapshot->makeSubset(skcpu::Recorder::TODO(), {0, 0, 400, 300}, {});
   ASSERT_TRUE(subset);
-  EXPECT_TRUE(
-      MatchesPngFile(*subset, GetTestDataFilePath("do_paint_first.png")));
+  EXPECT_TRUE(MatchesPngFile(
+      *subset, GetPaintManagerTestDataFilePath("do_paint_first.png")));
 
   histograms.ExpectTotalCount(kRenderAndPaintTimeMetric, 1);
   histograms.ExpectTotalCount(kRenderPaintAndFlushTimeMetric, 1);

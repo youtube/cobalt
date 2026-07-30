@@ -31,6 +31,7 @@ source_set("password_manager") {
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
     "//components/credential_management:browser",
+    "//components/critical_actions/core/browser",
     "//components/enterprise/buildflags",
     "//components/enterprise/connectors/core",
     "//components/keyed_service/content",
@@ -115,6 +116,7 @@ source_set("password_manager") {
       # TODO(crbug.com/485620841): Make delegate not dependent on client and
       # move this back to /password_change.
       "password_change/password_change_from_checkup_delegate.h",
+      "remote_actor/remote_actor_credential_sharing_impl.h",
       "web_app_profile_switcher.h",
     ]
     public_deps += [
@@ -148,6 +150,7 @@ source_set("impl") {
     "//chrome/browser/actor",
     "//chrome/browser/affiliations",
     "//chrome/browser/autofill",
+    "//chrome/browser/critical_actions",
     "//chrome/browser/device_reauth",
     "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/favicon",
@@ -172,6 +175,7 @@ source_set("impl") {
     "//components/autofill/core/browser",
     "//components/autofill/core/browser/integrators/password_manager",
     "//components/browsing_data/content",
+    "//components/critical_actions/core/browser",
     "//components/device_reauth",
     "//components/feature_engagement/public",
     "//components/no_state_prefetch/browser",
@@ -244,6 +248,7 @@ source_set("impl") {
       "password_change/password_change_from_checkup_delegate.cc",
       "password_change_delegate_impl.cc",
       "password_change_delegate_impl.h",
+      "remote_actor/remote_actor_credential_sharing_impl.cc",
       "web_app_profile_switcher.cc",
     ]
     deps += [
@@ -408,6 +413,7 @@ source_set("unit_tests") {
     "//base",
     "//base:i18n",
     "//base/test:test_support",
+    "//chrome/browser/critical_actions",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/password_manager",
@@ -431,6 +437,7 @@ source_set("unit_tests") {
     "//components/autofill/core/common",
     "//components/autofill/core/common:features",
     "//components/autofill/core/common:test_support",
+    "//components/critical_actions/core/browser",
     "//components/device_reauth",
     "//components/device_reauth:test_support",
     "//components/metrics",
@@ -483,6 +490,7 @@ source_set("unit_tests") {
     sources += [
       "generated_password_leak_detection_pref_unittest.cc",
       "password_change_delegate_impl_unittest.cc",
+      "remote_actor/remote_actor_credential_sharing_impl_unittest.cc",
     ]
     deps += [
       "//chrome/browser/extensions:test_support",
@@ -528,6 +536,7 @@ if (!is_android) {
       "password_change_browsertest.cc",
       "password_change_from_checkup_browsertest.cc",
       "password_manager_browsertest.cc",
+      "remote_actor/remote_actor_credential_sharing_browsertest.cc",
     ]
 
     deps = [
@@ -692,6 +701,7 @@ if (!is_android) {
       ":test_support_ui",
       "//base",
       "//base/test:test_support",
+      "//chrome/browser/autofill:test_support",
       "//chrome/browser/autofill:test_support_ui",
       "//chrome/browser/password_manager",
       "//chrome/browser/password_manager:impl",

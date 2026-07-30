@@ -15,6 +15,7 @@
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/glic_invoke_task.h"
@@ -235,6 +236,18 @@ void GlicInvokeHandler::Invoke() {
 
   ShowOptions show_options = CreateShowOptions(resolved_target_, options_);
 
+  // If the side panel is already active, suppress the opening animation. This
+  // avoids a visual flicker when swapping from one conversation instance to
+  // another (e.g. starting a New Conversation when the panel is already open).
+  if (IsTabTarget()) {
+    if (GlicSidePanelCoordinator::IsGlicSidePanelActive(&GetTab())) {
+      if (auto* panel_options = std::get_if<SidePanelShowOptions>(
+              &show_options.embedder_options)) {
+        panel_options->suppress_opening_animation = true;
+      }
+    }
+  }
+
   if (options_.fre_override != mojom::FreOverride::kUnspecified) {
     show_options.fre_override = options_.fre_override;
   }
@@ -290,25 +303,37 @@ void GlicInvokeHandler::Invoke() {
       &*instance_, CreateMojoOptions(), auto_submit_passkey_));
 
   if (IsActuatingFeatureMode()) {
-    auto on_actuation_started = base::BindOnce(
-        [](base::WeakPtr<GlicInvokeHandler> handler) {
-          if (handler) {
-            handler->timeout_timer_.Stop();
-          }
-        },
-        weak_ptr_factory_.GetWeakPtr());
+    if (auto* task_manager = instance_->GetActorTaskManager()) {
+      if (task_manager->IsActuating()) {
+        OnActuatingChanged(true);
+      } else {
+        actuating_subscription_ = task_manager->AddActuatingChangedCallback(
+            base::BindRepeating(&GlicInvokeHandler::OnActuatingChanged,
+                                weak_ptr_factory_.GetWeakPtr()));
+      }
+    }
 
     tasks.push_back(std::make_unique<WaitForActuationTask>(
         &*instance_, options_.timeout.value_or(kDefaultTimeout),
         base::BindOnce(&GlicInvokeHandler::OnError,
-                       weak_ptr_factory_.GetWeakPtr()),
-        std::move(on_actuation_started)));
+                       weak_ptr_factory_.GetWeakPtr())));
   }
 
   main_task_ = std::make_unique<SequentialTaskGroup>(std::move(tasks));
 
   main_task_->Start(base::BindOnce(&GlicInvokeHandler::OnSuccess,
                                    weak_ptr_factory_.GetWeakPtr()));
+}
+
+void GlicInvokeHandler::OnActuatingChanged(bool actuating) {
+  if (actuating) {
+    actuating_subscription_ = {};
+    tab_destruction_subscription_ = {};
+    if (auto* tab_surface = std::get_if<TabSurface>(&resolved_target_)) {
+      tab_surface->tab = nullptr;
+    }
+    timeout_timer_.Stop();
+  }
 }
 
 void GlicInvokeHandler::Cancel(GlicInvokeError error) {

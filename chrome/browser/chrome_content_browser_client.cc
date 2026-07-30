@@ -332,7 +332,6 @@
 #include "components/version_info/version_info.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webui/chrome_urls/pref_names.h"
-#include "content/public/browser/attribution_data_model.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/browser_child_process_host.h"
 #include "content/public/browser/browser_context.h"
@@ -550,9 +549,9 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
-#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/digital_credentials/digital_identity_provider_desktop.h"
 #include "chrome/browser/direct_sockets/chrome_direct_sockets_delegate.h"
+#include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
 #include "chrome/browser/metrics/usage_scenario/chrome_responsiveness_calculator_delegate.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
@@ -639,6 +638,10 @@
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 #include "components/captive_portal/content/captive_portal_tab_helper.h"
 #include "components/captive_portal/content/captive_portal_url_loader_throttle.h"
+#endif
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
+#include "chrome/browser/devtools/devtools_window.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -942,6 +945,22 @@ blink::mojom::AutoplayPolicy DetermineWebContentsAutoplayPolicy(
     observer->SetPolicyStatus(PolicyStatus::kAllowedByEnterprisePolicy);
     return blink::mojom::AutoplayPolicy::kNoUserGestureRequired;
   }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  // If a user requests Read Aloud audio playbaback through the "Listen to this
+  // page" entry point in the context menu, page distillation and TTS engine
+  // readiness may take longer than the user gesture timeout. Thus, we allow
+  // Autoplay when the host is Reading Mode since the user explicitly requested
+  // audio playback when clicking the context menu entry point.
+  if (web_contents->GetLastCommittedURL().SchemeIs(
+          content::kChromeUIUntrustedScheme) &&
+      web_contents->GetLastCommittedURL().host() ==
+          chrome::kChromeUIUntrustedReadAnythingSidePanelHost) {
+    return blink::mojom::AutoplayPolicy::kNoUserGestureRequired;
+  }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_CHROMEOS)
 
   // If we can show a setting to disable autoplay policy and are currently set
   // to `kDocumentUserActivationRequired`, return the user preference.
@@ -1975,7 +1994,7 @@ bool ChromeContentBrowserClient::ShouldUseProcessPerSite(
   // NTP should use process-per-site.  This is a performance optimization to
   // reduce process count associated with NTP tabs.
   if (security_principal.SchemeIs(content::kChromeUIScheme)) {
-    const std::string host = security_principal.GetHost();
+    const std::string_view host = security_principal.GetHost();
     if (host == chrome::kChromeUINewTabHost ||
         host == chrome::kChromeUINewTabPageHost) {
       return true;
@@ -3666,107 +3685,6 @@ void ChromeContentBrowserClient::OnAuctionComplete(
   }
 }
 
-bool ChromeContentBrowserClient::IsAttributionReportingOperationAllowed(
-    content::BrowserContext* browser_context,
-    AttributionReportingOperation operation,
-    content::RenderFrameHost* rfh,
-    const url::Origin* source_origin,
-    const url::Origin* destination_origin,
-    const url::Origin* reporting_origin,
-    bool* can_bypass) {
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-
-  auto* privacy_sandbox_settings =
-      PrivacySandboxSettingsFactory::GetForProfile(profile);
-  if (!privacy_sandbox_settings) {
-    return false;
-  }
-
-  switch (operation) {
-    case AttributionReportingOperation::kSource:
-    case AttributionReportingOperation::kOsSource: {
-      DCHECK(source_origin);
-      DCHECK(reporting_origin);
-      bool allowed = privacy_sandbox_settings->IsAttributionReportingAllowed(
-          *source_origin, *reporting_origin, rfh);
-      if (rfh) {
-        content_settings::PageSpecificContentSettings::BrowsingDataAccessed(
-            rfh, content::AttributionDataModel::DataKey(*reporting_origin),
-            BrowsingDataModel::StorageType::kAttributionReporting,
-            /*blocked=*/!allowed);
-      }
-      return allowed;
-    }
-    case AttributionReportingOperation::kSourceVerboseDebugReport:
-    case AttributionReportingOperation::kSourceAggregatableDebugReport:
-    case AttributionReportingOperation::kOsSourceVerboseDebugReport:
-      DCHECK(source_origin);
-      DCHECK(reporting_origin);
-      return privacy_sandbox_settings->IsAttributionReportingAllowed(
-          *source_origin, *reporting_origin, rfh);
-    case AttributionReportingOperation::kTrigger:
-    case AttributionReportingOperation::kOsTrigger: {
-      DCHECK(destination_origin);
-      DCHECK(reporting_origin);
-      bool allowed = privacy_sandbox_settings->IsAttributionReportingAllowed(
-          *destination_origin, *reporting_origin, rfh);
-      if (rfh) {
-        content_settings::PageSpecificContentSettings::BrowsingDataAccessed(
-            rfh, content::AttributionDataModel::DataKey(*reporting_origin),
-            BrowsingDataModel::StorageType::kAttributionReporting,
-            /*blocked=*/!allowed);
-      }
-      return allowed;
-    }
-    case AttributionReportingOperation::kTriggerVerboseDebugReport:
-    case AttributionReportingOperation::kTriggerAggregatableDebugReport:
-    case AttributionReportingOperation::kOsTriggerVerboseDebugReport:
-      DCHECK(destination_origin);
-      DCHECK(reporting_origin);
-      return privacy_sandbox_settings->IsAttributionReportingAllowed(
-          *destination_origin, *reporting_origin, rfh);
-    case AttributionReportingOperation::kReport:
-      DCHECK(source_origin);
-      DCHECK(destination_origin);
-      DCHECK(reporting_origin);
-      return privacy_sandbox_settings->MaySendAttributionReport(
-          *source_origin, *destination_origin, *reporting_origin, rfh);
-    case AttributionReportingOperation::kSourceTransitionalDebugReporting:
-    case AttributionReportingOperation::kOsSourceTransitionalDebugReporting:
-      DCHECK(source_origin);
-      DCHECK(reporting_origin);
-      return privacy_sandbox_settings
-          ->IsAttributionReportingTransitionalDebuggingAllowed(
-              *source_origin, *reporting_origin);
-    case AttributionReportingOperation::kTriggerTransitionalDebugReporting:
-    case AttributionReportingOperation::kOsTriggerTransitionalDebugReporting:
-      DCHECK(destination_origin);
-      DCHECK(reporting_origin);
-      return privacy_sandbox_settings
-          ->IsAttributionReportingTransitionalDebuggingAllowed(
-              *destination_origin, *reporting_origin);
-    case AttributionReportingOperation::kAny:
-      return privacy_sandbox_settings->IsAttributionReportingEverAllowed();
-  }
-}
-
-bool ChromeContentBrowserClient::IsAttributionReportingAllowedForContext(
-    content::BrowserContext* browser_context,
-    content::RenderFrameHost* rfh,
-    const url::Origin& context_origin,
-    const url::Origin& reporting_origin) {
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-
-  auto* privacy_sandbox_settings =
-      PrivacySandboxSettingsFactory::GetForProfile(profile);
-  if (!privacy_sandbox_settings) {
-    return false;
-  }
-
-  return privacy_sandbox_settings->IsAttributionReportingAllowed(
-      context_origin, reporting_origin, rfh);
-}
-
 bool ChromeContentBrowserClient::IsSharedStorageAllowed(
     content::BrowserContext* browser_context,
     content::RenderFrameHost* rfh,
@@ -4584,7 +4502,7 @@ bool ChromeContentBrowserClient::CanCreateWindow(
   contextual_tasks::ContextualTasksUiService* contextual_tasks_ui_service =
       contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
           profile);
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+  if (contextual_tasks::IsContextualTasksUIEnabled()) {
     content::OpenURLParams url_params(
         target_url, referrer, disposition,
         ui::PageTransition::PAGE_TRANSITION_AUTO_TOPLEVEL, true);
@@ -6807,7 +6725,7 @@ void ChromeContentBrowserClient::WillCreateURLLoaderFactory(
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+  if (contextual_tasks::IsContextualTasksUIEnabled()) {
     contextual_tasks::MaybeInterceptURLLoaderFactory(frame, factory_builder);
   }
 #else   // !BUILDFLAG (ENABLE_EXTENSIONS_CORE)
@@ -7876,7 +7794,7 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
     const GURL& url,
     content::BrowserContext* context,
     content::RenderFrameHost* render_frame_host) {
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   // If devtools access is blocked for the page, debug URLs should also be
   // blocked for the page.
   Profile* profile = Profile::FromBrowserContext(context);
@@ -8110,6 +8028,18 @@ void ChromeContentBrowserClient::IsClipboardPasteAllowedByPolicy(
     const ui::ClipboardMetadata& metadata,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
+  // TODO(b/508693696): Add copy and paste support on AL.
+#if !BUILDFLAG(IS_ANDROID)
+  if (destination.web_contents() &&
+      glic::IsGlicGuest(destination.web_contents())) {
+    glic::LogPasteAttempt(source, metadata);
+    if (!glic::IsClipboardPasteAllowed(source, destination, metadata)) {
+      std::move(callback).Run(ClipboardPasteData());
+      return;
+    }
+  }
+#endif
+
 // TODO(b/352728209): Add Android-specific hook for Data Controls.
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS) && !BUILDFLAG(IS_ANDROID)
   enterprise_data_protection::PasteAllowedRequest::StartPasteAllowedRequest(
@@ -8132,6 +8062,10 @@ void ChromeContentBrowserClient::IsClipboardCopyAllowedByPolicy(
     const ui::ClipboardMetadata& metadata,
     const ClipboardPasteData& data,
     IsClipboardCopyAllowedCallback callback) {
+#if !BUILDFLAG(IS_ANDROID)
+  glic::OnBeforeClipboardCopy(source);
+#endif
+
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
   enterprise_data_protection::IsClipboardCopyAllowedByPolicy(
       source, metadata, data, std::move(callback));
@@ -8192,6 +8126,24 @@ bool ChromeContentBrowserClient::
   }
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   return url.SchemeIs(extensions::kExtensionScheme);
+#else
+  return false;
+#endif
+}
+
+bool ChromeContentBrowserClient::
+    ShouldServiceWorkerRequireForegroundPriorityDuringStartup(
+        const GURL& script_url) {
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  // Extension service workers are frequently started headlessly to service
+  // events (e.g. the webRequest/declarativeNetRequest APIs) with no controllee
+  // or other foreground signal. Give their render process foreground priority
+  // while the worker starts so it does not starve at background priority (which
+  // maps to EcoQoS on Windows) and miss its start timeout
+  // (crbug.com/484218883).
+  return base::FeatureList::IsEnabled(
+             features::kServiceWorkerForegroundOnExtensionStartup) &&
+         script_url.SchemeIs(extensions::kExtensionScheme);
 #else
   return false;
 #endif
@@ -9708,11 +9660,6 @@ void ChromeContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
 #endif
 }
 
-bool ChromeContentBrowserClient::IsAttributionInternalsWebUIEnabled() {
-  return !base::FeatureList::IsEnabled(
-      privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
-}
-
 bool ChromeContentBrowserClient::IsFullscreenAllowedForUnfocusedWebContents(
     content::WebContents* unfocused_web_contents) {
   guest_view::GuestViewBase* guest =
@@ -9725,3 +9672,17 @@ bool ChromeContentBrowserClient::IsFullscreenAllowedForUnfocusedWebContents(
   }
   return false;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+bool ChromeContentBrowserClient::ShouldAllowSystemUiPopups(
+    content::WebContents* web_contents) {
+  auto* actor_service =
+      actor::ActorKeyedService::Get(web_contents->GetBrowserContext());
+  if (!actor_service) {
+    return true;
+  }
+  const auto* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  return !(tab_interface && actor_service->IsActiveOnTab(*tab_interface));
+}
+#endif

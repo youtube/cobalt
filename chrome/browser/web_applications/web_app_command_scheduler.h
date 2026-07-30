@@ -362,11 +362,6 @@ class WebAppCommandScheduler {
       const base::Location& call_location = FROM_HERE);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  // Calculates the total browsing data size for all installed Isolated Web
-  // Apps.
-  void GetIsolatedWebAppBrowsingData(
-      base::OnceCallback<void(base::flat_map<url::Origin, uint64_t>)> callback,
-      const base::Location& call_location = FROM_HERE);
 
   // Gets the StoragePartitionConfig for a <controlledframe> within the given
   // Isolated Web App. If the partition is persistent (not `in_memory`), it is
@@ -759,6 +754,12 @@ class WebAppCommandScheduler {
       std::unique_ptr<ScopedKeepAlive> keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
       ApplyManifestMigrationResultCallback callback,
+      const base::Location& location = FROM_HERE);
+
+  // Schedules the command to run garbage collection on unused storage
+  // partitions.
+  void GarbageCollectStoragePartitions(
+      base::OnceClosure callback,
       const base::Location& location = FROM_HERE);
 
   // TODO(crbug.com/40215411): expose all commands for web app

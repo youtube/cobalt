@@ -17,6 +17,8 @@
 #include "base/check_deref.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_map.h"
+#include "base/i18n/language_tag.h"
+#include "base/i18n/tag_converters.h"
 #include "base/json/string_escape.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/metrics_hashes.h"
@@ -1462,6 +1464,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                    &ReadAnythingAppController::IsImmersiveEnabled)
       .SetProperty("isImprovedReadAloudEnabled",
                    &ReadAnythingAppController::IsImprovedReadAloudEnabled)
+      .SetProperty("isReadAnythingImprovedUiEnabled",
+                   &ReadAnythingAppController::IsReadAnythingImprovedUiEnabled)
       .SetProperty(
           "isReadAnythingTranslateEntryPointEnabled",
           &ReadAnythingAppController::IsReadAnythingTranslateEntryPointEnabled)
@@ -2187,6 +2191,10 @@ bool ReadAnythingAppController::IsImprovedReadAloudEnabled() const {
   return features::IsImprovedReadAloudEnabled();
 }
 
+bool ReadAnythingAppController::IsReadAnythingImprovedUiEnabled() const {
+  return features::IsReadAnythingImprovedUiEnabled();
+}
+
 bool ReadAnythingAppController::IsReadAnythingTranslateEntryPointEnabled()
     const {
   return features::IsReadAnythingTranslateEntryPointEnabled();
@@ -2343,8 +2351,12 @@ const std::string ReadAnythingAppController::GetDisplayNameForLocale(
     const std::string& display_locale) const {
   bool found_valid_result = false;
   std::string locale_result;
-  if (l10n_util::IsValidLocaleSyntax(locale) &&
-      l10n_util::IsValidLocaleSyntax(display_locale)) {
+  if (base::i18n::LanguageTagConverter::GetInstance()
+          .FromString(locale)
+          .has_value() &&
+      base::i18n::LanguageTagConverter::GetInstance()
+          .FromString(display_locale)
+          .has_value()) {
     locale_result = base::UTF16ToUTF8(l10n_util::GetDisplayNameForLocale(
         locale, display_locale, /*is_for_ui=*/true));
     // Check for valid locales before getting the display name.
@@ -2768,6 +2780,17 @@ void ReadAnythingAppController::OnReadingModeHidden(bool tab_active) {
   // Since it's known that reading mode was just hidden, ensure that metrics
   // are still logged.
   RecordSessionMetricsIfShownOrRecentlyHidden(/*just_hidden=*/true);
+}
+
+void ReadAnythingAppController::OnReadingModeShown(
+    read_anything::mojom::ReadAnythingOpenTrigger open_trigger) {
+  // TODO (crbug.com/494307454): Add test to verify that duplicate calls of
+  // OnReadingModeShown() won't affect Read Aloud's audio playback state (other
+  // than the playOnOpen state).
+  if (open_trigger == read_anything::mojom::ReadAnythingOpenTrigger::
+                          kListenToThisPageContextMenu) {
+    ExecuteJavaScript("chrome.readingMode.setPlayOnOpen(true);");
+  }
 }
 
 void ReadAnythingAppController::OnSpeechEngineFirstStall() {

@@ -30,9 +30,12 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
-import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.init.AsyncInitializationActivity;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.search.SettingsSearchCoordinator;
+import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.settings.PreferenceUpdateObserver;
@@ -51,8 +54,8 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 public class SettingsPageFragmentDelegateImpl
         implements SettingsPage.FragmentDelegate,
                 SettingsMenuHelper.Delegate,
-                ContainmentHelper.Delegate,
-                PreferenceUpdateObserver {
+                PreferenceUpdateObserver,
+                MultiColumnSettings.Observer {
     private static final String SETTINGS_NATIVE_PAGE_TAG = "settings_native_page";
 
     private final Activity mActivity;
@@ -63,12 +66,11 @@ public class SettingsPageFragmentDelegateImpl
     private final BottomSheetController mBottomSheetController;
     private final ModalDialogManager mModalDialogManager;
     private final SettableMonotonicObservableSupplier<ModalDialogManager> mModalDialogSupplier;
-    private final ContainmentHelper mContainmentHelper;
+    private final String mFragmentTag;
 
     private @Nullable SettingsHostFragment mSettingsHostFragment;
-    private FragmentManager.@Nullable FragmentLifecycleCallbacks mDependencyProvider;
+    private @Nullable FragmentDependencyProvider mDependencyProvider;
     private FragmentManager.@Nullable FragmentLifecycleCallbacks mTitleUpdaterLifecycleCallbacks;
-    private FragmentManager.@Nullable FragmentLifecycleCallbacks mWideDisplayPaddingApplier;
     private FragmentManager.@Nullable FragmentLifecycleCallbacks mSettingsMetricsReporter;
     private @Nullable Toolbar mToolbar;
     private @Nullable MultiColumnTitleUpdater mMultiColumnTitleUpdater;
@@ -82,7 +84,10 @@ public class SettingsPageFragmentDelegateImpl
             ActivityResultTracker activityResultTracker,
             SnackbarManager snackbarManager,
             BottomSheetController bottomSheetController,
-            ModalDialogManager modalDialogManager) {
+            ModalDialogManager modalDialogManager,
+            @TabId int tabId) {
+        assert ChromeFeatureList.sSettingsInTab.isEnabled()
+                : "SettingsInTab feature must be enabled to use this class.";
         mActivity = activity;
         mProfile = profile;
         mWindowAndroid = windowAndroid;
@@ -92,7 +97,10 @@ public class SettingsPageFragmentDelegateImpl
         mModalDialogManager = modalDialogManager;
         mModalDialogSupplier = ObservableSuppliers.<ModalDialogManager>createMonotonic();
         mModalDialogSupplier.set(mModalDialogManager);
-        mContainmentHelper = new ContainmentHelper(activity, this);
+        // Ensure fragment has a globally unique tag so new settings tabs don't collide with
+        // existing settings tabs (or closing tabs in the undo close tab snackbar queue). Use
+        // tabId because it is stable across Activity restarts (e.g. theme changes).
+        mFragmentTag = SETTINGS_NATIVE_PAGE_TAG + "_" + tabId;
     }
 
     @Override
@@ -125,12 +133,6 @@ public class SettingsPageFragmentDelegateImpl
         fragmentManager.registerFragmentLifecycleCallbacks(
                 mDependencyProvider, /* recursive= */ true);
 
-        mContainmentHelper.registerCallbacks(fragmentManager);
-
-        mTitleUpdaterLifecycleCallbacks = new TitleUpdaterLifecycleCallbacks();
-        fragmentManager.registerFragmentLifecycleCallbacks(
-                mTitleUpdaterLifecycleCallbacks, /* recursive= */ true);
-
         // Update the search coordinator on configuration change.
         mComponentCallbacks =
                 new ComponentCallbacks() {
@@ -150,12 +152,6 @@ public class SettingsPageFragmentDelegateImpl
         // new activity, where we want to apply padding and record histograms. Sort out if
         // there are any such fragment left and provide a non-null tag here if so.
         @Nullable String mainFragmentTag = null;
-
-        mWideDisplayPaddingApplier =
-                new WideDisplayPaddingApplier(
-                        mActivity, this::isTwoColumnSettingsVisible, mainFragmentTag);
-        fragmentManager.registerFragmentLifecycleCallbacks(
-                mWideDisplayPaddingApplier, /* recursive= */ true);
 
         mSettingsMetricsReporter = new SettingsMetricsReporter(mainFragmentTag);
         fragmentManager.registerFragmentLifecycleCallbacks(
@@ -178,23 +174,19 @@ public class SettingsPageFragmentDelegateImpl
         UiUtils.removeViewFromParent(dialogContainer);
 
         containerView.addView(settingsView);
-        ViewGroup fragmentContainer = settingsView.findViewById(R.id.content);
+        ViewGroup fragmentContainer = settingsView.findViewById(R.id.settings_content);
         mToolbar = settingsView.findViewById(R.id.action_bar);
 
         // Apply semantic colors to the top-level container and app bar.
         int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(mActivity);
-        settingsView.findViewById(R.id.content).setBackgroundColor(backgroundColor);
+        fragmentContainer.setBackgroundColor(backgroundColor);
         AppBarLayout appBarLayout = settingsView.findViewById(R.id.app_bar_layout);
         appBarLayout.setBackgroundColor(backgroundColor);
         appBarLayout.setElevation(0);
         appBarLayout.setStateListAnimator(null);
 
-        // Set up the back navigation arrow in the toolbar.
-        // TODO(crbug.com/521895796): This is a placeholder for testing. Move the arrow to
-        // the right column before launch.
-        mToolbar.setNavigationIcon(R.drawable.ic_arrow_back_24dp);
-        mToolbar.setNavigationOnClickListener(v -> mActivity.onBackPressed());
-
+        // Set the "Settings" label. The icon is updated in OnHeaderLayoutUpdated(), after layout
+        // has determined whether settings is one-column or two-column.
         mToolbar.setTitle(R.string.settings);
 
         // Set up Help Menu on Toolbar.
@@ -204,13 +196,35 @@ public class SettingsPageFragmentDelegateImpl
                 item -> SettingsMenuHelper.onOptionsItemSelected(item, mActivity, this));
 
         mSettingsHostFragment =
-                (SettingsHostFragment) fragmentManager.findFragmentByTag(SETTINGS_NATIVE_PAGE_TAG);
+                (SettingsHostFragment) fragmentManager.findFragmentByTag(mFragmentTag);
         if (mSettingsHostFragment == null) {
             mSettingsHostFragment = new SettingsHostFragment();
             fragmentManager
                     .beginTransaction()
-                    .add(fragmentContainer.getId(), mSettingsHostFragment, SETTINGS_NATIVE_PAGE_TAG)
+                    .add(fragmentContainer.getId(), mSettingsHostFragment, mFragmentTag)
                     .commitAllowingStateLoss();
+        }
+        mSettingsHostFragment.setDependencyProvider(mDependencyProvider);
+
+        Bundle savedInstanceState = getSavedInstanceState();
+        if (savedInstanceState != null) {
+            // If savedInstanceState is non-null then the activity is being recreated and
+            // and the multi-column title updater and search coordinator must be created for
+            // the existing fragment.
+            MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
+            assert multiColumnSettings != null;
+            assert multiColumnSettings.getView() != null;
+            createMultiColumnTitleUpdater(
+                    multiColumnSettings, multiColumnSettings.requireView(), savedInstanceState);
+            createSearchCoordinator(multiColumnSettings, savedInstanceState);
+            multiColumnSettings.addObserver(this);
+            onHeaderLayoutUpdated();
+        } else {
+            // Otherwise create the title updater and search coordinator when the fragment is
+            // created.
+            mTitleUpdaterLifecycleCallbacks = new TitleUpdaterLifecycleCallbacks();
+            fragmentManager.registerFragmentLifecycleCallbacks(
+                    mTitleUpdaterLifecycleCallbacks, /* recursive= */ true);
         }
     }
 
@@ -221,32 +235,30 @@ public class SettingsPageFragmentDelegateImpl
         assumeNonNull(mDependencyProvider);
         fragmentManager.unregisterFragmentLifecycleCallbacks(mDependencyProvider);
         mDependencyProvider = null;
-        mContainmentHelper.unregisterCallbacks(fragmentManager);
         assumeNonNull(mSettingsHostFragment);
 
-        assumeNonNull(mTitleUpdaterLifecycleCallbacks);
-        fragmentManager.unregisterFragmentLifecycleCallbacks(mTitleUpdaterLifecycleCallbacks);
-        mTitleUpdaterLifecycleCallbacks = null;
-
-        assumeNonNull(mWideDisplayPaddingApplier);
-        fragmentManager.unregisterFragmentLifecycleCallbacks(mWideDisplayPaddingApplier);
-        mWideDisplayPaddingApplier = null;
+        if (mTitleUpdaterLifecycleCallbacks != null) {
+            fragmentManager.unregisterFragmentLifecycleCallbacks(mTitleUpdaterLifecycleCallbacks);
+            mTitleUpdaterLifecycleCallbacks = null;
+        }
 
         assumeNonNull(mSettingsMetricsReporter);
         fragmentManager.unregisterFragmentLifecycleCallbacks(mSettingsMetricsReporter);
         mSettingsMetricsReporter = null;
 
-        if (mMultiColumnTitleUpdater != null) {
-            MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
-            assumeNonNull(multiColumnSettings);
-            multiColumnSettings.removeObserver(mMultiColumnTitleUpdater);
-            mMultiColumnTitleUpdater = null;
+        MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
+        if (multiColumnSettings != null) {
+            if (mMultiColumnTitleUpdater != null) {
+                multiColumnSettings.removeObserver(mMultiColumnTitleUpdater);
+            }
+            if (mSearchCoordinator != null) {
+                multiColumnSettings.removeObserver(mSearchCoordinator);
+            }
+            multiColumnSettings.removeObserver(this);
         }
+        mMultiColumnTitleUpdater = null;
 
         if (mSearchCoordinator != null) {
-            MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
-            assumeNonNull(multiColumnSettings);
-            multiColumnSettings.removeObserver(mSearchCoordinator);
             mSearchCoordinator.destroy();
             mSearchCoordinator = null;
         }
@@ -256,22 +268,35 @@ public class SettingsPageFragmentDelegateImpl
             mComponentCallbacks = null;
         }
 
-        fragmentManager.beginTransaction().remove(mSettingsHostFragment).commitAllowingStateLoss();
+        if (mSettingsHostFragment != null) {
+            fragmentManager
+                    .beginTransaction()
+                    .remove(mSettingsHostFragment)
+                    .commitAllowingStateLoss();
+        }
         mSettingsHostFragment = null;
         mToolbar = null;
     }
 
-    private void createMultiColumnTitleUpdater(MultiColumnSettings multiColumnSettings, View view) {
+    private @Nullable Bundle getSavedInstanceState() {
+        return mActivity instanceof AsyncInitializationActivity asyncActivity
+                ? asyncActivity.getSavedInstanceState()
+                : null;
+    }
+
+    private void createMultiColumnTitleUpdater(
+            MultiColumnSettings multiColumnSettings,
+            View view,
+            @Nullable Bundle savedInstanceState) {
         assert mMultiColumnTitleUpdater == null;
 
         LinearLayout titleContainer = view.findViewById(R.id.settings_title_in_detailed_pane);
         assumeNonNull(titleContainer);
         assumeNonNull(mToolbar);
 
-        // TODO(crbug.com/521895796): Use proper fragment saved state.
         mMultiColumnTitleUpdater =
                 new MultiColumnTitleUpdater(
-                        /* savedInstanceState= */ null,
+                        savedInstanceState,
                         multiColumnSettings,
                         mActivity,
                         titleContainer,
@@ -309,7 +334,7 @@ public class SettingsPageFragmentDelegateImpl
 
     @Override
     public HelpAndFeedbackLauncher getHelpAndFeedbackLauncher() {
-        return HelpAndFeedbackLauncherImpl.getForProfile(mProfile);
+        return HelpAndFeedbackLauncherFactory.getForProfile(mProfile);
     }
 
     @Override
@@ -324,46 +349,65 @@ public class SettingsPageFragmentDelegateImpl
 
     @Override
     public void finishCurrentSettings(Fragment fragment) {
-        // TODO(crbug.com/521895796): Define settings-in-tab finish/back behavior.
+        assert mSettingsHostFragment != null;
+        assert mSettingsHostFragment.isAttachedToActivity();
+        mSettingsHostFragment.finishCurrentSettings(fragment);
     }
 
-    @Override
     public boolean isTwoColumnSettingsVisible() {
         MultiColumnSettings multiColumnSettings = getMultiColumnSettings();
         return multiColumnSettings != null && multiColumnSettings.isTwoColumn();
     }
 
     @Override
-    public PreferenceUpdateObserver getPreferenceUpdateObserver() {
-        return this;
-    }
-
-    @Override
     public void onPreferencesUpdated(PreferenceFragmentCompat fragment) {
-        mContainmentHelper.postUpdateContainmentOnLayout(fragment);
+        if (mSettingsHostFragment != null) {
+            mSettingsHostFragment.onPreferencesUpdated(fragment);
+        }
     }
 
-    private void createSearchCoordinator(MultiColumnSettings multiColumnSettings, View view) {
+    private void createSearchCoordinator(
+            MultiColumnSettings multiColumnSettings, @Nullable Bundle savedInstanceState) {
         assert mSearchCoordinator == null;
+        assert mToolbar != null;
+        assert mSettingsHostFragment != null;
+        SettingsContainmentHelper containmentHelper = mSettingsHostFragment.getContainmentHelper();
+        assert containmentHelper != null;
 
         mSearchCoordinator =
                 new SettingsSearchCoordinator(
                         (FragmentActivity) mActivity,
-                        view.findViewById(R.id.action_bar),
+                        mToolbar,
                         this::isTwoColumnSettingsVisible,
                         multiColumnSettings,
-                        mContainmentHelper.getItemDecorations(),
+                        containmentHelper.getItemDecorations(),
                         mProfile,
                         this::updateFirstVisibleTitle,
                         mModalDialogSupplier);
 
-        multiColumnSettings.setOnCreateViewRunnable(
-                () -> assumeNonNull(mSearchCoordinator).initializeSearchUi(null));
+        // Multi column settings may have already created its view (in case of Activity
+        // re-creation), so initialize the search coordinator's view if it exists.
+        if (multiColumnSettings.getView() != null) {
+            mSearchCoordinator.initializeSearchUi(savedInstanceState);
+        } else {
+            multiColumnSettings.setOnCreateViewRunnable(
+                    () -> assumeNonNull(mSearchCoordinator).initializeSearchUi(savedInstanceState));
+        }
         multiColumnSettings.addObserver(mSearchCoordinator);
     }
 
     private void updateFirstVisibleTitle(int index) {
         assumeNonNull(mMultiColumnTitleUpdater).setFirstVisibleTitleIndex(index);
+    }
+
+    @Override
+    public void onHeaderLayoutUpdated() {
+        if (mToolbar != null) {
+            // The layout must be updated at least once before isTwoColumnSettingsVisible() returns
+            // the correct value.
+            SettingsMenuHelper.updateNavigationIcon(
+                    mToolbar, mActivity, /* show= */ true, isTwoColumnSettingsVisible());
+        }
     }
 
     /** Utility class to handle creating the title updater. */
@@ -373,8 +417,14 @@ public class SettingsPageFragmentDelegateImpl
         public void onFragmentViewCreated(
                 FragmentManager fm, Fragment f, View v, @Nullable Bundle savedFragmentState) {
             if (f instanceof MultiColumnSettings multiColumnSettings) {
-                createMultiColumnTitleUpdater(multiColumnSettings, v);
-                createSearchCoordinator(multiColumnSettings, v);
+                Bundle savedInstanceState = getSavedInstanceState();
+                createMultiColumnTitleUpdater(multiColumnSettings, v, savedInstanceState);
+                createSearchCoordinator(multiColumnSettings, savedInstanceState);
+                multiColumnSettings.addObserver(SettingsPageFragmentDelegateImpl.this);
+
+                assert mTitleUpdaterLifecycleCallbacks == this;
+                fm.unregisterFragmentLifecycleCallbacks(mTitleUpdaterLifecycleCallbacks);
+                mTitleUpdaterLifecycleCallbacks = null;
             }
         }
     }

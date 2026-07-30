@@ -294,7 +294,7 @@ void TabStripCollectionController::ToggleTabGroupCollapsedState(
   base::WeakPtr<const TabGroup> weak_group = group->AsWeakPtr();
 
   tabs::TabInterface* active_tab = model_->GetActiveTab();
-  if (!is_currently_collapsed && active_tab && !drag_handler_->IsDragging()) {
+  if (!is_currently_collapsed && active_tab) {
     if (active_tab->GetGroup() == group->id()) {
       // If the active tab is in the group that is toggling to collapse, the
       // active tab should switch to the next available tab. If there are no
@@ -311,9 +311,6 @@ void TabStripCollectionController::ToggleTabGroupCollapsedState(
       } else {
         // Create a new tab that will automatically be activated
         should_toggle_group = false;
-        // We intentionally do not call CreateNewTab() here because it
-        // respects the IsNewTabAddsToActiveGroupEnabled() feature, which would
-        // add the new tab to the same group as the currently active tab.
         // In the "collapse group" scenario, we want the new tab to be created
         // outside of any group to avoid it being collapsed immediately.
         model_->delegate()->AddTabAt(GURL(), -1, true);

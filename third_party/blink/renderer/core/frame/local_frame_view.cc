@@ -1084,26 +1084,26 @@ void LocalFrameView::RunCanvasOnpaintSteps() {
     if (frame_view.canvas_elements_needing_onpaint_.empty()) {
       return;
     }
-    HeapHashMap<Member<HTMLCanvasElement>,
-                Member<GCedHeapLinkedHashSet<Member<Element>>>>
-        canvas_elements_needing_onpaint;
+    CanvasOnpaintMap canvas_elements_needing_onpaint;
     canvas_elements_needing_onpaint.swap(
         frame_view.canvas_elements_needing_onpaint_);
 
-    HeapVector<std::pair<unsigned, Member<HTMLCanvasElement>>> sorted_canvases;
+    // Sort canvases in reverse shadow-including tree order so that descendant
+    // <canvas> elements fire `paint` events before their ancestors.
+    HeapVector<Member<HTMLCanvasElement>> sorted_canvases;
     sorted_canvases.reserve(canvas_elements_needing_onpaint.size());
     for (const auto& entry : canvas_elements_needing_onpaint) {
-      unsigned depth = 0;
-      for (Node* n = entry.key; n; n = FlatTreeTraversal::Parent(*n)) {
-        depth++;
-      }
-      sorted_canvases.emplace_back(depth, entry.key);
+      sorted_canvases.push_back(entry.key);
     }
-    std::stable_sort(
-        sorted_canvases.begin(), sorted_canvases.end(),
-        [](const auto& a, const auto& b) { return a.first > b.first; });
+    std::sort(sorted_canvases.begin(), sorted_canvases.end(),
+              [](const Member<HTMLCanvasElement>& a,
+                 const Member<HTMLCanvasElement>& b) {
+                return b->compareDocumentPosition(
+                           a, Node::kTreatShadowTreesAsComposed) &
+                       Node::kDocumentPositionFollowing;
+              });
 
-    for (const auto& [depth, canvas] : sorted_canvases) {
+    for (const auto& canvas : sorted_canvases) {
       auto* value = canvas_elements_needing_onpaint.at(canvas);
       const HeapVector<Member<Element>> children(*value);
       CanvasPaintEventInit* init = CanvasPaintEventInit::Create();
@@ -1677,11 +1677,8 @@ void LocalFrameView::ScheduleRelayoutOfSubtree(LayoutObject& relayout_root) {
   if (!frame_->GetDocument()->IsActive())
     return;
 
-  LayoutView* layout_view = GetLayoutView();
-  if (layout_view && layout_view->NeedsLayout()) {
-    relayout_root.MarkContainerChainForLayout(false);
-    return;
-  }
+  // We shouldn't be adding a subtree layout-root if the LayoutView is dirty.
+  DCHECK(!GetLayoutView()->NeedsLayout());
 
   layout_subtree_root_list_.Add(relayout_root);
 

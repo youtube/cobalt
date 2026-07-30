@@ -63,6 +63,13 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   void SetAimButtonVisible(bool visible);
 
   // SearchboxHandler:
+  WindowOpenDisposition ComputeWindowOpenDisposition(
+      uint8_t mouse_button,
+      bool alt_key,
+      bool ctrl_key,
+      bool meta_key,
+      bool shift_key,
+      bool via_keyboard) override;
   std::optional<searchbox::mojom::AutocompleteMatchPtr> CreateAutocompleteMatch(
       const AutocompleteMatch& match,
       size_t line,
@@ -81,7 +88,6 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   // OmniboxEditModel::Observer:
   void OnSelectionChanged(OmniboxPopupSelection old_selection,
                           OmniboxPopupSelection selection) override;
-  void OnKeywordStateChanged(bool is_keyword_selected) override;
   void OnCharTyped(base::TimeTicks timestamp) override;
   void OnMatchIconUpdated(size_t index) override {}
   void OnContentsChanged() override {}

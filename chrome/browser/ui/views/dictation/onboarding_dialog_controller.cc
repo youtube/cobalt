@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -31,6 +32,7 @@
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/widget/widget_delegate.h"
 
 namespace dictation {
 
@@ -44,6 +46,13 @@ inline constexpr char kOnboardingDialogName[] = "DictationOnboardingDialog";
 // TODO(crbug.com/530962875): Update typography font styles once PM & UX
 // reach alignment.
 std::unique_ptr<views::View> CreateOnboardingCardView() {
+  const gfx::VectorIcon& data_sharing_icon =
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      vector_icons::kAudioSparkIcon;
+#else
+      vector_icons::kLightbulbIcon;
+#endif
+
   return views::Builder<views::BoxLayoutView>()
       .SetOrientation(views::BoxLayout::Orientation::kVertical)
       .SetBetweenChildSpacing(2)
@@ -87,12 +96,9 @@ std::unique_ptr<views::View> CreateOnboardingCardView() {
                   gfx::RoundedCornersF(0.0f, 0.0f, 16.0f, 16.0f)))
               .SetInsideBorderInsets(gfx::Insets(16))
               .AddChildren(
-                  // TODO(crbug.com/530949784): Add speech-spark icon to
-                  // src-internal and replace vector_icons::kLightbulbIcon.
                   views::Builder<views::ImageView>()
                       .SetImage(ui::ImageModel::FromVectorIcon(
-                          vector_icons::kLightbulbIcon, ui::kColorSysPrimary,
-                          20))
+                          data_sharing_icon, ui::kColorSysPrimary, 20))
                       .SetProperty(views::kMarginsKey,
                                    gfx::Insets::TLBR(2, 0, 0, 0)),
                   views::Builder<views::Label>()
@@ -144,7 +150,10 @@ std::unique_ptr<views::View> CreateBodyView(
 }  // namespace
 
 OnboardingDialogController::OnboardingDialogController(tabs::TabInterface& tab)
-    : tab_(tab) {}
+    : tab_(tab) {
+  tab_activation_subscription_ = tab_->RegisterDidActivate(base::BindRepeating(
+      &OnboardingDialogController::OnTabActivated, base::Unretained(this)));
+}
 
 OnboardingDialogController::~OnboardingDialogController() {
   if (IsShowing()) {
@@ -236,6 +245,19 @@ void OnboardingDialogController::Close(views::Widget::ClosedReason reason) {
     std::move(close_callback_).Run();
   }
   // WARNING: close_callback_ above deletes `this`.
+}
+
+void OnboardingDialogController::OnTabActivated(tabs::TabInterface* tab) {
+  if (IsShowing()) {
+    widget_->StackAtTop();
+    widget_->Activate();
+    if (widget_->widget_delegate()) {
+      auto* view = widget_->widget_delegate()->GetInitiallyFocusedView();
+      if (view) {
+        view->RequestFocus();
+      }
+    }
+  }
 }
 
 }  // namespace dictation

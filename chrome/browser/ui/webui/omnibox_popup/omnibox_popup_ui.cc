@@ -92,7 +92,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
 
   source->AddLocalizedStrings(SearchboxHandler::GetWebUIDataSourceDict(
       Profile::FromWebUI(web_ui),
-      {.enable_voice_search = true,
+      {.enable_voice_search = false,
        .enable_lens_search = false,
        .session_allows_drag_and_drop = session_allows_drag_and_drop}));
 
@@ -169,6 +169,9 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
       "contextManagementInComposeboxEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
           base::FeatureList::IsEnabled(omnibox::kContextManagementInOmnibox));
+  source->AddBoolean(
+      "composeboxSkillsEnabled",
+      base::FeatureList::IsEnabled(omnibox::kComposeboxSkillsOmniboxPopup));
   source->AddBoolean(
       "tabFaviconChipsToCoinsEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
@@ -295,17 +298,13 @@ void OmniboxPopupUI::BindInterface(
 }
 
 void OmniboxPopupUI::CreatePageHandler(
-    mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_page_handler,
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler) {
-  DCHECK(pending_page.is_valid());
-
   composebox_handler_ = std::make_unique<OmniboxComposeboxHandler>(
-      std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler), std::move(pending_searchbox_page),
-      profile_, web_ui()->GetWebContents(),
+      std::move(pending_page_handler), std::move(pending_searchbox_handler),
+      std::move(pending_searchbox_page), profile_, web_ui()->GetWebContents(),
       base::BindRepeating(&OmniboxPopupUI::GetOrCreateContextualSessionHandle,
                           base::Unretained(this)),
       base::BindRepeating(&OmniboxPopupUI::ClearContextualSessionHandle,

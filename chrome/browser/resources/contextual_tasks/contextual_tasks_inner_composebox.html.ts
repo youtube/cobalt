@@ -11,15 +11,29 @@ import {getHtml as getContextMenuHtml} from './contextual_tasks_inner_composebox
 export function getHtml(this: ContextualTasksInnerComposeboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-    <ntp-error-scrim id="errorScrim" part="error-scrim"></ntp-error-scrim>
-    <div id="composebox" part="composebox"
+    <search-animated-glow id="animatedSearchElement"
+        animation-state="${this.animationState}"
+        entrypoint-name="ContextualTasks"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+        .isZeroState="${this.isZeroState}"
+        .darkThemeColorsEnabled="${true}"
+        exportparts="composebox-background">
+    </search-animated-glow>
+    ${this.errorMessage ?
+        html`<ntp-error-scrim id="errorScrim" part="error-scrim"
+            .errorMessage="${this.errorMessage}"
+            @dismiss-error-scrim="${this.onDismissErrorScrim}">
+        </ntp-error-scrim>`
+    : ''}
+    <div id="composebox" part="composebox" ?inert="${!!this.errorMessage}"
         @keydown="${this.onKeydown}"
         @focusin="${this.onComposeboxFocusin_}"
         @focusout="${this.onComposeboxFocusout_}"
-        @dragenter="${this.dragAndDropHandler_.handleDragEnter}"
-        @dragover="${this.dragAndDropHandler_.handleDragOver}"
-        @dragleave="${this.dragAndDropHandler_.handleDragLeave}"
-        @drop="${this.dragAndDropHandler_.handleDrop}">
+        @dragenter="${this.dragAndDropHandler.handleDragEnter}"
+        @dragover="${this.dragAndDropHandler.handleDragOver}"
+        @dragleave="${this.dragAndDropHandler.handleDragLeave}"
+        @drop="${this.dragAndDropHandler.handleDrop}"
+        @paste="${this.onPaste}">
       <div id="inputContainer" part="input-container">
         <cr-composebox-input id="composeboxInput"
             .entrypointName="${'ContextualTasks'}"
@@ -36,9 +50,26 @@ export function getHtml(this: ContextualTasksInnerComposeboxElement) {
             @input-focusin="${this.onInputFocusin}"
             @cancel-click="${this.onCancelClick}">
         </cr-composebox-input>
-        <cr-composebox-file-inputs id="fileInputs">
-          <cr-composebox-file-carousel id="carousel">
-          </cr-composebox-file-carousel>
+        <cr-composebox-file-inputs id="fileInputs"
+            @file-change="${this.onFileChange}"
+            .disableFileInputs="${this.shouldDisableFileInputs()}">
+          <div id="carouselContainer" part="carousel-container">
+            <div class="carousel-container-inner">
+              ${this.showFileCarousel ? html`
+                <cr-composebox-file-carousel
+                  part="cr-composebox-file-carousel"
+                  exportparts="thumbnail, thumbnail-title"
+                  id="carousel"
+                  class="${this.carouselOnTop_ ? 'top' : ''}"
+                  .files="${this.getFilteredCarouselFiles()}"
+                  ?enable-scrolling="${this.enableCarouselScrolling}"
+                  @delete-file="${this.onDeleteFile}">
+                </cr-composebox-file-carousel> ` : ''}
+            </div>
+          </div>
+          ${this.shouldShowDivider() ? html`
+          <div class="carousel-divider" part="carousel-divider"></div>
+          ` : ''}
           <cr-composebox-dropdown id="matches" part="dropdown"
               exportparts="match-text-container"
               role="listbox"
@@ -55,6 +86,15 @@ export function getHtml(this: ContextualTasksInnerComposeboxElement) {
           ${this.contextMenuEnabled ? getContextMenuHtml.bind(this)() : ''}
         </cr-composebox-file-inputs>
       </div>
+      ${this.showLensButton ? html`<cr-icon-button
+          class="action-icon"
+          id="lensIcon"
+          part="action-icon lens-icon"
+          title="${this.i18n('lensSearchButtonLabel')}"
+          @click="${this.onLensClick_}"
+          ?disabled="${this.lensButtonDisabled}"
+          @mousedown="${this.onLensIconMousedown_}">
+      </cr-icon-button>` : ''}
       <cr-composebox-submit
           exportparts="action-icon, submit, submit-icon, submit-overlay"
           ?disabled="${!this.canSubmitFilesAndInput}"

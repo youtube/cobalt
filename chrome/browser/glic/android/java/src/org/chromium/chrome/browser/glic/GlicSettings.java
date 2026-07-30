@@ -25,6 +25,7 @@ import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.TwoStatePreference;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -63,8 +64,8 @@ import org.chromium.ui.util.AttrUtils;
 /** Fragment for Glic configurations in Chrome. */
 @NullMarked
 public class GlicSettings extends ChromeBaseSettingsFragment {
-    private static final String PREFERENCE_BUTTON = "glic_button";
-    private static final String PREFERENCE_BUTTON_TOGGLE = "glic_button_toggle";
+    @VisibleForTesting static final String PREFERENCE_BUTTON = "glic_button";
+    @VisibleForTesting static final String PREFERENCE_BUTTON_TOGGLE = "glic_button_toggle";
     @VisibleForTesting static final String PERMISSION_LOCATION = "permissions_location";
     private static final String PERMISSION_DEFAULT_TAB_ACCESS =
             "glic_permissions_default_tab_access";
@@ -191,6 +192,11 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
             buttonTogglePref.setOnPreferenceChangeListener(
                     (preference, newValue) -> {
                         boolean enabled = (boolean) newValue;
+                        if (enabled) {
+                            RecordUserAction.record("Glic.Settings.TabstripButton.Enabled");
+                        } else {
+                            RecordUserAction.record("Glic.Settings.TabstripButton.Disabled");
+                        }
                         GlicUtils.setButtonPinnedToTabStrip(getProfile(), enabled);
                         return true;
                     });
@@ -413,15 +419,28 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
         }
     }
 
-    // TODO(crbug.com/501502862): Add dynamic indexing for pin glic button setting.
     private void updateButtonPreference(Preference preference) {
         int currentSetting = AdaptiveToolbarPrefs.getCustomizationSetting();
+        int titleId;
+        int summaryId;
         if (currentSetting == AdaptiveToolbarButtonVariant.GLIC) {
-            preference.setTitle(R.string.glic_button_entrypoint_pinned_label);
-            preference.setSummary(R.string.glic_button_entrypoint_label);
+            titleId = R.string.glic_button_entrypoint_pinned_label;
+            summaryId = R.string.glic_button_entrypoint_label;
         } else {
-            preference.setTitle(R.string.glic_pin);
-            preference.setSummary(R.string.settings_glic_button_toggle_sublabel);
+            titleId = R.string.glic_pin;
+            summaryId = R.string.settings_glic_button_toggle_sublabel;
+        }
+        preference.setTitle(titleId);
+        preference.setSummary(summaryId);
+
+        var indexData = SettingsIndexData.getInstance();
+        if (indexData != null) {
+            String className = GlicSettings.class.getName();
+            if (indexData.getEntryForKey(className, PREFERENCE_BUTTON) != null) {
+                indexData.updateEntryForKey(className, PREFERENCE_BUTTON, titleId);
+                indexData.updateEntrySummaryForKey(className, PREFERENCE_BUTTON, summaryId);
+                indexData.setRefreshResult(true);
+            }
         }
     }
 
@@ -598,14 +617,14 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                         }));
     }
 
-    private SpanApplier.SpanInfo createLinkSpanInfo(
-            String placeholderIndex, String url, ChromeExpandableSwitchPreference pref) {
-        return createSpanInfo("<a href=\"" + placeholderIndex + "\" target=\"_blank\">", url, pref);
-    }
-
     private SpanApplier.SpanInfo getLearnMoreSpanInfo(
             String url, ChromeExpandableSwitchPreference pref) {
         return createSpanInfo("<a href=\"#\">", url, pref);
+    }
+
+    private SpanApplier.SpanInfo createLinkSpanInfo(
+            String placeholderIndex, String url, ChromeExpandableSwitchPreference pref) {
+        return createSpanInfo("<a href=\"" + placeholderIndex + "\" target=\"_blank\">", url, pref);
     }
 
     private void updateHotkeyVisibility(boolean enabled) {
@@ -641,6 +660,28 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                     } else {
                         indexData.removeEntryForKey(prefFrag, PREFERENCE_BUTTON_TOGGLE);
                         indexData.removeEntryForKey(prefFrag, PREF_NAVIGATION_SHORTCUT);
+                        if (BottomBarConfigUtils.isBottomBarEnabled(context)) {
+                            indexData.removeEntryForKey(prefFrag, PREFERENCE_BUTTON);
+                        } else {
+                            int currentSetting = AdaptiveToolbarPrefs.getCustomizationSetting();
+                            if (currentSetting == AdaptiveToolbarButtonVariant.GLIC) {
+                                indexData.updateEntryForKey(
+                                        prefFrag,
+                                        PREFERENCE_BUTTON,
+                                        R.string.glic_button_entrypoint_pinned_label);
+                                indexData.updateEntrySummaryForKey(
+                                        prefFrag,
+                                        PREFERENCE_BUTTON,
+                                        R.string.glic_button_entrypoint_label);
+                            } else {
+                                indexData.updateEntryForKey(
+                                        prefFrag, PREFERENCE_BUTTON, R.string.glic_pin);
+                                indexData.updateEntrySummaryForKey(
+                                        prefFrag,
+                                        PREFERENCE_BUTTON,
+                                        R.string.settings_glic_button_toggle_sublabel);
+                            }
+                        }
                     }
                     if (!ChromeFeatureList.isEnabled(
                             ChromeFeatureList.ACTOR_LOGIN_PERMISSIONS_UI)) {

@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Salvează parole</translation>
 <translation id="1764070164487214210">Indicații de orientare</translation>
 <translation id="1764511703783285459">Celălalt manager de parole nu a permis accesul la nicio parolă sau cheie de acces.</translation>
+<translation id="1765555082983153259">Chome vrea să îți acceseze microfonul</translation>
 <translation id="1767766085187034454">Google Traducere</translation>
 <translation id="1771016937398045251">Meniul Instrumente</translation>
 <translation id="1772468122139624049">Filele nu pot fi încărcate</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Bara de meniu pentru sortare inteligentă</translation>
 <translation id="1883255238294161206">Restrângeți lista</translation>
+<translation id="1883898928879467646">Fila a fost eliminată</translation>
 <translation id="1888854257756214946">Selectează o parolă…</translation>
 <translation id="1890237935065108104">Setarea nu este disponibilă.</translation>
 <translation id="1894023287452300670">Urmărește prețul aici</translation>
@@ -1620,6 +1622,7 @@ Trebuie să activezi Handoff în secțiunea General din Setări, iar dispozitive
 <translation id="6406506848690869874">Sincronizare</translation>
 <translation id="6410390304316730527">Navigarea sigură te protejează împotriva atacatorilor care ar putea să te păcălească să faci lucruri periculoase, cum ar fi să instalezi software rău intenționat sau să dezvălui informații cu caracter personal, cum ar fi parole, numere de telefon sau carduri de credit. Dacă o dezactivezi, ai grijă atunci când navighezi pe site-uri nefamiliare sau nelegitime.</translation>
 <translation id="6410883413783534063">Deschide file pentru a accesa pagini diferite în același timp</translation>
+<translation id="6412195388778525440">Elimină fila</translation>
 <translation id="6418346271604475326">Se pregătește fișierul PDF</translation>
 <translation id="6420292512900923139">Probleme la importarea datelor</translation>
 <translation id="6421038304268477484">Text tradus</translation>
@@ -2298,7 +2301,7 @@ Pentru a continua de pe computer, treci la <ph name="OTHER_EMAIL" />. Vei accesa
 <translation id="8636825310635137004">Pentru a accesa filele de pe alte dispozitive, activează sincronizarea.</translation>
 <translation id="8637431369725868556">Protejează-te împotriva site-urilor periculoase.</translation>
 <translation id="8638151046944329622">{COUNT,plural, =0{Nicio parolă compromisă}=1{{COUNT} parolă compromisă}few{{COUNT} parole compromise}other{{COUNT} de parole compromise}}</translation>
-<translation id="8639963783467694461">Setări pentru Completare automată</translation>
+<translation id="8639963783467694461">Setări pentru completarea automată</translation>
 <translation id="8642417828095157370">Se permite accesul la file pentru răspunsuri mai relevante</translation>
 <translation id="8643403533759285912">Șterge grupul</translation>
 <translation id="8647280737650867362">Nu s-a putut anula urmărirea prețului.</translation>
@@ -2320,7 +2323,6 @@ Pentru a continua de pe computer, treci la <ph name="OTHER_EMAIL" />. Vei accesa
 <translation id="8692689525339542358">Protejează-te împotriva site-urilor, a descărcărilor și a extensiilor periculoase.</translation>
 <translation id="8692897097252418799">Alege datele pe care vrei să le exporți</translation>
 <translation id="8694281486652655615">Afișează acest element</translation>
-<translation id="8696297579102085705">Trimite pe dispozitivul tău</translation>
 <translation id="8697136149718343437">Mută bara de adrese în partea de jos</translation>
 <translation id="869891660844655955">Dată de expirare</translation>
 <translation id="8706253136355675497">Temperatură</translation>
@@ -2463,6 +2465,7 @@ Pentru a continua de pe computer, treci la <ph name="OTHER_EMAIL" />. Vei accesa
 <translation id="9149866541089851383">Editează...</translation>
 <translation id="9152637745605628097">Alege dintre teme și culori sau încarcă o imagine.</translation>
 <translation id="9159628751968616911">Trimite pagina web</translation>
+<translation id="9162412286847966593">Datele și înregistrările organizației tale nu vor fi folosite pentru îmbunătățirea modelelor AI generativ. <ph name="BEGIN_LINK" />Confidențialitatea ta și Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Activează opțiunea Completează automat parolele</translation>
 <translation id="9165320910061267720">Pentru a primi notificări privind alertele de scădere de preț, trebuie să activezi notificările din setările iOS.</translation>
 <translation id="9179151630575358778">Ascunde acest element</translation>

@@ -41,14 +41,14 @@ public class SidePanelContainerCoordinatorImplUnitTest {
     @Before
     public void setUp() {
         mTestActivity = Robolectric.buildActivity(Activity.class).setup().get();
+        mTestActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
     }
 
     @Test
     public void init_registerSelfAsSideUiContainer() {
         var sidePanelContainerCoordinator = createSidePanelContainerCoordinator();
 
-        sidePanelContainerCoordinator.init(
-                mock(SidePanelCoordinatorAndroid.class), /* sidePanelDevFeature= */ null);
+        sidePanelContainerCoordinator.init(mock(SidePanelCoordinatorAndroid.class));
 
         verify(mMockSideUiCoordinator).registerSideUiContainer(sidePanelContainerCoordinator);
     }

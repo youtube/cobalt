@@ -32,8 +32,10 @@
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/feature_engagement/public/feature_constants.h"
+#include "components/strings/grit/components_strings.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
 namespace {
@@ -42,9 +44,11 @@ using enum SuggestionType;
 using FieldPrediction =
     AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction;
 using test::GetFlightReservationEntityInstanceWithRandomGuid;
+using test::GetOrderEntityInstance;
 using test::GetPassportEntityInstance;
 using test::GetPassportEntityInstanceWithRandomGuid;
 using test::MaskEntityInstance;
+using ::testing::AllOf;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Field;
@@ -68,10 +72,6 @@ Matcher<const Suggestion&> HasLabel(const std::u16string& label) {
       ElementsAre(ElementsAre(Field(&Suggestion::Text::value, label))));
 }
 
-Matcher<const Suggestion&> HasType(SuggestionType type) {
-  return Field("Suggestion::type", &Suggestion::type, type);
-}
-
 Matcher<const Suggestion&> HasRequiresServerFetch(bool requires_server_fetch) {
   return ResultOf(
       "Suggestion::payload",
@@ -82,10 +82,28 @@ Matcher<const Suggestion&> HasRequiresServerFetch(bool requires_server_fetch) {
       requires_server_fetch);
 }
 
+Matcher<Suggestion> HasAcceptability(Suggestion::Acceptability acceptability) {
+  return Field("Suggestion::acceptability", &Suggestion::acceptability,
+               acceptability);
+}
+
+Matcher<Suggestion> SuggestionTypeHasTextAndAcceptability(
+    SuggestionType type,
+    const std::u16string& main_text,
+    Suggestion::Acceptability acceptability) {
+  return AllOf(EqualsSuggestion(type, main_text),
+               HasAcceptability(acceptability));
+}
+
+auto ChildrenAre(auto&&... matchers) {
+  return Field("Suggestion::children", &Suggestion::children,
+               ElementsAre(std::forward<decltype(matchers)>(matchers)...));
+}
+
 auto SuggestionsAre(auto&&... matchers) {
   return ElementsAre(std::forward<decltype(matchers)>(matchers)...,
-                     HasType(SuggestionType::kSeparator),
-                     HasType(SuggestionType::kManageAutofillAi));
+                     EqualsSuggestion(SuggestionType::kSeparator),
+                     EqualsSuggestion(SuggestionType::kManageAutofillAi));
 }
 
 std::u16string GetFlightReservationName(const EntityInstance& entity) {
@@ -220,7 +238,8 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
     return {features::kAutofillAiWithDataSchema,
             features::kAutofillAiServerModel,
             features::kAutofillAiWalletPrivatePasses,
-            features::kAutofillAiWalletFlightReservation};
+            features::kAutofillAiWalletFlightReservation,
+            features::kAutofillAiOrder};
   }
 
  private:
@@ -262,11 +281,12 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GeneratesAutofillAiSuggestions) {
   SuggestionGenerator::ReturnedSuggestions
       saved_on_suggestions_generated_argument;
 
-  EXPECT_CALL(suggestions_generated_callback,
-              Run(testing::Pair(
-                  SuggestionGenerator::SuggestionDataSource::kAutofillAi,
-                  ElementsAre(HasType(kFillAutofillAi), HasType(kSeparator),
-                              HasType(kManageAutofillAi)))))
+  EXPECT_CALL(
+      suggestions_generated_callback,
+      Run(testing::Pair(SuggestionGenerator::SuggestionDataSource::kAutofillAi,
+                        ElementsAre(EqualsSuggestion(kFillAutofillAi),
+                                    EqualsSuggestion(kSeparator),
+                                    EqualsSuggestion(kManageAutofillAi)))))
       .WillOnce(testing::SaveArg<0>(&saved_on_suggestions_generated_argument));
   generator().GenerateSuggestions(form(), field_data(), &form_structure(),
                                   &field(), client(),
@@ -470,6 +490,47 @@ TEST_F(
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
   EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kPassportSpark));
+}
+
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextAndLocalEntities_SuggestedByGeminiLabel) {
+  EntityInstance passport_local = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe",
+       .number = u"123456",
+       .record_type = EntityInstance::RecordType::kLocal,
+       .use_count = 1});
+  EntityInstance passport_personal_context =
+      GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Harry Potter",
+           .number = u"987654",
+           .record_type = EntityInstance::RecordType::kPersonalContext,
+           .use_count = 0});
+  SetEntities({passport_local, passport_personal_context});
+  SetForm({PASSPORT_NUMBER, NAME_FULL});
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+  ASSERT_GE(suggestions.size(), 2u);
+
+  const Suggestion::AutofillAiPayload* local_payload =
+      std::get_if<Suggestion::AutofillAiPayload>(&suggestions[0].payload);
+  ASSERT_TRUE(local_payload);
+  EXPECT_EQ(local_payload->guid, passport_local.guid());
+  ASSERT_EQ(suggestions[0].labels.size(), 1u);
+
+  const Suggestion::AutofillAiPayload* pc_payload =
+      std::get_if<Suggestion::AutofillAiPayload>(&suggestions[1].payload);
+  ASSERT_TRUE(pc_payload);
+  EXPECT_EQ(pc_payload->guid, passport_personal_context.guid());
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  ASSERT_EQ(suggestions[1].labels.size(), 2u);
+  ASSERT_EQ(suggestions[1].labels[1].size(), 1u);
+  EXPECT_EQ(suggestions[1].labels[1][0].value,
+            l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_SUGGESTED_BY_GEMINI));
+#else
+  ASSERT_EQ(suggestions[1].labels.size(), 1u);
+#endif
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PrefixMatching) {
@@ -776,6 +837,110 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
                        HasMainText(GetDriversLicenseName(drivers_license2))));
 }
 
+// Test that within the same entity type, PersonalContext entities are ordered
+// after non-PersonalContext entities, even if they have higher frecency.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_OrderPersonalContextAfterOtherEntityTypes_SameType) {
+  EntityInstance passport_local_1 = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno",
+       .number = u"11111",
+       .use_date = test::kJune2017 - base::Days(1),
+       .record_type = EntityInstance::RecordType::kLocal});
+  EntityInstance passport_local_2 = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Alice",
+       .number = u"22222",
+       .use_date = test::kJune2017 - base::Days(2),
+       .record_type = EntityInstance::RecordType::kLocal});
+  EntityInstance passport_pc = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe",
+       .number = u"33333",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({passport_local_1, passport_local_2, passport_pc});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+
+  EXPECT_THAT(res,
+              SuggestionsAre(HasMainText(GetPassportName(passport_local_1)),
+                             HasMainText(GetPassportName(passport_local_2)),
+                             HasMainText(GetPassportName(passport_pc))));
+}
+
+// Test that across different entity types, PersonalContext entities are ordered
+// after non-PersonalContext entities of other types, even if they have higher
+// frecency.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_OrderPersonalContextAfterOtherEntityTypes_DifferentTypes) {
+  EntityInstance passport_pc = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe",
+       .number = u"33333",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance drivers_license_local =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid(
+          {.name = u"Mr Pink",
+           .number = u"44444",
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kLocal});
+
+  SetEntities({passport_pc, drivers_license_local});
+  SetForm({NAME_FULL, PASSPORT_NUMBER, DRIVERS_LICENSE_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+
+  EXPECT_THAT(
+      res,
+      SuggestionsAre(HasMainText(GetDriversLicenseName(drivers_license_local)),
+                     HasMainText(GetPassportName(passport_pc))));
+}
+
+// Test that entities are first partitioned by RecordType (non-PersonalContext
+// before PersonalContext), and then within each partition, grouped by
+// EntityType and sorted by frecency.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_OrderPersonalContextAfterOtherEntityTypes_RecordTypeBeforeEntityType) {
+  EntityInstance passport_local = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno",
+       .number = u"11111",
+       .use_date = test::kJune2017 - base::Days(1),
+       .record_type = EntityInstance::RecordType::kLocal});
+  EntityInstance passport_pc = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe",
+       .number = u"22222",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance drivers_license_local =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid(
+          {.name = u"Mr Pink",
+           .number = u"33333",
+           .use_date = test::kJune2017 - base::Days(2),
+           .record_type = EntityInstance::RecordType::kLocal});
+  EntityInstance drivers_license_pc =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid(
+          {.name = u"White",
+           .number = u"44444",
+           .use_date = test::kJune2017 - base::Days(2),
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities(
+      {passport_local, passport_pc, drivers_license_local, drivers_license_pc});
+  SetForm({NAME_FULL, PASSPORT_NUMBER, DRIVERS_LICENSE_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+
+  EXPECT_THAT(
+      res,
+      SuggestionsAre(HasMainText(GetPassportName(passport_local)),
+                     HasMainText(GetDriversLicenseName(drivers_license_local)),
+                     HasMainText(GetPassportName(passport_pc)),
+                     HasMainText(GetDriversLicenseName(drivers_license_pc))));
+}
+
 TEST_F(AutofillAiSuggestionGeneratorTest,
        GetFillingSuggestion_CustomOrderingForFlightReservation) {
   EntityInstance passport1 = GetPassportEntityInstanceWithRandomGuid(
@@ -786,25 +951,229 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
       GetFlightReservationEntityInstanceWithRandomGuid(
           {.name = u"Peter",
            .departure_time = base::Time::UnixEpoch(),
-           .use_count = 10});
+           .use_date = test::kJune2017,
+           .record_type = EntityInstance::RecordType::kPersonalContext,
+           .use_count = 15});
   EntityInstance flight_reservation2 =
       GetFlightReservationEntityInstanceWithRandomGuid(
           {.name = u"Jacob",
            .departure_time = base::Time::UnixEpoch() + base::Days(1),
-           .use_count = 12});
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext,
+           .use_count = 10});
   SetEntities({passport1, passport2, flight_reservation1, flight_reservation2});
   SetForm({NAME_FULL, PASSPORT_NUMBER, FLIGHT_RESERVATION_FLIGHT_NUMBER});
 
-  // Flight reservation entities come before Passport entities, because they
-  // have frecency_override set. `flight_reservation1` comes before
-  // `flight_reservation2` since the entities are sorted by departure date.
+  // Passport entities come before Flight reservation, because flights
+  // come from personal context. `flight_reservation2` comes before
+  // `flight_reservation1` since the entities are sorted descending by departure
+  // date.
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res,
+              SuggestionsAre(
+                  HasMainText(GetPassportName(passport1)),
+                  HasMainText(GetPassportName(passport2)),
+                  HasMainText(GetFlightReservationName(flight_reservation2)),
+                  HasMainText(GetFlightReservationName(flight_reservation1))));
+}
+
+// Test that PersonalContext Passport entities are sorted descending by
+// expiration date, even if the one expiring later has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GetFillingSuggestion_PersonalContextOrdering_PassportExpirationDate) {
+  EntityInstance passport_sooner = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno",
+       .number = u"11111",
+       .expiry_date = u"2026-08-01",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext,
+       .use_count = 15});
+  EntityInstance passport_later = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Jon Doe",
+       .number = u"22222",
+       .expiry_date = u"2029-08-01",
+       .use_date = test::kJune2017 - base::Days(10),
+       .record_type = EntityInstance::RecordType::kPersonalContext,
+       .use_count = 10});
+
+  SetEntities({passport_later, passport_sooner});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res,
+              SuggestionsAre(HasMainText(GetPassportName(passport_later)),
+                             HasMainText(GetPassportName(passport_sooner))));
+}
+
+// Test that PersonalContext DriversLicense entities are sorted descending by
+// expiration date.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextOrdering_DriversLicenseExpirationDate) {
+  EntityInstance drivers_license_sooner =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid(
+          {.name = u"Mr Sooner",
+           .expiration_date = u"2026-08-01",
+           .use_date = test::kJune2017,
+           .record_type = EntityInstance::RecordType::kPersonalContext,
+           .use_count = 15});
+  EntityInstance drivers_license_later =
+      test::GetDriversLicenseEntityInstanceWithRandomGuid(
+          {.name = u"Mr Later",
+           .expiration_date = u"2029-08-01",
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext,
+           .use_count = 10});
+
+  SetEntities({drivers_license_later, drivers_license_sooner});
+  SetForm({NAME_FULL, DRIVERS_LICENSE_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res,
+              SuggestionsAre(
+                  HasMainText(GetDriversLicenseName(drivers_license_later)),
+                  HasMainText(GetDriversLicenseName(drivers_license_sooner))));
+}
+
+// Test that PersonalContext Vehicle entities are sorted by plate number
+// alphanumerically (case-insensitive), even if the one with a later plate
+// number has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GetFillingSuggestion_PersonalContextOrdering_VehiclePlateNumber) {
+  EntityInstance vehicle_a = test::GetVehicleEntityInstanceWithRandomGuid(
+      {.plate = u"abc-123",
+       .number = u"11111",
+       .use_date = test::kJune2017 - base::Days(10),
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance vehicle_z = test::GetVehicleEntityInstanceWithRandomGuid(
+      {.plate = u"XYZ-999",
+       .number = u"22222",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({vehicle_z, vehicle_a});
+  SetForm({VEHICLE_LICENSE_PLATE, VEHICLE_VIN});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res,
+              SuggestionsAre(HasMainText(u"abc-123"), HasMainText(u"XYZ-999")));
+}
+
+// Test that when sorting PersonalContext entities of the same type, an entity
+// with the sorting attribute present comes before one without it, even
+// if the entity without the attribute has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GetFillingSuggestion_PersonalContextOrdering_PresentVsMissingAttribute) {
+  EntityInstance passport_with_expiry = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno",
+       .number = u"11111",
+       .expiry_date = u"2026-08-01",
+       .use_date = test::kJune2017 - base::Days(10),
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance passport_without_expiry =
+      GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Jon Doe",
+           .number = u"22222",
+           .expiry_date = nullptr,
+           .use_date = test::kJune2017,
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({passport_without_expiry, passport_with_expiry});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res, SuggestionsAre(
+                       HasMainText(GetPassportName(passport_with_expiry)),
+                       HasMainText(GetPassportName(passport_without_expiry))));
+}
+
+// Test that when two PersonalContext entities of the same type have tied
+// sorting attribute values (e.g. same expiration date), the comparison falls
+// back to FrecencyOrder.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextOrdering_TiedAttribute_FallsBackToFrecency) {
+  EntityInstance passport_frecent = GetPassportEntityInstanceWithRandomGuid(
+      {.name = u"Bruno",
+       .number = u"11111",
+       .expiry_date = u"2027-08-01",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance passport_less_frecent =
+      GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Jon Doe",
+           .number = u"22222",
+           .expiry_date = u"2027-08-01",
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({passport_less_frecent, passport_frecent});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
   std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
   EXPECT_THAT(
-      res,
-      SuggestionsAre(HasMainText(GetFlightReservationName(flight_reservation1)),
-                     HasMainText(GetFlightReservationName(flight_reservation2)),
-                     HasMainText(GetPassportName(passport1)),
-                     HasMainText(GetPassportName(passport2))));
+      res, SuggestionsAre(HasMainText(GetPassportName(passport_frecent)),
+                          HasMainText(GetPassportName(passport_less_frecent))));
+}
+
+// Test that when two PersonalContext entities of the same type both lack the
+// sorting attribute (e.g. both have missing expiration dates), the comparison
+// falls back to FrecencyOrder.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextOrdering_BothMissingAttribute_FallsBackToFrecency) {
+  EntityInstance passport_frecent_no_expiry =
+      GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Bruno",
+           .number = u"11111",
+           .expiry_date = nullptr,
+           .use_date = test::kJune2017,
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance passport_less_frecent_no_expiry =
+      GetPassportEntityInstanceWithRandomGuid(
+          {.name = u"Jon Doe",
+           .number = u"22222",
+           .expiry_date = nullptr,
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({passport_less_frecent_no_expiry, passport_frecent_no_expiry});
+  SetForm({NAME_FULL, PASSPORT_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      res, SuggestionsAre(
+               HasMainText(GetPassportName(passport_frecent_no_expiry)),
+               HasMainText(GetPassportName(passport_less_frecent_no_expiry))));
+}
+
+// Test that when sorting PersonalContext entities of entity types without
+// sorting rules (e.g. KnownTravelerNumber), the comparison falls back to
+// FrecencyOrder.
+TEST_F(
+    AutofillAiSuggestionGeneratorTest,
+    GetFillingSuggestion_PersonalContextOrdering_OtherEntityType_FallsBackToFrecency) {
+  EntityInstance ktn_frecent =
+      test::GetKnownTravelerNumberInstanceWithRandomGuid(
+          {.name = u"Bruno",
+           .number = u"11111",
+           .use_date = test::kJune2017,
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance ktn_less_frecent =
+      test::GetKnownTravelerNumberInstanceWithRandomGuid(
+          {.name = u"Jon Doe",
+           .number = u"22222",
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({ktn_less_frecent, ktn_frecent});
+  SetForm({KNOWN_TRAVELER_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(res, SuggestionsAre(HasMainText(GetObfuscatedValue(
+                                      u"11111", /*visible_suffix_length=*/4)),
+                                  HasMainText(GetObfuscatedValue(
+                                      u"22222", /*visible_suffix_length=*/4))));
 }
 
 // Tests that a kPersonalContextNotice suggestion is appended if the trigger
@@ -817,11 +1186,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   client().set_should_show_personal_context_ambient_autofill_notice(true);
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Not(Contains(HasType(SuggestionType::kPersonalContextNotice))));
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      Not(Contains(EqualsSuggestion(SuggestionType::kPersonalContextNotice))));
 #else
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Contains(HasType(SuggestionType::kPersonalContextNotice)));
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      Contains(EqualsSuggestion(SuggestionType::kPersonalContextNotice)));
 #endif
 }
 
@@ -836,8 +1207,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   client().set_should_show_personal_context_ambient_autofill_notice(true);
 
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Not(Contains(HasType(SuggestionType::kPersonalContextNotice))));
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      Not(Contains(EqualsSuggestion(SuggestionType::kPersonalContextNotice))));
 }
 
 // Tests that a kPersonalContextNotice suggestion is not appended if the
@@ -851,8 +1223,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   client().set_should_show_personal_context_ambient_autofill_notice(false);
 
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Not(Contains(HasType(SuggestionType::kPersonalContextNotice))));
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      Not(Contains(EqualsSuggestion(SuggestionType::kPersonalContextNotice))));
 }
 
 // Tests that an "Undo Autofill" suggestion is appended if the trigger field
@@ -862,10 +1235,10 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestions_Undo) {
   SetForm({PASSPORT_NUMBER});
 
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Not(Contains(HasType(SuggestionType::kUndoOrClear))));
+              Not(Contains(EqualsSuggestion(SuggestionType::kUndoOrClear))));
   field_data().set_is_autofilled_according_to_renderer(true);
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              Contains(HasType(SuggestionType::kUndoOrClear)));
+              Contains(EqualsSuggestion(SuggestionType::kUndoOrClear)));
 }
 
 // Tests that even when labels aren't needed to disambiguate, we still add one
@@ -1147,8 +1520,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest, ShowFetchingSuggestionWhenPending) {
                                   EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(RequestStatus::kPending));
 
-  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
-              SuggestionsAre(HasType(SuggestionType::kFetchingAmbientData)));
+  EXPECT_THAT(
+      CreateAutofillAiFillingSuggestions(field(0)),
+      SuggestionsAre(EqualsSuggestion(SuggestionType::kFetchingAmbientData)));
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
@@ -1222,8 +1596,9 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 
   // Should contain Passport suggestions, but NOT fetching suggestion.
   EXPECT_THAT(suggestions, Not(IsEmpty()));
-  EXPECT_THAT(suggestions,
-              Not(Contains(HasType(SuggestionType::kFetchingAmbientData))));
+  EXPECT_THAT(
+      suggestions,
+      Not(Contains(EqualsSuggestion(SuggestionType::kFetchingAmbientData))));
 }
 
 class AutofillAiSuggestionGeneratorOrderShipmentTest
@@ -1265,8 +1640,14 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions1 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // Only the order for "example.com" should be suggested.
-  EXPECT_THAT(suggestions1, SuggestionsAre(HasMainText(u"123")));
+  // The order for "example.com" should be in the main menu, and "other.com"
+  // in the fallback menu.
+  EXPECT_THAT(
+      suggestions1,
+      SuggestionsAre(HasMainText(u"123"),
+                     EqualsSuggestion(SuggestionType::kAutofillAiOtherOrders,
+                                      l10n_util::GetStringUTF16(
+                                          IDS_AUTOFILL_AI_OTHER_ORDERS))));
 
   // 2. Set page URL to "https://sub.other.com/checkout".
   client().set_last_committed_primary_main_frame_url(
@@ -1275,8 +1656,14 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions2 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // Only the order for "other.com" (eTLD+1 match) should be suggested.
-  EXPECT_THAT(suggestions2, SuggestionsAre(HasMainText(u"456")));
+  // The order for "other.com" (eTLD+1 match) should be in the main menu, and
+  // "example.com" in the fallback menu.
+  EXPECT_THAT(
+      suggestions2,
+      SuggestionsAre(HasMainText(u"456"),
+                     EqualsSuggestion(SuggestionType::kAutofillAiOtherOrders,
+                                      l10n_util::GetStringUTF16(
+                                          IDS_AUTOFILL_AI_OTHER_ORDERS))));
 
   // 3. Set page URL to a site that doesn't match either (e.g.
   // "https://random.com").
@@ -1286,8 +1673,12 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions3 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // No order suggestions should be generated.
-  EXPECT_THAT(suggestions3, IsEmpty());
+  // Both orders should be in the fallback menu since neither matches
+  // random.com.
+  EXPECT_THAT(suggestions3,
+              SuggestionsAre(EqualsSuggestion(
+                  SuggestionType::kAutofillAiOtherOrders,
+                  l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_ORDERS))));
 }
 
 TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
@@ -1315,8 +1706,14 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions1 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // Only the shipment for "carrier.com" should be suggested.
-  EXPECT_THAT(suggestions1, SuggestionsAre(HasMainText(u"TR123")));
+  // The shipment for "carrier.com" should be in the main menu, and
+  // "other-carrier.com" in the fallback menu.
+  EXPECT_THAT(suggestions1,
+              SuggestionsAre(
+                  EqualsSuggestion(SuggestionType::kFillAutofillAi, u"TR123"),
+                  EqualsSuggestion(SuggestionType::kAutofillAiOtherShipments,
+                                   l10n_util::GetStringUTF16(
+                                       IDS_AUTOFILL_AI_OTHER_SHIPMENTS))));
 
   // 2. Set page URL to "https://sub.other-carrier.com/track".
   client().set_last_committed_primary_main_frame_url(
@@ -1325,8 +1722,14 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions2 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // Only the shipment for "other-carrier.com" should be suggested.
-  EXPECT_THAT(suggestions2, SuggestionsAre(HasMainText(u"TR456")));
+  // The shipment for "other-carrier.com" should be in the main menu, and
+  // "carrier.com" in the fallback menu.
+  EXPECT_THAT(suggestions2,
+              SuggestionsAre(
+                  EqualsSuggestion(SuggestionType::kFillAutofillAi, u"TR456"),
+                  EqualsSuggestion(SuggestionType::kAutofillAiOtherShipments,
+                                   l10n_util::GetStringUTF16(
+                                       IDS_AUTOFILL_AI_OTHER_SHIPMENTS))));
 
   // 3. Set page URL to "https://random.com".
   client().set_last_committed_primary_main_frame_url(
@@ -1335,8 +1738,67 @@ TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
   std::vector<Suggestion> suggestions3 =
       CreateAutofillAiFillingSuggestions(field(0));
 
-  // No shipment suggestions should be generated.
-  EXPECT_THAT(suggestions3, IsEmpty());
+  // Both shipments should be in the fallback menu since neither matches
+  // random.com.
+  EXPECT_THAT(suggestions3,
+              SuggestionsAre(EqualsSuggestion(
+                  SuggestionType::kAutofillAiOtherShipments,
+                  l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_SHIPMENTS))));
+}
+
+// Test that PersonalContext Order entities are sorted descending by order date,
+// even if the older order has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_PersonalContextOrdering_OrderDate) {
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://example.com"));
+  EntityInstance order_recent = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"ORD_RECENT",
+       .date = u"2026-07-01",
+       .merchant_domain = u"example.com",
+       .use_date = test::kJune2017 - base::Days(10),
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance order_old = test::GetOrderEntityInstanceWithRandomGuid(
+      {.id = u"ORD_OLD",
+       .date = u"2025-01-01",
+       .merchant_domain = u"example.com",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({order_old, order_recent});
+  SetForm({ORDER_ID});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      res, SuggestionsAre(HasMainText(u"ORD_RECENT"), HasMainText(u"ORD_OLD")));
+}
+
+// Test that PersonalContext Shipment entities are sorted descending by shipped
+// date, even if the older shipment has higher frecency.
+TEST_F(AutofillAiSuggestionGeneratorOrderShipmentTest,
+       GetFillingSuggestions_PersonalContextOrdering_ShippedDate) {
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://carrier.com"));
+  EntityInstance shipment_recent =
+      test::GetShipmentEntityInstanceWithRandomGuid(
+          {.tracking_number = u"TR_RECENT",
+           .carrier_domain = u"carrier.com",
+           .shipped_date = u"2026-07-01",
+           .use_date = test::kJune2017 - base::Days(10),
+           .record_type = EntityInstance::RecordType::kPersonalContext});
+  EntityInstance shipment_old = test::GetShipmentEntityInstanceWithRandomGuid(
+      {.tracking_number = u"TR_OLD",
+       .carrier_domain = u"carrier.com",
+       .shipped_date = u"2025-01-01",
+       .use_date = test::kJune2017,
+       .record_type = EntityInstance::RecordType::kPersonalContext});
+
+  SetEntities({shipment_old, shipment_recent});
+  SetForm({SHIPMENT_TRACKING_NUMBER});
+
+  std::vector<Suggestion> res = CreateAutofillAiFillingSuggestions(field(0));
+  EXPECT_THAT(
+      res, SuggestionsAre(HasMainText(u"TR_RECENT"), HasMainText(u"TR_OLD")));
 }
 
 class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
@@ -1364,11 +1826,11 @@ TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
   SetForm({PASSPORT_NUMBER});
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(
-      suggestions,
-      ElementsAre(HasType(SuggestionType::kFillAutofillAi),
-                  HasType(SuggestionType::kSeparator),
-                  HasType(SuggestionType::kManageAutofillAiIdentityDocs)));
+  EXPECT_THAT(suggestions,
+              ElementsAre(EqualsSuggestion(SuggestionType::kFillAutofillAi),
+                          EqualsSuggestion(SuggestionType::kSeparator),
+                          EqualsSuggestion(
+                              SuggestionType::kManageAutofillAiIdentityDocs)));
 }
 
 TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
@@ -1377,10 +1839,11 @@ TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
   SetForm({VEHICLE_LICENSE_PLATE});
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(suggestions,
-              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
-                          HasType(SuggestionType::kSeparator),
-                          HasType(SuggestionType::kManageAutofillAiTravel)));
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(EqualsSuggestion(SuggestionType::kFillAutofillAi),
+                  EqualsSuggestion(SuggestionType::kSeparator),
+                  EqualsSuggestion(SuggestionType::kManageAutofillAiTravel)));
 }
 
 TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
@@ -1391,10 +1854,11 @@ TEST_F(AutofillAiSuggestionGeneratorSplitManageSuggestionTest,
   SetForm({ORDER_ID});
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
-  EXPECT_THAT(suggestions,
-              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
-                          HasType(SuggestionType::kSeparator),
-                          HasType(SuggestionType::kManageAutofillAiShopping)));
+  EXPECT_THAT(
+      suggestions,
+      ElementsAre(EqualsSuggestion(SuggestionType::kFillAutofillAi),
+                  EqualsSuggestion(SuggestionType::kSeparator),
+                  EqualsSuggestion(SuggestionType::kManageAutofillAiShopping)));
 }
 
 TEST_F(
@@ -1406,10 +1870,10 @@ TEST_F(
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(1));
   EXPECT_THAT(suggestions,
-              ElementsAre(HasType(SuggestionType::kFillAutofillAi),
-                          HasType(SuggestionType::kFillAutofillAi),
-                          HasType(SuggestionType::kSeparator),
-                          HasType(SuggestionType::kManageAutofillAi)));
+              ElementsAre(EqualsSuggestion(SuggestionType::kFillAutofillAi),
+                          EqualsSuggestion(SuggestionType::kFillAutofillAi),
+                          EqualsSuggestion(SuggestionType::kSeparator),
+                          EqualsSuggestion(SuggestionType::kManageAutofillAi)));
 }
 
 class AutofillAiSuggestionGeneratorPolicyTest
@@ -1454,6 +1918,203 @@ TEST_F(AutofillAiSuggestionGeneratorPolicyTest, BlockTravel) {
   std::vector<Suggestion> suggestions =
       CreateAutofillAiFillingSuggestions(field(0));
   EXPECT_TRUE(suggestions.empty());
+}
+
+// Tests that the "Other orders" suggestion is correctly generated when there
+// are fallback order entities. It verifies the hierarchy, acceptability, and
+// that prefix filtering is NOT applied to fallback orders.
+TEST_F(AutofillAiSuggestionGeneratorTest, GeneratesOtherOrdersSuggestion) {
+  // Setup: 3 order entities with different domains.
+  // `order_a` matches the page domain (`amazon.com`), so it will be in the main
+  // suggested list. `order_b` and `order_c` belong to different domains, so
+  // they should be fallback options.
+  EntityInstance order_a = GetOrderEntityInstance({
+      .merchant_name = u"Amazon",
+      .merchant_domain = u"amazon.com",
+      .guid = "00000000-0000-4000-8000-600000000001",
+      .use_count = 10,
+  });
+  EntityInstance order_b = GetOrderEntityInstance({
+      .merchant_name = u"BestBuy",
+      .merchant_domain = u"bestbuy.com",
+      .guid = "00000000-0000-4000-8000-600000000002",
+      .use_count = 5,
+  });
+  EntityInstance order_c = GetOrderEntityInstance({
+      .merchant_name = u"Costco",
+      .merchant_domain = u"costco.com",
+      .guid = "00000000-0000-4000-8000-600000000003",
+      .use_count = 1,
+  });
+
+  SetEntities({order_a, order_b, order_c});
+  SetForm({ORDER_ID, ORDER_MERCHANT_NAME});
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://amazon.com/checkout"));
+
+  // Generate suggestions.
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(1));
+
+  // Expected layout:
+  // 1. The top-level suggestion for Order A (Amazon).
+  // 2. The "Other orders" parent suggestion (`kAutofillAiOtherOrders`),
+  //    containing BestBuy and Costco as children.
+  // 3. The footer separator and manage suggestions.
+  EXPECT_THAT(
+      suggestions,
+      SuggestionsAre(
+          SuggestionTypeHasTextAndAcceptability(
+              SuggestionType::kFillAutofillAi, u"Amazon",
+              Suggestion::Acceptability::kAcceptable),
+          AllOf(SuggestionTypeHasTextAndAcceptability(
+                    SuggestionType::kAutofillAiOtherOrders,
+                    l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_OTHER_ORDERS),
+                    Suggestion::Acceptability::kUnacceptable),
+                ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                                SuggestionType::kFillAutofillAi, u"BestBuy",
+                                Suggestion::Acceptability::kAcceptable),
+                            SuggestionTypeHasTextAndAcceptability(
+                                SuggestionType::kFillAutofillAi, u"Costco",
+                                Suggestion::Acceptability::kAcceptable)))));
+}
+
+// Tests that when there are no primary order suggestions (e.g. no orders
+// match the current site's domain), fallback order suggestions are still
+// generated and the menu is labeled "All orders"
+// (IDS_AUTOFILL_AI_ALL_ORDERS).
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GeneratesAllOrdersSuggestion_NoPrimaryOrders) {
+  EntityInstance order_bestbuy = GetOrderEntityInstance({
+      .merchant_name = u"BestBuy",
+      .merchant_domain = u"bestbuy.com",
+      .guid = "00000000-0000-4000-8000-600000000002",
+      .use_count = 5,
+  });
+  EntityInstance order_costco = GetOrderEntityInstance({
+      .merchant_name = u"Costco",
+      .merchant_domain = u"costco.com",
+      .guid = "00000000-0000-4000-8000-600000000003",
+      .use_count = 1,
+  });
+
+  SetEntities({order_bestbuy, order_costco});
+  SetForm({ORDER_ID, ORDER_MERCHANT_NAME});
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://amazon.com/checkout"));
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(1));
+
+  // Expected layout:
+  // 1. The fallback parent suggestion (`kAutofillAiOtherOrders`), labeled
+  //    "All orders", containing BestBuy and Costco as children.
+  // 2. The footer separator and manage suggestions.
+  EXPECT_THAT(suggestions,
+              SuggestionsAre(AllOf(
+                  SuggestionTypeHasTextAndAcceptability(
+                      SuggestionType::kAutofillAiOtherOrders,
+                      l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_ORDERS),
+                      Suggestion::Acceptability::kUnacceptable),
+                  ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                                  SuggestionType::kFillAutofillAi, u"BestBuy",
+                                  Suggestion::Acceptability::kAcceptable),
+                              SuggestionTypeHasTextAndAcceptability(
+                                  SuggestionType::kFillAutofillAi, u"Costco",
+                                  Suggestion::Acceptability::kAcceptable)))));
+}
+
+// Tests that the "Other shipments" suggestion is correctly generated when there
+// are fallback shipment entities alongside primary shipment entities.
+TEST_F(AutofillAiSuggestionGeneratorTest, GeneratesOtherShipmentsSuggestion) {
+  // Setup: 3 shipment entities with different domains.
+  EntityInstance shipment_a = test::GetShipmentEntityInstance({
+      .tracking_number = u"TR123",
+      .carrier_domain = u"carrier.com",
+      .guid = "00000000-0000-4000-8000-700000000001",
+  });
+  EntityInstance shipment_b = test::GetShipmentEntityInstance({
+      .tracking_number = u"TR456",
+      .carrier_domain = u"other-carrier.com",
+      .guid = "00000000-0000-4000-8000-700000000002",
+  });
+  EntityInstance shipment_c = test::GetShipmentEntityInstance({
+      .tracking_number = u"TR789",
+      .carrier_domain = u"third-carrier.com",
+      .guid = "00000000-0000-4000-8000-700000000003",
+  });
+
+  SetEntities({shipment_a, shipment_b, shipment_c});
+  SetForm({SHIPMENT_TRACKING_NUMBER});
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://carrier.com/track"));
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Expected layout:
+  // 1. The top-level suggestion for Shipment A (carrier.com).
+  // 2. The "Other shipments" parent suggestion (`kAutofillAiOtherShipments`),
+  //    containing TR456 and TR789 as children.
+  // 3. The footer separator and manage suggestions.
+  EXPECT_THAT(
+      suggestions,
+      SuggestionsAre(
+          SuggestionTypeHasTextAndAcceptability(
+              SuggestionType::kFillAutofillAi, u"TR123",
+              Suggestion::Acceptability::kAcceptable),
+          AllOf(SuggestionTypeHasTextAndAcceptability(
+                    SuggestionType::kAutofillAiOtherShipments,
+                    l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_OTHER_SHIPMENTS),
+                    Suggestion::Acceptability::kUnacceptable),
+                ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                                SuggestionType::kFillAutofillAi, u"TR456",
+                                Suggestion::Acceptability::kAcceptable),
+                            SuggestionTypeHasTextAndAcceptability(
+                                SuggestionType::kFillAutofillAi, u"TR789",
+                                Suggestion::Acceptability::kAcceptable)))));
+}
+
+// Tests that when there are no primary shipment suggestions, fallback shipment
+// suggestions are still generated and the menu is labeled "All shipments"
+// (`IDS_AUTOFILL_AI_ALL_SHIPMENTS`).
+TEST_F(AutofillAiSuggestionGeneratorTest,
+       GeneratesAllShipmentsSuggestion_NoPrimaryShipments) {
+  EntityInstance shipment_a = test::GetShipmentEntityInstance({
+      .tracking_number = u"TR456",
+      .carrier_domain = u"other-carrier.com",
+      .guid = "00000000-0000-4000-8000-700000000002",
+  });
+  EntityInstance shipment_b = test::GetShipmentEntityInstance({
+      .tracking_number = u"TR789",
+      .carrier_domain = u"third-carrier.com",
+      .guid = "00000000-0000-4000-8000-700000000003",
+  });
+
+  SetEntities({shipment_a, shipment_b});
+  SetForm({SHIPMENT_TRACKING_NUMBER});
+  client().set_last_committed_primary_main_frame_url(
+      GURL("https://random.com"));
+
+  std::vector<Suggestion> suggestions =
+      CreateAutofillAiFillingSuggestions(field(0));
+
+  // Expected layout:
+  // 1. The fallback parent suggestion (`kAutofillAiOtherShipments`), labeled
+  //    "All shipments", containing TR456 and TR789 as children.
+  // 2. The footer separator and manage suggestions.
+  EXPECT_THAT(suggestions,
+              SuggestionsAre(AllOf(
+                  SuggestionTypeHasTextAndAcceptability(
+                      SuggestionType::kAutofillAiOtherShipments,
+                      l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_ALL_SHIPMENTS),
+                      Suggestion::Acceptability::kUnacceptable),
+                  ChildrenAre(SuggestionTypeHasTextAndAcceptability(
+                                  SuggestionType::kFillAutofillAi, u"TR456",
+                                  Suggestion::Acceptability::kAcceptable),
+                              SuggestionTypeHasTextAndAcceptability(
+                                  SuggestionType::kFillAutofillAi, u"TR789",
+                                  Suggestion::Acceptability::kAcceptable)))));
 }
 
 }  // namespace

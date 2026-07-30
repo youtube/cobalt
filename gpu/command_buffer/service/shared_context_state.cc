@@ -55,6 +55,10 @@
 
 #if BUILDFLAG(ENABLE_VULKAN)
 #include <vulkan/vulkan.h>
+// X11 Xlib.h defines Status as int and X.h defines Success as 0, both
+// conflicting with wgpu::Status::Success.
+#undef Status
+#undef Success
 
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "gpu/vulkan/vulkan_device_queue.h"
@@ -816,13 +820,14 @@ bool SharedContextState::InitializeGLWithFeatureInfo(
   return true;
 }
 
-void SharedContextState::FlushGraphiteRecorder() {
+bool SharedContextState::FlushGraphiteRecorder() {
   auto recording = gpu_main_graphite_recorder()->snap();
   if (recording) {
     skgpu::graphite::InsertRecordingInfo info = {};
     info.fRecording = recording.get();
-    graphite_shared_context()->insertRecording(info);
+    return graphite_shared_context()->insertRecording(info);
   }
+  return true;
 }
 
 void SharedContextState::FlushAndSubmit(bool sync_to_cpu) {
@@ -837,16 +842,17 @@ void SharedContextState::FlushAndSubmit(bool sync_to_cpu) {
   }
 }
 
-void SharedContextState::FlushWriteAccess(
+bool SharedContextState::FlushWriteAccess(
     SkiaImageRepresentation::ScopedWriteAccess* access) {
   static int flush_count = 0;
   const base::TimeTicks start = base::TimeTicks::Now();
+  bool success = true;
   if (graphite_shared_context()) {
     // The only way to flush GPU work with Graphite is to snap and insert a
     // recording here. It's also necessary to submit before dropping the scoped
     // access since we want the Dawn texture to be alive on submit, but that's
     // handled in SubmitIfNecessary.
-    FlushGraphiteRecorder();
+    success = FlushGraphiteRecorder();
   } else {
     if (access->HasBackendSurfaceEndState()) {
       access->ApplyBackendSurfaceEndState();
@@ -867,6 +873,7 @@ void SharedContextState::FlushWriteAccess(
         "GPU.RasterDecoder.TimeToFlush", base::TimeTicks::Now() - start,
         base::Microseconds(1), base::Seconds(1), 100);
   }
+  return success;
 }
 
 void SharedContextState::SubmitIfNecessary(
@@ -1377,7 +1384,7 @@ int32_t SharedContextState::GetMaxTextureSize() {
     if (dawn_context_provider()) {
       wgpu::Limits limits = {};
       auto succeded = dawn_context_provider()->GetDevice().GetLimits(&limits);
-      CHECK(succeded);
+      CHECK(succeded == wgpu::Status::Success);
       max_texture_size = limits.maxTextureDimension2D;
     }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)

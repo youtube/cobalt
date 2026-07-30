@@ -598,6 +598,9 @@ targets.legacy_basic_suite(
         "blink_heap_unittests": targets.legacy_test_config(),
         "blink_platform_unittests": targets.legacy_test_config(),
         "blink_unittests": targets.legacy_test_config(
+            swarming = targets.swarming(
+                shards = 2,
+            ),
             android_swarming = targets.swarming(
                 shards = 6,
             ),
@@ -684,7 +687,7 @@ targets.legacy_basic_suite(
         "display_unittests": targets.legacy_test_config(),
         "gfx_unittests": targets.legacy_test_config(),
         "unit_tests": targets.legacy_test_config(
-            android_swarming = targets.swarming(
+            swarming = targets.swarming(
                 shards = 2,
             ),
         ),
@@ -1409,27 +1412,6 @@ targets.legacy_basic_suite(
     },
 )
 
-targets.legacy_basic_suite(
-    name = "ondevice_model_benchmark_tests_gpu_submodel_suite",
-    tests = {
-        "ondevice_model_benchmark_tests_gpu_submodel": targets.legacy_test_config(),
-    },
-)
-
-targets.legacy_basic_suite(
-    name = "ondevice_model_benchmark_tests_gpu_no_submodel_suite",
-    tests = {
-        "ondevice_model_benchmark_tests_gpu_no_submodel": targets.legacy_test_config(),
-    },
-)
-
-targets.legacy_basic_suite(
-    name = "ondevice_model_benchmark_tests_cpu_no_submodel_suite",
-    tests = {
-        "ondevice_model_benchmark_tests_cpu_no_submodel": targets.legacy_test_config(),
-    },
-)
-
 # TODO(b:484388901): Enable GPU backedn testing when the issue is fixed.
 # targets.legacy_basic_suite(
 #     name = "litert_e2e_tests_gpu_suite",
@@ -1512,6 +1494,9 @@ targets.legacy_basic_suite(
         "chrome_ai_wpt_tests_cpu": _CHROME_AI_WPT_TEST_CONFIG,
         "chrome_ai_wpt_tests_litert_cpu": _CHROME_AI_WPT_TEST_CONFIG,
         "chrome_ai_wpt_tests_litert_gpu": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_manifest_gpu_high_tier": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_manifest_gpu_low_tier": _CHROME_AI_WPT_TEST_CONFIG,
+        "chrome_ai_wpt_tests_manifest_cpu": _CHROME_AI_WPT_TEST_CONFIG,
     },
 )
 

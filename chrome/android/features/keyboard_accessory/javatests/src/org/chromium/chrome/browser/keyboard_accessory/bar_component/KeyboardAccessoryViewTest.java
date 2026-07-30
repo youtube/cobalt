@@ -261,7 +261,7 @@ public class KeyboardAccessoryViewTest {
                                                         public void onViewUnbound(View buttons) {}
                                                     }))
                                     .with(DISABLE_ANIMATIONS_FOR_TESTING, true)
-                                    .with(OBFUSCATED_CHILD_AT_CALLBACK, unused -> {})
+                                    .with(OBFUSCATED_CHILD_AT_CALLBACK, _ -> {})
                                     .with(SHOW_SWIPING_IPH, false)
                                     .with(HAS_STICKY_LAST_ITEM, true)
                                     .build();
@@ -430,12 +430,12 @@ public class KeyboardAccessoryViewTest {
         BarItem generatePasswordItem =
                 new ActionBarItem(
                         BarItem.Type.ACTION_BUTTON,
-                        new Action(GENERATE_PASSWORD_AUTOMATIC, unused -> {}),
+                        new Action(GENERATE_PASSWORD_AUTOMATIC, _ -> {}),
                         R.string.password_generation_accessory_button);
         BarItem credmanItem =
                 new ActionBarItem(
                         BarItem.Type.ACTION_CHIP,
-                        new Action(CREDMAN_CONDITIONAL_UI_REENTRY, unused -> {}),
+                        new Action(CREDMAN_CONDITIONAL_UI_REENTRY, _ -> {}),
                         R.string.more_passkeys);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -460,12 +460,12 @@ public class KeyboardAccessoryViewTest {
         BarItem generatePasswordsItem =
                 new ActionBarItem(
                         BarItem.Type.ACTION_BUTTON,
-                        new Action(GENERATE_PASSWORD_AUTOMATIC, unused -> {}),
+                        new Action(GENERATE_PASSWORD_AUTOMATIC, _ -> {}),
                         R.string.password_generation_accessory_button);
         BarItem credmanItem =
                 new ActionBarItem(
                         BarItem.Type.ACTION_CHIP,
-                        new Action(CREDMAN_CONDITIONAL_UI_REENTRY, unused -> {}),
+                        new Action(CREDMAN_CONDITIONAL_UI_REENTRY, _ -> {}),
                         R.string.more_passkeys);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -530,7 +530,7 @@ public class KeyboardAccessoryViewTest {
                                 .setIphDescriptionText(descriptionText)
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(
                 FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_CARD_INFO_RETRIEVAL_FEATURE);
@@ -572,7 +572,7 @@ public class KeyboardAccessoryViewTest {
                                 .setFeatureForIph("")
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(
                 FeatureConstants.KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION_FEATURE);
@@ -612,7 +612,7 @@ public class KeyboardAccessoryViewTest {
                                 .setFeatureForIph("")
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PASSWORD_FILLING_FEATURE);
 
@@ -652,7 +652,7 @@ public class KeyboardAccessoryViewTest {
                                 .setFeatureForIph("")
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_ADDRESS_FILL_FEATURE);
 
@@ -690,7 +690,7 @@ public class KeyboardAccessoryViewTest {
                                 .setFeatureForIph("")
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_FILLING_FEATURE);
 
@@ -765,7 +765,7 @@ public class KeyboardAccessoryViewTest {
                                 .setFeatureForIph("")
                                 .setApplyDeactivatedStyle(false)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
         itemWithIph.setFeatureForIph(FeatureConstants.KEYBOARD_ACCESSORY_PAYMENT_OFFER_FEATURE);
 
@@ -901,7 +901,7 @@ public class KeyboardAccessoryViewTest {
                         getDefaultAutofillSuggestionBuilder()
                                 .setCustomIconUrl(customIconUrl)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -937,7 +937,7 @@ public class KeyboardAccessoryViewTest {
                         getDefaultAutofillSuggestionBuilder()
                                 .setCustomIconUrl(customIconUrl)
                                 .build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -965,7 +965,7 @@ public class KeyboardAccessoryViewTest {
         AutofillBarItem itemWithoutCustomIconUrl =
                 new AutofillBarItem(
                         getDefaultAutofillSuggestionBuilder().build(),
-                        new Action(AUTOFILL_SUGGESTION, unused -> {}),
+                        new Action(AUTOFILL_SUGGESTION, _ -> {}),
                         mMockProfile);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -1043,40 +1043,22 @@ public class KeyboardAccessoryViewTest {
 
     @Test
     @MediumTest
-    public void testAccessoryButtonsHaveCorrectSpacing() throws InterruptedException {
+    public void testAccessoryButtonsHaveCorrectSizes() throws InterruptedException {
         KeyboardAccessoryButtonGroupView buttonGroupView = setupButtonsAndGetGroup();
         ArrayList<ImageButton> buttons = buttonGroupView.getButtons();
         assertEquals("Expected three buttons to be present.", 3, buttons.size());
 
-        ImageButton button1 = buttons.get(0);
-        ImageButton button2 = buttons.get(1);
-        ImageButton button3 = buttons.get(2);
-
-        // Check spacing.
-        ViewGroup.MarginLayoutParams params1 =
-                (ViewGroup.MarginLayoutParams) button1.getLayoutParams();
-        ViewGroup.MarginLayoutParams params2 =
-                (ViewGroup.MarginLayoutParams) button2.getLayoutParams();
-        ViewGroup.MarginLayoutParams params3 =
-                (ViewGroup.MarginLayoutParams) button3.getLayoutParams();
-
-        int expectedMargin =
+        int expectedSize =
                 buttonGroupView
                         .getResources()
-                        .getDimensionPixelSize(R.dimen.keyboard_accessory_tab_icon_spacing);
+                        .getDimensionPixelSize(R.dimen.keyboard_accessory_tab_icon_size);
 
-        assertEquals(
-                "First button's left margin is incorrect.", expectedMargin, params1.leftMargin);
-        assertEquals(
-                "First button's right margin is incorrect.", expectedMargin, params1.rightMargin);
-        assertEquals(
-                "Second button's left margin is incorrect.", expectedMargin, params2.leftMargin);
-        assertEquals(
-                "Second button's right margin is incorrect.", expectedMargin, params2.rightMargin);
-        assertEquals(
-                "Third button's left margin is incorrect.", expectedMargin, params3.leftMargin);
-        assertEquals(
-                "Third button's right margin is incorrect.", expectedMargin, params3.rightMargin);
+        for (int i = 0; i < buttons.size(); i++) {
+            ImageButton button = buttons.get(i);
+            ViewGroup.LayoutParams params = button.getLayoutParams();
+            assertEquals("Button " + i + " width is incorrect.", expectedSize, params.width);
+            assertEquals("Button " + i + " height is incorrect.", expectedSize, params.height);
+        }
     }
 
     @Test

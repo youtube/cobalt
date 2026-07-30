@@ -6,12 +6,12 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
@@ -23,6 +23,10 @@
 #include "components/prefs/pref_service.h"
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/system/sys_info.h"
+#endif
 
 #if !BUILDFLAG(IS_FUCHSIA)
 #include "components/variations/service/google_groups_manager.h"  // nogncheck
@@ -51,9 +55,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   using enum personal_context::PersonalContextEligibilityState;
   switch (personal_context_service->GetEligibilityState()) {
     case kDisabledNotEligible:
-    // TODO(crbug.com/504893949) Consider handling this status differently when
-    // implementing opt-in logic.
-    case kDisabledNeedsOptIn:
       MaybeOutputReason(debug_message,
                         "User is not eligible for Personal Context.");
       return false;
@@ -97,15 +98,30 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   return base::flat_set<int32_t>(std::move(eligible_tiers));
 }
 
-// Returns whether the subscription tier eligibility criteria are met.
+[[nodiscard]] bool IsAndroidDeviceEligibleForAtMemory() {
+#if BUILDFLAG(IS_ANDROID)
+  const std::string model_name = base::SysInfo::HardwareModelName();
+  const base::flat_set<std::string> enabled_devices =
+      base::SplitString(features::kAutofillAtMemoryEnabledDevices.Get(), ",",
+                        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  return enabled_devices.contains(model_name);
+#else
+  return false;
+#endif
+}
+
+// Returns whether the subscription tier eligibility or device eligibility
+// criteria are met.
 //
 // Eligibility is determined by checking whether the user's tier is configured
-// as eligible by the `kAutofillAtMemoryEligibleTiers` feature parameter.
+// as eligible by the `kAutofillAtMemoryEligibleTiers` feature parameter, or if
+// the device is a premium device configured as eligible by the
+// `kAutofillAtMemoryEnabledDevices` feature parameter.
 //
-// If the feature parameter is empty (not set or set to an empty list), this is
-// interpreted as having no restrictions, in which case any subscription tier is
-// eligible (and `subscription_eligibility_service` being null is also allowed).
-[[nodiscard]] bool IsSubscriptionTierEligible(
+// If the eligible tiers feature parameter is empty (not set or set to an empty
+// list), this is interpreted as having no restrictions, in which case any
+// subscription tier or any device is eligible.
+[[nodiscard]] bool IsSubscriptionOrDeviceEligible(
     const subscription_eligibility::SubscriptionEligibilityService*
         subscription_eligibility_service,
     std::string* debug_message) {
@@ -121,8 +137,10 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   }
   const int32_t tier =
       subscription_eligibility_service->GetAiSubscriptionTier();
-  if (!eligible_tiers.contains(tier)) {
-    MaybeOutputReason(debug_message, "User subscription tier is not eligible.");
+  if (!eligible_tiers.contains(tier) && !IsAndroidDeviceEligibleForAtMemory()) {
+    MaybeOutputReason(debug_message,
+                      "User subscription tier is not eligible and device is "
+                      "not eligible.");
     return false;
   }
   return true;
@@ -143,12 +161,10 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
   // TODO(crbug.com/521270638) Add a check for the AtMemory specific policy on
   // top of the enterprise policy for Gemini.
 
-  constexpr int kGeminiSettingsAvailable = 0;
-  // TODO(crbug.com/393537628) Move the pref values enum to components and use
-  // this value here.
   const bool gemini_settings_allowed =
       pref_service->GetInteger(optimization_guide::prefs::kGeminiSettings) ==
-      kGeminiSettingsAvailable;
+      std::to_underlying(
+          optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled);
   if (!gemini_settings_allowed) {
     MaybeOutputReason(debug_message,
                       "Disallowed by GeminiSettings enterprise policy.");
@@ -168,17 +184,13 @@ base::flat_set<int32_t> GetAutofillAtMemoryEligibleTiers() {
     const subscription_eligibility::SubscriptionEligibilityService*
         subscription_eligibility_service,
     std::string* debug_message) {
-  if constexpr (!BUILDFLAG(GOOGLE_CHROME_BRANDING)) {
-    MaybeOutputReason(debug_message, "Not a branded Chrome build.");
-    return false;
-  }
 
   if (!IsPersonalContextEligible(personal_context_service, debug_message)) {
     return false;
   }
 
-  if (!IsSubscriptionTierEligible(subscription_eligibility_service,
-                                  debug_message)) {
+  if (!IsSubscriptionOrDeviceEligible(subscription_eligibility_service,
+                                      debug_message)) {
     return false;
   }
 

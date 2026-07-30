@@ -266,6 +266,11 @@ chromium-metrics-reviews@google.com.
     <owner>rbock@google.com</owner>
     <owner>zmin@chromium.org</owner>
   </variant>
+  <variant name=".GenerateChromeProfileChallenge"
+      summary="Generate Chrome Profile Challenges..">
+    <owner>hmare@google.com</owner>
+    <owner>cbe-eng@google.com</owner>
+  </variant>
   <variant name=".InitialEnrollmentStateRetrieval"
       summary="Initial Enrollment State Retrieval.">
     <owner>rbock@google.com</owner>
@@ -797,6 +802,19 @@ chromium-metrics-reviews@google.com.
   <token key="Level" variants="ClientCertLevel"/>
 </histogram>
 
+<histogram
+    name="Enterprise.ClientCertificate.{Level}.Provisioning.Cleanup.Success"
+    enum="BooleanSuccess" expires_after="2027-01-02">
+  <owner>seblalancette@chromium.org</owner>
+  <owner>cbe-device-trust-eng@google.com</owner>
+  <summary>
+    Captures whether the best-effort cleanup of managed key material, performed
+    when the client certificate provisioning policy is disabled, succeeded for a
+    {Level}. Recorded on ChromeOS each time the policy is observed disabled.
+  </summary>
+  <token key="Level" variants="ClientCertLevel"/>
+</histogram>
+
 <histogram name="Enterprise.ClientCertificate.{Level}.Provisioning.Error"
     enum="CertificateProvisioningError" expires_after="2027-01-02">
   <owner>seblalancette@chromium.org</owner>
@@ -1155,6 +1173,16 @@ chromium-metrics-reviews@google.com.
     Increases in 'WARN' counts within this histogram indicate potential data
     exfiltration being actioned by the policy. The 'BLOCK' bucket is expected to
     be empty since the 'Search' item is hidden for block verdicts.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.DataCopied.DataSize" units="bytes"
+    expires_after="2027-07-15">
+  <owner>eliashomsi@google.com</owner>
+  <owner>cbe-data-protection-eng@google.com</owner>
+  <summary>
+    Records the size (in bytes) of data that might have been scanned by the Copy
+    Enterprise Connector. It is logged once per user action.
   </summary>
 </histogram>
 
@@ -1884,7 +1912,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.ActiveFileEventsCount" units="entries"
-    expires_after="2026-08-23">
+    expires_after="2027-08-23">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2578,7 +2606,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.EnrollmentAttestationBased"
-    enum="EnterpriseEnrollmentType" expires_after="2026-10-06">
+    enum="EnterpriseEnrollmentType" expires_after="2027-01-10">
   <owner>asumaneev@google.com</owner>
   <owner>sergiyb@chromium.org</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -2954,6 +2982,41 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Enterprise.GenerateChromeProfileChallenge.Status"
+    enum="EnterpriseDeviceManagementStatus" expires_after="2027-01-02">
+  <owner>seblalancette@chromium.org</owner>
+  <owner>hmare@google.com</owner>
+  <summary>
+    Device management server status returned when requesting a profile-level
+    attestation challenge for enterprise reporting.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.HttpHeaderInjection.MatchTime" units="microseconds"
+    expires_after="2027-07-01">
+  <owner>antoli@google.com</owner>
+  <owner>cbe-cep-eng@google.com</owner>
+  <summary>
+    Records the time it takes to evaluate HttpHeaderInjection rules. This is
+    measured for a subsample of 0.1% of every network request when the policy is
+    enabled, right before the headers are sent.
+
+    This metric is reported only for clients with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.HttpHeaderInjection.RequestModified" enum="Boolean"
+    expires_after="2027-07-01">
+  <owner>antoli@google.com</owner>
+  <owner>cbe-cep-eng@google.com</owner>
+  <summary>
+    Records whether a network request was modified by the HttpHeaderInjection
+    policy. Emitted for a subsample of 0.1% of every network request when the
+    policy is enabled, right before headers are sent. True if headers were
+    injected, false otherwise.
+  </summary>
+</histogram>
+
 <histogram name="Enterprise.IdleTimeoutPolicies.ActionSuccess.{ActionType}"
     enum="BooleanSuccess" expires_after="2027-03-01">
   <owner>esalma@google.com</owner>
@@ -3310,8 +3373,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the management authority of the browser (BrowserManagementService)
     per profile, categorizing local computer management by policy count (&lt;=3
-    vs &gt;3). Logged upon profile initialization. Multiple samples can be
-    logged if multiple authorities are active.
+    vs &gt;3). Logged with every UMA log packet. Multiple samples can be logged
+    if multiple authorities are active.
   </summary>
 </histogram>
 
@@ -3321,8 +3384,18 @@ chromium-metrics-reviews@google.com.
   <owner>enterprise-metrics@google.com</owner>
   <summary>
     Records the active management authority of the underlying OS/device
-    (PlatformManagementService). Logged upon profile initialization. Multiple
+    (PlatformManagementService). Logged with every UMA log packet. Multiple
     samples can be logged if multiple authorities are active.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.NetworkAuth.TokenFetchError"
+    enum="EnterpriseNetworkTokenFetchError" expires_after="2027-07-01">
+  <owner>xzonghan@google.com</owner>
+  <owner>chrome-enterprise-networking-core@google.com</owner>
+  <summary>
+    Recorded when an Enterprise Network authentication access token request
+    completes or fails.
   </summary>
 </histogram>
 
@@ -3718,6 +3791,34 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2025-07-01 to 2026-04-15; data may
     be missing.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.ProvisioningDomainClient.FetchResult"
+    enum="EnterpriseProvisioningDomainClientFetchResult"
+    expires_after="2027-07-01">
+  <owner>xzonghan@google.com</owner>
+  <owner>chrome-enterprise-networking-core@google.com</owner>
+  <summary>
+    Recorded the result of a Provisioning Domain (PvD) JSON configuration fetch.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.ProvisioningDomainClient.HttpResponseCode"
+    enum="HttpResponseCode" expires_after="2027-07-01">
+  <owner>xzonghan@google.com</owner>
+  <owner>chrome-enterprise-networking-core@google.com</owner>
+  <summary>
+    Recorded when a Provisioning Domain fetch completes with an HTTP error code.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.ProvisioningDomainClient.NetError"
+    enum="NetErrorCodes" expires_after="2027-07-01">
+  <owner>xzonghan@google.com</owner>
+  <owner>chrome-enterprise-networking-core@google.com</owner>
+  <summary>
+    Recorded when a Provisioning Domain fetch fails due to a network error.
   </summary>
 </histogram>
 

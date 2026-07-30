@@ -89,6 +89,11 @@ public class ExtensionsToolbarCoordinatorImpl
                 public void showManageExtensionsIPH() {
                     showIphInternal();
                 }
+
+                @Override
+                public void showPinnedByDefaultIPH(String extensionId) {
+                    showPinnedByDefaultIphInternal(extensionId);
+                }
             };
     private final MenuButtonPinningDelegate mMenuButtonPinningDelegate =
             new MenuButtonPinningDelegate();
@@ -375,6 +380,71 @@ public class ExtensionsToolbarCoordinatorImpl
                         .build());
     }
 
+    private void showPinnedByDefaultIphInternal(String extensionId) {
+        if (mProfile.shutdownStarted()) {
+            return;
+        }
+
+        Activity activity = mWindowAndroid.getActivity().get();
+        if (activity == null) {
+            return;
+        }
+
+        View anchorView = mExtensionActionListCoordinator.getButtonViewForId(extensionId);
+        if (anchorView == null) {
+            return;
+        }
+
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        if (anchorView.isShown()) {
+            showPinnedByDefaultIphInternalHelper(activity, anchorView, handler);
+        } else {
+            // Wait for it to be laid out and visible.
+            final View finalAnchor = anchorView;
+            anchorView.addOnLayoutChangeListener(
+                    new View.OnLayoutChangeListener() {
+                        @Override
+                        public void onLayoutChange(
+                                View v,
+                                int left,
+                                int top,
+                                int right,
+                                int bottom,
+                                int oldLeft,
+                                int oldTop,
+                                int oldRight,
+                                int oldBottom) {
+                            if (v.isShown()) {
+                                v.removeOnLayoutChangeListener(this);
+                                showPinnedByDefaultIphInternalHelper(
+                                        activity, finalAnchor, handler);
+                            }
+                        }
+                    });
+        }
+    }
+
+    private void showPinnedByDefaultIphInternalHelper(
+            Activity activity, View anchorView, Handler handler) {
+        UserEducationHelper userEducationHelper =
+                new UserEducationHelper(activity, mProfile, handler);
+
+        userEducationHelper.requestShowIph(
+                new IphCommandBuilder(
+                                anchorView.getContext().getResources(),
+                                FeatureConstants.IPH_EXTENSIONS_PINNED_BY_DEFAULT_FEATURE,
+                                R.string.extensions_pinned_by_default_iph_body,
+                                R.string.extensions_pinned_by_default_iph_body)
+                        .setAnchorView(anchorView)
+                        .setPreferredHorizontalOrientation(
+                                HorizontalOrientation.MAX_AVAILABLE_SPACE)
+                        .setHorizontalOverlapAnchor(true)
+                        .setRemoveArrow(true)
+                        .setInsetRect(new Rect())
+                        .build());
+    }
+
     private void saveMenuButtonPinState(boolean pinned) {
         mPrefService.setBoolean(Pref.PIN_EXTENSIONS_MENU_BUTTON, pinned);
         updateMenuButtonPinState();
@@ -428,7 +498,7 @@ public class ExtensionsToolbarCoordinatorImpl
     }
 
     @Override
-    public PoppedOutActionWidthConsumer getPoppedOutActionWidthConsumer() {
+    public ToolbarWidthConsumer getPoppedOutActionWidthConsumer() {
         return mPoppedOutActionWidthConsumer;
     }
 

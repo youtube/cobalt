@@ -15,6 +15,7 @@
 #include "ui/views/window/dialog_delegate.h"
 
 namespace views {
+class Label;
 class RadioButton;
 class Widget;
 }  // namespace views
@@ -35,6 +36,12 @@ class PasswordCombinedSelectorView
       public AccountChooserPrompt,
       public PasswordCombinedSelectorRadioButtonDelegate {
  public:
+  static constexpr int kSubtitleLabelId = 1;
+  static constexpr int kCredentialListId = 2;
+  static constexpr int kCredentialRowId = 3;
+  static constexpr int kRowUsernameLabelId = 4;
+  static constexpr int kRowDetailLabelId = 5;
+
   PasswordCombinedSelectorView(PasswordCombinedSelectorController* controller,
                                content::WebContents* web_contents);
   PasswordCombinedSelectorView(const PasswordCombinedSelectorView&) = delete;
@@ -52,11 +59,7 @@ class PasswordCombinedSelectorView
   // views::DialogDelegate:
   bool Accept() override;
   bool ShouldAllowKeyEventsDuringInputProtection() const override;
-
-  const std::vector<raw_ptr<views::RadioButton>>& GetRadioButtonsForTesting()
-      const {
-    return radio_buttons_;
-  }
+  void OnWidgetInitialized() override;
 
  private:
   std::u16string GetWindowTitle() const override;
@@ -72,8 +75,10 @@ class PasswordCombinedSelectorView
   // The currently selected password form.
   raw_ptr<const password_manager::PasswordForm> selected_form_ = nullptr;
 
+  // The following pointers point to views owned by the widget, and will dangle
+  // during widget teardown before the delegate is destroyed. They are only
+  // used for testing and never dereferenced after the widget is closed.
   raw_ptr<views::View> list_view_ = nullptr;
-  std::vector<raw_ptr<views::RadioButton>> radio_buttons_;
 
   std::unique_ptr<views::Widget> widget_;
 };

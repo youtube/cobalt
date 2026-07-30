@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include <string_view>
-#include <vector>
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -139,15 +138,14 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestErrorMessageMandatoryUiEnabledTest,
   // Trigger PaymentRequest. We expect the error message sheet to be shown
   // because the app rejects the payment immediately before any user interaction
   // occurs.
-  ResetEventWaiterForSequence({DialogEvent::PROCESSING_SPINNER_SHOWN,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::DIALOG_OPENED,
-                               DialogEvent::PROCESSING_SPINNER_SHOWN,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED,
-                               DialogEvent::PAYMENT_HANDLER_TITLE_SET,
-                               DialogEvent::PROCESSING_SPINNER_HIDDEN,
-                               DialogEvent::ERROR_MESSAGE_SHOWN});
+  ResetEventWaiterForSequence(
+      {DialogEvent::PROCESSING_SPINNER_SHOWN,
+       DialogEvent::PROCESSING_SPINNER_HIDDEN, DialogEvent::DIALOG_OPENED,
+       DialogEvent::LOADING_VIEW_SHOWN, DialogEvent::LOADING_VIEW_HIDDEN,
+       DialogEvent::PAYMENT_HANDLER_WINDOW_OPENED,
+       DialogEvent::PAYMENT_HANDLER_TITLE_SET,
+       DialogEvent::PROCESSING_SPINNER_HIDDEN,
+       DialogEvent::ERROR_MESSAGE_SHOWN});
   ASSERT_EQ(
       "success",
       content::EvalJs(
@@ -163,9 +161,9 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestErrorMessageMandatoryUiEnabledTest,
   views::View* content_view =
       GetChildByDialogViewID(error_sheet, DialogViewID::CONTENT_VIEW);
   ASSERT_NE(nullptr, content_view);
-  ASSERT_EQ(1u, content_view->children().size());
+  ASSERT_EQ(2u, content_view->children().size());
 
-  views::Label* label = static_cast<views::Label*>(content_view->children()[0]);
+  views::Label* label = static_cast<views::Label*>(content_view->children()[1]);
   std::u16string_view label_text = label->GetText();
 
   EXPECT_TRUE(label_text.contains(base::ASCIIToUTF16(kMerchantOrigin)));

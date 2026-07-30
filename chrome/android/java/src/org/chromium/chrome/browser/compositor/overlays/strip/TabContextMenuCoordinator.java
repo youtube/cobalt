@@ -100,6 +100,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -176,6 +177,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     private final WindowAndroid mWindowAndroid;
     private final Activity mActivity;
     private final int mCircleSize;
+    private final @Nullable BooleanSupplier mCanActivateTabLayoutToggleMenuSupplier;
 
     private TabContextMenuCoordinator(
             Supplier<TabModel> tabModelSupplier,
@@ -192,7 +194,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             SnackbarManager snackbarManager,
             @Nullable ActivityResultTracker activityResultTracker,
             @Nullable ModalDialogManager modalDialogManager,
-            @TabClosingSource int tabClosingSource) {
+            @TabClosingSource int tabClosingSource,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         super(
                 R.layout.tab_switcher_action_menu_layout,
                 R.layout.tab_switcher_action_menu_layout,
@@ -218,6 +221,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
         mTabGroupCreationCallback = tabGroupCreationCallback;
         mWindowAndroid = windowAndroid;
         mActivity = activity;
+        mCanActivateTabLayoutToggleMenuSupplier = canActivateTabLayoutToggleMenuSupplier;
 
         mCircleSize = getDimensionPixelSize(R.dimen.tab_group_nested_menu_color_icon_size);
     }
@@ -242,6 +246,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
      * @param activityResultTracker The {@link ActivityResultTracker} to track activity results.
      * @param modalDialogManager The {@link ModalDialogManager} to show modal dialogs.
      * @param tabClosingSource The {@link TabClosingSource} indicating where the tab is closed from.
+     * @param canActivateTabLayoutToggleMenuSupplier Supplies whether tab layout toggle menu can be
+     *     activated.
      */
     public static TabContextMenuCoordinator createContextMenuCoordinator(
             Supplier<TabModel> tabModelSupplier,
@@ -256,7 +262,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             SnackbarManager snackbarManager,
             @Nullable ActivityResultTracker activityResultTracker,
             @Nullable ModalDialogManager modalDialogManager,
-            @TabClosingSource int tabClosingSource) {
+            @TabClosingSource int tabClosingSource,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         Profile profile = assumeNonNull(tabModelSupplier.get().getProfile());
 
         @Nullable TabGroupSyncService tabGroupSyncService =
@@ -280,7 +287,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 snackbarManager,
                 activityResultTracker,
                 modalDialogManager,
-                tabClosingSource);
+                tabClosingSource,
+                canActivateTabLayoutToggleMenuSupplier);
     }
 
     @VisibleForTesting
@@ -335,9 +343,11 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                     || menuId == R.id.close_all_incognito_tabs_menu_id) {
                 closeAllTabsItemCallback(tabModel, tabClosingSource);
             } else if (menuId == R.id.close_other_tabs_menu_id) {
-                closeOtherTabsItemCallback(tabModel, tabIds, tabClosingSource);
+                closeOtherTabsItemCallback(
+                        tabModel, tabIds, listViewTouchTracker, tabClosingSource);
             } else if (menuId == R.id.close_tabs_to_the_right_menu_id) {
-                closeTabsToTheRightItemCallback(tabModel, tabIds, tabClosingSource);
+                closeTabsToTheRightItemCallback(
+                        tabModel, tabIds, listViewTouchTracker, tabClosingSource);
             } else if (menuId == R.id.new_tab_to_the_right_menu_id) {
                 newTabToTheRightItemCallback(tabModel, anchorInfo);
             } else if (menuId == R.id.add_tab_to_reading_list_menu_id) {
@@ -450,16 +460,21 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     }
 
     private static void closeOtherTabsItemCallback(
-            TabModel tabModel, List<Integer> tabIds, @TabClosingSource int tabClosingSource) {
+            TabModel tabModel,
+            List<Integer> tabIds,
+            @Nullable ListViewTouchTracker listViewTouchTracker,
+            @TabClosingSource int tabClosingSource) {
         List<Tab> otherTabs = new ArrayList<>();
         for (Tab tab : tabModel) {
             if (!tabIds.contains(tab.getId())) {
                 otherTabs.add(tab);
             }
         }
+        boolean allowUndo = TabClosureParamsUtils.shouldAllowUndo(listViewTouchTracker);
         tabModel.getTabRemover()
                 .closeTabs(
                         TabClosureParams.closeTabs(otherTabs)
+                                .allowUndo(allowUndo)
                                 .hideTabGroups(true)
                                 .tabClosingSource(tabClosingSource)
                                 .build(),
@@ -467,7 +482,10 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     }
 
     private static void closeTabsToTheRightItemCallback(
-            TabModel tabModel, List<Integer> tabIds, @TabClosingSource int tabClosingSource) {
+            TabModel tabModel,
+            List<Integer> tabIds,
+            @Nullable ListViewTouchTracker listViewTouchTracker,
+            @TabClosingSource int tabClosingSource) {
         List<Tab> otherTabs = new ArrayList<>();
         boolean foundPivot = false;
         for (Tab tab : tabModel) {
@@ -480,9 +498,11 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 otherTabs.add(tab);
             }
         }
+        boolean allowUndo = TabClosureParamsUtils.shouldAllowUndo(listViewTouchTracker);
         tabModel.getTabRemover()
                 .closeTabs(
                         TabClosureParams.closeTabs(otherTabs)
+                                .allowUndo(allowUndo)
                                 .hideTabGroups(true)
                                 .tabClosingSource(tabClosingSource)
                                 .build(),
@@ -632,11 +652,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
     private void buildMenuActionItemsForSingleTab(
             ModelList itemList, AnchorInfo anchorInfo, List<Tab> tabs, boolean isIncognito) {
-        // TODO(crbug.com/521982129): Pass an explicit layout/menu source argument here
-        // instead of relying on global feature/preference state via VerticalTabUtils.
-        boolean isVerticalTabs = VerticalTabUtils.isVerticalTabsEnabled(mActivity);
-        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled() && !isVerticalTabs) {
-            itemList.add(createNewTabToTheRightItem(isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            itemList.add(createNewTabDirectionalItem(isIncognito));
         }
         itemList.add(createMoveToTabGroupItem(tabs, isIncognito));
         if (TabGroupUtils.isAnyTabInGroup(tabs)) {
@@ -680,17 +697,16 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             if (getTabModel().getCount() > 1) {
                 itemList.add(createCloseOtherTabsItem(isIncognito));
             }
-            if (canCloseTabsToTheRight(anchorInfo) && !isVerticalTabs) {
-                itemList.add(createCloseTabsToTheRightItem(isIncognito));
+            if (canCloseTabsToTheRight(anchorInfo)) {
+                itemList.add(createCloseTabsDirectionalItem(isIncognito));
             }
         }
     }
 
     private void buildMenuActionItemsForMultipleTabs(
             ModelList itemList, AnchorInfo anchorInfo, List<Tab> tabs, boolean isIncognito) {
-        boolean isVerticalTabs = VerticalTabUtils.isVerticalTabsEnabled(mActivity);
-        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled() && !isVerticalTabs) {
-            itemList.add(createNewTabToTheRightItem(isIncognito));
+        if (ChromeFeatureList.sAndroidContextMenuNewActions.isEnabled()) {
+            itemList.add(createNewTabDirectionalItem(isIncognito));
         }
         itemList.add(createMoveToTabGroupItem(tabs, isIncognito));
         if (TabGroupUtils.isAnyTabInGroup(tabs)) {
@@ -719,8 +735,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             if (getTabModel().getCount() > anchorInfo.getAllTabIds().size()) {
                 itemList.add(createCloseOtherTabsItem(isIncognito));
             }
-            if (canCloseTabsToTheRight(anchorInfo) && !isVerticalTabs) {
-                itemList.add(createCloseTabsToTheRightItem(isIncognito));
+            if (canCloseTabsToTheRight(anchorInfo)) {
+                itemList.add(createCloseTabsDirectionalItem(isIncognito));
             }
         }
     }
@@ -747,8 +763,13 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 .build();
     }
 
-    private ListItem createNewTabToTheRightItem(boolean isIncognito) {
-        String title = mActivity.getResources().getString(R.string.new_tab_to_the_right_menu_item);
+    private ListItem createNewTabDirectionalItem(boolean isIncognito) {
+        boolean isVerticalTabs = VerticalTabUtils.isVerticalTabsEnabled(mActivity);
+        int stringId =
+                isVerticalTabs
+                        ? R.string.new_tab_below_menu_item
+                        : R.string.new_tab_to_the_right_menu_item;
+        String title = mActivity.getResources().getString(stringId);
 
         return new ListItemBuilder()
                 .withTitle(title)
@@ -852,9 +873,13 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                 .build();
     }
 
-    private ListItem createCloseTabsToTheRightItem(boolean isIncognito) {
-        String title =
-                mActivity.getResources().getString(R.string.close_tabs_to_the_right_menu_item);
+    private ListItem createCloseTabsDirectionalItem(boolean isIncognito) {
+        boolean isVerticalTabs = VerticalTabUtils.isVerticalTabsEnabled(mActivity);
+        int stringId =
+                isVerticalTabs
+                        ? R.string.close_tabs_below_menu_item
+                        : R.string.close_tabs_to_the_right_menu_item;
+        String title = mActivity.getResources().getString(stringId);
         return new ListItemBuilder()
                 .withTitle(title)
                 .withMenuId(R.id.close_tabs_to_the_right_menu_id)
@@ -979,8 +1004,17 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                             ? R.string.show_tabs_horizontally
                             : R.string.show_tabs_vertically;
 
+            boolean enabled =
+                    mCanActivateTabLayoutToggleMenuSupplier == null
+                            || mCanActivateTabLayoutToggleMenuSupplier.getAsBoolean();
+
             itemList.add(
-                    buildListItem(layoutTitleRes, R.id.toggle_tab_layout_menu_id, isIncognito));
+                    new ListItemBuilder()
+                            .withTitleRes(layoutTitleRes)
+                            .withMenuId(R.id.toggle_tab_layout_menu_id)
+                            .withIsIncognito(isIncognito)
+                            .withEnabled(enabled)
+                            .build());
             itemList.add(buildMenuDivider(isIncognito));
         }
     }

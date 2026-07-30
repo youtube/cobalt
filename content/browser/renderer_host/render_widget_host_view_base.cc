@@ -60,6 +60,10 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+#if BUILDFLAG(IS_WIN)
+#include "content/browser/renderer_host/input/stylus_handwriting_controller_win.h"
+#endif
+
 namespace content {
 
 void RenderWidgetHostViewBase::OnUnconfirmedTapConvertedToTap() {}
@@ -74,6 +78,12 @@ RenderWidgetHostViewBase::RenderWidgetHostViewBase(RenderWidgetHost* host)
 RenderWidgetHostViewBase::~RenderWidgetHostViewBase() {
   CHECK(!keyboard_locked_);
   CHECK(!IsPointerLocked());
+#if BUILDFLAG(IS_WIN)
+  if (StylusHandwritingControllerWin::IsHandwritingAPIAvailable()) {
+    StylusHandwritingControllerWin::GetInstance()->OnHandwritingViewDestroyed(
+        this);
+  }
+#endif  // BUILDFLAG(IS_WIN)
   // We call this here to guarantee that observers are notified before we go
   // away. However, some subclasses may wish to call this earlier in their
   // shutdown process, e.g. to force removal from
@@ -943,7 +953,31 @@ void RenderWidgetHostViewBase::DidNavigate() {
 void RenderWidgetHostViewBase::CreateUnboundedSurface(
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
     mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
-    const gfx::Rect& bounds_in_dips) {}
+    const gfx::Rect& bounds_in_dips,
+    base::WeakPtr<RenderWidgetHostViewBase> subframe_view) {}
+
+void RenderWidgetHostViewBase::UpdateUnboundedSurfaceBoundsInSubframeContext(
+    const gfx::Rect& bounds_in_dips,
+    RenderWidgetHostViewBase* subframe_view) {
+  if (!unbounded_surface_window_) {
+    return;
+  }
+  UpdateUnboundedSurfaceBounds(
+      ConvertSubframeBoundsToScreen(bounds_in_dips, subframe_view));
+}
+
+gfx::Rect RenderWidgetHostViewBase::ConvertSubframeBoundsToScreen(
+    const gfx::Rect& bounds_in_dips,
+    RenderWidgetHostViewBase* subframe_view) {
+  gfx::Rect transformed_bounds = bounds_in_dips;
+  if (subframe_view) {
+    TransformPointAndRectToRootView(subframe_view, this, nullptr,
+                                    &transformed_bounds);
+  }
+  gfx::Rect bounds_in_screen = transformed_bounds;
+  bounds_in_screen.Offset(GetViewBounds().OffsetFromOrigin());
+  return bounds_in_screen;
+}
 
 void RenderWidgetHostViewBase::UpdateUnboundedSurfaceBounds(
     const gfx::Rect& bounds_in_screen) {

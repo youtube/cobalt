@@ -181,14 +181,14 @@ std::vector<FPDF_PAGEOBJECTMARK> FindInkTextAnnotationMarks(
 
 bool IsValidTypeface(std::optional<int> typeface) {
   return typeface.has_value() &&
-         typeface.value() >= static_cast<int>(TextTypeface::kFirst) &&
-         typeface.value() <= static_cast<int>(TextTypeface::kLast);
+         typeface.value() >= static_cast<int>(TextTypeface::kMinValue) &&
+         typeface.value() <= static_cast<int>(TextTypeface::kMaxValue);
 }
 
 bool IsValidAlignment(std::optional<int> alignment) {
   return alignment.has_value() &&
-         alignment.value() >= static_cast<int>(TextAlignment::kFirst) &&
-         alignment.value() <= static_cast<int>(TextAlignment::kLast);
+         alignment.value() >= static_cast<int>(TextAlignment::kMinValue) &&
+         alignment.value() <= static_cast<int>(TextAlignment::kMaxValue);
 }
 
 bool IsValidOrientation(std::optional<int> orientation) {

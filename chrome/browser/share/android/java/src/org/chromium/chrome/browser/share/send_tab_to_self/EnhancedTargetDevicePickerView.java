@@ -11,7 +11,6 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.RelativeLayout;
 
-import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Px;
 import androidx.annotation.StringRes;
@@ -22,7 +21,6 @@ import org.chromium.chrome.R;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetListViewBase;
 import org.chromium.components.browser_ui.bottomsheet.ItemDividerBase;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 
 import java.util.Objects;
 import java.util.Set;
@@ -150,8 +148,8 @@ class EnhancedTargetDevicePickerView extends BottomSheetListViewBase {
     }
 
     @Override
-    public @ColorInt int getSheetBackgroundColorOverride() {
-        return SemanticColorUtils.getColorSurface(getContentView().getContext());
+    public boolean coversBottomControls() {
+        return true;
     }
 
     private static class ClipLayoutHelper implements View.OnAttachStateChangeListener {

@@ -112,7 +112,16 @@ void FillFourColorsFrameYUV(VideoFrame& dest_frame,
          dest_frame.format() == PIXEL_FORMAT_I422 ||
          dest_frame.format() == PIXEL_FORMAT_I422A ||
          dest_frame.format() == PIXEL_FORMAT_I444 ||
-         dest_frame.format() == PIXEL_FORMAT_I444A)
+         dest_frame.format() == PIXEL_FORMAT_I444A ||
+         dest_frame.format() == PIXEL_FORMAT_YUV420P10 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV422P10 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV444P10 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV420P12 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV422P12 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV444P12 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV420AP10 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV422AP10 ||
+         dest_frame.format() == PIXEL_FORMAT_YUV444AP10)
       << "Unsupported pixel format: "
       << VideoPixelFormatToString(dest_frame.format());
 
@@ -121,10 +130,33 @@ void FillFourColorsFrameYUV(VideoFrame& dest_frame,
   auto* output_frame = &dest_frame;
   scoped_refptr<VideoFrame> temp_frame;
   if (dest_frame.format() == PIXEL_FORMAT_NV12 ||
-      dest_frame.format() == PIXEL_FORMAT_NV12A) {
+      dest_frame.format() == PIXEL_FORMAT_NV12A ||
+      dest_frame.format() == PIXEL_FORMAT_YUV420P10 ||
+      dest_frame.format() == PIXEL_FORMAT_YUV420P12 ||
+      dest_frame.format() == PIXEL_FORMAT_YUV420AP10) {
     temp_frame = VideoFrame::CreateZeroInitializedFrame(
-        dest_frame.format() == PIXEL_FORMAT_NV12 ? PIXEL_FORMAT_I420
-                                                 : PIXEL_FORMAT_I420A,
+        (dest_frame.format() == PIXEL_FORMAT_NV12A ||
+         dest_frame.format() == PIXEL_FORMAT_YUV420AP10)
+            ? PIXEL_FORMAT_I420A
+            : PIXEL_FORMAT_I420,
+        dest_frame.coded_size(), dest_frame.visible_rect(),
+        dest_frame.natural_size(), base::TimeDelta());
+    output_frame = temp_frame.get();
+  } else if (dest_frame.format() == PIXEL_FORMAT_YUV422P10 ||
+             dest_frame.format() == PIXEL_FORMAT_YUV422P12 ||
+             dest_frame.format() == PIXEL_FORMAT_YUV422AP10) {
+    temp_frame = VideoFrame::CreateZeroInitializedFrame(
+        dest_frame.format() == PIXEL_FORMAT_YUV422AP10 ? PIXEL_FORMAT_I422A
+                                                       : PIXEL_FORMAT_I422,
+        dest_frame.coded_size(), dest_frame.visible_rect(),
+        dest_frame.natural_size(), base::TimeDelta());
+    output_frame = temp_frame.get();
+  } else if (dest_frame.format() == PIXEL_FORMAT_YUV444P10 ||
+             dest_frame.format() == PIXEL_FORMAT_YUV444P12 ||
+             dest_frame.format() == PIXEL_FORMAT_YUV444AP10) {
+    temp_frame = VideoFrame::CreateZeroInitializedFrame(
+        dest_frame.format() == PIXEL_FORMAT_YUV444AP10 ? PIXEL_FORMAT_I444A
+                                                       : PIXEL_FORMAT_I444,
         dest_frame.coded_size(), dest_frame.visible_rect(),
         dest_frame.natural_size(), base::TimeDelta());
     output_frame = temp_frame.get();
@@ -161,28 +193,44 @@ void FillFourColorsFrameYUV(VideoFrame& dest_frame,
             remaining_height, y, u, v, a);
 
   if (temp_frame) {
-    ASSERT_EQ(libyuv::I420ToNV12(
-                  temp_frame->visible_data(VideoFrame::Plane::kY),
-                  temp_frame->stride(VideoFrame::Plane::kY),
-                  temp_frame->visible_data(VideoFrame::Plane::kU),
-                  temp_frame->stride(VideoFrame::Plane::kU),
-                  temp_frame->visible_data(VideoFrame::Plane::kV),
-                  temp_frame->stride(VideoFrame::Plane::kV),
-                  dest_frame.GetWritableVisibleData(VideoFrame::Plane::kY),
-                  dest_frame.stride(VideoFrame::Plane::kY),
-                  dest_frame.GetWritableVisibleData(VideoFrame::Plane::kUV),
-                  dest_frame.stride(VideoFrame::Plane::kUV),
-                  dest_frame.visible_rect().width(),
-                  dest_frame.visible_rect().height()),
-              0);
-    if (dest_frame.format() == PIXEL_FORMAT_NV12A) {
-      libyuv::CopyPlane(
-          temp_frame->visible_data(VideoFrame::Plane::kA),
-          temp_frame->stride(VideoFrame::Plane::kA),
-          dest_frame.GetWritableVisibleData(VideoFrame::Plane::kATriPlanar),
-          dest_frame.stride(VideoFrame::Plane::kATriPlanar),
-          dest_frame.visible_rect().width(),
-          dest_frame.visible_rect().height());
+    if (dest_frame.format() == PIXEL_FORMAT_NV12 ||
+        dest_frame.format() == PIXEL_FORMAT_NV12A) {
+      ASSERT_EQ(libyuv::I420ToNV12(
+                    temp_frame->visible_data(VideoFrame::Plane::kY),
+                    temp_frame->stride(VideoFrame::Plane::kY),
+                    temp_frame->visible_data(VideoFrame::Plane::kU),
+                    temp_frame->stride(VideoFrame::Plane::kU),
+                    temp_frame->visible_data(VideoFrame::Plane::kV),
+                    temp_frame->stride(VideoFrame::Plane::kV),
+                    dest_frame.GetWritableVisibleData(VideoFrame::Plane::kY),
+                    dest_frame.stride(VideoFrame::Plane::kY),
+                    dest_frame.GetWritableVisibleData(VideoFrame::Plane::kUV),
+                    dest_frame.stride(VideoFrame::Plane::kUV),
+                    dest_frame.visible_rect().width(),
+                    dest_frame.visible_rect().height()),
+                0);
+      if (dest_frame.format() == PIXEL_FORMAT_NV12A) {
+        libyuv::CopyPlane(
+            temp_frame->visible_data(VideoFrame::Plane::kA),
+            temp_frame->stride(VideoFrame::Plane::kA),
+            dest_frame.GetWritableVisibleData(VideoFrame::Plane::kATriPlanar),
+            dest_frame.stride(VideoFrame::Plane::kATriPlanar),
+            dest_frame.visible_rect().width(),
+            dest_frame.visible_rect().height());
+      }
+    } else {
+      int scale = (dest_frame.format() == PIXEL_FORMAT_YUV420P12 ||
+                   dest_frame.format() == PIXEL_FORMAT_YUV422P12 ||
+                   dest_frame.format() == PIXEL_FORMAT_YUV444P12)
+                      ? 4096   // 8 bits -> 12 bits
+                      : 1024;  // 8 bits -> 10 bits
+      for (size_t i = 0; i < VideoFrame::NumPlanes(dest_frame.format()); ++i) {
+        libyuv::Convert8To16Plane(
+            temp_frame->visible_data(i), temp_frame->stride(i),
+            reinterpret_cast<uint16_t*>(dest_frame.GetWritableVisibleData(i)),
+            dest_frame.stride(i) / sizeof(uint16_t), scale,
+            dest_frame.GetVisibleColumns(i), dest_frame.GetVisibleRows(i));
+      }
     }
   }
 }
@@ -825,11 +873,37 @@ std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> RGBToYUV(uint32_t argb) {
   return std::tie(y, u, v, a);
 }
 
+namespace {
+
+template <typename T>
+int CountRowDiffs(base::span<const uint8_t> data1,
+                  int stride1,
+                  base::span<const uint8_t> data2,
+                  int stride2,
+                  size_t rows,
+                  size_t row_bytes,
+                  int tolerance) {
+  int diff_cnt = 0;
+  for (size_t r = 0; r < rows; ++r) {
+    auto row1 = base::subtle::reinterpret_span<const T>(
+        data1.subspan(stride1 * r, row_bytes));
+    auto row2 = base::subtle::reinterpret_span<const T>(
+        data2.subspan(stride2 * r, row_bytes));
+    for (size_t c = 0; c < row1.size(); ++c) {
+      if (std::abs(static_cast<int>(row1[c]) - static_cast<int>(row2[c])) >
+          tolerance) {
+        ++diff_cnt;
+      }
+    }
+  }
+  return diff_cnt;
+}
+
+}  // namespace
+
 int CountDifferentPixels(const VideoFrame& frame1,
                          const VideoFrame& frame2,
                          int tolerance) {
-  int diff_cnt = 0;
-
   if (frame1.format() != frame2.format() ||
       frame1.visible_rect().size() != frame2.visible_rect().size()) {
     return frame1.coded_size().GetArea();
@@ -838,26 +912,25 @@ int CountDifferentPixels(const VideoFrame& frame1,
   VideoPixelFormat format = frame1.format();
   size_t num_planes = VideoFrame::NumPlanes(format);
   gfx::Size visible_size = frame1.visible_rect().size();
+  int bytes_per_element =
+      VideoFrame::BytesPerElement(format, VideoFrame::Plane::kY);
+
+  int diff_cnt = 0;
   for (size_t plane = 0; plane < num_planes; ++plane) {
-    int stride1 = frame1.stride(plane);
-    int stride2 = frame2.stride(plane);
     size_t rows = VideoFrame::Rows(plane, format, visible_size.height());
     size_t row_bytes =
         VideoFrame::RowBytes(plane, format, visible_size.width());
     auto data1 = frame1.GetVisiblePlaneData(plane);
     auto data2 = frame2.GetVisiblePlaneData(plane);
+    int stride1 = frame1.stride(plane);
+    int stride2 = frame2.stride(plane);
 
-    for (size_t r = 0; r < rows; ++r) {
-      auto row1 = data1.subspan(stride1 * r, row_bytes);
-      auto row2 = data2.subspan(stride2 * r, row_bytes);
-      for (size_t c = 0; c < row_bytes; ++c) {
-        uint8_t b1 = row1[c];
-        uint8_t b2 = row2[c];
-        uint8_t diff = std::max(b1, b2) - std::min(b1, b2);
-        if (diff > tolerance) {
-          ++diff_cnt;
-        }
-      }
+    if (bytes_per_element == 2) {
+      diff_cnt += CountRowDiffs<uint16_t>(data1, stride1, data2, stride2, rows,
+                                          row_bytes, tolerance);
+    } else {
+      diff_cnt += CountRowDiffs<uint8_t>(data1, stride1, data2, stride2, rows,
+                                         row_bytes, tolerance);
     }
   }
   return diff_cnt;

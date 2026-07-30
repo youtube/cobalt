@@ -318,6 +318,14 @@ void BrowserAccessibilityManagerAndroid::FireDocumentSelectionChangedEvent(
   wcax->HandleTextSelectionChanged(selection->focus.node->GetUniqueId());
 }
 
+bool isNodeLikelyKnownForExperiment(WebContentsAccessibilityAndroid* wcax,
+                                    int32_t unique_id) {
+  if (features::kPreventWindowContentChangesForNodesNotLikelyInAndroid.Get()) {
+    return wcax->IsNodeLikelyKnownByAndroidFrameworkForExperiment(unique_id);
+  }
+  return true;
+}
+
 void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
     ui::AXEventGenerator::Event event_type,
     const ui::AXNode* node) {
@@ -365,23 +373,29 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       if (android_node->GetRole() == ax::mojom::Role::kToggleButton ||
           android_node->GetRole() == ax::mojom::Role::kSwitch ||
           android_node->GetRole() == ax::mojom::Role::kRadioButton) {
-        wcax->HandleWindowContentChange(
-            android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_STATE_DESCRIPTION);
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_STATE_DESCRIPTION);
+        }
       }
       break;
     case ui::AXEventGenerator::Event::DEFAULT_ACTION_VERB_CHANGED:
       wcax->HandleDefaultActionVerbChanged(android_node->GetUniqueId());
       break;
     case ui::AXEventGenerator::Event::DESCRIPTION_CHANGED: {
-      wcax->HandleWindowContentChange(
-          android_node->GetUniqueId(),
-          ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_UNDEFINED);
-      if (android_node->GetRole() == ax::mojom::Role::kDialog ||
-          android_node->GetRole() == ax::mojom::Role::kAlertDialog) {
+      if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
         wcax->HandleWindowContentChange(
             android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_PANE_TITLE);
+            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_UNDEFINED);
+      }
+      if (android_node->GetRole() == ax::mojom::Role::kDialog ||
+          android_node->GetRole() == ax::mojom::Role::kAlertDialog) {
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_PANE_TITLE);
+        }
       }
       break;
     }
@@ -394,29 +408,37 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
           GetFocus()->IsDescendantOf(android_node)) {
         wcax->HandlePaneOpened(android_node->GetUniqueId());
       }
-      wcax->HandleWindowContentChange(
+      if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+        wcax->HandleWindowContentChange(
             android_node->GetUniqueId(),
             ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_EXPANDED);
+      }
       break;
     }
     case ui::AXEventGenerator::Event::COLLAPSED: {
-      wcax->HandleWindowContentChange(
+      if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+        wcax->HandleWindowContentChange(
             android_node->GetUniqueId(),
             ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_EXPANDED);
+      }
       break;
     }
     case ui::AXEventGenerator::Event::IMAGE_ANNOTATION_CHANGED: {
-      wcax->HandleWindowContentChange(
-          android_node->GetUniqueId(),
-          ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_TEXT);
+      if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+        wcax->HandleWindowContentChange(
+            android_node->GetUniqueId(),
+            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_TEXT);
+      }
       break;
     }
     case ui::AXEventGenerator::Event::INVALID_STATUS_CHANGED: {
       if (base::FeatureList::IsEnabled(
               features::kAccessibilityAriaInvalidAndErrorMessage)) {
-        wcax->HandleWindowContentChange(
-            android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_CONTENT_INVALID);
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_CONTENT_INVALID);
+        }
       }
       break;
     }
@@ -472,17 +494,21 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       // If this is a simple text element, also send an event to the framework.
       if (ui::IsText(android_node->GetRole()) ||
           android_node->IsAndroidTextView()) {
-        wcax->HandleWindowContentChange(
-            android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_TEXT);
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_TEXT);
+        }
       }
 
       // If the name of a dialog changes, its pane title also changes.
       // Notify the Android framework about the pane title change.
       if (ui::IsDialog(android_node->GetRole())) {
-        wcax->HandleWindowContentChange(
-            android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_PANE_TITLE);
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_PANE_TITLE);
+        }
       }
       break;
     }
@@ -497,9 +523,11 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
                   android_node->GetRole() == ax::mojom::Role::kMeter)) {
         // TalkBack expects non-editable SpinButtons and Meter value to be
         // changed via state description.
-        wcax->HandleWindowContentChange(
-            android_node->GetUniqueId(),
-            ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_STATE_DESCRIPTION);
+        if (isNodeLikelyKnownForExperiment(wcax, android_node->GetUniqueId())) {
+          wcax->HandleWindowContentChange(
+              android_node->GetUniqueId(),
+              ANDROID_ACCESSIBILITY_EVENT_CONTENT_CHANGE_TYPE_STATE_DESCRIPTION);
+        }
       }
       break;
     case ui::AXEventGenerator::Event::SCROLL_HORIZONTAL_POSITION_CHANGED:
@@ -524,8 +552,6 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       break;
     }
     case ui::AXEventGenerator::Event::VALUE_IN_TEXT_FIELD_CHANGED:
-    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_DECREMENTED:
-    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_INCREMENTED:
       // Sometimes `RetargetForEvents` will walk up to the lowest platform leaf
       // and fire the same event on that node. However, in some rare cases the
       // leaf node might not be a text field. For example, in the unusual case
@@ -553,6 +579,12 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
         }
         wcax->HandleEditableTextChanged(android_node->GetUniqueId(),
                                         text_change_types);
+      }
+      break;
+    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_DECREMENTED:
+    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_INCREMENTED:
+      if (GetFocus() == wrapper) {
+        wcax->HandleSpinButtonStepIntent(android_node->GetUniqueId());
       }
       break;
 

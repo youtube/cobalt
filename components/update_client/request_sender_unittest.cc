@@ -5,13 +5,18 @@
 #include "components/update_client/request_sender.h"
 
 #include <memory>
+#include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
-#include "base/strings/string_util.h"
+#include "base/strings/strcat.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/client_update_protocol/features.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/net/url_loader_post_interceptor.h"
 #include "components/update_client/persisted_data.h"
@@ -27,8 +32,9 @@ constexpr char kUrl2[] = "https://localhost2/path2";
 
 }  // namespace
 
-class RequestSenderTest : public testing::Test,
-                          public ::testing::WithParamInterface<bool> {
+class RequestSenderTest
+    : public testing::Test,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
  public:
   RequestSenderTest();
 
@@ -39,11 +45,15 @@ class RequestSenderTest : public testing::Test,
 
   // Overrides from testing::Test.
   void SetUp() override;
+  base::test::ScopedFeatureList feature_list_;
+
   void TearDown() override;
 
   void RequestSenderComplete(int error,
                              const std::string& response,
                              int retry_after_sec);
+  bool IsForeground() const { return std::get<0>(GetParam()); }
+  bool IsPqcCupSigningEnabled() const { return std::get<1>(GetParam()); }
 
  protected:
   void Quit();
@@ -66,7 +76,18 @@ class RequestSenderTest : public testing::Test,
   base::OnceClosure quit_closure_;
 };
 
-INSTANTIATE_TEST_SUITE_P(IsForeground, RequestSenderTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    RequestSenderTest,
+    ::testing::Combine(::testing::Bool(),  // is_foreground
+                       ::testing::Bool()   // is_pqc_cup_signing_enabled
+                       ),
+    [](const auto& info) {
+      return base::StrCat(
+          {std::get<0>(info.param) ? "Foreground" : "Background", "_",
+           std::get<1>(info.param) ? "PqcCupSigningEnabled"
+                                   : "PqcCupSigningDisabled"});
+    });
 
 RequestSenderTest::RequestSenderTest()
     : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {}
@@ -74,17 +95,18 @@ RequestSenderTest::RequestSenderTest()
 RequestSenderTest::~RequestSenderTest() = default;
 
 void RequestSenderTest::SetUp() {
+  if (IsPqcCupSigningEnabled()) {
+    feature_list_.InitAndEnableFeature(
+        client_update_protocol::features::kPqcCupSigning);
+  }
   RegisterPersistedDataPrefs(pref_->registry());
   config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
   request_sender_ =
       base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
 
-  std::vector<GURL> urls;
-  urls.push_back(GURL(kUrl1));
-  urls.push_back(GURL(kUrl2));
-
   post_interceptor_ = std::make_unique<URLLoaderPostInterceptor>(
-      urls, config_->test_url_loader_factory());
+      std::vector<GURL>{GURL(kUrl1), GURL(kUrl2)},
+      config_->test_url_loader_factory());
   EXPECT_TRUE(post_interceptor_);
 }
 
@@ -129,7 +151,7 @@ TEST_P(RequestSenderTest, RequestSendSuccess) {
       GetTestFilePath("updatecheck_reply_1.json"),
       {{"X-Retry-After", "6000"}}));
 
-  const bool is_foreground = GetParam();
+  const bool is_foreground = IsForeground();
   request_sender_->Send(
       {GURL(kUrl1), GURL(kUrl2)},
       {{"X-Goog-Update-Interactivity", is_foreground ? "fg" : "bg"}}, "test",
@@ -166,7 +188,7 @@ TEST_P(RequestSenderTest, RequestSendSuccess) {
 
 // Tests that the request succeeds using the second url after the first url
 // has failed.
-TEST_F(RequestSenderTest, RequestSendSuccessWithFallback) {
+TEST_P(RequestSenderTest, RequestSendSuccessWithFallback) {
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
       std::make_unique<PartialMatch>("test"), net::HTTP_FORBIDDEN));
   EXPECT_TRUE(
@@ -193,17 +215,16 @@ TEST_F(RequestSenderTest, RequestSendSuccessWithFallback) {
 }
 
 // Tests that the request fails when both urls have failed.
-TEST_F(RequestSenderTest, RequestSendFailed) {
+TEST_P(RequestSenderTest, RequestSendFailed) {
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
       std::make_unique<PartialMatch>("test"), net::HTTP_FORBIDDEN));
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
       std::make_unique<PartialMatch>("test"), net::HTTP_FORBIDDEN));
 
-  const std::vector<GURL> urls = {GURL(kUrl1), GURL(kUrl2)};
   request_sender_ =
       base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
   request_sender_->Send(
-      urls, {}, "test", false,
+      {GURL(kUrl1), GURL(kUrl2)}, {}, "test", false,
       base::BindOnce(&RequestSenderTest::RequestSenderComplete,
                      base::Unretained(this)));
   RunThreads();
@@ -223,12 +244,11 @@ TEST_F(RequestSenderTest, RequestSendFailed) {
 }
 
 // Tests that the request fails when no urls are provided.
-TEST_F(RequestSenderTest, RequestSendFailedNoUrls) {
-  std::vector<GURL> urls;
+TEST_P(RequestSenderTest, RequestSendFailedNoUrls) {
   request_sender_ =
       base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
   request_sender_->Send(
-      urls, {}, "test", false,
+      {}, {}, "test", false,
       base::BindOnce(&RequestSenderTest::RequestSenderComplete,
                      base::Unretained(this)));
   RunThreads();
@@ -237,16 +257,15 @@ TEST_F(RequestSenderTest, RequestSendFailedNoUrls) {
 }
 
 // Tests that a CUP request fails if the response is not signed.
-TEST_F(RequestSenderTest, RequestSendCupError) {
+TEST_P(RequestSenderTest, RequestSendCupError) {
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
       std::make_unique<PartialMatch>("test"),
       GetTestFilePath("updatecheck_reply_1.json")));
 
-  const std::vector<GURL> urls = {GURL(kUrl1)};
   request_sender_ =
       base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
   request_sender_->Send(
-      urls, {}, "test", true,
+      {GURL(kUrl1)}, {}, "test", true,
       base::BindOnce(&RequestSenderTest::RequestSenderComplete,
                      base::Unretained(this)));
   RunThreads();
@@ -261,17 +280,16 @@ TEST_F(RequestSenderTest, RequestSendCupError) {
   EXPECT_TRUE(response_.empty());
 }
 
-TEST_F(RequestSenderTest, RetryAfterSecClamped) {
+TEST_P(RequestSenderTest, RetryAfterSecClamped) {
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
       std::make_unique<PartialMatch>("test"),
       GetTestFilePath("updatecheck_reply_1.json"),
       {{"X-Retry-After", "100000"}}));  // > 24 hours (86400)
 
-  const std::vector<GURL> urls = {GURL(kUrl1)};
   request_sender_ =
       base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
   request_sender_->Send(
-      urls, {}, "test", true,
+      {GURL(kUrl1)}, {}, "test", true,
       base::BindOnce(&RequestSenderTest::RequestSenderComplete,
                      base::Unretained(this)));
   RunThreads();
@@ -280,7 +298,7 @@ TEST_F(RequestSenderTest, RetryAfterSecClamped) {
   EXPECT_EQ(retry_after_sec_, 86400);  // Clamped to 24 hours
 }
 
-TEST_F(RequestSenderTest, RetryAfterSecNotHonoredForHttp) {
+TEST_P(RequestSenderTest, RetryAfterSecNotHonoredForHttp) {
   const std::vector<GURL> urls = {GURL("http://localhost2/path1")};
   post_interceptor_ = std::make_unique<URLLoaderPostInterceptor>(
       urls, config_->test_url_loader_factory());
@@ -300,6 +318,27 @@ TEST_F(RequestSenderTest, RetryAfterSecNotHonoredForHttp) {
 
   EXPECT_EQ(0, error_);
   EXPECT_EQ(retry_after_sec_, -1);
+}
+
+TEST_P(RequestSenderTest, CupKeySelection) {
+  post_interceptor_ = std::make_unique<URLLoaderPostInterceptor>(
+      std::vector<GURL>{GURL(kUrl1), GURL(kUrl2)},
+      config_->test_url_loader_factory());
+  EXPECT_TRUE(
+      post_interceptor_->ExpectRequest(std::make_unique<PartialMatch>("test")));
+
+  request_sender_ =
+      base::MakeRefCounted<RequestSender>(config_->GetNetworkFetcherFactory());
+  request_sender_->Send(
+      {GURL(kUrl1)}, {}, "test", true,
+      base::BindOnce(&RequestSenderTest::RequestSenderComplete,
+                     base::Unretained(this)));
+  RunThreads();
+
+  std::string query(std::get<2>(post_interceptor_->GetRequests()[0]).query());
+  EXPECT_TRUE(IsPqcCupSigningEnabled()
+                  ? query.starts_with("cup2key=ML-DSA-44-16:")
+                  : query.starts_with("cup2key=16:"));
 }
 
 }  // namespace update_client

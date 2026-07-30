@@ -149,6 +149,7 @@ source_set("impl") {
     "//components/history/core/browser",
     "//components/keyed_service/core",
     "//components/omnibox/browser",
+    "//components/omnibox/common:features",
     "//components/optimization_guide/core:model_execution",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/page_content_annotations/core",
@@ -198,6 +199,7 @@ source_set("ui") {
     sources += [
       "android/contextual_tasks_panel_host_android.h",
       "android/contextual_tasks_panel_host_desktop_android.h",
+      "android/contextual_tasks_toast.h",
     ]
   }
 
@@ -255,10 +257,12 @@ source_set("ui") {
       "//chrome/browser/ui/webui/cr_components/composebox",
       "//chrome/browser/ui/webui/searchbox",
       "//components/contextual_tasks/public:feature_list",
+      "//components/user_education/webui",
       "//content/public/browser",
       "//content/public/common",
       "//ui/webui",
       "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+      "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
       "//url",
     ]
   }
@@ -269,7 +273,6 @@ source_set("ui") {
       "//chrome/browser/ui/side_panel:side_panel_views_dependent",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/views/side_panel",
-      "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
     ]
   }
 
@@ -326,6 +329,7 @@ source_set("ui_impl") {
       "android/contextual_tasks_control_coordinator_android.h",
       "android/contextual_tasks_panel_host_android.cc",
       "android/contextual_tasks_panel_host_desktop_android.cc",
+      "android/contextual_tasks_toast.cc",
     ]
   }
 
@@ -410,6 +414,7 @@ source_set("ui_impl") {
       "//chrome/browser/context_sharing/tab_bottom_sheet/android",
       "//chrome/browser/ui/side_panel:side_panel_ui_provider",
       "//chrome/browser/ui/side_panel/android",
+      "//components/messages/android",
     ]
   }
 

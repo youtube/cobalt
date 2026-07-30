@@ -167,7 +167,7 @@ void GlicSidePanelUi::SidePanelStateChanged(
             ? EmbedderCloseReason::kBackgrounded
             : EmbedderCloseReason::kExplicitlyClosed;
     // NOTE: `this` will be destroyed after this call.
-    delegate_->DidCloseFor(tab_.get(), close_reason);
+    delegate_->DidCloseFor(SidePanelEmbedderKey{*tab_}, close_reason);
   }
 }
 
@@ -186,7 +186,7 @@ void GlicSidePanelUi::CaptureScreenshot(
     return;
   }
   if (!screenshot_capturer_) {
-    screenshot_capturer_ = std::make_unique<GlicScreenshotCapturer>();
+    screenshot_capturer_ = GlicScreenshotCapturer::Create();
   }
   auto* browser_window = tab_->GetBrowserWindowInterface();
   CHECK(browser_window);

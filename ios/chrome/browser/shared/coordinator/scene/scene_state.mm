@@ -11,11 +11,11 @@
 #import "base/logging.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/app/profile/profile_state_observer.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_in_progress.h"
+#import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_options.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_prefs.h"
@@ -41,9 +41,6 @@
 @end
 
 @implementation SceneState {
-  // The AppState passed to the initializer.
-  AppState* _appState;
-
   // Cache the connection informations.
   SceneStateOptions _sceneStateOptions;
 
@@ -70,10 +67,8 @@
   NSInteger _numberOfSigninInProgress;
 }
 
-- (instancetype)initWithAppState:(AppState*)appState {
-  self = [super init];
-  if (self) {
-    _appState = appState;
+- (instancetype)init {
+  if ((self = [super init])) {
     _observers = [SceneStateObserverList
         observersWithProtocol:@protocol(SceneStateObserver)];
     _agents = [[NSMutableArray alloc] init];
@@ -85,6 +80,10 @@
     _prefs = nil;
   }
   return self;
+}
+
+- (instancetype)initWithAppState:(AppState*)appState {
+  return [self init];
 }
 
 #pragma mark - public
@@ -210,15 +209,6 @@
   return self.uiBlockerState.presentingModalOverlay;
 }
 
-- (id<UIBlockerManager>)uiBlockerManagerForExtent:(UIBlockerExtent)extent {
-  switch (extent) {
-    case UIBlockerExtent::kProfile:
-      return _sceneStateOptions.profile_state;
-    case UIBlockerExtent::kApplication:
-      return _appState;
-  }
-}
-
 - (void)bringBlockerToFront:(UIScene*)requestingScene {
   if (!base::ios::IsMultipleScenesSupported()) {
     return;
@@ -277,7 +267,7 @@
   if (_numberOfSigninInProgress == 0) {
     [_observers signinDidStart:self];
     CHECK(!_signinUIBlocker, base::NotFatalUntil::M146);
-    _signinUIBlocker = std::make_unique<ScopedUIBlocker>(self);
+    _signinUIBlocker = ScopedUIBlocker::ProfileScoped(self);
   } else {
     CHECK(_signinUIBlocker, base::NotFatalUntil::M146);
   }

@@ -88,52 +88,6 @@ def gpu_fyi_windows_builder(*, name, **kwargs):
     return gpu.ci.windows_builder(name = name, **kwargs)
 
 ci.thin_tester(
-    name = "Android FYI Release (NVIDIA Shield TV)",
-    description_html = "Runs release GPU tests on stable Android NVIDIA Shield TV (2019) configs",
-    parent = "GPU FYI Android arm Builder",
-    builder_spec = builder_config.builder_spec(
-        execution_mode = builder_config.execution_mode.TEST,
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-            apply_configs = [
-                "android",
-            ],
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "main_builder",
-            apply_configs = ["mb"],
-            build_config = builder_config.build_config.RELEASE,
-            target_arch = builder_config.target_arch.ARM,
-            target_bits = 32,
-            target_platform = builder_config.target_platform.ANDROID,
-        ),
-        android_config = builder_config.android_config(
-            config = "base_config",
-        ),
-        run_tests_serially = True,
-    ),
-    targets = targets.bundle(
-        targets = [
-            "gpu_fyi_android_shieldtv_gtests",
-            "gpu_common_android_telemetry_tests",
-        ],
-        mixins = [
-            "has_native_resultdb_integration",
-            "gpu_nvidia_shield_tv_stable",
-        ],
-    ),
-    targets_settings = targets.settings(
-        browser_config = targets.browser_config.ANDROID_CHROMIUM,
-        os_type = targets.os_type.ANDROID,
-        use_android_merge_script_by_default = False,
-    ),
-    console_view_entry = consoles.console_view_entry(
-        category = "Android|arm|NVDA",
-        short_name = "STV",
-    ),
-)
-
-ci.thin_tester(
     name = "Android FYI Release (Pixel 2)",
     description_html = "Runs release GPU tests on stable Pixel 2 configs",
     parent = "GPU FYI Android arm Builder",
@@ -2096,8 +2050,7 @@ ci.thin_tester(
         # should have the same test_suites as 'Mac FYI Retina Release (Apple
         # M2)'.
         targets = [
-            "gpu_fyi_mac_release_gtests",
-            "gpu_fyi_only_mac_release_telemetry_tests",
+            "gpu_noop_sleep_telemetry_test",
         ],
         mixins = [
             "mac_arm64_apple_m2_retina_gpu_experimental",
@@ -2108,10 +2061,10 @@ ci.thin_tester(
         os_type = targets.os_type.MAC,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    console_view_entry = consoles.console_view_entry(
-        category = "Mac|Apple",
-        short_name = "exp",
-    ),
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "Mac|Apple",
+    #     short_name = "exp",
+    # ),
     list_view = "chromium.gpu.experimental",
 )
 

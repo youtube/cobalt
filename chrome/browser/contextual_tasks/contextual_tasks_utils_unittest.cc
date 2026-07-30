@@ -41,7 +41,9 @@ class ContextualTasksUtilsTest : public testing::Test {
   }
 
   void TearDown() override {
+    actions::ActionIdMap::ResetMapsForTesting();
     actions::ActionManager::Get().ResetForTesting();
+    actions::ActionIdMap::ResetMapsForTesting();
     browser_window_.reset();
     profile_.reset();
   }

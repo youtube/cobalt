@@ -7,11 +7,16 @@
 #import <memory>
 #import <utility>
 
+#import "base/functional/bind.h"
 #import "base/functional/callback_helpers.h"
 #import "base/no_destructor.h"
+#import "components/sync/base/report_unrecoverable_error.h"
 #import "components/sync/model/client_tag_based_data_type_processor.h"
+#import "components/sync/model/data_type_store_service.h"
 #import "components/sync_tab_context/tab_context_sync_service_impl.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/sync/model/data_type_store_service_factory.h"
+#import "ios/chrome/common/channel_info.h"
 
 // static
 sync_tab_context::TabContextSyncService*
@@ -29,17 +34,17 @@ TabContextSyncServiceFactory* TabContextSyncServiceFactory::GetInstance() {
 
 TabContextSyncServiceFactory::TabContextSyncServiceFactory()
     : ProfileKeyedServiceFactoryIOS("TabContextSyncService",
-                                    TestingCreation::kNoServiceForTests) {}
+                                    TestingCreation::kNoServiceForTests) {
+  DependsOn(DataTypeStoreServiceFactory::GetInstance());
+}
 
 TabContextSyncServiceFactory::~TabContextSyncServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
 TabContextSyncServiceFactory::BuildServiceInstanceFor(
     ProfileIOS* profile) const {
-  auto change_processor =
-      std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
-          syncer::ENCRYPTED_TAB_CONTEXT_CONTAINER,
-          /*dump_stack=*/base::DoNothing());
   return std::make_unique<sync_tab_context::TabContextSyncServiceImpl>(
-      std::move(change_processor));
+      DataTypeStoreServiceFactory::GetForProfile(profile)->GetStoreFactory(),
+      /*ephemeral_key_fetcher=*/nullptr,
+      base::BindRepeating(&syncer::ReportUnrecoverableError, ::GetChannel()));
 }

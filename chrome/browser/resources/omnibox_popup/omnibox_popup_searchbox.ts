@@ -8,6 +8,7 @@ import '//resources/cr_components/searchbox/searchbox_input.js';
 import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import type {SearchboxDropdownElement} from '//resources/cr_components/searchbox/searchbox_dropdown.js';
 import type {SearchboxInputElement} from '//resources/cr_components/searchbox/searchbox_input.js';
+import {kDefaultSelection} from '//resources/cr_components/searchbox/searchbox_match.js';
 import type {SearchboxMixinInterface} from '//resources/cr_components/searchbox/searchbox_mixin.js';
 import {SearchboxMixin} from '//resources/cr_components/searchbox/searchbox_mixin.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
@@ -16,6 +17,7 @@ import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import {SelectionLineState} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerInterface as SearchboxPageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
 import {browserProxyFactory, OmniboxEscapeAction} from './omnibox_popup.mojom-webui.js';
@@ -64,11 +66,6 @@ export class OmniboxPopupSearchboxElement extends
 
   static override get properties() {
     return {
-      placeholderText: {
-        type: String,
-        reflect: true,
-        notify: true,
-      },
       searchboxChromeRefreshTheming: {
         type: Boolean,
         reflect: true,
@@ -107,7 +104,6 @@ export class OmniboxPopupSearchboxElement extends
     };
   }
 
-  accessor placeholderText: string = '';
   accessor searchboxChromeRefreshTheming: boolean =
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
@@ -233,6 +229,22 @@ export class OmniboxPopupSearchboxElement extends
   override firstUpdated(changedProperties: PropertyValues<this>) {
     super.firstUpdated(changedProperties);
     this.initialInputScrollHeight = this.$.input.inputElement.scrollHeight;
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    if (changedProperties.has('selectedMatchIndex')) {
+      // Synchronize selection changes driven by WebUI back to C++. This
+      // ensures the backend edit model is aware of the active selection and can
+      // preserve it across tab switches.
+      this.searchboxPageHandler_.setPopupSelection(
+          this.selectedMatchIndex === -1 ? kDefaultSelection : {
+            line: this.selectedMatchIndex,
+            state: SelectionLineState.kNormal,
+            actionIndex: 0,
+          });
+    }
   }
 
   focusInput() {
@@ -438,6 +450,7 @@ export class OmniboxPopupSearchboxElement extends
     this.fullUrl_ = state.fullUrl;
     this.lastQueriedInput = state.text;
     this.permanentDisplayText_ = state.permanentDisplayText;
+    this.isComposing_ = false;
 
     // Clear any stale results and close the dropdown on a hard state reset.
     // Clear results here since focusout event may not fire.
@@ -545,12 +558,6 @@ export class OmniboxPopupSearchboxElement extends
     }
   }
 
-  protected computePlaceholderText_(): string {
-    if (this.placeholderText) {
-      return this.placeholderText;
-    }
-    return this.i18n('searchBoxHint');
-  }
 
   protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
@@ -572,11 +579,20 @@ export class OmniboxPopupSearchboxElement extends
     // searchboxPageHandler_.onFocusChanged(false) via our pageHandler()
     // override.
     super.onInputWrapperFocusout(e);
-    this.$.input.blur();
-    // Clear autocomplete results so clicking into omnibox_view_views registers
-    // that the popup is closed. This enables select_all_on_mouse_release_
-    // (in omnibox_view_views) to be set to the correct value.
-    this.clearAutocompleteMatches();
+    const newlyFocusedEl = e.relatedTarget as Element;
+    // Check if the focus has completely left the searchbox wrapper, and not
+    // just moved to another internal child element (e.g., the match).
+    const isOutside = !this.getWrapperElement().contains(newlyFocusedEl);
+
+    if (isOutside) {
+      this.getInputElement().setSelectionRange(0, 0);
+      this.getInputElement().blur();
+      // Clear autocomplete results so clicking into omnibox_view_views
+      // registers that the popup is closed. This enables
+      // select_all_on_mouse_release_ (in omnibox_view_views) to be set to the
+      // correct value.
+      this.clearAutocompleteMatches();
+    }
   }
 
   protected onVoiceSearchClick_() {

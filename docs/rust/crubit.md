@@ -1,32 +1,39 @@
 # `cpp_api_from_rust`
 
+`cpp_api_from_rust` (aka `cc_bindings_from_rs`) is a Crubit tool that takes
+a Rust crate as input and generates C++ APIs (a `.h` header) as output,
+enabling C++ to call Rust.
+
 ## Availability
 
-### Experimental support in Chromium
+`cpp_api_from_rust` is fully supported by the Rust in Chrome team, with the
+following caveats:
 
-`cpp_api_from_rust` support is currently considered experimental and unstable.
+*   **Some directories cannot use Crubit:** The Android project's
+    Soong/bp build system
+    does not support Crubit at this point. Consequently, Crubit cannot be
+    used in `//base`, `//net`, or
+    [other directories](https://source.chromium.org/chromium/chromium/src/+/main:components/cronet/android/dependencies.txt)
+    that [Cronet](../../components/cronet/README.md) depends on.
+    This is tracked in https://crbug.com/535682335.
+    (Quick clarification:
+    Chromium's GN/ninja build system supports Crubit on all Chromium target
+    platforms, including Android.  For example, QR code generator in
+    Chromium [uses Crubit](https://crrev.com/c/7749970)
+    and ships to mobile and desktop targets.)
 
-TODO(https://crbug.com/470466915): Edit this section once we officially declare
-and announce support for using `cpp_api_from_rust` for some Rust libraries.
-("some" because of toolchain availability caveats in the other section below.)
+*   **2nd-party project limitations:** Projects like PDFium or V8 currently
+    support non-Chromium clients and alternative toolchains that may lack
+    Crubit support. Adopting Crubit in these projects requires either helping
+    their clients adopt Crubit, or making a policy decision to only support
+    clients that have Crubit available.
 
-### Toolchain availability outside of Chromium
+Other notes:
 
-Chromium's `//third_party/rust-toolchain` includes `cpp_api_from_rust`, but
-other projects may not.
-This means that Chromium code that is built in such other projects should
-not depend on `cpp_api_from_rust`.  Examples of code that should not
-depend on `cpp_api_from_rust`:
-
-* `//base`, `//net` and other [Cronet](../../components/cronet/README.md)
-  dependencies.
-  (This restriction should go away when/if Android support for
-  `cpp_api_from_rust` hopefully comes later in 2026.)
-* 2nd-party projects like
-    - ANGLE (TODO: more details - something about being used by Apple?)
-    - Skia (no `cpp_api_from_rust` support in Bazel)
-    - V8 (TODO: more details - probably need Crubit support for official
-      releases of Rust toolchain)
+*   `cxx` remains fully supported; there are no plans to migrate existing
+    `cxx::bridge` code to Crubit.
+*   `rust_api_from_cpp` (calling C++ from Rust) is not yet supported, but
+    integration work is ongoing.
 
 ## Other docs
 
@@ -44,6 +51,11 @@ depend on `cpp_api_from_rust`:
       link to a Google-internal chatroom, etc.)
 * TODO: Cover Crubit in
   [Chromium/FFI chapter of Comprehensive Rust course](https://google.github.io/comprehensive-rust/chromium/interoperability-with-cpp.html)
+
+## Known issues
+
+* https://crbug.com/536539387:
+  Crubit support libraries may trigger `-Wnullability-completeness`
 
 ## Using `cpp_api_from_rust` in Chromium
 
@@ -229,16 +241,27 @@ After modifying `gnrt_config.toml` you have to re-run
 #### Bindings dependencies for Rust standard library
 
 C++ bindings for Rust standard library
-(i.e. the `//build/rust/std:std_bindings` target)
-are automatically injected as a dependency of all other bindings
-(i.e. there is no need to specify them explicitly in a `deps` entry).
+are automatically injected as a dependency of all other bindings.
+Therefore usually there is no need to explicitly depend on these bindings,
+but if needed other targets can depend on `//build/rust/crubit`.
 
 C++ bindings for Rust standard library are placed in a C++ namespace
 that corresponds to the original Rust crate as follows:
 
 * `std` crate => `rs_std` namespace
-* `core` crate => `rs_core` namespace
 * `alloc` crate => `rs_alloc` namespace
+* `core` crate => `rs_core` namespace
+
+The bindings can be `#include`d from the following paths:
+
+* `#include "third_party/crubit/support/rs_std/rs_std.h"`
+* `#include "third_party/crubit/support/rs_std/rs_alloc.h"`
+* `#include "third_party/crubit/support/rs_std/rs_core.h"`
+
+> Side-note: The auto-generated `build/rust/std/rules/BUILD.gn` overrides the
+> include paths to make sure that Chromium can use the canonical paths (ones
+> that are unified across other major Crubit clients).  There is no actual
+> `third_party/crubit/support` directory in the root of the Chromium repo.
 
 ## Troubleshooting
 

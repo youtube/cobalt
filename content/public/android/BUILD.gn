@@ -200,6 +200,7 @@ android_library("content_full_java") {
     "//services/media_session/public/cpp/android:media_session_java",
     "//services/media_session/public/mojom:mojom_java",
     "//services/network/public/mojom:mojom_permissions_policy_java",
+    "//services/network/public/mojom:url_loader_base_java",
     "//services/service_manager/public/java:service_manager_java",
     "//services/service_manager/public/mojom:mojom_java",
     "//services/shape_detection:shape_detection_java",
@@ -252,7 +253,6 @@ android_library("content_full_java") {
   sources = [
     "java/src/org/chromium/content/browser/AdditionalNavigationParamsImpl.java",
     "java/src/org/chromium/content/browser/AppWebMessagePort.java",
-    "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
     "java/src/org/chromium/content/browser/AudioFocusDelegate.java",
     "java/src/org/chromium/content/browser/BackgroundSyncNetworkObserver.java",
     "java/src/org/chromium/content/browser/BindingManager.java",
@@ -507,7 +507,6 @@ generate_jni("content_jni_headers") {
   sources = [
     "java/src/org/chromium/content/browser/AdditionalNavigationParamsImpl.java",
     "java/src/org/chromium/content/browser/AppWebMessagePort.java",
-    "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
     "java/src/org/chromium/content/browser/AudioFocusDelegate.java",
     "java/src/org/chromium/content/browser/BackgroundSyncNetworkObserver.java",
     "java/src/org/chromium/content/browser/BrowserContextHandleImpl.java",
@@ -722,6 +721,7 @@ android_library("content_javatests") {
   data = [
     "//content/test/data/accessibility/accname/",
     "//content/test/data/accessibility/aria/",
+    "//third_party/aria-practices/src/content/patterns/",
     "//content/test/data/accessibility/css/",
     "//content/test/data/accessibility/event/",
     "//content/test/data/accessibility/html/",
@@ -806,6 +806,7 @@ robolectric_binary("content_junit_tests") {
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
+    "//ui/accessibility:accessibility_features_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
     "//ui/base/ime/mojom:mojom_java",

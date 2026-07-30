@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Jelszómentés</translation>
 <translation id="1764070164487214210">Útvonalak</translation>
 <translation id="1764511703783285459">A másik jelszókezelő nem osztott meg jelszavakat vagy azonosítókulcsokat.</translation>
+<translation id="1765555082983153259">A „Chrome” szeretne hozzáférni az Ön mikrofonjához</translation>
 <translation id="1767766085187034454">Google Fordító</translation>
 <translation id="1771016937398045251">Eszközök menü</translation>
 <translation id="1772468122139624049">Nem sikerült újratölteni a lapokat</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Menüsor intelligens rendezése</translation>
 <translation id="1883255238294161206">Lista bezárása</translation>
+<translation id="1883898928879467646">Lap eltávolítva</translation>
 <translation id="1888854257756214946">Jelszó kiválasztása…</translation>
 <translation id="1890237935065108104">Ez a beállítás nem áll rendelkezésre.</translation>
 <translation id="1894023287452300670">Itt követheti nyomon az árat</translation>
@@ -1620,6 +1622,7 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="6406506848690869874">Szinkronizálás</translation>
 <translation id="6410390304316730527">A Biztonságos Böngészés megvédi azoktól a támadóktól, akik megpróbálják csellel rávenni Önt valamilyen kockázatos dologra, például arra, hogy rosszindulatú szoftvert telepítsen, vagy felfedje személyes adatait (jelszavakat, telefonszámokat, bankkártyaadatokat stb). Ha kikapcsolja, legyen óvatos, amikor ismeretlen vagy kétes hírű webhelyeket keres fel.</translation>
 <translation id="6410883413783534063">Lapok megnyitásával egyszerre több oldalt is felkereshet.</translation>
+<translation id="6412195388778525440">Lap eltávolítása</translation>
 <translation id="6418346271604475326">PDF előkészítése</translation>
 <translation id="6420292512900923139">Probléma az adatok importálásakor</translation>
 <translation id="6421038304268477484">Lefordított szöveg</translation>
@@ -2320,7 +2323,6 @@ Ha a számítógépén szeretné folytatni, váltson a következőre: <ph name="
 <translation id="8692689525339542358">Védelmet élvezhet a veszélyes webhelyekkel, letöltésekkel és bővítményekkel szemben.</translation>
 <translation id="8692897097252418799">Válassza ki az exportálni kívánt adatokat.</translation>
 <translation id="8694281486652655615">Megjeleníti ezt az elemet</translation>
-<translation id="8696297579102085705">Küldés az eszközére</translation>
 <translation id="8697136149718343437">Címsáv áthelyezése alulra</translation>
 <translation id="869891660844655955">Lejárati dátum</translation>
 <translation id="8706253136355675497">Hőmérséklet</translation>
@@ -2463,6 +2465,7 @@ Ha a számítógépén szeretné folytatni, váltson a következőre: <ph name="
 <translation id="9149866541089851383">Szerkesztés...</translation>
 <translation id="9152637745605628097">Választhat témák és színek közül, vagy feltölthet képet</translation>
 <translation id="9159628751968616911">Weboldal küldése</translation>
+<translation id="9162412286847966593">Szervezete adatait és felvételeit nem használjuk fel generatív AI-modellek továbbfejlesztésére. <ph name="BEGIN_LINK" />Az Ön adatainak védelme és a Gemini.<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Kapcsolja be a Jelszavak automatikus kitöltése beállítást</translation>
 <translation id="9165320910061267720">Ha értesítéseket szeretne kapni az árcsökkenésekről, be kell kapcsolnia az értesítéseket az iOS beállításaiban.</translation>
 <translation id="9179151630575358778">Az elem elrejtése</translation>

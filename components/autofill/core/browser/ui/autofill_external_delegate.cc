@@ -177,20 +177,6 @@ void PossiblyRemoveAutofillWarnings(std::vector<Suggestion>& suggestions) {
 // the field announcement to notify users about available autofill options,
 // e.g. VoiceOver adds "with autofill menu.".
 bool HasAutofillSuggestionsForA11y(SuggestionType type) {
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillDoNotUpdateAutofillAvailabilityOnFocusEvents)) {
-    switch (type) {
-      // TODO(crbug.com/374918460): Consider adding other types that can be
-      // classified as "providing autofill capabilities".
-      case SuggestionType::kFillAutofillAi:
-      case SuggestionType::kLoyaltyCardEntry:
-        return true;
-      default:
-        return AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
-            type);
-    }
-  }
-
   switch (type) {
     case SuggestionType::kAddressEntry:
     case SuggestionType::kAddressEntryOnTyping:
@@ -220,6 +206,7 @@ bool HasAutofillSuggestionsForA11y(SuggestionType type) {
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
@@ -319,6 +306,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutocompleteEntry:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
@@ -391,12 +379,9 @@ const AutofillField* AutofillExternalDelegate::GetQueriedField() const {
 
 std::pair<const FormStructure*, const AutofillField*>
 AutofillExternalDelegate::GetQueriedFormAndField() const {
-  const FormStructure* form_structure =
-      manager_->FindCachedFormById(last_query_.form_id);
-  if (!form_structure) {
-    return {nullptr, nullptr};
-  }
-  return {form_structure, form_structure->GetFieldById(last_query_.field_id)};
+  auto [form, field] =
+      manager_->FindFormAndField(last_query_.form_id, last_query_.field_id);
+  return {form, field};
 }
 
 AutofillTriggerSource AutofillExternalDelegate::GetTriggerSource() const {
@@ -450,10 +435,14 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
 
   if ((!is_update && !trigger_field->is_focusable()) ||
       !manager_->driver().CanShowAutofillUi()) {
+    manager_->client().HideSuggestions(SuggestionHidingReason::kStaleData,
+                                       /*product=*/std::nullopt);
     return;
   }
 
   PossiblyRemoveAutofillWarnings(suggestions);
+
+  const FillingProduct old_product = GetMainFillingProduct();
 
   // If anything else is added to modify the values after inserting the data
   // list, AutofillPopupControllerImpl::UpdateDataListValues will need to be
@@ -466,6 +455,7 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
   trigger_source_ = trigger_source;
 
   shown_suggestion_types_ = base::ToVector(suggestions, &Suggestion::type);
+  const FillingProduct new_product = GetMainFillingProduct();
 
   if (suggestions.empty() && !IsAtMemoryTriggerSource(trigger_source)) {
     OnAutofillAvailabilityEvent(
@@ -482,9 +472,15 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
 
   // Send to display.
   if (is_update) {
-    manager_->client().UpdateAutofillSuggestions(
-        suggestions, GetMainFillingProduct(), trigger_source_,
-        ignore_focus_loss);
+    if (old_product == new_product) {
+      manager_->client().UpdateAutofillSuggestions(
+          suggestions, new_product, trigger_source_, ignore_focus_loss);
+    } else {
+      int sample = (std::to_underlying(old_product) << 8) |
+                   std::to_underlying(new_product);
+      base::UmaHistogramSparse("Autofill.PopupUpdateIgnored.ProductMismatch",
+                               sample);
+    }
     return;
   }
 
@@ -745,6 +741,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kComposeDisable:
@@ -1057,6 +1054,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplFootnote:
@@ -1151,6 +1149,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:

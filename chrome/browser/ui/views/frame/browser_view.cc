@@ -53,6 +53,7 @@
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/headless/headless_mode_util.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -83,6 +84,7 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -108,6 +110,8 @@
 #include "chrome/browser/ui/sad_tab_helper.h"
 #include "chrome/browser/ui/sharing_hub/sharing_hub_bubble_controller.h"
 #include "chrome/browser/ui/sharing_hub/sharing_hub_bubble_view.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
@@ -139,8 +143,8 @@
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
 #include "chrome/browser/ui/views/download/download_in_progress_dialog_view.h"
-#include "chrome/browser/ui/views/exclusive_access_bubble_views.h"
-#include "chrome/browser/ui/views/exclusive_access_bubble_views_context.h"
+#include "chrome/browser/ui/views/exclusive_access/exclusive_access_bubble_views.h"
+#include "chrome/browser/ui/views/exclusive_access/exclusive_access_bubble_views_context.h"
 #include "chrome/browser/ui/views/extensions/extension_keybinding_registry_views.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/eye_dropper/eye_dropper.h"
@@ -899,9 +903,12 @@ BrowserView::BrowserView(Browser* browser)
     SetCanFullscreen(false);
     SetCanResize(true);
   } else {
-    SetCanResize(browser_->create_params().can_resize);
-    SetCanMaximize(browser_->create_params().can_maximize);
-    SetCanFullscreen(browser_->create_params().can_fullscreen);
+    SetCanResize(
+        BrowserInitState::From(&*browser_)->create_params().can_resize);
+    SetCanMaximize(
+        BrowserInitState::From(&*browser_)->create_params().can_maximize);
+    SetCanFullscreen(
+        BrowserInitState::From(&*browser_)->create_params().can_fullscreen);
     SetCanMinimize(true);
   }
 
@@ -1283,11 +1290,10 @@ TabStripRegionView* BrowserView::tab_strip_view() const {
 
 views::LabelButton* BrowserView::GetGlicButton() {
   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
-  if (vertical_tab_strip_region_view_ && controller &&
-      controller->ShouldDisplayVerticalTabs()) {
-    // Vertical Tabs does not have an equivalent button at this point in time.
-    // Return nothing for now.
-    return nullptr;
+  if ((vertical_tab_strip_region_view_ && controller &&
+       controller->ShouldDisplayVerticalTabs()) ||
+      base::FeatureList::IsEnabled(features::kGlicHorizontalTabToolbarButton)) {
+    return toolbar()->GetGlicButton();
   }
 
   return BrowserElementsViews::From(browser_.get())
@@ -1495,7 +1501,7 @@ bool BrowserView::GetIsPictureInPictureType() const {
 
 std::optional<blink::mojom::PictureInPictureWindowOptions>
 BrowserView::GetDocumentPictureInPictureOptions() const {
-  return browser_->create_params().pip_options;
+  return BrowserInitState::From(&*browser_)->create_params().pip_options;
 }
 
 bool BrowserView::GetTopControlsSlideBehaviorEnabled() const {
@@ -3994,9 +4000,10 @@ bool BrowserView::GetSavedWindowPlacement(
 
     // Set a default popup origin if the x/y coordinates are 0 and the original
     // values were not known to be explicitly specified via window.open() in JS.
-    if (rect.origin().IsOrigin() &&
-        browser_->create_params().initial_origin_specified !=
-            Browser::ValueSpecified::kSpecified) {
+    if (rect.origin().IsOrigin() && BrowserInitState::From(&*browser_)
+                                            ->create_params()
+                                            .initial_origin_specified !=
+                                        Browser::ValueSpecified::kSpecified) {
       rect.set_origin(WindowSizer::GetDefaultPopupOrigin(rect.size()));
     }
 
@@ -5124,6 +5131,19 @@ bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
         browsing_data_important_sites_util::
             kOpenClearBrowsingDataDialogViaAcceleratorEventId,
         this);
+  }
+
+  if (command_id == IDC_SHOW_READING_MODE_SIDE_PANEL) {
+    actions::ActionInvocationContext context =
+        actions::ActionInvocationContext::Builder()
+            .SetProperty(
+                kSidePanelOpenTriggerKey,
+                static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                    SidePanelOpenTrigger::kReadAnythingKeyboardShortcut))
+            .Build();
+    return chrome::ExecuteCommandWithContext(browser_.get(), command_id,
+                                             std::move(context),
+                                             accelerator.time_stamp());
   }
 
   return chrome::ExecuteCommand(browser_.get(), command_id,

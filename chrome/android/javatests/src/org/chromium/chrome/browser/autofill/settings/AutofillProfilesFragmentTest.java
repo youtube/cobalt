@@ -72,10 +72,10 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -120,7 +120,6 @@ import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.ui.KeyboardVisibilityDelegate;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -138,6 +137,7 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @EnableFeatures({ChromeFeatureList.AUTOFILL_AI_SHOW_DIALOG_IN_SETTINGS_WHEN_UPSTREAMING_FAILS})
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@Batch(Batch.PER_CLASS)
 public class AutofillProfilesFragmentTest {
     private static final AutofillProfile sLocalOrSyncProfile =
             AutofillProfile.builder()
@@ -2156,6 +2156,9 @@ public class AutofillProfilesFragmentTest {
             final boolean keyboardVisible, final SettingsActivity activity) {
         CriteriaHelper.pollUiThread(
                 () -> {
+                    // TODO(crbug.com/521895796): Figure out if this should be android.R.id.content
+                    // (i.e. the whole activity's content area) or R.id.settings_content (i.e. the
+                    // settings activity/page's content).
                     Criteria.checkThat(
                             KeyboardVisibilityDelegate.getInstance()
                                     .isKeyboardShowing(activity.findViewById(android.R.id.content)),
@@ -2420,7 +2423,6 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @SmallTest
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/532514140
     public void testHelpMenuTriggersAutofillHelp() {
         onView(withId(R.id.menu_id_targeted_help)).perform(click());
 

@@ -19,34 +19,19 @@ class View;
 
 namespace send_tab_to_self {
 
-// TODO(crbug.com/488252159): Move these classes to separate files.
-
-// Shown when the user is signed in but has no other active target devices.
-class SendTabToSelfNoTargetDeviceBubbleView : public SendTabToSelfBubbleView {
-  METADATA_HEADER(SendTabToSelfNoTargetDeviceBubbleView,
-                  SendTabToSelfBubbleView)
-
- public:
-  SendTabToSelfNoTargetDeviceBubbleView(views::BubbleAnchor anchor,
-                                        content::WebContents* web_contents);
-  SendTabToSelfNoTargetDeviceBubbleView(
-      const SendTabToSelfNoTargetDeviceBubbleView&) = delete;
-  SendTabToSelfNoTargetDeviceBubbleView& operator=(
-      const SendTabToSelfNoTargetDeviceBubbleView&) = delete;
-  ~SendTabToSelfNoTargetDeviceBubbleView() override;
-
- private:
-  // Private helper to construct the view hierarchy.
-  void InitLayout();
-};
-
 // Shown when the user is signed out, offering a promotional sign-in flow.
 class SendTabToSelfSignInPromoBubbleView : public SendTabToSelfBubbleView {
   METADATA_HEADER(SendTabToSelfSignInPromoBubbleView, SendTabToSelfBubbleView)
 
  public:
+  enum class PromoMode {
+    kSignIn,
+    kReauth,
+  };
+
   SendTabToSelfSignInPromoBubbleView(views::BubbleAnchor anchor,
-                                     content::WebContents* web_contents);
+                                     content::WebContents* web_contents,
+                                     PromoMode promo_mode);
   SendTabToSelfSignInPromoBubbleView(
       const SendTabToSelfSignInPromoBubbleView&) = delete;
   SendTabToSelfSignInPromoBubbleView& operator=(
@@ -68,7 +53,7 @@ class SendTabToSelfSignInPromoBubbleView : public SendTabToSelfBubbleView {
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Constructs the modernized, enhanced layout for the sign-in promo.
-  void InitEnhancedLayout();
+  void InitEnhancedLayout(PromoMode promo_mode);
 #endif
 
   // Launches the Dice sign-in tab.

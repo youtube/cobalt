@@ -394,7 +394,7 @@ void PopupBaseView::NotifyAXSelection(views::View& selected_view) {
        "PopupSeparatorView", "PopupWarningView", "PopupBaseView",
        "PasswordGenerationPopupViewViews::GeneratedPasswordBox", "PopupRowView",
        "PopupRowWithButtonView", "PopupRowContentView", "MdTextButton",
-       "PopupBnplFootnoteView"});
+       "PopupBnplFootnoteView", "PopupAtMemoryAiDisclosureView"});
   DCHECK(kDerivedClasses.contains(selected_view.GetClassName()))
       << "If you add a new derived class from AutofillPopupRowView, add it "
          "here and to onSelection(evt) in "
@@ -536,7 +536,7 @@ bool PopupBaseView::DoUpdateBoundsAndRedrawPopup() {
   // Intersect with the current monitor's work area to avoid showing popups
   // outside the screen.
   gfx::Rect visible_content_area_bounds =
-      IntersectWithDisplayBounds(max_bounds_for_popup);
+      IntersectWithDisplayBounds(GetWebContents(), max_bounds_for_popup);
 
   gfx::Rect element_bounds = gfx::ToEnclosingRect(delegate_->element_bounds());
 

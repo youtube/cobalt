@@ -12,6 +12,7 @@
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/traced_value.h"
+#include "base/unguessable_token.h"
 #include "components/download/public/common/download_create_info.h"
 #include "components/download/public/common/download_item.h"
 #include "components/download/public/common/download_url_parameters.h"
@@ -74,9 +75,6 @@ namespace content {
 namespace devtools_instrumentation {
 
 namespace {
-
-namespace AttributionReportingIssueTypeEnum =
-    protocol::Audits::AttributionReportingIssueTypeEnum;
 
 const char kExampleBrowserProcessDeprecation[] =
     "ExampleBrowserProcessDeprecation";
@@ -167,101 +165,6 @@ std::unique_ptr<protocol::Audits::InspectorIssue> BuildHeavyAdIssue(
           .SetCode(protocol::Audits::InspectorIssueCodeEnum::HeavyAdIssue)
           .SetDetails(std::move(protocol_issue_details))
           .Build();
-  return issue;
-}
-
-protocol::Audits::AttributionReportingIssueType
-BuildAttributionReportingIssueViolationType(
-    blink::mojom::AttributionReportingIssueType type) {
-  switch (type) {
-    case blink::mojom::AttributionReportingIssueType::kPermissionPolicyDisabled:
-      return AttributionReportingIssueTypeEnum::PermissionPolicyDisabled;
-    case blink::mojom::AttributionReportingIssueType::
-        kUntrustworthyReportingOrigin:
-      return AttributionReportingIssueTypeEnum::UntrustworthyReportingOrigin;
-    case blink::mojom::AttributionReportingIssueType::kInsecureContext:
-      return AttributionReportingIssueTypeEnum::InsecureContext;
-    case blink::mojom::AttributionReportingIssueType::
-        kInvalidRegisterSourceHeader:
-      return AttributionReportingIssueTypeEnum::InvalidHeader;
-    case blink::mojom::AttributionReportingIssueType::
-        kInvalidRegisterTriggerHeader:
-      return AttributionReportingIssueTypeEnum::InvalidRegisterTriggerHeader;
-    case blink::mojom::AttributionReportingIssueType::kSourceAndTriggerHeaders:
-      return AttributionReportingIssueTypeEnum::SourceAndTriggerHeaders;
-    case blink::mojom::AttributionReportingIssueType::kSourceIgnored:
-      return AttributionReportingIssueTypeEnum::SourceIgnored;
-    case blink::mojom::AttributionReportingIssueType::kTriggerIgnored:
-      return AttributionReportingIssueTypeEnum::TriggerIgnored;
-    case blink::mojom::AttributionReportingIssueType::kOsSourceIgnored:
-      return AttributionReportingIssueTypeEnum::OsSourceIgnored;
-    case blink::mojom::AttributionReportingIssueType::kOsTriggerIgnored:
-      return AttributionReportingIssueTypeEnum::OsTriggerIgnored;
-    case blink::mojom::AttributionReportingIssueType::
-        kInvalidRegisterOsSourceHeader:
-      return AttributionReportingIssueTypeEnum::InvalidRegisterOsSourceHeader;
-    case blink::mojom::AttributionReportingIssueType::
-        kInvalidRegisterOsTriggerHeader:
-      return AttributionReportingIssueTypeEnum::InvalidRegisterOsTriggerHeader;
-    case blink::mojom::AttributionReportingIssueType::kWebAndOsHeaders:
-      return AttributionReportingIssueTypeEnum::WebAndOsHeaders;
-    case blink::mojom::AttributionReportingIssueType::kNoWebOrOsSupport:
-      return AttributionReportingIssueTypeEnum::NoWebOrOsSupport;
-    case blink::mojom::AttributionReportingIssueType::
-        kNavigationRegistrationWithoutTransientUserActivation:
-      // This issue is not reported from the browser.
-      NOTREACHED();
-    case blink::mojom::AttributionReportingIssueType::kInvalidInfoHeader:
-      return AttributionReportingIssueTypeEnum::InvalidInfoHeader;
-    case blink::mojom::AttributionReportingIssueType::kNoRegisterSourceHeader:
-      return AttributionReportingIssueTypeEnum::NoRegisterSourceHeader;
-    case blink::mojom::AttributionReportingIssueType::kNoRegisterTriggerHeader:
-      return AttributionReportingIssueTypeEnum::NoRegisterTriggerHeader;
-    case blink::mojom::AttributionReportingIssueType::kNoRegisterOsSourceHeader:
-      return AttributionReportingIssueTypeEnum::NoRegisterOsSourceHeader;
-    case blink::mojom::AttributionReportingIssueType::
-        kNoRegisterOsTriggerHeader:
-      return AttributionReportingIssueTypeEnum::NoRegisterOsTriggerHeader;
-    case blink::mojom::AttributionReportingIssueType::
-        kNavigationRegistrationUniqueScopeAlreadySet:
-      return AttributionReportingIssueTypeEnum::
-          NavigationRegistrationUniqueScopeAlreadySet;
-  }
-}
-
-std::unique_ptr<protocol::Audits::InspectorIssue>
-BuildAttributionReportingIssue(
-    const blink::mojom::AttributionReportingIssueDetailsPtr& issue_details) {
-  protocol::String violation_type = BuildAttributionReportingIssueViolationType(
-      issue_details->violation_type);
-
-  auto request = protocol::Audits::AffectedRequest::Create()
-                     .SetUrl(issue_details->request->url)
-                     .Build();
-  if (issue_details->request->request_id.has_value()) {
-    request->SetRequestId(issue_details->request->request_id.value());
-  }
-  auto attribution_reporting_issue_details =
-      protocol::Audits::AttributionReportingIssueDetails::Create()
-          .SetViolationType(violation_type)
-          .SetRequest(std::move(request))
-          .Build();
-  if (issue_details->invalid_parameter.has_value()) {
-    attribution_reporting_issue_details->SetInvalidParameter(
-        issue_details->invalid_parameter.value());
-  }
-
-  auto protocol_issue_details =
-      protocol::Audits::InspectorIssueDetails::Create()
-          .SetAttributionReportingIssueDetails(
-              std::move(attribution_reporting_issue_details))
-          .Build();
-
-  auto issue = protocol::Audits::InspectorIssue::Create()
-                   .SetCode(protocol::Audits::InspectorIssueCodeEnum::
-                                AttributionReportingIssue)
-                   .SetDetails(std::move(protocol_issue_details))
-                   .Build();
   return issue;
 }
 
@@ -1695,29 +1598,30 @@ void ApplyNetworkRequestOverrides(
 
 }  // namespace
 
-void ApplyExtraHeadersForWebSocket(const GlobalRenderFrameHostId& frame_id,
-                                   net::HttpRequestHeaders* headers) {
-  auto* frame = RenderFrameHostImpl::FromID(frame_id);
-  if (!frame) {
-    return;
+void ApplyExtraHeadersForWebSocket(
+    const GlobalRenderFrameHostId& frame_id,
+    const std::optional<base::UnguessableToken>& devtools_worker_token,
+    net::HttpRequestHeaders* headers) {
+  auto apply_overrides = [headers](DevToolsAgentHostImpl* agent_host) {
+    if (!agent_host) {
+      return;
+    }
+    bool disable_cache = false;
+    bool skip_service_worker = false;
+    ApplyNetworkRequestOverrides(agent_host, headers, &disable_cache, nullptr,
+                                 &skip_service_worker, nullptr, nullptr,
+                                 nullptr, nullptr);
+  };
+  if (RenderFrameHostImpl* frame = RenderFrameHostImpl::FromID(frame_id)) {
+    if (FrameTreeNode* ftn = frame->frame_tree_node()) {
+      apply_overrides(GetDevToolsAgentHostForNetworkOverrides(ftn));
+    }
   }
-
-  FrameTreeNode* ftn = frame->frame_tree_node();
-  if (!ftn) {
-    return;
+  if (devtools_worker_token && !devtools_worker_token->is_empty()) {
+    scoped_refptr<DevToolsAgentHostImpl> worker_agent_host =
+        DevToolsAgentHostImpl::GetForId(devtools_worker_token->ToString());
+    apply_overrides(worker_agent_host.get());
   }
-
-  DevToolsAgentHostImpl* agent_host =
-      GetDevToolsAgentHostForNetworkOverrides(ftn);
-  if (!agent_host) {
-    return;
-  }
-
-  bool disable_cache = false;
-  bool skip_service_worker = false;
-  ApplyNetworkRequestOverrides(agent_host, headers, &disable_cache, nullptr,
-                               &skip_service_worker, nullptr, nullptr, nullptr,
-                               nullptr);
 }
 
 void ApplyAuctionNetworkRequestOverrides(
@@ -2058,47 +1962,6 @@ void OnAuctionWorkletNetworkRequestComplete(
                    &protocol::NetworkHandler::LoadingComplete, request_id,
                    /*resource_type=*/protocol::Network::ResourceTypeEnum::Other,
                    status);
-}
-
-bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id) {
-  FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
-  if (!ftn) {
-    return false;
-  }
-  DevToolsAgentHostImpl* agent_host = RenderFrameDevToolsAgentHost::GetFor(ftn);
-  if (!agent_host) {
-    return false;
-  }
-  for (auto* storage : protocol::StorageHandler::ForAgentHost(agent_host)) {
-    if (storage->interest_group_auction_tracking_enabled()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void OnInterestGroupAuctionEventOccurred(
-    FrameTreeNodeId frame_tree_node_id,
-    base::Time event_time,
-    InterestGroupAuctionEventType type,
-    const std::string& unique_auction_id,
-    base::optional_ref<const std::string> parent_auction_id,
-    const base::DictValue& auction_config) {
-  DispatchToAgents(
-      frame_tree_node_id,
-      &protocol::StorageHandler::NotifyInterestGroupAuctionEventOccurred,
-      event_time, type, unique_auction_id, parent_auction_id, auction_config);
-}
-
-void OnInterestGroupAuctionNetworkRequestCreated(
-    FrameTreeNodeId frame_tree_node_id,
-    InterestGroupAuctionFetchType type,
-    const std::string& request_id,
-    const std::vector<std::string>& devtools_auction_ids) {
-  DispatchToAgents(frame_tree_node_id,
-                   &protocol::StorageHandler::
-                       NotifyInterestGroupAuctionNetworkRequestCreated,
-                   type, request_id, devtools_auction_ids);
 }
 
 void OnNavigationRequestWillBeSent(
@@ -2576,10 +2439,6 @@ void BuildAndReportBrowserInitiatedIssue(
                                kFederatedAuthUserInfoRequestIssue) {
     issue = BuildFederatedAuthUserInfoRequestIssue(
         info->details->federated_auth_user_info_request_details);
-  } else if (info->code ==
-             blink::mojom::InspectorIssueCode::kAttributionReportingIssue) {
-    issue = BuildAttributionReportingIssue(
-        info->details->attribution_reporting_issue_details);
   } else if (info->code ==
              blink::mojom::InspectorIssueCode::kUserReidentificationIssue) {
     issue = BuildUserReidentificationIssue(

@@ -75,9 +75,7 @@ void ShowCustomizeChromeSidePanel(Profile* profile) {
           actions::ActionInvocationContext::Builder()
               .SetProperty(
                   kSidePanelOpenTriggerKey,
-                  static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
-                      SidePanelOpenTrigger::
-                          kNewTabPageAutomaticCustomizeChrome))
+                  SidePanelOpenTrigger::kNewTabPageAutomaticCustomizeChrome)
               .Build());
 }
 
@@ -200,7 +198,7 @@ void NewTabPageFeaturePromoHelper::MaybeTriggerAutomaticCustomizeChromePromo(
   auto* browser_interface = webui::GetBrowserWindowInterface(web_contents);
   if (!browser_interface ||
       browser_interface->GetFeatures().side_panel_ui()->IsSidePanelEntryShowing(
-          SidePanelEntry::Key(SidePanelEntry::Id::kCustomizeChrome))) {
+          SidePanelEntryKey(SidePanelEntryId::kCustomizeChrome))) {
     return;
   }
 

@@ -45,6 +45,7 @@
 #include "content/public/browser/security_principal.h"
 #include "content/public/browser/service_worker_version_base_info.h"
 #include "content/public/common/buildflags.h"
+#include "extensions/common/extension_id.h"
 #include "media/mojo/buildflags.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "pdf/buildflags.h"
@@ -95,9 +96,11 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/badging/badge_manager.h"
 #include "chrome/browser/indigo/onboarding/indigo_onboarding_dialog.h"
+#include "chrome/browser/password_manager/remote_actor/remote_actor_credential_sharing_impl.h"
 #include "chrome/browser/record_replay/chrome_record_replay_client.h"
 #include "chrome/browser/ui/search/search_tab_helper.h"
 #include "chrome/common/indigo/indigo.mojom.h"
+#include "chrome/common/password_manager/remote_actor_credential_sharing_policy.h"
 #include "components/record_replay/core/common/record_replay.mojom.h"
 #endif
 
@@ -328,11 +331,12 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
 
   content::BrowserContext* browser_context =
       render_frame_host->GetProcess()->GetBrowserContext();
-  auto* extension = extensions::ExtensionRegistry::Get(browser_context)
-                        ->enabled_extensions()
-                        .GetByID(render_frame_host->GetSiteInstance()
-                                     ->GetSecurityPrincipal()
-                                     .GetHost());
+  auto* extension =
+      extensions::ExtensionRegistry::Get(browser_context)
+          ->enabled_extensions()
+          .GetByID(extensions::ExtensionId(render_frame_host->GetSiteInstance()
+                                               ->GetSecurityPrincipal()
+                                               .GetHost()));
   if (!extension)
     return;
   extensions::ExtensionsBrowserClient::Get()
@@ -421,6 +425,19 @@ void ChromeContentBrowserClient::
             BindPasswordManagerDriver(std::move(receiver), render_frame_host);
       },
       &render_frame_host));
+#if !BUILDFLAG(IS_ANDROID)
+  if (features::RemoteActorCredentialSharingEnabled()) {
+    associated_registry.AddInterface<
+        chrome::mojom::RemoteActorCredentialSharing>(base::BindRepeating(
+        [](content::RenderFrameHost* render_frame_host,
+           mojo::PendingAssociatedReceiver<
+               chrome::mojom::RemoteActorCredentialSharing> receiver) {
+          password_manager::RemoteActorCredentialSharingImpl::BindReceiver(
+              std::move(receiver), render_frame_host);
+        },
+        &render_frame_host));
+  }
+#endif
 #if !BUILDFLAG(IS_ANDROID)
   associated_registry.AddInterface<record_replay::mojom::RecordReplayDriver>(
       base::BindRepeating(&ChromeRecordReplayClient::BindRecordReplayDriver,

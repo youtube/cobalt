@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">保存密码</translation>
 <translation id="1764070164487214210">路线</translation>
 <translation id="1764511703783285459">其他密码管理工具未分享任何密码或通行密钥</translation>
+<translation id="1765555082983153259">Chrome 想要使用麦克风</translation>
 <translation id="1767766085187034454">Google 翻译</translation>
 <translation id="1771016937398045251">“工具”菜单</translation>
 <translation id="1772468122139624049">无法重新加载标签页</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">深度搜索</translation>
 <translation id="188237709236611317">菜单栏智能排序</translation>
 <translation id="1883255238294161206">收起列表</translation>
+<translation id="1883898928879467646">已移除标签页</translation>
 <translation id="1888854257756214946">选择密码…</translation>
 <translation id="1890237935065108104">无法使用此设置。</translation>
 <translation id="1894023287452300670">在此处跟踪价格</translation>
@@ -1620,6 +1622,7 @@
 <translation id="6406506848690869874">同步</translation>
 <translation id="6410390304316730527">“安全浏览”功能可保护您免受攻击者诱骗，以防做出一些危险操作，例如安装恶意软件或泄露个人信息（如密码、电话号码或信用卡信息）。如果关闭此功能，当浏览不熟悉或信誉不佳的网站时，请一定多加小心。</translation>
 <translation id="6410883413783534063">打开多个标签页即可同时访问不同网页</translation>
+<translation id="6412195388778525440">移除标签页</translation>
 <translation id="6418346271604475326">正在准备 PDF 文件</translation>
 <translation id="6420292512900923139">导入数据时出了点问题</translation>
 <translation id="6421038304268477484">译文</translation>
@@ -2320,7 +2323,6 @@
 <translation id="8692689525339542358">保护您免受危险的网站、下载内容和扩展程序的侵害。</translation>
 <translation id="8692897097252418799">选择要导出的数据</translation>
 <translation id="8694281486652655615">显示此内容</translation>
-<translation id="8696297579102085705">发送到您的设备</translation>
 <translation id="8697136149718343437">将地址栏移到底部</translation>
 <translation id="869891660844655955">失效日期</translation>
 <translation id="8706253136355675497">温度</translation>
@@ -2463,6 +2465,7 @@
 <translation id="9149866541089851383">编辑...</translation>
 <translation id="9152637745605628097">选择主题、颜色，或上传图片</translation>
 <translation id="9159628751968616911">发送网页</translation>
+<translation id="9162412286847966593">我们不会使用组织的数据和录音来改进生成式 AI 模型。<ph name="BEGIN_LINK" />您的隐私权与 Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">开启“自动填充密码”</translation>
 <translation id="9165320910061267720">若要接收降价提醒通知，您需在 iOS 设置中开启通知功能。</translation>
 <translation id="9179151630575358778">隐藏此内容</translation>

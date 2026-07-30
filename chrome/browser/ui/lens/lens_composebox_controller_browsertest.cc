@@ -53,7 +53,6 @@ class TestLensComposeboxController : public lens::LensComposeboxController {
 
   void BindComposebox(
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
-      mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler) override {
@@ -64,8 +63,7 @@ class TestLensComposeboxController : public lens::LensComposeboxController {
       mock_searchbox_page_.receiver_.reset();
     }
     lens::LensComposeboxController::BindComposebox(
-        std::move(pending_handler), std::move(pending_page),
-        mock_searchbox_page_.BindAndGetRemote(),
+        std::move(pending_handler), mock_searchbox_page_.BindAndGetRemote(),
         std::move(pending_searchbox_handler));
   }
 
@@ -191,6 +189,7 @@ class LensComposeboxControllerBrowserTest : public InProcessBrowserTest {
           {{"lens-aim-suggestions-type", "Contextual"}}},
          {lens::features::kLensSearchReinvocationAffordance, {}}},
         /*disabled_features=*/{contextual_tasks::kContextualTasks,
+                               contextual_tasks::kContextualTasksSidePanel,
                                omnibox::kAimServerEligibilityEnabled});
 
     InProcessBrowserTest::SetUp();

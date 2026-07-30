@@ -9,6 +9,7 @@
 #include "base/command_line.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -105,7 +106,7 @@ bool WindowSizerChromeOS::GetBrowserBounds(
       if (!browser()->is_type_app() ||
           !web_app::AppBrowserController::From(browser()) ||
           !GetAppBrowserBoundsFromLastActive(bounds, show_state)) {
-        if (!browser()->create_params().can_resize ||
+        if (!BrowserInitState::From(browser())->create_params().can_resize ||
             !GetSavedWindowBounds(bounds, show_state)) {
           *bounds = GetDefaultWindowBounds(GetDisplayForNewWindow());
         }
@@ -161,7 +162,7 @@ void WindowSizerChromeOS::GetTabbedBrowserBounds(
   }
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
-  if (browser()->is_session_restore()) {
+  if (BrowserInitState::From(browser())->is_session_restore()) {
     // Respect display for saved bounds during session restore.
     display = display::Screen::Get()->GetDisplayMatching(*bounds_in_screen);
   } else if (GlobalBrowserCollection::GetInstance()->IsEmpty() &&

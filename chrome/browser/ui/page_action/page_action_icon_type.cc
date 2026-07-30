@@ -14,19 +14,8 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
   switch (page_action) {
     case PageActionIconType::kIntentPicker:
       return &features::kPageActionsMigrationIntentPicker;
-    case PageActionIconType::kZoom:
-      return &features::kPageActionsMigrationZoom;
-    case PageActionIconType::kMandatoryReauth:
-      return &features::kPageActionsMigrationAutofillMandatoryReauth;
     case PageActionIconType::kVirtualCardEnroll:
       return &features::kPageActionsMigrationVirtualCard;
-    case PageActionIconType::kFilledCardInformation:
-      return &features::kPageActionsMigrationFilledCardInformation;
-    case PageActionIconType::kReadingMode:
-      return &features::kPageActionsMigrationReadingMode;
-    case PageActionIconType::kSaveIban:
-    case PageActionIconType::kSaveCard:
-      return &features::kPageActionsMigrationSavePayments;
     case PageActionIconType::kBookmarkStar:
       return &features::kPageActionsMigrationBookmarkStar;
     default:
@@ -64,13 +53,19 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
     case PageActionIconType::kFederation:
     case PageActionIconType::kCookieControls:
     case PageActionIconType::kManagePasswords:
+    case PageActionIconType::kZoom:
     case PageActionIconType::kWebAuthnAmbientSignin:
     case PageActionIconType::kFileSystemAccess:
     case PageActionIconType::kAiMode:
+    case PageActionIconType::kSaveIban:
+    case PageActionIconType::kSaveCard:
+    case PageActionIconType::kReadingMode:
     case PageActionIconType::kAutofillPayment:
+    case PageActionIconType::kMandatoryReauth:
     case PageActionIconType::kPaymentsChurnedUsers:
     case PageActionIconType::kLensOverlayHomework:
     case PageActionIconType::kFakePageActionForDebug:
+    case PageActionIconType::kFilledCardInformation:
       return true;
     default:
       break;

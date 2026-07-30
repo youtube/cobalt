@@ -7,10 +7,6 @@ specific_include_rules = {
   "ad_tracker_test\\.cc": [
     "+base/run_loop.h",
   ],
-  "attribution_src_loader(\\.cc|\\.h|_test\\.cc)": [
-    "+components/attribution_reporting",
-    "+services/network/public/cpp/attribution_utils.h",
-  ],
   "child_frame_compositing_helper\\.h": [
     "+components/viz/common/surfaces/surface_id.h",
   ],
@@ -116,7 +112,6 @@ specific_include_rules = {
     "+base/run_loop.h",
     "+components/stylus_handwriting/win/features.h",
     "+components/viz/common/surfaces/parent_local_surface_id_allocator.h",
-    "+ui/events/types/scroll_input_type.h",
   ],
   "settings\\.h": [
     "+ui/base/pointer/pointer_device.h",

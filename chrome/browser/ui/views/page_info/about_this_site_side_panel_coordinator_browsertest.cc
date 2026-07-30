@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/feature_list.h"
 #include "base/strings/escape.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
@@ -12,15 +11,15 @@
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/page_info/web_view_side_panel_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/page_info/core/about_this_site_service.h"
-#include "components/page_info/core/features.h"
 #include "components/page_info/core/proto/about_this_site_metadata.pb.h"
+#include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -296,6 +295,33 @@ IN_PROC_BROWSER_TEST_F(AboutThisSiteSidePanelCoordinatorBrowserTest,
                        page_info::AboutThisSiteService::
                            AboutThisSiteInteraction::kSameTabNavigation,
                        1);
+}
+
+IN_PROC_BROWSER_TEST_F(AboutThisSiteSidePanelCoordinatorBrowserTest,
+                       WebContentsModalDialogManagerWired) {
+  RegisterAboutThisSiteSidePanel(web_contents(), CreateUrl(kAboutThisSiteUrl));
+  auto* entry = GetAboutThisSiteEntryForActiveTab();
+  ASSERT_TRUE(entry);
+  entry->CacheView(entry->GetContent());
+  auto* side_panel_view =
+      static_cast<WebViewSidePanelView*>(entry->CachedView().get());
+  ASSERT_TRUE(side_panel_view);
+
+  ShowAboutThisSiteSidePanel(web_contents(), CreateUrl(kAboutThisSiteUrl));
+  EXPECT_TRUE(IsAboutThisSiteSidePanelShowing());
+  auto* side_panel_contents = side_panel_view->web_contents();
+  ASSERT_TRUE(side_panel_contents);
+
+  auto* dialog_manager =
+      web_modal::WebContentsModalDialogManager::FromWebContents(
+          side_panel_contents);
+  ASSERT_TRUE(dialog_manager);
+  EXPECT_EQ(dialog_manager->delegate(), side_panel_view);
+
+  // Verify safe teardown when the live side panel view hierarchy is closed.
+  browser()->GetFeatures().side_panel_ui()->DisableAnimationsForTesting();
+  browser()->GetFeatures().side_panel_ui()->Close();
+  EXPECT_FALSE(IsAboutThisSiteSidePanelShowing());
 }
 
 // TODO(crbug.com/40222735): Cover additional AboutThisSite side panel behavior.

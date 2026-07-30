@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Stoor wagwoorde</translation>
 <translation id="1764070164487214210">Aanwysings</translation>
 <translation id="1764511703783285459">Die ander wagwoordbestuurder het nie enige wagwoorde of toegangsleutels gedeel nie</translation>
+<translation id="1765555082983153259">“Chrome” wil toegang tot jou mikrofoon hê</translation>
 <translation id="1767766085187034454">Google Vertaal</translation>
 <translation id="1771016937398045251">Nutsgoedkieslys</translation>
 <translation id="1772468122139624049">Kan nie oortjies herlaai nie</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Diep Delf</translation>
 <translation id="188237709236611317">Kieslysbalk vir slimrangskik</translation>
 <translation id="1883255238294161206">Vou lys in</translation>
+<translation id="1883898928879467646">Oortjie is verwyder</translation>
 <translation id="1888854257756214946">Kies wagwoord …</translation>
 <translation id="1890237935065108104">Hierdie instelling is nie beskikbaar nie.</translation>
 <translation id="1894023287452300670">Spoor prys hier na</translation>
@@ -1620,6 +1622,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6406506848690869874">Sinkronisering</translation>
 <translation id="6410390304316730527">Veiligblaai beskerm jou teen aanvallers wat jou dalk kan mislei om iets gevaarlik te doen, soos om kwaadwillige sagteware te installeer of jou persoonlike inligting, soos wagwoorde, foonnommers of kredietkaartinligting, bekend te maak. As jy dit afskakel, moet jy versigtig wees wanneer jy op onbekende of nie-fatsoenlike werwe blaai.</translation>
 <translation id="6410883413783534063">Maak oortjies oop om verskillende bladsye op dieselfde tyd te besoek</translation>
+<translation id="6412195388778525440">Verwyder oortjie</translation>
 <translation id="6418346271604475326">Berei PDF voor</translation>
 <translation id="6420292512900923139">Kon nie jou data invoer nie</translation>
 <translation id="6421038304268477484">Vertaalde teks</translation>
@@ -2320,7 +2323,6 @@ Skakel oor na <ph name="OTHER_EMAIL" /> om van jou rekenaar af voort te gaan. Jy
 <translation id="8692689525339542358">Kry beskerming teen gevaarlike werwe, aflaaie en uitbreidings.</translation>
 <translation id="8692897097252418799">Kies die data wat jy wil uitvoer</translation>
 <translation id="8694281486652655615">Wys hierdie item</translation>
-<translation id="8696297579102085705">Stuur na jou toestel toe</translation>
 <translation id="8697136149718343437">Skuif adresbalk na onder</translation>
 <translation id="869891660844655955">Vervaldatum</translation>
 <translation id="8706253136355675497">Temperatuur</translation>
@@ -2463,6 +2465,7 @@ Skakel oor na <ph name="OTHER_EMAIL" /> om van jou rekenaar af voort te gaan. Jy
 <translation id="9149866541089851383">Wysig …</translation>
 <translation id="9152637745605628097">Kies uit temas of kleure, of laai ’n prent op</translation>
 <translation id="9159628751968616911">Stuur webbladsy</translation>
+<translation id="9162412286847966593">Jou organisasie se data en opnames sal nie gebruik word om generatiewe-KI-modelle te verbeter nie. <ph name="BEGIN_LINK" />Jou privaatheid en Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Skakel Outovulwagwoorde aan</translation>
 <translation id="9165320910061267720">Jy sal kennisgewings in jou iOS-instellings moet aanskakel as jy kennisgewings vir prysdalingopletberigte wil ontvang.</translation>
 <translation id="9179151630575358778">Versteek hierdie item</translation>

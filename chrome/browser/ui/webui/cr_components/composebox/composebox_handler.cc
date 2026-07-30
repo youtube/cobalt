@@ -88,7 +88,6 @@ void ComposeboxOmniboxClient::OnAutocompleteAccept(
 
 ComposeboxHandler::ComposeboxHandler(
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
-    mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler,
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
@@ -97,7 +96,6 @@ ComposeboxHandler::ComposeboxHandler(
     GetSessionHandleCallback get_session_callback,
     ClearSessionHandleCallback clear_session_callback)
     : ComposeboxHandler(std::move(pending_handler),
-                        std::move(pending_page),
                         std::move(pending_searchbox_handler),
                         std::move(pending_searchbox_page),
                         profile,
@@ -110,7 +108,6 @@ ComposeboxHandler::ComposeboxHandler(
 
 ComposeboxHandler::ComposeboxHandler(
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
-    mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler,
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
@@ -126,7 +123,6 @@ ComposeboxHandler::ComposeboxHandler(
                                  std::move(omnibox_client),
                                  std::move(get_session_callback)),
       clear_session_callback_(std::move(clear_session_callback)),
-      page_{std::move(pending_page)},
       handler_(this, std::move(pending_handler)) {
   // Set the callback for getting suggest inputs from the session.
   // The session is owned by WebUI controller and accessed via callback.
@@ -294,14 +290,14 @@ void ComposeboxHandler::SubmitQuery(
     omnibox::ChromeAimEntryPoint aim_entrypoint,
     std::map<std::string, std::string> additional_params,
     bool is_voice_search) {
+  CHECK(input_state_model());
+
   if (auto* metrics_recorder = GetMetricsRecorder()) {
     // Record AIM tool and model mode on query submission.
     const auto& input_state = GetInputState();
-    std::vector<omnibox::InputType> active_input_types =
-        contextual_search::InputStateModel::GetCurrentInputTypes(
-            GetContextualSessionHandle());
     metrics_recorder->RecordModesOnSubmission(
-        input_state.active_tool, input_state.active_model, active_input_types);
+        input_state.active_tool, input_state.active_model,
+        input_state_model()->GetEffectiveInputTypes());
   }
 
   ContextualizeQueryAndOpenUrl(query_text, disposition, aim_entrypoint,

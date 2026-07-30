@@ -59,7 +59,9 @@
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
@@ -466,10 +468,11 @@ class WebAppFrameViewChromeOSTest
     web_app_info->theme_color = GetThemeColor();
 
     webapps::AppId app_id = web_app::test::InstallWebApp(
-        browser()->profile(), std::move(web_app_info));
+        browser()->GetProfile(), std::move(web_app_info));
     content::TestNavigationObserver navigation_observer(GetAppURL());
     navigation_observer.StartWatchingNewWebContents();
-    app_browser_ = web_app::LaunchWebAppBrowser(browser()->profile(), app_id);
+    app_browser_ =
+        web_app::LaunchWebAppBrowser(browser()->GetProfile(), app_id);
     navigation_observer.WaitForNavigationFinished();
 
     browser_view_ = BrowserView::GetBrowserViewForBrowser(app_browser_);
@@ -865,7 +868,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
 
   // Create a bookmark that will be focused.
   bookmarks::BookmarkModel* bookmark_model =
-      BookmarkModelFactory::GetForBrowserContext(browser()->profile());
+      BookmarkModelFactory::GetForBrowserContext(browser()->GetProfile());
   const bookmarks::BookmarkNode* bookmark_bar_node =
       bookmark_model->bookmark_bar_node();
   bookmark_model->AddURL(bookmark_bar_node, 0, u"Test Bookmark",
@@ -1166,7 +1169,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
 // Update expectation if change is intentional.
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest, AppFrameColor) {
   Browser* app_browser =
-      CreateBrowserForApp("test_browser_app", browser()->profile());
+      CreateBrowserForApp("test_browser_app", browser()->GetProfile());
 
   aura::Window* window = app_browser->GetWindow()->GetNativeWindow();
   SkColor active_frame_color =
@@ -1262,7 +1265,7 @@ IN_PROC_BROWSER_TEST_F(PreventCloseBrowserFrameViewChromeOSTest,
 
   {
     apps::AppUpdateWaiter waiter(
-        browser->profile(), ash::kCalculatorAppId,
+        browser->GetProfile(), ash::kCalculatorAppId,
         base::BindRepeating([](const apps::AppUpdate& update) {
           return update.AllowClose().has_value() && update.AllowClose().value();
         }));
@@ -1295,7 +1298,7 @@ IN_PROC_BROWSER_TEST_F(PreventCloseBrowserFrameViewChromeOSTest,
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                        ImmersiveModeTopViewInset) {
   Browser* app_browser =
-      CreateBrowserForApp("test_browser_app", browser()->profile());
+      CreateBrowserForApp("test_browser_app", browser()->GetProfile());
 
   auto* const immersive_mode_controller =
       ImmersiveModeController::From(app_browser);
@@ -1463,7 +1466,7 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
 IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
                        BrowserAppHeaderVisibilityInTabletModeTest) {
   Browser* browser2 =
-      CreateBrowserForApp("test_browser_app", browser()->profile());
+      CreateBrowserForApp("test_browser_app", browser()->GetProfile());
   BrowserView* browser_view2 = BrowserView::GetBrowserViewForBrowser(browser2);
   views::Widget* widget2 = browser_view2->GetWidget();
   BrowserFrameViewChromeOS* frame_view2 = GetFrameViewChromeOS(browser_view2);
@@ -1593,7 +1596,7 @@ IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
 IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
                        CaptionButtonVisibilityForBrowserLaunchedInTabletMode) {
   EnterTabletMode();
-  auto* new_browser = CreateBrowser(browser()->profile());
+  auto* new_browser = CreateBrowser(browser()->GetProfile());
   auto* frame_view =
       GetFrameViewChromeOS(BrowserView::GetBrowserViewForBrowser(new_browser));
   EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
@@ -1602,7 +1605,7 @@ IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
 IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
                        TabletModeAppCaptionButtonVisibility) {
   Browser* app_browser =
-      CreateBrowserForApp("test_browser_app", browser()->profile());
+      CreateBrowserForApp("test_browser_app", browser()->GetProfile());
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(app_browser);
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
@@ -1720,6 +1723,10 @@ IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserFrameViewChromeOSTest,
 
 class BrowserFrameViewAshAvatarTest : public BrowserFrameViewChromeOSTest {
  public:
+  BrowserFrameViewAshAvatarTest() {
+    scoped_feature_list_.InitAndEnableFeature(tabs::kVerticalTabs);
+  }
+
   static constexpr inline auto kPrimaryAccountId =
       AccountId::Literal::FromUserEmailGaiaId("primary@test",
                                               GaiaId::Literal("12345"));
@@ -1759,6 +1766,8 @@ class BrowserFrameViewAshAvatarTest : public BrowserFrameViewChromeOSTest {
   }
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+
   ash::DeviceStateMixin device_state_{
       &mixin_host_,
       ash::DeviceStateMixin::State::OOBE_COMPLETED_PERMANENTLY_UNOWNED};
@@ -1828,6 +1837,70 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
 }
 
+// Tests that the profile indicator icon is positioned within the browser
+// bounds on both horizontal and vertical tab strip.
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
+                       ProfileIndicatorPositionWithinBounds) {
+  LogIn(kPrimaryAccountId);
+  Profile* primary_user_profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+          kPrimaryAccountId));
+
+  ash::NewWindowDelegate::GetInstance()->NewWindow(
+      /*incognito=*/false, /*should_trigger_session_restore=*/false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(primary_user_profile)
+          ->GetLastActiveBrowser();
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+  BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
+  BrowserFrameViewChromeOSTestApi test_api(frame_view);
+  aura::Window* window = browser->GetWindow()->GetNativeWindow();
+
+  // Log in with the secondary user.
+  LogIn(kSecondaryAccountId);
+
+  // Move back to the primary user's desktop.
+  SessionControllerClientImpl::Get()->SwitchActiveUser(kPrimaryAccountId);
+  ASSERT_EQ(
+      session_manager::SessionManager::Get()->GetActiveSession()->account_id(),
+      kPrimaryAccountId);
+
+  auto* window_manager = ash::Shell::Get()->multi_user_window_manager();
+
+  // Teleport the window to secondary user's desktop.
+  browser_view->Activate();
+  window_manager->ShowWindowForUser(window, kSecondaryAccountId);
+  ASSERT_EQ(
+      session_manager::SessionManager::Get()->GetActiveSession()->account_id(),
+      kSecondaryAccountId);
+
+  EXPECT_TRUE(BrowserFrameViewChromeOS::ShouldShowAvatarForTesting(window));
+  auto* icon = test_api.GetProfileIndicatorIcon();
+  ASSERT_TRUE(icon);
+  EXPECT_TRUE(icon->GetVisible());
+
+  // Horizontal tab strip mode (default). Verify that the profile indicator icon
+  // is positioned within the browser frame bounds.
+  EXPECT_FALSE(browser_view->ShouldDrawVerticalTabStrip());
+  EXPECT_GE(icon->bounds().y(), 0);
+  EXPECT_LE(icon->bounds().bottom(), frame_view->height());
+  EXPECT_TRUE(frame_view->GetLocalBounds().Contains(icon->bounds()));
+
+  // Switch to vertical tab strip mode.
+  auto* controller = tabs::VerticalTabStripStateController::From(browser);
+  ASSERT_TRUE(controller);
+  controller->SetVerticalTabsEnabled(true);
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+
+  // Verify that in vertical tab strip mode, the profile indicator icon is also
+  // positioned within the browser frame bounds.
+  EXPECT_TRUE(browser_view->ShouldDrawVerticalTabStrip());
+  EXPECT_TRUE(icon->GetVisible());
+  EXPECT_GE(icon->bounds().y(), 0);
+  EXPECT_LE(icon->bounds().bottom(), frame_view->height());
+  EXPECT_TRUE(frame_view->GetLocalBounds().Contains(icon->bounds()));
+}
+
 // Regression test for b/527095091.
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
                        ProfileIconPositionUpdatesAppTitle) {
@@ -1886,22 +1959,78 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
             browser_view->web_app_frame_toolbar_for_testing()->x());
 }
 
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
+                       ProfileIconPositionUpdatesTitleForNonTabbedWindow) {
+  LogIn(kPrimaryAccountId);
+  Profile* primary_user_profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+          kPrimaryAccountId));
+
+  // We use a DevTools window here as a representative example of a non-tabbed
+  // browser window that renders a native title in its frame.
+  Browser* non_tabbed_browser = Browser::Create(
+      Browser::CreateParams::CreateForDevTools(primary_user_profile));
+  non_tabbed_browser->GetWindow()->Show();
+
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(non_tabbed_browser);
+  BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
+  BrowserFrameViewChromeOSTestApi test_api(frame_view);
+  aura::Window* window = non_tabbed_browser->GetWindow()->GetNativeWindow();
+  auto* frame_header = test_api.GetFrameHeader();
+
+  // Force initial layout.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+
+  // The title is drawn natively by FrameHeader for non-tabbed windows.
+  const int title_x_without_icon = frame_header->GetTitleBoundsForTesting().x();
+
+  // Log in with the secondary user.
+  LogIn(kSecondaryAccountId);
+
+  // Move back to the primary user's desktop.
+  SessionControllerClientImpl::Get()->SwitchActiveUser(kPrimaryAccountId);
+
+  // Teleport the window to secondary user's desktop. This adds the avatar icon.
+  auto* window_manager = ash::Shell::Get()->multi_user_window_manager();
+  browser_view->Activate();
+  window_manager->ShowWindowForUser(window, kSecondaryAccountId);
+  auto* icon = test_api.GetProfileIndicatorIcon();
+  ASSERT_TRUE(icon);
+
+  // Force layout to apply the teleportation changes.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+  const int title_x_with_icon = frame_header->GetTitleBoundsForTesting().x();
+
+  // The title should be pushed to the right by the icon.
+  EXPECT_GT(title_x_with_icon, title_x_without_icon);
+
+  // Teleport back to remove the icon.
+  window_manager->ShowWindowForUser(window, kPrimaryAccountId);
+  browser_view->Activate();
+  EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
+
+  // Force layout again.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+  EXPECT_EQ(title_x_without_icon, frame_header->GetTitleBoundsForTesting().x());
+}
+
 using BrowserFrameViewAshTest = BrowserFrameViewChromeOSTest;
 
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshTest,
                        SettingsSystemWebAppHasMinimumWindowSize) {
   // Install the Settings System Web App.
-  ash::SystemWebAppManager::GetForTest(browser()->profile())
+  ash::SystemWebAppManager::GetForTest(browser()->GetProfile())
       ->InstallSystemAppsForTesting();
 
   // Open a settings window.
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
   auto* settings_manager = chrome::SettingsWindowManager::GetInstance();
-  settings_manager->ShowOSSettings(browser()->profile());
+  settings_manager->ShowOSSettings(browser()->GetProfile());
   browser_created_observer.Wait();
 
   BrowserWindowInterface* settings_browser =
-      settings_manager->FindBrowserForProfile(browser()->profile());
+      settings_manager->FindBrowserForProfile(browser()->GetProfile());
 
   // Try to set the bounds to a tiny value.
   settings_browser->GetWindow()->SetBounds(gfx::Rect(1, 1));

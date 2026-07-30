@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.omnibox;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.TimingMetric;
 import org.chromium.build.annotations.NullMarked;
@@ -172,17 +171,14 @@ public class OmniboxMetrics {
         return TimingMetric.shortThreadTime("Android.Omnibox.SuggestionView.CreateTime3");
     }
 
-    /** Record thread time spent inflating the Suggestion dropdown on async background thread. */
-    public static @Nullable TimingMetric recordSuggestionsDropdownAsyncInflationThreadTime() {
-        if (ThreadUtils.runningOnUiThread()) return null;
-        return TimingMetric.shortThreadTime(
-                "Android.Omnibox.SuggestionsDropdown.AsyncInflationTime2");
+    /** Record thread time spent inflating the Suggestion dropdown. */
+    public static @Nullable TimingMetric recordSuggestionsDropdownInflationThreadTime() {
+        return TimingMetric.shortThreadTime("Android.Omnibox.SuggestionsDropdown.InflationTime2");
     }
 
-    /** Record wall time spent inflating the Suggestion dropdown on async background thread. */
-    public static @Nullable TimingMetric recordSuggestionsDropdownAsyncInflationWallTime() {
-        if (ThreadUtils.runningOnUiThread()) return null;
-        return TimingMetric.shortUptime("Android.Omnibox.SuggestionsDropdown.AsyncInflationTime3");
+    /** Record wall time spent inflating the Suggestion dropdown. */
+    public static @Nullable TimingMetric recordSuggestionsDropdownInflationWallTime() {
+        return TimingMetric.shortUptime("Android.Omnibox.SuggestionsDropdown.InflationTime3");
     }
 
     /** Record thread time spent inflating the suggestions container. */

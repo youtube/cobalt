@@ -82,10 +82,12 @@ std::unique_ptr<UnboundedSurfaceWindowAura> UnboundedSurfaceWindowAura::Create(
     RenderWidgetHostViewAura* parent_view,
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
     mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
-    const gfx::Rect& bounds_in_dips) {
+    const gfx::Rect& bounds_in_screen,
+    base::WeakPtr<RenderWidgetHostViewBase> subframe_view) {
   auto window = base::WrapUnique(new UnboundedSurfaceWindowAura(
-      parent_view, std::move(host), std::move(client)));
-  if (!window->InitWindow(bounds_in_dips)) {
+      parent_view, std::move(host), std::move(client),
+      std::move(subframe_view)));
+  if (!window->InitWindow(bounds_in_screen)) {
     return nullptr;
   }
   return window;
@@ -94,8 +96,9 @@ std::unique_ptr<UnboundedSurfaceWindowAura> UnboundedSurfaceWindowAura::Create(
 UnboundedSurfaceWindowAura::UnboundedSurfaceWindowAura(
     RenderWidgetHostViewAura* parent_view,
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
-    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client)
-    : parent_view_(parent_view) {
+    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
+    base::WeakPtr<RenderWidgetHostViewBase> subframe_view)
+    : parent_view_(parent_view), subframe_view_(std::move(subframe_view)) {
   if (host.is_valid()) {
     receiver_.Bind(std::move(host));
     receiver_.set_disconnect_handler(
@@ -243,7 +246,7 @@ bool UnboundedSurfaceWindowAura::HasHitTestMask() const {
   return false;
 }
 
-bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_dips) {
+bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_screen) {
   if (!parent_view_) {
     return false;
   }
@@ -291,8 +294,6 @@ bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_dips) {
     transient_window_client->AddTransientChild(parent_native_view,
                                                window_.get());
   }
-
-  gfx::Rect bounds_in_screen = ConvertDIPToScreenBounds(bounds_in_dips);
 
   aura::client::ParentWindowWithContext(window_.get(), root, bounds_in_screen,
                                         display::kInvalidDisplayId);
@@ -351,7 +352,8 @@ void UnboundedSurfaceWindowAura::UpdateBounds(const gfx::Rect& bounds) {
   if (!parent_view_) {
     return;
   }
-  SetBounds(ConvertDIPToScreenBounds(bounds));
+  parent_view_->UpdateUnboundedSurfaceBoundsInSubframeContext(
+      bounds, subframe_view_.get());
   if (client_remote_.is_bound()) {
     client_remote_->OnSurfaceAllocated(GetFrameSinkId(), GetLocalSurfaceId());
   }
@@ -372,18 +374,6 @@ void UnboundedSurfaceWindowAura::Dismiss() {
 
 void UnboundedSurfaceWindowAura::OnConnectionError() {
   Dismiss();
-}
-
-gfx::Rect UnboundedSurfaceWindowAura::ConvertDIPToScreenBounds(
-    const gfx::Rect& bounds_in_dips) const {
-  if (!parent_view_) {
-    return bounds_in_dips;
-  }
-  float dsf = parent_view_->GetDeviceScaleFactor();
-  gfx::Rect bounds_in_screen =
-      gfx::ScaleToRoundedRect(bounds_in_dips, 1.f / dsf);
-  bounds_in_screen.Offset(parent_view_->GetViewBounds().OffsetFromOrigin());
-  return bounds_in_screen;
 }
 
 void UnboundedSurfaceWindowAura::GetCompositorFrameSink(
@@ -408,16 +398,18 @@ void UnboundedSurfaceWindowAura::RouteMouseEvent(
   if (!parent_window || !parent_window->GetRootWindow()) {
     return;
   }
-  aura::client::ScreenPositionClient* screen_position_client =
-      aura::client::GetScreenPositionClient(parent_window->GetRootWindow());
-  if (!screen_position_client) {
-    return;
-  }
 
   blink::WebMouseEvent web_event = event;
   gfx::PointF parent_local_point = web_event.PositionInScreen();
-  screen_position_client->ConvertPointFromScreen(parent_window,
-                                                 &parent_local_point);
+  if (auto* screen_position_client = aura::client::GetScreenPositionClient(
+          parent_window->GetRootWindow())) {
+    // Since the input coordinate is in screen space and both windows share a
+    // root, ConvertPointToTarget would bypass the ScreenPositionClient and fail
+    // to apply the screen-to-root offset. We must explicitly use
+    // ConvertPointFromScreen to convert from screen coordinates.
+    screen_position_client->ConvertPointFromScreen(parent_window,
+                                                   &parent_local_point);
+  }
   web_event.SetPositionInWidget(parent_local_point.x(), parent_local_point.y());
 
   router->RouteMouseEvent(parent_view_, &web_event, ui::LatencyInfo());
@@ -485,12 +477,6 @@ void UnboundedSurfaceWindowAura::OnTouchEvent(ui::TouchEvent* event) {
   if (!parent_window || !parent_window->GetRootWindow()) {
     return;
   }
-  aura::client::ScreenPositionClient* screen_position_client =
-      aura::client::GetScreenPositionClient(parent_window->GetRootWindow());
-  if (!screen_position_client) {
-    return;
-  }
-
   blink::WebTouchEvent touch_event = ui::CreateWebTouchEventFromMotionEvent(
       pointer_state_, event->may_cause_scrolling(), event->hovering());
   pointer_state_.CleanupRemovedTouchPoints(*event);
@@ -498,8 +484,12 @@ void UnboundedSurfaceWindowAura::OnTouchEvent(ui::TouchEvent* event) {
   for (unsigned int i = 0; i < touch_event.touches_length; ++i) {
     blink::WebTouchPoint& touch_point = touch_event.touches[i];
     gfx::PointF parent_local_point = touch_point.PositionInScreen();
-    screen_position_client->ConvertPointFromScreen(parent_window,
-                                                   &parent_local_point);
+    // Since the touch event's PositionInScreen is populated from the
+    // MotionEvent's raw coordinates which are in root window space, not screen
+    // space, we must convert from root window coordinates to parent local
+    // coordinates.
+    aura::Window::ConvertPointToTarget(parent_window->GetRootWindow(),
+                                       parent_window, &parent_local_point);
     touch_point.SetPositionInWidget(parent_local_point.x(),
                                     parent_local_point.y());
   }
@@ -507,7 +497,8 @@ void UnboundedSurfaceWindowAura::OnTouchEvent(ui::TouchEvent* event) {
   ui::LatencyInfo latency_info =
       event->latency() ? *event->latency() : ui::LatencyInfo();
   router->RouteTouchEvent(parent_view_, &touch_event, latency_info);
-  event->SetHandled();
+  // Disable synchronous handling to allow gesture generation after ACK.
+  event->DisableSynchronousHandling();
 }
 
 }  // namespace content

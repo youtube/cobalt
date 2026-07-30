@@ -6,24 +6,32 @@
 
 #include <vector>
 
+#include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/public/web/web_document.h"
+#include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/dom/slot_assignment_engine.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
+#include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+#include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -94,10 +102,7 @@ TEST_F(WebFormControlElementTest, ResetDocumentClearsEditedState) {
 }
 
 TEST_F(WebFormControlElementTest, TextControlPreviewDisabledInCanvas) {
-  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled(
-          GetDocument().GetExecutionContext())) {
-    return;
-  }
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
 
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"(
     <form>
@@ -124,10 +129,7 @@ TEST_F(WebFormControlElementTest, TextControlPreviewDisabledInCanvas) {
 
 TEST_F(WebFormControlElementTest,
        TextControlPreviewDisabledWhenMovingToCanvas) {
-  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled(
-          GetDocument().GetExecutionContext())) {
-    return;
-  }
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
 
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"(
     <form>
@@ -158,10 +160,7 @@ TEST_F(WebFormControlElementTest,
 }
 
 TEST_F(WebFormControlElementTest, SelectPreviewDisabledInCanvas) {
-  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled(
-          GetDocument().GetExecutionContext())) {
-    return;
-  }
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
 
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"(
     <form>
@@ -186,10 +185,7 @@ TEST_F(WebFormControlElementTest, SelectPreviewDisabledInCanvas) {
 
 TEST_F(WebFormControlElementTest,
        SelectPreviewDisabledInCanvasWhenMovingToCanvas) {
-  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled(
-          GetDocument().GetExecutionContext())) {
-    return;
-  }
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
 
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"(
     <form>
@@ -213,6 +209,548 @@ TEST_F(WebFormControlElementTest,
   // leak the information to javascript.
   GetElementById("canvas")->appendChild(GetElementById("select_id"));
   EXPECT_TRUE(select.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest, TextControlSlottedPreviewDisabledInCanvas) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div>
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <slot name="slot1"></slot>
+        </canvas>
+      </template>
+      <form id="slotted" slot="slot1">
+        <input id="input_id">
+        <textarea id="textarea_id"></textarea>
+      </form>
+    </div>
+  )");
+
+  WebFormControlElement input(
+      DynamicTo<HTMLFormControlElement>(GetElementById("input_id")));
+  WebFormControlElement textarea(
+      DynamicTo<HTMLFormControlElement>(GetElementById("textarea_id")));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(GetElementById("input_id")->IsInCanvasSubtree());
+  EXPECT_TRUE(GetElementById("textarea_id")->IsInCanvasSubtree());
+
+  input.SetSuggestedValue("suggestion");
+  textarea.SetSuggestedValue("suggestion");
+
+  // Elements inside canvas should not show autofill suggestions, as this can
+  // leak the information to javascript.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+  EXPECT_TRUE(textarea.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest, TextControlPreviewDisabledWhenMovingToSlot) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id=slotHost>
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <slot name="slot1"></slot>
+        </canvas>
+      </template>
+    </div>
+    <form id="slotted" slot="slot1">
+      <input id="input_id">
+      <textarea id="textarea_id"></textarea>
+    </form>
+  )");
+
+  Element* input_elmt = GetElementById("input_id");
+  Element* textarea_elmt = GetElementById("textarea_id");
+
+  WebFormControlElement input(DynamicTo<HTMLFormControlElement>(input_elmt));
+  WebFormControlElement textarea(
+      DynamicTo<HTMLFormControlElement>(textarea_elmt));
+
+  EXPECT_FALSE(input_elmt->IsInCanvasSubtree());
+  EXPECT_FALSE(textarea_elmt->IsInCanvasSubtree());
+
+  input.SetSuggestedValue("suggestion");
+  textarea.SetSuggestedValue("suggestion");
+
+  // Suggestions should work outside canvas.
+  EXPECT_EQ(input.SuggestedValue().Ascii(), "suggestion");
+  EXPECT_EQ(textarea.SuggestedValue().Ascii(), "suggestion");
+
+  Element* host = GetElementById("slotHost");
+  Element* form = GetElementById("slotted");
+
+  host->moveBefore(form, nullptr, ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_TRUE(input_elmt->IsInCanvasSubtree());
+  EXPECT_TRUE(textarea_elmt->IsInCanvasSubtree());
+
+  // Moving the element into a canvas subtree should disable autofill
+  // suggestions, as these can leak the information to javascript.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+  EXPECT_TRUE(textarea.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledInCanvasWhenSlotted) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <div id="slotwrapper">
+            <slot></slot>
+          </div>
+        </canvas>
+      </template>
+      <input id="input_id">
+      <textarea id="textarea_id"></textarea>
+      <select id="select_id">
+        <option value="Bar">Bar</option>
+        <option value="Foo">Foo</option>
+      </select>
+    </div>
+  )");
+
+  WebFormControlElement input(
+      DynamicTo<HTMLFormControlElement>(GetElementById("input_id")));
+  WebFormControlElement textarea(
+      DynamicTo<HTMLFormControlElement>(GetElementById("textarea_id")));
+  WebFormControlElement select(
+      DynamicTo<HTMLFormControlElement>(GetElementById("select_id")));
+
+  EXPECT_TRUE(input.Unwrap<HTMLInputElement>()->IsInCanvasSubtree());
+  input.SetSuggestedValue("suggestion");
+  textarea.SetSuggestedValue("suggestion");
+  select.SetSuggestedValue("Foo");
+
+  // Elements slotted inside a canvas should not show autofill suggestions.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+  EXPECT_TRUE(textarea.SuggestedValue().IsEmpty());
+  EXPECT_TRUE(select.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledInCanvasWhenNestedAndSlotted) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <div id="normal_div">
+          <slot name="s1"></slot>
+        </div>
+        <canvas id="canvas" layoutsubtree>
+          <slot name="s2"></slot>
+        </canvas>
+      </template>
+      <div id="wrapper" slot="s1">
+        <input id="input_id">
+        <textarea id="textarea_id"></textarea>
+      </div>
+    </div>
+  )");
+
+  WebFormControlElement input(
+      DynamicTo<HTMLFormControlElement>(GetElementById("input_id")));
+  WebFormControlElement textarea(
+      DynamicTo<HTMLFormControlElement>(GetElementById("textarea_id")));
+
+  input.SetSuggestedValue("suggestion");
+  textarea.SetSuggestedValue("suggestion");
+  EXPECT_EQ(input.SuggestedValue().Ascii(), "suggestion");
+  EXPECT_EQ(textarea.SuggestedValue().Ascii(), "suggestion");
+
+  // Now dynamically change the slot to re-slot the wrapper into the canvas.
+  GetElementById("wrapper")->setAttribute(html_names::kSlotAttr,
+                                          AtomicString("s2"));
+
+  // Force slot assignment recalc and style update.
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  // Nested elements slotted inside a canvas should have their suggestions
+  // cleared.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+  EXPECT_TRUE(textarea.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenSlottedInsideIframeUnderCanvas) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  frame_test_helpers::WebViewHelper web_view_helper;
+  web_view_helper.Initialize();
+
+  Document* top_doc =
+      web_view_helper.LocalMainFrame()->GetFrame()->GetDocument();
+  ASSERT_TRUE(top_doc);
+
+  top_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <div id="slotwrapper">
+            <slot></slot>
+          </div>
+        </canvas>
+      </template>
+      <iframe id="iframe_id"></iframe>
+    </div>
+  )");
+
+  web_view_helper.LocalMainFrame()->FrameWidget()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
+  auto* iframe = DynamicTo<HTMLFrameOwnerElement>(
+      top_doc->getElementById(AtomicString("iframe_id")));
+  ASSERT_TRUE(iframe);
+  Document* inner_doc = iframe->contentDocument();
+  ASSERT_TRUE(inner_doc);
+
+  inner_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <input id="inner_input_id">
+  )");
+
+  WebFormControlElement inner_input(DynamicTo<HTMLFormControlElement>(
+      inner_doc->getElementById(AtomicString("inner_input_id"))));
+
+  inner_input.SetSuggestedValue("suggestion");
+
+  // Elements inside an iframe slotted inside a canvas should have suggestions
+  // suppressed.
+  EXPECT_TRUE(inner_input.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenIframeDynamicallySlottedIntoCanvas) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  frame_test_helpers::WebViewHelper web_view_helper;
+  web_view_helper.Initialize();
+
+  Document* top_doc =
+      web_view_helper.LocalMainFrame()->GetFrame()->GetDocument();
+  ASSERT_TRUE(top_doc);
+
+  // Initial HTML: The iframe is NOT in a canvas.
+  top_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <div id="normal_div">
+          <slot name="s1"></slot>
+        </div>
+        <canvas id="canvas" layoutsubtree>
+          <div id="slotwrapper">
+            <slot name="s2"></slot>
+          </div>
+        </canvas>
+      </template>
+      <iframe id="iframe_id" slot="s1"></iframe>
+    </div>
+  )");
+
+  web_view_helper.LocalMainFrame()->FrameWidget()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
+  auto* iframe = DynamicTo<HTMLFrameOwnerElement>(
+      top_doc->getElementById(AtomicString("iframe_id")));
+  ASSERT_TRUE(iframe);
+  Document* inner_doc = iframe->contentDocument();
+  ASSERT_TRUE(inner_doc);
+
+  inner_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <input id="inner_input_id">
+  )");
+
+  WebFormControlElement inner_input(DynamicTo<HTMLFormControlElement>(
+      inner_doc->getElementById(AtomicString("inner_input_id"))));
+
+  inner_input.SetSuggestedValue("suggestion");
+
+  // Suggested value should be visible since it's not under a canvas subtree
+  // yet.
+  EXPECT_EQ(inner_input.SuggestedValue().Ascii(), "suggestion");
+
+  // Dynamically move the iframe into the canvas subtree via the slot attribute.
+  iframe->setAttribute(html_names::kSlotAttr, AtomicString("s2"));
+
+  // Force style and layout update.
+  web_view_helper.LocalMainFrame()->FrameWidget()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
+  // The suggested value in the inner document should be cleared.
+  EXPECT_TRUE(inner_input.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenFlatTreeTraversalForbiddenInIframe) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  frame_test_helpers::WebViewHelper web_view_helper;
+  web_view_helper.Initialize();
+
+  Document* top_doc =
+      web_view_helper.LocalMainFrame()->GetFrame()->GetDocument();
+  ASSERT_TRUE(top_doc);
+
+  // Initial HTML: The iframe is NOT in a canvas subtree initially.
+  top_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <div id="normal_div">
+          <slot name="s1"></slot>
+        </div>
+        <canvas id="canvas" layoutsubtree>
+          <div id="slotwrapper">
+            <slot name="s2"></slot>
+          </div>
+        </canvas>
+      </template>
+      <iframe id="iframe_id" slot="s1"></iframe>
+    </div>
+  )");
+
+  web_view_helper.LocalMainFrame()->FrameWidget()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
+  auto* iframe = DynamicTo<HTMLFrameOwnerElement>(
+      top_doc->getElementById(AtomicString("iframe_id")));
+  ASSERT_TRUE(iframe);
+  Document* inner_doc = iframe->contentDocument();
+  ASSERT_TRUE(inner_doc);
+
+  inner_doc->body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <input id="inner_input_id">
+  )");
+
+  WebFormControlElement inner_input(DynamicTo<HTMLFormControlElement>(
+      inner_doc->getElementById(AtomicString("inner_input_id"))));
+
+  // Move the iframe to the canvas slot dynamically.
+  iframe->setAttribute(html_names::kSlotAttr, AtomicString("s2"));
+
+  // Force style and layout update.
+  web_view_helper.LocalMainFrame()->FrameWidget()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
+  // Forbid flat tree traversal in the inner document.
+  inner_doc->FlatTreeTraversalForbiddenRecursionDepth()++;
+
+  // The dynamic check IsInCanvasSubtree() should correctly return true,
+  // crossing the local owner boundary to the iframe even when traversal is
+  // forbidden.
+  EXPECT_TRUE(inner_input.Unwrap<HTMLInputElement>()->IsInCanvasSubtree());
+
+  // Clean up forbidden scope.
+  inner_doc->FlatTreeTraversalForbiddenRecursionDepth()--;
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenAppendedToAlreadySlottedParent) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host">
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <div id="slotwrapper">
+            <slot></slot>
+          </div>
+        </canvas>
+      </template>
+      <div id="slotted_parent"></div>
+    </div>
+  )");
+
+  GetDocument().GetSlotAssignmentEngine().RecalcSlotAssignments();
+
+  auto* slotted_parent = GetElementById("slotted_parent");
+  ASSERT_TRUE(slotted_parent);
+
+  // Create input element and set suggested value while disconnected.
+  auto* input_el = GetDocument().CreateRawElement(html_names::kInputTag);
+  input_el->setAttribute(html_names::kIdAttr, AtomicString("new_input_id"));
+  WebFormControlElement input(DynamicTo<HTMLFormControlElement>(input_el));
+  input.SetSuggestedValue("suggestion");
+  EXPECT_EQ(input.SuggestedValue().Ascii(), "suggestion");
+
+  // Now dynamically append the input to the already slotted parent.
+  slotted_parent->appendChild(input_el);
+
+  // Suggestions should be immediately cleared.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenChainedSlotDynamicallySlottedIntoCanvas) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="host1">
+      <template shadowrootmode="open">
+        <div id="normal_div">
+          <slot name="s1"></slot>
+        </div>
+        <canvas id="canvas" layoutsubtree>
+          <slot name="s2"></slot>
+        </canvas>
+      </template>
+      <div id="host2" slot="s1">
+        <template shadowrootmode="open">
+          <slot name="s3"></slot>
+        </template>
+        <input id="input_id" slot="s3">
+      </div>
+    </div>
+  )");
+
+  WebFormControlElement input(
+      DynamicTo<HTMLFormControlElement>(GetElementById("input_id")));
+  input.SetSuggestedValue("suggestion");
+
+  // The suggested value should be accepted outside canvas.
+  EXPECT_EQ(input.SuggestedValue().Ascii(), "suggestion");
+
+  // Now dynamically change the slot to re-slot host2 into the canvas.
+  GetElementById("host2")->setAttribute(html_names::kSlotAttr,
+                                        AtomicString("s2"));
+
+  // Force slot assignment recalc and style update.
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  // The input element's suggested value should be cleared.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlPreviewDisabledWhenMovingHostOutOfCanvasSubtree) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div id="outer_host">
+      <template shadowrootmode="open">
+        <div id="outer_normal_div">
+          <slot name="s1"></slot>
+        </div>
+        <canvas id="outer_canvas" layoutsubtree>
+          <slot name="s2"></slot>
+        </canvas>
+      </template>
+      <div id="inner_host" slot="s2">
+        <template shadowrootmode="open">
+          <canvas id="inner_canvas" layoutsubtree>
+            <slot name="s3"></slot>
+          </canvas>
+        </template>
+        <div id="slotted_div" slot="s3">
+          <input id="leaf_input">
+        </div>
+      </div>
+    </div>
+  )");
+
+  WebFormControlElement input(
+      DynamicTo<HTMLFormControlElement>(GetElementById("leaf_input")));
+  GetDocument().UpdateStyleAndLayoutTree();
+  input.SetSuggestedValue("suggestion");
+
+  // The input is inside both an outer and inner canvas, so it should NOT show
+  // suggested values.
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+
+  // Now dynamically move the inner host out of the outer canvas.
+  GetElementById("inner_host")
+      ->setAttribute(html_names::kSlotAttr, AtomicString("s1"));
+
+  // Force slot assignment recalc and style update.
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  // Since the inner host is moved out of the outer canvas, but the inner input
+  // is still slotted inside the inner canvas, the suggested value on the input
+  // element should still be cleared (suppressed).
+  input.SetSuggestedValue("suggestion");
+  EXPECT_TRUE(input.SuggestedValue().IsEmpty());
+}
+
+TEST_F(
+    WebFormControlElementTest,
+    TextControlPreviewDisabledWhenSlottedIntoCanvasAfterStyleEnsuredOutsideFlatTree) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+  ScopedGetComputedStyleOutsideFlatTreeForTest scoped_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div>
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <div id="slotHost">
+            <slot name="slot1"></slot>
+          </div>
+        </canvas>
+      </template>
+      <input id="input" slot="unslotted">
+    </div>
+  )");
+
+  HTMLInputElement* input =
+      DynamicTo<HTMLInputElement>(GetElementById("input"));
+  ASSERT_TRUE(input);
+
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  // Ensure computed style outside the flat tree before assigning to a slot.
+  input->EnsureComputedStyle();
+
+  WebFormControlElement form_control(input);
+  form_control.SetSuggestedValue("suggestion");
+  EXPECT_EQ(input->SuggestedValue().Ascii(), "suggestion");
+
+  // Now slot 'input' into the canvas slot inside the shadow root.
+  input->setAttribute(html_names::kSlotAttr, AtomicString("slot1"));
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  EXPECT_TRUE(input->IsInCanvasSubtree());
+  EXPECT_TRUE(input->IsCanvasOrInCanvasSubtree());
+  EXPECT_TRUE(form_control.SuggestedValue().IsEmpty());
+}
+
+TEST_F(WebFormControlElementTest,
+       TextControlCanvasSubtreeStaleWhenUnslottedFromCanvas) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div>
+      <template shadowrootmode="open">
+        <canvas layoutsubtree>
+          <div id="slotHost">
+            <slot name="slot1"></slot>
+          </div>
+        </canvas>
+      </template>
+      <input id="input" slot="slot1">
+    </div>
+  )");
+
+  HTMLInputElement* input =
+      DynamicTo<HTMLInputElement>(GetElementById("input"));
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  EXPECT_TRUE(input->IsInCanvasSubtree());
+  EXPECT_TRUE(input->IsCanvasOrInCanvasSubtree());
+
+  // Unslot the input element so it is removed from the flat tree.
+  input->setAttribute(html_names::kSlotAttr, AtomicString("nonexistent"));
+  GetDocument().UpdateStyleAndLayoutTree();
+
+  EXPECT_FALSE(input->IsInCanvasSubtree());
+  // When removed from the flat tree (RemovedFromFlatTree), its canvas subtree
+  // state should be updated so IsCanvasOrInCanvasSubtree() is false.
+  EXPECT_FALSE(input->IsCanvasOrInCanvasSubtree());
 }
 
 class WebFormControlElementSetAutofillValueTest
@@ -592,6 +1130,126 @@ TEST_F(WebFormControlElementTest, FormControlTypeForAutofill) {
   EXPECT_EQ(control.FormControlTypeForAutofill(), kInputRadio);
   input->MaybeSetHasBeenPasswordField();
   EXPECT_EQ(control.FormControlTypeForAutofill(), kInputRadio);
+}
+
+class WebFormElementIntersectionObserverTest : public PageTestBase {
+ public:
+  WebFormElementIntersectionObserverTest()
+      : PageTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+
+ protected:
+  void SetUp() override { PageTestBase::SetUp(gfx::Size(400, 300)); }
+
+  static constexpr base::TimeDelta kMinimumVisibleDuration =
+      base::Milliseconds(800);
+};
+
+// Tests that WebFormElementIntersectionObserver returns true for a visible,
+// intersecting element.
+TEST_F(WebFormElementIntersectionObserverTest, VisibleElement) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <input id="t1" style="width: 10px; height: 10px;">
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  WebFormControlElement element(
+      DynamicTo<HTMLFormControlElement>(GetElementById("t1")));
+  ASSERT_TRUE(element);
+
+  base::MockOnceClosure mock_callback;
+  EXPECT_CALL(mock_callback, Run());
+
+  base::ScopedClosureRunner runner =
+      element.MonitorVisibility(kMinimumVisibleDuration, mock_callback.Get());
+
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardBy(kMinimumVisibleDuration);
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardUntilNoTasksRemain();
+}
+
+// Tests that WebFormElementIntersectionObserver does not trigger the callback
+// if intersecting element is invisible (e.g., due to opacity).
+TEST_F(WebFormElementIntersectionObserverTest, InvisibleElement) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <input id="t1" style="width: 10px; height: 10px; opacity: 0;">
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  WebFormControlElement element(
+      DynamicTo<HTMLFormControlElement>(GetElementById("t1")));
+  ASSERT_TRUE(element);
+
+  bool callback_called = false;
+  base::ScopedClosureRunner runner = element.MonitorVisibility(
+      kMinimumVisibleDuration,
+      base::BindOnce([](bool* called) { *called = true; }, &callback_called));
+
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardBy(kMinimumVisibleDuration);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(callback_called);
+  FastForwardUntilNoTasksRemain();
+}
+
+// Tests that WebFormElementIntersectionObserver does not trigger the callback
+// if the element has not intersected the viewport.
+TEST_F(WebFormElementIntersectionObserverTest, OffscreenElement) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div style="height: 2000px;"></div>
+    <input id="t1" style="width: 10px; height: 10px;">
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  WebFormControlElement element(
+      DynamicTo<HTMLFormControlElement>(GetElementById("t1")));
+  ASSERT_TRUE(element);
+
+  bool callback_called = false;
+  base::ScopedClosureRunner runner = element.MonitorVisibility(
+      kMinimumVisibleDuration,
+      base::BindOnce([](bool* called) { *called = true; }, &callback_called));
+
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardBy(kMinimumVisibleDuration);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(callback_called);
+  FastForwardUntilNoTasksRemain();
+}
+
+// Tests that an offscreen element does not trigger the callback initially,
+// but does trigger it with true once it is scrolled into view.
+TEST_F(WebFormElementIntersectionObserverTest, ScrollIntoView) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"(
+    <div style="height: 2000px;"></div>
+    <input id="t1" style="width: 10px; height: 10px;">
+  )");
+  UpdateAllLifecyclePhasesForTest();
+
+  WebFormControlElement element(
+      DynamicTo<HTMLFormControlElement>(GetElementById("t1")));
+  ASSERT_TRUE(element);
+
+  bool callback_called = false;
+  base::ScopedClosureRunner runner = element.MonitorVisibility(
+      kMinimumVisibleDuration,
+      base::BindOnce([](bool* called) { *called = true; }, &callback_called));
+
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardBy(base::Milliseconds(100));
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(callback_called);
+
+  // Scroll into view.
+  GetDocument().View()->LayoutViewport()->SetScrollOffset(
+      ScrollOffset(0, 2000), mojom::blink::ScrollType::kProgrammatic,
+      cc::ScrollSourceType::kNone);
+
+  UpdateAllLifecyclePhasesForTest();
+  FastForwardBy(kMinimumVisibleDuration);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(callback_called);
+  FastForwardUntilNoTasksRemain();
 }
 
 }  // namespace blink

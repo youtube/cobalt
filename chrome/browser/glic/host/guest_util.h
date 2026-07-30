@@ -16,9 +16,18 @@ class BrowserContext;
 class RenderFrameHost;
 class RenderProcessHost;
 class WebContents;
+class ClipboardEndpoint;
 }  // namespace content
 
+namespace ui {
+struct ClipboardMetadata;
+}  // namespace ui
+
 class Profile;
+
+namespace tabs {
+class TabInterface;
+}
 
 namespace glic {
 
@@ -43,6 +52,9 @@ GURL MaybeAddMultiInstanceParameter(const GURL& guest_url);
 
 // Returns true if `web_contents` contains the Glic WebUI application.
 bool IsGlicWebUI(const content::WebContents* web_contents);
+
+// Returns true if `tab` is owned by Glic.
+bool IsGlicOwnedTab(tabs::TabInterface* tab);
 
 // Returns true if `web_contents` is the Glic guest WebContents.
 bool IsGlicGuest(content::WebContents* web_contents);
@@ -79,6 +91,29 @@ mojom::Platform GetGlicPlatform();
 // page handler.
 void PopulateGlobalClientInitialState(mojom::WebClientInitialState* state,
                                       Profile* profile);
+
+#if !BUILDFLAG(IS_ANDROID)
+
+// Called before the OS clipboard writes the sequence number. Checks and stashes
+// the eligibility for the upcoming copy event.
+void OnBeforeClipboardCopy(const content::ClipboardEndpoint& source);
+
+// Applies the pending copy eligibility to the given sequence number.
+// This is used in browser tests where we don't actually trigger an OS clipboard
+// write, so the ClipboardObserver never fires naturally.
+void SetClipboardEligibilitySeqnoForTesting(
+    ui::ClipboardSequenceNumberToken seqno);
+
+// Returns true if pasting data into Glic is allowed by policy (based on the
+// source tab's page context eligibility).
+bool IsClipboardPasteAllowed(const content::ClipboardEndpoint& source,
+                             const content::ClipboardEndpoint& destination,
+                             const ui::ClipboardMetadata& metadata);
+
+// Logs the format of the clipboard data being pasted into Glic.
+void LogPasteAttempt(const content::ClipboardEndpoint& source,
+                     const ui::ClipboardMetadata& metadata);
+#endif
 }  // namespace glic
 
 #endif  // CHROME_BROWSER_GLIC_HOST_GUEST_UTIL_H_

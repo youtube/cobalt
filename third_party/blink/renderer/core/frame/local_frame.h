@@ -120,8 +120,8 @@ class SharedURLLoaderFactory;
 namespace blink {
 
 class AdTracker;
+class ScriptInitiationMonitor;
 class AssociatedInterfaceProvider;
-class AttributionSrcLoader;
 class AuditsIssue;
 class BackgroundColorPaintImageGenerator;
 class BoxShadowPaintImageGenerator;
@@ -541,11 +541,10 @@ class CORE_EXPORT LocalFrame final
   }
   IdlenessDetector* GetIdlenessDetector() { return idleness_detector_.Get(); }
   AdTracker* GetAdTracker() { return ad_tracker_.Get(); }
+  ScriptInitiationMonitor* GetScriptInitiationMonitor() const;
+  ScriptInitiationMonitor* GetOrCreateScriptInitiationMonitor();
   void SetAdTrackerForTesting(AdTracker* ad_tracker);
   LCPScriptObserver* GetScriptObserver() { return script_observer_.Get(); }
-  AttributionSrcLoader* GetAttributionSrcLoader() {
-    return attribution_src_loader_.Get();
-  }
 
   enum class LazyLoadImageSetting { kDisabled, kEnabledExplicit };
   // Returns the enabled state of lazyloading of images.
@@ -1118,9 +1117,9 @@ class CORE_EXPORT LocalFrame final
   Member<PerformanceMonitor> performance_monitor_;
 
   Member<AdTracker> ad_tracker_;
+  Member<ScriptInitiationMonitor> script_initiation_monitor_;
   Member<IdlenessDetector> idleness_detector_;
   base::OnceClosureList network_idle_callbacks_;
-  Member<AttributionSrcLoader> attribution_src_loader_;
   Member<InspectorIssueReporter> inspector_issue_reporter_;
   Member<InspectorTraceEvents> inspector_trace_events_;
   // Access content_capture_manager_ through GetOrResetContentCaptureManager()

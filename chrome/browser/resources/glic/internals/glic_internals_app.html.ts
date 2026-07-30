@@ -212,6 +212,11 @@ export function getHtml(this: GlicInternalsAppElement) {
           <input id="invokePromptInput" .value="${this.invokePrompt_}"
               @input="${this.onInvokePromptInput_}">
           </input>
+          <label for="invokeTimeoutInput">Timeout Override (ms)</label>
+          <input id="invokeTimeoutInput" type="number"
+              .value="${this.invokeTimeoutMs_}"
+              @input="${this.onInvokeTimeoutMsInput_}">
+          </input>
           <div style="display: flex; gap: 16px; align-items: center;">
             <label style="flex: 1;">
               <input type="checkbox" .checked="${this.invokeAutoSubmit_}"
@@ -223,6 +228,11 @@ export function getHtml(this: GlicInternalsAppElement) {
                   @change="${this.onInvokeWaitForPanelOpenChange_}">
               Wait for Panel Open
             </label>
+            <label style="flex: 1;">
+              <input type="checkbox" .checked="${this.invokeFocusOnShow_}"
+                  @change="${this.onInvokeFocusOnShowChange_}">
+              Focus Panel on Show
+            </label>
           </div>
           <div style="display: flex; gap: 16px; align-items: center;">
             ${this.invokeAutoSubmit_ ? html`
@@ -231,12 +241,7 @@ export function getHtml(this: GlicInternalsAppElement) {
                     @change="${this.onInvokeShowPanelChange_}">
                 Show Panel
               </label>
-            ` : html`<div style="flex: 1;"></div>`}
-            <label style="flex: 1;">
-              <input type="checkbox" .checked="${this.invokeNewConversation_}"
-                  @change="${this.onInvokeNewConversationChange_}">
-              New Conversation
-            </label>
+            ` : html``}
           </div>
           <label for="invokeInvocationSourceSelect">Invocation Source</label>
           <select id="invokeInvocationSourceSelect"
@@ -323,10 +328,23 @@ export function getHtml(this: GlicInternalsAppElement) {
                 .value="${this.invokeSurfaceType_}"
                 @change="${this.onInvokeSurfaceTypeChange_}">
               <option value="default">Default</option>
+              <option value="specificTab">Specific Tab</option>
               <option value="newTab">New Tab</option>
             </select>
             ${this.invokeSurfaceType_ === 'default' ? html`
               <span style="color: gray;">(Uses this window)</span>
+            ` : html``}
+            ${this.invokeSurfaceType_ === 'specificTab' ? html`
+              <select id="invokeSpecificTabIndexSelect"
+                  .value="${this.invokeSpecificTabIndex_.toString()}"
+                  @change="${this.onInvokeSpecificTabIndexChange_}">
+                ${this.availableTabs_.map((tabTitle, index) => html`
+                  <option value="${index}">${index}: ${tabTitle}</option>
+                `)}
+              </select>
+              <cr-button @click="${this.onRefreshTabsClick_}">
+                Refresh
+              </cr-button>
             ` : html``}
             ${this.invokeSurfaceType_ === 'newTab' ? html`
               <label style="display: flex; align-items: center; gap: 4px;">
@@ -335,6 +353,28 @@ export function getHtml(this: GlicInternalsAppElement) {
                     @change="${this.onInvokeOpenInForegroundChange}">
                 Open in Foreground
               </label>
+            ` : html``}
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;
+                      margin-top: 8px;">
+            <label for="invokeConversationTypeSelect">
+              Target Conversation
+            </label>
+            <select id="invokeConversationTypeSelect"
+                .value="${this.invokeConversationType_}"
+                @change="${this.onInvokeConversationTypeChange_}">
+              <option value="default">Default</option>
+              <option value="new">New Conversation</option>
+              <option value="conversationId">Specific Conversation ID</option>
+            </select>
+            ${this.invokeConversationType_ === 'conversationId' ? html`
+              <label for="invokeConversationIdInput"
+                     style="margin-left: 8px;">ID:</label>
+              <input id="invokeConversationIdInput"
+                  .value="${this.invokeConversationId_}"
+                  @input="${this.onInvokeConversationIdInput_}">
+              </input>
             ` : html``}
           </div>
 

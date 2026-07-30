@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">I-save ang Mga Password</translation>
 <translation id="1764070164487214210">Mga Direksyon</translation>
 <translation id="1764511703783285459">Hindi nag-share ng anumang password o passkey ang ibang password manager</translation>
+<translation id="1765555082983153259">Gustong i-access ng “Chrome” ang iyong mikropono</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">Menu na Mga Tool</translation>
 <translation id="1772468122139624049">Hindi ma-reload ang mga tab</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">I-smart sort ang menu bar</translation>
 <translation id="1883255238294161206">Tiklupin ang listahan</translation>
+<translation id="1883898928879467646">Inalis ang tab</translation>
 <translation id="1888854257756214946">Pumili ng password…</translation>
 <translation id="1890237935065108104">Hindi available ang setting na ito.</translation>
 <translation id="1894023287452300670">Subaybayan ang presyo rito</translation>
@@ -1620,6 +1622,7 @@ Dapat ding naka-enable ang handoff sa Pangkalahatang seksyon ng Mga Setting, at 
 <translation id="6406506848690869874">Pag-sync</translation>
 <translation id="6410390304316730527">Pinoprotektahan ka ng Ligtas na Pag-browse laban sa mga attacker na posibleng manlinlang sa iyong gumawa ng anumang mapanganib na bagay tulad ng pag-install ng nakakapinsalang software o paghahayag ng personal na impormasyon tulad ng mga password, numero ng telepono, o credit card. Kung io-off mo ito, maging maingat kapag nagba-browse sa mga hindi pamilyar o hindi mapagkakatiwalaang site.</translation>
 <translation id="6410883413783534063">Magbukas ng mga tab para mabisita ang iba't ibang page nang sabay-sabay</translation>
+<translation id="6412195388778525440">Alisin ang tab</translation>
 <translation id="6418346271604475326">Ihinahanda ang PDF</translation>
 <translation id="6420292512900923139">Nagkaproblema sa pag-import ng iyong data</translation>
 <translation id="6421038304268477484">Na-translate na text</translation>
@@ -2320,7 +2323,6 @@ Para magpatuloy mula sa iyong computer, lumipat sa <ph name="OTHER_EMAIL" />. Ma
 <translation id="8692689525339542358">Makakuha ng proteksyon laban sa mga mapanganib na site, download, at extension.</translation>
 <translation id="8692897097252418799">Piliin ang data na gusto mong i-export</translation>
 <translation id="8694281486652655615">Ipapakita ang item na ito</translation>
-<translation id="8696297579102085705">Ipadala sa iyong device</translation>
 <translation id="8697136149718343437">Ilipat ang address bar sa ibaba</translation>
 <translation id="869891660844655955">Expiration date</translation>
 <translation id="8706253136355675497">Temperatura</translation>
@@ -2464,6 +2466,7 @@ Para magpatuloy mula sa iyong computer, lumipat sa <ph name="OTHER_EMAIL" />. Ma
 <translation id="9149866541089851383">I-edit...</translation>
 <translation id="9152637745605628097">Pumili mula sa mga tema, kulay, o mag-upload ng larawan</translation>
 <translation id="9159628751968616911">Ipadala ang webpage</translation>
+<translation id="9162412286847966593">Hindi gagamitin ang data at mga recording ng iyong organisasyon para pahusayin ang mga generative AI model. <ph name="BEGIN_LINK" />Ang Iyong Privacy at Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">I-on ang I-autofill ang Mga Password</translation>
 <translation id="9165320910061267720">Para makatanggap ng mga notification tungkol sa mga alerto sa pagbaba ng presyo, kakailanganin mong i-on ang mga notification sa mga setting ng iyong iOS.</translation>
 <translation id="9179151630575358778">Iha-hide ang item na ito</translation>

@@ -31,10 +31,10 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/queue.h"
+#include "base/containers/span.h"
 #include "base/i18n/internal/icu_bridge.rs.h"
 #include "base/i18n/language_tag.h"
 #include "base/i18n/tag_converters.h"
-#include "base/i18n/tags.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -249,14 +249,22 @@ LanguageTagMatcher LanguageTagMatcher::Create(
                             std::move(fallbacker));
 }
 
+bool LanguageTagMatcher::HasExactMatch(
+    const LanguageTag& preferred_locale) const {
+  auto it = closest_supported_tag_.find(preferred_locale);
+  if (it == closest_supported_tag_.end()) {
+    return false;
+  }
+  return it->second == preferred_locale;
+}
+
 std::optional<LanguageTag> LanguageTagMatcher::Match(
     const LanguageTag& preferred_locale) const {
-  // Step 1: Check if the preferred locale is supported.
+  // Step 1: Check if the preferred locale is linked to a supported node.
   auto it = closest_supported_tag_.find(preferred_locale);
   if (it != closest_supported_tag_.end()) {
     return it->second;
   }
-
   // Step 2: Traverse the fallback chain to look for a supported locale. The
   // first supported locale found is returned.
   for (const LanguageTag& fallback :
@@ -281,5 +289,33 @@ LanguageTagMatcher& LanguageTagMatcher::operator=(
     LanguageTagMatcher&&) noexcept = default;
 
 LanguageTagMatcher::~LanguageTagMatcher() = default;
+
+LanguageTagMatcherWithDefault::LanguageTagMatcherWithDefault(
+    LanguageTag default_tag,
+    LanguageTagMatcher matcher)
+    : default_tag_(std::move(default_tag)), matcher_(std::move(matcher)) {}
+
+std::optional<LanguageTag> LanguageTagMatcherWithDefault::Match(
+    const LanguageTag& preferred_tag) const {
+  return matcher_.Match(preferred_tag);
+}
+
+bool LanguageTagMatcherWithDefault::HasExactMatch(
+    const LanguageTag& preferred_tag) const {
+  return matcher_.HasExactMatch(preferred_tag);
+}
+
+LanguageTag LanguageTagMatcherWithDefault::MatchOrDefault(
+    const LanguageTag& preferred_tag) const {
+  return matcher_.Match(preferred_tag).value_or(default_tag_);
+}
+
+// static
+LanguageTagMatcherWithDefault LanguageTagMatcherWithDefault::Create(
+    LanguageTag default_tag,
+    base::span<const LanguageTag> supported_tags) {
+  return LanguageTagMatcherWithDefault(
+      std::move(default_tag), LanguageTagMatcher::Create(supported_tags));
+}
 
 }  // namespace base::i18n

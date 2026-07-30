@@ -293,6 +293,21 @@ static inline void ExecuteInsertAlreadyParsedChildTask(
   DCHECK_EQ(task.operation,
             HTMLConstructionSiteTask::kInsertAlreadyParsedChild);
 
+  // See https://github.com/whatwg/html/pull/12709
+  if (Document* parentDoc = DynamicTo<Document>(task.parent.Get())) {
+    if (parentDoc->documentElement()) {
+      if (task.child->parentNode()) {
+        task.child->parentNode()->ParserRemoveChild(*task.child);
+      }
+      return;
+    }
+  } else if (task.child->ContainsIncludingHostElements(*task.parent)) {
+    if (task.child->parentNode()) {
+      task.child->parentNode()->ParserRemoveChild(*task.child);
+    }
+    return;
+  }
+
   Insert(task);
 }
 
@@ -645,7 +660,7 @@ void HTMLConstructionSite::InsertHTMLBodyStartTagInBody(
   if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
       token->GetAttributeItem(html_names::kCustomelementregistryAttr)) {
     Element* body = open_elements_.BodyElement();
-    body->SetCustomElementRegistry(nullptr);
+    body->SetCustomElementRegistry(CustomElementRegistryAssignment::Wait());
     if (document_) {
       document_->SetScopedCustomElementRegistryUsed();
     }
@@ -1224,7 +1239,7 @@ void HTMLConstructionSite::Reparent(HTMLStackItem* new_parent,
 void HTMLConstructionSite::InsertAlreadyParsedChild(HTMLStackItem* new_parent,
                                                     HTMLStackItem* child) {
   if (new_parent->CausesFosterParenting()) {
-    FosterParent(child->GetNode());
+    FosterParentAlreadyParsedChild(child->GetNode());
     return;
   }
 
@@ -1430,12 +1445,11 @@ Element* HTMLConstructionSite::CreateElement(
       element = definition->CreateElement(document, tag_name,
                                           GetCreateElementFlags());
     } else {
-      // It is possible that we want to set the uncustomized element to null
-      // registry during fragment parsing. Set wait_for_registry flag to true
-      // to control this behavior of explicitly setting null registry.
       element = CustomElement::CreateUncustomizedOrUndefinedElement(
-          document, tag_name, GetCreateElementFlags(), is, registry,
-          /*wait_for_registry=*/!registry);
+          document, tag_name, GetCreateElementFlags(), is,
+          CustomElementRegistryAssignment::ResolveNullableRegistry(
+              registry,
+              CustomElementRegistryAssignment::NullRegistryFallback::kWait));
     }
     // Definition for the created element does not exist here and it cannot be
     // custom, precustomized, or failed.
@@ -1610,6 +1624,15 @@ void HTMLConstructionSite::FosterParent(Node* node) {
   HTMLConstructionSiteTask task(HTMLConstructionSiteTask::kInsert);
   FindFosterSite(task);
   task.child = node;
+  DCHECK(task.parent);
+  QueueTask(task, true);
+}
+
+void HTMLConstructionSite::FosterParentAlreadyParsedChild(Node* child) {
+  HTMLConstructionSiteTask task(
+      HTMLConstructionSiteTask::kInsertAlreadyParsedChild);
+  FindFosterSite(task);
+  task.child = child;
   DCHECK(task.parent);
   QueueTask(task, true);
 }

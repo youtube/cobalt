@@ -134,10 +134,6 @@ BASE_DECLARE_FEATURE(kLensSearchAimM3UseAimEligibility);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSearchReinvocationAffordance);
 
-// Enables overriding the Lens overlay entrypoint label with an alternate
-// string.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlayEntrypointLabelAlt);
 
 // Enables making the text selection context menu option a Lens overlay
 // entrypoint.
@@ -176,10 +172,6 @@ BASE_DECLARE_FEATURE(kLensUpdatedFeedbackEntrypoint);
 // panel and prepares for the removal of the old LensOverlay panel.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSidePanelUnification);
-
-// Enables using the optimization filter for triggering the action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlayOptimizationFilter);
 
 // Enables using the non-blocking privacy notice for the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -290,10 +282,6 @@ extern const base::FeatureParam<bool> kLensOverlayEnableOpenInNewTab;
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic;
 
-// Value representing the string to use to override the Lens overlay entrypoint
-// label.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern const base::FeatureParam<int> kLensOverlayEntrypointLabelAltId;
 
 // Whether the Lens overlay text selection context menu entrypoint should
 // issue contextual queries. If false, contextualization will be suppressed for
@@ -1013,30 +1001,6 @@ bool IsLensSearchProtectedPageEnabled();
 COMPONENT_EXPORT(LENS_FEATURES)
 bool IsLensOverlayEduActionChipEnabled();
 
-// URL allow filters for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduUrlAllowFilters();
-
-// URL block filters for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduUrlBlockFilters();
-
-// URL path match allow filters for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduUrlPathMatchAllowFilters();
-
-// URL path match block filters for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduUrlPathMatchBlockFilters();
-
-// URL force-allowed match patterns for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduUrlForceAllowedMatchPatterns();
-
-// Hashed domain block filters for the EDU action chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern std::string GetLensOverlayEduHashedDomainBlockFilters();
-
 // Whether EDU action chip should be disabled by glic.
 COMPONENT_EXPORT(LENS_FEATURES)
 bool IsLensOverlayEduActionChipDisabledByGlic();
@@ -1101,12 +1065,6 @@ extern bool IsLensUpdatedFeedbackEnabled();
 // The timeout for showing the feedback toast in the Lens side panel.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern int GetLensUpdatedFeedbackToastTimeoutMs();
-
-// Whether to enable using the optimization filter for triggering the action
-// chip.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool IsLensOverlayOptimizationFilterEnabled();
-
 // Flag to control the type of suggestions for Lens Aim.
 // Access this value using: kLensAimSuggestionsType.Get()
 COMPONENT_EXPORT(LENS_FEATURES)

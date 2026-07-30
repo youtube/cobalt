@@ -16,8 +16,8 @@ source_set("android") {
     "side_panel_coordinator_android.h",
     "side_panel_deferred_entry_tracker.cc",
     "side_panel_deferred_entry_tracker.h",
-    "side_panel_tab_list_observer_android.cc",
-    "side_panel_tab_list_observer_android.h",
+    "side_panel_tab_model_observer.cc",
+    "side_panel_tab_model_observer.h",
     "window_scoped_side_panel_registry_bridge.cc",
     "window_scoped_side_panel_registry_bridge.h",
   ]
@@ -83,6 +83,7 @@ source_set("unit_tests") {
     "//base",
     "//chrome/browser/tab_list:test_support",
     "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/android/tab_model:test_support",
     "//chrome/browser/ui/side_panel:side_panel_ui_provider",
     "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/side_panel/test/android:native_unit_test_support_jni",

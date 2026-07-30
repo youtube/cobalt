@@ -14,14 +14,9 @@
 
 namespace extensions {
 
-namespace {
-
-const NativelyConnectableHosts* GetHosts(const Extension& extension) {
-  return static_cast<const NativelyConnectableHosts*>(
-      extension.GetManifestData(manifest_keys::kNativelyConnectable));
-}
-
-}  // namespace
+// static
+const char* NativelyConnectableHosts::kManifestDataKey =
+    manifest_keys::kNativelyConnectable;
 
 NativelyConnectableHosts::NativelyConnectableHosts() = default;
 NativelyConnectableHosts::~NativelyConnectableHosts() = default;
@@ -30,7 +25,7 @@ NativelyConnectableHosts::~NativelyConnectableHosts() = default;
 const std::set<std::string>*
 NativelyConnectableHosts::GetConnectableNativeMessageHosts(
     const Extension& extension) {
-  const auto* hosts = GetHosts(extension);
+  const auto* hosts = extension.GetManifestData<NativelyConnectableHosts>();
   if (!hosts) {
     return nullptr;
   }
@@ -58,8 +53,7 @@ bool NativelyConnectableHandler::Parse(Extension* extension,
     hosts->hosts.insert(host.GetString());
   }
 
-  extension->SetManifestData(manifest_keys::kNativelyConnectable,
-                             std::move(hosts));
+  extension->SetManifestData(std::move(hosts));
   return true;
 }
 

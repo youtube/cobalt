@@ -371,13 +371,13 @@ void ProfileManagementDisclaimerService::MaybeShowDeviceSignalsDisclaimerDialog(
                   GetPrimaryAccountInfo(),
                   base::BindOnce(&ProfileManagementDisclaimerService::
                                      HandleDeviceSignalsDisclaimerChoice,
-                                 weak_ptr_factory_.GetWeakPtr())));
+                                 weak_ptr_factory_.GetWeakPtr()),
+                  /*is_modal_dialog=*/true));
   opened_device_signals_disclaimers_.push_back(browser->GetWeakPtr());
 }
 
 void ProfileManagementDisclaimerService::HandleDeviceSignalsDisclaimerChoice(
     signin::DeviceSignalsDisclaimerResult result) {
-  // TODO(b/512836948): Prevent the dialog being dismissable by clicking Escape.
   switch (result) {
     case signin::DeviceSignalsDisclaimerResult::kAccepted:
       // Close the dialog on all windows it was open and mark the permission as

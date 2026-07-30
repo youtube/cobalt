@@ -73,8 +73,6 @@ bool IsRestrictedExtension(const extensions::Extension* extension,
   if (extensions::Manifest::IsPolicyLocation(extension->location())) {
     return true;
   }
-  // We also disallow inspecting component extensions, but only for managed
-  // profiles.
   if (extensions::Manifest::IsComponentLocation(extension->location()) &&
       profile->GetProfilePolicyConnector()->IsManaged()) {
     return true;
@@ -166,37 +164,14 @@ bool IsInspectionAllowed(Profile* profile, content::WebContents* web_contents) {
   // Exhaustively check every frame to prevent subframe bypasses
   // and identify restricted extensions even on error pages.
   bool is_blocked = false;
-  if (content::RenderFrameHost* main_frame =
-          web_contents->GetPrimaryMainFrame()) {
-    main_frame->ForEachRenderFrameHostWithAction(
-        [&](content::RenderFrameHost* frame) {
-          if (frame->GetLastCommittedURL().is_empty() ||
-              frame->GetLastCommittedURL().SchemeIs(url::kAboutScheme)) {
-            return content::RenderFrameHost::FrameIterationAction::kContinue;
-          }
-          if (!IsInspectionAllowed(profile, frame->GetLastCommittedURL())) {
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-            // If the disallowed URL is the PDF viewer, and it's not the primary
-            // main frame of this WebContents (i.e. it is embedded), we don't
-            // block the whole page. The PDF viewer is implemented as a
-            // component extension. Blocking inspection of the embedding page
-            // would render DevTools unusable for normal pages just because they
-            // embed a PDF. Standalone PDF viewer pages (where it is the main
-            // frame) will still be blocked if policy dictates.
-            if (frame->GetLastCommittedURL().SchemeIs(
-                    extensions::kExtensionScheme) &&
-                frame->GetLastCommittedURL().host() ==
-                    extension_misc::kPdfExtensionId &&
-                frame != main_frame) {
-              return content::RenderFrameHost::FrameIterationAction::kContinue;
-            }
-#endif
-            is_blocked = true;
-            return content::RenderFrameHost::FrameIterationAction::kStop;
-          }
-          return content::RenderFrameHost::FrameIterationAction::kContinue;
-        });
-  }
+  web_contents->ForEachRenderFrameHostWithAction(
+      [&](content::RenderFrameHost* frame) {
+        if (!IsInspectionAllowed(profile, frame->GetLastCommittedURL())) {
+          is_blocked = true;
+          return content::RenderFrameHost::FrameIterationAction::kStop;
+        }
+        return content::RenderFrameHost::FrameIterationAction::kContinue;
+      });
 
   if (is_blocked) {
     return false;
@@ -358,10 +333,13 @@ bool IsInspectionAllowed(Profile* profile, const GURL& url) {
           kDisallowed:
         return false;
       case policy::DeveloperToolsPolicyChecker::DevToolsAvailability::kNotSet:
+        // The URL is not covered by the URL-based policies, so we fall back to
+        // the general enum-based policy.
         break;
     }
   }
-
+  // If the URL-based policy doesn't have a rule for this URL, we fall back to
+  // the general enum-based policy.
   using Availability = policy::DeveloperToolsAvailability;
   Availability availability = GetDevToolsAvailability(profile);
   switch (availability) {

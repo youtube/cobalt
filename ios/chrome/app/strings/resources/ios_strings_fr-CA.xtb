@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Enr. mots passe</translation>
 <translation id="1764070164487214210">Itinéraire</translation>
 <translation id="1764511703783285459">L'autre gestionnaire de mots de passe n'a partagé aucun mot de passe ni aucune clé d'accès</translation>
+<translation id="1765555082983153259">« Chrome » souhaite accéder à votre microphone</translation>
 <translation id="1767766085187034454">Google Traduction</translation>
 <translation id="1771016937398045251">Menu Outils</translation>
 <translation id="1772468122139624049">Impossible d'actualiser les onglets</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Barre de menu du tri intelligent</translation>
 <translation id="1883255238294161206">Réduire la liste</translation>
+<translation id="1883898928879467646">Onglet retiré</translation>
 <translation id="1888854257756214946">Sélectionner un mot de passe…</translation>
 <translation id="1890237935065108104">Ce paramètre n'est pas accessible.</translation>
 <translation id="1894023287452300670">Suivez le prix ici</translation>
@@ -1620,6 +1622,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6406506848690869874">Synchronisation</translation>
 <translation id="6410390304316730527">La navigation sécurisée vous protège contre les pirates qui pourraient vous inciter à faire quelque chose de dangereux comme installer un logiciel malveillant ou révéler vos renseignements personnels (par exemple, des mots de passe, des numéros de téléphone ou des numéros de carte de crédit). Si vous la désactivez, faites attention lorsque vous naviguez sur des sites inconnus ou de mauvaise réputation.</translation>
 <translation id="6410883413783534063">Ouvrez des onglets pour visiter différentes pages en même temps</translation>
+<translation id="6412195388778525440">Retirer l'onglet</translation>
 <translation id="6418346271604475326">Prép. du PDF</translation>
 <translation id="6420292512900923139">Problème lors de l'importation de vos données</translation>
 <translation id="6421038304268477484">Texte traduit</translation>
@@ -2320,7 +2323,6 @@ Pour continuer à partir de votre ordinateur, passez à <ph name="OTHER_EMAIL" /
 <translation id="8692689525339542358">Protégez-vous contre les sites dangereux, les téléchargements et les extensions.</translation>
 <translation id="8692897097252418799">Choisissez les données que vous souhaitez exporter</translation>
 <translation id="8694281486652655615">Affiche cet élément</translation>
-<translation id="8696297579102085705">Envoyer l'onglet à votre appareil</translation>
 <translation id="8697136149718343437">Déplacer la barre d'adresse vers le bas</translation>
 <translation id="869891660844655955">Date d'expiration</translation>
 <translation id="8706253136355675497">Température</translation>
@@ -2349,7 +2351,7 @@ Pour continuer à partir de votre ordinateur, passez à <ph name="OTHER_EMAIL" /
 <translation id="8766790350274092814">Les mots de passe de <ph name="WEBSITE" /> et <ph name="SECOND_WEBSITE" /> seront supprimés. Vos comptes ne seront pas supprimés.</translation>
 <translation id="8775144690796719618">URL non valide</translation>
 <translation id="8781834595282316166">Nouvel onglet dans le groupe</translation>
-<translation id="8783445328207519872">Crée une FAQ sur ce sujet</translation>
+<translation id="8783445328207519872">Créer une FAQ sur ce sujet</translation>
 <translation id="8784653774976848206">Sélectionner les fichiers</translation>
 <translation id="8786100550345425552">Modifier les autorisations</translation>
 <translation id="878871978861915380">Masquer « Suivi des prix »</translation>
@@ -2463,6 +2465,7 @@ Pour continuer à partir de votre ordinateur, passez à <ph name="OTHER_EMAIL" /
 <translation id="9149866541089851383">Modifier...</translation>
 <translation id="9152637745605628097">Choisissez parmi des thèmes ou des couleurs, ou téléversez une image</translation>
 <translation id="9159628751968616911">Envoyer la page Web</translation>
+<translation id="9162412286847966593">Les données et les enregistrements de votre organisation ne seront pas utilisés pour améliorer les modèles d'IA générative. <ph name="BEGIN_LINK" />Gemini et votre confidentialité<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Activer l'option de remplissage automatique des mots de passe</translation>
 <translation id="9165320910061267720">Pour recevoir des notifications d'alertes relatives à une baisse de prix, vous devez activer les notifications dans vos paramètres iOS.</translation>
 <translation id="9179151630575358778">Masque cet élément</translation>

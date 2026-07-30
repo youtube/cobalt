@@ -370,7 +370,6 @@ class COMPOSITOR_EXPORT Compositor
 #else
   void IssueExternalBeginFrame(
       const viz::BeginFrameArgs& args,
-      bool force,
       base::OnceCallback<void(const viz::BeginFrameAck&)> callback);
 #endif
 
@@ -612,12 +611,10 @@ class COMPOSITOR_EXPORT Compositor
   struct PendingBeginFrameArgs {
     PendingBeginFrameArgs(
         const viz::BeginFrameArgs& args,
-        bool force,
         base::OnceCallback<void(const viz::BeginFrameAck&)> callback);
     ~PendingBeginFrameArgs();
 
     const viz::BeginFrameArgs args;
-    const bool force;
     base::OnceCallback<void(const viz::BeginFrameAck&)> callback;
   };
 #endif
@@ -649,6 +646,8 @@ class COMPOSITOR_EXPORT Compositor
 
   // Current vsync refresh rate per second. Initialized to 60hz as a reasonable
   // value until first begin frame arrives with the real refresh rate.
+  // macOS only: This is the default refresh rate when a display_id is set. It
+  // does not get updated later.
   float refresh_rate_ = 60.f;
 
   // A map from child id to parent id.

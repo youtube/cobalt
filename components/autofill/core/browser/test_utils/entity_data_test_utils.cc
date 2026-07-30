@@ -161,6 +161,13 @@ EntityInstance GetKnownTravelerNumberInstance(
   return GetEntityInstance(std::move(attributes), ToEntityOptions(options));
 }
 
+EntityInstance GetKnownTravelerNumberInstanceWithRandomGuid(
+    KnownTravelerNumberOptions options) {
+  base::Uuid guid = base::Uuid::GenerateRandomV4();
+  options.guid = guid.AsLowercaseString();
+  return GetKnownTravelerNumberInstance(options);
+}
+
 EntityInstance GetRedressNumberEntityInstance(RedressNumberOptions options) {
   using enum AttributeTypeName;
   std::vector<AttributeInstance> attributes;
@@ -310,15 +317,16 @@ EntityInstance GetFlightReservationEntityInstance(
   }
   if (options.departure_airport) {
     attributes.emplace_back(AttributeType(kFlightReservationDepartureAirport));
-    attributes.back().SetInfo(UNKNOWN_TYPE, options.departure_airport,
-                              std::string(options.app_locale),
-                              /*format_string=*/std::nullopt,
-                              VerificationStatus::kNoStatus);
+    attributes.back().SetInfo(
+        FLIGHT_RESERVATION_DEPARTURE_AIRPORT, options.departure_airport,
+        std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
   if (options.arrival_airport) {
     attributes.emplace_back(AttributeType(kFlightReservationArrivalAirport));
     attributes.back().SetInfo(
-        UNKNOWN_TYPE, options.arrival_airport, std::string(options.app_locale),
+        FLIGHT_RESERVATION_ARRIVAL_AIRPORT, options.arrival_airport,
+        std::string(options.app_locale),
         /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
   }
 

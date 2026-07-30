@@ -71,8 +71,7 @@ class PromosManagerCoordinatorTest : public PlatformTest {
     OCMStub([profile_state_ initStage]).andReturn(ProfileInitStage::kFinal);
     OCMStub([profile_state_ profile]).andReturn(profile_.get());
 
-    scene_state_ = [[FakeSceneState alloc] initWithAppState:nil
-                                                    profile:profile_.get()];
+    scene_state_ = [[FakeSceneState alloc] initWithProfile:profile_.get()];
     scene_state_.profileState = profile_state_;
     scene_state_.scene = static_cast<UIWindowScene*>(
         [[[UIApplication sharedApplication] connectedScenes] anyObject]);
@@ -300,6 +299,29 @@ TEST_F(PromosManagerCoordinatorTest,
   [mockCoordinator displayPromoCallback];
 
   EXPECT_OCMOCK_VERIFY(mockCoordinator);
+}
+
+// Tests that confirmationAlertPrimaryAction safely handles when the promo
+// coordinator is stopped (clearing self.provider) during
+// standardPromoPrimaryAction.
+TEST_F(PromosManagerCoordinatorTest,
+       ConfirmationAlertPrimaryActionStopsCoordinator) {
+  CreatePromosManagerCoordinator();
+
+  id provider = OCMProtocolMock(@protocol(StandardPromoViewProvider));
+  coordinator_.provider = provider;
+
+  OCMStub([provider standardPromoPrimaryAction])
+      .andDo(^(NSInvocation* invocation) {
+        [coordinator_ stop];
+        // In production, calling `-stop` clears `_viewProviderPromos`, setting
+        // the weak `provider` property on the coordinator to nil.
+        coordinator_.provider = nil;
+      });
+
+  // Calling confirmationAlertPrimaryAction should not crash or DCHECK when
+  // `stop` clears `coordinator_.provider`.
+  [coordinator_ confirmationAlertPrimaryAction];
 }
 
 // TODO(crbug.com/40241101): Add unit tests for promoWasDisplayed being

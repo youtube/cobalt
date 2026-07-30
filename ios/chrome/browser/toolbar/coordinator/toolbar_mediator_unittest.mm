@@ -146,6 +146,7 @@ class ToolbarMediatorTest : public PlatformTest,
                          prefService:profile_->GetTestingPrefService()
                 fullscreenController:TestFullscreenController::FromBrowser(
                                          browser_.get())
+              fullscreenBrowserAgent:nil
                          topPosition:GetParam()
         defaultBrowserBannerAppAgent:GetParam() ? mock_app_agent_ : nil
                authenticationService:auth_service_
@@ -535,6 +536,7 @@ TEST_P(ToolbarMediatorTest, TestDisplayPromo) {
                        prefService:profile_->GetTestingPrefService()
               fullscreenController:TestFullscreenController::FromBrowser(
                                        browser_.get())
+            fullscreenBrowserAgent:nil
                        topPosition:GetParam()
       defaultBrowserBannerAppAgent:fake_app_agent
              authenticationService:nil
@@ -572,6 +574,7 @@ TEST_P(ToolbarMediatorTest, TestHidePromo) {
                        prefService:profile_->GetTestingPrefService()
               fullscreenController:TestFullscreenController::FromBrowser(
                                        browser_.get())
+            fullscreenBrowserAgent:nil
                        topPosition:GetParam()
       defaultBrowserBannerAppAgent:fake_app_agent
              authenticationService:nil
@@ -674,6 +677,7 @@ TEST_P(ToolbarMediatorTest, TestTabGridMenu_IncognitoDisabled) {
                        prefService:profile_->GetTestingPrefService()
               fullscreenController:TestFullscreenController::FromBrowser(
                                        browser_.get())
+            fullscreenBrowserAgent:nil
                        topPosition:GetParam()
       defaultBrowserBannerAppAgent:nil
              authenticationService:nil
@@ -734,6 +738,7 @@ TEST_P(ToolbarMediatorTest, TestTabGridMenu_IncognitoEnabled) {
                        prefService:profile_->GetTestingPrefService()
               fullscreenController:TestFullscreenController::FromBrowser(
                                        browser_.get())
+            fullscreenBrowserAgent:nil
                        topPosition:GetParam()
       defaultBrowserBannerAppAgent:nil
              authenticationService:nil
@@ -788,6 +793,8 @@ TEST_P(ToolbarMediatorTest, TestAssistantButtonVisible_PageActionMenuEnabled) {
   scoped_feature_list.InitWithFeatures({kPageActionMenu}, {});
 
   SetLocationEligible(true);
+  browser_->GetWebStateList()->InsertWebState(
+      CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
   SignInAndSetCapability(true);
 
   OCMExpect([consumer_ setAssistantButtonVisible:YES enabled:NO]);
@@ -806,6 +813,8 @@ TEST_P(ToolbarMediatorTest, TestAssistantButtonNotVisible_EEACountryGated) {
   TestingApplicationContext::GetGlobal()->GetApplicationLocaleStorage()->Set(
       "en-US");
 
+  browser_->GetWebStateList()->InsertWebState(
+      CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
   SignInAndSetCapability(true);
 
   OCMExpect([consumer_ setAssistantButtonVisible:NO enabled:NO]);
@@ -824,6 +833,8 @@ TEST_P(ToolbarMediatorTest, TestAssistantButtonNotVisible_JapanCountryGated) {
   TestingApplicationContext::GetGlobal()->GetApplicationLocaleStorage()->Set(
       "en-US");
 
+  browser_->GetWebStateList()->InsertWebState(
+      CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
   SignInAndSetCapability(true);
 
   OCMExpect([consumer_ setAssistantButtonVisible:NO enabled:NO]);

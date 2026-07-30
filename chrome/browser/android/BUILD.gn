@@ -50,6 +50,7 @@ source_set("tabs_impl") {
     "//chrome/browser/preloading/new_tab_page_preload",
     "//chrome/browser/sync",
     "//chrome/browser/ui/contextual_search",
+    "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/side_panel/android",
     "//chrome/browser/ui/webui:webui_util",
 
@@ -659,6 +660,7 @@ if (is_android) {
       "//components/location/android:settings",
       "//components/messages/android",
       "//components/messages/android:feature_flags",
+      "//components/metrics/private_metrics",
       "//components/module_installer/android:native",
       "//components/offline_pages/task",
       "//components/omnibox/browser",

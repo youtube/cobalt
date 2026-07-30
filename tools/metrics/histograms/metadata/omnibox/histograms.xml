@@ -2746,7 +2746,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AiModeActivationSource"
-    enum="AiModeActivationSource" expires_after="2026-11-11">
+    enum="AiModeActivationSource" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2785,7 +2785,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentButtonShown"
-    enum="FuseboxAttachmentButtonType" expires_after="2026-11-11">
+    enum="FuseboxAttachmentButtonType" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2798,7 +2798,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentButtonUsed"
-    enum="FuseboxAttachmentButtonType" expires_after="2026-11-11">
+    enum="FuseboxAttachmentButtonType" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2809,7 +2809,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.MobileFusebox.AttachmentButtonUsedInSession{FuseboxAttachmentButtonType}{Entrypoint}"
-    enum="Boolean" expires_after="2026-11-11">
+    enum="Boolean" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2887,7 +2887,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentSizeLimitCheck"
-    enum="FuseboxAttachmentSizeLimitCheck" expires_after="2026-11-11">
+    enum="FuseboxAttachmentSizeLimitCheck" expires_after="2027-01-10">
   <owner>jkoblinsky@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2923,7 +2923,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentsPopupButtonClickedInSession"
-    enum="Boolean" expires_after="2026-11-11">
+    enum="Boolean" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2933,7 +2933,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentsPopupToggled" enum="Boolean"
-    expires_after="2026-11-11">
+    expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2968,7 +2968,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AutocompleteRequestTypeAtAbandon"
-    enum="AutocompleteRequestType" expires_after="2026-11-11">
+    enum="AutocompleteRequestType" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -2978,7 +2978,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AutocompleteRequestTypeAtNavigation"
-    enum="AutocompleteRequestType" expires_after="2026-11-11">
+    enum="AutocompleteRequestType" expires_after="2027-01-10">
   <owner>pnoland@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -3140,7 +3140,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.TabPickerTabsAttached" units="count"
-    expires_after="2026-11-11">
+    expires_after="2027-01-10">
   <owner>ameurhosni@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
@@ -6199,6 +6199,19 @@ Keep consistent with active providers. Doesn't need to include every provider in
     recorded (recorded exactly once per error occurrence).
   </summary>
   <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+</histogram>
+
+<histogram name="VoiceSearch.QuerySubmission.Source"
+    enum="VoiceSearchQuerySource" expires_after="2026-11-20">
+  <owner>wenhuc@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the entrypoint source immediately when the user submits a voice
+    search query (i.e., QUERY_SUBMITTED action). This provides a consolidated
+    view to compare voice query volumes across all 4 Chrome searchbox
+    entrypoints (NTP Realbox Classic, NTP Composebox, Omnibox Composebox, and
+    Nextbox Composebox).
+  </summary>
 </histogram>
 
 </histograms>

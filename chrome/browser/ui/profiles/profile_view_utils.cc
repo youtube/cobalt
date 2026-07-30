@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 
+#include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
@@ -41,6 +42,12 @@
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/text_elider.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#include "chrome/browser/internal/profiles/profile_view_avatar_decoration_specs_branded.h"
+#else
+#include "chrome/browser/ui/profiles/profile_view_avatar_decoration_specs.h"
+#endif
 
 void NavigateToGoogleAccountPage(Profile* profile, const std::string& email) {
   // Create a URL so that the account chooser is shown if the account with
@@ -173,7 +180,7 @@ bool IsOpenLinkOTREnabled(Profile* source_profie, const GURL& url) {
   return incognito_avail != policy::IncognitoModeAvailability::kDisabled;
 }
 
-bool IsAiSubscriptionRingEnabled(Profile* profile) {
+bool ShouldShowAvatarGradientRing(Profile* profile) {
   if (!base::FeatureList::IsEnabled(
           switches::kEnableAiSubscriptionAvatarRing)) {
     return false;
@@ -190,20 +197,16 @@ bool IsAiSubscriptionRingEnabled(Profile* profile) {
          subscription_service->GetAiSubscriptionTier() > 0;
 }
 
-gfx::ImageSkia AddAiRingToAvatar(const ui::ImageModel& avatar_image,
-                                 const ui::ColorProvider& color_provider,
-                                 int avatar_size,
-                                 int gap_width,
-                                 int ring_thickness) {
-  // Gradient stops corresponding to SVG:
-  // 1) 0 to 85%: Solid start_color
-  // 2) 85% to 99.6%: Linear transition between start and end color.
-  // 3) 99.6% to 100%: Solid end_color.
-  constexpr float kPositions[] = {0.0f, 0.85f, 0.995943f, 1.0f};
-
-  return profiles::AddAiRingToAvatar(
+gfx::ImageSkia AddLinearGradientRingToAvatar(
+    const ui::ImageModel& avatar_image,
+    const ui::ColorProvider& color_provider,
+    int avatar_size,
+    int gap_width,
+    int ring_thickness) {
+  return profiles::AddLinearGradientRingToAvatar(
       avatar_image, color_provider,
-      color_provider.GetColor(kColorAiSubscriptionRingGradientStart),
-      color_provider.GetColor(kColorAiSubscriptionRingGradientEnd), kPositions,
-      avatar_size, gap_width, ring_thickness);
+      color_provider.GetColor(kAvatarRingGradientStartColorId),
+      color_provider.GetColor(kAvatarRingGradientEndColorId),
+      kAvatarRingGradientPositions, kAvatarRingGradientP1Normalized,
+      kAvatarRingGradientP2Normalized, avatar_size, gap_width, ring_thickness);
 }

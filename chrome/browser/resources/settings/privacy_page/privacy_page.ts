@@ -337,6 +337,36 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         `Failed to find associated control for child '${childViewId}'`);
     return control;
   }
+
+  protected getAdsClickIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy20:ads-click' :
+        'privacy20:ads-click-old';
+  }
+
+  protected getSignpostIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy20:signpost' :
+        'privacy20:signpost-old';
+  }
+
+  protected getCookieIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:cookie' :
+        'privacy:cookie-old';
+  }
+
+  protected getLockIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:lock' :
+        'privacy:lock-old';
+  }
+
+  protected getPageInfoIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:page-info' :
+        'privacy:page-info-old';
+  }
 }
 
 declare global {

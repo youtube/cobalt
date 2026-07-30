@@ -48,13 +48,11 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
   // All arguments may be nullptr and need only outlive this call.
   //
   // If `parent` is not nullptr, its policies are copied.
-  // The passed `initiator_policies` is stored.
   // If `history_entry` is not nullptr and contains policies, those are copied.
   //
   // This must only be called on the browser's UI thread.
   NavigationPolicyContainerBuilder(
       RenderFrameHostImpl* parent,
-      std::unique_ptr<PolicyContainerPolicies> initiator_policies,
       const FrameNavigationEntry* history_entry);
 
   ~NavigationPolicyContainerBuilder();
@@ -72,10 +70,6 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
   // construction time. Returns nullptr if there was no parent.
   const PolicyContainerPolicies* ParentPolicies() const;
 
-  // Returns a pointer to a snapshot of the navigation initiator's policies
-  // captured at construction time. Returns nullptr if there was no initiator.
-  const PolicyContainerPolicies* InitiatorPolicies() const;
-
   // Returns a pointer to a snapshot of the navigation history entry's policies
   // captured at construction time. Returns nullptr if there was no entry, of
   // if the entry had no policies.
@@ -88,7 +82,13 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
 
   // Sets the cross origin opener policy of the new document.
   //
-  // This must be called before `ComputePolicies()`.
+  // This should be called before `ComputePolicies()` to set the COOP delivered
+  // in the header response. For subframes, it should be called again after the
+  // policies have been computed, to potentially inherit COOP from the top-level
+  // frame if the subframe is same-origin with the top level frame. This
+  // requires knowing the origin of the document to commit, which in turns
+  // requires having computed the sandbox flags, which happens in
+  // `ComputePolicies()`.
   void SetCrossOriginOpenerPolicy(network::CrossOriginOpenerPolicy coop);
 
   // Sets the cross origin embedder policy of the new document.
@@ -164,6 +164,9 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
   // `navigation_handle` should be the handle for the navigation to compute
   // policies for. Its URL should designate the URL of the document after all
   // redirects have been followed.
+  // `initiator_policies` should be the policies of the initiator of the
+  // navigation, if the navigation has an initiator whose policies can be
+  // inherited.
   // `is_inside_mhtml` specifies whether the navigation loads an MHTML document
   // or a subframe of an MHTML document. This influences computed sandbox flags.
   // `frame_sandbox_flags` represents the frame's sandbox flags.
@@ -181,6 +184,7 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
   // This method must only be called once. `ComputePoliciesForError()` may be
   // called later, in which case it overrides the final policies.
   void ComputePolicies(NavigationHandle* navigation_handle,
+                       const PolicyContainerPolicies* initiator_policies,
                        bool is_inside_mhtml,
                        network::mojom::WebSandboxFlags frame_sandbox_flags,
                        bool is_credentialless,
@@ -266,21 +270,21 @@ class CONTENT_EXPORT NavigationPolicyContainerBuilder {
 
   // Helper for `FinalizePolicies()`. Returns, depending on `url`, the policies
   // that this document inherits from parent/initiator.
-  PolicyContainerPolicies ComputeInheritedPolicies(const GURL& url);
+  PolicyContainerPolicies ComputeInheritedPolicies(
+      const GURL& url,
+      const PolicyContainerPolicies* initiator_policies);
 
   // Helper for `FinalizePolicies()`. Returns, depending on `navigation_handle`,
   // the final policies for the document that is going to be committed.
   PolicyContainerPolicies ComputeFinalPolicies(
       NavigationHandle* navigation_handle,
+      const PolicyContainerPolicies* initiator_policies,
       bool is_inside_mhtml,
       network::mojom::WebSandboxFlags frame_sandbox_flags,
       bool is_credentialless);
 
   // The policies of the parent document, if any.
   const std::unique_ptr<PolicyContainerPolicies> parent_policies_;
-
-  // The policies of the document that initiated the navigation, if any.
-  const std::unique_ptr<PolicyContainerPolicies> initiator_policies_;
 
   // The policies restored from the history navigation entry, if any.
   const std::unique_ptr<PolicyContainerPolicies> history_policies_;

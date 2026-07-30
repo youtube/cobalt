@@ -40,6 +40,7 @@
 #include "chrome/browser/media/webrtc/desktop_media_picker.h"
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/download/public/common/download_features.h"
 #include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -156,6 +157,11 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   feature_overrides.EnableFeature(kAndroidMediaPicker);
   feature_overrides.EnableFeature(features::kUserMediaScreenCapturing);
 
+  // Enable open download in new tab.
+  // TODO(crbug.com/531944280): Remove when rollout is complete to all form
+  // factors.
+  feature_overrides.EnableFeature(download::features::kOpenDownloadInNewTab);
+
   // Enable background media capturing on desktop devices.
   // TODO(crbug.com/426461170): Remove once we enable this feature for all form
   // factors. Currently we have no conclusion whether to enable this on mobile
@@ -263,6 +269,10 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // Enable timeout for TextClassifier calls.
   // TODO(crbug.com/504722790): Remove when experiment is complete.
   feature_overrides.EnableFeature(features::kTextClassifierTimeout);
+
+  // Enable graceful tab shutdown.
+  // TODO(crbug.com/532514154): Remove when experiment is complete.
+  feature_overrides.EnableFeature(chrome::android::kTabAndroidGracefulShutdown);
 
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,

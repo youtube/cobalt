@@ -23,6 +23,7 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/strings/grit/components_strings.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -96,15 +97,17 @@ class SendTabToSelfPromoBubbleViewTest : public ChromeViewsTestBase {
   void CreateSignInPromoBubble() {
     auto* bubble = new SendTabToSelfSignInPromoBubbleView(
         views::BubbleAnchor(anchor_widget_->GetContentsView()),
-        web_contents_.get());
+        web_contents_.get(),
+        SendTabToSelfSignInPromoBubbleView::PromoMode::kSignIn);
     bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble);
     bubble_ = bubble;
   }
 
-  void CreateNoTargetDeviceBubble() {
-    auto* bubble = new SendTabToSelfNoTargetDeviceBubbleView(
+  void CreateReauthPromoBubble() {
+    auto* bubble = new SendTabToSelfSignInPromoBubbleView(
         views::BubbleAnchor(anchor_widget_->GetContentsView()),
-        web_contents_.get());
+        web_contents_.get(),
+        SendTabToSelfSignInPromoBubbleView::PromoMode::kReauth);
     bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble);
     bubble_ = bubble;
   }
@@ -204,27 +207,6 @@ TEST_F(SendTabToSelfPromoBubbleViewBasicTest, LoadsBasicDesign) {
   EXPECT_NE(nullptr, FindLabelWithText(l10n_util::GetStringUTF16(
                          IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_LABEL)));
 
-  // Frame view should not have a header view (legacy design has no header).
-  EXPECT_EQ(nullptr, bubble_->GetBubbleFrameView()->GetHeaderViewForTesting());
-}
-
-// Verifies that the "no target devices" layout is loaded when the user is
-// signed in but has no other active devices.
-// This test is independent of the enhanced UI feature flag.
-TEST_F(SendTabToSelfPromoBubbleViewTest, LoadsDeviceActivityDesign) {
-  identity_test_env()->MakePrimaryAccountAvailable(
-      "user@host.com", signin::ConsentLevel::kSignin);
-
-  CreateNoTargetDeviceBubble();
-
-  // Ok button should not be visible.
-  EXPECT_FALSE(bubble_->GetOkButton());
-
-  // Verify label contains the correct "no devices" notice.
-  EXPECT_NE(nullptr, FindLabelWithText(l10n_util::GetStringUTF16(
-                         IDS_SEND_TAB_TO_SELF_NO_TARGET_DEVICE_LABEL)));
-
-  // Frame view should not have a header view.
   EXPECT_EQ(nullptr, bubble_->GetBubbleFrameView()->GetHeaderViewForTesting());
 }
 
@@ -300,6 +282,37 @@ TEST_F(SendTabToSelfPromoBubbleViewEnhancedTest, LoadsAccountAwareDesign) {
 
   // Should have a single child (BubbleSignInPromoView).
   EXPECT_EQ(bubble_->children().size(), 1u);
+}
+
+// Verifies that the verify-it-is-you promo layout is loaded correctly when the
+// user has an account in a persistent auth error state and enhanced UI is
+// enabled.
+TEST_F(SendTabToSelfPromoBubbleViewEnhancedTest,
+       LoadsVerifyItsYouDesignModernized) {
+  AccountInfo account_info = identity_test_env()->MakePrimaryAccountAvailable(
+      "user@host.com", signin::ConsentLevel::kSignin);
+  identity_test_env()->SetInvalidRefreshTokenForPrimaryAccount();
+
+  CreateReauthPromoBubble();
+
+  // Title should match verify title strictly.
+  EXPECT_EQ(bubble_->GetWindowTitle(),
+            l10n_util::GetStringUTF16(
+                IDS_SEND_TAB_TO_SELF_VERIFY_ITS_YOU_PROMO_TITLE));
+
+  // Dialog button should be null.
+  EXPECT_FALSE(bubble_->GetOkButton());
+
+  // Sign in button inside the content view should be visible and use verify
+  // label.
+  auto* sign_in_button = GetSignInButton();
+  ASSERT_TRUE(sign_in_button);
+  EXPECT_EQ(sign_in_button->GetText(),
+            l10n_util::GetStringUTF16(IDS_PROFILES_VERIFY_ACCOUNT_BUTTON));
+
+  // Verify body contains the verify text string.
+  EXPECT_NE(nullptr, FindLabelWithText(l10n_util::GetStringUTF16(
+                         IDS_SEND_TAB_TO_SELF_VERIFY_ITS_YOU_PROMO_LABEL)));
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

@@ -44,6 +44,7 @@
 #include "content/browser/site_instance_group.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_constants_internal.h"
+#include "content/public/browser/global_dom_node_id.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -65,6 +66,7 @@
 #include "skia/ext/skia_utils_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/dom/dom_node_id.h"
 #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
@@ -2721,11 +2723,13 @@ TEST_F(RenderWidgetHostTest, AddAndRemoveImeInputEventObserver) {
 TEST_F(RenderWidgetHostTest, SetAndCommitExternallySourcedComposition) {
   std::u16string text = u"hello";
   int length = text.length();
+  GlobalDOMNodeId node_id;
+  node_id.target_element_dom_id = blink::DOMNodeIdType(123);
 
   ui::ImeTextSpan ime_text_span;
   ime_text_span.end_offset = length;
   ime_text_span.underline_style = ui::ImeTextSpan::UnderlineStyle::kDot;
-  host_->SetExternallySourcedComposition(text, {ime_text_span});
+  host_->SetExternallySourcedComposition(text, {ime_text_span}, node_id);
 
   {
     MockWidgetInputHandler::MessageVector dispatched_messages =
@@ -2735,12 +2739,12 @@ TEST_F(RenderWidgetHostTest, SetAndCommitExternallySourcedComposition) {
         dispatched_messages[0]->ToIME();
     ASSERT_TRUE(ime_message);
     EXPECT_EQ("SetComposition", ime_message->name());
-    EXPECT_TRUE(ime_message->Matches(text, {ime_text_span},
-                                     gfx::Range::InvalidRange(), length, length,
-                                     blink::mojom::ImeState::kNone));
+    EXPECT_TRUE(ime_message->Matches(
+        text, {ime_text_span}, gfx::Range::InvalidRange(), length, length,
+        blink::mojom::ImeState::kNone, node_id.target_element_dom_id));
   }
 
-  host_->CommitExternallySourcedComposition(text);
+  host_->CommitExternallySourcedComposition(text, node_id);
 
   {
     MockWidgetInputHandler::MessageVector dispatched_messages =
@@ -2750,9 +2754,9 @@ TEST_F(RenderWidgetHostTest, SetAndCommitExternallySourcedComposition) {
         dispatched_messages[0]->ToIME();
     ASSERT_TRUE(ime_message);
     EXPECT_EQ("CommitText", ime_message->name());
-    EXPECT_TRUE(ime_message->Matches(text, std::vector<ui::ImeTextSpan>(),
-                                     gfx::Range::InvalidRange(), 0, 0,
-                                     blink::mojom::ImeState::kNone));
+    EXPECT_TRUE(ime_message->Matches(
+        text, std::vector<ui::ImeTextSpan>(), gfx::Range::InvalidRange(), 0, 0,
+        blink::mojom::ImeState::kNone, node_id.target_element_dom_id));
   }
 }
 
@@ -2848,6 +2852,48 @@ TEST_F(RenderWidgetHostTest, ZoomToFindInPageRectValidBounds) {
       ->ZoomToFindInPageRectInMainFrame(valid_rect);
 }
 
+TEST_F(RenderWidgetHostTest, ZoomToFindInPageRectClippedToViewBounds) {
+  view_->SetBounds(gfx::Rect(0, 0, 200, 200));
+
+  // Rect that overlaps the view bounds but extends well beyond them. The
+  // forwarded rect must be clipped so that no part of it (including its
+  // center) lies outside the sender's view.
+  gfx::Rect overlapping_rect(-1800, -10, 3900, 3900);
+
+  EXPECT_CALL(mock_owner_delegate_,
+              ZoomToFindInPageRect(gfx::Rect(0, 0, 200, 200)))
+      .Times(1);
+
+  static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
+      ->ZoomToFindInPageRectInMainFrame(overlapping_rect);
+}
+
+TEST_F(RenderWidgetHostTest, ZoomToFindInPageRectPartiallyClipped) {
+  view_->SetBounds(gfx::Rect(0, 0, 200, 200));
+
+  // Rect that partially overlaps the view bounds; the forwarded rect should
+  // be the intersection with the view bounds.
+  gfx::Rect partial_rect(150, 150, 100, 100);
+
+  EXPECT_CALL(mock_owner_delegate_,
+              ZoomToFindInPageRect(gfx::Rect(150, 150, 50, 50)))
+      .Times(1);
+
+  static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
+      ->ZoomToFindInPageRectInMainFrame(partial_rect);
+}
+
+TEST_F(RenderWidgetHostTest, ZoomToFindInPageRectEmptyBounds) {
+  view_->SetBounds(gfx::Rect(0, 0, 0, 0));
+
+  gfx::Rect valid_rect(10, 10, 5, 5);
+
+  EXPECT_CALL(mock_owner_delegate_, ZoomToFindInPageRect(_)).Times(0);
+
+  static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
+      ->ZoomToFindInPageRectInMainFrame(valid_rect);
+}
+
 TEST_F(RenderWidgetHostTest, AnimateDoubleTapZoomBoundsCheck) {
   view_->SetBounds(gfx::Rect(0, 0, 200, 200));
 
@@ -2874,6 +2920,35 @@ TEST_F(RenderWidgetHostTest, AnimateDoubleTapZoomValidBounds) {
   EXPECT_CALL(mock_owner_delegate_,
               AnimateDoubleTapZoom(gfx::Point(12, 12), gfx::Rect(10, 10, 5, 5)))
       .Times(1);
+
+  static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
+      ->AnimateDoubleTapZoomInMainFrame(tap_point, valid_rect);
+}
+
+TEST_F(RenderWidgetHostTest, AnimateDoubleTapZoomRectClippedToViewBounds) {
+  view_->SetBounds(gfx::Rect(0, 0, 200, 200));
+
+  // Rect that overlaps the view bounds but extends beyond them. The forwarded
+  // rect must be clipped to the sender's view bounds.
+  gfx::Rect overlapping_rect(150, 150, 100, 100);
+  gfx::Point tap_point(160, 160);
+
+  EXPECT_CALL(
+      mock_owner_delegate_,
+      AnimateDoubleTapZoom(gfx::Point(160, 160), gfx::Rect(150, 150, 50, 50)))
+      .Times(1);
+
+  static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
+      ->AnimateDoubleTapZoomInMainFrame(tap_point, overlapping_rect);
+}
+
+TEST_F(RenderWidgetHostTest, AnimateDoubleTapZoomEmptyBounds) {
+  view_->SetBounds(gfx::Rect(0, 0, 0, 0));
+
+  gfx::Rect valid_rect(10, 10, 5, 5);
+  gfx::Point tap_point(12, 12);
+
+  EXPECT_CALL(mock_owner_delegate_, AnimateDoubleTapZoom(_, _)).Times(0);
 
   static_cast<blink::mojom::FrameWidgetHost*>(host_.get())
       ->AnimateDoubleTapZoomInMainFrame(tap_point, valid_rect);

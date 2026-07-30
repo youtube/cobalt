@@ -20,6 +20,7 @@
 #include "base/power_monitor/power_monitor.h"
 #include "base/power_monitor/power_monitor_device_source.h"
 #include "base/run_loop.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "base/test/scoped_run_loop_timeout.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_discardable_memory_allocator.h"
@@ -29,6 +30,7 @@
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "mojo/core/embedder/embedder.h"
 #include "ui/accessibility/platform/ax_platform_for_test.h"
+#include "ui/base/clipboard/clipboard.h"
 #include "ui/base/ime/init/input_method_initializer.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_paths.h"
@@ -83,6 +85,8 @@ base::LazyInstance<base::TestDiscardableMemoryAllocator>::DestructorAtExit
 bool g_initialized_once = false;
 
 ExamplesExitCode ExamplesMainProc(bool under_test, ExampleVector examples) {
+  base::test::AllowCheckIsTestForTesting();
+
 #if BUILDFLAG(IS_WIN)
   ui::ScopedOleInitializer ole_initializer;
 #endif
@@ -234,6 +238,8 @@ ExamplesExitCode ExamplesMainProc(bool under_test, ExampleVector examples) {
 #if defined(USE_AURA)
   env.reset();
 #endif
+
+  ui::Clipboard::DestroyClipboardForCurrentThread();
 
   return compare_result;
 }

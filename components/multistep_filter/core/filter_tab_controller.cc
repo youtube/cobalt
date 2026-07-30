@@ -31,9 +31,29 @@ namespace {
 
 void LogSuggestionCleared(MultistepFilterLogRouter* log_router,
                           const FilterNavigationMetadata& metadata) {
+  std::string_view reason = "new_page";
+  if (metadata.prev_url.is_empty()) {
+    reason = "initial_navigation";
+  } else if (metadata.url.GetHost() != metadata.prev_url.GetHost()) {
+    reason = "different_host";
+  } else if (metadata.url.path() != metadata.prev_url.path()) {
+    reason = "different_path";
+  } else if (metadata.has_user_gesture) {
+    reason = "user_gesture";
+  }
+
   MULTISTEP_FILTER_LOG(log_router, metadata.navigation_id,
-                       LogEventType::kSuggestionCleared,
-                       metadata.url.GetHost());
+                       LogEventType::kSuggestionCleared, metadata.url.GetHost())
+      << LogDetail{"reason", reason};
+}
+
+void LogSuggestionPreserved(MultistepFilterLogRouter* log_router,
+                            const FilterNavigationMetadata& metadata,
+                            std::string_view reason) {
+  MULTISTEP_FILTER_LOG(log_router, metadata.navigation_id,
+                       LogEventType::kSuggestionPreserved,
+                       metadata.url.GetHost())
+      << LogDetail{"reason", std::string(reason)};
 }
 
 void LogUrlEligibilityCheck(MultistepFilterLogRouter* log_router,
@@ -171,25 +191,35 @@ base::WeakPtr<FilterTabController> FilterTabController::GetWeakPtr() {
 
 void FilterTabController::OnNavigationFinished(
     const FilterNavigationMetadata& metadata) {
-  metrics_tracker_.OnNavigationFinished(metadata);
-  weak_ptr_factory_.InvalidateWeakPtrs();
+  const bool is_background_redirect_on_same_page =
+      !metadata.has_user_gesture && !metadata.prev_url.is_empty() &&
+      metadata.url.GetHost() == metadata.prev_url.GetHost() &&
+      metadata.url.path() == metadata.prev_url.path();
+
+  if (!is_background_redirect_on_same_page) {
+    metrics_tracker_.OnNavigationFinished(metadata);
+    weak_ptr_factory_.InvalidateWeakPtrs();
+  }
+
   // Set up ScopedClosureRunners to ensure that the test observer is always
   // notified of pipeline completion (with std::nullopt results) even if the
   // navigation is determined to be ineligible and returns early. This is an
   // invariant that tests rely on to verify early abort paths without hanging.
   //
-  // Exception: For same-url reloads (same_url_non_same_document), we explicitly
-  // release these runners because we want to preserve any existing suggestion
-  // rather than triggering the fallback cleanups.
+  // Exception: For same-url reloads (same_url_non_same_document) and background
+  // redirects on the same page, we explicitly release these runners because we
+  // want to preserve any existing suggestion rather than triggering the
+  // fallback cleanups.
   base::ScopedClosureRunner extraction_runner_fallback(
       base::BindOnce(&FilterTabController::OnExtractionFinished, GetWeakPtr(),
                      metadata, std::nullopt));
   base::ScopedClosureRunner generation_runner_fallback(base::BindOnce(
       &FilterTabController::OnSuggestionGenerated, GetWeakPtr(), std::nullopt));
 
-  bool is_same_page =
+  const bool is_same_page =
       metadata.is_same_document_navigation || metadata.url == metadata.prev_url;
-  if (!is_same_page) {
+
+  if (!is_same_page && !is_background_redirect_on_same_page) {
     LogSuggestionCleared(log_router_, metadata);
     delegate_->ClearSuggestion();
   }
@@ -220,6 +250,12 @@ void FilterTabController::OnNavigationFinished(
   if (!metadata.has_user_gesture) {
     LogUrlEligibilityCheck(log_router_, metadata, /*eligible=*/false,
                            "no_user_gesture");
+    if (is_background_redirect_on_same_page) {
+      std::ignore = extraction_runner_fallback.Release();
+      std::ignore = generation_runner_fallback.Release();
+      LogSuggestionPreserved(log_router_, metadata,
+                             "background_redirect_same_page");
+    }
     return;
   }
 
@@ -241,11 +277,13 @@ void FilterTabController::OnNavigationFinished(
 
 void FilterTabController::OnSuggestionShown(
     const UrlFilterSuggestion& suggestion) {
+  // Store the retention state before storing the suggestion impression record.
+  RetentionStateSnapshot retention_snapshot = service_->GetRetentionState();
   service_->RecordSuggestionImpression();
   service_->DeleteAnnotationsForTask(suggestion.task_type,
                                      suggestion.triggering_navigation_id,
                                      suggestion.triggering_host);
-  metrics_tracker_.OnSuggestionShown(suggestion);
+  metrics_tracker_.OnSuggestionShown(suggestion, retention_snapshot);
 }
 
 void FilterTabController::OnSuggestionReopened() {
@@ -306,6 +344,7 @@ void FilterTabController::OnSuggestionGenerated(
         });
   } else {
     delegate_->OnSuggestionGenerated(std::nullopt, {});
+    metrics_tracker_.OnPreservedSuggestionCleared();
   }
   if (observer_for_test_) {
     observer_for_test_->OnSuggestionGeneratedForTest(suggestion);  // IN-TEST

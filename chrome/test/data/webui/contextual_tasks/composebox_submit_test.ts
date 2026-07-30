@@ -8,7 +8,7 @@ import 'chrome://contextual-tasks/app.js';
 import type {ContextualTasksAppElement} from 'chrome://contextual-tasks/app.js';
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
-import {PageCallbackRouter as ComposeboxPageCallbackRouter, PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import {PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import {ContextUploadStatus, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
@@ -22,10 +22,10 @@ import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {ADD_TAB_CONTEXT_FN, setupAutocompleteResults, uploadFileAndVerify} from './test_searchbox_utils.js';
 import {assertStyle, createCtComposeboxApp, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, simulateUserInput} from './contextual_tasks_test_utils.js';
 import type {CtComposeboxAppParts} from './contextual_tasks_test_utils.js';
+import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
+import {ADD_TAB_CONTEXT_FN, setupAutocompleteResults, uploadFileAndVerify} from './test_searchbox_utils.js';
 
 function pressEnter(element: HTMLElement) {
   element.dispatchEvent(new KeyboardEvent('keydown', {
@@ -113,8 +113,8 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     searchboxCallbackRouterRemote =
         searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
     ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-        mockComposeboxPageHandler as any, new ComposeboxPageCallbackRouter(),
-        mockSearchboxPageHandler as any, searchboxCallbackRouter));
+        mockComposeboxPageHandler as any, mockSearchboxPageHandler as any,
+        searchboxCallbackRouter));
 
     contextualTasksApp = document.createElement('contextual-tasks-app');
     await customElements.whenDefined('contextual-tasks-app');
@@ -1239,7 +1239,6 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
               searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
           ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
               mockComposeboxPageHandler as any,
-              new ComposeboxPageCallbackRouter(),
               mockSearchboxPageHandler as any, searchboxCallbackRouter));
 
           parts = await createCtComposeboxApp(useFork);
@@ -1410,6 +1409,50 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
           assertFalse(
               innerComposebox.canSubmitFilesAndInput,
               'Non-Deep-Search follow-up does not allow an empty query');
+        });
+
+        test('inner composebox reflects the expanding_ attribute', async () => {
+          const {innerComposebox} = parts;
+          await innerComposebox.updateComplete;
+          assertTrue(
+              innerComposebox.hasAttribute('expanding_'),
+              'The inner composebox host should reflect [expanding_]');
+        });
+
+        test('expanded host is not styled as collapsed', async () => {
+          const {app, innerComposebox} = parts;
+          // Skip the icon-fade transitions (600ms plus a 200ms delay), so the
+          // computed styles below read their end values.
+          disableAnimationsRecursively(app);
+          const inputComponent = innerComposebox.getInputElement();
+          simulateUserInput(inputComponent.$.input, 'test query');
+          await microtasksFinished();
+          await innerComposebox.updateComplete;
+          await inputComponent.updateComplete;
+
+          const submitContainer = getSubmitContainer(innerComposebox);
+          assertTrue(submitContainer !== null, 'Submit container should exist');
+          const cancelContainer =
+              inputComponent.shadowRoot.querySelector('#cancelContainer');
+          assertTrue(cancelContainer !== null, 'Cancel container should exist');
+
+          // The icon-fade containers are opaque only when a composed ancestor
+          // reflects [expanding_].
+          assertStyle(
+              submitContainer, 'opacity', '1',
+              'Submit container should be visible on the expanded host');
+          assertStyle(
+              cancelContainer, 'opacity', '1',
+              'Cancel container should be visible on the expanded host');
+
+          // The expanded host must not match the wrapper's collapsed-state
+          // `:not([expanding_])` rules that disable the parts' pointer events.
+          assertStyle(
+              submitContainer, 'pointer-events', 'auto',
+              'Expanded host must not match the collapsed-state selector');
+          assertStyle(
+              cancelContainer, 'pointer-events', 'auto',
+              'Expanded host must not match the collapsed-state selector');
         });
       });
 });

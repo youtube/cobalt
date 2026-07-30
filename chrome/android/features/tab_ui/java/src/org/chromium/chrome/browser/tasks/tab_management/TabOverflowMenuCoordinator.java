@@ -313,7 +313,12 @@ public abstract class TabOverflowMenuCoordinator<T>
         menuHolder.show();
 
         mHierarchicalMenuController.setupFlyoutController(
-                /* flyoutHandler= */ this, menuHolder, /* drillDownOverrideValue= */ null);
+                /* flyoutHandler= */ this,
+                menuHolder,
+                menuHolder::setOnScrollChangeListener,
+                /* drillDownOverrideValue= */ null);
+        mHierarchicalMenuController.setupBackPressBehaviorForPopupWindow(
+                menuHolder.getContentView(), this::dismiss);
     }
 
     /**
@@ -418,6 +423,18 @@ public abstract class TabOverflowMenuCoordinator<T>
                 mHierarchicalMenuController.getFlyoutController();
         if (controller != null) {
             controller.getMainPopup().getMenuWindow().setFocusable(focusable);
+        }
+    }
+
+    /** Forces the underlying main menu popup window to update its layout position. */
+    protected void updateMenuLayout() {
+        FlyoutController<TabOverflowMenuHolder<T>> controller =
+                mHierarchicalMenuController.getFlyoutController();
+        if (controller != null && controller.getMainPopup() != null) {
+            AnchoredPopupWindow menuWindow = controller.getMainPopup().getMenuWindow();
+            if (menuWindow != null) {
+                menuWindow.onRectChanged();
+            }
         }
     }
 
@@ -561,7 +578,10 @@ public abstract class TabOverflowMenuCoordinator<T>
 
     @Override
     public TabOverflowMenuHolder<T> createAndShowFlyoutPopup(
-            List<ListItem> items, View view, Runnable dismissRunnable) {
+            List<ListItem> items,
+            View view,
+            Runnable dismissRunnable,
+            View.OnScrollChangeListener scrollListener) {
         ModelList modelList = new ModelList();
         modelList.addAll(items);
 
@@ -598,6 +618,7 @@ public abstract class TabOverflowMenuCoordinator<T>
                         mActivity,
                         /* isFlyout= */ true);
 
+        menuHolder.setOnScrollChangeListener(scrollListener);
         menuHolder.show();
         return menuHolder;
     }

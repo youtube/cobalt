@@ -26,6 +26,9 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
+import org.chromium.ui.modelutil.PropertyModel;
 
 /** Unit tests for {@link UrlBarContextMenuHelper}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -58,10 +61,10 @@ public class UrlBarContextMenuHelperUnitTest {
     }
 
     @Test
-    public void testOnCreateContextMenu_addsMenuItems() {
+    public void testShowListMenu_addsMenuItems() {
         setupMockContextMenu();
 
-        mHelper.onCreateContextMenu(mContextMenu, mUrlBar, null);
+        mHelper.showListMenu(mContextMenu);
         assertTrue(mHelper.getModelListForTesting().size() > 0);
     }
 
@@ -69,7 +72,7 @@ public class UrlBarContextMenuHelperUnitTest {
     public void testDestroy_dismissesListMenuHost() {
         setupMockContextMenu();
 
-        mHelper.onCreateContextMenu(mContextMenu, mUrlBar, null);
+        mHelper.showListMenu(mContextMenu);
         assertTrue(mHelper.getModelListForTesting().size() > 0);
 
         mHelper.destroy();
@@ -91,21 +94,20 @@ public class UrlBarContextMenuHelperUnitTest {
     }
 
     @Test
-    public void testOnCreateContextMenu_filtersOutNonAllowedItems() {
+    public void testShowListMenu_filtersOutNonAllowedItems() {
         setupMockContextMenu();
         doReturn(android.R.id.button1).when(mCopyMenuItem).getItemId();
 
-        mHelper.onCreateContextMenu(mContextMenu, mUrlBar, null);
+        mHelper.showListMenu(mContextMenu);
         assertEquals(0, mHelper.getModelListForTesting().size());
-        verify(mContextMenu).clear();
     }
 
     @Test
-    public void testOnCreateContextMenu_allowsShareText() {
+    public void testShowListMenu_allowsShareText() {
         setupMockContextMenu();
         doReturn(android.R.id.shareText).when(mCopyMenuItem).getItemId();
 
-        mHelper.onCreateContextMenu(mContextMenu, mUrlBar, null);
+        mHelper.showListMenu(mContextMenu);
         assertTrue(mHelper.getModelListForTesting().size() > 0);
     }
 
@@ -116,5 +118,33 @@ public class UrlBarContextMenuHelperUnitTest {
         doReturn("Copy").when(mCopyMenuItem).getTitle();
         doReturn(true).when(mCopyMenuItem).isVisible();
         doReturn(mCopyMenuItem).when(mContextMenu).getItem(0);
+    }
+
+    @Test
+    public void testShowListMenu_allowsAlwaysShowAiMode_checked() {
+        verifyAlwaysShowAiMode(true);
+    }
+
+    @Test
+    public void testShowListMenu_allowsAlwaysShowAiMode_unchecked() {
+        verifyAlwaysShowAiMode(false);
+    }
+
+    private void verifyAlwaysShowAiMode(boolean isChecked) {
+        setupMockContextMenu();
+        doReturn(R.id.url_bar_always_show_ai_mode).when(mCopyMenuItem).getItemId();
+        doReturn("Always show AI mode").when(mCopyMenuItem).getTitle();
+        doReturn(true).when(mCopyMenuItem).isCheckable();
+        doReturn(isChecked).when(mCopyMenuItem).isChecked();
+
+        mHelper.showListMenu(mContextMenu);
+        assertEquals(1, mHelper.getModelListForTesting().size());
+
+        ListItem item = mHelper.getModelListForTesting().get(0);
+        PropertyModel model = item.model;
+        assertEquals(
+                R.id.url_bar_always_show_ai_mode, model.get(ListMenuItemProperties.MENU_ITEM_ID));
+        int expectedIcon = isChecked ? R.drawable.ic_done_blue : 0;
+        assertEquals(expectedIcon, model.get(ListMenuItemProperties.START_ICON_ID));
     }
 }

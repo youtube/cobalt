@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">비밀번호 저장</translation>
 <translation id="1764070164487214210">경로</translation>
 <translation id="1764511703783285459">다른 비밀번호 관리자가 비밀번호 또는 패스키를 공유하지 않았습니다.</translation>
+<translation id="1765555082983153259">'Chrome'에서 마이크에 액세스하려고 합니다</translation>
 <translation id="1767766085187034454">Google 번역</translation>
 <translation id="1771016937398045251">도구 메뉴</translation>
 <translation id="1772468122139624049">탭을 새로고침할 수 없습니다.</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">스마트 정렬 메뉴 바</translation>
 <translation id="1883255238294161206">접기 목록</translation>
+<translation id="1883898928879467646">탭 삭제됨</translation>
 <translation id="1888854257756214946">비밀번호 선택…</translation>
 <translation id="1890237935065108104">사용할 수 없는 설정입니다.</translation>
 <translation id="1894023287452300670">여기에서 가격을 추적하세요.</translation>
@@ -1620,6 +1622,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6406506848690869874">동기화</translation>
 <translation id="6410390304316730527">세이프 브라우징을 사용하면 악성 소프트웨어를 설치하거나 개인정보(예: 비밀번호, 전화번호, 신용카드 정보)를 공개하는 등의 위험한 행동을 하도록 사용자를 속이는 공격자를 차단합니다. 이 기능을 사용 중지하는 경우 익숙하지 않거나 평판이 좋지 않은 사이트를 탐색할 때 주의하시기 바랍니다.</translation>
 <translation id="6410883413783534063">탭을 열어 동시에 여러 페이지를 방문할 수 있습니다.</translation>
+<translation id="6412195388778525440">탭 삭제</translation>
 <translation id="6418346271604475326">PDF 준비 중</translation>
 <translation id="6420292512900923139">데이터를 가져오는 중에 문제 발생</translation>
 <translation id="6421038304268477484">번역된 텍스트</translation>
@@ -2320,7 +2323,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8692689525339542358">위험한 사이트, 다운로드 항목, 확장 프로그램으로부터 사용자를 보호하세요.</translation>
 <translation id="8692897097252418799">내보낼 데이터를 선택합니다.</translation>
 <translation id="8694281486652655615">이 항목 표시</translation>
-<translation id="8696297579102085705">기기로 보내기</translation>
 <translation id="8697136149718343437">주소 표시줄을 하단으로 이동</translation>
 <translation id="869891660844655955">유효기간</translation>
 <translation id="8706253136355675497">온도</translation>
@@ -2463,6 +2465,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="9149866541089851383">수정...</translation>
 <translation id="9152637745605628097">테마, 색상 중에서 선택하거나 이미지를 업로드하세요.</translation>
 <translation id="9159628751968616911">웹페이지 보내기</translation>
+<translation id="9162412286847966593">사용자 조직의 데이터 및 녹음 파일은 생성형 AI 모델을 개선하는 데 사용되지 않습니다. <ph name="BEGIN_LINK" />개인 정보 보호 및 Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">AutoFill Passwords(비밀번호 자동 완성)를 사용 설정합니다.</translation>
 <translation id="9165320910061267720">가격 인하 알림을 받으려면 iOS 설정에서 알림을 사용 설정해야 합니다.</translation>
 <translation id="9179151630575358778">이 항목 숨기기</translation>

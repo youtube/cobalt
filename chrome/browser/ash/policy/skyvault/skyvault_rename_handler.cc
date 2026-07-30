@@ -43,6 +43,7 @@ bool ShouldUploadFile(Profile* profile,
 
 // static
 std::unique_ptr<SkyvaultRenameHandler> SkyvaultRenameHandler::CreateIfNeeded(
+    const PrefService& local_state,
     download::DownloadItem* download_item) {
   if (!base::FeatureList::IsEnabled(features::kSkyVault)) {
     return nullptr;
@@ -67,7 +68,7 @@ std::unique_ptr<SkyvaultRenameHandler> SkyvaultRenameHandler::CreateIfNeeded(
   position = downloads_path.value().find(
       local_user_files::kGoogleDrivePolicyVariableName);
   if (position != base::FilePath::StringType::npos &&
-      !local_user_files::LocalUserFilesAllowed()) {
+      !local_user_files::LocalUserFilesAllowed(local_state)) {
     return std::make_unique<SkyvaultRenameHandler>(
         profile, CloudProvider::kGoogleDrive, download_item);
   }

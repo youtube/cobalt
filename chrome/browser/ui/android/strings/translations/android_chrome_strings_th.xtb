@@ -71,6 +71,7 @@
 <translation id="1239792311949352652">แชร์หน้านี้อย่างรวดเร็ว ไปที่การตั้งค่าเพื่อแก้ไขทางลัดนี้</translation>
 <translation id="1240288207750131269">กำลังโหลดภาษา<ph name="LANG" /></translation>
 <translation id="124116460088058876">ภาษาเพิ่มเติม</translation>
+<translation id="1241381048229838873">แสดงบุ๊กมาร์กทั้งหมด</translation>
 <translation id="124678866338384709">ปิดแท็บปัจจุบัน</translation>
 <translation id="1246905108078336582">นำคำแนะนำออกจากคลิปบอร์ดไหม</translation>
 <translation id="1258753120186372309">Google doodle: <ph name="DOODLE_DESCRIPTION" /></translation>
@@ -233,7 +234,6 @@
 <translation id="200114059308480249">รวมข้อความที่อยู่โดยรอบในการค้นหาบน Google ไหม</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, แท็บที่ไม่ระบุตัวตนที่ปักหมุดซึ่งปิดเสียงอยู่</translation>
 <translation id="2021896219286479412">ส่วนควบคุมเว็บไซต์แบบเต็มหน้าจอ</translation>
-<translation id="2022953316617983419">คิวอาร์โค้ด</translation>
 <translation id="2024195579772565064">ลบเครื่องมือค้นหา</translation>
 <translation id="2029669011553795746">การเลือกรับการแจ้งเตือนเคล็ดลับเปิดอยู่ครึ่งหน้าจอ</translation>
 <translation id="2038563949887743358">เปิดการขอเว็บไซต์เดสก์ท็อป</translation>
@@ -558,6 +558,7 @@
 <translation id="3331974543021145906">ข้อมูลแอป</translation>
 <translation id="3334729583274622784">เปลี่ยนนามสกุลไฟล์ใช่ไหม</translation>
 <translation id="333863344734218290">เตือนคุณสำหรับเว็บไซต์สาธารณะและเว็บไซต์ส่วนตัวที่ไม่ปลอดภัย</translation>
+<translation id="3339788961947270565">กำลังปิด</translation>
 <translation id="3340978935015468852">การตั้งค่า</translation>
 <translation id="3351959803838327376">กดเว็บไซต์ค้างไว้แล้วเปิดเมนู</translation>
 <translation id="3359667936385849800">ใช้ผู้ให้บริการปัจจุบัน</translation>
@@ -721,6 +722,7 @@
 <translation id="4044708993631234325">Bottom Sheet</translation>
 <translation id="4045441967987592849">เปิดอีกครั้ง</translation>
 <translation id="4049920046559074950">ตัวเลือกเพิ่มเติมสำหรับ <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{เปิดในหน้าต่างที่ไม่ระบุตัวตน}other{เปิดทั้งหมด (#) ในหน้าต่างที่ไม่ระบุตัวตน}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_ONE" /> แท็บ}other{แท็บมาตรฐานที่มีกิจกรรมใหม่ในกลุ่มแท็บที่แชร์ <ph name="TABS_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="405365679581583349">อัปเดตบริการ Google Play</translation>
 <translation id="405399507749852140">รับการแจ้งเตือนหากราคาลดลงในเว็บไซต์ใดก็ตาม</translation>
@@ -823,6 +825,7 @@
 <translation id="442518031075347249">คุณจะใช้บัตรเสมือนกับ Google Pay ไม่ได้อีกต่อไป <ph name="BEGIN_LINK1" />ดูข้อมูลเพิ่มเติมเกี่ยวกับบัตรเสมือน<ph name="END_LINK1" /></translation>
 <translation id="442577985493096785">{TAB_COUNT,plural, =1{ระบบจะปิดแท็บ <ph name="TAB_TITLE" /> และแท็บอื่นอีก <ph name="TAB_COUNT_ONE" /> แท็บ}other{ระบบจะปิดแท็บ <ph name="TAB_TITLE" /> และแท็บอื่นอีก <ph name="TAB_COUNT_MANY" /> แท็บ}}</translation>
 <translation id="4430277756566635951">เลือก <ph name="EMAIL" /> อยู่ เลือกบัญชี</translation>
+<translation id="4430369329743628066">เพิ่มบุ๊กมาร์กแล้ว</translation>
 <translation id="4452411734226507615">ปิดแท็บ <ph name="TAB_TITLE" /></translation>
 <translation id="4452548195519783679">เพิ่มบุ๊กมาร์กไปยัง <ph name="FOLDER_NAME" /> แล้ว</translation>
 <translation id="4460822871039013969"><ph name="TAB_TITLE" />, แท็บการบันทึกเสียงที่ปักหมุดซึ่งเลือกไว้</translation>
@@ -1047,6 +1050,7 @@
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> ต้องการใช้ข้อมูลส่วนบุคคลจากกระเป๋าเงินดิจิทัล ดำเนินการต่อในกรณีที่คุณเชื่อถือเว็บไซต์นี้เท่านั้น เว็บไซต์อันตรายอาจหลอกล่อให้คุณเปิดเผยข้อมูล เช่น ชื่อตามกฎหมายหรือหมายเลขบัตรประจำตัว</translation>
 <translation id="5395376160638294582">ตรวจสอบว่าคุณใช้ข้อมูล Chrome ในบัญชี Google ได้เสมอ</translation>
 <translation id="539881862970320163">แนะนำรหัสผ่านที่รัดกุมแล้ว แป้นพิมพ์ซ่อนอยู่</translation>
+<translation id="5404274604891474619">แก้ไข PDF ไม่ได้</translation>
 <translation id="5409881200985013443">ส่ง <ph name="ONE_TIME_CODE" /> ใน <ph name="CLIENT_NAME" /> ไหม</translation>
 <translation id="5410300144953132176"><ph name="OWNER_FULL_NAME" /> (<ph name="OWNER_EMAIL" />) ต้องการให้คุณเข้าร่วมกลุ่มแท็บ ทุกคนที่มีลิงก์จะแก้ไขแท็บทั้งหมดได้ ดังนั้นโปรดเข้าร่วมอย่างระมัดระวัง ลิงก์จะหมดอายุใน 48 ชม.</translation>
 <translation id="5414836363063783498">กำลังยืนยัน…</translation>
@@ -1072,6 +1076,7 @@
 <translation id="5517326820028369152">Bottom Sheet กิจกรรมล่าสุด</translation>
 <translation id="5526281268548144413">ปิดในหลายหน้าต่างไม่ได้</translation>
 <translation id="5532536403031755365">เพิ่มการป้องกันภัยคุกคามทางออนไลน์อีกชั้นด้วยการปกป้องที่ดียิ่งขึ้น</translation>
+<translation id="5540127996007641535">{NUM_BOOKMARKS,plural, =1{เปิดบุ๊กมาร์ก}other{เปิดทั้งหมด (#)}}</translation>
 <translation id="5548606607480005320">การตรวจสอบความปลอดภัย</translation>
 <translation id="5554520618550346933">เมื่อใช้รหัสผ่าน Chrome จะเตือนคุณหากมีการเผยแพร่รหัสผ่านออนไลน์ เราเข้ารหัสชื่อผู้ใช้และรหัสผ่านเมื่อทำการตรวจสอบเพื่อไม่ให้ผู้ใดอ่านข้อมูลดังกล่าวได้ รวมถึง Google</translation>
 <translation id="5555525474779371165">เลือกระดับการปกป้องด้วย Google Safe Browsing</translation>
@@ -1127,7 +1132,6 @@
 <translation id="5763514718066511291">แตะเพื่อคัดลอก URL สำหรับแอปนี้</translation>
 <translation id="5765517223145864268">เล่าประสบการณ์ของคุณให้เราฟัง หรือ<ph name="BEGIN_LINK" />เปลี่ยนการตั้งค่า<ph name="END_LINK" /></translation>
 <translation id="5776970333778123608">ข้อมูลที่ไม่สำคัญ</translation>
-<translation id="5788665823391532892">รายงานปัญหา...</translation>
 <translation id="5793665092639000975">ใช้ไป <ph name="SPACE_USED" /> จาก <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">บล็อกหัวข้อแล้ว</translation>
 <translation id="580893287573699959">จัดการหัวข้อและเว็บไซต์ที่คุณสนใจ</translation>
@@ -1179,6 +1183,7 @@
 <translation id="5995726099713306770">ดาวน์โหลดหน้าเว็บอีกครั้งใช่ไหม</translation>
 <translation id="5998675059699164418">องค์กรกำหนดให้คุณต้องลงชื่อเพื่อเข้าใช้ Chrome</translation>
 <translation id="6000066717592683814">ใช้ Google ต่อ</translation>
+<translation id="6002122790816966947">อุปกรณ์ของคุณ</translation>
 <translation id="6011308810877101166">ปรับปรุงการแนะนำการค้นหา</translation>
 <translation id="6013305291643746595">จัดเรียงตามรายการที่เก่าที่สุด</translation>
 <translation id="6022659036123304283">ปรับเปลี่ยน Chrome ในแบบของคุณ</translation>
@@ -1245,6 +1250,7 @@
 <translation id="6246073558347462570">หน้าต่างป๊อปอัปบริบท</translation>
 <translation id="6247557882553405851">เครื่องมือจัดการรหัสผ่านบน Google</translation>
 <translation id="6248988683584659830">ค้นหาการตั้งค่า</translation>
+<translation id="6250486830372700930">คุณยังนำส่วนขยายออกจากอุปกรณ์นี้ได้ด้วย</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, แท็บที่ไม่ระบุตัวตนที่ปักหมุดซึ่งเลือกไว้หลายแท็บ</translation>
 <translation id="6251449557817521191">ดูประวัติการเข้าชมใน Chrome ที่นี่</translation>
 <translation id="6254139308321626268">คุณกำลังดูไฟล์ PDF</translation>
@@ -1420,7 +1426,9 @@
 <translation id="6850830437481525139">ปิดแล้ว <ph name="TAB_COUNT" /> แท็บ</translation>
 <translation id="6852437757508328589">{NUM_RESULTS,plural, =1{พบผลการค้นหา 1 รายการ}other{พบผลการค้นหา # รายการ}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{ไฟล์เสียง 1 ไฟล์เสียงในรายการ}other{ไฟล์เสียง # ไฟล์เสียงในรายการ}}</translation>
+<translation id="6857043990326114901">เพิ่มโฟลเดอร์…</translation>
 <translation id="685850645784703949">ฟีเจอร์สำรวจโดย Google - ปิดอยู่</translation>
+<translation id="6858893072923394368">เพิ่มหน้า…</translation>
 <translation id="6864459304226931083">ดาวน์โหลดรูปภาพ</translation>
 <translation id="686490460830618322">ชีตตัวกรองแอป</translation>
 <translation id="6865313869410766144">ข้อมูลแบบฟอร์มที่ป้อนอัตโนมัติ</translation>
@@ -1597,6 +1605,7 @@
 <translation id="7475688122056506577">ไม่พบการ์ด SD ไฟล์บางไฟล์อาจหายไป</translation>
 <translation id="7479104141328977413">การจัดการแท็บ</translation>
 <translation id="7481312909269577407">ส่งต่อ</translation>
+<translation id="7481588001304663390">{NUM_BOOKMARKS,plural, =1{เปิดในกลุ่มแท็บใหม่}other{เปิดทั้งหมด (#)ในกลุ่มแท็บใหม่}}</translation>
 <translation id="7482656565088326534">แท็บแสดงตัวอย่าง</translation>
 <translation id="7484997419527351112">สำรวจ - ปิดอยู่</translation>
 <translation id="7485033510383818941">ดึงหน้าเว็บลงเพื่อรีเฟรชเนื้อหาฟีด</translation>
@@ -1753,6 +1762,7 @@
 <translation id="8103578431304235997">แท็บที่ไม่ระบุตัวตน</translation>
 <translation id="810433609302852">Bottom Sheet การโปรโมตและขั้นตอนการใช้งานฟีเจอร์แจ้งเตือนเคล็ดลับ</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
+<translation id="8109802255973641442">นําส่วนขยายและข้อมูลที่ส่วนขยายบันทึกไว้ในอุปกรณ์นี้ออก</translation>
 <translation id="8110024788458304985">ช่วยปรับปรุงฟีเจอร์และประสิทธิภาพของ Chrome</translation>
 <translation id="8110087112193408731">ต้องการแสดงกิจกรรม Chrome ในไลฟ์สไตล์ดิจิทัลไหม</translation>
 <translation id="8118117428362942925">โปรดขอความช่วยเหลือจากผู้ปกครอง (<ph name="PARENT_NAME" />) หากต้องการ</translation>
@@ -1852,6 +1862,7 @@
 <translation id="8460448946170646641">ตรวจสอบการควบคุมที่สำคัญด้านความเป็นส่วนตัวและความปลอดภัย</translation>
 <translation id="8460932807646981183">จัดการเครื่องมือค้นหาและการค้นหาเว็บไซต์</translation>
 <translation id="8465252176946159372">ไม่ถูกต้อง</translation>
+<translation id="8472353072135865937">{NUM_BOOKMARKS,plural, =1{เปิดในหน้าต่างใหม่}other{เปิดทั้งหมด (#) ในหน้าต่างใหม่}}</translation>
 <translation id="8473863474539038330">ที่อยู่และอื่นๆ</translation>
 <translation id="847433688444405067">ท่องเว็บในอุปกรณ์ต่างๆ</translation>
 <translation id="8477178913400731244">ลบข้อมูล</translation>
@@ -1914,6 +1925,7 @@
 <translation id="8738163682604285902">ดูโหมดการอ่านไหม</translation>
 <translation id="8746155870861185046">แชร์ไฮไลต์</translation>
 <translation id="8748850008226585750">เนื้อหาถูกซ่อนไว้</translation>
+<translation id="874918643257405732">บุ๊กมาร์กแท็บนี้</translation>
 <translation id="8754448020583829686">คัดลอกโดยไม่มีลิงก์</translation>
 <translation id="8756969031206844760">อัปเดตรหัสผ่านไหม</translation>
 <translation id="8765470054473112089">เมื่อคุณพิมพ์ในแถบที่อยู่หรือช่องค้นหา Chrome จะส่งสิ่งที่คุณพิมพ์ไปยังเครื่องมือค้นหาเริ่มต้นเพื่อให้ได้รับการแนะนำที่ดียิ่งขึ้น ตัวเลือกนี้จะปิดไว้ในโหมดไม่ระบุตัวตน</translation>
@@ -2039,6 +2051,7 @@
 <translation id="9212845824145208577">ต่ำลงไปกว่านี้ไม่ได้ ลองเริ่มลากจากด้านล่างของหน้า</translation>
 <translation id="9218430445555521422">ตั้งเป็นค่าเริ่มต้น</translation>
 <translation id="9219103736887031265">ภาพ</translation>
+<translation id="922152298093051471">ปรับแต่ง Chrome</translation>
 <translation id="9222198206152536936">ลงชื่อเข้าใช้ด้วย <ph name="EMAIL" /> เพื่อเข้าถึงแท็บและข้อมูลอื่นๆ ในอุปกรณ์ทุกเครื่อง</translation>
 <translation id="924447568950697217">กำหนดให้ Chrome เป็นเบราว์เซอร์เริ่มต้น</translation>
 <translation id="926205370408745186">นำกิจกรรม Chrome ออกจากไลฟ์สไตล์ดิจิทัล</translation>

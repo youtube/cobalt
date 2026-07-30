@@ -15,7 +15,6 @@ import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "skia/public/mojom/skcolor.mojom";
-import "services/network/public/mojom/attribution.mojom";
 import "services/network/public/mojom/content_security_policy.mojom";
 import "services/network/public/mojom/url_loader.mojom";
 import "services/network/public/mojom/url_loader_completion_status.mojom";
@@ -29,7 +28,6 @@ import "third_party/blink/public/mojom/associated_interfaces/associated_interfac
 import "third_party/blink/public/mojom/blob/blob_url_store.mojom";
 import "third_party/blink/public/mojom/browser_interface_broker.mojom";
 import "third_party/blink/public/mojom/commit_result/commit_result.mojom";
-import "third_party/blink/public/mojom/conversions/conversions.mojom";
 import "third_party/blink/public/mojom/devtools/console_message.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame_config.mojom";
@@ -165,10 +163,6 @@ struct CreateViewParams {
 
   // Indicates which browsing context group the page in this view belongs to.
   mojo_base.mojom.UnguessableToken browsing_context_group_token;
-
-  // Indicates whether web or OS-level Attribution Reporting is supported. See
-  // https://github.com/WICG/attribution-reporting-api/blob/main/app_to_web.md
-  network.mojom.AttributionSupport attribution_support;
 
   // Identifies the navigation that triggered this view creation, if any. Used
   // for collecting metrics.
@@ -585,10 +579,6 @@ struct CreateNewWindowParams {
 
   // The window features to use for the new window.
   blink.mojom.WindowFeatures features;
-
-  // The impression associated with the navigation in the new window, if
-  // one is specified.
-  blink.mojom.Impression? impression;
 
   // Governs how downloads are handled if `target_url` results in a download.
   blink.mojom.NavigationDownloadPolicy download_policy;

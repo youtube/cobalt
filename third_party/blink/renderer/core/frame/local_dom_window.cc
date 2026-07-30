@@ -40,7 +40,6 @@
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/storage_access_api/status.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
@@ -87,7 +86,6 @@
 #include "third_party/blink/renderer/core/events/pop_state_event.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/execution_context/window_agent.h"
-#include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/bar_prop.h"
 #include "third_party/blink/renderer/core/frame/crash_report_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
@@ -110,6 +108,7 @@
 #include "third_party/blink/renderer/core/frame/viewport_data.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
+#include "third_party/blink/renderer/core/html/custom/custom_element_registry_assignment.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/fence.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
@@ -2239,7 +2238,8 @@ CustomElementRegistry* LocalDOMWindow::customElements() const {
         this, DOMWrapperWorld::kMainWorldId);
     custom_elements_->MarkAsGlobalRegistry();
     custom_elements_->AssociatedWith(*document_);
-    document_->SetCustomElementRegistry(custom_elements_);
+    document_->SetCustomElementRegistry(
+        CustomElementRegistryAssignment::Explicit(custom_elements_.Get()));
   }
   return custom_elements_.Get();
 }
@@ -2536,20 +2536,6 @@ DOMWindow* LocalDOMWindow::open(v8::Isolate* isolate,
 
   bool has_user_gesture = LocalFrame::HasTransientUserActivation(GetFrame());
   frame_request.GetResourceRequest().SetHasUserGesture(has_user_gesture);
-
-  if (window_features.attribution_srcs.has_value()) {
-    // An impression must be attached prior to the
-    // `FindOrCreateFrameForNavigation()` call, as that call may result in
-    // performing a navigation if the call results in creating a new window with
-    // noopener set.
-    frame_request.SetImpression(entered_window->GetFrame()
-                                    ->GetAttributionSrcLoader()
-                                    ->RegisterNavigation(
-                                        /*navigation_url=*/completed_url,
-                                        *window_features.attribution_srcs,
-                                        has_user_gesture,
-                                        referrer.referrer_policy));
-  }
 
   FrameTree::FindResult result =
       GetFrame()->Tree().FindOrCreateFrameForNavigation(

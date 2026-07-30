@@ -38,6 +38,8 @@ export class GlicInternalsAppElement extends CrLitElement {
       invokeFeatureMode_: {type: Number},
       invokeInvocationSource_: {type: Number},
       invokeWaitForPanelOpen_: {type: Boolean},
+      invokeFocusOnShow_: {type: Boolean},
+      invokeTimeoutMs_: {type: String},
       invokeLogs_: {type: Array},
       invokeSurfaceType_: {type: String},
       invokeZssOverride_: {type: Boolean},
@@ -51,7 +53,10 @@ export class GlicInternalsAppElement extends CrLitElement {
       freCompletionWaitModeEnumValues_: {type: Array},
 
       selectedTabIndex_: {type: Number},
-      invokeNewConversation_: {type: Boolean},
+      invokeConversationType_: {type: String},
+      invokeConversationId_: {type: String},
+      invokeSpecificTabIndex_: {type: Number},
+      availableTabs_: {type: Array},
       tabNames_: {type: Array},
       featureModeEnumValues_: {type: Array},
     };
@@ -65,6 +70,8 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected accessor invokeInvocationSource_: InvocationSource =
       InvocationSource.kOsButton;
   protected accessor invokeWaitForPanelOpen_: boolean = false;
+  protected accessor invokeFocusOnShow_: boolean = true;
+  protected accessor invokeTimeoutMs_: string = '';
   protected accessor invokeLogs_: string[] = [];
   protected accessor invokeSurfaceType_: string = 'default';
   protected accessor invokeZssOverride_: boolean = false;
@@ -76,7 +83,10 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected accessor invokePayloadUniversalCartMetadata_: string = '';
   protected accessor invokeFreCompletionWaitMode_: FreCompletionWaitMode =
       FreCompletionWaitMode.kDefault;
-  protected accessor invokeNewConversation_: boolean = false;
+  protected accessor invokeConversationType_: string = 'default';
+  protected accessor invokeConversationId_: string = '';
+  protected accessor invokeSpecificTabIndex_: number = 0;
+  protected accessor availableTabs_: string[] = [];
 
   protected accessor selectedTabIndex_: number = 0;
   protected accessor tabNames_: string[] = ['General', 'Debug Controls'];
@@ -292,9 +302,19 @@ export class GlicInternalsAppElement extends CrLitElement {
   protected onInvokeWaitForPanelOpenChange_(e: Event) {
     this.invokeWaitForPanelOpen_ = (e.target as HTMLInputElement).checked;
   }
+  protected onInvokeFocusOnShowChange_(e: Event) {
+    this.invokeFocusOnShow_ = (e.target as HTMLInputElement).checked;
+  }
+  protected onInvokeTimeoutMsInput_(e: Event) {
+    this.invokeTimeoutMs_ = (e.target as HTMLInputElement).value;
+  }
 
-  protected onInvokeNewConversationChange_(e: Event) {
-    this.invokeNewConversation_ = (e.target as HTMLInputElement).checked;
+  protected onInvokeConversationTypeChange_(e: Event) {
+    this.invokeConversationType_ = (e.target as HTMLSelectElement).value;
+  }
+
+  protected onInvokeConversationIdInput_(e: Event) {
+    this.invokeConversationId_ = (e.target as HTMLInputElement).value;
   }
 
   protected onPayloadUniversalCartMetadataInput_(e: Event) {
@@ -302,8 +322,26 @@ export class GlicInternalsAppElement extends CrLitElement {
         (e.target as HTMLInputElement).value;
   }
 
-  protected onInvokeSurfaceTypeChange_(e: Event) {
+  protected async onInvokeSurfaceTypeChange_(e: Event) {
     this.invokeSurfaceType_ = (e.target as HTMLSelectElement).value;
+    if (this.invokeSurfaceType_ === 'specificTab') {
+      await this.refreshOpenTabs_();
+    }
+  }
+
+  protected async refreshOpenTabs_() {
+    const {tabTitles} = await this.pageHandler_.getOpenTabs();
+    this.availableTabs_ = tabTitles;
+    this.invokeSpecificTabIndex_ = 0;
+  }
+
+  protected onRefreshTabsClick_() {
+    this.refreshOpenTabs_();
+  }
+
+  protected onInvokeSpecificTabIndexChange_(e: Event) {
+    this.invokeSpecificTabIndex_ =
+        Number((e.target as HTMLSelectElement).value);
   }
 
   protected onInvokeZssOverrideChange_(e: Event) {
@@ -330,9 +368,12 @@ export class GlicInternalsAppElement extends CrLitElement {
         Number((e.target as HTMLSelectElement).value);
   }
   protected onTriggerInvokeClick_() {
-    const surface = this.invokeSurfaceType_ === 'newTab' ?
-        {newTab: {openInForeground: this.invokeOpenInForeground_}} :
-        {defaultSurface: {}};
+    let surface: TriggerInvokeFromInternalsOptions['surface'];
+    if (this.invokeSurfaceType_ === 'newTab') {
+      surface = {newTab: {openInForeground: this.invokeOpenInForeground_}};
+    } else {
+      surface = {defaultSurface: {}};
+    }
 
     let payload = null;
     if (this.invokeInvocationSource_ === InvocationSource.kUniversalCart) {
@@ -348,12 +389,21 @@ export class GlicInternalsAppElement extends CrLitElement {
       };
     }
 
+    let conversationSelection:
+        TriggerInvokeFromInternalsOptions['conversation'] = {
+          defaultConversation: {},
+        };
+    if (this.invokeConversationType_ === 'new') {
+      conversationSelection = {newConversation: {}};
+    } else if (this.invokeConversationType_ === 'conversationId') {
+      conversationSelection = {conversationId: this.invokeConversationId_};
+    }
+
     const options: TriggerInvokeFromInternalsOptions = {
       invocationSource: this.invokeInvocationSource_,
       prompts: this.invokePrompt_ ? [this.invokePrompt_] : [],
       additionalContext: null,
-      conversation: this.invokeNewConversation_ ? {newConversation: {}} :
-                                                  {defaultConversation: {}},
+      conversation: conversationSelection,
       featureMode: this.invokeFeatureMode_,
       disableZss: false,
       zssConfig: this.invokeZssOverride_ ?
@@ -361,12 +411,18 @@ export class GlicInternalsAppElement extends CrLitElement {
           null,
       skillId: null,
       errorMessage: null,
-      timeout: null,
+      timeout: this.invokeTimeoutMs_ ?
+          {microseconds: BigInt(Number(this.invokeTimeoutMs_) * 1000)} :
+          null,
       autoSubmit: this.invokeAutoSubmit_,
       freOverride: this.invokeFreOverride_,
       waitForPanelOpen: this.invokeWaitForPanelOpen_,
+      focusOnShow: this.invokeFocusOnShow_,
       freCompletionWaitMode: this.invokeFreCompletionWaitMode_,
       surface: surface,
+      specificTabIndex: this.invokeSurfaceType_ === 'specificTab' ?
+          this.invokeSpecificTabIndex_ :
+          null,
       actuationTarget: this.invokeActuationTarget_,
       showPanel: this.invokeAutoSubmit_ ? this.invokeShowPanel_ : null,
       payload: payload,
@@ -382,6 +438,9 @@ export class GlicInternalsAppElement extends CrLitElement {
         ActuationTarget as unknown as Record<number, string>;
 
     const optionsString = JSON.stringify(options, (key, value) => {
+      if (typeof value === 'bigint') {
+        value = value.toString();
+      }
       if (value === null || value === undefined) {
         return undefined;
       }
@@ -414,6 +473,9 @@ export class GlicInternalsAppElement extends CrLitElement {
         return undefined;
       }
       if (key === 'waitForPanelOpen' && value === false) {
+        return undefined;
+      }
+      if (key === 'focusOnShow' && value === true) {
         return undefined;
       }
 

@@ -47,6 +47,7 @@
 #import "ios/chrome/browser/shared/public/commands/guided_tour_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
+#import "ios/chrome/browser/shared/public/commands/new_tab_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_chip_commands.h"
@@ -638,6 +639,17 @@ inline LayoutStateToolbarPassKey PassKey() {
       return 0.0;
     }
     if ([self isToolbarPositionBottom]) {
+      if (IsAppBarHiddenInFullscreen() &&
+          _layoutState.appBarPosition == AppBarPosition::kBottom) {
+        CGFloat safeAreaBottom = 0.0;
+        if (self.browser->GetSceneState().window) {
+          safeAreaBottom =
+              self.browser->GetSceneState().window.safeAreaInsets.bottom;
+        }
+        return ToolbarCollapsedHeight(self.traitEnvironment.traitCollection
+                                          .preferredContentSizeCategory) +
+               safeAreaBottom;
+      }
       return kToolbarHeightFullscreen;
     }
     return 0.0;
@@ -753,6 +765,8 @@ inline LayoutStateToolbarPassKey PassKey() {
   if (IsChromeNextIaEnabled()) {
     [_topToolbarViewController setOverflowMenuBlueDot:hasBlueDot];
     [_bottomToolbarViewController setOverflowMenuBlueDot:hasBlueDot];
+    [HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                        NewTabPageCommands) setNTPBlueDotVisible:hasBlueDot];
   }
   for (id<ToolbarCoordinatee> coordinator in self.coordinators) {
     [coordinator.popupMenuUIUpdater setOverflowMenuBlueDot:hasBlueDot];
@@ -928,10 +942,6 @@ inline LayoutStateToolbarPassKey PassKey() {
 }
 
 - (UIView*)entrypointViewVisualCopy {
-  if (IsToolbarGlassPrototypeEnabled()) {
-    return nil;
-  }
-
   if (IsChromeNextIaEnabled()) {
     if ([self isToolbarPositionBottom] || [self isNTP]) {
       return nil;
@@ -1089,9 +1099,10 @@ inline LayoutStateToolbarPassKey PassKey() {
 
   // Only the visible coordinator (normal vs. incognito) is allowed to update
   // the shared LayoutState.
-  if (self.browser !=
-      self.browser->GetSceneState()
-          .browserProviderInterface.currentBrowserProvider.browser) {
+  Browser* activeBrowser = self.browser->GetSceneState()
+                               .browserProviderInterface
+                               .currentBrowserProvider.browser;
+  if (activeBrowser && self.browser != activeBrowser) {
     return;
   }
 
@@ -1332,6 +1343,7 @@ inline LayoutStateToolbarPassKey PassKey() {
                      actionFactory:actionFactory
                        prefService:profile->GetPrefs()
               fullscreenController:FullscreenController::FromBrowser(browser)
+            fullscreenBrowserAgent:FullscreenBrowserAgent::FromBrowser(browser)
                        topPosition:topPosition
       defaultBrowserBannerAppAgent:agent
              authenticationService:authService

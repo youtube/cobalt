@@ -89,7 +89,11 @@ GlicFloatingUi::~GlicFloatingUi() {
         &web_modal::ModalDialogHostObserver::OnHostDestroying);
   }
 
-  GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(nullptr);
+  // Only clear the current detached glic if this is being torn
+  // down before the profile manager is torn down.
+  if (auto* profile_manager = GlicProfileManager::GetInstance()) {
+    profile_manager->SetCurrentDetachedGlic(nullptr);
+  }
 
   ClearWebContentsDelegate();
   PictureInPictureOcclusionTracker* tracker =
@@ -505,7 +509,7 @@ void GlicFloatingUi::SwitchConversation(
 void GlicFloatingUi::CaptureScreenshot(
     glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) {
   if (!screenshot_capturer_) {
-    screenshot_capturer_ = std::make_unique<GlicScreenshotCapturer>();
+    screenshot_capturer_ = GlicScreenshotCapturer::Create();
   }
   screenshot_capturer_->CaptureScreenshot(GetGlicWidget()->GetNativeWindow(),
                                           std::move(callback));

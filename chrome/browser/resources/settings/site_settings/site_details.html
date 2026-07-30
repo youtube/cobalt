@@ -160,20 +160,20 @@
           icon="cr:videocam" label="$i18n{siteSettingsCamera}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.MIC]]"
-          icon="privacy:mic" label="$i18n{siteSettingsMic}">
+          icon="[[getMicIcon_()]]" label="$i18n{siteSettingsMic}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.SENSORS]]"
-          icon="privacy:sensors" label="$i18n{siteSettingsSensors}">
+          icon="[[getSensorsIcon_()]]" label="$i18n{siteSettingsSensors}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.NOTIFICATIONS]]"
-          icon="privacy:notifications"
+          icon="[[getNotificationsIcon_()]]"
           label="$i18n{siteSettingsNotifications}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.JAVASCRIPT]]"
-          icon="privacy:code" label="$i18n{siteSettingsJavascript}">
+          icon="[[getCodeIcon_()]]" label="$i18n{siteSettingsJavascript}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.IMAGES]]"
-          icon="privacy:imagesmode" label="$i18n{siteSettingsImages}">
+          icon="[[getImagesmodeIcon_()]]" label="$i18n{siteSettingsImages}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.POPUPS]]"
           icon="cr:open-in-new" label="$i18n{siteSettingsPopups}">
@@ -195,7 +195,7 @@
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.MIDI_DEVICES]]"
-          icon="privacy:piano" label="$i18n{siteSettingsMidiDevices}">
+          icon="[[getPianoIcon_()]]" label="$i18n{siteSettingsMidiDevices}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.USB_DEVICES]]"
           icon="privacy:usb" label="$i18n{siteSettingsUsbDevices}"
@@ -218,7 +218,7 @@
 </if>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.SERIAL_PORTS]]"
-          icon="privacy:developer-board" label="$i18n{siteSettingsSerialPorts}"
+          icon="[[getDeveloperBoardIcon_()]]" label="$i18n{siteSettingsSerialPorts}"
           chooser-type="[[chooserTypeEnum_.SERIAL_PORTS]]">
       </site-details-permission>
       <template is="dom-if" if="[[enableWebBluetoothNewPermissionsBackend_]]">
@@ -231,7 +231,7 @@
       </template>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.FILE_SYSTEM_WRITE]]"
-          icon="privacy:file-save"
+          icon="[[getFileSaveIcon_()]]"
           label="$i18n{siteSettingsFileSystemWrite}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.HID_DEVICES]]"
@@ -246,11 +246,11 @@
       </site-details-permission>
 </if>
       <site-details-permission category="[[contentSettingsTypesEnum_.CLIPBOARD]]"
-          icon="privacy:content-paste" label="$i18n{siteSettingsClipboard}">
+          icon="[[getContentPasteIcon_()]]" label="$i18n{siteSettingsClipboard}">
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.PAYMENT_HANDLER]]"
-          icon="privacy:credit-card"
+          icon="[[getCreditCardIcon_()]]"
           label="$i18n{siteSettingsPaymentHandler}">
       </site-details-permission>
       <template is="dom-if" if="[[enableExperimentalWebPlatformFeatures_]]">
@@ -274,19 +274,19 @@
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.FEDERATED_IDENTITY_API]]"
-          icon="privacy:account-circle"
+          icon="[[getAccountCircleIcon_()]]"
           label="$i18n{siteSettingsFederatedIdentityApi}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.AR]]"
-          icon="privacy:cardboard" label="$i18n{siteSettingsAr}">
+          icon="[[getCardboardIcon_()]]" label="$i18n{siteSettingsAr}">
       </site-details-permission>
       <site-details-permission category="[[contentSettingsTypesEnum_.VR]]"
-          icon="privacy:cardboard" label="$i18n{siteSettingsVr}">
+          icon="[[getCardboardIcon_()]]" label="$i18n{siteSettingsVr}">
       </site-details-permission>
       <template is="dom-if" if="[[enableHandTrackingContentSetting_]]">
         <site-details-permission
             category="[[contentSettingsTypesEnum_.HAND_TRACKING]]"
-            icon="privacy:hand-gesture" label="$i18n{siteSettingsHandTracking}">
+            icon="[[getHandGestureIcon_()]]" label="$i18n{siteSettingsHandTracking}">
         </site-details-permission>
       </template>
       <site-details-permission
@@ -296,12 +296,12 @@
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.WINDOW_MANAGEMENT]]"
-          icon="privacy:select-window"
+          icon="[[getSelectWindowIcon_()]]"
           label="$i18n{siteSettingsWindowManagement}">
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.LOCAL_FONTS]]"
-          icon="privacy:font-download" label="$i18n{fonts}">
+          icon="[[getFontDownloadIcon_()]]" label="$i18n{fonts}">
       </site-details-permission>
       <site-details-permission
           category="[[contentSettingsTypesEnum_.AUTO_PICTURE_IN_PICTURE]]"

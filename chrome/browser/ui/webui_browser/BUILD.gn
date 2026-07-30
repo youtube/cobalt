@@ -29,6 +29,7 @@ source_set("webui_browser") {
     "//chrome/browser/ui/location_bar",
     "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+    "//chrome/browser/ui/views/exclusive_access",
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/side_panel",
@@ -105,6 +106,7 @@ source_set("impl") {
     "//chrome/browser/ui/tabs/tab_strip_api",
     "//chrome/browser/ui/tabs/tab_strip_api/controllers",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/views/exclusive_access",
     "//chrome/browser/ui/views/page_info",
     "//chrome/browser/ui/views/toolbar",
     "//chrome/browser/ui/views/translate",
@@ -139,6 +141,7 @@ source_set("impl") {
 
   if (is_mac) {
     deps += [
+      "//chrome/browser:global_keyboard_shortcuts_mac",
       "//chrome/browser/apps/app_shim",
       "//chrome/browser/ui/cocoa",
       "//components/remote_cocoa/app_shim",
@@ -193,5 +196,29 @@ source_set("browser_tests") {
     "//content/test:test_support",
     "//skia",
     "//ui/gfx/geometry",
+  ]
+}
+
+source_set("interactive_ui_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = []
+
+  if (!is_chromeos) {
+    sources += [ "webui_browser_interactive_uitest.cc" ]
+  }
+
+  deps = [
+    ":impl",
+    ":webui_browser",
+    "//base/test:test_support",
+    "//chrome/browser/ui",
+    "//chrome/common:chrome_features",
+    "//chrome/test:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//ui/gfx/geometry",
+    "//ui/views:test_support",
   ]
 }

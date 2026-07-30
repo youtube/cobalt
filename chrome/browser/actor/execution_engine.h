@@ -56,6 +56,7 @@ class ScopedUmaHistogramTimer;
 
 namespace content {
 class NavigationHandle;
+class WebContents;
 }
 
 namespace url {
@@ -222,6 +223,9 @@ class ExecutionEngine : public ToolDelegate,
       AutofillSuggestionSelectedCallback callback) override;
   void RequestToShowGmailOtpOptInDialog(
       GmailOtpOptInCallback callback) override;
+  void RequestToShowGmailOtpConfirmationDialog(
+      const std::string& verification_code,
+      GmailOtpConfirmationCallback callback) override;
   void InterruptFromTool() override;
   void InterruptFromTool(bool retain_user_control) override;
   void UninterruptFromTool() override;
@@ -301,6 +305,16 @@ class ExecutionEngine : public ToolDelegate,
     return origin_gating_checker_.cache();
   }
 
+  origin_gating::OriginGatingChecker& origin_gating_checker() {
+    return origin_gating_checker_;
+  }
+
+  // Evaluates whether the actor may act on `tab`.
+  void MayActOnTab(const tabs::TabInterface& tab,
+                   AggregatedJournal& journal,
+                   TaskId task_id,
+                   DecisionCallbackWithReason callback);
+
   // Currently, navigations are generally forced to happen in the same tab (see
   // https://crbug.com/420669167 ). In some cases we need to drop this
   // restriction for certain tools to function.
@@ -317,6 +331,9 @@ class ExecutionEngine : public ToolDelegate,
       const GURL& source,
       const GURL& destination,
       DoesOriginRequireUserConfirmationCallback callback) const override;
+  void EvaluateEnterprisePolicy(
+      const GURL& destination,
+      EvaluateEnterprisePolicyCallback callback) const override;
   void OnNoVerdict(origin_gating::GatingDecisionContext* context,
                    origin_gating::GateableEvent event,
                    const GURL& source,
@@ -403,6 +420,19 @@ class ExecutionEngine : public ToolDelegate,
       std::optional<url::Origin> initiator,
       std::unique_ptr<origin_gating::GatingDecisionContext> context,
       origin_gating::GatingDecision decision);
+
+  void ShouldAllowNavigationDestination(
+      const GURL& url,
+      NoVerdictResultCallback result_callback);
+  void ShouldAllowPageAction(base::WeakPtr<content::WebContents> web_contents,
+                             const GURL& url,
+                             NoVerdictResultCallback result_callback);
+  void OnShouldAllowUrlDecision(
+      NoVerdictResultCallback result_callback,
+      const GURL& url,
+      std::unique_ptr<origin_gating::GatingDecisionContext> context,
+      origin_gating::GatingDecision decision);
+
   // Called when the browser detects the actor needs to confirm a
   // client-side-initiated navigation to a novel origin.
   void HandleNavigationToNewOrigin(

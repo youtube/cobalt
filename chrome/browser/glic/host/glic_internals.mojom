@@ -20,7 +20,8 @@ struct TieredRolloutInfo {
   bool is_eligible_overall;
   // Value of the kGlicRolloutEligibility pref.
   bool glic_rollout_eligibility_pref;
-  // Comma separated integers set from experiment config, eligible tiers configured for V2.
+  // Comma separated integers set from experiment config, eligible tiers
+  // configured for V2.
   string tiered_rollout_v2_eligible_tiers;
   // Text status of syncing the preference.
   string preference_sync_status;
@@ -86,9 +87,11 @@ struct TriggerInvokeFromInternalsOptions {
   bool auto_submit;
   FreOverride fre_override = kUnspecified;
   bool wait_for_panel_open;
+  bool? focus_on_show;
   FreCompletionWaitMode fre_completion_wait_mode = kDefault;
   bool? show_panel;
   InvokeTargetSurface surface;
+  int32? specific_tab_index;
   ActuationTarget actuation_target;
   // Source-specific payload for the invocation.
   InvocationPayload? payload;
@@ -109,6 +112,9 @@ interface InternalsPageHandler {
   TriggerInvokeFromInternalsAction(
       TriggerInvokeFromInternalsOptions options)
       => (bool success, string error_message);
+
+  // Gets the titles of all open tabs in the current window.
+  GetOpenTabs() => (array<string> tab_titles);
 
   // Sets the web continuity originating host URL preset for the internals page.
   SetWebContinuityOriginatingHostUrlPreset(

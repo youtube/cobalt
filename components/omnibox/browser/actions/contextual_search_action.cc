@@ -12,6 +12,10 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "components/omnibox/browser/actions/omnibox_action_factory_android.h"
+#endif
+
 #if defined(SUPPORT_PEDALS_VECTOR_ICONS)
 #include "build/branding_buildflags.h"                // nogncheck
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
@@ -124,7 +128,9 @@ void ContextualSearchOpenLensAction::RecordActionShown(size_t position,
 }
 
 void ContextualSearchOpenLensAction::Execute(ExecutionContext& context) const {
-  if (context.client_->ShouldOpenCoBrowsePanel()) {
+  if (context.client_->ShouldOpenComposeboxForAskG()) {
+    context.client_->OpenComposeboxForAskG();
+  } else if (context.client_->ShouldOpenCoBrowsePanel()) {
     context.client_->OpenCoBrowsePanel();
   } else {
     context.client_->OpenLensOverlay(/*show=*/true);
@@ -145,5 +151,17 @@ const gfx::VectorIcon& ContextualSearchOpenLensAction::GetVectorIcon() const {
 #endif
 }
 #endif  // defined(SUPPORT_PEDALS_VECTOR_ICONS)
+
+#if BUILDFLAG(IS_ANDROID)
+base::android::ScopedJavaLocalRef<jobject>
+ContextualSearchOpenLensAction::GetOrCreateJavaObject(JNIEnv* env) const {
+  if (!j_omnibox_action_) {
+    j_omnibox_action_.Reset(BuildOmniboxLensOverlayAction(
+        env, reinterpret_cast<intptr_t>(this), strings_.hint,
+        strings_.accessibility_hint));
+  }
+  return base::android::ScopedJavaLocalRef<jobject>(j_omnibox_action_);
+}
+#endif
 
 ContextualSearchOpenLensAction::~ContextualSearchOpenLensAction() = default;

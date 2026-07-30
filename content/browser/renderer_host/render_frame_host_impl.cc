@@ -83,6 +83,7 @@
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
+#include "content/browser/browser_context_impl.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/can_commit_status.h"
 #include "content/browser/closewatcher/close_listener_host.h"
@@ -2520,7 +2521,7 @@ scoped_refptr<InitiatorNavigationState>
 RenderFrameHostImpl::GetInitiatorNavigationStateFromFrameToken(
     const blink::LocalFrameToken* frame_token,
     int initiator_process_id,
-    StoragePartitionImpl* storage_partition) {
+    BrowserContext* browser_context) {
   // TODO(crbug.com/510258191): The initiator state should always be retrieved
   // from a NavigationStateKeepAlive recorded at the moment the navigation was
   // initiated. Update this function once we store NavigationStateKeepAlives
@@ -2542,9 +2543,10 @@ RenderFrameHostImpl::GetInitiatorNavigationStateFromFrameToken(
   }
 
   // Otherwise get it from the NavigationStateKeepAlive stored in
-  // `storage_partition`.
+  // `browser_context`.
   NavigationStateKeepAlive* navigation_state =
-      storage_partition->GetNavigationStateKeepAlive(*frame_token);
+      BrowserContextImpl::From(browser_context)
+          ->GetNavigationStateKeepAlive(*frame_token);
   if (navigation_state) {
     return navigation_state->initiator_navigation_state();
   }
@@ -2786,6 +2788,10 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
               ChromeTrackEvent::kRenderFrameHost, this);
   base::ScopedUmaHistogramTimer histogram_timer(
       "Navigation.RenderFrameHostDestructor");
+
+  if (policy_container_host_) {
+    policy_container_host_->SetClient(nullptr);
+  }
 
   MaybeResetBoostRenderProcessForLoading();
 
@@ -4258,9 +4264,10 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
   // is computed from the NavigationRequest and assigned in
   // DidCommitNewDocument().
   RenderFrameHostImpl* creator_rfh = nullptr;
+  scoped_refptr<PolicyContainerHost> policy_container_host = nullptr;
   if (parent_) {
     creator_rfh = parent_;
-    SetPolicyContainerHost(parent_->policy_container_host()->Clone());
+    policy_container_host = parent_->policy_container_host()->Clone();
   } else if (GetParentOrOuterDocument()) {
     creator_rfh = GetParentOrOuterDocument();
     // In the MPArch implementation of FencedFrame, this RenderFrameHost's
@@ -4280,7 +4287,7 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
     // 1. This makes it subject to local network access checks, restricting
     // its ability to access the private network.
     // 2. The IP address space of the parent does not leak to the fenced frame.
-    SetPolicyContainerHost(
+    policy_container_host =
         base::MakeRefCounted<PolicyContainerHost>(PolicyContainerPolicies(
             network::mojom::ReferrerPolicy::kDefault,
             IsFencedFrameRoot() ? network::mojom::IPAddressSpace::kPublic
@@ -4298,14 +4305,14 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
             /*is_credentialless=*/false,
             /*can_navigate_top_without_user_gesture=*/true,
             parent_policies.cross_origin_isolation_enabled_by_dip,
-            parent_policies.cross_origin_isolation_key_override)));
+            parent_policies.cross_origin_isolation_key_override));
   } else if (owner_->GetOpener()) {
     creator_rfh = owner_->GetOpener()->current_frame_host();
     // During a `window.open(...)` without `noopener`, a new popup is created
     // and always starts from the initial empty document. The opener has
     // synchronous access toward its openee. So they must both share the same
     // policies.
-    SetPolicyContainerHost(creator_rfh->policy_container_host()->Clone());
+    policy_container_host = creator_rfh->policy_container_host()->Clone();
   } else {
     // In all the other cases, there is no environment to inherit policies
     // from. This is "probably" a new top-level about:blank document created by
@@ -4332,8 +4339,8 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
       policies.ip_address_space = network::mojom::IPAddressSpace::kLoopback;
     }
 
-    SetPolicyContainerHost(
-        base::MakeRefCounted<PolicyContainerHost>(std::move(policies)));
+    policy_container_host =
+        base::MakeRefCounted<PolicyContainerHost>(std::move(policies));
   }
 
   // For cases where policy container's connection allowlists is inherited,
@@ -4364,28 +4371,49 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
   network::mojom::WebSandboxFlags sandbox_flags_to_commit =
       browsing_context_state_->effective_frame_policy().sandbox_flags;
   for (const auto& csp :
-       policy_container_host_->policies().content_security_policies) {
+       policy_container_host->policies().content_security_policies) {
     sandbox_flags_to_commit |= csp->sandbox;
   }
-  policy_container_host_->set_sandbox_flags(sandbox_flags_to_commit);
+  policy_container_host->set_sandbox_flags(
+      sandbox_flags_to_commit, base::PassKey<RenderFrameHostImpl>());
 
   // The initial empty document's credentialless bit was inherited from the
   // parent document. The frame's credentialless bit can also turn it on.
   if (owner_->Credentialless()) {
-    policy_container_host_->SetIsCredentialless();
+    policy_container_host->SetIsCredentialless(
+        base::PassKey<RenderFrameHostImpl>());
   }
+
+  // Assign the newly created PolicyContainerHost to the RenderFrameHostImpl.
+  // This will register this RFH as the PolicyContainerHost::Client, and the
+  // PolicyContainerHost will no longer be modifiable (except by IPCs received
+  // from the renderer process).
+  SetPolicyContainerHost(std::move(policy_container_host));
 }
 
 void RenderFrameHostImpl::SetPolicyContainerHost(
     scoped_refptr<PolicyContainerHost> policy_container_host) {
+  // Reset an existing PolicyContainerHost::Client now that it will no longer be
+  // associated with this RenderFrameHost.
+  if (policy_container_host_) {
+    policy_container_host_->SetClient(nullptr);
+  }
   policy_container_host_ = std::move(policy_container_host);
-  policy_container_host_->AssociateWithFrameToken(
-      GetFrameToken(), GetProcess()->GetDeprecatedID());
+  policy_container_host_->SetClient(this);
   // Top-level document are never credentialless.
   // Note: It is never inherited from the opener, because they are forced to
   // open windows using noopener.
   devtools_instrumentation::DidUpdatePolicyContainerHost(frame_tree_node_);
   CHECK(parent_ || !IsCredentialless());
+}
+
+void RenderFrameHostImpl::DidChangeReferrerPolicy(
+    network::mojom::ReferrerPolicy referrer_policy) {
+  if (!IsActive()) {
+    return;
+  }
+  CHECK(owner_);  // See `owner_` invariants about `IsActive()`.
+  owner_->DidChangeReferrerPolicy(referrer_policy);
 }
 
 void RenderFrameHostImpl::InitializeLocalNetworkAccessRequestPolicy() {
@@ -4931,15 +4959,6 @@ RenderFrameProxyHost* RenderFrameHostImpl::GetProxyToOuterDelegate() {
   return owner_->GetRenderFrameHostManager().GetProxyToOuterDelegate();
 }
 
-void RenderFrameHostImpl::DidChangeReferrerPolicy(
-    network::mojom::ReferrerPolicy referrer_policy) {
-  if (!IsActive()) {
-    return;
-  }
-  CHECK(owner_);  // See `owner_` invariants about `IsActive()`.
-  owner_->DidChangeReferrerPolicy(referrer_policy);
-}
-
 void RenderFrameHostImpl::PropagateEmbeddingTokenToParentFrame() {
   // Protect against calls from WebContentsImpl::AttachInnerWebContents() that
   // happen before RFHI::SetEmbeddingToken() gets called, which is where the
@@ -5167,6 +5186,16 @@ void RenderFrameHostImpl::OnCreateChildFrame(
             DisallowActivationReasonId::kCreateChildFrame)) {
       return;
     }
+  }
+
+  // The placeholder frame for an inner frame tree (e.g., an attached
+  // GuestView, fenced frame) must never have its own local children, since
+  // the inner tree's main frame is treated as this frame's only child during
+  // FrameTree iteration. This message could only have been sent before the
+  // renderer processed the corresponding Unload IPC, so just drop it. See
+  // https://crbug.com/518078552.
+  if (inner_tree_main_frame_tree_node_id_) {
+    return;
   }
 
   // `new_routing_id`, `frame_token`, `devtools_frame_token` and
@@ -6860,6 +6889,12 @@ void RenderFrameHostImpl::MaybeDispatchDOMContentLoadedOnPrerenderActivation() {
 void RenderFrameHostImpl::SwapOuterDelegateFrame(
     RenderFrameProxyHost* proxy,
     const base::UnguessableToken& devtools_frame_token) {
+  // The placeholder frame for an inner frame tree must never have its own
+  // local children. Clear them here, before sending the Unload IPC, so that
+  // the cleanup does not depend on the renderer sending a DidUnloadRenderFrame
+  // ACK. See https://crbug.com/518078552.
+  ResetChildren();
+
   // Note: At this point the placeholder iframe for embedding the guest has
   // been initialized with a devtools_frame_token that is different from the
   // guest's main frame (that is about to be attached to it). When we swap
@@ -7163,7 +7198,8 @@ void RenderFrameHostImpl::OnUnloadACK() {
     // stay around but it will no longer be associated with a RenderFrame.
     // Ensure there are no lingering child frames before marking the frame
     // deleted - this matters for compromised renderers (see
-    // https://crbug.com/517241992).
+    // https://crbug.com/517241992). This is a defense-in-depth call that
+    // mirrors a similar call in SwapOuterDelegateFrame().
     ResetChildren();
     RenderFrameDeleted();
     return;
@@ -7665,10 +7701,13 @@ void RenderFrameHostImpl::ClearUserActivation() {
   user_activation_state_.Clear();
   history_user_activation_state_.Clear();
   GetMainFrame()->honor_sticky_activation_for_history_intervention_ = true;
+  last_user_activation_consumed_time_ = base::TimeTicks();
 }
 
 void RenderFrameHostImpl::ConsumeTransientUserActivation() {
-  user_activation_state_.ConsumeIfActive();
+  if (user_activation_state_.ConsumeIfActive()) {
+    last_user_activation_consumed_time_ = base::TimeTicks::Now();
+  }
 }
 
 void RenderFrameHostImpl::ActivateUserActivation(
@@ -7819,15 +7858,22 @@ void RenderFrameHostImpl::SetWindowRect(const gfx::Rect& bounds,
         "SetWindowRect called during prerendering.");
     return;
   }
-  // Throw out SetWindowRects that are not from the outermost document.
-  if (GetParentOrOuterDocument()) {
-    local_main_frame_host_receiver_.ReportBadMessage(
-        "SetWindowRect called from child frame.");
+
+  // Always ack the renderer so it can clear its pending window rect, even on
+  // the early-return paths below.
+  base::ScopedClosureRunner ack(std::move(callback));
+
+  // An inactive document (e.g. one that has entered the back/forward cache)
+  // must not move or resize the window, which now hosts a different primary
+  // main frame. We use ValidateOutermostMainFrameWindowChange to evict the
+  // page from BFCache if this happens, to prevent the renderer from getting
+  // out of sync with the browser's window bounds if the page is later
+  // restored. See https://crbug.com/502232151.
+  if (!ValidateOutermostMainFrameWindowChange("SetWindowRect")) {
     return;
   }
 
   delegate_->SetWindowRect(bounds);
-  std::move(callback).Run();
 }
 
 void RenderFrameHostImpl::MoveWindowTo(const gfx::Point& origin,
@@ -10159,7 +10205,7 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
         /*post_body=*/nullptr, params->extra_headers,
         /*blob_url_loader_factory=*/nullptr,
         network::mojom::SourceLocation::New(), params->user_gesture,
-        params->is_form_submission, params->impression, params->started_by_ad,
+        params->is_form_submission, params->started_by_ad,
         params->actual_navigation_start,
         /*navigation_start_time=*/base::TimeTicks::Now(),
         /*is_embedder_initiated_fenced_frame_navigation=*/false,
@@ -10181,7 +10227,7 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
     initiator_navigation_state =
         RenderFrameHostImpl::GetInitiatorNavigationStateFromFrameToken(
             base::OptionalToPtr(params->initiator_frame_token),
-            GetProcess()->GetDeprecatedID(), GetStoragePartition());
+            GetProcess()->GetDeprecatedID(), GetBrowserContext());
 
     RenderFrameHostImpl* initiator_frame = RenderFrameHostImpl::FromFrameToken(
         GetProcess()->GetDeprecatedID(), params->initiator_frame_token.value());
@@ -10219,7 +10265,7 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
       params->disposition, params->should_replace_current_entry,
       params->user_gesture, params->triggering_event_info,
       params->href_translate, std::move(blob_url_loader_factory),
-      params->impression, params->has_rel_opener, params->started_by_ad);
+      params->has_rel_opener, params->started_by_ad);
 }
 
 void RenderFrameHostImpl::GetAssociatedInterface(
@@ -11148,10 +11194,12 @@ void RenderFrameHostImpl::StartDragging(
 void RenderFrameHostImpl::IssueKeepAliveHandle(
     mojo::PendingReceiver<blink::mojom::NavigationStateKeepAliveHandle>
         receiver) {
-  GetStoragePartition()->RegisterKeepAliveHandle(
+  BrowserContextImpl* browser_context =
+      BrowserContextImpl::From(GetBrowserContext());
+  browser_context->RegisterKeepAliveHandle(
       std::move(receiver),
       base::WrapUnique(new NavigationStateKeepAlive(
-          CreateInitiatorStateFromCurrentFrame(), GetStoragePartition())));
+          CreateInitiatorStateFromCurrentFrame(), browser_context)));
 }
 
 scoped_refptr<InitiatorNavigationState>
@@ -11293,7 +11341,8 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
         "RequestUnboundedSurface called with empty bounds.");
     return;
   }
-  if (auto* root_view = GetUnboundedSurfaceRootView()) {
+  RenderWidgetHostViewBase* parent_view = nullptr;
+  if (auto* root_view = GetUnboundedSurfaceRootView(&parent_view)) {
     // If an unbounded surface is already active, synchronously destroy it
     // first to enforce that only one is active per window.
     if (root_view->HasActiveUnboundedSurface()) {
@@ -11301,8 +11350,9 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
           root_view->GetUnboundedSurfaceWindow()->GetWeakPtr());
     }
     CHECK(!root_view->HasActiveUnboundedSurface());
-    root_view->CreateUnboundedSurface(std::move(host), std::move(client),
-                                      bounds);
+    root_view->CreateUnboundedSurface(
+        std::move(host), std::move(client), bounds,
+        parent_view ? parent_view->GetWeakPtr() : nullptr);
   }
 }
 
@@ -11385,6 +11435,9 @@ void RenderFrameHostImpl::DidChangeSrcDoc(
 
 void RenderFrameHostImpl::ReceivedDelegatedCapability(
     blink::mojom::DelegatedCapability delegated_capability) {
+  if (lifecycle_state() != LifecycleStateImpl::kActive) {
+    return;
+  }
   // Every delegated capability that is checked or consumed on the browser side
   // needs to be (a) activated here and (b) consumed when RFH handles the
   // capability.
@@ -11560,7 +11613,7 @@ void RenderFrameHostImpl::BeginNavigation(
   scoped_refptr<InitiatorNavigationState> initiator_navigation_state =
       GetInitiatorNavigationStateFromFrameToken(
           base::OptionalToPtr(begin_params->initiator_frame_token),
-          GetProcess()->GetDeprecatedID(), GetStoragePartition());
+          GetProcess()->GetDeprecatedID(), GetBrowserContext());
 
   if (waiting_for_init_) {
     pending_navigate_ = std::make_unique<PendingNavigation>(
@@ -14784,7 +14837,8 @@ void RenderFrameHostImpl::CreateWebSocketConnector(
       std::make_unique<WebSocketConnectorImpl>(
           GlobalRenderFrameHostId(GetProcess()->GetID(), routing_id_),
           GetWeakDocumentPtr(), last_committed_origin_, isolation_info_,
-          BuildClientSecurityState(), GetNetworkRestrictionsID()),
+          BuildClientSecurityState(), GetNetworkRestrictionsID(),
+          /*devtools_worker_token=*/std::nullopt),
       std::move(receiver));
 }
 
@@ -16594,31 +16648,6 @@ void RenderFrameHostImpl::DidCommitNewDocument(
   // completes (and after the RFH loses access to the navigation request).
   document_associated_data_->set_original_url(
       navigation_request->original_url());
-
-  // Set embedded documents' cross-origin-opener-policy from their top level:
-  //  - Use top level's policy if they are same-origin.
-  //  - Use the default policy otherwise.
-  // This COOP value is not used to enforce anything on this frame, but will be
-  // inherited to every local-scheme document created from them.
-  // It will also be inherited by the initial empty document from its opener.
-
-  // TODO(crbug.com/40092527) Computing and assigning the
-  // cross-origin-opener-policy of an embedded frame should be done in
-  // |NavigationRequest::ComputePoliciesToCommit| , but this is not currently
-  // possible because we need the origin for the computation. The linked bug
-  // moves the origin computation earlier in the navigation request, which will
-  // enable the move to |NavigationRequest::ComputePoliciesToCommit|.
-  if (parent_) {
-    const network::CrossOriginOpenerPolicy& top_level_coop =
-        GetMainFrame()->cross_origin_opener_policy();
-    if (GetMainFrame()->GetLastCommittedOrigin().IsSameOriginWith(
-            params.origin)) {
-      policy_container_host_->set_cross_origin_opener_policy(top_level_coop);
-    } else {
-      policy_container_host_->set_cross_origin_opener_policy(
-          network::CrossOriginOpenerPolicy());
-    }
-  }
 
   CrossOriginOpenerPolicyAccessReportManager::InstallAccessMonitorsIfNeeded(
       navigation_request->frame_tree_node());

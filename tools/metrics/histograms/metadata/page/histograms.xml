@@ -302,7 +302,6 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/navigation/histograms.xml:PagePreloadingTriggerType) -->
 
 <variants name="PrivacySandboxAdsApi">
-  <variant name="AttributionReporting"/>
   <variant name="FencedFrames"/>
   <variant name="PrivateAggregation"/>
   <variant name="ProtectedAudienceJoinAdInterestGroup"/>
@@ -388,7 +387,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".apps"/>
   <variant name=".arc-overview-tracing"/>
   <variant name=".arc-power-control"/>
-  <variant name=".attribution-internals"/>
   <variant name=".audio"/>
   <variant name=".autofill-internals"/>
   <variant name=".batch-upload"/>
@@ -479,6 +477,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".internet-config-dialog"/>
   <variant name=".internet-detail-dialog"/>
   <variant name=".intro"/>
+  <variant name=".iwa-dev"/>
   <variant name=".kerberos-in-browser"/>
   <variant name=".launcher-internals"/>
   <variant name=".lens"/>
@@ -534,7 +533,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".print-management"/>
   <variant name=".privacy-sandbox-base-dialog"/>
   <variant name=".privacy-sandbox-dialog"/>
-  <variant name=".private-aggregation-internals"/>
   <variant name=".private-ai-internals"/>
   <variant name=".process-internals"/>
   <variant name=".profile-customization"/>
@@ -1455,7 +1453,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleHomepage.DomainLookupTiming.NavigationToDomainLookupEnd.{NavigationCountType}{BrowserInitializationStatus}"
-    units="ms" expires_after="2026-05-17">
+    units="ms" expires_after="2027-07-01">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1468,6 +1466,9 @@ chromium-metrics-reviews@google.com.
 
     In cases where navigation start occurs after connect start (e.g. pre-fetch,
     pre-connect), this metric will contain zero.
+
+    This histogram has been expired between 2026-05-17 and 2026-07-01, thus does
+    not contain data for this period.
   </summary>
   <token key="NavigationCountType" variants="NavigationCountType"/>
   <token key="BrowserInitializationStatus"
@@ -1497,7 +1498,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleHomepage.NavigationTiming.NavigationToConnectStart.{NavigationCountType}{BrowserInitializationStatus}"
-    units="ms" expires_after="2026-09-20">
+    units="ms" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1800,7 +1801,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestConnectDelay{ConnectionProtocolType}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>horo@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1842,7 +1843,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDomainLookupDelay.InsecureDns"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2027-01-10">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1857,7 +1858,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDomainLookupDelay.SecureDns"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2027-01-10">
   <owner>bashi@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1872,7 +1873,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.ConnectTiming.FirstRequestDomainLookupDelay{ConnectionProtocolType}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>horo@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -3480,20 +3481,6 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients.Prerender.LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms2{PreloadingTriggerType}"
-    units="ms" expires_after="2024-09-03">
-  <owner>kenoss@chromium.org</owner>
-  <owner>src/content/browser/preloading/prerender/OWNERS</owner>
-  <summary>
-    PageLoad.LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms2,
-    but for page loads that were prerendered and were later activated. Note that
-    prerendered page loads are excluded from
-    PageLoad.LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms2.
-  </summary>
-  <token key="PreloadingTriggerType" variants="PagePreloadingTriggerType"/>
-</histogram>
-
-<histogram
     name="PageLoad.Clients.Prerender.NavigationToActivation{PreloadingTriggerType}"
     units="ms" expires_after="2026-11-29">
   <owner>nhiroki@chromium.org</owner>
@@ -3859,7 +3846,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients{ObservedNavigation}.Leakage2.LastMilestoneBeforeAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
-    enum="NavigationMilestoneEnum2" expires_after="2026-11-08">
+    enum="NavigationMilestoneEnum2" expires_after="2027-01-10">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -4078,7 +4065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.ConnectTiming.FirstRequestSslDelay" units="ms"
-    expires_after="2026-05-03">
+    expires_after="2027-07-01">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -4087,6 +4074,9 @@ chromium-metrics-reviews@google.com.
     for the main resource of a main frame navigation. Only recorded for
     navigations that happen entirely in the foreground. The metric is emitted
     when the navigation is completed or the app is backgrounded on Android.
+
+    This histogram has been expired between 2026-05-03 and 2026-07-01, thus does
+    not contain data for this period.
   </summary>
 </histogram>
 

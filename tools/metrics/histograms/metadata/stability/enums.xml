@@ -131,6 +131,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="11" label="RFH_INVALID_WEB_FRAME_URL"/>
   <int value="12" label="PVM_PRINT_FENCED_FRAME"/>
   <int value="13" label="SAGPC_INVALID_PERMISSION_REQUEST_CONTEXT"/>
+  <int value="14" label="TLSAPC_INVALID_PERMISSION_REQUEST_CONTEXT"/>
 </enum>
 
 <enum name="BadMessageReasonContent">
@@ -531,6 +532,8 @@ Called by update_bad_message_reasons.py.-->
       label="BIBI_BIND_GAMEPAD_MONITOR_BLOCKED_BY_PERMISSIONS_POLICY"/>
   <int value="357"
       label="BIBI_BIND_GAMEPAD_HAPTICS_MANAGER_BLOCKED_BY_PERMISSIONS_POLICY"/>
+  <int value="358" label="RFH_CREATE_NEW_WINDOW_INVALID_PIP_OPTIONS"/>
+  <int value="359" label="RFPH_POST_MESSAGE_INVALID_DELEGATED_CAPABILITY"/>
 </enum>
 
 <enum name="BadMessageReasonExtensions">
@@ -579,6 +582,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="37" label="SWH_INVALID_SERVICE_WORKER_SCOPE"/>
   <int value="38" label="EMF_INVALID_MESSAGE_FROM_SANDBOXED_PROCESS"/>
   <int value="39" label="WRA_INVALID_EXTENSION_ID_FOR_PROCESS"/>
+  <int value="40" label="WRA_INVALID_LISTENER_REGISTRATION"/>
 </enum>
 
 <enum name="BadMessageReasonGuestView">

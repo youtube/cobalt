@@ -111,6 +111,7 @@ class ParameterizedLensOverlayControllerCUJTest
          {{"use-pdfs-as-context", "true"}, {"auto-focus-searchbox", "false"}}}};
     std::vector<base::test::FeatureRef> disabled_features = {
         contextual_tasks::kContextualTasks,
+        contextual_tasks::kContextualTasksSidePanel,
         features::kNonBlockingOsClipboardReads};
 
     if (GetParam()) {
@@ -1091,10 +1092,8 @@ class LensOverlayControllerEduActionChipTest
   void SetUpFeatureList() override {
     feature_list_.InitWithFeaturesAndParameters(
         {base::test::FeatureRefAndParams(
-             lens::features::kLensOverlayEduActionChip,
-             {{"max-shown-count", "5"}}),
-         base::test::FeatureRefAndParams(
-             lens::features::kLensOverlayOptimizationFilter, {})},
+            lens::features::kLensOverlayEduActionChip,
+            {{"max-shown-count", "5"}})},
         {features::kNonBlockingOsClipboardReads});
   }
 

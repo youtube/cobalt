@@ -63,21 +63,26 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
         mCoordinator.show(suggestions);
     }
 
+    // TODO(crbug.com/534668889): Refactor isAcceptable and hasDeactivatedStyle to enum.
     @CalledByNative
     public static AutofillSuggestion createAutofillSuggestion(
             @JniType("std::u16string") String label,
+            @JniType("std::u16string") String secondaryLabel,
             @JniType("std::u16string") String subLabel,
             int iconId,
             int suggestionType,
             @JniType("std::vector") List<AutofillSuggestion> children,
-            boolean isAcceptable) {
+            boolean isAcceptable,
+            boolean hasDeactivatedStyle) {
         return new AutofillSuggestion.Builder()
                 .setLabel(label)
+                .setSecondaryLabel(secondaryLabel)
                 .setSubLabel(subLabel)
                 .setIconId(iconId)
                 .setSuggestionType(suggestionType)
                 .setChildren(children)
                 .setIsAcceptable(isAcceptable)
+                .setApplyDeactivatedStyle(hasDeactivatedStyle)
                 .build();
     }
 
@@ -116,10 +121,8 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     }
 
     @Override
-    public void onSearchFocus(boolean hasFocus) {
-        if (hasFocus) {
-            mCoordinator.expandSheet();
-        }
+    public void requestExpandSheet() {
+        mCoordinator.expand(/* expandInHalfHeight= */ false);
     }
 
     @Override

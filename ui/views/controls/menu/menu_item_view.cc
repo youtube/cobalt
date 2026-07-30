@@ -791,11 +791,17 @@ MenuItemView* MenuItemView::GetMenuItemByID(int id) {
 }
 
 void MenuItemView::ChildrenChanged() {
-  MenuController* controller = GetMenuController();
-  if (controller) {
+  auto* const controller_ptr = GetMenuController();
+  if (controller_ptr) {
     UpdateEmptyMenusAndMetrics();
 
+    // Certain accessibility callbacks could destroy the menu indirectly through
+    // activation changes.
+    const auto controller = controller_ptr->AsWeakPtr();
     controller->MenuChildrenChanged(this);
+    if (!controller) {
+      return;
+    }
 
     if (submenu_) {
       // Force a paint and a synchronous layout. This needs a synchronous layout
@@ -1911,14 +1917,16 @@ std::unique_ptr<ActionViewInterface> MenuItemView::GetActionViewInterface() {
 
 MenuItemActionViewInterface::MenuItemActionViewInterface(
     MenuItemView* action_view)
-    : BaseActionViewInterface(action_view), action_view_(action_view) {}
+    : BaseActionViewInterface(action_view) {}
 
 void MenuItemActionViewInterface::ActionItemChangedImpl(
     actions::ActionItem* action_item) {
   BaseActionViewInterface::ActionItemChangedImpl(action_item);
-  action_view_->SetTitle(std::u16string(action_item->GetText()));
+  auto* menu_item_view = views::AsViewClass<MenuItemView>(action_view());
+  CHECK(menu_item_view);
+  menu_item_view->SetTitle(std::u16string(action_item->GetText()));
   if (!action_item->GetImage().IsEmpty()) {
-    action_view_->SetIcon(action_item->GetImage());
+    menu_item_view->SetIcon(action_item->GetImage());
   }
 }
 

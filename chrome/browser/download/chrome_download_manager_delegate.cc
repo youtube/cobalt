@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -1259,7 +1260,8 @@ void ChromeDownloadManagerDelegate::ChooseSavePath(
                      weak_ptr_factory_.GetWeakPtr(), web_contents->GetURL(),
                      suggested_path, std::move(callback));
   if (profile_->IsOffTheRecord()) {
-    RequestIncognitoWarningConfirmation(std::move(confirm_callback));
+    RequestIncognitoWarningConfirmation(web_contents,
+                                        std::move(confirm_callback));
   } else {
     std::move(confirm_callback).Run(/*accepted=*/true);
   }
@@ -1482,8 +1484,16 @@ void ChromeDownloadManagerDelegate::ReserveVirtualPath(
 
 #if BUILDFLAG(IS_ANDROID)
 void ChromeDownloadManagerDelegate::RequestIncognitoWarningConfirmation(
+    content::WebContents* web_contents,
     IncognitoWarningConfirmationCallback callback) {
-  download_message_bridge_->ShowIncognitoDownloadMessage(std::move(callback));
+  ui::WindowAndroid* window_android =
+      web_contents ? web_contents->GetTopLevelNativeWindow() : nullptr;
+  if (!window_android) {
+    std::move(callback).Run(/*accepted=*/false);
+    return;
+  }
+  download_message_bridge_->ShowIncognitoDownloadMessage(window_android,
+                                                         std::move(callback));
 }
 #endif
 
@@ -2324,7 +2334,8 @@ std::unique_ptr<download::DownloadItemRenameHandler>
 ChromeDownloadManagerDelegate::GetRenameHandlerForDownload(
     download::DownloadItem* download_item) {
 #if BUILDFLAG(IS_CHROMEOS)
-  return policy::SkyvaultRenameHandler::CreateIfNeeded(download_item);
+  return policy::SkyvaultRenameHandler::CreateIfNeeded(
+      CHECK_DEREF(g_browser_process->local_state()), download_item);
 #else
   return nullptr;
 #endif  // BUILDFLAG(IS_CHROMEOS)

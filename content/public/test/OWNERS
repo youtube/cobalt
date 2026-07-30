@@ -14,18 +14,14 @@ per-file fake_speech_recognition_manager*=file://ui/accessibility/OWNERS
 # For Attribution Reporting API.
 per-file attribution_*=file://content/browser/attribution_reporting/OWNERS
 
-# For Aggregation Service testing tool.
-per-file test_aggregation_service*=file://content/browser/aggregation_service/OWNERS
-
 # For Topics API.
 per-file browsing_topics_*=file://components/browsing_topics/OWNERS
 
-# For Shared Storage API.
-per-file shared_storage_*=file://third_party/blink/renderer/modules/shared_storage/OWNERS
-per-file test_shared_storage_*=file://third_party/blink/renderer/modules/shared_storage/OWNERS
-
 # Network Service
 per-file network_service_test_helper.*=file://services/network/OWNERS
+
+# For Direct Sockets multicast test helpers.
+per-file direct_sockets*=file://content/browser/direct_sockets/OWNERS
 
 # DevTools-specific changes
 per-file *devtools*=file://content/browser/devtools/OWNERS

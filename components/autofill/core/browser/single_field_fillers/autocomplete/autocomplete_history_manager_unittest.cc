@@ -1210,7 +1210,6 @@ TEST_F(AutocompleteHistoryManagerTest,
       /*is_autocomplete_enabled=*/true);
 }
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 class AutocompleteHistoryManagerAtMemoryTest
     : public AutocompleteHistoryManagerTest {
  public:
@@ -1224,7 +1223,9 @@ class AutocompleteHistoryManagerAtMemoryTest
 
     // Enable personal context toggle.
     autofill_client_.GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings, 0);
+        optimization_guide::prefs::kGeminiSettings,
+        std::to_underlying(
+            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
     autofill_client_.GetPrefs()->SetBoolean(
         personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
         true);
@@ -1352,6 +1353,5 @@ TEST_F(AutocompleteHistoryManagerAtMemoryTest,
       mock_callback.Get());
   run_loop.Run();
 }
-#endif
 
 }  // namespace autofill

@@ -508,6 +508,96 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
         'all-sites:shoppingmode' :
         'all-sites:tag-old';
   }
+
+  protected getAccountCircleIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:account-circle' :
+        'privacy:account-circle-old';
+  }
+
+  protected getCardboardIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:cardboard' :
+        'privacy:cardboard-old';
+  }
+
+  protected getCodeIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:code' :
+        'privacy:code-old';
+  }
+
+  protected getContentPasteIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:content-paste' :
+        'privacy:content-paste-old';
+  }
+
+  protected getCreditCardIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:credit-card' :
+        'privacy:credit-card-old';
+  }
+
+  protected getDeveloperBoardIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:developer-board' :
+        'privacy:developer-board-old';
+  }
+
+  protected getFileSaveIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:file-save' :
+        'privacy:file-save-old';
+  }
+
+  protected getFontDownloadIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:font-download' :
+        'privacy:font-download-old';
+  }
+
+  protected getHandGestureIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:hand-gesture' :
+        'privacy:hand-gesture-old';
+  }
+
+  protected getImagesmodeIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:imagesmode' :
+        'privacy:imagesmode-old';
+  }
+
+  protected getMicIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:mic' :
+        'privacy:mic-old';
+  }
+
+  protected getNotificationsIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:notifications' :
+        'privacy:notifications-old';
+  }
+
+  protected getPianoIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:piano' :
+        'privacy:piano-old';
+  }
+
+  protected getSelectWindowIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:select-window' :
+        'privacy:select-window-old';
+  }
+
+  protected getSensorsIcon_(): string {
+    return loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'privacy:sensors' :
+        'privacy:sensors-old';
+  }
 }
 
 declare global {

@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,8 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/token_android.h"
+#include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/not_fatal_until.h"
 #include "base/uuid.h"
@@ -24,7 +27,7 @@
 #include "chrome/browser/tab/web_contents_state.h"
 #include "chrome/browser/ui/android/tab_model/android_live_tab_context_wrapper.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
-#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_jni_bridge.h"
 #include "chrome/common/url_constants.h"
 #include "components/sessions/content/content_live_tab.h"
 #include "components/sessions/core/tab_restore_service.h"
@@ -43,12 +46,14 @@ namespace {
 std::vector<WebContentsStateByteBuffer> AllTabsWebContentsStateByteBuffer(
     JNIEnv* env,
     const JavaRef<jobjectArray>& jbyte_buffers,
-    std::vector<int> saved_state_versions) {
-  int jbyte_buffers_count = env->GetArrayLength(jbyte_buffers.obj());
+    const std::vector<int32_t>& saved_state_versions) {
+  size_t jbyte_buffers_count =
+      static_cast<size_t>(env->GetArrayLength(jbyte_buffers.obj()));
+  size_t count = std::min(jbyte_buffers_count, saved_state_versions.size());
   std::vector<WebContentsStateByteBuffer> web_contents_states;
-  web_contents_states.reserve(jbyte_buffers_count);
+  web_contents_states.reserve(count);
 
-  for (int i = 0; i < jbyte_buffers_count; ++i) {
+  for (size_t i = 0; i < count; ++i) {
     web_contents_states.emplace_back(
         jni_zero::AdoptRef(env,
                            env->GetObjectArrayElement(jbyte_buffers.obj(), i)),
@@ -58,7 +63,7 @@ std::vector<WebContentsStateByteBuffer> AllTabsWebContentsStateByteBuffer(
 }
 
 std::vector<std::optional<tab_groups::TabGroupId>> TokensToTabGroupIds(
-    const std::vector<std::optional<base::Token>>& tab_group_tokens) {
+    base::span<const std::optional<base::Token>> tab_group_tokens) {
   std::vector<std::optional<tab_groups::TabGroupId>> tab_group_ids;
   tab_group_ids.reserve(tab_group_tokens.size());
   for (const auto& token : tab_group_tokens) {
@@ -68,7 +73,7 @@ std::vector<std::optional<tab_groups::TabGroupId>> TokensToTabGroupIds(
 }
 
 std::optional<base::Uuid> StringToUuid(
-    const std::u16string& serialized_saved_tab_group_id) {
+    std::u16string_view serialized_saved_tab_group_id) {
   if (serialized_saved_tab_group_id.empty()) {
     return std::nullopt;
   }
@@ -76,7 +81,7 @@ std::optional<base::Uuid> StringToUuid(
 }
 
 std::vector<std::optional<base::Uuid>> StringsToUuids(
-    const std::vector<std::u16string>& serialized_saved_tab_group_ids) {
+    base::span<const std::u16string> serialized_saved_tab_group_ids) {
   std::vector<std::optional<base::Uuid>> saved_tab_group_ids;
   saved_tab_group_ids.reserve(serialized_saved_tab_group_ids.size());
   for (const auto& serialized_saved_tab_group_id :
@@ -132,7 +137,7 @@ void CreateHistoricalGroup(
     return;
   }
 
-  std::map<int, tab_groups::TabGroupId> tab_id_to_group_id;
+  base::flat_map<int, tab_groups::TabGroupId> tab_id_to_group_id;
   for (const TabAndroid* tab : tabs) {
     DCHECK(tab);
     tab_id_to_group_id.insert(
@@ -143,11 +148,15 @@ void CreateHistoricalGroup(
   // data for tabs it should be possible to eliminate the need for this wrapper
   // when closing an entire tab group.
   AndroidLiveTabContextCloseWrapper context(
-      model, std::move(tabs), std::move(tab_id_to_group_id),
+      model, std::move(tabs),
+      std::map<int, tab_groups::TabGroupId>(
+          std::make_move_iterator(tab_id_to_group_id.begin()),
+          std::make_move_iterator(tab_id_to_group_id.end())),
       std::map<tab_groups::TabGroupId, tab_groups::TabGroupVisualData>(
           {{tab_group_id,
             tab_groups::TabGroupVisualData(
-                group_title, static_cast<tab_groups::TabGroupColorId>(group_color))}}),
+                group_title,
+                static_cast<tab_groups::TabGroupColorId>(group_color))}}),
       std::map<tab_groups::TabGroupId, std::optional<base::Uuid>>(
           {{tab_group_id, saved_tab_group_id}}),
       std::move(web_contents_state));
@@ -180,9 +189,9 @@ void CreateHistoricalBulkClosure(
 
   // Map each tab_group::TabGroupId to corresponding data for consumption
   // downstream.
-  std::map<tab_groups::TabGroupId, tab_groups::TabGroupVisualData>
+  base::flat_map<tab_groups::TabGroupId, tab_groups::TabGroupVisualData>
       tab_group_visual_data;
-  std::map<tab_groups::TabGroupId, std::optional<base::Uuid>>
+  base::flat_map<tab_groups::TabGroupId, std::optional<base::Uuid>>
       saved_tab_group_ids_map;
 
   for (size_t i = 0; i < tab_group_ids.size(); ++i) {
@@ -194,15 +203,15 @@ void CreateHistoricalBulkClosure(
       saved_tab_group_ids_map.insert({group_id, saved_tab_group_id});
     }
 
-    const std::u16string title = group_titles[i];
     int color = group_colors[i];
     tab_group_visual_data[group_id] = tab_groups::TabGroupVisualData(
-        title, static_cast<tab_groups::TabGroupColorId>(color));
+        std::move(group_titles[i]),
+        static_cast<tab_groups::TabGroupColorId>(color));
   }
 
   // Map Android Tabs by ID to their new or existing native
   // tab_group::TabGroupId.
-  std::map<int, tab_groups::TabGroupId> tab_id_to_group_id;
+  base::flat_map<int, tab_groups::TabGroupId> tab_id_to_group_id;
   for (size_t i = 0; i < tabs.size(); ++i) {
     TabAndroid* tab = tabs[i];
     if (auto optional_tab_group_id = per_tab_optional_tab_group_ids[i]) {
@@ -214,8 +223,16 @@ void CreateHistoricalBulkClosure(
   // This wrapper is necessary for bulk closures that don't close all tabs via
   // the bulk tab editor.
   AndroidLiveTabContextCloseWrapper context(
-      model, std::move(tabs), std::move(tab_id_to_group_id),
-      std::move(tab_group_visual_data), std::move(saved_tab_group_ids_map),
+      model, std::move(tabs),
+      std::map<int, tab_groups::TabGroupId>(
+          std::make_move_iterator(tab_id_to_group_id.begin()),
+          std::make_move_iterator(tab_id_to_group_id.end())),
+      std::map<tab_groups::TabGroupId, tab_groups::TabGroupVisualData>(
+          std::make_move_iterator(tab_group_visual_data.begin()),
+          std::make_move_iterator(tab_group_visual_data.end())),
+      std::map<tab_groups::TabGroupId, std::optional<base::Uuid>>(
+          std::make_move_iterator(saved_tab_group_ids_map.begin()),
+          std::make_move_iterator(saved_tab_group_ids_map.end())),
       std::move(web_contents_state));
   service->BrowserClosing(&context);
   service->BrowserClosed(&context);
@@ -238,11 +255,8 @@ ScopedWebContents::ScopedWebContents(
 ScopedWebContents::~ScopedWebContents() = default;
 
 content::WebContents* ScopedWebContents::web_contents() const {
-  if (!unowned_web_contents_) {
-    return owned_web_contents_.get();
-  } else {
-    return unowned_web_contents_;
-  }
+  return unowned_web_contents_ ? unowned_web_contents_.get()
+                               : owned_web_contents_.get();
 }
 
 // static
@@ -290,7 +304,7 @@ static void JNI_HistoricalTabSaverImpl_CreateHistoricalTab(
 
 static void JNI_HistoricalTabSaverImpl_CreateHistoricalGroup(
     JNIEnv* env,
-    const JavaRef<jobject>& jtab_model,
+    TabModel* model,
     const base::Token& tab_group_id_token,
     const std::u16string& serialized_saved_tab_group_id,
     const std::u16string& title,
@@ -308,16 +322,15 @@ static void JNI_HistoricalTabSaverImpl_CreateHistoricalGroup(
 
   std::vector<WebContentsStateByteBuffer> web_contents_states =
       AllTabsWebContentsStateByteBuffer(env, jbyte_buffers,
-                                        std::move(saved_state_versions));
-  CreateHistoricalGroup(
-      TabModelList::FindNativeTabModelForJavaObject(jtab_model), tab_group_id,
-      saved_tab_group_id, title, static_cast<int>(jcolor),
-      std::move(tabs_android), std::move(web_contents_states));
+                                        saved_state_versions);
+  CreateHistoricalGroup(model, tab_group_id, saved_tab_group_id, title,
+                        static_cast<int>(jcolor), std::move(tabs_android),
+                        std::move(web_contents_states));
 }
 
 static void JNI_HistoricalTabSaverImpl_CreateHistoricalBulkClosure(
     JNIEnv* env,
-    const JavaRef<jobject>& jtab_model,
+    TabModel* model,
     const std::vector<std::optional<base::Token>>& tab_group_token_ids,
     const std::vector<std::u16string>& serialized_saved_tab_group_ids,
     const std::vector<std::u16string>& group_titles,
@@ -340,13 +353,12 @@ static void JNI_HistoricalTabSaverImpl_CreateHistoricalBulkClosure(
 
   std::vector<WebContentsStateByteBuffer> web_contents_states =
       AllTabsWebContentsStateByteBuffer(env, jbyte_buffers,
-                                        std::move(saved_state_versions));
-  CreateHistoricalBulkClosure(
-      TabModelList::FindNativeTabModelForJavaObject(jtab_model),
-      std::move(tab_group_ids), std::move(saved_tab_group_ids),
-      std::move(group_titles), std::move(group_colors),
-      std::move(per_tab_optional_tab_group_ids), std::move(tabs),
-      std::move(web_contents_states));
+                                        saved_state_versions);
+  CreateHistoricalBulkClosure(model, std::move(tab_group_ids),
+                              std::move(saved_tab_group_ids),
+                              std::move(group_titles), std::move(group_colors),
+                              std::move(per_tab_optional_tab_group_ids),
+                              std::move(tabs), std::move(web_contents_states));
 }
 
 }  // namespace historical_tab_saver

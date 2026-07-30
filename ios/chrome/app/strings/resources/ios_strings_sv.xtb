@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Spara lösenord</translation>
 <translation id="1764070164487214210">Vägbeskrivningar</translation>
 <translation id="1764511703783285459">Den andra lösenordshanteraren delade inga lösenord eller nycklar</translation>
+<translation id="1765555082983153259">Chrome vill ha åtkomst till mikrofonen</translation>
 <translation id="1767766085187034454">Google Översätt</translation>
 <translation id="1771016937398045251">Verktygsmeny</translation>
 <translation id="1772468122139624049">Det går inte att läsa in flikarna på nytt</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Menyrad med smart sortering</translation>
 <translation id="1883255238294161206">Komprimera lista</translation>
+<translation id="1883898928879467646">Fliken har tagits bort</translation>
 <translation id="1888854257756214946">Välj lösenord …</translation>
 <translation id="1890237935065108104">Inställningen är inte tillgänglig.</translation>
 <translation id="1894023287452300670">Bevaka pris här</translation>
@@ -1620,6 +1622,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="6406506848690869874">Synkronisera</translation>
 <translation id="6410390304316730527">Säker webbsökning skyddar dig mot angripare som kan försöka lura dig att göra något riskfyllt, till exempel installera skadlig kod eller avslöja personliga uppgifter som lösenord, telefonnummer eller kreditkortsuppgifter. Om du inaktiverar detta bör du vara försiktig när du besöker okända webbplatser.</translation>
 <translation id="6410883413783534063">Öppna flikar för att besöka olika sidor samtidigt</translation>
+<translation id="6412195388778525440">Ta bort flik</translation>
 <translation id="6418346271604475326">Förbereder PDF</translation>
 <translation id="6420292512900923139">Det gick inte att importera din data</translation>
 <translation id="6421038304268477484">Översatt text</translation>
@@ -2320,7 +2323,6 @@ Byt till <ph name="OTHER_EMAIL" /> om du vill fortsätta på datorn. Du får lö
 <translation id="8692689525339542358">Få skydd mot farliga webbplatser, nedladdningar och tillägg.</translation>
 <translation id="8692897097252418799">Välj vilken data du vill exportera</translation>
 <translation id="8694281486652655615">Visar det här objektet</translation>
-<translation id="8696297579102085705">Skicka till din enhet</translation>
 <translation id="8697136149718343437">Flytta adressfältet längst ned</translation>
 <translation id="869891660844655955">Utgångsdatum</translation>
 <translation id="8706253136355675497">Temperatur</translation>
@@ -2463,6 +2465,7 @@ Byt till <ph name="OTHER_EMAIL" /> om du vill fortsätta på datorn. Du får lö
 <translation id="9149866541089851383">Redigera...</translation>
 <translation id="9152637745605628097">Välj bland teman och färger eller ladda upp en bild</translation>
 <translation id="9159628751968616911">Skicka webbsida</translation>
+<translation id="9162412286847966593">Din organisations data och inspelningar används inte för att förbättra generativa AI-modeller. <ph name="BEGIN_LINK" />Din integritet och Gemini<ph name="END_LINK" />.</translation>
 <translation id="9162432979321511934">Aktivera Autofyll lösenord</translation>
 <translation id="9165320910061267720">Om du vill få aviseringar om sänkta priser måste du aktivera aviseringar i iOS-inställningarna.</translation>
 <translation id="9179151630575358778">Döljer det här objektet</translation>

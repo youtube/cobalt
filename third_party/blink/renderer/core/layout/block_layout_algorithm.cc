@@ -343,23 +343,23 @@ void BlockLayoutAlgorithm::SetupRelayoutData(
   column_spanner_path_ = previous.column_spanner_path_;
 
   if (relayout_type == kRelayoutIgnoringLineClamp) {
-    line_clamp_data_.data.state = LineClampData::kDisabled;
+    line_clamp_data_.data.state = LineClampData::State::kDisabled;
     line_clamp_data_.ignore_line_clamp = true;
   } else if (relayout_type == kRelayoutClampingByLines) {
-    line_clamp_data_.data.state = LineClampData::kClampByLines;
+    line_clamp_data_.data.state = LineClampData::State::kClampByLines;
     line_clamp_data_.data.lines_until_clamp =
         line_clamp_data_.initial_lines_until_clamp =
             previous.line_clamp_data_.data.lines_until_clamp;
     line_clamp_data_.data.block_ellipsis =
         previous.line_clamp_data_.data.block_ellipsis;
   } else if (relayout_type == kRelayoutClampingAfterLayoutObject) {
-    line_clamp_data_.data.state = LineClampData::kClampAfterLayoutObject;
+    line_clamp_data_.data.state = LineClampData::State::kClampAfterLayoutObject;
     line_clamp_data_.data.clamp_after_layout_object =
         previous.line_clamp_data_.last_layout_object;
     line_clamp_data_.data.block_ellipsis =
         previous.line_clamp_data_.data.block_ellipsis;
   } else if (previous.line_clamp_data_.data.IsClampByLines()) {
-    line_clamp_data_.data.state = LineClampData::kClampByLines;
+    line_clamp_data_.data.state = LineClampData::State::kClampByLines;
     line_clamp_data_.data.lines_until_clamp =
         line_clamp_data_.initial_lines_until_clamp =
             previous.line_clamp_data_.initial_lines_until_clamp;
@@ -862,6 +862,7 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
   PreviousInflowPosition previous_inflow_position = {
       LayoutUnit(), constraint_space.GetMarginStrut(),
       is_resuming_ ? LayoutUnit() : ComputeInitialBlockStartAnnotationSpace(),
+      /* previous_sibling_block_end_annotation_space */ LayoutUnit(),
       /* self_collapsing_child_had_clearance */ false};
 
   if (GetBreakToken()) {
@@ -1412,6 +1413,25 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
       previously_consumed_block_size + intrinsic_block_size_,
       border_box_size.inline_size);
   container_builder_.SetFragmentsTotalBlockSize(border_box_size.block_size);
+
+  if (RuntimeEnabledFeatures::AnnotationSpaceOnStartEnabled() &&
+      GetConstraintSpace().ContainsAnnotations() &&
+      !GetConstraintSpace().IsNewFormattingContext() &&
+      previous_inflow_position->block_end_annotation_space > LayoutUnit() &&
+      Borders().block_end == 0) {
+    const LayoutUnit content_end_offset =
+        BorderScrollbarPadding().block_start +
+        previous_inflow_position->logical_block_offset;
+    const LayoutUnit annotation_space_start_offset =
+        content_end_offset -
+        previous_inflow_position->block_end_annotation_space;
+    const LayoutUnit container_end_offset = border_box_size.block_size -
+                                            Borders().block_end -
+                                            Scrollbar().block_end;
+    const LayoutUnit available_space = std::max(
+        LayoutUnit(), container_end_offset - annotation_space_start_offset);
+    container_builder_.SetBlockEndAnnotationSpace(available_space);
+  }
 
   // If our BFC block-offset is still unknown, we check:
   //  - If we have a non-zero block-size (margins don't collapse through us).
@@ -2353,7 +2373,8 @@ LayoutResult::EStatus BlockLayoutAlgorithm::HandleInflow(
       child, child_break_token, child_data, ChildAvailableSize(),
       /* is_new_fc */ false, forced_bfc_block_offset,
       has_clearance_past_adjoining_floats,
-      previous_inflow_position->block_end_annotation_space);
+      previous_inflow_position->block_end_annotation_space,
+      previous_inflow_position->previous_sibling_block_end_annotation_space);
   const LayoutResult* layout_result =
       LayoutInflow(child_space, child_break_token, early_break_,
                    column_spanner_path_, &child, inline_child_layout_context);
@@ -2557,7 +2578,10 @@ LayoutResult::EStatus BlockLayoutAlgorithm::FinishInflow(
 
     const ConstraintSpace new_child_space = CreateConstraintSpaceForChild(
         child, child_break_token, *child_data, ChildAvailableSize(),
-        /* is_new_fc */ false, child_bfc_block_offset);
+        /* is_new_fc */ false, child_bfc_block_offset,
+        /* has_clearance_past_adjoining_floats */ false,
+        /* block_end_annotation_space */ LayoutUnit(),
+        previous_inflow_position->previous_sibling_block_end_annotation_space);
     layout_result =
         LayoutInflow(new_child_space, child_break_token, early_break_,
                      column_spanner_path_, &child, inline_child_layout_context);
@@ -2578,7 +2602,11 @@ LayoutResult::EStatus BlockLayoutAlgorithm::FinishInflow(
 
       const ConstraintSpace final_child_space = CreateConstraintSpaceForChild(
           child, child_break_token, *child_data, ChildAvailableSize(),
-          /* is_new_fc */ false, child_bfc_block_offset);
+          /* is_new_fc */ false, child_bfc_block_offset,
+          /* has_clearance_past_adjoining_floats */ false,
+          /* block_end_annotation_space */ LayoutUnit(),
+          previous_inflow_position
+              ->previous_sibling_block_end_annotation_space);
       layout_result = LayoutInflow(final_child_space, child_break_token,
                                    early_break_, column_spanner_path_, &child,
                                    inline_child_layout_context);
@@ -3066,7 +3094,15 @@ PreviousInflowPosition BlockLayoutAlgorithm::ComputeInflowPosition(
     }
   }
 
+  LayoutUnit previous_sibling_block_end_annotation_space;
+  if (RuntimeEnabledFeatures::AnnotationSpaceOnStartEnabled() &&
+      GetConstraintSpace().ContainsAnnotations() && child.IsBlock() &&
+      annotation_space > LayoutUnit()) {
+    previous_sibling_block_end_annotation_space = annotation_space;
+  }
+
   return {logical_block_offset, margin_strut, annotation_space,
+          previous_sibling_block_end_annotation_space,
           self_or_sibling_self_collapsing_child_had_clearance};
 }
 
@@ -3417,7 +3453,8 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
     bool is_new_fc,
     const std::optional<LayoutUnit> child_bfc_block_offset,
     bool has_clearance_past_adjoining_floats,
-    LayoutUnit block_start_annotation_space) {
+    LayoutUnit block_start_annotation_space,
+    LayoutUnit previous_sibling_block_end_annotation_space) {
   const ComputedStyle& child_style = child.Style();
   const auto child_writing_direction = child_style.GetWritingDirection();
   const auto& constraint_space = GetConstraintSpace();
@@ -3589,6 +3626,13 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
         line_clamp_data_.data.IsLineClampContext() &&
         (constraint_space.ShouldTextBoxTrimInsideWhenLineClamp() ||
          container_builder_.ShouldTextBoxTrimNodeEnd()));
+    if (RuntimeEnabledFeatures::AnnotationSpaceOnStartEnabled() &&
+        GetConstraintSpace().ContainsAnnotations() &&
+        !GetConstraintSpace().IsInsideBalancedColumns() &&
+        previous_sibling_block_end_annotation_space > LayoutUnit()) {
+      builder.SetPreviousSiblingBlockEndAnnotationSpace(
+          previous_sibling_block_end_annotation_space);
+    }
   }
   builder.SetBlockStartAnnotationSpace(block_start_annotation_space);
 
@@ -4086,17 +4130,17 @@ LayoutUnit BlockLayoutAlgorithm::ComputeInitialBlockStartAnnotationSpace()
   LayoutUnit padding_start = container_builder_.Padding().block_start;
   // Allow ruby annotations to overflow to the block-start margin if the
   // container has no block-start border.
-  // TODO(crbug.com/445727139): We'd like to add block-end annotation space of
-  // the previous sibling IFC.
   if (RuntimeEnabledFeatures::AnnotationSpaceOnStartEnabled() &&
+      GetConstraintSpace().ContainsAnnotations() &&
       !GetConstraintSpace().IsNewFormattingContext() &&
-      Borders().block_start == 0 &&
-      Style().OverflowBlockDirection() == EOverflow::kVisible) {
+      !GetConstraintSpace().IsInsideBalancedColumns() &&
+      Borders().block_start == 0) {
     MarginStrut margin_strut = GetConstraintSpace().GetMarginStrut();
     margin_strut.Append(
         ComputeMarginsForSelf(GetConstraintSpace(), Style()).block_start,
         Style().HasMarginBlockStartQuirk());
-    return margin_strut.Sum() + padding_start;
+    return margin_strut.Sum() + padding_start +
+           GetConstraintSpace().PreviousSiblingBlockEndAnnotationSpace();
   }
   return padding_start;
 }
@@ -4153,7 +4197,7 @@ NOINLINE void BlockLayoutAlgorithm::SetupLineClamp() {
         // If the block size is fixed, we won't ever clamp inside this box,
         // since that couldnt possibly reduce the line-clamp container's height.
         // But our ancestors still need to know the number of lines in the box.
-        line_clamp_data_.data.state = LineClampData::kCountLines;
+        line_clamp_data_.data.state = LineClampData::State::kCountLines;
       } else {
         DCHECK(constraint_space.GetLineClampAncestorChain());
         LayoutUnit end_margin =
@@ -4172,26 +4216,26 @@ void BlockLineClampData::UpdateFromStyle(int lines_until_clamp,
                                          LayoutUnit clamp_bfc_offset,
                                          LayoutUnit end_border_padding) {
   if (ignore_line_clamp) {
-    DCHECK_EQ(data.state, LineClampData::kDisabled);
+    DCHECK_EQ(data.state, LineClampData::State::kDisabled);
     return;
   }
 
-  DCHECK_EQ(data.state, LineClampData::kDisabled);
+  DCHECK_EQ(data.state, LineClampData::State::kDisabled);
   DCHECK_GE(lines_until_clamp, 0);
   if (!lines_until_clamp) {
     if (clamp_bfc_offset == kIndefiniteSize) {
-      data.state = LineClampData::kDisabled;
+      data.state = LineClampData::State::kDisabled;
     } else {
-      data.state = LineClampData::kMeasureLinesUntilBfcOffset;
+      data.state = LineClampData::State::kMeasureLinesUntilBfcOffset;
       data.lines_until_clamp = 0;
       data.clamp_bfc_offset = clamp_bfc_offset;
     }
   } else {
     if (clamp_bfc_offset == kIndefiniteSize) {
-      data.state = LineClampData::kClampByLines;
+      data.state = LineClampData::State::kClampByLines;
       data.lines_until_clamp = lines_until_clamp;
     } else {
-      data.state = LineClampData::kClampByLinesWithBfcOffset;
+      data.state = LineClampData::State::kClampByLinesWithBfcOffset;
       data.lines_until_clamp = lines_until_clamp;
       data.clamp_bfc_offset = clamp_bfc_offset;
     }
@@ -4295,11 +4339,11 @@ bool BlockLineClampData::UpdateAfterLayout(
   // With kClampAfterLayoutObject, if we've found the layout object, then we
   // switch states to kClampByLines with negative lines. If the child layout
   // result has negative lines, then the layout object was found there.
-  if (data.state == LineClampData::kClampAfterLayoutObject &&
+  if (data.state == LineClampData::State::kClampAfterLayoutObject &&
       (layout_result->LinesUntilClamp() < 0 ||
        data.clamp_after_layout_object == fragment.GetLayoutObject())) {
     DCHECK(!previous_inflow_position_when_clamped);
-    data.state = LineClampData::kClampByLines;
+    data.state = LineClampData::State::kClampByLines;
     data.lines_until_clamp = -1;
     previous_inflow_position_when_clamped = previous_inflow_position;
   }

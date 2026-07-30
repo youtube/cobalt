@@ -12,6 +12,8 @@ static_library("autofill") {
   sources = [
     "address_normalizer_factory.cc",
     "address_normalizer_factory.h",
+    "at_memory/at_memory_query_service_factory.cc",
+    "at_memory/at_memory_query_service_factory.h",
     "at_memory_cross_tab_copy_paste_tracker_factory.cc",
     "at_memory_cross_tab_copy_paste_tracker_factory.h",
     "autocomplete_history_manager_factory.cc",
@@ -74,7 +76,6 @@ static_library("autofill") {
   ]
   deps = [
     "//chrome/browser:browser_process",
-    "//chrome/browser/accessibility_annotator",
     "//chrome/browser/account_settings",
     "//chrome/browser/history",
     "//chrome/browser/metrics",
@@ -188,6 +189,8 @@ static_library("test_support") {
   sources = [
     "autofill_uitest_util.cc",
     "autofill_uitest_util.h",
+    "automated_tests/cache_replayer.cc",
+    "automated_tests/cache_replayer.h",
     "mock_autofill_agent.cc",
     "mock_autofill_agent.h",
   ]
@@ -199,9 +202,14 @@ static_library("test_support") {
     "//components/autofill/content/browser",
     "//components/autofill/content/common/mojom",
     "//components/autofill/core/browser:test_support",
+    "//components/autofill/core/browser/proto",
     "//content/test:test_support",
+    "//net",
+    "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/protobuf:protobuf_lite",
+    "//third_party/zlib/google:compression_utils",
     "//ui/gfx:test_support",
   ]
 
@@ -384,6 +392,7 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     deps = [
+      ":test_support",
       "//chrome/browser/autofill:test_support_ui",
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/autofill:test_support",
@@ -400,6 +409,7 @@ source_set("unit_tests") {
   sources = [ "automated_tests/cache_replayer_unittest.cc" ]
 
   deps = [
+    ":test_support",
     "//base",
     "//chrome/test:test_support",
     "//components/autofill/core/browser/proto",
@@ -421,6 +431,23 @@ source_set("unit_tests") {
       "//components/personal_context/core",
       "//ui/base",
       "//ui/gfx:test_support",
+    ]
+  }
+
+  if (is_android) {
+    sources += [
+      "android/attribute_instance_android_unittest.cc",
+      "android/autofill_ai_save_update_entity_prompt_controller_unittest.cc",
+      "android/entity_data_manager_android_unittest.cc",
+      "android/entity_instance_android_unittest.cc",
+      "android/mock_autofill_ai_save_update_entity_prompt_view.cc",
+      "android/mock_autofill_ai_save_update_entity_prompt_view.h",
+      "android/save_update_address_profile_prompt_controller_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/autofill",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui/autofill",
     ]
   }
 }

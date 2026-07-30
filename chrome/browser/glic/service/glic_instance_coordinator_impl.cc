@@ -190,6 +190,21 @@ void GlicInstanceCoordinatorImpl::OnInstanceVisibilityChanged(
   metrics_.OnInstanceVisibilityChanged();
 }
 
+bool GlicInstanceCoordinatorImpl::IsInvoking(
+    const GlicInstanceImpl* instance) const {
+  return invoke_handlers_.contains(const_cast<GlicInstanceImpl*>(instance));
+}
+
+void GlicInstanceCoordinatorImpl::CancelInvoke(GlicInstanceImpl* instance) {
+  if (auto it = invoke_handlers_.find(instance); it != invoke_handlers_.end()) {
+    auto handler = std::move(it->second);
+    invoke_handlers_.erase(it);
+    if (handler) {
+      handler->Cancel(GlicInvokeError::kCancelled);
+    }
+  }
+}
+
 void GlicInstanceCoordinatorImpl::OnInvoked() {
   if (onboarding_tracker_) {
     onboarding_tracker_->OnInvoke();
@@ -249,6 +264,16 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForTab(
     }
   }
 
+  return nullptr;
+}
+
+GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForTabGroup(
+    tab_groups::TabGroupId group_id) const {
+  for (const auto& [id, instance] : instances_) {
+    if (instance->GetTabGroup() == group_id) {
+      return instance.get();
+    }
+  }
   return nullptr;
 }
 
@@ -351,6 +376,29 @@ GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTab(
   return GetInstanceImplForTab(tab);
 }
 
+GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTabGroup(
+    tab_groups::TabGroupId group_id) const {
+  return GetInstanceImplForTabGroup(group_id);
+}
+
+GlicInstance* GlicInstanceCoordinatorImpl::ShowInstanceForTabGroup(
+    tab_groups::TabGroupId group_id) {
+  GlicInstanceImpl* existing_instance = GetInstanceImplForTabGroup(group_id);
+
+  if (existing_instance) {
+    if (tabs::TabInterface* glic_tab = existing_instance->GetGlicTab()) {
+      existing_instance->Show(ShowOptions::ForTab(*glic_tab));
+      return existing_instance;
+    }
+    existing_instance->ShowGlicTabInGroup(group_id);
+    return existing_instance;
+  }
+
+  GlicInstanceImpl* instance = CreateGlicInstance();
+  instance->ShowGlicTabInGroup(group_id);
+  return instance;
+}
+
 GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceWithGlicWebContents(
     content::WebContents* glic_web_contents) const {
   if (!glic_web_contents) {
@@ -440,8 +488,7 @@ void GlicInstanceCoordinatorImpl::Shutdown() {
   for (auto& [instance_id, instance] : instances_) {
     instance->Shutdown();
   }
-  web_contents_warming_pool_->Clear(
-      GlicWebContentsWarmingPool::ClearReason::kShutdown);
+  web_contents_warming_pool_->Shutdown();
   hotkey_manager_.reset();
 }
 
@@ -483,6 +530,8 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
     GlicInvokeOptions options,
     GlicInvokeWithAutoSubmitOptions auto_submit_options) {
+  RecordInvokeSource(options.GetInvocationSource());
+
   if (!GlicEnabling::IsEnabledForProfile(profile_)) {
     RecordInvokeError(options.GetInvocationSource(),
                       GlicInvokeError::kProfileNotEnabled);
@@ -497,6 +546,8 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
   if (const auto* tab_handle =
           std::get_if<tabs::TabHandle>(&options.target.surface)) {
     if (tab_handle->raw_value() == tabs::TabHandle::NullValue) {
+      RecordInvokeError(options.GetInvocationSource(),
+                        GlicInvokeError::kInvalidTab);
       if (options.on_error) {
         std::move(options.on_error).Run(GlicInvokeError::kInvalidTab);
       }
@@ -514,6 +565,8 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
             std::get_if<GlicInvokeHandler::TabSurface>(&resolved_target)) {
       tab = tab_surface->tab;
       if (!tab || !GlicInstanceHelper::From(tab)) {
+        RecordInvokeError(options.GetInvocationSource(),
+                          GlicInvokeError::kTabClosed);
         if (options.on_error) {
           std::move(options.on_error).Run(GlicInvokeError::kTabClosed);
         }
@@ -549,6 +602,8 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
       absl::Overload{
           [&](const ConversationId& conv_id) {
             if (conv_id.conversation_id.empty()) {
+              RecordInvokeError(options.GetInvocationSource(),
+                                GlicInvokeError::kInvalidConversationId);
               if (options.on_error) {
                 std::move(options.on_error)
                     .Run(GlicInvokeError::kInvalidConversationId);
@@ -563,9 +618,13 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
           [&](NewConversation) { return CreateGlicInstance(); },
           [&](const InstanceId& id) {
             GlicInstanceImpl* target_instance = GetInstanceImplFor(id);
-            if (!target_instance && options.on_error) {
-              std::move(options.on_error)
-                  .Run(GlicInvokeError::kInstanceNotFound);
+            if (!target_instance) {
+              RecordInvokeError(options.GetInvocationSource(),
+                                GlicInvokeError::kInstanceNotFound);
+              if (options.on_error) {
+                std::move(options.on_error)
+                    .Run(GlicInvokeError::kInstanceNotFound);
+              }
             }
             return target_instance;
           },
@@ -600,12 +659,24 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
     }
   }
 
-  if (invoke_handlers_.contains(instance)) {
-    if (options.on_error) {
-      std::move(options.on_error).Run(GlicInvokeError::kInvokeInProgress);
+  if (auto it = invoke_handlers_.find(instance); it != invoke_handlers_.end()) {
+    if (options.supersede_if_in_progress) {
+      // If requested by `options.supersede_if_in_progress` (e.g. for a
+      // continuation prompt from the server during actuation), cancel the
+      // previous handler so this invocation can proceed without being rejected
+      // with kInvokeInProgress.
+      std::unique_ptr<GlicInvokeHandler> old_handler = std::move(it->second);
+      invoke_handlers_.erase(it);
+      old_handler->Cancel(GlicInvokeError::kSuperseded);
+    } else {
+      RecordInvokeError(options.GetInvocationSource(),
+                        GlicInvokeError::kInvokeInProgress);
+      if (options.on_error) {
+        std::move(options.on_error).Run(GlicInvokeError::kInvokeInProgress);
+      }
+      // TODO(crbug.com/483387751): Show default toast here once implemented.
+      return nullptr;
     }
-    // TODO(crbug.com/483387751): Show default toast here once implemented.
-    return nullptr;
   }
 
   invoke_handlers_[instance] = std::make_unique<GlicInvokeHandler>(
@@ -629,7 +700,6 @@ void GlicInstanceCoordinatorImpl::CloseAndShutdownInstanceWithFrame(
   for (auto& [id, instance] : instances_) {
     if (instance &&
         instance->host().IsWebContentPresentAndMatches(render_frame_host)) {
-      instance->host().Close();
       instance->host().Shutdown();
     }
   }
@@ -1145,7 +1215,7 @@ GlicInstanceCoordinatorImpl::GetSortedRecentInstances(
 void GlicInstanceCoordinatorImpl::UnbindTabFromAnyInstance(
     tabs::TabInterface* tab) {
   if (auto* instance = GetInstanceImplForTab(tab)) {
-    instance->UnbindEmbedder(EmbedderKey(tab));
+    instance->UnbindTab(tab);
   }
 }
 
@@ -1187,6 +1257,21 @@ void GlicInstanceCoordinatorImpl::OnWillCreateFloaty() {
 }
 
 void GlicInstanceCoordinatorImpl::OnTabEvent(const GlicTabEvent& event) {
+  if (auto* grouped_event = std::get_if<TabGroupingChangedEvent>(&event)) {
+    if (grouped_event->is_added) {
+      if (auto group_id = grouped_event->tab->GetGroup()) {
+        if (auto* instance = GetInstanceImplForTabGroup(group_id.value())) {
+          instance->OnTabGroupingChanged(grouped_event->tab, /*is_added=*/true);
+        }
+      }
+    } else {
+      for (const auto& [id, instance] : instances_) {
+        instance->OnTabGroupingChanged(grouped_event->tab, /*is_added=*/false);
+      }
+    }
+    return;
+  }
+
   auto* creation_event = std::get_if<TabCreationEvent>(&event);
   if (!creation_event) {
     return;

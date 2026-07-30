@@ -79,10 +79,9 @@ class CobrowseTabHelperTest : public PlatformTest {
         .andReturn(mock_scene_commands_handler_);
 
     scene_state_ =
-        [[FakeSceneState alloc] initWithAppState:nil
-                                         profile:profile_.get()
-                                  sceneSessionID:"FakeScene"
-                               commandDispatcher:mock_command_dispatcher_];
+        [[FakeSceneState alloc] initWithProfile:profile_.get()
+                                 sceneSessionID:"FakeScene"
+                              commandDispatcher:mock_command_dispatcher_];
 
     CobrowseBrowserAgent::CreateForBrowser(browser());
   }
@@ -184,6 +183,7 @@ TEST_F(CobrowseTabHelperTest, TriggerAssistantFromOpener) {
 
   web::FakeWebState* opener = CreateAndInsertWebState(aim_url);
   web::FakeWebState* web_state = CreateAndInsertWebStateWithOpener({}, opener);
+  web_state->WasShown();
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
 
   web::FakeNavigationContext context;
@@ -331,6 +331,7 @@ TEST_F(CobrowseTabHelperTest, HideOnNtpAndRestoreOnNormalNavigation) {
   web::FakeWebState* opener = CreateAndInsertWebState(aim_url);
 
   web::FakeWebState* web_state = CreateAndInsertWebStateWithOpener({}, opener);
+  web_state->WasShown();
 
   CobrowseTabHelper* tab_helper = CobrowseTabHelper::FromWebState(web_state);
 

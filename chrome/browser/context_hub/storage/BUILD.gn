@@ -4,14 +4,21 @@
 
 source_set("storage") {
   sources = [
+    "context_hub_backend.h",
+    "context_hub_backend_impl.cc",
+    "context_hub_backend_impl.h",
+    "context_hub_database.cc",
+    "context_hub_database.h",
     "memory_bank_table.cc",
     "memory_bank_table.h",
   ]
 
   public_deps = [
     "//base",
+    "//chrome/browser/context_hub:features",
     "//chrome/browser/context_hub/memory_bank",
     "//components/database_utils",
+    "//components/keyed_service/core",
     "//sql",
     "//url",
   ]
@@ -19,12 +26,17 @@ source_set("storage") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "memory_bank_table_unittest.cc" ]
+  sources = [
+    "context_hub_backend_impl_unittest.cc",
+    "context_hub_database_unittest.cc",
+    "memory_bank_table_unittest.cc",
+  ]
 
   deps = [
     ":storage",
     "//base",
     "//base/test:test_support",
+    "//chrome/browser/context_hub:features",
     "//sql",
     "//sql:test_support",
     "//testing/gtest",

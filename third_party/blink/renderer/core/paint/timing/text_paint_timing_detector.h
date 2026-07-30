@@ -19,10 +19,10 @@
 
 namespace blink {
 struct DOMPaintTimingInfo;
+class LargestContentfulPaintManager;
 class LayoutBoxModelObject;
 class PaintTimingDetector;
 class PropertyTreeStateOrAlias;
-class SoftNavigationContext;
 
 class CORE_EXPORT LargestTextPaintManager final {
   DISALLOW_NEW();
@@ -32,10 +32,7 @@ class CORE_EXPORT LargestTextPaintManager final {
   LargestTextPaintManager(const LargestTextPaintManager&) = delete;
   LargestTextPaintManager& operator=(const LargestTextPaintManager&) = delete;
 
-  void MaybeUpdateLargestIgnoredText(const LayoutObject&,
-                                     const uint64_t,
-                                     const gfx::Rect& frame_visual_rect,
-                                     const gfx::RectF& root_visual_rect);
+  void MaybeUpdateLargestIgnoredText(const LayoutObject&, TextRecord*);
 
   // Returns the current largest ignored `TextRecord` if it exists and the
   // underlying node has not been removed from the DOM, and nullptr otherwise.
@@ -97,7 +94,6 @@ class CORE_EXPORT TextPaintTimingDetector final
                             const gfx::Rect& aggregated_visual_rect,
                             const PropertyTreeStateOrAlias&);
   OptionalPaintTimingDetectorCallback<TextRecord> TakePaintTimingCallback();
-  void StopRecordingLargestTextPaint();
 
   // Mark that the `LayoutObject` should be considered for paint timing, even if
   // it's already been painted, because it was modified as part of an
@@ -105,9 +101,7 @@ class CORE_EXPORT TextPaintTimingDetector final
   // timing entries to be emitted.
   void ResetPaintTrackingOnInteraction(const LayoutObject&);
 
-  inline bool IsRecordingLargestTextPaint() const {
-    return recording_largest_text_paint_;
-  }
+  bool IsRecordingLargestTextPaint() const;
 
   void ReportLargestIgnoredText();
   void Trace(Visitor*) const;
@@ -125,20 +119,20 @@ class CORE_EXPORT TextPaintTimingDetector final
       const DOMPaintTimingInfo&,
       HeapVector<Member<TextRecord>>& settled_records);
 
-  TextRecord* MaybeRecordTextRecord(
+  TextRecord* CreateTextRecord(
       const LayoutObject& object,
-      const uint64_t& visual_size,
+      uint64_t visual_size,
       const PropertyTreeStateOrAlias& property_tree_state,
       const gfx::Rect& frame_visual_rect,
-      const gfx::RectF& root_visual_rect,
-      SoftNavigationContext* context,
-      bool is_repaint);
+      const gfx::RectF& root_visual_rect);
 
   inline void QueueToMeasurePaintTime(TextRecord* record) {
     record->SetFrameIndex(frame_index_);
     texts_queued_for_paint_time_.push_back(record);
     added_entry_in_latest_frame_ = true;
   }
+
+  LargestContentfulPaintManager* GetLargestContentfulPaintManager() const;
 
   // LayoutObjects for which text has been aggregated.
   HeapHashMap<WeakMember<const LayoutObject>, TextPaintStatus> recorded_set_;

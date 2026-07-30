@@ -29,7 +29,6 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {BrowserProxyImpl, EventDispositionFlag, INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE} from './browser_proxy.js';
 import type {BrowserProxy, IconUpdate, NavigationControlsState, NavigationControlsStateListenerHandle} from './browser_proxy.js';
-import {MetricsRecorder} from './metrics_recorder.js';
 import {setHasHelpBubble} from './toolbar_button.js';
 
 // clang-format off
@@ -64,6 +63,8 @@ import {LocationBarElement} from './location_bar.js';
 import {LocationIconElement} from './location_icon.js';
 import {PageActionIconElement} from './page_action_icon.js';
 import {PageActionIconsElement} from './page_action_icons.js';
+import type {PinnedToolbarActionElement} from './pinned_toolbar_action.js';
+import type {PinnedToolbarActionsElement} from './pinned_toolbar_actions.js';
 import {PointerProxyImpl} from './pointer_proxy.js';
 import type {PointerProxy} from './pointer_proxy.js';
 import {PermissionChipElement} from './permission_chip.js';
@@ -71,7 +72,12 @@ import type {PermissionDashboardElement} from './permission_dashboard.js';
 import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
 import {getClickSourceType, getContextMenuSourceType, PressHandler} from './toolbar_button.js';
 import {ToolbarChipButtonElement} from './toolbar_chip_button.js';
+import {CrLazyIconset} from './cr_lazy_iconset.js';
 
+import {IconsetMap} from '//resources/cr_elements/cr_icon/iconset_map.js';
+import {getTrustedHTML} from '//resources/js/static_types.js';
+
+// TODO(crbug.com/535392412): do not export these from app.ts, find a better place for them instead.
 export {
   AppMenuButtonElement,
   AppMenuIconType,
@@ -81,13 +87,15 @@ export {
   ContentSettingIconElement,
   ContentSettingImageType,
   ContentSettingsIconsElement,
+  CrLazyIconset,
   EventDispositionFlag,
   FocusRequestTarget,
   getClickSourceType,
   getContextMenuSourceType,
-  PressHandler,
+  getTrustedHTML,
   IconTable,
   IconType,
+  IconsetMap,
   INVALID_FOCUS_REQUEST_HANDLE,
   INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE,
   LhsChipIdentifier,
@@ -103,6 +111,7 @@ export {
   PermissionChipTheme,
   PermissionPromptStyle,
   PointerProxyImpl,
+  PressHandler,
   ReadonlyOmniboxElement,
   ToolbarChipButtonElement,
   TrackedElementManager,
@@ -115,6 +124,8 @@ export type {
   PermissionChipState,
   PermissionDashboardElement,
   PermissionDashboardState,
+  PinnedToolbarActionElement,
+  PinnedToolbarActionsElement,
   PointerProxy,
 };
 // clang-format on
@@ -242,6 +253,7 @@ export class ToolbarAppElement extends AppElementBase {
         uiVersion: 0,
         formattedFullUrl: '',
         textPieces: [],
+        placeholder: null,
         inlineAutocompletion: '',
         additionalText: '',
         selection: null,
@@ -280,7 +292,7 @@ export class ToolbarAppElement extends AppElementBase {
       accessibilityName: '',
       accessibilityDescription: '',
       enabled: true,
-      hasAiRing: false,
+      hasLinearGradientRing: false,
     },
     layoutConstantsVersion: 0,
     touchUi: false,
@@ -289,7 +301,6 @@ export class ToolbarAppElement extends AppElementBase {
   };
 
   private browserProxy_: BrowserProxy;
-  private metricsRecorder_: MetricsRecorder;
   private navigationStateListenerHandle_:
       NavigationControlsStateListenerHandle =
           INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE;
@@ -311,7 +322,6 @@ export class ToolbarAppElement extends AppElementBase {
       e.preventDefault();
     });
     this.browserProxy_ = BrowserProxyImpl.getInstance();
-    this.metricsRecorder_ = new MetricsRecorder(this.browserProxy_);
     this.iconTable_ = IconTable.getInstance();
     ColorChangeUpdater.forDocument().start();
   }
@@ -358,7 +368,6 @@ export class ToolbarAppElement extends AppElementBase {
               }
             });
 
-    this.metricsRecorder_.startObserving();
     if (this.isInitialized_) {
       this.updateComplete.then(() => {
         this.initializePage_(sessionId);
@@ -425,7 +434,6 @@ export class ToolbarAppElement extends AppElementBase {
         !loadTimeData.getBoolean('initialWebUISurfaceSyncEnabled');
     this.initializeSessionId_++;
 
-    this.metricsRecorder_.stopObserving();
     if (this.isPageInitialized_) {
       for (const {selector, id} of TRACKED_ELEMENTS) {
         const el = this.shadowRoot.querySelector<HTMLElement>(selector);

@@ -128,6 +128,7 @@ source_set("configs") {
       "//chrome/browser/ui/webui/history",
       "//chrome/browser/ui/webui/infobar_internals",
       "//chrome/browser/ui/webui/inspect",
+      "//chrome/browser/ui/webui/iwa_dev",
       "//chrome/browser/ui/webui/multistep_filter_internals",
       "//chrome/browser/ui/webui/new_tab_footer",
       "//chrome/browser/ui/webui/new_tab_page_third_party",
@@ -175,6 +176,7 @@ source_set("configs") {
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/webui/ai_overlay_dialog",
+      "//chrome/browser/ui/webui/settings",
       "//chrome/browser/ui/webui/signin",
       "//chrome/browser/ui/webui/skills",
     ]
@@ -299,8 +301,6 @@ source_set("webui") {
   sources = [
     "constrained_web_dialog_ui.cc",
     "constrained_web_dialog_ui.h",
-    "devtools/greendev_floaty_ui.cc",
-    "devtools/greendev_floaty_ui.h",
   ]
 
   sources += get_target_outputs(":webui_hosts")
@@ -426,7 +426,7 @@ source_set("current_channel_logo") {
   ]
 }
 
-if (!is_android || enable_webui_ntp) {
+if (!is_android || enable_extensions_core) {
   source_set("theme_source") {
     sources = [ "theme_source.cc" ]
     public = [ "theme_source.h" ]
@@ -597,6 +597,7 @@ source_set("ntp_tiles_internals_ui") {
     "//base",
     "//chrome/browser/favicon",
     "//chrome/browser/history",
+    "//chrome/browser/new_tab_page/prefs",
     "//chrome/browser/ntp_tiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",

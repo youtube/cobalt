@@ -2503,7 +2503,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Network.SharedDictionary.DocumentRequestCacheResult"
     enum="SharedDictionaryDocumentRequestCacheResult"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>pmeenan@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -5184,6 +5184,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="NetworkService.CorsURLLoaderFactory.IsOutermostMainFrameClamped"
+    enum="Boolean" expires_after="2027-01-16">
+  <owner>pmeenan@chromium.org</owner>
+  <owner>src/services/network/OWNERS</owner>
+  <summary>
+    Recorded whenever a renderer request claims to originate from an outermost
+    main frame while its browser-created URLLoaderFactory does not. The request
+    value is clamped to the factory value. One known legitimate source is an
+    initial empty document in an opener-retaining popup created by a subframe.
+  </summary>
+</histogram>
+
 <histogram name="NetworkService.GrantAccessToDataPathError.{Directory}.Posix"
     enum="PopularOSErrno" expires_after="2026-01-22">
   <owner>ricea@chromium.org</owner>
@@ -5231,7 +5244,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.NetworkLoaderCompletionTime2.{Source}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -5284,7 +5297,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.Scheduler.IOThread.NumberOfPendingTasks.{QueueName}Queue"
-    units="count" expires_after="2026-11-08">
+    units="count" expires_after="2027-01-10">
   <owner>hayato@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -5297,7 +5310,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.Scheduler.IOThread.QueuingTime.{QueueName}Queue"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>hayato@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>

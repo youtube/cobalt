@@ -330,16 +330,8 @@ bool Canvas2DResourceProvider::WritePixels(const SkImageInfo& orig_info,
           GetSkSurface()->getCanvas(), GetOrCreateSWCanvasImageProvider());
     }
 
-    bool wrote_pixels = GetSkSurface()->getCanvas()->writePixels(
-        orig_info, pixels, row_bytes, x, y);
-
-    if (wrote_pixels) {
-      // WritePixels content is not saved in recording. Calling WritePixels
-      // therefore invalidates `last_recording_` because it's now
-      // missing that information.
-      last_recording_ = std::nullopt;
-    }
-    return wrote_pixels;
+    return GetSkSurface()->getCanvas()->writePixels(orig_info, pixels,
+                                                    row_bytes, x, y);
   }
   if (IsGpuContextLost()) {
     return false;
@@ -622,9 +614,15 @@ Canvas2DResourceProvider::GetOrCreateCanvasImageProvider() {
       context_provider_wrapper_->ContextProvider().ImageDecodeCache(
           kN32_SkColorType);
 
+  if (!context_provider_wrapper_) {
+    context_provider_wrapper_ = SharedGpuContext::ContextProviderWrapper();
+    if (context_provider_wrapper_) {
+      context_provider_wrapper_->AddObserver(this);
+    }
+  }
   canvas_image_provider_ = std::make_unique<CanvasImageProvider>(
       cache_rgba8, cache_f16, GetColorSpace(), GetSharedImageFormat(),
-      cc::PlaybackImageProvider::RasterMode::kGpu);
+      cc::PlaybackImageProvider::RasterMode::kGpu, context_provider_wrapper_);
 
   return canvas_image_provider_.get();
 }
@@ -1068,9 +1066,16 @@ Canvas2DResourceProvider::GetOrCreateSWCanvasImageProvider() {
   cc::ImageDecodeCache* cache_rgba8 =
       &Image::SharedCCDecodeCache(kN32_SkColorType);
 
+  if (!context_provider_wrapper_) {
+    context_provider_wrapper_ = SharedGpuContext::ContextProviderWrapper();
+    if (context_provider_wrapper_) {
+      context_provider_wrapper_->AddObserver(this);
+    }
+  }
   canvas_image_provider_ = std::make_unique<CanvasImageProvider>(
       cache_rgba8, cache_f16, GetColorSpace(), GetSharedImageFormat(),
-      cc::PlaybackImageProvider::RasterMode::kSoftware);
+      cc::PlaybackImageProvider::RasterMode::kSoftware,
+      context_provider_wrapper_);
 
   return canvas_image_provider_.get();
 }

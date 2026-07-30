@@ -218,9 +218,7 @@ V8RenderingContext* CanvasRenderingContext2D::AsV8RenderingContext() {
   return MakeGarbageCollected<V8RenderingContext>(this);
 }
 
-CanvasRenderingContext2D::~CanvasRenderingContext2D() {
-  FlushForImageListener::Get()->RemoveObserver(this);
-}
+CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 
 void CanvasRenderingContext2D::ResetInternal() {
   if (IsHibernating()) {
@@ -380,11 +378,23 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
     }
   }
 
+  // WritePixels content is not saved in the recording. Calling WritePixels
+  // therefore invalidates the last recording because it's now
+  // missing that information.
+  bool result = false;
   if (shared_image_provider_) {
-    return shared_image_provider_->WritePixels(orig_info, pixels, row_bytes, x,
-                                               y);
+    result =
+        shared_image_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
+    if (result) {
+      shared_image_provider_->ClearLastRecording();
+    }
+  } else {
+    result = bitmap_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
+    if (result) {
+      bitmap_provider_->ClearLastRecording();
+    }
   }
-  return bitmap_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
+  return result;
 }
 
 bool CanvasRenderingContext2D::ShouldAntialias() const {
@@ -1170,6 +1180,7 @@ CanvasHibernationHandler* CanvasRenderingContext2D::GetHibernationHandler()
 }
 
 void CanvasRenderingContext2D::Dispose() {
+  FlushForImageListener::Get()->RemoveObserver(this);
   hibernation_handler_ = nullptr;
   shared_image_provider_ = nullptr;
   bitmap_provider_ = nullptr;

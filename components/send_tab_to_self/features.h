@@ -75,6 +75,11 @@ BASE_DECLARE_FEATURE(kSendTabToSelfEnhancedBottomsheet);
 // actions in the native iOS Share Sheet.
 BASE_DECLARE_FEATURE(kSendTabToSelfIOSShareSheetDeviceList);
 
+// If this feature is enabled, prevents duplicate SendTabToSelfBrowserAgent
+// instances from logging outcomes for the same entry (e.g. regular vs inactive
+// browser).
+BASE_DECLARE_FEATURE(kSendTabToSelfIOSLimitToRegularBrowsers);
+
 // If this feature is enabled, users can schedule tab reminder iOS push
 // notifications.
 BASE_DECLARE_FEATURE(kIOSTabReminders);
@@ -91,6 +96,12 @@ extern const char kReminderNotificationsDefaultTimeOffset[];
 // controlled by the `kReminderNotificationsDefaultTimeOffset` Finch parameter.
 const base::TimeDelta GetReminderNotificationsDefaultTimeOffset();
 #endif  // BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_ANDROID)
+// If this feature is enabled, dynamic shortcuts will be registered for other
+// syncing devices.
+BASE_DECLARE_FEATURE(kSendTabToSelfDynamicShortcuts);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace send_tab_to_self
 

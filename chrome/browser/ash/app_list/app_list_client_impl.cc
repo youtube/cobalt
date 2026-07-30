@@ -160,8 +160,10 @@ bool IsPrimaryProfile(user_manager::UserManager& user_manager,
 
 }  // namespace
 
-AppListClientImpl::AppListClientImpl(user_manager::UserManager* user_manager)
-    : user_manager_(CHECK_DEREF(user_manager)),
+AppListClientImpl::AppListClientImpl(PrefService* local_state,
+                                     user_manager::UserManager* user_manager)
+    : local_state_(CHECK_DEREF(local_state)),
+      user_manager_(CHECK_DEREF(user_manager)),
       app_list_controller_(ash::AppListController::Get()) {
   user_manager_observation_.Observe(user_manager);
 
@@ -554,7 +556,8 @@ void AppListClientImpl::SetProfile(Profile* new_profile) {
 
 void AppListClientImpl::SetUpSearchUI() {
   search_controller_ = app_list::CreateSearchController(
-      profile_, current_model_updater_, this, GetNotifier());
+      &local_state_.get(), profile_, current_model_updater_, this,
+      GetNotifier());
 
   // Refresh the results used for the suggestion chips with empty query.
   // This fixes crbug.com/40642741.

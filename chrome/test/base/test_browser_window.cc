@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -87,7 +88,7 @@ ui::TrackedElement* TestBrowserWindow::TestLocationBar::GetAnchorOrNull() {
   return nullptr;
 }
 
-Browser* TestBrowserWindow::TestLocationBar::GetBrowser() {
+BrowserWindowInterface* TestBrowserWindow::TestLocationBar::GetBrowser() {
   return nullptr;
 }
 
@@ -383,7 +384,7 @@ void TestBrowserWindow::SetCloseCallback(base::OnceClosure close_callback) {
 
 void TestBrowserWindow::OnBrowserCreated(BrowserWindowInterface* browser) {
   Browser* current_browser = browser->GetBrowserForMigrationOnly();
-  if (current_browser->create_params().window == this) {
+  if (BrowserInitState::From(current_browser)->create_params().window == this) {
     browser_ = current_browser;
     browser_collection_observation_.Reset();
   }

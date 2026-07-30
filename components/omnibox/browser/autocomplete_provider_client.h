@@ -84,7 +84,7 @@ class TemplateURLService;
 
 class AutocompleteProviderClient : public OmniboxAction::Client {
  public:
-  virtual ~AutocompleteProviderClient() = default;
+  ~AutocompleteProviderClient() override = default;
 
   virtual scoped_refptr<network::SharedURLLoaderFactory>
   GetURLLoaderFactory() = 0;
@@ -277,6 +277,12 @@ class AutocompleteProviderClient : public OmniboxAction::Client {
   // Gets a weak pointer to the client. Used when providers need to use the
   // client when the client may no longer be around.
   virtual base::WeakPtr<AutocompleteProviderClient> GetWeakPtr();
+
+  // OmniboxAction::Client overrides:
+  bool ShouldOpenCoBrowsePanel() const override;
+  void OpenCoBrowsePanel() override;
+  bool ShouldOpenComposeboxForAskG() const override;
+  void OpenComposeboxForAskG() override;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_AUTOCOMPLETE_PROVIDER_CLIENT_H_

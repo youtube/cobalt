@@ -53,7 +53,7 @@ import org.chromium.chrome.browser.back_press.BackPressHelper;
 import org.chromium.chrome.browser.back_press.BackPressHelper.OnKeyDownHandler;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
-import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicHelper;
 import org.chromium.chrome.browser.init.ActivityLifecycleDispatcherImpl;
@@ -122,7 +122,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 AppHeaderObserver,
                 PreferenceUpdateObserver,
                 SettingsMenuHelper.Delegate,
-                ContainmentHelper.Delegate {
+                SettingsContainmentHelper.Delegate {
     private static final String TAG = "SettingsActivity";
 
     // Key used to store activity start time in the Bundle to have it survive activity re-creation.
@@ -184,7 +184,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private static final String MAIN_FRAGMENT_TAG = "settings_main";
     public static final String MULTI_COLUMN_FRAGMENT_TAG = "multi_column_settings";
 
-    private final ContainmentHelper mContainmentHelper = new ContainmentHelper(this, this);
+    private final SettingsContainmentHelper mContainmentHelper =
+            new SettingsContainmentHelper(this, this);
 
     private @Nullable SettingsSearchCoordinator mSearchCoordinator;
 
@@ -307,12 +308,13 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 var transaction = fragmentManager.beginTransaction();
                 mMultiColumnSettings = new MultiColumnSettings();
                 mMultiColumnSettings.setPendingFragmentIntent(getIntent());
-                transaction.replace(R.id.content, mMultiColumnSettings, MULTI_COLUMN_FRAGMENT_TAG);
+                transaction.replace(
+                        R.id.settings_content, mMultiColumnSettings, MULTI_COLUMN_FRAGMENT_TAG);
                 transaction.commit();
             } else {
                 Fragment fragment = instantiateMainFragment(getIntent());
                 var transaction = fragmentManager.beginTransaction();
-                transaction.replace(R.id.content, fragment, MAIN_FRAGMENT_TAG);
+                transaction.replace(R.id.settings_content, fragment, MAIN_FRAGMENT_TAG);
                 setFragmentAnimation(transaction, fragment);
                 transaction.commit();
             }
@@ -356,7 +358,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         /* occlusionTrackingAllowed= */ true));
 
         int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
-        findViewById(R.id.content).setBackgroundColor(backgroundColor);
+        findViewById(R.id.settings_content).setBackgroundColor(backgroundColor);
         findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor);
         AppBarLayout appBarLayout = findViewById(R.id.app_bar_layout);
         appBarLayout.setElevation(0);
@@ -708,7 +710,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             transaction.setReorderingAllowed(true);
             setFragmentAnimation(transaction, fragment);
             transaction
-                    .replace(R.id.content, fragment, MAIN_FRAGMENT_TAG)
+                    .replace(R.id.settings_content, fragment, MAIN_FRAGMENT_TAG)
                     .addToBackStack(null)
                     .commit();
         }
@@ -818,7 +820,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     @VisibleForTesting
     public @Nullable Fragment getMainFragment() {
         if (mMultiColumnSettings == null) {
-            return getSupportFragmentManager().findFragmentById(R.id.content);
+            return getSupportFragmentManager().findFragmentById(R.id.settings_content);
         }
         return mMultiColumnSettings
                 .getChildFragmentManager()
@@ -874,7 +876,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public HelpAndFeedbackLauncher getHelpAndFeedbackLauncher() {
-        return HelpAndFeedbackLauncherImpl.getForProfile(mProfile);
+        return HelpAndFeedbackLauncherFactory.getForProfile(mProfile);
     }
 
     @Override

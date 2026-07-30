@@ -24,8 +24,8 @@ source_set("page_action") {
     "page_action_view.h",
     "page_action_view_interface.h",
     "page_action_view_params.h",
+    "page_action_view_util.h",
     "webui_page_action_control.h",
-    "zoom_view.h",
   ]
 
   public_deps = [
@@ -36,6 +36,7 @@ source_set("page_action") {
     "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/page_action",
     "//chrome/browser/ui/page_action:icon_type",
+    "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/tabs",
     "//chrome/browser/ui/toolbar",
     "//chrome/browser/ui/toolbar/pinned_toolbar",
@@ -68,8 +69,8 @@ source_set("impl") {
     "page_action_icon_params.cc",
     "page_action_icon_view.cc",
     "page_action_view.cc",
+    "page_action_view_util.cc",
     "webui_page_action_control.cc",
-    "zoom_view.cc",
   ]
 
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
@@ -93,6 +94,8 @@ source_set("impl") {
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/location_bar/cookie_controls",
+    "//chrome/browser/ui/views/optimization_guide",
+    "//chrome/browser/ui/views/sharing",
     "//chrome/browser/ui/views/sharing_hub",
     "//chrome/browser/ui/views/toolbar",
     "//chrome/browser/ui/web_applications",

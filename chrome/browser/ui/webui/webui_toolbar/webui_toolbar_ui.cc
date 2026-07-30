@@ -46,6 +46,7 @@
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -71,6 +72,9 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIWebUIToolbarHost);
+
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 
   static constexpr webui::LocalizedString kStrings[] = {
       // go/keep-sorted start
@@ -112,9 +116,7 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
   source->AddBoolean(
       "enableAvatarButton",
       features::IsWebUIAvatarButtonEnabled() &&
-          AvatarToolbarButtonInterface::CanShowForProfile(
-              Profile::FromBrowserContext(
-                  web_ui->GetWebContents()->GetBrowserContext())));
+          AvatarToolbarButtonInterface::CanShowForProfile(profile));
   source->AddBoolean("enableExtensionsContainer",
                      features::IsWebUIExtensionsContainerEnabled());
   source->AddBoolean(
@@ -217,9 +219,6 @@ void WebUIToolbarUI::InitBrowserControlsService(
          "been instantiated.";
 
   auto* web_contents = web_ui()->GetWebContents();
-  MetricsReporterService* metrics_service =
-      MetricsReporterService::GetFromWebContents(web_contents);
-  CHECK(metrics_service) << "Metrics service missing from web contents";
 
   browser_controls_service_ =
       std::make_unique<browser_controls_api::BrowserControlsService>(
@@ -227,7 +226,6 @@ void WebUIToolbarUI::InitBrowserControlsService(
           std::make_unique<browser_controls_api::BrowserControlsAdapterImpl>(
               webui::GetBrowserWindowInterface(web_contents),
               dependency_provider.GetCommandUpdater(), web_contents),
-          metrics_service->metrics_reporter(),
           dependency_provider.GetBrowserControlsDelegate(),
           web_ui()->GetRenderFrameHost());
 }

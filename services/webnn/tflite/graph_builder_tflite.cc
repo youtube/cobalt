@@ -704,12 +704,30 @@ auto GraphBuilderTflite::CreateAndBuild(
         operand_to_dependent_operations,
     const base::flat_map<OperandId, OperationId> operand_to_producing_operation,
     base::File weights_file,
+    mojo::SharedRemote<mojom::WeightsFileSession> session,
     bool use_external_buffer) -> base::expected<Result, std::string> {
-  GraphBuilderTflite builder(std::move(context_properties), graph_info,
-                             constant_operands,
-                             std::move(operand_to_dependent_operations),
-                             std::move(operand_to_producing_operation),
-                             std::move(weights_file), use_external_buffer);
+  GraphBuilderTflite builder(
+      std::move(context_properties), graph_info, constant_operands,
+      std::move(operand_to_dependent_operations),
+      std::move(operand_to_producing_operation), std::move(weights_file),
+      std::move(session), use_external_buffer);
+
+  if (builder.weights_file_.IsValid()) {
+    if (builder.session_.is_bound()) {
+      bool granted = false;
+      if (!builder.session_->RequestCapacityChange(kWeightsAlignment,
+                                                   &granted) ||
+          !granted) {
+        return base::unexpected(
+            "Weights file capacity request denied by browser.");
+      }
+    }
+    if (!builder.weights_file_.Seek(base::File::FROM_CURRENT,
+                                    kWeightsAlignment)) {
+      return base::unexpected("Failed to seek weights file.");
+    }
+    builder.weights_file_.SetLength(kWeightsAlignment);
+  }
 
   bool graph_requires_fp32_precision = false;
   for (size_t i = 0; i < graph_info.operations.size(); ++i) {
@@ -1145,6 +1163,7 @@ GraphBuilderTflite::GraphBuilderTflite(
     const base::flat_map<OperandId, OperationId>&
         operand_to_producing_operation,
     base::File weights_file,
+    mojo::SharedRemote<mojom::WeightsFileSession> session,
     bool use_external_buffer)
     : context_properties_(std::move(context_properties)),
       graph_info_(graph_info),
@@ -1152,16 +1171,11 @@ GraphBuilderTflite::GraphBuilderTflite(
       operand_to_dependent_operations_(operand_to_dependent_operations),
       operand_to_producing_operation_(operand_to_producing_operation),
       weights_file_(std::move(weights_file)),
+      session_(std::move(session)),
       use_external_buffer_(use_external_buffer) {
   // TFLite requires the first entry in FlatBuffer to be an empty buffer.
   buffers_.push_back(
       ::tflite::CreateBuffer(builder_, builder_.CreateVector({})));
-  if (weights_file_.IsValid()) {
-    // TFLite requires that offsets into the weights file are greater than 1 and
-    // we need anything we add to be aligned.
-    CHECK(weights_file_.Seek(base::File::FROM_CURRENT, kWeightsAlignment));
-    weights_file_.SetLength(kWeightsAlignment);
-  }
 }
 
 GraphBuilderTflite::~GraphBuilderTflite() = default;
@@ -3267,6 +3281,24 @@ auto GraphBuilderTflite::FinishAndTakeResult(
   // sufficient readable memory after it.
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
   if (weights_file_.IsValid()) {
+    if (session_.is_bound()) {
+      const int64_t current_length = weights_file_.GetLength();
+      if (current_length < 0) {
+        return base::unexpected("Failed to query weights file length.");
+      }
+      base::CheckedNumeric<uint64_t> padded =
+          base::checked_cast<uint64_t>(current_length);
+      padded += XNN_EXTRA_BYTES;
+      uint64_t new_size = 0;
+      if (!padded.AssignIfValid(&new_size)) {
+        return base::unexpected("Weights file size overflow.");
+      }
+      bool granted = false;
+      if (!session_->RequestCapacityChange(new_size, &granted) || !granted) {
+        return base::unexpected(
+            "Weights file capacity request denied by browser.");
+      }
+    }
     const uint8_t zeros[XNN_EXTRA_BYTES] = {};
     if (!weights_file_.WriteAtCurrentPosAndCheck(zeros)) {
       return base::unexpected("Failed to write weights file padding.");
@@ -3314,6 +3346,24 @@ auto GraphBuilderTflite::SerializeBuffer(base::span<const uint8_t> buffer)
         base::checked_cast<size_t>(weights_file_.GetLength());
     size_t offset = base::bits::AlignUp(buffer_size, kWeightsAlignment);
     CHECK_GT(offset, 1u);
+
+    // Request capacity for the final size BEFORE extending the file. The
+    // browser-side anti-tamper check rejects requests when the file is already
+    // longer than what was previously granted.
+    if (session_.is_bound()) {
+      base::CheckedNumeric<uint64_t> new_size_checked = offset;
+      new_size_checked += buffer.size();
+      uint64_t new_size = 0;
+      if (!new_size_checked.AssignIfValid(&new_size)) {
+        return base::unexpected("Weights file size overflow.");
+      }
+      bool granted = false;
+      if (!session_->RequestCapacityChange(new_size, &granted) || !granted) {
+        return base::unexpected(
+            "Weights file capacity request denied by browser.");
+      }
+    }
+
     size_t padding = offset - buffer_size;
     if (padding > 0) {
       if (!weights_file_.Seek(base::File::FROM_BEGIN, offset)) {
@@ -3972,7 +4022,8 @@ auto GraphBuilderTflite::SerializeWhereOperation(
 }
 
 auto GraphBuilderTflite::InsertPadOperation(const TensorInfo& input_tensor_info,
-                                            base::span<const int16_t> paddings)
+                                            base::span<const int16_t> paddings,
+                                            std::optional<float> padding_value)
     -> base::expected<TensorIndex, std::string> {
   // WebNN explicit padding is in [beginning_height, ending_height,
   // beginning_width, ending_width] sequence.
@@ -4022,11 +4073,33 @@ auto GraphBuilderTflite::InsertPadOperation(const TensorInfo& input_tensor_info,
   // Create `tflite::Operator` with the tensor index of inputs and outputs
   // operand. The type of operation is determined by the index of the operator
   // code.
+  const std::array<TensorIndex, 1> op_outputs = {output_tensor_index};
+
+  if (padding_value.has_value()) {
+    // Use PADV2 with a scalar constant so the padded region is filled with the
+    // caller-supplied value (e.g. -inf for maxPool) instead of zero.
+    CHECK_EQ(input_tensor_info.data_type, ::tflite::TensorType_FLOAT32);
+    ASSIGN_OR_RETURN(const TensorIndex padding_value_index,
+                     SerializeTensorWithBuffer<float>(
+                         std::array<float, 1>{padding_value.value()},
+                         /*dimensions=*/std::array<int32_t, 1>{1}));
+    const OperatorCodeIndex padv2_operator_code_index =
+        GetOperatorCodeIndex(::tflite::BuiltinOperator_PADV2);
+    const std::array<TensorIndex, 3> padv2_inputs = {
+        input_tensor_info.index, padding_tensor_index, padding_value_index};
+    operators_.emplace_back(::tflite::CreateOperator(
+        builder_, padv2_operator_code_index,
+        builder_.CreateVector<TensorIndex>(padv2_inputs),
+        builder_.CreateVector<TensorIndex>(op_outputs),
+        ::tflite::BuiltinOptions_PadV2Options,
+        ::tflite::CreatePadV2Options(builder_).Union()));
+    return output_tensor_index;
+  }
+
   const OperatorCodeIndex operator_code_index =
       GetOperatorCodeIndex(::tflite::BuiltinOperator_PAD);
-  std::array<TensorIndex, 2> op_inputs = {input_tensor_info.index,
-                                          padding_tensor_index};
-  const std::array<TensorIndex, 1> op_outputs = {output_tensor_index};
+  const std::array<TensorIndex, 2> op_inputs = {input_tensor_info.index,
+                                                padding_tensor_index};
   operators_.emplace_back(
       ::tflite::CreateOperator(builder_, operator_code_index,
                                builder_.CreateVector<TensorIndex>(op_inputs),
@@ -8085,18 +8158,62 @@ auto GraphBuilderTflite::SerializePool2d(const mojom::Pool2d& pool2d)
         sum_pooled_index, input_tensor_info.data_type, output_tensor_index);
   }
 
-  // TODO(crbug.com/475285740): Support explicit padding for average and max
-  // pool. Currently, inserting a PAD operator before the TFLite Pool2d operator
-  // is used as a workaround.
+  // MaxPool pads with -inf (via PADV2) so real values always win the max;
+  // zero-fill would corrupt windows of all-negative real values.
+  const bool use_neg_inf_padding =
+      pool2d.kind == mojom::Pool2d::Kind::kMaxPool2d &&
+      !quantized_output.has_value();
   std::optional<TensorIndex> explicit_pad_index;
   if (padding_mode.paddings) {
     ASSIGN_OR_RETURN(
         explicit_pad_index,
-        InsertPadOperation(input_tensor_info, padding_mode.paddings.value()));
+        InsertPadOperation(
+            input_tensor_info, padding_mode.paddings.value(),
+            use_neg_inf_padding
+                ? std::optional<float>(-std::numeric_limits<float>::infinity())
+                : std::nullopt));
   }
   const std::array<TensorIndex, 1> op_inputs = {explicit_pad_index
                                                     ? explicit_pad_index.value()
                                                     : input_tensor_info.index};
+
+  // Windows overlapping only padding (e.g. from ceil rounding) pool to -inf;
+  // WebNN expects 0 for those, so remap after pooling.
+  if (use_neg_inf_padding && padding_mode.paddings) {
+    // Pool into a temporary tensor, then remap -inf outputs to 0.
+    ASSIGN_OR_RETURN(
+        const TensorIndex pooled_index,
+        SerializeTemporaryTensorWithByteSizeCheck(output_tensor_info.dimensions,
+                                                  input_tensor_info.data_type));
+    const std::array<TensorIndex, 1> pool_outputs = {pooled_index};
+    operators_.emplace_back(::tflite::CreateOperator(
+        builder_, operator_code_index,
+        builder_.CreateVector<TensorIndex>(op_inputs),
+        builder_.CreateVector<TensorIndex>(pool_outputs),
+        ::tflite::BuiltinOptions_Pool2DOptions, pool_2d_options.Union()));
+
+    // condition = (pooled == -inf)
+    ASSIGN_OR_RETURN(
+        const TensorIndex neg_inf_index,
+        SerializeTensorWithBuffer<float>(
+            std::vector<float>{-std::numeric_limits<float>::infinity()},
+            /*dimensions=*/{}));
+    ASSIGN_OR_RETURN(
+        const TensorIndex is_neg_inf_index,
+        SerializeTemporaryTensorWithByteSizeCheck(output_tensor_info.dimensions,
+                                                  ::tflite::TensorType_BOOL));
+    operators_.emplace_back(
+        SerializeBinaryOperation(::tflite::BuiltinOperator_EQUAL, pooled_index,
+                                 neg_inf_index, is_neg_inf_index));
+
+    // output = condition ? 0 : pooled
+    ASSIGN_OR_RETURN(const TensorIndex zero_index,
+                     SerializeTensorWithBuffer<float>(std::vector<float>{0.0f},
+                                                      /*dimensions=*/{}));
+    return SerializeWhereOperation(is_neg_inf_index, zero_index, pooled_index,
+                                   output_tensor_index);
+  }
+
   const std::array<TensorIndex, 1> op_outputs = {output_tensor_index};
   return ::tflite::CreateOperator(
       builder_, operator_code_index,

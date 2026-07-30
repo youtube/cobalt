@@ -112,6 +112,7 @@
 #include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -522,6 +523,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         base::BindRepeating(&GlicWebClientHandler::OnPrefChanged,
                             base::Unretained(this)));
     pref_change_registrar_.Add(
+        glic::prefs::kGlicFileUploadAllowed,
+        base::BindRepeating(&GlicWebClientHandler::OnPrefChanged,
+                            base::Unretained(this)));
+    pref_change_registrar_.Add(
         prefs::kGlicDefaultTabContextEnabled,
         base::BindRepeating(&GlicWebClientHandler::OnPrefChanged,
                             base::Unretained(this)));
@@ -622,7 +627,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     host().SetWebClient(this);
     // If chrome://glic is opened in a tab for testing, send a synthetic open
     // signal.
-    if (page_handler_->webui_contents() != host().webui_contents()) {
+    if (!base::FeatureList::IsEnabled(features::kGlicTabGroups) &&
+        page_handler_->webui_contents() != host().webui_contents()) {
       mojom::PanelOpeningDataPtr panel_opening_data =
           mojom::PanelOpeningData::New();
       panel_opening_data->panel_state =
@@ -1673,6 +1679,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     } else if (pref_name == glic::prefs::kGlicGeminiEnterpriseSettings) {
       web_client_->NotifyGeminiEnterpriseSettingsChanged(
           GetGeminiEnterpriseSettingsPtr());
+    } else if (pref_name == glic::prefs::kGlicFileUploadAllowed) {
+      web_client_->NotifyFileUploadStateChanged(
+          glic::prefs::GetFileUploadAllowedCapability(profile_->GetPrefs()));
     } else {
       DCHECK(false) << "Unknown Glic permission pref changed: " << pref_name;
     }

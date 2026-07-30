@@ -1561,7 +1561,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.Pattern{CachedResourceType}" enum="HttpCachePattern"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>morlovich@chromium.org</owner>
   <owner>jkarlin@chromium.org</owner>
   <summary>
@@ -1851,7 +1851,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.Certificate.TrustAnchor.Request" enum="NetTrustAnchors"
-    expires_after="2026-11-05">
+    expires_after="2027-01-10">
   <owner>mattm@chromium.org</owner>
   <owner>chrome-secure-web-and-net@chromium.org</owner>
   <summary>
@@ -1866,7 +1866,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.Certificate.TrustAnchor.Verify" enum="NetTrustAnchors"
-    expires_after="2026-11-05">
+    expires_after="2027-01-10">
   <owner>mattm@chromium.org</owner>
   <owner>chrome-secure-web-and-net@chromium.org</owner>
   <summary>
@@ -1881,7 +1881,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.Certificate.TrustAnchor.VerifyOutOfDate"
-    enum="BooleanOutOfDate" expires_after="2026-11-05">
+    enum="BooleanOutOfDate" expires_after="2027-01-10">
   <owner>mattm@chromium.org</owner>
   <owner>chrome-secure-web-and-net@chromium.org</owner>
   <summary>
@@ -2444,6 +2444,24 @@ chromium-metrics-reviews@google.com.
     This is logged every time a proactive refresh is done, which is triggered by
     a request with a bound cookie expiring soon.
   </summary>
+</histogram>
+
+<histogram name="Net.DeviceBoundSessions.Refresh.Network.Result{Attempt}"
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2027-07-06">
+  <owner>alexilin@chromium.org</owner>
+  <owner>ahijazi@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    This records the network result of a refresh request for a Device Bound
+    Session (https://github.com/w3c/webappsec-dbsc/blob/main/README.md). This is
+    logged when refresh network response processing finishes for {Attempt}. If a
+    network error occurs at any point while reading the response body, that is
+    logged instead of the HTTP status code.
+  </summary>
+  <token key="Attempt">
+    <variant name=".FirstAttempt" summary="the first attempt"/>
+    <variant name=".SecondAttempt" summary="the second attempt (retry)"/>
+  </token>
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.RefreshChallengeCount"
@@ -3130,7 +3148,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.EraseStale.ExpiredBy{HostType}" units="ms"
-    expires_after="2027-01-03">
+    expires_after="2027-10-25">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3143,7 +3161,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.EraseStale.NetworkChanges{HostType}"
-    units="changes" expires_after="2027-01-03">
+    units="changes" expires_after="2027-10-26">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3159,7 +3177,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.EraseStale.StaleHits{HostType}" units="hits"
-    expires_after="2026-11-29">
+    expires_after="2027-11-29">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3171,7 +3189,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.EraseValid.ValidFor{HostType}" units="ms"
-    expires_after="2026-10-26">
+    expires_after="2027-10-26">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3186,7 +3204,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.Erase{HostType}" enum="EraseReason"
-    expires_after="2026-12-14">
+    expires_after="2027-12-14">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3201,7 +3219,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.HostCache.LookupStale.ExpiredBy{HostType}" units="ms"
-    expires_after="2026-06-10">
+    expires_after="2027-07-01">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3211,12 +3229,15 @@ chromium-metrics-reviews@google.com.
 
     WARNING: This metric was expired on 2025-06-10, but was re-enabled on
     2026-01-20. Some data may be missing.
+
+    This histogram has been expired between 2026-06-10 and 2026-07-01, thus does
+    not contain data for this period.
   </summary>
   <token key="HostType" variants="HostType"/>
 </histogram>
 
 <histogram name="Net.DNS.HostCache.LookupStale.NetworkChanges{HostType}"
-    units="changes" expires_after="2026-08-10">
+    units="changes" expires_after="2027-08-10">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -3517,7 +3538,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.ResolveFallbackPath" enum="ResolveFallbackPath"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>bashi@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
@@ -3726,7 +3747,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.ErrorCodesForIsolatedAppScheme" enum="NetErrorCodes"
-    expires_after="2026-10-25">
+    expires_after="2027-01-10">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -3822,6 +3843,29 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.HttpCache.LogicalInvalidation.LoadedFilterCount"
+    units="filters" expires_after="2027-05-26">
+  <owner>deepakr@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The number of logical HTTP cache invalidation filters successfully loaded
+    from persistent disk storage at startup. Recorded once at NetworkContext
+    startup when initializing the LogicalInvalidationStore.
+  </summary>
+</histogram>
+
+<histogram name="Net.HttpCache.LogicalInvalidation.LoadResult"
+    enum="LogicalInvalidationStoreLoadResult" expires_after="2027-05-26">
+  <owner>deepakr@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    Records the result of loading the disk persistence file for logical HTTP
+    cache invalidation filters (e.g. success, file not found, or corrupt).
+    Recorded once at NetworkContext startup when initializing the
+    LogicalInvalidationStore.
+  </summary>
+</histogram>
+
 <histogram name="Net.HttpCache.LogicalInvalidation.MatchResult"
     enum="NetHttpCacheLogicalInvalidationMatchResult"
     expires_after="2027-05-26">
@@ -3832,6 +3876,29 @@ chromium-metrics-reviews@google.com.
     filters (e.g. filter matched resulting in a cache miss, or filter did not
     match). Recorded on the hot path in HttpCache::IsInvalidated only when
     active invalidation filters are present in memory.
+  </summary>
+</histogram>
+
+<histogram name="Net.HttpCache.LogicalInvalidation.PersistenceLoadDuration"
+    units="ms" expires_after="2027-05-26">
+  <owner>deepakr@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The time taken to asynchronously load and deserialize logical HTTP cache
+    invalidation filters from persistent disk storage via background thread.
+    Recorded once at NetworkContext startup when initializing the
+    LogicalInvalidationStore.
+  </summary>
+</histogram>
+
+<histogram name="Net.HttpCache.LogicalInvalidation.PersistenceWriteDuration"
+    units="ms" expires_after="2027-05-26">
+  <owner>deepakr@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The time taken to serialize and atomically write the active logical HTTP
+    cache invalidation filters to persistent disk storage. Recorded every time
+    LogicalInvalidationStore saves filters to disk.
   </summary>
 </histogram>
 
@@ -4492,6 +4559,19 @@ chromium-metrics-reviews@google.com.
     Time from when an HTTP request is issued to when the first byte is
     processed, if the response was not cached and the connection used the Server
     Padding extension.
+  </summary>
+</histogram>
+
+<histogram name="Net.HttpTimeToFirstByte.ServerPaddingFirstConnectionOnly"
+    units="ms" expires_after="2026-11-15">
+  <owner>davidben@chromium.org</owner>
+  <owner>hchao@chromium.org</owner>
+  <owner>chrome-secure-web-and-net@chromium.org</owner>
+  <summary>
+    Time from when an HTTP request is issued to when the first byte is
+    processed, if the response was not cached, the connection used the Server
+    Padding extension, and the request did not reuse a connection. Recorded on
+    URLRequestHttpJob::OnStartCompleted.
   </summary>
 </histogram>
 
@@ -6613,7 +6693,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.NumActiveStreamsOnIdleTimeout{HostType}"
-    units="streams" expires_after="2025-08-24">
+    units="streams" expires_after="2027-07-01">
   <owner>renjietang@chromium.org</owner>
   <owner>suzukikeita@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
@@ -6622,6 +6702,9 @@ chromium-metrics-reviews@google.com.
     being closed for {HostType}. This is recorded when the QUIC connection is
     closed because of idle timeout. This metric has been re-enabled on M138, and
     any data prior to this is missing.
+
+    This histogram has been expired between 2025-08-24 and 2026-07-01, thus does
+    not contain data for this period.
   </summary>
   <token key="HostType">
     <variant name="" summary="any server"/>
@@ -7080,6 +7163,21 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Net.QuicSession.ReadMultipleNumPackets" units="packets"
+    expires_after="2027-07-14">
+  <owner>aymanm@google.com</owner>
+  <owner>ricea@chromium.org</owner>
+  <summary>
+    The number of UDP packets successfully read in a single batch read
+    (`ReadMultiple` / `recvmmsg`) operation on a QUIC UDP socket. Recorded each
+    time `QuicChromiumPacketReader` processes a successful multi-packet read
+    result when the `QuicUseReadMultiple` feature is enabled.
+
+    Note: Because packet reading occurs at high frequency, this metric is
+    subsampled and recorded for 10% of successful read operations.
+  </summary>
+</histogram>
+
 <histogram name="Net.QuicSession.ReceivedSettings.BlockedStreams" units="units"
     expires_after="2023-09-24">
   <owner>dschinazi@chromium.org</owner>
@@ -7274,7 +7372,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.QuicSession.SessionKeyMismatch.MismatchedFieldCombination{HostType}"
-    enum="QuicSessionKeyMismatchedFieldCombination" expires_after="2026-09-20">
+    enum="QuicSessionKeyMismatchedFieldCombination" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7288,7 +7386,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.SessionKeyMismatch.MismatchedField{HostType}"
-    enum="QuicSessionKeyMismatchedField" expires_after="2027-01-03">
+    enum="QuicSessionKeyMismatchedField" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7301,7 +7399,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.QuicSession.SessionKeyMismatch.TotalMismatchedField{HostType}"
-    units="count" expires_after="2026-09-20">
+    units="count" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7314,7 +7412,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.SessionKeyMismatch{HostType}"
-    enum="QuicSessionKeyPartialMatchResult" expires_after="2027-01-03">
+    enum="QuicSessionKeyPartialMatchResult" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -8122,7 +8220,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.GoogleSearch.Preconnect2.Quic.CompletionResult{JobType}"
-    enum="NetErrorCodes" expires_after="2027-01-03">
+    enum="NetErrorCodes" expires_after="2027-09-20">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -8157,7 +8255,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.{ProtocolType}.HasTrafficAnnotation{HostType}"
-    enum="Boolean" expires_after="2026-09-13">
+    enum="Boolean" expires_after="2027-09-13">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -8174,7 +8272,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SessionCreate.{ProtocolType}.TrafficAnnotation{HostType}"
-    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-09-13">
+    enum="TrafficAnnotationUniqueIdHash" expires_after="2027-09-13">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -8190,7 +8288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionary.Transaction.Outcome"
-    enum="SharedDictionaryTransactionOutcome" expires_after="2026-11-11">
+    enum="SharedDictionaryTransactionOutcome" expires_after="2027-01-10">
   <owner>wbjacksonjr@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -8323,7 +8421,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryOnDisk.StorageResult"
-    enum="SharedDictionaryStorageResult" expires_after="2026-11-11">
+    enum="SharedDictionaryStorageResult" expires_after="2027-01-10">
   <owner>wbjacksonjr@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -8857,7 +8955,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the result of the incremental vacuum attempt of the SQL-based disk
     cache backend. This helps track the frequency of different failures and
-    aborts.
+    aborts. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -8870,7 +8968,7 @@ chromium-metrics-reviews@google.com.
     Measures the number of pages vacuumed during an incremental vacuum attempt
     of the SQL-based disk cache backend. This metric is recorded immediately
     after the incremental vacuum attempt {ResultType}. It helps diagnose
-    performance regressions.
+    performance regressions. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="ResultType">
     <variant name="Abort" summary="aborted"/>
@@ -8889,7 +8987,7 @@ chromium-metrics-reviews@google.com.
     cache backend. This metric is recorded immediately after the incremental
     vacuum attempt {ResultType}. It helps diagnose performance regressions. The
     histogram is not reported on Windows machines without high resolution
-    clocks.
+    clocks. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="ResultType">
     <variant name="Abort" summary="aborted"/>
@@ -8918,7 +9016,8 @@ chromium-metrics-reviews@google.com.
     Measures the time taken to load the in memory index of the SQL-based disk
     cache backend. This metric is recorded immediately after the in-memory index
     is loaded from the database. The histogram is not reported on Windows
-    machines without high resolution clocks.
+    machines without high resolution clocks. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -8938,7 +9037,7 @@ chromium-metrics-reviews@google.com.
   <owner>src/net/OWNERS</owner>
   <summary>
     Errors reported by SQLite while initializing or using the SQL-based disk
-    cache backend database.
+    cache backend database. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -8960,6 +9059,7 @@ chromium-metrics-reviews@google.com.
     Measures the number of pages in the WAL file when the SQL-based disk cache
     checkpoint is performed. This metric is recorded immediately after the
     checkpoint succeeded or failed. It helps diagnose performance regressions.
+    Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="CheckpointType" variants="SqlPersistentStoreCheckpointType"/>
   <token key="ResultType">
@@ -8976,7 +9076,8 @@ chromium-metrics-reviews@google.com.
     Measures the time taken to run the checkpoint of the SQL-based disk cache
     backend. This metric is recorded immediately after the checkpoint succeeded
     or failed. It helps diagnose performance regressions. The histogram is not
-    reported on Windows machines without high resolution clocks.
+    reported on Windows machines without high resolution clocks. Not recorded
+    when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="CheckpointType" variants="SqlPersistentStoreCheckpointType"/>
   <token key="TimeType">
@@ -8991,7 +9092,8 @@ chromium-metrics-reviews@google.com.
   <owner>src/net/OWNERS</owner>
   <summary>
     Records the number of entries deleted during a single eviction run in the
-    SQL-based disk cache. This is recorded after the eviction is finished.
+    SQL-based disk cache. This is recorded after the eviction is finished. Not
+    recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="EvictionType">
     <variant name="ResumeEviction"/>
@@ -9009,7 +9111,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the number of entries scanned in the database or in-memory index
     during a single eviction candidate selection run in the SQL-based disk
-    cache.
+    cache. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="EvictionType">
     <variant name="RunEviction"/>
@@ -9032,7 +9134,8 @@ chromium-metrics-reviews@google.com.
   <owner>src/net/OWNERS</owner>
   <summary>
     Records the SQLite error code when SelectEvictionCandidates fails during a
-    single eviction run in the SQL-based disk cache.
+    single eviction run in the SQL-based disk cache. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="EvictionType">
     <variant name="RunEviction"/>
@@ -9049,7 +9152,8 @@ chromium-metrics-reviews@google.com.
     Records the time taken to select entries for deletion during a single
     eviction run in the SQL-based disk cache. This is recorded after the
     selection of the candidates is finished. The histogram is not reported on
-    Windows machines without high resolution clocks.
+    Windows machines without high resolution clocks. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="EvictionType">
     <variant name="RunEviction"/>
@@ -9075,7 +9179,8 @@ chromium-metrics-reviews@google.com.
     of the SQL-based disk cache backend. This metric is recorded immediately
     before the logic for the method is executed. It helps diagnose potential
     delays caused by task queueing. The histogram is not reported on Windows
-    machines without high resolution clocks.
+    machines without high resolution clocks. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="MethodName" variants="SqlPersistentStoreMethodName"/>
 </histogram>
@@ -9087,7 +9192,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the result of the method of the SQL-based disk cache backend. This
     helps track the frequency of different failures. This histogram is not
-    reported if any data corruption was detected during the operation.
+    reported if any data corruption was detected during the operation. Not
+    recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="MethodName" variants="SqlPersistentStoreMethodName"/>
 </histogram>
@@ -9099,7 +9205,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the error result of a method of the SQL-based disk cache backend
     when a data corruption is detected. This helps track the frequency of
-    different failures in corrupted scenarios.
+    different failures in corrupted scenarios. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="MethodName" variants="SqlPersistentStoreMethodName"/>
 </histogram>
@@ -9114,7 +9221,7 @@ chromium-metrics-reviews@google.com.
     succeeded or failed. It helps diagnose performance regressions. This
     histogram is not reported if any data corruption was detected during the
     operation. The histogram is not reported on Windows machines without high
-    resolution clocks.
+    resolution clocks. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
   <token key="MethodName" variants="SqlPersistentStoreMethodName"/>
   <token key="TimeType">
@@ -9135,7 +9242,8 @@ chromium-metrics-reviews@google.com.
     orphaned cache entries, which can be left behind after events like a network
     service crash. It deletes all entries marked as doomed, except for a
     specified set of entries that are still actively in use. Recorded each time
-    the cleanup operation is run.
+    the cleanup operation is run. Not recorded when kSqlDiskCacheReduceUma is
+    true.
   </summary>
 </histogram>
 
@@ -9147,7 +9255,7 @@ chromium-metrics-reviews@google.com.
     Records the percentage of live cache entries that have associated hints set.
     This is recorded once each time the in-memory index is loaded from the
     database. This data is used to evaluate the efficiency of the in-memory data
-    structures.
+    structures. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -9160,7 +9268,7 @@ chromium-metrics-reviews@google.com.
     run in the SQL-based disk cache. This helps monitor potential delays and
     starvation issues for exclusive operations. Recorded when an exclusive
     operation is run. The histogram is not reported on Windows machines without
-    high resolution clocks.
+    high resolution clocks. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -9197,7 +9305,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether all memory entry data hints loaded from the SQL-based disk
     cache database are valid (fit within the expected 2-bit range). This is
-    recorded once when the in-memory index is loaded from the database.
+    recorded once when the in-memory index is loaded from the database. Not
+    recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -9210,7 +9319,8 @@ chromium-metrics-reviews@google.com.
     the SQL-based disk cache. This helps monitor potential delays and starvation
     issues, especially when exclusive operations are frequent. Recorded when a
     normal operation is run. The histogram is not reported on Windows machines
-    without high resolution clocks.
+    without high resolution clocks. Not recorded when kSqlDiskCacheReduceUma is
+    true.
   </summary>
 </histogram>
 
@@ -9222,7 +9332,7 @@ chromium-metrics-reviews@google.com.
     Records the result of an optimistic write operation to the SQL disk cache.
     This is recorded when the optimistic write completes on the background
     thread, indicating whether the underlying persistent store operation
-    succeeded or failed.
+    succeeded or failed. Not recorded when kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -9234,7 +9344,8 @@ chromium-metrics-reviews@google.com.
     Records whether a disk cache write operation was performed optimistically
     (synchronously) or not. True indicates the write was optimistic, false
     indicates it was queued for asynchronous processing. This metric will be
-    emitted every time a cache entry write happens.
+    emitted every time a cache entry write happens. Not recorded when
+    kSqlDiskCacheReduceUma is true.
   </summary>
 </histogram>
 
@@ -10160,7 +10271,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.{ProtocolType}.GoogleSearch.SessionCreationInitiator{Used}"
-    enum="MultiplexedSessionCreationInitiator" expires_after="2026-08-30">
+    enum="MultiplexedSessionCreationInitiator" expires_after="2027-08-30">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

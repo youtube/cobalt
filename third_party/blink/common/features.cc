@@ -5,6 +5,7 @@
 #include "third_party/blink/public/common/features.h"
 
 #include "base/command_line.h"
+#include "base/feature.h"
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/time/time.h"
@@ -1120,8 +1121,7 @@ BASE_FEATURE_PARAM(bool,
 
 // Gating the migration of Android IME cursor anchor updates from Mojo IPC to
 // RenderFrameMetadata.
-BASE_FEATURE(kInputCursorAnchorInfoMigration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kInputCursorAnchorInfoMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kInputPredictorTypeChoice, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2601,6 +2601,9 @@ BASE_FEATURE(kEmulateLoadStartedForInspectorOncePerResource,
 // Whether force-showing popovers is enabled.
 BASE_FEATURE(kDevToolsAllowPopoverForcing, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enable the 'unframed' display override for IWAs. go/unframed-explainer-doc.
+BASE_FEATURE(kUnframedIwa, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, the usage of unload handlers causes a blocklisted reason for
 // BFCache. The purpose is to capture their source location.
 BASE_FEATURE(kUnloadBlocklisted, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2703,11 +2706,6 @@ BASE_FEATURE(kWebAppEnableScopeExtensionsBySite,
 BASE_FEATURE(kWebAppEnableScopeExtensionsForIsolatedWebApps,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls parsing and usage of localized fields in web app manifests.
-// See spec for more information:
-// https://www.w3.org/TR/appmanifest/#x_localized-members
-BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls parsing of the "lock_screen" dictionary field and its "start_url"
 // entry in web app manifests.  See explainer for more information:
 // https://github.com/WICG/lock-screen/
@@ -2721,6 +2719,9 @@ BASE_FEATURE(kWebAppMigrationApi, base::FEATURE_ENABLED_BY_DEFAULT);
 // Use deferred pull status update instead of updating the status directly
 // on audio thread. See https://crbug.com/40249972.
 BASE_FEATURE(kWebAudioDeferPullStatusUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether WebAudio AudioContext has audibility hysteresis.
+BASE_FEATURE(kWebAudioAudibilityHysteresis, base::FEATURE_ENABLED_BY_DEFAULT);
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at
@@ -2776,9 +2777,6 @@ BASE_FEATURE(kWorkerThreadRespectTermRequest, base::FEATURE_ENABLED_BY_DEFAULT);
 // Indicates that renderer is running on an Android XR (AR/VR) device.
 // Enables certain features which are not needed on other platforms.
 BASE_FEATURE(kXrDevice, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable the 'unframed' display override for IWAs. go/unframed-explainer-doc.
-BASE_FEATURE(kUnframedIwa, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When adding new features or constants for features, please keep the features
 // sorted by identifier name (e.g. `kAwesomeFeature`), and the constants for

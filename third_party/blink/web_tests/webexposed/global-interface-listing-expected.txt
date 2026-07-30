@@ -25,9 +25,7 @@ interface AbsoluteOrientationSensor : OrientationSensor
 interface AbstractRange
     attribute @@toStringTag
     getter collapsed
-    getter endContainer
     getter endOffset
-    getter startContainer
     getter startOffset
     method constructor
 interface Accelerometer : Sensor
@@ -1453,14 +1451,6 @@ interface CharacterData : Node
     method streamReplaceWithHTMLUnsafe
     method substringData
     setter data
-interface Classifier
-    static method availability
-    static method create
-    attribute @@toStringTag
-    getter inputQuota
-    method classify
-    method constructor
-    method destroy
 interface Clipboard : EventTarget
     attribute @@toStringTag
     getter onclipboardchange
@@ -3670,7 +3660,6 @@ interface HTMLAllCollection
     method namedItem
 interface HTMLAnchorElement : HTMLElement
     attribute @@toStringTag
-    getter attributionSrc
     getter charset
     getter coords
     getter download
@@ -3700,7 +3689,6 @@ interface HTMLAnchorElement : HTMLElement
     getter username
     method constructor
     method toString
-    setter attributionSrc
     setter charset
     setter coords
     setter download
@@ -3730,7 +3718,6 @@ interface HTMLAnchorElement : HTMLElement
 interface HTMLAreaElement : HTMLElement
     attribute @@toStringTag
     getter alt
-    getter attributionSrc
     getter coords
     getter download
     getter hash
@@ -3757,7 +3744,6 @@ interface HTMLAreaElement : HTMLElement
     method constructor
     method toString
     setter alt
-    setter attributionSrc
     setter coords
     setter download
     setter hash
@@ -4326,6 +4312,7 @@ interface HTMLFencedFrameElement : HTMLElement
     setter width
 interface HTMLFieldSetElement : HTMLElement
     attribute @@toStringTag
+    getter checkable
     getter disabled
     getter elements
     getter form
@@ -4338,6 +4325,7 @@ interface HTMLFieldSetElement : HTMLElement
     method constructor
     method reportValidity
     method setCustomValidity
+    setter checkable
     setter disabled
     setter name
 interface HTMLFontElement : HTMLElement
@@ -4578,7 +4566,6 @@ interface HTMLImageElement : HTMLElement
     attribute @@toStringTag
     getter align
     getter alt
-    getter attributionSrc
     getter border
     getter browsingTopics
     getter complete
@@ -4609,7 +4596,6 @@ interface HTMLImageElement : HTMLElement
     method decode
     setter align
     setter alt
-    setter attributionSrc
     setter border
     setter browsingTopics
     setter crossOrigin
@@ -4748,6 +4734,7 @@ interface HTMLInstallElement : HTMLElement
     getter isValid
     getter manifest
     getter manifestId
+    getter oninstallresult
     getter onpromptaction
     getter onpromptdismiss
     getter onvalidationstatuschange
@@ -4756,6 +4743,7 @@ interface HTMLInstallElement : HTMLElement
     setter installURL
     setter manifest
     setter manifestId
+    setter oninstallresult
     setter onpromptaction
     setter onpromptdismiss
     setter onvalidationstatuschange
@@ -5151,7 +5139,6 @@ interface HTMLScriptElement : HTMLElement
     static method supports
     attribute @@toStringTag
     getter async
-    getter attributionSrc
     getter blocking
     getter cacheHint
     getter charset
@@ -5171,7 +5158,6 @@ interface HTMLScriptElement : HTMLElement
     getter type
     method constructor
     setter async
-    setter attributionSrc
     setter blocking
     setter cacheHint
     setter charset
@@ -5427,6 +5413,7 @@ interface HTMLTemplateElement : HTMLElement
     getter shadowRootCustomElementRegistry
     getter shadowRootDelegatesFocus
     getter shadowRootMode
+    getter shadowRootReferenceTarget
     getter shadowRootSerializable
     getter shadowRootSlotAssignment
     method constructor
@@ -5436,6 +5423,7 @@ interface HTMLTemplateElement : HTMLElement
     setter shadowRootCustomElementRegistry
     setter shadowRootDelegatesFocus
     setter shadowRootMode
+    setter shadowRootReferenceTarget
     setter shadowRootSerializable
     setter shadowRootSlotAssignment
 interface HTMLTextAreaElement : HTMLElement
@@ -5834,7 +5822,6 @@ interface Image
     attribute @@toStringTag
     getter align
     getter alt
-    getter attributionSrc
     getter border
     getter browsingTopics
     getter complete
@@ -5865,7 +5852,6 @@ interface Image
     method decode
     setter align
     setter alt
-    setter attributionSrc
     setter border
     setter browsingTopics
     setter crossOrigin
@@ -5960,6 +5946,10 @@ interface InputEvent : UIEvent
     getter isComposing
     method constructor
     method getTargetRanges
+interface InstallResultEvent : Event
+    attribute @@toStringTag
+    getter result
+    method constructor
 interface IntegrityViolationReportBody : ReportBody
     attribute @@toStringTag
     getter blockedURL
@@ -7236,6 +7226,11 @@ interface NodeList
     method item
     method keys
     method values
+interface NodeRange : AbstractRange
+    attribute @@toStringTag
+    getter endContainer
+    getter startContainer
+    method constructor
 interface NotRestoredReasonDetails
     attribute @@toStringTag
     getter reason
@@ -7704,6 +7699,7 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     getter paintTime
     getter presentationTime
     getter renderStart
+    getter scriptCount
     getter scripts
     getter styleAndLayoutStart
     getter styleDuration
@@ -8459,7 +8455,7 @@ interface RadioNodeList : NodeList
     method @@iterator
     method constructor
     setter value
-interface Range : AbstractRange
+interface Range : NodeRange
     attribute @@toStringTag
     attribute END_TO_END
     attribute END_TO_START
@@ -10423,7 +10419,7 @@ interface SpellCheckCustomDictionary
     method addWords
     method constructor
     method removeWords
-interface StaticRange : AbstractRange
+interface StaticRange : NodeRange
     attribute @@toStringTag
     method constructor
 interface StereoPannerNode : AudioNode
@@ -10877,8 +10873,8 @@ interface TrustedHTML
 interface TrustedParserOptions
     attribute @@toStringTag
     getter runScripts
-    getter sanitizer
     method constructor
+    method sanitizer
 interface TrustedScript
     static method fromLiteral
     attribute @@toStringTag
@@ -12919,7 +12915,6 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget
     method open
     method overrideMimeType
     method send
-    method setAttributionReporting
     method setPrivateToken
     method setRequestHeader
     setter onreadystatechange

@@ -76,6 +76,7 @@
 #include "content/public/common/url_constants.h"
 #include "third_party/omnibox_proto/answer_data.pb.h"
 #include "third_party/omnibox_proto/answer_type.pb.h"
+#include "third_party/omnibox_proto/chrome_searchbox_stats.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
 #include "third_party/omnibox_proto/input_type.pb.h"
 #include "third_party/omnibox_proto/rich_answer_template.pb.h"
@@ -962,19 +963,21 @@ SearchboxHandler::CreateAutocompleteMatch(
       match.answer_type != omnibox::ANSWER_TYPE_UNSPECIFIED ||
       match.enterprise_search_aggregator_type ==
           AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE;
-  for (const auto& action : match.actions) {
-    std::string icon_path;
-    if (action->GetIconImage().IsEmpty()) {
-      icon_path = AutocompleteIconToResourceName(action->GetVectorIcon());
-    } else {
-      icon_path = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
+  if (!match.from_keyword) {
+    for (const auto& action : match.actions) {
+      std::string icon_path;
+      if (action->GetIconImage().IsEmpty()) {
+        icon_path = AutocompleteIconToResourceName(action->GetVectorIcon());
+      } else {
+        icon_path = webui::GetBitmapDataUrl(action->GetIconImage().AsBitmap());
+      }
+      const OmniboxAction::LabelStrings& label_strings =
+          action->GetLabelStrings();
+      mojom_match->actions.emplace_back(searchbox::mojom::Action::New(
+          base::UTF16ToUTF8(label_strings.hint),
+          base::UTF16ToUTF8(label_strings.suggestion_contents), icon_path,
+          base::UTF16ToUTF8(label_strings.accessibility_hint)));
     }
-    const OmniboxAction::LabelStrings& label_strings =
-        action->GetLabelStrings();
-    mojom_match->actions.emplace_back(searchbox::mojom::Action::New(
-        base::UTF16ToUTF8(label_strings.hint),
-        base::UTF16ToUTF8(label_strings.suggestion_contents), icon_path,
-        base::UTF16ToUTF8(label_strings.accessibility_hint)));
   }
   std::u16string header_text;
   if (base::FeatureList::IsEnabled(
@@ -1003,6 +1006,18 @@ SearchboxHandler::CreateAutocompleteMatch(
   mojom_match->is_contextual_suggestion = match.IsContextualSearchSuggestion();
 
   return mojom_match;
+}
+
+WindowOpenDisposition SearchboxHandler::ComputeWindowOpenDisposition(
+    uint8_t mouse_button,
+    bool alt_key,
+    bool ctrl_key,
+    bool meta_key,
+    bool shift_key,
+    bool via_keyboard) {
+  return ui::DispositionFromClick(
+      /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
+      shift_key);
 }
 
 SearchboxHandler::SearchboxHandler(
@@ -1076,8 +1091,10 @@ void SearchboxHandler::OnContextualInputStatusChanged(
 }
 
 void SearchboxHandler::OnFocusChanged(bool focused) {
-  if (!base::FeatureList::IsEnabled(
+  if (base::FeatureList::IsEnabled(
           omnibox::kWebUISearchboxWithoutModelController)) {
+    metrics_tracker_.FocusChanged(focused);
+  } else {
     if (focused) {
       edit_model()->OnSetFocus(false);
     } else {
@@ -1120,6 +1137,10 @@ void SearchboxHandler::QueryAutocompleteWithSuggestInventory(
     // This will SetInputInProgress and consequently mark the input timer so
     // that Omnibox.TypingDuration will be logged correctly.
     edit_model()->SetUserText(input);
+  } else if (!is_on_focus &&
+             metrics_tracker_.time_user_first_modified_omnibox().is_null()) {
+    metrics_tracker_.set_time_user_first_modified_omnibox(
+        base::TimeTicks::Now());
   }
 
   // RealboxOmniboxClient::GetPageClassification() ignores the arguments.
@@ -1157,6 +1178,10 @@ void SearchboxHandler::QueryAutocompleteWithSuggestInventory(
   autocomplete_input.set_input_state(GetInputState());
   autocomplete_input.set_previous_query(GetPreviousQuery());
   autocomplete_input.set_suggest_inventory(suggest_inventory);
+  // Reset input method on browser so the UI doesn't have to send another
+  // mojom request to clear it.
+  autocomplete_input.set_input_method(input_method_);
+  input_method_ = omnibox::metrics::ChromeSearchboxStats::KEYBOARD;
 
   if (base::FeatureList::IsEnabled(
           omnibox::kWebUISearchboxWithoutModelController)) {
@@ -1167,7 +1192,15 @@ void SearchboxHandler::QueryAutocompleteWithSuggestInventory(
   }
 }
 
+void SearchboxHandler::SetInputMethod(
+    searchbox::mojom::InputMethod input_method) {
+  input_method_ =
+      static_cast<omnibox::metrics::ChromeSearchboxStats::InputMethod>(
+          input_method);
+}
+
 void SearchboxHandler::StopAutocomplete(bool clear_result) {
+  input_method_ = omnibox::metrics::ChromeSearchboxStats::KEYBOARD;
   if (base::FeatureList::IsEnabled(
           omnibox::kWebUISearchboxWithoutModelController)) {
     autocomplete_controller()->Stop(clear_result
@@ -1196,16 +1229,13 @@ void SearchboxHandler::OpenMatch(OmniboxPopupSelection selection,
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-  // TODO(crbug.com/530242107): Track timestamps of initial focus and
-  //  the user's first edit/modification.
-  const base::TimeTicks searchbox_focused_timestamp =
-      autocomplete_controller()->last_time_default_match_changed();
-  const base::TimeTicks first_modification_timestamp =
-      searchbox_focused_timestamp;
-  searchbox::OpenMatch(autocomplete_controller(), client(), selection, match,
-                       disposition, searchbox_focused_timestamp,
-                       first_modification_timestamp, match_selection_timestamp,
-                       metrics::OmniboxEventProto::INVALID);
+  metrics_tracker_.set_match_selection_timestamp(match_selection_timestamp);
+  metrics_tracker_.set_focus_resulted_in_navigation(true);
+  // TODO(crbug.com/530254690): Associate inputs and results for match.
+  searchbox::OpenMatch(autocomplete_controller(), client(),
+                       autocomplete_controller()->input(), selection, match,
+                       disposition, metrics_tracker_,
+                       metrics::OmniboxEventProto::INVALID, u"");
 }
 
 void SearchboxHandler::OpenAutocompleteMatch(uint8_t line,
@@ -1225,9 +1255,8 @@ void SearchboxHandler::OpenAutocompleteMatch(uint8_t line,
   }
   const OmniboxPopupSelection selection(line);
   const base::TimeTicks timestamp = base::TimeTicks::Now();
-  const WindowOpenDisposition disposition = ui::DispositionFromClick(
-      /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
-      shift_key);
+  const WindowOpenDisposition disposition = ComputeWindowOpenDisposition(
+      mouse_button, alt_key, ctrl_key, meta_key, shift_key, via_keyboard);
   if (base::FeatureList::IsEnabled(
           omnibox::kWebUISearchboxWithoutModelController)) {
     OpenMatch(selection, *match, disposition, timestamp);

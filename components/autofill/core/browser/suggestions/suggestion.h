@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -23,7 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
-#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
@@ -224,6 +225,9 @@ struct Suggestion {
     // Text to fill in the trigger field upon accepting the suggestion.
     std::u16string value;
 
+    // Human-readable type name of the entry.
+    std::u16string type_name;
+
     // The identifier for the entry (e.g. IBAN Guid or InstrumentId).
     Identifier identifier;
 
@@ -233,6 +237,10 @@ struct Suggestion {
 
     // Whether the entry is sourced from `PersonalContextService`.
     bool is_personal_context_sourced = false;
+
+    // The data sources that provided the entry.
+    std::underlying_type_t<accessibility_annotator::MemoryEntrySourceType>
+        sources_bitmask = 0;
   };
 
   struct OpenGeminiPayload final {

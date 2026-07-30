@@ -252,7 +252,7 @@ BASE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabstripTutorialFeature,
              "IPH_VerticalTabstripTutorialFeature",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSidePanelGenericPinnableFeature,
              "IPH_SidePanelGenericPinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -312,6 +312,12 @@ BASE_FEATURE(kIPHBookmarkBarSimplifiedFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+BASE_FEATURE(kIPHExtensionsPinnedByDefaultFeature,
+             "IPH_ExtensionsPinnedByDefault",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(IS_ANDROID)
 // BASE_FEATURE_ANDROID_START
@@ -519,6 +525,9 @@ BASE_FEATURE(kIPHIncognitoIndicatorCloseAllWindows,
 BASE_FEATURE(kIPHInstanceSwitcherFeature,
              "IPH_InstanceSwitcher",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHRecentTabsFeature,
+             "IPH_RecentTabs",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHKeyboardAccessoryAddressFillingFeature,
              "IPH_KeyboardAccessoryAddressFilling",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -991,12 +1000,7 @@ BASE_FEATURE(kIPHAutofillAiOptInFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillAiValuablesFeature,
              "IPH_AutofillAiValuables",
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillVirtualCardCVCSuggestionFeature,
              "IPH_AutofillVirtualCardCVCSuggestion",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1102,7 +1106,8 @@ constinit const base::FeatureParam<std::string> kSearchPromotionExtensionId{
     &kIPHSearchPromotionFeature, "extension_id",
     "dakcooigljlhlgibgdfadgphfnoooacj"};
 constinit const base::FeatureParam<std::string> kSearchPromotionInstructionsUrl{
-    &kIPHSearchPromotionFeature, "instructions_url", ""};
+    &kIPHSearchPromotionFeature, "instructions_url",
+    "https://www.google.com/chrome/landing/google-search-extension-edge/"};
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace feature_engagement

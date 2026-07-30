@@ -293,14 +293,14 @@ CdmAdapter::~CdmAdapter() {
     std::move(video_init_cb_).Run(false);
 }
 
-CdmWrapper* CdmAdapter::CreateCdmInstance(const std::string& key_system) {
+CdmWrapper* CdmAdapter::CreateCdmInstance() {
   CHECK(task_runner_->BelongsToCurrentThread());
   TRACE_EVENT0("media", "CdmAdapter::CreateCdmInstance");
 
-  CdmWrapper* cdm = CdmWrapper::Create(create_cdm_func_, key_system.data(),
-                                       key_system.size(), GetCdmHost, this);
-  DVLOG(1) << "CDM instance for " + key_system + (cdm ? "" : " could not be") +
-                  " created.";
+  CdmWrapper* cdm =
+      CdmWrapper::Create(create_cdm_func_, cdm_config_, GetCdmHost, this);
+  DVLOG(1) << "CDM instance for " + cdm_config_.key_system +
+                  (cdm ? "" : " could not be") + " created.";
 
   if (cdm) {
     // The interface version is relatively small. So using normal histogram
@@ -317,7 +317,7 @@ void CdmAdapter::Initialize(std::unique_ptr<media::SimpleCdmPromise> promise) {
   DVLOG(1) << __func__;
   TRACE_EVENT0("media", "CdmAdapter::Initialize");
 
-  cdm_.reset(CreateCdmInstance(cdm_config_.key_system));
+  cdm_.reset(CreateCdmInstance());
   if (!cdm_) {
     promise->reject(CdmPromise::Exception::INVALID_STATE_ERROR, 0,
                     "Unable to create CDM.");
@@ -327,9 +327,7 @@ void CdmAdapter::Initialize(std::unique_ptr<media::SimpleCdmPromise> promise) {
   init_promise_id_ =
       cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
 
-  if (!cdm_->Initialize(cdm_config_.allow_distinctive_identifier,
-                        cdm_config_.allow_persistent_state,
-                        cdm_config_.use_hw_secure_codecs)) {
+  if (!cdm_->Initialize(cdm_config_)) {
     // OnInitialized() will not be called by the CDM, which is the case for
     // CDM interfaces prior to CDM_10.
     OnInitialized(true);
@@ -489,7 +487,7 @@ void CdmAdapter::Decrypt(StreamType stream_type,
 
   cdm::InputBuffer_2 input_buffer = {};
   std::vector<cdm::SubsampleEntry> subsamples;
-  std::unique_ptr<DecryptedBlockImpl> decrypted_block(new DecryptedBlockImpl());
+  auto decrypted_block = std::make_unique<DecryptedBlockImpl>();
 
   TRACE_EVENT_BEGIN("media", "CdmAdapter::Decrypt", "stream_type", stream_type);
   ToCdmInputBuffer(*encrypted, &subsamples, &input_buffer);
@@ -607,7 +605,7 @@ void CdmAdapter::DecryptAndDecodeAudio(scoped_refptr<DecoderBuffer> encrypted,
 
   cdm::InputBuffer_2 input_buffer = {};
   std::vector<cdm::SubsampleEntry> subsamples;
-  std::unique_ptr<AudioFramesImpl> audio_frames(new AudioFramesImpl());
+  auto audio_frames = std::make_unique<AudioFramesImpl>();
 
   TRACE_EVENT_BEGIN("media", "CdmAdapter::DecryptAndDecodeAudio");
   ToCdmInputBuffer(*encrypted, &subsamples, &input_buffer);

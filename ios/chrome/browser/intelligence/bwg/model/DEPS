@@ -22,6 +22,7 @@ include_rules = [
   "+ios/chrome/browser/signin/model/authentication_service.h",
   "+ios/chrome/browser/signin/model/authentication_service_factory.h",
   "+ios/chrome/browser/signin/model/identity_manager_factory.h",
+  "+ios/chrome/browser/snapshots/model/snapshot_browser_agent.h",
   "+ios/chrome/browser/snapshots/model/snapshot_tab_helper.h",
   "+ios/chrome/browser/tab_picker/public",
   "+ios/chrome/browser/tabs/model/tabs_dependency_installer.h",
@@ -34,7 +35,6 @@ include_rules = [
 specific_include_rules = {
   "^gemini_browser_agent_unittest\\.mm$" : [
     "+ios/web/find_in_page/find_in_page_java_script_feature.h",
-    "+ios/web/js_messaging/java_script_feature_manager.h",
   ],
   "^gemini_service_impl\\.mm$" : [
     "+ios/web/util/content_type_util.h",

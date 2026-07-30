@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.vertical_tabs;
 
 import android.content.Context;
+import android.util.TypedValue;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -16,10 +17,16 @@ import org.chromium.ui.base.DeviceFormFactor;
 @NullMarked
 public class VerticalTabUtils {
     /** The width of the vertical tabs SideUiContainer in dp. */
-    public static final int SIDE_UI_CONTAINER_WIDTH_DP = 206;
+    public static final int SIDE_UI_CONTAINER_WIDTH_DP = 240;
 
     /** The width of the collapsed vertical tabs SideUiContainer in dp. */
-    public static final int SIDE_UI_CONTAINER_COLLAPSED_WIDTH_DP = 74;
+    public static final int SIDE_UI_CONTAINER_COLLAPSED_WIDTH_DP = 76;
+
+    /**
+     * Minimum window width threshold in dp required to allow expanding vertical tabs rail and
+     * enable collapse button.
+     */
+    public static final int MIN_EXPAND_WINDOW_WIDTH_DP = 652;
 
     /**
      * Returns whether the current device is eligible for Vertical Tabs. Vertical Tabs require the
@@ -37,5 +44,12 @@ public class VerticalTabUtils {
         }
         return ChromeSharedPreferences.getInstance()
                 .readBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, false);
+    }
+
+    /** Loads a float resource value (e.g. for alpha) from the given dimen resource id. */
+    public static float getFloatResource(Context context, int resId) {
+        TypedValue outValue = new TypedValue();
+        context.getResources().getValue(resId, outValue, true);
+        return outValue.getFloat();
     }
 }

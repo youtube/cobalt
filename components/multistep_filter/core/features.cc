@@ -24,21 +24,6 @@ BASE_FEATURE_PARAM(size_t,
                    "suggestion_max_candidates",
                    10u);
 
-// A comma-separated list of domains that are allowed to trigger the Multistep
-// Filter feature. If the value is "*", all domains are allowed.
-BASE_FEATURE_PARAM(std::string,
-                   kMultistepFilterAllowedDomains,
-                   &kMultistepFilter,
-                   "allowed_domains",
-                   "*");
-
-// The base URL for the `SiteAutomationIndexServer` APIs.
-BASE_FEATURE_PARAM(std::string,
-                   kMultistepFilterIndexServerApiBaseUrl,
-                   &kMultistepFilter,
-                   "api_url",
-                   "");
-
 // The duration for which filter annotations are considered valid.
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kMultistepFilterSessionDuration,
@@ -50,6 +35,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 // extraction.
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kSameDomainSuggestionSuppressionDuration,
+                   &kMultistepFilter,
+                   base::Minutes(2));
+
+// The duration after a suggestion is applied during which we track subsequent
+// user actions (like going back or closing the tab) for metrics.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kMultistepFilterPostApplicationSessionDuration,
                    &kMultistepFilter,
                    base::Minutes(2));
 

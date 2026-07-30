@@ -7,12 +7,13 @@ import 'chrome://contextual-tasks/app.js';
 import type {ContextualTasksAppElement} from 'chrome://contextual-tasks/app.js';
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import {GlifAnimationState, TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
-import {PageCallbackRouter as ComposeboxPageCallbackRouter, PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import {PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import {InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ComposeboxToolChipElement} from 'chrome://resources/cr_components/composebox/composebox_tool_chip.js';
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
+import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
 import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -177,8 +178,8 @@ suite('ContextualTasksComposeboxTest', () => {
     searchboxCallbackRouterRemote =
         searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
     ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-        mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-        mockSearchboxPageHandler, searchboxCallbackRouter));
+        mockComposeboxPageHandler, mockSearchboxPageHandler,
+        searchboxCallbackRouter));
 
     contextualTasksApp = document.createElement('contextual-tasks-app');
     document.body.appendChild(contextualTasksApp);
@@ -993,7 +994,7 @@ suite('ContextualTasksComposeboxTest', () => {
       showInCurrentTabChip: true,
       showInPreviousTabChip: false,
     };
-    searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(tabInfo);
+    searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(tabInfo, null);
     await searchboxCallbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
 
@@ -1011,7 +1012,8 @@ suite('ContextualTasksComposeboxTest', () => {
       ...tabInfo,
       title: 'Updated Title',
     };
-    searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(updatedTabInfo);
+    searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+        updatedTabInfo, null);
     await searchboxCallbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
     await innerComposebox.updateComplete;
@@ -1034,7 +1036,7 @@ suite('ContextualTasksComposeboxTest', () => {
       lastActive: {internalValue: BigInt(500)},
     };
     searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
-        noUpdateTabInfo);
+        noUpdateTabInfo, null);
     await searchboxCallbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
     await innerComposebox.updateComplete;
@@ -1103,6 +1105,72 @@ suite('ContextualTasksComposeboxTest', () => {
           shouldShowErrorScrim_: () => boolean,
         }).shouldShowErrorScrim_(),
         'Error scrim should hide after clicking the details link');
+  });
+
+  suite('AutoSuggestedTabContextUploadMode', () => {
+    const tabInfo = {
+      tabId: 1,
+      title: 'Tab 1',
+      url: 'https://example.com/1',
+      showInCurrentTabChip: true,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: BigInt(1)},
+    };
+
+    setup(() => {
+      composebox.isSidePanel = true;
+    });
+
+    test('DelayedUploadByDefault', async () => {
+      loadTimeData.overrideValues({
+        webUIOmniboxAskGAboutThisPageEnabled: false,
+      });
+
+      searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+          tabInfo, 'OmniboxPageAction');
+      await searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify addTabContext was called with delay_upload = true
+      assertEquals(1, mockSearchboxPageHandler.getCallCount('addTabContext'));
+      const args = mockSearchboxPageHandler.getArgs('addTabContext')[0];
+      assertEquals(1, args[0]);  // tabId
+      assertTrue(args[1]);       // delayUpload
+    });
+
+    test('ImmediateUploadWhenConditionsMet', async () => {
+      loadTimeData.overrideValues({
+        webUIOmniboxAskGAboutThisPageEnabled: true,
+      });
+
+      searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+          tabInfo, 'OmniboxPageAction');
+      await searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify addTabContext was called with delay_upload = false
+      assertEquals(1, mockSearchboxPageHandler.getCallCount('addTabContext'));
+      const args = mockSearchboxPageHandler.getArgs('addTabContext')[0];
+      assertEquals(1, args[0]);  // tabId
+      assertFalse(args[1]);      // delayUpload
+    });
+
+    test('DelayedUploadWhenNotPageAction', async () => {
+      loadTimeData.overrideValues({
+        webUIOmniboxAskGAboutThisPageEnabled: true,
+      });
+
+      searchboxCallbackRouterRemote.updateAutoSuggestedTabContext(
+          tabInfo, 'AppMenu');
+      await searchboxCallbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+
+      // Verify addTabContext was called with delay_upload = true
+      assertEquals(1, mockSearchboxPageHandler.getCallCount('addTabContext'));
+      const args = mockSearchboxPageHandler.getArgs('addTabContext')[0];
+      assertEquals(1, args[0]);  // tabId
+      assertTrue(args[1]);       // delayUpload
+    });
   });
 
   // Required to test how the voice chips are integrated into contextual
@@ -1174,41 +1242,6 @@ suite('ContextualTasksComposeboxTest', () => {
       await composebox.updateComplete;
       await mockSearchboxPageHandler.whenCalled('submitQuery');
     }
-
-    test(
-        'voice error scrim is absolute when not hidden; display none otherwise',
-        async () => {
-          // When no error: errorScrim should be absent:
-          let errorScrim = composebox.shadowRoot.querySelector('#errorScrim');
-          assertFalse(!!errorScrim);
-
-          // When error: errorScrim is shown, must be position absolute:
-          composebox.inVoiceSearchMode = true;
-          composebox.errorMessage = 'Network error';
-          await composebox.updateComplete;
-
-          errorScrim = composebox.shadowRoot.querySelector('#errorScrim');
-          assertTrue(!!errorScrim);
-          assertEquals(
-              'absolute', window.getComputedStyle(errorScrim).position);
-
-          // When dismissed (hidden again):
-          const shadowRoot = errorScrim.shadowRoot;
-          assertTrue(!!shadowRoot);
-          if (!shadowRoot) {
-            return;
-          }
-          const dismissErrorButton =
-              shadowRoot.querySelector('#dismissErrorButton');
-          assertTrue(!!dismissErrorButton);
-          dismissErrorButton.click();
-          await microtasksFinished();
-          await composebox.updateComplete;
-
-          errorScrim = composebox.shadowRoot.querySelector('#errorScrim');
-          // Equivalent to checking 'display none':
-          assertFalse(!!errorScrim);
-        });
 
     test('toolchip and image added, then removed in voice search', async () => {
       // Add tool chip:
@@ -1587,8 +1620,8 @@ suite('ContextualTasksComposeboxTest', () => {
           const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
           searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
           ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-              mockSearchboxPageHandler, searchboxCallbackRouter));
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
 
           parts = await createCtComposeboxApp(useFork);
         });
@@ -1705,8 +1738,8 @@ suite('ContextualTasksComposeboxTest', () => {
           const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
           searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
           ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-              mockSearchboxPageHandler, searchboxCallbackRouter));
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
 
           parts = await createCtComposeboxApp(useFork);
         });
@@ -2002,8 +2035,8 @@ suite('ContextualTasksComposeboxTest', () => {
           searchboxCallbackRouterRemote =
               searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
           ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-              mockSearchboxPageHandler, searchboxCallbackRouter));
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
 
           parts = await createCtComposeboxApp(useFork);
           searchboxCallbackRouterRemote.onInputStateChanged(
@@ -2322,8 +2355,8 @@ suite('ContextualTasksComposeboxTest', () => {
           const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
           searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
           ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-              mockSearchboxPageHandler, searchboxCallbackRouter));
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
         });
 
         test('renders the contextual entrypoint and exposes it', async () => {
@@ -2647,8 +2680,8 @@ suite(`ContextualTasksComposeboxResizeTest`, () => {
     searchboxCallbackRouterRemote =
         searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
     ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-        mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
-        mockSearchboxPageHandler, searchboxCallbackRouter));
+        mockComposeboxPageHandler, mockSearchboxPageHandler,
+        searchboxCallbackRouter));
 
     parts = await createCtComposeboxApp(/* useFork= */ true);
     searchboxCallbackRouterRemote.onInputStateChanged(new MockInputState());
@@ -2707,4 +2740,249 @@ suite(`ContextualTasksComposeboxResizeTest`, () => {
     assertEquals(
         '68px', innerComposebox.style.getPropertyValue('--carousel-height'));
   });
+});
+
+// =============================================================================
+// Fork GLOW RENDER SURFACE SUITE (both paths)
+// The wrapper drives animation and energy-effect state on whichever inner
+// element the flag selects, so both templates must render the same
+// `search-animated-glow` consumer; the legacy path doubles as the baseline for
+// the fork's render and state-propagation contract.
+// =============================================================================
+[true, false].forEach(useFork => {
+  suite(
+      `ContextualTasksComposeboxForkGlowTest ` +
+          `(useContextualTasksComposeboxFork = ${useFork})`,
+      () => {
+        let parts: CtComposeboxAppParts;
+
+        setup(async () => {
+          if (!window.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+          if (!window.chrome.histograms) {
+            Object.assign(window.chrome, {
+              histograms: {
+                recordEnumerationValue: () => {},
+                recordUserAction: () => {},
+                recordBoolean: () => {},
+              },
+            });
+          }
+          document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+            forcedEmbeddedPageHost: '',
+            tabFaviconChipsToCoinsEnabled: false,
+            energyEffectEnabled: true,
+          });
+
+          const testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          const mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockComposeboxPageHandler.setResultFor(
+              'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+          const mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getRecentTabs', Promise.resolve({tabs: []}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          mockSearchboxPageHandler.setResultFor(
+              'addTabContext',
+              Promise.resolve({high: BigInt(1), low: BigInt(2)}));
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
+
+          parts = await createCtComposeboxApp(useFork);
+        });
+
+        test('both paths render the glow render surface', () => {
+          const {innerComposebox} = parts;
+          const glow =
+              innerComposebox.shadowRoot.querySelector('search-animated-glow');
+          assertTrue(!!glow, 'search-animated-glow should be in the DOM');
+          assertEquals('animatedSearchElement', glow.id);
+          const exportparts = glow.getAttribute('exportparts');
+          assertTrue(
+              !!exportparts && exportparts.includes('composebox-background'),
+              'Glow should re-export the composebox-background part');
+        });
+
+        test('wrapper startExpandAnimation reaches the glow', async () => {
+          const {wrapper, innerComposebox} = parts;
+          const glow =
+              innerComposebox.shadowRoot.querySelector('search-animated-glow');
+          assertTrue(!!glow);
+          await wrapper.startExpandAnimation();
+          await wrapper.updateComplete;
+          await innerComposebox.updateComplete;
+          await glow.updateComplete;
+          assertEquals(GlowAnimationState.EXPANDING, glow.animationState);
+        });
+
+        test('energy state reaches the inner host and the glow', async () => {
+          const {wrapper, innerComposebox} = parts;
+          await wrapper.updateComplete;
+          await innerComposebox.updateComplete;
+          assertTrue(innerComposebox.energyEffectEnabled);
+          assertTrue(innerComposebox.hasAttribute('energy-effect-enabled'));
+          const glow =
+              innerComposebox.shadowRoot.querySelector('search-animated-glow');
+          assertTrue(!!glow);
+          await glow.updateComplete;
+          assertTrue(glow.energyEffectAnimationEnabled);
+        });
+      });
+});
+
+[true, false].forEach(useFork => {
+  suite(
+      `ContextualTasksComposeboxForkErrorScrimTest ` +
+          `(useContextualTasksComposeboxFork = ${useFork})`,
+      () => {
+        let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>&
+            ComposeboxPageHandlerRemote;
+        let mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>&
+            SearchboxPageHandlerRemote;
+        let searchboxCallbackRouterRemote: SearchboxPageRemote;
+        let parts: CtComposeboxAppParts;
+
+        setup(async () => {
+          if (!window.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+          if (!window.chrome.histograms) {
+            Object.assign(window.chrome, {
+              histograms: {
+                recordEnumerationValue: () => {},
+                recordUserAction: () => {},
+                recordBoolean: () => {},
+              },
+            });
+          }
+          document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+            composeboxHintTextLensOverlay: 'Test Lens Hint',
+            forcedEmbeddedPageHost: '',
+            tabFaviconChipsToCoinsEnabled: false,
+          });
+
+          const testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockComposeboxPageHandler.setResultFor(
+              'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+          mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getRecentTabs', Promise.resolve({tabs: []}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          mockSearchboxPageHandler.setResultFor(
+              'addTabContext',
+              Promise.resolve({high: BigInt(1), low: BigInt(2)}));
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouterRemote =
+              searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler, mockSearchboxPageHandler,
+              searchboxCallbackRouter));
+
+          parts = await createCtComposeboxApp(useFork);
+          searchboxCallbackRouterRemote.onInputStateChanged(
+              new MockInputState());
+          await microtasksFinished();
+        });
+
+        test('error scrim lifecycle: render, inert, dismiss', async () => {
+          const {innerComposebox} = parts;
+          const composeboxDiv =
+              innerComposebox.shadowRoot.querySelector('#composebox');
+          assertTrue(!!composeboxDiv);
+
+          // No error: no scrim in the DOM, composebox stays interactive.
+          assertFalse(
+              !!innerComposebox.shadowRoot.querySelector('ntp-error-scrim'));
+          assertFalse(composeboxDiv.hasAttribute('inert'));
+
+          innerComposebox.errorMessage = 'Upload failed';
+          await innerComposebox.updateComplete;
+
+          const errorScrim =
+              innerComposebox.shadowRoot.querySelector('ntp-error-scrim');
+          assertTrue(!!errorScrim);
+          await errorScrim.updateComplete;
+          assertEquals('Upload failed', errorScrim.errorMessage);
+          const errorMessageElement =
+              errorScrim.shadowRoot.querySelector('#errorMessage');
+          assertTrue(!!errorMessageElement);
+          assertEquals('Upload failed', errorMessageElement.textContent);
+          assertTrue(composeboxDiv.hasAttribute('inert'));
+          // Outside voice search mode the scrim host must stay static, as in
+          // the shared template (no fork-specific positioning).
+          assertEquals('static', window.getComputedStyle(errorScrim).position);
+
+          const dismissErrorButton =
+              errorScrim.shadowRoot.querySelector<HTMLElement>(
+                  '#dismissErrorButton');
+          assertTrue(!!dismissErrorButton);
+          dismissErrorButton.click();
+          await microtasksFinished();
+          await innerComposebox.updateComplete;
+
+          assertEquals('', innerComposebox.errorMessage);
+          assertFalse(
+              !!innerComposebox.shadowRoot.querySelector('ntp-error-scrim'));
+          assertFalse(composeboxDiv.hasAttribute('inert'));
+        });
+
+        test(
+            'error scrim is position absolute in voice search mode',
+            async () => {
+              const {innerComposebox} = parts;
+              innerComposebox.inVoiceSearchMode = true;
+              innerComposebox.errorMessage = 'Network error';
+              await innerComposebox.updateComplete;
+
+              const errorScrim =
+                  innerComposebox.shadowRoot.querySelector('ntp-error-scrim');
+              assertTrue(!!errorScrim);
+              await errorScrim.updateComplete;
+              assertEquals(
+                  'absolute', window.getComputedStyle(errorScrim).position);
+            });
+      });
 });

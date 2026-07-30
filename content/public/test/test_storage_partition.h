@@ -70,8 +70,6 @@ class TestStoragePartition : public StoragePartition {
   cert_verifier::mojom::CertVerifierServiceUpdater*
   GetCertVerifierServiceUpdater() override;
 
-  storage::SharedStorageManager* GetSharedStorageManager() override;
-
   void set_url_loader_factory_for_browser_process(
       network::TestURLLoaderFactory* factory) {
     test_url_loader_factory_ = factory;
@@ -151,10 +149,6 @@ class TestStoragePartition : public StoragePartition {
   PlatformNotificationContext* GetPlatformNotificationContext() override;
 
   InterestGroupManager* GetInterestGroupManager() override;
-
-  AttributionDataModel* GetAttributionDataModel() override;
-
-  PrivateAggregationDataModel* GetPrivateAggregationDataModel() override;
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   CdmStorageDataModel* GetCdmStorageDataModel() override;

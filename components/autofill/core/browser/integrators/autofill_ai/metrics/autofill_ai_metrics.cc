@@ -233,4 +233,19 @@ void LogReauthToFillResultPerFieldType(const FieldTypeSet& ai_field_types,
   }
 }
 
+void LogPersonalContextCacheReadinessOnFirstInteraction(
+    PersonalContextCacheReadinessOnFirstInteraction readiness) {
+  base::UmaHistogramEnumeration(
+      "Autofill.Ai.PersonalContext.Cache.ReadinessOnFirstInteraction",
+      readiness);
+}
+
+void LogUnmaskResult(EntityInstance::RecordType record_type,
+                     AutofillAiUnmaskResult result) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Autofill.Ai.Unmask.Result.",
+                    EntityRecordTypeToMetricsString(record_type)}),
+      result);
+}
+
 }  // namespace autofill

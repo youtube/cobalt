@@ -7,14 +7,9 @@
 namespace wallet::features {
 
 // Controls whether the Wallet API is enabled.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_WIN)
 BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kWalletApiPrivatePassesEnabled,
                                        base::FEATURE_ENABLED_FOR_COUNTRIES,
                                        "us");
-#else
-BASE_FEATURE(kWalletApiPrivatePassesEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // The backend URL to save the walletable pass.
 BASE_FEATURE_PARAM(std::string,
@@ -25,7 +20,7 @@ BASE_FEATURE_PARAM(std::string,
 
 // Controls whether session IDs should be attached to Upsert API calls for new
 // private passes.
-BASE_FEATURE(kWalletApiPrivatePassesConsent, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWalletApiPrivatePassesConsent, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether to enable walletable pass detection on web pages.
 BASE_FEATURE(kWalletablePassDetection, base::FEATURE_DISABLED_BY_DEFAULT);

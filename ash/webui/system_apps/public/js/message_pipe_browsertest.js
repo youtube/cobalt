@@ -85,8 +85,8 @@ TEST_F('MessagePipeBrowserTest', 'IgnoresMessagesWithNoType', async () => {
     }
   };
   window.addEventListener('message', receiveMessage, false);
-  const guestFrame = /** @type {!HTMLIFrameElement} */ (
-      document.querySelector('iframe'));
+  const guestFrame =
+      /** @type {!HTMLIFrameElement} */ (document.querySelector('iframe'));
   const TEST_GUEST_ORIGIN = 'chrome-untrusted://system-app-test';
   // These postMessages should be ignored and not cause any errors.
   guestFrame.contentWindow.postMessage('test', TEST_GUEST_ORIGIN);

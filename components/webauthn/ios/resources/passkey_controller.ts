@@ -50,6 +50,9 @@ function isGpmAaguid(aaguid: Uint8Array): boolean {
  */
 const cachedNavigatorCredentials: CredentialsContainer = navigator.credentials;
 
+// Tracks whether a WebAuthn request is currently pending.
+let hasPendingRequest = false;
+
 // A function will be defined here by the placeholder replacement.
 // It will be called to determine whether to attempt to handle modal
 // passkeys requests directly in the browser.
@@ -112,6 +115,27 @@ interface PublicKeyCredentialClientCapabilities {
   userVerifyingPlatformAuthenticator?: boolean;
 }
 
+// Options passed to PublicKeyCredential.signalUnknownCredential.
+interface UnknownCredentialOptions {
+  rpId: string;
+  credentialId: string;
+}
+
+// Options passed to PublicKeyCredential.signalCurrentUserDetails.
+interface CurrentUserDetailsOptions {
+  rpId: string;
+  userId: string;
+  name: string;
+  displayName: string;
+}
+
+// Options passed to PublicKeyCredential.signalAllAcceptedCredentials.
+interface AllAcceptedCredentialsOptions {
+  rpId: string;
+  userId: string;
+  allAcceptedCredentialIds: string[];
+}
+
 // Class to backup and override PublicKeyCredential methods.
 class PublicKeyCredentialOverrider {
   private static readonly IS_UVPAA =
@@ -127,6 +151,18 @@ class PublicKeyCredentialOverrider {
 
   // PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable.
   private originalIsUVPAA: (() => Promise<boolean>)|undefined;
+
+  // PublicKeyCredential.signalUnknownCredential.
+  private originalSignalUnknownCredential:
+      ((options: UnknownCredentialOptions) => Promise<void>)|undefined;
+
+  // PublicKeyCredential.signalCurrentUserDetails.
+  private originalSignalCurrentUserDetails:
+      ((options: CurrentUserDetailsOptions) => Promise<void>)|undefined;
+
+  // PublicKeyCredential.signalAllAcceptedCredentials.
+  private originalSignalAllAcceptedCredentials:
+      ((options: AllAcceptedCredentialsOptions) => Promise<void>)|undefined;
 
   constructor() {
     // PublicKeyCredential can be undefined.
@@ -150,6 +186,23 @@ class PublicKeyCredentialOverrider {
       this.originalIsUVPAA =
           PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable
               .bind(PublicKeyCredential);
+    }
+
+    if (PublicKeyCredential.signalUnknownCredential) {
+      this.originalSignalUnknownCredential =
+          PublicKeyCredential.signalUnknownCredential.bind(PublicKeyCredential);
+    }
+
+    if (PublicKeyCredential.signalCurrentUserDetails) {
+      this.originalSignalCurrentUserDetails =
+          PublicKeyCredential.signalCurrentUserDetails.bind(
+              PublicKeyCredential);
+    }
+
+    if (PublicKeyCredential.signalAllAcceptedCredentials) {
+      this.originalSignalAllAcceptedCredentials =
+          PublicKeyCredential.signalAllAcceptedCredentials.bind(
+              PublicKeyCredential);
     }
   }
 
@@ -192,6 +245,28 @@ class PublicKeyCredentialOverrider {
           return capabilities;
         },
       });
+
+      Object.defineProperty(PublicKeyCredential, 'signalUnknownCredential', {
+        value: (options: UnknownCredentialOptions) =>
+            signalUnknownCredential(options),
+        writable: true,
+        configurable: true,
+      });
+
+      Object.defineProperty(PublicKeyCredential, 'signalCurrentUserDetails', {
+        value: (options: CurrentUserDetailsOptions) =>
+            signalCurrentUserDetails(options),
+        writable: true,
+        configurable: true,
+      });
+
+      Object.defineProperty(
+          PublicKeyCredential, 'signalAllAcceptedCredentials', {
+            value: (options: AllAcceptedCredentialsOptions) =>
+                signalAllAcceptedCredentials(options),
+            writable: true,
+            configurable: true,
+          });
     } else if (shouldShimIsUVPAA()) {
       Object.defineProperty(
           PublicKeyCredential, PublicKeyCredentialOverrider.IS_UVPAA, {
@@ -266,6 +341,36 @@ class PublicKeyCredentialOverrider {
   // Returns whether conditional create was originally supported.
   async checkOriginalConditionalCreateCapability(): Promise<boolean> {
     return this.checkOriginalCapability('conditionalCreate');
+  }
+
+  // Invokes the original WebKit implementation of
+  // PublicKeyCredential.signalUnknownCredential().
+  passthroughSignalUnknownCredential(options: UnknownCredentialOptions):
+      Promise<void> {
+    if (this.originalSignalUnknownCredential) {
+      return this.originalSignalUnknownCredential(options);
+    }
+    return Promise.resolve();
+  }
+
+  // Invokes the original WebKit implementation of
+  // PublicKeyCredential.signalCurrentUserDetails().
+  passthroughSignalCurrentUserDetails(options: CurrentUserDetailsOptions):
+      Promise<void> {
+    if (this.originalSignalCurrentUserDetails) {
+      return this.originalSignalCurrentUserDetails(options);
+    }
+    return Promise.resolve();
+  }
+
+  // Invokes the original WebKit implementation of
+  // PublicKeyCredential.signalAllAcceptedCredentials().
+  passthroughSignalAllAcceptedCredentials(
+      options: AllAcceptedCredentialsOptions): Promise<void> {
+    if (this.originalSignalAllAcceptedCredentials) {
+      return this.originalSignalAllAcceptedCredentials(options);
+    }
+    return Promise.resolve();
   }
 }
 
@@ -393,12 +498,12 @@ interface RelyingPartyEntity {
 function extractRelyingPartyEntity(options: Options): RelyingPartyEntity {
   if (isCreationOptions(options)) {
     return {
-      'id': options.rp.id ?? document.location.host,
+      'id': options.rp.id ?? document.location.hostname,
       'name': options.rp.name,
     };
   } else {  // PublicKeyCredentialRequestOptions
     return {
-      'id': options.rpId ?? document.location.host,
+      'id': options.rpId ?? document.location.hostname,
     };
   }
 }
@@ -775,6 +880,71 @@ class DeferredPublicKeyCredentialPromise {
   }
 }
 
+// Handles PublicKeyCredential.signalUnknownCredential calls from the webpage
+// by invoking WebKit's native implementation first, and notifying the browser
+// C++ layer only upon successful resolution.
+// TODO(crbug.com/460487030): Confirm that this is the intended behavior (WK
+// first, then browser on success), same for other signal functions.
+function signalUnknownCredential(options: UnknownCredentialOptions):
+    Promise<void> {
+  return publicKeyCredentialOverrider
+      .passthroughSignalUnknownCredential(options)
+      .then(() => {
+        if (options && typeof options.rpId === 'string' &&
+            typeof options.credentialId === 'string') {
+          sendWebKitMessage(HANDLER_NAME, {
+            'event': 'signalUnknownCredential',
+            'rpId': options.rpId,
+            'credentialId': options.credentialId,
+          });
+        }
+      });
+}
+
+// Handles PublicKeyCredential.signalCurrentUserDetails calls from the webpage
+// by invoking WebKit's native implementation first, and notifying the browser
+// C++ layer only upon successful resolution.
+function signalCurrentUserDetails(options: CurrentUserDetailsOptions):
+    Promise<void> {
+  return publicKeyCredentialOverrider
+      .passthroughSignalCurrentUserDetails(options)
+      .then(() => {
+        if (options && typeof options.rpId === 'string' &&
+            typeof options.userId === 'string' &&
+            typeof options.name === 'string' &&
+            typeof options.displayName === 'string') {
+          sendWebKitMessage(HANDLER_NAME, {
+            'event': 'signalCurrentUserDetails',
+            'rpId': options.rpId,
+            'userId': options.userId,
+            'name': options.name,
+            'displayName': options.displayName,
+          });
+        }
+      });
+}
+
+// Handles PublicKeyCredential.signalAllAcceptedCredentials calls from the
+// webpage by invoking WebKit's native implementation first, and notifying the
+// browser C++ layer only upon successful resolution.
+function signalAllAcceptedCredentials(options: AllAcceptedCredentialsOptions):
+    Promise<void> {
+  return publicKeyCredentialOverrider
+      .passthroughSignalAllAcceptedCredentials(options)
+      .then(() => {
+        if (options && typeof options.rpId === 'string' &&
+            typeof options.userId === 'string' &&
+            Array.isArray(options.allAcceptedCredentialIds)) {
+          sendWebKitMessage(HANDLER_NAME, {
+            'event': 'signalAllAcceptedCredentials',
+            'rpId': options.rpId,
+            'userId': options.userId,
+            'allAcceptedCredentialIds': options.allAcceptedCredentialIds,
+          });
+        }
+      });
+}
+
 // Creates a passthrough registration request from the provided parameters.
 // The passthrough request invokes the WebKit implementation of
 // `navigator.credentials.get()` and, upon completion, informs the browser for
@@ -791,7 +961,7 @@ function createPassthroughRegistrationRequest(
       // https://w3c.github.io/webauthn/#sctn-authenticator-data.
       const aaguid = new Uint8Array(
           response.getAuthenticatorData().slice(37).slice(0, 16));
-      const rpId = options!.publicKey!.rp.id ?? document.location.host;
+      const rpId = options!.publicKey!.rp.id ?? document.location.hostname;
       sendWebKitMessage(HANDLER_NAME, {
         'event': 'logCreateResolved',
         'isGpm': isGpmAaguid(aaguid),
@@ -815,7 +985,7 @@ function createPassthroughAssertionRequest(
       // rpId is an optional member of publicKey. Default value (caller's
       // origin domain) should be used if it is not specified
       // (https://w3c.github.io/webauthn/#dom-publickeycredentialrequestoptions-rpid).
-      const rpId = options!.publicKey!.rpId ?? document.location.host;
+      const rpId = options!.publicKey!.rpId ?? document.location.hostname;
       sendWebKitMessage(HANDLER_NAME, {
         'event': 'logGetResolved',
         'credentialId': credential.id,
@@ -897,22 +1067,29 @@ const credentialsContainer: CredentialsContainer = {
     }
 
     const isConditional: boolean = isConditionalMediation(options);
+    hasPendingRequest = true;
+
+    let promise: Promise<Credential|null>;
     if (shouldHandlePasskeyRequests(isConditional) &&
         options.publicKey.challenge) {
-      return createAssertionRequest(
-                 options.publicKey, isConditional, options.signal)
-          .then(result => {
-            if (isValidCredential(result)) {
-              // TODO(crbug.com/460485333): Notification message of success
-              // here?
-              return result;
-            }
+      promise = createAssertionRequest(
+                    options.publicKey, isConditional, options.signal)
+                    .then(result => {
+                      if (isValidCredential(result)) {
+                        // TODO(crbug.com/460485333): Notification message of
+                        // success here?
+                        return result;
+                      }
 
-            return createPassthroughAssertionRequest(options);
-          });
+                      return createPassthroughAssertionRequest(options);
+                    });
     } else {
-      return createPassthroughAssertionRequest(options);
+      promise = createPassthroughAssertionRequest(options);
     }
+
+    return promise.finally(() => {
+      hasPendingRequest = false;
+    });
   },
   create: function(
       options?: CredentialCreationOptions|undefined): Promise<Credential|null> {
@@ -922,23 +1099,30 @@ const credentialsContainer: CredentialsContainer = {
     }
 
     const isConditional: boolean = isConditionalMediation(options);
+    hasPendingRequest = true;
+
+    let promise: Promise<Credential|null>;
     if (shouldHandlePasskeyRequests(isConditional) &&
         options.publicKey.challenge && options.publicKey.user &&
         options.publicKey.user.id) {
-      return createRegistrationRequest(
-                 options.publicKey, isConditional, options.signal)
-          .then(result => {
-            if (isValidCredential(result)) {
-              // TODO(crbug.com/460485333): Notification message of success
-              // here?
-              return result;
-            }
+      promise = createRegistrationRequest(
+                    options.publicKey, isConditional, options.signal)
+                    .then(result => {
+                      if (isValidCredential(result)) {
+                        // TODO(crbug.com/460485333): Notification message of
+                        // success here?
+                        return result;
+                      }
 
-            return createPassthroughRegistrationRequest(options);
-          });
+                      return createPassthroughRegistrationRequest(options);
+                    });
     } else {
-      return createPassthroughRegistrationRequest(options);
+      promise = createPassthroughRegistrationRequest(options);
     }
+
+    return promise.finally(() => {
+      hasPendingRequest = false;
+    });
   },
   preventSilentAccess: function(): Promise<any> {
     return cachedNavigatorCredentials.preventSilentAccess();
@@ -1000,12 +1184,11 @@ function deferToRenderer(requestId: string, requestType: number): void {
 }
 
 // Function called from C++ to reject a passkey request.
-function rejectPasskeyRequest(requestId: string): void {
-  const reason =
-      new DOMException('The operation is not allowed.', 'NotAllowedError');
+function rejectPasskeyRequest(
+    requestId: string, errorName: string, errorMessage: string): void {
+  const reason = new DOMException(errorMessage, errorName);
   DeferredPublicKeyCredentialPromise.reject(requestId, reason);
 }
-
 
 // Resolves the credential promise with the provided response.
 function resolveCredentialPromise(
@@ -1062,4 +1245,19 @@ if (window.isSecureContext) {
 
   // Override PublicKeyCredential's behaviour to expose browser capabilities.
   publicKeyCredentialOverrider.override();
+
+  if (shouldHandleConditionalPasskeyRequests() ||
+      shouldHandleModalPasskeyRequests()) {
+    // When navigating back to a page where a WebAuthn request has been made,
+    // the page must be reloaded so that the WebAuthn request happens again,
+    // otherwise the user won't be able to perform the assertion or registration
+    // again.
+    window.addEventListener('pageshow', (event) => {
+      // event.persisted is true if the page was restored from the bfcache.
+      if (event.persisted && hasPendingRequest) {
+        // Force a full page reload to clear stale WebAuthn state.
+        window.location.reload();
+      }
+    });
+  }
 }

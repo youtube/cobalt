@@ -96,6 +96,16 @@ class MockToolbarUIServiceDelegate
               (override));
   MOCK_METHOD(void, OnLocationBarFocusWithinChanged, (bool), (override));
   MOCK_METHOD(void,
+              MovePinnedToolbarAction,
+              (toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+               int32_t target_index),
+              (override));
+  MOCK_METHOD(void,
+              MovePinnedToolbarActionBy,
+              (toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+               int32_t delta),
+              (override));
+  MOCK_METHOD(void,
               OnLhsChipMousePressed,
               (toolbar_ui_api::mojom::LhsChipIdentifier),
               (override));
@@ -174,14 +184,17 @@ class MockCommandUpdater : public CommandUpdater {
   MOCK_METHOD(bool, SupportsCommand, (int id), (const, override));
   MOCK_METHOD(bool, IsCommandEnabled, (int id), (const, override));
   MOCK_METHOD(bool,
-              ExecuteCommand,
-              (int id, base::TimeTicks time_stamp),
+              ExecuteCommandImpl,
+              (int id,
+               base::TimeTicks time_stamp,
+               std::optional<actions::ActionInvocationContext> context),
               (override));
   MOCK_METHOD(bool,
-              ExecuteCommandWithDisposition,
+              ExecuteCommandWithDispositionImpl,
               (int id,
                WindowOpenDisposition disposition,
-               base::TimeTicks time_stamp),
+               base::TimeTicks time_stamp,
+               std::optional<actions::ActionInvocationContext> context),
               (override));
   MOCK_METHOD(void,
               AddCommandObserver,

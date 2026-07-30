@@ -8,16 +8,22 @@
 #include <optional>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"
+#include "media/webrtc/ml_model_handle.h"
 #include "media/webrtc/voice_isolation/voice_isolation.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/audio/ml_model_manager.h"
+#include "services/audio/voice_isolation_handler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/flatbuffers/src/include/flatbuffers/flatbuffers.h"
+#include "third_party/tflite/src/tensorflow/lite/model_builder.h"
 
 using ::testing::_;
 using ::testing::Eq;
@@ -56,6 +62,58 @@ class AudioProcessorHandlerTest : public ::testing::Test {
 };
 
 namespace {
+
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+
+class FakeMlModelHandle : public media::MlModelHandle {
+ public:
+  FakeMlModelHandle() {
+    // Construct a FlatBuffer holding a valid, empty model.
+    flatbuffers::FlatBufferBuilder buffer_builder(1024);
+    tflite::ModelBuilder model_builder(buffer_builder);
+    tflite::FinishModelBuffer(buffer_builder, model_builder.Finish());
+
+    // Initialize a buffer-backed FlatBufferModel from the FlatBuffer.
+    auto span = buffer_builder.GetBufferSpan();
+    buffer_ = std::vector<uint8_t>(span.begin(), span.end());
+    model_ = tflite::FlatBufferModel::VerifyAndBuildFromBuffer(
+        reinterpret_cast<char*>(buffer_.data()), buffer_.size());
+    CHECK(model_);
+  }
+
+  const tflite::FlatBufferModel& Get() override { return *model_; }
+
+ private:
+  ~FakeMlModelHandle() override = default;
+  std::vector<uint8_t> buffer_;
+  std::unique_ptr<tflite::FlatBufferModel> model_;
+};
+
+class MockMlModelManager : public MlModelManager {
+ public:
+  MockMlModelManager() {
+    ON_CALL(*this, GetModel(testing::_)).WillByDefault([](mojom::MlModelType) {
+      return base::MakeRefCounted<FakeMlModelHandle>();
+    });
+  }
+  MOCK_METHOD(scoped_refptr<media::MlModelHandle>,
+              GetModel,
+              (mojom::MlModelType model_type),
+              (override));
+};
+
+std::unique_ptr<VoiceIsolationHandler> GetVoiceIsolationHandler(
+    const media::AudioParameters& output_params,
+    VoiceIsolationHandler::DeliverProcessedAudioCallback callback) {
+  std::unique_ptr<media::VoiceIsolation> voice_isolation =
+      media::VoiceIsolation::Create(/*model=*/nullptr, output_params);
+
+  MockMlModelManager model_manager;
+
+  return VoiceIsolationHandler::MaybeCreate(
+      /*ml_model_manager=*/model_manager, output_params, callback);
+}
+#endif
 
 TEST_F(AudioProcessorHandlerTest, SynchronousProcessingWithoutVoiceIsolation) {
   media::AudioProcessingSettings settings;
@@ -101,10 +159,11 @@ TEST_F(AudioProcessorHandlerTest, SynchronousProcessingWithVoiceIsolation) {
   mojo::PendingRemote<media::mojom::AudioProcessorControls> controls_remote;
   auto handler = std::make_unique<AudioProcessorHandler>(
       settings, input_params_, output_params_, log_callback_.Get(),
-      deliver_callback_.Get(), error_callback_.Get(),
+      base::NullCallback(), error_callback_.Get(),
       controls_remote.InitWithNewPipeAndPassReceiver(),
       /*aecdump_recording_manager=*/nullptr,
-      /*ml_model_manager=*/nullptr, std::make_unique<media::VoiceIsolation>());
+      /*ml_model_manager=*/nullptr,
+      GetVoiceIsolationHandler(output_params_, deliver_callback_.Get()));
 
   handler->StartProcessing();
   EXPECT_EQ(HasVoiceIsolationHandler(*handler), settings.voice_isolation);
@@ -175,10 +234,11 @@ TEST_F(AudioProcessorHandlerTest,
   mojo::PendingRemote<media::mojom::AudioProcessorControls> controls_remote;
   auto handler = std::make_unique<AudioProcessorHandler>(
       settings, input_params_, output_params_, log_callback_.Get(),
-      deliver_callback_.Get(), error_callback_.Get(),
+      base::NullCallback(), error_callback_.Get(),
       controls_remote.InitWithNewPipeAndPassReceiver(),
       /*aecdump_recording_manager=*/nullptr,
-      /*ml_model_manager=*/nullptr, std::make_unique<media::VoiceIsolation>());
+      /*ml_model_manager=*/nullptr,
+      GetVoiceIsolationHandler(output_params_, deliver_callback_.Get()));
 
   handler->StartProcessing();
   EXPECT_EQ(HasVoiceIsolationHandler(*handler), settings.voice_isolation);
@@ -331,10 +391,11 @@ TEST_F(AudioProcessorHandlerTest, GlitchInfoAccumulationWithVoiceIsolation) {
   mojo::PendingRemote<media::mojom::AudioProcessorControls> controls_remote;
   auto handler = std::make_unique<AudioProcessorHandler>(
       settings, input_params_, output_params_, log_callback_.Get(),
-      deliver_callback_.Get(), error_callback_.Get(),
+      base::NullCallback(), error_callback_.Get(),
       controls_remote.InitWithNewPipeAndPassReceiver(),
       /*aecdump_recording_manager=*/nullptr,
-      /*ml_model_manager=*/nullptr, std::make_unique<media::VoiceIsolation>());
+      /*ml_model_manager=*/nullptr,
+      GetVoiceIsolationHandler(output_params_, deliver_callback_.Get()));
 
   handler->StartProcessing();
   EXPECT_EQ(HasVoiceIsolationHandler(*handler), settings.voice_isolation);
@@ -366,10 +427,11 @@ TEST_F(AudioProcessorHandlerTest,
   mojo::PendingRemote<media::mojom::AudioProcessorControls> controls_remote;
   auto handler = std::make_unique<AudioProcessorHandler>(
       settings, input_params_, output_params_, log_callback_.Get(),
-      deliver_callback_.Get(), error_callback_.Get(),
+      base::NullCallback(), error_callback_.Get(),
       controls_remote.InitWithNewPipeAndPassReceiver(),
       /*aecdump_recording_manager=*/nullptr,
-      /*ml_model_manager=*/nullptr, std::make_unique<media::VoiceIsolation>());
+      /*ml_model_manager=*/nullptr,
+      GetVoiceIsolationHandler(output_params_, deliver_callback_.Get()));
 
   handler->StartProcessing();
   EXPECT_EQ(HasVoiceIsolationHandler(*handler), settings.voice_isolation);

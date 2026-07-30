@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/css/anchor_query.h"
 #include "third_party/blink/renderer/core/layout/anchor_map.h"
 #include "third_party/blink/renderer/core/layout/anchor_position_scroll_data.h"
+#include "third_party/blink/renderer/core/layout/geometry/writing_mode_converter.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/style/anchor_specifier_value.h"
 #include "third_party/blink/renderer/core/style/position_area.h"
@@ -276,14 +277,17 @@ const LayoutObject* AnchorEvaluatorImpl::DefaultAnchor(
 }
 
 const PaintLayer* AnchorEvaluatorImpl::DefaultAnchorScrollContainerLayer(
+    PhysicalAxis axis,
     const DefaultAnchorData& default_anchor_data) const {
-  return cached_default_anchor_scroll_container_layer_.Get(
-      default_anchor_data, [&]() {
-        const auto* default_anchor = DefaultAnchor(default_anchor_data);
-        return default_anchor ? default_anchor->ContainingScrollContainerLayer(
-                                    true /*ignore_layout_view_for_fixed_pos*/)
-                              : nullptr;
-      });
+  auto& cache = (axis == PhysicalAxis::kVertical)
+                    ? cached_default_anchor_scroll_container_layer_y_
+                    : cached_default_anchor_scroll_container_layer_x_;
+  return cache.Get(default_anchor_data, [&]() {
+    const auto* default_anchor = DefaultAnchor(default_anchor_data);
+    return default_anchor ? default_anchor->ContainingScrollContainerLayer(
+                                axis, /*ignore_layout_view_for_fixed_pos=*/true)
+                          : nullptr;
+  });
 }
 
 bool AnchorEvaluatorImpl::AllowAnchor() const {
@@ -325,6 +329,7 @@ bool AnchorEvaluatorImpl::IsRightOrBottom() const {
 
 bool AnchorEvaluatorImpl::ShouldUseScrollAdjustmentFor(
     const LayoutObject* anchor,
+    PhysicalAxis axis,
     const DefaultAnchorData& default_anchor_data) const {
   if (!anchor) {
     return false;
@@ -333,8 +338,8 @@ bool AnchorEvaluatorImpl::ShouldUseScrollAdjustmentFor(
     return true;
   }
   return anchor->ContainingScrollContainerLayer(
-             true /*ignore_layout_view_for_fixed_pos*/) ==
-         DefaultAnchorScrollContainerLayer(default_anchor_data);
+             axis, /*ignore_layout_view_for_fixed_pos=*/true) ==
+         DefaultAnchorScrollContainerLayer(axis, default_anchor_data);
 }
 
 std::optional<LayoutUnit> AnchorEvaluatorImpl::EvaluateAnchor(
@@ -354,26 +359,29 @@ std::optional<LayoutUnit> AnchorEvaluatorImpl::EvaluateAnchor(
   }
 
   const bool has_default_anchor = DefaultAnchor(default_anchor_data);
-  const PhysicalRect position_area_modified_containing_block_rect =
-      PositionAreaModifiedContainingBlock(position_area_offsets,
-                                          has_default_anchor);
+  const PhysicalRect containing_block_rect =
+      WritingModeConverter(container_writing_direction_, container_size_)
+          .ToPhysical(AdjustedContainingBlockRect(position_area_offsets,
+                                                  has_default_anchor));
 
   const bool is_y_axis = IsYAxis();
+  const LayoutUnit axis_size = is_y_axis ? containing_block_rect.Height()
+                                         : containing_block_rect.Width();
 
-  PhysicalRect anchor_rect =
+  const PhysicalRect anchor_rect =
       CalculateAnchorRectWithScrollOffset(*anchor_reference);
   if (std::optional<LayoutUnit> result = ResolveAnchorValue(
-          anchor_rect, anchor_value, percentage,
-          AvailableSizeAlongAxis(position_area_modified_containing_block_rect),
+          anchor_rect, anchor_value, percentage, axis_size,
           container_writing_direction_,
           query_box_->StyleRef().GetWritingDirection(),
-          position_area_modified_containing_block_rect.offset, is_y_axis,
-          IsRightOrBottom())) {
+          containing_block_rect.offset, is_y_axis, IsRightOrBottom())) {
     bool& needs_scroll_adjustment = is_y_axis ? needs_scroll_adjustment_in_y_
                                               : needs_scroll_adjustment_in_x_;
     if (!needs_scroll_adjustment &&
-        ShouldUseScrollAdjustmentFor(anchor_reference->GetLayoutObject(),
-                                     default_anchor_data)) {
+        ShouldUseScrollAdjustmentFor(
+            anchor_reference->GetLayoutObject(),
+            is_y_axis ? PhysicalAxis::kVertical : PhysicalAxis::kHorizontal,
+            default_anchor_data)) {
       needs_scroll_adjustment = true;
     }
     return result;
@@ -422,6 +430,10 @@ const PhysicalAnchorReference* AnchorEvaluatorImpl::ResolveAnchorForEvaluation(
   UpdateAccessibilityAnchor(anchor_reference->GetLayoutObject());
 
   if (anchor_reference->GetDisplayLocks()) {
+    if (!display_locks_affected_by_anchors_) {
+      display_locks_affected_by_anchors_ =
+          MakeGarbageCollected<GCedHeapHashSet<Member<Element>>>();
+    }
     for (auto& display_lock : *anchor_reference->GetDisplayLocks()) {
       display_locks_affected_by_anchors_->insert(display_lock);
     }
@@ -562,12 +574,13 @@ AnchorEvaluatorImpl::ComputePositionAreaOffsetsForLayout(
       return LayoutUnit();
     }
     behaves_as_auto.top = (area == PositionAreaRegion::kTop);
-    const AnchorQuery query = (area == PositionAreaRegion::kBottom)
-                                  ? PositionArea::AnchorBottom()
-                                  : PositionArea::AnchorTop();
+    const CSSAnchorValue side = (area == PositionAreaRegion::kBottom)
+                                    ? CSSAnchorValue::kBottom
+                                    : CSSAnchorValue::kTop;
     AnchorScope anchor_scope(AnchorScope::Mode::kTop, this);
-    if (const std::optional<LayoutUnit> value =
-            Evaluate(query, default_anchor_data, std::nullopt)) {
+    if (const std::optional<LayoutUnit> value = EvaluateAnchor(
+            *AnchorSpecifierValue::Default(), side, /*percentage=*/0.f,
+            default_anchor_data, std::nullopt)) {
       return (area == PositionAreaRegion::kTop && *value > LayoutUnit())
                  ? LayoutUnit()
                  : *value;
@@ -581,12 +594,13 @@ AnchorEvaluatorImpl::ComputePositionAreaOffsetsForLayout(
       return LayoutUnit();
     }
     behaves_as_auto.bottom = (area == PositionAreaRegion::kBottom);
-    const AnchorQuery query = (area == PositionAreaRegion::kTop)
-                                  ? PositionArea::AnchorTop()
-                                  : PositionArea::AnchorBottom();
+    const CSSAnchorValue side = (area == PositionAreaRegion::kTop)
+                                    ? CSSAnchorValue::kTop
+                                    : CSSAnchorValue::kBottom;
     AnchorScope anchor_scope(AnchorScope::Mode::kBottom, this);
-    if (const std::optional<LayoutUnit> value =
-            Evaluate(query, default_anchor_data, std::nullopt)) {
+    if (const std::optional<LayoutUnit> value = EvaluateAnchor(
+            *AnchorSpecifierValue::Default(), side, /*percentage=*/0.f,
+            default_anchor_data, std::nullopt)) {
       return (area == PositionAreaRegion::kBottom && *value > LayoutUnit())
                  ? LayoutUnit()
                  : *value;
@@ -600,12 +614,13 @@ AnchorEvaluatorImpl::ComputePositionAreaOffsetsForLayout(
       return LayoutUnit();
     }
     behaves_as_auto.left = (area == PositionAreaRegion::kLeft);
-    const AnchorQuery query = (area == PositionAreaRegion::kRight)
-                                  ? PositionArea::AnchorRight()
-                                  : PositionArea::AnchorLeft();
+    const CSSAnchorValue side = (area == PositionAreaRegion::kRight)
+                                    ? CSSAnchorValue::kRight
+                                    : CSSAnchorValue::kLeft;
     AnchorScope anchor_scope(AnchorScope::Mode::kLeft, this);
-    if (const std::optional<LayoutUnit> value =
-            Evaluate(query, default_anchor_data, std::nullopt)) {
+    if (const std::optional<LayoutUnit> value = EvaluateAnchor(
+            *AnchorSpecifierValue::Default(), side, /*percentage=*/0.f,
+            default_anchor_data, std::nullopt)) {
       return (area == PositionAreaRegion::kLeft && *value > LayoutUnit())
                  ? LayoutUnit()
                  : *value;
@@ -619,12 +634,13 @@ AnchorEvaluatorImpl::ComputePositionAreaOffsetsForLayout(
       return LayoutUnit();
     }
     behaves_as_auto.right = (area == PositionAreaRegion::kRight);
-    const AnchorQuery query = (area == PositionAreaRegion::kLeft)
-                                  ? PositionArea::AnchorLeft()
-                                  : PositionArea::AnchorRight();
+    const CSSAnchorValue side = (area == PositionAreaRegion::kLeft)
+                                    ? CSSAnchorValue::kLeft
+                                    : CSSAnchorValue::kRight;
     AnchorScope anchor_scope(AnchorScope::Mode::kRight, this);
-    if (const std::optional<LayoutUnit> value =
-            Evaluate(query, default_anchor_data, std::nullopt)) {
+    if (const std::optional<LayoutUnit> value = EvaluateAnchor(
+            *AnchorSpecifierValue::Default(), side, /*percentage=*/0.f,
+            default_anchor_data, std::nullopt)) {
       return (area == PositionAreaRegion::kRight && *value > LayoutUnit())
                  ? LayoutUnit()
                  : *value;
@@ -635,19 +651,20 @@ AnchorEvaluatorImpl::ComputePositionAreaOffsetsForLayout(
   return PositionAreaOffsets(offsets, behaves_as_auto);
 }
 
-PhysicalRect AnchorEvaluatorImpl::PositionAreaModifiedContainingBlock(
+LogicalRect AnchorEvaluatorImpl::AdjustedContainingBlockRect(
     const std::optional<PositionAreaOffsets>& position_area_offsets,
     bool has_default_anchor) const {
-  PhysicalRect rect =
+  LogicalRect rect =
       has_default_anchor && scroll_rect_ ? *scroll_rect_ : container_rect_;
 
-  // If calculated, reduce the containing-block rect based on the position-area.
+  // If present, reduce the containing-block rect based on the position-area.
   if (position_area_offsets) {
-    rect.Contract(position_area_offsets->insets);
+    rect.Contract(position_area_offsets->insets.ConvertToLogical(
+        container_writing_direction_));
   }
 
-  DCHECK_GE(rect.size.width, LayoutUnit());
-  DCHECK_GE(rect.size.height, LayoutUnit());
+  DCHECK_GE(rect.size.inline_size, LayoutUnit());
+  DCHECK_GE(rect.size.block_size, LayoutUnit());
   return rect;
 }
 

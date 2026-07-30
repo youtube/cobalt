@@ -65,7 +65,6 @@ build_webui("build") {
     "ai_page/history_search_page.ts",
     "ai_page/offer_writing_help_page.ts",
     "ai_page/skills_page.ts",
-    "appearance_page/appearance_page.ts",
     "autofill_page/address_edit_dialog.ts",
     "autofill_page/address_remove_confirmation_dialog.ts",
     "autofill_page/autofill_ai_add_or_edit_dialog.ts",
@@ -94,7 +93,6 @@ build_webui("build") {
     "controls/settings_checkbox_list_entry.ts",
     "controls/settings_radio_group.ts",
     "controls/settings_toggle_button.ts",
-    "downloads_page/downloads_page.ts",
     "glic_page/glic_page.ts",
     "glic_page/glic_login_permissions_page.ts",
     "glic_page/glic_subpage.ts",
@@ -278,7 +276,6 @@ build_webui("build") {
       "people_page/import_data_dialog.ts",
       "people_page/manage_profile.ts",
       "relaunch_confirmation_dialog.ts",
-      "system_page/system_page.ts",
     ]
   } else {
     web_component_files += [
@@ -321,6 +318,8 @@ build_webui("build") {
     "appearance_page/appearance_browser_proxy.ts",
     "appearance_page/appearance_fonts_page.html.ts",
     "appearance_page/appearance_fonts_page.ts",
+    "appearance_page/appearance_page.html.ts",
+    "appearance_page/appearance_page.ts",
     "appearance_page/appearance_page_index.html.ts",
     "appearance_page/appearance_page_index.ts",
     "appearance_page/home_url_input.html.ts",
@@ -341,6 +340,8 @@ build_webui("build") {
     "controls/settings_slider.html.ts",
     "controls/settings_slider.ts",
     "downloads_page/downloads_browser_proxy.ts",
+    "downloads_page/downloads_page.html.ts",
+    "downloads_page/downloads_page.ts",
     "ensure_lazy_loaded.ts",
     "focus_config.ts",
     "glic_page/glic_browser_proxy.ts",
@@ -412,6 +413,8 @@ build_webui("build") {
       "languages_page/languages_util.ts",
       "people_page/import_data_browser_proxy.ts",
       "people_page/manage_profile_browser_proxy.ts",
+      "system_page/system_page.html.ts",
+      "system_page/system_page.ts",
       "system_page/system_page_browser_proxy.ts",
     ]
     if (is_chrome_branded) {
@@ -444,6 +447,9 @@ build_webui("build") {
     "settings_vars.css",
 
     # subfolder files
+    "a11y_page/captions_page.css",
+    "a11y_page/live_caption.css",
+    "a11y_page/live_translate.css",
     "about_page/about_page.css",
     "appearance_page/appearance_fonts_page.css",
     "appearance_page/appearance_page.css",
@@ -454,6 +460,7 @@ build_webui("build") {
     "autofill_page/your_saved_info_shared.css",
     "controls/settings_dropdown_menu.css",
     "controls/settings_slider.css",
+    "downloads_page/downloads_page.css",
     "privacy_page/privacy_guide/privacy_guide_fragment_shared.css",
     "reset_page/reset_profile_banner.css",
     "reset_page/reset_profile_dialog.css",
@@ -462,6 +469,7 @@ build_webui("build") {
     "settings_page/settings_subpage.css",
     "site_settings/clear_storage_dialog_shared.css",
     "site_settings/site_settings_shared.css",
+    "system_page/system_page.css",
   ]
 
   mojo_files_deps = [ "//components/autofill/core/browser/data_model/autofill_ai:mojo_bindings_ts__generator" ]

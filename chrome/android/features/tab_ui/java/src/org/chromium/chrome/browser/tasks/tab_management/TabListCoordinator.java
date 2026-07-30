@@ -64,6 +64,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListL
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListProperties.RailCollapseState;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
 import org.chromium.chrome.tab_ui.R;
@@ -338,6 +339,12 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                     public boolean supportsMessageCards() {
                         return mMode == TabListMode.GRID;
                     }
+
+                    @Override
+                    public @Nullable NonNullObservableSupplier<@RailCollapseState Integer>
+                            getRailCollapseStateSupplier() {
+                        return null;
+                    }
                 };
 
         mMediator =
@@ -584,7 +591,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         // where the runnable will not be serviced downstream, dropping the runnable altogether is
         // safe.
         if (mAwaitingLayoutRunnable != null) {
-            Log.d(TAG, "Dropping AwaitingLayoutRunnable for " + mAwaitingTabId);
+            Log.d(TAG, "Dropping AwaitingLayoutRunnable for %d", mAwaitingTabId);
             mAwaitingLayoutRunnable = null;
             mAwaitingTabId = Tab.INVALID_TAB_ID;
         }
@@ -1126,9 +1133,11 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                     if (isGroupTile && groupToken != null) {
                         res =
                                 mTabSwitcherDragHandler.startGroupDragAction(
-                                        view, groupToken, touchPoint);
+                                        view, groupToken, touchPoint, /* dragShadowView= */ null);
                     } else if (!isGroupTile) {
-                        res = mTabSwitcherDragHandler.startTabDragAction(view, tab, touchPoint);
+                        res =
+                                mTabSwitcherDragHandler.startTabDragAction(
+                                        view, tab, touchPoint, /* dragShadowView= */ null);
                     }
                 }
             }

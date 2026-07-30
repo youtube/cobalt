@@ -114,7 +114,6 @@
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
-#include "content/browser/shared_storage/shared_storage_header_observer.h"
 #include "content/browser/site_info.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/storage_partition_impl.h"
@@ -1176,8 +1175,8 @@ net::StorageAccessApiStatus ShouldLoadWithStorageAccess(
     // Navigation was not self-initiated.
     return net::StorageAccessApiStatus::kNone;
   }
-  if (!common_params.initiator_origin ||
-      !common_params.initiator_origin->IsSameOriginWith(response_url) ||
+  if (!previous_document_rfh->GetLastCommittedOrigin().IsSameOriginWith(
+          response_url) ||
       did_encounter_cross_origin_redirect) {
     // Navigation is not fully same-origin.
     return net::StorageAccessApiStatus::kNone;
@@ -1257,7 +1256,6 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateBrowserInitiated(
     NavigationEntryImpl* entry,
     bool is_form_submission,
     std::unique_ptr<NavigationUIData> navigation_ui_data,
-    const std::optional<blink::Impression>& impression,
     EmbedderIsolationInfo::Mode embedder_isolation_mode,
     bool is_embedder_initiated_fenced_frame_navigation,
     std::optional<std::u16string> embedder_shared_storage_context) {
@@ -1269,7 +1267,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateBrowserInitiated(
       nullptr /* initiator_navigation_state */,
       false /* should_ignore_initiator_policies_for_inheritance */,
       extra_headers, frame_entry, entry, is_form_submission,
-      std::move(navigation_ui_data), impression,
+      std::move(navigation_ui_data),
       /*started_with_transient_activation=*/false,
       /*started_by_ad=*/false, embedder_isolation_mode,
       is_embedder_initiated_fenced_frame_navigation,
@@ -1297,7 +1295,6 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
     NavigationEntryImpl* entry,
     bool is_form_submission,
     std::unique_ptr<NavigationUIData> navigation_ui_data,
-    const std::optional<blink::Impression>& impression,
     bool started_with_transient_activation,
     bool started_by_ad,
     EmbedderIsolationInfo::Mode embedder_isolation_mode,
@@ -1321,7 +1318,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
       std::string() /* searchable_form_encoding */,
       GURL() /* client_side_redirect_url */,
       std::nullopt /* devtools_initiator_info */,
-      nullptr /* trust_token_params */, impression,
+      nullptr /* trust_token_params */,
       base::TimeTicks() /* renderer_before_unload_start */,
       base::TimeTicks() /* renderer_before_unload_end */,
       base::TimeTicks() /* before_unload_dialog_opened */,
@@ -1831,7 +1828,9 @@ NavigationRequest::NavigationRequest(
       original_url_(common_params_->url),
       prerender_host_id_(
           GetPrerenderHostRegistry().GetPrerenderHostIdForNavigation(this)),
-      initiator_navigation_state_(initiator_navigation_state) {
+      initiator_navigation_state_(initiator_navigation_state),
+      should_ignore_initiator_policies_for_inheritance_(
+          should_ignore_initiator_policies_for_inheritance) {
   TRACE_EVENT("navigation", "NavigationRequest::NavigationRequest",
               perfetto::Flow::FromPointer(this),
               perfetto::protos::pbzero::ChromeTrackEvent::kNavigation, this);
@@ -1967,23 +1966,7 @@ NavigationRequest::NavigationRequest(
   navigation_or_document_handle_ =
       NavigationOrDocumentHandle::CreateForNavigation(*this);
 
-  // Pass the initiator policies to the PolicyContainerBuilder if this
-  // navigation has an initiator in the same storage partition.
-  // TODO(crbug.com/510258191): Move passing inherited policies to when the
-  // response started, which will allow to check whether the initiator and
-  // target StoragePartitions match and only inherit initiator policies in those
-  // cases. The StoragePartition at creation time might be incorrect.
-  std::unique_ptr<PolicyContainerPolicies> initiator_policies;
-  if (initiator_navigation_state_impl() &&
-      !should_ignore_initiator_policies_for_inheritance) {
-    initiator_policies = initiator_navigation_state_impl()
-                             ->policy_container_host()
-                             ->policies()
-                             .ClonePtr();
-  }
-
-  policy_container_builder_.emplace(GetParentFrame(),
-                                    std::move(initiator_policies), frame_entry);
+  policy_container_builder_.emplace(GetParentFrame(), frame_entry);
 
   NavigationControllerImpl* controller = GetNavigationController();
 
@@ -3669,6 +3652,14 @@ void NavigationRequest::ResetStateForSiteInstanceChange() {
 
   // Clear any state specific to the origin, such as ISNs and DSNs.
   origin_related_state_.reset();
+
+  // If this was not a redirect that preserves POST submissions (e.g., 307), or
+  // if this will be an error page that may end up in another process, then
+  // clear the post_data as well to prevent leaking file references to a
+  // different SiteInstance.
+  if (!IsPost() || DidEncounterError()) {
+    common_params_->post_data.reset();
+  }
 }
 
 void NavigationRequest::RegisterSubresourceOverride(
@@ -3706,7 +3697,49 @@ network::mojom::ContentSecurityPolicyPtr NavigationRequest::TakeRequiredCSP() {
 
 const PolicyContainerPolicies*
 NavigationRequest::GetInitiatorPolicyContainerPolicies() const {
-  return policy_container_builder_->InitiatorPolicies();
+  return initiator_navigation_state_impl()
+             ? &(initiator_navigation_state_impl()->policy_container_policies())
+             : nullptr;
+}
+
+const PolicyContainerPolicies*
+NavigationRequest::GetInitiatorPolicyContainerPoliciesForInheritance() const {
+  // This function cannot be called before the navigation has started, as the
+  // StoragePartition for the navigation will only be valid after
+  // StartNavigation has properly computed the SiteInfo based on the current
+  // RenderFrameHost and the navigation params. Before that, a default
+  // StoragePartition will be returned by GetStoragePartition() when using
+  // `site_info_`. Using it in the checks below would result in always dropping
+  // the initiator policies in navigations happening in a non-default
+  // StoragePartition, which is wrong.
+  CHECK(state_ >= WILL_START_REQUEST);
+
+  // If there is no navigation initiator, return null.
+  if (!initiator_navigation_state_) {
+    return nullptr;
+  }
+
+  // If there is an initiator, check if its policies can be inherited. If they
+  // cannot, return null.
+
+  // The NavigationRequest creator might have specified that initiator policies
+  // cannot be inherited.
+  if (should_ignore_initiator_policies_for_inheritance_) {
+    return nullptr;
+  }
+
+  // If the StoragePartition of the navigation is different from the
+  // StoragePartition of the initiator, the initiator's policies should not be
+  // inherited.
+  if (site_info_.GetStoragePartitionConfig() !=
+      initiator_navigation_state_impl()
+          ->site_instance()
+          ->GetSiteInfo()
+          .GetStoragePartitionConfig()) {
+    return nullptr;
+  }
+
+  return &(initiator_navigation_state_impl()->policy_container_policies());
 }
 
 const blink::DocumentToken& NavigationRequest::GetDocumentToken() const {
@@ -3986,10 +4019,10 @@ void NavigationRequest::OnRequestRedirected(
     return;
   }
 
-  // For now, DevTools needs the POST data sent to the renderer process even if
-  // it is no longer a POST after the redirect.
-  if (redirect_info.new_method != "POST")
+  // If the navigation is no longer a POST, the POST data should be reset.
+  if (redirect_info.new_method != "POST") {
     common_params_->post_data.reset();
+  }
 
   const bool is_first_response = commit_params_->redirects.empty();
   UpdateNavigationHandleTimingsOnResponseReceived(/*is_redirect=*/true,
@@ -5045,6 +5078,28 @@ void NavigationRequest::OnResponseStarted(
     coop_status_.EnforceCOOP(
         policy_container_builder_->FinalPolicies().cross_origin_opener_policy,
         origin, network_anonymization_key);
+
+    // Set embedded documents' cross-origin-opener-policy from their top level:
+    //  - Use top level's policy if they are same-origin.
+    //  - Use the default policy otherwise.
+    // This COOP value is not used to enforce anything on this frame, but will
+    // be inherited to every local-scheme document created from them. It will
+    // also be inherited by the initial empty document from its opener.
+    if (frame_tree_node_->parent()) {
+      const network::CrossOriginOpenerPolicy& top_level_coop =
+          frame_tree_node_->parent()
+              ->GetMainFrame()
+              ->cross_origin_opener_policy();
+      if (frame_tree_node_->parent()
+              ->GetMainFrame()
+              ->GetLastCommittedOrigin()
+              .IsSameOriginWith(origin)) {
+        policy_container_builder_->SetCrossOriginOpenerPolicy(top_level_coop);
+      } else {
+        policy_container_builder_->SetCrossOriginOpenerPolicy(
+            network::CrossOriginOpenerPolicy());
+      }
+    }
   }
 
   // The navigation may have encountered a header that requests isolation for
@@ -6184,8 +6239,7 @@ network::mojom::WebSandboxFlags NavigationRequest::SandboxFlagsInitiator() {
     return network::mojom::WebSandboxFlags::kNone;
   }
   return initiator_navigation_state_impl()
-      ->policy_container_host()
-      ->policies()
+      ->policy_container_policies()
       .sandbox_flags;
 }
 
@@ -7845,13 +7899,12 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
     return true;
   }
 
-  if (!policy_container_builder_ ||
-      !policy_container_builder_->InitiatorPolicies()) {
-    return true;
-  }
-
+  // Here we are using the initiator's policies, regardless of whether they can
+  // be inherited by navigation. This is because this call is used to enforce
+  // 'connection-allowlist' in the initiator, and so the initiator's policies
+  // should always be respected lest we create a bypass.
   const PolicyContainerPolicies* policies =
-      policy_container_builder_->InitiatorPolicies();
+      GetInitiatorPolicyContainerPolicies();
 
   if (!policies) {
     return true;
@@ -8020,8 +8073,13 @@ net::Error NavigationRequest::CheckContentSecurityPolicy(
     parent_policies = &parent->policy_container_host()->policies();
   }
 
+  // Here we are using the initiator policies regardless of whether they can be
+  // inherited or not. The initiator policies will be used to enforce
+  // 'form-action' in the initiator. This should be enforced even if the
+  // policies are ultimately not inherited, as not doing so might allow to
+  // bypass the policy.
   const PolicyContainerPolicies* initiator_policies =
-      policy_container_builder_->InitiatorPolicies();
+      GetInitiatorPolicyContainerPolicies();
 
   // CSP checking happens in three phases, per steps 3-5 of
   // https://fetch.spec.whatwg.org/#main-fetch:
@@ -9269,6 +9327,9 @@ void NavigationRequest::DidCommitNavigation(
         PreloadActivationReportManager::GetOrCreateForBrowserContext(
             GetWebContents()->GetBrowserContext());
     manager->ReportActivation(activation_beacon_url_, GetRenderFrameHost());
+    GetContentClient()->browser()->LogWebFeatureForCurrentPage(
+        GetRenderFrameHost(),
+        blink::mojom::WebFeature::kPrefetchAndPrerenderActivationBeacon);
   }
 
   // DO NOT ADD CODE after this.
@@ -10512,10 +10573,6 @@ const std::string& NavigationRequest::GetHrefTranslate() {
   return common_params().href_translate;
 }
 
-const std::optional<blink::Impression>& NavigationRequest::GetImpression() {
-  return begin_params().impression;
-}
-
 const std::optional<blink::LocalFrameToken>&
 NavigationRequest::GetInitiatorFrameToken() {
   return initiator_frame_token_;
@@ -10968,7 +11025,11 @@ NavigationRequest::BuildClientSecurityStateForNavigationFetch() {
   switch (GetNavigatingFrameType()) {
     // The client [1] of the navigation fetch request is the navigation
     // initiator, so use the initiator's policies to set the
-    // `ClientSecurityState`.
+    // `ClientSecurityState`. Note that we use the initiator's policies
+    // regardless of whether they are inheritable or not, as the main purpose of
+    // this ClientSecurityState is to enforce LNA. Restricting ourselves to
+    // inheritable policies would create an LNA bypass, so we always pass the
+    // initiator policies.
     //
     // [1] https://fetch.spec.whatwg.org/#concept-request-client
     //
@@ -10979,31 +11040,23 @@ NavigationRequest::BuildClientSecurityStateForNavigationFetch() {
     // TODO(crbug.com/40258826): Determine how to treat guest views.
     case FrameType::kPrimaryMainFrame:
     case FrameType::kGuestMainFrame: {
-      if (!policy_container_builder_->InitiatorPolicies()) {
+      if (!GetInitiatorPolicyContainerPolicies()) {
         return nullptr;
       }
 
-      network::mojom::ClientSecurityStatePtr state = DeriveClientSecurityState(
-          *policy_container_builder_->InitiatorPolicies(),
+      return DeriveClientSecurityStateForRendererInitiatedNavigation(
+          *GetInitiatorPolicyContainerPolicies(),
           LocalNetworkAccessRequestContext::kMainFrameNavigation);
-
-      // Remove the initiator's COEP, it is unused. For iframes, the parent's
-      // COEP should be used: that is checked in `EnforceCOEP()`. The value
-      // in `ClientSecurityState` is used for subresources only, in which case
-      // the network service performs the check on behalf of the client.
-      state->cross_origin_embedder_policy =
-          network::CrossOriginEmbedderPolicy();
-
-      return state;
     }
     case FrameType::kSubframe: {
-      if (!policy_container_builder_->InitiatorPolicies()) {
+      if (!GetInitiatorPolicyContainerPolicies()) {
         return nullptr;
       }
 
-      network::mojom::ClientSecurityStatePtr state = DeriveClientSecurityState(
-          *policy_container_builder_->InitiatorPolicies(),
-          LocalNetworkAccessRequestContext::kSubframeNavigation);
+      network::mojom::ClientSecurityStatePtr state =
+          DeriveClientSecurityStateForRendererInitiatedNavigation(
+              *GetInitiatorPolicyContainerPolicies(),
+              LocalNetworkAccessRequestContext::kSubframeNavigation);
 
       // Check for policy overrides on LNA. For subframe navigations, we apply
       // policy overrides based on the initiator.
@@ -11021,13 +11074,6 @@ NavigationRequest::BuildClientSecurityStateForNavigationFetch() {
             OverrideLocalNetworkAccessPolicy(
                 state->local_network_access_request_policy, policy_override);
       }
-
-      // Remove the initiator's COEP, it is unused. For iframes, the parent's
-      // COEP should be used: that is checked in `EnforceCOEP()`. The value
-      // in `ClientSecurityState` is used for subresources only, in which case
-      // the network service performs the check on behalf of the client.
-      state->cross_origin_embedder_policy =
-          network::CrossOriginEmbedderPolicy();
 
       return state;
     }
@@ -11259,12 +11305,9 @@ void NavigationRequest::RecordAddressSpaceFeature() {
     return;
   }
 
-  // Get the initiator policies. Note that we are checking the policies from the
-  // initiator's InitiatorNavigationState and not the PolicyContainerBuilder, as
-  // the initiator policies may not be inherited by the PolicyContainerBuilder
-  // in case of StoragePartition mismatch. However, the address space of the
-  // initiator should always be taken into account, so we fall back to the
-  // record of the initiator policies stored in NavigationRequest.
+  // Get the initiator policies. Note that we are not checking whether the
+  // policies from the initiator's InitiatorNavigationState may be inherited.
+  // The address space of the initiator should always be taken into account.
   // If we lack an |initiator_navigation_state_|, then get the policies from the
   // initiator RenderFrameHost instead.
   // TODO(crbug.com/510258191): Check that |initiator_navigation_state_| is not
@@ -11272,9 +11315,7 @@ void NavigationRequest::RecordAddressSpaceFeature() {
   // without an |initiator_navigation_state_|.
   const PolicyContainerPolicies& initiator_policies =
       initiator_navigation_state_impl()
-          ? initiator_navigation_state_impl()
-                ->policy_container_host()
-                ->policies()
+          ? initiator_navigation_state_impl()->policy_container_policies()
           : initiator_render_frame_host->policy_container_host()->policies();
 
   std::optional<blink::mojom::WebFeature> optional_feature =
@@ -11382,7 +11423,8 @@ void NavigationRequest::ComputePoliciesToCommit() {
           GetParentFrame(), GetFrameTreeNodeId(), url);
 
   policy_container_builder_->ComputePolicies(
-      this, IsMhtmlOrSubframe(), commit_params_->frame_policy.sandbox_flags,
+      this, GetInitiatorPolicyContainerPoliciesForInheritance(),
+      IsMhtmlOrSubframe(), commit_params_->frame_policy.sandbox_flags,
       is_credentialless(), commit_params_->is_secure_context_root);
 }
 
@@ -11930,7 +11972,7 @@ NavigationRequest::ComputeCrossOriginIsolationKey() {
 
   blink::mojom::CrossOriginIsolationMode coi_mode =
       GetContentClient()->browser()->OriginSupportsConcreteCrossOriginIsolation(
-          origin)
+          GetNavigationController()->GetBrowserContext(), origin)
           ? blink::mojom::CrossOriginIsolationMode::kConcrete
           : blink::mojom::CrossOriginIsolationMode::kLogical;
   return AgentClusterKey::CrossOriginIsolationKey(

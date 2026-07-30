@@ -149,7 +149,6 @@ test("components_unittests") {
       "test/data/service_worker/",
       "test/data/sessions/",
       "test/data/shared_highlighting/",
-      "test/data/storage/",
       "test/data/subresource_filter/",
       "test/data/translate/",
       "test/data/ui_devtools/",
@@ -197,7 +196,6 @@ test("components_unittests") {
     "//components/apdu:unit_tests",
     "//components/application_locale_storage:unit_tests",
     "//components/assist_ranker:unit_tests",
-    "//components/attribution_reporting:unit_tests",
     "//components/autofill/core/browser:unit_tests",
     "//components/autofill/core/browser/integrators/password_manager:unit_tests",
     "//components/autofill/core/common:unit_tests",
@@ -276,6 +274,7 @@ test("components_unittests") {
     "//components/network_session_configurator/browser:unit_tests",
     "//components/network_time:unit_tests",
     "//components/network_time/time_tracker:unit_tests",
+    "//components/notebooks:unit_tests",
     "//components/ntp_tiles:unit_tests",
     "//components/offline_items_collection/core:unit_tests",
     "//components/omnibox/browser:unit_tests",
@@ -458,7 +457,6 @@ test("components_unittests") {
       "//components/global_media_controls:unit_tests",
       "//components/ui_devtools:unit_tests",
       "//components/user_education/views:unit_tests",
-      "//components/user_education/webui:unit_tests",
     ]
   }
 
@@ -666,6 +664,7 @@ test("components_unittests") {
       "//components/spellcheck/renderer:unit_tests",
       "//components/tabs:unit_tests",
       "//components/user_data_importer/content:unit_tests",
+      "//components/user_education/webui:unit_tests",
     ]
 
     if (!is_fuchsia) {  #!iOS and!Fuchsia
@@ -900,6 +899,7 @@ test("components_unittests") {
       "//components/safe_browsing/core/browser:safe_browsing_hats_delegate_unittest",
       "//components/safe_browsing/core/browser:safe_browsing_metrics_collector_unittest",
       "//components/safe_browsing/core/browser:safe_browsing_url_checker_unittest",
+      "//components/safe_browsing/core/browser:suspicious_site_warning_allowlist_unittest",
       "//components/safe_browsing/core/browser:token_fetcher_unit_tests",
       "//components/safe_browsing/core/browser/hashprefix_realtime:unit_tests",
       "//components/safe_browsing/core/browser/password_protection:unit_tests",
@@ -1041,7 +1041,6 @@ test("components_unittests") {
     assert_no_deps += ios_assert_no_deps
     assert_no_deps += [ "//ios/chrome/*" ]
   }
-
   fuzztests = [
     "ActorContainerConfigFuzzTest.CanParseAnyProto",
     "AndroidAppDescriptionToolsFuzzTest.MaintainsSingleActivityInvariant",
@@ -1049,17 +1048,13 @@ test("components_unittests") {
     "CBORReaderFuzzTest.ReadValidAndTruncatedCBORDoesNotCrash",
     "CBORReaderFuzzTest.ReadValidCBORWithConfigDoesNotCrash",
     "CBORReaderFuzzTest.ReadWithConfigDoesNotCrash",
+    "CupEcdsaFuzzTest.EcdsaCupTestOneInputDoesNotCrash",
+    "CupMldsa44FuzzTest.Mldsa44CupTestOneInputDoesNotCrash",
     "CurrencyFormatterFuzzTest.FormatDoesNotCrash",
-    "FilterDataTest.Matches",
-    "OsRegistrationTest.Parses",
     "PaymentCurrencyAmountFuzzTest.FromValueDictDoesNotCrash",
-    "PrivacyMathTest.GetKCombinationAtIndexDoesNotCrash",
-    "PrivacyMathTest.GetNumStatesDoesNotCrash",
     "PrivacySandboxAttestationsParserFuzzTest.ParseAttestationsFromStringDoesNotCrash",
-    "RegistrationInfoTest.Parses",
-    "SourceRegistrationTest.Parses",
+    "RustStreamFramerFuzzTest.FeedDoesNotCrashOnArbitraryChunks",
     "TranslateUtilFuzzTest.GetTranslateSecurityOriginDoesNotCrash",
-    "TriggerRegistrationTest.Parses",
   ]
 }
 
@@ -1419,8 +1414,6 @@ if (use_blink) {
 
   test("components_perftests") {
     sources = [
-      "attribution_reporting/aggregatable_utils_perftest.cc",
-      "attribution_reporting/privacy_math_perftest.cc",
       "autofill/core/browser/ml_model/field_classification_model_executor_perftest.cc",
       "discardable_memory/common/discardable_shared_memory_heap_perftest.cc",
       "omnibox/browser/history_quick_provider_performance_unittest.cc",
@@ -1431,7 +1424,6 @@ if (use_blink) {
 
     deps = [
       "//base",
-      "//components/attribution_reporting",
       "//components/autofill/content/browser",
       "//components/autofill/core/common:test_support",
       "//components/bookmarks/test",

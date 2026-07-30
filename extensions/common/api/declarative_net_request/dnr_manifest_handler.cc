@@ -153,7 +153,6 @@ bool DNRManifestHandler::Parse(Extension* extension, std::u16string* error) {
   }
 
   extension->SetManifestData(
-      dnr_api::ManifestKeys::kDeclarativeNetRequest,
       std::make_unique<DNRManifestData>(std::move(rulesets_info)));
   return true;
 }
@@ -161,8 +160,7 @@ bool DNRManifestHandler::Parse(Extension* extension, std::u16string* error) {
 bool DNRManifestHandler::Validate(const Extension& extension,
                                   std::string* error,
                                   std::vector<InstallWarning>* warnings) const {
-  const DNRManifestData* data = static_cast<const DNRManifestData*>(
-      extension.GetManifestData(dnr_api::ManifestKeys::kDeclarativeNetRequest));
+  const auto* data = extension.GetManifestData<DNRManifestData>();
   DCHECK(data);
 
   for (const DNRManifestData::RulesetInfo& info : data->rulesets) {

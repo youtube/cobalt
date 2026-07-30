@@ -73,6 +73,8 @@ import org.chromium.chrome.browser.pdf.PdfInfo;
 import org.chromium.chrome.browser.pdf.PdfUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.rlz.RevenueStats;
+import org.chromium.chrome.browser.selection.CompositeSelectionActionMenuDelegate;
+import org.chromium.chrome.browser.selection.TextSelectionActionMenuDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.Tab.SelectionStateSupplier;
@@ -215,6 +217,8 @@ class TabImpl implements Tab, TabInternal {
     /** {@link WebContents} showing the current page, or {@code null} if the tab is frozen. */
     private @Nullable WebContents mWebContents;
 
+    private long mNavigationStartMs;
+
     /** The ContentView of this tab. */
     private @Nullable ContentView mContentView;
 
@@ -231,6 +235,8 @@ class TabImpl implements Tab, TabInternal {
     private @Nullable @ColorInt Integer mCustomViewBackgroundColor;
 
     @Nullable AutofillProvider mAutofillProvider;
+
+    private @Nullable CompositeSelectionActionMenuDelegate mSelectionActionMenuDelegate;
 
     /**
      * The {@link TabViewManager} associated with this Tab that is responsible for managing custom
@@ -491,6 +497,15 @@ class TabImpl implements Tab, TabInternal {
     @Override
     public @Nullable WebContents getWebContents() {
         return mWebContents;
+    }
+
+    @Override
+    public long getNavigationStartMs() {
+        return mNavigationStartMs;
+    }
+
+    void setNavigationStartMs(long navigationStartMs) {
+        mNavigationStartMs = navigationStartMs;
     }
 
     @Override
@@ -2295,6 +2310,7 @@ class TabImpl implements Tab, TabInternal {
                             new TabContextMenuPopulatorFactory(contextMenuPopulatorFactory, this));
 
             mWebContents.notifyRendererPreferenceUpdate();
+            addTextSelectionActionMenuDelegate(webContents);
             if (mContentView != null) {
                 mContentView.setImportantForAutofill(
                         prepareAutofillProvider(webContents)
@@ -2610,18 +2626,40 @@ class TabImpl implements Tab, TabInternal {
         }
     }
 
+    private @Nullable CompositeSelectionActionMenuDelegate getOrCreateSelectionActionMenuDelegate(
+            WebContents webContents) {
+        SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
+        if (controller == null) {
+            return null;
+        }
+        if (mSelectionActionMenuDelegate == null) {
+            mSelectionActionMenuDelegate = new CompositeSelectionActionMenuDelegate();
+            controller.setSelectionActionMenuDelegate(mSelectionActionMenuDelegate);
+        }
+        return mSelectionActionMenuDelegate;
+    }
+
     private void addAutofillItemsToSelectionActionMenu(WebContents webContents) {
         assert webContents != null;
         assert mAutofillProvider != null;
-        SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
-        if (controller == null) {
-            return;
-        }
+        CompositeSelectionActionMenuDelegate compositeDelegate =
+                getOrCreateSelectionActionMenuDelegate(webContents);
+        if (compositeDelegate == null) return;
         AutofillSelectionActionMenuDelegate selectionActionMenuDelegate =
                 new AutofillSelectionActionMenuDelegate();
         selectionActionMenuDelegate.setAutofillSelectionMenuItemHelper(
                 new AutofillSelectionMenuItemHelper(mAutofillProvider));
-        controller.setSelectionActionMenuDelegate(selectionActionMenuDelegate);
+        compositeDelegate.addDelegate(selectionActionMenuDelegate);
+    }
+
+    private void addTextSelectionActionMenuDelegate(WebContents webContents) {
+        assert webContents != null;
+        CompositeSelectionActionMenuDelegate compositeDelegate =
+                getOrCreateSelectionActionMenuDelegate(webContents);
+        if (compositeDelegate == null) return;
+        TextSelectionActionMenuDelegate textSelectionDelegate =
+                new TextSelectionActionMenuDelegate(this);
+        compositeDelegate.addDelegate(textSelectionDelegate);
     }
 
     @CalledByNative
@@ -2831,6 +2869,9 @@ class TabImpl implements Tab, TabInternal {
             mAutofillProvider.destroy();
             mAutofillProvider = null;
         }
+        // mSelectionActionMenuDelegate needs to be null'ed out because a new web contents will add
+        // more providers to it.
+        mSelectionActionMenuDelegate = null;
 
         if (mContentView != null) {
             mContentView.removeOnAttachStateChangeListener(mAttachStateChangeListener);
@@ -3127,6 +3168,10 @@ class TabImpl implements Tab, TabInternal {
         mCurrentTabSupplier.removeObserver(mActiveTabObserver);
         mCurrentTabSupplier.removeLookAheadObserver(mActiveTabLookAheadObserver);
         mCurrentTabSupplier = null;
+        // Reset cached active state when detaching supplier (e.g. activity recreation or tab model
+        // changes). This ensures mActiveTabObserver re-evaluates tab state and re-fires
+        // sendDidActivateUpdate upon reattaching.
+        mWasLastActive = null;
     }
 
     void setNativePtrForTesting(long nativePtr) {

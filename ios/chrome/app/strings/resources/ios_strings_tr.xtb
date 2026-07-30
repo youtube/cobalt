@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Şifreleri Kaydet</translation>
 <translation id="1764070164487214210">Yol tarifi</translation>
 <translation id="1764511703783285459">Diğer şifre yöneticisi herhangi bir şifre veya geçiş anahtarı paylaşmadı</translation>
+<translation id="1765555082983153259">"Chrome", mikrofonunuza erişmek istiyor</translation>
 <translation id="1767766085187034454">Google Çeviri</translation>
 <translation id="1771016937398045251">Araçlar menüsü</translation>
 <translation id="1772468122139624049">Sekmeler yeniden yüklenemiyor</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Menü çubuğunu akıllı sıralama</translation>
 <translation id="1883255238294161206">Listeyi daralt</translation>
+<translation id="1883898928879467646">Sekme kaldırıldı</translation>
 <translation id="1888854257756214946">Şifreyi seç…</translation>
 <translation id="1890237935065108104">Bu ayar kullanılamıyor.</translation>
 <translation id="1894023287452300670">Fiyatı buradan takip edin</translation>
@@ -1620,6 +1622,7 @@ Handoff'un ayrıca, Ayarlar'ın Genel bölümünde de etkinleştirilmesi ve ciha
 <translation id="6406506848690869874">Senkronizasyon</translation>
 <translation id="6410390304316730527">Güvenli Tarama, sizi yanıltarak kötü amaçlı yazılım yüklemek veya kişisel bilgilerinizi (örneğin, şifreler, telefon numaraları veya kredi kartları) ifşa etmek gibi tehlikeli bir şey yapmanıza neden olabilecek saldırganlara karşı korur. Bu özelliği kapatırsanız tanıdık olmayan veya saygınlığı şüpheli sitelere göz atarken dikkatli olun.</translation>
 <translation id="6410883413783534063">Aynı anda birden fazla sayfayı ziyaret etmek için yeni sekme açın</translation>
+<translation id="6412195388778525440">Sekmeyi kaldır</translation>
 <translation id="6418346271604475326">PDF hazırlanıyor</translation>
 <translation id="6420292512900923139">Verileriniz içe aktarılırken sorun oluştu</translation>
 <translation id="6421038304268477484">Çevrilmiş metin</translation>
@@ -2320,7 +2323,6 @@ Bilgisayarınızdan devam etmek için <ph name="OTHER_EMAIL" /> hesabına geçin
 <translation id="8692689525339542358">Tehlikeli siteler, indirmeler ve uzantılara karşı korunun.</translation>
 <translation id="8692897097252418799">Dışa aktarmak istediğiniz verileri seçin</translation>
 <translation id="8694281486652655615">Bu öğeyi gösterir</translation>
-<translation id="8696297579102085705">Cihazıma gönder</translation>
 <translation id="8697136149718343437">Adres çubuğunu en alta taşı</translation>
 <translation id="869891660844655955">Son kullanma tarihi</translation>
 <translation id="8706253136355675497">Sıcaklık</translation>
@@ -2463,6 +2465,7 @@ Bilgisayarınızdan devam etmek için <ph name="OTHER_EMAIL" /> hesabına geçin
 <translation id="9149866541089851383">Düzenle...</translation>
 <translation id="9152637745605628097">Temalar veya renkler arasından seçim yapın ya da resim yükleyin</translation>
 <translation id="9159628751968616911">Web sayfasını gönder</translation>
+<translation id="9162412286847966593">Kuruluşunuzun verileri ve kayıtları, üretken yapay zeka modellerini daha iyi hale getirmek için kullanılmaz. <ph name="BEGIN_LINK" />Gizliliğiniz ve Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Parolaları Otomatik Doldur'u etkinleştirin</translation>
 <translation id="9165320910061267720">Fiyat düşüşü uyarılarıyla ilgili bildirim almak için iOS ayarlarınızdan bildirimleri etkinleştirmeniz gerekir.</translation>
 <translation id="9179151630575358778">Bu öğeyi gizler</translation>

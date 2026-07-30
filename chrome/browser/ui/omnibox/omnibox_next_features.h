@@ -72,6 +72,8 @@ BASE_DECLARE_FEATURE(kOmniboxAnimatedCaret);
 BASE_DECLARE_FEATURE(kEnergyEffectInOmnibox);
 BASE_DECLARE_FEATURE(kWebUIOmniboxAskGAboutThisPage);
 BASE_DECLARE_FEATURE(kWebUIOmniboxDynamicAiModeButton);
+// Prevents closing popup while file chooser is open.
+BASE_DECLARE_FEATURE(kOmniboxKeepOpenOnFileSelection);
 
 extern const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam;
 
@@ -119,6 +121,11 @@ extern const base::FeatureParam<bool> kWebUIOmniboxFullPopupMultiline;
 extern const base::FeatureParam<bool> kAskGCoBrowse;
 // Whether to open the next panel with cobrowse and visual selection.
 extern const base::FeatureParam<bool> kAskGCoBrowseWithVisualSelection;
+// Whether to enable dynamic animation for the WebUI Omnibox.
+extern const base::FeatureParam<bool> kWebUIOmniboxDynamicAnimation;
+// Whether to enable dynamic color scheme for the WebUI Omnibox.
+extern const base::FeatureParam<bool> kWebUIOmniboxDynamicColorScheme;
+extern const base::FeatureParam<bool> kAskGComposeBox;
 
 // Returns true if `kWebUIOmniboxPopup` is enabled.
 bool IsWebUIOmniboxPopupEnabled();

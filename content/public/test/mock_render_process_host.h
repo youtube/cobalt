@@ -34,7 +34,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/child_process_binding_types.h"
 #include "content/public/browser/android/child_process_importance.h"
-#include "services/network/public/mojom/attribution.mojom-forward.h"
 #endif
 
 namespace blink {
@@ -332,12 +331,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   ChildProcessId id_;
   bool has_connection_;
   raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
-  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
-  base::ObserverList<
-      RenderProcessHostObserver,
-      /*check_empty=*/false,
-      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
-      observers_;
+  base::ObserverList<RenderProcessHostObserver> observers_;
 
   StoragePartitionConfig storage_partition_config_;
   base::flat_set<raw_ptr<RenderProcessHostPriorityClient, CtnExperimental>>

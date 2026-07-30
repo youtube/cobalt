@@ -56,6 +56,7 @@ import org.robolectric.shadows.ShadowPackageManager;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.Token;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
@@ -81,7 +82,6 @@ import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtilsJni;
 import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.FeedServiceBridgeJni;
-import org.chromium.chrome.browser.feedback.FeedbackPolicyManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.gsa.GSAUtils;
@@ -159,6 +159,7 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppBannerManagerJni;
+import org.chromium.components.webapps.WebappsUtils;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
@@ -177,6 +178,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /** Unit tests for {@link TabbedAppMenuPropertiesDelegate}. */
 // TODO(crbug.com/376238770): Removes ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION from
@@ -192,7 +194,8 @@ import java.util.List;
     // TODO(crbug.com/504757384): Add test for three dot menu flag.
     ChromeFeatureList.THREE_DOT_MENU_BACK_BUTTON,
     TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS,
-    ChromeFeatureList.IN_APP_WINDOW_MANAGER_DEPRECATION
+    ChromeFeatureList.IN_APP_WINDOW_MANAGER_DEPRECATION,
+    ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
 })
 @EnableFeatures({
     ChromeFeatureList.SUBMENUS_IN_APP_MENU,
@@ -275,7 +278,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private Pane mPane;
     @Mock private BookmarkImageFetcher mBookmarkImageFetcher;
     @Mock private FaviconHelper.Natives mFaviconHelperJniMock;
-    @Mock private FeedbackPolicyManager mFeedbackPolicyManager;
+
     @Mock private RecentlyClosedEntriesManager mRecentlyClosedEntriesManager;
     @Mock private SideUiStateProvider mSideUiStateProvider;
 
@@ -306,6 +309,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     // Used to ensure all the combinations are tested.
     private final boolean[] mFlagCombinations = new boolean[1 << 5];
+
+    private boolean mCanActivateTabLayoutToggleMenu = true;
 
     @Before
     public void setUp() {
@@ -362,8 +367,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         Mockito.when(mAppBannerManagerJniMock.getInstallableWebAppManifestId(any()))
                 .thenReturn(null);
         UserPrefsJni.setInstanceForTesting(mUserPrefsNatives);
-        FeedbackPolicyManager.setInstanceForTesting(mFeedbackPolicyManager);
-        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(true);
+
         when(mUserPrefsNatives.get(mProfile)).thenReturn(mPrefService);
 
         SyncServiceFactory.setInstanceForTesting(mSyncService);
@@ -433,7 +437,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         /* recentlyClosedEntriesManagerSupplier= */ () ->
                                 mRecentlyClosedEntriesManager,
                         () -> mSideUiStateProvider,
-                        /* isXrFullSpaceModeSupplier= */ () -> false);
+                        /* isXrFullSpaceModeSupplier= */ () -> false,
+                        /* canActivateTabLayoutToggleMenu= */ () ->
+                                mCanActivateTabLayoutToggleMenu);
         RobolectricUtil.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
         mSaveAndShareItemBuilder =
@@ -463,6 +469,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     public void tearDown() {
         AccessibilityState.setIsKnownScreenReaderEnabledForTesting(false);
         BookmarkUtils.setReadingListSupportedForTesting(null);
+        WebappsUtils.setAddToHomeIntentSupportedForTesting(null);
     }
 
     @Nullable
@@ -605,8 +612,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -615,34 +621,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -669,14 +648,16 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id))));
+                                item(R.id.help_id))));
 
         assertMenuItemsAreEqual(modelList, expectedItems);
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.SUBMENUS_IN_APP_MENU)
+    @DisableFeatures({
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+        ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF
+    })
     public void testPageMenuItems_Phone_Ntp_SubmenusDisabled() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.NTP_URL);
@@ -742,8 +723,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -752,34 +732,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -814,8 +767,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id))));
+                                item(R.id.help_id))));
 
         assertMenuItemsAreEqual(modelList, expectedItems);
     }
@@ -899,15 +851,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         }
 
         expectedItems.add(
-                item(
-                        R.id.tab_groups_parent_menu_id,
-                        item(R.id.create_new_tab_group_menu_id),
-                        item(R.id.add_to_group_menu_id)));
+                item(R.id.tab_groups_parent_menu_id, item(R.id.create_new_tab_group_menu_id)));
         expectedTitles.add(
-                item(
-                        R.string.menu_tab_groups,
-                        item(R.string.menu_create_new_tab_group),
-                        item(R.string.menu_add_tab_to_new_group)));
+                item(R.string.menu_tab_groups, item(R.string.menu_create_new_tab_group)));
 
         expectedItems.add(item(R.id.divider_line_id));
         expectedTitles.add(item(0));
@@ -920,7 +866,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(
                 item(
                         R.string.menu_history,
-                        item(R.string.menu_history),
+                        item(R.string.menu_open_history),
                         item(R.string.menu_recent_tabs)));
 
         expectedItems.add(item(R.id.quick_delete_menu_id));
@@ -932,54 +878,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(item(R.id.downloads_menu_id));
         expectedTitles.add(item(R.string.menu_downloads));
 
-        expectedItems.add(
-                item(
-                        R.id.bookmarks_parent_menu_id,
-                        item(R.id.bookmark_this_page_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.all_bookmarks_menu_id),
-                        item(
-                                R.id.reading_list_parent_menu_id,
-                                item(R.id.show_reading_list_menu_id),
-                                item(R.id.add_to_reading_list_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(R.id.toggle_bookmarks_bar_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.bookmarks_header_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_menu_id),
-                                item(R.id.bookmark_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))),
-                        item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))));
-        expectedTitles.add(
-                item(
-                        R.string.menu_bookmarks,
-                        item(R.string.menu_bookmark_this_page),
-                        item(0),
-                        item(R.string.menu_bookmarks),
-                        item(
-                                R.string.menu_reading_list,
-                                item(R.string.menu_show_reading_list),
-                                item(R.string.menu_add_to_reading_list)),
-                        item(0),
-                        item(R.string.menu_show_bookmarks_bar),
-                        item(0),
-                        item(R.string.bookmarks),
-                        item("Bookmark 1"),
-                        item("Bookmark 2"),
-                        item(
-                                "Folder 1",
-                                item("Bookmark in folder 1"),
-                                item("Bookmark in folder 2")),
-                        item(0),
-                        item(R.string.menu_mobile_bookmarks, item("Partner bookmarks", item(0))),
-                        item(R.string.menu_other_bookmarks, item(0))));
+        expectedItems.add(getExpectedBookmarksParentMenuItem());
+        expectedTitles.add(getExpectedBookmarksParentMenuTitle());
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -1083,14 +983,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 item(
                         R.id.help_parent_menu_id,
                         item(R.id.about_chrome_menu_id),
-                        item(R.id.help_id),
-                        item(R.id.report_issue_menu_id)));
+                        item(R.id.help_id)));
         expectedTitles.add(
                 item(
                         R.string.menu_help,
                         item(R.string.menu_about_chrome),
-                        item(R.string.menu_help_center),
-                        item(R.string.menu_report_issue)));
+                        item(R.string.menu_help_center)));
 
         Integer[] expectedActionBarItems =
                 ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()
@@ -1295,15 +1193,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(item(R.string.menu_new_incognito_tab));
 
         expectedItems.add(
-                item(
-                        R.id.tab_groups_parent_menu_id,
-                        item(R.id.create_new_tab_group_menu_id),
-                        item(R.id.add_to_group_menu_id)));
+                item(R.id.tab_groups_parent_menu_id, item(R.id.create_new_tab_group_menu_id)));
         expectedTitles.add(
-                item(
-                        R.string.menu_tab_groups,
-                        item(R.string.menu_create_new_tab_group),
-                        item(R.string.menu_add_tab_to_new_group)));
+                item(R.string.menu_tab_groups, item(R.string.menu_create_new_tab_group)));
 
         expectedItems.add(item(R.id.divider_line_id));
         expectedTitles.add(item(0));
@@ -1311,54 +1203,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(item(R.id.downloads_menu_id));
         expectedTitles.add(item(R.string.menu_downloads));
 
-        expectedItems.add(
-                item(
-                        R.id.bookmarks_parent_menu_id,
-                        item(R.id.bookmark_this_page_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.all_bookmarks_menu_id),
-                        item(
-                                R.id.reading_list_parent_menu_id,
-                                item(R.id.show_reading_list_menu_id),
-                                item(R.id.add_to_reading_list_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(R.id.toggle_bookmarks_bar_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.bookmarks_header_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_menu_id),
-                                item(R.id.bookmark_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))),
-                        item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))));
-        expectedTitles.add(
-                item(
-                        R.string.menu_bookmarks,
-                        item(R.string.menu_bookmark_this_page),
-                        item(0),
-                        item(R.string.menu_bookmarks),
-                        item(
-                                R.string.menu_reading_list,
-                                item(R.string.menu_show_reading_list),
-                                item(R.string.menu_add_to_reading_list)),
-                        item(0),
-                        item(R.string.menu_show_bookmarks_bar),
-                        item(0),
-                        item(R.string.bookmarks),
-                        item("Bookmark 1"),
-                        item("Bookmark 2"),
-                        item(
-                                "Folder 1",
-                                item("Bookmark in folder 1"),
-                                item("Bookmark in folder 2")),
-                        item(0),
-                        item(R.string.menu_mobile_bookmarks, item("Partner bookmarks", item(0))),
-                        item(R.string.menu_other_bookmarks, item(0))));
+        expectedItems.add(getExpectedBookmarksParentMenuItem());
+        expectedTitles.add(getExpectedBookmarksParentMenuTitle());
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -1396,14 +1242,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         R.id.save_and_share_parent_menu_id,
                         item(R.id.share_menu_id),
                         item(R.id.copy_link_menu_id),
-                        item(R.id.send_to_devices_menu_id),
                         item(R.id.qr_code_menu_id)));
         expectedTitles.add(
                 item(
                         R.string.menu_save_and_share,
                         item(R.string.menu_share_page),
                         item(R.string.menu_copy_link),
-                        item(R.string.menu_send_to_devices),
                         item(R.string.menu_qr_code)));
 
         expectedItems.add(item(R.id.find_in_page_id));
@@ -1458,14 +1302,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 item(
                         R.id.help_parent_menu_id,
                         item(R.id.about_chrome_menu_id),
-                        item(R.id.help_id),
-                        item(R.id.report_issue_menu_id)));
+                        item(R.id.help_id)));
         expectedTitles.add(
                 item(
                         R.string.menu_help,
                         item(R.string.menu_about_chrome),
-                        item(R.string.menu_help_center),
-                        item(R.string.menu_report_issue)));
+                        item(R.string.menu_help_center)));
 
         assertMenuItemsAreEqual(modelList, expectedItems);
         assertMenuTitlesAreEqual(modelList, expectedTitles);
@@ -1650,15 +1492,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(item(R.string.menu_new_incognito_tab));
 
         expectedItems.add(
-                item(
-                        R.id.tab_groups_parent_menu_id,
-                        item(R.id.create_new_tab_group_menu_id),
-                        item(R.id.add_to_group_menu_id)));
+                item(R.id.tab_groups_parent_menu_id, item(R.id.create_new_tab_group_menu_id)));
         expectedTitles.add(
-                item(
-                        R.string.menu_tab_groups,
-                        item(R.string.menu_create_new_tab_group),
-                        item(R.string.menu_add_tab_to_new_group)));
+                item(R.string.menu_tab_groups, item(R.string.menu_create_new_tab_group)));
 
         expectedItems.add(item(R.id.divider_line_id));
         expectedTitles.add(item(0));
@@ -1671,7 +1507,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(
                 item(
                         R.string.menu_history,
-                        item(R.string.menu_history),
+                        item(R.string.menu_open_history),
                         item(R.string.menu_recent_tabs)));
 
         expectedItems.add(item(R.id.quick_delete_menu_id));
@@ -1683,54 +1519,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedItems.add(item(R.id.downloads_menu_id));
         expectedTitles.add(item(R.string.menu_downloads));
 
-        expectedItems.add(
-                item(
-                        R.id.bookmarks_parent_menu_id,
-                        item(R.id.bookmark_this_page_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.all_bookmarks_menu_id),
-                        item(
-                                R.id.reading_list_parent_menu_id,
-                                item(R.id.show_reading_list_menu_id),
-                                item(R.id.add_to_reading_list_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(R.id.toggle_bookmarks_bar_menu_id),
-                        item(R.id.divider_line_id),
-                        item(R.id.bookmarks_header_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(R.id.bookmark_menu_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_menu_id),
-                                item(R.id.bookmark_menu_id)),
-                        item(R.id.divider_line_id),
-                        item(
-                                R.id.bookmark_folder_menu_id,
-                                item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))),
-                        item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))));
-        expectedTitles.add(
-                item(
-                        R.string.menu_bookmarks,
-                        item(R.string.menu_bookmark_this_page),
-                        item(0),
-                        item(R.string.menu_bookmarks),
-                        item(
-                                R.string.menu_reading_list,
-                                item(R.string.menu_show_reading_list),
-                                item(R.string.menu_add_to_reading_list)),
-                        item(0),
-                        item(R.string.menu_show_bookmarks_bar),
-                        item(0),
-                        item(R.string.bookmarks),
-                        item("Bookmark 1"),
-                        item("Bookmark 2"),
-                        item(
-                                "Folder 1",
-                                item("Bookmark in folder 1"),
-                                item("Bookmark in folder 2")),
-                        item(0),
-                        item(R.string.menu_mobile_bookmarks, item("Partner bookmarks", item(0))),
-                        item(R.string.menu_other_bookmarks, item(0))));
+        expectedItems.add(getExpectedBookmarksParentMenuItem());
+        expectedTitles.add(getExpectedBookmarksParentMenuTitle());
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -1819,14 +1609,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 item(
                         R.id.help_parent_menu_id,
                         item(R.id.about_chrome_menu_id),
-                        item(R.id.help_id),
-                        item(R.id.report_issue_menu_id)));
+                        item(R.id.help_id)));
         expectedTitles.add(
                 item(
                         R.string.menu_help,
                         item(R.string.menu_about_chrome),
-                        item(R.string.menu_help_center),
-                        item(R.string.menu_report_issue)));
+                        item(R.string.menu_help_center)));
 
         Integer[] expectedActionBarItems =
                 ChromeFeatureList.sThreeDotMenuBackButton.isEnabled()
@@ -1873,8 +1661,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -1883,34 +1670,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -1945,7 +1705,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.more_tools_menu_id,
                                 item(R.id.reader_mode_menu_id),
                                 item(R.id.divider_line_id),
-                                item(R.id.info_menu_id)),
+                                item(R.id.info_menu_id),
+                                item(R.id.task_manager)),
                         // Request desktop site is hidden.
                         item(R.id.auto_dark_web_contents_id),
                         item(R.id.divider_line_id),
@@ -1953,8 +1714,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id))));
+                                item(R.id.help_id))));
 
         assertMenuItemsAreEqual(modelList, expectedItems);
     }
@@ -1984,8 +1744,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -1994,34 +1753,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -2068,8 +1800,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id))));
+                                item(R.id.help_id))));
 
         assertMenuItemsHaveIcons(modelList, expectedItems);
     }
@@ -2440,8 +2171,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -2450,34 +2180,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -2526,8 +2229,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id))));
+                                item(R.id.help_id))));
 
         assertMenuItemsAreEqual(modelList, expectedItems);
 
@@ -2584,8 +2286,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.new_incognito_tab_menu_id),
                                 item(
                                         R.id.tab_groups_parent_menu_id,
-                                        item(R.id.create_new_tab_group_menu_id),
-                                        item(R.id.add_to_group_menu_id)),
+                                        item(R.id.create_new_tab_group_menu_id)),
                                 item(R.id.divider_line_id),
                                 item(
                                         R.id.history_parent_menu_id,
@@ -2594,34 +2295,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 item(R.id.quick_delete_menu_id),
                                 item(R.id.divider_line_id),
                                 item(R.id.downloads_menu_id),
-                                item(
-                                        R.id.bookmarks_parent_menu_id,
-                                        item(R.id.bookmark_this_page_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.all_bookmarks_menu_id),
-                                        item(
-                                                R.id.reading_list_parent_menu_id,
-                                                item(R.id.show_reading_list_menu_id),
-                                                item(R.id.add_to_reading_list_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.toggle_bookmarks_bar_menu_id),
-                                        item(R.id.divider_line_id),
-                                        item(R.id.bookmarks_header_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(R.id.bookmark_menu_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.bookmark_menu_id),
-                                                item(R.id.bookmark_menu_id)),
-                                        item(R.id.divider_line_id),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(
-                                                        R.id.bookmark_folder_menu_id,
-                                                        item(R.id.empty_item_menu_id))),
-                                        item(
-                                                R.id.bookmark_folder_menu_id,
-                                                item(R.id.empty_item_menu_id)))));
+                                getExpectedBookmarksParentMenuItem()));
 
         if (ExtensionsBuildflags.ENABLE_EXTENSIONS_CORE) {
             expectedItems.add(
@@ -2669,8 +2343,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         item(
                                 R.id.help_parent_menu_id,
                                 item(R.id.about_chrome_menu_id),
-                                item(R.id.help_id),
-                                item(R.id.report_issue_menu_id)),
+                                item(R.id.help_id)),
                         item(R.id.managed_by_divider_line_id),
                         item(R.id.managed_by_menu_id)));
 
@@ -2855,6 +2528,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Test
     public void testNewIncognitoTabOption_WithReauthInProgress() {
         setUpMocksForPageMenu();
+        when(mTab.isIncognito()).thenReturn(true);
         setMenuOptions(
                 new MenuOptions()
                         .withShowTranslate()
@@ -3048,6 +2722,24 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 .getString(
                                         org.chromium.chrome.tab_ui.R.string
                                                 .show_tabs_horizontally)));
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.ANDROID_VERTICAL_TABS})
+    @Config(qualifiers = "sw600dp")
+    public void tabLayoutToggleItem_Disabled_WhenNotShowable() {
+        mCanActivateTabLayoutToggleMenu = false;
+        ModelList moreToolsSubmenu =
+                setUpPageMenuAndGetMoreToolsSubmenu(/* isVerticalTabsEnabled= */ false);
+
+        assertTrue(
+                "Vertical tabs item should exist in more tools when enabled",
+                isMenuVisible(moreToolsSubmenu, R.id.toggle_tab_layout_menu_id));
+        ListItem item = findItemById(moreToolsSubmenu, R.id.toggle_tab_layout_menu_id);
+        assertNotNull(item);
+        assertFalse(
+                "Vertical tabs item should be disabled when not showable.",
+                item.model.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
@@ -3734,6 +3426,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Test
     public void testAddToGroup() {
         setUpMocksForPageMenu();
+        Token token1 = new Token(1L, 1L);
+        when(mTabModel.getAllTabGroupIds()).thenReturn(Set.of(token1));
         when(mTab.getUrl()).thenReturn(GURL.emptyGURL());
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
         assertTrue(isMenuVisible(modelList, R.id.tab_groups_parent_menu_id));
@@ -4206,9 +3900,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    public void testHelpMenuItem_PolicyDisabled() {
+    public void testHelpMenuItem() {
         setUpMocksForPageMenu();
-        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(false);
 
         ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
         ListItem helpParentItem = findItemById(modelList, R.id.help_parent_menu_id);
@@ -4224,29 +3917,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         // Should contain "About Chrome" and "Help Center", but NOT "Report an issue".
         assertNotNull(findItemById(subItems, R.id.about_chrome_menu_id));
         assertNotNull(findItemById(subItems, R.id.help_id));
-        assertNull(findItemById(subItems, R.id.report_issue_menu_id));
-    }
-
-    @Test
-    public void testHelpMenuItem_PolicyEnabled() {
-        setUpMocksForPageMenu();
-        when(mFeedbackPolicyManager.isUserFeedbackAllowed()).thenReturn(true);
-
-        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
-        ListItem helpParentItem = findItemById(modelList, R.id.help_parent_menu_id);
-        assertNotNull(helpParentItem);
-
-        assertTrue(
-                helpParentItem.model.containsKey(
-                        AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER));
-        List<ListItem> subItems =
-                helpParentItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_PROVIDER).get();
-        assertNotNull(subItems);
-
-        // Should contain "About Chrome", "Help Center" and "Report an issue".
-        assertNotNull(findItemById(subItems, R.id.about_chrome_menu_id));
-        assertNotNull(findItemById(subItems, R.id.help_id));
-        assertNotNull(findItemById(subItems, R.id.report_issue_menu_id));
     }
 
     @Test
@@ -4405,5 +4075,100 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         assertEquals(
                 R.string.menu_add_tab_to_new_group,
                 mTabbedAppMenuPropertiesDelegate.getAddToGroupMenuItemString(null));
+    }
+
+    @Test
+    public void testSaveAndShareModel_NonIncognito() {
+        setUpMocksForPageMenu();
+        when(mTab.isIncognito()).thenReturn(false);
+        WebappsUtils.setAddToHomeIntentSupportedForTesting(false);
+        doReturn(false)
+                .when(mSaveAndShareItemBuilder)
+                .shouldShowPaintPreview(anyBoolean(), any(Tab.class));
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem saveAndShareItem = findItemById(modelList, R.id.save_and_share_parent_menu_id);
+        assertNotNull(saveAndShareItem);
+
+        MenuItem expected =
+                item(
+                        R.id.save_and_share_parent_menu_id,
+                        item(R.id.share_menu_id),
+                        item(R.id.copy_link_menu_id),
+                        item(R.id.send_to_devices_menu_id),
+                        item(R.id.qr_code_menu_id));
+
+        assertMenuItemsAreEqual(Arrays.asList(saveAndShareItem), Arrays.asList(expected));
+    }
+
+    @Test
+    public void testSaveAndShareModel_Incognito() {
+        setUpMocksForPageMenu();
+        when(mTabModelSelector.getCurrentModel()).thenReturn(mIncognitoTabModel);
+        when(mTab.isIncognito()).thenReturn(true);
+        WebappsUtils.setAddToHomeIntentSupportedForTesting(false);
+        doReturn(false)
+                .when(mSaveAndShareItemBuilder)
+                .shouldShowPaintPreview(anyBoolean(), any(Tab.class));
+
+        ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        ListItem saveAndShareItem = findItemById(modelList, R.id.save_and_share_parent_menu_id);
+        assertNotNull(saveAndShareItem);
+
+        MenuItem expected =
+                item(
+                        R.id.save_and_share_parent_menu_id,
+                        item(R.id.share_menu_id),
+                        item(R.id.copy_link_menu_id),
+                        item(R.id.qr_code_menu_id));
+
+        assertMenuItemsAreEqual(Arrays.asList(saveAndShareItem), Arrays.asList(expected));
+    }
+
+    private MenuItem getExpectedBookmarksParentMenuItem() {
+        return item(
+                R.id.bookmarks_parent_menu_id,
+                item(R.id.bookmark_this_page_menu_id),
+                item(R.id.divider_line_id),
+                item(R.id.all_bookmarks_menu_id),
+                item(
+                        R.id.bookmark_folder_menu_id,
+                        item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id))),
+                item(R.id.bookmark_folder_menu_id, item(R.id.empty_item_menu_id)),
+                item(
+                        R.id.reading_list_parent_menu_id,
+                        item(R.id.show_reading_list_menu_id),
+                        item(R.id.add_to_reading_list_menu_id)),
+                item(R.id.divider_line_id),
+                item(R.id.toggle_bookmarks_bar_menu_id),
+                item(R.id.divider_line_id),
+                item(R.id.bookmarks_header_menu_id),
+                item(R.id.bookmark_menu_id),
+                item(R.id.bookmark_menu_id),
+                item(
+                        R.id.bookmark_folder_menu_id,
+                        item(R.id.bookmark_menu_id),
+                        item(R.id.bookmark_menu_id)));
+    }
+
+    private MenuItem getExpectedBookmarksParentMenuTitle() {
+        return item(
+                R.string.menu_bookmarks_and_lists,
+                item(R.string.menu_bookmark_this_tab),
+                item(0),
+                item(R.string.menu_show_all_bookmarks),
+                item(R.string.menu_mobile_bookmarks, item("Partner bookmarks", item(0))),
+                item(R.string.menu_other_bookmarks, item(0)),
+                item(
+                        R.string.menu_reading_list,
+                        item(R.string.menu_show_reading_list),
+                        item(R.string.menu_add_to_reading_list)),
+                item(0),
+                item(R.string.menu_show_bookmarks_bar),
+                item(0),
+                item(R.string.bookmarks),
+                item("Bookmark 1"),
+                item("Bookmark 2"),
+                item("Folder 1", item("Bookmark in folder 1"), item("Bookmark in folder 2")));
     }
 }

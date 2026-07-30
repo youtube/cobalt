@@ -11,6 +11,9 @@ export const SKILLS_HANDSHAKE_ACK = 'SKILLS_HANDSHAKE_ACK';
 /** Message type used by the guest to request showing a toast. */
 export const SKILLS_SHOW_TOAST = 'show-toast';
 
+/** Message type used by the guest to request invoking a skill. */
+export const SKILLS_INVOKE_SKILL = 'invoke-skill';
+
 /**
  * Interval in milliseconds between successive handshake pings sent by the
  * host.
@@ -32,5 +35,30 @@ export const SKILLS_API_ALLOWED_ORIGINS = [
   'https://accounts.googlers.com',
 ];
 
-/** The host URL that the guest webview loads. */
-export const SKILLS_HOST_URL = `${PRIMARY_SKILLS_ORIGIN}/chromeskills/browse`;
+/** The remote URL that the webview loads. */
+export const SKILLS_REMOTE_URL = `${PRIMARY_SKILLS_ORIGIN}/chromeskills/browse`;
+
+const REMOTE_PATH_PREFIX = '/chromeskills';
+
+/**
+ * Translates a Chrome WebUI path (e.g. '/yourSkills') to the corresponding
+ * staging remote URL.
+ */
+export function getRemoteUrlForChromePath(chromePath: string): string {
+  return `${PRIMARY_SKILLS_ORIGIN}${REMOTE_PATH_PREFIX}${chromePath}`;
+}
+
+/**
+ * Translates a staging remote URL back to the corresponding Chrome WebUI path
+ * to display in the address bar.
+ */
+export function getChromePathForRemoteUrl(url: URL): string {
+  if (url.origin !== PRIMARY_SKILLS_ORIGIN ||
+      !url.pathname.startsWith(REMOTE_PATH_PREFIX)) {
+    console.warn(
+        `URL "${url.href}" does not match primary ` +
+        `origin or expected path prefix.`);
+    return '/browse';
+  }
+  return url.pathname.substring(REMOTE_PATH_PREFIX.length);
+}

@@ -19,13 +19,16 @@
 #include "chrome/browser/commerce/in_stock_notification/in_stock_notification_manager.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_web_contents_observer.h"
+#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
 #include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_navigation_observer.h"
 #include "chrome/browser/glic/host/context/glic_page_features_manager.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_helper.h"
 #include "chrome/browser/glic/suggestions/glic_cue_tab_state.h"
+#include "chrome/browser/glic/suggestions/glic_cue_target.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
@@ -198,106 +201,101 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   // pre-condition. Because some feature need them during their instantiation,
   // therefore this block should come before the feature controllers
   // instantiation.
-  if (base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
-    auto* pinned_actions_model = PinnedToolbarActionsModel::Get(profile);
-    CHECK(pinned_actions_model);
-    page_action_controller_ =
+  auto* pinned_actions_model = PinnedToolbarActionsModel::Get(profile);
+  CHECK(pinned_actions_model);
+  page_action_controller_ =
+      GetUserDataFactory()
+          .CreateInstance<page_actions::PageActionControllerImpl>(
+              tab, tab,
+              page_actions::GetActivePageActionIds(
+                  *tab.GetBrowserWindowInterface()),
+              page_actions::PageActionPropertiesProvider(),
+              pinned_actions_model);
+
+  if (page_action_controller_->ActionExists(kActionShowTranslate)) {
+    translate_page_action_controller_ =
+        std::make_unique<TranslatePageActionController>(tab);
+  }
+
+  if (page_action_controller_->ActionExists(kActionShowMemorySaverChip)) {
+    memory_saver_chip_controller_ =
+        std::make_unique<memory_saver::MemorySaverChipController>(
+            *page_action_controller_);
+  }
+
+  if (IsPageActionMigrated(PageActionIconType::kIntentPicker) &&
+      page_action_controller_->ActionExists(kActionShowIntentPicker)) {
+    intent_picker_view_page_action_controller_ =
+        std::make_unique<IntentPickerViewPageActionController>(tab);
+  }
+
+  if (page_action_controller_->ActionExists(kActionShowFileSystemAccess)) {
+    file_system_access_page_action_controller_ =
+        std::make_unique<FileSystemAccessPageActionController>(tab);
+  }
+
+  if (page_action_controller_->ActionExists(kActionZoomNormal)) {
+    zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
+        tab, *page_action_controller_);
+  }
+
+  if (page_action_controller_->ActionExists(kActionInstallPwa)) {
+    pwa_install_page_action_controller_ =
+        std::make_unique<PwaInstallPageActionController>(
+            tab, *page_action_controller_);
+  }
+
+  if (page_action_controller_->ActionExists(kActionCommercePriceInsights)) {
+    commerce_price_insights_page_action_view_controller_ =
         GetUserDataFactory()
-            .CreateInstance<page_actions::PageActionControllerImpl>(
-                tab, tab,
-                page_actions::GetActivePageActionIds(
-                    *tab.GetBrowserWindowInterface()),
-                page_actions::PageActionPropertiesProvider(),
-                pinned_actions_model);
+            .CreateInstance<commerce::PriceInsightsPageActionViewController>(
+                tab, tab, *page_action_controller_);
+  }
 
-    if (page_action_controller_->ActionExists(kActionShowTranslate)) {
-      translate_page_action_controller_ =
-          std::make_unique<TranslatePageActionController>(tab);
-    }
+  if (IsPageActionMigrated(PageActionIconType::kManagePasswords) &&
+      page_action_controller_->ActionExists(kActionShowPasswordsBubbleOrPage)) {
+    manage_passwords_page_action_controller_ =
+        std::make_unique<ManagePasswordsPageActionController>(
+            *page_action_controller_);
+  }
 
-    if (page_action_controller_->ActionExists(kActionShowMemorySaverChip)) {
-      memory_saver_chip_controller_ =
-          std::make_unique<memory_saver::MemorySaverChipController>(
-              *page_action_controller_);
-    }
+  if (IsPageActionMigrated(PageActionIconType::kCookieControls) &&
+      page_action_controller_->ActionExists(kActionShowCookieControls)) {
+    cookie_controls_page_action_controller_ =
+        GetUserDataFactory().CreateInstance<CookieControlsPageActionController>(
+            tab, tab, *profile, *page_action_controller_);
+    cookie_controls_page_action_controller_->Init();
+  }
 
-    if (IsPageActionMigrated(PageActionIconType::kIntentPicker) &&
-        page_action_controller_->ActionExists(kActionShowIntentPicker)) {
-      intent_picker_view_page_action_controller_ =
-          std::make_unique<IntentPickerViewPageActionController>(tab);
-    }
+  if (IsPageActionMigrated(PageActionIconType::kLensOverlayHomework) &&
+      page_action_controller_->ActionExists(kActionLensOverlayHomework)) {
+    lens_overlay_homework_page_action_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<LensOverlayHomeworkPageActionController>(
+                tab, tab, *profile, *page_action_controller_);
+  }
 
-    if (page_action_controller_->ActionExists(kActionShowFileSystemAccess)) {
-      file_system_access_page_action_controller_ =
-          std::make_unique<FileSystemAccessPageActionController>(tab);
-    }
+  if (IsPageActionMigrated(PageActionIconType::kBookmarkStar) &&
+      tab.GetBrowserWindowInterface()->GetType() ==
+          BrowserWindowInterface::TYPE_NORMAL &&
+      page_action_controller_->ActionExists(kActionBookmarkThisTab)) {
+    bookmark_page_action_controller_ =
+        GetUserDataFactory().CreateInstance<BookmarkPageActionController>(
+            tab, tab, profile->GetPrefs(), *page_action_controller_);
+  }
 
-    if (IsPageActionMigrated(PageActionIconType::kZoom) &&
-        page_action_controller_->ActionExists(kActionZoomNormal)) {
-      zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
-          tab, *page_action_controller_);
-    }
+  if (base::FeatureList::IsEnabled(
+          record_replay::features::kRecordReplayBase) &&
+      page_action_controller_->ActionExists(kActionRecordReplay)) {
+    record_replay_page_action_controller_ =
+        GetUserDataFactory().CreateInstance<RecordReplayPageActionController>(
+            tab, tab, *page_action_controller_);
+  }
 
-    if (page_action_controller_->ActionExists(kActionInstallPwa)) {
-      pwa_install_page_action_controller_ =
-          std::make_unique<PwaInstallPageActionController>(
-              tab, *page_action_controller_);
-    }
-
-    if (page_action_controller_->ActionExists(kActionCommercePriceInsights)) {
-      commerce_price_insights_page_action_view_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<commerce::PriceInsightsPageActionViewController>(
-                  tab, tab, *page_action_controller_);
-    }
-
-    if (IsPageActionMigrated(PageActionIconType::kManagePasswords) &&
-        page_action_controller_->ActionExists(
-            kActionShowPasswordsBubbleOrPage)) {
-      manage_passwords_page_action_controller_ =
-          std::make_unique<ManagePasswordsPageActionController>(
-              *page_action_controller_);
-    }
-
-    if (IsPageActionMigrated(PageActionIconType::kCookieControls) &&
-        page_action_controller_->ActionExists(kActionShowCookieControls)) {
-      cookie_controls_page_action_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<CookieControlsPageActionController>(
-                  tab, tab, *profile, *page_action_controller_);
-      cookie_controls_page_action_controller_->Init();
-    }
-
-    if (IsPageActionMigrated(PageActionIconType::kLensOverlayHomework) &&
-        page_action_controller_->ActionExists(kActionLensOverlayHomework)) {
-      lens_overlay_homework_page_action_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<LensOverlayHomeworkPageActionController>(
-                  tab, tab, *profile, *page_action_controller_);
-    }
-
-    if (IsPageActionMigrated(PageActionIconType::kBookmarkStar) &&
-        tab.GetBrowserWindowInterface()->GetType() ==
-            BrowserWindowInterface::TYPE_NORMAL &&
-        page_action_controller_->ActionExists(kActionBookmarkThisTab)) {
-      bookmark_page_action_controller_ =
-          GetUserDataFactory().CreateInstance<BookmarkPageActionController>(
-              tab, tab, profile->GetPrefs(), *page_action_controller_);
-    }
-
-    if (base::FeatureList::IsEnabled(
-            record_replay::features::kRecordReplayBase) &&
-        page_action_controller_->ActionExists(kActionRecordReplay)) {
-      record_replay_page_action_controller_ =
-          GetUserDataFactory().CreateInstance<RecordReplayPageActionController>(
-              tab, tab, *page_action_controller_);
-    }
-
-    if (page_action_controller_->ActionExists(kActionShowJsOptimizationsIcon)) {
-      js_optimizations_page_action_controller_ =
-          std::make_unique<JsOptimizationsPageActionController>(
-              tab, *page_action_controller_);
-    }
+  if (page_action_controller_->ActionExists(kActionShowJsOptimizationsIcon)) {
+    js_optimizations_page_action_controller_ =
+        std::make_unique<JsOptimizationsPageActionController>(
+            tab, *page_action_controller_);
   }
 
   // Features that are only enabled for normal browser windows. By default most
@@ -574,6 +572,12 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   if (base::FeatureList::IsEnabled(net::features::kVerifyQWACs)) {
     qwac_web_contents_observer_ =
         std::make_unique<QwacWebContentsObserver>(tab);
+  }
+
+  if (base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
+    contextual_cueing_controller_ =
+        std::make_unique<contextual_cueing::ContextualCueingController>(&tab);
+    glic::GlicCueTarget::Register(tab);
   }
 
   if (auto* contextual_cueing_service =

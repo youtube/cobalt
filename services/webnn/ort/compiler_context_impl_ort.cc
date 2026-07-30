@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
@@ -24,7 +24,6 @@
 #include "services/webnn/ort/scoped_ort_types.h"
 #include "services/webnn/public/cpp/ep_device_info.h"
 #include "services/webnn/webnn_constant_operand.h"
-#include "services/webnn/webnn_tensor_impl.h"
 
 namespace webnn::ort {
 
@@ -45,39 +44,16 @@ struct CompilerContextImplOrt::CompilationResult {
       operand_output_name_to_onnx_output_name;
 };
 
-// static
-std::unique_ptr<CompilerContextImplOrt> CompilerContextImplOrt::Create(
-    const base::FilePath& ep_library_path,
-    const EpDeviceInfo& target_device,
-    mojom::CreateContextOptionsPtr options,
-    ContextProperties properties,
-    mojo::PendingRemote<mojom::WebNNModelLoader> model_loader) {
-  // TODO(crbug.com/502249078): Create the environment before sandbox lockdown.
-  auto env = Environment::GetOrCreateInstanceForCompiler(target_device.ep_name,
-                                                         ep_library_path);
-  if (!env.has_value()) {
-    LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime environment: "
-               << env.error();
-    return nullptr;
-  }
-
-  return std::make_unique<CompilerContextImplOrt>(
-      target_device, std::move(env.value()), std::move(options),
-      std::move(properties), std::move(model_loader),
-      base::PassKey<CompilerContextImplOrt>());
-}
-
 CompilerContextImplOrt::CompilerContextImplOrt(
     const EpDeviceInfo& target_device,
-    scoped_refptr<Environment> env,
     mojom::CreateContextOptionsPtr options,
     ContextProperties properties,
-    mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,
-    base::PassKey<CompilerContextImplOrt> /*pass_key*/)
+    mojo::PendingRemote<mojom::WebNNModelLoader> model_loader)
     : properties_(std::move(properties)),
       options_(std::move(options)),
       model_loader_(std::move(model_loader)),
-      env_(std::move(env)) {
+      // The environment is guaranteed to be initialized in PreSandboxInit().
+      env_(Environment::GetInstance().value()) {
   session_options_ = SessionOptions::Create(target_device, env_);
 
   model_loader_.set_disconnect_handler(
@@ -100,14 +76,11 @@ void CompilerContextImplOrt::CreateGraphBuilder(
   CreateGraphBuilderImpl(std::move(receiver));
 }
 
-// TODO(crbug.com/508864477): Remove the constant tensor operands parameter.
 void CompilerContextImplOrt::BuildGraph(
     mojom::GraphInfoPtr graph_info,
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
-    /*constant_tensor_operands*/,
     BuildGraphCallback callback) {
   // Wrap the callback so it is automatically called with an error if dropped
   // without being run (e.g. the model loader is disconnected).
@@ -188,11 +161,18 @@ CompilerContextImplOrt::CompileOnBackgroundThread(
     return BuildGraphError();
   }
 
+  // Ensure the buffer is freed when it goes out of scope, even if the
+  // compilation fails.
+  base::ScopedClosureRunner free_output_model_buffer(base::BindOnce(
+      [](OrtAllocator* allocator, void** buffer) {
+        if (*buffer) {
+          allocator->Free(allocator, *buffer);
+        }
+      },
+      default_allocator, &output_model_buffer));
+
   if (ORT_CALL_FAILED(
           ort_compile_api->CompileModel(env->get(), compile_options.get()))) {
-    if (output_model_buffer) {
-      default_allocator->Free(default_allocator, output_model_buffer);
-    }
     return BuildGraphError();
   }
   CHECK(output_model_buffer);
@@ -207,9 +187,6 @@ CompilerContextImplOrt::CompileOnBackgroundThread(
       base::span(static_cast<const uint8_t*>(output_model_buffer),
                  output_model_buffer_size));
   result->compiled_model_data = mojo_base::BigBuffer(output_model_buffer_span);
-
-  // Free the ORT-allocated output buffer.
-  default_allocator->Free(default_allocator, output_model_buffer);
 
   // Transfer name mappings.
   result->operand_input_name_to_onnx_input_name =

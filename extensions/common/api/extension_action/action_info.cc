@@ -34,12 +34,17 @@ constexpr char kDisabled[] = "disabled";
 // The manifest data container for the ActionInfos for BrowserActions and
 // PageActions.
 struct ActionInfoData : public Extension::ManifestData {
+  static const char* kManifestDataKey;
+
   explicit ActionInfoData(std::unique_ptr<ActionInfo> action_info);
   ~ActionInfoData() override;
 
   // The action associated with the BrowserAction.
   std::unique_ptr<ActionInfo> action_info;
 };
+
+// static
+const char* ActionInfoData::kManifestDataKey = keys::kAction;
 
 ActionInfoData::ActionInfoData(std::unique_ptr<ActionInfo> info)
     : action_info(std::move(info)) {}
@@ -255,8 +260,7 @@ std::unique_ptr<ActionInfo> ActionInfo::Load(
 // static
 const ActionInfo* ActionInfo::GetExtensionActionInfo(
     const Extension* extension) {
-  const ActionInfoData* data = static_cast<const ActionInfoData*>(
-      extension->GetManifestData(keys::kAction));
+  const auto* data = extension->GetManifestData<ActionInfoData>();
   return data ? data->action_info.get() : nullptr;
 }
 
@@ -266,8 +270,7 @@ void ActionInfo::SetExtensionActionInfo(Extension* extension,
   // Note: we store all actions (actions, browser actions, and page actions)
   // under the same key for simplicity because they are mutually exclusive,
   // and most callers shouldn't care about the type.
-  extension->SetManifestData(keys::kAction,
-                             std::make_unique<ActionInfoData>(std::move(info)));
+  extension->SetManifestData(std::make_unique<ActionInfoData>(std::move(info)));
 }
 
 // static

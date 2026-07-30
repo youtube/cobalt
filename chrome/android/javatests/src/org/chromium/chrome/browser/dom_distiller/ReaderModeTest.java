@@ -16,6 +16,7 @@ import static org.chromium.base.test.transit.Triggers.noopTo;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -24,6 +25,7 @@ import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
@@ -34,8 +36,8 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
-import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.dom_distiller.ReaderModeBottomSheetExpandedFacility;
 import org.chromium.chrome.test.transit.dom_distiller.ReaderModeBottomSheetPeekFacility;
 import org.chromium.chrome.test.transit.dom_distiller.ReaderModeConditions.TabBackgroundColorCondition;
@@ -44,6 +46,8 @@ import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
 import org.chromium.components.dom_distiller.core.DomDistillerService;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.HostZoomMap;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer;
 import org.chromium.net.test.EmbeddedTestServer;
@@ -59,10 +63,11 @@ import java.util.concurrent.atomic.AtomicReference;
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
     "--reader-mode-heuristics=alwaystrue"
 })
+@Batch(Batch.PER_CLASS)
 public class ReaderModeTest {
 
-    public final FreshCtaTransitTestRule mActivityTestRule =
-            ChromeTransitTestRules.freshChromeTabbedActivityRule();
+    public final AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
     public final DownloadTestRule mDownloadTestRule = new DownloadTestRule();
 
     @Rule
@@ -103,7 +108,7 @@ public class ReaderModeTest {
     @Test
     @MediumTest
     public void testReaderModeInRegularTab() throws TimeoutException {
-        mPage = mActivityTestRule.startOnUrl(mURL).openRegularTabAppMenu().enterReaderMode();
+        mPage = mActivityTestRule.startOnWebPage(mURL).openRegularTabAppMenu().enterReaderMode();
 
         Tab originalTab = mPage.getTab();
         waitForDistillation(PAGE_TITLE, originalTab);
@@ -112,7 +117,7 @@ public class ReaderModeTest {
     @Test
     @MediumTest
     public void testPreferenceInTab() throws TimeoutException {
-        mPage = mActivityTestRule.startOnUrl(mURL).openRegularTabAppMenu().enterReaderMode();
+        mPage = mActivityTestRule.startOnWebPage(mURL).openRegularTabAppMenu().enterReaderMode();
 
         Tab tab = mPage.getTab();
         waitForDistillation(PAGE_TITLE, tab);
@@ -208,18 +213,37 @@ public class ReaderModeTest {
                 };
         ThreadUtils.runOnUiThreadBlocking(() -> distilledPagePrefs.addObserver(observer));
 
+        try {
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        HostZoomMap.setDefaultZoomLevel(
+                                mActivityTestRule.getActivityTab().getProfile(), newZoomLevel);
+                    });
+
+            fontScalingChangedCallback.waitForCallback(0);
+
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        Assert.assertEquals(
+                                newZoomFactor, distilledPagePrefs.getFontScaling(), 0.001f);
+                    });
+        } finally {
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        distilledPagePrefs.removeObserver(observer);
+                        HostZoomMap.setDefaultZoomLevel(
+                                mActivityTestRule.getActivityTab().getProfile(), initialZoomLevel);
+                    });
+        }
+    }
+
+    @After
+    public void tearDown() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    HostZoomMap.setDefaultZoomLevel(
-                            mActivityTestRule.getActivityTab().getProfile(), newZoomLevel);
-                });
-
-        fontScalingChangedCallback.waitForCallback(0);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    Assert.assertEquals(newZoomFactor, distilledPagePrefs.getFontScaling(), 0.001f);
-                    distilledPagePrefs.removeObserver(observer);
+                    PrefService prefs = UserPrefs.get(ProfileManager.getLastUsedRegularProfile());
+                    prefs.clearPref("dom_distiller.theme");
+                    prefs.clearPref("dom_distiller.font_scale");
                 });
     }
 

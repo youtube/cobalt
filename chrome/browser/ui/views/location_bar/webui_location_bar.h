@@ -12,6 +12,7 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/views/bubble/webui_bubble_reopen_suppressor.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
@@ -25,6 +26,7 @@
 #include "ui/views/mouse_constants.h"
 
 class Browser;
+class BrowserWindowInterface;
 class OmniboxController;
 class OmniboxPopupView;
 class OmniboxPopupViewWebUI;
@@ -32,6 +34,10 @@ class PermissionDashboardController;
 class WebUIPermissionDashboard;
 class Profile;
 class WebUIToolbarControlDelegate;
+
+namespace content {
+struct ContextMenuParams;
+}  // namespace content
 
 namespace gfx {
 class Point;
@@ -62,11 +68,10 @@ class WebUILocationBar : public LocationBar,
       toolbar_ui_api::mojom::OmniboxActionPtr action);
   void SetFocusWithin(bool focused);
 
-  // `edit_flags` use blink::ContextMenuDataEditFlags.
   void HandleContextMenu(views::Widget* widget,
                          const gfx::Point& point,
                          ui::mojom::MenuSourceType source_type,
-                         int edit_flags);
+                         const content::ContextMenuParams& menu_params);
 
   // LocationBar:
   void FocusLocation(bool is_user_initiated,
@@ -88,7 +93,7 @@ class WebUILocationBar : public LocationBar,
   std::optional<bubble_anchor_util::AnchorConfiguration> GetChipAnchor()
       override;
   ui::TrackedElement* GetAnchorOrNull() override;
-  Browser* GetBrowser() override;
+  BrowserWindowInterface* GetBrowser() override;
   Profile* GetProfile() override;
   void OnChanged() override;
   void UpdateWithoutTabRestore() override;
@@ -185,12 +190,10 @@ class WebUILocationBar : public LocationBar,
 
   void OnIconFetched(const gfx::Image& image);
 
-  void OnPageInfoBubbleClosed(views::Widget::ClosedReason closed_reason,
-                              bool reload_prompt);
 
   void ShowPageInfoBubble();
 
-  raw_ptr<Browser> browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
   raw_ptr<LocationBarView::Delegate> delegate_ = nullptr;
   raw_ptr<WebUIToolbarControlDelegate> toolbar_delegate_ = nullptr;
 
@@ -203,9 +206,6 @@ class WebUILocationBar : public LocationBar,
   WebUIContentSettingImageControl content_setting_image_control_;
   page_actions::WebUIPageActionControl page_action_control_;
 
-  // Threshold for suppressing LHS chip clicks after bubble closing.
-  base::TimeDelta suppression_threshold_ =
-      views::kMinimumTimeBetweenButtonClicks;
 
   std::unique_ptr<WebUIPermissionDashboard> permission_dashboard_;
   std::unique_ptr<PermissionDashboardController>
@@ -230,7 +230,7 @@ class WebUILocationBar : public LocationBar,
   security_state::SecurityLevel last_update_security_level_ =
       security_state::NONE;
 
-  base::TimeTicks last_page_info_bubble_close_time_;
+  WebUIBubbleReopenSuppressor page_info_reopen_suppressor_;
   bool suppress_lhs_chip_clicked_ = false;
 
   std::optional<std::u16string> last_search_keyword_;

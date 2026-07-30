@@ -174,11 +174,6 @@ InputHandler::ScrollStatus InputHandler::ScrollBegin(ScrollState* scroll_state,
     scroll_status.raster_inducing =
         GetScrollTree().CanRealizeScrollsOnPendingTree(
             *CurrentlyScrollingNode());
-    // Performance Scroll Timing API: re-latch starts a new record.
-    if (compositor_delegate_->GetSettings().enable_scroll_performance_timing) {
-      scroll_timing_controller_.DidScrollBegin(
-          type, scroll_state->data()->event_timestamp);
-    }
     return scroll_status;
   }
 
@@ -304,12 +299,6 @@ InputHandler::ScrollStatus InputHandler::ScrollBegin(ScrollState* scroll_state,
 
   DidLatchToScroller(*scroll_state, type);
 
-  // Performance Scroll Timing API: start record once latched on the compositor.
-  if (compositor_delegate_->GetSettings().enable_scroll_performance_timing) {
-    scroll_timing_controller_.DidScrollBegin(
-        type, scroll_state->data()->event_timestamp);
-  }
-
   // If the viewport is scrolling and it cannot consume any delta hints, the
   // scroll event will need to get bubbled if the viewport is for a guest or
   // oopif.
@@ -374,9 +363,14 @@ InputHandlerScrollResult InputHandler::ScrollUpdate(
     AdjustScrollDeltaForScrollbarSnap(scroll_state);
   }
 
+  bool use_unconstrained = prevent_scroll_axis_locking_.value();
+  float delta_x = use_unconstrained ? scroll_state.delta_x_unconstrained()
+                                    : scroll_state.delta_x();
+  float delta_y = use_unconstrained ? scroll_state.delta_y_unconstrained()
+                                    : scroll_state.delta_y();
+
   gfx::Vector2dF resolved_scroll_delta = ResolveScrollGranularityToPixels(
-      scroll_node,
-      gfx::Vector2dF(scroll_state.delta_x(), scroll_state.delta_y()),
+      scroll_node, gfx::Vector2dF(delta_x, delta_y),
       scroll_state.delta_granularity());
 
   bool hit_snap_constraint = false;
@@ -649,11 +643,6 @@ InputHandlerScrollEndResult InputHandler::ScrollEnd(
     }
     snap_animation_data_map_.erase(scroll_node->element_id);
   } else if (latched_node) {
-    // Performance Scroll Timing API: finalize record at GestureScrollEnd time.
-    if (compositor_delegate_->GetSettings().enable_scroll_performance_timing) {
-      scroll_timing_controller_.DidScrollEnd(latched_scroll_type_.value());
-    }
-
     scrollbar_controller_->ResetState();
 
     // Note that if we deferred the scroll end then we should not snap. We will
@@ -1395,10 +1384,6 @@ void InputHandler::ProcessCommitDeltas(
     last_latched_scroller_ = ElementId();
     last_latched_scroll_source_type_ = ScrollSourceType::kNone;
   }
-
-  // Performance Scroll Timing API: hand completed records to the main thread.
-  commit_data->scroll_timing_infos =
-      scroll_timing_controller_.TakeCompletedScrollTimingInfos();
 }
 
 void InputHandler::TickAnimations(base::TimeTicks monotonic_time) {
@@ -2297,12 +2282,6 @@ void InputHandler::ScrollLatchedScroller(ScrollState& scroll_state,
     return;
   }
 
-  // Performance Scroll Timing API: capture the latched scroller on the first
-  // effective update of the gesture.
-  if (compositor_delegate_->GetSettings().enable_scroll_performance_timing) {
-    scroll_timing_controller_.DidScrollUpdate(scroll_node.element_id);
-  }
-
   if (!GetViewport().ShouldScroll(scroll_node)) {
     // If the applied delta is within 45 degrees of the input
     // delta, bail out to make it easier to scroll just one layer
@@ -2440,6 +2419,8 @@ void InputHandler::DidLatchToScroller(const ScrollState& scroll_state,
   last_latched_scroller_ = CurrentlyScrollingNode()->element_id;
   latched_scroll_type_ = type;
   last_scroll_begin_state_ = scroll_state;
+  prevent_scroll_axis_locking_ =
+      !!CurrentlyScrollingNode()->prevent_scroll_axis_locking;
 
   ClearAnimatingSnapTargetsForElement(last_latched_scroller_);
 
@@ -2600,6 +2581,9 @@ void InputHandler::ClearCurrentlyScrollingNode() {
   did_scroll_x_for_scroll_gesture_ = false;
   did_scroll_y_for_scroll_gesture_ = false;
   delta_consumed_for_scroll_gesture_ = false;
+  // TODO(crbug.com/479472367): Combine optional field related to latched node
+  // into single struct.
+  prevent_scroll_axis_locking_.reset();
   latched_scroll_type_.reset();
   last_scroll_update_state_.reset();
   last_scroll_begin_state_.reset();

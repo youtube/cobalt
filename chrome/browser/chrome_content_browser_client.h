@@ -414,19 +414,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       bool is_server_auction,
       bool is_on_device_auction,
       content::AuctionResult result) override;
-  bool IsAttributionReportingOperationAllowed(
-      content::BrowserContext* browser_context,
-      AttributionReportingOperation operation,
-      content::RenderFrameHost* rfh,
-      const url::Origin* impression_origin,
-      const url::Origin* conversion_origin,
-      const url::Origin* reporting_origin,
-      bool* can_bypass) override;
-  bool IsAttributionReportingAllowedForContext(
-      content::BrowserContext* browser_context,
-      content::RenderFrameHost* rfh,
-      const url::Origin& context_origin,
-      const url::Origin& reporting_origin) override;
   // TODO(crbug.com/369436599): Remove the default arguments in virtual methods.
   bool IsSharedStorageAllowed(
       content::BrowserContext* browser_context,
@@ -979,6 +966,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& url) override;
   bool ShouldServiceWorkerInheritPolicyContainerFromCreator(
       const GURL& url) override;
+  bool ShouldServiceWorkerRequireForegroundPriorityDuringStartup(
+      const GURL& script_url) override;
   void GrantAdditionalRequestPrivilegesToWorkerProcess(
       int child_id,
       const GURL& script_url) override;
@@ -1235,7 +1224,12 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 #if !BUILDFLAG(IS_ANDROID)
   bool ShouldDisallowCredentialRequest(
       content::WebContents* web_contents) override;
-#endif  //! BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+  bool ShouldAllowSystemUiPopups(content::WebContents* web_contents) override;
+#endif
+
   void ModifyRequestHeadersForPrefetch(
       const GURL& url,
       std::vector<std::string>& removed_headers,
@@ -1259,8 +1253,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::BrowserContext& browser_context,
       const GURL& url,
       const std::string& embedder_histogram_suffix) override;
-
-  bool IsAttributionInternalsWebUIEnabled() override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

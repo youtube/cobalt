@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/chrome_build.gni")
+import("//build/config/ui.gni")
 import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
@@ -192,29 +193,46 @@ source_set("browser_tests") {
       "cast_mirroring_service_host_browsertest.cc",
       "defer_background_media_browsertest.cc",
       "encrypted_media_supported_types_browsertest.cc",
+      "media_browsertest.cc",
+      "media_browsertest.h",
       "media_engagement_autoplay_browsertest.cc",
+      "media_engagement_browsertest.cc",
       "media_session_browsertest.cc",
       "unified_autoplay_browsertest.cc",
     ]
+
+    # TODO(crbug.com/40553979): encrypted_media_browsertest is flaky on the
+    # Linux Asan Lsan bot.
+    if (!((is_linux || is_chromeos) && is_asan && is_lsan)) {
+      sources += [ "encrypted_media_browsertest.cc" ]
+    }
     deps += [
       ":impl",
       "//chrome/browser:chrome_content_browser_client",
+      "//chrome/browser/component_updater",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/content_settings:content_settings_util",
       "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
+      "//chrome/browser/prefs:util",
+      "//chrome/browser/preloading/prefetch/no_state_prefetch",
+      "//chrome/browser/preloading/prefetch/no_state_prefetch:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/speech",
       "//chrome/browser/tab_group_sync",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:recently_audible_helper",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/test:test_support_ui",
       "//components/cdm/common:buildflags",
+      "//components/no_state_prefetch/browser",
+      "//components/no_state_prefetch/common",
       "//components/prefs",
       "//media:test_support",
       "//media/capture/mojom:video_capture",
       "//media/mojo/mojom",
       "//services/media_session/public/cpp/test:test_support",
       "//services/metrics/public/cpp:ukm_builders",
+      "//third_party/widevine/cdm:headers",
     ]
   }
 }
@@ -460,6 +478,10 @@ source_set("impl") {
       "//chrome/browser/media/router:media_router_feature",
       "//media/mojo/mojom:remoting",
     ]
+
+    if (toolkit_views) {
+      deps += [ "//chrome/browser/ui/views/media_router" ]
+    }
   }
 
   if (enable_extensions) {

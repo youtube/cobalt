@@ -15,6 +15,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "cc/trees/render_frame_metadata.h"
 #include "components/input/child_frame_input_helper.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "components/viz/test/begin_frame_args_test.h"
@@ -49,6 +50,18 @@
 #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/compositor.h"
+#include "ui/gfx/selection_bound.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "components/stylus_handwriting/win/features.h"
+#include "content/browser/renderer_host/input/mock_tfhandwriting.h"
+#include "content/browser/renderer_host/input/stylus_handwriting_callback_sink_win.h"
+#include "content/browser/renderer_host/input/stylus_handwriting_controller_win.h"
+#include "content/browser/renderer_host/input/stylus_handwriting_win_test_helper.h"
+
+using testing::_;
+using testing::Return;
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace content {
 namespace {
@@ -121,11 +134,70 @@ class MockFrameConnector : public CrossProcessFrameConnector {
   raw_ptr<RenderWidgetHostViewBase> root_host_view_ = nullptr;
 };
 
+class TestTouchSelectionControllerClientManager
+    : public TouchSelectionControllerClientManager {
+ public:
+  TestTouchSelectionControllerClientManager() = default;
+  ~TestTouchSelectionControllerClientManager() override = default;
+
+  void DidStopFlinging() override {}
+  void OnSwipeToMoveCursorBegin() override {}
+  void OnSwipeToMoveCursorEnd() override {}
+  void OnClientHitTestRegionUpdated(
+      ui::TouchSelectionControllerClient* client) override {}
+  void UpdateClientSelectionBounds(
+      const gfx::SelectionBound& start,
+      const gfx::SelectionBound& end,
+      ui::TouchSelectionControllerClient* client,
+      ui::TouchSelectionMenuClient* menu_client) override {
+    last_selection_start_ = start;
+    last_selection_end_ = end;
+  }
+  void InvalidateClient(ui::TouchSelectionControllerClient* client) override {}
+  ui::TouchSelectionController* GetTouchSelectionController() override {
+    return nullptr;
+  }
+  void AddObserver(Observer* observer) override {}
+  void RemoveObserver(Observer* observer) override {}
+
+  const gfx::SelectionBound& last_selection_start() const {
+    return last_selection_start_;
+  }
+  const gfx::SelectionBound& last_selection_end() const {
+    return last_selection_end_;
+  }
+
+ private:
+  gfx::SelectionBound last_selection_start_;
+  gfx::SelectionBound last_selection_end_;
+};
+
 class MockRenderWidgetHostView : public TestRenderWidgetHostView {
  public:
   explicit MockRenderWidgetHostView(RenderWidgetHost* rwh)
       : TestRenderWidgetHostView(rwh) {}
   ~MockRenderWidgetHostView() override = default;
+
+  TouchSelectionControllerClientManager*
+  GetTouchSelectionControllerClientManager() override {
+    return &selection_manager_;
+  }
+
+  bool TransformPointToCoordSpaceForView(
+      const gfx::PointF& point,
+      input::RenderWidgetHostViewInput* target_view,
+      gfx::PointF* transformed_point) override {
+    *transformed_point = point;
+    return true;
+  }
+
+  bool TransformPointToLocalCoordSpace(
+      const gfx::PointF& point,
+      const viz::FrameSinkId& original_frame_sink_id,
+      gfx::PointF* transformed_point) override {
+    *transformed_point = point;
+    return true;
+  }
 
 #if BUILDFLAG(IS_MAC)
   MOCK_METHOD(void,
@@ -137,6 +209,13 @@ class MockRenderWidgetHostView : public TestRenderWidgetHostView {
                blink::mojom::ShareService::ShareCallback callback),
               (override));
 #endif
+
+  TestTouchSelectionControllerClientManager* selection_manager() {
+    return &selection_manager_;
+  }
+
+ private:
+  TestTouchSelectionControllerClientManager selection_manager_;
 };
 
 class RenderWidgetHostViewChildFrameTest
@@ -560,6 +639,191 @@ TEST_F(RenderWidgetHostViewChildFrameTest,
   SetParentFrameSinkId(viz::FrameSinkId());
   EXPECT_FALSE(ConnectionHasRegisteredHierarchy());
   EXPECT_FALSE(GetParentFrameSinkId().is_valid());
+}
+
+#if BUILDFLAG(IS_WIN)
+// Test fixture for verifying OnFocusFailed behavior in
+// RenderWidgetHostViewChildFrame for stylus handwriting scenarios.
+class StylusHandwritingOnFocusFailedChildFrameTest
+    : public RenderWidgetHostViewChildFrameTest {
+ public:
+  void SetUp() override {
+    RenderWidgetHostViewChildFrameTest::SetUp();
+    scoped_feature_list_.InitAndEnableFeature(
+        stylus_handwriting::win::kStylusHandwritingWin);
+    stylus_handwriting_win_test_helper_.SetUpDefaultMockInfrastructure();
+    stylus_handwriting_win_test_helper_
+        .DefaultMockRequestHandwritingForPointerMethod();
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  StylusHandwritingWinTestHelper stylus_handwriting_win_test_helper_;
+  Microsoft::WRL::ComPtr<MockTfFocusHandwritingTargetArgsImpl> mock_focus_args_;
+};
+
+// Verify that destroying the child frame view that initiated an in-flight
+// handwriting session calls OnFocusFailed.
+TEST_F(StylusHandwritingOnFocusFailedChildFrameTest,
+       InitiatingViewDestructionFailsFocus) {
+  mock_focus_args_ =
+      stylus_handwriting_win_test_helper_.SetUpWaitingForFocusResult(
+          view_->GetWeakPtr());
+
+  EXPECT_CALL(*mock_focus_args_.Get(), SetResponse(::TF_NO_HANDWRITING_TARGET))
+      .Times(1);
+
+  RenderWidgetHostViewChildFrame* local_view = view_;
+  view_ = nullptr;
+  local_view->Destroy();
+
+  EXPECT_FALSE(
+      StylusHandwritingControllerWin::GetInstance()->IsWaitingForFocusResult());
+}
+
+// Verify that destroying a child frame view that did NOT initiate the in-flight
+// handwriting session leaves the session untouched. Regression test for a
+// non-initiating ~RenderWidgetHostViewChildFrame ending an unrelated session.
+TEST_F(StylusHandwritingOnFocusFailedChildFrameTest,
+       NonInitiatingViewDestructionPreservesFocus) {
+  // Create a separate child frame view to initiate the handwriting session.
+  auto root_view =
+      std::make_unique<testing::NiceMock<MockRenderWidgetHostView>>(
+          widget_host_.get());
+  RenderWidgetHostViewChildFrame* initiating_view =
+      RenderWidgetHostViewChildFrame::Create(widget_host_.get(),
+                                             display::ScreenInfos());
+  auto connector = std::make_unique<MockFrameConnector>();
+  connector->SetView(initiating_view, false);
+  connector->SetRootRenderWidgetHostView(root_view.get());
+  initiating_view->SetFrameConnector(connector.get());
+
+  mock_focus_args_ =
+      stylus_handwriting_win_test_helper_.SetUpWaitingForFocusResult(
+          initiating_view->GetWeakPtr());
+
+  EXPECT_CALL(*mock_focus_args_.Get(), SetResponse(_)).Times(0);
+
+  // Destroy the unrelated fixture view; it did not initiate the session.
+  RenderWidgetHostViewChildFrame* local_view = view_;
+  view_ = nullptr;
+  local_view->Destroy();
+
+  EXPECT_TRUE(
+      StylusHandwritingControllerWin::GetInstance()->IsWaitingForFocusResult());
+
+  // Verify now; the session is resolved when `initiating_view` is destroyed
+  // below, which would otherwise trip the Times(0) expectation.
+  testing::Mock::VerifyAndClearExpectations(mock_focus_args_.Get());
+
+  initiating_view->Destroy();
+  connector->SetRootRenderWidgetHostView(nullptr);
+}
+
+// Verify that destroying the child frame view that initiated an in-flight
+// session after the session started but before TSF delivers
+// FocusHandwritingTarget causes the subsequent FocusHandwritingTarget to be
+// declined immediately rather than forwarded, so the Shell Handwriting API is
+// not left awaiting a response that can never arrive.
+TEST_F(StylusHandwritingOnFocusFailedChildFrameTest,
+       InitiatingViewDestroyedBeforeTargetDeclinesFocus) {
+  // Start the session but do not deliver FocusHandwritingTarget yet.
+  mock_focus_args_ =
+      stylus_handwriting_win_test_helper_.SetUpStartedStylusWriting(
+          view_->GetWeakPtr());
+  auto* controller = StylusHandwritingControllerWin::GetInstance();
+  ASSERT_FALSE(controller->IsWaitingForFocusResult());
+
+  // The target must be declined, not forwarded to the renderer.
+  EXPECT_CALL(*mock_focus_args_.Get(), SetResponse(::TF_NO_HANDWRITING_TARGET))
+      .Times(1);
+
+  // Destroying the initiating view before the target arrives arms the decline.
+  RenderWidgetHostViewChildFrame* local_view = view_;
+  view_ = nullptr;
+  local_view->Destroy();
+
+  // When TSF finally delivers the target, it is declined synchronously (S_OK,
+  // not TF_S_ASYNC) and no focus result remains pending.
+  auto sink = controller->GetCallbackSinkForTesting();
+  ASSERT_TRUE(sink);
+  EXPECT_EQ(S_OK, sink->FocusHandwritingTarget(mock_focus_args_.Get()));
+  EXPECT_FALSE(controller->IsWaitingForFocusResult());
+}
+
+// Verify that OnEditElementFocusedForStylusWriting calls OnFocusFailed when
+// the child frame has no root view.
+TEST_F(StylusHandwritingOnFocusFailedChildFrameTest, NoRootView) {
+  mock_focus_args_ =
+      stylus_handwriting_win_test_helper_.SetUpWaitingForFocusResult(
+          view_->GetWeakPtr());
+
+  // Remove the root view from the frame connector so GetRootView() returns
+  // nullptr.
+  test_frame_connector_->SetRootRenderWidgetHostView(nullptr);
+
+  EXPECT_CALL(*mock_focus_args_.Get(), SetResponse(::TF_NO_HANDWRITING_TARGET))
+      .Times(1);
+
+  view_->OnEditElementFocusedForStylusWriting(nullptr);
+
+  EXPECT_FALSE(
+      StylusHandwritingControllerWin::GetInstance()->IsWaitingForFocusResult());
+}
+#endif  // BUILDFLAG(IS_WIN)
+
+TEST_F(RenderWidgetHostViewChildFrameTest, SelectionBoundsClampedToViewBounds) {
+  auto root_view =
+      std::make_unique<testing::NiceMock<MockRenderWidgetHostView>>(
+          widget_host_.get());
+  RenderWidgetHostViewChildFrame* child_view =
+      RenderWidgetHostViewChildFrame::Create(widget_host_.get(),
+                                             display::ScreenInfos());
+  std::unique_ptr<MockFrameConnector> connector =
+      std::make_unique<MockFrameConnector>();
+  connector->SetRootRenderWidgetHostView(root_view.get());
+  connector->SetView(child_view, false);
+
+  // Set local frame bounds and size DIP to 100x100.
+  connector->SetRectInParentView(gfx::Rect(0, 0, 100, 100));
+  connector->SetLocalFrameSize(gfx::Size(100, 100));
+  child_view->SetSize(gfx::Size(100, 100));
+
+  // Report selection bounds with spoofed coordinates far outside [0, 0, 100,
+  // 100].
+  cc::RenderFrameMetadata metadata;
+  metadata.selection.start.set_type(gfx::SelectionBound::LEFT);
+  metadata.selection.start.set_visible(true);
+  metadata.selection.start.SetEdge(gfx::PointF(-50.0f, -50.0f),
+                                   gfx::PointF(-50.0f, -10.0f));
+  metadata.selection.start.SetVisibleEdge(gfx::PointF(-50.0f, -50.0f),
+                                          gfx::PointF(-50.0f, -10.0f));
+
+  metadata.selection.end.set_type(gfx::SelectionBound::RIGHT);
+  metadata.selection.end.set_visible(true);
+  metadata.selection.end.SetEdge(gfx::PointF(200.0f, 200.0f),
+                                 gfx::PointF(200.0f, 250.0f));
+  metadata.selection.end.SetVisibleEdge(gfx::PointF(200.0f, 200.0f),
+                                        gfx::PointF(200.0f, 250.0f));
+
+  widget_host_->render_frame_metadata_provider()
+      ->SetLastRenderFrameMetadataForTest(metadata);
+  child_view->OnRenderFrameMetadataChangedAfterActivation(base::TimeTicks());
+
+  // Verify that start and end bounds sent to the manager were clamped to [0,
+  // 100].
+  gfx::SelectionBound start =
+      root_view->selection_manager()->last_selection_start();
+  gfx::SelectionBound end =
+      root_view->selection_manager()->last_selection_end();
+
+  EXPECT_EQ(gfx::PointF(0.0f, 0.0f), start.edge_start());
+  EXPECT_EQ(gfx::PointF(0.0f, 0.0f), start.edge_end());
+  EXPECT_EQ(gfx::PointF(100.0f, 100.0f), end.edge_start());
+  EXPECT_EQ(gfx::PointF(100.0f, 100.0f), end.edge_end());
+
+  child_view->Destroy();
+  connector->SetRootRenderWidgetHostView(nullptr);
 }
 
 }  // namespace content

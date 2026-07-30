@@ -10,6 +10,7 @@
 #import "url/gurl.h"
 
 @class CommandDispatcher;
+@protocol BrowserProvider;
 class ProfileIOS;
 
 // Test double for SceneState, created with appropriate interface objects backed
@@ -19,23 +20,20 @@ class ProfileIOS;
 @interface FakeSceneState : SceneState
 
 // Designated initializer.
-- (instancetype)initWithAppState:(AppState*)appState
-                         profile:(ProfileIOS*)profile
-                  sceneSessionID:(std::string)sceneSessionID
-               commandDispatcher:(CommandDispatcher*)commandDispatcher
+- (instancetype)initWithProfile:(ProfileIOS*)profile
+                 sceneSessionID:(std::string)sceneSessionID
+              commandDispatcher:(CommandDispatcher*)commandDispatcher
     NS_DESIGNATED_INITIALIZER;
 
 // Convenience initializer that uses a default value for `commandDispatcher`.
-- (instancetype)initWithAppState:(AppState*)appState
-                         profile:(ProfileIOS*)profile
-                  sceneSessionID:(std::string)sceneSessionID;
+- (instancetype)initWithProfile:(ProfileIOS*)profile
+                 sceneSessionID:(std::string)sceneSessionID;
 
 // Convenience initializer that uses default values for `sceneSessionID`
 // and `commandDispatcher`.
-- (instancetype)initWithAppState:(AppState*)appState
-                         profile:(ProfileIOS*)profile;
+- (instancetype)initWithProfile:(ProfileIOS*)profile;
 
-- (instancetype)initWithAppState:(AppState*)appState NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
 
 // Redeclares interface provider as readwrite.
 @property(nonatomic, strong, readwrite)
@@ -46,8 +44,12 @@ class ProfileIOS;
 // and backed by an instance variable.
 @property(nonatomic, strong, readwrite) UIWindow* window;
 
-// Redeclares appState as readwrite.
-@property(nonatomic, weak, readwrite) AppState* appState;
+// Updates the current BrowserProvider. Must be either -mainBrowserProvider
+// or -incognitoBrowserProvider from -browserProviderInterface.
+- (void)setCurrentBrowserProvider:(id<BrowserProvider>)browserProvider;
+
+// Destroys and recreates the off-the-record Profile and Browser.
+- (void)destroyAndRecreateOffTheRecordProfile;
 
 // Appends a suitable web state test double to the receiver's main interface.
 - (void)appendWebStateWithURL:(const GURL&)URL;

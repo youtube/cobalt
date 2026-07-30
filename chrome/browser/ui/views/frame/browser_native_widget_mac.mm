@@ -97,52 +97,16 @@ bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
   return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
 }
 
-double GetGlassFrameTintOpacity(bool is_dark_mode) {
-  double opacity = 0.0;
+double GetGlassFrameTintOpacity(bool is_dark_mode, bool is_vertical_tabs) {
+  constexpr double kLiquidGlassOpacity = 0.55;
 
-  if (features::kUseLiquidGlassEffect.Get()) {
-    constexpr double kLiquidGlassOpacity = 0.55;
+  double opacity_value = is_dark_mode
+                             ? features::kTintOpacityForDarkMode.Get()
+                             : features::kTintOpacityForLightMode.Get();
 
-    double opacity_value = is_dark_mode
-                               ? features::kTintOpacityForDarkMode.Get()
-                               : features::kTintOpacityForLightMode.Get();
-
-    opacity = opacity_value >= 0.0 ? opacity_value : kLiquidGlassOpacity;
-  } else {
-    constexpr double kVisualEffectOpacityLightMode = 0.50;
-    constexpr double kVisualEffectOpacityDarkMode = 0.80;
-
-    double opacity_value = is_dark_mode
-                               ? features::kTintOpacityForDarkMode.Get()
-                               : features::kTintOpacityForLightMode.Get();
-
-    opacity = opacity_value >= 0.0
-                  ? opacity_value
-                  : (is_dark_mode ? kVisualEffectOpacityDarkMode
-                                  : kVisualEffectOpacityLightMode);
-  }
+  double opacity = opacity_value >= 0.0 ? opacity_value : kLiquidGlassOpacity;
 
   return std::clamp(opacity, 0.0, 1.0);
-}
-
-NSVisualEffectMaterial GetVisualEffectMaterial(bool vertical_tabs) {
-  if (vertical_tabs) {
-    constexpr NSVisualEffectMaterial kVisualEffectMaterialForSidebar =
-        NSVisualEffectMaterialUnderWindowBackground;
-
-    return features::kVisualEffectMaterialForSidebar.Get() >= 0
-               ? static_cast<NSVisualEffectMaterial>(
-                     features::kVisualEffectMaterialForSidebar.Get())
-               : kVisualEffectMaterialForSidebar;
-  } else {
-    constexpr NSVisualEffectMaterial kVisualEffectMaterialForTitlebar =
-        NSVisualEffectMaterialHUDWindow;
-
-    return features::kVisualEffectMaterialForTitlebar.Get() >= 0
-               ? static_cast<NSVisualEffectMaterial>(
-                     features::kVisualEffectMaterialForTitlebar.Get())
-               : kVisualEffectMaterialForTitlebar;
-  }
 }
 
 }  // namespace
@@ -155,15 +119,6 @@ API_AVAILABLE(macos(26.0))
 @end
 
 @implementation GlassFrameBackgroundView
-- (NSView*)hitTest:(NSPoint)point {
-  return nil;
-}
-@end
-
-@interface VisualEffectBackgroundView : NSVisualEffectView
-@end
-
-@implementation VisualEffectBackgroundView
 - (NSView*)hitTest:(NSPoint)point {
   return nil;
 }
@@ -342,7 +297,7 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
     case IDC_ROUTE_MEDIA: {
       // Hide this menu option if Media Router is disabled.
       result->new_hidden_state =
-          !media_router::MediaRouterEnabled(browser->profile());
+          !media_router::MediaRouterEnabled(browser->GetProfile());
       break;
     }
     case IDC_BACK:
@@ -398,7 +353,7 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       result->set_toggle_state = false;
       break;
     case IDC_SHOW_BOOKMARK_BAR: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state =
           prefs->GetBoolean(bookmarks::prefs::kShowBookmarkBar);
       break;
@@ -410,14 +365,14 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
         result->new_toggle_state =
             app_controller->AlwaysShowToolbarInFullscreen();
       } else {
-        PrefService* prefs = browser->profile()->GetPrefs();
+        PrefService* prefs = browser->GetProfile()->GetPrefs();
         result->new_toggle_state =
             prefs->GetBoolean(prefs::kShowFullscreenToolbar);
       }
       break;
     }
     case IDC_SHOW_FULL_URLS: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state =
           prefs->GetBoolean(omnibox::kPreventUrlElisionsInOmnibox);
       // Disable this menu option if the show full URLs pref is managed.
@@ -427,7 +382,7 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       break;
     }
     case IDC_SHOW_GOOGLE_LENS_SHORTCUT: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state =
           prefs->GetBoolean(omnibox::kShowGoogleLensShortcut);
       // Disable this menu option if the LensOverlay feature is not enabled.
@@ -437,16 +392,16 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       break;
     }
     case IDC_SHOW_AI_MODE_OMNIBOX_BUTTON: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state =
           prefs->GetBoolean(omnibox::kShowAiModeOmniboxButton);
       // Disable this menu option if the AI Mode feature is not enabled.
       result->enable =
-          omnibox::ShouldShowAimContextMenuOption(browser->profile());
+          omnibox::ShouldShowAimContextMenuOption(browser->GetProfile());
       break;
     }
     case IDC_SHOW_SEARCH_TOOLS: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state = prefs->GetBoolean(omnibox::kShowSearchTools);
       // Disable this menu option if the toolbelt feature is not enabled.
       result->enable = omnibox_feature_configs::Toolbelt::Get().enabled;
@@ -481,7 +436,7 @@ void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       break;
     }
     case IDC_TOGGLE_JAVASCRIPT_APPLE_EVENTS: {
-      PrefService* prefs = browser->profile()->GetPrefs();
+      PrefService* prefs = browser->GetProfile()->GetPrefs();
       result->new_toggle_state =
           prefs->GetBoolean(prefs::kAllowJavascriptAppleEvents);
       break;
@@ -850,13 +805,6 @@ void BrowserNativeWidgetMac::UpdateBackground(bool is_eligible) {
     background_view_ = nil;
   }
 
-  // A completely transparent background ([NSColor clearColor]) causes AppKit
-  // to continuously invalidate the window surface, resulting in high CPU
-  // and energy usage. Using an almost-transparent color (alpha 0.001) avoids
-  // this performance issue while remaining visually indistinguishable.
-  [ns_window setBackgroundColor:[[NSColor windowBackgroundColor]
-                                    colorWithAlphaComponent:0.001]];
-
   NSView* const content_view = [ns_window contentView];
 
   last_preferred_color_scheme_ = color_scheme;
@@ -873,41 +821,25 @@ void BrowserNativeWidgetMac::UpdateBackground(bool is_eligible) {
   const CGFloat b = SkColorGetB(theme_color) / 255.0;
   const CGFloat a =
       GetGlassFrameTintOpacity(last_preferred_color_scheme_ !=
-                               ui::NativeTheme::PreferredColorScheme::kDark);
+                                   ui::NativeTheme::PreferredColorScheme::kDark,
+                               is_vertical_tabs);
 
-  if (features::kUseLiquidGlassEffect.Get()) {
-    if (@available(macOS 26.0, *)) {
-      NSGlassEffectView* const glass_view =
-          [[GlassFrameBackgroundView alloc] initWithFrame:content_view.bounds];
-      glass_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-      glass_view.style = NSGlassEffectViewStyleRegular;
+  // A completely transparent background ([NSColor clearColor]) causes AppKit
+  // to continuously invalidate the window surface, resulting in high CPU
+  // and energy usage. Using an almost-transparent color (alpha 0.001) avoids
+  // this performance issue while remaining visually indistinguishable.
+  [ns_window setBackgroundColor:[[NSColor windowBackgroundColor]
+                                    colorWithAlphaComponent:0.001]];
 
-      glass_view.tintColor = [NSColor colorWithSRGBRed:r
-                                                 green:g
-                                                  blue:b
-                                                 alpha:a];
+  if (@available(macOS 26.0, *)) {
+    NSGlassEffectView* const glass_view =
+        [[GlassFrameBackgroundView alloc] initWithFrame:content_view.bounds];
+    glass_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    glass_view.style = NSGlassEffectViewStyleRegular;
 
-      background_view_ = glass_view;
-      [content_view addSubview:background_view_
-                    positioned:NSWindowBelow
-                    relativeTo:nil];
-    }
-  } else {
-    NSVisualEffectView* effect_view =
-        [[VisualEffectBackgroundView alloc] initWithFrame:content_view.bounds];
-    effect_view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    effect_view.blendingMode = NSVisualEffectBlendingModeBehindWindow;
-    effect_view.state = NSVisualEffectStateFollowsWindowActiveState;
-    effect_view.material = GetVisualEffectMaterial(is_vertical_tabs);
+    glass_view.tintColor = [NSColor colorWithSRGBRed:r green:g blue:b alpha:a];
 
-    NSView* tint_layer = [[NSView alloc] initWithFrame:effect_view.bounds];
-    tint_layer.wantsLayer = YES;
-    tint_layer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    tint_layer.layer.backgroundColor =
-        [NSColor colorWithSRGBRed:r green:g blue:b alpha:a].CGColor;
-
-    [effect_view addSubview:tint_layer];
-    background_view_ = effect_view;
+    background_view_ = glass_view;
     [content_view addSubview:background_view_
                   positioned:NSWindowBelow
                   relativeTo:nil];

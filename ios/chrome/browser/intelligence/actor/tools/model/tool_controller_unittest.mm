@@ -42,7 +42,7 @@ class AsyncActorToolFactory : public ActorToolFactory {
   explicit AsyncActorToolFactory(ProfileIOS* profile)
       : ActorToolFactory(profile) {}
   base::expected<std::unique_ptr<ActorTool>, ToolExecutionResult> CreateTool(
-      const optimization_guide::proto::Action& action,
+      const ActorToolRequest& request,
       ToolDelegate* tool_delegate) override {
     return std::make_unique<AsyncActorTool>();
   }
@@ -75,7 +75,7 @@ class StabilizingActorToolFactory : public ActorToolFactory {
       : ActorToolFactory(profile), web_state_(web_state) {}
 
   base::expected<std::unique_ptr<ActorTool>, ToolExecutionResult> CreateTool(
-      const optimization_guide::proto::Action& action,
+      const ActorToolRequest& request,
       ToolDelegate* tool_delegate) override {
     auto tool = std::make_unique<StabilizingActorTool>();
     tool->SetWebState(web_state_);
@@ -92,6 +92,7 @@ class ToolControllerTest : public PlatformTest, public ToolDelegate {
     profile_ = TestProfileIOS::Builder().Build();
     journal_ = std::make_unique<AggregatedJournal>();
     tool_factory_ = std::make_unique<ActorToolFactory>(profile_.get());
+    scoped_feature_list_.InitAndEnableFeature(kActorTools);
   }
 
   void SetUp() override {
@@ -118,6 +119,7 @@ class ToolControllerTest : public PlatformTest, public ToolDelegate {
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<ActorToolFactory> tool_factory_;
   std::unique_ptr<AggregatedJournal> journal_;
@@ -167,6 +169,19 @@ TEST_F(ToolControllerTest, SuccessfulExecutionFlow) {
   EXPECT_TRUE(invoke_callback_called);
   ASSERT_TRUE(invoke_result.has_value());
   EXPECT_TRUE(invoke_result->IsOk());
+}
+
+// Tests that if tool validation fails the ToolController returns the error.
+TEST_F(ToolControllerTest, ValidationFailure) {
+  // A request that will pass creation but fail validation.
+  std::unique_ptr<ActorToolRequest> request = MakeFailingActorToolRequest();
+
+  base::test::TestFuture<ToolExecutionResult> future;
+  controller_->CreateToolAndValidate(*request, future.GetCallback());
+
+  ToolExecutionResult result = future.Get();
+  EXPECT_FALSE(result.IsOk());
+  EXPECT_EQ(result.code(), mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 // Tests that if tool creation fails synchronously, it transitions back to READY

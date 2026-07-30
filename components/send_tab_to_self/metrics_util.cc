@@ -101,6 +101,8 @@ SendTabToSelfDeviceCount GetSendTabToSelfDeviceCount(
   switch (reason) {
     case EntryPointDisplayReason::kOfferSignIn:
       return SendTabToSelfDeviceCount::kNoTargetDevicesBecauseSignedOut;
+    case EntryPointDisplayReason::kOfferReauth:
+      return SendTabToSelfDeviceCount::kNoTargetDevicesBecauseSigninPending;
     case EntryPointDisplayReason::kInformNoTargetDevice:
       return SendTabToSelfDeviceCount::kZeroDevices;
     case EntryPointDisplayReason::kOfferFeature:
@@ -285,6 +287,11 @@ void RecordEntryPointSent(ShareEntryPoint entry_point) {
 
 void RecordSendResult(SendTabToSelfResult result) {
   base::UmaHistogramEnumeration("Sharing.SendTabToSelf.SendResult", result);
+}
+
+void RecordIsLocalDeviceNameAvailableOnSend(bool is_available) {
+  base::UmaHistogramBoolean(
+      "Sharing.SendTabToSelf.IsLocalDeviceNameAvailableOnSend", is_available);
 }
 
 }  // namespace send_tab_to_self

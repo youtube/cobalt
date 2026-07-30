@@ -6,10 +6,8 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -120,15 +118,6 @@ Resource* PreloadRequest::Start(Document* document) {
   resource_request.SetExpectedPublicKeys(integrity_metadata_);
   resource_request.SetFetchPriorityHint(fetch_priority_hint_);
 
-  // Disable issue logging to avoid duplicates, since `CanRegister()` will be
-  // called again later.
-  if (is_attribution_reporting_eligible_img_or_script_ &&
-      document->domWindow()->GetFrame()->GetAttributionSrcLoader()->CanRegister(
-          url, /*element=*/nullptr, /*log_issues=*/false)) {
-    resource_request.SetAttributionReportingEligibility(
-        network::mojom::AttributionReportingEligibility::kEventSourceOrTrigger);
-  }
-
   bool shared_storage_writable_opted_in =
       shared_storage_writable_opted_in_ &&
       RuntimeEnabledFeatures::SharedStorageAPIEnabled(document->domWindow()) &&
@@ -140,12 +129,6 @@ Resource* PreloadRequest::Start(Document* document) {
     CHECK_EQ(resource_type_, ResourceType::kImage);
     UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
   }
-
-  bool browsing_topics =
-      browsing_topics_eligible_ && RuntimeEnabledFeatures::TopicsAPIEnabled() &&
-      document->domWindow()->IsSecureContext() &&
-      !document->domWindow()->GetSecurityOrigin()->IsOpaque();
-  resource_request.SetBrowsingTopics(browsing_topics);
 
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;

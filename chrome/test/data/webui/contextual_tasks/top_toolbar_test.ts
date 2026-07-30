@@ -7,14 +7,11 @@ import 'chrome://contextual-tasks/sources_menu.js';
 
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import type {ContextualTasksFaviconGroupElement} from 'chrome://contextual-tasks/favicon_group.js';
-import type {SourcesMenuElement} from 'chrome://contextual-tasks/sources_menu.js';
 import type {TopToolbarElement} from 'chrome://contextual-tasks/top_toolbar.js';
-import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
@@ -31,6 +28,8 @@ suite('TopToolbarTest', () => {
     loadTimeData.overrideValues({
       contextManagementInComposeboxEnabled: false,
       contextualTasksEnableSpatialModelToolbarLayout: false,
+      contextualTasksUnboundedMenuEnabled: true,
+      contextualTasksSidePanelRearchitectureEnabled: false,
     });
   });
 
@@ -151,45 +150,6 @@ suite('TopToolbarTest', () => {
       assertTrue(!!sourcesButton.shadowRoot.querySelector('.favicon-item'));
     });
 
-    test('handles sources menu interactions', async () => {
-      const tab = {
-        title: 'Tab 1',
-        url: 'https://example.com',
-        hasChromeTabData: false,
-        tabId: 1,
-      };
-      topToolbar.contextInfos = [{tab: tab}];
-      await microtasksFinished();
-
-      const sourcesButton =
-          topToolbar.shadowRoot.querySelector<HTMLElement>('#sources');
-      assertTrue(!!sourcesButton);
-      sourcesButton.click();
-      await microtasksFinished();
-
-      const sourcesMenuElement: SourcesMenuElement =
-          topToolbar.$.sourcesMenu.get();
-      const crActionMenu =
-          sourcesMenuElement.shadowRoot.querySelector<CrActionMenuElement>(
-              'cr-action-menu');
-      assertTrue(!!crActionMenu);
-      assertTrue(crActionMenu.open);
-
-      // The header is "Shared tabs and files".
-      const headers = sourcesMenuElement.shadowRoot.querySelectorAll('.header');
-      assertEquals(1, headers.length);
-
-      // Click the first tab item.
-      const tabItem = sourcesMenuElement.shadowRoot.querySelector<HTMLElement>(
-          'cr-url-list-item.dropdown-item');
-      assertTrue(!!tabItem);
-      tabItem.click();
-
-      const [tabId, url] =
-          await proxy.handler.whenCalled('onTabClickedFromSourcesMenu');
-      assertEquals(tabId, 1);
-      assertDeepEquals(url, tab.url);
-    });
 
     test('handles file sources menu interactions', async () => {
       const file = {
@@ -370,6 +330,34 @@ suite('TopToolbarTest', () => {
           sourcesButton.shadowRoot.querySelector<HTMLElement>('#more-items');
       assertTrue(!!moreItems);
     });
+
+    test('logo click does not trigger page info when flag disabled', () => {
+      const logo = topToolbar.shadowRoot.querySelector<HTMLImageElement>(
+          '.top-toolbar-logo');
+      assertHTMLElement(logo);
+      assertFalse(logo.classList.contains('clickable'));
+
+      logo.click();
+      assertEquals(0, proxy.handler.getCallCount('showPageInfoBubble'));
+    });
+
+    test('logo click triggers page info when flag enabled', async () => {
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.overrideValues({
+        contextualTasksSidePanelRearchitectureEnabled: true,
+      });
+      topToolbar = document.createElement('top-toolbar');
+      document.body.appendChild(topToolbar);
+      await microtasksFinished();
+
+      const logo = topToolbar.shadowRoot.querySelector<HTMLImageElement>(
+          '.top-toolbar-logo');
+      assertHTMLElement(logo);
+      assertTrue(logo.classList.contains('clickable'));
+
+      logo.click();
+      await proxy.handler.whenCalled('showPageInfoBubble');
+    });
   });
 
   suite('Pinning', () => {
@@ -450,29 +438,6 @@ suite('TopToolbarTest', () => {
     });
 
     const isPhone = loadTimeData.getBoolean('isSmallDeviceFormFactor');
-    (isPhone ? test.skip : test)('handles more menu interactions', async () => {
-      const metrics = fakeMetricsPrivate();
-      const moreButton =
-          topToolbar.shadowRoot.querySelector<CrIconButtonElement>(
-              '#overflowMenuButton');
-      assertTrue(!!moreButton);
-      moreButton.click();
-      await microtasksFinished();
-
-      const menu = topToolbar.$.overflowMenu.get();
-      assertTrue(menu.shadowRoot.querySelector('cr-action-menu')!.open);
-
-      const buttons = menu.shadowRoot.querySelectorAll('button');
-      assertEquals(3, buttons.length);
-
-      assertEquals(
-          2,
-          metrics.count('ContextualTasks.WebUI.UserAction.OpenOverflowMenu'));
-      assertEquals(
-          1,
-          metrics.count(
-              'ContextualTasks.WebUI.UserAction.OpenOverflowMenu', true));
-    });
 
     test('menu button visibility independent of ai page state', async () => {
       const moreButton =
@@ -699,14 +664,22 @@ suite('TopToolbarTest', () => {
     assertTrue(item2.classList.contains('favicon-item'));
     assertTrue(item2.classList.contains('file-icon'));
     assertEquals(item2.tagName, 'CR-ICON');
-    assertEquals((item2 as CrIconElement).icon, 'contextual_tasks:pdf');
+    assertEquals(
+        (item2 as CrIconElement).icon,
+        loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+            'contextual_tasks:drive-pdf-filled' :
+            'contextual_tasks:pdf-old');
 
     // Check item 3 (image).
     const item3 = items[2];
     assertHTMLElement(item3);  // Assert first
     assertTrue(item3.classList.contains('favicon-item'));
     assertEquals(item3.tagName, 'CR-ICON');
-    assertEquals((item3 as CrIconElement).icon, 'contextual_tasks:img_icon');
+    assertEquals(
+        (item3 as CrIconElement).icon,
+        loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+            'contextual_tasks:image' :
+            'contextual_tasks:img_icon-old');
 
     const moreItems =
         sourcesButton.shadowRoot.querySelector<HTMLElement>('#more-items');
@@ -795,17 +768,33 @@ suite('TopToolbarTest', () => {
     assertTrue(!!overflowMenuButton);
     assertFalse(overflowMenuButton.classList.contains('active'));
 
+    const menu = topToolbar.$.overflowMenu.get();
+    let showUnboundedCalled = false;
+    let hideUnboundedCalled = false;
+    const dialogEl = menu.$.menu.getDialog() as any;
+    dialogEl.showUnboundedElement = () => {
+      showUnboundedCalled = true;
+      return Promise.resolve();
+    };
+    dialogEl.hideUnboundedElement = () => {
+      hideUnboundedCalled = true;
+      return Promise.resolve();
+    };
+
     // Open overflow menu
     overflowMenuButton.click();
     await microtasksFinished();
 
     assertTrue(overflowMenuButton.classList.contains('active'));
+    assertTrue(showUnboundedCalled);
+    assertTrue(dialogEl.hasAttribute('unbounded'));
 
     // Close overflow menu
-    const menu = topToolbar.$.overflowMenu.get();
     menu.close();
     await microtasksFinished();
 
     assertFalse(overflowMenuButton.classList.contains('active'));
+    assertTrue(hideUnboundedCalled);
+    assertFalse(dialogEl.hasAttribute('unbounded'));
   });
 });

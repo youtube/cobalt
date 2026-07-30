@@ -120,7 +120,9 @@ void RenderWidgetHostViewChildFrame::
       manager->RemoveObserver(this);
 #if BUILDFLAG(IS_ANDROID)
       auto* observer = root_view->GetTouchSelectionControllerInputObserver();
-      host()->RemoveInputEventObserver(observer);
+      if (observer) {
+        host()->RemoveInputEventObserver(observer);
+      }
 #endif
     }
   } else {
@@ -188,7 +190,9 @@ void RenderWidgetHostViewChildFrame::SetFrameConnector(
 
 #if BUILDFLAG(IS_ANDROID)
       auto* observer = root_view->GetTouchSelectionControllerInputObserver();
-      host()->AddInputEventObserver(observer);
+      if (observer) {
+        host()->AddInputEventObserver(observer);
+      }
 #endif
     }
   }
@@ -397,9 +401,10 @@ void RenderWidgetHostViewChildFrame::UpdateBackgroundColor() {
   CHECK(GetBackgroundColor(), base::NotFatalUntil::M152);
 
   SkColor color = *GetBackgroundColor();
-  CHECK(SkColorGetA(color) == SK_AlphaOPAQUE ||
-            SkColorGetA(color) == SK_AlphaTRANSPARENT,
-        base::NotFatalUntil::M152);
+  // TODO(crbug.com/535539883): CHECK-exclusion: Convert to a CHECK once we
+  // are confident it won't be triggered.
+  DCHECK(SkColorGetA(color) == SK_AlphaOPAQUE ||
+         SkColorGetA(color) == SK_AlphaTRANSPARENT);
   if (host()->owner_delegate()) {
     host()->owner_delegate()->SetBackgroundOpaque(SkColorGetA(color) ==
                                                   SK_AlphaOPAQUE);
@@ -486,18 +491,19 @@ void RenderWidgetHostViewChildFrame::OnStartStylusWriting() {
   if (!root) {
     return;
   }
-  // Register a callback on the root view that handles the TSF
-  // FocusHandwritingTarget response directly in this child frame.
-  root->SetStylusHandwritingFocusCallback(base::BindRepeating(
-      &RenderWidgetHostViewChildFrame::OnFocusHandwritingTarget,
-      weak_factory_.GetWeakPtr()));
-  root->OnStartStylusWriting();
+  root->StartStylusWritingFromChildHostView(
+      this, base::BindRepeating(
+                &RenderWidgetHostViewChildFrame::OnFocusHandwritingTarget,
+                weak_factory_.GetWeakPtr()));
 }
 
 void RenderWidgetHostViewChildFrame::OnEditElementFocusedForStylusWriting(
     blink::mojom::StylusWritingFocusResultPtr focus_result) {
   auto* root = GetRootView();
   if (!root) {
+    if (StylusHandwritingControllerWin::GetInstance()) {
+      StylusHandwritingControllerWin::GetInstance()->OnFocusFailed();
+    }
     return;
   }
   // Transform proximate character bounds from child frame widget space to root
@@ -516,9 +522,6 @@ void RenderWidgetHostViewChildFrame::OnFocusHandwritingTarget(
     const gfx::Size& tolerance_screen_distance_in_dips) {
   // TODO(crbug.com/355578906): Consider `tolerance_screen_distance_in_dips`.
   if (!host()) {
-    if (StylusHandwritingControllerWin::GetInstance()) {
-      StylusHandwritingControllerWin::GetInstance()->OnFocusFailed();
-    }
     return;
   }
 

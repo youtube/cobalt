@@ -9,10 +9,11 @@
 
 #include "base/check.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/content_settings/content_setting_image_model.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/content_setting_bubble_contents.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
@@ -26,13 +27,13 @@
 #include "components/permissions/permission_indicators_tab_data.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_uma_util.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/animation/animation.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
-#include "ui/views/mouse_constants.h"
 
 namespace {
 
@@ -384,17 +385,8 @@ void PermissionDashboardController::OnCollapseAnimationEnded() {
 }
 
 void PermissionDashboardController::OnMousePressed() {
-  // TODO(crbug.com/495419742): This synchronous check works for Native Views
-  // but suffers from a race condition in WebUI. In WebUI, the bubble may close
-  // on the OS side before the async `OnMousePressed` IPC arrives, causing this
-  // view check to fail and the bubble to reopen. The timestamp-based fallback
-  // currently used in `WebUILocationBar::OnLhsChipMousePressed` for the
-  // location icon should be extracted into a shared helper class so that it
-  // can be used here for permission chips as well.
   should_suppress_reopening_page_info_ =
-      !!page_info_bubble_tracker_.view() ||
-      (base::TimeTicks::Now() - last_page_info_bubble_close_time_ <
-       suppression_threshold_);
+      page_info_bubble_suppressor_.ShouldSuppress();
 }
 
 bool PermissionDashboardController::SuppressVerboseIndicator() {
@@ -477,7 +469,7 @@ void PermissionDashboardController::HideIndicators() {
 
 void PermissionDashboardController::ShowBubble() {
   content::WebContents* web_contents = location_bar_->GetWebContents();
-  if (web_contents && !page_info_bubble_tracker_) {
+  if (web_contents && !page_info_bubble_suppressor_.IsShowing()) {
     ContentSettingBubbleContents* bubble_view_ =
         new ContentSettingBubbleContents(
             content_setting_image_model_->CreateBubbleModel(
@@ -514,8 +506,8 @@ void PermissionDashboardController::ShowPageInfoDialog() {
   // different mouse click event propagation flow. In other words the mouse
   // click listener will be called before the PageInfo dialog receives a focus
   // change event. Hence the dialog will not be closed on time.
-  if (page_info_bubble_tracker_) {
-    page_info_bubble_tracker_.view()->GetWidget()->CloseWithReason(
+  if (page_info_bubble_suppressor_.IsShowing()) {
+    page_info_bubble_suppressor_.Close(
         views::Widget::ClosedReason::kUnspecified);
     return;
   }
@@ -531,29 +523,16 @@ void PermissionDashboardController::ShowPageInfoDialog() {
       PageInfoBubbleSpecification::Builder(permission_dashboard_->GetAnchor(),
                                            contents->GetTopLevelNativeWindow(),
                                            contents, entry->GetVirtualURL())
-          .AddPageInfoClosingCallback(base::BindOnce(
-              &PermissionDashboardController::OnPageInfoBubbleClosed,
-              weak_factory_.GetWeakPtr()))
           .Build();
 
   views::BubbleDialogDelegateView* const bubble =
       PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
   bubble->SetHighlightedElement(PermissionChipView::kIndicatorChipElementId);
   bubble->GetWidget()->Show();
-  page_info_bubble_tracker_.SetView(bubble);
+  page_info_bubble_suppressor_.Observe(bubble->GetWidget());
 }
 
-void PermissionDashboardController::OnPageInfoBubbleClosed(
-    views::Widget::ClosedReason closed_reason,
-    bool reload_prompt) {
-  last_page_info_bubble_close_time_ = base::TimeTicks::Now();
-}
 
-// static
-void PermissionDashboardController::SetSuppressionThresholdForTesting(
-    base::TimeDelta threshold) {
-  suppression_threshold_ = threshold;
-}
 
 void PermissionDashboardController::OnIndicatorsChipButtonPressed() {
   content::WebContents* contents = location_bar_->GetWebContents();

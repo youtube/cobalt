@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.settings;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
@@ -17,28 +18,119 @@ import android.widget.FrameLayout;
 
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ChromeBaseAppCompatActivity;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.settings.PreferenceUpdateObserver;
+import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
+
+import java.lang.ref.WeakReference;
 
 /** Hosts settings preference fragments inside a native page. See {@link SettingsPage}. */
 @NullMarked
 public class SettingsHostFragment extends Fragment
-        implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+        implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback,
+                PreferenceUpdateObserver,
+                SettingsContainmentHelper.Delegate {
 
     public static final String SETTINGS_NATIVE_PAGE_TAG = "settings_native_page";
 
     private static final int CONTAINER_ID = View.generateViewId();
 
     private @Nullable Context mThemedContext;
+    private @Nullable WeakReference<Fragment> mFinishedMainFragment;
+    private @Nullable FragmentDependencyProvider mDependencyProvider;
+    private @Nullable SettingsContainmentHelper mContainmentHelper;
+    private @Nullable WideDisplayPaddingApplier mWideDisplayPaddingApplier;
+    private int mPendingPopBackCount;
 
-    SettingsHostFragment() {
-        assert ChromeFeatureList.sSettingsInTab.isEnabled()
+    /** Public constructor needed for Fragment re-instantiation. */
+    public SettingsHostFragment() {
+        assert SettingsInTab.isEnabled()
                 : "SettingsInTab feature must be enabled to use SettingsHostFragment.";
+    }
+
+    /** Sets the dependency provider for child fragments. */
+    public void setDependencyProvider(FragmentDependencyProvider dependencyProvider) {
+        if (mDependencyProvider != null && isAdded()) {
+            getChildFragmentManager().unregisterFragmentLifecycleCallbacks(mDependencyProvider);
+        }
+        mDependencyProvider = dependencyProvider;
+        if (isAdded()) {
+            getChildFragmentManager()
+                    .registerFragmentLifecycleCallbacks(mDependencyProvider, /* recursive= */ true);
+        }
+    }
+
+    @Override
+    public boolean isTwoColumnSettingsVisible() {
+        Fragment active = getActiveFragment();
+        return active instanceof MultiColumnSettings multiColumnSettings
+                && multiColumnSettings.isTwoColumn();
+    }
+
+    @Override
+    public @Nullable MultiColumnSettings getMultiColumnSettings() {
+        Fragment active = getActiveFragment();
+        return active instanceof MultiColumnSettings multiColumnSettings
+                ? multiColumnSettings
+                : null;
+    }
+
+    @Override
+    public PreferenceUpdateObserver getPreferenceUpdateObserver() {
+        return this;
+    }
+
+    @Override
+    public void onPreferencesUpdated(PreferenceFragmentCompat fragment) {
+        if (mContainmentHelper != null) {
+            mContainmentHelper.postUpdateContainmentOnLayout(fragment);
+        }
+    }
+
+    public @Nullable SettingsContainmentHelper getContainmentHelper() {
+        return mContainmentHelper;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (mPendingPopBackCount == 0) return;
+
+        // If we have pending back entries, show the correct fragment. This can happen when a
+        // fragment called finishCurrentSettings() and needs to pop the back stack to show the
+        // correct fragment.
+        Fragment activeFragment = getActiveFragment();
+        FragmentManager fragmentManager =
+                activeFragment instanceof MultiColumnSettings multiColumnSettings
+                        ? multiColumnSettings.getChildFragmentManager()
+                        : getChildFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() <= mPendingPopBackCount) {
+            // Show the main settings UI (which is represented by null).
+            showFragment(null, /* addToBackStack= */ false, /* tag= */ null);
+        } else {
+            var backStackEntry =
+                    fragmentManager.getBackStackEntryAt(
+                            fragmentManager.getBackStackEntryCount() - mPendingPopBackCount);
+            fragmentManager.popBackStack(
+                    backStackEntry.getId(), FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        }
+        mPendingPopBackCount = 0;
     }
 
     @Override
@@ -47,6 +139,78 @@ public class SettingsHostFragment extends Fragment
         // For example, this ensures the left column category labels are styled correctly.
         mThemedContext = new ContextThemeWrapper(context, R.style.Theme_Chromium_Settings);
         super.onAttach(mThemedContext);
+
+        mContainmentHelper = new SettingsContainmentHelper(mThemedContext, this);
+        mContainmentHelper.registerCallbacks(getChildFragmentManager());
+
+        // Ensure wide display padding is applied and dividers are removed from child fragments
+        // (e.g. during activity restart after dark/light theme changes).
+        mWideDisplayPaddingApplier =
+                new WideDisplayPaddingApplier(
+                        mThemedContext,
+                        this::isTwoColumnSettingsVisible,
+                        /* mainFragmentTag= */ null);
+        getChildFragmentManager()
+                .registerFragmentLifecycleCallbacks(
+                        mWideDisplayPaddingApplier, /* recursive= */ true);
+
+        // Optionally create a temporary dependency provider for the current activity. This is only
+        // called when the fragment is attached to an activity and the dependency provider has not
+        // been set yet, for example during dark/light theme changes.
+        if (mDependencyProvider == null && ProfileManager.isInitialized()) {
+            mDependencyProvider = createOnAttachDependencyProvider();
+        }
+
+        // Either way, ensure fragment lifecycle callbacks are set.
+        if (mDependencyProvider != null) {
+            getChildFragmentManager()
+                    .registerFragmentLifecycleCallbacks(mDependencyProvider, /* recursive= */ true);
+        }
+    }
+
+    @Override
+    public void onDetach() {
+        if (mWideDisplayPaddingApplier != null) {
+            getChildFragmentManager()
+                    .unregisterFragmentLifecycleCallbacks(mWideDisplayPaddingApplier);
+            mWideDisplayPaddingApplier = null;
+        }
+        if (mContainmentHelper != null) {
+            mContainmentHelper.unregisterCallbacks(getChildFragmentManager());
+            mContainmentHelper = null;
+        }
+        super.onDetach();
+    }
+
+    /**
+     * Creates a temporary {@link FragmentDependencyProvider} for the current activity.
+     *
+     * <p>This is only called when the fragment is attached to an activity and the dependency
+     * provider has not been set yet.
+     */
+    private FragmentDependencyProvider createOnAttachDependencyProvider() {
+        assert ProfileManager.isInitialized();
+        Profile profile = ProfileManager.getLastUsedRegularProfile();
+        OneshotSupplierImpl<WindowAndroid> windowAndroidSupplier = new OneshotSupplierImpl<>();
+        OneshotSupplierImpl<SnackbarManager> snackbarSupplier = new OneshotSupplierImpl<>();
+        OneshotSupplierImpl<BottomSheetController> bottomSheetSupplier =
+                new OneshotSupplierImpl<>();
+        SettableMonotonicObservableSupplier<ModalDialogManager> modalDialogSupplier =
+                ObservableSuppliers.createMonotonic();
+        Activity activity = requireActivity();
+        assert activity instanceof ChromeBaseAppCompatActivity;
+        ChromeBaseAppCompatActivity chromeActivity = (ChromeBaseAppCompatActivity) activity;
+        ActivityResultTracker activityResultTracker = chromeActivity.getActivityResultTracker();
+
+        return new FragmentDependencyProvider(
+                activity,
+                profile,
+                windowAndroidSupplier,
+                activityResultTracker,
+                snackbarSupplier,
+                bottomSheetSupplier,
+                modalDialogSupplier,
+                () -> null);
     }
 
     @Override
@@ -109,16 +273,22 @@ public class SettingsHostFragment extends Fragment
         return getChildFragmentManager().findFragmentById(CONTAINER_ID);
     }
 
-    /** Returns the active {@link SettingsHostFragment} if attached to the activity, or null. */
+    /**
+     * Returns the active {@link SettingsHostFragment} if attached to the activity and shown, or
+     * null.
+     */
     public static @Nullable SettingsHostFragment get(@Nullable Activity activity) {
         if (!(activity instanceof FragmentActivity fragmentActivity)) return null;
-        Fragment fragment =
-                fragmentActivity
-                        .getSupportFragmentManager()
-                        .findFragmentByTag(SETTINGS_NATIVE_PAGE_TAG);
-        if (fragment instanceof SettingsHostFragment settingsHostFragment
-                && settingsHostFragment.isAttachedToActivity()) {
-            return settingsHostFragment;
+
+        // Setting host fragments have unique IDs, so search for the first attached visible one.
+        for (Fragment f : fragmentActivity.getSupportFragmentManager().getFragments()) {
+            if (f instanceof SettingsHostFragment settingsHostFragment
+                    && settingsHostFragment.isAttachedToActivity()) {
+                if (settingsHostFragment.getView() != null
+                        && settingsHostFragment.getView().isShown()) {
+                    return settingsHostFragment;
+                }
+            }
         }
         return null;
     }
@@ -141,6 +311,12 @@ public class SettingsHostFragment extends Fragment
             if (fragment == null || fragment instanceof MainSettings) {
                 if (multiColumnSettings.getSlidingPaneLayout().isSlideable()) {
                     multiColumnSettings.getSlidingPaneLayout().closePane();
+                } else {
+                    Fragment initialFragment = multiColumnSettings.onCreateInitialDetailFragment();
+                    if (initialFragment != null) {
+                        multiColumnSettings.showDetailFragment(
+                                initialFragment, /* addToBackStack= */ false, /* tag= */ null);
+                    }
                 }
                 return true;
             }
@@ -159,5 +335,62 @@ public class SettingsHostFragment extends Fragment
         }
         transaction.commitAllowingStateLoss();
         return true;
+    }
+
+    /**
+     * Returns the fragment showing as the settings main content, typically a {@link
+     * PreferenceFragmentCompat}.
+     */
+    public @Nullable Fragment getMainFragment() {
+        Fragment activeFragment = getActiveFragment();
+        if (activeFragment instanceof MultiColumnSettings multiColumnSettings) {
+            return multiColumnSettings
+                    .getChildFragmentManager()
+                    .findFragmentById(R.id.preferences_detail);
+        }
+        return activeFragment;
+    }
+
+    /**
+     * Finishes the current settings fragment. If the given fragment is not the current one, or the
+     * fragment is already finished, this method does nothing. If the back stack is empty, shows the
+     * main settings page.
+     *
+     * @param fragment The expected current fragment.
+     */
+    @SuppressLint("ReferenceEquality")
+    public void finishCurrentSettings(Fragment fragment) {
+        if (getMainFragment() != fragment) {
+            return;
+        }
+        if (mFinishedMainFragment != null && mFinishedMainFragment.get() == fragment) {
+            return;
+        }
+        mFinishedMainFragment = new WeakReference<>(fragment);
+
+        Fragment activeFragment = getActiveFragment();
+        FragmentManager fragmentManager =
+                activeFragment instanceof MultiColumnSettings multiColumnSettings
+                        ? multiColumnSettings.getChildFragmentManager()
+                        : getChildFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() == 0) {
+            // Show the main settings UI (which is represented by null).
+            showFragment(null, /* addToBackStack= */ false, /* tag= */ null);
+        } else {
+            if (fragmentManager.isStateSaved()) {
+                ++mPendingPopBackCount;
+            } else {
+                fragmentManager.popBackStack();
+            }
+        }
+    }
+
+    /** Executes pending navigations immediately. */
+    void executePendingNavigations() {
+        getChildFragmentManager().executePendingTransactions();
+        Fragment activeFragment = getActiveFragment();
+        if (activeFragment instanceof MultiColumnSettings multiColumnSettings) {
+            multiColumnSettings.getChildFragmentManager().executePendingTransactions();
+        }
     }
 }

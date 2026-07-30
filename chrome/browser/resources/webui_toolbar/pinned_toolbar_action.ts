@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 // <if expr="_google_chrome">
 import './internal/icons.html.js';
-
 // </if>
 
+import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+
+import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {assertNotReachedCase} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
@@ -23,6 +24,12 @@ import {getCss} from './toolbar_button.css.js';
 import {getContextMenuPosition, getContextMenuSourceType, HelpBubbleAnchorMixin, setHasHelpBubble} from './toolbar_button.js';
 
 const PinnedToolbarActionElementBase = HelpBubbleAnchorMixin(CrLitElement);
+
+export interface PinnedToolbarActionElement {
+  $: {
+    button: CrIconButtonElement,
+  };
+}
 
 export class PinnedToolbarActionElement extends PinnedToolbarActionElementBase {
   static get is() {
@@ -56,7 +63,9 @@ export class PinnedToolbarActionElement extends PinnedToolbarActionElementBase {
     icon: {handleId: 0n},
   };
 
-  private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
+  private get browserProxy_(): BrowserProxy {
+    return BrowserProxyImpl.getInstance();
+  }
   private iconTable_: IconTable = IconTable.getInstance();
   private registerHelpBubbleController_: AbortController|null = null;
 
@@ -145,6 +154,52 @@ export class PinnedToolbarActionElement extends PinnedToolbarActionElementBase {
   protected onActionClick_() {
     this.browserProxy_.toolbarUIHandler.invokePinnedToolbarAction(
         this.state.action);
+  }
+
+  // Delegate focus to the internal button element. Custom elements do not
+  // automatically delegate focus to their shadow DOM content unless configured
+  // with delegatesFocus, which Lit doesn't do by default for wrapper elements.
+  override focus() {
+    this.$.button.focus();
+  }
+
+  protected onDragstart_(e: DragEvent) {
+    if (!this.state.enabled || !e.dataTransfer) {
+      e.preventDefault();
+      return;
+    }
+    const payload = JSON.stringify({
+      actionId: this.state.action,
+    });
+    e.dataTransfer.setData('application/x-webui-pinned-action', payload);
+    e.dataTransfer.effectAllowed = 'move';
+
+    this.fire('pinned-action-drag-start', {action: this.state.action});
+  }
+
+  protected onDragend_(e: DragEvent) {
+    this.fire('pinned-action-drag-end', {
+      action: this.state.action,
+      dropEffect: e.dataTransfer?.dropEffect,
+    });
+  }
+
+
+  protected onKeydown_(e: KeyboardEvent) {
+    const isModifier = e.ctrlKey || e.metaKey;
+    if (!isModifier || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.key === 'ArrowLeft' ? -1 : 1;
+    // Notify the parent container that a keyboard reorder is occurring.
+    // The container will use this to lock and restore focus to this action
+    // button after the DOM updates with the new order.
+    this.fire('pinned-action-keyboard-reorder', {action: this.state.action});
+
+    this.browserProxy_.toolbarUIHandler.movePinnedToolbarActionBy(
+        this.state.action, delta);
   }
 
   private getContextMenuType_(): ContextMenuType {

@@ -4,6 +4,8 @@
 
 source_set("elements") {
   sources = [
+    "blue_dot_util.h",
+    "blue_dot_util.mm",
     "crossfade_label.h",
     "crossfade_label.mm",
     "extended_touch_target_button.h",
@@ -69,6 +71,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "activity_overlay_coordinator_unittest.mm",
+    "blue_dot_util_unittest.mm",
     "crossfade_label_unittest.mm",
     "fade_truncating_label_unittest.mm",
     "text_field_configuration_unittest.mm",
@@ -101,7 +104,6 @@ source_set("elements_internal") {
   deps = [
     ":constants",
     "//base",
-    "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/ui/util",

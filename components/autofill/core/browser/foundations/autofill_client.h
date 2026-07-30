@@ -151,6 +151,7 @@ struct Suggestion;
 enum class SuggestionHidingReason;
 enum class SuggestionType;
 class SingleFieldFillRouter;
+class TouchToFillAutofillDelegate;
 class ValuablesDataManager;
 class AutofillAiPersonalContextAccessManager;
 class VotesUploader;
@@ -758,6 +759,14 @@ class AutofillClient {
       base::WeakPtr<AutofillSuggestionDelegate> delegate);
   virtual void HideAtMemoryBottomSheet() {}
 
+  // Shows the Personal Context ambient autofill notice. Returns whether the
+  // notice was successfully shown.
+  virtual bool ShowAmbientAutoFillNotice(
+      base::WeakPtr<TouchToFillAutofillDelegate> delegate);
+
+  // Hides the Personal Context ambient autofill notice.
+  virtual void HideAmbientAutoFillNotice();
+
   // The AutofillSnackbarController is used to show a snackbar notification
   // on Android.
   virtual AutofillSnackbarControllerImpl* GetAutofillSnackbarController();
@@ -900,6 +909,10 @@ class AutofillClient {
 
   // Returns the AutofillManager instance for the current frame/tab.
   virtual AutofillManager* GetAutofillManagerForPrimaryMainFrame();
+
+  // Returns whether the client uses platform-native autofill rather than
+  // Chrome's built-in autofill UI/logic.
+  virtual bool UsesPlatformAutofill() const = 0;
 };
 
 }  // namespace autofill

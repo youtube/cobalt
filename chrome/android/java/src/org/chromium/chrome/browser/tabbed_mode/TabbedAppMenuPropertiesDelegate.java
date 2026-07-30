@@ -37,7 +37,6 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.device.DeviceConditions;
 import org.chromium.chrome.browser.enterprise.util.ManagedBrowserUtils;
 import org.chromium.chrome.browser.feed.FeedFeatures;
-import org.chromium.chrome.browser.feedback.FeedbackPolicyManager;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicEnabling;
@@ -62,6 +61,7 @@ import org.chromium.chrome.browser.share.ShareUtils;
 import org.chromium.chrome.browser.supervised_user.SupervisedUserServiceBridge;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.task_manager.TaskManager;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuItemState;
 import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
@@ -99,6 +99,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** An {@link AppMenuPropertiesDelegateImpl} for ChromeTabbedActivity. */
@@ -118,8 +119,16 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         int NEW_INCOGNITO = AppMenuHandler.AppMenuItemType.NUM_ENTRIES + 2;
     }
 
-    public static boolean isSubmenusEnabled() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_IN_APP_MENU);
+    public static boolean isSubmenusEnabled(Context context) {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_IN_APP_MENU)) {
+            return true;
+        }
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_IN_APP_MENU_LFF)
+                && DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
+                && !DeviceInfo.isFoldable()) {
+            return true;
+        }
+        return false;
     }
 
     AppMenuDelegate mAppMenuDelegate;
@@ -170,7 +179,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             @Nullable OpenInAppMenuItemProvider openInAppMenuItemProvider,
             Supplier<RecentlyClosedEntriesManager> recentlyClosedEntriesManagerSupplier,
             Supplier<SideUiStateProvider> sideUiStateProviderSupplier,
-            Supplier<Boolean> isXrFullSpaceModeSupplier) {
+            Supplier<Boolean> isXrFullSpaceModeSupplier,
+            BooleanSupplier canActivateTabLayoutToggleMenu) {
         super(
                 context,
                 activityTabProvider,
@@ -242,7 +252,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         isMenuIconAtStart(),
                         tabModelSelector,
                         readAloudControllerSupplier,
-                        this::shouldShowPageInfoItem);
+                        this::shouldShowPageInfoItem,
+                        canActivateTabLayoutToggleMenu);
     }
 
     @Override
@@ -339,7 +350,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                     .registerObserver(mUpdateStateChangeObserver);
         }
 
-        if (isSubmenusEnabled()) {
+        if (isSubmenusEnabled(mContext)) {
             populatePageModeMenuWithSubmenus(
                     modelList, currentTab, url, isNativePage, isFileScheme, isContentScheme);
         } else {
@@ -367,7 +378,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         // Add to Group
         boolean shouldShowIconBeforeItem = shouldShowIconBeforeItem();
-        if (mTabGroupItemBuilder.shouldShowAddToGroup()) {
+        if (mTabGroupItemBuilder.shouldShowAddToGroup(currentTab)) {
             modelList.add(
                     mTabGroupItemBuilder.buildAddToGroupItem(currentTab, shouldShowIconBeforeItem));
         }
@@ -482,7 +493,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         }
 
         // Readaloud
-        if (!isSubmenusEnabled()) {
+        if (!isSubmenusEnabled(mContext)) {
             observeAndMaybeAddReadAloud(modelList, currentTab);
         }
 
@@ -655,10 +666,10 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         }
 
         // Save and share
-        if (shouldShowSaveAndPrintParentItem(
+        if (shouldShowSaveAndShareItem(
                 currentTab, isNativePage, isFileScheme, isContentScheme, url)) {
             modelList.add(
-                    buildSaveAndPrintParentItem(
+                    buildSaveAndShareItem(
                             currentTab, isNativePage, isFileScheme, isContentScheme, url));
         }
 
@@ -955,7 +966,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowPasswordsAndAutofillParentItem() {
-        return isSubmenusEnabled();
+        return isSubmenusEnabled(mContext);
     }
 
     private ListItem buildGooglePasswordManagerItem() {
@@ -1076,7 +1087,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         // The id {@code R.id.extensions_menu_id} is used for both when this flag is enabled and
         // disabled but in different context.
-        assert isSubmenusEnabled();
+        assert isSubmenusEnabled(mContext);
 
         return AppMenuItemUtils.createStandardListItem(
                 AppMenuItemUtils.buildModelForStandardMenuItem(
@@ -1102,13 +1113,13 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                 /* showIcon= */ false);
     }
 
-    private boolean shouldShowSaveAndPrintParentItem(
+    private boolean shouldShowSaveAndShareItem(
             @Nullable Tab currentTab,
             boolean isNativePage,
             boolean isFileScheme,
             boolean isContentScheme,
             GURL url) {
-        if (!isSubmenusEnabled()) {
+        if (!isSubmenusEnabled(mContext)) {
             return false;
         }
 
@@ -1132,13 +1143,13 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         return false;
     }
 
-    private ListItem buildSaveAndPrintParentItem(
+    private ListItem buildSaveAndShareItem(
             @Nullable Tab currentTab,
             boolean isNativePage,
             boolean isFileScheme,
             boolean isContentScheme,
             GURL url) {
-        assert shouldShowSaveAndPrintParentItem(
+        assert shouldShowSaveAndShareItem(
                 currentTab, isNativePage, isFileScheme, isContentScheme, url);
 
         List<ListItem> submenuItems = new ArrayList<>();
@@ -1146,7 +1157,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         if (ShareUtils.shouldEnableShare(currentTab)) {
             submenuItems.add(buildShareListItem(/* showIcon= */ false));
             submenuItems.add(mSaveAndShareItemBuilder.buildCopyLinkItem());
-            submenuItems.add(mSaveAndShareItemBuilder.buildSendToDevicesItem());
+            if (currentTab != null && !currentTab.isIncognito()) {
+                submenuItems.add(mSaveAndShareItemBuilder.buildSendToDevicesItem());
+            }
             submenuItems.add(mSaveAndShareItemBuilder.buildShareQrCodeItem());
         }
 
@@ -1235,7 +1248,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                     List<ListItem> submenuItems = new ArrayList<>();
 
                     ReadAloudController readAloudController = mReadAloudControllerSupplier.get();
-                    if (isSubmenusEnabled()
+                    if (isSubmenusEnabled(mContext)
                             && readAloudController != null
                             && readAloudController.isReadable(currentTab)) {
                         submenuItems.add(
@@ -1272,7 +1285,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         submenuItems.add(buildPageInfoItem(currentTab, /* showIcon= */ false));
                     }
 
-                    if (mMoreToolsItemBuilder.shouldShowTaskManagerItem()) {
+                    if (TaskManager.isEnabled()) {
                         submenuItems.add(mMoreToolsItemBuilder.buildTaskManagerItem());
                     }
 
@@ -1461,9 +1474,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         List<ListItem> submenuItems = new ArrayList<>();
         submenuItems.add(buildAboutChromeItem());
         submenuItems.add(buildHelpCenterItem());
-        if (FeedbackPolicyManager.getInstance().isUserFeedbackAllowed()) {
-            submenuItems.add(buildReportIssueItem());
-        }
 
         int helpString = HelpAndFeedbackLauncher.getHelpMenuStringRes();
         return new ListItem(
@@ -1485,18 +1495,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         getAppMenuItemTheme(),
                         R.id.help_id,
                         R.string.menu_help_center,
-                        Resources.ID_NULL,
-                        isMenuIconAtStart()),
-                /* showIcon= */ false);
-    }
-
-    private ListItem buildReportIssueItem() {
-        return AppMenuItemUtils.createStandardListItem(
-                AppMenuItemUtils.buildModelForStandardMenuItem(
-                        mContext,
-                        getAppMenuItemTheme(),
-                        R.id.report_issue_menu_id,
-                        R.string.menu_report_issue,
                         Resources.ID_NULL,
                         isMenuIconAtStart()),
                 /* showIcon= */ false);
@@ -1771,7 +1769,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     public void onMenuShown() {
         super.onMenuShown();
 
-        if (isSubmenusEnabled()) {
+        if (isSubmenusEnabled(mContext)) {
             // TODO(crbug.com/521223427): Implement dynamic updates so that we don't
             // have to rely on timing to load the {@link BookmarkModel} and {@link
             // HeadlessTabModel}.
@@ -1793,7 +1791,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // in the "More tools" submenu Supplier. Ideally, we should implement a mechanism to
         // dynamically update the item visibility in the submenu, rather than requiring the user to
         // reopen the App Menu.
-        if (!isSubmenusEnabled()) {
+        if (!isSubmenusEnabled(mContext)) {
             super.observeAndMaybeAddReadAloud(modelList, currentTab);
         }
     }

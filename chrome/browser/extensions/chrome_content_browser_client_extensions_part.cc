@@ -122,7 +122,8 @@ const Extension* GetEnabledExtensionFromSecurityPrincipal(
     return nullptr;
   }
 
-  return registry->enabled_extensions().GetByID(principal.GetHost());
+  return registry->enabled_extensions().GetByID(
+      ExtensionId(principal.GetHost()));
 }
 
 bool HasEffectiveUrl(content::BrowserContext* browser_context,
@@ -840,7 +841,7 @@ bool ChromeContentBrowserClientExtensionsPart::
 #endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
 
   const Extension* extension = registry->enabled_extensions().GetByID(
-      main_frame_site.GetSecurityPrincipal().GetHost());
+      ExtensionId(main_frame_site.GetSecurityPrincipal().GetHost()));
   extension_webkit_preferences::SetPreferences(extension, web_prefs);
   return true;
 }
@@ -911,8 +912,7 @@ void ChromeContentBrowserClientExtensionsPart::
     // visibility, and benefit from being started in foreground mode. We can
     // safely start those processes in foreground mode, knowing that
     // RenderThreadImpl::OnRendererHidden will be called when appropriate.
-    if (std::ranges::contains(MimeTypesHandler::GetMIMETypeAllowlist(),
-                              extension->id())) {
+    if (MimeTypesHandler::Get(*extension)) {
       command_line->AppendSwitch(::switches::kInitIsolateAsForeground);
     }
   }

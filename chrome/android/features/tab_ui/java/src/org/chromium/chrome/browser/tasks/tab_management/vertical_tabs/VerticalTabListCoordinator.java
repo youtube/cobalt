@@ -6,8 +6,11 @@ package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.res.Resources;
 import android.graphics.Point;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -24,12 +27,15 @@ import org.chromium.base.Callback;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabGroupContextMenuCoordinator;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabStripContextMenuCoordinator;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
+import org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.hub.PaneId;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
@@ -52,6 +58,7 @@ import org.chromium.chrome.browser.tasks.tab_management.StaticPinnedTabsMediator
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabComponentId;
+import org.chromium.chrome.browser.tasks.tab_management.TabGridViewBinder;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListConfigDelegate;
@@ -61,16 +68,22 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
+import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherBackPressHandlerManager;
+import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherDragHandler;
+import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListProperties.RailCollapseState;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager.AppHeaderObserver;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.modelutil.ListObservable;
-import org.chromium.ui.modelutil.ListObservable.ListObserver;
+import org.chromium.ui.dragdrop.DragAndDropDelegate;
+import org.chromium.ui.dragdrop.DragAndDropDelegateImpl;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
+import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
@@ -78,6 +91,7 @@ import org.chromium.ui.recyclerview.widget.ItemTouchHelper2;
 import org.chromium.ui.widget.RectProvider;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** Coordinator to manage and display the Vertical Tab List. */
@@ -108,23 +122,23 @@ public class VerticalTabListCoordinator {
     private final VerticalTabGroupSpineDecoration mSpineDecoration;
     private final TabModelSelectorTabModelObserver mTabModelSelectorTabModelObserver;
     private final NonNullObservableSupplier<Boolean> mVerticalTabsActiveSupplier;
+    private final SettableNonNullObservableSupplier<@RailCollapseState Integer>
+            mRailCollapseStateSupplier;
     private final Callback<Boolean> mActiveObserver = this::setActive;
     private final PropertyModel mContainerModel;
-
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private final @Nullable AppHeaderObserver mAppHeaderObserver;
-
-    private boolean mIsActive;
-
+    private final @Nullable BooleanSupplier mCanActivateTabLayoutToggleMenuSupplier;
+    private @Nullable TabSwitcherDragHandler mTabSwitcherDragHandler;
     private @Nullable TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
     private @Nullable TabContextMenuCoordinator mTabContextMenuCoordinator;
     private @Nullable TabGroupContextMenuCoordinator mTabGroupContextMenuCoordinator;
     private @Nullable RailCollapseListener mRailCollapseListener;
-    private @Nullable ListObserver<Void> mModelListObserver;
+    private boolean mIsActive;
 
     /** Listener for collapse state changes. */
-    public interface RailCollapseListener {
-        void onRailCollapseChanged(boolean isCollapsed);
+    interface RailCollapseListener {
+        void onRailCollapseStateChangeRequested(@RailCollapseState int targetState);
     }
 
     private class VerticalTabListClickHandler implements TabListItemOnClickListenerProvider {
@@ -179,6 +193,7 @@ public class VerticalTabListCoordinator {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     public VerticalTabListCoordinator(
             Activity activity,
             TabModelSelector tabModelSelector,
@@ -190,8 +205,11 @@ public class VerticalTabListCoordinator {
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
             DataSharingTabManager dataSharingTabManager,
-            NonNullObservableSupplier<Boolean> verticalTabsActiveSupplier) {
+            NonNullObservableSupplier<Boolean> verticalTabsActiveSupplier,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
+        mCanActivateTabLayoutToggleMenuSupplier = canActivateTabLayoutToggleMenuSupplier;
         mVerticalTabsActiveSupplier = verticalTabsActiveSupplier;
+        mRailCollapseStateSupplier = ObservableSuppliers.createNonNull(RailCollapseState.EXPANDED);
         mModelList = new TabListModel();
         SimpleRecyclerViewAdapter adapter =
                 new SimpleRecyclerViewAdapter(mModelList) {
@@ -246,16 +264,6 @@ public class VerticalTabListCoordinator {
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        View collapseButton = mContainerView.findViewById(R.id.collapse_button);
-        if (collapseButton != null) {
-            boolean isCollapsibleEnabled =
-                    ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                            ChromeFeatureList.ANDROID_VERTICAL_TABS,
-                            "enable_collapsible_rail",
-                            false);
-            collapseButton.setVisibility(isCollapsibleEnabled ? View.VISIBLE : View.GONE);
-        }
-
         mSpacerView = mContainerView.findViewById(R.id.desktop_window_spacer);
 
         TabListRecyclerView recyclerView = mContainerView.findViewById(R.id.tab_list_recycler_view);
@@ -269,89 +277,83 @@ public class VerticalTabListCoordinator {
         recyclerView.setupCustomItemAnimator(/* useClipAnimations= */ true);
         recyclerView.setVisibility(View.VISIBLE);
 
-        // Create the gesture detector to catch long-presses on VT empty space.
+        // Create the gesture detector to catch long-presses on VT empty space for the tab list
+        // recycler view.
         GestureDetector gestureDetector =
                 new GestureDetector(
                         activity,
-                        new GestureDetector.SimpleOnGestureListener() {
-                            @Override
-                            public boolean onDown(MotionEvent e) {
-                                // Turns on the gesture engine's internal stopwatch to calculate the
-                                // long-press.
-                                return true;
-                            }
-
-                            @Override
-                            public void onLongPress(MotionEvent e) {
-                                // Ignore long-press actions if a secondary button modifier
-                                // (right-click) is active. Right-clicks are already handled by
-                                // setOnContextClickListener; allowing this to proceed causes
-                                // double-rendering on desktop workspaces where trackpad taps are
-                                // emulated via TOOL_TYPE_FINGER (instead of TOOL_TYPE_MOUSE).
-                                if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
-                                    return;
-                                }
-
-                                View childView =
-                                        recyclerView.findChildViewUnder(e.getX(), e.getY());
-                                if (childView != null) {
-                                    // Allow ItemTouchHelper2 + Orchestrator to manage it instead.
-                                    return;
-                                }
-
-                                handleContextMenuInteraction(
-                                        activity, recyclerView, e.getX(), e.getY());
-                            }
-                        });
+                        createEmptySpaceGestureListener(activity, recyclerView, recyclerView));
 
         // Item Touch Listeners intercept all incoming window events before they are sent down to
         // the child views.
         recyclerView.addOnItemTouchListener(
-                new RecyclerView.SimpleOnItemTouchListener() {
-                    @Override
-                    public boolean onInterceptTouchEvent(RecyclerView recyclerView, MotionEvent e) {
-                        // Save the coordinates in mLastTouchPoint the moment a finger or mouse
-                        // pointer hits the view surface.
-                        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                            mLastTouchPoint.set((int) e.getX(), (int) e.getY());
+                createRecyclerViewItemTouchListener(activity, gestureDetector));
+
+        // Handles right-click for empty space context menu on tab_list_recycler_view.
+        recyclerView.setOnContextClickListener(
+                createEmptySpaceContextClickListener(activity, recyclerView));
+
+        // Set up empty space context menu handlers for the header container.
+        View headerContainer = mContainerView.findViewById(R.id.vertical_tab_header_container);
+        if (headerContainer != null) {
+            GestureDetector headerGestureDetector =
+                    new GestureDetector(
+                            activity,
+                            createEmptySpaceGestureListener(
+                                    activity, headerContainer, mRecyclerView));
+
+            headerContainer.setOnTouchListener(
+                    (v, event) -> {
+                        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                            mLastTouchPoint.set((int) event.getX(), (int) event.getY());
                         }
-
-                        // Intercept mouse right-clicks. While setOnContextClickListener works for
-                        // empty background space (where no child views capture the event), actual
-                        // tab row child views swallow right-clicks internally without bubbling them
-                        // up to the parent (recyclerView), causing
-                        // recyclerView.setOnContextClickListener to be skipped.
-                        if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
-                            View childView = recyclerView.findChildViewUnder(e.getX(), e.getY());
-
-                            if (childView != null) {
-                                handleContextMenuInteraction(
-                                        activity, recyclerView, e.getX(), e.getY());
-                                return true;
-                            }
-                            // For empty space context menus, we let
-                            // recyclerView.setOnContextClickListener call
-                            // #handleContextMenuInteraction instead of calling it here.
-                            return false;
-                        }
-
-                        // Feed all touch events to the detector. ACTION_DOWN schedules a long-press
-                        // timeout (~500ms). Trailing events (ACTION_MOVE, ACTION_UP) are processed
-                        // to either cancel the timeout if the finger drags too far, or reset the
-                        // tracking state engine when lifted.
-                        gestureDetector.onTouchEvent(e);
-
-                        // Return false to keep our tracking passive. If we return true, subsequent
-                        // events (ACTION_UP, ACTION_MOVE, etc.) bypass this intercept method.
+                        headerGestureDetector.onTouchEvent(event);
                         return false;
+                    });
+
+            headerContainer.setOnContextClickListener(
+                    v -> {
+                        // Handles right-click for empty space context menu on
+                        // vertical_tab_header_container.
+                        return createEmptySpaceContextClickListener(activity, headerContainer)
+                                .onContextClick(v);
+                    });
+        }
+
+        View gridButton = mContainerView.findViewById(R.id.grid_button);
+        if (gridButton != null) {
+            gridButton.setOnTouchListener(createLocalCoordinateTrackingTouchListener());
+            gridButton.setOnContextClickListener(
+                    createEmptySpaceContextClickListener(activity, gridButton));
+        }
+
+        View tabSearchButton = mContainerView.findViewById(R.id.tab_search_button);
+        if (tabSearchButton != null) {
+            tabSearchButton.setOnTouchListener(createLocalCoordinateTrackingTouchListener());
+            tabSearchButton.setOnContextClickListener(
+                    createEmptySpaceContextClickListener(activity, tabSearchButton));
+        }
+
+        // Create a gesture detector to catch long-presses on any raw root container background
+        // space.
+        GestureDetector rootSpaceGestureDetector =
+                new GestureDetector(
+                        activity,
+                        createEmptySpaceGestureListener(activity, mContainerView, mRecyclerView));
+
+        mContainerView.setOnTouchListener(
+                (v, event) -> {
+                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        mLastTouchPoint.set((int) event.getX(), (int) event.getY());
                     }
+                    rootSpaceGestureDetector.onTouchEvent(event);
+                    // Return false so interactive child views still get touched.
+                    return false;
                 });
 
-        // Handles right-click for empty space context menu.
-        recyclerView.setOnContextClickListener(
-                v ->
-                        handleContextMenuInteraction(
-                                activity, recyclerView, mLastTouchPoint.x, mLastTouchPoint.y));
+        // Handle right-clicks on the root background space and fully consume the window event.
+        mContainerView.setOnContextClickListener(
+                createEmptySpaceContextClickListener(activity, mContainerView));
 
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
@@ -360,11 +362,7 @@ public class VerticalTabListCoordinator {
                         R.dimen.default_favicon_corner_radius,
                         TabFavicon::getBitmap);
 
-        setupItemTouchHelper(
-                activity,
-                recyclerView,
-                mModelList,
-                tabModelSelector.getCurrentTabModelSupplier().asNonNull());
+        setupItemTouchHelper(activity, recyclerView, mModelList, tabModelSelector);
 
         mSpineDecoration =
                 new VerticalTabGroupSpineDecoration(
@@ -389,8 +387,15 @@ public class VerticalTabListCoordinator {
                     public boolean supportsMessageCards() {
                         return false;
                     }
+
+                    @Override
+                    public @Nullable NonNullObservableSupplier<@RailCollapseState Integer>
+                            getRailCollapseStateSupplier() {
+                        return mRailCollapseStateSupplier;
+                    }
                 };
 
+        // TODO(crbug.com/527641177): Persist rail collapse state in SharedPreferences.
         mContainerModel =
                 new PropertyModel.Builder(VerticalTabListProperties.ALL_KEYS)
                         .with(
@@ -398,14 +403,21 @@ public class VerticalTabListCoordinator {
                                 v -> verticalTabsActionDelegate.openHubPane(PaneId.TAB_GROUPS))
                         .with(
                                 VerticalTabListProperties.ON_SEARCH_CLICK_LISTENER,
-                                v -> verticalTabsActionDelegate.openTabSearch())
+                                v -> {
+                                    if (ChromeFeatureList.sTabSearchForDesktop.isEnabled()) {
+                                        verticalTabsActionDelegate.openTabSearch();
+                                    } else {
+                                        verticalTabsActionDelegate.openHubPane(PaneId.TAB_SWITCHER);
+                                    }
+                                })
                         .with(
                                 VerticalTabListProperties.ON_NEW_TAB_CLICK_LISTENER,
                                 v -> handleNewTabButtonClick())
                         .with(
                                 VerticalTabListProperties.ON_COLLAPSE_CLICK_LISTENER,
                                 v -> toggleCollapseState())
-                        .with(VerticalTabListProperties.IS_COLLAPSED, false)
+                        .with(VerticalTabListProperties.IS_COLLAPSE_BUTTON_ENABLED, true)
+                        .with(VerticalTabListProperties.COLLAPSE_STATE, RailCollapseState.EXPANDED)
                         .build();
         PropertyModelChangeProcessor.create(
                 mContainerModel, mContainerView, VerticalTabListViewBinder::bind);
@@ -466,54 +478,28 @@ public class VerticalTabListCoordinator {
         mPinnedLayoutManager = new GridLayoutManager(activity, getSpanCount());
         pinnedTabsRecyclerView.setLayoutManager(mPinnedLayoutManager);
 
+        // Create a gesture detector to catch long-presses on the pinned tabs rv empty background
+        // area.
+        GestureDetector pinnedSpaceGestureDetector =
+                new GestureDetector(
+                        activity,
+                        createEmptySpaceGestureListener(
+                                activity, pinnedTabsRecyclerView, pinnedTabsRecyclerView));
+
         pinnedTabsRecyclerView.addOnItemTouchListener(
-                new RecyclerView.SimpleOnItemTouchListener() {
-                    @Override
-                    public boolean onInterceptTouchEvent(RecyclerView rv, MotionEvent e) {
-                        if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                            mLastTouchPoint.set((int) e.getX(), (int) e.getY());
-                        }
+                createRecyclerViewItemTouchListener(activity, pinnedSpaceGestureDetector));
 
-                        if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
-                            handleContextMenuInteraction(activity, rv, e.getX(), e.getY());
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-
-        // TODO(b/527641177): Find a better way to propagate IS_COLLAPSED to tab items. Maybe
-        // passing a supplier to TabListMediator constructor.
-        mModelListObserver =
-                new ListObservable.ListObserver<>() {
-                    @Override
-                    public void onItemRangeInserted(ListObservable source, int index, int count) {
-                        boolean isCollapsed =
-                                mContainerModel.get(VerticalTabListProperties.IS_COLLAPSED);
-                        updateRailCollapsedStateForRange(
-                                (TabListModel) source, index, count, isCollapsed);
-                    }
-
-                    @Override
-                    public void onItemRangeChanged(
-                            ListObservable source, int index, int count, @Nullable Void payload) {
-                        boolean isCollapsed =
-                                mContainerModel.get(VerticalTabListProperties.IS_COLLAPSED);
-                        updateRailCollapsedStateForRange(
-                                (TabListModel) source, index, count, isCollapsed);
-                    }
-                };
-        mPinnedTabsModelList.addObserver(mModelListObserver);
-        mModelList.addObserver(mModelListObserver);
+        // While it is possible to handle recycler view right-clicks using
+        // ItemTouchListener#onInterceptTouch, onContextClickListeners are needed to avoid the
+        // "page" context menu from showing when a web page is open behind the vt.
+        pinnedTabsRecyclerView.setOnContextClickListener(
+                createEmptySpaceContextClickListener(activity, pinnedTabsRecyclerView));
 
         // TODO(crbug.com/509226293): Create a lightweight touch helper for pinned tabs if needed.
         // Setup drag-and-drop reordering. Reuses the vertical tab touch helper since pinned tabs
         // can be reordered in 2D, and movements translate directly back to TabModel moves.
         setupItemTouchHelper(
-                activity,
-                pinnedTabsRecyclerView,
-                pinnedTabsModelList,
-                tabModelSelector.getCurrentTabModelSupplier().asNonNull());
+                activity, pinnedTabsRecyclerView, pinnedTabsModelList, tabModelSelector);
 
         mPinnedTabsMediator =
                 new StaticPinnedTabsMediator(
@@ -570,6 +556,18 @@ public class VerticalTabListCoordinator {
                 };
 
         mVerticalTabsActiveSupplier.addSyncObserverAndCallIfNonNull(mActiveObserver);
+
+        // Context menus should not appear upon right-clicking the new tab button or the collapse
+        // button.
+        View newTabButton = mContainerView.findViewById(R.id.new_tab_button);
+        if (newTabButton != null) {
+            newTabButton.setOnContextClickListener(v -> true);
+        }
+
+        View collapseButton = mContainerView.findViewById(R.id.collapse_button);
+        if (collapseButton != null) {
+            collapseButton.setOnContextClickListener(v -> true);
+        }
     }
 
     /** Returns the root ViewGroup container representing the Left Rail sidebar. */
@@ -607,12 +605,10 @@ public class VerticalTabListCoordinator {
         mSpineDecoration.destroy();
         mTabModelSelectorTabModelObserver.destroy();
         mVerticalTabsActiveSupplier.removeObserver(mActiveObserver);
-
-        if (mModelListObserver != null) {
-            mModelList.removeObserver(mModelListObserver);
-            mPinnedTabsModelList.removeObserver(mModelListObserver);
-            mModelListObserver = null;
+        if (mTabSwitcherDragHandler != null) {
+            mTabSwitcherDragHandler.destroy();
         }
+
         mRailCollapseListener = null;
     }
 
@@ -623,6 +619,30 @@ public class VerticalTabListCoordinator {
      */
     public void setCollapseListener(@Nullable RailCollapseListener listener) {
         mRailCollapseListener = listener;
+    }
+
+    /**
+     * Sets the collapsed state of the vertical tab rail.
+     *
+     * <p>This updates the model properties and layouts for the rail container and all tab items to
+     * transition between the expanded (icons + text) and collapsed (icons only) states.
+     *
+     * @param railCollapseState The {@link RailCollapseState} to apply to the rail.
+     */
+    void setRailCollapseState(@RailCollapseState int railCollapseState) {
+        mContainerModel.set(VerticalTabListProperties.COLLAPSE_STATE, railCollapseState);
+        mPinnedLayoutManager.setSpanCount(
+                railCollapseState == RailCollapseState.COLLAPSED ? 1 : getSpanCount());
+        mRailCollapseStateSupplier.set(railCollapseState);
+    }
+
+    /**
+     * Sets whether the rail collapse button is enabled.
+     *
+     * @param enabled True if the collapse button should be enabled, false otherwise.
+     */
+    void setCollapseButtonEnabled(boolean enabled) {
+        mContainerModel.set(VerticalTabListProperties.IS_COLLAPSE_BUTTON_ENABLED, enabled);
     }
 
     private void setActive(boolean isActive) {
@@ -724,41 +744,39 @@ public class VerticalTabListCoordinator {
                 mPinnedTabsModelList.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
-    private void toggleCollapseState() {
-        boolean isCollapsed = mContainerModel.get(VerticalTabListProperties.IS_COLLAPSED);
-        boolean newCollapsedState = !isCollapsed;
-        mContainerModel.set(VerticalTabListProperties.IS_COLLAPSED, newCollapsedState);
-
-        mPinnedLayoutManager.setSpanCount(newCollapsedState ? 1 : getSpanCount());
-
-        updateRailCollapsedStateForRange(mModelList, 0, mModelList.size(), newCollapsedState);
-        updateRailCollapsedStateForRange(
-                mPinnedTabsModelList, 0, mPinnedTabsModelList.size(), newCollapsedState);
-
+    private void requestRailCollapseStateChange(@RailCollapseState int targetState) {
         if (mRailCollapseListener != null) {
-            mRailCollapseListener.onRailCollapseChanged(newCollapsedState);
+            mRailCollapseListener.onRailCollapseStateChangeRequested(targetState);
+        } else {
+            setRailCollapseState(targetState);
         }
     }
 
-    private void updateRailCollapsedStateForRange(
-            TabListModel modelList, int startIndex, int count, boolean isCollapsed) {
-        assert startIndex >= 0;
-        assert startIndex + count <= modelList.size();
-        for (int i = startIndex; i < startIndex + count; i++) {
-            PropertyModel model = modelList.get(i).model;
-            if (TabProperties.isTabOrTabGroup(model)) {
-                model.set(TabProperties.IS_RAIL_COLLAPSED, isCollapsed);
-            }
+    private void toggleCollapseState() {
+        if (!mContainerModel.get(VerticalTabListProperties.IS_COLLAPSE_BUTTON_ENABLED)) {
+            return;
         }
+
+        @RailCollapseState
+        int currentState = mContainerModel.get(VerticalTabListProperties.COLLAPSE_STATE);
+        @RailCollapseState
+        int targetState =
+                currentState == RailCollapseState.EXPANDED
+                        ? RailCollapseState.COLLAPSED
+                        : RailCollapseState.EXPANDED;
+        requestRailCollapseStateChange(targetState);
     }
 
     private void setupItemTouchHelper(
             Activity activity,
             RecyclerView recyclerView,
             TabListModel modelList,
-            Supplier<TabModel> tabModelSupplier) {
+            TabModelSelector tabModelSelector) {
         VerticalTabListItemTouchHelperCallback touchHelperCallback =
-                new VerticalTabListItemTouchHelperCallback(activity, modelList, tabModelSupplier);
+                new VerticalTabListItemTouchHelperCallback(
+                        activity,
+                        modelList,
+                        tabModelSelector.getCurrentTabModelSupplier().asNonNull());
 
         // Handles long-presses for tab item/group context menus. Long-presses for empty space
         // context menus are handled by the gesture detector.
@@ -785,6 +803,91 @@ public class VerticalTabListCoordinator {
 
         recyclerView.addOnItemTouchListener(
                 touchHelperCallback.createMouseDragDetector(itemTouchHelper));
+
+        touchHelperCallback.setOnDragOutListener(
+                (viewHolder, dX, dY) -> {
+                    if (!(viewHolder
+                            instanceof SimpleRecyclerViewAdapter.ViewHolder simpleViewHolder)) {
+                        return;
+                    }
+
+                    PropertyModel model = simpleViewHolder.model;
+                    if (model == null || TabProperties.isTabGroupHeader(model)) return;
+
+                    int tabId = model.get(TabProperties.TAB_ID);
+                    if (tabId == Tab.INVALID_TAB_ID) return;
+
+                    TabModel tabModel = tabModelSelector.getCurrentModel();
+                    if (tabModel == null) return;
+
+                    Tab tab = tabModel.getTabById(tabId);
+                    if (tab == null) return;
+
+                    // Do not allow dragging out the last tab in a group.
+                    // (To be handled when dragging out tab groups is enabled).
+                    if (tabModel.isTabInTabGroup(tab)
+                            && tabModel.getRelatedTabList(tabId).size() == 1) {
+                        return;
+                    }
+
+                    if (mTabSwitcherDragHandler == null) {
+                        Supplier<@Nullable Activity> activitySupplier = () -> activity;
+                        DragAndDropDelegate dragDropDelegate = new DragAndDropDelegateImpl();
+                        dragDropDelegate.setDragAndDropBrowserDelegate(
+                                new ChromeDragAndDropBrowserDelegate(activitySupplier));
+
+                        mTabSwitcherDragHandler =
+                                new TabSwitcherDragHandler(
+                                        activitySupplier,
+                                        mMultiInstanceManager,
+                                        dragDropDelegate,
+                                        // TODO(crbug.com/518307037): Provide back press handler
+                                        // manager?
+                                        new TabSwitcherBackPressHandlerManager());
+                        mTabSwitcherDragHandler.setTabModelSelector(tabModelSelector);
+                        recyclerView.setOnDragListener(mTabSwitcherDragHandler);
+
+                        mTabSwitcherDragHandler.setDragHandlerDelegate(
+                                new TabSwitcherDragHandler.DragHandlerDelegate() {
+                                    @Override
+                                    public boolean handleDragStart(float xPx, float yPx) {
+                                        itemTouchHelper.onExternalDragStart(
+                                                xPx, yPx, /* hideItemWhileDragging= */ true);
+                                        return true;
+                                    }
+
+                                    @Override
+                                    public boolean handleDragLocation(float xPx, float yPx) {
+                                        itemTouchHelper.onExternalDragLocation(xPx, yPx);
+                                        return true;
+                                    }
+
+                                    @Override
+                                    public boolean handleExternalDragEnd(float xPx, float yPx) {
+                                        itemTouchHelper.onExternalDragStop(
+                                                /* recoverItem= */ false);
+                                        return true;
+                                    }
+
+                                    @Override
+                                    public int handleInternalDragEnd() {
+                                        itemTouchHelper.stopInternalDrag();
+                                        return BackPressHandler.BackPressResult.SUCCESS;
+                                    }
+
+                                    @Override
+                                    public boolean isDragInProcess() {
+                                        return itemTouchHelper.isDragInProcess();
+                                    }
+                                });
+                    }
+
+                    PointF startPoint = new PointF(mLastTouchPoint.x + dX, mLastTouchPoint.y + dY);
+                    View gridCardView = buildGridCardDragShadow(activity, model);
+
+                    mTabSwitcherDragHandler.startTabDragAction(
+                            viewHolder.itemView, tab, startPoint, gridCardView);
+                });
 
         itemTouchHelper.attachToRecyclerView(recyclerView);
         touchHelperCallback.setRecyclerView(recyclerView);
@@ -897,15 +1000,15 @@ public class VerticalTabListCoordinator {
                             mSnackbarManager,
                             /* activityResultTracker= */ null,
                             /* modalDialogManager= */ mWindowAndroid.getModalDialogManager(),
-                            TabClosingSource.VERTICAL_TAB_STRIP);
+                            TabClosingSource.VERTICAL_TAB_STRIP,
+                            mCanActivateTabLayoutToggleMenuSupplier);
         }
         mTabContextMenuCoordinator.showMenu(rectProvider, anchorInfo);
     }
 
     private void showEmptySpaceContextMenu(
-            Activity activity, RecyclerView recyclerView, float localX, float localY) {
-        RectProvider rectProvider = calculateTouchAnchor(recyclerView, localX, localY);
-
+            Activity activity, View targetView, float localX, float localY) {
+        RectProvider rectProvider = calculateTouchAnchor(targetView, localX, localY);
         if (mTabStripContextMenuCoordinator == null) {
             mTabStripContextMenuCoordinator =
                     TabStripContextMenuCoordinator.createContextMenuCoordinator(
@@ -913,7 +1016,8 @@ public class VerticalTabListCoordinator {
                             mMultiInstanceManager,
                             mWindowAndroid,
                             mSnackbarManager,
-                            this::handleNewTabButtonClick);
+                            this::handleNewTabButtonClick,
+                            mCanActivateTabLayoutToggleMenuSupplier);
         }
 
         boolean isIncognito = mTabModelSelector.getCurrentModel().isIncognitoBranded();
@@ -937,24 +1041,152 @@ public class VerticalTabListCoordinator {
         return new RectProvider(anchorRect);
     }
 
-    private RectProvider calculateTouchAnchor(
-            RecyclerView recyclerView, float localX, float localY) {
-        // Get the top-left edge pos of the scrollable recycler view relative to the Android
+    private RectProvider calculateTouchAnchor(View targetView, float localX, float localY) {
+        // Get the top-left edge pos of the touched view relative to the Android
         // application window screen.
-        int[] recyclerViewPos = new int[2];
-        recyclerView.getLocationInWindow(recyclerViewPos);
+        int[] viewPos = new int[2];
+        targetView.getLocationInWindow(viewPos);
 
         // Calculate window-relative anchor coordinates, where localX and localY are relative to the
-        // recycler view.
-        int windowX = recyclerViewPos[0] + (int) localX;
-        int windowY = recyclerViewPos[1] + (int) localY;
+        // target view.
+        int windowX = viewPos[0] + (int) localX;
+        int windowY = viewPos[1] + (int) localY;
 
         // Build a precise 1x1 bounding box right under the cursor/pointer.
         Rect anchorRect = new Rect(windowX, windowY, windowX + 1, windowY + 1);
         return new RectProvider(anchorRect);
     }
 
-    void dismissActiveContextMenus() {
+    /**
+     * Creates a unified SimpleOnItemTouchListener for RecyclerView surfaces to passively track
+     * touch coordinates, capture tab item right-clicks, and delegate empty space long-presses.
+     *
+     * @param activity The active context.
+     * @param gestureDetector The companion GestureDetector built for this specific list surface.
+     */
+    private RecyclerView.OnItemTouchListener createRecyclerViewItemTouchListener(
+            Activity activity, GestureDetector gestureDetector) {
+        return new RecyclerView.SimpleOnItemTouchListener() {
+            @Override
+            public boolean onInterceptTouchEvent(RecyclerView rv, MotionEvent e) {
+                // Save the coordinates in mLastTouchPoint the moment a finger or mouse
+                // pointer hits the view surface.
+                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    mLastTouchPoint.set((int) e.getX(), (int) e.getY());
+                }
+
+                // Intercept mouse right-clicks. While setOnContextClickListener works for
+                // empty background space (where no child views capture the event), actual
+                // tab row child views swallow right-clicks internally without bubbling them
+                // up to the parent (recyclerView), causing
+                // recyclerView.setOnContextClickListener to be skipped.
+                if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
+                    View childView = rv.findChildViewUnder(e.getX(), e.getY());
+                    if (childView != null) {
+                        handleContextMenuInteraction(activity, rv, e.getX(), e.getY());
+                        return true;
+                    }
+                    // For empty space context menus, we let
+                    // recyclerView.setOnContextClickListener call
+                    // #handleContextMenuInteraction instead of calling it here.
+                    return false;
+                }
+
+                // Feed all touch events to the detector. ACTION_DOWN schedules a long-press
+                // timeout (~500ms). Trailing events (ACTION_MOVE, ACTION_UP) are processed
+                // to either cancel the timeout if the finger drags too far, or reset the
+                // tracking state engine when lifted.
+                gestureDetector.onTouchEvent(e);
+
+                // Return false to keep our tracking passive. If we return true, subsequent
+                // events (ACTION_UP, ACTION_MOVE, etc.) bypass this intercept method.
+                return false;
+            }
+        };
+    }
+
+    /**
+     * Creates a reusable SimpleOnGestureListener for empty space long-presses.
+     *
+     * @param activity The active context.
+     * @param targetView The view receiving the touch events.
+     * @param targetRecyclerView The RecyclerView containing list items to evaluate (if targetView
+     *     is a RecyclerView).
+     */
+    private GestureDetector.SimpleOnGestureListener createEmptySpaceGestureListener(
+            Activity activity, View targetView, RecyclerView targetRecyclerView) {
+        return new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) {
+                // Turns on the gesture engine's internal stopwatch to calculate the
+                // long-press.
+                return true;
+            }
+
+            @Override
+            public void onLongPress(MotionEvent e) {
+                // Ignore long-press actions if a secondary button modifier
+                // (right-click) is active. Right-clicks are already handled by
+                // setOnContextClickListener; allowing this to proceed causes
+                // double-rendering on desktop workspaces where trackpad taps are
+                // emulated via TOOL_TYPE_FINGER (instead of TOOL_TYPE_MOUSE).
+                if ((e.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0) {
+                    return;
+                }
+
+                // If this is a RecyclerView, ensure we didn't long-press an actual child item.
+                if (targetView instanceof RecyclerView rv) {
+                    View childView = rv.findChildViewUnder(e.getX(), e.getY());
+                    if (childView != null) {
+                        // Allow ItemTouchHelper2 + Orchestrator to manage it instead.
+                        return;
+                    }
+                    handleContextMenuInteraction(activity, targetRecyclerView, e.getX(), e.getY());
+                } else {
+                    // For the header view (or non-lists), directly show the empty space menu.
+                    showEmptySpaceContextMenu(activity, targetView, e.getX(), e.getY());
+                }
+            }
+        };
+    }
+
+    /**
+     * Creates a reusable OnContextClickListener for empty space right-clicks.
+     *
+     * @param activity The active context.
+     * @param targetView The view receiving the click.
+     */
+    private View.OnContextClickListener createEmptySpaceContextClickListener(
+            Activity activity, View targetView) {
+        return v -> {
+            if (targetView instanceof RecyclerView rv) {
+                return handleContextMenuInteraction(
+                        activity, rv, mLastTouchPoint.x, mLastTouchPoint.y);
+            } else {
+                showEmptySpaceContextMenu(
+                        activity, targetView, mLastTouchPoint.x, mLastTouchPoint.y);
+                return true;
+            }
+        };
+    }
+
+    /**
+     * Creates a passive View.OnTouchListener that caches the immediate touch coordinates local to
+     * the clicked view surface upon an ACTION_DOWN event without consuming the touch sequence. This
+     * is needed to update the coordinate tracking frame relative to the specific view surface
+     * instead of its parent layout wrapper.
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private View.OnTouchListener createLocalCoordinateTrackingTouchListener() {
+        return (v, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                mLastTouchPoint.set((int) event.getX(), (int) event.getY());
+            }
+            return false;
+        };
+    }
+
+    private void dismissActiveContextMenus() {
         if (mTabStripContextMenuCoordinator != null) mTabStripContextMenuCoordinator.dismiss();
         if (mTabContextMenuCoordinator != null) mTabContextMenuCoordinator.dismiss();
         if (mTabGroupContextMenuCoordinator != null) mTabGroupContextMenuCoordinator.dismiss();
@@ -1005,5 +1237,34 @@ public class VerticalTabListCoordinator {
 
     GridLayoutManager getPinnedLayoutManagerForTesting() {
         return mPinnedLayoutManager;
+    }
+
+    private View buildGridCardDragShadow(Activity activity, PropertyModel model) {
+        ViewGroup gridCardView =
+                (ViewGroup)
+                        LayoutInflater.from(activity).inflate(R.layout.tab_grid_card_item, null);
+
+        for (PropertyKey key : model.getAllSetProperties()) {
+            TabGridViewBinder.bindTab(model, gridCardView, key);
+        }
+
+        // Force layout the grid card at standard phone width/height ratios
+        Resources res = activity.getResources();
+        float maxTabWidthDp = TabUiThemeUtil.getMaxTabStripTabWidthDp();
+        int width = (int) (maxTabWidthDp * res.getDisplayMetrics().density);
+        int height = (int) (maxTabWidthDp * res.getDisplayMetrics().density);
+        // TODO(crbug.com/518307037): @jthiesen to update comment explaining why this manual layout
+        // is necessary.
+        gridCardView.setLayoutParams(new ViewGroup.MarginLayoutParams(width, height));
+        gridCardView.measure(
+                View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
+        gridCardView.layout(0, 0, width, height);
+
+        return gridCardView;
+    }
+
+    NonNullObservableSupplier<@RailCollapseState Integer> getRailCollapseStateSupplierForTesting() {
+        return mRailCollapseStateSupplier;
     }
 }

@@ -183,6 +183,9 @@ class SqlPersistentStore::Backend {
   bool MaybeRunIncrementalVacuum(
       scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag);
 
+  // Closes the database.
+  void Close();
+
   void EnableStrictCorruptionCheckForTesting() {
     strict_corruption_check_enabled_ = true;
   }
@@ -225,6 +228,20 @@ class SqlPersistentStore::Backend {
     int64_t bytes_usage;
     base::Time last_used;
   };
+
+  // A helper function to record the time delay from posting a task to its
+  // execution.
+  void RecordPostingDelay(std::string_view method_name,
+                          base::TimeDelta posting_delay);
+
+  // Records timing and result histograms for a backend method. This logs the
+  // method's duration to ".SuccessTime" or ".FailureTime" histograms and the
+  // `Error` code to a ".Result" histogram.
+  void RecordTimeAndErrorResultHistogram(std::string_view method_name,
+                                         base::TimeDelta posting_delay,
+                                         base::TimeDelta time_delta,
+                                         Error error,
+                                         bool corruption_detected);
 
   void DatabaseErrorCallback(int error, sql::Statement* statement);
 
@@ -445,6 +462,8 @@ class SqlPersistentStore::Backend {
   const base::FilePath path_;
   const net::CacheType type_;
   const scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor_;
+  // Cached value of `net::features::kSqlDiskCacheReduceUma`.
+  const bool reduce_uma_;
   sql::Database db_;
   sql::MetaTable meta_table_;
   std::optional<Error> db_init_status_;

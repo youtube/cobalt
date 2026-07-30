@@ -13,13 +13,17 @@
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
 #include "chrome/browser/actor/tools/tool.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
-#include "chrome/browser/autofill/actor/actor_form_filling_service.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
+#include "components/autofill/core/browser/actor/actor_form_filling_service.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/tabs/public/tab_interface.h"
+
+namespace autofill {
+class AutofillClient;
+}
 
 namespace actor {
 
@@ -75,6 +79,7 @@ class AttemptFormFillingTool : public Tool,
   void SimulateRequestToShowAutofillSuggestions(
       ToolCallback invoke_callback,
       std::vector<autofill::ActorFormFillingRequest> requests);
+  autofill::AutofillClient* GetAutofillClient();
   tabs::TabHandle tab_handle_;
   std::vector<AttemptFormFillingToolRequest::FormFillingRequest>
       tool_fill_requests_;

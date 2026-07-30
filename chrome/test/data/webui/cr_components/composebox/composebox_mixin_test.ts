@@ -3,22 +3,15 @@
 // found in the LICENSE file.
 
 import 'chrome://contextual-tasks/strings.m.js';
-import 'chrome://resources/cr_components/composebox/composebox_dropdown.js';
-import 'chrome://resources/cr_components/composebox/composebox_file_inputs.js';
-import 'chrome://resources/cr_components/composebox/composebox_input.js';
-import 'chrome://resources/cr_components/composebox/file_carousel.js';
+import './test_composebox_mixin.js';
 
 import {ComposeboxFile, ContextType, ContextualSearchInputStateDeletionType, TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
-import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
-import type {ComposeboxDropdownElement} from 'chrome://resources/cr_components/composebox/composebox_dropdown.js';
+import {PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxInputElement} from 'chrome://resources/cr_components/composebox/composebox_input.js';
-import {ComposeboxEmbedderMixin} from 'chrome://resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
-import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {CrLitElement, html} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {DriveDisclaimerStatus, DriveUploadError, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote as SearchboxPageRemote, SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ContextUploadStatus, InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
@@ -30,103 +23,12 @@ import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
+// <if expr="not is_android">
+import {getTrustedHtml} from 'chrome://webui-test/trusted_html.js';
 
+// </if>
 import {installMock, MockInputState} from './composebox_test_utils.js';
-
-const TestElementBase = ComposeboxEmbedderMixin(I18nMixinLit(CrLitElement));
-
-interface TestComposeboxMixinElement {
-  $: {
-    input: ComposeboxInputElement,
-    matches: ComposeboxDropdownElement,
-    inputWrapper: HTMLElement,
-  };
-}
-
-class TestComposeboxMixinElement extends TestElementBase {
-  static get is() {
-    return 'test-composebox-mixin';
-  }
-
-  override render() {
-    // clang-format off
-    return html`
-      <div id="inputWrapper" @keydown="${this.onKeydown}">
-        <cr-composebox-input id="input"
-            .result="${this.result}"
-            .input="${this.input}"
-            .smartComposeEnabled="${this.smartComposeEnabled}"
-            .smartComposeInlineHint="${this.smartComposeInlineHint}"
-            .cancelButtonTitle="${this.computeCancelButtonTitle()}"
-            @input-input="${this.onInputInput}"
-            @input-focusin="${this.onInputFocusin}"
-            @cancel-click="${this.onCancelClick}"
-            @clear-smart-compose="${this.onClearSmartCompose}">
-        </cr-composebox-input>
-        <cr-composebox-dropdown id="matches"
-            .result="${this.result}"
-            .selectedMatchIndex="${this.selectedMatchIndex}"
-            @selected-match-index-changed="${this.onSelectedMatchIndexChanged}"
-            @match-focusin="${this.onMatchFocusin}"
-            @match-click="${this.onMatchClick}">
-        </cr-composebox-dropdown>
-        <cr-composebox-file-inputs id="fileInputs"
-            @file-change="${this.onFileChange}"
-            .disableFileInputs="${this.shouldDisableFileInputs()}">
-        </cr-composebox-file-inputs>
-        ${this.showFileCarousel ? html`
-          <cr-composebox-file-carousel
-              id="carousel"
-              .files="${this.getFilteredCarouselFiles()}"
-              @delete-file="${this.onDeleteFile}">
-          </cr-composebox-file-carousel>
-        ` : ''}
-      </div>
-    `;
-    // clang-format on
-  }
-
-  override getInputElement(): ComposeboxInputElement {
-    return this.$.input;
-  }
-
-  override getDropdownElement(): ComposeboxDropdownElement {
-    return this.$.matches;
-  }
-
-  getWrapperElement(): HTMLElement {
-    return this.$.inputWrapper;
-  }
-
-  private activeElement_: Element|null = null;
-  setActiveElement(elem: Element|null) {
-    this.activeElement_ = elem;
-  }
-
-  override getActiveElement(): Element|null {
-    return this.activeElement_ ?? this.shadowRoot.activeElement;
-  }
-
-  override getPageHandler() {
-    return ComposeboxProxyImpl.getInstance().handler;
-  }
-
-  override getSearchboxCallbackRouter() {
-    return ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
-  }
-
-  override getSearchboxHandler() {
-    return ComposeboxProxyImpl.getInstance().searchboxHandler;
-  }
-
-  override getContextEntrypointElement(): ContextualEntrypointAndMenuElement
-      |null {
-    return null;
-  }
-}
-
-customElements.define(
-    TestComposeboxMixinElement.is, TestComposeboxMixinElement);
+import type {TestComposeboxMixinElement} from './test_composebox_mixin.js';
 
 function simulateUserTextInput(
     inputElement: ComposeboxInputElement, value: string): Promise<void> {
@@ -152,8 +54,7 @@ suite('ComposeboxMixinTest', () => {
     installMock(
         PageHandlerRemote,
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-            mock, new PageCallbackRouter(), new SearchboxPageHandlerRemote(),
-            callbackRouter)));
+            mock, new SearchboxPageHandlerRemote(), callbackRouter)));
     searchboxHandler = installMock(
         SearchboxPageHandlerRemote,
         mock => ComposeboxProxyImpl.getInstance().searchboxHandler = mock);
@@ -165,8 +66,7 @@ suite('ComposeboxMixinTest', () => {
       state: new MockInputState(),
     });
 
-    element = document.createElement('test-composebox-mixin') as
-        TestComposeboxMixinElement;
+    element = document.createElement('test-composebox-mixin');
     // The mixin queries ZPS on mount by default, which advances the
     // autocomplete query id; opt out so per-test assertions start clean.
     element.queryZpsOnLoad = false;
@@ -297,6 +197,171 @@ suite('ComposeboxMixinTest', () => {
         assertEquals('about:blank?2', element.tabSuggestions[2]!.url);
         assertEquals(3, element.tabSuggestions[3]!.tabId);
         assertEquals('about:blank?3', element.tabSuggestions[3]!.url);
+      });
+
+  test(
+      'Suggestions are sorted by most recently selected shown first.',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+          contextManagementInOmniboxEnabled: true,
+        });
+
+        // Disable tab deselection so restored tabs cannot be deselected.
+        element.tabDeselectionEnabled = false;
+
+        // Setup tabs:
+        // 1. Restored (tab1, tab2)
+        // 2. Recent & Selected (tab3)
+        // 3. Recent & Unselected (tab4)
+        const tab1 = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2 = {
+          tabId: 2,
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab3 = {
+          tabId: 3,
+          title: 'Tab 3',
+          url: 'about:blank?3',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab4 = {
+          tabId: 4,
+          title: 'Tab 4',
+          url: 'about:blank?4',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Mock open tabs in browser to return tab3 and tab4.
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [tab3, tab4]}));
+
+        element.contextManagementInComposeboxEnabled = true;
+        element.aimThreadRestoredTabs = [tab1, tab2];
+        element.addedTabsIds = new Map([
+          [3, 'token3' as unknown as UnguessableToken],
+        ]);
+
+        await element.refreshTabSuggestions();
+
+        // After `refreshTabSuggestions()`, tabs should be sorted as:
+        // `[selectedRecent, restored, unselectedRecent]`.
+        assertEquals(4, element.tabSuggestions.length);
+        assertEquals(3, element.tabSuggestions[0]!.tabId);
+        assertEquals(1, element.tabSuggestions[1]!.tabId);
+        assertEquals(2, element.tabSuggestions[2]!.tabId);
+        assertEquals(4, element.tabSuggestions[3]!.tabId);
+
+        // Modify selection of recent tabs (deselect tab3, select tab4).
+        element.addedTabsIds = new Map([
+          [4, 'token4' as unknown as UnguessableToken],
+        ]);
+
+        element.onContextMenuOpened();
+
+        // Tabs should be re-sorted based on updated states.
+        assertEquals(4, element.tabSuggestions.length);
+        assertEquals(4, element.tabSuggestions[0]!.tabId);
+        assertEquals(1, element.tabSuggestions[1]!.tabId);
+        assertEquals(2, element.tabSuggestions[2]!.tabId);
+        assertEquals(3, element.tabSuggestions[3]!.tabId);
+      });
+
+  test(
+      'refreshTabSuggestions() filters out closed restored tabs when tabDeselectionEnabled is true',
+      async () => {
+        const tab1 = {
+          tabId: 10,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2Closed = {
+          tabId: 20,
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Mock open tabs in browser to return only tab1 (tab2 is closed/deleted
+        // from tab strip).
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [tab1]}));
+
+        element.tabDeselectionEnabled = true;
+        element.aimThreadRestoredTabs = [tab1, tab2Closed];
+
+        await element.refreshTabSuggestions();
+
+        // Verify: deleteTabContext is called for the closed restored tab
+        // (tabId: 20).
+        const deleteTabContextCalls =
+            searchboxHandler.getCallCount('deleteTabContext');
+        assertEquals(1, deleteTabContextCalls);
+        assertEquals(20, searchboxHandler.getArgs('deleteTabContext')[0]);
+
+        // Verify: closed restored tab is filtered out from
+        // aimThreadRestoredTabs list.
+        assertEquals(1, element.aimThreadRestoredTabs.length);
+        assertEquals(10, element.aimThreadRestoredTabs[0]!.tabId);
+      });
+
+  test(
+      'refreshTabSuggestions() filters navigated tabs when tabDeselectionEnabled true',
+      async () => {
+        const tab1 = {
+          tabId: 10,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab1Navigated = {
+          tabId: 10,
+          title: 'Tab 1',
+          url: 'about:blank?1_new',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Mock open tabs to return tab1 with new URL
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [tab1Navigated]}));
+
+        element.tabDeselectionEnabled = true;
+        element.aimThreadRestoredTabs = [tab1];
+
+        await element.refreshTabSuggestions();
+
+        // Verify: deleteTabContext is called for the navigated tab.
+        const deleteTabContextCalls =
+            searchboxHandler.getCallCount('deleteTabContext');
+        assertEquals(1, deleteTabContextCalls);
+        assertEquals(10, searchboxHandler.getArgs('deleteTabContext')[0]);
+
+        // Verify: navigated restored tab is filtered out from active list.
+        assertEquals(0, element.aimThreadRestoredTabs.length);
       });
 
   test('submitCleanup() clears active tab selections', async () => {
@@ -447,8 +512,7 @@ suite('ComposeboxMixinTest', () => {
 
   test('queries autocomplete on load by default', async () => {
     searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
-    const freshComposebox = document.createElement('test-composebox-mixin') as
-        TestComposeboxMixinElement;
+    const freshComposebox = document.createElement('test-composebox-mixin');
     document.body.appendChild(freshComposebox);
     await microtasksFinished();
 
@@ -460,9 +524,7 @@ suite('ComposeboxMixinTest', () => {
   test('does not query autocomplete on load when queryZpsOnLoad is false',
        async () => {
     searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
-    const freshComposebox =
-        document.createElement('test-composebox-mixin') as
-        TestComposeboxMixinElement;
+    const freshComposebox = document.createElement('test-composebox-mixin');
     // queryZpsOnLoad is read in connectedCallback, so it must be set before
     // the element connects. Contextual Tasks sets it false and drives
     // autocomplete from its own zero-state logic instead.
@@ -629,9 +691,7 @@ suite('ComposeboxMixinTest', () => {
         });
 
         document.body.innerHTML = window.trustedTypes!.emptyHTML;
-        const freshComposebox =
-            document.createElement('test-composebox-mixin') as
-            TestComposeboxMixinElement;
+        const freshComposebox = document.createElement('test-composebox-mixin');
         document.body.appendChild(freshComposebox);
 
         const regularFile = ({
@@ -661,8 +721,7 @@ suite('ComposeboxMixinTest', () => {
     });
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    const freshComposebox = document.createElement('test-composebox-mixin') as
-        TestComposeboxMixinElement;
+    const freshComposebox = document.createElement('test-composebox-mixin');
     document.body.appendChild(freshComposebox);
 
     const regularFile = ({
@@ -1543,6 +1602,10 @@ suite('ComposeboxMixinTest', () => {
         assertFalse(element.hasCachedSubmittedTabsThisTurn);
       });
 
+  test('Omnibox keepMenuOpenOnTabSelect returns false by default', () => {
+    assertFalse(element.keepMenuOpenOnTabSelect);
+  });
+
   test(
       'keepMenuOpenForMultiSelection is gated by keepMenuOpenOnTabSelect',
       async () => {
@@ -1569,6 +1632,17 @@ suite('ComposeboxMixinTest', () => {
           get: () => true,
           configurable: true,
         });
+        await element.keepMenuOpenForMultiSelection();
+        assertTrue(openMenuCalled);
+
+        // Context management disabled: always keeps menu open regardless of
+        // gating flag
+        element.contextManagementInComposeboxEnabled = false;
+        Object.defineProperty(element, 'keepMenuOpenOnTabSelect', {
+          get: () => false,
+          configurable: true,
+        });
+        openMenuCalled = false;
         await element.keepMenuOpenForMultiSelection();
         assertTrue(openMenuCalled);
       });
@@ -1823,4 +1897,68 @@ suite('ComposeboxMixinTest', () => {
     assertFalse(eventFired);
     assertFalse(element.isListening);
   });
+
+  // <if expr="not is_android">
+  test(
+      'connectedCallback calls getSmartTabSharingActive when' +
+          ' smartTabSharingVisible pre-set to true',
+      async () => {
+        searchboxHandler.setResultMapperFor(
+            'getSmartTabSharingActive', () => Promise.resolve({active: true}));
+
+        const newElement = document.createElement('test-composebox-mixin');
+        newElement.smartTabSharingVisible = true;
+        document.body.appendChild(newElement);
+        await searchboxHandler.whenCalled('getSmartTabSharingActive');
+        await microtasksFinished();
+        await newElement.updateComplete;
+
+        assertEquals(
+            1, searchboxHandler.getCallCount('getSmartTabSharingActive'));
+        assertTrue(newElement.smartTabSharingActive);
+        document.body.removeChild(newElement);
+      });
+
+  test(
+      'connectedCallback does NOT call getSmartTabSharingActive when' +
+          ' smartTabSharingVisible is false',
+      async () => {
+        const newElement = document.createElement('test-composebox-mixin');
+        newElement.smartTabSharingVisible = false;
+        document.body.appendChild(newElement);
+        await newElement.updateComplete;
+
+        assertEquals(
+            0, searchboxHandler.getCallCount('getSmartTabSharingActive'));
+        assertFalse(newElement.smartTabSharingActive);
+        document.body.removeChild(newElement);
+      });
+
+  test(
+      'host template .prop binding triggers getSmartTabSharingActive' +
+          ' at child mount',
+      async () => {
+        searchboxHandler.setResultMapperFor(
+            'getSmartTabSharingActive', () => Promise.resolve({active: true}));
+
+        const host = document.createElement('div');
+        host.innerHTML = getTrustedHtml(`
+          <test-composebox-mixin smart-tab-sharing-visible></test-composebox-mixin>
+        `);
+        document.body.appendChild(host);
+
+        const newElement = host.querySelector<TestComposeboxMixinElement>(
+            'test-composebox-mixin');
+        assertTrue(!!newElement);
+
+        await searchboxHandler.whenCalled('getSmartTabSharingActive');
+        await microtasksFinished();
+        await newElement.updateComplete;
+
+        assertEquals(
+            1, searchboxHandler.getCallCount('getSmartTabSharingActive'));
+        assertTrue(newElement.smartTabSharingActive);
+        document.body.removeChild(host);
+      });
+  // </if>
 });

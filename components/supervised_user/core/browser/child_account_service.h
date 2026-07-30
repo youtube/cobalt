@@ -14,7 +14,6 @@
 #include "base/memory/weak_ptr.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/supervised_user/core/browser/list_family_members_service.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "net/base/backoff_entry.h"
 
@@ -80,9 +79,7 @@ class ChildAccountService : public KeyedService,
   ChildAccountService(
       PrefService& user_prefs,
       signin::IdentityManager* identity_manager,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      base::OnceCallback<void(bool)> check_user_child_status_callback,
-      ListFamilyMembersService& list_family_members_service);
+      base::OnceCallback<void(bool)> check_user_child_status_callback);
 
  private:
   // Sets whether the signed-in account is a supervised account.
@@ -108,15 +105,11 @@ class ChildAccountService : public KeyedService,
 
   void OnAuthStateUpdated();
 
-  // Subscription to set custodian preferences from successful fetch of
-  // ListFamilyMembersService.
-  base::CallbackListSubscription set_custodian_prefs_subscription_;
+
 
   const raw_ptr<signin::IdentityManager> identity_manager_;
 
   const raw_ref<PrefService> user_prefs_;
-
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   base::RepeatingClosureList google_auth_state_observers_;
 

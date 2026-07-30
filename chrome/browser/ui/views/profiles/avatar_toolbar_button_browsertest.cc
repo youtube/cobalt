@@ -15,11 +15,9 @@
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/with_feature_override.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
@@ -80,8 +78,6 @@
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
-#include "components/policy/core/common/policy_map.h"
-#include "components/policy/policy_constants.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -102,19 +98,15 @@
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/views/help_bubble_view.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
-#include "content/public/test/test_utils.h"
 #include "device/fido/public/features.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/mojom/themes.mojom.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/base/webui/web_ui_util.h"
-#include "ui/events/base_event_utils.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_unittest_util.h"
@@ -1112,8 +1104,7 @@ class AvatarToolbarButtonReplaceSyncPromosWithSignInPromosBrowserTest
     ASSERT_TRUE(avatar_accessor.GetText().empty());                          \
                                                                              \
     SigninWithImage(test_email(), test_given_name());                        \
-    if (base::FeatureList::IsEnabled(                                        \
-            syncer::kReplaceSyncPromosWithSignInPromos)) {                   \
+    if (syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {              \
       ASSERT_EQ(                                                             \
           avatar_accessor.GetText(),                                         \
           l10n_util::GetStringUTF16(IDS_AVATAR_BUTTON_MAKING_CHROME_YOURS)); \
@@ -4145,10 +4136,10 @@ INSTANTIATE_TEST_SUITE_P(All,
                          AvatarToolbarButtonPasskeyUnlockErrorBrowserTest,
                          testing::Bool());
 
-class AvatarToolbarButtonAiRingBrowserTest
+class AvatarToolbarButtonGradientRingBrowserTest
     : public AvatarToolbarButtonBrowserTestBase {
  public:
-  AvatarToolbarButtonAiRingBrowserTest() {
+  AvatarToolbarButtonGradientRingBrowserTest() {
     scoped_feature_list_.InitAndEnableFeature(
         switches::kEnableAiSubscriptionAvatarRing);
   }
@@ -4163,7 +4154,7 @@ class AvatarToolbarButtonAiRingBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
+IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonGradientRingBrowserTest,
                        PrefChangeTriggersLayoutAndIconUpdate) {
   AvatarToolbarButton* avatar_button = static_cast<AvatarToolbarButton*>(
       BrowserView::GetBrowserViewForBrowser(browser())
@@ -4172,8 +4163,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   ASSERT_TRUE(avatar_button);
   AvatarToolbarButtonTestAccessor avatar_accessor(browser());
 
-  // Assert that AI ring is not enabled initially.
-  ASSERT_FALSE(IsAiSubscriptionRingEnabled(browser()->GetProfile()));
+  // Assert that gradient ring is not enabled initially.
+  ASSERT_FALSE(ShouldShowAvatarGradientRing(browser()->GetProfile()));
 
   std::optional<ui::ImageModel> normal_icon =
       avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
@@ -4189,8 +4180,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   SetAiSubscriptionTierForProfile(1);
   waiter1->Wait();
 
-  // The AI ring should be enabled now.
-  EXPECT_TRUE(IsAiSubscriptionRingEnabled(browser()->GetProfile()));
+  // The gradient ring should be enabled now.
+  EXPECT_TRUE(ShouldShowAvatarGradientRing(browser()->GetProfile()));
   std::optional<ui::ImageModel> ring_icon =
       avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
   EXPECT_TRUE(ring_icon);
@@ -4213,7 +4204,7 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   SetAiSubscriptionTierForProfile(0);
   waiter2->Wait();
 
-  EXPECT_FALSE(IsAiSubscriptionRingEnabled(browser()->GetProfile()));
+  EXPECT_FALSE(ShouldShowAvatarGradientRing(browser()->GetProfile()));
   std::optional<ui::ImageModel> restored_icon =
       avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
   ASSERT_TRUE(restored_icon);
@@ -4224,8 +4215,8 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   EXPECT_EQ(restored_insets, standard_insets);
 }
 
-IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
-                       SigninPendingSuppressesAiRing) {
+IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonGradientRingBrowserTest,
+                       SigninPendingSuppressesGradientRing) {
   AvatarToolbarButton* avatar_button = static_cast<AvatarToolbarButton*>(
       GetAvatarToolbarButtonInterface(browser()));
   ASSERT_TRUE(avatar_button);
@@ -4249,13 +4240,13 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   const gfx::Insets standard_insets =
       avatar_button->GetLayoutInsets().value_or(gfx::Insets());
 
-  // Set AI subscription. This will not trigger the AI ring because SigninPending
-  // suppresses it.
+  // Set AI subscription. This will not trigger the gradient ring because
+  // SigninPending suppresses it.
   auto waiter2 = avatar_accessor.CreateUpdateWaiter();
   SetAiSubscriptionTierForProfile(1);
   waiter2->Wait();
 
-  // Verify that the AI ring is not enabled for the button.
+  // Verify that the gradient ring is not enabled for the button.
   std::optional<ui::ImageModel> current_icon =
       avatar_button->GetImageModel(views::Button::ButtonState::STATE_NORMAL);
   ASSERT_TRUE(current_icon);
@@ -4264,6 +4255,64 @@ IN_PROC_BROWSER_TEST_F(AvatarToolbarButtonAiRingBrowserTest,
   gfx::Insets current_insets =
       avatar_button->GetLayoutInsets().value_or(gfx::Insets());
   EXPECT_EQ(standard_insets, current_insets);
+}
+
+// Regression test for crbug.com/533663292
+class AvatarToolbarButtonAsyncPromoRaceRegressionTest
+    : public AvatarToolbarButtonBrowserTestBase {
+ public:
+  AvatarToolbarButtonAsyncPromoRaceRegressionTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {syncer::kReplaceSyncPromosWithSignInPromos,
+         syncer::kReplaceSyncPromosWithSigninPromosNewSignin},
+        {features::kWebUIAvatarButton});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_WITH_SIGNED_IN_FROM_PRE(IN_PROC_BROWSER_TEST_F,
+                             AvatarToolbarButtonAsyncPromoRaceRegressionTest,
+                             CrashOnPromoStateCollapseRegressionTest) {
+  AvatarToolbarButtonTestAccessor avatar_accessor(browser());
+
+  // Wait for the identity name to show up and then clear it, since its higher
+  // priority prevents the promo from displaying and making the test timeout.
+  ASSERT_TRUE(avatar_accessor.WaitForTextNotEqual(std::u16string()));
+  AvatarToolbarButtonInterface* avatar =
+      GetAvatarToolbarButtonInterface(browser());
+  avatar->ClearActiveStateForTesting();
+  ASSERT_TRUE(avatar_accessor.WaitForText(std::u16string()));
+
+  // Specifically enable BatchUploadPromo conditions and disable
+  // HistorySyncPromo
+  SetHistoryAndTabsSyncingPreference(true);
+  batch_upload_test_helper().SetLocalDataDescriptionForAllAvailableTypes();
+  batch_upload_test_helper().SetReturnDescriptionOnRequest(true);
+
+  // Manually set some delay to be sure tests don't timeout/fail from instant
+  // collapse
+  SetInfiniteAvatarDelay(AvatarDelayType::kPromo);
+
+  // Trigger both fetches.
+  avatar->ForceShowingPromoForTesting();
+  avatar->ForceShowingPromoForTesting();
+
+  // The first request will be implicitly cancelled by the second request
+  // starting. We fire it, and it should silently drop. (In the buggy code, it
+  // would be processed and start the promo).
+  batch_upload_test_helper().FireReturnDescriptionRequest();
+
+  // Fire second request, it resolves to NO promo.
+  // In the buggy code, this would collapse the underlying state but leaves the
+  // UI showing the promo, leading to a crash on click.
+  // With the fix, the UI never showed a promo so it's a no-op.
+  batch_upload_test_helper().ClearReturnDescriptions();
+  batch_upload_test_helper().FireReturnDescriptionRequest();
+
+  // Click the button to trigger a crash in the original code.
+  avatar_accessor.Click();
 }
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)

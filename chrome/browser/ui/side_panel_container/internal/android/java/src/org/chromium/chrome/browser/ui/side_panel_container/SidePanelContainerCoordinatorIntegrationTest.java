@@ -10,25 +10,32 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.view.View;
-import android.widget.FrameLayout;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
+import androidx.core.view.ViewCompat;
 import androidx.test.filters.MediumTest;
+import androidx.test.runner.lifecycle.Stage;
 
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabbed_mode.TabbedRootUiCoordinator;
 import org.chromium.chrome.browser.ui.side_panel_container.test.SidePanelContainerCoordinatorIntegrationTestSupport;
@@ -39,10 +46,13 @@ import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.RenderTestRule;
+import org.chromium.ui.util.ColorUtils;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Tests {@link SidePanelContainerCoordinatorImpl}'s integration with {@code ChromeActivity}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@Batch(Batch.PER_CLASS)
+@DoNotBatch(reason = "Need to reset theme for consistent render test results")
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 @EnableFeatures({
     ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
@@ -74,6 +84,12 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         ChromeTabUtils.waitForTabPageLoaded(mResponsivePageStation.getTab(), responsivePageUrl);
     }
 
+    @AfterClass
+    public static void tearDownAfterClass() {
+        ThreadUtils.runOnUiThreadBlocking(
+                ChromeNightModeTestUtils::tearDownNightModeAfterChromeActivityDestroyed);
+    }
+
     @Test
     @MediumTest
     public void showPanel_addsContentView() {
@@ -82,11 +98,17 @@ public class SidePanelContainerCoordinatorIntegrationTest {
 
         // Act.
         showPanel(mResponsivePageStation.getTab());
-        FrameLayout containerView = waitForContainerViewOpen(coordinator);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
 
         // Assert.
-        assertEquals(1, containerView.getChildCount());
-        assertNotNull(containerView.getChildAt(0));
+        ViewGroup contentContainer = containerView.findViewById(R.id.side_panel_content_container);
+        assertNotNull(contentContainer);
+        assertEquals(1, contentContainer.getChildCount());
+        assertNotNull(contentContainer.getChildAt(0));
+
+        TextView titleView = containerView.findViewById(R.id.side_panel_title);
+        assertNotNull(titleView);
+        assertEquals("Developer Panel", titleView.getText().toString());
     }
 
     @Test
@@ -96,17 +118,19 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         var coordinator = getSidePanelContainerCoordinator();
         var tab1 = mResponsivePageStation.getTab();
         showPanel(tab1);
-        FrameLayout containerView = waitForContainerViewOpen(coordinator);
-        assertEquals(1, containerView.getChildCount());
-        View contentView1 = containerView.getChildAt(0);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
+        ViewGroup contentContainer = containerView.findViewById(R.id.side_panel_content_container);
+        assertNotNull(contentContainer);
+        assertEquals(1, contentContainer.getChildCount());
+        View contentView1 = contentContainer.getChildAt(0);
 
         // Arrange: Show the side panel for a new tab.
         var newTabPageStation = mResponsivePageStation.openNewTabFast();
         var tab2 = newTabPageStation.getTab();
         showPanel(tab2);
         waitForContainerViewOpen(coordinator);
-        assertEquals(1, containerView.getChildCount());
-        View contentView2 = containerView.getChildAt(0);
+        assertEquals(1, contentContainer.getChildCount());
+        View contentView2 = contentContainer.getChildAt(0);
         assertNotEquals(contentView1, contentView2);
 
         // Act: Switch back to the first tab.
@@ -114,8 +138,78 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         waitForContainerViewOpen(coordinator);
 
         // Assert.
-        assertEquals(1, containerView.getChildCount());
-        assertEquals(contentView1, containerView.getChildAt(0));
+        assertEquals(1, contentContainer.getChildCount());
+        assertEquals(contentView1, contentContainer.getChildAt(0));
+    }
+
+    @Test
+    @MediumTest
+    public void showPanel_setsAccessibilityPaneTitle() {
+        // Arrange.
+        var coordinator = getSidePanelContainerCoordinator();
+        var tab1 = mResponsivePageStation.getTab();
+
+        // Act.
+        showPanel(tab1);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
+
+        // Assert.
+        // We verify that the default dev feature sets the title correctly.
+        CriteriaHelper.pollUiThread(
+                () -> "Developer Panel".equals(ViewCompat.getAccessibilityPaneTitle(containerView)),
+                "Accessibility pane title was not set correctly on open.");
+    }
+
+    @Test
+    @MediumTest
+    public void replacePanelContent_setsAccessibilityPaneTitle() {
+        // Arrange: Show the side panel for the current active tab.
+        var coordinator = getSidePanelContainerCoordinator();
+        var tab1 = mResponsivePageStation.getTab();
+        showPanel(tab1);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
+
+        // Arrange: Show the side panel for a new tab.
+        var newTabPageStation = mResponsivePageStation.openNewTabFast();
+        var tab2 = newTabPageStation.getTab();
+        showPanel(tab2);
+        waitForContainerViewOpen(coordinator);
+
+        // Force set a title on the view so we can test that replacing the panel natively updates it
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> ViewCompat.setAccessibilityPaneTitle(containerView, "Test Custom Title"));
+
+        // Act: Switch back to the first tab, natively replacing the panel content.
+        mResponsivePageStation = newTabPageStation.selectTabFast(tab1, WebPageStation::newBuilder);
+        waitForContainerViewOpen(coordinator);
+
+        // Assert: The accessibility title matches the native testing feature's title.
+        CriteriaHelper.pollUiThread(
+                () -> "Developer Panel".equals(ViewCompat.getAccessibilityPaneTitle(containerView)),
+                "Accessibility pane title was not updated correctly on replace.");
+    }
+
+    @Test
+    @MediumTest
+    public void closePanel_clearsAccessibilityPaneTitle() {
+        // Arrange: Open the panel
+        var coordinator = getSidePanelContainerCoordinator();
+        var tab1 = mResponsivePageStation.getTab();
+        showPanel(tab1);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
+
+        // Force set a title on the view so we can test that close clears it
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> ViewCompat.setAccessibilityPaneTitle(containerView, "Test Custom Title"));
+
+        // Act: Close the side panel.
+        closePanel(tab1);
+        waitForContainerViewClose(coordinator);
+
+        // Assert: The accessibility title should be cleared.
+        CriteriaHelper.pollUiThread(
+                () -> ViewCompat.getAccessibilityPaneTitle(containerView) == null,
+                "Accessibility pane title was not cleared on close.");
     }
 
     @Test
@@ -127,7 +221,7 @@ public class SidePanelContainerCoordinatorIntegrationTest {
 
         // Act.
         showPanel(mResponsivePageStation.getTab());
-        FrameLayout containerView = waitForContainerViewOpen(coordinator);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
 
         // Assert.
         mRenderTestRule.render(containerView, "side_panel_container");
@@ -140,14 +234,16 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         var coordinator = getSidePanelContainerCoordinator();
         var tab = mResponsivePageStation.getTab();
         showPanel(tab);
-        FrameLayout containerView = waitForContainerViewOpen(coordinator);
+        ViewGroup containerView = waitForContainerViewOpen(coordinator);
 
         // Act.
         closePanel(tab);
         waitForContainerViewClose(coordinator);
 
         // Assert.
-        assertEquals(0, containerView.getChildCount());
+        ViewGroup contentContainer = containerView.findViewById(R.id.side_panel_content_container);
+        assertNotNull(contentContainer);
+        assertEquals(0, contentContainer.getChildCount());
     }
 
     @Test
@@ -226,6 +322,74 @@ public class SidePanelContainerCoordinatorIntegrationTest {
         mRenderTestRule.render(tabCardView, "tab_card_after_closing_side_panel");
     }
 
+    @Test
+    @MediumTest
+    public void changeTheme_retainsOpenPanel() {
+        // Arrange:
+        var coordinator = getSidePanelContainerCoordinator();
+        showPanel(mResponsivePageStation.getTab());
+        waitForContainerViewOpen(coordinator);
+
+        // Act: Change the theme.
+        boolean isNightMode = ColorUtils.inNightMode(mResponsivePageStation.getActivity());
+        ChromeTabbedActivity activityInNewTheme =
+                ApplicationTestUtils.waitForActivityWithClass(
+                        ChromeTabbedActivity.class,
+                        Stage.RESUMED,
+                        () ->
+                                ChromeNightModeTestUtils.setUpNightModeForChromeActivity(
+                                        !isNightMode));
+        assertNotEquals(isNightMode, ColorUtils.inNightMode(activityInNewTheme));
+
+        // Assert:
+        // (1) Wait for the SidePanelContainerCoordinator in the new Activity to be initialized,
+        // then
+        // (2) Verify the side panel is still open.
+        var newCoordinatorRef = new AtomicReference<SidePanelContainerCoordinatorImpl>();
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    var newCoordinator =
+                            ((TabbedRootUiCoordinator)
+                                            activityInNewTheme.getRootUiCoordinatorForTesting())
+                                    .getSidePanelContainerCoordinatorForTesting();
+
+                    if (newCoordinator != null) {
+                        newCoordinatorRef.set((SidePanelContainerCoordinatorImpl) newCoordinator);
+                    }
+                    return newCoordinator != null;
+                },
+                "SidePanelContainerCoordinator isn't initialized for the new Activity.");
+        waitForContainerViewOpen(newCoordinatorRef.get());
+    }
+
+    @Test
+    @MediumTest
+    public void closeAllTabsInGridTabSwitcher_closesSidePanel() {
+        // Arrange: Open 2 tabs.
+        var tab1 = mResponsivePageStation.getTab();
+        var newTabPageStation = mResponsivePageStation.openNewTabFast();
+        var tab2 = newTabPageStation.getTab();
+
+        // Arrange: Open the side panel for each tab.
+        var coordinator = getSidePanelContainerCoordinator();
+        showPanel(tab2);
+        waitForContainerViewOpen(coordinator);
+        mResponsivePageStation = newTabPageStation.selectTabFast(tab1, WebPageStation::newBuilder);
+        showPanel(tab1);
+        waitForContainerViewOpen(coordinator);
+
+        // Act: Go to the grid tab switcher (GTS), and use the three-dot menu to close all tabs.
+        var tabSwitcherStation = mResponsivePageStation.openRegularTabSwitcher();
+        var dialogFacility = tabSwitcherStation.openAppMenu().clickCloseAllTabs();
+        dialogFacility.positiveButtonElement.clickTo().exitFacility();
+
+        // Act: Stay in GTS, use the "+" button to create a new tab.
+        tabSwitcherStation.openNewTab();
+
+        // Assert: The side panel is not shown.
+        waitForContainerViewClose(coordinator);
+    }
+
     private SidePanelContainerCoordinatorImpl getSidePanelContainerCoordinator() {
         var sidePanelContainerCoordinator =
                 ((TabbedRootUiCoordinator)
@@ -256,15 +420,15 @@ public class SidePanelContainerCoordinatorIntegrationTest {
      *
      * @return The View as returned by {@link SidePanelContainerCoordinatorImpl#getView()}.
      */
-    private static FrameLayout waitForContainerViewOpen(
+    private static ViewGroup waitForContainerViewOpen(
             SidePanelContainerCoordinatorImpl coordinator) {
         View containerView = ThreadUtils.runOnUiThreadBlocking(coordinator::getView);
-        assertTrue(containerView instanceof FrameLayout);
+        assertTrue(containerView instanceof ViewGroup);
 
         CriteriaHelper.pollUiThread(
                 () -> containerView.getWidth() > 0,
                 "The container View should have been attached and laid out.");
-        return (FrameLayout) containerView;
+        return (ViewGroup) containerView;
     }
 
     /** Waits for the View of {@link SidePanelContainerCoordinator} to be detached. */

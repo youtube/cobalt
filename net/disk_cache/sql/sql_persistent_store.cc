@@ -32,12 +32,14 @@
 #include "net/base/cache_type.h"
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
+#include "net/disk_cache/backend_cleanup_tracker.h"
 #include "net/disk_cache/sql/cache_entry_key.h"
 #include "net/disk_cache/sql/eviction_candidate_aggregator.h"
 #include "net/disk_cache/sql/sql_backend_constants.h"
 #include "net/disk_cache/sql/sql_persistent_store_backend.h"
 #include "net/disk_cache/sql/sql_persistent_store_backend_shard.h"
 #include "net/disk_cache/sql/sql_read_cache_memory_monitor.h"
+#include "net/disk_cache/sql/sql_shared_cache_manager.h"
 
 namespace disk_cache {
 namespace {
@@ -76,7 +78,11 @@ std::vector<bool> AppendResult(std::vector<bool> results, bool result) {
 void RecordEvictionHistograms(std::string_view method_name,
                               SqlPersistentStore::Error error,
                               base::TimeTicks start_time,
-                              size_t entry_count) {
+                              size_t entry_count,
+                              bool reduce_uma) {
+  if (reduce_uma) {
+    return;
+  }
   base::UmaHistogramMicrosecondsTimes(
       base::StrCat({kSqlDiskCacheBackendHistogramPrefix, method_name,
                     error == SqlPersistentStore::Error::kOk ? ".SuccessTime"
@@ -103,7 +109,8 @@ SqlPersistentStore::CreateBackendShards(
     net::CacheType type,
     std::vector<scoped_refptr<base::SequencedTaskRunner>>
         background_task_runners,
-    SqlAsyncTaskManager& async_task_manager) {
+    SqlAsyncTaskManager& async_task_manager,
+    scoped_refptr<BackendCleanupTracker> cleanup_tracker) {
   const size_t num_shards = background_task_runners.size();
   CHECK(num_shards < std::numeric_limits<ShardId::underlying_type>::max());
   std::vector<std::unique_ptr<BackendShard>> backend_shards;
@@ -114,7 +121,7 @@ SqlPersistentStore::CreateBackendShards(
   for (size_t i = 0; i < num_shards; ++i) {
     backend_shards.emplace_back(std::make_unique<BackendShard>(
         ShardId(i), path, type, read_cache_memory_monitor,
-        background_task_runners[i], async_task_manager));
+        background_task_runners[i], async_task_manager, cleanup_tracker));
   }
   return backend_shards;
 }
@@ -125,29 +132,56 @@ SqlPersistentStore::SqlPersistentStore(
     net::CacheType type,
     std::vector<scoped_refptr<base::SequencedTaskRunner>>
         background_task_runners,
-    SqlAsyncTaskManager& async_task_manager)
+    SqlAsyncTaskManager& async_task_manager,
+    scoped_refptr<BackendCleanupTracker> cleanup_tracker)
     : background_task_runners_(std::move(background_task_runners)),
       async_task_manager_(async_task_manager),
+      shared_cache_manager_(
+          base::FeatureList::IsEnabled(
+              net::features::kRendererAccessibleHttpCache)
+              ? std::make_unique<SqlSharedCacheManager>(*this,
+                                                        path,
+                                                        cleanup_tracker)
+              : nullptr),
       backend_shards_(CreateBackendShards(path,
                                           type,
                                           background_task_runners_,
-                                          async_task_manager)),
-      user_max_bytes_(max_bytes) {}
+                                          async_task_manager,
+                                          std::move(cleanup_tracker))),
+      user_max_bytes_(max_bytes),
+      reduce_uma_(net::features::kSqlDiskCacheReduceUma.Get()) {}
 SqlPersistentStore::~SqlPersistentStore() = default;
 
 void SqlPersistentStore::Initialize(ErrorCallback callback) {
+  // 1 task for backend shards init, plus 1 task for shared_cache_manager_ init.
+  const size_t num_init_tasks = 1 + (shared_cache_manager_ ? 1 : 0);
+  auto barrier_callback =
+      CreateBarrierErrorCallback(std::move(callback), num_init_tasks);
+
   if (net::features::kSqlDiskCacheSerialInitialize.Get()) {
     std::vector<InitResultOrError> results;
     results.reserve(GetSizeOfShards());
-    InitializeNextShard(std::move(callback), std::move(results));
-    return;
+    InitializeNextShard(barrier_callback, std::move(results));
+  } else {
+    auto shard_barrier_callback = base::BarrierCallback<InitResultOrError>(
+        GetSizeOfShards(),
+        base::BindOnce(&SqlPersistentStore::OnInitializeFinished,
+                       weak_factory_.GetWeakPtr(), barrier_callback));
+    for (const auto& backend_shard : backend_shards_) {
+      backend_shard->Initialize(user_max_bytes_, shard_barrier_callback);
+    }
   }
-  auto barrier_callback = base::BarrierCallback<InitResultOrError>(
-      GetSizeOfShards(),
-      base::BindOnce(&SqlPersistentStore::OnInitializeFinished,
-                     weak_factory_.GetWeakPtr(), std::move(callback)));
-  for (const auto& backend_shard : backend_shards_) {
-    backend_shard->Initialize(user_max_bytes_, barrier_callback);
+
+  if (shared_cache_manager_) {
+    shared_cache_manager_->Init(
+        base::BindOnce(
+            [](base::expected<void, SqlSharedCacheIndexDatabase::Error> result)
+                -> Error {
+              return result.has_value()
+                         ? Error::kOk
+                         : Error::kFailedToInitializeSharedCacheIndexDatabase;
+            })
+            .Then(barrier_callback));
   }
 }
 
@@ -458,7 +492,7 @@ void SqlPersistentStore::OnPendingEvictionFinished(
   }
   RecordEvictionHistograms(
       is_idle_time_eviction ? "ResumeEvictionOnIdleTime" : "ResumeEviction",
-      error, start_time, count);
+      error, start_time, count, reduce_uma_);
 
   if (error != Error::kOk || HasPendingEviction()) {
     std::move(callback).Run(error);
@@ -519,7 +553,7 @@ void SqlPersistentStore::OnEvictionFinished(
 
   RecordEvictionHistograms(
       is_idle_time_eviction ? "RunNewEvictionOnIdleTime" : "RunNewEviction",
-      error, start_time, count);
+      error, start_time, count, reduce_uma_);
 
   CHECK(eviction_result_callback_);
   auto callback = std::move(eviction_result_callback_);
@@ -745,9 +779,10 @@ void SqlPersistentStore::SetMaxSize(int64_t max_bytes) {
 }
 
 base::RepeatingCallback<void(SqlPersistentStore::Error)>
-SqlPersistentStore::CreateBarrierErrorCallback(ErrorCallback callback) {
+SqlPersistentStore::CreateBarrierErrorCallback(ErrorCallback callback,
+                                               size_t num_tasks) {
   return base::BarrierCallback<Error>(
-      GetSizeOfShards(),
+      num_tasks == 0 ? GetSizeOfShards() : num_tasks,
       base::BindOnce(
           [](ErrorCallback callback, const std::vector<Error>& errors) {
             // Return the first error, or kOk if all succeeded.

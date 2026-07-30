@@ -11,11 +11,14 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_web_view.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/common/webui_url_constants.h"
@@ -29,11 +32,13 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "content/public/test/web_contents_tester.h"
 #include "net/dns/mock_host_resolver.h"
+#include "ui/actions/actions.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/widget/widget_deletion_observer.h"
 
@@ -54,7 +59,6 @@ class MockContextualTasksComposeboxHandler
       Profile* profile,
       content::WebContents* web_contents,
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
-      mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
       mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
@@ -66,7 +70,6 @@ class MockContextualTasksComposeboxHandler
             profile,
             web_contents,
             std::move(pending_handler),
-            std::move(pending_page),
             std::move(pending_searchbox_handler),
             std::move(pending_searchbox_page),
             std::move(get_session_callback),
@@ -690,9 +693,6 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
   coordinator->Show(false,
                     omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT);
   ContextualTasksUI* ui = GetContextualTasksUI();
-  mojo::PendingRemote<composebox::mojom::Page> composebox_page_remote;
-  mojo::PendingReceiver<composebox::mojom::Page> composebox_page_receiver =
-      composebox_page_remote.InitWithNewPipeAndPassReceiver();
   mojo::PendingRemote<composebox::mojom::PageHandler> composebox_handler_remote;
   mojo::PendingReceiver<composebox::mojom::PageHandler>
       composebox_handler_receiver =
@@ -710,7 +710,6 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
           ui, browser()->GetProfile(),
           TabListInterface::From(browser())->GetTab(0)->GetContents(),
           std::move(composebox_handler_receiver),
-          std::move(composebox_page_remote),
           std::move(searchbox_handler_receiver),
           std::move(searchbox_page_remote),
           base::BindRepeating(
@@ -935,7 +934,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
   EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
   // Show Customize Chrome side panel.
-  chrome::ExecuteCommand(browser(), IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
+  chrome::ExecuteCommandWithContext(
+      browser(), IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL,
+      actions::ActionInvocationContext::Builder()
+          .SetProperty(
+              kSidePanelOpenTriggerKey,
+              static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                  SidePanelOpenTrigger::kToolbarButton))
+          .Build());
 
   // Verify the panel is closed.
   EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
@@ -1094,8 +1100,13 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
             false, omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT);
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId),
+      NameViewRelative(kContextualTasksSidePanelWebViewElementId,
+                       "SidePanelContentWebViewName",
+                       [](ContextualTasksWebView* web_view) -> views::View* {
+                         return web_view->content_web_view();
+                       }),
       InstrumentNonTabWebView(kSidePanelWebContentsId,
-                              kContextualTasksSidePanelWebViewElementId),
+                              "SidePanelContentWebViewName"),
       FocusWebContents(kSidePanelWebContentsId),
       WaitForStateChange(kSidePanelWebContentsId, contextual_tasks_app_exists),
       Do([&]() {

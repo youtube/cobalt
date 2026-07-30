@@ -13,6 +13,7 @@
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/test_future.h"
@@ -49,20 +50,6 @@ constexpr char kQueryText[] = "query";
 constexpr char kComposeboxFileDeleted[] =
     "ContextualSearch.Session.File.DeletedCount";
 
-class MockPage : public composebox::mojom::Page {
- public:
-  MockPage() = default;
-  ~MockPage() override = default;
-
-  mojo::PendingRemote<composebox::mojom::Page> BindAndGetRemote() {
-    DCHECK(!receiver_.is_bound());
-    return receiver_.BindNewPipeAndPassRemote();
-  }
-
-  void FlushForTesting() { receiver_.FlushForTesting(); }
-
-  mojo::Receiver<composebox::mojom::Page> receiver_{this};
-};
 
 }  // namespace
 
@@ -102,7 +89,6 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     web_contents()->SetDelegate(&delegate_);
     handler_ = std::make_unique<ComposeboxHandler>(
         mojo::PendingReceiver<composebox::mojom::PageHandler>(),
-        mock_page_.BindAndGetRemote(),
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
         mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
         base::BindLambdaForTesting(
@@ -124,9 +110,14 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     content::TestNavigationObserver navigation_observer(web_contents());
     handler().SubmitQuery(kQueryText, 1, false, false, false, false,
                           /*is_voice_search=*/false);
+    base::RunLoop().RunUntilIdle();
     auto navigation = content::NavigationSimulator::CreateFromPending(
         web_contents()->GetController());
     ASSERT_TRUE(navigation);
+    auto callback = delegate_.TakeCallback();
+    if (callback) {
+      std::move(callback).Run(*(navigation->GetNavigationHandle()));
+    }
     navigation->Commit();
     navigation_observer.Wait();
   }
@@ -139,6 +130,7 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
     // Service is owned by the profile, so we don't need to reset it here,
     // but we should clear the pointer.
     service_ = nullptr;
+    delegate_.ClearCallback();
     ContextualSearchboxHandlerTestHarness::TearDown();
   }
 
@@ -160,7 +152,6 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
   }
 
  protected:
-  testing::NiceMock<MockPage> mock_page_;
   testing::NiceMock<MockSearchboxPage> mock_searchbox_page_;
 
  private:
@@ -186,7 +177,6 @@ TEST_F(ComposeboxHandlerTest, DeleteFileAndSubmitQuery) {
   base::UnguessableToken delete_file_token = base::UnguessableToken::Create();
   base::UnguessableToken token_arg;
   EXPECT_CALL(query_controller(), GetFileInfo(delete_file_token))
-      .Times(1)
       .WillRepeatedly(testing::Return(file_info.get()));
   EXPECT_CALL(query_controller(), DeleteFile(delete_file_token))
       .WillOnce([&token_arg](const base::UnguessableToken& token) {
@@ -479,4 +469,136 @@ TEST_F(ComposeboxHandlerTest, NextboxAnimationLimiting) {
     EXPECT_THAT(dict.FindInt("nextbox_daily_count"), testing::Optional(1));
     EXPECT_THAT(dict.FindInt("nextbox_lifetime_count"), testing::Optional(20));
   }
+}
+
+class DestructingTestWebContentsDelegate : public TestWebContentsDelegate {
+ public:
+  explicit DestructingTestWebContentsDelegate(base::OnceClosure on_open_url)
+      : on_open_url_(std::move(on_open_url)) {}
+
+  content::WebContents* OpenURLFromTab(
+      content::WebContents* source,
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override {
+    if (on_open_url_) {
+      std::move(on_open_url_).Run();
+    }
+    return TestWebContentsDelegate::OpenURLFromTab(
+        source, params, std::move(navigation_handle_callback));
+  }
+
+ private:
+  base::OnceClosure on_open_url_;
+};
+
+TEST_F(ComposeboxHandlerTest, OpenUrl_DestructionSafe) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kOmniboxEverywhere);
+
+  class TestComposeboxHandler : public ComposeboxHandler {
+   public:
+    using ComposeboxHandler::ComposeboxHandler;
+
+    void OpenUrl(GURL url, const WindowOpenDisposition disposition) override {
+      auto weak_this = weak_ptr_factory_.GetWeakPtr();
+      ContextualSearchboxHandler::OpenUrl(url, disposition);
+      if (!weak_this) {
+        return;
+      }
+      ResetInputStateModel();
+      ClearSessionHandle();
+      InitializeInputStateModel();
+      auto* contextual_session_handle = GetContextualSessionHandle();
+      if (contextual_session_handle) {
+        contextual_session_handle->NotifySessionStarted();
+      }
+    }
+
+   private:
+    base::WeakPtrFactory<TestComposeboxHandler> weak_ptr_factory_{this};
+  };
+
+  std::unique_ptr<TestComposeboxHandler> test_handler;
+  DestructingTestWebContentsDelegate destructing_delegate(
+      base::BindLambdaForTesting([&]() { test_handler.reset(); }));
+  web_contents()->SetDelegate(&destructing_delegate);
+
+  mock_searchbox_page_.receiver_.reset();
+
+  test_handler = std::make_unique<TestComposeboxHandler>(
+      mojo::PendingReceiver<composebox::mojom::PageHandler>(),
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
+      base::BindLambdaForTesting([&]() { return contextual_session_handle(); }),
+      base::DoNothing());
+
+  // Calling OpenUrl will post a navigation task to the task runner.
+  // Running pending tasks will trigger WebContentsDelegate::OpenURLFromTab,
+  // which synchronously destroys the handler, and it should complete safely
+  // without any use-after-free crashes.
+  test_handler->OpenUrl(GURL("https://google.com"),
+                        WindowOpenDisposition::CURRENT_TAB);
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(test_handler, nullptr);
+}
+
+TEST_F(ComposeboxHandlerTest, SubmitQuery_DestructionSafe) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kOmniboxEverywhere);
+
+  class TestComposeboxHandler : public ComposeboxHandler {
+   public:
+    using ComposeboxHandler::ComposeboxHandler;
+
+    void OpenUrl(GURL url, const WindowOpenDisposition disposition) override {
+      auto weak_this = weak_ptr_factory_.GetWeakPtr();
+      ContextualSearchboxHandler::OpenUrl(url, disposition);
+      if (!weak_this) {
+        return;
+      }
+      ResetInputStateModel();
+      ClearSessionHandle();
+      InitializeInputStateModel();
+      auto* contextual_session_handle = GetContextualSessionHandle();
+      if (contextual_session_handle) {
+        contextual_session_handle->NotifySessionStarted();
+      }
+    }
+
+   private:
+    base::WeakPtrFactory<TestComposeboxHandler> weak_ptr_factory_{this};
+  };
+
+  std::unique_ptr<TestComposeboxHandler> test_handler;
+  DestructingTestWebContentsDelegate destructing_delegate(
+      base::BindLambdaForTesting([&]() {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE,
+            base::BindLambdaForTesting([&]() { test_handler.reset(); }));
+      }));
+  web_contents()->SetDelegate(&destructing_delegate);
+
+  mock_searchbox_page_.receiver_.reset();
+
+  test_handler = std::make_unique<TestComposeboxHandler>(
+      mojo::PendingReceiver<composebox::mojom::PageHandler>(),
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
+      base::BindLambdaForTesting([&]() { return contextual_session_handle(); }),
+      base::DoNothing());
+
+  // SubmitQuery triggers ContextualizeQueryAndOpenUrl, which synchronously runs
+  // the callback. The callback calls ComputeAndOpenQueryUrl, which calls
+  // CreateSearchUrl, executing its callback synchronously. The callback
+  // calls OpenUrl, which posts the navigation task. Running the posted task
+  // will trigger WebContentsDelegate::OpenURLFromTab, destroying the handler.
+  // All execution should complete safely without use-after-free crashes.
+  test_handler->SubmitQuery("test query", 1, false, false, false, false, false);
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(test_handler, nullptr);
 }

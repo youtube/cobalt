@@ -37,6 +37,7 @@ source_set("model") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/snackbar",
     "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/signin/model",
     "//ios/web/public",
     "//ui/base/clipboard",
     "//url",
@@ -114,5 +115,6 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/ocmock",
     "//ui/base",
+    "//ui/base:test_support",
   ]
 }

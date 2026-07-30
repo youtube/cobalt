@@ -42,6 +42,7 @@
 #include "ui/views/view.h"
 
 class BrowserWindowInterface;
+class ExtensionsContainerViews;
 class WebUILocationBar;
 class WebUIToolbarUI;
 class WebUIToolbarInternalWebView;
@@ -51,6 +52,10 @@ class WebUIToolbarInternalWebView;
 namespace browser_controls_api {
 class BrowserControlsAdapterImpl;
 }
+
+namespace content {
+struct ContextMenuParams;
+}  // namespace content
 
 namespace views {
 struct ProposedLayout;
@@ -66,6 +71,7 @@ class WebUIToolbarControlDelegate {
   virtual BrowserWindowInterface* GetBrowser() = 0;
   virtual chrome::BrowserCommandController* GetCommandController() = 0;
   virtual views::View* GetView() = 0;
+  virtual content::WebContents* GetWebContents() = 0;
 
   // Announces an alert to accessibility screen readers.
   virtual void AnnounceAlert(const std::u16string& announcement) = 0;
@@ -151,6 +157,7 @@ class WebUIToolbarWebView
   }
   AvatarToolbarButtonInterface* GetAvatarToolbarButtonInterface();
   WebUIAppMenuControl* GetAppMenuControl() { return &app_menu_control_; }
+  ExtensionsContainerViews* extensions_container_views();
   const WebUIAppMenuControl* GetAppMenuControl() const {
     return &app_menu_control_;
   }
@@ -194,6 +201,12 @@ class WebUIToolbarWebView
   void InvokePinnedToolbarAction(
       toolbar_ui_api::mojom::PinnedToolbarAction action_id) override;
   void OnLocationBarFocusWithinChanged(bool focused) override;
+  void MovePinnedToolbarAction(
+      toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+      int32_t target_index) override;
+  void MovePinnedToolbarActionBy(
+      toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+      int32_t delta) override;
   void OnLhsChipMousePressed(
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnLhsChipClicked(toolbar_ui_api::mojom::LhsChipIdentifier identifier,
@@ -297,10 +310,10 @@ class WebUIToolbarWebView
   // toolbar operation.
   void AdjustForToolbarFocus();
 
-  // Special path for omnibox context menu, since it needs the `edit_flags`.
+  // Special path for omnibox context menu, since it needs the `params`.
   void HandleOmniboxContextMenu(const gfx::Point& point,
                                 ui::mojom::MenuSourceType source_type,
-                                int edit_flags);
+                                content::ContextMenuParams params);
 
   void SetDidFirstNonEmptyPaintCallbackForTesting(base::OnceClosure callback);
   void SetTickClockForTesting(const base::TickClock* clock);
@@ -354,6 +367,7 @@ class WebUIToolbarWebView
   BrowserWindowInterface* GetBrowser() override;
   chrome::BrowserCommandController* GetCommandController() override;
   views::View* GetView() override;
+  content::WebContents* GetWebContents() override;
   void AnnounceAlert(const std::u16string& announcement) override;
   webui_toolbar::IconTable& GetIconTable() override;
   void OnPreferredSizeChanged() override;

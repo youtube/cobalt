@@ -42,12 +42,13 @@ TrashLocation::~TrashLocation() = default;
 TrashLocation::TrashLocation(TrashLocation&& other) = default;
 TrashLocation& TrashLocation::operator=(TrashLocation&& other) = default;
 
-bool IsTrashEnabledForProfile(Profile* profile) {
+bool IsTrashEnabledForProfile(const PrefService& local_state,
+                              Profile* profile) {
   if (!profile || !profile->GetPrefs()) {
     return false;
   }
   return profile->GetPrefs()->GetBoolean(ash::prefs::kFilesAppTrashEnabled) &&
-         policy::local_user_files::LocalUserFilesAllowed();
+         policy::local_user_files::LocalUserFilesAllowed(local_state);
 }
 
 const base::FilePath GenerateTrashPath(const base::FilePath& trash_path,

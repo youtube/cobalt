@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Gorde pasahitzak</translation>
 <translation id="1764070164487214210">Jarraibideak</translation>
 <translation id="1764511703783285459">Beste pasahitz-kudeatzaileak ez du pasahitzik edo sarbide-gakorik partekatu</translation>
+<translation id="1765555082983153259">"Chrome" arakatzaileak mikrofonoa erabili nahi du</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">Tresnen menua</translation>
 <translation id="1772468122139624049">Ezin dira kargatu fitxak berriro</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Ordenatu menu-barra modu adimendunean</translation>
 <translation id="1883255238294161206">Tolestu zerrenda</translation>
+<translation id="1883898928879467646">Kendu da fitxa</translation>
 <translation id="1888854257756214946">Hautatu pasahitz bat…</translation>
 <translation id="1890237935065108104">Ezarpena ez dago erabilgarri.</translation>
 <translation id="1894023287452300670">Egin prezioaren jarraipena hemen</translation>
@@ -1620,6 +1622,7 @@
 <translation id="6406506848690869874">Sinkronizazioa</translation>
 <translation id="6410390304316730527">Arakatze seguruaren helburua zu balizko erasotzaileen aurrean babestea da, litekeena baita halakoek, azpikeriaz, zu zerbait arriskutsua egitera bultzatzea; esate baterako, software gaiztoa instalatu edo informazio pertsonala ezagutzera eman (adibidez, pasahitzak, telefono-zenbakiak edo kreditu-txartelak). Arakatze segurua desaktibatuz gero, tentuz ibili ezagunak edo izen onekoak ez diren webguneak arakatzean.</translation>
 <translation id="6410883413783534063">Erabili fitxak aldi berean webgune bat baino gehiago ikusteko</translation>
+<translation id="6412195388778525440">Kendu fitxa</translation>
 <translation id="6418346271604475326">Prestatzen</translation>
 <translation id="6420292512900923139">Arazoak ditugu datuak inportatzeko</translation>
 <translation id="6421038304268477484">Itzulpena</translation>
@@ -2320,7 +2323,6 @@ Ordenagailuan jarraitzeko, aldatu <ph name="OTHER_EMAIL" /> helbide elektronikor
 <translation id="8692689525339542358">Babestu zeure burua webgune, deskarga eta luzapen arriskutsuen aurrean.</translation>
 <translation id="8692897097252418799">Aukeratu esportatu nahi dituzun datuak</translation>
 <translation id="8694281486652655615">Elementu hau erakusten du</translation>
-<translation id="8696297579102085705">Bidali zure gailura</translation>
 <translation id="8697136149718343437">Eraman helbide-barra beheraino</translation>
 <translation id="869891660844655955">Iraungitze-data</translation>
 <translation id="8706253136355675497">Tenperatura</translation>
@@ -2463,6 +2465,7 @@ Ordenagailuan jarraitzeko, aldatu <ph name="OTHER_EMAIL" /> helbide elektronikor
 <translation id="9149866541089851383">Editatu…</translation>
 <translation id="9152637745605628097">Aukeratu gaien edo koloreen artean, edo kargatu irudi bat</translation>
 <translation id="9159628751968616911">Bidali web-orria</translation>
+<translation id="9162412286847966593">Zure erakundearen datuak eta grabaketak ez dira erabiliko AA generatiboko ereduak hobetzeko. <ph name="BEGIN_LINK" />Zure pribatutasuna eta Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Aktibatu pasahitzen betetze automatikoa</translation>
 <translation id="9165320910061267720">Prezio-jaitsierei buruzko alerten jakinarazpenak jasotzeko, iOS-eko ezarpenetan jakinarazpenak aktibatu beharko dituzu.</translation>
 <translation id="9179151630575358778">Elementu hau ezkutatzen du</translation>

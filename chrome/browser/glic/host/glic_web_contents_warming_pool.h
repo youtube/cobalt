@@ -31,11 +31,6 @@ class WebUIContentsContainer;
 // creating a WebContents in the background before it's actually needed.
 class GlicWebContentsWarmingPool {
  public:
-  enum class ClearReason {
-    kShutdown,
-    kMemoryPressure,
-  };
-
   // LINT.IfChange(GlicContainerCreationReason)
   enum class ContainerCreationReason {
     kInitialColdWarming = 0,      // Preloaded after cold start.
@@ -59,12 +54,10 @@ class GlicWebContentsWarmingPool {
   // initial cold-start pre-warming if allowed. Returns true if pre-warming
   // proceeded, or false otherwise.
   bool MaybeStartInitialWarming();
-  // Unconditionally ensures that a WebUIContentsContainer is preloaded. If the
-  // existing one is crashed, it will be replaced.
-  void EnsurePreload(ContainerCreationReason reason =
-                         ContainerCreationReason::kUserTriggeredColdStart);
-  // Clears the warming pool and destroys any warmed WebContents.
-  void Clear(std::optional<ClearReason> reason);
+
+  // Shuts down the warming pool, destroying any warmed container instance and
+  // stopping all timers.
+  void Shutdown();
 
   // Handles memory pressure notifications by clearing or statefully disabling
   // pre-warming, depending on feature configuration.
@@ -90,19 +83,50 @@ class GlicWebContentsWarmingPool {
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicReloadAfterExpiryStatus)
 
+  // LINT.IfChange(GlicWarmedContainerFate)
+  enum class WarmedContainerFate {
+    kUsed = 0,
+    kExpired = 1,
+    kDeletedOnChromeClosed = 2,
+    kCrashed = 3,
+    kDeletedOnMemoryPressure = 4,
+    kMaxValue = kDeletedOnMemoryPressure,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWarmedContainerFate)
+
   bool HasWarmedContainerForTesting() const;
   base::OneShotTimer& GetDelayTimerForTesting() { return delay_timer_; }
+  bool IsExpiryTimerRunningForTesting() const {
+    return expiry_timer_.IsRunning();
+  }
   WebUIContentsContainer* GetWarmedContainerForTesting() const;
   content::WebContents* GetWarmedWebContents() const;
 
  protected:
+  // Provides derived classes access to the profile when overriding
+  // CreateContainer().
+  Profile* profile() const { return profile_; }
+
+ private:
   class Metrics;
+
+  enum class ClearReason {
+    kShutdown,
+    kMemoryPressure,
+    kExpired,
+  };
+
+  // Clears the current warmed container instance and stops any pending or
+  // expiry timers.
+  void Clear(ClearReason reason);
 
   // Virtual for testing.
   virtual std::unique_ptr<WebUIContentsContainer> CreateContainer();
-  void OnWarmedContentCreated(ContainerCreationReason reason);
 
   void OnContainerExpired();
+  // Unconditionally ensures that a WebUIContentsContainer is preloaded. If the
+  // existing one is crashed, it will be replaced.
+  void EnsurePreload(ContainerCreationReason reason);
   // Starts a timer to preload a WebContents after a delay.
   void EnsurePreloadDelayed(ContainerCreationReason reason);
 

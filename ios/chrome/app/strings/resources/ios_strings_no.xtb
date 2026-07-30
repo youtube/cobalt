@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Lagre passord</translation>
 <translation id="1764070164487214210">Veibeskrivelser</translation>
 <translation id="1764511703783285459">Den andre løsningen for passordlagring delte ingen passord eller passnøkler</translation>
+<translation id="1765555082983153259">«Chrome» vil bruke mikrofonen din</translation>
 <translation id="1767766085187034454">Google Oversetter</translation>
 <translation id="1771016937398045251">Verktøy-menyen</translation>
 <translation id="1772468122139624049">Kan ikke laste inn faner på nytt</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Dypsøk</translation>
 <translation id="188237709236611317">Menylinje for smart sortering</translation>
 <translation id="1883255238294161206">Skjul liste</translation>
+<translation id="1883898928879467646">Fanen er fjernet</translation>
 <translation id="1888854257756214946">Velg passord…</translation>
 <translation id="1890237935065108104">Denne innstillingen er ikke tilgjengelig.</translation>
 <translation id="1894023287452300670">Spor prisen her</translation>
@@ -1620,6 +1622,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6406506848690869874">Synkroniser</translation>
 <translation id="6410390304316730527">Safe Browsing beskytter deg mot angripere som kan prøve å lure deg til å gjøre farlige ting, som å installere skadelig programvare eller avsløre personopplysninger, for eksempel passord, telefonnumre eller kredittkortinformasjon. Hvis du slår det av, må du være forsiktig når du surfer på ukjente eller useriøse nettsteder.</translation>
 <translation id="6410883413783534063">Åpne faner for å besøke ulike sider samtidig</translation>
+<translation id="6412195388778525440">Fjern fanen</translation>
 <translation id="6418346271604475326">Forbereder PDF</translation>
 <translation id="6420292512900923139">Problemer med å importere dataene dine</translation>
 <translation id="6421038304268477484">Oversatt tekst</translation>
@@ -2320,7 +2323,6 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="8692689525339542358">Få beskyttelse mot farlige nettsteder, nedlastinger og utvidelser.</translation>
 <translation id="8692897097252418799">Velg dataene du vil eksportere</translation>
 <translation id="8694281486652655615">Viser dette elementet</translation>
-<translation id="8696297579102085705">Send til enheten din</translation>
 <translation id="8697136149718343437">Flytt adressefeltet til bunnen</translation>
 <translation id="869891660844655955">Utløpsdato</translation>
 <translation id="8706253136355675497">Temperatur</translation>
@@ -2463,6 +2465,7 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="9149866541089851383">Endre</translation>
 <translation id="9152637745605628097">Velg blant temaer og farger, eller last opp et bilde</translation>
 <translation id="9159628751968616911">Send nettside</translation>
+<translation id="9162412286847966593">Dataene og opptakene til organisasjonen din brukes ikke til å forbedre generative AI-modeller. <ph name="BEGIN_LINK" />Personvernet ditt og Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Slå på Autofyll-passord.</translation>
 <translation id="9165320910061267720">For å få varsler om avslag må du slå på varsler i iOS-innstillingene.</translation>
 <translation id="9179151630575358778">Skjuler dette elementet</translation>

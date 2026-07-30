@@ -834,6 +834,9 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
             web_contents_->GetBrowserContext());
     manager->ReportActivation(activation_beacon_url_,
                               GetFrameTree()->root()->current_frame_host());
+    GetContentClient()->browser()->LogWebFeatureForCurrentPage(
+        GetFrameTree()->root()->current_frame_host(),
+        blink::mojom::WebFeature::kPrefetchAndPrerenderActivationBeacon);
   }
 
   FrameTree& target_frame_tree = web_contents_->GetPrimaryFrameTree();
@@ -1189,12 +1192,6 @@ PrerenderHost::AreBeginNavigationParamsCompatibleWithNavigation(
       break;
     default:
       return ActivationNavigationParamsMatch::kRequestContextType;
-  }
-
-  // Since impression should not be set, no need to compare contents.
-  CHECK(!begin_params_->impression);
-  if (potential_activation.impression.has_value()) {
-    return ActivationNavigationParamsMatch::kImpressionHasValue;
   }
 
   // No need to test for devtools_initiator because this field is used for

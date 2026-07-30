@@ -33,7 +33,9 @@ build_webui("build") {
     "audio_player.ts",
     "audio_processor.ts",
     "audio_utils.ts",
+    "caption_block_manager.ts",
     "journal.ts",
+    "local_speech_recognition.ts",
     "logging.ts",
     "page_context_manager.ts",
   ]
@@ -42,6 +44,7 @@ build_webui("build") {
     ts_files += [
       "internal/api_session.ts",
       "internal/conversation.ts",
+      "internal/page_context_verbalizer.ts",
       "internal/persona.ts",
       "internal/tools/tool_executor.ts",
     ]

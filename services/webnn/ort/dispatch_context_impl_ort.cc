@@ -26,7 +26,6 @@ DispatchContextImplOrt::Create(
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     scoped_refptr<Environment> env,
-    scoped_refptr<SessionOptions> session_options,
     std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
@@ -36,16 +35,17 @@ DispatchContextImplOrt::Create(
     EpDeviceInfo target_device) {
   DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
 
+  // Create the session options on the target EP device.
+  auto session_options = ort::SessionOptions::Create(target_device, env);
+
   auto task_runner = owning_task_runner;
   OrtHardwareDeviceType device_type = WebnnToOrtDeviceType(options->device);
   const EpWorkarounds ep_workarounds = env->GetEpWorkarounds(device_type);
-  bool dequantize_linear_input_support_int32 = Environment::IsEpDevice(
-      session_options->first_selected_device(), {kOpenVINOExecutionProvider});
 
   std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> context_impl(
       new DispatchContextImplOrt(
           std::move(receiver), std::move(context_provider),
-          std::move(ep_workarounds), dequantize_linear_input_support_int32,
+          std::move(ep_workarounds),
           std::move(options), std::move(session_options),
           std::move(write_tensor_consumer), std::move(read_tensor_producer),
           std::move(env), std::move(gpu_task_scheduler),
@@ -60,7 +60,6 @@ DispatchContextImplOrt::DispatchContextImplOrt(
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
     base::WeakPtr<WebNNContextProviderImpl> context_provider,
     const EpWorkarounds& ep_workarounds,
-    bool dequantize_linear_input_support_int32,
     mojom::CreateContextOptionsPtr options,
     scoped_refptr<SessionOptions> session_options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
@@ -75,7 +74,6 @@ DispatchContextImplOrt::DispatchContextImplOrt(
     : ContextImplOrt(std::move(receiver),
                      std::move(context_provider),
                      ep_workarounds,
-                     dequantize_linear_input_support_int32,
                      std::move(options),
                      std::move(session_options),
                      std::move(write_tensor_consumer),

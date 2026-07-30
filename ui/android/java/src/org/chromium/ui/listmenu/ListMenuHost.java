@@ -19,6 +19,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
@@ -72,7 +73,9 @@ public class ListMenuHost
 
     private int mMenuMaxWidth;
 
-    private final HierarchicalMenuController<AnchoredPopupWindow> mHierarchicalMenuController;
+    // Nullable for lazy initialization.
+    private @MonotonicNonNull HierarchicalMenuController<AnchoredPopupWindow>
+            mHierarchicalMenuController;
 
     private @Nullable ListMenuDelegate mDelegate;
     private final ObserverList<PopupMenuShownListener> mPopupListeners = new ObserverList<>();
@@ -122,9 +125,6 @@ public class ListMenuHost
                 : "menuPositionedAtStart and menuPositionedAtEnd are both true.";
 
         a.recycle();
-
-        mHierarchicalMenuController =
-                ListMenuUtils.createHierarchicalMenuController(mView.getContext());
     }
 
     /**
@@ -143,13 +143,24 @@ public class ListMenuHost
         }
     }
 
+    /** A getter for {@link HierarchicalMenuController} for lazy initialization. */
+    private HierarchicalMenuController<AnchoredPopupWindow>
+            getHierarchicalMenuControllerInternal() {
+        if (mHierarchicalMenuController == null) {
+            mHierarchicalMenuController =
+                    ListMenuUtils.createHierarchicalMenuController(mView.getContext());
+        }
+        return mHierarchicalMenuController;
+    }
+
     /** Called to dismiss any popup menu that might be showing for this button. */
     public void dismiss() {
         if (mPressedStateSetter != null) {
             mPressedStateSetter.setPressedState(false);
         }
 
-        if (mHierarchicalMenuController.getFlyoutController() == null) {
+        if (mHierarchicalMenuController == null
+                || mHierarchicalMenuController.getFlyoutController() == null) {
             return;
         }
         mHierarchicalMenuController.destroyFlyoutController();
@@ -161,6 +172,9 @@ public class ListMenuHost
 
     /** Returns whether the popup menu is currently showing. */
     public boolean isMenuShowing() {
+        if (mHierarchicalMenuController == null) {
+            return false;
+        }
         FlyoutController<AnchoredPopupWindow> controller =
                 mHierarchicalMenuController.getFlyoutController();
         if (controller == null) {
@@ -177,7 +191,7 @@ public class ListMenuHost
         initPopupWindow();
 
         FlyoutController<AnchoredPopupWindow> controller =
-                mHierarchicalMenuController.getFlyoutController();
+                getHierarchicalMenuControllerInternal().getFlyoutController();
         assert controller != null;
         controller.getMainPopup().show();
 
@@ -243,14 +257,18 @@ public class ListMenuHost
         }
 
         AnchoredPopupWindow popupMenu = builder.build();
-        mHierarchicalMenuController.setupFlyoutController(
-                /* flyoutHandler= */ this, popupMenu, /* drillDownOverrideValue= */ null);
+        getHierarchicalMenuControllerInternal()
+                .setupFlyoutController(
+                        /* flyoutHandler= */ this,
+                        popupMenu,
+                        menu::addOnScrollListener,
+                        /* drillDownOverrideValue= */ null);
 
         if (sPopupMenuHelperForTesting != null) {
             AnchoredPopupWindow spiedPopupMenu =
                     sPopupMenuHelperForTesting.injectPopupMenu(popupMenu);
             FlyoutController<AnchoredPopupWindow> flyoutController =
-                    mHierarchicalMenuController.getFlyoutController();
+                    getHierarchicalMenuControllerInternal().getFlyoutController();
             assert flyoutController != null;
             flyoutController.setMainPopupForTest(spiedPopupMenu);
         }
@@ -274,7 +292,10 @@ public class ListMenuHost
 
     @Override
     public AnchoredPopupWindow createAndShowFlyoutPopup(
-            List<ListItem> items, View view, Runnable dismissRunnable) {
+            List<ListItem> items,
+            View view,
+            Runnable dismissRunnable,
+            View.OnScrollChangeListener scrollListener) {
         if (mDelegate == null) throw new IllegalStateException("Delegate was not set.");
         ListMenu menu = mDelegate.getListMenuFromItems(items);
         assert menu != null;
@@ -310,6 +331,7 @@ public class ListMenuHost
                                 })
                         .build();
 
+        menu.addOnScrollListener(scrollListener);
         popupMenu.show();
         return popupMenu;
     }
@@ -345,7 +367,7 @@ public class ListMenuHost
     public void onPreLayoutChange(
             boolean positionBelow, int x, int y, int width, int height, Rect anchorRect) {
         FlyoutController<AnchoredPopupWindow> controller =
-                mHierarchicalMenuController.getFlyoutController();
+                getHierarchicalMenuControllerInternal().getFlyoutController();
         assert controller != null;
 
         // This animation style is only for the main pane, not for flyout popups.
@@ -394,8 +416,8 @@ public class ListMenuHost
      *
      * @return The {@link HierarchicalMenuController} for this object.
      */
-    public HierarchicalMenuController getHierarchicalMenuController() {
-        return mHierarchicalMenuController;
+    public HierarchicalMenuController<AnchoredPopupWindow> getHierarchicalMenuController() {
+        return getHierarchicalMenuControllerInternal();
     }
 
     public static void setMenuChangedListenerForTesting(PopupMenuHelper listener) {

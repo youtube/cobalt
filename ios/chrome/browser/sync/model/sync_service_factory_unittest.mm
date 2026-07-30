@@ -57,7 +57,7 @@ class SyncServiceFactoryTest : public PlatformTest {
  protected:
   // Returns the collection of default datatypes.
   syncer::DataTypeSet DefaultDatatypes() {
-    static_assert(64 == syncer::GetNumDataTypes(),
+    static_assert(66 == syncer::GetNumDataTypes(),
                   "When adding a new type, you probably want to add it here as "
                   "well (assuming it is already enabled).");
 
@@ -118,6 +118,7 @@ class SyncServiceFactoryTest : public PlatformTest {
     if (base::FeatureList::IsEnabled(
             syncer::kSyncEncryptedTabContextContainer)) {
       datatypes.Put(syncer::ENCRYPTED_TAB_CONTEXT_CONTAINER);
+      datatypes.Put(syncer::ENCRYPTED_TAB_CONTEXT_ITEM);
     }
     if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
       datatypes.Put(syncer::THEMES_IOS);
@@ -130,6 +131,9 @@ class SyncServiceFactoryTest : public PlatformTest {
     }
     if (base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata)) {
       datatypes.Put(syncer::AUTOFILL_VALUABLE_METADATA);
+    }
+    if (base::FeatureList::IsEnabled(syncer::kSyncNotebook)) {
+      datatypes.Put(syncer::NOTEBOOK);
     }
     return datatypes;
   }

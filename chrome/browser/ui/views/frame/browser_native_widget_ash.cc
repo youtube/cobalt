@@ -17,6 +17,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -86,7 +87,8 @@ BrowserNativeWidgetAsh::BrowserNativeWidgetAsh(BrowserWidget* browser_widget,
 
   // Turn on auto window management if we don't need an explicit bounds.
   // This way the requested bounds are honored.
-  if (!browser->bounds_overridden() && !browser->is_session_restore()) {
+  if (!BrowserInitState::From(browser)->bounds_overridden() &&
+      !BrowserInitState::From(browser)->is_session_restore()) {
     SetWindowAutoManaged();
   }
 }
@@ -188,7 +190,8 @@ views::Widget::InitParams BrowserNativeWidgetAsh::GetWidgetParams(
   params.context = ash::Shell::GetPrimaryRootWindow();
 
   Browser* browser = browser_view_->browser();
-  const int32_t restore_id = browser->create_params().restore_id;
+  const int32_t restore_id =
+      BrowserInitState::From(browser)->create_params().restore_id;
   params.init_properties_container.SetProperty(app_restore::kWindowIdKey,
                                                browser->session_id().id());
   params.init_properties_container.SetProperty(app_restore::kRestoreWindowIdKey,
@@ -218,11 +221,13 @@ views::Widget::InitParams BrowserNativeWidgetAsh::GetWidgetParams(
   app_restore::ModifyWidgetParams(restore_id, &params);
   // Override session restore bounds with Full Restore bounds if they exist.
   if (!params.bounds.IsEmpty()) {
-    browser->set_override_bounds(params.bounds);
+    BrowserInitState::From(browser)->set_override_bounds(params.bounds);
   } else {
-    params.bounds = browser->create_params().initial_bounds;
+    params.bounds =
+        BrowserInitState::From(browser)->create_params().initial_bounds;
   }
-  params.display_id = browser->create_params().display_id;
+  params.display_id =
+      BrowserInitState::From(browser)->create_params().display_id;
   params.rounded_corners = chromeos::GetWindowRoundedCorners();
 
   return params;
@@ -240,14 +245,19 @@ bool BrowserNativeWidgetAsh::ShouldRestorePreviousBrowserWidgetState() const {
   CHECK(browser_view_);
   // If there is no window info from full restore, maybe use the session
   // restore.
-  const int32_t restore_id =
-      browser_view_->browser()->create_params().restore_id;
+  const int32_t restore_id = BrowserInitState::From(browser_view_->browser())
+                                 ->create_params()
+                                 .restore_id;
   // Don't restore unresizable browser apps, because they can get stuck at a
   // broken size, or the browser being dragged because it should use the
   // specified bounds.
   return !app_restore::HasWindowInfo(restore_id) &&
-         browser_view_->browser()->create_params().can_resize &&
-         !browser_view_->browser()->create_params().in_tab_dragging;
+         BrowserInitState::From(browser_view_->browser())
+             ->create_params()
+             .can_resize &&
+         !BrowserInitState::From(browser_view_->browser())
+              ->create_params()
+              .in_tab_dragging;
 }
 
 bool BrowserNativeWidgetAsh::ShouldUseInitialVisibleOnAllWorkspaces() const {

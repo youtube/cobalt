@@ -2,13 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+source_set("protocols") {
+  sources = [
+    "ui_blocker_manager.h",
+    "ui_blocker_target.h",
+  ]
+}
+
 source_set("ui_bundled") {
   sources = [
     "scoped_ui_blocker.h",
     "scoped_ui_blocker.mm",
-    "ui_blocker_manager.h",
-    "ui_blocker_target.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    ":protocols",
+    "//base",
+    "//ios/chrome/app/application_delegate:app_state",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+  ]
 }

@@ -53,7 +53,7 @@
 #include "chrome/browser/net/net_error_tab_helper.h"
 #include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chrome/browser/new_tab_page/ntp_pref_names.h"
+#include "chrome/browser/new_tab_page/prefs/ntp_pref_names.h"
 #include "chrome/browser/notifications/notification_display_service_impl.h"
 #include "chrome/browser/notifications/notifier_state_tracker.h"
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
@@ -998,7 +998,6 @@ inline constexpr char kObsoleteMetricsReportingLevel[] =
 inline constexpr char kProxyOverrideRulesAffiliation[] =
     "proxy_override_rules_affiliation";
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // Deprecated 07/2026.
 inline constexpr char kMV2DeprecationWarningAcknowledgedGlobally[] =
@@ -1006,6 +1005,18 @@ inline constexpr char kMV2DeprecationWarningAcknowledgedGlobally[] =
 inline constexpr char kMV2DeprecationDisabledAcknowledgedGlobally[] =
     "mv2_deprecation_disabled_ack_globally";
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+// Deprecated 07/2026.
+inline constexpr char kObsoleteManagementPlatformLastLogTime[] =
+    "management.platform.last_log_time";
+inline constexpr char kObsoleteManagementProfileLastLogTime[] =
+    "management.profile.last_log_time";
+
+// Deprecated 07/2026.
+constexpr char kMetricsReportingMigrationDone[] =
+    "user_experience_metrics.consent_migration_done";
+constexpr char kMetricsConsentRestructureFeatureState[] =
+    "user_experience_metrics.consent_restructure_feature_state";
 
 // Register local state used only for migration (clearing or moving to a new
 // key).
@@ -1109,6 +1120,12 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   registry->RegisterBooleanPref(kProxyOverrideRulesAffiliation, true);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  registry->RegisterBooleanPref(kMetricsReportingMigrationDone, false);
+  registry->RegisterBooleanPref(kMetricsConsentRestructureFeatureState, false);
+
+  // Deprecated 07/2026.
+  registry->RegisterTimePref(kObsoleteManagementPlatformLastLogTime,
+                             base::Time());
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1369,6 +1386,10 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterBooleanPref(kMV2DeprecationDisabledAcknowledgedGlobally,
                                 false);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+  // Deprecated 07/2026.
+  registry->RegisterTimePref(kObsoleteManagementProfileLastLogTime,
+                             base::Time());
 }
 
 }  // namespace
@@ -1418,7 +1439,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   language::UlpLanguageCodeLocator::RegisterLocalStatePrefs(registry);
   memory::EnterpriseMemoryLimitPrefObserver::RegisterPrefs(registry);
   metrics::RegisterDemographicsLocalStatePrefs(registry);
-  metrics::MetricsReportingChoiceService::RegisterPrefs(registry);
   metrics::TabStatsTracker::RegisterPrefs(registry);
   network_time::NetworkTimeTracker::RegisterPrefs(registry);
   omnibox::RegisterLocalStatePrefs(registry);
@@ -1911,6 +1931,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   MostRelevantTabResumptionPageHandler::RegisterProfilePrefs(registry);
   DriveService::RegisterProfilePrefs(registry);
   GoogleCalendarPageHandler::RegisterProfilePrefs(registry);
+#else
+  // Registered here because it is still accessed on Android (which doesn't use
+  // WebUI NTP).
+  registry->RegisterBooleanPref(ntp_prefs::kNtpShortcutsVisible, true);
 #endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -2393,6 +2417,11 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   // Added 07/2026.
   local_state->ClearPref(kProxyOverrideRulesAffiliation);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  local_state->ClearPref(kMetricsReportingMigrationDone);
+  local_state->ClearPref(kMetricsConsentRestructureFeatureState);
+
+  // Added 07/2026.
+  local_state->ClearPref(kObsoleteManagementPlatformLastLogTime);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
@@ -2673,6 +2702,14 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kMV2DeprecationWarningAcknowledgedGlobally);
   profile_prefs->ClearPref(kMV2DeprecationDisabledAcknowledgedGlobally);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Added 07/2026.
+  tabs::MigrateEverythingMenuPinnedToTabstripPref(profile_prefs);
+#endif
+
+  // Added 07/2026.
+  profile_prefs->ClearPref(kObsoleteManagementProfileLastLogTime);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

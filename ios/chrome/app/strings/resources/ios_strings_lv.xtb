@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Sagl. paroles</translation>
 <translation id="1764070164487214210">Norādes</translation>
 <translation id="1764511703783285459">No cita paroļu pārvaldnieka netika kopīgota neviena parole vai piekļuves atslēga</translation>
+<translation id="1765555082983153259">“Chrome” vēlas piekļūt jūsu mikrofonam</translation>
 <translation id="1767766085187034454">Google tulkotājs</translation>
 <translation id="1771016937398045251">Izvēlne “Rīki”</translation>
 <translation id="1772468122139624049">Nevar atkārtoti ielādēt cilnes</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Dziļā meklēšana</translation>
 <translation id="188237709236611317">Viedās kārtošanas izvēlņu josla</translation>
 <translation id="1883255238294161206">Sakļaut sarakstu</translation>
+<translation id="1883898928879467646">Cilne ir noņemta.</translation>
 <translation id="1888854257756214946">Paroles atlase…</translation>
 <translation id="1890237935065108104">Šis iestatījums nav pieejams.</translation>
 <translation id="1894023287452300670">Šeit varat izsekot cenu</translation>
@@ -1620,6 +1622,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6406506848690869874">Sinhronizācija</translation>
 <translation id="6410390304316730527">Izmantojot drošu pārlūkošanu, jūs iegūstat aizsardzību pret uzbrucējiem, kuri varētu mudināt jūs veikt bīstamas darbības, piemēram, instalēt ļaunprātīgu programmatūru vai atklāt personas informāciju — paroles, tālruņa numurus, kredītkaršu datus u.tml. Ja izslēgsiet drošu pārlūkošanu, ievērojiet piesardzību, pārlūkojot nepazīstamas vietnes vai vietnes ar sliktu reputāciju.</translation>
 <translation id="6410883413783534063">Atveriet cilnes, lai vienlaikus apmeklētu vairākas lapas</translation>
+<translation id="6412195388778525440">Noņemt cilni</translation>
 <translation id="6418346271604475326">PDF sagatave</translation>
 <translation id="6420292512900923139">Importējot datus, radās problēma</translation>
 <translation id="6421038304268477484">Tulkotais teksts</translation>
@@ -2320,7 +2323,6 @@ Lai turpinātu datorā, pārslēdzieties uz kontu <ph name="OTHER_EMAIL" />. Jū
 <translation id="8692689525339542358">Iegūstiet aizsardzību pret bīstamām vietnēm, lejupielādēm un paplašinājumiem.</translation>
 <translation id="8692897097252418799">Izvēlieties datus, ko vēlaties eksportēt.</translation>
 <translation id="8694281486652655615">Tiks rādīts šis vienums</translation>
-<translation id="8696297579102085705">Nosūtīt uz jūsu ierīci</translation>
 <translation id="8697136149718343437">Pārvietot adreses joslu uz apakšdaļu</translation>
 <translation id="869891660844655955">Derīguma termiņš</translation>
 <translation id="8706253136355675497">Temperatūra</translation>
@@ -2463,6 +2465,7 @@ Lai turpinātu datorā, pārslēdzieties uz kontu <ph name="OTHER_EMAIL" />. Jū
 <translation id="9149866541089851383">Rediģēt ...</translation>
 <translation id="9152637745605628097">Izvēlieties kādu no motīviem vai krāsām vai augšupielādējiet attēlu.</translation>
 <translation id="9159628751968616911">Tīmekļa lapas nosūtīšana</translation>
+<translation id="9162412286847966593">Jūsu organizācijas dati un ieraksti netiks izmantoti ģeneratīvo MI modeļu uzlabošanai. <ph name="BEGIN_LINK" />Jūsu konfidencialitāte un Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Ieslēdziet paroļu automātisko aizpildi</translation>
 <translation id="9165320910061267720">Lai saņemtu paziņojumus par cenu kritumu, jums jāieslēdz paziņojumi iOS iestatījumos.</translation>
 <translation id="9179151630575358778">Tiks paslēpts šis vienums</translation>

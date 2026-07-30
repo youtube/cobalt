@@ -98,6 +98,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/webui/buildflags.h"
+#include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 #include "ui/webui/webui_util.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -113,7 +114,6 @@
 #include "components/zoom/zoom_controller.h"  // nogncheck
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/resource/resource_scale_factor.h"
-#include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 #endif
 
 #if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -224,8 +224,7 @@ void AddDefaultZeroStateStrings(content::WebUIDataSource* source) {
   source->AddString("friendlyZeroStateTitleAfterName", "");
 }
 
-bool ContextualTasksUI::AreUrlsEqual(const GURL& a,
-                                     const GURL& b) {
+bool ContextualTasksUI::AreUrlsEqual(const GURL& a, const GURL& b) {
   if (a == b) {
     return true;
   }
@@ -445,7 +444,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
        IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_ACCEPT_BUTTON},
       {"lensSearchTooltipTitle", IDS_LENS_COBROWSE_IPH_HEADER},
       {"lensSearchTooltipBody", IDS_LENS_COBROWSE_IPH_DESCRIPTION},
-      {"lensSearchTooltipAcceptButton", IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_ACCEPT_BUTTON},
+      {"lensSearchTooltipAcceptButton",
+       IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_ACCEPT_BUTTON},
       {"oauthErrorDialogTitle", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_TITLE},
       {"oauthErrorDialogBody", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_BODY},
       {"oauthErrorDialogReloadButton",
@@ -561,6 +561,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "contextMenuAnimationLimitingEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextMenuAnimationLimiting));
   source->AddBoolean(
+      "composeboxSkillsEnabled",
+      base::FeatureList::IsEnabled(omnibox::kComposeboxSkillsContextualTasks));
+  source->AddBoolean(
       "enablePinButton",
       contextual_tasks::IsContextualTasksPinButtonInToolbarEnabled());
   source->AddBoolean(
@@ -592,9 +595,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "lensSearchTooltipSessionImpressionCap",
       contextual_tasks::
           GetContextualTasksLensSearchTooltipSessionImpressionCap());
+  source->AddBoolean("askGCoBrowseEnabled", omnibox::kAskGCoBrowse.Get());
   source->AddBoolean(
-      "askGCoBrowseEnabled",
-      omnibox::kAskGCoBrowse.Get());
+      "contextualTasksSidePanelRearchitectureEnabled",
+      base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksSidePanelRearchitecture));
 
   source->AddBoolean("isLensSearchbox", true);
   source->AddBoolean(
@@ -646,7 +651,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("hideMenuOnAiPageEnabled",
                      base::FeatureList::IsEnabled(
                          contextual_tasks::kContextualTasksHideMenuOnAiPage));
-  source->AddBoolean("contextualTasksEnableSpatialModelToolbarLayout",
+  source->AddBoolean("contextualTasksUnboundedMenuEnabled",
+                     base::FeatureList::IsEnabled(
+                         contextual_tasks::kContextualTasksUnboundedMenu));
+  source->AddBoolean(
+      "contextualTasksEnableSpatialModelToolbarLayout",
       contextual_tasks::GetContextualTasksSpatialModelToolbarLayoutEnabled());
   source->AddBoolean(
       "contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow",
@@ -732,9 +741,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "internals/",
       IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
 
-  source->AddBoolean(
-      "useStratusDarkModeColors",
-      contextual_tasks::ShouldUseStratusDarkModeColors());
+  source->AddBoolean("useStratusDarkModeColors",
+                     contextual_tasks::ShouldUseStratusDarkModeColors());
   source->AddString(
       "useStratusDarkModeColorsAttr",
       contextual_tasks::ShouldUseStratusDarkModeColors() ? "true" : "false");
@@ -750,7 +758,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   AddZeroStateStrings(source, profile);
   contextual_tasks_service_observation_.Observe(contextual_tasks_service_);
 
-#if !BUILDFLAG(IS_ANDROID)
   ui::TrackedElementHandlerDocumentSingleton::Register(
       this, std::vector<ui::ElementIdentifier>{
                 kSmartTabSharingMenuItemElementId,
@@ -758,7 +765,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                 kContextualTasksWebUIToolbarElementId,
                 kContextualTasksWebUIOverflowMenuElementId,
                 kContextualTasksWebUIOverflowMenuPinButtonElementId});
-#endif
 }
 
 ContextualTasksUI::~ContextualTasksUI() {
@@ -1009,7 +1015,6 @@ void ContextualTasksUI::BindInterface(
       std::move(pending_receiver));
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void ContextualTasksUI::BindInterface(
     mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
         pending_receiver) {
@@ -1026,8 +1031,6 @@ void ContextualTasksUI::CreateHelpBubbleHandler(
           web_ui()->GetRenderFrameHost()));
 }
 
-#endif
-
 bool ContextualTasksUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
   // Keep Contextual Tasks disabled for incognito profiles unless
@@ -1036,7 +1039,7 @@ bool ContextualTasksUIConfig::IsWebUIEnabled(
       !lens::features::IsLensSidePanelUnificationEnabled()) {
     return false;
   }
-  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
+  return contextual_tasks::IsContextualTasksUIEnabled();
 }
 
 bool ContextualTasksUIConfig::ShouldCrashOnJavascriptErrorInDevelopmentBuild()
@@ -1058,15 +1061,14 @@ void ContextualTasksUI::BindInterface(
 }
 
 void ContextualTasksUI::CreatePageHandler(
-    mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_page_handler,
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler) {
   auto handler = std::make_unique<ContextualTasksComposeboxHandler>(
       this, Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
-      std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler), std::move(pending_searchbox_page),
+      std::move(pending_page_handler), std::move(pending_searchbox_handler),
+      std::move(pending_searchbox_page),
       base::BindRepeating(
           &ContextualTasksUI::GetOrCreateContextualSessionHandle,
           base::Unretained(this)),
@@ -1494,9 +1496,10 @@ void ContextualTasksUI::OnPageContextEligibilityChecked(
 
 void ContextualTasksUI::TransferNavigationToEmbeddedPage(
     content::OpenURLParams params) {
-  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-             "TransferNavigationToEmbeddedPage called for URL: "
-          << params.url;
+  OMNIBOX_LOG("nav_trace")
+      << "ContextualTasks navigation trace: "
+         "TransferNavigationToEmbeddedPage called for URL: "
+      << params.url;
   bool is_allowed_url = ui_service_->IsValidSearchResultsPage(params.url) ||
                         ui_service_->IsAiUrl(params.url);
   if (!embedded_web_contents_ || !is_allowed_url) {
@@ -1512,8 +1515,9 @@ void ContextualTasksUI::TransferNavigationToEmbeddedPage(
   //                  partition.
   params.frame_tree_node_id =
       embedded_web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
-  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-             "TransferNavigationToEmbeddedPage opening URL in embedded page";
+  OMNIBOX_LOG("nav_trace")
+      << "ContextualTasks navigation trace: "
+         "TransferNavigationToEmbeddedPage opening URL in embedded page";
   // Exit basic mode when transferring navigation to the embedded page.
   // Without this call, if the side panel entered basic mode previously (such
   // as when viewing an in-page viewer link), basic mode remains active on the
@@ -1582,7 +1586,7 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-             "FrameNavObserver::DidFinishNavigation called";
+                              "FrameNavObserver::DidFinishNavigation called";
   if (!ui_service_ || !contextual_tasks_service_) {
     return;
   }
@@ -1623,8 +1627,8 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // accordingly.
   const GURL& url = navigation_handle->GetURL();
   OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-             "FrameNavObserver::DidFinishNavigation URL: "
-          << url;
+                              "FrameNavObserver::DidFinishNavigation URL: "
+                           << url;
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
 
@@ -1650,7 +1654,12 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
 
   // Set whether this navigation is to a zero state so the UI can adjust
   // accordingly.
-  const bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
+  bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
+  if (contextual_tasks::IsAndroidMobileFormFactor() && is_zero_state &&
+      task_info_delegate_->GetThreadTitle().has_value() &&
+      !task_info_delegate_->GetThreadTitle()->empty()) {
+    is_zero_state = false;
+  }
 
   // Record the HTTP response code of the inner frame contents if response
   // headers are available.
@@ -1677,16 +1686,16 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   }
   bool is_url_changed = false;
   bool last_committed_url_was_empty = last_committed_url_.is_empty();
-  if (!ContextualTasksUI::AreUrlsEqual(
-          url, last_committed_url_)) {
+  if (!ContextualTasksUI::AreUrlsEqual(url, last_committed_url_)) {
     last_committed_url_ = url;
     is_url_changed = true;
   }
 
   if (!is_url_changed) {
-    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-               "FrameNavObserver::DidFinishNavigation returning early, URL "
-               "unchanged";
+    OMNIBOX_LOG("nav_trace")
+        << "ContextualTasks navigation trace: "
+           "FrameNavObserver::DidFinishNavigation returning early, URL "
+           "unchanged";
     return;
   }
 
@@ -1703,8 +1712,9 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       (!base::FeatureList::IsEnabled(
            contextual_tasks::kEnableNotifyZeroStateRenderedCapability) ||
        navigation_handle->IsSameDocument())) {
-    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-               "FrameNavObserver::DidFinishNavigation zero state logic";
+    OMNIBOX_LOG("nav_trace")
+        << "ContextualTasks navigation trace: "
+           "FrameNavObserver::DidFinishNavigation zero state logic";
     // Create a new task for zero state, since there's no thread to associate
     // this with yet.
     contextual_tasks::ContextualTask task =
@@ -1734,9 +1744,10 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
 
   std::string url_thread_id;
   if (!net::GetValueForKeyInQuery(url, "mtid", &url_thread_id)) {
-    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-               "FrameNavObserver::DidFinishNavigation returning early, no "
-               "mtid in URL";
+    OMNIBOX_LOG("nav_trace")
+        << "ContextualTasks navigation trace: "
+           "FrameNavObserver::DidFinishNavigation returning early, no "
+           "mtid in URL";
     return;
   }
 
@@ -1794,8 +1805,8 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
 
     if (should_create_new_task) {
       OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
-                 "FrameNavObserver::DidFinishNavigation "
-                 "should_create_new_task is true";
+                                  "FrameNavObserver::DidFinishNavigation "
+                                  "should_create_new_task is true";
       task_changed = true;
       auto task = contextual_tasks_service_->CreateTaskFromUrl(url);
       task_info_delegate_->SetTaskId(task.GetTaskId());

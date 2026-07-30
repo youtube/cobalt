@@ -57,6 +57,7 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/browser_controls_adapter_impl.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
+#include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_drag_state.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_extensions_container.h"
 #include "chrome/common/chrome_features.h"
@@ -230,7 +231,7 @@ class WebUIToolbarInternalWebView : public views::WebView {
     gfx::Point point(params.x, params.y);
     views::View::ConvertPointToScreen(this, &point);
     webui_toolbar_web_view_->HandleOmniboxContextMenu(point, params.source_type,
-                                                      params.edit_flags);
+                                                      params);
     // We handled this.
     return true;
   }
@@ -650,6 +651,24 @@ void WebUIToolbarWebView::InvokePinnedToolbarAction(
   pinned_toolbar_actions_.Invoke(action_id);
 }
 
+void WebUIToolbarWebView::MovePinnedToolbarAction(
+    toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+    int32_t target_index) {
+  if (std::optional<actions::ActionId> id =
+          webui_toolbar::PinnedToolbarActionToActionId(action_id)) {
+    pinned_toolbar_actions_.MovePinnedAction(*id, target_index);
+  }
+}
+
+void WebUIToolbarWebView::MovePinnedToolbarActionBy(
+    toolbar_ui_api::mojom::PinnedToolbarAction action_id,
+    int32_t delta) {
+  if (std::optional<actions::ActionId> id =
+          webui_toolbar::PinnedToolbarActionToActionId(action_id)) {
+    pinned_toolbar_actions_.MovePinnedActionBy(*id, delta);
+  }
+}
+
 base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
 WebUIToolbarWebView::OnOmniboxAction(
     toolbar_ui_api::mojom::OmniboxActionPtr action) {
@@ -729,6 +748,10 @@ WebUIToolbarWebView::GetAvatarToolbarButtonInterface() {
   return &avatar_control_;
 }
 
+ExtensionsContainerViews* WebUIToolbarWebView::extensions_container_views() {
+  return extensions_container_.extensions_container();
+}
+
 BrowserWindowInterface* WebUIToolbarWebView::GetBrowser() {
   return browser_;
 }
@@ -739,6 +762,10 @@ chrome::BrowserCommandController* WebUIToolbarWebView::GetCommandController() {
 
 views::View* WebUIToolbarWebView::GetView() {
   return this;
+}
+
+content::WebContents* WebUIToolbarWebView::GetWebContents() {
+  return web_view_->web_contents();
 }
 
 void WebUIToolbarWebView::AnnounceAlert(const std::u16string& announcement) {
@@ -1372,10 +1399,9 @@ void WebUIToolbarWebView::OnFocusRequested(
 void WebUIToolbarWebView::HandleOmniboxContextMenu(
     const gfx::Point& point,
     ui::mojom::MenuSourceType source_type,
-    int edit_flags) {
+    content::ContextMenuParams params) {
   if (location_bar_) {
-    location_bar_->HandleContextMenu(GetWidget(), point, source_type,
-                                     edit_flags);
+    location_bar_->HandleContextMenu(GetWidget(), point, source_type, params);
   }
 }
 

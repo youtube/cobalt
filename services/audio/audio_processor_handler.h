@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 #include "media/audio/aecdump_recording_manager.h"
 #include "media/base/audio_glitch_info.h"
@@ -21,11 +22,9 @@
 namespace media {
 class AudioBus;
 class AudioParameters;
-class VoiceIsolation;
 }  // namespace media
 
 namespace audio {
-class MlModelHandle;
 class MlModelManager;
 class ProcessingAudioFifo;
 class VoiceIsolationHandler;
@@ -104,6 +103,8 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
       const media::AudioParameters& input_format,
       const media::AudioParameters& output_format,
       LogCallback log_callback,
+      // Used to deliver processed audio if `voice_isolation_handler` is not
+      // provided.
       DeliverProcessedAudioCallback deliver_processed_audio_callback,
       // reference_stream_error_callback will be called on the main thread.
       ReferenceStreamErrorCallback reference_stream_error_callback,
@@ -111,7 +112,7 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
           controls_receiver,
       media::AecdumpRecordingManager* aecdump_recording_manager,
       raw_ptr<MlModelManager> ml_model_manager,
-      std::unique_ptr<media::VoiceIsolation> voice_isolation);
+      std::unique_ptr<VoiceIsolationHandler> voice_isolation_handler);
 
   AudioProcessorHandler(const AudioProcessorHandler&) = delete;
   AudioProcessorHandler& operator=(const AudioProcessorHandler&) = delete;
@@ -196,14 +197,13 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
 
   std::unique_ptr<VoiceIsolationHandler> voice_isolation_handler_;
 
-  // Lifetime management handle for ML models. Must outlive audio_processor_.
-  const std::unique_ptr<MlModelHandle> residual_echo_estimation_model_handle_;
-
   // The audio processor is accessed on all threads (OS capture thread, OS
   // playout thread, owning sequence) and created / destroyed on the owning
   // sequence.
   const std::unique_ptr<media::AudioProcessor> audio_processor_;
 
+  // Used to deliver audio if it's not passed over to
+  // `voice_isolation_handler_`.
   const DeliverProcessedAudioCallback deliver_processed_audio_callback_;
 
   const ReferenceStreamErrorCallback reference_stream_error_callback_

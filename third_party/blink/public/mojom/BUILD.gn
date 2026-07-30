@@ -27,7 +27,6 @@ mojom("mojom_platform") {
   sources = [
     "ad_tagging/ad_evidence.mojom",
     "aggregation_service/aggregatable_report.mojom",
-    "ai/ai_classifier.mojom",
     "ai/ai_common.mojom",
     "ai/ai_language_model.mojom",
     "ai/ai_manager.mojom",
@@ -67,7 +66,6 @@ mojom("mojom_platform") {
     "content_extraction/script_tools.mojom",
     "content_index/content_index.mojom",
     "context_menu/context_menu.mojom",
-    "conversions/conversions.mojom",
     "cookie_store/cookie_store.mojom",
     "cpu_performance.mojom",
     "crash/crash_memory_metrics_reporter.mojom",
@@ -303,8 +301,6 @@ mojom("mojom_platform") {
     ":script_type_mojo_bindings",
     ":web_feature_mojo_bindings",
     "//cc/mojom",
-    "//components/attribution_reporting:data_host_mojom",
-    "//components/attribution_reporting:mojom",
     "//components/content_settings/core/common:content_settings_types",
     "//components/content_settings/core/common:mojo_bindings",
     "//components/payments/mojom",
@@ -361,7 +357,6 @@ mojom("mojom_platform") {
       "//cc/mojom:mojom_browser_controls",
       "//services/media_session/public/mojom",
       "//services/network/public/mojom:cookies_mojom",
-      "//services/network/public/mojom:mojom_attribution",
       "//services/network/public/mojom:mojom_connection_allowlist",
       "//services/network/public/mojom:mojom_content_security_policy",
       "//services/network/public/mojom:mojom_cors_origin_pattern",
@@ -545,15 +540,6 @@ mojom("mojom_platform") {
         },
       ]
       traits_headers = [ "//third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h" ]
-    },
-    {
-      types = [
-        {
-          mojom = "blink.mojom.Impression"
-          cpp = "::blink::Impression"
-        },
-      ]
-      traits_headers = [ "//third_party/blink/public/common/navigation/impression_mojom_traits.h" ]
     },
     {
       types = [
@@ -1436,7 +1422,6 @@ mojom("mojom_core") {
     public_deps += [
       "//cc/mojom:mojom_browser_controls",
       "//services/network/public/mojom:cookies_mojom",
-      "//services/network/public/mojom:mojom_attribution",
       "//services/network/public/mojom:mojom_connection_allowlist",
       "//services/network/public/mojom:mojom_content_security_policy",
       "//services/network/public/mojom:mojom_cors_origin_pattern",

@@ -198,6 +198,26 @@ rust_static_library("font_format_check") {
   ]
 }
 
+rust_static_library("rustfft_ffi") {
+  allow_unsafe = true  # Needed for FFI that underpins the `cxx` crate.
+  crate_root = "audio/rustfft_ffi.rs"
+  sources = [ crate_root ]
+  cxx_bindings = [ crate_root ]
+  deps = [ "//third_party/rust/rustfft/v6:lib" ]
+}
+
+rust_static_library("rustfft_ffi_unittests") {
+  testonly = true
+  is_gtest_unittests = true
+  crate_root = "audio/rustfft_ffi_unittest.rs"
+  sources = [ crate_root ]
+  deps = [
+    ":rustfft_ffi",
+    "//testing/rust_gtest_interop",
+    "//third_party/rust/rustfft/v6:lib",
+  ]
+}
+
 import("//build/config/pch.gni")
 
 config("blink_platform_config") {
@@ -265,14 +285,9 @@ declare_args() {
   enable_blink_bindings_tracing = extended_tracing_enabled
 }
 
-# ZSTD compression support has a binary size cost, don't include it on
-# size-constrained platforms.
-#
-# TODO(lizeb): Android is not as much size-constrained on high-end ARM64
-# devices, enable this later there as well. But since this is an experiment,
-# gather data on other platforms first.
-_is_size_constrained_platform = is_android || is_fuchsia
-has_zstd_compression = !_is_size_constrained_platform
+# ZSTD compression is available on Fuchsia (crbug.com/534838085) but disable in
+# Blink to disable features that depend on it.
+has_zstd_compression = !is_fuchsia
 
 buildflag_header("bindings_buildflags") {
   header = "buildflags.h"
@@ -1821,6 +1836,7 @@ component("platform") {
   ]
   deps = [
     ":font_format_check",
+    ":rustfft_ffi",
     "//base:base_static",
     "//base/allocator:buildflags",
     "//build:chromecast_buildflags",
@@ -2542,7 +2558,10 @@ source_set("blink_platform_unittests_sources") {
     "//url/mojom:test_url_mojom_gurl_blink",
   ]
 
-  deps += [ ":bridge_ice_controller_tests" ]
+  deps += [
+    ":bridge_ice_controller_tests",
+    ":rustfft_ffi_unittests",
+  ]
 
   data_deps = [ ":blink_platform_unittests_data" ]
 

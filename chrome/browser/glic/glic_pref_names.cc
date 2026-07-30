@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/logging.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names_internal.h"
@@ -30,11 +31,29 @@ std::optional<GlicActuationOnWebPolicyState> GetActuationOnWebCapability(
   switch (capability_pref) {
     case GlicActuationOnWebPolicyState::kEnabled:
     case GlicActuationOnWebPolicyState::kDisabled:
-      break;
-    default:
-      return std::nullopt;
+      return capability_pref;
   }
-  return capability_pref;
+  DLOG(ERROR) << "Unknown capability_pref: "
+              << static_cast<int>(capability_pref);
+  return std::nullopt;
+}
+
+glic::mojom::FileUploadPolicyState GetFileUploadAllowedCapability(
+    const PrefService* pref_service) {
+  if (!pref_service) {
+    return glic::mojom::FileUploadPolicyState::kDisabled;
+  }
+  auto capability_pref = static_cast<GlicFileUploadPolicyState>(
+      pref_service->GetInteger(kGlicFileUploadAllowed));
+  switch (capability_pref) {
+    case GlicFileUploadPolicyState::kEnabled:
+      return glic::mojom::FileUploadPolicyState::kEnabled;
+    case GlicFileUploadPolicyState::kDisabled:
+      return glic::mojom::FileUploadPolicyState::kDisabled;
+  }
+  DLOG(ERROR) << "Unknown capability_pref: "
+              << static_cast<int>(capability_pref);
+  return glic::mojom::FileUploadPolicyState::kDisabled;
 }
 
 GlicActuationOnWebPolicyState GetGlicActuationOnWebPolicyState() {
@@ -58,7 +77,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       kGlicRolloutEligibility, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
   registry->RegisterIntegerPref(
-      kGlicCompletedFre, std::to_underlying(prefs::FreStatus::kNotStarted));
+      ::glic::prefs::kGlicCompletedFre,
+      std::to_underlying(::glic::prefs::FreStatus::kNotStarted));
   registry->RegisterIntegerPref(prefs::kGlicZoomLevel, 100);
   registry->RegisterTimePref(kGlicWindowLastDismissedTime, base::Time());
   registry->RegisterIntegerPref(
@@ -104,6 +124,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       prefs::kGlicActuationOnWeb,
       std::to_underlying(GetGlicActuationOnWebPolicyState()));
 
+  registry->RegisterIntegerPref(
+      prefs::kGlicFileUploadAllowed,
+      std::to_underlying(GlicFileUploadPolicyState::kEnabled));
+
   registry->RegisterListPref(prefs::kGlicActuationOnWebAllowedForURLs);
   registry->RegisterListPref(prefs::kGlicActuationOnWebBlockedForURLs);
 
@@ -136,7 +160,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
               LocalHotkeyManager::Command::kFocusToggle)));
-
+  registry->RegisterBooleanPref(prefs::kGlicHotkeyGlobalScopeEnabled, true);
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetAutopush, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetStaging, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetPreprod, "");

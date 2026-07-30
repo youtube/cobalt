@@ -86,8 +86,6 @@ class AtMemoryBottomSheetViewBinder {
             view.setSuggestions(model.get(FlyoutProperties.SUGGESTIONS));
         } else if (propertyKey == FlyoutProperties.ON_BACK_CLICKED) {
             view.setBackClickListener(model.get(FlyoutProperties.ON_BACK_CLICKED));
-        } else if (propertyKey == FlyoutProperties.ON_MANAGE_CLICKED) {
-            view.setManageClickListener(model.get(FlyoutProperties.ON_MANAGE_CLICKED));
         } else if (propertyKey == FlyoutProperties.ON_SUGGESTION_CLICKED) {
             view.setSuggestionClickListener(model.get(FlyoutProperties.ON_SUGGESTION_CLICKED));
         } else {
@@ -118,6 +116,8 @@ class AtMemoryBottomSheetViewBinder {
             view.setFlyoutClickListener(model.get(SuggestionItemProperties.ON_FLYOUT_CLICKED));
         } else if (propertyKey == SuggestionItemProperties.IS_FLYOUT_VISIBLE) {
             view.setFlyoutVisible(model.get(SuggestionItemProperties.IS_FLYOUT_VISIBLE));
+        } else if (propertyKey == SuggestionItemProperties.APPLY_DEACTIVATED_STYLE) {
+            view.applyDeactivatedStyle(model.get(SuggestionItemProperties.APPLY_DEACTIVATED_STYLE));
         } else {
             assert false : "Unhandled property: " + propertyKey;
         }

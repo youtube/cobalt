@@ -17,7 +17,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_web_contents_factory.h"
-#include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -27,14 +26,14 @@ namespace {
 using testing::ElementsAre;
 
 MATCHER_P2(IsSpan, expect_text, expect_color, "") {
-  EXPECT_EQ(arg->text, expect_text);
+  EXPECT_EQ(arg->text, base::UTF8ToUTF16(expect_text));
   EXPECT_EQ(arg->color, expect_color);
   EXPECT_FALSE(arg->strikethrough);
   return true;
 }
 
 MATCHER_P2(IsStrikethrough, expect_text, expect_color, "") {
-  EXPECT_EQ(arg->text, expect_text);
+  EXPECT_EQ(arg->text, base::UTF8ToUTF16(expect_text));
   EXPECT_EQ(arg->color, expect_color);
   EXPECT_TRUE(arg->strikethrough);
   return true;
@@ -100,7 +99,8 @@ void WebUIReadOnlyOmniboxTest::SetUp() {
       .WillRepeatedly(testing::Return(profile_->GetPrefs()));
 
   omnibox_view_ = std::make_unique<WebUIReadOnlyOmnibox>(
-      /*location_bar=*/nullptr, omnibox_controller_.get(), update_propagator_);
+      /*location_bar=*/nullptr, /*toolbar_delegate=*/nullptr,
+      omnibox_controller_.get(), update_propagator_);
 
   wc1_ = web_contents_factory_.CreateWebContents(profile_.get());
   wc2_ = web_contents_factory_.CreateWebContents(profile_.get());

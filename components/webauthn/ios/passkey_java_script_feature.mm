@@ -125,6 +125,35 @@ WebAuthenticationIOSContentAreaEvent ToWebAuthenticationIOSContentAreaEvent(
       return WebAuthenticationIOSContentAreaEvent::kCreateResolvedNonGpm;
     case PasskeyScriptEvent::kCancelRequest:
       return WebAuthenticationIOSContentAreaEvent::kCancelRequested;
+    case PasskeyScriptEvent::kSignalUnknownCredential:
+      return WebAuthenticationIOSContentAreaEvent::
+          kSignalUnknownCredentialRequested;
+    case PasskeyScriptEvent::kSignalCurrentUserDetails:
+      return WebAuthenticationIOSContentAreaEvent::
+          kSignalCurrentUserDetailsRequested;
+    case PasskeyScriptEvent::kSignalAllAcceptedCredentials:
+      return WebAuthenticationIOSContentAreaEvent::
+          kSignalAllAcceptedCredentialsRequested;
+  }
+}
+
+// Returns the string representation of a WebAuthnError's name.
+std::string_view WebAuthnErrorToName(WebAuthnError error) {
+  switch (error) {
+    case WebAuthnError::kNotAllowedError:
+      return kNotAllowedErrorName;
+    case WebAuthnError::kInvalidStateError:
+      return kInvalidStateErrorName;
+  }
+}
+
+// Returns the string representation of a WebAuthnError's description.
+std::string_view WebAuthnErrorToMessage(WebAuthnError error) {
+  switch (error) {
+    case WebAuthnError::kNotAllowedError:
+      return kNotAllowedErrorMessage;
+    case WebAuthnError::kInvalidStateError:
+      return kCredentialExcludedErrorMessage;
   }
 }
 
@@ -184,11 +213,14 @@ PasskeyJavaScriptFeature::PasskeyJavaScriptFeature()
 
 PasskeyJavaScriptFeature::~PasskeyJavaScriptFeature() = default;
 
-void PasskeyJavaScriptFeature::RejectPasskeyRequest(
-    web::WebFrame* web_frame,
-    std::string_view request_id) {
+void PasskeyJavaScriptFeature::RejectPasskeyRequest(web::WebFrame* web_frame,
+                                                    std::string_view request_id,
+                                                    WebAuthnError error) {
   CallJavaScriptFunction(web_frame, "passkey.rejectPasskeyRequest",
-                         base::ListValue().Append(request_id));
+                         base::ListValue()
+                             .Append(request_id)
+                             .Append(WebAuthnErrorToName(error))
+                             .Append(WebAuthnErrorToMessage(error)));
 }
 
 void PasskeyJavaScriptFeature::DeferToRenderer(
@@ -288,15 +320,47 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
   bool is_handle_create_request_event =
       (*event == PasskeyScriptEvent::kHandleCreateRequest);
   bool is_cancel_request_event = (*event == PasskeyScriptEvent::kCancelRequest);
+  bool is_signal_unknown_credential_event =
+      (*event == PasskeyScriptEvent::kSignalUnknownCredential);
+  bool is_signal_current_user_details_event =
+      (*event == PasskeyScriptEvent::kSignalCurrentUserDetails);
+  bool is_signal_all_accepted_credentials_event =
+      (*event == PasskeyScriptEvent::kSignalAllAcceptedCredentials);
 
   if (!is_handle_get_request_event && !is_handle_create_request_event &&
-      !is_cancel_request_event) {
+      !is_cancel_request_event && !is_signal_unknown_credential_event &&
+      !is_signal_current_user_details_event &&
+      !is_signal_all_accepted_credentials_event) {
     return;
   }
 
   if (!base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim) &&
       !base::FeatureList::IsEnabled(kIOSPasskeyConditionalLoginWithShim)) {
     // TODO(crbug.com/369629469): Log metrics for unexpected events.
+    return;
+  }
+
+  if (is_signal_unknown_credential_event) {
+    if (auto params = BuildSignalUnknownCredentialParams(dict)) {
+      passkey_tab_helper->HandleSignalUnknownCredentialEvent(
+          message.security_origin(), *std::move(params));
+    }
+    return;
+  }
+
+  if (is_signal_current_user_details_event) {
+    if (auto params = BuildSignalCurrentUserDetailsParams(dict)) {
+      passkey_tab_helper->HandleSignalCurrentUserDetailsEvent(
+          message.security_origin(), *std::move(params));
+    }
+    return;
+  }
+
+  if (is_signal_all_accepted_credentials_event) {
+    if (auto params = BuildSignalAllAcceptedCredentialsParams(dict)) {
+      passkey_tab_helper->HandleSignalAllAcceptedCredentialsEvent(
+          message.security_origin(), *std::move(params));
+    }
     return;
   }
 

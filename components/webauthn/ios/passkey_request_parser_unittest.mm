@@ -104,6 +104,16 @@ std::string Base64UrlEncode(base::span<const uint8_t> input) {
   return output;
 }
 
+// Decodes a base 64 URL encoded string to byte vector.
+std::vector<uint8_t> Base64UrlDecode(std::string_view input) {
+  std::string output;
+  if (!base::Base64UrlDecode(input, base::Base64UrlDecodePolicy::IGNORE_PADDING,
+                             &output)) {
+    return {};
+  }
+  return std::vector<uint8_t>(output.begin(), output.end());
+}
+
 base::DictValue BuildRequestInfoDict(
     const std::string* frame_id,
     const std::string* request_id,
@@ -855,6 +865,75 @@ TEST_F(PasskeyRequestParserTest, ParseEventOriginMismatch) {
   // GetDefaultOrigin() (example.com).
   EXPECT_FALSE(ParsePasskeyScriptEvent(dict, GetDefaultOrigin(), &IsGpmPasskey)
                    .has_value());
+}
+
+TEST_F(PasskeyRequestParserTest, BuildSignalUnknownCredentialParamsSuccess) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  dict.Set(kCredentialId, kBase64url);
+
+  auto result = BuildSignalUnknownCredentialParams(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->rp_id, kExampleRpId);
+  EXPECT_EQ(result->credential_id, Base64UrlDecode(kBase64url));
+}
+
+TEST_F(PasskeyRequestParserTest, BuildSignalUnknownCredentialParamsInvalid) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  // Missing credentialId.
+  EXPECT_FALSE(BuildSignalUnknownCredentialParams(dict).has_value());
+}
+
+TEST_F(PasskeyRequestParserTest, BuildSignalCurrentUserDetailsParamsSuccess) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  dict.Set("userId", kBase64url);
+  dict.Set("name", "user@example.com");
+  dict.Set("displayName", "User Name");
+
+  auto result = BuildSignalCurrentUserDetailsParams(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->rp_id, kExampleRpId);
+  EXPECT_EQ(result->user_id, Base64UrlDecode(kBase64url));
+  EXPECT_EQ(result->name, "user@example.com");
+  EXPECT_EQ(result->display_name, "User Name");
+}
+
+TEST_F(PasskeyRequestParserTest, BuildSignalCurrentUserDetailsParamsInvalid) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  dict.Set("userId", kBase64url);
+  dict.Set("name", "user@example.com");
+  // Missing displayName.
+  EXPECT_FALSE(BuildSignalCurrentUserDetailsParams(dict).has_value());
+}
+
+TEST_F(PasskeyRequestParserTest,
+       BuildSignalAllAcceptedCredentialsParamsSuccess) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  dict.Set("userId", kBase64url);
+  base::ListValue cred_ids;
+  cred_ids.Append(kBase64url_2);
+  dict.Set("allAcceptedCredentialIds", std::move(cred_ids));
+
+  auto result = BuildSignalAllAcceptedCredentialsParams(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->rp_id, kExampleRpId);
+  EXPECT_EQ(result->user_id, Base64UrlDecode(kBase64url));
+  ASSERT_EQ(result->all_accepted_credential_ids.size(), 1u);
+  EXPECT_EQ(result->all_accepted_credential_ids[0],
+            Base64UrlDecode(kBase64url_2));
+}
+
+TEST_F(PasskeyRequestParserTest,
+       BuildSignalAllAcceptedCredentialsParamsInvalid) {
+  base::DictValue dict;
+  dict.Set(kRpId, kExampleRpId);
+  dict.Set("userId", kBase64url);
+  // Missing allAcceptedCredentialIds list.
+  EXPECT_FALSE(BuildSignalAllAcceptedCredentialsParams(dict).has_value());
 }
 
 }  // namespace webauthn

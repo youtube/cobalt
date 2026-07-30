@@ -34,7 +34,6 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
 #endif
       "chrome://actor-internals",
       "chrome://actor-overlay",
-      "chrome://attribution-internals",
       "chrome://autofill-ml-internals",
       "chrome://autofill-internals",
 
@@ -99,6 +98,9 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://indigo-internals",
 #endif
       "chrome://inspect",
+#if !BUILDFLAG(IS_ANDROID)
+      "chrome://iwa-dev",
+#endif
       "chrome://internals/session-service",
       "chrome://interstitials",
       "chrome://interstitials/ssl",
@@ -140,7 +142,6 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://prefs-internals",
 #endif
 
-      "chrome://private-aggregation-internals",
       "chrome://private-ai-internals",
       "chrome://process-internals",
       "chrome://profile-internals",

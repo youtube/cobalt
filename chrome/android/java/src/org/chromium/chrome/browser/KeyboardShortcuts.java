@@ -39,6 +39,7 @@ import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.task_manager.TaskManager;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -85,6 +86,7 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.MOVE_TO_SPECIFIC_TAB,
         KeyboardShortcutsSemanticMeaning.MOVE_TO_LAST_TAB,
         KeyboardShortcutsSemanticMeaning.TAB_SEARCH,
+        KeyboardShortcutsSemanticMeaning.TAB_SEARCH_SIDE_UI,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_MULTITASK_MENU,
         KeyboardShortcutsSemanticMeaning.CLOSE_TAB,
         KeyboardShortcutsSemanticMeaning.CLOSE_WINDOW,
@@ -248,8 +250,11 @@ public class KeyboardShortcuts {
         // App menu button keyboard shortcut.
         int FOCUS_APP_MENU_BUTTON = 65;
 
+        // Tab search start anchored side UI.
+        int TAB_SEARCH_SIDE_UI = 66;
+
         // Max value.
-        int MAX_VALUE = 66;
+        int MAX_VALUE = 67;
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:KeyboardShortcutsSemanticMeaning, //tools/metrics/histograms/metadata/accessibility/histograms.xml:KeyboardShortcutsSemanticMeaning)
@@ -473,10 +478,17 @@ public class KeyboardShortcuts {
                     new KeyCombo(KeyEvent.KEYCODE_BUTTON_B, NO_MODIFIER),
                 });
 
-        // Tab search.
+        // Tab search in Hub UI is opened with Ctrl+Shift+A.
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.TAB_SEARCH,
                 new KeyCombo(KeyEvent.KEYCODE_A, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                R.string.keyboard_shortcut_tab_search,
+                R.string.keyboard_shortcut_tab_group_header);
+
+        // Tab search start anchored side UI is opened with Alt+Shift+A.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.TAB_SEARCH_SIDE_UI,
+                new KeyCombo(KeyEvent.KEYCODE_A, (KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON)),
                 R.string.keyboard_shortcut_tab_search,
                 R.string.keyboard_shortcut_tab_group_header);
 
@@ -767,9 +779,6 @@ public class KeyboardShortcuts {
                         KeyEvent.KEYCODE_PAGE_DOWN,
                         KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
         new KeyboardShortcutDefinition(
-                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_ON_INACTIVE_DIALOGS,
-                new KeyCombo(KeyEvent.KEYCODE_A, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON));
-        new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.BOOKMARK_ALL_TABS,
                 new KeyCombo(KeyEvent.KEYCODE_D, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
         // TODO(crbug.com/402775002): Allow long press on Esc.
@@ -977,7 +986,7 @@ public class KeyboardShortcuts {
                     KeyEvent.KEYCODE_I,
                     (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
         }
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TASK_MANAGER_CLANK)) {
+        if (TaskManager.isEnabled()) {
             addShortcut(
                     context,
                     shortcutGroupsById,
@@ -1150,6 +1159,13 @@ public class KeyboardShortcuts {
                     return true;
                 case KeyboardShortcutsSemanticMeaning.TAB_SEARCH:
                     menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.tab_search, false);
+                    return true;
+                case KeyboardShortcutsSemanticMeaning.TAB_SEARCH_SIDE_UI:
+                    int actionId =
+                            ChromeFeatureList.sTabSearchForDesktop.isEnabled()
+                                    ? R.id.tab_search_side_ui
+                                    : R.id.tab_search;
+                    menuOrKeyboardActionController.onMenuOrKeyboardAction(actionId, false);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.MOVE_TO_SPECIFIC_TAB:
                     if (tabSwitchingEnabled) {

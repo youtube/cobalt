@@ -1369,12 +1369,6 @@ TEST_F(ManifestToWebAppInstallInfoTrustedIconTest,
 class ManifestToWebAppInstallInfoLocalizationTest
     : public ManifestToWebAppInstallInfoJobTest {
  protected:
-  void SetUp() override {
-    ManifestToWebAppInstallInfoJobTest::SetUp();
-    feature_list_.InitAndEnableFeature(
-        blink::features::kWebAppManifestLocalization);
-  }
-
   std::pair<icu::Locale, blink::mojom::ManifestLocalizedTextObjectPtr>
   AddLocalizedText(const std::string& locale,
                    const std::u16string& value,
@@ -1461,8 +1455,6 @@ class ManifestToWebAppInstallInfoLocalizationTest
     }
     return shortcut_item;
   }
-
-  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(ManifestToWebAppInstallInfoLocalizationTest, ExactLocaleMatchFound) {
@@ -2235,6 +2227,9 @@ TEST_F(ManifestToWebAppInstallInfoJobTest,
 
 TEST_F(ManifestToWebAppInstallInfoJobTest,
        IgnoresUnframedDisplayOverrideWhenTheFeatureIsDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(blink::features::kUnframedIwa);
+
   ASSERT_FALSE(base::FeatureList::IsEnabled(blink::features::kUnframedIwa));
 
   SetupBasicPageState();

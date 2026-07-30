@@ -10,12 +10,15 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/login/screens/oobe_mojo_binder.h"
 #include "chrome/browser/ash/login/screens/osauth/base_osauth_setup_screen.h"
 #include "chrome/browser/ui/webui/ash/login/mojom/screens_osauth.mojom.h"
 #include "chromeos/ash/components/login/auth/mount_performer.h"
 #include "chromeos/ash/components/login/auth/public/authentication_error.h"
+
+class PrefService;
 
 namespace ash {
 
@@ -35,13 +38,15 @@ class LocalDataLossWarningScreen
     kBackToLocalAuth,
     kCryptohomeError,
     kCancel,
+    kAutoWipe,
   };
 
   static std::string GetResultString(Result result);
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
 
-  LocalDataLossWarningScreen(base::WeakPtr<LocalDataLossWarningScreenView> view,
+  LocalDataLossWarningScreen(PrefService& local_state,
+                             base::WeakPtr<LocalDataLossWarningScreenView> view,
                              const ScreenExitCallback& exit_callback);
 
   LocalDataLossWarningScreen(const LocalDataLossWarningScreen&) = delete;
@@ -60,9 +65,11 @@ class LocalDataLossWarningScreen
   void OnCancel() override;
   void OnBack() override;
 
-  void OnRemovedUserDirectory(std::unique_ptr<UserContext> user_context,
+  void OnRemovedUserDirectory(Result exit_result,
+                              std::unique_ptr<UserContext> user_context,
                               std::optional<AuthenticationError> error);
 
+  const raw_ref<PrefService> local_state_;
   base::WeakPtr<LocalDataLossWarningScreenView> view_;
 
   ScreenExitCallback exit_callback_;

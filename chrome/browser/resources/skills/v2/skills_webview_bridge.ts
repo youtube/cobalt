@@ -7,7 +7,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import {ToastType} from '../skills.mojom-webui.js';
 
-import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, PRIMARY_SKILLS_ORIGIN, SKILLS_API_ALLOWED_ORIGINS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_SHOW_TOAST} from './skills_webview_bridge_constants.js';
+import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, PRIMARY_SKILLS_ORIGIN, SKILLS_API_ALLOWED_ORIGINS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_INVOKE_SKILL, SKILLS_SHOW_TOAST} from './skills_webview_bridge_constants.js';
 
 /**
  * Returns a URLPattern given an origin pattern string that has the syntax:
@@ -59,6 +59,8 @@ export function urlMatchesApiAllowedOrigin(url: URL): boolean {
 export interface SkillsWebviewBridgeDelegate {
   onError(): void;
   onShowToast(toastType: ToastType): void;
+  onInvokeSkill(skillId: string): void;
+  onUrlChanged(url: URL): void;
 }
 
 /**
@@ -102,6 +104,8 @@ export class SkillsWebviewBridge {
       this.delegate_.onError();
       return;
     }
+
+    this.delegate_.onUrlChanged(urlObj);
 
     // Start handshake if valid target url.
     if (this.urlRequiresHandshake(urlObj)) {
@@ -171,10 +175,6 @@ export class SkillsWebviewBridge {
   }
 
   private onMessage(e: MessageEvent) {
-    if (this.webview_.contentWindow &&
-        e.source !== this.webview_.contentWindow) {
-      return;
-    }
     if (this.targetOrigin_ && e.origin !== this.targetOrigin_) {
       return;
     }
@@ -196,6 +196,8 @@ export class SkillsWebviewBridge {
 
     if (e.data.type === SKILLS_SHOW_TOAST) {
       this.handleShowToastMessage(e.data);
+    } else if (e.data.type === SKILLS_INVOKE_SKILL) {
+      this.handleInvokeSkillMessage(e.data);
     }
   }
 
@@ -206,6 +208,12 @@ export class SkillsWebviewBridge {
       this.delegate_.onShowToast(ToastType.kSave);
     } else if (data.toastType === 'delete') {
       this.delegate_.onShowToast(ToastType.kDelete);
+    }
+  }
+
+  private handleInvokeSkillMessage(data: {skillId: string}) {
+    if (data.skillId) {
+      this.delegate_.onInvokeSkill(data.skillId);
     }
   }
 

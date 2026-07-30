@@ -25,7 +25,6 @@ class PrefService;
 class SharingMessageBridge;
 class TemplateURLService;
 
-
 namespace account_settings {
 class AccountSettingService;
 }  // namespace account_settings
@@ -292,7 +291,11 @@ class CommonControllerBuilder {
   std::unique_ptr<syncer::DataTypeController>
   CreateSharedTabGroupDataTypeController(syncer::SyncService* sync_service);
   std::unique_ptr<syncer::DataTypeController>
-  CreateEncryptedTabContextContainerDataTypeController();
+  CreateEncryptedTabContextContainerDataTypeController(
+      syncer::SyncService* sync_service);
+  std::unique_ptr<syncer::DataTypeController>
+  CreateEncryptedTabContextItemDataTypeController(
+      syncer::SyncService* sync_service);
   std::unique_ptr<syncer::DataTypeController>
   CreateSharingMessageDataTypeController();
   std::unique_ptr<syncer::DataTypeController>
@@ -322,6 +325,8 @@ class CommonControllerBuilder {
   CreateGeminiThreadDataTypeController();
   std::unique_ptr<syncer::DataTypeController>
   CreateContextualTaskDataTypeController();
+  std::unique_ptr<syncer::DataTypeController>
+  CreateNotebookDataTypeController();
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   std::unique_ptr<syncer::DataTypeController> CreateSkillDataTypeController(
       syncer::SyncService* sync_service);

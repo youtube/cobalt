@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.about_settings.AboutChromeSettings;
 import org.chromium.chrome.browser.about_settings.LegalInformationSettings;
 import org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragment;
 import org.chromium.chrome.browser.autofill.settings.AndroidPaymentAppsFragment;
+import org.chromium.chrome.browser.autofill.settings.AutofillAndPasswordsFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillBuyNowPayLaterFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillCardBenefitsFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillIdentityDocsFragment;
@@ -27,7 +28,6 @@ import org.chromium.chrome.browser.autofill.settings.AutofillProfilesFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillShoppingFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillTravelFragment;
 import org.chromium.chrome.browser.autofill.settings.FinancialAccountsManagementFragment;
-import org.chromium.chrome.browser.autofill.settings.HomeOfTransactionsFragment;
 import org.chromium.chrome.browser.autofill.settings.NonCardPaymentMethodsManagementFragment;
 import org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.settings.personal_context.AutofillPersonalContextFragment;
@@ -35,7 +35,6 @@ import org.chromium.chrome.browser.browsing_data.ClearBrowsingDataFragment;
 import org.chromium.chrome.browser.commerce.PriceNotificationSettingsFragment;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchSettingsFragment;
 import org.chromium.chrome.browser.download.settings.DownloadSettings;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicActorLoginPermissionsFragment;
 import org.chromium.chrome.browser.glic.GlicSettings;
 import org.chromium.chrome.browser.homepage.settings.HomepageSettings;
@@ -124,6 +123,7 @@ public class SettingsNavigationImpl implements SettingsNavigation {
             case SettingsFragment.ALL_SITES:
             case SettingsFragment.ANDROID_PAYMENT_APPS:
             case SettingsFragment.APPEARANCE:
+            case SettingsFragment.AUTOFILL_AND_PASSWORDS:
             case SettingsFragment.AUTOFILL_BUY_NOW_PAY_LATER:
             case SettingsFragment.AUTOFILL_CARD_BENEFITS:
             case SettingsFragment.AUTOFILL_IDENTITY_DOCS:
@@ -143,7 +143,6 @@ public class SettingsNavigationImpl implements SettingsNavigation {
             case SettingsFragment.GLIC_PERMISSIONS:
             case SettingsFragment.GOOGLE_SERVICES:
             case SettingsFragment.GROUPED_WEBSITES:
-            case SettingsFragment.HOME_OF_TRANSACTIONS:
             case SettingsFragment.HOMEPAGE:
             case SettingsFragment.HTTPS_FIRST_MODE:
             case SettingsFragment.IMAGE_DESCRIPTIONS:
@@ -223,7 +222,7 @@ public class SettingsNavigationImpl implements SettingsNavigation {
             @Nullable Bundle fragmentArgs,
             boolean addToBackStack,
             @Nullable String tag) {
-        if (ChromeFeatureList.sSettingsInTab.isEnabled()) {
+        if (SettingsInTab.isEnabled()) {
             Activity activity = ActivityUtil.getActivityFromContext(context);
             // Some components pass a non-Activity context (e.g. AccessibilitySettings).
             if (activity == null) {
@@ -309,6 +308,8 @@ public class SettingsNavigationImpl implements SettingsNavigation {
                 return AndroidPaymentAppsFragment.class;
             case SettingsFragment.APPEARANCE:
                 return AppearanceSettingsFragment.class;
+            case SettingsFragment.AUTOFILL_AND_PASSWORDS:
+                return AutofillAndPasswordsFragment.class;
             case SettingsFragment.AUTOFILL_BUY_NOW_PAY_LATER:
                 return AutofillBuyNowPayLaterFragment.class;
             case SettingsFragment.AUTOFILL_CARD_BENEFITS:
@@ -349,8 +350,6 @@ public class SettingsNavigationImpl implements SettingsNavigation {
                 return GoogleServicesSettings.class;
             case SettingsFragment.GROUPED_WEBSITES:
                 return GroupedWebsitesSettings.class;
-            case SettingsFragment.HOME_OF_TRANSACTIONS:
-                return HomeOfTransactionsFragment.class;
             case SettingsFragment.HOMEPAGE:
                 return HomepageSettings.class;
             case SettingsFragment.HTTPS_FIRST_MODE:
@@ -447,13 +446,31 @@ public class SettingsNavigationImpl implements SettingsNavigation {
     @Override
     public void finishCurrentSettings(Fragment fragment) {
         Activity activity = fragment.getActivity();
-        if (activity != null) {
-            ((SettingsActivity) activity).finishCurrentSettings(fragment);
+        if (activity == null) return;
+
+        // SettingsInTab does not use SettingsActivity.
+        if (SettingsInTab.isEnabled()) {
+            SettingsHostFragment settingsHostFragment = SettingsHostFragment.get(activity);
+            if (settingsHostFragment != null) {
+                settingsHostFragment.finishCurrentSettings(fragment);
+            }
+            return;
         }
+
+        ((SettingsActivity) activity).finishCurrentSettings(fragment);
     }
 
     @Override
     public void executePendingNavigations(Activity activity) {
+        // SettingsInTab does not use SettingsActivity.
+        if (SettingsInTab.isEnabled()) {
+            SettingsHostFragment settingsHostFragment = SettingsHostFragment.get(activity);
+            if (settingsHostFragment != null) {
+                settingsHostFragment.executePendingNavigations();
+            }
+            return;
+        }
+
         ((SettingsActivity) activity).executePendingNavigations();
     }
 }

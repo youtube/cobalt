@@ -15,15 +15,20 @@ namespace contextual_tasks {
 
 BASE_DECLARE_FEATURE(kContextualTasks);
 BASE_DECLARE_FEATURE(kContextualTasksPrivateApiNoAnimation);
+BASE_DECLARE_FEATURE(kContextualTasksSidePanel);
 BASE_DECLARE_FEATURE(kContextualTasksEphemeralBrandedEntryPoint);
 BASE_DECLARE_FEATURE(kContextualTasksExtraOauthScopes);
 BASE_DECLARE_FEATURE(kEnableContextualTasksPinButtonInToolbar);
 BASE_DECLARE_FEATURE(kContextualTasksContext);
+BASE_DECLARE_FEATURE(kContextualTasksSearchQuery);
 BASE_DECLARE_FEATURE(
     kContextualTasksContextSmartTabSharingDefaultOnAvailability);
 BASE_DECLARE_FEATURE(kContextualTasksContextLibrary);
 BASE_DECLARE_FEATURE(kContextualTasksContextLogging);
 BASE_DECLARE_FEATURE(kContextualTasksShowOnboardingTooltip);
+
+// Bypasses the dismissed cap for contextual tasks tooltips.
+BASE_DECLARE_FEATURE(kContextualTasksBypassDismissedCap);
 
 // Enables prefetching of cookies for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksCookiePrefetch);
@@ -82,6 +87,9 @@ BASE_DECLARE_FEATURE(kContextualTasksRoundedClipPath);
 // Hides the the 3-dot (overflow) menu when viewing an ai page in the side
 // panel. The menu is still shown for lens flows.
 BASE_DECLARE_FEATURE(kContextualTasksHideMenuOnAiPage);
+
+// Enables painting dropdown menus outside WebUI boundaries.
+BASE_DECLARE_FEATURE(kContextualTasksUnboundedMenu);
 
 // Enables hiding the close button when in vertical tabs or immersive mode.
 BASE_DECLARE_FEATURE(kContextualTasksHideCloseButtonInVerticalTabs);
@@ -143,6 +151,7 @@ extern const base::FeatureParam<OverflowMenuItems>
 
 bool GetIsContextualTasksPdfCitationsEnabled();
 bool ShouldContextualTasksPrivateApiUseNoAnimation();
+bool GetIsContextualTasksSearchQueryEnabled();
 
 bool GetIsContextualTasksLazyFetchClusterInfoEnabled();
 
@@ -153,6 +162,12 @@ bool GetIsContextualTasksUploadChunkingEnabled();
 bool GetContextualTasksSpatialModelToolbarLayoutEnabled();
 
 bool GetContextualTasksSpatialModelToolbarLayoutNewThreadInOverflow();
+
+// Returns whether the Contextual Tasks side panel container, coordinator,
+// and supporting response services should be initialized.
+// Returns true if either full Contextual Tasks (`kContextualTasks`) or
+// infrastructure-only mode (`kContextualTasksSidePanel`) is enabled.
+bool IsContextualTasksUIEnabled();
 
 bool IsStickyConversationEnabled();
 
@@ -445,10 +460,14 @@ extern const char kContextualTasksPrivateApiNoAnimationName[];
 extern const char kContextualTasksPrivateApiNoAnimationDescription[];
 extern const char kContextualTasksName[];
 extern const char kContextualTasksDescription[];
+extern const char kContextualTasksSidePanelName[];
+extern const char kContextualTasksSidePanelDescription[];
 extern const char kContextualTasksContextLibraryName[];
 extern const char kContextualTasksContextLibraryDescription[];
 extern const char kContextualTasksContextName[];
 extern const char kContextualTasksContextDescription[];
+extern const char kContextualTasksSearchQueryName[];
+extern const char kContextualTasksSearchQueryDescription[];
 extern const char kContextualTasksSuggestionsEnabledName[];
 extern const char kContextualTasksSuggestionsEnabledDescription[];
 extern const char kContextualTasksJavaFuseboxName[];
@@ -472,6 +491,8 @@ extern const char kContextualTasksEphemeralBrandedEntryPointName[];
 extern const char kContextualTasksEphemeralBrandedEntryPointDescription[];
 extern const char kContextualTasksSidePanelRearchitectureName[];
 extern const char kContextualTasksSidePanelRearchitectureDescription[];
+extern const char kContextualTasksBypassDismissedCapName[];
+extern const char kContextualTasksBypassDismissedCapDescription[];
 
 }  // namespace flag_descriptions
 

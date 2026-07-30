@@ -9,6 +9,7 @@ source_set("dictation") {
     "dictation_keyed_service_factory.h",
     "dictation_multiplexer.h",
     "features.h",
+    "logging.h",
     "metrics.h",
     "onboarding_manager.h",
     "session_controller.h",
@@ -55,6 +56,7 @@ source_set("impl") {
     "//base",
     "//chrome/browser/component_updater",
     "//chrome/browser/extensions",
+    "//chrome/browser/glic",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",
@@ -106,6 +108,7 @@ source_set("unit_tests") {
   sources = [
     "dictation_keyed_service_unittest.cc",
     "session_controller_unittest.cc",
+    "target_unittest.cc",
   ]
 
   deps = [
@@ -136,6 +139,7 @@ source_set("browser_tests") {
   deps = [
     ":impl",
     ":test_support",
+    "//chrome/browser/glic/test_support",
     "//chrome/browser/policy:test_support",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/toasts",

@@ -10,9 +10,10 @@
 
 namespace app_list {
 
-std::vector<base::FilePath> GetTrashPaths(Profile* profile) {
+std::vector<base::FilePath> GetTrashPaths(const PrefService& local_state,
+                                          Profile* profile) {
   std::vector<base::FilePath> excluded_paths;
-  if (file_manager::trash::IsTrashEnabledForProfile(profile)) {
+  if (file_manager::trash::IsTrashEnabledForProfile(local_state, profile)) {
     const auto trash_locations =
         file_manager::trash::GenerateEnabledTrashLocationsForProfile(profile);
     for (const auto& location : trash_locations) {

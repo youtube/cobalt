@@ -204,7 +204,13 @@ enum DataType {
   // Encrypted tab context container.
   ENCRYPTED_TAB_CONTEXT_CONTAINER,
 
-  LAST_USER_DATA_TYPE = ENCRYPTED_TAB_CONTEXT_CONTAINER,
+  // Encrypted tab context item.
+  ENCRYPTED_TAB_CONTEXT_ITEM,
+
+  // Information about a notebook.
+  NOTEBOOK,
+
+  LAST_USER_DATA_TYPE = NOTEBOOK,
 
   // ---- Control Types ----
   // An object representing a set of Nigori keys.
@@ -315,7 +321,9 @@ enum class DataTypeForHistograms {
   // kDeprecatedAccessibilityAnnotation = 79,
   kThemesAndroid = 80,
   kEncryptedTabContextContainer = 81,
-  kMaxValue = kEncryptedTabContextContainer,
+  kEncryptedTabContextItem = 82,
+  kNotebook = 83,
+  kMaxValue = kNotebook,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
 
@@ -457,6 +465,11 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type);
 // Returns for every data_type a positive unique integer that is stable over
 // time and thus can be used when persisting data.
 int DataTypeToStableIdentifier(DataType data_type);
+
+// Returns the DataType corresponding to `stable_identifier` (produced by
+// DataTypeToStableIdentifier()). Returns UNSPECIFIED if `stable_identifier`
+// does not match any known DataType.
+DataType GetDataTypeFromStableIdentifier(int stable_identifier);
 
 // This returns a string that is stable over time and thus can be used for local
 // persistence. It is guaranteed to be lowercase.

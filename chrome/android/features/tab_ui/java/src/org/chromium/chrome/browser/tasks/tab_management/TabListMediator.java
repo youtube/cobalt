@@ -108,6 +108,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionS
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabListEditorActionMetricGroups;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListProperties.RailCollapseState;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
@@ -288,6 +289,10 @@ public class TabListMediator implements TabListNotificationHandler {
 
         /** Returns whether the layout supports message card items. */
         boolean supportsMessageCards();
+
+        /** Returns a supplier for the rail collapsed state, if applicable. */
+        @Nullable NonNullObservableSupplier<@RailCollapseState Integer>
+                getRailCollapseStateSupplier();
     }
 
     /** Interface for toggling whether item animations will run on the recycler view. */
@@ -397,13 +402,16 @@ public class TabListMediator implements TabListNotificationHandler {
     private final TabGridItemTouchHelperCallback mTabGridItemTouchHelperCallback;
     private final @Nullable UndoBarExplicitTrigger mUndoBarExplicitTrigger;
     private final @Nullable SnackbarManager mSnackbarManager;
+    private final @Nullable NonNullObservableSupplier<@RailCollapseState Integer>
+            mRailCollapseStateSupplier;
+    private final @Nullable Callback<@RailCollapseState Integer> mRailCollapseStateObserver;
     private final int mAllowedSelectionCount;
     private final boolean mIsSingleContextMode;
+    private final @TabListLayoutType int mLayoutType;
+    private final boolean mSupportsMessageCards;
 
     private int mNextTabId = Tab.INVALID_TAB_ID;
     private int mLastSelectedTabListModelIndex = TabList.INVALID_TAB_INDEX;
-    private final @TabListLayoutType int mLayoutType;
-    private final boolean mSupportsMessageCards;
     private @TabComponentId int mComponentId;
     private @TabActionState int mTabActionState;
     private @Nullable Profile mOriginalProfile;
@@ -1383,6 +1391,14 @@ public class TabListMediator implements TabListNotificationHandler {
                         TabUiMetricsHelper.getComponentNameForMetrics(componentId),
                         mLayoutType,
                         onDragStateChangedListener);
+
+        mRailCollapseStateSupplier = tabListConfigDelegate.getRailCollapseStateSupplier();
+        if (mRailCollapseStateSupplier != null) {
+            mRailCollapseStateObserver = this::onRailCollapseStateChanged;
+            mRailCollapseStateSupplier.addSyncObserverAndCallIfNonNull(mRailCollapseStateObserver);
+        } else {
+            mRailCollapseStateObserver = null;
+        }
     }
 
     TabModel getCurrentTabModelChecked() {
@@ -2019,6 +2035,10 @@ public class TabListMediator implements TabListNotificationHandler {
         if (mComponentCallbacks != null) {
             mActivity.unregisterComponentCallbacks(mComponentCallbacks);
         }
+
+        if (mRailCollapseStateSupplier != null && mRailCollapseStateObserver != null) {
+            mRailCollapseStateSupplier.removeObserver(mRailCollapseStateObserver);
+        }
     }
 
     void setTabActionState(@TabActionState int tabActionState) {
@@ -2282,6 +2302,10 @@ public class TabListMediator implements TabListNotificationHandler {
             tabInfo.set(TabProperties.IS_COLLAPSED, true);
         }
 
+        if (mRailCollapseStateSupplier != null) {
+            tabInfo.set(TabProperties.RAIL_COLLAPSE_STATE, mRailCollapseStateSupplier.get());
+        }
+
         @UiType int tabUiType = mMode == TabListMode.BOTTOM_STRIP ? UiType.STRIP : UiType.TAB;
         if (index >= mModelList.size()) {
             mModelList.add(new ListItem(tabUiType, tabInfo));
@@ -2453,24 +2477,29 @@ public class TabListMediator implements TabListNotificationHandler {
 
     void updateDescriptionString(Tab tab, PropertyModel model) {
         if (mLayoutType == TabListLayoutType.FLAT) return;
-        boolean isTabGroup = TabProperties.isTabGroupHeader(model);
-        int numOfRelatedTabs = getRelatedTabsForId(tab.getId()).size();
         TextResolver contentDescriptionResolver =
                 (context) -> {
+                    boolean isTabGroup = TabProperties.isTabGroupHeader(model);
+                    TabModel tabModel = getCurrentTabModelChecked();
+                    int tabId = model.get(TabProperties.TAB_ID);
+                    Tab currentTab = tabModel.getTabById(tabId);
+                    if (currentTab == null) return "";
+                    int numOfRelatedTabs = getRelatedTabsForId(tabId).size();
                     if (!isTabGroup) {
                         if (mComponentId == TabComponentId.ARCHIVED_TABS_DIALOG) {
                             return context.getString(
-                                    R.string.accessibility_restore_tab, getTabTitleOrUrl(tab));
+                                    R.string.accessibility_restore_tab,
+                                    getTabTitleOrUrl(currentTab));
                         }
                         return "";
                     }
-                    String title = getLatestTitleForTabOrGroup(tab, model, /* useDefault= */ false);
+                    String title =
+                            getLatestTitleForTabOrGroup(currentTab, model, /* useDefault= */ false);
                     Resources res = context.getResources();
-                    TabModel tabModel = getCurrentTabModelChecked();
                     @TabGroupColorId
                     int colorId =
                             tabModel.getTabGroupColorWithFallback(
-                                    assumeNonNull(tab.getTabGroupId()));
+                                    assumeNonNull(currentTab.getTabGroupId()));
                     final @StringRes int colorDescRes =
                             TabGroupColorPickerUtils
                                     .getTabGroupColorPickerItemColorAccessibilityString(colorId);
@@ -2490,7 +2519,7 @@ public class TabListMediator implements TabListNotificationHandler {
                                                 title,
                                                 numOfRelatedTabs);
                     } else if (TabUiUtils.isDataSharingFunctionalityEnabled()
-                            && hasCollaboration(tab)) {
+                            && hasCollaboration(currentTab)) {
                         TabCardLabelData tabCardLabelData =
                                 model.get(TabProperties.TAB_CARD_LABEL_DATA);
                         CharSequence tabCardLabelDesc = "";
@@ -2550,7 +2579,8 @@ public class TabListMediator implements TabListNotificationHandler {
                                                 numOfRelatedTabs,
                                                 colorDesc);
                     }
-                    String mediaStateString = getMediaStateAccessibilityString(tab, model, res);
+                    String mediaStateString =
+                            getMediaStateAccessibilityString(currentTab, model, res);
                     if (!TextUtils.isEmpty(mediaStateString)) {
                         description += " " + mediaStateString;
                     }
@@ -3739,6 +3769,14 @@ public class TabListMediator implements TabListNotificationHandler {
                 return res.getString(R.string.accessibility_tab_group_picture_in_picture);
             default:
                 return "";
+        }
+    }
+
+    private void onRailCollapseStateChanged(@RailCollapseState int railCollapseState) {
+        for (ListItem item : mModelList) {
+            if (TabProperties.isTabOrTabGroup(item.model)) {
+                item.model.set(TabProperties.RAIL_COLLAPSE_STATE, railCollapseState);
+            }
         }
     }
 

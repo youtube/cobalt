@@ -764,7 +764,7 @@ bool IsGeneralizedGeminiEntryFlowEnabled() {
   return base::FeatureList::IsEnabled(kGeneralizedGeminiEntryFlow);
 }
 
-BASE_FEATURE(kGeminiLuminous, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiLuminous, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiLuminousEnabled() {
   if (!IsPageActionMenuEnabled()) {
@@ -862,4 +862,10 @@ BASE_FEATURE(kGeminiFRERefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiFRERefactorEnabled() {
   return base::FeatureList::IsEnabled(kGeminiFRERefactor);
+}
+
+BASE_FEATURE(kGeminiCoordinatorTeardownFix, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsGeminiCoordinatorTeardownFixEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiCoordinatorTeardownFix);
 }

@@ -76,6 +76,7 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     uiVersion: 0,
     formattedFullUrl: '',
     textPieces: [],
+    placeholder: null,
     inlineAutocompletion: '',
     additionalText: '',
     // This follows the semantics of gfx::Range, where backwards
@@ -239,7 +240,13 @@ export class ReadonlyOmniboxElement extends CrLitElement {
         this.setSelection(selection.start, selection.end, selectionDirection);
       }
 
-      if (!this.hasFocus()) {
+      // Make sure we set the right view visible. Normally we want the <input>
+      // when we have focus, but it's also responsible for drawing the
+      // placeholder if it's enabled.
+      const hasFocus = this.hasFocus();
+
+      this.switchView_(hasFocus);
+      if (!hasFocus) {
         // Make sure we make the beginning of the line visible when we're not
         // focused.
         this.$.textContainer.scrollLeft = 0;
@@ -287,13 +294,11 @@ export class ReadonlyOmniboxElement extends CrLitElement {
       // as well to avoid flicker.
       this.$.textInput.value = '';
       this.updateStateFromTextInput();
-      this.sendInputToBrowser();
     } else if (isUserInitiated) {
       this.unelide();
-      this.sendInputToBrowser();
     }
     this.$.textInput.focus();
-    this.switchEditable_();
+    this.switchView_(/*hasFocus=*/ true);
 
     // The following comments are from OmniboxViewViews::SetFocus:
     // If the user initiated the focus, then we always select-all, even if the
@@ -318,6 +323,9 @@ export class ReadonlyOmniboxElement extends CrLitElement {
         this.selectAllBackwards();
       }
     }
+    // It's important this is done after updating the selection since that
+    // prevents inline completion, which isn't desired for these shortcuts.
+    this.sendInputToBrowser();
 
     this.browserProxy_.toolbarUIHandler.onOmniboxAction({
       focusChange: {
@@ -347,8 +355,8 @@ export class ReadonlyOmniboxElement extends CrLitElement {
       document.getSelection()!.removeAllRanges();
       this.$.textInput.blur();
     }
+    this.switchView_(/*hasFocus=*/ false);
     this.lastFocusAcquisition_ = null;
-    this.switchReadOnly_();
 
     this.browserProxy_.toolbarUIHandler.onOmniboxAction({
       focusChange: {
@@ -363,7 +371,7 @@ export class ReadonlyOmniboxElement extends CrLitElement {
 
   private onInputFocus(): void {
     this.lastFocusAcquisition_ = performance.now();
-    this.switchEditable_();
+    this.switchView_(/*hasFocus=*/ true);
 
     this.browserProxy_.toolbarUIHandler.onOmniboxAction({
       focusChange: {
@@ -969,16 +977,18 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     this.omniboxViewState.selection = this.getMojoSelection();
   }
 
-  // Sets the read only view active.
-  private switchReadOnly_(): void {
-    this.$.textInput.style.opacity = '0';
-    this.$.textContainer.style.opacity = '1';
-  }
-
-  // Sets the editable view active.
-  private switchEditable_(): void {
-    this.$.textInput.style.opacity = '1';
-    this.$.textContainer.style.opacity = '0';
+  // Selects the proper view (<input> or our syntax highlighting one
+  // active.
+  private switchView_(hasFocus: boolean): void {
+    const useInputElement = hasFocus ||
+        this.omniboxViewState.placeholder && this.userText.length === 0;
+    if (useInputElement) {
+      this.$.textInput.style.opacity = '1';
+      this.$.textContainer.style.opacity = '0';
+    } else {
+      this.$.textInput.style.opacity = '0';
+      this.$.textContainer.style.opacity = '1';
+    }
   }
 
   // Returns the CSS classes for rendering the given text piece.
@@ -1007,6 +1017,19 @@ export class ReadonlyOmniboxElement extends CrLitElement {
       classes.push('strikethrough');
     }
     return classes.join(' ');
+  }
+
+  protected getInputPlaceholder_(): string|undefined {
+    return this.omniboxViewState.placeholder?.text;
+  }
+
+  protected getInputClasses_(): string|undefined {
+    const placeholder = this.omniboxViewState.placeholder;
+    if (placeholder) {
+      return ReadonlyOmniboxElement.getTextPieceClasses(placeholder);
+    } else {
+      return undefined;
+    }
   }
 }
 

@@ -266,7 +266,6 @@ class CONTENT_EXPORT NavigationRequest
       NavigationEntryImpl* entry,
       bool is_form_submission,
       std::unique_ptr<NavigationUIData> navigation_ui_data,
-      const std::optional<blink::Impression>& impression,
       EmbedderIsolationInfo::Mode embedder_isolation_mode,
       bool is_embedder_initiated_fenced_frame_navigation = false,
       std::optional<std::u16string> embedder_shared_storage_context =
@@ -300,7 +299,6 @@ class CONTENT_EXPORT NavigationRequest
       NavigationEntryImpl* entry,
       bool is_form_submission,
       std::unique_ptr<NavigationUIData> navigation_ui_data,
-      const std::optional<blink::Impression>& impression,
       bool started_with_transient_activation,
       bool started_by_ad,
       EmbedderIsolationInfo::Mode embedder_isolation_mode,
@@ -475,7 +473,6 @@ class CONTENT_EXPORT NavigationRequest
   bool WasResponseCached() override;
   bool NetworkAccessed() override;
   const std::string& GetHrefTranslate() override;
-  const std::optional<blink::Impression>& GetImpression() override;
   const std::optional<blink::LocalFrameToken>& GetInitiatorFrameToken()
       override;
   ChildProcessId GetInitiatorProcessId() override;
@@ -953,8 +950,37 @@ class CONTENT_EXPORT NavigationRequest
   bool is_credentialless() const { return is_credentialless_; }
 
   // Returns a pointer to the policies copied from the navigation initiator.
-  // Returns nullptr if this navigation had no initiator.
+  // Returns nullptr if this navigation had no initiator. This function will
+  // return initiator policies, regardless of whether the policies can be
+  // inherited or not. See `GetInitiatorPolicyContainerPoliciesForInheritance()`
+  // for more context on why initiator policies might not be inherited.
+  //
+  // This function should be used when enforcing policies for the initiator, in
+  // particular when checking whether the navigation can proceed based on the
+  // initiator policies (e.g. for connection allowlist, CSP form-action or Local
+  // Network Access).
+  //
+  // When looking at which policies can be inherited from the initiator during a
+  // local navigation, this function should not be used. In that case,
+  // `GetInitiatorPolicyContainerPoliciesForInheritance()` should be used
+  // instead.
   const PolicyContainerPolicies* GetInitiatorPolicyContainerPolicies() const;
+
+  // This returns a pointer to the navigation's initiator PolicyContainerHost if
+  // its policies can be inherited by the navigation.
+  // Returns nullptr if there is no navigation initiator or if there is one but
+  // its policies cannot be inherited. The latter case happens if the initiator
+  // is not in the same StoragePartition as the navigation, or if the creator of
+  // the navigation specified that initiator policies should not be inherited
+  // (see `should_ignore_initiator_policies_for_inheritance_`).
+  // This function should only be called after the navigation has started, as
+  // the computation of the StoragePartition for the navigation is only correct
+  // after this point.
+  // When looking at whether a navigation can proceed based on the initiator's
+  // policies, this function should not be used, and
+  // GetInitiatorPolicyContainerPolicies() should be used instead.
+  const PolicyContainerPolicies*
+  GetInitiatorPolicyContainerPoliciesForInheritance() const;
 
   // The DocumentToken that should be used for the document created as a result
   // of committing this navigation.
@@ -2669,7 +2695,7 @@ class CONTENT_EXPORT NavigationRequest
 
   // Returns the impl version of the |initiator_navigation_state_| stored
   // in this NavigationRequest.
-  InitiatorNavigationStateImpl* initiator_navigation_state_impl() {
+  InitiatorNavigationStateImpl* initiator_navigation_state_impl() const {
     return static_cast<InitiatorNavigationStateImpl*>(
         initiator_navigation_state_.get());
   }
@@ -3744,6 +3770,12 @@ class CONTENT_EXPORT NavigationRequest
   // A record of the state of the document that initiated the navigation. Null
   // for browser intiiated navigations.
   scoped_refptr<InitiatorNavigationState> initiator_navigation_state_;
+
+  // Whether initiator web security policies can be inherited when navigating
+  // to a local scheme. This should generally be false, unless set to true by
+  // the content embedder to avoid inheritance of policies in specific cases
+  // like a navigation to the PDF extension.
+  bool should_ignore_initiator_policies_for_inheritance_;
 
   // Set to true if an early navigation failure has already been recorded
   // for this navigation, preventing duplicate recordings in the destructor.

@@ -14,10 +14,10 @@ import androidx.annotation.IntDef;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.autofill.settings.PersonalContextSettingsLauncher;
+import org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsReferrer;
 import org.chromium.chrome.browser.personal_context.first_run.PersonalContextFirstRunService;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FlyoutProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ScreenId;
@@ -30,6 +30,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Contains the business logic for the AtMemoryBottomSheet. */
@@ -55,7 +56,6 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
     private final PropertyModel mModel;
     private final PropertyModel mHomeModel;
     private final PropertyModel mFlyoutModel;
-    private @Nullable PropertyModel mSearchAffordanceModel;
     private final AtMemoryBottomSheetCoordinator.Delegate mDelegate;
     private final HomeProperties.SearchDelegate mSearchDelegate;
 
@@ -118,13 +118,11 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
 
     private void onNoticeSettingsClicked() {
         RecordUserAction.record("PersonalContext.AtMemory.Notice.SettingsLinkClick");
-        SettingsNavigationFactory.createSettingsNavigation().startSettings(mContext);
+        PersonalContextSettingsLauncher.showPersonalContextSettings(
+                mContext, AutofillOptionsReferrer.PERSONAL_CONTEXT_ATMEMORY_NOTICE);
     }
 
     private AtMemoryScreenState getScreenState(List<AutofillSuggestion> suggestions) {
-        if (isSearchAffordance(suggestions)) {
-            return AtMemoryScreenState.SEARCH_AFFORDANCE;
-        }
         if (suggestions.isEmpty()) {
             return mDelegate.isSearching()
                     ? AtMemoryScreenState.LOADING
@@ -143,9 +141,6 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
         if (screenState.showZeroState) {
             applyZeroState(sheetItems);
         }
-        if (screenState.showSearchAffordance) {
-            applySearchAffordance(suggestions.get(0), sheetItems);
-        }
         if (screenState.showAtMemorySuggestions) {
             applySuggestions(suggestions, sheetItems);
         }
@@ -154,7 +149,6 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
             mModel.set(CURRENT_SCREEN, ScreenId.HOME_SCREEN);
             mFlyoutModel.set(FlyoutProperties.TITLE, "");
             mFlyoutModel.set(FlyoutProperties.SUGGESTIONS, List.of());
-            mSearchAffordanceModel = null;
             sheetItems.clear();
             return;
         }
@@ -169,32 +163,25 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
         sheetItems.add(new ListItem(HomeProperties.ItemType.ZERO_STATE, new PropertyModel()));
     }
 
-    private void applySearchAffordance(AutofillSuggestion affordance, ModelList sheetItems) {
-        if (mSearchAffordanceModel != null) {
-            mSearchAffordanceModel.set(SuggestionItemProperties.TITLE, affordance.getLabel());
-            return;
-        }
-
-        mSearchAffordanceModel = createSuggestionModel(affordance, 0);
-        sheetItems.clear();
-        sheetItems.add(new ListItem(HomeProperties.ItemType.SUGGESTION, mSearchAffordanceModel));
-    }
-
     private void applySuggestions(List<AutofillSuggestion> suggestions, ModelList sheetItems) {
-        sheetItems.clear();
+        List<ListItem> listItems = new ArrayList<>();
         for (int i = 0; i < suggestions.size(); i++) {
-            sheetItems.add(
+            listItems.add(
                     new ListItem(
                             HomeProperties.ItemType.SUGGESTION,
                             createSuggestionModel(suggestions.get(i), i)));
         }
+        sheetItems.set(listItems);
     }
 
     private void onSuggestionClicked(AutofillSuggestion suggestion, int position) {
-        if (suggestion.getSuggestionType() == SuggestionType.AT_MEMORY_SEARCH_AFFORDANCE
-                && mSearchAffordanceModel != null) {
+        if (!suggestion.isAcceptable()) {
+            return;
+        }
+
+        if (suggestion.getSuggestionType() == SuggestionType.AT_MEMORY_SEARCH_AFFORDANCE) {
             mSearchDelegate.hideKeyboardAndClearFocus();
-            String query = mSearchAffordanceModel.get(SuggestionItemProperties.TITLE);
+            String query = suggestion.getLabel();
             if (query != null) {
                 onQuerySubmitted(query);
             }
@@ -204,7 +191,8 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
     }
 
     private void onFlyoutClicked(AutofillSuggestion suggestion, int position) {
-        mFlyoutModel.set(FlyoutProperties.TITLE, suggestion.getLabel());
+        // Assumes the secondary label contains the data type name.
+        mFlyoutModel.set(FlyoutProperties.TITLE, suggestion.getSecondaryLabel());
         mFlyoutModel.set(FlyoutProperties.SUGGESTIONS, suggestion.getChildren());
         mFlyoutModel.set(
                 FlyoutProperties.ON_SUGGESTION_CLICKED,
@@ -212,14 +200,12 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
 
         mModel.set(CURRENT_SCREEN, ScreenId.FLYOUT_SCREEN);
         mDelegate.onChildSuggestionsShown(position);
+        mDelegate.requestExpandSheet();
     }
 
     private void onFlyoutBackClicked() {
         mModel.set(CURRENT_SCREEN, ScreenId.HOME_SCREEN);
-    }
-
-    private void onFlyoutManageClicked() {
-        // TODO(crbug.com/505255929): Implement manage clicked handler
+        mDelegate.requestExpandSheet();
     }
 
     private void onFlyoutSuggestionClicked(int parentPosition, int childPosition) {
@@ -229,7 +215,6 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
     @Override
     public void onQuerySubmitted(String query) {
         mHomeModel.set(HomeProperties.IS_LOADING, true);
-        mSearchAffordanceModel = null;
         mDelegate.onQuerySubmitted(query);
     }
 
@@ -240,13 +225,9 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
 
     @Override
     public void onSearchFocus(boolean hasFocus) {
-        mDelegate.onSearchFocus(hasFocus);
-    }
-
-    private boolean isSearchAffordance(List<AutofillSuggestion> suggestions) {
-        return suggestions.size() == 1
-                && suggestions.get(0).getSuggestionType()
-                        == SuggestionType.AT_MEMORY_SEARCH_AFFORDANCE;
+        if (hasFocus) {
+            mDelegate.requestExpandSheet();
+        }
     }
 
     private PropertyModel createSuggestionModel(AutofillSuggestion suggestion, int position) {
@@ -256,7 +237,10 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
                 .with(SuggestionItemProperties.DETAILS, suggestion.getSublabel())
                 .with(
                         SuggestionItemProperties.IS_FLYOUT_VISIBLE,
-                        suggestion.getSuggestionType() == SuggestionType.AT_MEMORY_SEARCH_RESULT)
+                        !suggestion.getChildren().isEmpty())
+                .with(
+                        SuggestionItemProperties.APPLY_DEACTIVATED_STYLE,
+                        suggestion.applyDeactivatedStyle())
                 .with(
                         SuggestionItemProperties.ON_SUGGESTION_CLICKED,
                         () -> onSuggestionClicked(suggestion, position))
@@ -292,7 +276,6 @@ class AtMemoryBottomSheetMediator implements AtMemorySearchBarView.Delegate {
                 .with(FlyoutProperties.TITLE, "")
                 .with(FlyoutProperties.SUGGESTIONS, List.of())
                 .with(FlyoutProperties.ON_BACK_CLICKED, this::onFlyoutBackClicked)
-                .with(FlyoutProperties.ON_MANAGE_CLICKED, this::onFlyoutManageClicked)
                 .with(FlyoutProperties.ON_SUGGESTION_CLICKED, childPos -> {})
                 .build();
     }

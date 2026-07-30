@@ -62,10 +62,11 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabStripReorderingHelper;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
-import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerContainer;
-import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator;
-import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator.ColorPickerLayoutType;
-import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.TabGroupColorPickerContainer;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.TabGroupColorPickerCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.TabGroupColorPickerCoordinator.TabGroupColorPickerLayoutType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.TabGroupColorPickerType;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.tab_ui.R;
@@ -102,7 +103,7 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
     private final Context mContext;
     private @MonotonicNonNull View mContentView;
     private @MonotonicNonNull EditText mGroupTitleEditText;
-    private @MonotonicNonNull ColorPickerCoordinator mColorPickerCoordinator;
+    private @MonotonicNonNull TabGroupColorPickerCoordinator mTabGroupColorPickerCoordinator;
     private Token mTabGroupId;
 
     // Title currently modified by the user through the edit box. This does not include previously
@@ -161,7 +162,17 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         mContext = windowAndroid.getActivity().get();
         mKeyboardVisibilityListener =
                 isShowing -> {
-                    if (!isShowing) updateTabGroupTitle();
+                    if (!isShowing) {
+                        updateTabGroupTitle();
+                    } else if (VerticalTabUtils.isVerticalTabsEnabled(mContext)) {
+                        if (isMenuShowing()) {
+                            // Using .post() to ensure the Android OS has finished resizing the
+                            // window (shrinking the visible viewport) to accommodate the keyboard
+                            // before we calculate the menu's new positioning coordinates (layout
+                            // pass).
+                            assumeNonNull(mContentView).post(this::updateMenuLayout);
+                        }
+                    }
                 };
         getTabModel().addTabGroupObserver(mTabGroupObserver);
         mCollaborationService = collaborationService;
@@ -496,8 +507,8 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                             mGroupTitleEditText.setVisibility(
                                     shouldShowTitleEditor ? VISIBLE : GONE);
                         }
-                        if (mColorPickerCoordinator != null) {
-                            mColorPickerCoordinator
+                        if (mTabGroupColorPickerCoordinator != null) {
+                            mTabGroupColorPickerCoordinator
                                     .getContainerView()
                                     .setVisibility(shouldShowTitleEditor ? VISIBLE : GONE);
                         }
@@ -521,9 +532,11 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         // components as well. The color picker is the one we care about, since the other is an
         // text editing box that will match its parent's width.
         View container = ((ViewGroup) assumeNonNull(mContentView)).getChildAt(0);
-        if (!isInSubmenu && mColorPickerCoordinator != null) {
-            ColorPickerContainer colorPicker = mColorPickerCoordinator.getContainerView();
-            if (colorPicker.getColorPickerLayoutType() == ColorPickerLayoutType.DYNAMIC) {
+        if (!isInSubmenu && mTabGroupColorPickerCoordinator != null) {
+            TabGroupColorPickerContainer colorPicker =
+                    mTabGroupColorPickerCoordinator.getContainerView();
+            if (colorPicker.getTabGroupColorPickerLayoutType()
+                    == TabGroupColorPickerLayoutType.DYNAMIC) {
                 if (colorPicker.getVisibility() == VISIBLE) {
                     int singleRowWidth = colorPicker.getSingleRowWidth();
                     if (singleRowWidth < absoluteMaxWidth) {
@@ -654,17 +667,18 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
     }
 
     private void updateTabGroupColor() {
-        if (mColorPickerCoordinator == null) return;
+        if (mTabGroupColorPickerCoordinator == null) return;
         @TabGroupColorId
-        int newColor = assertNonNull(mColorPickerCoordinator.getSelectedColorSupplier().get());
+        int newColor =
+                assertNonNull(mTabGroupColorPickerCoordinator.getSelectedColorSupplier().get());
         if (TabUiUtils.updateTabGroupColor(getTabModel(), mTabGroupId, newColor)) {
             RecordUserAction.record("MobileToolbarTabGroupMenu.ColorChanged");
         }
     }
 
     private void setSelectedColorItem(@TabGroupColorId int newColor) {
-        if (mColorPickerCoordinator == null) return;
-        mColorPickerCoordinator.setSelectedColorItem(newColor);
+        if (mTabGroupColorPickerCoordinator == null) return;
+        mTabGroupColorPickerCoordinator.setSelectedColorItem(newColor);
     }
 
     @VisibleForTesting
@@ -748,27 +762,29 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.color_picker_horizontal_padding);
 
-        // TODO(crbug.com/357104424): Consider create ColorPickerCoordinator once during the first
+        // TODO(crbug.com/357104424): Consider create TabGroupColorPickerCoordinator once during the
+        // first
         // call, and reuse it for subsequent calls.
         View inflatedRoot = ((ViewStub) contentView.findViewById(R.id.color_picker_stub)).inflate();
-        ColorPickerContainer container = inflatedRoot.findViewById(R.id.color_picker_container);
-        mColorPickerCoordinator =
-                new ColorPickerCoordinator(
+        TabGroupColorPickerContainer container =
+                inflatedRoot.findViewById(R.id.color_picker_container);
+        mTabGroupColorPickerCoordinator =
+                new TabGroupColorPickerCoordinator(
                         context,
                         TabGroupColorPickerUtils.getTabGroupColorIdList(),
                         container,
-                        ColorPickerType.TAB_GROUP,
+                        TabGroupColorPickerType.TAB_GROUP,
                         isIncognito,
-                        ColorPickerLayoutType.DYNAMIC,
+                        TabGroupColorPickerLayoutType.DYNAMIC,
                         this::updateTabGroupColor);
-        mColorPickerCoordinator
+        mTabGroupColorPickerCoordinator
                 .getContainerView()
                 .setPadding(horizontalPadding, 0, horizontalPadding, 0);
 
         // The color picker should select the current color of the tab group when it is displayed.
         @TabGroupColorId
         int curGroupColor = getTabModel().getTabGroupColorWithFallback(mTabGroupId);
-        mColorPickerCoordinator.setSelectedColorItem(curGroupColor);
+        mTabGroupColorPickerCoordinator.setSelectedColorItem(curGroupColor);
     }
 
     public void destroy() {
@@ -779,8 +795,8 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         return mGroupTitleEditText;
     }
 
-    @Nullable ColorPickerCoordinator getColorPickerCoordinatorForTesting() {
-        return mColorPickerCoordinator;
+    @Nullable TabGroupColorPickerCoordinator getTabGroupColorPickerCoordinatorForTesting() {
+        return mTabGroupColorPickerCoordinator;
     }
 
     KeyboardVisibilityDelegate.KeyboardVisibilityListener

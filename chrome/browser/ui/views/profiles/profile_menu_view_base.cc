@@ -8,32 +8,24 @@
 #include <memory>
 #include <utility>
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
-#include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_ui_util.h"
-#include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
-#include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
-#include "chrome/grit/browser_resources.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/supervised_user/core/browser/family_link_user_capabilities.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -66,7 +58,6 @@
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
-#include "ui/views/controls/link.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/controls/styled_label.h"
@@ -80,9 +71,9 @@
 #include "ui/views/style/typography.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_tracker.h"
 
 #if !BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/views/profiles/badged_profile_photo.h"
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 namespace {
@@ -206,8 +197,8 @@ class AvatarImageView : public views::ImageView {
     DCHECK(!avatar_image_.IsEmpty());
     ui::ColorProvider* color_provider = GetColorProvider();
     CHECK(color_provider);
-    const bool is_ai_ring_enabled =
-        IsAiSubscriptionRingEnabled(&(root_view_->profile()));
+    const bool should_show_gradient_ring_enabled =
+        ShouldShowAvatarGradientRing(&(root_view_->profile()));
 
     gfx::ImageSkia sized_avatar_image;
     bool should_crop = true;
@@ -220,11 +211,11 @@ class AvatarImageView : public views::ImageView {
       // Dotted ring avatar does not support a border, as the border is already
       // included with the dotted ring.
       CHECK_EQ(border_size_, 0);
-    } else if (is_ai_ring_enabled) {
+    } else if (should_show_gradient_ring_enabled) {
       // Keep the avatar's size identical with the no-ring case, the ring
       // expands outwards.
-      sized_avatar_image =
-          AddAiRingToAvatar(avatar_image_, *color_provider, image_size_);
+      sized_avatar_image = AddLinearGradientRingToAvatar(
+          avatar_image_, *color_provider, image_size_);
       should_crop = false;
     } else {
       if (border_size_ > 0) {
@@ -407,14 +398,21 @@ class ProfileMenuViewBase::AXMenuWidgetObserver : public views::WidgetObserver {
   ~AXMenuWidgetObserver() override = default;
 
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override {
+    views::ViewTracker tracker(owner_.get());
     if (active) {
       owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuStart,
                                                  true);
+      if (!tracker.view()) {
+        return;
+      }
       owner_->NotifyAccessibilityEventDeprecated(
           ax::mojom::Event::kMenuPopupStart, true);
     } else {
       owner_->NotifyAccessibilityEventDeprecated(
           ax::mojom::Event::kMenuPopupEnd, true);
+      if (!tracker.view()) {
+        return;
+      }
       owner_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kMenuEnd,
                                                  true);
     }

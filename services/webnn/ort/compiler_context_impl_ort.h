@@ -11,7 +11,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/types/expected.h"
-#include "base/types/pass_key.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -23,15 +22,10 @@
 #include "services/webnn/public/mojom/webnn_graph_builder.mojom.h"
 #include "services/webnn/public/mojom/webnn_model_loader.mojom.h"
 
-namespace base {
-class FilePath;
-}
-
 namespace webnn {
 
 struct EpDeviceInfo;
 
-class WebNNTensorImpl;
 class WebNNConstantOperand;
 
 namespace ort {
@@ -44,20 +38,11 @@ class SessionOptions;
 class CompilerContextImplOrt final : public GraphBuilderContext,
                                      public mojom::WebNNCompilerContext {
  public:
-  static std::unique_ptr<CompilerContextImplOrt> Create(
-      const base::FilePath& ep_library_path,
+  CompilerContextImplOrt(
       const EpDeviceInfo& target_device,
       mojom::CreateContextOptionsPtr options,
       ContextProperties properties,
       mojo::PendingRemote<mojom::WebNNModelLoader> model_loader);
-
-  CompilerContextImplOrt(
-      const EpDeviceInfo& target_device,
-      scoped_refptr<Environment> env,
-      mojom::CreateContextOptionsPtr options,
-      ContextProperties properties,
-      mojo::PendingRemote<mojom::WebNNModelLoader> model_loader,
-      base::PassKey<CompilerContextImplOrt> pass_key);
 
   CompilerContextImplOrt(const CompilerContextImplOrt&) = delete;
   CompilerContextImplOrt& operator=(const CompilerContextImplOrt&) = delete;
@@ -76,8 +61,6 @@ class CompilerContextImplOrt final : public GraphBuilderContext,
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
-          constant_tensor_operands,
       BuildGraphCallback callback) override;
 
  private:

@@ -1378,7 +1378,7 @@ BUILDERS = {
             # that we can be informed if this
             # version ever changes or becomes inconsistent. It is important
             # that bots are homogeneous. See crbug.com/988045 for history.
-            'os': 'Windows-11-22631.2428',
+            'os': 'Windows-11-26200',
             'gpu': '102b:0536-4.5.0.5',
             'synthetic_product_name': 'PowerEdge R350 (Dell Inc.)'
         },
@@ -1402,7 +1402,7 @@ BUILDERS = {
             # that we can be informed if this
             # version ever changes or becomes inconsistent. It is important
             # that bots are homogeneous. See crbug.com/988045 for history.
-            'os': 'Windows-11-22631.2428',
+            'os': 'Windows-11-26200',
             'gpu': '102b:0536-4.5.0.5',
             'synthetic_product_name': 'PowerEdge R350 (Dell Inc.)'
         },

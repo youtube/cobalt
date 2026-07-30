@@ -24,8 +24,6 @@ source_set("browser") {
 
   if (!is_android && use_blink) {
     sources += [
-      "passkey_change_quota_tracker.cc",
-      "passkey_change_quota_tracker.h",
       "rate_limiter_slide_window.cc",
       "rate_limiter_slide_window.h",
     ]
@@ -42,6 +40,8 @@ source_set("browser") {
 
   if (!is_android) {
     sources += [
+      "passkey_change_quota_tracker.cc",
+      "passkey_change_quota_tracker.h",
       "passkey_sync_bridge.cc",
       "passkey_sync_bridge.h",
     ]
@@ -97,6 +97,7 @@ source_set("common_utils") {
   ]
   deps = [
     "//base",
+    "//components/webauthn:features",
     "//net",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
@@ -121,6 +122,7 @@ source_set("unit_tests") {
     ":browser",
     ":common_utils",
     "//base/test:test_support",
+    "//components/webauthn:features",
     "//services/network:test_support",
     "//services/network/public/cpp",
     "//testing/gtest",

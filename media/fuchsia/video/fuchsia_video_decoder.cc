@@ -211,10 +211,13 @@ class FuchsiaVideoDecoder::OutputMailbox {
       return;
     }
 
-    raster_context_provider_->ContextSupport()->SignalSyncToken(
-        release_sync_token_,
+    gpu::ClientSharedImage::SignalLatestSyncToken(
+        std::vector<scoped_refptr<gpu::ClientSharedImage>>{shared_image_},
+        std::vector<gpu::SyncToken>{release_sync_token_},
         base::BindPostTaskToCurrentDefault(base::BindOnce(
-            &OutputMailbox::OnSyncTokenSignaled, weak_factory_.GetWeakPtr())));
+            &OutputMailbox::OnSyncTokenSignaled, weak_factory_.GetWeakPtr())),
+        raster_context_provider_->ContextSupport(),
+        /*pending_callback_id=*/0);
   }
 
   void OnSyncTokenSignaled() {
@@ -348,7 +351,10 @@ void FuchsiaVideoDecoder::Initialize(const VideoDecoderConfig& config,
   if (!current_config_.color_space_info().IsSpecified())
     current_config_.set_color_space_info(VideoColorSpace::REC601());
 
-  std::move(done_callback).Run(DecoderStatus::Codes::kOk);
+  if (init_cb_) {
+    std::move(init_cb_).Run(DecoderStatus::Codes::kAborted);
+  }
+  init_cb_ = std::move(done_callback);
 }
 
 void FuchsiaVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
@@ -469,6 +475,14 @@ void FuchsiaVideoDecoder::OnSysmemBufferStreamError() {
 void FuchsiaVideoDecoder::OnSysmemBufferStreamNoKey() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   waiting_cb_.Run(WaitingReason::kNoDecryptionKey);
+}
+
+void FuchsiaVideoDecoder::OnStreamProcessorAllocateInputBuffers(
+    const fuchsia::media::StreamBufferConstraints& stream_constraints) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (init_cb_) {
+    std::move(init_cb_).Run(DecoderStatus::Codes::kOk);
+  }
 }
 
 void FuchsiaVideoDecoder::OnStreamProcessorAllocateOutputBuffers(
@@ -712,6 +726,10 @@ void FuchsiaVideoDecoder::OnError() {
   decoder_.reset();
 
   ReleaseOutputBuffers();
+
+  if (init_cb_) {
+    std::move(init_cb_).Run(DecoderStatus::Codes::kFailedToCreateDecoder);
+  }
 
   DropInputQueue(DecoderStatus::Codes::kFailed);
 }

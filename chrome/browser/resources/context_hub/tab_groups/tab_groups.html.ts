@@ -12,11 +12,27 @@ export function getHtml(this: TabGroupsElement) {
     <main id="tab-groups-view">
         <section class="header-section">
             <h1>Tab Groups</h1>
+        </section>
+
+        <section class="input-section">
+            <cr-input id="group-input"
+                ?disabled="${!this.autoTabGroupsEnabled_ || this.isGrouping_}"
+                placeholder="Enter prompt to group tabs..."
+                .value="${this.inputValue_}"
+                @value-changed="${this.onInputValueChanged_}"
+                @keydown="${this.onInputKeydown_}">
+            </cr-input>
             <cr-button class="action-button"
+                id="group-tabs-button"
                 ?disabled="${this.isGrouping_ || !this.autoTabGroupsEnabled_}"
                 @click="${this.onGroupTabsClick_}">
-                ${this.isGrouping_ ? 'Grouping...' :
-                  (this.isGrouped_ ? 'Ungroup tabs' : 'Group tabs')}
+                ${this.isGrouping_ ? 'Grouping...' : 'Group tabs'}
+            </cr-button>
+            <cr-button class="action-button"
+                id="ungroup-tabs-button"
+                ?disabled="${!this.autoTabGroupsEnabled_ || this.isGrouping_ || !this.isGrouped_}"
+                @click="${this.onUngroupTabsClick_}">
+                Ungroup tabs
             </cr-button>
         </section>
 
@@ -73,8 +89,8 @@ export function getHtml(this: TabGroupsElement) {
                 <div class="grid">
                     ${this.tabs_.map(tab => html`
                         <div class="tab-card"
-                            data-id="${tab.id}"
-                            @click="${this.onTabClick_}">
+                                    data-id="${tab.id}"
+                                    @click="${this.onTabClick_}">
                             <div class="tab-title">${tab.title}</div>
                         </div>
                     `)}

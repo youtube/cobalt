@@ -9,7 +9,6 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import android.content.Context;
 import android.os.Bundle;
 
-import androidx.annotation.IntDef;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Lifecycle;
 import androidx.preference.Preference;
@@ -33,9 +32,6 @@ import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.settings.TextMessagePreference;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
 /** Autofill options fragment, which allows the user to configure autofill. */
 @NullMarked
 public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
@@ -58,61 +54,10 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
             "autofill_personal_context_manage_connected_apps";
     public static final String PREF_AUTOFILL_PERSONAL_CONTEXT_CATEGORY =
             "autofill_personal_context_category";
+    public static final String PREF_PERSONAL_CONTEXT_NOTICE_PREFERENCE =
+            "personal_context_notice_preference";
 
     private @AutofillOptionsReferrer int mReferrer;
-
-    // Represents different referrers when navigating to the Autofill Options page.
-    //
-    // These values are persisted to logs. Entries should not be renumbered and
-    // numeric values should never be reused.
-    //
-    // Needs to stay in sync with AutofillOptionsReferrer in enums.xml.
-    // LINT.IfChange(AutofillOptionsReferrer)
-    @IntDef({
-        AutofillOptionsReferrer.SETTINGS,
-        AutofillOptionsReferrer.DEEP_LINK_TO_SETTINGS,
-        AutofillOptionsReferrer.PAYMENT_METHODS_FRAGMENT,
-        AutofillOptionsReferrer.AUTOFILL_PROFILES_FRAGMENT,
-        AutofillOptionsReferrer.AUTOFILL_AND_PASSWORDS_FRAGMENT,
-        AutofillOptionsReferrer.AUTOFILL_IDENTITY_DOCS_FRAGMENT,
-        AutofillOptionsReferrer.AUTOFILL_TRAVEL_FRAGMENT,
-        AutofillOptionsReferrer.AUTOFILL_SHOPPING_FRAGMENT,
-        AutofillOptionsReferrer.PRIVATE_INFERENCE_NOTICE,
-        AutofillOptionsReferrer.COUNT
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface AutofillOptionsReferrer {
-        /** Corresponds to the Settings page. */
-        int SETTINGS = 0;
-
-        /** Corresponds to an external link opening Chrome. */
-        int DEEP_LINK_TO_SETTINGS = 1;
-
-        /** Payment methods fragment in Chrome settings. */
-        int PAYMENT_METHODS_FRAGMENT = 2;
-
-        /** Profiles fragment in Chrome settings. */
-        int AUTOFILL_PROFILES_FRAGMENT = 3;
-
-        /** Autofill and passwords in Chrome settings. */
-        int AUTOFILL_AND_PASSWORDS_FRAGMENT = 4;
-
-        /** Identity docs fragment in Chrome settings. */
-        int AUTOFILL_IDENTITY_DOCS_FRAGMENT = 5;
-
-        /** Travel fragment in Chrome settings. */
-        int AUTOFILL_TRAVEL_FRAGMENT = 6;
-
-        /** Shopping fragment in Chrome settings. */
-        int AUTOFILL_SHOPPING_FRAGMENT = 7;
-
-        /** Private inference notice. */
-        int PRIVATE_INFERENCE_NOTICE = 8;
-
-        int COUNT = 9;
-    }
-
-    // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillOptionsReferrer)
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
@@ -162,6 +107,10 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
         return assumeNonNull(findPreference(PREF_AUTOFILL_PERSONAL_CONTEXT_CATEGORY));
     }
 
+    Preference getAutofillPersonalContextNoticePreference() {
+        return assumeNonNull(findPreference(PREF_PERSONAL_CONTEXT_NOTICE_PREFERENCE));
+    }
+
     @Nullable Preference getAutofillServiceProviderCategory() {
         return findPreference(PREF_AUTOFILL_SERVICE_PROVIDER_CETEGORY);
     }
@@ -174,6 +123,17 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
 
         AutofillAiPreference autofillAiPreference = findPreference(PREF_AUTOFILL_AI_SWITCH);
         autofillAiPreference.setProfile(getProfile());
+
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_AI_ONLINE_MODEL_TOGGLE_NEW_TITLE)) {
+            Preference category = findPreference(PREF_AUTOFILL_AI_CATEGORY);
+            if (category != null) {
+                category.setTitle(R.string.settings_autofill_ai_page_title_v2);
+            }
+            if (autofillAiPreference != null) {
+                autofillAiPreference.setTitle(R.string.settings_autofill_ai_page_title_v2);
+            }
+        }
     }
 
     @Override
@@ -276,6 +236,7 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT_SWITCH));
                         indexData.removeEntry(
                                 getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS));
+                        indexData.removeEntry(getUniqueId(PREF_PERSONAL_CONTEXT_NOTICE_PREFERENCE));
                     }
                 }
             };

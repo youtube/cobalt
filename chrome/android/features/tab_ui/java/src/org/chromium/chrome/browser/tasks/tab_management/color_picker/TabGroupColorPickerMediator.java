@@ -1,0 +1,46 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.tasks.tab_management.color_picker;
+
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.List;
+
+/** Contains the logic to set the state of the model and react to color change clicks. */
+@NullMarked
+public class TabGroupColorPickerMediator {
+    private final List<PropertyModel> mColorItems;
+    private final SettableMonotonicObservableSupplier<Integer> mSelectedColorSupplier =
+            ObservableSuppliers.createMonotonic();
+
+    /**
+     * Contains the logic to set the state of the model and react to color change clicks. This
+     * constructor is used with the coordinator to facilitate color picker backend logic.
+     *
+     * @param colorItems The list of property models representing the color items in this color
+     *     picker.
+     */
+    public TabGroupColorPickerMediator(List<PropertyModel> colorItems) {
+        mColorItems = colorItems;
+    }
+
+    void setSelectedColorItem(int selectedColor) {
+        for (PropertyModel model : mColorItems) {
+            boolean isSelected =
+                    selectedColor == model.get(TabGroupColorPickerItemProperties.COLOR_ID);
+            model.set(TabGroupColorPickerItemProperties.IS_SELECTED, isSelected);
+        }
+
+        mSelectedColorSupplier.set(selectedColor);
+    }
+
+    MonotonicObservableSupplier<Integer> getSelectedColorSupplier() {
+        return mSelectedColorSupplier;
+    }
+}

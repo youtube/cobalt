@@ -5,6 +5,7 @@
 import {omniboxPopupBrowserProxyFactory, OmniboxPopupPageHandlerRemote, sanitizeTextForPaste, SearchboxBrowserProxy, stripJavascriptSchemas} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import type {OmniboxPopupPageRemote, OmniboxPopupSearchboxElement} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
+import {SelectionLineState} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -628,5 +629,157 @@ suite('OmniboxPopupSearchboxTest', function() {
     for (const testCase of testCases) {
       assertEquals(testCase.expected, sanitizeTextForPaste(testCase.input));
     }
+  });
+
+  test('SetsPopupSelectionOnMatchIndexChange', async () => {
+    // Initial state: nothing selected.
+    assertEquals(-1, searchbox.selectedMatchIndex);
+
+    testProxy.handler.reset();
+
+    // Change selection to a valid match index.
+    searchbox.selectedMatchIndex = 2;
+    await microtasksFinished();
+
+    // Verify handler was notified with correct selection.
+    assertEquals(1, testProxy.handler.getCallCount('setPopupSelection'));
+    let args = testProxy.handler.getArgs('setPopupSelection');
+    let selection = args[args.length - 1];
+    assertEquals(2, selection.line);
+    assertEquals(SelectionLineState.kNormal, selection.state);
+    assertEquals(0, selection.actionIndex);
+
+    // Reset selection to -1.
+    searchbox.selectedMatchIndex = -1;
+    await microtasksFinished();
+
+    // Verify handler was notified with kDefaultSelection (line -1).
+    assertEquals(2, testProxy.handler.getCallCount('setPopupSelection'));
+    args = testProxy.handler.getArgs('setPopupSelection');
+    selection = args[args.length - 1];
+    assertEquals(-1, selection.line);
+    assertEquals(SelectionLineState.kNormal, selection.state);
+    assertEquals(0, selection.actionIndex);
+  });
+
+ test('InputWrapperFocusout', async () => {
+    // Set input value to match results.
+    searchbox.getInputElement().inputElement.value = 'hello';
+    searchbox.lastQueriedInput = 'hello';
+    searchbox.activeQueryId = 0;
+
+    // Populate results to make dropdown visible.
+    testProxy.page.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: 'hello',
+          matches: [
+            createSearchMatchForTesting({
+              allowedToBeDefaultMatch: true,
+              fillIntoEdit: 'hello world',
+            }),
+          ],
+        }));
+    await microtasksFinished();
+    assertTrue(searchbox.dropdownIsVisible);
+
+    // Focus stays inside wrapper.
+    const matchesEl = searchbox.$.matches;
+    searchbox.$.inputWrapper.dispatchEvent(new FocusEvent('focusout', {
+      relatedTarget: matchesEl,
+      bubbles: true,
+      composed: true,
+    }));
+    await microtasksFinished();
+
+    // Verify matches are not cleared and dropdown remains visible.
+    assertTrue(searchbox.dropdownIsVisible);
+    assertEquals(0, handler.getCallCount('revert'));
+
+    // Focus goes outside wrapper.
+    searchbox.$.inputWrapper.dispatchEvent(new FocusEvent('focusout', {
+      relatedTarget: document.body,
+      bubbles: true,
+      composed: true,
+    }));
+    await microtasksFinished();
+
+    // Verify matches are cleared and dropdown is hidden.
+    assertFalse(searchbox.dropdownIsVisible);
+    assertEquals(0, handler.getCallCount('revert'));
+  });
+
+ test('ComputePlaceholderText_OnTabSwitchAndStateReset', async () => {
+    // Initial NTP tab state (empty input, empty `permanentDisplayText`,
+    // unfocused).
+    callbackRouter.setInputState({
+      sequenceNumber: 1,
+      text: '',
+      selection: {start: 0, end: 0},
+      userInputInProgress: false,
+      fullUrl: '',
+      isFocused: false,
+      permanentDisplayText: '',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
+    await searchbox.$.input.updateComplete;
+
+    // Placeholder must always be empty.
+    assertEquals('', searchbox.$.input.inputElement.placeholder);
+
+    // Switch to regular URL tab (permanentDisplayText set, focused).
+    callbackRouter.setInputState({
+      sequenceNumber: 2,
+      text: 'chrome://version',
+      selection: {start: 16, end: 16},
+      userInputInProgress: false,
+      fullUrl: 'chrome://version',
+      isFocused: true,
+      permanentDisplayText: 'chrome://version',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
+    await searchbox.$.input.updateComplete;
+
+    // Placeholder must always be empty.
+    assertEquals('', searchbox.$.input.inputElement.placeholder);
+  });
+
+  test('TabSwitchInputStateIsolationAndReset', async () => {
+    // Simulate Tab 1 (NTP) state with active user draft.
+    callbackRouter.setInputState({
+      sequenceNumber: 10,
+      text: 'user search query',
+      selection: {start: 17, end: 17},
+      userInputInProgress: true,
+      fullUrl: '',
+      isFocused: true,
+      permanentDisplayText: '',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
+
+    assertEquals('user search query', searchbox.$.input.inputElement.value);
+    assertEquals('user search query', searchbox.lastQueriedInput);
+    assertEquals(17, searchbox.$.input.inputElement.selectionStart);
+    assertEquals(17, searchbox.$.input.inputElement.selectionEnd);
+
+    // Tab switch to Tab 2 (non-NTP) with permanent URL.
+    callbackRouter.setInputState({
+      sequenceNumber: 11,
+      text: 'https://chromium.org',
+      selection: {start: 20, end: 20},
+      userInputInProgress: false,
+      fullUrl: 'https://chromium.org',
+      isFocused: true,
+      permanentDisplayText: 'https://chromium.org',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
+
+    assertEquals('https://chromium.org', searchbox.$.input.inputElement.value);
+    assertEquals('https://chromium.org', searchbox.lastQueriedInput);
+    assertEquals(20, searchbox.$.input.inputElement.selectionStart);
+    assertEquals(20, searchbox.$.input.inputElement.selectionEnd);
   });
 });

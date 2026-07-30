@@ -30,6 +30,9 @@ class PersonalContextService;
 }  // namespace personal_context
 
 namespace context_hub {
+
+class ContextHubBackend;
+
 struct TabData {
   int32_t id;
   std::string title;
@@ -41,13 +44,26 @@ struct TabGroupData {
   std::vector<TabData> tabs;
 };
 
+struct TabGroupMinimalData {
+  std::string label;
+  std::vector<int32_t> tab_ids;
+  std::string group_id;
+};
+
 class ContextHubService : public KeyedService {
  public:
-  explicit ContextHubService(
+  ContextHubService(
       personal_context::PersonalContextService* personal_context_service,
       optimization_guide::RemoteModelExecutor*
           optimization_guide_remote_model_executor,
       std::unique_ptr<MemoryBank> memory_bank);
+
+  ContextHubService(
+      personal_context::PersonalContextService* personal_context_service,
+      optimization_guide::RemoteModelExecutor*
+          optimization_guide_remote_model_executor,
+      std::unique_ptr<MemoryBank> memory_bank,
+      std::unique_ptr<ContextHubBackend> context_hub_backend);
 
   ContextHubService(const ContextHubService&) = delete;
   ContextHubService& operator=(const ContextHubService&) = delete;
@@ -64,7 +80,9 @@ class ContextHubService : public KeyedService {
       base::OnceCallback<void(std::vector<TabGroupData> groups,
                               std::vector<TabData> ungrouped_tabs)>;
   // Groups tabs based on the provided `tabs` list.
-  void GroupTabs(std::vector<TabData> tabs, GroupTabsCallback callback);
+  void GroupTabs(std::vector<TabData> tabs,
+                 const std::string& user_command,
+                 GroupTabsCallback callback);
 
   // Memory bank wrappers that forward operations to the underlying storage
   // backend.
@@ -91,7 +109,9 @@ class ContextHubService : public KeyedService {
  private:
   // Generates tab groups based on the provided `tabs` and invokes `callback`
   // with the resulting groups and any ungrouped tabs.
-  void GenerateTabGroups(std::vector<TabData> tabs, GroupTabsCallback callback);
+  void GenerateTabGroups(std::vector<TabData> tabs,
+                         const std::string& user_command,
+                         GroupTabsCallback callback);
 
   // Handles the async response from the AutoTodos fetch.
   void OnAutoTodosFetched(AutoTodosCallback callback,
@@ -108,6 +128,10 @@ class ContextHubService : public KeyedService {
       personal_context_service_;
   const raw_ref<optimization_guide::RemoteModelExecutor>
       optimization_guide_remote_model_executor_;
+
+  // Backend storage engine for SQLite operations. May be null if DB storage is
+  // disabled.
+  std::unique_ptr<ContextHubBackend> context_hub_backend_;
 
   // Guaranteed to be non-null. If features::kMemoryBanks is disabled, this
   // will be a NoOpMemoryBank.

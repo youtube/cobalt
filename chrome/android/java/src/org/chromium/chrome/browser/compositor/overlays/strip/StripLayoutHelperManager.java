@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.MediaState;
@@ -115,8 +116,8 @@ import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateMa
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.PageTransition;
-import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
@@ -127,6 +128,7 @@ import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -234,13 +236,18 @@ public class StripLayoutHelperManager
     private final ToolbarManager mToolbarManager;
     private final StatusBarColorController mStatusBarColorController;
     private TabStripSceneLayer mTabStripTreeProvider;
-    private final WindowAndroid mWindowAndroid;
+    private final ActivityWindowAndroid mWindowAndroid;
     private TabStripEventHandler mTabStripEventHandler;
     private final TabSwitcherLayoutObserver mTabSwitcherLayoutObserver;
     private @Nullable Runnable mFadeTransitionThresholdChangedCallback;
     private final View mControlContainer;
     private final ViewStub mTabHoverCardViewStub;
     private float mLastVisibleViewportOffsetY;
+    private @Nullable OmniboxStub mOmniboxStub;
+    private final Callback<String> mUrlTextChangeListener =
+            (ignored) -> {
+                getActiveStripLayoutHelper().clearTabHoverState();
+            };
     private float mSceneLayerYOffset;
     private float mSceneLayerVisibleHeight; // Used during height transition.
 
@@ -315,8 +322,7 @@ public class StripLayoutHelperManager
                 return;
             }
             long time = time();
-            float tabWidthDp = getActiveStripLayoutHelper().getUnpinnedTabWidth();
-            if (mTrailingButtonsCoordinator.click(time, x, y, buttons, modifiers, tabWidthDp)) {
+            if (mTrailingButtonsCoordinator.click(time, x, y, buttons, modifiers)) {
                 return;
             }
             getActiveStripLayoutHelper().click(time(), x, y, buttons, modifiers);
@@ -335,8 +341,7 @@ public class StripLayoutHelperManager
             if (DragDropGlobalState.hasValue()) {
                 return;
             }
-            float tabWidthDp = getActiveStripLayoutHelper().getUnpinnedTabWidth();
-            if (mTrailingButtonsCoordinator.onLongPress(x, y, tabWidthDp)) {
+            if (mTrailingButtonsCoordinator.onLongPress(x, y)) {
                 return;
             }
             getActiveStripLayoutHelper().onLongPress(x, y);
@@ -499,7 +504,7 @@ public class StripLayoutHelperManager
             ViewStub tabHoverCardViewStub,
             MonotonicObservableSupplier<TabContentManager> tabContentManagerSupplier,
             BrowserControlsStateProvider browserControlsStateProvider,
-            WindowAndroid windowAndroid,
+            ActivityWindowAndroid windowAndroid,
             // TODO(crbug.com/40939440): Avoid passing the ToolbarManager instance. Potentially
             // implement an interface to manage strip transition states.
             ToolbarManager toolbarManager,
@@ -516,7 +521,8 @@ public class StripLayoutHelperManager
             GlicButtonDelegate glicClickHandler,
             LeadingButtonDelegate leadingButtonDelegate,
             OneshotSupplier<SideUiStateProvider> sideUiStateProviderSupplier,
-            TabObscuringHandler tabObscuringHandler) {
+            TabObscuringHandler tabObscuringHandler,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         Resources res = context.getResources();
@@ -601,6 +607,7 @@ public class StripLayoutHelperManager
                         mIsIncognito,
                         () -> mTabModelSelector,
                         sideUiStateProviderSupplier,
+                        () -> getActiveStripLayoutHelper().getUnpinnedTabWidth(),
                         selectorClickHandler,
                         selectorKeyboardFocusHandler,
                         glicClickHandler,
@@ -678,7 +685,6 @@ public class StripLayoutHelperManager
                         updateHost,
                         renderHost,
                         /* incognito= */ false,
-                        mTrailingButtonsCoordinator.getModelSelectorButton(),
                         mTabStripDragHandler,
                         controlContainerView,
                         windowAndroid,
@@ -693,7 +699,8 @@ public class StripLayoutHelperManager
                         tabBookmarkerSupplier,
                         TabGroupListBottomSheetCoordinator::new,
                         snackbarManager,
-                        activityResultTracker);
+                        activityResultTracker,
+                        canActivateTabLayoutToggleMenuSupplier);
         mIncognitoHelper =
                 new StripLayoutHelper(
                         context,
@@ -704,7 +711,6 @@ public class StripLayoutHelperManager
                         updateHost,
                         renderHost,
                         /* incognito= */ true,
-                        mTrailingButtonsCoordinator.getModelSelectorButton(),
                         mTabStripDragHandler,
                         controlContainerView,
                         windowAndroid,
@@ -719,7 +725,8 @@ public class StripLayoutHelperManager
                         tabBookmarkerSupplier,
                         TabGroupListBottomSheetCoordinator::new,
                         snackbarManager,
-                        activityResultTracker);
+                        activityResultTracker,
+                        canActivateTabLayoutToggleMenuSupplier);
 
         tabHoverCardViewStub.setOnInflateListener(
                 (viewStub, view) -> {
@@ -764,6 +771,14 @@ public class StripLayoutHelperManager
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         mTabObscuringHandler = tabObscuringHandler;
         mTabObscuringHandler.addObserver(this);
+        if (mToolbarManager != null && mToolbarManager.getOmniboxStubSupplier() != null) {
+            mToolbarManager.getOmniboxStubSupplier().onAvailable(this::onOmniboxStubAvailable);
+        }
+    }
+
+    private void onOmniboxStubAvailable(OmniboxStub omniboxStub) {
+        mOmniboxStub = omniboxStub;
+        mOmniboxStub.addUrlTextChangeListener(mUrlTextChangeListener);
     }
 
     @EnsuresNonNullIf("mDesktopWindowStateManager")
@@ -790,6 +805,10 @@ public class StripLayoutHelperManager
     /** Cleans up internal state. An instance should not be used after this method is called. */
     @SuppressWarnings({"NullAway", "UseSharedPreferencesManagerFromChromeCheck"})
     public void destroy() {
+        if (mOmniboxStub != null) {
+            mOmniboxStub.removeUrlTextChangeListener(mUrlTextChangeListener);
+            mOmniboxStub = null;
+        }
         mTabObscuringHandler.removeObserver(this);
         mTabStripTreeProvider.destroy();
         mTabStripTreeProvider = null;
@@ -854,6 +873,10 @@ public class StripLayoutHelperManager
         if (modelSelectorButton == null || !modelSelectorButton.isVisible()) return;
         mTabModelSelector.selectModel(!mTabModelSelector.isIncognitoSelected());
         RecordUserAction.record("MobileToolbarModelSelected");
+    }
+
+    public void simulateUrlTextChangeForTesting(String text) {
+        mUrlTextChangeListener.onResult(text);
     }
 
     @VisibleForTesting

@@ -2,23 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/views/payments/payment_request_browsertest_base.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/payments/content/payment_request.h"
 #include "components/payments/content/payment_request_state.h"
 #include "components/payments/content/service_worker_payment_app_finder.h"
+#include "components/payments/content/service_worker_payment_app_finder_test_api.h"
 #include "components/payments/content/test_payment_manifest_downloader.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -69,10 +66,9 @@ class PaymentMethodViewControllerTest : public PaymentRequestBrowserTestBase {
                                  kylepay_server_.GetURL("kylepay.test", "/"));
     downloader->AddTestServerURL("https://google.com/",
                                  gpay_server_.GetURL("google.com", "/"));
-    ServiceWorkerPaymentAppFinder::GetOrCreateForCurrentDocument(
-        GetActiveWebContents()->GetPrimaryMainFrame())
-        ->SetDownloaderAndIgnorePortInOriginComparisonForTesting(
-            std::move(downloader));
+    test_api(ServiceWorkerPaymentAppFinder::GetOrCreateForCurrentDocument(
+                 GetActiveWebContents()->GetPrimaryMainFrame()))
+        .SetDownloaderAndIgnorePortInOriginComparison(std::move(downloader));
   }
 
  private:

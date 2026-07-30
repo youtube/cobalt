@@ -427,20 +427,8 @@ PendingLayer::CompositingType PaintArtifactCompositor::ChunkCompositingType(
       if (const auto* scroll_translation = scrollbar->ScrollTranslation()) {
         if (RuntimeEnabledFeatures::RasterInducingScrollEnabled() ||
             NeedsCompositedScrolling(*scroll_translation)) {
-          // Disable composited scrollbar layers under canvas.
-          // TODO(crbug.com/448174609): Pass `in_canvas_child` down during
-          // layerization, rather than iterating up the tree.
-          bool in_canvas_child = false;
-          for (const auto* effect = &chunk.properties.Effect().Unalias();
-               effect; effect = effect->UnaliasedParent()) {
-            if (effect->RequiresCompositingForCanvasChild()) {
-              in_canvas_child = true;
-              break;
-            }
-          }
-          if (!in_canvas_child) {
-            return PendingLayer::kScrollbarLayer;
-          }
+          CHECK(!chunk.properties.Effect().Unalias().IsInCanvasSubtree());
+          return PendingLayer::kScrollbarLayer;
         }
       }
     }
@@ -1467,6 +1455,17 @@ bool PaintArtifactCompositor::DirectlyUpdatePageScaleTransform(
   if (CanDirectlyUpdateProperties()) {
     return PropertyTreeManager::DirectlyUpdatePageScaleTransform(
         *root_layer_->layer_tree_host(), transform);
+  }
+  return false;
+}
+
+bool PaintArtifactCompositor::DirectlyUpdateScrollingContentsCullRect(
+    const ScrollPaintPropertyNode& scroll) {
+  CHECK(RuntimeEnabledFeatures::ScrollingContentsCullRectOnScrollNodeEnabled());
+  if (CanDirectlyUpdateProperties()) {
+    PropertyTreeManager::DirectlyUpdateScrollingContentsCullRect(
+        *root_layer_->layer_tree_host(), scroll);
+    return true;
   }
   return false;
 }

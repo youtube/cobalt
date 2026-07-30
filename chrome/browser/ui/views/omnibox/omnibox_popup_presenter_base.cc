@@ -5,17 +5,14 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 
 #include <optional>
-#include <string_view>
 
+#include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_delegate.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
@@ -64,6 +61,8 @@ void OmniboxPopupPresenterBase::Show() {
   has_logged_content_ready_since_open_ = false;
   // Drop stale metrics callbacks.
   metrics_weak_factory_.InvalidateWeakPtrs();
+  // Drop stale visual state callbacks.
+  visual_state_weak_factory_.InvalidateWeakPtrs();
 
   EnsureWidgetCreated();
   SynchronizePopupBounds();
@@ -71,26 +70,28 @@ void OmniboxPopupPresenterBase::Show() {
   if (auto* content = GetWebUIContent()) {
     content->ShowUI();
 
-    // TODO(crbug.com/507159575): Refactor into `OnVisualStateReady` callback to
-    // avoid registering a 2nd callback when the classic popup is deferred.
-    // Log result ready metric before checking deferral logic. This ensures we
-    // don't miss the initial frame commit if we don't defer.
-    LogResultToContentReadyMetric(content->GetWebContents());
+    // Call WasShown to mark the WebContents as visible so that a frame will
+    // eventually be produced that triggers the OnVisualStateReady callback.
+    // This must be called prior to `LogResultToContentReadyMetric`. If the
+    // WebContents is still technically hidden when the metric attempts to
+    // register its `InsertVisualStateCallback`, the graphics pipeline will
+    // immediately drop the callback, resulting in lost telemetry data.
+    content->GetWebContents()->WasShown();
 
     auto show_request_time = base::TimeTicks::Now();
     auto timeout = ShouldDeferUntilVisualStateReady();
     if (timeout.has_value()) {
       is_deferred_ = true;
 
-      // Call WasShown to mark the WebContents as visible so that a frame will
-      // eventually be produced that triggers the OnVisualStateReady callback.
-      content->GetWebContents()->WasShown();
+      base::TimeTicks result_ready_time =
+          controller()->autocomplete_controller()->result().result_ready_time();
 
       content->GetWebContents()
           ->GetPrimaryMainFrame()
           ->InsertVisualStateCallback(
               base::BindOnce(&OmniboxPopupPresenterBase::OnVisualStateReady,
-                             weak_factory_.GetWeakPtr(), show_request_time,
+                             visual_state_weak_factory_.GetWeakPtr(),
+                             show_request_time, result_ready_time,
                              /*from_fallback=*/false));
 
       // Add a backup timer in case the visual state callback is never called.
@@ -100,11 +101,13 @@ void OmniboxPopupPresenterBase::Show() {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
           base::BindOnce(&OmniboxPopupPresenterBase::OnVisualStateReady,
-                         weak_factory_.GetWeakPtr(), show_request_time,
+                         visual_state_weak_factory_.GetWeakPtr(),
+                         show_request_time, result_ready_time,
                          /*from_fallback=*/true,
                          /*success=*/false),
           timeout.value());
     } else {
+      LogResultToContentReadyMetric(content->GetWebContents());
       ShowWidget(show_request_time);
     }
   }
@@ -112,11 +115,13 @@ void OmniboxPopupPresenterBase::Show() {
 
 void OmniboxPopupPresenterBase::OnVisualStateReady(
     base::TimeTicks show_request_time,
+    base::TimeTicks result_ready_time,
     bool from_fallback,
     bool success) {
-  // TODO(crbug.com/507159575): Invalidate weak ptrs for this callback
-  // across rapid hide/show cycles to avoid race conditions overriding
-  // `is_deferred_` for a new popup session.
+  if (!from_fallback) {
+    OnVisualStateReadyForMetrics(result_ready_time, success);
+  }
+
   if (!is_deferred_) {
     return;
   }
@@ -237,6 +242,8 @@ void OmniboxPopupPresenterBase::Hide() {
   is_deferred_ = false;
   // Drop stale metrics callbacks.
   metrics_weak_factory_.InvalidateWeakPtrs();
+  // Drop stale visual state callbacks.
+  visual_state_weak_factory_.InvalidateWeakPtrs();
 
   // Only close if UI DevTools settings allow.
   if (widget_ && widget_->ShouldHandleNativeWidgetActivationChanged(false)) {
@@ -399,7 +406,11 @@ void OmniboxPopupPresenterBase::OnWidgetClosed(
   is_deferred_ = false;
   // Drop metrics callbacks when the widget is closed.
   metrics_weak_factory_.InvalidateWeakPtrs();
-  owned_omnibox_popup_webui_container_ = GetResultsFrame()->ExtractContents();
+  // Drop stale visual state callbacks when the widget is closed.
+  visual_state_weak_factory_.InvalidateWeakPtrs();
+  if (auto* frame = GetResultsFrame()) {
+    owned_omnibox_popup_webui_container_ = frame->ExtractContents();
+  }
   // Call WidgetDestroyed() before resetting the widget pointer. This ensures
   // that subclasses can safely access the widget (e.g., to reset observations)
   // before it is destroyed, avoiding dangling pointer issues.
@@ -465,3 +476,46 @@ void OmniboxPopupPresenterBase::OnEmbeddedPermissionDialogChanged(
 OmniboxController* OmniboxPopupPresenterBase::GetOmniboxController() {
   return controller();
 }
+
+OmniboxPopupPresenterBase::ScopedDeactivationBlocker::ScopedDeactivationBlocker(
+    base::WeakPtr<OmniboxPopupPresenterBase> presenter)
+    : presenter_(std::move(presenter)) {
+  if (presenter_) {
+    presenter_->RegisterBlocker();
+  }
+}
+
+OmniboxPopupPresenterBase::ScopedDeactivationBlocker::
+    ~ScopedDeactivationBlocker() {
+  if (presenter_) {
+    presenter_->UnregisterBlocker();
+  }
+}
+
+std::unique_ptr<OmniboxPopupDeactivationBlocker>
+OmniboxPopupPresenterBase::CreateDeactivationBlocker() {
+  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxKeepOpenOnFileSelection)) {
+    return nullptr;
+  }
+  return std::make_unique<ScopedDeactivationBlocker>(
+      weak_factory_.GetWeakPtr());
+}
+
+void OmniboxPopupPresenterBase::RegisterBlocker() {
+  deactivation_blockers_count_++;
+}
+
+void OmniboxPopupPresenterBase::UnregisterBlocker() {
+  deactivation_blockers_count_--;
+
+  DCHECK_GE(deactivation_blockers_count_, 0);
+  if (deactivation_blockers_count_ < 0) {
+    deactivation_blockers_count_ = 0;
+  }
+
+  if (deactivation_blockers_count_ == 0 && location_bar() && IsShown()) {
+    RequestFocus();
+  }
+}
+
+void OmniboxPopupPresenterBase::OnFileSelectionClosed() {}

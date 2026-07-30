@@ -6,10 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_INDIGO_INDIGO_TOOLBAR_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "base/timer/timer.h"
 #include "ui/base/class_property.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/gfx/geometry/rect.h"
@@ -30,6 +32,15 @@ extern const ui::ClassProperty<gfx::Rect*>* const kIndigoTrackedElementRectKey;
 extern const ui::ClassProperty<gfx::Vector2d*>* const
     kIndigoToolbarCornerOffsetKey;
 
+// Delays before a collapsed toolbar auto-compacts into a spark icon.
+inline constexpr base::TimeDelta kInitialAutoCompactDelay = base::Seconds(3);
+inline constexpr base::TimeDelta kInteractionAutoCompactDelay =
+    base::Milliseconds(250);
+
+// Duration for the bounds and fade animation between states.
+inline constexpr base::TimeDelta kToolbarAnimationDuration =
+    base::Milliseconds(250);
+
 std::unique_ptr<views::View> CreateIndigoOverlayView();
 
 // Owns and manages a toolbar widget (and its contents) for Indigo. This widget
@@ -41,9 +52,11 @@ std::unique_ptr<views::View> CreateIndigoOverlayView();
 class IndigoToolbar {
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kToolbarElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kAnimatingContainerElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kCloseButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kExpandButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kChevronElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kSparkIconElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kExpandedContainerElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kRegenerateButtonElementId);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kReplacePhotoButtonElementId);
@@ -82,17 +95,54 @@ class IndigoToolbar {
   void TabDidBecomeVisible(views::View* parent_view);
 
  private:
+  enum class PresentationState {
+    // Shows the "Indigo Toolbar" text and an expand button.
+    kCollapsed,
+    // Shows the full menu of options.
+    kExpanded,
+    // Shows only a small Spark icon.
+    kCompact,
+  };
+
   std::unique_ptr<views::View> CreateToolbarView();
   std::unique_ptr<views::Button> CreateExpandedButton(
       const std::u16string& label,
       const gfx::VectorIcon& icon,
       views::Button::PressedCallback callback);
 
+  // Called when the user starts or stops interacting with the toolbar via
+  // hover or focus.
+  void OnToolbarInteractionChanged(bool interacting);
+
+  // Called when the user starts or stops interacting with the compact spark
+  // icon. Unlike OnToolbarInteractionChanged which tracks global interaction to
+  // pause auto-compaction, this strictly drives the transition from compact
+  // to collapsed state upon hovering the expand button.
+  void OnExpandButtonInteractionChanged(bool interacting);
+
   void OnCloseButtonClicked();
   void OnExpandButtonClicked();
   void OnRegenerateButtonClicked();
   void OnReplacePhotoClicked();
   void OnDeletePhotoClicked();
+
+  // Called when the auto-compact timer fires. Transitions the toolbar to the
+  // compact state if it's currently collapsed and not being interacted with.
+  void OnAutoCompactTimer();
+
+  // Starts the auto-compact countdown timer if the toolbar is ready for it.
+  void StartAutoCompactTimerIfNeeded(base::TimeDelta delay);
+
+  // Changes the presentation state and updates the view hierarchy to match.
+  // Also manages starting or stopping the auto-compact timer depending on the
+  // new state.
+  void SetPresentationState(
+      PresentationState state,
+      base::TimeDelta auto_compact_delay = kInteractionAutoCompactDelay);
+
+  // Returns true if the toolbar is in a state where the auto-compact timer
+  // should be allowed to run.
+  bool IsToolbarReadyForAutoCompact() const;
 
   raw_ptr<Delegate> delegate_;
   views::ViewTracker view_tracker_;
@@ -103,7 +153,12 @@ class IndigoToolbar {
   // to the parent view in ShowAt (called via TabDidActivate or Show).
   std::unique_ptr<views::View> owned_view_;
 
-  bool is_expanded_ = false;
+  PresentationState presentation_state_ = PresentationState::kCollapsed;
+  base::OneShotTimer auto_compact_timer_;
+
+  // Tracks whether the user is currently interacting with the toolbar (e.g. via
+  // mouse hover or focus).
+  bool is_interacting_ = false;
 };
 
 }  // namespace indigo

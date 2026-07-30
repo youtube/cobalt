@@ -397,7 +397,6 @@ namespace http://www.w3.org/1999/xhtml
     property when
     property writingSuggestions
 html element a
-    property attributionSrc
     property charset
     property coords
     property download
@@ -430,7 +429,6 @@ html element acronym
 html element address
 html element area
     property alt
-    property attributionSrc
     property coords
     property download
     property hash
@@ -661,6 +659,7 @@ html element fencedframe
     property width
 html element fieldset
     property checkValidity
+    property checkable
     property disabled
     property elements
     property form
@@ -803,7 +802,6 @@ html element iframe
 html element img
     property align
     property alt
-    property attributionSrc
     property border
     property browsingTopics
     property complete
@@ -904,6 +902,7 @@ html element install
     property isValid
     property manifest
     property manifestId
+    property oninstallresult
     property onpromptaction
     property onpromptdismiss
     property onvalidationstatuschange
@@ -1080,7 +1079,6 @@ html element s
 html element samp
 html element script
     property async
-    property attributionSrc
     property blocking
     property cacheHint
     property charset
@@ -1208,6 +1206,7 @@ html element template
     property shadowRootCustomElementRegistry
     property shadowRootDelegatesFocus
     property shadowRootMode
+    property shadowRootReferenceTarget
     property shadowRootSerializable
     property shadowRootSlotAssignment
 html element textarea

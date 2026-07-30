@@ -351,7 +351,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public LockManager<storage::BucketId>::Observer,
       public base::trace_event::TraceSessionObserver,
       public BucketContext,
-      public base::PassiveMemoryConsumer {
+      public base::PassiveMemoryConsumer,
+      public PolicyContainerHost::Client {
  public:
   using BeforeUnloadExecutionMode = NavigationHandle::BeforeUnloadExecutionMode;
   using JavaScriptDialogCallback =
@@ -460,7 +461,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   GetInitiatorNavigationStateFromFrameToken(
       const blink::LocalFrameToken* frame_token,
       int initiator_process_id,
-      StoragePartitionImpl* storage_partition);
+      BrowserContext* browser_context);
 
   RenderFrameHostImpl(const RenderFrameHostImpl&) = delete;
   RenderFrameHostImpl& operator=(const RenderFrameHostImpl&) = delete;
@@ -3038,8 +3039,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // nullptr if `this` is not the main frame of an inner frame tree.
   RenderFrameProxyHost* GetProxyToOuterDelegate();
 
-  void DidChangeReferrerPolicy(network::mojom::ReferrerPolicy referrer_policy);
-
   float GetPageScaleFactor() const;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -3145,6 +3144,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // Returns the sticky bit of the User Activation v2 state of this document.
   bool HasStickyUserActivation() const;
   bool IsActiveUserActivation() const;
+  base::TimeTicks last_user_activation_consumed_time() const {
+    return last_user_activation_consumed_time_;
+  }
   void ClearUserActivation();
   void ConsumeTransientUserActivation();
   void ActivateUserActivation(
@@ -4301,6 +4303,10 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // |policy_container_host| must not be nullptr.
   void SetPolicyContainerHost(
       scoped_refptr<PolicyContainerHost> policy_container_host);
+
+  // PolicyContainerHost::Client:
+  void DidChangeReferrerPolicy(
+      network::mojom::ReferrerPolicy referrer_policy) final;
 
   // Initializes |local_network_access_request_policy_|. Constructor helper.
   void InitializeLocalNetworkAccessRequestPolicy();
@@ -5469,6 +5475,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // The user activation state of this document.  See |UserActivationState| for
   // details on how this state is maintained.
   blink::UserActivationState user_activation_state_;
+
+  // The timestamp when the transient user activation was last consumed.
+  base::TimeTicks last_user_activation_consumed_time_;
 
   // Similar to `user_activation_state_`, but specifically for use with
   // web-exposed history manipulation (e.g., cancelling a history navigation via

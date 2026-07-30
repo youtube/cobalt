@@ -31,6 +31,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_WEB_FRAME_WIDGET_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_WEB_FRAME_WIDGET_IMPL_H_
 
+#include <optional>
+
 #include "base/functional/function_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -275,6 +277,10 @@ class CORE_EXPORT WebFrameWidgetImpl
       Vector<gfx::Rect>* bounds_in_dips) override;
   // Return the last calculated cursor anchor info.
   mojom::blink::InputCursorAnchorInfoPtr& GetLastCursorAnchorInfoForTesting();
+  mojom::blink::InputCursorAnchorInfoPtr CalculateCursorAnchorInfoForTesting(
+      bool update_requested) {
+    return CalculateCursorAnchorInfo(update_requested);
+  }
   bool HasImeRenderWidgetHost() const override {
     return !!ime_render_widget_host_;
   }
@@ -301,11 +307,13 @@ class CORE_EXPORT WebFrameWidgetImpl
                       const gfx::Range& replacement_range,
                       int selection_start,
                       int selection_end,
-                      mojom::blink::ImeState ime_state) override;
+                      mojom::blink::ImeState ime_state,
+                      DOMNodeIdType target_dom_node_id) override;
   void CommitText(const String& text,
                   const Vector<ui::ImeTextSpan>& ime_text_spans,
                   const gfx::Range& replacement_range,
-                  int relative_cursor_pos) override;
+                  int relative_cursor_pos,
+                  DOMNodeIdType target_dom_node_id) override;
   void FinishComposingText(bool keep_selection) override;
   bool IsProvisional() override;
   cc::ElementId GetScrollableContainerIdAt(const gfx::PointF& point) override;
@@ -782,7 +790,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   // coordinate space.
   Vector<gfx::Rect> CalculateVisibleLineBoundsOnScreen();
 #endif  // BUILDFLAG(IS_ANDROID)
-
   // Returns true if this widget corresponds to a frame which is being replaced.
   // The compositor for the widget has been detached and passed to the new
   // widget.
@@ -847,6 +854,7 @@ class CORE_EXPORT WebFrameWidgetImpl
   bool doing_drag_and_drop_ = false;
 
  private:
+  friend class WebFrameWidgetSimTest;
   friend class WebViewImpl;
   friend class ReportTimeSwapPromise;
   friend class WebFrameWidgetScrollContainerHitTest;
@@ -1042,13 +1050,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   void SendScrollSnapChangingEventIfNeeded(
       const cc::CompositorCommitData& commit_data);
 
-  // Performance Scroll Timing API: consumes the per-scroll timing
-  // records that the compositor thread populated on `commit_data` and
-  // forwards each one to the local frame's WindowPerformance for emission as
-  // a PerformanceScrollTiming entry. No-op when the runtime feature is
-  // disabled or when the frame is being torn down.
-  void ProcessScrollTimingData(const cc::CompositorCommitData& commit_data);
-
   void RecordManipulationTypeCounts(cc::ManipulationInfo info);
 
   enum DragAction { kDragEnter, kDragOver };
@@ -1163,6 +1164,9 @@ class CORE_EXPORT WebFrameWidgetImpl
   ComputeProximateCharacterBounds(
       const PositionWithAffinity& pivot_position) const;
 #endif  // BUILDFLAG(IS_WIN)
+
+  mojom::blink::InputCursorAnchorInfoPtr CalculateCursorAnchorInfo(
+      bool update_requested);
 
   // Stores the last cursor anchor info calculated for the currently focused
   // editable element.

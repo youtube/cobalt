@@ -804,14 +804,9 @@ void ChromeAutocompleteProviderClient::OpenCoBrowsePanel() {
                          : nullptr;
 
   if (ui_service) {
-    // TODO (crbug.com/532272763): Can likely unequivocally set the invocation
-    // source to kOmniboxPageActiom since this pathway is only ever called by
-    // kOmniboxPageAction.
-    if (omnibox::kAskGCoBrowseWithVisualSelection.Get()) {
-      if (auto* lens_controller = LensSearchController::From(tab)) {
-        lens_controller->SetInvocationSource(
-            lens::LensOverlayInvocationSource::kOmniboxPageAction);
-      }
+    if (auto* lens_controller = LensSearchController::From(tab)) {
+      lens_controller->SetInvocationSource(
+          lens::LensOverlayInvocationSource::kOmniboxPageAction);
     }
 
     GURL creation_url = ui_service->GetDefaultAiPageUrl();
@@ -881,3 +876,14 @@ void ChromeAutocompleteProviderClient::PromptPageTranslation() {
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
+
+bool ChromeAutocompleteProviderClient::ShouldOpenComposeboxForAskG() const {
+#if !BUILDFLAG(IS_ANDROID)
+  return omnibox::IsAimPopupFeatureEnabled() && omnibox::kAskGComposeBox.Get();
+#else
+  return false;
+#endif
+}
+
+// This is implemented in OmniboxEditModelActionClient.
+void ChromeAutocompleteProviderClient::OpenComposeboxForAskG() {}

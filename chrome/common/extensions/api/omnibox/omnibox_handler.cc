@@ -23,9 +23,11 @@ using ManifestKeys = api::omnibox::ManifestKeys;
 }  // namespace
 
 // static
+const char* OmniboxInfo::kManifestDataKey = ManifestKeys::kOmnibox;
+
+// static
 const std::string& OmniboxInfo::GetKeyword(const Extension* extension) {
-  const OmniboxInfo* info = static_cast<const OmniboxInfo*>(
-      extension->GetManifestData(ManifestKeys::kOmnibox));
+  const auto* info = extension->GetManifestData<OmniboxInfo>();
   return info ? info->keyword : base::EmptyString();
 }
 
@@ -48,7 +50,7 @@ bool OmniboxHandler::Parse(Extension* extension, std::u16string* error) {
     return false;
   }
 
-  extension->SetManifestData(ManifestKeys::kOmnibox, std::move(info));
+  extension->SetManifestData(std::move(info));
   return true;
 }
 

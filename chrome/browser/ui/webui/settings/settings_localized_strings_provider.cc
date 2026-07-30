@@ -135,6 +135,7 @@
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/time_format.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/webui/webui_util.h"
@@ -553,6 +554,9 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"appearancePageTitle", IDS_SETTINGS_APPEARANCE},
       {"ctrlTabMru", IDS_SETTINGS_CTRL_TAB_MRU},
+      {"glassEffect", IDS_SETTINGS_TAB_STYLING},
+      {"glassEffectClassic", IDS_SETTINGS_TAB_STYLING_CLASSIC},
+      {"glassEffectModern", IDS_SETTINGS_TAB_STYLING_MODERN_TRANSPARENT},
       {"customWebAddress", IDS_SETTINGS_CUSTOM_WEB_ADDRESS},
       {"enterCustomWebAddress", IDS_SETTINGS_ENTER_CUSTOM_WEB_ADDRESS},
       {"homeButtonDisabled", IDS_SETTINGS_HOME_BUTTON_DISABLED},
@@ -645,6 +649,8 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       base::FeatureList::IsEnabled(features::kTabHoverCardImages));
   html_source->AddBoolean("showVerticalTabsEnabled",
                           tabs::IsVerticalTabsFeatureEnabled());
+  html_source->AddBoolean("showGlassEffectEnabled",
+                          features::IsGlassFrameEnabled());
   html_source->AddBoolean("showVerticalTabsExpandOnHoverEnabled",
                           tabs::IsVerticalTabsExpandOnHoverFeatureEnabled());
   html_source->AddBoolean("showProjectsPanelEnabled",
@@ -907,8 +913,14 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicWebActuationToggle",
        IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE},
-      {"glicWebActuationToggleSublabel",
-       IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE_SUBLABEL},
+      {"glicWebActuationToggleSublabelV2",
+       IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE_SUBLABEL_V2},
+      {"glicWebActuationToggleLearnMoreAriaLabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE_LEARN_MORE_ARIA_LABEL},
+      {"glicWebActuationToggleConsiderSafelyAriaLabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_SAFELY_ARIA_LABEL},
+      {"glicWebActuationToggleConsiderUnexpectedResultsAriaLabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_UNEXPECTED_RESULTS_ARIA_LABEL},
       {"glicActorLoginPermissionsSectionTitle",
        IDS_SETTINGS_GLIC_ACTOR_LOGIN_PERMISSIONS_SECTION_TITLE},
       {"glicActorLoginPermissionsSectionSublabel",
@@ -1031,9 +1043,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
   add_localized_url("glicExperimentalTriggeringLearnMoreUrl",
                     features::kGlicExperimentalTriggeringLearnMoreURL.Get());
   html_source->AddString(
-      "glicWebActuationToggleConsider2",
+      "glicWebActuationToggleConsider2V2",
       l10n_util::GetStringFUTF16(
-          IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_2,
+          IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_2_V2,
           base::UTF8ToUTF16(
               features::kGlicWebActuationToggleConsiderSafelyURL.Get()),
           base::UTF8ToUTF16(
@@ -1049,6 +1061,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
                       features::kGlicExperimentalTriggeringSafetyURL.Get()),
                   application_locale)
                   .spec())));
+  html_source->AddBoolean(
+      "glicSettingsA11yContextFixEnabled",
+      base::FeatureList::IsEnabled(features::kGlicSettingsA11yContextFix));
   html_source->AddBoolean(
       "glicExtensionsFeatureEnabled",
       base::FeatureList::IsEnabled(features::kGlicExtensions));
@@ -1727,7 +1742,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_TITLE},
       {"autofillAiAuthenticationToggleSubtitle",
        IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_SUBTITLE},
-      {"autofillAiPageTitle", IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE},
       {"autofillAiDescription", IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION},
       {"autofillAiManageYourInfo", IDS_AUTOFILL_MANAGE_YOUR_INFO_LINK},
       {"autofillAiToggleSubLabel", IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL},
@@ -1827,7 +1841,21 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"walletablePassDetectionToConsiderDataStorage",
        IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_STORAGE},
       {"autofillAiSaveOrUpdateLocalEntitySourceNotice",
-       IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE}};
+       IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE},
+      {"personalContextAutofillSettingsTitle",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_TITLE},
+      {"personalContextAutofillSettingsSummary",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SUMMARY},
+      {"personalContextAutofillSettingsSubpageSummary",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SUBPAGE_SUMMARY},
+      {"personalContextAutofillSettingsSwitchTitle",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SWITCH_TITLE},
+      {"personalContextAutofillSettingsSwitchSummary",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_SWITCH_SUMMARY},
+      {"personalContextAutofillSettingsManageConnectedAppsTitle",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_CONNECTED_APPS_TITLE},
+      {"personalContextAutofillSettingsManageConnectedAppsSummary",
+       IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_CONNECTED_APPS_SUMMARY}};
 
   html_source->AddString("manageAddressesUrl",
                          autofill::payments::GetManageAddressesUrl().spec());
@@ -1907,6 +1935,12 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                   .spec())));
 
   html_source->AddLocalizedStrings(kLocalizedStrings);
+  html_source->AddLocalizedString(
+      "autofillAiPageTitle",
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiOnlineModelToggleNewTitle)
+          ? IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE_V2
+          : IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE);
 
   html_source->AddString(
       "addressesSublabel",

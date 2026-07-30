@@ -11,7 +11,6 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
@@ -25,7 +24,6 @@
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
-#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -317,8 +315,10 @@ ProfilePickerToolbar::Builder::WithStartBrowsingButton(
 
 ProfilePickerToolbar::Builder&
 ProfilePickerToolbar::Builder::WithEffectsControlButton(
-    base::RepeatingCallback<void(bool)> on_effects_control_callback) {
+    base::RepeatingCallback<void(bool)> on_effects_control_callback,
+    bool visible_by_default) {
   on_effects_control_callback_ = std::move(on_effects_control_callback);
+  effects_control_button_visible_by_default_ = visible_by_default;
   return *this;
 }
 
@@ -342,7 +342,9 @@ std::unique_ptr<ProfilePickerToolbar> ProfilePickerToolbar::Builder::Build() {
     if (add_separator) {
       toolbar->AddSeparator();
     }
-    toolbar->AddEffectsControlButton(on_effects_control_callback_);
+    toolbar->AddEffectsControlButton(
+        on_effects_control_callback_,
+        effects_control_button_visible_by_default_);
   }
   return toolbar;
 }
@@ -429,13 +431,15 @@ void ProfilePickerToolbar::AddSeparator() {
 }
 
 void ProfilePickerToolbar::AddEffectsControlButton(
-    base::RepeatingCallback<void(bool)> on_effects_control_callback) {
+    base::RepeatingCallback<void(bool)> on_effects_control_callback,
+    bool visible_by_default) {
   CHECK(effects_control_button_ == nullptr);
   effects_control_button_ = AddChildView(std::make_unique<EffectsControlButton>(
       std::move(on_effects_control_callback)));
   effects_control_button_->SetProperty(
       views::kElementIdentifierKey,
       kProfilePickerToolbarEffectsControlButtonElementId);
+  SetEffectsControlButtonVisible(visible_by_default);
 }
 
 void ProfilePickerToolbar::SetSigninButtonsVisible(bool visible) {
@@ -466,14 +470,24 @@ void ProfilePickerToolbar::SetStartBrowsingButtonVisible(bool visible) {
   MaybeUpdateSeparatorVisibility();
 }
 
+void ProfilePickerToolbar::SetEffectsControlButtonVisible(bool visible) {
+  if (effects_control_button_) {
+    effects_control_button_->SetVisible(visible);
+  }
+  MaybeUpdateSeparatorVisibility();
+}
+
 void ProfilePickerToolbar::MaybeUpdateSeparatorVisibility() {
   if (!separator_) {
     return;
   }
-  const bool should_show_separator =
+  const bool has_visible_button_before =
       (dont_sign_in_button_ && dont_sign_in_button_->GetVisible()) ||
       (start_browsing_button_ && start_browsing_button_->GetVisible());
-  separator_->SetVisible(should_show_separator);
+  const bool has_visible_button_after =
+      effects_control_button_ && effects_control_button_->GetVisible();
+
+  separator_->SetVisible(has_visible_button_before && has_visible_button_after);
 }
 
 bool ProfilePickerToolbar::AreEffectsEnabled() const {

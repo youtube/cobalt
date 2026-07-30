@@ -416,6 +416,11 @@ class ContextualSearchboxHandler
 
   void OnActiveTabNavigated();
 
+  class AllTabNavigationObserver;
+  std::vector<std::unique_ptr<AllTabNavigationObserver>> all_tab_nav_observers_;
+  void UpdateAllTabNavigationObservers();
+  void OnAnyTabNavigated(content::WebContents* web_contents);
+
   raw_ptr<contextual_tasks::ContextualTasksContextService>
       contextual_tasks_context_service_;
 
@@ -436,6 +441,7 @@ class ContextualSearchboxHandler
 
  protected:
   std::optional<bool> smart_tab_sharing_active_for_thread_;
+  std::optional<bool> last_sent_smart_tab_sharing_active_;
   bool has_incremented_sts_activation_count_ = false;
 
   // Gets the `ActiveTaskContextProvider` to update tab underlines.
@@ -452,7 +458,9 @@ class ContextualSearchboxHandler
       std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
 
   // Cleans up the drive picker controller and result handler receiver.
-  void CleanupDrivePicker();
+  // Declared virtual to allow subclasses (such as OmniboxEverywhereHandler) to
+  // hook into the cleanup lifetime and coordinate widget focus/dismissal state.
+  virtual void CleanupDrivePicker();
 
 #if !BUILDFLAG(IS_ANDROID)
   void OnDrivePickerDisconnected();

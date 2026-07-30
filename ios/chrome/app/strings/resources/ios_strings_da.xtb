@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Gem adgangskoder</translation>
 <translation id="1764070164487214210">Rutevejledning</translation>
 <translation id="1764511703783285459">Den anden adgangskodeadministrator delte ingen adgangskoder eller adgangsnøgler</translation>
+<translation id="1765555082983153259">"Chrome" anmoder om adgang til din mikrofon</translation>
 <translation id="1767766085187034454">Google Oversæt</translation>
 <translation id="1771016937398045251">Menuen Værktøjer</translation>
 <translation id="1772468122139624049">Fanerne kan ikke genindlæses</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Menulinje for smartsortering</translation>
 <translation id="1883255238294161206">Skjul liste</translation>
+<translation id="1883898928879467646">Fanen er fjernet</translation>
 <translation id="1888854257756214946">Vælg adgangskode…</translation>
 <translation id="1890237935065108104">Denne indstilling er ikke tilgængelig.</translation>
 <translation id="1894023287452300670">Hold øje med prisen her</translation>
@@ -612,6 +614,7 @@
 <translation id="3037177537145227281">Der holdes øje med prisen</translation>
 <translation id="3038136505713492417">Verificer din identitet for at bruge dine adgangsnøgler på denne enhed</translation>
 <translation id="3039671569659952257">Slet mappe</translation>
+<translation id="3050988301648974170">Åbn Adgangskodetjek</translation>
 <translation id="3053332585453689122">Sender de webadresser, du besøger, samt et lille uddrag af sideindhold, downloads, udvidelsesaktivitet og systemoplysninger til Google Beskyttet browsing for at tjekke, om indholdet er skadeligt.</translation>
 <translation id="3055102495753300780">Datamængde</translation>
 <translation id="3059270601560379555">Ny søgning</translation>
@@ -1620,6 +1623,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6406506848690869874">Synkronisering</translation>
 <translation id="6410390304316730527">Beskyttet browsing beskytter dig mod hackere, som kan narre dig til at gøre uhensigtsmæssige ting, f.eks. at installere skadelig software eller afsløre personlige oplysninger som adgangskoder, telefonnumre eller kreditkortnumre. Hvis du deaktivere funktionen, skal du være ekstra forsigtig, når du besøger websites, du ikke kender eller har tillid til.</translation>
 <translation id="6410883413783534063">Åbn faner for at besøge forskellige sider på samme tid</translation>
+<translation id="6412195388778525440">Fjern fane</translation>
 <translation id="6418346271604475326">Forbereder PDF</translation>
 <translation id="6420292512900923139">Der opstod et problem med at importere dine data</translation>
 <translation id="6421038304268477484">Oversat tekst</translation>
@@ -2320,7 +2324,6 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="8692689525339542358">Bliv beskyttet mod farlige websites, downloads og udvidelser.</translation>
 <translation id="8692897097252418799">Vælg de data, du vil eksportere</translation>
 <translation id="8694281486652655615">Viser dette element</translation>
-<translation id="8696297579102085705">Send til din enhed</translation>
 <translation id="8697136149718343437">Flyt adresselinjen til bunden</translation>
 <translation id="869891660844655955">Udløbsdato</translation>
 <translation id="8706253136355675497">Temperatur</translation>
@@ -2425,6 +2428,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="9013605037177245304">Aktivér notifikationer</translation>
 <translation id="9029650858822697271">Du er blevet logget ud</translation>
 <translation id="9032405509996909363">Bekræft sletning af browserdata</translation>
+<translation id="9035699147763101514">Leveret af Personlig intelligens med Gemini. Administrer dine valg i indstillingerne.</translation>
 <translation id="9039373489628511875">Båndbredde</translation>
 <translation id="9042893549633094279">Privatliv og sikkerhed</translation>
 <translation id="9055291197094969722">Opret fanegrupper for at organisere dine åbne faner og få mere fra hånden</translation>
@@ -2436,6 +2440,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="9070824521421603770">Du logges ud, og fanerne lukkes.</translation>
 <translation id="9072837124205571418">Fanegrupper fra alle enheder</translation>
 <translation id="9081058212938299310">Vil du opdatere adgangskoden til <ph name="USERNAME" />?</translation>
+<translation id="908365381820697818">Nu kan du finde og udfylde oplysninger fra Gmail og meget mere</translation>
 <translation id="9083838294503912307">Aktivér synkronisering for at synkronisere og personligt tilpasse på alle dine enheder.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Du har {count} svag adgangskode, hvilket kan udgøre en sikkerhedsrisiko. Løs problemet nu for at forblive beskyttet.}one{Du har {count} svag adgangskode, hvilket kan udgøre en sikkerhedsrisiko. Løs problemet nu for at forblive beskyttet.}other{Du har {count} svage adgangskoder, hvilket kan udgøre en sikkerhedsrisiko. Løs problemet nu for at forblive beskyttet.}}</translation>
 <translation id="9084369964545892485">Ny inkognitofane i gruppe</translation>
@@ -2463,6 +2468,7 @@ Skift til <ph name="OTHER_EMAIL" /> for at fortsætte på din computer. Du får 
 <translation id="9149866541089851383">Rediger...</translation>
 <translation id="9152637745605628097">Vælg mellem temaer og farver, eller upload et billede</translation>
 <translation id="9159628751968616911">Send webside</translation>
+<translation id="9162412286847966593">Din organisations data og optagelser anvendes ikke til at forbedre generativ AI-modeller. <ph name="BEGIN_LINK" />Dit privatliv og Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Aktivér Adgangskoder via Autofyld</translation>
 <translation id="9165320910061267720">Hvis du vil have notifikationer om prisfald, skal du aktivere notifikationer i iOS-indstillingerne.</translation>
 <translation id="9179151630575358778">Skjuler dette element</translation>

@@ -19,6 +19,9 @@ source_set("logging") {
   deps = [
     "//base",
     "//components/keyed_service/core",
+    "//components/multistep_filter/core:features",
+    "//components/multistep_filter/core:util",
+    "//components/multistep_filter/core/prefs",
   ]
 }
 
@@ -35,6 +38,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//components/multistep_filter/core/data_models",
+    "//components/multistep_filter/core/prefs",
     "//testing/gmock",
     "//testing/gtest",
   ]

@@ -20,6 +20,7 @@
 #include "base/types/strong_alias.h"
 #include "net/base/cache_type.h"
 #include "net/base/net_export.h"
+#include "net/disk_cache/backend_cleanup_tracker.h"
 #include "net/disk_cache/buildflags.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/sql/cache_entry_key.h"
@@ -42,7 +43,9 @@ class IOBuffer;
 
 namespace disk_cache {
 
+class BackendCleanupTracker;
 class SqlAsyncTaskManager;
+class SqlSharedCacheManager;
 
 // This class serves as the main entry point for the SQL-based disk cache's
 // persistence layer. It manages multiple database shards to improve
@@ -91,7 +94,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     kAbortedDueToBrowserActivity = 21,
     kFailedToSetAutoVacuum = 22,
     kIncrementalVacuumDisabled = 23,
-    kMaxValue = kIncrementalVacuumDisabled
+    kFailedToInitializeSharedCacheIndexDatabase = 24,
+    kMaxValue = kFailedToInitializeSharedCacheIndexDatabase
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheStoreError)
 
@@ -347,7 +351,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
                      net::CacheType type,
                      std::vector<scoped_refptr<base::SequencedTaskRunner>>
                          background_task_runners,
-                     SqlAsyncTaskManager& async_task_manager);
+                     SqlAsyncTaskManager& async_task_manager,
+                     scoped_refptr<BackendCleanupTracker> cleanup_tracker);
   ~SqlPersistentStore();
 
   SqlPersistentStore(const SqlPersistentStore&) = delete;
@@ -642,6 +647,14 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     return async_task_manager_.get();
   }
 
+  SqlSharedCacheManager* GetSharedCacheManager() const {
+    return shared_cache_manager_.get();
+  }
+
+  SqlSharedCacheManager* shared_cache_manager_for_testing() {
+    return shared_cache_manager_.get();
+  }
+
   // Enables a strict corruption checking mode for testing purposes.
   void EnableStrictCorruptionCheckForTesting();
 
@@ -688,7 +701,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   using InitResultOrErrorCallback = base::OnceCallback<void(InitResultOrError)>;
 
   base::RepeatingCallback<void(Error)> CreateBarrierErrorCallback(
-      ErrorCallback callback);
+      ErrorCallback callback,
+      size_t num_tasks = 0);
   size_t GetSizeOfShards() const;
   BackendShard& GetShard(CacheEntryKey::Hash hash) const;
   BackendShard& GetShard(const CacheEntryKey& key) const;
@@ -698,7 +712,8 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
       net::CacheType type,
       std::vector<scoped_refptr<base::SequencedTaskRunner>>
           background_task_runners,
-      SqlAsyncTaskManager& async_task_manager);
+      SqlAsyncTaskManager& async_task_manager,
+      scoped_refptr<BackendCleanupTracker> cleanup_tracker);
 
   void OnInitializeFinished(ErrorCallback callback,
                             std::vector<InitResultOrError> results);
@@ -746,8 +761,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   const std::vector<scoped_refptr<base::SequencedTaskRunner>>
       background_task_runners_;
   const raw_ref<SqlAsyncTaskManager> async_task_manager_;
+  std::unique_ptr<SqlSharedCacheManager> shared_cache_manager_;
   const std::vector<std::unique_ptr<BackendShard>> backend_shards_;
   const int64_t user_max_bytes_;
+  // Cached value of `net::features::kSqlDiskCacheReduceUma`.
+  const bool reduce_uma_;
 
   int64_t max_bytes_ = 0;
 

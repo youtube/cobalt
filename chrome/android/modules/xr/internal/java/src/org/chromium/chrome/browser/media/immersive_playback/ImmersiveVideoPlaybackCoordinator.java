@@ -25,6 +25,8 @@ import org.chromium.components.thinwebview.CompositorView;
 import org.chromium.content_public.browser.ImmersiveProjectionType;
 import org.chromium.content_public.browser.ImmersiveStereoMode;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.xr.scenecore.XrFloatSize3d;
+import org.chromium.ui.xr.scenecore.XrPose;
 import org.chromium.ui.xr.scenecore.XrSceneCoreSessionManager;
 
 /** Coordinator for the XR immersive video player. */
@@ -90,6 +92,7 @@ public class ImmersiveVideoPlaybackCoordinator
      */
     public CompositorView show() {
         mPlayerCoordinator.show();
+        mPlayerCoordinator.setInteractable(true);
         showControlPanel();
         return mPlayerCoordinator.getCompositorView();
     }
@@ -161,12 +164,12 @@ public class ImmersiveVideoPlaybackCoordinator
     }
 
     @Override
-    public void onPlayerPanelPoseChanged(float[] translation, float[] rotation) {
-        mPoseManager.onPlayerPanelPoseChanged(translation, rotation, mProjectionType);
+    public void onPlayerPanelPoseChanged(XrPose pose) {
+        mPoseManager.onPlayerPanelPoseChanged(pose, mProjectionType);
     }
 
     @Override
-    public void onPlayerPanelResized(float width, float height) {
+    public void onPlayerPanelResized(XrFloatSize3d size) {
         updateControlPanel();
     }
 
@@ -183,8 +186,8 @@ public class ImmersiveVideoPlaybackCoordinator
     }
 
     @Override
-    public void onControlPanelPoseChanged(float[] translation, float[] rotation) {
-        mPoseManager.onControlPanelPoseChanged(translation, rotation, mProjectionType);
+    public void onControlPanelPoseChanged(XrPose pose) {
+        mPoseManager.onControlPanelPoseChanged(pose, mProjectionType);
     }
 
     @Override
@@ -240,9 +243,7 @@ public class ImmersiveVideoPlaybackCoordinator
 
         mPlayerCoordinator.updateVideoLayout(
                 mapStereoMode(stereoMode), mapProjectionType(projectionType));
-        mPlayerCoordinator.updatePose(
-                mPoseManager.getPlayerPanelTranslation(projectionType),
-                mPoseManager.getPlayerPanelRotation(projectionType));
+        mPlayerCoordinator.updatePose(mPoseManager.getPlayerPanelPose(projectionType));
         updateControlPanel();
     }
 
@@ -256,9 +257,6 @@ public class ImmersiveVideoPlaybackCoordinator
 
     private void showControlPanel() {
         mControlCoordinator.show(assumeNonNull(mPlayerCoordinator.getHolder()));
-        // TODO(crbug.com/515422620): The player panel should be interactable all the time and
-        // should toggle the visibility of the control panel.
-        mPlayerCoordinator.setInteractable(false);
         updateControlPanel();
         mAutoHideManager.startTimer();
     }
@@ -266,7 +264,6 @@ public class ImmersiveVideoPlaybackCoordinator
     private void hideControlPanel() {
         hideFormatSelectionPanel();
         mControlCoordinator.dismiss();
-        mPlayerCoordinator.setInteractable(true);
         mAutoHideManager.stopTimer();
     }
 
@@ -274,9 +271,7 @@ public class ImmersiveVideoPlaybackCoordinator
         boolean isQuad = mProjectionType == ImmersiveProjectionType.QUAD;
         mControlCoordinator.setMovable(!isQuad);
         if (mControlCoordinator.isShowing()) {
-            mControlCoordinator.updatePose(
-                    mPoseManager.getControlPanelTranslation(mProjectionType),
-                    mPoseManager.getControlPanelRotation(mProjectionType));
+            mControlCoordinator.updatePose(mPoseManager.getControlPanelPose(mProjectionType));
         }
     }
 

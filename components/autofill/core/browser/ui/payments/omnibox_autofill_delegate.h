@@ -13,7 +13,9 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/scoped_autofill_managers_observation.h"
 #include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 
 namespace autofill {
 
@@ -21,7 +23,8 @@ class AutofillClient;
 class AutofillDriver;
 
 class OmniboxAutofillDelegate : public AutofillManager::Observer,
-                                public AutofillSuggestionDelegate {
+                                public AutofillSuggestionDelegate,
+                                public mojom::AutofillVisibilityObserver {
  public:
   using AutofillManager::Observer::OnSuggestionsHidden;
   using AutofillManager::Observer::OnSuggestionsShown;
@@ -64,7 +67,8 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer,
   FillingProduct GetMainFillingProduct() const override;
   void OnTabSelected(TabbedPaneTabType tab_type) override;
 
-  void OnGetIntersectionObserverInfo(bool is_visible);
+  // mojom::AutofillVisibilityObserver:
+  void OnFieldBecameVisible() override;
 
  private:
   // Returns `true` if `manager`'s AutofillDriver is active, has no parent, and
@@ -73,8 +77,11 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer,
   bool IsOutermostMainFrameActiveAutofillManager(AutofillManager& manager);
 
   // Checks if the given `field` is in the main frame.
-  bool FieldIsInMainFrame(AutofillManager& manager,
+  bool IsFieldInMainFrame(AutofillManager& manager,
                           const AutofillField& field) const;
+
+  // Checks if `trigger_field_global_id_` is in the frame.
+  bool IsTriggerFieldGlobalIdInFrame(AutofillDriver& driver) const;
 
   // Resets the delegate's internal state, clearing `candidate_form_found_`
   // `trigger_form_global_id_`, and `trigger_field_global_id_`.
@@ -101,6 +108,8 @@ class OmniboxAutofillDelegate : public AutofillManager::Observer,
   const raw_ref<AutofillClient> client_;
 
   ScopedAutofillManagersObservation autofill_managers_observation_{this};
+
+  mojo::Receiver<mojom::AutofillVisibilityObserver> visibility_receiver_{this};
 
   base::WeakPtrFactory<OmniboxAutofillDelegate> weak_ptr_factory_{this};
 };

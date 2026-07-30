@@ -153,6 +153,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".ChromeSurvey"/>
   <variant name=".CollaborationMemberAdded"/>
   <variant name=".CollaborationRemoved"/>
+  <variant name=".ContextualTasksWindowResized"/>
   <variant name=".CvcSave"/>
   <variant name=".DefaultBrowserPromo"/>
   <variant name=".DesktopSiteGlobalDefaultOptOut"/>
@@ -1436,7 +1437,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessBinding.BatchScopeDurationOnMainThread"
-    units="ms" expires_after="2026-11-10">
+    units="ms" expires_after="2027-01-10">
   <owner>kawasin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -2418,36 +2419,6 @@ chromium-metrics-reviews@google.com.
   <owner>src/chrome/android/OWNERS</owner>
   <summary>
     Records the input device source for the action down touch event.
-  </summary>
-</histogram>
-
-<histogram
-    name="Android.ExternalBeginFrameSourceAChoreographerImpl.VsyncIntervalSource"
-    enum="AndroidExternalBeginFrameSourceAChoreographerImplVsyncIntervalSource"
-    expires_after="2026-10-22">
-  <owner>petrcermak@chromium.org</owner>
-  <owner>woa-performance-team@google.com</owner>
-  <summary>
-    Source of the VSync interval (aka VSync period) that
-    `ExternalBeginFrameSourceAndroid::AChoreographerImpl` provides to
-    `ExternalBeginFrameSourceAndroid`, together with the reason for choosing the
-    particular source.
-
-    It can either FORWARD the VSync interval that the OS provided to
-    `ExternalBeginFrameSourceAndroid::AChoreographerImpl::RefreshRateCallback`
-    (registered via `AChoreographer_registerRefreshRateCallback`), or DERIVE the
-    VSync interval from the frame timelines that the OS provided to
-    `ExternalBeginFrameSourceAndroid::AChoreographerImpl::VsyncCallback` (posted
-    via `AChoreographer_postVsyncCallback`) by taking the difference between the
-    presentation timestamps of the first two timelines. `AChoreographerImpl`
-    might choose to snap the timeline-derived interval to the closest supported
-    interval in `Display.getSupportedRefreshRates()`.
-
-    The advantage of deriving the VSync interval is that it avoids using an
-    incorrect VSync interval immediately before/after a refresh rate change,
-    because frame timelines are synchronized with the Android choreographer.
-
-    Subsampled with probability 1/100 for each VSync.
   </summary>
 </histogram>
 
@@ -3480,7 +3451,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.MaxInstanceCountIncognito"
-    units="instances" expires_after="2026-11-06">
+    units="instances" expires_after="2027-01-10">
   <owner>shuyng@google.com</owner>
   <owner>skavuluru@google.com</owner>
   <owner>mklw@google.com</owner>
@@ -3519,7 +3490,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumActivities" units="activities"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -3550,7 +3521,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumActivities.DesktopWindow.Incognito"
-    units="activities" expires_after="2026-11-06">
+    units="activities" expires_after="2027-01-10">
   <owner>shuyng@google.com</owner>
   <owner>skavuluru@google.com</owner>
   <owner>mklw@google.com</owner>
@@ -3567,7 +3538,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumActivities.Incognito"
-    units="activities" expires_after="2026-11-06">
+    units="activities" expires_after="2027-01-10">
   <owner>shuyng@google.com</owner>
   <owner>skavuluru@google.com</owner>
   <owner>mklw@google.com</owner>
@@ -3583,7 +3554,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumInstances" units="instances"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -3617,7 +3588,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumInstances.DesktopWindow.Incognito"
-    units="instances" expires_after="2026-11-06">
+    units="instances" expires_after="2027-01-10">
   <owner>shuyng@google.com</owner>
   <owner>skavuluru@google.com</owner>
   <owner>mklw@google.com</owner>
@@ -3635,7 +3606,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.NumInstances.Incognito"
-    units="instances" expires_after="2026-11-06">
+    units="instances" expires_after="2027-01-10">
   <owner>shuyng@google.com</owner>
   <owner>skavuluru@google.com</owner>
   <owner>mklw@google.com</owner>
@@ -4410,42 +4381,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.Omnibox.SuggestionsDropdown.AsyncInflationTime2"
-    units="ms" expires_after="2027-01-03">
-  <owner>peterkang@google.com</owner>
-  <owner>chrome-mobile-search@google.com</owner>
-  <summary>
-    Records thread time spent on construction of the Omnibox suggestions
-    dropdown on a background thread.
-
-    Measures the impact of offloading Omnibox suggestions dropdown inflation to
-    a background thread. Since layout inflation and view pool pre-warming occur
-    during construction, this metric reflects the overall amount of UI rendering
-    work saved from running on the main thread.
-
-    Recorded once per activity start when AsyncViewInflator inflates the
-    OmniboxSuggestionsDropdown.
-  </summary>
-</histogram>
-
-<histogram name="Android.Omnibox.SuggestionsDropdown.AsyncInflationTime3"
-    units="ms" expires_after="2027-01-03">
-  <owner>peterkang@google.com</owner>
-  <owner>ender@google.com</owner>
-  <summary>
-    Records wall time spent on construction of the Omnibox suggestions dropdown
-    on a background thread.
-
-    Measures the impact of offloading Omnibox suggestions dropdown inflation to
-    a background thread. Since layout inflation and view pool pre-warming occur
-    during construction, this metric reflects the overall amount of UI rendering
-    work saved from running on the main thread.
-
-    Recorded once per activity start when AsyncViewInflator inflates the
-    OmniboxSuggestionsDropdown.
-  </summary>
-</histogram>
-
 <histogram
     name="Android.Omnibox.SuggestionsDropdown.ContainerInflationThreadTime"
     units="ms" expires_after="2027-01-03">
@@ -4502,17 +4437,50 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Omnibox.SuggestionsDropdown.InflationTime2" units="ms"
+    expires_after="2027-01-03">
+  <owner>peterkang@google.com</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records thread time spent on construction of the Omnibox suggestions
+    dropdown.
+
+    This metric will provide a comparison of the thread time spent inflating the
+    suggestions dropdown on the UI thread vs the background thread. Furthermore,
+    it will also be used to gauge how much time is being moved from the UI
+    thread to the background thread.
+
+    Recorded once per activity start when AsyncViewInflator inflates the
+    OmniboxSuggestionsDropdown.
+  </summary>
+</histogram>
+
+<histogram name="Android.Omnibox.SuggestionsDropdown.InflationTime3" units="ms"
+    expires_after="2027-01-03">
+  <owner>peterkang@google.com</owner>
+  <owner>ender@google.com</owner>
+  <summary>
+    Records wall time spent on construction of the Omnibox suggestions dropdown.
+
+    This metric will provide a comparison of the wall time spent inflating the
+    suggestions dropdown on the UI thread vs the background thread. Furthermore,
+    it will also be used to gauge how much time is being moved from the UI
+    thread to the background thread.
+
+    Recorded once per activity start when AsyncViewInflator inflates the
+    OmniboxSuggestionsDropdown.
+  </summary>
+</histogram>
+
 <histogram name="Android.Omnibox.SuggestionsDropdown.PreWarmedViewsCount"
     units="count" expires_after="2027-01-03">
   <owner>peterkang@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
-    Records the number of ViewHolders successfully created during synchronous
-    pre-warming of the Omnibox RecycledViewPool when async view inflation is
-    disabled.
+    Records the number of ViewHolders successfully created during pre-warming of
+    the OmniboxSuggestionsDropdown RecycledViewPool.
 
-    Recorded once per activity start when pre-warming finishes or gets cut off
-    by user interaction.
+    Recorded once per activity start when pre-warming finishes.
   </summary>
 </histogram>
 
@@ -4521,7 +4489,7 @@ chromium-metrics-reviews@google.com.
   <owner>peterkang@google.com</owner>
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
-    Records whether the Omnibox suggestions dropdown pre-warming thread matches
+    Records whether the OmniboxSuggestionsDropdown pre-warming thread matches
     the expected thread (background thread if async inflation is enabled, UI
     thread otherwise).
 
@@ -4535,10 +4503,9 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
     Records the cumulative CPU thread time spent actively inflating ViewHolders
-    during synchronous pre-warming of the Omnibox RecycledViewPool.
+    during pre-warming of the OmniboxSuggestionsDropdown RecycledViewPool.
 
-    Recorded once per activity start when pre-warming finishes or gets cut off
-    by user interaction.
+    Recorded once per activity start when pre-warming finishes.
   </summary>
 </histogram>
 
@@ -4548,10 +4515,9 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-mobile-search@google.com</owner>
   <summary>
     Records the cumulative wall time spent actively inflating ViewHolders during
-    synchronous pre-warming of the Omnibox RecycledViewPool.
+    pre-warming of the OmniboxSuggestionsDropdown RecycledViewPool.
 
-    Recorded once per activity start when pre-warming finishes or gets cut off
-    by user interaction.
+    Recorded once per activity start when pre-warming finishes.
   </summary>
 </histogram>
 
@@ -5306,16 +5272,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether the PDF file URI is null when attempting to load the file.
     Recorded in PdfCoordinator#loadPdfFile.
-  </summary>
-</histogram>
-
-<histogram name="Android.PhotoPicker.BitmapScalerTask" units="ms"
-    expires_after="2024-06-01">
-  <owner>finnur@chromium.org</owner>
-  <owner>twellington@chromium.org</owner>
-  <summary>
-    Measures the amount of time the BitmapScaler spent scaling a bitmap. Note:
-    This metric was not logged in June 2023.
   </summary>
 </histogram>
 
@@ -6106,16 +6062,6 @@ chromium-metrics-reviews@google.com.
     used, destroyed, crashed, etc. This is recorded when the spare tab is used
     for navigation or destroyed. It is only recorded when a spare tab is
     created, and it is only recorded once per spare tab.
-  </summary>
-</histogram>
-
-<histogram name="Android.StorageSystem.Type" enum="AndroidStorageSystemType"
-    expires_after="2026-07-26">
-  <owner>yfriedman@chromium.org</owner>
-  <owner>clank-performance-team@google.com</owner>
-  <summary>
-    Records the type of storage system on the device. This is determined by
-    inspecting system files. Recorded once on deferred startup.
   </summary>
 </histogram>
 
@@ -7765,18 +7711,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.WebView.EnableTVSmoothing" enum="Boolean"
-    expires_after="2026-08-01">
-  <owner>alexmitra@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Logs whether we think the current device is a TV. This histogram is intended
-    to improve our TV detection over time by looking at the devices in each
-    bucket. This histogram is logged once when setting up WebView's graphics
-    context.
-  </summary>
-</histogram>
-
 <histogram name="Android.WebView.GetCacheQuotaSizeTime" units="ms"
     expires_after="2026-06-01">
   <owner>abhijithnair@chromium.org</owner>
@@ -7816,7 +7750,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.HistoricalApplicationExitInfo.Counts2"
-    enum="AndroidProcessExitReason" expires_after="2026-11-11">
+    enum="AndroidProcessExitReason" expires_after="2027-01-10">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -7870,7 +7804,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.HistoricalApplicationExitInfo.Counts2.STARTUP"
-    enum="AndroidProcessExitReason" expires_after="2026-11-11">
+    enum="AndroidProcessExitReason" expires_after="2027-01-10">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -7994,7 +7928,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.HttpCacheSizeLimit" units="MiB"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>abhijithnair@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -9081,7 +9015,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.Startup.ChromiumInitTime.LongestUiBlockingTaskTime{StartupMode}"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>colibie@google.com</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -9101,7 +9035,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.ChromiumInitTime.StartupMode"
-    enum="WebViewChromiumStartupMode" expires_after="2026-11-08">
+    enum="WebViewChromiumStartupMode" expires_after="2027-01-10">
   <owner>colibie@google.com</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -9199,7 +9133,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.Startup.CreationTime.FirstInstanceWithGlobalStartup"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -9305,7 +9239,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.Stage1.FactoryInit"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -9329,7 +9263,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.Stage2.ProviderInit.Cold"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -9355,7 +9289,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.Stage2.ProviderInit.Warm"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -9413,7 +9347,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.TotalFactoryInitTime"
-    units="ms" expires_after="2026-11-08">
+    units="ms" expires_after="2027-01-10">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>

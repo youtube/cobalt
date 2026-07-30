@@ -23,7 +23,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
@@ -656,10 +655,34 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
+    public void test_ariaSpinbuttonAppendingTextChanged() {
+        performTest(
+                "aria-spinbutton-appending-text-changed.html",
+                "aria-spinbutton-appending-text-changed-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaSpinbuttonValuetextChanged() {
         performTest(
                 "aria-spinbutton-valuetext-change.html",
                 "aria-spinbutton-valuetext-change-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
+    public void test_nativeSpinbuttonAppendingTextChanged() {
+        performTest(
+                "native-spinbutton-appending-text-changed.html",
+                "native-spinbutton-appending-text-changed-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
+    public void test_nativeSpinbuttonArrowUpTextChanged() {
+        performTest(
+                "native-spinbutton-arrow-up-changed.html",
+                "native-spinbutton-arrow-up-changed-expected-android.txt");
     }
 
     @Test
@@ -1600,7 +1623,6 @@ public class WebContentsAccessibilityEventsTest {
     // on the node info, which requires tiramisu or higher.
     @MinAndroidSdkLevel(Build.VERSION_CODES.TIRAMISU)
     @EnableFeatures(ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)
-    @DisabledTest(message = "https://crbug.com/529790434")
     public void test_scopedContentChanged_enabled() {
         performTest(
                 "scoped-content-changed.html",
@@ -1611,7 +1633,6 @@ public class WebContentsAccessibilityEventsTest {
     @Test
     @SmallTest
     @DisableFeatures(ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)
-    @DisabledTest(message = "https://crbug.com/532605121")
     public void test_scopedContentChanged_disabled() {
         performTest(
                 "scoped-content-changed.html",

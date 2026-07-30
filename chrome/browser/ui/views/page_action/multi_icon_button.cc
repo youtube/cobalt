@@ -12,16 +12,11 @@
 #include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkClipOp.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
@@ -158,7 +153,7 @@ void MultiIconButton::UpdateBackground() {
   const auto* color_provider = GetColorProvider();
   if (color_provider) {
     SkColor background_color =
-        color_provider->GetColor(ui::kColorSysNeutralContainer);
+        color_provider->GetColor(ui::kColorSysBaseContainer);
     if (GetState() == ButtonState::STATE_HOVERED ||
         GetState() == ButtonState::STATE_PRESSED) {
       background_color = color_utils::GetResultingPaintColor(
@@ -216,7 +211,7 @@ void MultiIconButton::Update(
     plus_more_label->SetTextStyle(views::style::STYLE_BODY_5);
     plus_more_label->SetProperty(views::kMarginsKey,
                                  gfx::Insets::TLBR(0, 8, 0, 0));
-    plus_more_label->SetEnabledColor(ui::kColorSysOnSurface);
+    plus_more_label->SetEnabledColor(ui::kColorSysOnSurfaceSubtle);
     plus_more_label->SetLineHeight(kAnchoredMessageIconSize);
   }
 

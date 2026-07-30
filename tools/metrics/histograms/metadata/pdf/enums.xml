@@ -134,6 +134,14 @@ chromium-metrics-reviews@google.com.
   <int value="104" label="ExitInk2TextAnnotationMode"/>
   <int value="105" label="AddInk2TextAnnotationFirst"/>
   <int value="106" label="AddInk2TextAnnotation"/>
+  <int value="107" label="AddInk2TextAnnotationAbortedFirst"/>
+  <int value="108" label="AddInk2TextAnnotationAborted"/>
+  <int value="109" label="EditInk2TextAnnotationFirst"/>
+  <int value="110" label="EditInk2TextAnnotation"/>
+  <int value="111" label="EditInk2TextAnnotationAbortedFirst"/>
+  <int value="112" label="EditInk2TextAnnotationAborted"/>
+  <int value="113" label="DeleteInk2TextAnnotationFirst"/>
+  <int value="114" label="DeleteInk2TextAnnotation"/>
 </enum>
 
 <enum name="ChromePDFViewerLoadStatus">
@@ -263,6 +271,53 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//pdf/pdf_ink_metrics_handler.h:PDFInk2StrokePenColor) -->
+
+<!-- LINT.IfChange(PDFInk2TextAnnotationAlignment) -->
+
+<enum name="PDFInk2TextAnnotationAlignment">
+  <int value="0" label="Left"/>
+  <int value="1" label="Center"/>
+  <int value="2" label="Right"/>
+</enum>
+
+<!-- LINT.ThenChange(//pdf/pdf_ink_text.h:TextAlignment) -->
+
+<!-- LINT.IfChange(PDFInk2TextAnnotationColor) -->
+
+<enum name="PDFInk2TextAnnotationColor">
+  <int value="0" label="Black"/>
+  <int value="1" label="DarkGrey2"/>
+  <int value="2" label="DarkGrey1"/>
+  <int value="3" label="LightGrey"/>
+  <int value="4" label="White"/>
+  <int value="5" label="Red1"/>
+  <int value="6" label="Yellow1"/>
+  <int value="7" label="Green1"/>
+  <int value="8" label="Cyan1"/>
+  <int value="9" label="Blue1"/>
+  <int value="10" label="Red2"/>
+  <int value="11" label="Yellow2"/>
+  <int value="12" label="Green2"/>
+  <int value="13" label="Cyan2"/>
+  <int value="14" label="Blue2"/>
+  <int value="15" label="Red3"/>
+  <int value="16" label="Yellow3"/>
+  <int value="17" label="Green3"/>
+  <int value="18" label="Cyan3"/>
+  <int value="19" label="Blue3"/>
+</enum>
+
+<!-- LINT.ThenChange(//pdf/pdf_ink_metrics_handler.h:PDFInk2TextAnnotationColor) -->
+
+<!-- LINT.IfChange(PDFInk2TextAnnotationTypeface) -->
+
+<enum name="PDFInk2TextAnnotationTypeface">
+  <int value="0" label="SansSerif"/>
+  <int value="1" label="Serif"/>
+  <int value="2" label="Monospace"/>
+</enum>
+
+<!-- LINT.ThenChange(//pdf/pdf_ink_text.h:TextTypeface) -->
 
 <!-- LINT.IfChange(PDFLoadedWithInkTextAnnotations) -->
 

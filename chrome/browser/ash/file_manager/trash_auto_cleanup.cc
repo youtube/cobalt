@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/file_manager/trash_auto_cleanup.h"
 
 #include "base/barrier_callback.h"
+#include "base/check_deref.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -96,7 +97,9 @@ bool DeleteOldTrashFilesOnBlockingThread(
 
 }  // namespace
 
-TrashAutoCleanup::TrashAutoCleanup(Profile* profile) : profile_(profile) {
+TrashAutoCleanup::TrashAutoCleanup(const PrefService* local_state,
+                                   Profile* profile)
+    : local_state_(CHECK_DEREF(local_state)), profile_(profile) {
   const TrashPathsMap trash_locations_ =
       file_manager::trash::GenerateEnabledTrashLocationsForProfile(profile_);
   for (const trash::TrashPathsMap::value_type& location : trash_locations_) {
@@ -108,14 +111,18 @@ TrashAutoCleanup::TrashAutoCleanup(Profile* profile) : profile_(profile) {
 
 TrashAutoCleanup::~TrashAutoCleanup() = default;
 
-std::unique_ptr<TrashAutoCleanup> TrashAutoCleanup::Create(Profile* profile) {
+std::unique_ptr<TrashAutoCleanup> TrashAutoCleanup::Create(
+    const PrefService* local_state,
+    Profile* profile) {
   // Only run the auto cleanup process for regular profiles on ChromeOS.
-  if (!file_manager::trash::IsTrashEnabledForProfile(profile) || !profile ||
-      !profile->IsRegularProfile() || !base::SysInfo::IsRunningOnChromeOS()) {
+  if (!file_manager::trash::IsTrashEnabledForProfile(CHECK_DEREF(local_state),
+                                                     profile) ||
+      !profile || !profile->IsRegularProfile() ||
+      !base::SysInfo::IsRunningOnChromeOS()) {
     return nullptr;
   }
 
-  auto instance = base::WrapUnique(new TrashAutoCleanup(profile));
+  auto instance = base::WrapUnique(new TrashAutoCleanup(local_state, profile));
   instance->Init();
   return instance;
 }
@@ -129,7 +136,8 @@ void TrashAutoCleanup::Init() {
 
 void TrashAutoCleanup::StartCleanup() {
   // "TrashEnabled" can be dynamically refreshed, make sure that it's enabled.
-  if (!file_manager::trash::IsTrashEnabledForProfile(profile_)) {
+  if (!file_manager::trash::IsTrashEnabledForProfile(local_state_.get(),
+                                                     profile_)) {
     return;
   }
 

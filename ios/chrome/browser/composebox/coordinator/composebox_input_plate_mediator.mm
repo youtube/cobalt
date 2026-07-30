@@ -1288,10 +1288,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   [_stateManager onContextChanged];
 }
 
-// Updates the awaiting attachment signals state. Note that this flag is only
-// set to YES during the initial focus flow (triggering the composebox with
-// initial attachments). We stop awaiting signals when there are no more items
-// in the loading or uploading state.
+// Updates the awaiting attachment signals state.
 - (void)updateAwaitingAttachmentSignalsState {
   if (!_awaitingAttachmentSignals) {
     return;
@@ -1324,6 +1321,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                                withType:[self attachmentEventTypeForItem:item]
                                   title:[self
                                             attachmentEventTitleForItem:item]]];
+  _awaitingAttachmentSignals = YES;
   [_items addItem:item];
 }
 
@@ -2034,9 +2032,10 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
   BOOL allowsMultimodalActions =
       dseGoogle && eligibleToAIM && !compactInCobrowse;
   BOOL canSend = hasContent && !compactMode && allowsMultimodalActions;
-  BOOL showShortcuts =
-      !hasContent && !canSend &&
-      !base::FeatureList::IsEnabled(kHideFuseboxVoiceLensActions);
+  BOOL forceDisableShortcuts =
+      base::FeatureList::IsEnabled(kHideFuseboxVoiceLensActions);
+  BOOL hasVisibleContent = compactMode ? _hasText : hasContent;
+  BOOL showShortcuts = !hasVisibleContent && !canSend && !forceDisableShortcuts;
   // Hide the plus button is different from !allowsMultimodalActions. When the
   // plus button is hidden, the user can still use multimodal actions from other
   // sources such as drag and drop.

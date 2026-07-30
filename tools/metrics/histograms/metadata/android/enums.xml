@@ -222,25 +222,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ui/android/java/src/org/chromium/ui/dragdrop/DragAndDropDelegateImpl.java:DragTargetType) -->
 
-<!-- LINT.IfChange(AndroidExternalBeginFrameSourceAChoreographerImplVsyncIntervalSource) -->
-
-<enum
-    name="AndroidExternalBeginFrameSourceAChoreographerImplVsyncIntervalSource">
-  <int value="0" label="OS-provided: timeline-derived not supported"/>
-  <int value="1" label="OS-provided: only one timeline"/>
-  <int value="2" label="OS-provided: always"/>
-  <int value="3" label="OS-provided: timeline-derived too short"/>
-  <int value="4" label="OS-provided: longer than or equal to timeline-derived"/>
-  <int value="5" label="Snapped timeline-derived: longer than OS-provided"/>
-  <int value="6" label="Unsnapped timeline-derived: longer than OS-provided"/>
-  <int value="7" label="Snapped timeline-derived: always"/>
-  <int value="8" label="Unsnapped timeline-derived: always"/>
-</enum>
-
-<!-- LINT.ThenChange(
-  //components/viz/service/frame_sinks/external_begin_frame_source_android.h:VsyncIntervalSource
-) -->
-
 <enum name="AndroidKernelVersion">
   <int value="131078" label="2.6"/>
   <int value="196608" label="3.0"/>
@@ -306,6 +287,10 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Fit To Page Vertical"/>
   <int value="4" label="Fit To Page Horizontal"/>
   <int value="5" label="Page Navigation"/>
+  <int value="6" label="Print"/>
+  <int value="7" label="Two-page view"/>
+  <int value="8" label="Single page view"/>
+  <int value="9" label="Document properties"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfUtils.java:PdfToolbarAction) -->
@@ -358,15 +343,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Feature Disabled"/>
   <int value="3" label="Feature Enabled"/>
   <int value="4" label="Sandbox Engaged"/>
-</enum>
-
-<enum name="AndroidStorageSystemType">
-  <int value="0" label="UFS"/>
-  <int value="1" label="EMMC"/>
-  <int value="2" label="Unknown"/>
-  <int value="3" label="Undetermined">
-    Failed to determine storage type by falling through all checks.
-  </int>
 </enum>
 
 <enum name="AndroidThemeSettingsEntry">
@@ -707,8 +683,10 @@ chromium-metrics-reviews@google.com.
   <int value="92" label="Profile.getServiceWorkerController"/>
   <int value="93" label="WebViewCompat.setProfile"/>
   <int value="94" label="WebViewCompat.getProfile"/>
-  <int value="95" label="WebSettingsCompat.setAttributionBehavior"/>
-  <int value="96" label="WebSettingsCompat.getAttributionBehavior"/>
+  <int value="95"
+      label="WebSettingsCompat.setAttributionBehavior (deprecated)"/>
+  <int value="96"
+      label="WebSettingsCompat.getAttributionBehavior (deprecated)"/>
   <int value="97"
       label="WebSettingsCompat.getWebViewMediaIntegrityApiStatus (default
              status)"/>
@@ -916,24 +894,25 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="(15) TAB_MODAL_HANDLER"/>
   <int value="10"
       label="(XX) TAB_SWITCHER (if Start surface is disabled. Deprecated)"/>
-  <int value="11" label="(16) CLOSE_WATCHER"/>
-  <int value="12" label="(19) TAB_HISTORY"/>
+  <int value="11" label="(17) CLOSE_WATCHER"/>
+  <int value="12" label="(20) TAB_HISTORY"/>
   <int value="13" label="(XX) TAB_RETURN_TO_CHROME_START_SURFACE (Deprecated)"/>
-  <int value="14" label="(21) SHOW_READING_LIST"/>
-  <int value="15" label="(22) MINIMIZE_APP_AND_CLOSE_TAB"/>
-  <int value="16" label="(17) FIND_TOOLBAR"/>
+  <int value="14" label="(22) SHOW_READING_LIST"/>
+  <int value="15" label="(23) MINIMIZE_APP_AND_CLOSE_TAB"/>
+  <int value="16" label="(18) FIND_TOOLBAR"/>
   <int value="17" label="(12) LOCATION_BAR"/>
   <int value="18" label="(01) XR_DELEGATE"/>
   <int value="19" label="(XX) PAGE_INSIGHTS_BOTTOM_SHEET (Deprecated)"/>
-  <int value="20" label="(18) BOTTOM_CONTROLS"/>
+  <int value="20" label="(19) BOTTOM_CONTROLS"/>
   <int value="21" label="(07) HUB"/>
   <int value="22" label="(06) ARCHIVED_TABS_DIALOG"/>
-  <int value="23" label="(20) NATIVE_PAGE"/>
+  <int value="23" label="(21) NATIVE_PAGE"/>
   <int value="24" label="(11) CANCEL_TAB_STRIP_DRAG"/>
   <int value="25" label="(05) CANCEL_TAB_SWITCHER_DRAG"/>
   <int value="26" label="(14) ACTOR_OVERLAY"/>
   <int value="27" label="(04) FUSEBOX_POPUP"/>
   <int value="28" label="(13) REALBOX"/>
+  <int value="29" label="(16) TAB_SEARCH_OVERLAY"/>
 </enum>
 
 <!-- LINT.IfChange(BackPressTabCloseType) -->
@@ -1381,6 +1360,7 @@ chromium-metrics-reviews@google.com.
 <enum name="LauncherShortcutUpdateFailure">
   <int value="0" label="Rate Limited"/>
   <int value="1" label="Limit Exceeded"/>
+  <int value="2" label="Illegal State"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/LauncherShortcutActivity.java:UpdateFailure) -->
@@ -1516,6 +1496,7 @@ chromium-metrics-reviews@google.com.
   <int value="73" label="ExtensionDevTools"/>
   <int value="74" label="PersonalContextFetchingFailure"/>
   <int value="75" label="PrivateInferenceNotice"/>
+  <int value="76" label="ContextualTasksWindowResized"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->

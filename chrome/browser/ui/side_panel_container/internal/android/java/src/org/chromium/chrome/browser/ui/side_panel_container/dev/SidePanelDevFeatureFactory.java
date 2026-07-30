@@ -4,14 +4,14 @@
 
 package org.chromium.chrome.browser.ui.side_panel_container.dev;
 
-import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeatureKey;
 import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
-import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
-import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.util.function.Supplier;
 
@@ -23,13 +23,18 @@ public final class SidePanelDevFeatureFactory {
 
     @Nullable
     public static SidePanelDevFeature create(
-            MonotonicObservableSupplier<Profile> profileSupplier,
-            SidePanelContainerCoordinator sidePanelContainerCoordinator,
-            WindowAndroid windowAndroid,
+            ChromeAndroidTask chromeAndroidTask,
+            Profile profile,
+            ActivityWindowAndroid windowAndroid,
             Supplier<Tab> tabSupplier) {
-        if (AndroidSidePanelEnabledFn.isPureJavaDevFeatureEnabled()) {
-            return new SidePanelDevFeatureImpl(
-                    profileSupplier, sidePanelContainerCoordinator, windowAndroid);
+        if (AndroidSidePanelEnabledFn.isWindowScopedDevFeatureEnabled()) {
+            return (SidePanelWindowScopedDevFeatureImpl)
+                    chromeAndroidTask.addFeature(
+                            new ChromeAndroidTaskFeatureKey(
+                                    SidePanelWindowScopedDevFeatureImpl.class,
+                                    profile,
+                                    windowAndroid),
+                            () -> new SidePanelWindowScopedDevFeatureImpl(profile, windowAndroid));
         }
 
         if (AndroidSidePanelEnabledFn.isTabScopedDevFeatureEnabled()) {

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/frame/base_tab_strip_region_view.h"
 
+#include <variant>
+
 #include "base/callback_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
@@ -425,10 +427,31 @@ TabDragTarget* BaseTabStripRegionView::GetTabDragTarget(
   return &GetUnpinnedTabsContainer()->GetTabDragTarget(point_in_screen);
 }
 
+views::View* BaseTabStripRegionView::SetTabStripView(
+    std::unique_ptr<views::View> view) {
+  CHECK(views::IsViewClass<TabStripView>(view.get()));
+  tab_strip_view_ = static_cast<TabStripView*>(view.get());
+
+  AddChildView(std::move(view));
+
+  tab_strip_view_->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+                               views::MaximumFlexSizeRule::kPreferred));
+
+  on_active_tab_changed_subscription_ =
+      root_node_->RegisterOnActiveTabChangedCallback(base::BindRepeating(
+          &BaseTabStripRegionView::OnActiveTabChanged, base::Unretained(this)));
+
+  OnTabStripViewSet();
+  return tab_strip_view_;
+}
+
 void BaseTabStripRegionView::ClearTabStripView(views::View* view) {
   CHECK(tab_strip_view_);
   CHECK(tab_strip_view_ == view);
   on_active_tab_changed_subscription_.reset();
+  OnTabStripViewWillClear();
   RemoveChildViewT(std::exchange(tab_strip_view_, nullptr));
 }
 
@@ -438,7 +461,8 @@ void BaseTabStripRegionView::RecordNewTabButtonPressed() {
   base::RecordAction(base::UserMetricsAction("NewTab_Button"));
 }
 
-void BaseTabStripRegionView::OnChildrenAdded() {
+void BaseTabStripRegionView::OnChildrenAdded(
+    const tabs::TabCollectionNodes& handles) {
   if (new_tab_button_pressed_start_time_.has_value()) {
     base::UmaHistogramTimes(
         "TabStrip.TimeToCreateNewTabFromPress",
@@ -446,6 +470,25 @@ void BaseTabStripRegionView::OnChildrenAdded() {
     new_tab_button_pressed_start_time_.reset();
   }
   hover_tab_selector_->CancelTabTransition();
+
+  const tabs::TabInterface* active_tab = tab_strip_model_->GetActiveTab();
+  if (!active_tab) {
+    return;
+  }
+
+  const tabs::TabInterface* last_new_tab = nullptr;
+  for (const auto& handle : handles) {
+    if (const auto* tab_handle = std::get_if<tabs::TabHandle>(&handle)) {
+      tabs::TabInterface* new_tab = tab_handle->Get();
+      if (new_tab && new_tab != active_tab) {
+        last_new_tab = new_tab;
+      }
+    }
+  }
+
+  if (last_new_tab) {
+    ScrollToFitTabs(active_tab, last_new_tab);
+  }
 }
 
 void BaseTabStripRegionView::OnChildrenRemoved() {
@@ -463,6 +506,14 @@ void BaseTabStripRegionView::OnActiveTabChanged(
     const tabs::TabInterface* active_tab) {
   if (tab_strip_view_) {
     tab_strip_view_->OnTabChanged(active_tab);
+  }
+}
+
+void BaseTabStripRegionView::ScrollToFitTabs(
+    const tabs::TabInterface* active_tab,
+    const tabs::TabInterface* new_tab) {
+  if (tab_strip_view_) {
+    tab_strip_view_->ScrollToFitTabs(active_tab, new_tab);
   }
 }
 

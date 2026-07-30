@@ -63,6 +63,10 @@
 #include "components/plus_addresses/core/browser/resources/vector_icons.h"
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+#include "chrome/browser/enterprise/connectors/analysis/copy_warning_delegate_tracker.h"
+#endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+
 namespace {
 const gfx::VectorIcon& GetTaskInProgressIcon() {
   return glic::GlicVectorIconManager::GetVectorIcon(IDR_ACTOR_AUTO_BROWSE_ICON);
@@ -665,6 +669,30 @@ void ToastService::RegisterToasts(
       ToastSpecification::Builder(vector_icons::kDomainIcon,
                                   IDS_ENTERPRISE_COPY_MONITORED_TOAST_BODY)
           .Build());
+
+  toast_registry_->RegisterToast(
+      ToastId::kEnterpriseCopyWarning,
+      ToastSpecification::Builder(vector_icons::kDomainIcon,
+                                  IDS_ENTERPRISE_COPY_WARNING_TOAST_BODY)
+          .AddCloseButton()
+          .AddActionButton(
+              IDS_ENTERPRISE_COPY_WARNING_TOAST_BUTTON,
+              base::BindRepeating(
+                  [](BrowserWindowInterface* window) {
+                    if (auto* tab = window->GetActiveTabInterface()) {
+                      if (auto* web_contents = tab->GetContents()) {
+                        enterprise_connectors::CopyWarningDelegateTracker::
+                            BypassAndClear(web_contents);
+                      }
+                    }
+                  },
+                  base::Unretained(browser_window_interface)))
+          .Build());
+  toast_registry_->RegisterToast(
+      ToastId::kEnterpriseCopyBlocked,
+      ToastSpecification::Builder(vector_icons::kDomainIcon,
+                                  IDS_ENTERPRISE_COPY_BLOCKED_TOAST_BODY)
+          .Build());
 #endif
   if (base::FeatureList::IsEnabled(dictation::kDictation)) {
     toast_registry_->RegisterToast(
@@ -688,7 +716,7 @@ void ToastService::RegisterToasts(
       ToastId::kGlicSelectionHiddenForSite,
       ToastSpecification::Builder(
           vector_icons::kVisibilityOffIcon,
-          IDS_GLIC_SELECTION_HIDDEN_FOR_SITE_TOAST_BODY)
+          IDS_GLIC_SELECTION_HIDDEN_TOAST_BODY)
           .AddActionButton(IDS_MANAGE,
                            base::BindRepeating(
                                [](BrowserWindowInterface* window) {

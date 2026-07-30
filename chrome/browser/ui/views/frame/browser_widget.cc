@@ -17,6 +17,7 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window_state.h"
 #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
@@ -163,7 +164,8 @@ void BrowserWidget::InitBrowserWidget() {
   }
 
 #if BUILDFLAG(IS_LINUX)
-  params.startup_id = browser->create_params().startup_id;
+  params.startup_id =
+      BrowserInitState::From(browser)->create_params().startup_id;
 #endif
 
 #if BUILDFLAG(IS_OZONE)
@@ -185,10 +187,11 @@ void BrowserWidget::InitBrowserWidget() {
       chrome::GetSavedWindowBoundsAndShowState(browser, &params.bounds,
                                                &params.show_state);
 
-      params.workspace = browser->initial_workspace();
+      params.workspace = BrowserInitState::From(browser)->initial_workspace();
       if (browser_native_widget_->ShouldUseInitialVisibleOnAllWorkspaces()) {
         params.visible_on_all_workspaces =
-            browser->initial_visible_on_all_workspaces_state();
+            BrowserInitState::From(browser)
+                ->initial_visible_on_all_workspaces_state();
       }
       const base::CommandLine& parsed_command_line =
           *base::CommandLine::ForCurrentProcess();
@@ -312,11 +315,11 @@ const ui::ThemeProvider* BrowserWidget::GetThemeProvider() const {
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
   // https://crbug.com/40771982.
-  if (app_controller && (!IsUsingLinuxSystemTheme(browser->profile()) ||
+  if (app_controller && (!IsUsingLinuxSystemTheme(browser->GetProfile()) ||
                          app_controller->AppUsesWindowControlsOverlay())) {
     return app_controller->GetThemeProvider();
   }
-  return &ThemeService::GetThemeProviderForProfile(browser->profile());
+  return &ThemeService::GetThemeProviderForProfile(browser->GetProfile());
 }
 
 ui::ColorProviderKey::ThemeInitializerSupplier* BrowserWidget::GetCustomTheme()
@@ -332,11 +335,12 @@ ui::ColorProviderKey::ThemeInitializerSupplier* BrowserWidget::GetCustomTheme()
   // display_override so the web contents can blend with the overlay by using
   // the developer-provided theme color for a better experience. Context:
   // https://crbug.com/40771982.
-  if (app_controller && (!IsUsingLinuxSystemTheme(browser->profile()) ||
+  if (app_controller && (!IsUsingLinuxSystemTheme(browser->GetProfile()) ||
                          app_controller->AppUsesWindowControlsOverlay())) {
     return app_controller->GetThemeSupplier();
   }
-  auto* theme_service = ThemeServiceFactory::GetForProfile(browser->profile());
+  auto* theme_service =
+      ThemeServiceFactory::GetForProfile(browser->GetProfile());
   return theme_service->UsingDeviceTheme() ? nullptr
                                            : theme_service->GetThemeSupplier();
 }

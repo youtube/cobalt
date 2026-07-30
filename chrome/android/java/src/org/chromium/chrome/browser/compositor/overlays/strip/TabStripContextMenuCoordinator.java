@@ -20,10 +20,12 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.MathUtils;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.bookmarks.BookmarkAllTabsHandler;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.feedback.FeedbackPolicyManager;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
@@ -41,6 +43,7 @@ import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.list_view.TouchTrackingListView;
+import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu.Delegate;
@@ -52,6 +55,7 @@ import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
 import org.chromium.ui.widget.RectProvider;
 
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * Coordinator for the context menu on the tab strip. It is responsible for creating a list of menu
@@ -59,12 +63,15 @@ import java.util.Set;
  */
 @NullMarked
 public class TabStripContextMenuCoordinator {
+    @VisibleForTesting static final String FEEDBACK_CATEGORY_SUFFIX = ".tabstrip";
+
     private final Context mContext;
     private final TabModel mTabModel;
     private final MultiInstanceManager mMultiInstanceManager;
     private final WindowAndroid mWindowAndroid;
     private final SnackbarManager mSnackbarManager;
     private final Runnable mOnNewTabClick;
+    private final @Nullable BooleanSupplier mCanActivateTabLayoutToggleMenuSupplier;
     private @Nullable AnchoredPopupWindow mMenuWindow;
 
     public static TabStripContextMenuCoordinator createContextMenuCoordinator(
@@ -72,9 +79,15 @@ public class TabStripContextMenuCoordinator {
             MultiInstanceManager multiInstanceManager,
             WindowAndroid windowAndroid,
             SnackbarManager snackbarManager,
-            Runnable onNewTabClick) {
+            Runnable onNewTabClick,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         return new TabStripContextMenuCoordinator(
-                tabModel, multiInstanceManager, windowAndroid, snackbarManager, onNewTabClick);
+                tabModel,
+                multiInstanceManager,
+                windowAndroid,
+                snackbarManager,
+                onNewTabClick,
+                canActivateTabLayoutToggleMenuSupplier);
     }
 
     private TabStripContextMenuCoordinator(
@@ -82,13 +95,15 @@ public class TabStripContextMenuCoordinator {
             MultiInstanceManager multiInstanceManager,
             WindowAndroid windowAndroid,
             SnackbarManager snackbarManager,
-            Runnable onNewTabClick) {
+            Runnable onNewTabClick,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         mTabModel = tabModel;
         mMultiInstanceManager = multiInstanceManager;
         mWindowAndroid = windowAndroid;
         mContext = assumeNonNull(windowAndroid.getActivity().get());
         mSnackbarManager = snackbarManager;
         mOnNewTabClick = onNewTabClick;
+        mCanActivateTabLayoutToggleMenuSupplier = canActivateTabLayoutToggleMenuSupplier;
     }
 
     /**
@@ -121,13 +136,25 @@ public class TabStripContextMenuCoordinator {
         touchTrackingListView.setAdapter(adapter);
 
         View decorView = activity.getWindow().getDecorView();
+
+        // Similar to Chrome Desktop (W/M/L), compute the translated strings' width
+        // dynamically, clamp the value between a preselected
+        // tab_strip_context_menu_(min_width/max_width), and apply the result as
+        // the DesiredContentWidth. This ensures that the each context menu item is
+        // always one line long, and does not wrap to 2 or more lines for long strings.
+        int[] contentDimensions =
+                UiUtils.computeListAdapterContentDimensions(adapter, touchTrackingListView);
+        int minWidthPx =
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.tab_strip_context_menu_min_width);
+        int maxWidthPx =
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width);
         var popupWidthPx =
                 MathUtils.clamp(
-                        anchorViewRectProvider.getRect().width(),
-                        mContext.getResources()
-                                .getDimensionPixelSize(R.dimen.tab_strip_context_menu_min_width),
-                        mContext.getResources()
-                                .getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width));
+                        Math.max(anchorViewRectProvider.getRect().width(), contentDimensions[0]),
+                        minWidthPx,
+                        maxWidthPx);
 
         AnchoredPopupWindow.Builder builder =
                 new AnchoredPopupWindow.Builder(
@@ -142,7 +169,8 @@ public class TabStripContextMenuCoordinator {
                         .setVerticalOverlapAnchor(true)
                         .setAllowOverlapCaptionBar(true)
                         .setPreferredHorizontalOrientation(HorizontalOrientation.LAYOUT_DIRECTION)
-                        .setMaxWidth(popupWidthPx)
+                        .setMaxWidth(maxWidthPx)
+                        .setDesiredContentWidth(popupWidthPx)
                         .setAllowNonTouchableSize(true)
                         .setElevation(
                                 contentView
@@ -196,21 +224,6 @@ public class TabStripContextMenuCoordinator {
                             .withIsIncognito(isIncognito)
                             .build());
         }
-        if (VerticalTabUtils.isVerticalTabsEligible(mContext)) {
-            itemList.add(BasicListMenu.buildMenuDivider(isIncognito));
-
-            int layoutTitleRes =
-                    VerticalTabUtils.isVerticalTabsEnabled(mContext)
-                            ? R.string.show_tabs_horizontally
-                            : R.string.show_tabs_vertically;
-
-            itemList.add(
-                    new ListItemBuilder()
-                            .withTitleRes(layoutTitleRes)
-                            .withMenuId(R.id.toggle_tab_layout_menu_id)
-                            .withIsIncognito(isIncognito)
-                            .build());
-        }
         // Add "Pin Gemini" option with divider
         Profile profile = mTabModel.getProfile();
         if (profile != null) {
@@ -227,8 +240,39 @@ public class TabStripContextMenuCoordinator {
                                 .build());
             }
         }
+        // Add vertical tabs section (layout option and send feedback) with divider
+        if (VerticalTabUtils.isVerticalTabsEligible(mContext)) {
+            itemList.add(BasicListMenu.buildMenuDivider(isIncognito));
+
+            int layoutTitleRes =
+                    VerticalTabUtils.isVerticalTabsEnabled(mContext)
+                            ? R.string.show_tabs_horizontally
+                            : R.string.show_tabs_vertically;
+
+            boolean enabled =
+                    mCanActivateTabLayoutToggleMenuSupplier == null
+                            || mCanActivateTabLayoutToggleMenuSupplier.getAsBoolean();
+
+            itemList.add(
+                    new ListItemBuilder()
+                            .withTitleRes(layoutTitleRes)
+                            .withMenuId(R.id.toggle_tab_layout_menu_id)
+                            .withIsIncognito(isIncognito)
+                            .withEnabled(enabled)
+                            .build());
+
+            // Add "Send feedback" option
+            if (FeedbackPolicyManager.getInstance().isUserFeedbackAllowed()) {
+                itemList.add(
+                        new ListItemBuilder()
+                                .withTitleRes(R.string.send_feedback_about_tab_strip)
+                                .withMenuId(R.id.send_feedback_about_tab_strip_menu_id)
+                                .withIsIncognito(isIncognito)
+                                .build());
+            }
+        }
         // Add "Task Manager" option with divider.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TASK_MANAGER_CLANK)) {
+        if (TaskManager.isEnabled()) {
             itemList.add(BasicListMenu.buildMenuDivider(isIncognito));
             itemList.add(
                     new ListItemBuilder()
@@ -285,9 +329,39 @@ public class TabStripContextMenuCoordinator {
                 RecordUserAction.record("Android.TabStripMenu.TaskManager");
                 TaskManager taskManager = TaskManagerFactory.createTaskManager();
                 taskManager.launch(ContextUtils.getApplicationContext());
+            } else if (model.get(MENU_ITEM_ID) == R.id.send_feedback_about_tab_strip_menu_id) {
+                RecordUserAction.record("Android.TabStripMenu.SendFeedback");
+                Activity activity = mWindowAndroid.getActivity().get();
+                if (activity != null && profile != null) {
+                    String categoryTag = getFeedbackCategoryTag();
+                    HelpAndFeedbackLauncherFactory.getForProfile(profile)
+                            .showFeedback(activity, /* url= */ null, categoryTag);
+                }
             }
             assumeNonNull(mMenuWindow).dismiss();
         };
+    }
+
+    /**
+     * Returns the appropriate feedback category tag to send with the feedback request. A Listnr
+     * allowlisted category tag is required when sending feedback otherwise Listnr will drop the
+     * request silently.
+     */
+    @VisibleForTesting
+    @Nullable String getFeedbackCategoryTag() {
+        String prefix;
+        if (VersionInfo.isCanaryBuild()) {
+            prefix = "com.chrome.canary";
+        } else if (VersionInfo.isDevBuild()) {
+            prefix = "com.chrome.dev";
+        } else if (VersionInfo.isBetaBuild()) {
+            prefix = "com.chrome.beta";
+        } else if (VersionInfo.isStableBuild()) {
+            prefix = "com.android.chrome";
+        } else {
+            return null;
+        }
+        return prefix + FEEDBACK_CATEGORY_SUFFIX;
     }
 
     /**

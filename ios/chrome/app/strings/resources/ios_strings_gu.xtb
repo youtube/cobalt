@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">પાસવર્ડ સાચવો</translation>
 <translation id="1764070164487214210">દિશાનિર્દેશો</translation>
 <translation id="1764511703783285459">અન્ય પાસવર્ડ મેનેજર દ્વારા કોઈ પાસવર્ડ કે પાસકી શેર કરવામાં આવી નથી</translation>
+<translation id="1765555082983153259">“Chrome”ને તમારા માઇક્રોફોનના ઍક્સેસની મંજૂરી આપો</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">ટૂલ મેનૂ</translation>
 <translation id="1772468122139624049">ટૅબ ફરીથી લોડ કરી શકતા નથી</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">સ્માર્ટ સૉર્ટ મેનૂ બાર</translation>
 <translation id="1883255238294161206">સૂચિ સંકુચિત કરો</translation>
+<translation id="1883898928879467646">ટૅબ કાઢી નાખ્યું</translation>
 <translation id="1888854257756214946">પાસવર્ડ પસંદ કરો…</translation>
 <translation id="1890237935065108104">આ સેટિંગ અનુપલબ્ધ છે.</translation>
 <translation id="1894023287452300670">અહીં કિંમત ટ્રૅક કરો</translation>
@@ -1620,6 +1622,7 @@
 <translation id="6406506848690869874">સમન્વયન</translation>
 <translation id="6410390304316730527">Safe Browsing એવા હુમલાખોરોથી તમારું રક્ષણ કરી શકે છે જે તમને દુર્ભાવનાપૂર્ણ સૉફ્ટવેર ઇન્સ્ટૉલ કરવા અથવા પાસવર્ડ, ફોન નંબર અથવા ક્રેડિટ કાર્ડ જેવી વ્યક્તિગત માહિતી જાહેર કરવા જેવી જોખમી બાબતો કરવા ગેરમાર્ગે દોરી શકે છે. જો તમે આ બંધ કરો, તો અજાણી અથવા ભરોસાપાત્ર ન હોય એવી સાઇટ બ્રાઉઝ કરતી વખતે સાવધાન રહેજો.</translation>
 <translation id="6410883413783534063">એકસાથે વિભિન્ન પેજની મુલાકાત લેવા માટે ટૅબ ખોલો</translation>
+<translation id="6412195388778525440">ટૅબ કાઢી નાખો</translation>
 <translation id="6418346271604475326">PDF તૈયાર કરી રહ્યાં છે</translation>
 <translation id="6420292512900923139">તમારો ડેટા આયાત કરવામાં સમસ્યા આવી</translation>
 <translation id="6421038304268477484">અનુવાદ કરેલી ટેક્સ્ટ</translation>
@@ -2320,7 +2323,6 @@
 <translation id="8692689525339542358">જોખમી સાઇટ, ડાઉનલોડ અને એક્સ્ટેન્શનથી સુરક્ષા મેળવો.</translation>
 <translation id="8692897097252418799">તમે જે ડેટા નિકાસ કરવા માગો છો તે પસંદ કરો</translation>
 <translation id="8694281486652655615">આ આઇટમ બતાવે છે</translation>
-<translation id="8696297579102085705">તમારા ડિવાઇસ પર મોકલો</translation>
 <translation id="8697136149718343437">ઍડ્રેસ બારને સૌથી નીચે ખસેડો</translation>
 <translation id="869891660844655955">સમાપ્તિ તારીખ</translation>
 <translation id="8706253136355675497">તાપમાન</translation>
@@ -2463,6 +2465,7 @@
 <translation id="9149866541089851383">ફેરફાર કરો...</translation>
 <translation id="9152637745605628097">થીમ, રંગોમાંથી પસંદ કરો અથવા કોઈ છબી અપલોડ કરો</translation>
 <translation id="9159628751968616911">વેબપેજ મોકલો</translation>
+<translation id="9162412286847966593">તમારી સંસ્થાના ડેટા અને રેકોર્ડિંગનો ઉપયોગ જનરેટિવ AI મૉડલને બહેતર બનાવવા માટે કરવામાં આવશે નહીં. <ph name="BEGIN_LINK" />તમારી પ્રાઇવસી અને Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">ઑટોમૅટિક રીતે પાસવર્ડ ભરવાની સુવિધા ચાલુ કરો</translation>
 <translation id="9165320910061267720">કિંમતમાં ઘટાડાના અલર્ટના નોટિફિકેશન મેળવવા માટે, તમારે તમારા iOSના સેટિંગમાં નોટિફિકેશન ચાલુ કરવા પડશે.</translation>
 <translation id="9179151630575358778">આ આઇટમ છુપાવવામાં આવશે</translation>

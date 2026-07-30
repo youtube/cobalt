@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Save Passwords</translation>
 <translation id="1764070164487214210">Directions</translation>
 <translation id="1764511703783285459">The other password manager didn't share any passwords or passkeys</translation>
+<translation id="1765555082983153259">'Chrome' would like to access your microphone</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">Tools menu</translation>
 <translation id="1772468122139624049">Can't reload tabs</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Smart sort menu bar</translation>
 <translation id="1883255238294161206">Collapse list</translation>
+<translation id="1883898928879467646">Tab removed</translation>
 <translation id="1888854257756214946">Select password…</translation>
 <translation id="1890237935065108104">This setting is unavailable.</translation>
 <translation id="1894023287452300670">Track price here</translation>
@@ -1620,6 +1622,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6406506848690869874">Sync</translation>
 <translation id="6410390304316730527">Safe Browsing protects you against attackers who may trick you into doing something dangerous, like installing malicious software or revealing personal information such as passwords, phone numbers or credit cards. If you turn it off, be careful when browsing unfamiliar or unreputable sites.</translation>
 <translation id="6410883413783534063">Open tabs to visit different pages at the same time</translation>
+<translation id="6412195388778525440">Remove tab</translation>
 <translation id="6418346271604475326">Preparing PDF</translation>
 <translation id="6420292512900923139">Trouble importing your data</translation>
 <translation id="6421038304268477484">Translated text</translation>
@@ -2320,7 +2323,6 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="8692689525339542358">Get protection from dangerous sites, downloads and extensions.</translation>
 <translation id="8692897097252418799">Choose the data that you want to export</translation>
 <translation id="8694281486652655615">Shows this item</translation>
-<translation id="8696297579102085705">Send to your device</translation>
 <translation id="8697136149718343437">Move address bar to bottom</translation>
 <translation id="869891660844655955">Expiry date</translation>
 <translation id="8706253136355675497">Temperature</translation>
@@ -2463,6 +2465,7 @@ To continue from your computer, switch to <ph name="OTHER_EMAIL" />. You'll get 
 <translation id="9149866541089851383">Edit...</translation>
 <translation id="9152637745605628097">Choose from themes, colours or upload an image</translation>
 <translation id="9159628751968616911">Send web page</translation>
+<translation id="9162412286847966593">Your organisation's data and recordings won't be used to improve generative AI models. <ph name="BEGIN_LINK" />Your privacy and Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Turn on Auto-fill passwords</translation>
 <translation id="9165320910061267720">To get notifications of price drop alerts, you'll need to turn on notifications in your iOS settings.</translation>
 <translation id="9179151630575358778">Hides this item</translation>

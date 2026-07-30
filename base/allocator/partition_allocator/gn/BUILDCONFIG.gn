@@ -11,8 +11,10 @@
 build_with_chromium = false
 is_asan = false
 is_hwasan = false
-is_ubsan = false
+is_lsan = false
 is_tsan = false
+is_msan = false
+is_ubsan = false
 
 # It's best to keep the names and defaults of is_foo flags consistent with:
 # - Chrome
@@ -53,7 +55,6 @@ is_linux = current_os == "linux"
 is_mac = current_os == "mac"
 is_win = current_os == "win" || current_os == "winuwp"
 is_cast_android = false
-is_castos = false
 is_cronet_build = false
 enable_expensive_dchecks = false
 dcheck_is_configurable = false

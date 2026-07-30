@@ -81,6 +81,7 @@
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_sessions/session_data_type_controller.h"
 #include "components/sync_sessions/session_sync_service.h"
+#include "components/sync_tab_context/tab_context_data_type_controller.h"
 #include "components/sync_tab_context/tab_context_sync_service.h"
 #include "components/sync_user_events/user_event_data_type_controller.h"
 #include "components/sync_user_events/user_event_service.h"
@@ -519,7 +520,13 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
   }
 
   if (!disabled_types.Has(syncer::ENCRYPTED_TAB_CONTEXT_CONTAINER)) {
-    add_controller(CreateEncryptedTabContextContainerDataTypeController());
+    add_controller(
+        CreateEncryptedTabContextContainerDataTypeController(sync_service));
+  }
+
+  if (!disabled_types.Has(syncer::ENCRYPTED_TAB_CONTEXT_ITEM)) {
+    add_controller(
+        CreateEncryptedTabContextItemDataTypeController(sync_service));
   }
 
   if (!disabled_types.Has(syncer::SHARED_TAB_GROUP_DATA)) {
@@ -576,6 +583,10 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
 
   if (!disabled_types.Has(syncer::GEMINI_THREAD)) {
     add_controller(CreateGeminiThreadDataTypeController());
+  }
+
+  if (!disabled_types.Has(syncer::NOTEBOOK)) {
+    add_controller(CreateNotebookDataTypeController());
   }
 
   if (!disabled_types.Has(syncer::CONTEXTUAL_TASK)) {
@@ -852,7 +863,7 @@ CommonControllerBuilder::CreatePlusAddressDataTypeController() {
 
 std::unique_ptr<syncer::DataTypeController>
 CommonControllerBuilder::CreatePlusAddressSettingDataTypeController() {
-    // `plus_address_setting_service_` is null on iOS WebView.
+  // `plus_address_setting_service_` is null on iOS WebView.
   if (!plus_address_setting_service_.value() ||
       !google_groups_manager_.value()) {
     return nullptr;
@@ -915,21 +926,46 @@ CommonControllerBuilder::CreateSavedTabGroupDataTypeController() {
       std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate));
 }
 
-std::unique_ptr<syncer::DataTypeController> CommonControllerBuilder::
-    CreateEncryptedTabContextContainerDataTypeController() {
+std::unique_ptr<syncer::DataTypeController>
+CommonControllerBuilder::CreateEncryptedTabContextContainerDataTypeController(
+    syncer::SyncService* sync_service) {
   if (!base::FeatureList::IsEnabled(
           syncer::kSyncEncryptedTabContextContainer) ||
       !tab_context_sync_service_.value()) {
     return nullptr;
   }
   syncer::DataTypeControllerDelegate* delegate =
-      tab_context_sync_service_.value()->GetSyncControllerDelegate().get();
-  return std::make_unique<syncer::DataTypeController>(
+      tab_context_sync_service_.value()
+          ->GetSyncControllerDelegateForContainer()
+          .get();
+  return std::make_unique<sync_tab_context::TabContextDataTypeController>(
       syncer::ENCRYPTED_TAB_CONTEXT_CONTAINER,
       /*delegate_for_full_sync_mode=*/
       std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate),
       /*delegate_for_transport_mode=*/
-      std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate));
+      std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate),
+      sync_service);
+}
+
+std::unique_ptr<syncer::DataTypeController>
+CommonControllerBuilder::CreateEncryptedTabContextItemDataTypeController(
+    syncer::SyncService* sync_service) {
+  if (!base::FeatureList::IsEnabled(
+          syncer::kSyncEncryptedTabContextContainer) ||
+      !tab_context_sync_service_.value()) {
+    return nullptr;
+  }
+  syncer::DataTypeControllerDelegate* delegate =
+      tab_context_sync_service_.value()
+          ->GetSyncControllerDelegateForItem()
+          .get();
+  return std::make_unique<sync_tab_context::TabContextDataTypeController>(
+      syncer::ENCRYPTED_TAB_CONTEXT_ITEM,
+      /*delegate_for_full_sync_mode=*/
+      std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate),
+      /*delegate_for_transport_mode=*/
+      std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(delegate),
+      sync_service);
 }
 
 std::unique_ptr<syncer::DataTypeController>
@@ -1199,6 +1235,27 @@ CommonControllerBuilder::CreateContextualTaskDataTypeController() {
     return nullptr;
   }
   // TODO(crbug.com/445840788): In CL #4, register the type, i.e. instantiate
+  // the DataTypeController. There is more than one way to go about it,
+  // but one option is:
+  // - Create a trivial implementation of DataTypeSyncBridge which lives in
+  //   your feature's directory. It should have synchronous access to your
+  //   data model (e.g. DualReadingListModel) and be (indirectly) owned by a
+  //   CoolKeyedService (often the model itself).
+  // - Expose CoolKeyedService::GetControllerDelegate() which calls
+  //   bridge->change_processor()->GetControllerDelegate().
+  // - Inject CoolKeyedService in this class and call GetControllerDelegate()
+  //   on it to create the DataTypeController.
+  // In CLs #5, #6, ..., implement the bridge and keep adding unit tests.
+  return nullptr;
+}
+
+std::unique_ptr<syncer::DataTypeController>
+CommonControllerBuilder::CreateNotebookDataTypeController() {
+  if (!base::FeatureList::IsEnabled(syncer::kSyncNotebook)) {
+    return nullptr;
+  }
+
+  // TODO(crbug.com/531804614): In CL #4, register the type, i.e. instantiate
   // the DataTypeController. There is more than one way to go about it,
   // but one option is:
   // - Create a trivial implementation of DataTypeSyncBridge which lives in

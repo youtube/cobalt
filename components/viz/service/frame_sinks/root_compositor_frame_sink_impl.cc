@@ -223,7 +223,7 @@ RootCompositorFrameSinkImpl::Create(
       external_begin_frame_source =
           std::make_unique<ExternalBeginFrameSourceMac>(
               restart_id, params->renderer_settings.display_id,
-              output_surface.get());
+              params->refresh_rate, output_surface.get());
       created_external_begin_frame_source_mac = true;
 #endif
       if (!external_begin_frame_source && !synthetic_begin_frame_source) {
@@ -525,11 +525,6 @@ void RootCompositorFrameSinkImpl::SetSupportedRefreshRates(
   for (float rate : supported_refresh_rates) {
     const base::TimeDelta interval = base::Hertz(rate);
     exact_supported_refresh_rates_[interval] = rate;
-  }
-
-  if (external_begin_frame_source_) {
-    external_begin_frame_source_->SetSupportedRefreshRates(
-        exact_supported_refresh_rates_);
   }
 
   UpdateFrameIntervalDeciderSettings();

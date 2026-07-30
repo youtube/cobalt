@@ -22,8 +22,6 @@
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "components/viz/host/gpu_client.h"
 #include "components/vrp_flags/buildflags.h"
-#include "content/browser/attribution_reporting/attribution_internals.mojom.h"
-#include "content/browser/attribution_reporting/attribution_internals_ui.h"
 #include "content/browser/background_fetch/background_fetch_service_impl.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/bluetooth/web_bluetooth_service_impl.h"
@@ -50,8 +48,6 @@
 #include "content/browser/picture_in_picture/picture_in_picture_service_impl.h"
 #include "content/browser/preloading/anchor_element_interaction_host_impl.h"
 #include "content/browser/preloading/speculation_rules/speculation_host_impl.h"
-#include "content/browser/private_aggregation/private_aggregation_internals.mojom.h"
-#include "content/browser/private_aggregation/private_aggregation_internals_ui.h"
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_internals/process_internals_ui.h"
 #include "content/browser/quota/quota_context.h"
@@ -68,7 +64,6 @@
 #include "content/browser/security/cpsp/child_process_security_policy_impl.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_host.h"
-#include "content/browser/shared_storage/shared_storage_worklet_host.h"
 #include "content/browser/speech/speech_recognition_dispatcher_host.h"
 #include "content/browser/storage_access/storage_access_handle.h"
 #include "content/browser/tracing/traces_internals/traces_internals.mojom.h"
@@ -382,7 +377,27 @@ void BindWebNNWeightsFileCreatorForRenderFrame(
   }
 
   const bool is_incognito = host->GetBrowserContext()->IsOffTheRecord();
-  webnn::WeightsFileCreatorImpl::Create(std::move(receiver), is_incognito);
+  webnn::WeightsFileCreatorImpl::Create(
+      std::move(receiver), host->GetLastCommittedOrigin(), is_incognito);
+}
+
+template <typename WorkerHost>
+url::Origin GetWebNNWorkerOrigin(WorkerHost* host);
+
+template <>
+url::Origin GetWebNNWorkerOrigin<DedicatedWorkerHost>(
+    DedicatedWorkerHost* host) {
+  return host->GetWorkerStorageKey().origin();
+}
+
+template <>
+url::Origin GetWebNNWorkerOrigin<SharedWorkerHost>(SharedWorkerHost* host) {
+  return host->GetWorkerStorageKey().origin();
+}
+
+template <>
+url::Origin GetWebNNWorkerOrigin<ServiceWorkerHost>(ServiceWorkerHost* host) {
+  return host->GetBucketStorageKey().origin();
 }
 
 template <typename WorkerHost>
@@ -399,7 +414,8 @@ void BindWebNNWeightsFileCreatorForWorker(
 
   const bool is_incognito =
       host->GetProcessHost()->GetBrowserContext()->IsOffTheRecord();
-  webnn::WeightsFileCreatorImpl::Create(std::move(receiver), is_incognito);
+  webnn::WeightsFileCreatorImpl::Create(
+      std::move(receiver), GetWebNNWorkerOrigin(host), is_incognito);
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -1382,11 +1398,6 @@ void PopulateBinderMapWithContext(
   map->Add<device::mojom::VRService>(
       &EmptyBinderForFrame<device::mojom::VRService>);
 #endif
-  RegisterWebUIControllerInterfaceBinder<
-      private_aggregation_internals::mojom::Factory,
-      PrivateAggregationInternalsUI>(map);
-  RegisterWebUIControllerInterfaceBinder<attribution_internals::mojom::Factory,
-                                         AttributionInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<storage::mojom::IdbInternalsHandler,
                                          indexed_db::IndexedDBInternalsUI>(map);
   RegisterWebUIControllerInterfaceBinder<::mojom::ProcessInternalsHandler,
@@ -1800,36 +1811,6 @@ void PopulateBinderMap(SharedWorkerHost* host, mojo::BinderMap* map) {
   PopulateSharedWorkerBinders(host, map);
 }
 
-// Shared storage worklets
-SharedStorageWorkletHost* GetContextForHost(SharedStorageWorkletHost* host) {
-  return host;
-}
-
-void PopulateSharedStorageWorkletBinders(SharedStorageWorkletHost* host,
-                                         mojo::BinderMap* map) {
-  // Ignore requests to bind UkmRecorderFactory and FeatureObserver, since there
-  // is no current plan to support them for worklets and the renderer always
-  // tries to bind them. TODO(crbug.com/366293454).
-  map->Add<ukm::mojom::UkmRecorderFactory>(base::DoNothing());
-  map->Add<blink::mojom::FeatureObserver>(base::DoNothing());
-
-  // SharedStorageWorkletHost binders
-  // base::Unretained(host) is safe because the map is owned by
-  // |SharedStorageWorkletHost::broker_|.
-  map->Add<blink::mojom::LockManager>(base::BindRepeating(
-      &SharedStorageWorkletHost::GetLockManager, base::Unretained(host)));
-  map->Add<blink::mojom::ReportingServiceProxy>(
-      base::BindRepeating(&CreateReportingServiceProxyForSharedStorageWorklet,
-                          base::Unretained(host)));
-}
-
-void PopulateBinderMapWithContext(
-    SharedStorageWorkletHost* host,
-    mojo::BinderMapWithContext<SharedStorageWorkletHost*>* map) {}
-
-void PopulateBinderMap(SharedStorageWorkletHost* host, mojo::BinderMap* map) {
-  PopulateSharedStorageWorkletBinders(host, map);
-}
 
 // Service workers
 ServiceWorkerVersionInfo GetContextForHost(ServiceWorkerHost* host) {

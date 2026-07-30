@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Lưu mật khẩu</translation>
 <translation id="1764070164487214210">Đường đi</translation>
 <translation id="1764511703783285459">Trình quản lý mật khẩu khác không chia sẻ mật khẩu hoặc khoá truy cập nào</translation>
+<translation id="1765555082983153259">"Chrome" muốn truy cập vào micrô của bạn</translation>
 <translation id="1767766085187034454">Google Dịch</translation>
 <translation id="1771016937398045251">Trình đơn công cụ</translation>
 <translation id="1772468122139624049">Không tải lại được các thẻ</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Thanh trình đơn sắp xếp thông minh</translation>
 <translation id="1883255238294161206">Thu gọn danh sách</translation>
+<translation id="1883898928879467646">Đã xoá thẻ</translation>
 <translation id="1888854257756214946">Chọn mật khẩu…</translation>
 <translation id="1890237935065108104">Chế độ cài đặt này hiện không dùng được.</translation>
 <translation id="1894023287452300670">Theo dõi giá tại đây</translation>
@@ -1620,6 +1622,7 @@
 <translation id="6406506848690869874">Đồng bộ hóa</translation>
 <translation id="6410390304316730527">Tính năng Duyệt web an toàn bảo vệ bạn trước những kẻ tấn công có thể đánh lừa bạn làm một việc gì đó nguy hiểm như cài đặt phần mềm độc hại hoặc tiết lộ thông tin cá nhân như mật khẩu, số điện thoại hoặc thẻ tín dụng. Nếu bạn tắt tính năng này, hãy cẩn thận khi duyệt các trang web lạ hoặc không có uy tín.</translation>
 <translation id="6410883413783534063">Mở các thẻ để truy cập vào nhiều trang cùng một lúc</translation>
+<translation id="6412195388778525440">Xoá thẻ</translation>
 <translation id="6418346271604475326">Đang chuẩn bị PDF</translation>
 <translation id="6420292512900923139">Đã xảy ra sự cố khi nhập dữ liệu của bạn</translation>
 <translation id="6421038304268477484">Bản dịch</translation>
@@ -2320,7 +2323,6 @@
 <translation id="8692689525339542358">Bảo vệ bạn trước các trang web, tệp tải xuống và tiện ích nguy hiểm.</translation>
 <translation id="8692897097252418799">Chọn dữ liệu bạn muốn xuất</translation>
 <translation id="8694281486652655615">Hiện mục này</translation>
-<translation id="8696297579102085705">Gửi tới thiết bị của bạn</translation>
 <translation id="8697136149718343437">Di chuyển thanh địa chỉ xuống dưới cùng</translation>
 <translation id="869891660844655955">Ngày hết hạn</translation>
 <translation id="8706253136355675497">Nhiệt độ</translation>
@@ -2463,6 +2465,7 @@
 <translation id="9149866541089851383">Chỉnh sửa...</translation>
 <translation id="9152637745605628097">Chọn trong số các giao diện màu sắc hoặc tải một hình ảnh lên</translation>
 <translation id="9159628751968616911">Gửi trang web</translation>
+<translation id="9162412286847966593">Dữ liệu và bản ghi của tổ chức bạn sẽ không được dùng để cải thiện các mô hình AI tạo sinh. <ph name="BEGIN_LINK" />Quyền riêng tư của bạn và Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Bật tính năng Tự động điền mật khẩu</translation>
 <translation id="9165320910061267720">Để nhận thông báo giảm giá, bạn cần bật thông báo trong phần cài đặt trên iOS.</translation>
 <translation id="9179151630575358778">Ẩn mục này</translation>

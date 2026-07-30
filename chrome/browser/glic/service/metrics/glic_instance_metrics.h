@@ -51,7 +51,8 @@ namespace glic {
 class GlicSharingManagerInternal;
 struct ShowOptions;
 
-using SafeEmbedderKey = std::variant<tabs::TabHandle, FloatingEmbedderKey>;
+using SafeEmbedderKey =
+    std::variant<tabs::TabHandle, FloatingEmbedderKey, TabEmbedderKey>;
 
 // Tracks and logs lifecycle events for a single GlicInstance.
 class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
@@ -60,6 +61,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
     kUnknown,
     kSidePanel,
     kFloaty,
+    kTab,
   };
 
   explicit GlicInstanceMetrics(
@@ -124,7 +126,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Called when GlicInstanceImpl::SwitchConversation is called from this
   // instance (usually via 'start new chat' or re etn chats selection).
   void OnSwitchFromConversation(const ShowOptions& show_options,
-                                const std::optional<EmbedderKey>& key);
+                                std::optional<EmbedderKey> active_key);
 
   // Called when GlicInstanceImpl::SwitchConversation is called to activate this
   // instance (usually via 'start new chat' or recent chats selection).
@@ -165,8 +167,6 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // instance.
   void OnOpen(glic::mojom::InvocationSource source, const ShowOptions& options);
 
-  // Returns true if this is the first time this specific embedder is becoming
-  // visible after being opened/closed.
   bool MarkShownAndCheckIfFirstTime(EmbedderKey key);
 
   void ResetShownState(EmbedderKey key);
@@ -279,6 +279,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void RecordResponseLatencyByAttachedTabCount(base::TimeDelta latency);
 
   void RecordSkillsInvokeFunnelStep(SkillsInvokeFunnel invoke_funnel);
+  void RecordAndResetAutoOpenPdfMetric();
 
   base::flat_map<GlicInstanceEvent, int> event_counts_;
   EmbedderType current_ui_mode_ = EmbedderType::kUnknown;
@@ -310,6 +311,9 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   base::TimeTicks creation_time_;
   base::TimeTicks floaty_open_time_;
   std::map<tabs::TabHandle, base::TimeTicks> side_panel_open_times_;
+  std::vector<tabs::TabHandle> tabs_with_side_panel_;
+  ukm::SourceId auto_open_pdf_source_id_ = ukm::kInvalidSourceId;
+  base::TimeTicks auto_open_pdf_start_time_;
 
   std::unique_ptr<GlicStateTracker> activity_tracker_;
   std::unique_ptr<GlicStateTracker> visibility_tracker_;
@@ -352,7 +356,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   base::flat_set<SafeEmbedderKey> seen_embedders_;
 
-  std::unique_ptr<GlicWindowInvocationTracker> invocation_tracker_;
+  std::vector<std::unique_ptr<GlicCuiTracker>> cui_trackers_;
 };
 
 }  // namespace glic

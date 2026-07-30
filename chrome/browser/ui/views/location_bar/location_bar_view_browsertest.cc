@@ -273,7 +273,7 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, ScriptBlockedIcon) {
   EXPECT_FALSE(script_blocked_icon.GetVisible());
 
   // Disable javascript.
-  HostContentSettingsMapFactory::GetForProfile(browser()->profile())
+  HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile())
       ->SetDefaultContentSetting(ContentSettingsType::JAVASCRIPT,
                                  CONTENT_SETTING_BLOCK);
   // Reload the page
@@ -598,11 +598,8 @@ class LocationBarViewPageActionHideWhileEditingTests
     : public InProcessBrowserTest {
  public:
   LocationBarViewPageActionHideWhileEditingTests() {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        ::features::kPageActionsMigration,
-        {
-            {features::kPageActionsMigrationZoom.name, "true"},
-        });
+    scoped_feature_list_.InitAndEnableFeature(
+        ::features::kPageActionsMigration);
   }
 
   void SetUpOnMainThread() override {

@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -76,9 +77,11 @@ ValidateFiles(const std::vector<std::pair<std::string, float>>& ranker_results,
 }  // anonymous namespace
 
 LocalFileSuggestionProvider::LocalFileSuggestionProvider(
+    PrefService* local_state,
     Profile* profile,
     base::RepeatingCallback<void(FileSuggestionType)> notify_update_callback)
     : FileSuggestionProvider(notify_update_callback),
+      local_state_(CHECK_DEREF(local_state)),
       profile_(profile),
       max_last_modified_time_(GetMaxFileSuggestionRecency()) {
   DCHECK(profile_);
@@ -150,7 +153,8 @@ void LocalFileSuggestionProvider::GetSuggestFileData(
       FROM_HERE,
       base::BindOnce(&ValidateFiles, files_ranker_->GetAll(),
                      max_last_modified_time_,
-                     (file_manager::trash::IsTrashEnabledForProfile(profile_)
+                     (file_manager::trash::IsTrashEnabledForProfile(
+                          local_state_.get(), profile_)
                           ? trash_paths_
                           : std::vector<base::FilePath>())),
       base::BindOnce(&LocalFileSuggestionProvider::OnValidationComplete,

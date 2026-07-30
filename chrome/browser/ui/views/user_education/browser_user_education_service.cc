@@ -71,11 +71,6 @@
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/views/user_education/ios_promo_bubble_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
-#include "components/signin/public/base/signin_switches.h"
-#if BUILDFLAG(IS_WIN)
-#include "chrome/browser/ui/search_promotion/search_promotion_manager.h"
-#include "chrome/browser/ui/search_promotion/search_promotion_manager_factory.h"
-#endif
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
@@ -111,6 +106,7 @@
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -157,6 +153,11 @@
 #if BUILDFLAG(IS_MAC)
 #include "components/user_education/views/help_bubble_factory_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/search_promotion/search_promotion_manager.h"
+#include "chrome/browser/ui/search_promotion/search_promotion_manager_factory.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
@@ -760,6 +761,28 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(117, "emiliapaz@chromium.org",
                        "Triggered when an extension "
                        "requests access permission.")));
+
+  // kIPHExtensionsPinnedByDefaultFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForCustomAction(
+          feature_engagement::kIPHExtensionsPinnedByDefaultFeature,
+          kExtensionsPinnedByDefaultElementId,
+          IDS_EXTENSIONS_PINNED_BY_DEFAULT_IPH_BODY,
+          IDS_EXTENSIONS_PINNED_BY_DEFAULT_IPH_GO_TO_EXTENSIONS,
+          base::BindRepeating(
+              [](ContextPtr ctx,
+                 user_education::FeaturePromoHandle promo_handle) {
+                Browser* const browser = GetBrowser(ctx);
+                if (browser) {
+                  chrome::ShowExtensions(browser);
+                }
+              }))
+          .SetBubbleArrow(user_education::HelpBubbleArrow::kTopCenter)
+          .SetInAnyContext(true)
+          .SetMetadata(
+              155, "evasu@google.com",
+              "Triggered when the user installs a new extension and it is "
+              "pinned by default to the toolbar.")));
 
   // kIPHExtensionsZeroStatePromoFeature
   Metadata iph_extensions_zero_state_promo_feature_metaData(

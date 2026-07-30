@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.omnibox;
 import android.view.ContextMenu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnCreateContextMenuListener;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -29,7 +28,7 @@ import java.util.Set;
 
 /** Helper for the UrlBar context menu. */
 @NullMarked
-class UrlBarContextMenuHelper implements OnCreateContextMenuListener {
+class UrlBarContextMenuHelper {
     /** Interface providing the callback dependencies for the context menu. */
     public interface Delegate {
         /** See {@link android.widget.TextView#onTextContextMenuItem(int)} */
@@ -50,7 +49,9 @@ class UrlBarContextMenuHelper implements OnCreateContextMenuListener {
                     android.R.id.shareText,
                     android.R.id.undo,
                     android.R.id.redo,
-                    R.id.url_bar_delete);
+                    R.id.url_bar_delete,
+                    R.id.url_bar_always_show_ai_mode,
+                    R.id.url_bar_manage_search_engines);
 
     public static final float INVALID_TOUCH_COORDINATE = -1f;
 
@@ -72,7 +73,6 @@ class UrlBarContextMenuHelper implements OnCreateContextMenuListener {
     }
 
     void destroy() {
-        mAnchorView.setOnCreateContextMenuListener(null);
         mListMenuHost.dismiss();
     }
 
@@ -90,9 +90,7 @@ class UrlBarContextMenuHelper implements OnCreateContextMenuListener {
         mTouchY = INVALID_TOUCH_COORDINATE;
     }
 
-    @Override
-    public void onCreateContextMenu(
-            ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+    public void showListMenu(ContextMenu menu) {
         if (!OmniboxFeatures.sOmniboxListMenuContextMenu.isEnabled()) {
             return;
         }
@@ -120,33 +118,19 @@ class UrlBarContextMenuHelper implements OnCreateContextMenuListener {
                                 .withTitle(title != null ? title.toString() : "")
                                 .withMenuId(itemId)
                                 .withEnabled(item.isEnabled());
+
+                if (item.isCheckable() && item.isChecked()) {
+                    builder.withStartIconRes(R.drawable.ic_done_blue);
+                }
                 mListItems.add(builder.build());
             }
         }
 
-        Runnable manageSearchEnginesCallback = mDelegate.getManageSearchEnginesCallback();
-        if (manageSearchEnginesCallback != null && OmniboxFeatures.sOmniboxSiteSearch.isEnabled()) {
-            if (!mListItems.isEmpty()) {
-                mListItems.add(BasicListMenu.buildMenuDivider(false));
-            }
-            mListItems.add(
-                    new ListItemBuilder()
-                            .withTitle(
-                                    mAnchorView
-                                            .getContext()
-                                            .getString(
-                                                    R.string.manage_search_engines_and_site_search))
-                            .withMenuId(R.id.url_bar_manage_search_engines)
-                            .build());
-        }
-
         if (mListItems.isEmpty()) {
-            menu.clear();
             return;
         }
 
         mListMenuHost.showMenu();
-        menu.clear();
     }
 
     private ListMenuDelegate createListMenuDelegate() {

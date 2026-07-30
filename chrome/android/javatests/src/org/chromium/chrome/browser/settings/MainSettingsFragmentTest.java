@@ -83,9 +83,9 @@ import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.about_settings.AboutChromeSettings;
 import org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragment;
+import org.chromium.chrome.browser.autofill.settings.AutofillAndPasswordsFragment.AutofillSettingsReferrer;
 import org.chromium.chrome.browser.autofill.settings.AutofillPaymentMethodsFragment;
 import org.chromium.chrome.browser.autofill.settings.AutofillProfilesFragment;
-import org.chromium.chrome.browser.autofill.settings.HomeOfTransactionsFragment.AutofillSettingsReferrer;
 import org.chromium.chrome.browser.download.settings.DownloadSettings;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -1095,15 +1095,15 @@ public class MainSettingsFragmentTest {
 
         if (settingsFragmentClass == null) return pref;
 
+        String fragment = ThreadUtils.runOnUiThreadBlocking(pref::getFragment);
         try {
-            Assert.assertNotNull(
-                    "Fragment attached to the preference is null.", pref.getFragment());
+            Assert.assertNotNull("Fragment attached to the preference is null.", fragment);
             Assert.assertEquals(
                     "Preference class is different.",
                     settingsFragmentClass,
-                    Class.forName(pref.getFragment()));
+                    Class.forName(fragment));
         } catch (ClassNotFoundException e) {
-            throw new AssertionError("Pref fragment <" + pref.getFragment() + "> is not found.");
+            throw new AssertionError("Pref fragment <" + fragment + "> is not found.");
         }
         return pref;
     }

@@ -49,11 +49,23 @@ class AutofillAiPersonalContextAccessManagerImpl
     : public AutofillAiPersonalContextAccessManager,
       public personal_context::PersonalContextEligibilityService::Observer {
  public:
-  // The TTL for prefetched (masked/non-SPII) entities and presence signals.
-  static constexpr base::TimeDelta kPrefetchedEntitiesAndSignalsCacheTTL =
-      base::Minutes(30);
-  // The TTL for unmasked sensitive PII (SPII) entities.
-  static constexpr base::TimeDelta kUnmaskedSpiiCacheTTL = base::Minutes(1);
+
+  // LINT.IfChange(AutofillAiPersonalContextPrefetchTriggerResult)
+  // Represents the outcome when a prefetch trigger is evaluated for a requested
+  // entity type. Logged to UMA.
+  enum class PrefetchTriggerResult {
+    // A new network request to the backend service is initiated (Cache Miss).
+    kInitiated = 0,
+    // The fetch is skipped because the cached data is still fresh.
+    kSkippedFreshCache = 1,
+    // The fetch is skipped because a recent fetch failed and the retry delay
+    // configured in exponential backoff has not yet expired.
+    kSkippedBackoff = 2,
+    // The fetch is skipped because a request for the type is already in-flight.
+    kSkippedInFlight = 3,
+    kMaxValue = kSkippedInFlight,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiPersonalContextPrefetchTriggerResult)
 
   AutofillAiPersonalContextAccessManagerImpl(
       personal_context::PersonalContextService* personal_context_service,
@@ -88,6 +100,16 @@ class AutofillAiPersonalContextAccessManagerImpl
   friend class AutofillAiPersonalContextAccessManagerImplTestApi;
   using SpiiEntityPresenceSignal = EntityType;
 
+  // Represents the type of personal context network request sent to the server.
+  enum class RequestType {
+    // Request for non-sensitive data and presence signals for sensitive data.
+    kNonSpiiAndPresence,
+    // Request for masked sensitive data.
+    kSpiiMasked,
+    // Request for unmasking sensitive data.
+    kSpiiUnmasking,
+  };
+
   // Results of parsing the server response during prefetch requests. It bundles
   // the internal `EntityInstance` representation with its original
   // `personal_context::proto::Entity` received from the server. The original
@@ -118,11 +140,10 @@ class AutofillAiPersonalContextAccessManagerImpl
   void ResetStateForType(EntityType type);
 
   // Handles the asynchronous result of the personal context fetch.
-  // `requested_spii_presence` expresses whether SPII types are fetched
-  // or only their presence is indicated
   void OnPrefetchContextRequestComplete(
       std::vector<EntityType> requested_types,
-      bool requested_spii_presence,
+      RequestType request_type,
+      base::TimeTicks request_start_time,
       personal_context::FetchContextResult result);
 
   // Parses the raw protobuf string response and converts it into a vector of
@@ -135,6 +156,7 @@ class AutofillAiPersonalContextAccessManagerImpl
   void OnFetchPiiEntitiesComplete(
       const EntityInstance::EntityId& id,
       GetUnmaskedSpiiEntityCallback callback,
+      base::TimeTicks request_start_time,
       personal_context::FetchPiiEntitiesResult result);
 
   // Processes a batch of prefetched entities, by
@@ -145,10 +167,8 @@ class AutofillAiPersonalContextAccessManagerImpl
   void ProcessPrefetchedEntities(std::vector<EntityType> requested_types,
                                  std::vector<ParsedEntity> parsed_entities);
 
-  // Returns true if a network request should be initiated for `type`.
-  // This is true if the type is not cached, its cache TTL has expired, or a
-  // previous fetch failed and is now eligible for a retry.
-  bool ShouldRequestType(EntityType type) const;
+  // Evaluates the prefetch trigger outcome for a requested entity type.
+  PrefetchTriggerResult DeterminePrefetchTriggerResult(EntityType type) const;
 
   // Evaluates whether enough time has elapsed since the last failure to
   // attempt fetching the type again, taking backoff delays into account.
@@ -163,11 +183,12 @@ class AutofillAiPersonalContextAccessManagerImpl
       std::optional<base::span<const EntityInstance>> entities);
 
   // Caches an unmasked SPII `entity`, so it can be refilled without an
-  // additional network round trip for `kUnmaskedSpiiCacheTTL`.
+  // additional network round trip for the duration of
+  // `kAutofillAmbientAutofillUnmaskedSpiiCacheTTL`.
   void CacheUnmaskedSpiiEntity(EntityInstance entity);
 
   // Caches a presence signal for an SPII `type`. Evicts the signal after
-  // `kPrefetchedEntitiesAndSignalsCacheTTL` time.
+  // `kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL` time.
   void CachePresenceSignal(SpiiEntityPresenceSignal signal);
 
   // Handles a failed network response for a prefetch request targeting
@@ -176,7 +197,15 @@ class AutofillAiPersonalContextAccessManagerImpl
   // failure status, as their outcome is governed by the dedicated SPII data
   // request.
   void HandleFailedResponse(base::span<const EntityType> requested_types,
-                            bool requested_spii_presence);
+                            RequestType request_type);
+
+  // Logs the request latency of a personal context network request.
+  void LogRequestLatency(RequestType request_type, base::TimeTicks start_time);
+
+  // Logs the total latency for a prefetch request of a specific `type`.
+  // Latency is only logged if the previous status was `kPending` and the
+  // request start time is valid.
+  void LogPrefetchTotalLatency(EntityType type);
 
   const raw_ref<personal_context::PersonalContextService>
       personal_context_service_;
@@ -192,7 +221,8 @@ class AutofillAiPersonalContextAccessManagerImpl
   //
   // **Eviction Mechanism**: Managed **per individual entity** (not per type).
   // When an entity is individually unmasked, it is added here, and a separate
-  // task is scheduled to evict just this entity after `kUnmaskedSpiiCacheTTL`.
+  // task is scheduled to evict just this entity after
+  // `kAutofillAmbientAutofillUnmaskedSpiiCacheTTL`.
   //
   // **Interaction with Prefetched entities**:
   // When a prefetched entity type is evicted, all unmasked entities of the same
@@ -209,7 +239,8 @@ class AutofillAiPersonalContextAccessManagerImpl
   //
   // **Eviction Mechanism**: Managed per type. When a presence signal is
   // received, it is added here, and a separate task is scheduled to evict just
-  // this signal after `kPrefetchedEntitiesAndSignalsCacheTTL`.
+  // this signal after
+  // `kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL`.
   base::flat_set<SpiiEntityPresenceSignal> spii_presence_signal_cache_;
 
   base::ObserverList<AutofillAiPersonalContextAccessManager::Observer>

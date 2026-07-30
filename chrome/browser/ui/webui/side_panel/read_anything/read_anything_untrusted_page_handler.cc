@@ -1202,12 +1202,23 @@ void ReadAnythingUntrustedPageHandler::OnDistillationStatus(
     int word_count) {
   if (last_open_trigger_.has_value() &&
       last_open_trigger_.value() == ReadAnythingOpenTrigger::kOmniboxChip) {
-    last_open_trigger_.reset();
-    base::UmaHistogramEnumeration(
-        "Accessibility.ReadAnything.DistillationStatusAfterOmnibox", status);
-    base::UmaHistogramCustomCounts(
-        "Accessibility.ReadAnything.WordsDistilledAfterOmnibox", word_count, 1,
-        kMaxWordsDistilled, kWordsDistilledBuckets);
+    if (status != read_anything::mojom::DistillationStatus::kStillRunning) {
+      last_open_trigger_.reset();
+      base::UmaHistogramEnumeration(
+          "Accessibility.ReadAnything.DistillationStatusAfterOmnibox", status);
+      base::UmaHistogramCustomCounts(
+          "Accessibility.ReadAnything.WordsDistilledAfterOmnibox", word_count,
+          1, kMaxWordsDistilled, kWordsDistilledBuckets);
+
+      content::WebContents* web_contents =
+          main_observer_ ? main_observer_->web_contents() : nullptr;
+      if (web_contents && web_contents->GetPrimaryMainFrame()) {
+        ukm::builders::Accessibility_ReadAnything_OmniboxEntryPointDistillation(
+            web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId())
+            .SetDistillationStatus(static_cast<int>(status))
+            .Record(ukm::UkmRecorder::Get());
+      }
+    }
   }
 }
 
@@ -1223,11 +1234,24 @@ void ReadAnythingUntrustedPageHandler::SetDefaultLanguageCode(
 
 void ReadAnythingUntrustedPageHandler::Activate(
     bool active,
+    // TODO (crbug.com/533115262): Replace ReadAnythingOpenTrigger type with
+    // read_anything::mojom::ReadAnythingOpenTrigger type.
+    // TODO (crbug.com/534820738): Remove optional from the
+    // ReadAnythingOpenTrigger type, use kUnknown enum when no open trigger is
+    // defined.
     std::optional<ReadAnythingOpenTrigger> open_trigger,
     std::optional<base::TimeDelta> completed_session_duration) {
   active_ = active;
   if (active_) {
     last_open_trigger_ = open_trigger;
+    if (open_trigger.has_value()) {
+      page_->OnReadingModeShown(
+          static_cast<read_anything::mojom::ReadAnythingOpenTrigger>(
+              *open_trigger));
+    } else {
+      page_->OnReadingModeShown(
+          read_anything::mojom::ReadAnythingOpenTrigger::kUnknown);
+    }
     tab_will_detach_ = false;
     if (features::IsImmersiveReadAnythingEnabled()) {
       // Signal that reading mode has been re-opened and is no longer hidden if

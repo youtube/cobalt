@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/glic_invoke_handler.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
+#include "chrome/browser/glic/service/metrics/glic_invoke_metrics.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
 #include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
@@ -78,6 +79,7 @@ class GlicInvokeBrowserTest : public GlicBrowserTestMixin<PlatformBrowserTest> {
 };
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidTab) {
+  GlicHistogramTester histogram_tester;
   base::test::TestFuture<GlicInvokeError> error_future;
   GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
   options.target.surface = tabs::TabHandle::Null();
@@ -86,6 +88,12 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidTab) {
   coordinator().Invoke(std::move(options));
 
   EXPECT_EQ(error_future.Get(), GlicInvokeError::kInvalidTab);
+  histogram_tester.ExpectUniqueSample("Glic.Invoke.InvocationSource",
+                                      mojom::InvocationSource::kOsButton, 1);
+  histogram_tester.ExpectUniqueSample("Glic.InvokeResult",
+                                      GlicInvokeError::kInvalidTab, 1);
+  histogram_tester.ExpectUniqueSample("Glic.InvokeResult.OsButton",
+                                      GlicInvokeError::kInvalidTab, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
@@ -100,6 +108,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   ASSERT_FALSE(handle.Get());
 
   // 3. Try to invoke Glic targeting the destroyed tab.
+  GlicHistogramTester histogram_tester;
   base::test::TestFuture<GlicInvokeError> error_future;
   GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
   options.target.surface = handle;
@@ -110,6 +119,12 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   // 4. It should fail with GlicInvokeError::kTabClosed because the handle is
   // invalid now.
   EXPECT_EQ(error_future.Get(), GlicInvokeError::kTabClosed);
+  histogram_tester.ExpectUniqueSample("Glic.Invoke.InvocationSource",
+                                      mojom::InvocationSource::kOsButton, 1);
+  histogram_tester.ExpectUniqueSample("Glic.InvokeResult",
+                                      GlicInvokeError::kTabClosed, 1);
+  histogram_tester.ExpectUniqueSample("Glic.InvokeResult.OsButton",
+                                      GlicInvokeError::kTabClosed, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithEmptyConversationId) {
@@ -533,6 +548,29 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithPromptsSmokeTest) {
                             mojom::InvocationSource::kOsButton);
   options.on_success = success_future.GetCallback();
   options.prompts = {"test prompt"};
+
+  coordinator().Invoke(std::move(options));
+
+  EXPECT_TRUE(success_future.Wait());
+
+  GlicInstanceImpl* instance = GetInstanceForTab(tab);
+  ASSERT_TRUE(instance);
+
+  ASSERT_OK(WaitForGlicClient(instance));
+}
+
+// Verifies that invoking with a skill_id doesn't cause any crashes or failures
+// during the processing of options. Note: this acts as a smoke test and does
+// not intercept the IPC to verify the skill_id was actually delivered to the
+// WebUI.
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithSkillIdSmokeTest) {
+  tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
+
+  base::test::TestFuture<void> success_future;
+  GlicInvokeOptions options(glic::Target(*tab),
+                            mojom::InvocationSource::kOsButton);
+  options.on_success = success_future.GetCallback();
+  options.skill_id = "test_skill_id";
 
   coordinator().Invoke(std::move(options));
 
@@ -1194,7 +1232,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeActuationBrowserTest,
   // Verify the instance transitioned to actuating.
   EXPECT_TRUE(instance->IsActuating());
 
-  // Spin the message loop to ensure any incorrect completion tasks run.
+  // Flush the message loop to ensure no incorrect async completion tasks run.
   base::RunLoop run_loop;
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, run_loop.QuitClosure());
@@ -1212,6 +1250,85 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeActuationBrowserTest,
 
   // Now the invocation should finally complete.
   EXPECT_TRUE(success_future.Wait());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInvokeActuationBrowserTest,
+                       InvokeDoesNotFailOnTabClosedAfterActuationStarts) {
+  // Add a new tab so we don't close the browser when we close the active tab.
+  tabs::TabInterface* tab2 = CreateAndActivateTab(GURL("about:blank"));
+
+  // Go back to the original tab and open Glic.
+  tabs::TabInterface* tab = GetTabListInterface()->GetTab(0);
+  ActivateTab(tab);
+
+  base::test::TestFuture<void> success_future;
+  base::test::TestFuture<GlicInvokeError> error_future;
+  GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
+  options.feature_mode = mojom::FeatureMode::kActuation;
+  options.on_success = success_future.GetCallback();
+  options.on_error = error_future.GetCallback();
+  options.target = Target(*tab);
+
+  // 1. Trigger invocation in actuation mode.
+  coordinator().Invoke(std::move(options));
+
+  auto* instance = GetInstanceForTab(tab);
+  ASSERT_TRUE(instance);
+  auto weak_instance = static_cast<GlicInstanceImpl*>(instance)->GetWeakPtr();
+
+  // Pin tab2 to the same instance to keep it alive when tab is closed.
+  weak_instance->GetSharingManagerInternal().PinTabs({tab2->GetHandle()},
+                                                     GlicPinTrigger::kUnknown);
+
+  // Wait until the web client is connected.
+  ASSERT_OK(WaitForGlicClient(weak_instance.get()));
+
+  // 2. Simulate actuation starting by creating an actor task.
+  auto task_id_result = CreateActorTask(weak_instance.get());
+  ASSERT_TRUE(task_id_result.has_value()) << task_id_result.error();
+  auto task_id = task_id_result.value();
+
+  EXPECT_TRUE(weak_instance->IsActuating());
+
+  // Spin the message loop to ensure that GlicInvokeHandler processes the
+  // actuation state change.
+  base::RunLoop run_loop;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Ensure the renderer has processed the invoke mojo IPC before we freeze it
+  // by closing the tab.
+  EXPECT_EQ(true,
+            content::EvalJs(weak_instance->host().webui_contents(), "true"));
+
+  // 3. Close the tab. This should NOT fail the invocation because actuation
+  // started.
+  tab->Close();
+
+  // Flush the message loop to ensure that no asynchronous error tasks were
+  // posted as a result of closing the tab.
+  base::RunLoop run_loop_close;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop_close.QuitClosure());
+  run_loop_close.Run();
+
+  // The invocation should STILL not be complete (nor failed) because actuation
+  // is ongoing.
+  EXPECT_FALSE(success_future.IsReady());
+  EXPECT_FALSE(error_future.IsReady());
+
+  if (!weak_instance) {
+    return;
+  }
+
+  // 4. Simulate actuation finishing.
+  if (auto* session =
+          weak_instance->GetActorTaskManager()->GetClientSessionForTesting()) {
+    session->StopActorTask(static_cast<int32_t>(task_id),
+                           mojom::ActorTaskStopReason::kTaskComplete);
+    EXPECT_TRUE(success_future.Wait());
+  }
 }
 
 class GlicInvokeDefaultToLastActiveBrowserTest : public GlicInvokeBrowserTest {

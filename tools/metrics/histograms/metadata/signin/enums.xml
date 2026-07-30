@@ -723,6 +723,8 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//ios/chrome/browser/signin/model/authentication_service.h:IOSProfileInitializationOutcome) -->
 
+<!-- LINT.IfChange(LaunchWebAuthFlowResult) -->
+
 <enum name="LaunchWebAuthFlowResult">
   <int value="0" label="Success"/>
   <int value="1" label="kOffTheRecord"/>
@@ -734,7 +736,10 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="kCannotCreateWindow"/>
   <int value="8" label="kInvalidURLScheme"/>
   <int value="9" label="kBrowserContextShutDown"/>
+  <int value="10" label="kWebAuthFlowInProgress"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/extensions/api/identity/identity_launch_web_auth_flow_function.h:LaunchWebAuthFlowResult) -->
 
 <!-- LINT.IfChange(MirrorHeaderEvent) -->
 
@@ -887,7 +892,7 @@ chromium-metrics-reviews@google.com.
   <int value="101" label="Context Memory Service"/>
   <int value="102" label="Sync Preview"/>
   <int value="103" label="Fpop Service"/>
-  <int value="104" label="Context Containers Service"/>
+  <int value="104" label="Notebooks Service"/>
   <int value="105" label="Remote Actor Login Credentials Service"/>
 </enum>
 
@@ -1127,6 +1132,7 @@ chromium-metrics-reviews@google.com.
   <int value="105" label="Indigo"/>
   <int value="106" label="Overflow Menu (iOS only)"/>
   <int value="107" label="Level Up (iOS only)"/>
+  <int value="108" label="Undo button from the signout snackbar (iOS only)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

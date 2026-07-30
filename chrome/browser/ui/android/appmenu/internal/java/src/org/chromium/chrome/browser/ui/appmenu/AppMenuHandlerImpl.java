@@ -20,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.widget.Adapter;
+import android.widget.ListView;
 import android.widget.PopupWindow;
 
 import androidx.annotation.ColorInt;
@@ -58,6 +59,7 @@ import org.chromium.ui.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -127,6 +129,8 @@ class AppMenuHandlerImpl
      * null} means no item will be highlighted. This value will be cleared after the menu is opened.
      */
     private @Nullable Integer mHighlightMenuId;
+
+    private boolean mShouldScrollHighlight;
 
     /**
      * Constructs an AppMenuHandlerImpl object.
@@ -249,15 +253,24 @@ class AppMenuHandlerImpl
     @Override
     public void setMenuHighlight(@Nullable Integer highlightItemId) {
         boolean highlighting = highlightItemId != null;
-        setMenuHighlight(highlightItemId, highlighting);
+        setMenuHighlight(highlightItemId, highlighting, /* shouldScroll= */ false);
     }
 
     @Override
     public void setMenuHighlight(
             @Nullable Integer highlightItemId, boolean shouldHighlightMenuButton) {
+        setMenuHighlight(highlightItemId, shouldHighlightMenuButton, /* shouldScroll= */ false);
+    }
+
+    @Override
+    public void setMenuHighlight(
+            @Nullable Integer highlightItemId,
+            boolean shouldHighlightMenuButton,
+            boolean shouldScroll) {
         if (mHighlightMenuId == null && highlightItemId == null) return;
         if (mHighlightMenuId != null && mHighlightMenuId.equals(highlightItemId)) return;
         mHighlightMenuId = highlightItemId;
+        mShouldScrollHighlight = shouldScroll;
         for (AppMenuObserver observer : mObservers) {
             observer.onMenuHighlightChanged(shouldHighlightMenuButton);
         }
@@ -284,6 +297,13 @@ class AppMenuHandlerImpl
     // TODO(crbug.com/40479664): Fix this properly.
     @SuppressLint("ResourceType")
     public boolean showAppMenu(@Nullable View anchorView, boolean startDragging) {
+        return showAppMenu(anchorView, startDragging, false);
+    }
+
+    @Override
+    @SuppressLint("ResourceType")
+    public boolean showAppMenu(
+            @Nullable View anchorView, boolean startDragging, boolean isFromBottomBar) {
         if (!shouldShowAppMenu() || isAppMenuShowing()) return false;
 
         TextBubble.dismissBubbles();
@@ -401,7 +421,8 @@ class AppMenuHandlerImpl
                                     finalIsByPermanentButton,
                                     rotation,
                                     mAppRect.get(),
-                                    startDragging);
+                                    startDragging,
+                                    isFromBottomBar);
                             // https://github.com/uber/NullAway/issues/1190
                             assumeNonNull(mKeyboardVisibilityListener);
                             keyboardVisibilityDelegate.removeKeyboardVisibilityListener(
@@ -417,7 +438,8 @@ class AppMenuHandlerImpl
                     isByPermanentButton,
                     rotation,
                     mAppRect.get(),
-                    startDragging);
+                    startDragging,
+                    isFromBottomBar);
         }
         return true;
     }
@@ -771,7 +793,8 @@ class AppMenuHandlerImpl
             boolean isByPermanentButton,
             Integer rotation,
             Rect appRect,
-            boolean startDragging) {
+            boolean startDragging,
+            boolean isFromBottomBar) {
         // Use full size of window for abnormal appRect.
         if (appRect.left < 0 && appRect.top < 0) {
             appRect.left = 0;
@@ -792,9 +815,31 @@ class AppMenuHandlerImpl
                 mDelegate.isMenuIconAtStart(),
                 mBrowserControlsStateProvider.getControlsPosition(),
                 addTopPaddingBeforeFirstRow(),
+                isFromBottomBar,
                 this);
         assumeNonNull(mAppMenuDragHelper);
         mAppMenuDragHelper.onShow(startDragging);
+
+        // This code is responsible for scrolling the menu to show the highlighted menu,
+        // and this will apply only if requested (such as for certain IPH highlights).
+        if (mHighlightMenuId != null
+                && mModelList != null
+                && mAppMenu != null
+                && mShouldScrollHighlight) {
+            ListView listView = mAppMenu.getListView();
+            if (listView != null) {
+                for (int i = 0; i < mModelList.size(); i++) {
+                    if (Objects.equals(
+                            mModelList.get(i).model.get(AppMenuItemProperties.MENU_ITEM_ID),
+                            mHighlightMenuId)) {
+                        final int position = i;
+                        listView.post(() -> listView.smoothScrollToPosition(position));
+                        break;
+                    }
+                }
+            }
+        }
+
         clearMenuHighlight();
         RecordUserAction.record("MobileMenuShow");
         mDelegate.onMenuShown();
@@ -838,7 +883,10 @@ class AppMenuHandlerImpl
 
     @Override
     public AppMenuPopup createAndShowFlyoutPopup(
-            List<ListItem> items, View view, Runnable dismissRunnable) {
+            List<ListItem> items,
+            View view,
+            Runnable dismissRunnable,
+            View.OnScrollChangeListener scrollListener) {
         ModelList modelList = new ModelList();
 
         assert (items.size() > 0);
@@ -850,6 +898,6 @@ class AppMenuHandlerImpl
         registerViewBinders(adapter, customSizingProviders, mDelegate.shouldShowIconBeforeItem());
 
         assert mAppMenu != null;
-        return mAppMenu.createAndShowFlyoutPopup(adapter, view, dismissRunnable);
+        return mAppMenu.createAndShowFlyoutPopup(adapter, view, dismissRunnable, scrollListener);
     }
 }

@@ -15,6 +15,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -39,6 +40,7 @@
 #include "services/audio/output_tapper.h"
 #include "services/audio/reference_output.h"
 #include "services/audio/reference_signal_provider.h"
+#include "services/audio/voice_isolation_handler.h"
 
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
 #include "media/webrtc/voice_isolation/voice_isolation.h"
@@ -120,8 +122,9 @@ const char* SilenceStateToString(InputController::SilenceState state) {
 float AveragePower(const media::AudioBus& buffer) {
   const int frames = buffer.frames();
   const int channels = buffer.channels();
-  if (frames <= 0 || channels <= 0)
+  if (frames <= 0 || channels <= 0) {
     return 0.0f;
+  }
 
   // Scan all channels and accumulate the sum of squares for all samples.
   float sum_power = 0.0f;
@@ -354,42 +357,18 @@ class AudioCallback : public media::AudioInputStream::AudioInputCallback {
   bool error_during_callback_ = false;
 };
 
-InputController::InputController(
-    EventHandler* event_handler,
-    SyncWriter* sync_writer,
-    std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
-    media::AecdumpRecordingManager* aecdump_recording_manager,
-    raw_ptr<MlModelManager> ml_model_manager,
-    media::mojom::AudioProcessingConfigPtr processing_config,
-    const media::AudioParameters& output_params,
-    const media::AudioParameters& device_params,
-    StreamType type
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-    , std::unique_ptr<media::VoiceIsolation> voice_isolation
-#endif
-)
+InputController::InputController(EventHandler* event_handler,
+                                 SyncWriter* sync_writer,
+                                 StreamType type)
     : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       event_handler_(event_handler),
       stream_(nullptr),
       sync_writer_(sync_writer),
-      type_(type),
-      stats_reporter_(
-          std::make_unique<StatsReporter>(reference_signal_provider.get(),
-                                          this)) {
+      type_(type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(event_handler_);
   DCHECK(sync_writer_);
   weak_this_ = weak_ptr_factory_.GetWeakPtr();
-  SendLogMessage(
-      base::StringPrintf("%s => (delay reporter uses %s as AEC type)", __func__,
-                         stats_reporter_->GetAECTypeAsString()));
-
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  MaybeSetUpAudioProcessing(std::move(processing_config), output_params,
-                            device_params, std::move(reference_signal_provider),
-                            aecdump_recording_manager, ml_model_manager,
-                            std::move(voice_isolation));
-#endif
 }
 
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
@@ -400,7 +379,8 @@ void InputController::MaybeSetUpAudioProcessing(
     std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
     media::AecdumpRecordingManager* aecdump_recording_manager,
     raw_ptr<MlModelManager> ml_model_manager,
-    std::unique_ptr<media::VoiceIsolation> voice_isolation) {
+    std::unique_ptr<VoiceIsolationHandler> voice_isolation_handler,
+    DeliverProcessedAudioCallback deliver_processed_audio_callback) {
   SendLogMessage(base::StringPrintf(
       "%s({processing_config=[%s]}, {processing_output_params=[%s]}, "
       "{device_params=[%s]})",
@@ -447,13 +427,13 @@ void InputController::MaybeSetUpAudioProcessing(
       processing_output_params,
       base::BindRepeating(&EventHandler::OnLog,
                           base::Unretained(event_handler_)),
-      base::BindRepeating(&InputController::DeliverProcessedAudio,
-                          base::Unretained(this)),
+      std::move(deliver_processed_audio_callback),
       // AudioProcessorHandler delivers errors on the main thread.
       base::BindRepeating(&InputController::DoReportError, weak_this_,
                           REFERENCE_STREAM_ERROR),
       std::move(processing_config->controls_receiver),
-      aecdump_recording_manager, ml_model_manager, std::move(voice_isolation));
+      aecdump_recording_manager, ml_model_manager,
+      std::move(voice_isolation_handler));
 
   if (audio_processor_handler_->needs_playout_reference()) {
     // Unretained() is safe, since |event_handler_| outlives |output_tapper_|.
@@ -463,6 +443,21 @@ void InputController::MaybeSetUpAudioProcessing(
                             base::Unretained(event_handler_)));
   }
 }
+
+std::unique_ptr<VoiceIsolationHandler>
+InputController::MaybeCreateVoiceIsolationHandler(
+    raw_ptr<MlModelManager> ml_model_manager,
+    const media::AudioParameters& processing_output_params,
+    DeliverProcessedAudioCallback deliver_processed_audio_callback) {
+  if (!ml_model_manager) {
+    return nullptr;
+  }
+
+  return VoiceIsolationHandler::MaybeCreate(
+      *ml_model_manager, processing_output_params,
+      std::move(deliver_processed_audio_callback));
+}
+
 #endif
 
 InputController::~InputController() {
@@ -491,29 +486,9 @@ std::unique_ptr<InputController> InputController::Create(
   DCHECK(event_handler);
   DCHECK(params.IsValid());
 
-  if (params.channels() > kMaxInputChannels)
+  if (params.channels() > kMaxInputChannels) {
     return nullptr;
-
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  std::unique_ptr<media::VoiceIsolation> voice_isolation = nullptr;
-  if (processing_config && processing_config->settings.voice_isolation) {
-    std::unique_ptr<MlModelHandle> model_handle =
-        ml_model_manager ? ml_model_manager->GetModel(
-                               mojom::MlModelType::kVoiceIsolationDenoiser)
-                         : nullptr;
-    if (model_handle && model_handle->Get()) {
-      // TODO(b/512016773): Pass the model to VoiceIsolation once it is
-      // supported.
-      voice_isolation = std::make_unique<media::VoiceIsolation>();
-    }
-    if (!voice_isolation) {
-      event_handler->OnError(STREAM_CREATE_ERROR);
-      LogCaptureStartupResult(ParamsToStreamType(params),
-                              CAPTURE_STARTUP_VOICE_ISOLATION_ERROR);
-      return nullptr;
-    }
   }
-#endif
 
   const media::AudioParameters device_params =
       AudioManagerPowerUser(audio_manager).GetInputStreamParameters(device_id);
@@ -522,18 +497,14 @@ std::unique_ptr<InputController> InputController::Create(
   // the audio-manager thread.
   // Using `new` to access a non-public constructor.
   std::unique_ptr<InputController> controller =
-      base::WrapUnique(new InputController(
-          event_handler, sync_writer, std::move(reference_signal_provider),
-          aecdump_recording_manager, ml_model_manager,
-          std::move(processing_config), params, device_params,
-          ParamsToStreamType(params)
-#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-          , std::move(voice_isolation)
-#endif
-      ));
+      base::WrapUnique(new InputController(event_handler, sync_writer,
+                                           ParamsToStreamType(params)));
 
   controller->DoCreate(audio_manager, params, device_id, enable_agc,
-                       std::move(maybe_create_loopback_mixin_cb));
+                       std::move(maybe_create_loopback_mixin_cb),
+                       std::move(processing_config), device_params,
+                       std::move(reference_signal_provider),
+                       aecdump_recording_manager, ml_model_manager);
   return controller;
 }
 
@@ -541,8 +512,9 @@ void InputController::Record() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.RecordTime");
 
-  if (!stream_ || audio_callback_)
+  if (!stream_ || audio_callback_) {
     return;
+  }
 
   SendLogMessage(base::StringPrintf("%s", __func__));
 
@@ -598,8 +570,9 @@ void InputController::Close() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.CloseTime");
 
-  if (!stream_)
+  if (!stream_) {
     return;
+  }
 
   check_muted_state_timer_.Stop();
 
@@ -673,8 +646,9 @@ void InputController::SetVolume(double volume) {
   DCHECK_GE(volume, 0);
   DCHECK_LE(volume, 1.0);
 
-  if (!stream_)
+  if (!stream_) {
     return;
+  }
 
   SendLogMessage(base::StringPrintf("SetVolume({volume=%.2f})", volume));
 
@@ -696,12 +670,14 @@ void InputController::SetVolume(double volume) {
 void InputController::SetOutputDeviceForAec(
     const std::string& output_device_id) {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  if (stream_)
+  if (stream_) {
     stream_->SetOutputDeviceForAec(output_device_id);
+  }
 
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
-  if (output_tapper_)
+  if (output_tapper_) {
     output_tapper_->SetOutputDeviceForAec(output_device_id);
+  }
 #endif
 }
 
@@ -723,11 +699,45 @@ void InputController::DoCreate(
     const media::AudioParameters& params,
     const std::string& device_id,
     bool enable_agc,
-    LoopbackMixin::MaybeCreateCallback maybe_create_loopback_mixin_cb) {
+    LoopbackMixin::MaybeCreateCallback maybe_create_loopback_mixin_cb,
+    media::mojom::AudioProcessingConfigPtr processing_config,
+    const media::AudioParameters& device_params,
+    std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
+    media::AecdumpRecordingManager* aecdump_recording_manager,
+    raw_ptr<MlModelManager> ml_model_manager) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(!stream_);
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.CreateTime");
-
+  CHECK(!stats_reporter_);
+  stats_reporter_ =
+      std::make_unique<StatsReporter>(reference_signal_provider.get(), this);
+  SendLogMessage(
+      base::StringPrintf("%s => (delay reporter uses %s as AEC type)", __func__,
+                         stats_reporter_->GetAECTypeAsString()));
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  auto deliver_processed_audio_callback = base::BindRepeating(
+      &InputController::DeliverProcessedAudio, base::Unretained(this));
+  std::unique_ptr<VoiceIsolationHandler> voice_isolation_handler;
+  if (processing_config && processing_config->settings.voice_isolation) {
+    voice_isolation_handler = MaybeCreateVoiceIsolationHandler(
+        ml_model_manager, params, std::move(deliver_processed_audio_callback));
+    if (!voice_isolation_handler) {
+      event_handler_->OnError(STREAM_CREATE_ERROR);
+      LogCaptureStartupResult(ParamsToStreamType(params),
+                              CAPTURE_STARTUP_VOICE_ISOLATION_ERROR);
+      return;
+    }
+    // This is not needed because we moved `deliver_processed_audio_callback` to
+    // `voice_isolation_handler` but we want to make clear to the reader this
+    // step.
+    deliver_processed_audio_callback = base::NullCallback();
+  }
+  MaybeSetUpAudioProcessing(std::move(processing_config), params, device_params,
+                            std::move(reference_signal_provider),
+                            aecdump_recording_manager, ml_model_manager,
+                            std::move(voice_isolation_handler),
+                            std::move(deliver_processed_audio_callback));
+#endif
   std::string device_name =
       audio_manager->GetDeviceNameFromCache(device_id, /*is_input=*/true);
   SendLogMessage(base::StringPrintf("%s({device_name=%s})", __func__,
@@ -805,8 +815,9 @@ void InputController::DoLogAudioLevels(float level_dbfs,
                                        int microphone_volume_percent) {
 #if defined(AUDIO_POWER_MONITORING)
   DCHECK(task_runner_->BelongsToCurrentThread());
-  if (!stream_)
+  if (!stream_) {
     return;
+  }
 
   // Detect if the user has enabled hardware mute by pressing the mute
   // button in audio settings for the selected microphone.
@@ -874,8 +885,9 @@ void InputController::LogCaptureStartupResult(StreamType type,
 }
 
 void InputController::LogCallbackError() {
-  if (type_ != LOW_LATENCY)
+  if (type_ != LOW_LATENCY) {
     return;
+  }
 
   UMA_HISTOGRAM_BOOLEAN("Media.Audio.Capture.LowLatencyCallbackError",
                         audio_callback_->error_during_callback());
@@ -898,8 +910,9 @@ bool InputController::CheckAudioPower(const media::AudioBus* source,
   // Only do power-level measurements if DoCreate() has been called. It will
   // ensure that logging will mainly be done for WebRTC and WebSpeech
   // clients.
-  if (!power_measurement_is_enabled_)
+  if (!power_measurement_is_enabled_) {
     return false;
+  }
 
   // Perform periodic audio (power) level measurements.
   const auto now = base::TimeTicks::Now();

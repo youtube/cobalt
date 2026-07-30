@@ -9,7 +9,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/cpp/request_destination.h"
 #include "services/network/public/cpp/request_mode.h"
-#include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
@@ -35,7 +34,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_url_search_params.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/fetch/attribution_reporting_to_mojom.h"
 #include "third_party/blink/renderer/core/fetch/blob_bytes_consumer.h"
 #include "third_party/blink/renderer/core/fetch/body_stream_buffer.h"
 #include "third_party/blink/renderer/core/fetch/fetch_manager.h"
@@ -173,7 +171,6 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   request->SetFetchPriorityHint(original->FetchPriorityHint());
   request->SetPriority(original->Priority());
   request->SetKeepalive(original->Keepalive());
-  request->SetBrowsingTopics(original->BrowsingTopics());
   request->SetAdAuctionHeaders(original->AdAuctionHeaders());
   request->SetSharedStorageWritable(original->SharedStorageWritable());
   request->SetIsHistoryNavigation(original->IsHistoryNavigation());
@@ -186,9 +183,6 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   }
   request->SetWindowId(original->WindowId());
   request->SetTrustTokenParams(original->TrustTokenParams());
-  request->SetAttributionReportingEligibility(
-      original->AttributionReportingEligibility());
-  request->SetAttributionReportingSupport(original->AttributionSupport());
   request->SetServiceWorkerRaceNetworkRequestToken(
       original->ServiceWorkerRaceNetworkRequestToken());
   if (RuntimeEnabledFeatures::FetchRetryEnabled(context) &&
@@ -215,10 +209,9 @@ static bool AreAnyMembersPresent(const RequestInit* init) {
          init->hasReferrer() || init->hasReferrerPolicy() || init->hasMode() ||
          init->hasTargetAddressSpace() || init->hasCredentials() ||
          init->hasCache() || init->hasRedirect() || init->hasIntegrity() ||
-         init->hasKeepalive() || init->hasBrowsingTopics() ||
-         init->hasAdAuctionHeaders() || init->hasSharedStorageWritable() ||
-         init->hasPriority() || init->hasSignal() || init->hasDuplex() ||
-         init->hasPrivateToken() || init->hasAttributionReporting() ||
+         init->hasKeepalive() || init->hasAdAuctionHeaders() ||
+         init->hasSharedStorageWritable() || init->hasPriority() ||
+         init->hasSignal() || init->hasDuplex() || init->hasPrivateToken() ||
          init->hasRetryOptions();
 }
 
@@ -700,24 +693,6 @@ Request* Request::CreateRequestWithRequestOrString(
     request->SetRetryOptions(options);
   }
 
-  if (init->hasBrowsingTopics()) {
-    if (!execution_context->IsSecureContext()) {
-      exception_state.ThrowTypeError(
-          "browsingTopics: Topics operations are only available in secure "
-          "contexts.");
-      return nullptr;
-    }
-
-    request->SetBrowsingTopics(init->browsingTopics());
-
-    if (init->browsingTopics()) {
-      UseCounter::Count(execution_context,
-                        mojom::blink::WebFeature::kTopicsAPIFetch);
-      Deprecation::CountDeprecation(execution_context,
-                                    mojom::blink::WebFeature::kTopicsAPIAll);
-    }
-  }
-
   if (init->hasAdAuctionHeaders()) {
     if (!execution_context->IsSecureContext()) {
       exception_state.ThrowDOMException(
@@ -801,20 +776,6 @@ Request* Request::CreateRequestWithRequestOrString(
     }
 
     request->SetTrustTokenParams(std::move(params));
-  }
-
-  if (init->hasAttributionReporting()) {
-    if (!execution_context->IsSecureContext()) {
-      exception_state.ThrowTypeError(
-          "attributionReporting: Attribution Reporting operations are only "
-          "available in secure contexts.");
-      return nullptr;
-    }
-
-    request->SetAttributionReportingEligibility(
-        ConvertAttributionReportingRequestOptionsToMojom(
-            *init->attributionReporting(), *execution_context,
-            exception_state));
   }
 
   // "Let  signals  be [|signal|] if  signal  is non-null; otherwise []."

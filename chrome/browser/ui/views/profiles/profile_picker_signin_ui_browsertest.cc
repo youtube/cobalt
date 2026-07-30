@@ -5,7 +5,6 @@
 #include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
-#include "base/test/bind.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
@@ -50,22 +49,31 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
       {
           .pixel_test_param = {.test_suffix = "RegularFirstRunRevampEnabled"},
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
-          .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
+          .enabled_features =
+              {
+                  {switches::kFirstRunDesktopRefresh, {}},
+                  {switches::kFirstRunDesktopRevamp, {}},
+                  {switches::kFirstRunDesktopRevampSound, {}},
+              },
       },
       {
           .pixel_test_param = {.test_suffix = "DarkThemeFirstRunRevampEnabled",
                                .use_dark_theme = true},
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
-          .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
+          .enabled_features =
+              {
+                  {switches::kFirstRunDesktopRefresh, {}},
+                  {switches::kFirstRunDesktopRevamp, {}},
+                  {switches::kFirstRunDesktopRevampSound, {}},
+              },
       },
       {
           .pixel_test_param = {.test_suffix = "RTLFirstRunRevampEnabled",
                                .use_right_to_left_language = true},
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
           .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
+                               {switches::kFirstRunDesktopRevamp, {}},
+                               {switches::kFirstRunDesktopRevampSound, {}}},
       },
       {
           .pixel_test_param =
@@ -73,6 +81,7 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
           .enabled_features =
               {{switches::kFirstRunDesktopRevamp, {}},
+               {switches::kFirstRunDesktopRevampSound, {}},
                {switches::kFirstRunDesktopRefresh,
                 {{switches::kFirstRunDesktopSignInPromoVariation.name,
                   "dont-sign-in-on-gaia-page"}}}},
@@ -84,6 +93,7 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
           .enabled_features =
               {{switches::kFirstRunDesktopRevamp, {}},
+               {switches::kFirstRunDesktopRevampSound, {}},
                {switches::kFirstRunDesktopRefresh,
                 {{switches::kFirstRunDesktopSignInPromoVariation.name,
                   "dont-sign-in-on-gaia-page"}}}},
@@ -95,6 +105,7 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
           .entry_point = ProfilePicker::EntryPoint::kFirstRun,
           .enabled_features =
               {{switches::kFirstRunDesktopRevamp, {}},
+               {switches::kFirstRunDesktopRevampSound, {}},
                {switches::kFirstRunDesktopRefresh,
                 {{switches::kFirstRunDesktopSignInPromoVariation.name,
                   "dont-sign-in-on-gaia-page"}}}},
@@ -104,7 +115,8 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
                                    "RegularAddNewProfileRevampEnabled"},
           .entry_point = ProfilePicker::EntryPoint::kProfileMenuAddNewProfile,
           .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
+                               {switches::kFirstRunDesktopRevamp, {}},
+                               {switches::kFirstRunDesktopRevampSound, {}}},
       },
       {
           .pixel_test_param = {.test_suffix =
@@ -112,15 +124,41 @@ std::vector<ProfilePickerSignInTestParam> GetTestParams() {
                                .use_dark_theme = true},
           .entry_point = ProfilePicker::EntryPoint::kProfileMenuAddNewProfile,
           .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
+                               {switches::kFirstRunDesktopRevamp, {}},
+                               {switches::kFirstRunDesktopRevampSound, {}}},
       },
       {
           .pixel_test_param = {.test_suffix = "RTLAddNewProfileRevampEnabled",
                                .use_right_to_left_language = true},
           .entry_point = ProfilePicker::EntryPoint::kProfileMenuAddNewProfile,
           .enabled_features = {{switches::kFirstRunDesktopRefresh, {}},
-                               {switches::kFirstRunDesktopRevamp, {}}},
-      }};
+                               {switches::kFirstRunDesktopRevamp, {}},
+                               {switches::kFirstRunDesktopRevampSound, {}}},
+      },
+      {
+          .pixel_test_param = {.test_suffix =
+                                   "RegularFirstRunRevampEnabledSoundDisabled"},
+          .entry_point = ProfilePicker::EntryPoint::kFirstRun,
+          .enabled_features =
+              {
+                  {switches::kFirstRunDesktopRefresh, {}},
+                  {switches::kFirstRunDesktopRevamp, {}},
+              },
+          .disabled_features = {switches::kFirstRunDesktopRevampSound},
+      },
+      {
+          .pixel_test_param =
+              {.test_suffix =
+                   "RegularFirstRunDontSignInOnGaiaPageEnabledSoundDisabled"},
+          .entry_point = ProfilePicker::EntryPoint::kFirstRun,
+          .enabled_features =
+              {{switches::kFirstRunDesktopRevamp, {}},
+               {switches::kFirstRunDesktopRefresh,
+                {{switches::kFirstRunDesktopSignInPromoVariation.name,
+                  "dont-sign-in-on-gaia-page"}}}},
+          .disabled_features = {switches::kFirstRunDesktopRevampSound},
+      },
+  };
 }
 
 std::string_view GetClickSignInButtonJsString(bool is_first_run) {

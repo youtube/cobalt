@@ -7,12 +7,14 @@
 #include <string>
 
 #include "base/functional/bind.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/send_tab_to_self/manage_account_devices_link_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
@@ -20,12 +22,12 @@
 #include "components/send_tab_to_self/features.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
-#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -39,65 +41,21 @@
 
 namespace send_tab_to_self {
 
-SendTabToSelfNoTargetDeviceBubbleView::SendTabToSelfNoTargetDeviceBubbleView(
-    views::BubbleAnchor anchor,
-    content::WebContents* web_contents)
-    : SendTabToSelfBubbleView(anchor, web_contents) {
-  auto* provider = ChromeLayoutProvider::Get();
-  set_margins(
-      gfx::Insets::TLBR(provider->GetDistanceMetric(
-                            views::DISTANCE_DIALOG_CONTENT_MARGIN_TOP_CONTROL),
-                        0, 0, 0));
-
-  SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical));
-
-  InitLayout();
-}
-
-SendTabToSelfNoTargetDeviceBubbleView::
-    ~SendTabToSelfNoTargetDeviceBubbleView() = default;
-
-void SendTabToSelfNoTargetDeviceBubbleView::InitLayout() {
-  auto* provider = ChromeLayoutProvider::Get();
-
-  // Configure body text label.
-  auto* label = AddChildView(std::make_unique<views::Label>(
-      l10n_util::GetStringUTF16(IDS_SEND_TAB_TO_SELF_NO_TARGET_DEVICE_LABEL),
-      views::style::CONTEXT_LABEL, views::style::STYLE_SECONDARY));
-  label->SetMultiLine(true);
-  label->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
-
-  const int horizontal_padding =
-      provider->GetInsetsMetric(views::INSETS_DIALOG).left();
-  label->SetProperty(
-      views::kMarginsKey,
-      gfx::Insets::TLBR(0, horizontal_padding, /*bottom=*/0,
-                        horizontal_padding));
-
-  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
-  auto* link_view = AddChildView(
-      BuildManageAccountDevicesLinkView(/*show_link=*/false, controller_));
-  link_view->SetProperty(
-      views::kMarginsKey,
-      gfx::Insets::VH(provider->GetDistanceMetric(
-                          views::DISTANCE_CONTROL_VERTICAL_TEXT_PADDING),
-                      0));
-}
-
 SendTabToSelfSignInPromoBubbleView::SendTabToSelfSignInPromoBubbleView(
     views::BubbleAnchor anchor,
-    content::WebContents* web_contents)
+    content::WebContents* web_contents,
+    PromoMode promo_mode)
     : SendTabToSelfBubbleView(anchor, web_contents) {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   if (IsEnhancedUiEnabled()) {
-    InitEnhancedLayout();
+    InitEnhancedLayout(promo_mode);
     return;
   }
 #endif
+  CHECK(promo_mode == PromoMode::kSignIn);
   InitBasicLayout();
 }
 
@@ -126,10 +84,13 @@ void SendTabToSelfSignInPromoBubbleView::InitBasicLayout() {
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-void SendTabToSelfSignInPromoBubbleView::InitEnhancedLayout() {
+void SendTabToSelfSignInPromoBubbleView::InitEnhancedLayout(
+    PromoMode promo_mode) {
   set_margins(BubbleSignInPromoView::GetBubbleSigninPromoMargins());
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
-  SetTitle(IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_TITLE);
+  SetTitle(promo_mode == PromoMode::kReauth
+               ? IDS_SEND_TAB_TO_SELF_VERIFY_ITS_YOU_PROMO_TITLE
+               : IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_TITLE);
 
   // Use the shared, callback-based promo delegate to resume the STTS flow
   // automatically after sign-in.
@@ -199,9 +160,6 @@ void SendTabToSelfSignInPromoBubbleView::HandleSignInButtonClicked() {
   NOTREACHED() << "The promo bubble shouldn't show if dice-support is disabled";
 #endif
 }
-
-BEGIN_METADATA(SendTabToSelfNoTargetDeviceBubbleView)
-END_METADATA
 
 BEGIN_METADATA(SendTabToSelfSignInPromoBubbleView)
 END_METADATA

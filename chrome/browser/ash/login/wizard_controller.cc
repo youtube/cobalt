@@ -67,7 +67,6 @@
 #include "chrome/browser/ash/login/screens/ai_intro_screen.h"
 #include "chrome/browser/ash/login/screens/app_downloading_screen.h"
 #include "chrome/browser/ash/login/screens/app_launch_splash_screen.h"
-#include "chrome/browser/ash/login/screens/arc_vm_data_migration_screen.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/screens/categories_selection_screen.h"
 #include "chrome/browser/ash/login/screens/choobe_screen.h"
@@ -171,7 +170,6 @@
 #include "chrome/browser/ui/webui/ash/login/ai_intro_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/app_downloading_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/app_launch_splash_screen_handler.h"
-#include "chrome/browser/ui/webui/ash/login/arc_vm_data_migration_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/auto_enrollment_check_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/categories_selection_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/choobe_screen_handler.h"
@@ -256,6 +254,7 @@
 #include "chromeos/ash/components/geolocation/system_location_provider.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/language_packs/language_pack_manager.h"
+#include "chromeos/ash/components/login/auth/mount_performer.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/osauth/public/auth_session_storage.h"
@@ -804,11 +803,6 @@ WizardController::CreateScreens() {
   append(std::make_unique<LocalStateErrorScreen>(
       oobe_ui->GetView<LocalStateErrorScreenHandler>()->AsWeakPtr()));
 
-  if (base::FeatureList::IsEnabled(arc::kEnableArcVmDataMigration)) {
-    append(std::make_unique<ArcVmDataMigrationScreen>(
-        oobe_ui->GetView<ArcVmDataMigrationScreenHandler>()->AsWeakPtr()));
-  }
-
   if (HIDDetectionScreen::CanShowScreen(local_state_.get())) {
     append(std::make_unique<HIDDetectionScreen>(
         &local_state_.get(),
@@ -984,7 +978,7 @@ WizardController::CreateScreens() {
           weak_factory_.GetWeakPtr())));
 
   append(std::make_unique<CryptohomeRecoveryScreen>(
-      &local_state_.get(), shared_url_loader_factory_,
+      local_state_.get(), shared_url_loader_factory_,
       oobe_ui->GetView<CryptohomeRecoveryScreenHandler>()->AsWeakPtr(),
       base::BindRepeating(&WizardController::OnCryptohomeRecoveryScreenExit,
                           weak_factory_.GetWeakPtr())));
@@ -1065,11 +1059,13 @@ WizardController::CreateScreens() {
                           weak_factory_.GetWeakPtr())));
 
   append(std::make_unique<LocalDataLossWarningScreen>(
+      local_state_.get(),
       oobe_ui->GetView<LocalDataLossWarningScreenHandler>()->AsWeakPtr(),
       base::BindRepeating(&WizardController::OnLocalDataLossWarningScreenExit,
                           weak_factory_.GetWeakPtr())));
 
   append(std::make_unique<EnterOldPasswordScreen>(
+      local_state_.get(),
       oobe_ui->GetView<EnterOldPasswordScreenHandler>()->AsWeakPtr(),
       base::BindRepeating(&WizardController::OnEnterOldPasswordScreenExit,
                           weak_factory_.GetWeakPtr())));
@@ -1489,10 +1485,6 @@ void WizardController::ShowDisplaySizeScreen() {
 
 void WizardController::ShowGuestTosScreen() {
   SetCurrentScreen(GetScreen(GuestTosScreenView::kScreenId));
-}
-
-void WizardController::ShowArcVmDataMigrationScreen() {
-  SetCurrentScreen(GetScreen(ArcVmDataMigrationScreenView::kScreenId));
 }
 
 void WizardController::ShowCryptohomeRecoveryScreen(
@@ -2019,7 +2011,8 @@ void WizardController::OnLocalDataLossWarningScreenExit(
   OnScreenExit(LocalDataLossWarningScreenView::kScreenId,
                LocalDataLossWarningScreen::GetResultString(result));
   switch (result) {
-    case LocalDataLossWarningScreen::Result::kRemoveUser: {
+    case LocalDataLossWarningScreen::Result::kRemoveUser:
+    case LocalDataLossWarningScreen::Result::kAutoWipe: {
       std::unique_ptr<UserContext> context =
           std::move(wizard_context_->user_context);
       ash::LoginDisplayHost::default_host()->CompleteLogin(*context);
@@ -3682,8 +3675,6 @@ void WizardController::AdvanceToScreen(OobeScreenId screen_id) {
     ShowConsolidatedConsentScreen();
   } else if (screen_id == CryptohomeRecoverySetupScreenView::kScreenId) {
     ShowCryptohomeRecoverySetupScreen();
-  } else if (screen_id == ArcVmDataMigrationScreenView::kScreenId) {
-    ShowArcVmDataMigrationScreen();
   } else if (screen_id == TouchpadScrollScreenView::kScreenId) {
     ShowTouchpadScrollScreen();
   } else if (screen_id == GaiaInfoScreenView::kScreenId) {

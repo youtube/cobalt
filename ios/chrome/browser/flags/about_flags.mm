@@ -33,6 +33,7 @@
 #import "components/commerce/core/commerce_feature_list.h"
 #import "components/commerce/core/flag_descriptions.h"
 #import "components/content_settings/core/common/features.h"
+#import "components/contextual_tasks/public/features.h"
 #import "components/data_sharing/public/features.h"
 #import "components/data_sharing/public/switches.h"
 #import "components/desktop_to_mobile_promos/features.h"
@@ -1424,10 +1425,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"new-tab-page-redesign", flag_descriptions::kNewTabPageRedesignName,
      flag_descriptions::kNewTabPageRedesignDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kNewTabPageRedesign)},
-    {"confirmation-button-swap-order",
-     flag_descriptions::kConfirmationButtonSwapOrderName,
-     flag_descriptions::kConfirmationButtonSwapOrderDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kConfirmationButtonSwapOrder)},
     {"plus-button-in-fakebox", flag_descriptions::kPlusButtonInFakeboxName,
      flag_descriptions::kPlusButtonInFakeboxDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kPlusButtonInFakebox)},
@@ -1613,10 +1610,7 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"display-tracing", flag_descriptions::kDisplayTracingName,
      flag_descriptions::kDisplayTracingDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDisplayTracing)},
-    {"persistent-default-browser-promo",
-     flag_descriptions::kPersistentDefaultBrowserPromoName,
-     flag_descriptions::kPersistentDefaultBrowserPromoDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kPersistentDefaultBrowserPromo)},
+
     {"default-browser-promo-ipad-instructions",
      flag_descriptions::kDefaultBrowserPromoIpadInstructionsName,
      flag_descriptions::kDefaultBrowserPromoIpadInstructionsDescription,
@@ -1708,6 +1702,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kMigrateIOSKeychainAccessibilityDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(crypto::features::kMigrateIOSKeychainAccessibility)},
+    {"search-engine-choice-screen-snackbar",
+     flag_descriptions::kSearchEngineChoiceScreenSnackbarName,
+     flag_descriptions::kSearchEngineChoiceScreenSnackbarDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kSearchEngineChoiceScreenSnackbar)},
     {"send-tab-to-self-enhanced-handoff",
      flag_descriptions::kSendTabToSelfEnhancedHandoffName,
      flag_descriptions::kSendTabToSelfEnhancedHandoffDescription,
@@ -2217,6 +2215,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kComposeboxDevTools,
                                     kComposeboxDevToolsVariations,
                                     "ComposeboxDevTools")},
+    {"contextual-tasks", flag_descriptions::kContextualTasksName,
+     flag_descriptions::kContextualTasksDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(contextual_tasks::kContextualTasks)},
     {"autofill-manual-testing-data",
      flag_descriptions::kAutofillManualTestingDataName,
      flag_descriptions::kAutofillManualTestingDataDescription, flags_ui::kOsIos,
@@ -2265,10 +2266,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSCustomFileUploadMenuName,
      flag_descriptions::kIOSCustomFileUploadMenuDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSCustomFileUploadMenu)},
-    {"ios-tab-group-entry-point-tab-switcher",
-     flag_descriptions::kTabSwitcherOverflowMenuName,
-     flag_descriptions::kTabSwitcherOverflowMenuDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kTabSwitcherOverflowMenu)},
     {"cache-identity-list-in-chrome",
      flag_descriptions::kCacheIdentityListInChromeName,
      flag_descriptions::kCacheIdentityListInChromeDescription, flags_ui::kOsIos,
@@ -2463,6 +2460,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"gemini-fre-refactor", flag_descriptions::kGeminiFRERefactorName,
      flag_descriptions::kGeminiFRERefactorDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiFRERefactor)},
+    {"gemini-coordinator-teardown-fix",
+     flag_descriptions::kGeminiCoordinatorTeardownFixName,
+     flag_descriptions::kGeminiCoordinatorTeardownFixDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kGeminiCoordinatorTeardownFix)},
     {"enable-file-download-connector-ios",
      flag_descriptions::kEnableFileDownloadConnectorIOSName,
      flag_descriptions::kEnableFileDownloadConnectorIOSDescription,
@@ -2645,9 +2646,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillAmbientAutofillName,
      flag_descriptions::kAutofillAmbientAutofillDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAmbientAutofill)},
-    {"autofill-at-memory", flag_descriptions::kAutofillAtMemoryName,
-     flag_descriptions::kAutofillAtMemoryDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(autofill::features::kAutofillAtMemory)},
     {"gemini-chat-persistence", flag_descriptions::kGeminiChatPersistenceName,
      flag_descriptions::kGeminiChatPersistenceDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiChatPersistence)},
@@ -2882,9 +2880,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSPasskeyModalLoginWithShimName,
      flag_descriptions::kIOSPasskeyModalLoginWithShimDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSPasskeyModalLoginWithShim)},
-    {"toolbar-glass-prototype", flag_descriptions::kToolbarGlassPrototypeName,
-     flag_descriptions::kToolbarGlassPrototypeDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kToolbarGlassPrototype)},
+    {"default-bottom-omnibox-on-ios",
+     flag_descriptions::kDefaultBottomOmniboxOnIOSName,
+     flag_descriptions::kDefaultBottomOmniboxOnIOSDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kDefaultBottomOmniboxOnIOS)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

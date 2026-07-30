@@ -412,7 +412,9 @@ void Window::SetLayerManagedByParent(bool layer_managed_by_parent) {
 void Window::SetFillsBoundsCompletely(bool fills_bounds) {
   CHECK(layer());
   DUMP_WILL_BE_CHECK(!is_destroying_);
-  layer()->SetFillsBoundsCompletely(fills_bounds);
+  if (auto* textured = layer()->AsTextured()) {
+    textured->SetFillsBoundsCompletely(fills_bounds);
+  }
 }
 
 Window* Window::GetRootWindow() {
@@ -632,6 +634,7 @@ void Window::StackChildBelow(Window* child, Window* target) {
 }
 
 void Window::AddChild(Window* child) {
+  ScopedDeleteBlocker blocker(child);
   WindowOcclusionTracker::ScopedPause pause_occlusion_tracking;
 
   DCHECK(layer()) << "Parent has not been Init()ed yet.";
@@ -1347,6 +1350,8 @@ void Window::Paint(const ui::PaintContext& context) {
 }
 
 void Window::RemoveChildImpl(Window* child, Window* new_parent) {
+  ScopedDeleteBlocker blocker(child);
+
   if (layout_manager_)
     layout_manager_->OnWillRemoveWindowFromLayout(child);
   for (WindowObserver& observer : observers_)

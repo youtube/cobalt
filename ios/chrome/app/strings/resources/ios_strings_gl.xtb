@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Gardar contras.</translation>
 <translation id="1764070164487214210">Indicacións</translation>
 <translation id="1764511703783285459">O outro xestor de contrasinais non compartiu ningún contrasinal nin clave de acceso</translation>
+<translation id="1765555082983153259">Chrome quere acceder ao teu micrófono</translation>
 <translation id="1767766085187034454">Tradutor de Google</translation>
 <translation id="1771016937398045251">Menú de ferramentas</translation>
 <translation id="1772468122139624049">Non se puideron volver cargar as pestanas</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Busca profunda</translation>
 <translation id="188237709236611317">Barra de menú con orde intelixente</translation>
 <translation id="1883255238294161206">Contraer lista</translation>
+<translation id="1883898928879467646">Quitouse a pestana</translation>
 <translation id="1888854257756214946">Seleccionar un contrasinal…</translation>
 <translation id="1890237935065108104">Esta opción de configuración non está dispoñible.</translation>
 <translation id="1894023287452300670">Fai un seguimento do prezo aquí</translation>
@@ -1620,6 +1622,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6406506848690869874">Sincronización</translation>
 <translation id="6410390304316730527">A función Navegación segura protéxete contra os piratas informáticos que poden enganarte para que realices accións perigosas, como instalar un software malicioso ou revelar información persoal (por exemplo, contrasinais, números de teléfono ou tarxetas de crédito). Se a desactivas, ten coidado ao consultar sitios descoñecidos ou con mala reputación.</translation>
 <translation id="6410883413783534063">Abre pestanas para visitar páxinas diferentes ao mesmo tempo</translation>
+<translation id="6412195388778525440">Quitar pestana</translation>
 <translation id="6418346271604475326">Preparando PDF</translation>
 <translation id="6420292512900923139">Produciuse un problema ao importar os teus datos</translation>
 <translation id="6421038304268477484">Texto traducido</translation>
@@ -2320,7 +2323,6 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="8692689525339542358">Protéxete contra as extensións, descargas e sitios perigosos.</translation>
 <translation id="8692897097252418799">Escolle os datos que queiras exportar</translation>
 <translation id="8694281486652655615">Mostra este elemento</translation>
-<translation id="8696297579102085705">Enviar ao teu dispositivo</translation>
 <translation id="8697136149718343437">Mover barra de enderezos á parte inferior</translation>
 <translation id="869891660844655955">Data de vencemento</translation>
 <translation id="8706253136355675497">Temperatura</translation>
@@ -2463,6 +2465,7 @@ Para continuar desde o ordenador, cambia a <ph name="OTHER_EMAIL" />. Obterás o
 <translation id="9149866541089851383">Editar...</translation>
 <translation id="9152637745605628097">Escolle entre temas e cores, ou carga unha imaxe</translation>
 <translation id="9159628751968616911">Enviar a páxina web</translation>
+<translation id="9162412286847966593">Os datos e as gravacións da túa organización non se usarán para mellorar os modelos de IA xenerativa. <ph name="BEGIN_LINK" />A túa privacidade e Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Activa a opción Autofill Passwords (Autocompletar contrasinais)</translation>
 <translation id="9165320910061267720">Para recibir notificacións de alertas sobre baixadas de prezos, tes que activalas na configuración de iOS.</translation>
 <translation id="9179151630575358778">Oculta este elemento</translation>

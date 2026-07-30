@@ -19,6 +19,9 @@
 // clang-format off
 #define CHROME_COMMON_ACTION_IDS \
   /* Navigation commands */ \
+  E(kActionCut, IDC_CUT, actions) \
+  E(kActionCopy, IDC_COPY, actions) \
+  E(kActionPaste, IDC_PASTE, actions) \
   E(kActionBack, IDC_BACK, kChromeActionsStart, ChromeActionIds) \
   E(kActionReload, IDC_RELOAD) \
   E(kActionOpenCurrentUrl, IDC_OPEN_CURRENT_URL) \
@@ -180,6 +183,7 @@
   E(kActionPasteAndGo, IDC_PASTE_AND_GO) \
   E(kActionShowFullUrls, IDC_SHOW_FULL_URLS) \
   E(kActionShowGoogleLensShortcut, IDC_SHOW_GOOGLE_LENS_SHORTCUT) \
+  E(kActionShowLensOverlayFromAppMenu, IDC_CONTENT_CONTEXT_LENS_OVERLAY) \
   E(kActionShowAiModeOmniboxButton, IDC_SHOW_AI_MODE_OMNIBOX_BUTTON) \
   E(kActionRecordReplay) \
   E(kActionShowSearchTools, IDC_SHOW_SEARCH_TOOLS) \
@@ -348,12 +352,6 @@
   E(kActionBookmarkBarRemoveFromBookmarksBar, \
     IDC_BOOKMARK_BAR_REMOVE_FROM_BOOKMARKS_BAR) \
   /* Context menu items for Sharing */ \
-  E(kActionContentContextSharingClickToCallSingleDevice, \
-    IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE) \
-  E(kActionContentContextSharingSharedClipboardSingleDevice, \
-    IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE) \
-  E(kActionContentContextSharingSharedClipboardMultipleDevices, \
-    IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES) \
   E(kActionContentContextGenerateQrCode, IDC_CONTENT_CONTEXT_GENERATE_QR_CODE) \
   E(kActionContentContextSharingSubmenu, IDC_CONTENT_CONTEXT_SHARING_SUBMENU) \
   /* Context menu item to show the clipboard history menu */ \
@@ -474,14 +472,15 @@
   E(kActionSidePanelShowComments, IDC_SHOW_COMMENTS_SIDE_PANEL) \
   E(kActionSidePanelShowCustomizeChrome, IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL) \
   E(kActionSidePanelShowCustomizeChromeFooter) \
-  E(kActionSidePanelShowCustomizeChromeToolbar) \
+  E(kActionSidePanelShowCustomizeChromeToolbar, \
+    IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR) \
   E(kActionSidePanelShowFeed) \
   E(kActionSidePanelShowGlic) \
   E(kActionSidePanelShowContextualTasks) \
   E(kActionSidePanelShowHistoryCluster, IDC_SHOW_HISTORY_CLUSTERS_SIDE_PANEL) \
   E(kActionSidePanelShowHistory, IDC_SHOW_HISTORY_SIDE_PANEL) \
   E(kActionSidePanelShowLens) \
-  E(kActionSidePanelShowLensOverlayResults, IDC_CONTENT_CONTEXT_LENS_OVERLAY) \
+  E(kActionSidePanelShowLensOverlayResults) \
   E(kActionSidePanelShowReadAnything, IDC_SHOW_READING_MODE_SIDE_PANEL) \
   E(kActionShowReadingModeKeyboard, IDC_SHOW_READING_MODE_KEYBOARD) \
   E(kActionSidePanelShowReadingList, IDC_READING_LIST_MENU_SHOW_UI) \

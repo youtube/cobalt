@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
@@ -46,7 +47,6 @@
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/with_test_autofill_client_driver_manager.h"
 #include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service.h"
-#include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service_delegate.h"
 #include "components/autofill/core/browser/integrators/at_memory/mock_at_memory_query_service.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
@@ -377,15 +377,6 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
   }
 };
 
-class StubAtMemoryQueryServiceDelegate : public AtMemoryQueryServiceDelegate {
- public:
-  void RetrieveLiveTabContext(
-      LiveTabContextQuery query,
-      base::OnceCallback<void(LiveTabContextResponse)> callback) override {
-    std::move(callback).Run({});
-  }
-};
-
 class AutofillExternalDelegateTest : public testing::Test,
                                      public WithTestAutofillClientDriverManager<
                                          NiceMock<MockAutofillClient>,
@@ -506,8 +497,8 @@ class AutofillExternalDelegateTest : public testing::Test,
       accessibility_annotator::MemorySearchResults results) {
     auto mock_service =
         std::make_unique<testing::NiceMock<MockAtMemoryQueryService>>();
-    EXPECT_CALL(*mock_service, Query(Eq(query), _))
-        .WillOnce(base::test::RunOnceCallback<1>(std::move(results)));
+    EXPECT_CALL(*mock_service, Query(Eq(query), _, _, _))
+        .WillOnce(base::test::RunOnceCallback<3>(std::move(results)));
     // Inject the mock service into the client.
     autofill_client().set_at_memory_query_service(std::move(mock_service));
   }
@@ -1004,8 +995,8 @@ TEST_F(AutofillExternalDelegateTest,
   MockAtMemoryQueryService* mock_service_ptr = mock_service.get();
   autofill_client().set_at_memory_query_service(std::move(mock_service));
 
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _))
-      .WillOnce(base::test::RunOnceCallback<1>(std::move(search_results1)));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _, _, _))
+      .WillOnce(base::test::RunOnceCallback<3>(std::move(search_results1)));
 
   EXPECT_CALL(autofill_client(),
               UpdateAutofillSuggestions(testing::IsEmpty(), _, _, _));
@@ -1023,8 +1014,8 @@ TEST_F(AutofillExternalDelegateTest,
   // running immediately.
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr2"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr2"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback));
 
   // We expect that UpdateAutofillSuggestions IS called when the second search
   // starts, which clears the suggestions list.
@@ -1065,8 +1056,8 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryPartialResponseKeepsSearching) {
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback));
 
   // Trigger the search, which clears suggestions.
   EXPECT_CALL(autofill_client(),
@@ -1122,8 +1113,8 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryFinalResponseStopsSearching) {
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback));
 
   // Trigger the search, which clears suggestions.
   EXPECT_CALL(autofill_client(),
@@ -1179,8 +1170,8 @@ TEST_F(AutofillExternalDelegateTest,
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback));
 
   EXPECT_CALL(autofill_client(),
               UpdateAutofillSuggestions(testing::IsEmpty(), _, _, _));
@@ -1221,8 +1212,8 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryStaleResponseIgnored) {
 
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback1;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr1"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback1));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr1"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback1));
 
   EXPECT_CALL(autofill_client(),
               UpdateAutofillSuggestions(testing::IsEmpty(), _, _, _));
@@ -1231,8 +1222,8 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryStaleResponseIgnored) {
   // Trigger second search before first one completes.
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       received_callback2;
-  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr2"), _))
-      .WillOnce(testing::SaveArg<1>(&received_callback2));
+  EXPECT_CALL(*mock_service_ptr, Query(std::u16string_view(u"addr2"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&received_callback2));
 
   EXPECT_CALL(autofill_client(),
               UpdateAutofillSuggestions(testing::IsEmpty(), _, _, _));
@@ -4017,6 +4008,27 @@ TEST_F(AutofillExternalDelegateTest, UpdateSuggestions) {
       std::nullopt);
 }
 
+// Tests that calling `AttemptToDisplayAutofillSuggestions` with empty
+// `trigger_field` and different filling product doesn't hide the popup.
+TEST_F(AutofillExternalDelegateTest, UpdateSuggestions_ProductChanged) {
+  base::HistogramTester histogram_tester;
+  IssueOnQuery();
+  EXPECT_CALL(autofill_client(), ShowAutofillSuggestions).Times(1);
+  EXPECT_CALL(autofill_client(), HideSuggestions).Times(0);
+
+  OnSuggestionsReturned(
+      queried_field(),
+      {Suggestion(u"Address suggestion", SuggestionType::kAddressEntry)});
+  external_delegate().AttemptToDisplayAutofillSuggestionsForTest(
+      {Suggestion(u"Autofill AI suggestion", SuggestionType::kFillAutofillAi)},
+      AutofillSuggestionTriggerSource::kUnspecified, std::nullopt);
+
+  int expected_sample = (std::to_underlying(FillingProduct::kAddress) << 8) |
+                        std::to_underlying(FillingProduct::kAutofillAi);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.PopupUpdateIgnored.ProductMismatch", expected_sample, 1);
+}
+
 // TODO(crbug.com/41483208): Add test case where 'Show cards from your Google
 // account' button is clicked. Encountered issues with test sync setup when
 // attempting to make it.
@@ -4264,6 +4276,23 @@ TEST_F(AutofillExternalDelegateTest,
   external_delegate().DidAcceptSuggestion(
       Suggestion(SuggestionType::kMaximizeCreditCardBenefitsEntry),
       SuggestionPosition{.multi_index = {0}});
+}
+
+// Tests that AttemptToDisplayAutofillSuggestions() hides any open suggestions
+// with kStaleData when the target field is not focusable or the driver cannot
+// show UI.
+TEST_F(AutofillExternalDelegateTest,
+       ExternalDelegateHidesSuggestionsWhenFieldIsUnfocusable) {
+  IssueOnQuery();
+
+  EXPECT_CALL(
+      autofill_client(),
+      HideSuggestions(SuggestionHidingReason::kStaleData, Eq(std::nullopt)));
+
+  FormFieldData unfocusable_field = queried_field();
+  unfocusable_field.set_is_focusable(false);
+  OnSuggestionsReturned(unfocusable_field,
+                        {Suggestion(SuggestionType::kAddressEntry)});
 }
 
 }  // namespace

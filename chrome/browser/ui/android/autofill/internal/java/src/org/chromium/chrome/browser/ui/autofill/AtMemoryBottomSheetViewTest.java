@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.autofill;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -21,6 +22,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.constraintlayout.helper.widget.Flow;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Before;
@@ -38,11 +40,15 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FlyoutProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ScreenId;
+import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.components.autofill.AutofillSuggestion;
+import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
+import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
@@ -56,7 +62,6 @@ public class AtMemoryBottomSheetViewTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private Runnable mMockBackClickListener;
-    @Mock private Runnable mMockManageClickListener;
     @Mock private Callback<Integer> mMockSuggestionClickListener;
     @Mock private BottomSheetController mBottomSheetController;
 
@@ -113,10 +118,12 @@ public class AtMemoryBottomSheetViewTest {
                         new AutofillSuggestion.Builder()
                                 .setLabel("Label 1")
                                 .setSubLabel("Sublabel 1")
+                                .setSuggestionType(SuggestionType.AT_MEMORY_SEARCH_RESULT)
                                 .build(),
                         new AutofillSuggestion.Builder()
                                 .setLabel("Label 2")
                                 .setSubLabel("")
+                                .setSuggestionType(SuggestionType.AT_MEMORY_SEARCH_RESULT)
                                 .build());
 
         PropertyModel model =
@@ -220,9 +227,17 @@ public class AtMemoryBottomSheetViewTest {
 
     @Test
     public void testFlyoutManageClickNotifiesCallback() {
+        AutofillSuggestion manageSuggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("Manage information")
+                        .setSubLabel("")
+                        .setSuggestionType(SuggestionType.MANAGE_AUTOFILL_AI)
+                        .setIconId(R.drawable.ic_chrome)
+                        .build();
         PropertyModel model =
                 new PropertyModel.Builder(FlyoutProperties.ALL_KEYS)
-                        .with(FlyoutProperties.ON_MANAGE_CLICKED, mMockManageClickListener)
+                        .with(FlyoutProperties.SUGGESTIONS, List.of(manageSuggestion))
+                        .with(FlyoutProperties.ON_SUGGESTION_CLICKED, mMockSuggestionClickListener)
                         .build();
         PropertyModelChangeProcessor.create(
                 model,
@@ -230,15 +245,20 @@ public class AtMemoryBottomSheetViewTest {
                 AtMemoryBottomSheetViewBinder::bindAtMemoryFlyoutView);
 
         View manageButton = mView.getContentView().findViewById(R.id.flyout_manage_button);
+        assertEquals(View.VISIBLE, manageButton.getVisibility());
         manageButton.performClick();
 
-        verify(mMockManageClickListener).run();
+        verify(mMockSuggestionClickListener).onResult(0);
     }
 
     @Test
     public void testFlyoutSuggestionClickNotifiesCallback() {
         AutofillSuggestion suggestion =
-                new AutofillSuggestion.Builder().setLabel("Label 1").setSubLabel("").build();
+                new AutofillSuggestion.Builder()
+                        .setLabel("Label 1")
+                        .setSubLabel("")
+                        .setSuggestionType(SuggestionType.AT_MEMORY_SEARCH_RESULT)
+                        .build();
 
         PropertyModel model =
                 new PropertyModel.Builder(FlyoutProperties.ALL_KEYS)
@@ -264,8 +284,8 @@ public class AtMemoryBottomSheetViewTest {
         AtMemoryBottomSheetContent content =
                 new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
-        assertEquals(HeightMode.DISABLED, content.getHalfHeightRatio(), 0.01f);
-        assertTrue(content.getFullHeightRatio() <= 0.5f);
+        assertTrue(content.getHalfHeightRatio() > 0.0f && content.getHalfHeightRatio() <= 0.5f);
+        assertEquals(1.0f, content.getFullHeightRatio(), 0.01f);
 
         EditText searchView = mView.getContentView().findViewById(R.id.search_query_input);
         searchView.requestFocus();
@@ -284,8 +304,31 @@ public class AtMemoryBottomSheetViewTest {
 
         mView.setCurrentScreen(ScreenId.FLYOUT_SCREEN);
 
-        assertEquals(HeightMode.DISABLED, content.getHalfHeightRatio(), 0.01f);
-        assertEquals(HeightMode.WRAP_CONTENT, content.getFullHeightRatio(), 0.01f);
+        assertTrue(content.getHalfHeightRatio() > 0.0f && content.getHalfHeightRatio() <= 0.5f);
+        assertEquals(1.0f, content.getFullHeightRatio(), 0.01f);
+    }
+
+    @Test
+    public void testSuggestionWithDeactivatedStyle() {
+        ModelList modelList = new ModelList();
+        PropertyModel suggestionModel =
+                new PropertyModel.Builder(SuggestionItemProperties.ALL_KEYS)
+                        .with(SuggestionItemProperties.TITLE, "Couldn't find this info")
+                        .with(SuggestionItemProperties.APPLY_DEACTIVATED_STYLE, true)
+                        .build();
+
+        modelList.add(new ListItem(HomeProperties.ItemType.SUGGESTION, suggestionModel));
+        AtMemoryHomeView homeView = mView.getHomeView();
+        homeView.setUpSheetItems(modelList);
+
+        ShadowLooper.idleMainLooper();
+
+        RecyclerView recyclerView = homeView.findViewById(R.id.suggestions_view);
+        recyclerView.layout(0, 0, 100, 1000);
+        AtMemoryBottomSheetSuggestionView suggestionView =
+                (AtMemoryBottomSheetSuggestionView) recyclerView.getChildAt(0);
+
+        assertFalse(suggestionView.isEnabled());
     }
 
     private List<ChipView> getChipViews(ViewGroup viewGroup) {

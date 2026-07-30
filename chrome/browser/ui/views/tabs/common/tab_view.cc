@@ -147,7 +147,7 @@ TabView::TabView(TabCollectionNode* collection_node)
   BrowserWindowInterface* browser_window = tab->GetBrowserWindowInterface();
   if (browser_window &&
       (glic::GlicEnabling::IsProfileEligible(browser_window->GetProfile()) ||
-       base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks))) {
+       contextual_tasks::IsContextualTasksUIEnabled())) {
     glic_tab_underline_view_ =
         AddChildView(views::Builder<glic::TabUnderlineView>(
                          glic::TabUnderlineView::Factory::Create(
@@ -644,6 +644,10 @@ void TabView::OnFocus() {
         GetTabInterface());
   }
 
+  // Update the accessible label before showing the hover card to ensure that
+  // the displayed memory usage is in sync with what will be read to screen
+  // readers.
+  UpdateAccessibleName();
   UpdateHoverCard(this, TabSlotController::HoverCardUpdateType::kFocus);
   InvalidateLayout();
 }
@@ -898,6 +902,10 @@ bool TabView::IsValidHoverCardTarget() const {
 }
 
 views::BubbleBorder::Arrow TabView::GetAnchorPosition() const {
+  if (collection_node_ &&
+      collection_node_->orientation() == TabStripOrientation::kHorizontal) {
+    return views::BubbleBorder::Arrow::TOP_LEFT;
+  }
   if (pinned_ && !collapsed_) {
     return views::BubbleBorder::Arrow::TOP_LEFT;
   }
@@ -999,6 +1007,17 @@ void TabView::OnTabStateChanged() {
 void TabView::OnTabDataChanged(TabChangeType change_type,
                                const tabs::TabData& data) {
   CHECK(collection_node_);
+
+  // Update the accessible name when the hovered tab's memory usage changes
+  // so screen readers are in sync with the hover card. Skips updating
+  // other visual UI elements (title, favicon, alert buttons) because those
+  // states usually do not change when memory is updated.
+  if (change_type == TabChangeType::kResourceUsageOnly) {
+    if (IsActive() || HasFocus()) {
+      UpdateAccessibleName();
+    }
+    return;
+  }
   UpdateTabData(GetTabInterface());
 }
 

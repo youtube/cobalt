@@ -341,6 +341,16 @@ class A {
 
     @java("""
 class A {
+    void test() {
+        var _ = 1; // good
+    }
+}
+""")
+    def test_LocalVariableName_unnamed(self):
+        self._check()
+
+    @java("""
+class A {
     void test(int a) {
         switch (a) {
             case 1:
@@ -574,6 +584,51 @@ class A {
     def test_ParamComments_4(self):
         self._check(
             'Parameter comments should use the ErrorProne-aware syntax')
+
+    @java("""
+class A {
+    void test() {
+        doSomething(/* value */ 1);
+    }
+}
+""")
+    def test_ParamComments_5(self):
+        self._check(
+            'Parameter comments should use the ErrorProne-aware syntax')
+
+    @java("""
+class A {
+    void test() {
+        doSomething(/* value= */ 1);
+    }
+}
+""")
+    def test_ParamComments_6(self):
+        self._check()
+
+    @java("""
+class A {
+    void test() {
+        doSomething(/* index */ 1);
+    }
+}
+""")
+    def test_ParamComments_7(self):
+        # "index" is special-cased due to this error-prone warning.
+        # https://errorprone.info/bugpattern/ListRemoveAmbiguous
+        self._check()
+
+    @java("""
+class A {
+    void test() {
+        doSomething(/* element */ 1);
+    }
+}
+""")
+    def test_ParamComments_8(self):
+        # "element" is special-cased due to this error-prone warning.
+        # https://errorprone.info/bugpattern/ListRemoveAmbiguous
+        self._check()
 
     @java("""
 /**

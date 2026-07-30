@@ -478,6 +478,13 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kHTMLGeolocationElement,
           WebFeature::kHTMLInstallElement,
           WebFeature::kHTMLUserMediaElement,
+          WebFeature::kCapabilityElementIsValid,
+          WebFeature::kCapabilityElementInvalidReason,
+          WebFeature::kCapabilityElementInitialPermissionStatus,
+          WebFeature::kCapabilityElementPermissionStatus,
+          WebFeature::kCapabilityElementOnPromptAction,
+          WebFeature::kCapabilityElementOnPromptDismiss,
+          WebFeature::kCapabilityElementOnValidationStatusChange,
           WebFeature::kCredentialsGetImmediateMediationWithWebAuthnOnly,
           WebFeature::kCredentialsGetImmediateMediationWithWebAuthnAndPasswords,
           WebFeature::kPreventSvgFilterPaint,
@@ -488,6 +495,7 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kWebSpeechTtsSynthesize,
           WebFeature::kWebSpeechTtsSuccess,
           WebFeature::kWebSpeechTtsError,
+          WebFeature::kViewportFitCover,
           // NOTE: before adding new use counters here, verify in UMA that
           // their emissions are very rare, e.g. <1% of page loads.
       }));

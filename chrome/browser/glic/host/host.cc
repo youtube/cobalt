@@ -16,7 +16,6 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
-#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
@@ -135,7 +134,6 @@ void Host::NotifyActorTaskListRowClicked(int32_t task_id) {
     client->NotifyActorTaskListRowClicked(task_id);
   }
 }
-
 
 void Host::Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback) {
   CHECK(!options->auto_submit) << "Use InvokeWithAutoSubmit instead.";
@@ -301,8 +299,6 @@ GlicPinCandidateProvider& Host::pin_candidate_provider() {
   return sharing_manager_provider_->pin_candidate_provider();
 }
 
-
-
 Host::InstanceDelegate& Host::instance_delegate() {
   CHECK(instance_delegate_);
   return *instance_delegate_;
@@ -380,7 +376,6 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   CHECK(handler_info_);
   CHECK(web_client);
   handler_info_->web_client = web_client;
-
 
   for (auto& [source, context] : pending_additional_contexts_) {
     web_client->NotifyAdditionalContext(std::move(context));
@@ -475,18 +470,23 @@ InstanceId Host::GetInstanceId() const {
   return glic_instance_ ? glic_instance_->id() : InstanceId::CreateNullId();
 }
 
+std::unique_ptr<content::WebContents> Host::ReleaseWebContents() {
+  CHECK(contents_);
+  return contents_->ReleaseWebContents();
+}
+
+void Host::ReclaimWebContents(
+    std::unique_ptr<content::WebContents> web_contents) {
+  CHECK(contents_);
+  contents_->ReclaimWebContents(std::move(web_contents));
+}
+
 content::WebContents* Host::webui_contents() const {
-  if (contents_) {
-    return contents_->web_contents();
-  }
-  if (page_handler()) {
-    return page_handler()->webui_contents();
-  }
-  return nullptr;
+  return contents_ ? contents_->web_contents() : nullptr;
 }
 
 void Host::SetWebContentsVisibility(content::Visibility visibility) {
-  if (contents_) {
+  if (contents_ && contents_->web_contents()) {
     contents_->SetVisibility(visibility);
   }
 }

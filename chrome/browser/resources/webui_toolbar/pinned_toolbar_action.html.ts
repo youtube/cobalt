@@ -8,13 +8,17 @@ import type {PinnedToolbarActionElement} from './pinned_toolbar_action.js';
 
 export function getHtml(this: PinnedToolbarActionElement) {
   return html`<!--_html_template_start_-->
-  <cr-icon-button iron-icon="${this.getIronIcon_() ?? nothing}"
+  <cr-icon-button id="button" iron-icon="${this.getIronIcon_() ?? nothing}"
       style="${this.getIconStyle_() ?? nothing}"
       ?disabled="${!this.state.enabled}"
       ?is-menu-open="${this.state.highlighted || this.trackedHighlighted}"
       ?is-activated="${this.state.activated}"
       title="${this.getTooltip_()}"
       aria-label="${this.state.accessibilityText || this.state.tooltip}"
+      draggable="${this.state.enabled}"
+      @dragstart="${this.onDragstart_}"
+      @dragend="${this.onDragend_}"
+      @keydown="${this.onKeydown_}"
       @click="${this.onActionClick_}"
       @contextmenu="${this.onContextmenu_}">
   </cr-icon-button>

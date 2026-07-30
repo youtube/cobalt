@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Londoloza amaphasiwedi</translation>
 <translation id="1764070164487214210">Izikhombisi-ndlela</translation>
 <translation id="1764511703783285459">Esinye isiphathi sephasiwedi asizange sabelane nganoma yimaphi amaphasiwedi noma okhiye bokudlula</translation>
+<translation id="1765555082983153259">“IChrome” ingathanda ukufinyelela imakrofoni yakho</translation>
 <translation id="1767766085187034454">I-Google Translate</translation>
 <translation id="1771016937398045251">Imenyu yamathuluzi</translation>
 <translation id="1772468122139624049">Ayikwazi ukulayisha kabusha amathebhu</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Ukusesha Okunzulu</translation>
 <translation id="188237709236611317">Ibha yemenyu yokuhlunga esmathi</translation>
 <translation id="1883255238294161206">Goqa uhlu</translation>
+<translation id="1883898928879467646">Ithebhu isusiwe</translation>
 <translation id="1888854257756214946">Khetha iphasiwedi…</translation>
 <translation id="1890237935065108104">Le sethingi ayitholakali.</translation>
 <translation id="1894023287452300670">Landelela intengo lapha</translation>
@@ -1620,6 +1622,7 @@ I-Handoff futhi kufanele inikwe amandla esigabeni sokuvamile zezilungiselelo, fu
 <translation id="6406506848690869874">Vumelanisa</translation>
 <translation id="6410390304316730527">Ukuphequlula ngokuphephile kukuvikela kubahlaseli abangase bakukhohlise ukwenza okuthile okuyingozi njengokufaka isofthiwe enonya noma ukuveza ulwazi lomuntu siqu njengamaphasiwedi, izinombolo zefoni, noma amakhadi esikweletu. Uma ukuvala, qaphela lapho uphequlula kumasayithi ongawajwayele noma angathenjwa.</translation>
 <translation id="6410883413783534063">Vula amathebhu ukuvakashela amakhasi ahlukile ngesikhathi esisodwa</translation>
+<translation id="6412195388778525440">Susa ithebhu</translation>
 <translation id="6418346271604475326">Ilungisela i-PDF</translation>
 <translation id="6420292512900923139">Inkinga yokungenisa idatha yakho</translation>
 <translation id="6421038304268477484">Umbhalo ohunyushiwe</translation>
@@ -2320,7 +2323,6 @@ Ukuze uqhubeke kukhompyutha yakho, shintshela ku-<ph name="OTHER_EMAIL" />. Uzot
 <translation id="8692689525339542358">Thola isivikelo kumasayithi, okudawunilodiwe, nezandiso eziyingozi.</translation>
 <translation id="8692897097252418799">Khetha idatha ofuna ukuyithumela</translation>
 <translation id="8694281486652655615">Ibonisa le nto</translation>
-<translation id="8696297579102085705">Thumela kudivayisi yakho</translation>
 <translation id="8697136149718343437">Hambisa ibha lekheli liye ezansi</translation>
 <translation id="869891660844655955">Idethi yokuphelelwa yisikhathi</translation>
 <translation id="8706253136355675497">Izinga lokushisa</translation>
@@ -2463,6 +2465,7 @@ Ukuze uqhubeke kukhompyutha yakho, shintshela ku-<ph name="OTHER_EMAIL" />. Uzot
 <translation id="9149866541089851383">Hlela...</translation>
 <translation id="9152637745605628097">Khetha kumatimu, imibala noma layisha isithombe</translation>
 <translation id="9159628751968616911">Thumela ikhasi lewebhu</translation>
+<translation id="9162412286847966593">Idatha yenhlangano yakho nokurekhodiwe ngeke kusetshenziselwe ukuthuthukisa amamodeli e-AI ekhiqizayo. <ph name="BEGIN_LINK" />Ubumfihlo bakho neGemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Vula Iphasiwedi Yokugcwalisa Ngokuzenzakalelayo</translation>
 <translation id="9165320910061267720">Ukuze uthole izaziso zokwehla kwentengo, uzodinga ukuvula izaziso kumasethingi akho e-iOS.</translation>
 <translation id="9179151630575358778">Ifihla le nto</translation>

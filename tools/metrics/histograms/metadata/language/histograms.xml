@@ -23,7 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="LanguageDetection.TFLiteModel.ClassifyText.Detected"
-    enum="BooleanDetected" expires_after="2026-09-27">
+    enum="BooleanDetected" expires_after="2027-01-10">
   <owner>fergal@google.com</owner>
   <owner>chrome-language@google.com</owner>
   <summary>
@@ -139,7 +139,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="LanguageDetection.TFLiteModel.UpdateLanaguageDetectionModelTime"
-    units="ms" expires_after="2026-03-01">
+    units="ms" expires_after="2027-07-01">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -147,6 +147,9 @@ chromium-metrics-reviews@google.com.
     recorded whenever this method is called. It is used to measure and breakdown
     the initilization time incurred by `TranslateAgent` for the renderer process
     initilization.
+
+    This histogram has been expired between 2026-03-01 and 2026-07-01, thus does
+    not contain data for this period.
   </summary>
 </histogram>
 
@@ -289,7 +292,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LanguageSettings.PageImpression"
-    enum="LanguageSettingsPageType" expires_after="2026-09-06">
+    enum="LanguageSettingsPageType" expires_after="2027-01-10">
   <owner>googleo@chromium.org</owner>
   <owner>chrome-language@google.com</owner>
   <summary>

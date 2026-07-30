@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/barrier_callback.h"
@@ -38,7 +39,6 @@
 #include "base/types/optional_util.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "components/attribution_reporting/features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
@@ -47,12 +47,10 @@
 #include "components/services/storage/public/cpp/filesystem/filesystem_impl.h"
 #include "components/services/storage/public/mojom/filesystem/directory.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom.h"
-#include "components/services/storage/shared_storage/shared_storage_manager.h"
 #include "components/services/storage/storage_service_impl.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/aggregation_service/aggregation_service_impl.h"
-#include "content/browser/attribution_reporting/attribution_manager_impl.h"
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -90,8 +88,6 @@
 #include "content/browser/notifications/platform_notification_context_impl.h"
 #include "content/browser/payments/payment_app_context_impl.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
-#include "content/browser/private_aggregation/private_aggregation_manager.h"
-#include "content/browser/private_aggregation/private_aggregation_manager_impl.h"
 #include "content/browser/push_messaging/push_messaging_context.h"
 #include "content/browser/quota/quota_context.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -100,8 +96,6 @@
 #include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
-#include "content/browser/shared_storage/shared_storage_header_observer.h"
-#include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/browser/ssl/ssl_client_auth_handler.h"
 #include "content/browser/ssl/ssl_error_handler.h"
 #include "content/browser/ssl_private_key_impl.h"
@@ -120,7 +114,6 @@
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/permission_result.h"
-#include "content/public/browser/private_aggregation_data_model.h"
 #include "content/public/browser/runtime_feature_state/runtime_feature_state_document_data.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/browser/session_storage_usage_info.h"
@@ -895,10 +888,7 @@ class StoragePartitionImpl::DataDeletionHelper {
       storage::FileSystemContext* filesystem_context,
       network::mojom::CookieManager* cookie_manager,
       InterestGroupManagerImpl* interest_group_manager,
-      AttributionManager* attribution_manager,
       AggregationService* aggregation_service,
-      PrivateAggregationManagerImpl* private_aggregation_manager,
-      storage::SharedStorageManager* shared_storage_manager,
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -922,11 +912,11 @@ class StoragePartitionImpl::DataDeletionHelper {
     kSessionStorage = 5,
     kShaderCache = 6,    // Deprecated in favor of using kGpuCache.
     kPluginPrivate = 7,  // Deprecated.
-    kConversions = 8,
+    kConversions = 8,    // Deprecated.
     kAggregationService = 9,
     kSharedStorage = 10,
     kGpuCache = 11,
-    kPrivateAggregation = 12,
+    kPrivateAggregation = 12,  // Deprecated.
     kInterestGroups = 13,
     kCdmStorage = 14,
     kDeviceBoundSessions = 15,
@@ -1224,20 +1214,6 @@ void StoragePartitionImpl::OnBrowserContextWillBeDestroyed() {
   }
 }
 
-void StoragePartitionImpl::RegisterKeepAliveHandle(
-    mojo::PendingReceiver<blink::mojom::NavigationStateKeepAliveHandle>
-        receiver,
-    std::unique_ptr<NavigationStateKeepAlive> handle) {
-  auto frame_token = static_cast<InitiatorNavigationStateImpl*>(
-                         handle->initiator_navigation_state().get())
-                         ->frame_token();
-  navigation_state_keep_alive_map_.erase(frame_token);
-  navigation_state_keep_alive_map_.insert(
-      std::make_pair(frame_token, handle.get()));
-
-  keep_alive_handles_receiver_set_.Add(std::move(handle), std::move(receiver));
-}
-
 void StoragePartitionImpl::RestrictNetworkForIdsInNetworkContext(
     const std::map<base::UnguessableToken, network::ConnectionAllowlists>&
         ids_to_allowlists,
@@ -1285,27 +1261,6 @@ void StoragePartitionImpl::ClearNetworkRestrictionsAfterDelayCallback(
   }
 
   clear_network_restrictions_callback_for_testing_.Run();  // IN-TEST
-}
-
-void StoragePartitionImpl::RemoveKeepAliveHandleFromMap(
-    blink::LocalFrameToken frame_token,
-    NavigationStateKeepAlive* keep_alive) {
-  // The NavigationStateKeepAlive associated with `frame_token` may have
-  // changed. Make sure the specified one is removed from the map.
-  auto it = navigation_state_keep_alive_map_.find(frame_token);
-  if (it != navigation_state_keep_alive_map_.end() &&
-      it->second == keep_alive) {
-    navigation_state_keep_alive_map_.erase(it);
-  }
-}
-
-NavigationStateKeepAlive* StoragePartitionImpl::GetNavigationStateKeepAlive(
-    blink::LocalFrameToken frame_token) {
-  auto it = navigation_state_keep_alive_map_.find(frame_token);
-  if (it == navigation_state_keep_alive_map_.end()) {
-    return nullptr;
-  }
-  return it->second;
 }
 
 // static
@@ -1379,8 +1334,6 @@ void StoragePartitionImpl::Initialize(
 
   lock_manager_ = std::make_unique<LockManager<storage::BucketId>>();
 
-  shared_storage_runtime_manager_ =
-      std::make_unique<SharedStorageRuntimeManager>(*this);
 
   scoped_refptr<ChromeBlobStorageContext> blob_context =
       ChromeBlobStorageContext::GetFor(browser_context_);
@@ -1485,15 +1438,6 @@ void StoragePartitionImpl::Initialize(
 
   bucket_manager_ = std::make_unique<BucketManager>(this);
 
-  if (base::FeatureList::IsEnabled(
-          attribution_reporting::features::kConversionMeasurement)) {
-    // The Conversion Measurement API is not available in Incognito mode, but
-    // this is enforced by the `AttributionManagerImpl` itself for better error
-    // reporting and metrics.
-    attribution_manager_ = std::make_unique<AttributionManagerImpl>(
-        this, path, special_storage_policy_);
-  }
-
   if (base::FeatureList::IsEnabled(network::features::kInterestGroupStorage)) {
     // Auction worklets on non-Android use dedicated processes; on Android due
     // to high cost of process launch they try to reuse renderers.
@@ -1560,21 +1504,6 @@ void StoragePartitionImpl::Initialize(
   }
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
-  if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
-    base::FilePath shared_storage_path =
-        is_in_memory() ? base::FilePath()
-                       : path.Append(storage::kSharedStoragePath);
-    shared_storage_manager_ = std::make_unique<storage::SharedStorageManager>(
-        shared_storage_path, special_storage_policy_);
-    shared_storage_header_observer_ =
-        std::make_unique<SharedStorageHeaderObserver>(this);
-  }
-
-  if (base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi)) {
-    private_aggregation_manager_ =
-        std::make_unique<PrivateAggregationManagerImpl>(is_in_memory(), path,
-                                                        this);
-  }
 
   if (base::FeatureList::IsEnabled(
           blink::features::kDeclarativePerformanceObserver)) {
@@ -1718,11 +1647,6 @@ LockManager<storage::BucketId>* StoragePartitionImpl::GetLockManager() {
   return lock_manager_.get();
 }
 
-SharedStorageRuntimeManager*
-StoragePartitionImpl::GetSharedStorageRuntimeManager() {
-  DCHECK(initialized_);
-  return shared_storage_runtime_manager_.get();
-}
 
 storage::mojom::IndexedDBControl& StoragePartitionImpl::GetIndexedDBControl() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -1855,16 +1779,6 @@ StoragePartitionImpl::GetFileSystemAccessManager() {
   return file_system_access_manager_.get();
 }
 
-AttributionManager* StoragePartitionImpl::GetAttributionManager() {
-  DCHECK(initialized_);
-  return attribution_manager_.get();
-}
-
-AttributionDataModel* StoragePartitionImpl::GetAttributionDataModel() {
-  DCHECK(initialized_);
-  return attribution_manager_.get();
-}
-
 FontAccessManager* StoragePartitionImpl::GetFontAccessManager() {
   DCHECK(initialized_);
   return font_access_manager_.get();
@@ -1944,21 +1858,6 @@ StoragePartitionImpl::GetProtoDatabaseProviderForTesting() {
   return proto_database_provider_.get();
 }
 
-storage::SharedStorageManager* StoragePartitionImpl::GetSharedStorageManager() {
-  return shared_storage_manager_.get();
-}
-
-PrivateAggregationManager*
-StoragePartitionImpl::GetPrivateAggregationManager() {
-  DCHECK(initialized_);
-  return private_aggregation_manager_.get();
-}
-
-PrivateAggregationDataModel*
-StoragePartitionImpl::GetPrivateAggregationDataModel() {
-  DCHECK(initialized_);
-  return private_aggregation_manager_.get();
-}
 
 void StoragePartitionImpl::DeleteStaleSessionData() {
   GetDOMStorageContext()->StartScavengingUnusedSessionStorage();
@@ -2115,13 +2014,15 @@ void StoragePartitionImpl::OnAuthRequired(
   }
   network::OriginatingProcessId process_id =
       network::OriginatingProcessId::browser();
-  if (original_context.type() == ContextType::kSharedOrServiceWorkerContext) {
+  if (const auto* worker_context =
+          std::get_if<URLLoaderNetworkContext::SharedOrServiceWorkerContext>(
+              &original_context.context())) {
     // If the request was initiated by a service worker, use the service
     // worker's process ID. This ensures the `GlobalRequestID` used to look up
     // the proxy (e.g. in `WebRequestAPI`) matches the one used when the factory
     // was created, which for service worker subresources is the worker's
     // process ID.
-    process_id = original_context.process_id();
+    process_id = worker_context->process_id;
   } else if (context.type() == ContextType::kRenderFrameHostContext) {
     // Set `process_id` to `kInvalidProcessId` considering `render_frame_host`
     // can be null when it's destroyed already. `process_id` is updated only if
@@ -2348,7 +2249,9 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
               std::move(callback)));
       return;
     }
-  } else if (context.type() == ContextType::kSharedOrServiceWorkerContext) {
+  } else if (const auto* worker_context = std::get_if<
+                 URLLoaderNetworkContext::SharedOrServiceWorkerContext>(
+                 &context.context())) {
     // TODO(crbug.com/404887282): Plumb the `frame_window_id` of the worker,
     // if it exists, to allow this to identify the hosting frame of the worker,
     // when available. This would allow us to additionally _request_ the
@@ -2368,8 +2271,8 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
     // are opaque (but workers loaded from blob: URLs should have the origin
     // which created the blob: URL).
     // TODO(crbug.com/404887282): Revisit if opaque origins support is needed.
-    CHECK(context.worker_origin());
-    if (context.worker_origin()->opaque()) {
+    CHECK(worker_context->worker_origin);
+    if (worker_context->worker_origin->opaque()) {
       std::move(callback).Run(
           network::mojom::LocalNetworkAccessResult::kDenied);
       return;
@@ -2377,13 +2280,13 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
 
     PermissionController& permission_controller =
         CHECK_DEREF(browser_context_->GetPermissionController());
-    CHECK(!context.process_id().is_browser());
+    CHECK(!worker_context->process_id.is_browser());
     auto status = permission_controller.GetPermissionStatusForWorker(
         content::PermissionDescriptorUtil::
             CreatePermissionDescriptorForPermissionType(permission_type),
         content::RenderProcessHost::FromID(
-            ToChildProcessId(context.process_id().renderer_process_id())),
-        context.worker_origin().value());
+            ToChildProcessId(worker_context->process_id.renderer_process_id())),
+        worker_context->worker_origin.value());
 
     // If the request was loaded from cache, prefer retrying over the network
     // over prompting the user or blocking.
@@ -2482,11 +2385,13 @@ void StoragePartitionImpl::OnCertificateRequested(
   int process_id = network::mojom::kInvalidProcessId;
   if (context.type() == ContextType::kSharedOrServiceWorkerContext ||
       context.type() == ContextType::kDeviceBoundSessionContext) {
-    if (context.type() == ContextType::kSharedOrServiceWorkerContext) {
+    if (const auto* worker_context =
+            std::get_if<URLLoaderNetworkContext::SharedOrServiceWorkerContext>(
+                &context.context())) {
       // TODO(crbug.com/379869738) Remove GetUnsafeValue.
       // TODO(crbug.com/479742988) This can be the browser process and
       // shouldn't.
-      process_id = context.process_id().GetUnsafeValue();
+      process_id = worker_context->process_id.GetUnsafeValue();
     }
   } else {
     WebContents* web_contents = context.GetWebContents();
@@ -2567,26 +2472,7 @@ void StoragePartitionImpl::OnSharedStorageHeaderReceived(
         methods_with_options,
     const std::optional<std::string>& with_lock,
     OnSharedStorageHeaderReceivedCallback callback) {
-  if (!shared_storage_header_observer_) {
-    std::move(callback).Run();
-    return;
-  }
-
-  // Currently, shared-storage-writable headers aren't available for requests
-  // initiated by service workers, so `navigation_or_document` should be
-  // non-null.
-  //
-  // TODO(cammie): If we handle the service worker case by allowing service
-  // workers to initiate shared-storage-writable requests, the assumption that
-  // `navigation_or_document` must be non-null may become incorrect.
-  auto* navigation_or_document =
-      url_loader_network_observers_.current_context().navigation_or_document();
-  DCHECK(navigation_or_document);
-
-  shared_storage_header_observer_->HeaderReceived(
-      request_origin, url_loader_network_observers_.current_context().type(),
-      navigation_or_document, std::move(methods_with_options), with_lock,
-      std::move(callback), mojo::GetBadMessageCallback(), /*can_defer=*/true);
+  std::move(callback).Run();
 }
 
 void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
@@ -2883,9 +2769,7 @@ void StoragePartitionImpl::ClearDataImpl(
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(), special_storage_policy_.get(),
       filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-      interest_group_manager_.get(), attribution_manager_.get(),
-      aggregation_service_.get(), private_aggregation_manager_.get(),
-      shared_storage_manager_.get(),
+      interest_group_manager_.get(), aggregation_service_.get(),
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -2987,10 +2871,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
     storage::FileSystemContext* filesystem_context,
     network::mojom::CookieManager* cookie_manager,
     InterestGroupManagerImpl* interest_group_manager,
-    AttributionManager* attribution_manager,
     AggregationService* aggregation_service,
-    PrivateAggregationManagerImpl* private_aggregation_manager,
-    storage::SharedStorageManager* shared_storage_manager,
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
     CdmStorageManager* cdm_storage_manager,
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
@@ -3189,31 +3070,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
     }
   }
 
-  // It is not expected to only delete internal attribution reporting data.
-  DCHECK(!(remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_INTERNAL) ||
-         remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_SITE_CREATED);
-  if (attribution_manager &&
-      (remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_SITE_CREATED)) {
-    if (storage_key_origin_empty) {
-      attribution_manager->ClearData(
-          begin, end, generic_filter, filter_builder,
-          remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_INTERNAL,
-          mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-              CreateTaskCompletionClosure(TracingDataType::kConversions)));
-    } else if (storage_key.IsFirstPartyContext()) {
-      // Attribution Reporting API doesn't support cross-site data deletion.
-      std::unique_ptr<BrowsingDataFilterBuilder> effective_filter_builder =
-          BrowsingDataFilterBuilder::Create(
-              BrowsingDataFilterBuilder::Mode::kDelete);
-      effective_filter_builder->AddOrigin(storage_key.origin());
-      attribution_manager->ClearData(
-          begin, end, generic_filter, effective_filter_builder.get(),
-          remove_mask_ & REMOVE_DATA_MASK_ATTRIBUTION_REPORTING_INTERNAL,
-          mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-              CreateTaskCompletionClosure(TracingDataType::kConversions)));
-    }
-  }
-
   if (aggregation_service &&
       (remove_mask_ & REMOVE_DATA_MASK_AGGREGATION_SERVICE)) {
     // Currently the aggregation service only stores public keys and we don't
@@ -3227,37 +3083,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
         begin, end, generic_filter,
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             CreateTaskCompletionClosure(TracingDataType::kAggregationService)));
-  }
-
-  if (private_aggregation_manager &&
-      (remove_mask_ & REMOVE_DATA_MASK_PRIVATE_AGGREGATION_INTERNAL)) {
-    private_aggregation_manager->ClearBudgetData(
-        begin, end, generic_filter,
-
-        // Wrapping the callback ensures that the callback is still run in the
-        // case that the storage partition is deleted before the task is posted.
-        mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-            CreateTaskCompletionClosure(TracingDataType::kPrivateAggregation)));
-  }
-
-  if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI) &&
-      shared_storage_manager &&
-      (remove_mask_ & REMOVE_DATA_MASK_SHARED_STORAGE)) {
-    auto shared_storage_purge_callback = base::BindOnce(
-        [](base::WeakPtr<storage::SharedStorageManager> manager,
-           base::OnceClosure callback,
-           storage::SharedStorageDatabase::OperationResult result) {
-          if (manager) {
-            manager->OnOperationResult(result);
-          }
-          std::move(callback).Run();
-        },
-        shared_storage_manager->GetWeakPtr(),
-        CreateTaskCompletionClosure(TracingDataType::kSharedStorage));
-
-    shared_storage_manager->PurgeMatchingOrigins(
-        combined_storage_key_matcher, begin, end,
-        std::move(shared_storage_purge_callback), perform_storage_cleanup);
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS &&
@@ -3581,37 +3406,11 @@ void StoragePartitionImpl::OverrideSharedWorkerServiceForTesting(
   shared_worker_service_ = std::move(shared_worker_service);
 }
 
-void StoragePartitionImpl::OverrideSharedStorageRuntimeManagerForTesting(
-    std::unique_ptr<SharedStorageRuntimeManager>
-        shared_storage_runtime_manager) {
-  DCHECK(initialized_);
-  shared_storage_runtime_manager_ = std::move(shared_storage_runtime_manager);
-}
-
-void StoragePartitionImpl::OverrideSharedStorageHeaderObserverForTesting(
-    std::unique_ptr<SharedStorageHeaderObserver>
-        shared_storage_header_observer) {
-  DCHECK(initialized_);
-  shared_storage_header_observer_ = std::move(shared_storage_header_observer);
-}
 
 void StoragePartitionImpl::OverrideAggregationServiceForTesting(
     std::unique_ptr<AggregationService> aggregation_service) {
   DCHECK(initialized_);
   aggregation_service_ = std::move(aggregation_service);
-}
-
-void StoragePartitionImpl::OverrideAttributionManagerForTesting(
-    std::unique_ptr<AttributionManager> attribution_manager) {
-  DCHECK(initialized_);
-  attribution_manager_ = std::move(attribution_manager);
-}
-
-void StoragePartitionImpl::OverridePrivateAggregationManagerForTesting(
-    std::unique_ptr<PrivateAggregationManagerImpl>
-        private_aggregation_manager) {
-  DCHECK(initialized_);
-  private_aggregation_manager_ = std::move(private_aggregation_manager);
 }
 
 void StoragePartitionImpl::OverrideDeviceBoundSessionManagerForTesting(
@@ -3931,33 +3730,28 @@ void StoragePartitionImpl::OnScenarioMatchChanged(
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
     GlobalRenderFrameHostId render_frame_host_id)
-    : type_(Type::kRenderFrameHostContext) {
-  auto* render_frame_host = RenderFrameHostImpl::FromID(render_frame_host_id);
-  if (!render_frame_host) {
-    return;
+    : context_(RenderFrameHostContext{}) {
+  if (auto* rfh = RenderFrameHostImpl::FromID(render_frame_host_id)) {
+    std::get<RenderFrameHostContext>(context_).navigation_or_document =
+        rfh->GetNavigationOrDocumentHandle();
   }
-
-  navigation_or_document_ = render_frame_host->GetNavigationOrDocumentHandle();
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
     NavigationRequest& navigation_request)
-    : type_(Type::kNavigationRequestContext) {
-  navigation_or_document_ = navigation_request.navigation_or_document_handle();
-}
+    : context_(NavigationRequestContext{
+          navigation_request.navigation_or_document_handle()}) {}
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
     const network::OriginatingProcessId& process_id,
     const url::Origin& worker_origin)
-    : type_(Type::kSharedOrServiceWorkerContext),
-      process_id_(process_id),
-      worker_origin_(worker_origin) {}
+    : context_(SharedOrServiceWorkerContext{process_id, worker_origin}) {}
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
     const URLLoaderNetworkContext& other) = default;
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext()
-    : type_(Type::kDeviceBoundSessionContext) {}
+    : context_(DeviceBoundSessionContext{}) {}
 
 StoragePartitionImpl::URLLoaderNetworkContext&
 StoragePartitionImpl::URLLoaderNetworkContext::operator=(
@@ -3991,9 +3785,37 @@ StoragePartitionImpl::URLLoaderNetworkContext::CreateForDeviceBoundSessions() {
   return StoragePartitionImpl::URLLoaderNetworkContext();
 }
 
+StoragePartitionImpl::ContextType
+StoragePartitionImpl::URLLoaderNetworkContext::type() const {
+  if (std::holds_alternative<RenderFrameHostContext>(context_)) {
+    return ContextType::kRenderFrameHostContext;
+  }
+  if (std::holds_alternative<NavigationRequestContext>(context_)) {
+    return ContextType::kNavigationRequestContext;
+  }
+  if (std::holds_alternative<SharedOrServiceWorkerContext>(context_)) {
+    return ContextType::kSharedOrServiceWorkerContext;
+  }
+  CHECK(std::holds_alternative<DeviceBoundSessionContext>(context_));
+  return ContextType::kDeviceBoundSessionContext;
+}
+
 bool StoragePartitionImpl::URLLoaderNetworkContext::IsNavigationRequestContext()
     const {
-  return type_ == ContextType::kNavigationRequestContext;
+  return std::holds_alternative<NavigationRequestContext>(context_);
+}
+
+NavigationOrDocumentHandle*
+StoragePartitionImpl::URLLoaderNetworkContext::navigation_or_document() const {
+  if (const auto* rfh_context =
+          std::get_if<RenderFrameHostContext>(&context_)) {
+    return rfh_context->navigation_or_document.get();
+  }
+  if (const auto* nav_context =
+          std::get_if<NavigationRequestContext>(&context_)) {
+    return nav_context->navigation_or_document.get();
+  }
+  return nullptr;
 }
 
 // Returns the WebContents corresponding to `context`.

@@ -15,6 +15,7 @@
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/bookmarks/bookmark_merged_surface_service_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/bookmarks/managed_bookmark_service_factory.h"
 #include "chrome/browser/browser_process.h"
@@ -22,8 +23,6 @@
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
-#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider_impl.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
@@ -55,6 +54,7 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_instant_controller.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_location_bar_model_delegate.h"
@@ -268,10 +268,13 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstanceWithFactoryMethod(
           *browser, &web_app::MaybeCreateAppBrowserController, browser);
 
-  if (auto* model = BookmarkModelFactory::GetForBrowserContext(profile)) {
-    auto* managed = ManagedBookmarkServiceFactory::GetForProfile(profile);
-    bookmarks_service_feature_ =
-        std::make_unique<BookmarksServiceFeature>(model, managed);
+  {
+    auto* merged_bookmarks_service =
+        BookmarkMergedSurfaceServiceFactory::GetForProfile(profile);
+    if (merged_bookmarks_service != nullptr) {
+      bookmarks_service_feature_ =
+          std::make_unique<BookmarksServiceFeature>(merged_bookmarks_service);
+    }
   }
 
   bookmarks_side_panel_coordinator_ =
@@ -299,7 +302,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<WindowFeatureController>(
           *browser, fullscreen_controller_.get(), app_browser_controller_.get(),
           browser->GetType(),
-          browser->GetBrowserForMigrationOnly()->create_params().trusted_source,
+          BrowserInitState::From(browser)->create_params().trusted_source,
           browser->GetUnownedUserDataHost());
 
   side_panel_registry_ =
@@ -531,8 +534,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           *browser, browser);
 
   window_metadata_controller_ = std::make_unique<WindowMetadataController>(
-      *browser,
-      browser->GetBrowserForMigrationOnly()->create_params().user_title);
+      *browser, BrowserInitState::From(browser)->create_params().user_title);
 
   // ---------------------------------------------------------------------------
   // Members owned only when the browser is TYPE_NORMAL (e.g. a window with an
@@ -544,12 +546,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       ai_overlay_dialog_controller_ =
           GetUserDataFactory().CreateInstance<ttc::AiOverlayDialogController>(
               *browser, browser);
-    }
-
-    if (base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
-      contextual_cueing_controller_ =
-          std::make_unique<contextual_cueing::ContextualCueingController>(
-              browser, tab_list_bridge_.get());
     }
 
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
@@ -590,9 +586,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       Browser* raw_browser = browser->GetBrowserForMigrationOnly();
 
       std::optional<bool> restored_state_collapsed =
-          raw_browser->is_vertical_tabs_initially_collapsed();
+          BrowserInitState::From(raw_browser)
+              ->is_vertical_tabs_initially_collapsed();
       std::optional<int> restored_state_uncollapsed_width =
-          raw_browser->get_vertical_tabs_initial_uncollapsed_width();
+          BrowserInitState::From(raw_browser)
+              ->get_vertical_tabs_initial_uncollapsed_width();
 
       if (!restored_state_collapsed.has_value() &&
           !restored_state_uncollapsed_width.has_value() &&
@@ -620,7 +618,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   //   CloseButtonController depends on VerticalTabStripStateController.
   //   CloseButtonController depends on ImmersiveModeController.
   // TODO(crbug.com/481268779): Pass these dependencies explicitly.
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+  if (contextual_tasks::IsContextualTasksUIEnabled()) {
     contextual_tasks_browser_controller_ =
         GetUserDataFactory()
             .CreateInstance<contextual_tasks::ContextualTasksBrowserController>(

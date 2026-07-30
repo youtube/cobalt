@@ -642,7 +642,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
   void SetTickmarksOverride(Vector<gfx::Rect> tickmarks);
 
-  bool MayCompositeScrollbar(const Scrollbar&) const;
+  bool MayCompositeScrollbar(const Scrollbar&) const override;
 
   void EstablishScrollbarRoot(bool freeze_horizontal, bool freeze_vertical);
   void ClearScrollbarRoot();
@@ -664,9 +664,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // Force scrollbars off for reconstruction.
   void RemoveScrollbarsForReconstruction();
 
-  void DidUpdateCullRect() {
-    last_cull_rect_update_scroll_position_ = ScrollPosition();
-  }
+  void DidUpdateCullRect();
+
   gfx::PointF LastCullRectUpdateScrollPosition() const {
     return last_cull_rect_update_scroll_position_;
   }

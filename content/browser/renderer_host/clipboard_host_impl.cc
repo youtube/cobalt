@@ -252,20 +252,24 @@ void ClipboardHostImpl::ReadText(ui::ClipboardBuffer clipboard_buffer,
     return;
   }
 
-  ExtractText(clipboard_buffer, CreateDataEndpoint(render_frame_host()),
-              base::BindOnce(&ClipboardHostImpl::OnReadText,
-                             weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
-                             std::move(callback)));
+  ExtractText(
+      clipboard_buffer, CreateDataEndpoint(render_frame_host()),
+      base::BindOnce(&ClipboardHostImpl::OnReadText,
+                     weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
+                     std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadText(ui::ClipboardBuffer clipboard_buffer,
+                                   ui::ClipboardSequenceNumberToken seqno,
                                    ReadTextCallback callback,
                                    std::u16string text) {
   ClipboardPasteData clipboard_paste_data;
   clipboard_paste_data.text = std::move(text);
 
   PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::PlainTextType(),
+      clipboard_buffer, ui::ClipboardFormatType::PlainTextType(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](ReadTextCallback callback,
@@ -289,13 +293,17 @@ void ClipboardHostImpl::ReadHtml(ui::ClipboardBuffer clipboard_buffer,
   }
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
   auto data_dst = CreateDataEndpoint(render_frame_host());
-  clipboard->ReadHTML(clipboard_buffer, data_dst,
-                      base::BindOnce(&ClipboardHostImpl::OnReadHtml,
-                                     weak_ptr_factory_.GetWeakPtr(),
-                                     clipboard_buffer, std::move(callback)));
+  clipboard->ReadHTML(
+      clipboard_buffer, data_dst,
+      base::BindOnce(&ClipboardHostImpl::OnReadHtml,
+                     weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
+                     std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadHtml(ui::ClipboardBuffer clipboard_buffer,
+                                   ui::ClipboardSequenceNumberToken seqno,
                                    ReadHtmlCallback callback,
                                    std::u16string markup,
                                    GURL src_url,
@@ -305,7 +313,7 @@ void ClipboardHostImpl::OnReadHtml(ui::ClipboardBuffer clipboard_buffer,
   clipboard_paste_data.html = std::move(markup);
 
   PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::HtmlType(),
+      clipboard_buffer, ui::ClipboardFormatType::HtmlType(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](GURL src_url, uint32_t fragment_start, uint32_t fragment_end,
@@ -335,17 +343,20 @@ void ClipboardHostImpl::ReadSvg(ui::ClipboardBuffer clipboard_buffer,
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadSvg,
                      weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadSvg(ui::ClipboardBuffer clipboard_buffer,
+                                  ui::ClipboardSequenceNumberToken seqno,
                                   ReadSvgCallback callback,
                                   std::u16string svg) {
   ClipboardPasteData clipboard_paste_data;
   clipboard_paste_data.svg = std::move(svg);
 
   PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::SvgType(),
+      clipboard_buffer, ui::ClipboardFormatType::SvgType(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](ReadSvgCallback callback,
@@ -373,17 +384,20 @@ void ClipboardHostImpl::ReadRtf(ui::ClipboardBuffer clipboard_buffer,
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadRtf,
                      weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadRtf(ui::ClipboardBuffer clipboard_buffer,
+                                  ui::ClipboardSequenceNumberToken seqno,
                                   ReadRtfCallback callback,
                                   std::string rtf) {
   ClipboardPasteData clipboard_paste_data;
   clipboard_paste_data.rtf = std::move(rtf);
 
   PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::RtfType(),
+      clipboard_buffer, ui::ClipboardFormatType::RtfType(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](ReadRtfCallback callback,
@@ -410,30 +424,35 @@ void ClipboardHostImpl::ReadPng(ui::ClipboardBuffer clipboard_buffer,
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadPng,
                      weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadPng(ui::ClipboardBuffer clipboard_buffer,
+                                  ui::ClipboardSequenceNumberToken seqno,
                                   ReadPngCallback callback,
                                   const std::vector<uint8_t>& data) {
   // Pass both image and associated text for content analysis.
   ExtractText(clipboard_buffer, CreateDataEndpoint(render_frame_host()),
               base::BindOnce(&ClipboardHostImpl::OnReadPngWithText,
                              weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
-                             std::move(callback), std::move(data)));
+                             seqno, std::move(callback), std::move(data)));
 }
 
-void ClipboardHostImpl::OnReadPngWithText(ui::ClipboardBuffer clipboard_buffer,
-                                          ReadPngCallback callback,
-                                          std::vector<uint8_t> data,
-                                          std::u16string text) {
+void ClipboardHostImpl::OnReadPngWithText(
+    ui::ClipboardBuffer clipboard_buffer,
+    ui::ClipboardSequenceNumberToken seqno,
+    ReadPngCallback callback,
+    std::vector<uint8_t> data,
+    std::u16string text) {
   // Pass both image and associated text for content analysis.
   ClipboardPasteData clipboard_paste_data;
   clipboard_paste_data.text = std::move(text);
   clipboard_paste_data.png = std::move(data);
 
   PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::PngType(),
+      clipboard_buffer, ui::ClipboardFormatType::PngType(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](ReadPngCallback callback,
@@ -463,14 +482,15 @@ void ClipboardHostImpl::ReadFiles(ui::ClipboardBuffer clipboard_buffer,
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadFiles,
                      weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadFiles(ui::ClipboardBuffer clipboard_buffer,
+                                    ui::ClipboardSequenceNumberToken seqno,
                                     ReadFilesCallback callback,
                                     std::vector<ui::FileInfo> filenames) {
-  blink::mojom::ClipboardFilesPtr result = blink::mojom::ClipboardFiles::New();
-
   // Convert the vector of ui::FileInfo into a vector of base::FilePath so that
   // it can be passed to PerformPasteIfContentAllowed() for analysis.  When
   // the latter is called with ui::ClipboardFormatType::FilenamesType() the
@@ -483,55 +503,61 @@ void ClipboardHostImpl::OnReadFiles(ui::ClipboardBuffer clipboard_buffer,
   ClipboardPasteData clipboard_paste_data;
   clipboard_paste_data.file_paths = std::move(paths);
 
+  PasteIfPolicyAllowed(
+      clipboard_buffer, ui::ClipboardFormatType::FilenamesType(), seqno,
+      std::move(clipboard_paste_data),
+      base::BindOnce(&ClipboardHostImpl::OnReadFilesPolicyResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(filenames),
+                     std::move(callback)));
+}
+
+void ClipboardHostImpl::OnReadFilesPolicyResult(
+    std::vector<ui::FileInfo> filenames,
+    ReadFilesCallback callback,
+    std::optional<ClipboardPasteData> clipboard_paste_data) {
+  blink::mojom::ClipboardFilesPtr result = blink::mojom::ClipboardFiles::New();
+
+  // The policy blocked the paste entirely.
+  if (!clipboard_paste_data) {
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
+  // The policy may have allowed only a subset of the files. Restrict the files
+  // to be granted to exactly that allowed subset, so blocked files are never
+  // registered with ChildProcessSecurityPolicy or the IsolatedContext.
+  std::set<base::FilePath> allowed_files(
+      std::move_iterator(clipboard_paste_data->file_paths.begin()),
+      std::move_iterator(clipboard_paste_data->file_paths.end()));
+
+  std::vector<ui::FileInfo> allowed_filenames;
+  allowed_filenames.reserve(filenames.size());
+  for (ui::FileInfo& info : filenames) {
+    if (allowed_files.contains(info.path)) {
+      allowed_filenames.push_back(std::move(info));
+    }
+  }
+
   // This code matches the drag-and-drop DataTransfer code in
   // RenderWidgetHostImpl::DragTargetDrop().
 
-  // Call PrepareDataTransferFilenamesForChildProcess() to register files so
-  // they can be accessed by the renderer.
+  // Call PrepareDataTransferFilenamesForChildProcess() to register the allowed
+  // files so they can be accessed by the renderer.
   RenderProcessHost* process = render_frame_host().GetProcess();
   result->file_system_id = PrepareDataTransferFilenamesForChildProcess(
-      filenames, ChildProcessSecurityPolicyImpl::GetInstance(),
+      allowed_filenames, ChildProcessSecurityPolicyImpl::GetInstance(),
       process->GetID(), process->GetStoragePartition()->GetFileSystemContext());
 
   // Convert to DataTransferFiles which creates the access token for each file.
-  StoragePartitionImpl* storage_partition = static_cast<StoragePartitionImpl*>(
-      render_frame_host().GetProcess()->GetStoragePartition());
+  StoragePartitionImpl* storage_partition =
+      static_cast<StoragePartitionImpl*>(process->GetStoragePartition());
   std::vector<blink::mojom::DataTransferFilePtr> files =
       FileInfosToDataTransferFiles(
-          filenames, storage_partition->GetFileSystemAccessManager(),
+          allowed_filenames, storage_partition->GetFileSystemAccessManager(),
           process->GetDeprecatedID());
   std::move(files.begin(), files.end(), std::back_inserter(result->files));
 
-  PasteIfPolicyAllowed(
-      clipboard_buffer, ui::ClipboardFormatType::FilenamesType(),
-      std::move(clipboard_paste_data),
-      base::BindOnce(
-          [](blink::mojom::ClipboardFilesPtr result, ReadFilesCallback callback,
-             std::optional<ClipboardPasteData> clipboard_paste_data) {
-            if (!clipboard_paste_data) {
-              result->files.clear();
-              result->file_system_id->clear();
-            } else {
-              // A subset of the files can be copied.  Remove any files that
-              // should be blocked.  First build a list of the files that are
-              // allowed.
-              std::set<base::FilePath> allowed_files(
-                  std::move_iterator(clipboard_paste_data->file_paths.begin()),
-                  std::move_iterator(clipboard_paste_data->file_paths.end()));
-
-              for (auto it = result->files.begin();
-                   it != result->files.end();) {
-                if (allowed_files.find(it->get()->path) !=
-                    allowed_files.end()) {
-                  it = std::next(it);
-                } else {
-                  it = result->files.erase(it);
-                }
-              }
-            }
-            std::move(callback).Run(std::move(result));
-          },
-          std::move(result), std::move(callback)));
+  std::move(callback).Run(std::move(result));
 }
 
 void ClipboardHostImpl::ReadDataTransferCustomData(
@@ -550,12 +576,15 @@ void ClipboardHostImpl::ReadDataTransferCustomData(
       clipboard_buffer, type, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadDataTransferCustomData,
                      weak_ptr_factory_.GetWeakPtr(), clipboard_buffer, type,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         clipboard_buffer),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadDataTransferCustomData(
     ui::ClipboardBuffer clipboard_buffer,
     const std::u16string& type,
+    ui::ClipboardSequenceNumberToken seqno,
     ReadDataTransferCustomDataCallback callback,
     std::u16string data) {
   ClipboardPasteData clipboard_paste_data;
@@ -563,7 +592,7 @@ void ClipboardHostImpl::OnReadDataTransferCustomData(
 
   PasteIfPolicyAllowed(
       clipboard_buffer, ui::ClipboardFormatType::DataTransferCustomType(),
-      std::move(clipboard_paste_data),
+      seqno, std::move(clipboard_paste_data),
       base::BindOnce(
           [](ReadDataTransferCustomDataCallback callback,
              const std::u16string& type,
@@ -779,12 +808,15 @@ void ClipboardHostImpl::ReadUnsanitizedCustomFormat(
       ui::ClipboardBuffer::kCopyPaste, data_endpoint,
       base::BindOnce(&ClipboardHostImpl::OnExtractCustomPlatformNames,
                      weak_ptr_factory_.GetWeakPtr(), format_name, data_endpoint,
+                     ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                         ui::ClipboardBuffer::kCopyPaste),
                      std::move(callback)));
 }
 
 void ClipboardHostImpl::OnExtractCustomPlatformNames(
     const std::string& format_name,
     std::optional<ui::DataTransferEndpoint> data_endpoint,
+    ui::ClipboardSequenceNumberToken seqno,
     ReadUnsanitizedCustomFormatCallback callback,
     std::map<std::string, std::string> custom_format_names) {
   std::string web_custom_format_string;
@@ -801,10 +833,12 @@ void ClipboardHostImpl::OnExtractCustomPlatformNames(
       ui::ClipboardFormatType::CustomPlatformType(web_custom_format_string),
       data_endpoint,
       base::BindOnce(&ClipboardHostImpl::OnReadUnsanitizedCustomFormat,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+                     weak_ptr_factory_.GetWeakPtr(), seqno,
+                     std::move(callback)));
 }
 
 void ClipboardHostImpl::OnReadUnsanitizedCustomFormat(
+    ui::ClipboardSequenceNumberToken seqno,
     ReadUnsanitizedCustomFormatCallback callback,
     std::string result) {
   if (result.size() >= blink::mojom::ClipboardHost::kMaxDataSize) {
@@ -817,7 +851,7 @@ void ClipboardHostImpl::OnReadUnsanitizedCustomFormat(
   ClipboardPasteData clipboard_paste_data;
   PasteIfPolicyAllowed(
       ui::ClipboardBuffer::kCopyPaste,
-      ui::ClipboardFormatType::WebCustomFormatMap(),
+      ui::ClipboardFormatType::WebCustomFormatMap(), seqno,
       std::move(clipboard_paste_data),
       base::BindOnce(
           [](std::string result, ReadUnsanitizedCustomFormatCallback callback,
@@ -895,15 +929,13 @@ void ClipboardHostImpl::OnCopyCustomFormatAllowedResult(
 void ClipboardHostImpl::PasteIfPolicyAllowed(
     ui::ClipboardBuffer clipboard_buffer,
     const ui::ClipboardFormatType& data_type,
+    ui::ClipboardSequenceNumberToken seqno,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
   std::optional<size_t> data_size;
   if (clipboard_paste_data.file_paths.empty()) {
     data_size = clipboard_paste_data.size();
   }
-
-  ui::ClipboardSequenceNumberToken seqno =
-      ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(clipboard_buffer);
 
   auto data_dst = CreateClipboardEndpoint(render_frame_host());
   const ui::DataTransferEndpoint* data_dst_endpoint =

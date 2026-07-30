@@ -4060,16 +4060,6 @@ targets.bundle(
     ],
 )
 
-targets.bundle(
-    name = "gpu_fyi_android_shieldtv_gtests",
-    targets = [
-        "gpu_angle_unit_gtests",
-        "gpu_common_gtests_passthrough",
-        "gpu_common_gtests_validating",
-        "gpu_fyi_and_optional_non_linux_gtests",
-    ],
-)
-
 # TODO(crbug.com/40130073): Merge with an existing set of tests such as
 # gpu_fyi_linux_release_gtests once all CrOS tests have been enabled.
 targets.bundle(
@@ -4743,7 +4733,7 @@ targets.bundle(
         targets.bundle(
             targets = "ios_common_tests",
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4753,7 +4743,7 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4764,7 +4754,7 @@ targets.bundle(
                 "record_failed_tests",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4775,14 +4765,14 @@ targets.bundle(
                 "record_failed_tests",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
         targets.bundle(
             targets = "ios_screen_size_dependent_tests",
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
                 "SIM_IPHONE_SE_3RD_GEN_27_0",
             ],
@@ -4799,7 +4789,7 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4810,7 +4800,7 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4821,7 +4811,7 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
             ],
         ),
@@ -4831,7 +4821,7 @@ targets.bundle(
                 "use-ios-simulator-cache",
             ],
             variants = [
-                "SIM_IPAD_AIR_6TH_GEN_27_0",
+                "SIM_IPAD_A16_27_0",
                 "SIM_IPHONE_16_27_0",
                 "SIM_IPHONE_SE_3RD_GEN_27_0",
             ],
@@ -6062,7 +6052,6 @@ targets.bundle(
         "base_unittests",
         "rust_gtest_interop_unittests",
         "test_cpp_including_rust_unittests",
-        "test_serde_json_lenient",
     ],
 )
 

@@ -36,6 +36,7 @@
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/disk_cache/backend_cleanup_tracker.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/sql/sql_async_task_token.h"
 #include "net/disk_cache/sql/sql_entry_impl.h"
@@ -395,21 +396,26 @@ class SqlBackendImpl::IteratorImpl : public Backend::Iterator {
   base::WeakPtrFactory<IteratorImpl> weak_factory_{this};
 };
 
-SqlBackendImpl::SqlBackendImpl(const base::FilePath& path,
-                               int64_t max_bytes,
-                               net::CacheType cache_type)
+SqlBackendImpl::SqlBackendImpl(
+    const base::FilePath& path,
+    int64_t max_bytes,
+    net::CacheType cache_type,
+    scoped_refptr<BackendCleanupTracker> cleanup_tracker)
     : Backend(cache_type),
+      cleanup_tracker_(std::move(cleanup_tracker)),
       path_(path),
       background_task_runners_(CreateTaskRunners()),
       store_(std::make_unique<SqlPersistentStore>(path,
                                                   max_bytes > 0 ? max_bytes : 0,
                                                   GetCacheType(),
                                                   background_task_runners_,
-                                                  async_task_manager_)),
+                                                  async_task_manager_,
+                                                  cleanup_tracker_)),
       optimistic_write_buffer_monitor_(
           net::features::kSqlDiskCacheOptimisticWriteBufferSize.Get()),
       write_buffer_monitor_(
-          net::features::kSqlDiskCacheMaxWriteBufferTotalSize.Get()) {
+          net::features::kSqlDiskCacheMaxWriteBufferTotalSize.Get()),
+      reduce_uma_(net::features::kSqlDiskCacheReduceUma.Get()) {
   DVLOG(1) << "SqlBackendImpl::SqlBackendImpl " << path;
 }
 
@@ -1212,8 +1218,10 @@ int SqlBackendImpl::WriteEntryData(
       optimistic_write_buffer_monitor_.Allocate(buf_len,
                                                 optimistic_buffer_reservation);
 
-  base::UmaHistogramBoolean("Net.SqlDiskCache.Write.IsOptimistic",
-                            can_execute_optimistic_write);
+  if (!reduce_uma_) {
+    base::UmaHistogramBoolean("Net.SqlDiskCache.Write.IsOptimistic",
+                              can_execute_optimistic_write);
+  }
   if (can_execute_optimistic_write) {
     if (copy_buffer_for_optimistic_write) {
       CHECK_LE(buffer.buffers.size(), 1u);
@@ -1232,11 +1240,16 @@ int SqlBackendImpl::WriteEntryData(
             WrapCallbackWithAbortError<SqlPersistentStore::ResIdOrError>(
                 MakeUpdateDbHandleCallback(db_handle)
                     .Then(base::BindOnce(
-                        [](SqlPersistentStore::ResIdOrError result) {
-                          base::UmaHistogramEnumeration(
-                              "Net.SqlDiskCache.OptimisticWrite.Result",
-                              result.error_or(SqlPersistentStore::Error::kOk));
-                        }))
+                        [](bool reduce_uma,
+                           SqlPersistentStore::ResIdOrError result) {
+                          if (!reduce_uma) {
+                            base::UmaHistogramEnumeration(
+                                "Net.SqlDiskCache.OptimisticWrite.Result",
+                                result.error_or(
+                                    SqlPersistentStore::Error::kOk));
+                          }
+                        },
+                        reduce_uma_))
                     .Then(OnceClosureWithBoundArgs(
                         std::move(optimistic_buffer_reservation))),
                 base::unexpected(SqlPersistentStore::Error::kAborted)),

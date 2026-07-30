@@ -151,12 +151,24 @@
 #pragma mark - Public
 
 - (void)stopWithCompletion:(ProceduralBlock)completion {
-  GeminiTabHelper* geminiTabHelper = [self activeWebStateGeminiTabHelper];
-  if (geminiTabHelper) {
-    geminiTabHelper->SetPreventContextualPanelEntryPoint(NO);
+  // Retain self to survive synchronous teardown from the completion block.
+  __strong __typeof(self) strongSelf =
+      IsGeminiCoordinatorTeardownFixEnabled() ? self : nil;
+  if (strongSelf) {
+    GeminiTabHelper* geminiTabHelper =
+        [strongSelf activeWebStateGeminiTabHelper];
+    if (geminiTabHelper) {
+      geminiTabHelper->SetPreventContextualPanelEntryPoint(NO);
+    }
+    [strongSelf presentPageActionMenuIPH];
+  } else {
+    GeminiTabHelper* geminiTabHelper = [self activeWebStateGeminiTabHelper];
+    if (geminiTabHelper) {
+      geminiTabHelper->SetPreventContextualPanelEntryPoint(NO);
+    }
+    [self presentPageActionMenuIPH];
   }
 
-  [self presentPageActionMenuIPH];
   _viewController = nil;
   _geminiHandler = nil;
   _helpCommandsHandler = nil;
@@ -166,7 +178,11 @@
   _tracker = nil;
   _completion = nil;
   if (!_consentCompletion) {
-    [self dismissPresentedViewWithCompletion:completion];
+    if (strongSelf) {
+      [strongSelf dismissPresentedViewWithCompletion:completion];
+    } else {
+      [self dismissPresentedViewWithCompletion:completion];
+    }
   }
   [super stop];
 }
@@ -174,7 +190,8 @@
 #pragma mark - GeminiFirstRunMediatorDelegate
 
 - (void)dismissGeminiConsentUIWithCompletion:(void (^)())completion {
-  if (_firstRunType == GeminiFirstRunType::kLive) {
+  BOOL hasConsented = _prefService->GetBoolean(prefs::kIOSGeminiLiveConsent);
+  if (_firstRunType == GeminiFirstRunType::kLive && hasConsented) {
     if (completion) {
       _consentCompletion = completion;
     }
@@ -196,10 +213,19 @@
 
 #pragma mark - UISheetPresentationControllerDelegate
 
-// Handles the dismissal of the UI.
+// Handles the dismissal of the FRE UI.
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
-  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
+  if (_firstRunType == GeminiFirstRunType::kLive) {
+    [_mediator disconnect];
+    if (_completion) {
+      void (^completion)(BOOL) = _completion;
+      _completion = nil;
+      completion(NO);
+    }
+  } else {
+    [_geminiHandler dismissGeminiFlowWithCompletion:nil];
+  }
 }
 
 #pragma mark - Private
@@ -243,7 +269,16 @@
     _viewController = nil;
   } else {
     _consentCompletion = nil;
-    [_mediator didRefuseLiveMicPermission];
+    __weak __typeof(self) weakSelf = self;
+    [self dismissPresentedViewWithCompletion:^{
+      __strong __typeof(weakSelf) strongSelf = weakSelf;
+      if (strongSelf && strongSelf->_completion) {
+        void (^completion)(BOOL) = strongSelf->_completion;
+        strongSelf->_completion = nil;
+        completion(NO);
+      }
+    }];
+    _viewController = nil;
   }
 }
 

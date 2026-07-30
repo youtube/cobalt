@@ -1177,7 +1177,6 @@
 <translation id="1910721550319506122">歡迎使用！</translation>
 <translation id="1910736334623230603">無法搜尋多張圖片，請一次提供一張圖片。</translation>
 <translation id="1910908536872421421">Chrome for Testing v<ph name="BROWSER_VERSION" /> 僅適用於自動化測試。如果是一般瀏覽用途，請使用會自動更新的 Chrome 標準版。</translation>
-<translation id="1912867150686509584">查看日曆中的更多會議</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{暫停導致瀏覽器運作緩慢的分頁}other{暫停導致瀏覽器運作緩慢的分頁}}</translation>
 <translation id="1913749768968678106">投放、儲存及分享</translation>
 <translation id="19147273405311768">將工具列重設為預設設定</translation>
@@ -1217,12 +1216,14 @@
 <translation id="1933489278505808700">可以讀取及變更</translation>
 <translation id="1935303383381416800">允許以下網站查看你的位置資訊</translation>
 <translation id="193565226207940518">Support Tool</translation>
+<translation id="1935995810530254458">仍要複製</translation>
 <translation id="1936157145127842922">在資料夾中顯示</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{已將頁面加入閱讀清單}other{已將頁面加入閱讀清單}}</translation>
 <translation id="1936931585862840749">使用數字指定列印份數 (1 至 <ph name="MAX_COPIES" />)。</translation>
 <translation id="1938351510777341717">外部 Command 鍵</translation>
 <translation id="1940221956626514677">自訂工具列</translation>
 <translation id="1940546824932169984">已連結的裝置</translation>
+<translation id="194081218158106711">正在確認變更後的密碼...</translation>
 <translation id="1941410638996203291">開始時間 <ph name="TIME" /></translation>
 <translation id="1941553344801134989">版本：<ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">系統管理員已將你的帳戶設為自動連線至 Microsoft OneDrive，但發生錯誤。</translation>
@@ -1491,6 +1492,7 @@
 <translation id="2158475082070321257">複製醒目顯示文字的連結</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758">「<ph name="EXTENSION_NAME" />」的<ph name="SHORTCUT" />範圍</translation>
+<translation id="2161656808144014275">文字</translation>
 <translation id="216169395504480358">新增 Wi-Fi...</translation>
 <translation id="2162705204091149050">讀取瀏覽器、OS、裝置、已安裝的軟體和檔案的相關資訊</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />、<ph name="SECOND_SWITCH" />、<ph name="THIRD_SWITCH" />，以及另外 1 個按鍵</translation>
@@ -1537,6 +1539,7 @@
 <translation id="2199298570273670671">錯誤</translation>
 <translation id="2200094388063410062">電子郵件</translation>
 <translation id="2200781749203116929">ChromeOS 系統記錄</translation>
+<translation id="2202391868799679245">開啟鍵盤快速鍵</translation>
 <translation id="2203088913459920044">名稱可以包含字母、數字和特殊字元</translation>
 <translation id="220321590587754225">無法連線，請再試一次。</translation>
 <translation id="2203903197029773650">你必須登入 Google 帳戶，<ph name="BRAND" />才能檢查你的密碼</translation>
@@ -4251,6 +4254,7 @@
 <translation id="4274673989874969668">在你離開網站後，網站可以繼續透過同步作業完成各項工作，例如上傳相片或傳送即時通訊訊息等等</translation>
 <translation id="4275291496240508082">啟動音效</translation>
 <translation id="4275397969489577657">啟用活動訊息串記錄功能</translation>
+<translation id="4275663329226226506">媒體</translation>
 <translation id="4275788652681621337">關閉側邊面板</translation>
 <translation id="4275830172053184480">重新啟動裝置</translation>
 <translation id="4276390967705106170">在新的瀏覽器分頁中開啟</translation>
@@ -4735,6 +4739,7 @@
 <translation id="4657914796247705218">TrackPoint 速度</translation>
 <translation id="4658648180588730283">離線時無法使用「<ph name="APPLICATION_NAME" />」應用程式。</translation>
 <translation id="465878909996028221">瀏覽器重新導向僅支援 http、https 和 file 通訊協定。</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /><ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">當你登入 Google 帳戶時，系統會啟用這項功能。</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{圖片}other{# 張圖片}}</translation>
 <translation id="4660540330091848931">正在調整大小</translation>
@@ -5313,6 +5318,7 @@
 <translation id="5096775069898886423">如果網站不支援安全連線，系統會在造訪前發出警告</translation>
 <translation id="5097002363526479830">無法連線至「<ph name="NAME" />」：<ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">你造訪的網站可以判斷你喜愛的內容，並在接下來的瀏覽過程中顯示建議廣告</translation>
+<translation id="5097472729724586429">使用全新的「新增文字註解」工具，在文件中加入文字註解</translation>
 <translation id="5097649414558628673">工具：<ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">游標停止時自動點擊</translation>
 <translation id="5098963855433723436">在其他應用程式中開啟</translation>
@@ -5377,6 +5383,7 @@
 <translation id="5146235736676876345">自行選擇</translation>
 <translation id="5146896637028965135">系統語音</translation>
 <translation id="5147113439721488265">建議</translation>
+<translation id="5148020348702787234">如要傳送連結，請先驗證身分。只要在兩部裝置上登入同一個 Google 帳戶，即可傳送連結。</translation>
 <translation id="5148285448107770349">密碼至少要有 8 個半形字元</translation>
 <translation id="5149602533174716626">複製影片影格(&amp;Y)</translation>
 <translation id="5150254825601720210">Netscape 憑證 SSL 伺服器名稱</translation>
@@ -6339,7 +6346,6 @@
 <translation id="5932881020239635062">序列</translation>
 <translation id="5933522550144185133">「<ph name="APP_NAME" />」正在使用你的攝影機和麥克風</translation>
 <translation id="5935158534896975820">正在準備憑證簽署要求 (在伺服器上等待)</translation>
-<translation id="5935554994339565449">使用全新的「新增文字」工具加入文字</translation>
 <translation id="5936065461722368675">翻譯整頁內容</translation>
 <translation id="5937977334791924341">「<ph name="APP" />」標誌</translation>
 <translation id="5938002010494270685">可進行安全性更新</translation>
@@ -8894,6 +8900,7 @@
 <translation id="7933486544522242079">儲存並分享(&amp;S)</translation>
 <translation id="7933518760693751884">如要儲存頁面以便稍後閱讀，請按一下「書籤」圖示</translation>
 <translation id="7933634003144813719">管理共用資料夾</translation>
+<translation id="7935072572536724392">無法自動變更密碼</translation>
 <translation id="7936195481975600746">如要分享畫面，請使用系統的畫面選擇器</translation>
 <translation id="7937809006412909895">正在收集診斷資料</translation>
 <translation id="7938881824185772026">Google 研究室</translation>
@@ -9031,6 +9038,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{閱讀清單}=1{閱讀清單 ({SELECTED_ITEMS})}other{閱讀清單 ({SELECTED_ITEMS})}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> - 已要求權限，按下 ⌘ + Option + 向上鍵即可回覆</translation>
 <translation id="8030169304546394654">已中斷連線</translation>
+<translation id="8030814978699290230">正在嘗試登入...</translation>
 <translation id="8030852056903932865">核准</translation>
 <translation id="8033827949643255796">已選取</translation>
 <translation id="8033958968890501070">逾時</translation>
@@ -9444,6 +9452,7 @@
 <translation id="8343578633847737325">近期對話和討論串</translation>
 <translation id="8345848587667658367">你現在可以查看手機最近的相片、媒體、通知和應用程式</translation>
 <translation id="8347227221149377169">列印工作</translation>
+<translation id="8347728744337089388">傳送到你的裝置(&amp;D)</translation>
 <translation id="8348430946834215779">盡可能使用 HTTPS，並在載入不支援該通訊協定的網站前發出警告</translation>
 <translation id="8348896480272971199">請檢查網際網路連線，然後再試一次。</translation>
 <translation id="8349305172487531364">書籤列</translation>
@@ -9493,6 +9502,7 @@
 <translation id="8382197851871630452">當地天氣</translation>
 <translation id="8382913212082956454">複製電子郵件地址(&amp;E)</translation>
 <translation id="8383614331548401927">歡迎頁面要事回顧</translation>
+<translation id="8387157483437834731">密碼已成功變更</translation>
 <translation id="8387361103813440603">禁止以下網站查看你的位置資訊</translation>
 <translation id="8389492867173948260">允許這個擴充功能讀取及變更已造訪網站的所有相關資料：</translation>
 <translation id="8390449457866780408">無法與伺服器連線。</translation>
@@ -9887,7 +9897,6 @@
 <translation id="8693862390730570097">不允許自動開啟「幫我寫」</translation>
 <translation id="8694596275649352090">在休眠或機蓋蓋上時鎖定</translation>
 <translation id="8695825812785969222">開啟位置(&amp;L)...</translation>
-<translation id="8696297579102085705">傳送到你的裝置</translation>
 <translation id="869884720829132584">應用程式選單</translation>
 <translation id="869891660844655955">到期日</translation>
 <translation id="8699296325072357994">系統會將密碼頁面的內容和相關資訊傳送給 Google，並交由專人審查。你的密碼會加密處理，任何人都無法看到。<ph name="PASSWORD_CHANGE" /></translation>
@@ -10235,6 +10244,7 @@
 <translation id="8967427617812342790">加入閱讀清單</translation>
 <translation id="8968527460726243404">Chrome 作業系統映像檔寫入工具</translation>
 <translation id="8968766641738584599">儲存卡片</translation>
+<translation id="8970232194848546151">將連結傳送至其他裝置</translation>
 <translation id="8970887620466824814">發生錯誤。</translation>
 <translation id="89720367119469899">Escape</translation>
 <translation id="8972513834460200407">請與網路管理員聯絡，確認防火牆並未封鎖從 Google 伺服器下載的內容。</translation>
@@ -10501,6 +10511,7 @@
 <translation id="9151906066336345901">end 鍵</translation>
 <translation id="9152503903192861480">以 AI 模式開啟</translation>
 <translation id="9153367754133725216">在啟動器和搜尋結果中顯示新應用程式和網路內容的建議。只有在你選擇將當機報告和診斷與使用資料傳送到 ChromeOS 時，系統才會傳送統計資料以改善建議。</translation>
+<translation id="9153451439615847952">收到通知和快訊時降低背景音量</translation>
 <translation id="9154194610265714752">已更新</translation>
 <translation id="915485121129452731">繪圖板</translation>
 <translation id="9155344700756733162">取消選取顏色</translation>
@@ -10578,6 +10589,7 @@
 <translation id="9220820413868316583">請移開手指，然後再試一次。</translation>
 <translation id="922152298093051471">自訂 Chrome</translation>
 <translation id="9222839391870847423">時間長度：<ph name="DURATION" /></translation>
+<translation id="923306663772315007">傳送到你的裝置(&amp;D)</translation>
 <translation id="923467487918828349">全部顯示</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{如要管理這個項目，請開啟「擴充功能」}other{如要管理這些項目，請開啟「擴充功能」}}</translation>
 <translation id="924818813611903184">在 Chrome OS 設定中管理語言</translation>

@@ -14,6 +14,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/test/browser_task_environment.h"
@@ -122,6 +127,12 @@ class AfterStartupTaskTest : public testing::Test {
     run_loop.Run();
   }
 
+  void FlushUIThread() {
+    ui_thread_->real_runner()->PostTask(FROM_HERE,
+                                        task_environment_.QuitClosure());
+    task_environment_.RunUntilQuit();
+  }
+
   static void VerifyExpectedSequence(base::SequencedTaskRunner* task_runner) {
     EXPECT_TRUE(task_runner->RunsTasksInCurrentSequence());
   }
@@ -129,6 +140,8 @@ class AfterStartupTaskTest : public testing::Test {
  protected:
   scoped_refptr<WrappedTaskRunner> ui_thread_;
   scoped_refptr<WrappedTaskRunner> background_sequence_;
+  content::BrowserTaskEnvironment task_environment_{
+      content::BrowserTaskEnvironment::TimeSource::MOCK_TIME};
 
  private:
   static void GotIsOnBrowserStartupComplete(base::RunLoop* loop,
@@ -137,8 +150,6 @@ class AfterStartupTaskTest : public testing::Test {
     *out = is_complete;
     loop->Quit();
   }
-
-  content::BrowserTaskEnvironment task_environment_;
 };
 
 TEST_F(AfterStartupTaskTest, IsStartupComplete) {
@@ -207,3 +218,84 @@ TEST_F(AfterStartupTaskTest, PostTask) {
   EXPECT_EQ(2, background_sequence_->ran_task_count());
   EXPECT_EQ(2, ui_thread_->ran_task_count());
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+
+TEST_F(AfterStartupTaskTest, StartupInProgressRef_NoRefs) {
+  base::HistogramTester histogram_tester;
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  AfterStartupTaskUtils::BeginMonitoringStartupCompletionForTesting(
+      /*include_default_refs=*/false);
+  FlushUIThread();
+  EXPECT_TRUE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  histogram_tester.ExpectUniqueSample(
+      "Startup.BrowserStartupCompleteReason",
+      StartupIsCompleteReason::kStartupRegistrationDone, 1);
+}
+
+TEST_F(AfterStartupTaskTest, StartupInProgressRef_MultipleRefs) {
+  base::HistogramTester histogram_tester;
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  auto ref1 = AfterStartupTaskUtils::RegisterStartupInProgressRef(
+      StartupIsCompleteReason::kFirstIdle);
+  auto ref2 = AfterStartupTaskUtils::RegisterStartupInProgressRef(
+      StartupIsCompleteReason::kSessionRestore);
+  AfterStartupTaskUtils::BeginMonitoringStartupCompletionForTesting(
+      /*include_default_refs=*/false);
+  FlushUIThread();
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  ref2.reset();
+  FlushUIThread();
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  ref1.reset();
+  FlushUIThread();
+  EXPECT_TRUE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  histogram_tester.ExpectUniqueSample("Startup.BrowserStartupCompleteReason",
+                                      StartupIsCompleteReason::kFirstIdle, 1);
+}
+
+TEST_F(AfterStartupTaskTest, StartupInProgressRef_FailsafeTimeout) {
+  base::HistogramTester histogram_tester;
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  auto ref = AfterStartupTaskUtils::RegisterStartupInProgressRef(
+      StartupIsCompleteReason::kFirstIdle);
+
+  AfterStartupTaskUtils::BeginMonitoringStartupCompletionForTesting(
+      /*include_default_refs=*/false);
+  FlushUIThread();
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  task_environment_.FastForwardBy(AfterStartupTaskUtils::GetFailsafeTimeout());
+  FlushUIThread();
+  EXPECT_TRUE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  histogram_tester.ExpectUniqueSample("Startup.BrowserStartupCompleteReason",
+                                      StartupIsCompleteReason::kFailsafeTimeout,
+                                      1);
+}
+
+TEST_F(AfterStartupTaskTest, StartupInProgressRef_ShutdownWithRef) {
+  base::HistogramTester histogram_tester;
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  auto ref = AfterStartupTaskUtils::RegisterStartupInProgressRef(
+      StartupIsCompleteReason::kFirstIdle);
+  AfterStartupTaskUtils::BeginMonitoringStartupCompletionForTesting(
+      /*include_default_refs=*/false);
+  FlushUIThread();
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+
+  // Simulate browser shutdown: stop pumping tasks, then delete the global
+  // BrowserProcess. The test will crash if SetBrowserStartupIsComplete() is
+  // called after this point, as it tries to access the browser process.
+  task_environment_.ShutdownBrowserTaskExecutor();
+  TestingBrowserProcess::DeleteInstance();
+
+  ref.reset();
+
+  // FlushUIThread() will time out because tasks aren't being pumped. Instead
+  // advance long enough that the timeout would fire. Anything that calls
+  // SetBrowserStartupIsComplete() would execute before this.
+  task_environment_.FastForwardBy(AfterStartupTaskUtils::GetFailsafeTimeout());
+  EXPECT_FALSE(AfterStartupTaskUtils::IsBrowserStartupComplete());
+  histogram_tester.ExpectTotalCount("Startup.BrowserStartupCompleteReason", 0);
+}
+
+#endif  // !BUILDFLAG(IS_ANDROID)

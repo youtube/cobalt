@@ -334,8 +334,11 @@ source_set("command_updater_impl") {
     "command_updater_impl.h",
   ]
   sources = [ "command_updater_impl.cc" ]
-  deps = [
+  public_deps = [
     ":primitives",
+    "//ui/actions:actions_headers",
+  ]
+  deps = [
     "//base",
     "//ui/base",
   ]
@@ -1162,9 +1165,11 @@ source_set("core") {
     "//components/metrics/private_metrics:private_metrics_features",
     "//components/metrics_services_manager",
     "//components/mirroring/service:mirroring_service",
+    "//components/multistep_filter/core:features",
     "//components/network_time",
     "//components/no_state_prefetch/browser",
     "//components/no_state_prefetch/common",
+    "//components/notebooks/public",
     "//components/omnibox/common:features",
     "//components/open_from_clipboard:feature_flags",
     "//components/page_content_annotations/core:features",
@@ -1248,6 +1253,7 @@ source_set("core") {
 
   if (!is_android) {
     public_deps = [
+      "//chrome/browser/ui/omnibox/omnibox_everywhere",
       "//chrome/browser/ui/webui/omnibox_everywhere",
       "//chrome/browser/ui/webui/omnibox_popup",
       "//chrome/browser/ui/webui/omnibox_popup/mojom",
@@ -1348,6 +1354,7 @@ source_set("core") {
       "//chrome/browser/ui/tabs:features",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/toasts",
+      "//chrome/browser/ui/views/app_menu:impl",
       "//chrome/browser/ui/views/location_bar:impl",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
@@ -1427,6 +1434,7 @@ source_set("core") {
       "//chrome/browser/platform_experience:prefs",
       "//chrome/browser/shortcuts",
       "//chrome/browser/startup",
+      "//chrome/browser/ui:uninstall_browser_prompt",
       "//chrome/browser/web_applications/chrome_pwa_launcher:util",
       "//chrome/browser/webnn",
       "//chrome/browser/webshare:impl",
@@ -2179,8 +2187,6 @@ source_set("browser") {
     "//chrome/browser/interstitials:impl",
     "//chrome/browser/invalidation",
     "//chrome/browser/invalidation:impl",
-    "//chrome/browser/k_anonymity_service",
-    "//chrome/browser/k_anonymity_service:impl",
     "//chrome/browser/language",
     "//chrome/browser/language:impl",
     "//chrome/browser/lifetime",
@@ -2212,6 +2218,7 @@ source_set("browser") {
     "//chrome/browser/net",
     "//chrome/browser/net:impl",
     "//chrome/browser/nfc",
+    "//chrome/browser/notebooks",
     "//chrome/browser/notifications",
     "//chrome/browser/notifications:impl",
     "//chrome/browser/notifications:system_notification_helper",
@@ -2333,8 +2340,6 @@ source_set("browser") {
     "//chrome/browser/share:impl",
     "//chrome/browser/sharing",
     "//chrome/browser/sharing:impl",
-    "//chrome/browser/sharing/click_to_call",
-    "//chrome/browser/sharing/click_to_call:impl",
     "//chrome/browser/sharing/optimization_guide",
     "//chrome/browser/sharing/shared_clipboard",
     "//chrome/browser/sharing/sms",
@@ -3235,6 +3240,7 @@ source_set("browser") {
       "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/toasts/api:toasts",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/app_menu:impl",
       "//chrome/browser/ui/views/download",
       "//chrome/browser/ui/views/infobars",
       "//chrome/browser/ui/views/infobars:impl",
@@ -3581,7 +3587,6 @@ source_set("browser") {
       "//chrome/browser/ash/child_accounts/on_device_controls",
       "//chrome/browser/ash/child_accounts/parent_access_code",
       "//chrome/browser/ash/child_accounts/time_limits",
-      "//chrome/browser/ash/crosapi",
       "//chrome/browser/ash/crostini",
       "//chrome/browser/ash/cryptauth",
       "//chrome/browser/ash/customization",
@@ -4399,6 +4404,7 @@ source_set("browser") {
       "//chrome/browser/resources:component_extension_resources",
       "//chrome/browser/supervised_user",
       "//chrome/browser/ui/extensions",
+      "//chrome/browser/ui/webui/omnibox/aim_eligibility_extension",
 
       # This dependency should be removed when //chrome/browser/notifications
       # is modularized.
@@ -4967,6 +4973,7 @@ source_set("primitives") {
   public_deps = [
     "//base",
     "//chrome/common:buildflags",
+    "//ui/actions:actions_headers",
     "//ui/base",
     "//ui/gfx",
   ]
@@ -5116,7 +5123,9 @@ static_library("test_support") {
     "//chrome/browser/autofill:test_support_ui",
     "//chrome/browser/bookmarks:browser_tests",
     "//chrome/browser/browsing_data:browser_tests",
+    "//chrome/browser/chromeos/enterprise/cloud_storage:browser_tests",
     "//chrome/browser/extensions:test_support",
+    "//chrome/browser/media/webrtc:browser_tests",
     "//chrome/browser/printing:test_support",
     "//chrome/browser/search_engine_choice:browser_tests",
     "//chrome/browser/subresource_filter:android_test_support",
@@ -5424,6 +5433,7 @@ if (!is_android) {
       "//chrome/browser/policy:test_support",
       "//chrome/browser/prefs:util",
       "//chrome/browser/search_engines",
+      "//chrome/browser/ui:sad_tab",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/login",
       "//chrome/browser/ui/search:test_support_ui",

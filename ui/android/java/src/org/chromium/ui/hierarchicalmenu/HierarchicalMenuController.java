@@ -9,6 +9,7 @@ import static org.chromium.ui.base.KeyNavigationUtil.isGoBackward;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.DisplayMetrics;
@@ -16,14 +17,21 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
+import androidx.annotation.RequiresApi;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.view.ViewCompat;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
@@ -108,6 +116,9 @@ public class HierarchicalMenuController<T> {
 
     private @Nullable FlyoutController<T> mFlyoutController;
     private List<ListItem> mLastHighlightedPath = new ArrayList<>();
+    private final ArrayList<Runnable> mBackRunnableStack = new ArrayList<>();
+    private final SettableNonNullObservableSupplier<Boolean> mBackPressChangedSupplier =
+            ObservableSuppliers.createNonNull(false);
 
     /**
      * Creates an instance of the controller.
@@ -153,20 +164,109 @@ public class HierarchicalMenuController<T> {
      * @param flyoutHandler The {@link FlyoutHandler} for the controller to use for displaying
      *     flyout popups.
      * @param mainPopup The main popup window for flyout popups to fly out of.
+     * @param scrollListenerAttacher Callback to attach the scroll listener to the main popup.
      * @param drillDownOverrideValue If not null, forces the menu behavior to be drill-down ({@code
      *     true}) or flyout ({@code false}), overriding the default.
      */
     public void setupFlyoutController(
-            FlyoutHandler<T> flyoutHandler, T mainPopup, @Nullable Boolean drillDownOverrideValue) {
-        mFlyoutController = new FlyoutController<T>(flyoutHandler, mKeyProvider, mainPopup, this);
+            FlyoutHandler<T> flyoutHandler,
+            T mainPopup,
+            Callback<View.OnScrollChangeListener> scrollListenerAttacher,
+            @Nullable Boolean drillDownOverrideValue) {
+        mFlyoutController =
+                new FlyoutController<T>(
+                        flyoutHandler, mKeyProvider, mainPopup, this, scrollListenerAttacher);
         mDrillDownOverrideValue = drillDownOverrideValue;
     }
 
     /** Dismiss all popups including the main window and destroy the {@link FlyoutController}. */
     public void destroyFlyoutController() {
-        assert mFlyoutController != null;
-        mFlyoutController.destroy();
-        mFlyoutController = null;
+        if (mFlyoutController != null) {
+            mFlyoutController.destroy();
+            mFlyoutController = null;
+        }
+        mBackRunnableStack.clear();
+        mBackPressChangedSupplier.set(false);
+    }
+
+    /**
+     * Handles the back action (e.g. from system back navigation or drill-down header click).
+     *
+     * @return {@code true} if a drill-down submenu was open and navigated back one level, {@code
+     *     false} if at the root level of the menu (stack is empty).
+     */
+    public boolean handleBackPress() {
+        if (mBackRunnableStack.isEmpty()) {
+            return false;
+        }
+        Runnable backRunnable = mBackRunnableStack.remove(mBackRunnableStack.size() - 1);
+        backRunnable.run();
+        mBackPressChangedSupplier.set(!mBackRunnableStack.isEmpty());
+        return true;
+    }
+
+    public NonNullObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
+        return mBackPressChangedSupplier;
+    }
+
+    /**
+     * Helper to wire up modern Android 13+ (API 33+) back gesture interception for popup window
+     * menus.
+     *
+     * @param contentView The content view of the menu window.
+     * @param defaultDismissAction The runnable to execute when back is pressed at the root level.
+     */
+    public void setupBackPressBehaviorForPopupWindow(
+            @Nullable View contentView, Runnable defaultDismissAction) {
+        if (contentView == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            OnBackInvokedCallback backCallback =
+                    () -> {
+                        if (!handleBackPress()) {
+                            defaultDismissAction.run();
+                        }
+                    };
+            @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+            class BackPressAttachStateChangeListener implements View.OnAttachStateChangeListener {
+                private @Nullable OnBackInvokedDispatcher mAttachedDispatcher;
+
+                @Override
+                public void onViewAttachedToWindow(View v) {
+                    register(v);
+                }
+
+                @Override
+                public void onViewDetachedFromWindow(View v) {
+                    unregister();
+                    v.removeOnAttachStateChangeListener(this);
+                }
+
+                public void register(View v) {
+                    if (mAttachedDispatcher != null) {
+                        return;
+                    }
+                    OnBackInvokedDispatcher dispatcher = v.findOnBackInvokedDispatcher();
+                    if (dispatcher != null) {
+                        dispatcher.registerOnBackInvokedCallback(
+                                OnBackInvokedDispatcher.PRIORITY_OVERLAY, backCallback);
+                        mAttachedDispatcher = dispatcher;
+                    }
+                }
+
+                public void unregister() {
+                    if (mAttachedDispatcher != null) {
+                        mAttachedDispatcher.unregisterOnBackInvokedCallback(backCallback);
+                        mAttachedDispatcher = null;
+                    }
+                }
+            }
+
+            BackPressAttachStateChangeListener listener = new BackPressAttachStateChangeListener();
+            contentView.addOnAttachStateChangeListener(listener);
+            if (ViewCompat.isAttachedToWindow(contentView)) {
+                listener.register(contentView);
+            }
+        }
     }
 
     /**
@@ -436,8 +536,10 @@ public class HierarchicalMenuController<T> {
                     }
                     setModelListContent(contentModelList, parentModelList);
                 };
+        mBackRunnableStack.add(headerBackClick);
+        mBackPressChangedSupplier.set(true);
 
-        ListItem headerItem = mSubmenuHeaderFactory.createHeaderItem(item, headerBackClick);
+        ListItem headerItem = mSubmenuHeaderFactory.createHeaderItem(item, this::handleBackPress);
         List<ListItem> newContentList = new ArrayList<>();
         if (headerModelList == null) {
             newContentList.add(headerItem);
@@ -677,7 +779,7 @@ public class HierarchicalMenuController<T> {
             Runnable backRunnable) {
         builder.with(keyProvider.getTitleKey(), title)
                 .with(keyProvider.getEnabledKey(), true)
-                .with(keyProvider.getClickListenerKey(), (unusedView) -> backRunnable.run())
+                .with(keyProvider.getClickListenerKey(), _ -> backRunnable.run())
                 .with(
                         keyProvider.getKeyListenerKey(),
                         (view, keyCode, keyEvent) -> {
@@ -754,8 +856,9 @@ public class HierarchicalMenuController<T> {
             // The method calls below ensure that when we transition to a different submenu, the
             // keyboard focus goes to the topmost element.
             mContentView.setSelection(0);
-            if (mHeaderView != null && mHeaderModelList != null && !mHeaderModelList.isEmpty())
+            if (mHeaderView != null && mHeaderModelList != null && !mHeaderModelList.isEmpty()) {
                 mHeaderView.setSelection(0);
+            }
             mView.requestFocus();
         }
     }

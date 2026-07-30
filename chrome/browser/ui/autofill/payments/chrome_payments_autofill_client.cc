@@ -1268,6 +1268,7 @@ void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
         on_suggestions_shown,
     base::RepeatingCallback<void(SuggestionHidingReason)> on_suggestions_hidden,
     base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+    base::RepeatingClosure did_deselect_suggestion,
     base::RepeatingCallback<
         void(const Suggestion&,
              const AutofillSuggestionDelegate::SuggestionMetadata&)>
@@ -1282,7 +1283,7 @@ void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
     bubble_controller->Initialize(
         std::move(suggestions), std::move(on_suggestions_shown),
         std::move(on_suggestions_hidden), std::move(did_select_suggestion),
-        std::move(did_accept_suggestion));
+        std::move(did_deselect_suggestion), std::move(did_accept_suggestion));
   }
   if (OmniboxAutofillPageActionController* page_action_controller =
           OmniboxAutofillPageActionController::From(*tab_interface)) {
@@ -1302,7 +1303,9 @@ void ChromePaymentsAutofillClient::HideOmniboxAutofillChip() {
 
 #endif
 
-void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI() {
+void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI(
+    base::OnceClosure accept_callback,
+    base::OnceClosure cancel_callback) {
 #if !BUILDFLAG(IS_ANDROID)
   tabs::TabInterface* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
@@ -1311,7 +1314,7 @@ void ChromePaymentsAutofillClient::ShowPaymentsChurnedUsersUI() {
   }
   if (PaymentsChurnedUsersBubbleController* controller =
           PaymentsChurnedUsersBubbleController::From(*tab_interface)) {
-    controller->Show();
+    controller->Show(std::move(accept_callback), std::move(cancel_callback));
   }
 #endif
 }

@@ -13,6 +13,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/not_fatal_until.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigation_type.h"
@@ -468,14 +469,26 @@ void SoftNavigationHeuristics::EmitSoftNavigation(
   UpdateSoftLcpMetricsForContext(context);
 }
 
-SoftNavigationContext*
-SoftNavigationHeuristics::MaybeGetSoftNavigationContextForTiming(Node* node) {
+void SoftNavigationHeuristics::InitializePaintTracking(ImageRecord* record) {
+  // TODO(crbug.com/454082771): This should also update the underlying LCP
+  // calculator's "largest pending image" like we do for hard navs.
+  MaybeSetContextOnFirstPaint(record);
+}
+
+void SoftNavigationHeuristics::InitializePaintTracking(TextRecord* record) {
+  MaybeSetContextOnFirstPaint(record);
+}
+
+template <IsDerivedFromPaintTimingRecord T>
+void SoftNavigationHeuristics::MaybeSetContextOnFirstPaint(T* record) const {
+  Node* node = record->GetNode();
+  CHECK(node);
   SoftNavigationContext* context =
       paint_attribution_tracker_->GetSoftNavigationContextForNode(node);
-  if (!context || !context->IsRecordingLargestContentfulPaint()) {
-    return nullptr;
+  if (context && context->IsRecordingLargestContentfulPaint() &&
+      context->ShouldTrackForPaintTiming(*record)) {
+    record->SetSoftNavigationContext(context);
   }
-  return context;
 }
 
 void SoftNavigationHeuristics::OnPaintFinished() {
@@ -566,6 +579,19 @@ void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(
   CHECK_EQ(context->GetSoftNavigationHeuristics(), this);
 
   if (LocalFrameClient* frame_client = frame->Client()) {
+#if BUILDFLAG(IS_FUCHSIA)
+    if (context->TimeOrigin() <= loader->GetTiming().ReferenceMonotonicTime()) {
+      LOG(ERROR) << "SoftNavigationHeuristics: TimeOrigin ("
+                 << context->TimeOrigin().since_origin().InMicroseconds()
+                 << " us) is less than or equal to ReferenceMonotonicTime ("
+                 << loader->GetTiming()
+                        .ReferenceMonotonicTime()
+                        .since_origin()
+                        .InMicroseconds()
+                 << " us). Early returning to avoid crash.";
+      return;
+    }
+#else
     // If this CHECK_GT fails in a test, it's likely because the test simulates
     // events with an impossibly small start_time, which is less than the
     // initial reference time, which makes the duration appear negative.  In
@@ -577,6 +603,7 @@ void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(
     // chrome/test/interaction/README.md for the Kombucha API.
     CHECK_GT(context->TimeOrigin(),
              loader->GetTiming().ReferenceMonotonicTime());
+#endif
 
     blink::SoftNavigationMetricsForReporting metrics = {
         .soft_navigation_offset = context->SoftNavigationOffset(),

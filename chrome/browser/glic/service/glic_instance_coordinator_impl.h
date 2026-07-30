@@ -104,6 +104,8 @@ class GlicInstanceCoordinatorImpl
       size_t limit) override;
   void ContextAccessIndicatorChanged(GlicInstanceImpl& instance,
                                      bool enabled) override;
+  bool IsInvoking(const GlicInstanceImpl* instance) const override;
+  void CancelInvoke(GlicInstanceImpl* instance) override;
   void OnInvoked() override;
   void OnUserInputSubmitted() override;
   std::unique_ptr<WebUIContentsContainer> CreateWebUIContentsContainer()
@@ -122,6 +124,10 @@ class GlicInstanceCoordinatorImpl
       const std::string& conversation_id) override;
   // GlicInstanceCoordinator implementation
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
+  GlicInstance* GetInstanceForTabGroup(
+      tab_groups::TabGroupId group_id) const override;
+  GlicInstance* ShowInstanceForTabGroup(
+      tab_groups::TabGroupId group_id) override;
   GlicInstance* GetInstanceWithGlicWebContents(
       content::WebContents* glic_web_contents) const override;
   // Sorts instances by recency and returns the instance id and
@@ -205,6 +211,8 @@ class GlicInstanceCoordinatorImpl
   // Testing support. These methods should not be added to the public interface.
   GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
   GlicInstanceImpl* GetInstanceImplForTab(const tabs::TabInterface* tab) const;
+  GlicInstanceImpl* GetInstanceImplForTabGroup(
+      tab_groups::TabGroupId group_id) const;
 
   void RemoveInstance(InstanceId id) override;
 

@@ -188,114 +188,6 @@ class ApiTests extends ApiTestFixtureBase {
     await observeSequence(this.host.canAttachPanel()).waitForValue(true);
   }
 
-  async testDetachPanel() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-    assertDefined(this.host.attachPanel);
-    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    this.host.detachPanel();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
-
-    // TODO(harringtond): Not implemented yet.
-    // this.host.attachPanel();
-    // await panelStates.waitFor(state => state.kind ===
-    //    PanelStateKind.ATTACHED);
-  }
-
-  async testDetachPanelNoFloatyOrLiveMode() {
-    assertDefined(this.host.getPanelState);
-    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    assertRejects((async () => {
-      this.host.detachPanel?.();
-    })());
-  }
-
-  async testCanAttachPanelDetachedTabClosed() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-    assertDefined(this.host.canAttachPanel);
-
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    this.host.detachPanel();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
-
-    const canAttachSeq = observeSequence(this.host.canAttachPanel());
-    await canAttachSeq.waitForValue(true);
-
-    // Wait for C++ to close the tab.
-    await this.advanceToNextStep();
-
-    await canAttachSeq.waitForValue(false);
-  }
-
-  async testAttachPanel() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-    assertDefined(this.host.attachPanel);
-
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    this.host.detachPanel();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
-
-    this.host.attachPanel();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-  }
-
-  async testMultiplePanelsDetachedAndFloating() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-
-    if (this.testParams === 'first') {
-      const panelStates = observeSequence(this.host.getPanelState());
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.ATTACHED);
-      await this.advanceToNextStep();
-      // Ensure the panel state stays attached. Note that currently, we do see
-      // the panel state go to hidden momentarily, so we only assert that the
-      // state eventually transitions again to attached.
-      await sleep(100);
-      observeSequence(this.host.getPanelState())
-          .waitFor(state => state.kind === PanelStateKind.ATTACHED);
-    } else if (this.testParams === 'second') {
-      this.host.detachPanel();
-      const panelStates = observeSequence(this.host.getPanelState());
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.DETACHED);
-    }
-  }
-
-  async testThereCanOnlyBeOneFloaty() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-
-    if (this.testParams === 'first') {
-      this.host.detachPanel();
-      const panelStates = observeSequence(this.host.getPanelState());
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.DETACHED);
-      await this.advanceToNextStep();
-
-      observeSequence(this.host.getPanelState())
-          .waitFor(state => state.kind === PanelStateKind.HIDDEN);
-
-    } else if (this.testParams === 'second') {
-      this.host.detachPanel();
-      const panelStates = observeSequence(this.host.getPanelState());
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.DETACHED);
-    }
-  }
-
 
   async testErrorShownOnMojoPipeError() {}
 
@@ -1482,43 +1374,6 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
-  async testTabSwitchDoesNotLogActivationMetric() {
-    assertDefined(this.host.registerConversation);
-    assertDefined(this.host.switchConversation);
-    if (this.testParams === 'first') {
-      await this.host.registerConversation(
-          {conversationId: 'A', conversationTitle: 'Title A'});
-      this.advanceToNextStep();
-    } else if (this.testParams === 'second') {
-      // Return and then switch conversation to ensure that ExecuteJsTest
-      // completes before the instance is deleted. The instance is deleted
-      // during the `switchConversation` call.
-      sleep(100).then(() => {
-        assertDefined(this.host.switchConversation);
-        this.host.switchConversation(
-            {conversationId: 'A', conversationTitle: 'Title A'});
-      });
-    }
-  }
-
-  async testDetachDoesNotLogActivationMetric() {
-    assertDefined(this.host.registerConversation);
-    assertDefined(this.host.detachPanel);
-    assertDefined(this.host.getPanelState);
-
-    if (this.testParams === 'registerAndDetach') {
-      await this.host.registerConversation(
-          {conversationId: 'A', conversationTitle: 'Title A'});
-      const panelStates = observeSequence(this.host.getPanelState());
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.ATTACHED);
-
-      this.host.detachPanel();
-      await panelStates.waitFor(
-          state => state.kind === PanelStateKind.DETACHED);
-    }
-  }
-
   async testMaybeRefreshUserStatus() {
     assertDefined(this.host.maybeRefreshUserStatus);
     this.host.maybeRefreshUserStatus();
@@ -1699,38 +1554,6 @@ class ApiTests extends ApiTestFixtureBase {
     // Register an initial conversation with a valid ID.
     await this.host.registerConversation(
         {conversationId: '', conversationTitle: 'Empty Conversation'});
-  }
-
-  async testSwitchConversationWithEmptyId() {
-    assertDefined(this.host.registerConversation);
-    assertDefined(this.host.switchConversation);
-
-    if (this.testParams === 'initiateSwitch') {
-      // Register an initial conversation with a valid ID.
-      await this.host.registerConversation(
-          {conversationId: 'initial_id', conversationTitle: 'Initial Title'});
-
-      // Attempt to switch to a conversation with an empty ID.
-      // Wrap in a sleep to allow the current test's ExecuteJsTest() to complete
-      // before the instance is potentially deleted during switchConversation.
-      sleep(100).then(() => {
-        assertDefined(this.host.switchConversation);
-        this.host.switchConversation({
-          conversationId: '',
-          conversationTitle: 'Empty Switched Title',
-          clientData: 'test_client_data_from_ts',
-        });
-      });
-    } else if (this.testParams === 'verifyNewInstance') {
-      const openData = this.client.panelOpenData.getCurrentValue();
-      assertDefined(openData);
-      assertEquals(undefined, openData.conversationId);
-      assertEquals('', openData.conversationInfo?.conversationId);
-      assertEquals(
-          'Empty Switched Title', openData.conversationInfo?.conversationTitle);
-      assertEquals(
-          'test_client_data_from_ts', openData.conversationInfo?.clientData);
-    }
   }
 
   async testPanelWillOpenBeforeClientReady() {

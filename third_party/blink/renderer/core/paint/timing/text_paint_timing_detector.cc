@@ -12,7 +12,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
-#include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_calculator.h"
+#include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_manager.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_utils.h"
@@ -44,12 +44,14 @@ void TextPaintTimingDetector::SendRectsToHud() {
     return;
   }
 
+  bool is_recording_lcp = IsRecordingLargestTextPaint();
+
   for (const auto& record : texts_queued_for_paint_time_) {
     if (record->FrameIndex() == frame_index_) {
       cc::WebVitalMetricType type;
       if (record->GetSoftNavigationContext()) {
         type = cc::WebVitalMetricType::kInteractionContentfulPaint;
-      } else if (IsRecordingLargestTextPaint()) {
+      } else if (is_recording_lcp) {
         type = cc::WebVitalMetricType::kNavigationContentfulPaint;
       } else {
         continue;
@@ -116,45 +118,63 @@ void TextPaintTimingDetector::RecordAggregatedText(
 
   gfx::RectF mapped_visual_rect = paint_timing_detector_->CalculateVisualRect(
       aggregated_visual_rect, property_tree_state);
-  uint64_t aggregated_size = mapped_visual_rect.size().GetArea();
+  uint64_t effective_visual_size = mapped_visual_rect.size().GetArea();
 
-  DCHECK_LE(IgnorePaintTimingScope::IgnoreDepth(), 1);
+  TextRecord* record =
+      CreateTextRecord(aggregator, effective_visual_size, property_tree_state,
+                       aggregated_visual_rect, mapped_visual_rect);
+
+  if (LargestContentfulPaintManager* manager =
+          GetLargestContentfulPaintManager()) {
+    manager->InitializePaintTracking(record);
+  }
+
+  CHECK_LE(IgnorePaintTimingScope::IgnoreDepth(), 1);
   // Record the largest aggregated text that is hidden due to documentElement
   // being invisible but by no other reason (i.e. IgnoreDepth() needs to be 1).
   if (IgnorePaintTimingScope::IgnoreDepth() == 1) {
     if (IgnorePaintTimingScope::IsDocumentElementInvisible() &&
-        IsRecordingLargestTextPaint()) {
-      ltp_manager_.MaybeUpdateLargestIgnoredText(aggregator, aggregated_size,
-                                                 aggregated_visual_rect,
-                                                 mapped_visual_rect);
+        record->IsNeededForLargestContentfulPaint()) {
+      ltp_manager_.MaybeUpdateLargestIgnoredText(aggregator, record);
     }
     return;
   }
 
-  SoftNavigationContext* context = nullptr;
+  // Mark the text as recorded regardless of if this is needed for any
+  // PaintTiming clients so the text isn't reconsidered as a candidate.
+  auto result = recorded_set_.Set(&aggregator, TextPaintStatus::kPainted);
+  bool is_repaint = !result.is_new_entry;
+
+  // Update `record` with other possible clients.
   LocalDOMWindow* window = aggregator.GetDocument().domWindow();
   CHECK(window);
   if (SoftNavigationHeuristics* heuristics =
           window->GetSoftNavigationHeuristics()) {
-    context = heuristics->MaybeGetSoftNavigationContextForTiming(
-        aggregator.GetNode());
+    heuristics->InitializePaintTracking(record);
+    if (auto* context = record->GetSoftNavigationContext()) {
+      context->AddPaintedArea(record);
+    }
+  }
+  record->SetIsNeededForElementTiming(
+      !is_repaint && TextElementTiming::NeededForTiming(*record->GetNode()));
+
+  // If any client needs this `record`, register for presentation time.
+  if (record->IsNeededForLargestContentfulPaint() ||
+      record->IsNeededForInteractionContentfulPaint() ||
+      record->IsNeededForElementTiming()) {
+    QueueToMeasurePaintTime(record);
   }
 
-  auto result = recorded_set_.Set(&aggregator, TextPaintStatus::kPainted);
-  TextRecord* record = MaybeRecordTextRecord(
-      aggregator, aggregated_size, property_tree_state, aggregated_visual_rect,
-      mapped_visual_rect, context, /*is_repaint=*/!result.is_new_entry);
-  if (context && record) {
-    context->AddPaintedArea(record);
-  }
+  // TODO(crbug.com/503691215): This is done before the opacity check for
+  // images; why the difference?
   if (PaintTimingVisualizer* visualizer =
           paint_timing_detector_->Visualizer()) {
     visualizer->DumpTextDebuggingRect(aggregator, mapped_visual_rect);
   }
 }
 
-void TextPaintTimingDetector::StopRecordingLargestTextPaint() {
-  recording_largest_text_paint_ = false;
+bool TextPaintTimingDetector::IsRecordingLargestTextPaint() const {
+  return !!GetLargestContentfulPaintManager();
 }
 
 void TextPaintTimingDetector::ReportLargestIgnoredText() {
@@ -182,21 +202,12 @@ LargestTextPaintManager::LargestTextPaintManager() = default;
 
 void LargestTextPaintManager::MaybeUpdateLargestIgnoredText(
     const LayoutObject& object,
-    const uint64_t size,
-    const gfx::Rect& frame_visual_rect,
-    const gfx::RectF& root_visual_rect) {
-  if (!size) {
-    return;
+    TextRecord* record) {
+  CHECK_GT(record->EffectiveVisualSize(), 0u);
+  if (record->IsEffectiveSizeLargerThan(GetLargestIgnoredTextIfNotRemoved())) {
+    largest_ignored_text_.key = &object;
+    largest_ignored_text_.value = record;
   }
-  if (TextRecord* current_candidate = GetLargestIgnoredTextIfNotRemoved();
-      current_candidate && current_candidate->RecordedSize() >= size) {
-    return;
-  }
-  largest_ignored_text_.key = &object;
-  largest_ignored_text_.value = MakeGarbageCollected<TextRecord>(
-      object.GetNode(), size, gfx::RectF(), frame_visual_rect, root_visual_rect,
-      /*is_needed_for_timing=*/false,
-      /*soft_navigation_context=*/nullptr);
 }
 
 void LargestTextPaintManager::Trace(Visitor* visitor) const {
@@ -224,45 +235,31 @@ void TextPaintTimingDetector::AssignPaintTimeToQueuedRecords(
   }
 }
 
-TextRecord* TextPaintTimingDetector::MaybeRecordTextRecord(
+TextRecord* TextPaintTimingDetector::CreateTextRecord(
     const LayoutObject& object,
-    const uint64_t& visual_size,
+    uint64_t effective_visual_size,
     const PropertyTreeStateOrAlias& property_tree_state,
     const gfx::Rect& frame_visual_rect,
-    const gfx::RectF& root_visual_rect,
-    SoftNavigationContext* context,
-    bool is_repaint) {
+    const gfx::RectF& root_visual_rect) {
   Node* node = object.GetNode();
-  DCHECK(node);
+  CHECK(node);
 
-  bool is_needed_for_lcp = IsRecordingLargestTextPaint() && visual_size > 0u;
-  bool is_needed_for_element_timing =
-      !is_repaint && TextElementTiming::NeededForTiming(*node);
-  bool is_needed_for_soft_navs = context != nullptr;
-
-  // If the node is not required by LCP and not required by ElementTiming,
-  // we can bail out early.
-  if (!is_needed_for_lcp && !is_needed_for_element_timing &&
-      !is_needed_for_soft_navs) {
-    return nullptr;
-  }
-
-  TextRecord* record;
-  if (visual_size == 0u) {
-    record = MakeGarbageCollected<TextRecord>(
-        node, visual_size, gfx::RectF(), gfx::Rect(), gfx::RectF(),
-        is_needed_for_element_timing, context);
+  if (effective_visual_size == 0u) {
+    return MakeGarbageCollected<TextRecord>(
+        node, effective_visual_size, gfx::RectF(), gfx::Rect(), gfx::RectF());
   } else {
-    record = MakeGarbageCollected<TextRecord>(
-        node, visual_size,
+    return MakeGarbageCollected<TextRecord>(
+        node, effective_visual_size,
         TextElementTiming::ComputeIntersectionRect(object, frame_visual_rect,
                                                    property_tree_state),
-        frame_visual_rect, root_visual_rect, is_needed_for_element_timing,
-        context);
+        frame_visual_rect, root_visual_rect);
   }
+}
 
-  QueueToMeasurePaintTime(record);
-  return record;
+LargestContentfulPaintManager*
+TextPaintTimingDetector::GetLargestContentfulPaintManager() const {
+  return paint_timing_detector_->GetPaintTiming()
+      .GetLargestContentfulPaintManager();
 }
 
 }  // namespace blink

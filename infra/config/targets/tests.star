@@ -1832,43 +1832,6 @@ targets.tests.isolated_script_test(
     name = "ondevice_stability_tests_light",
 )
 
-targets.tests.isolated_script_test(
-    name = "ondevice_model_benchmark_tests_gpu_submodel",
-    mixins = [
-        "has_native_resultdb_integration",
-    ],
-    args = [
-        "--benchmark_binary_dir=./",
-        "--backends=gpu",
-        "--use_submodel",
-    ],
-    binary = "ondevice_model_benchmark_tests",
-)
-
-targets.tests.isolated_script_test(
-    name = "ondevice_model_benchmark_tests_gpu_no_submodel",
-    mixins = [
-        "has_native_resultdb_integration",
-    ],
-    args = [
-        "--benchmark_binary_dir=./",
-        "--backends=gpu",
-    ],
-    binary = "ondevice_model_benchmark_tests",
-)
-
-targets.tests.isolated_script_test(
-    name = "ondevice_model_benchmark_tests_cpu_no_submodel",
-    mixins = [
-        "has_native_resultdb_integration",
-    ],
-    args = [
-        "--benchmark_binary_dir=./",
-        "--backends=cpu",
-    ],
-    binary = "ondevice_model_benchmark_tests",
-)
-
 # TODO(b:484388901): Enable GPU backedn testing when the issue is fixed.
 # targets.tests.isolated_script_test(
 #     name = "litert_e2e_tests_gpu",
@@ -1963,6 +1926,30 @@ targets.tests.isolated_script_test(
         "--backend=gpu",
         "--performance-hint=ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE",
         "--expectations-file=AIExpectations_LiteRTGPU",
+    ],
+    binary = "chrome_ai_wpt_tests",
+)
+
+targets.tests.isolated_script_test(
+    name = "chrome_ai_wpt_tests_manifest_gpu_high_tier",
+    args = [
+        "--manifest-test-config=../../components/optimization_guide/internal/testing/configs/manifest_test_config_gpu_high_tier.json",
+    ],
+    binary = "chrome_ai_wpt_tests",
+)
+
+targets.tests.isolated_script_test(
+    name = "chrome_ai_wpt_tests_manifest_gpu_low_tier",
+    args = [
+        "--manifest-test-config=../../components/optimization_guide/internal/testing/configs/manifest_test_config_gpu_low_tier.json",
+    ],
+    binary = "chrome_ai_wpt_tests",
+)
+
+targets.tests.isolated_script_test(
+    name = "chrome_ai_wpt_tests_manifest_cpu",
+    args = [
+        "--manifest-test-config=../../components/optimization_guide/internal/testing/configs/manifest_test_config_cpu.json",
     ],
     binary = "chrome_ai_wpt_tests",
 )
@@ -2504,10 +2491,6 @@ targets.tests.isolated_script_test(
 
 targets.tests.gtest_test(
     name = "jni_zero_sample_apk_test",
-)
-
-targets.tests.gtest_test(
-    name = "test_serde_json_lenient",
 )
 
 targets.tests.script_test(

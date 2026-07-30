@@ -43,7 +43,12 @@ source_set("browser_tests") {
     "//chrome/test:test_support",
     "//components/commerce/core:commerce_constants",
     "//components/contextual_tasks/public",
+    "//components/metrics_services_manager",
+    "//components/ukm",
+    "//components/ukm:ukm_test_helper",
     "//components/webui/chrome_urls/",
+    "//services/metrics/public/cpp:test_support",
+    "//services/metrics/public/cpp:ukm_builders",
     "//ui/compositor",
   ]
 
@@ -74,6 +79,7 @@ source_set("browser_tests") {
       "history/history_ui_browsertest.cc",
       "history_clusters_internals/history_clusters_internals_browsertest.cc",
       "inspect/inspect_ui_browsertest.cc",
+      "iwa_dev/iwa_dev_browsertest.cc",
       "key_value_pair_viewer/key_value_pair_viewer_browsertest.cc",
       "lens/lens_overlay_webui_browsertest.cc",
       "lens/lens_side_panel_webui_browsertest.cc",
@@ -116,6 +122,7 @@ source_set("browser_tests") {
       "//chrome/browser/preloading",
       "//chrome/browser/signin:signin_promo",
       "//chrome/browser/subscription_eligibility",
+      "//chrome/browser/ui/webui/settings",
     ]
 
     if (is_chrome_branded) {
@@ -646,6 +653,7 @@ generate_grd("build_grd") {
       "history:build_grdp",
       "history_clusters_internals:build_grdp",
       "inspect:build_grdp",
+      "iwa_dev:build_grdp",
       "key_value_pair_viewer:build_grdp",
       "lens:build_grdp",
       "management:build_grdp",
@@ -705,6 +713,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/history/resources.grdp",
       "$target_gen_dir/history_clusters_internals/resources.grdp",
       "$target_gen_dir/inspect/resources.grdp",
+      "$target_gen_dir/iwa_dev/resources.grdp",
       "$target_gen_dir/key_value_pair_viewer/resources.grdp",
       "$target_gen_dir/media_internals/resources.grdp",
       "$target_gen_dir/media/resources.grdp",

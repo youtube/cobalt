@@ -21,6 +21,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -29,6 +30,8 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.components.browser_ui.widget.ContextMenuDialog;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.embedder_support.contextmenu.ChipDelegate;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuParams;
@@ -296,9 +299,10 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         mWebContents,
                         mNativeDelegate,
                         mIsCustomItemPresent);
+        boolean isIncognito = Profile.fromWebContents(mWebContents).isIncognitoBranded();
         ContextMenuMediator mediator =
                 new ContextMenuMediator(
-                        mActivity, mHeaderCoordinator, onItemClicked, this::dismiss);
+                        mActivity, mHeaderCoordinator, isIncognito, onItemClicked, this::dismiss);
 
         // The Integer here specifies the {@link ListItemType}.
         ModelList listItems =
@@ -354,7 +358,26 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         mHierarchicalMenuController.setupFlyoutController(
                 /* flyoutHandler= */ this,
                 dialog,
+                listView::setOnScrollChangeListener,
                 /* drillDownOverrideValue= */ mUsePopupWindow ? null : true);
+        dialog.setBackPressHandler(
+                new BackPressHandler() {
+                    @Override
+                    public @BackPressResult int handleBackPress() {
+                        return mHierarchicalMenuController.handleBackPress()
+                                ? BackPressResult.SUCCESS
+                                : BackPressResult.FAILURE;
+                    }
+
+                    @Override
+                    public NonNullObservableSupplier<Boolean> getHandleBackPressChangedSupplier() {
+                        return mHierarchicalMenuController.getHandleBackPressChangedSupplier();
+                    }
+                });
+        if (mUsePopupWindow) {
+            mHierarchicalMenuController.setupBackPressBehaviorForPopupWindow(
+                    dialog.getContentView(), this::dismissDialogs);
+        }
     }
 
     @Override
@@ -369,7 +392,10 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
 
     @Override
     public ContextMenuDialog createAndShowFlyoutPopup(
-            List<ListItem> items, View view, Runnable dismissRunnable) {
+            List<ListItem> items,
+            View view,
+            Runnable dismissRunnable,
+            View.OnScrollChangeListener scrollListener) {
         assert view != null;
         assert mUsePopupWindow;
 
@@ -402,6 +428,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                             dismissRunnable.run();
                         });
 
+        listView.setOnScrollChangeListener(scrollListener);
         dialog.show();
         return dialog;
     }

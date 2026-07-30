@@ -14,7 +14,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/autofill/at_memory_cross_tab_copy_paste_tracker_factory.h"
 #include "chrome/browser/autofill/mock_autofill_agent.h"
@@ -875,8 +874,7 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 #endif  //  !BUILDFLAG(IS_ANDROID)
 
 #if (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-     BUILDFLAG(IS_CHROMEOS)) &&                                       \
-    BUILDFLAG(GOOGLE_CHROME_BRANDING)
+     BUILDFLAG(IS_CHROMEOS))
 
 // Tests that `ShowAutofillAtMemoryPromo` is propagated to the browser user
 // education service when AtMemory is enabled.
@@ -1088,30 +1086,7 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 }
 
 #endif  // (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-#if (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-     BUILDFLAG(IS_CHROMEOS)) &&                                       \
-    !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-// Tests that `ShowAutofillAtMemoryPromo` is not propagated to the browser user
-// education service on non-branded builds even when all other conditions are
-// met.
-TEST_F(ChromeAutofillClientTestWithMockWindow,
-       ShowAutofillAtMemoryPromo_NonBrandedBuild) {
-  base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEligibilityService();
-  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
-      .WillRepeatedly(
-          Return(personal_context::PersonalContextEligibilityState::kEligible));
-
-  MockBrowserUserEducationInterface mock_user_education(
-      &mock_browser_window_interface());
-  EXPECT_CALL(mock_user_education, MaybeShowFeaturePromo).Times(0);
-
-  client()->ShowAutofillAtMemoryPromo();
-}
-#endif  // (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-        // BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+        // BUILDFLAG(IS_CHROMEOS))
 
 // Tests that if there is no enablement service available to the profile, client
 // defaults to kDisabledNotEligible state.
@@ -1165,6 +1140,75 @@ TEST_F(ChromeAutofillClientTest, IsAutofillProfileEnabled_BlockedByPolicy) {
           R"([{"url_pattern": "https://example.com", "blocked_types": ["contact_info"]}])"));
 
   EXPECT_FALSE(client()->IsAutofillProfileEnabled());
+}
+// Tests that IsAutofillEnabled correctly returns false when all active autofill
+// types (including AI data types) are globally blocked by enterprise policy.
+TEST_F(ChromeAutofillClientTest, IsAutofillEnabled_BlockedByPolicy) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+  NavigateAndCommit(GURL("https://example.com"));
+
+  // Disable profile and payments so IsAutofillEnabled depends on the AI types.
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillCreditCardEnabled, false);
+
+  // Enable the AI types.
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiIdentityEntitiesEnabled,
+                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiTravelEntitiesEnabled,
+                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiShoppingEntitiesEnabled,
+                                    true);
+
+  EXPECT_TRUE(client()->IsAutofillEnabled());
+
+  // Block only identity docs.
+  profile()->GetPrefs()->Set(
+      prefs::kAutofillTypesBlocked,
+      base::test::ParseJson(
+          R"([{"url_pattern": "https://example.com", "blocked_types": ["identity_docs"]}])"));
+  // Still true because travel and shopping are enabled.
+  EXPECT_TRUE(client()->IsAutofillEnabled());
+
+  // Block identity docs and travel.
+  profile()->GetPrefs()->Set(
+      prefs::kAutofillTypesBlocked,
+      base::test::ParseJson(
+          R"([{"url_pattern": "https://example.com", "blocked_types": ["identity_docs", "travel"]}])"));
+  EXPECT_TRUE(client()->IsAutofillEnabled());
+
+  // Block all three.
+  profile()->GetPrefs()->Set(
+      prefs::kAutofillTypesBlocked,
+      base::test::ParseJson(
+          R"([{"url_pattern": "https://example.com", "blocked_types": ["identity_docs", "travel", "shopping"]}])"));
+  EXPECT_FALSE(client()->IsAutofillEnabled());
+}
+
+// Tests that IsAutofillEnabled does not consider AI data types when the
+// enterprise policy feature flag is disabled, strictly adhering to the original
+// behavior.
+TEST_F(ChromeAutofillClientTest,
+       IsAutofillEnabled_AiTypesGatedByEnterprisePolicyFeature) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+
+  // Disable profile and payments so IsAutofillEnabled depends on the AI types.
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillCreditCardEnabled, false);
+
+  // Enable the AI types.
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiIdentityEntitiesEnabled,
+                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiTravelEntitiesEnabled,
+                                    true);
+  profile()->GetPrefs()->SetBoolean(prefs::kAutofillAiShoppingEntitiesEnabled,
+                                    true);
+
+  // If the enterprise policy flag is OFF, IsAutofillEnabled does not check AI
+  // types.
+  EXPECT_FALSE(client()->IsAutofillEnabled());
 }
 
 }  // namespace

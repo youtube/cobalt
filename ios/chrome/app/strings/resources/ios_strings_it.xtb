@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Salva password</translation>
 <translation id="1764070164487214210">Indicazioni</translation>
 <translation id="1764511703783285459">L'altro gestore delle password non ha condiviso password o passkey</translation>
+<translation id="1765555082983153259">“Chrome” vorrebbe accedere al tuo microfono</translation>
 <translation id="1767766085187034454">Google Traduttore</translation>
 <translation id="1771016937398045251">Menu Strumenti</translation>
 <translation id="1772468122139624049">Impossibile ricaricare le schede</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Barra dei menu con ordine intelligente</translation>
 <translation id="1883255238294161206">Comprimi elenco</translation>
+<translation id="1883898928879467646">Scheda rimossa</translation>
 <translation id="1888854257756214946">Seleziona password…</translation>
 <translation id="1890237935065108104">Questa impostazione non è disponibile.</translation>
 <translation id="1894023287452300670">Monitora qui il prezzo</translation>
@@ -1620,6 +1622,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6406506848690869874">Sincronizzazione</translation>
 <translation id="6410390304316730527">La Navigazione sicura ti protegge da attaccanti che potrebbero indurti con l'inganno a effettuare operazioni pericolose, come installare software dannosi o rivelare informazioni personali (ad esempio password, numeri di telefono o carte di credito). Se la disattivi, fai attenzione quando navighi in siti sconosciuti o sospetti.</translation>
 <translation id="6410883413783534063">Apri più schede per visitare pagine diverse contemporaneamente</translation>
+<translation id="6412195388778525440">Rimuovi scheda</translation>
 <translation id="6418346271604475326">Preparazione del PDF</translation>
 <translation id="6420292512900923139">Si è verificato un problema durante l'importazione dei dati</translation>
 <translation id="6421038304268477484">Testo tradotto</translation>
@@ -2320,7 +2323,6 @@ Per continuare dal computer, passa a <ph name="OTHER_EMAIL" />. Potrai usare le 
 <translation id="8692689525339542358">Ricevi protezione da estensioni, download e siti pericolosi.</translation>
 <translation id="8692897097252418799">Scegli i dati da esportare</translation>
 <translation id="8694281486652655615">Mostra questo elemento</translation>
-<translation id="8696297579102085705">Invia al tuo dispositivo</translation>
 <translation id="8697136149718343437">Sposta la barra degli indirizzi in fondo</translation>
 <translation id="869891660844655955">Data di scadenza</translation>
 <translation id="8706253136355675497">Temperatura</translation>
@@ -2463,6 +2465,7 @@ Per continuare dal computer, passa a <ph name="OTHER_EMAIL" />. Potrai usare le 
 <translation id="9149866541089851383">Modifica...</translation>
 <translation id="9152637745605628097">Scegli tra i temi, i colori oppure carica un'immagine</translation>
 <translation id="9159628751968616911">Invia pagina web</translation>
+<translation id="9162412286847966593">I dati e le registrazioni della tua organizzazione non verranno usati per migliorare i modelli di AI generativa. <ph name="BEGIN_LINK" />La tua privacy e Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Attiva l'opzione Compila automaticamente le password.</translation>
 <translation id="9165320910061267720">Per ricevere notifiche relative agli avvisi sui cali di prezzo, devi attivare le notifiche nelle impostazioni di iOS.</translation>
 <translation id="9179151630575358778">Nasconde questo elemento</translation>

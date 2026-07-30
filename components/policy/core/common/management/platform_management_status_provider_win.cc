@@ -4,9 +4,11 @@
 
 #include "components/policy/core/common/management/platform_management_status_provider_win.h"
 
+#include "base/feature_list.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_pref_names.h"
 
 namespace policy {
@@ -35,6 +37,20 @@ AzureActiveDirectoryStatusProvider::AzureActiveDirectoryStatusProvider()
 EnterpriseManagementAuthority
 AzureActiveDirectoryStatusProvider::FetchAuthority() {
   return base::win::IsJoinedToAzureAD() ? CLOUD_DOMAIN : NONE;
+}
+
+AzureActiveDirectoryDeviceStatusProvider::
+    AzureActiveDirectoryDeviceStatusProvider()
+    : ManagementStatusProvider(
+          policy_prefs::kAzureActiveDirectoryDeviceManagement) {}
+
+EnterpriseManagementAuthority
+AzureActiveDirectoryDeviceStatusProvider::FetchAuthority() {
+  if (!base::FeatureList::IsEnabled(
+          features::kFilterSensitivePoliciesOnWorkplaceJoinedDevices)) {
+    return base::win::IsJoinedToAzureAD() ? CLOUD_DOMAIN : NONE;
+  }
+  return base::win::IsDeviceJoinedToAzureAD() ? CLOUD_DOMAIN : NONE;
 }
 
 }  // namespace policy

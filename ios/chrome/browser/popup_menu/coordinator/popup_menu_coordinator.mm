@@ -11,6 +11,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/image_fetcher/core/image_fetcher_service.h"
 #import "components/send_tab_to_self/features.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
@@ -20,10 +21,11 @@
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view_controller_presenter.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
+#import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager_factory.h"
+#import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
-#import "ios/chrome/browser/ntp/model/ntp_background_image_cache_service_factory.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/policy/model/browser_management_service_factory.h"
 #import "ios/chrome/browser/popup_menu/coordinator/popup_menu_help_coordinator.h"
@@ -112,7 +114,6 @@ NSString* const kPreferredContentSizeKey = @"preferredContentSize";
 // Mediator to that alerts the main `mediator` when the web content area
 // is blocked by an overlay.
 @property(nonatomic, strong) BrowserContentMediator* contentBlockerMediator;
-
 // Time when the tools menu opened.
 @property(nonatomic, assign) NSTimeInterval toolsMenuOpenTime;
 // Whether the tools menu was scrolled vertically while it was open.
@@ -162,10 +163,10 @@ NSString* const kPreferredContentSizeKey = @"preferredContentSize";
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  [self.browser->GetCommandDispatcher()
-      startDispatchingToTarget:self
-                   forProtocol:@protocol(PopupMenuCommands)];
-  [self.browser->GetCommandDispatcher()
+  CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
+  [dispatcher startDispatchingToTarget:self
+                           forProtocol:@protocol(PopupMenuCommands)];
+  [dispatcher
       startDispatchingToTarget:self
                    forProtocol:@protocol(OverflowMenuCustomizationCommands)];
   NSNotificationCenter* defaultCenter = [NSNotificationCenter defaultCenter];
@@ -320,10 +321,6 @@ NSString* const kPreferredContentSizeKey = @"preferredContentSize";
       HandlerForProtocol(dispatcher, QuickDeleteCommands);
   mediator.whatsNewHandler = HandlerForProtocol(dispatcher, WhatsNewCommands);
   mediator.levelUpHandler = HandlerForProtocol(dispatcher, LevelUpCommands);
-  if (IsOverflowMenuHomeCustomizationEntrypointEnabled()) {
-    mediator.NTPCommandHandler =
-        HandlerForProtocol(dispatcher, NewTabPageCommands);
-  }
   mediator.webStateList = browser->GetWebStateList();
   mediator.navigationAgent = WebNavigationBrowserAgent::FromBrowser(browser);
   mediator.baseViewController = self.baseViewController;
@@ -335,11 +332,17 @@ NSString* const kPreferredContentSizeKey = @"preferredContentSize";
   mediator.browserPolicyConnector =
       GetApplicationContext()->GetBrowserPolicyConnector();
   mediator.syncService = SyncServiceFactory::GetForProfile(profile);
-  if (IsOverflowMenuHomeCustomizationEntrypointEnabled()) {
+  if (IsOverflowMenuHomeCustomizationEntrypointEnabled() && !incognito) {
+    mediator.NTPCommandHandler =
+        HandlerForProtocol(dispatcher, NewTabPageCommands);
     mediator.backgroundCustomizationService =
         HomeBackgroundCustomizationServiceFactory::GetForProfile(profile);
-    mediator.backgroundImageCacheService =
-        NTPBackgroundImageCacheServiceFactory::GetForProfile(profile);
+    mediator.userUploadedImageManager =
+        UserUploadedImageManagerFactory::GetForProfile(profile);
+    image_fetcher::ImageFetcherService* imageFetcherService =
+        ImageFetcherServiceFactory::GetForProfile(profile);
+    mediator.imageFetcher = imageFetcherService->GetImageFetcher(
+        image_fetcher::ImageFetcherConfig::kReducedMode);
   }
   mediator.templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(profile);
@@ -568,6 +571,10 @@ NSString* const kPreferredContentSizeKey = @"preferredContentSize";
   CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
 
   [self.popupMenuHelpCoordinator displayPopupMenuTabRemindersIPH];
+}
+
+- (void)showLevelUpWalkthroughIPH {
+  [self.popupMenuHelpCoordinator showLevelUpWalkthroughIPH];
 }
 
 #pragma mark - OverflowMenuCustomizationCommands

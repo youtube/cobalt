@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Vista aðgangsorð</translation>
 <translation id="1764070164487214210">Leiðarlýsing</translation>
 <translation id="1764511703783285459">Hin Aðgangsorðastjórnunin deildi engum aðgangsorðum eða aðgangslyklum</translation>
+<translation id="1765555082983153259">„Chrome“ vill fá aðgang að hljóðnemanum þínum</translation>
 <translation id="1767766085187034454">Google Translate</translation>
 <translation id="1771016937398045251">Verkfæravalmynd</translation>
 <translation id="1772468122139624049">Ekki tókst að endurhlaða flipa</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Djúpleit</translation>
 <translation id="188237709236611317">Valmyndarstika snjallflokkunar</translation>
 <translation id="1883255238294161206">Fella saman lista</translation>
+<translation id="1883898928879467646">Flipi fjarlægður</translation>
 <translation id="1888854257756214946">Velja aðgangsorð…</translation>
 <translation id="1890237935065108104">Þessi stilling er ekki í boði.</translation>
 <translation id="1894023287452300670">Vakta verð hér</translation>
@@ -1620,6 +1622,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="6406506848690869874">Samstilling</translation>
 <translation id="6410390304316730527">Örugg vefnotkun verndar þig fyrir tölvuþrjótum sem gætu platað þig til að gera eitthvað hættulegt eins og að setja upp skaðlegan hugbúnað eða gefa upp persónuupplýsingar á borð við aðgangsorð, símanúmer eða kreditkortaupplýsingar. Ef þú slekkur á henni skaltu fara varlega þegar þú skoðar ókunnug eða óáreiðanleg vefsvæði.</translation>
 <translation id="6410883413783534063">Opnaðu flipa til að skoða mismunandi síður samtímis</translation>
+<translation id="6412195388778525440">Fjarlægja flipa</translation>
 <translation id="6418346271604475326">Undirbýr PDF</translation>
 <translation id="6420292512900923139">Vandamál kom upp við innflutning gagna</translation>
 <translation id="6421038304268477484">Þýddur texti</translation>
@@ -2320,7 +2323,6 @@ Til að halda áfram í tölvunni skaltu skipta í <ph name="OTHER_EMAIL" />. Þ
 <translation id="8692689525339542358">Verðu þig gegn hættulegum vefsvæðum, niðurhali og viðbótum.</translation>
 <translation id="8692897097252418799">Veldu hvaða gögn þú vilt flytja út</translation>
 <translation id="8694281486652655615">Sýnir þetta atriði</translation>
-<translation id="8696297579102085705">Senda í tækið þitt</translation>
 <translation id="8697136149718343437">Færa veffangastiku neðst</translation>
 <translation id="869891660844655955">Lokadagsetning</translation>
 <translation id="8706253136355675497">Hitastig</translation>
@@ -2463,6 +2465,7 @@ Til að halda áfram í tölvunni skaltu skipta í <ph name="OTHER_EMAIL" />. Þ
 <translation id="9149866541089851383">Breyta...</translation>
 <translation id="9152637745605628097">Veldu úr þemum, litum eða hladdu upp mynd</translation>
 <translation id="9159628751968616911">Senda vefsíðu</translation>
+<translation id="9162412286847966593">Gögn og upptökur fyrirtækisins þíns verða ekki notuð til að bæta skapandi gervigreindarlíkön. <ph name="BEGIN_LINK" />Persónuvernd þín og Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Kveiktu á sjálfvirkri útfyllingu aðgangsorða</translation>
 <translation id="9165320910061267720">Til að fá tilkynningar um verðlækkanir þarftu að kveikja á tilkynningum í stillingum iOS.</translation>
 <translation id="9179151630575358778">Felur þetta atriði</translation>

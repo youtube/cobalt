@@ -571,6 +571,64 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Accessibility.ReadAnything.OmniboxEntryPoint">
+  <owner>lwinston@google.com</owner>
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Recorded when the user interacts with or is shown the Read Anything omnibox
+    entry point.
+  </summary>
+  <metric name="Shown" enum="Boolean">
+    <summary>
+      Whether the omnibox chip is shown.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="Triggered" enum="Boolean">
+    <summary>
+      Whether the chip was triggered (via mouse or keyboard) to open Reading
+      mode.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="Accessibility.ReadAnything.OmniboxEntryPointDistillation">
+  <owner>lwinston@google.com</owner>
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Recorded when distillation completes after the Read Anything omnibox entry
+    point was used to open reading mode.
+  </summary>
+  <metric name="DistillationStatus" enum="ReadAnythingDistillationStatus">
+    <summary>
+      The distillation status in reading mode after the omnibox entry point was
+      used to open reading mode.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
 <event name="Accessibility.ReadAnything.SidePanel">
   <owner>gusmartin@google.com</owner>
   <owner>lwinston@google.com</owner>
@@ -723,6 +781,21 @@ be describing additional metrics about the same event.
     <summary>
       Indicates the level of interest in the web page content based on the
       results of the URL match classifier.
+    </summary>
+  </metric>
+</event>
+
+<event name="Actor.AttemptOtpFilling">
+  <owner>salmaabdelaziz@google.com</owner>
+  <owner>dembski@google.com</owner>
+  <summary>
+    Metrics recorded when the Actor executes the AttemptOtpFilling tool on a
+    webpage to attempt to fill an OTP.
+  </summary>
+  <metric name="PredictedOtpType" enum="AttemptOtpFillingPredictedOtpType">
+    <summary>
+      Records the OTP source type (SMS, Email, Authenticator App, Unknown)
+      predicted by the Actor for the current main frame URL.
     </summary>
   </metric>
 </event>
@@ -2691,6 +2764,136 @@ be describing additional metrics about the same event.
       Number of hours in the current session up to this event. Bucketing:
       exponential buckets, increasing in size by 25%, rounded to the nearest
       integer. i.e. 0, 1, 2, 3, 4, 5, 6, 7, 9, 12, 15, 18, 23, 28, 36, 44...
+    </summary>
+  </metric>
+</event>
+
+<event name="AtMemory.SearchQuery">
+  <owner>rahimis@google.com</owner>
+  <owner>ireneuszszulc@google.com</owner>
+  <summary>
+    Describes an AtMemory search query and the users response to the results.
+    Recorded when the UI containing the results is destroyed (due to a new
+    search query or the overall UI closing).
+  </summary>
+  <metric name="AcceptedSuggestionDataSources"
+      enum="AutofillAtMemoryAcceptedSuggestionDataSourcesBitmask">
+    <summary>
+      A bitmask of the data sources that provided an entry. Currently, the
+      sources are local Autofill, Gmail, Calendar, and Photos.
+    </summary>
+  </metric>
+  <metric name="AcceptedSuggestionDataType" enum="MemoryDataType">
+    <summary>
+      The accepted data type.
+    </summary>
+  </metric>
+  <metric name="AcceptedSuggestionIndex">
+    <summary>
+      Records the 0-based index (position) of the selected suggestion from the
+      first-level list. In case of selected sub-suggestion from a fly-out menu,
+      this records the position of the top-level suggestion.
+    </summary>
+  </metric>
+  <metric name="AcceptedSuggestionSecondaryIndex">
+    <summary>
+      Records the 0-based index (position) of the selected secondary attribute
+      from the fly-out menu when a suggestion is accepted. -1 means the user
+      accepted the top-level primary attribute directly without selecting from
+      the fly-out menu. 0, 1, 2... means the user opened the fly-out menu and
+      accepted the secondary attribute at that 0-based position.
+    </summary>
+  </metric>
+  <metric name="QueryCompleted" enum="AutofillAtMemoryQueryCompletedStatus">
+    <summary>
+      Describes the return value of the search query.
+    </summary>
+  </metric>
+  <metric name="QueryLatencyMs">
+    <summary>
+      Time in milliseconds between when a query was submitted and the query
+      response received.
+    </summary>
+  </metric>
+  <metric name="SuggestionAccepted" enum="Boolean">
+    <summary>
+      Whether a search result in response to this query was accepted.
+    </summary>
+  </metric>
+  <metric name="SuggestionFilled" enum="Boolean">
+    <summary>
+      Whether a suggestion was autofilled after it was accepted.
+    </summary>
+  </metric>
+  <metric name="UiSessionId">
+    <summary>
+      A randomly generated identifier that connects multiple
+      AtMemory.SearchQuery to the same AtMemory.UiSession. Unique only for the
+      duration that a popup is showing.
+    </summary>
+  </metric>
+  <metric name="UiSessionOrder">
+    <summary>
+      A 0-based index that stores the order in which different
+      AtMemory.SearchQuery entries are emitted.
+    </summary>
+  </metric>
+</event>
+
+<event name="AtMemory.UiSession">
+  <owner>rahimis@google.com</owner>
+  <owner>ireneuszszulc@google.com</owner>
+  <summary>
+    Contains information about an AtMemory UI session. A UI session corresponds
+    to showing the Autofill popup (from initial show to hide) on Desktop or the
+    AtMemory bottomsheet on Android. The metric is recorded when the AtMemory UI
+    is closed.
+  </summary>
+  <metric name="FieldSessionIdentifier">
+    <summary>
+      A random variable assigned to a specific instance of a form control (e.g.
+      a HTML input element). This should be globally unique and suitable for
+      distinguishing fields. Two different users would have different values.
+      For the same user, the same field in the same form in two different tabs
+      would have two different values.
+    </summary>
+  </metric>
+  <metric name="FieldSignature">
+    <summary>
+      The field signature of the field that AtMemory was triggered on (value
+      taken modulo 1021).
+    </summary>
+  </metric>
+  <metric name="FormSignature">
+    <summary>
+      The form signature of the field that AtMemory was triggered on (value
+      taken modulo 1021).
+    </summary>
+  </metric>
+  <metric name="QuerySubmitted" enum="Boolean">
+    <summary>
+      Whether a search query was submitted.
+    </summary>
+  </metric>
+  <metric name="SearchBarDisplayed" enum="AutofillAtMemoryTriggerSource">
+    <summary>
+      Tracks how the suggestion UI was triggered.
+    </summary>
+  </metric>
+  <metric name="SuggestionAccepted" enum="Boolean">
+    <summary>
+      Whether at least one search result was accepted during the entire session.
+    </summary>
+  </metric>
+  <metric name="SuggestionFilled" enum="Boolean">
+    <summary>
+      Whether a suggestion was filled.
+    </summary>
+  </metric>
+  <metric name="UiSessionId">
+    <summary>
+      A randomly generated identifier that connects multiple
+      AtMemory.SearchQuery to the same AtMemory.UiSession.
     </summary>
   </metric>
 </event>
@@ -8470,54 +8673,6 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="Conversions.SourceRegistration">
-  <owner>linnan@google.com</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Recorded when the source registration is processed by Attribution Reporting
-    API. The event is associated with the UKM source ID from the navigation ID
-    of the most recent primary page navigation as a workaround for prerendered
-    pages. For ongoing navigation, the UKM source ID would be obtained from the
-    navigation handle to avoid the timing issue as the cached UKM source ID
-    would not be updated until the navigation completes.
-  </summary>
-  <metric name="StoreSourceResult" enum="ConversionStorageSourceStatus">
-    <summary>
-      Records the status of source registration processing. Recorded once for
-      each source event processed by the attribution manager layer.
-    </summary>
-  </metric>
-</event>
-
-<event name="Conversions.TriggerRegistration">
-  <owner>linnan@google.com</owner>
-  <owner>measurement-api-dev+metrics@google.com</owner>
-  <summary>
-    Recorded when the trigger registration is processed by Attribution Reporting
-    API. he event is associated with the UKM source ID from the navigation ID of
-    the most recent primary page navigation as a workaround for prerendered
-    pages. For ongoing navigation, the UKM source ID would be obtained from the
-    navigation handle to avoid the timing issue as the cached UKM source ID
-    would not be updated until the navigation completes.
-  </summary>
-  <metric name="CreateAggregatableReportStatus"
-      enum="ConversionCreateAggregatableReportStatus">
-    <summary>
-      Records the status of trigger registration processing for the aggregatable
-      reports. Recorded once for each trigger event processed by the attribution
-      manager layer.
-    </summary>
-  </metric>
-  <metric name="CreateEventLevelReportStatus"
-      enum="ConversionStorageCreateReportStatus">
-    <summary>
-      Records the status of trigger registration processing for the event-level
-      reports. Recorded once for each trigger event processed by the attribution
-      manager layer.
-    </summary>
-  </metric>
-</event>
-
 <event name="CookieHasNonAsciiCharacter">
   <owner>bingler@chromium.org</owner>
   <summary>
@@ -8572,22 +8727,6 @@ be describing additional metrics about the same event.
         </statistics>
       </history>
     </aggregation>
-  </metric>
-</event>
-
-<event name="Cookies.FirstPartyPartitionedInCrossSiteContextV3">
-  <owner>selya@chromium.org</owner>
-  <owner>dylancutler@google.com</owner>
-  <summary>
-    Recorded when a page loads that has a first-party partitioned cookie present
-    and the cookie's name is not receive-cookie-deprecation.
-  </summary>
-  <metric name="CookiePresent" enum="Boolean">
-    <summary>
-      Records true if one or more first-party partitioned cookies in a cross
-      site context are present and the cookie's name is not
-      receive-cookie-deprecation.
-    </summary>
   </metric>
 </event>
 
@@ -9866,8 +10005,8 @@ be describing additional metrics about the same event.
   <metric name="RequestType" enum="FetchKeepAliveRequestType">
     <summary>
       An enum representing the type of the fetch keepalive request. It tells
-      whether this request is a fetch request, an attribution reporting request,
-      or a fetchLater request.
+      whether this request is a fetch request, an attribution reporting request
+      (obsolete), or a fetchLater request.
     </summary>
   </metric>
   <metric name="TimeDelta.BrowserShutdown">
@@ -10601,6 +10740,24 @@ be describing additional metrics about the same event.
       If the navigation starting URL (first URL in the redirect chain) matches
       the user's home page URL. Not recorded on Android because home page is
       managed outside of Chrome.
+    </summary>
+  </metric>
+</event>
+
+<event name="Glic.AutoOpen.Closed">
+  <owner>sanaakbani@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <summary>
+    Recorded when an auto-opened Glic instance (such as for a PDF) is closed or
+    dismissed by the user or system. The source_id represents the URL of the tab
+    where auto-open was initially triggered. This metric is not recorded on tab
+    switches and is only recorded when the last side panel associated with the
+    auto-opened instance closes.
+  </summary>
+  <metric name="SessionDurationMs">
+    <summary>
+      The duration in milliseconds that the auto-opened Glic instance remained
+      open.
     </summary>
   </metric>
 </event>
@@ -15352,21 +15509,9 @@ be describing additional metrics about the same event.
       request which is sent for the main resource of a main frame navigation.
     </summary>
   </metric>
-  <metric name="HasImpression" enum="Boolean">
-    <summary>
-      Whether the current navigation has any impression associated. This is set
-      when the Attribution Reporting API is used, and the navigation is
-      initiated from an anchor link with the Attribution Src element.
-    </summary>
-  </metric>
   <metric name="IsCommitted" enum="Boolean">
     <summary>
       Determines whether the navigation is committed or not.
-    </summary>
-  </metric>
-  <metric name="IsEmptyAttributionSrc" enum="Boolean">
-    <summary>
-      Determines whether the attributionsrc tag had empty values or not.
     </summary>
   </metric>
   <metric name="LargestContentfulPaintTime">
@@ -18903,22 +19048,6 @@ be describing additional metrics about the same event.
     <summary>
       The reason why the browser window size check failed and the Payment
       Request or Payment Handler dialog was rejected.
-    </summary>
-  </metric>
-</event>
-
-<event name="PaymentRequest.TransactionAmount">
-  <owner>smcgruer@chromium.org</owner>
-  <owner>chrome-payments-eng@google.com</owner>
-  <metric name="Category">
-    <summary>
-      Tranaction size can be zero, micro, or regular. Values defined in the
-      TransactionSize enum of components/payments/core/journey_logger.h.
-    </summary>
-  </metric>
-  <metric name="CompletionStatus" enum="Boolean">
-    <summary>
-      Whether the transaction has been triggered or completed.
     </summary>
   </metric>
 </event>

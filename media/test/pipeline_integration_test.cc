@@ -2060,20 +2060,9 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed_M4A) {
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
 
-  // Verify preroll is stripped. This file uses a preroll of 2112 frames, which
-  // spans all three packets in the file. Postroll is not correctly stripped at
-  // present; see the note below.
-  EXPECT_AUDIO_HASH("3.84,4.25,4.33,3.58,3.27,3.16,");
-
-  // Note the above hash is incorrect since the <audio> path doesn't properly
-  // trim trailing silence at end of stream for AAC decodes. This isn't a huge
-  // deal since plain src= tags can't splice streams and MSE requires an
-  // explicit append window for correctness.
-  //
-  // The WebAudio path via AudioFileReader computes this correctly, so the hash
-  // below is taken from that test.
-  //
-  // EXPECT_AUDIO_HASH("3.77,4.53,4.75,3.48,3.67,3.76,");
+  // Verify preroll and postroll are correctly stripped. This file uses a
+  // preroll of 2112 frames, which spans all three packets in the file.
+  EXPECT_AUDIO_HASH("3.77,4.53,4.75,3.48,3.67,3.76,");
 }
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
@@ -3165,5 +3154,31 @@ TEST_F(SymphoniaPipelineIntegrationTest, BasicPlayback_Vorbis_AudioOnly) {
 }
 
 #endif  // BUILDFLAG(ENABLE_SYMPHONIA)
+
+#if BUILDFLAG(ENABLE_IAMF_TOOLS)
+TEST_F(PipelineIntegrationTest, MSE_BasicPlayback_Iamf_714) {
+  base::test::ScopedFeatureList scoped_feature_list(kIamfAudioDecoding);
+  TestMediaSource source("iamf_alternating_sine_waves_714.mp4",
+                         kAppendWholeFile);
+  EXPECT_EQ(PIPELINE_OK, StartPipelineWithMediaSource(&source));
+  source.EndOfStream();
+  Play();
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Shutdown();
+  Stop();
+}
+
+TEST_F(PipelineIntegrationTest, MSE_BasicPlayback_Iamf_Stereo) {
+  base::test::ScopedFeatureList scoped_feature_list(kIamfAudioDecoding);
+  TestMediaSource source("iamf_alternating_sine_waves_stereo.mp4",
+                         kAppendWholeFile);
+  EXPECT_EQ(PIPELINE_OK, StartPipelineWithMediaSource(&source));
+  source.EndOfStream();
+  Play();
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Shutdown();
+  Stop();
+}
+#endif  // BUILDFLAG(ENABLE_IAMF_TOOLS)
 
 }  // namespace media

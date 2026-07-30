@@ -296,9 +296,13 @@ chromium-metrics-reviews@google.com.
   <int value="107"
       label="IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_MULTIPLE_DEVICES"/>
   <int value="108"
-      label="IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE"/>
+      label="(Obsolete)
+             IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE.
+             Removed in 2026/07."/>
   <int value="109"
-      label="IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES"/>
+      label="(Obsolete)
+             IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES.
+             Removed in 2026/07."/>
   <int value="110" label="IDC_CONTENT_CONTEXT_GENERATE_QR_CODE"/>
   <int value="111"
       label="(Obsolete) IDC_CONTENT_CLIPBOARD_HISTORY_MENU. Removed in
@@ -361,7 +365,8 @@ chromium-metrics-reviews@google.com.
   <int value="156" label="IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW"/>
   <int value="157" label="IDC_CONTENT_CONTEXT_GLICSHAREIMAGE"/>
   <int value="158" label="IDC_CONTENT_CONTEXT_ARCHIVE_GLIC"/>
-  <int value="159" label="IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI"/>
+  <int value="159"
+      label="(Obsolete) IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI"/>
   <int value="160" label="IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS"/>
   <int value="161" label="IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY"/>
   <int value="162" label="IDC_CONTENT_CONTEXT_GLIC"/>
@@ -695,6 +700,7 @@ chromium-metrics-reviews@google.com.
   <int value="-2069349961" label="chrome://history-clusters-internals/"/>
   <int value="-2061366287" label="chrome://dev-ui-loader/"/>
   <int value="-2052079834" label="chrome://context-hub/"/>
+  <int value="-2049053969" label="chrome://iwa-dev/"/>
   <int value="-2038391710" label="chrome://tab-strip-internals/"/>
   <int value="-2034706497" label="chrome://net-internals/"/>
   <int value="-2031269077" label="chrome://signin-error/"/>

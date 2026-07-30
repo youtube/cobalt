@@ -80,6 +80,7 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(DataType data_type) {
     case THEMES:
     case THEMES_IOS:
     case ENCRYPTED_TAB_CONTEXT_CONTAINER:
+    case ENCRYPTED_TAB_CONTEXT_ITEM:
     case EXTENSIONS:
     case SEARCH_ENGINES:
     case APPS:
@@ -120,6 +121,7 @@ base::TimeDelta GetDefaultLocalChangeNudgeDelay(DataType data_type) {
     case SKILL:
     case GEMINI_THREAD:
     case THEMES_ANDROID:
+    case NOTEBOOK:
       return kMediumLocalChangeNudgeDelay;
     case UNSPECIFIED:
       NOTREACHED();
@@ -157,6 +159,7 @@ bool CanGetCommitsFromExtensions(DataType data_type) {
     case THEMES:
     case THEMES_IOS:
     case ENCRYPTED_TAB_CONTEXT_CONTAINER:
+    case ENCRYPTED_TAB_CONTEXT_ITEM:
     case EXTENSIONS:
     case SEARCH_ENGINES:
     case APPS:
@@ -199,6 +202,7 @@ bool CanGetCommitsFromExtensions(DataType data_type) {
     case SKILL:
     case GEMINI_THREAD:
     case THEMES_ANDROID:
+    case NOTEBOOK:
       return false;
     case UNSPECIFIED:
       NOTREACHED();

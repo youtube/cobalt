@@ -110,9 +110,6 @@ BASE_DECLARE_FEATURE(kRemoveExcessNTPs);
 // Feature flag / Kill Switch for TCRex.
 BASE_DECLARE_FEATURE(kTCRexKillSwitch);
 
-// When enabled, an overflow menu will replace the edit menu on the GTS.
-BASE_DECLARE_FEATURE(kTabSwitcherOverflowMenu);
-
 // Feature to enable force showing the Contextual Panel entrypoint.
 BASE_DECLARE_FEATURE(kContextualPanelForceShowEntrypoint);
 
@@ -445,25 +442,6 @@ extern const std::string_view kFRESignInHeaderTextUpdateParamArm1;
 // Returns whether 'kFRESignInHeaderTextUpdate' is enabled.
 bool FRESignInHeaderTextUpdate();
 
-// Feature to enable different text for the secondary action on FRE sign-in
-// promo.
-BASE_DECLARE_FEATURE(kFRESignInSecondaryActionLabelUpdate);
-extern const base::FeatureParam<std::string>
-    kFRESignInSecondaryActionLabelUpdateParam;
-extern const std::string_view
-    kFRESignInSecondaryActionLabelUpdateParamStaySignedOut;
-
-// Returns whether 'kFRESignInSecondaryActionLabelUpdate' is enabled.
-bool FRESignInSecondaryActionLabelUpdate();
-
-// Feature flag to change the button order in the confirmation alerts, placing
-// the primary CTA below the secondary button.
-BASE_DECLARE_FEATURE(kConfirmationButtonSwapOrder);
-
-// Checks if the button order in the confirmation alerts should be swapped
-// (primary button at the bottom), based on the `kConfirmationButtonSwapOrder`
-// flag.
-bool IsConfirmationButtonSwapOrderEnabled();
 
 // Enables Profile-specific push notification handling logic. When enabled, this
 // routes incoming notifications to the PushNotificationClientManager associated
@@ -904,7 +882,7 @@ bool IsDisableFeedbackForIneligibleUsersEnabled();
 // Enables the FullscreenRefactoring feature.
 BASE_DECLARE_FEATURE(kFullscreenRefactoring);
 
-// Returns true if the FullscreenRefactoring feature is enabled.
+// Returns true if the FullscreenRefactoring feature or ChromeNext is enabled.
 bool IsFullscreenRefactoringEnabled();
 
 // Enables the AskAboutThisPage feature.
@@ -1050,10 +1028,16 @@ BASE_DECLARE_FEATURE(kAppBarHideInFullscreen);
 // Returns true if the App Bar should be completely hidden when in fullscreen.
 bool IsAppBarHiddenInFullscreen();
 
-// Enables the ToolbarGlassPrototype feature.
-BASE_DECLARE_FEATURE(kToolbarGlassPrototype);
+// Feature flag for SearchEngineChoiceScreenSnackbar.
+BASE_DECLARE_FEATURE(kSearchEngineChoiceScreenSnackbar);
 
-// Returns true if the ToolbarGlassPrototype feature is enabled.
-bool IsToolbarGlassPrototypeEnabled();
+// Returns true if SearchEngineChoiceScreenSnackbar is enabled.
+bool IsSearchEngineChoiceScreenSnackbarEnabled();
+
+// Enables the DefaultBottomOmniboxOnIOS feature.
+BASE_DECLARE_FEATURE(kDefaultBottomOmniboxOnIOS);
+
+// Returns true if the DefaultBottomOmniboxOnIOS feature is enabled.
+bool IsDefaultBottomOmniboxOnIOSEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

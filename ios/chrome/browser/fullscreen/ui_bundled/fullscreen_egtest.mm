@@ -234,18 +234,18 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   WaitforPDFExtensionView();
 
   // Test that the toolbar is hidden after a user swipes up.
-  [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
-      performAction:grey_scrollInDirection(kGREYDirectionDown, 200)];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
   [ChromeEarlGreyUI waitForToolbarVisible:NO];
 
   // Test that the toolbar is visible after a user swipes down.
-  [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:grey_swipeFastInDirection(kGREYDirectionDown)];
   [ChromeEarlGreyUI waitForToolbarVisible:YES];
 
   // Test that the toolbar is hidden after a user swipes up.
-  [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
-      performAction:grey_scrollInDirection(kGREYDirectionDown, 200)];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+      performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
   [ChromeEarlGreyUI waitForToolbarVisible:NO];
 }
 
@@ -300,6 +300,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   GURL URL = self.testServer->GetURL("/tallpage");
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGreyUI waitForToolbarVisible:YES];
+  [ChromeEarlGrey waitForPageToFinishLoading];
   // Simulate a user scroll down.
   HideToolbarUsingUI();
   [ChromeEarlGreyUI waitForToolbarVisible:NO];
@@ -320,6 +321,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   GURL URL = self.testServer->GetURL("/origin");
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGrey waitForWebStateContainingText:"Tall page"];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Hide the toolbar.
   HideToolbarUsingUI();
@@ -356,6 +358,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGrey waitForWebStateContainingText:"link1"];
   [ChromeEarlGrey waitForMainTabCount:1];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Hide the toolbar.
   HideToolbarUsingUI();
@@ -369,6 +372,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   [ChromeEarlGrey waitForMainTabCount:2];
 
   [ChromeEarlGrey waitForWebStateVisibleURL:destinationURL];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Hide the toolbar.
   HideToolbarUsingUI();
@@ -401,6 +405,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   [ChromeEarlGrey loadURL:originURL];
 
   [ChromeEarlGrey waitForWebStateContainingText:"link1"];
+  [ChromeEarlGrey waitForPageToFinishLoading];
   // Dismiss the toolbar.
   HideToolbarUsingUI();
   [ChromeEarlGreyUI waitForToolbarVisible:NO];
@@ -408,6 +413,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   // Navigate to the other page.
   [ChromeEarlGrey tapWebStateElementWithID:@"link1"];
   [ChromeEarlGrey waitForWebStateContainingText:"link2"];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Make sure toolbar is shown since a new load has started.
   [ChromeEarlGreyUI waitForToolbarVisible:YES];
@@ -435,6 +441,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
 
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGrey waitForWebStateContainingText:"link"];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Dismiss the toolbar.
   HideToolbarUsingUI();
@@ -483,6 +490,7 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
 
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGreyUI waitForToolbarVisible:YES];
+  [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Scroll and check that toolbar is collapsed.
   HideToolbarUsingUI();
@@ -762,6 +770,10 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
   if (![ChromeEarlGrey isFullscreenSmoothScrollingSupported]) {
     EARL_GREY_TEST_SKIPPED(@"Smooth scrolling not supported.");
   }
+  if (@available(iOS 26, *)) {
+    [super testLongPDFInitialState];
+    return;
+  }
   GURL URL = self.testServer->GetURL("/two_pages.pdf");
   [ChromeEarlGrey loadURL:URL];
   WaitforPDFExtensionView();
@@ -830,6 +842,10 @@ std::unique_ptr<net::test_server::HttpResponse> NotFoundResponse() {
 - (void)testLongPDFInitialState {
   if (![ChromeEarlGrey isFullscreenSmoothScrollingSupported]) {
     EARL_GREY_TEST_SKIPPED(@"Smooth scrolling not supported.");
+  }
+  if (@available(iOS 26, *)) {
+    [super testLongPDFInitialState];
+    return;
   }
   GURL URL = self.testServer->GetURL("/two_pages.pdf");
   [ChromeEarlGrey loadURL:URL];

@@ -22,6 +22,8 @@ import {isActivationKey, isBackwardArrow, isForwardArrow, isVerticalArrow} from 
 import {ReadAnythingSettingsAction, ReadAnythingSettingsChange} from '../shared/metrics_browser_proxy.js';
 import {ReadAnythingLogger} from '../shared/read_anything_logger.js';
 
+import {SettingsItemType} from './menu_util.js';
+import type {SettingsItem} from './menu_util.js';
 import {getCss} from './settings_menu.css.js';
 import {getHtml} from './settings_menu.html.js';
 
@@ -33,26 +35,6 @@ export const MENU_SHOW_DELAY_MS = 400;
 // opens of submenus.
 export const SUBMENU_SHOW_DELAY_MS = 800;
 
-export enum SettingsItemType {
-  MENU = 1,
-  TOGGLE = 2,
-  ACTION = 3,
-}
-
-interface SettingsItem {
-  id: SettingsOption;
-  icon: string;
-  title: string;
-  itemType: SettingsItemType;
-  // Whether the toggle is checked. Only used when itemType is TOGGLE
-  checked?: boolean;
-  // Whether the toggle is disabled. Only used when itemType is TOGGLE
-  disabled?: boolean;
-  // Needed when the aria label should be different from the title
-  ariaLabel?: string;
-  showSeparator?: boolean;
-}
-
 const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
   [SettingsOption.APPEARANCE]: {
     id: SettingsOption.APPEARANCE,
@@ -62,63 +44,97 @@ const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
   },
   [SettingsOption.COLOR]: {
     id: SettingsOption.COLOR,
-    icon: 'read-anything:color',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:palette' :
+        'read-anything:color-old',
     title: 'themeTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.FONT]: {
     id: SettingsOption.FONT,
-    icon: 'read-anything:font',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:font-download' :
+        'read-anything:font-old',
     title: 'fontNameTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.FONT_SIZE]: {
     id: SettingsOption.FONT_SIZE,
-    icon: 'read-anything:font-size',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:format-size' :
+        'read-anything:font-size-old',
     title: 'fontSizeTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.IMAGES]: {
     id: SettingsOption.IMAGES,
-    icon: 'read-anything:images-enabled',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:image' :
+        'read-anything:images-enabled-old',
     title: 'imagesLabel',
     itemType: SettingsItemType.TOGGLE,
   },
   [SettingsOption.LINKS]: {
     id: SettingsOption.LINKS,
-    icon: 'read-anything:links-enabled',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:link' :
+        'read-anything:links-enabled-old',
     title: 'linksLabel',
     itemType: SettingsItemType.TOGGLE,
     showSeparator: true,
   },
+  [SettingsOption.MEDIA]: {
+    id: SettingsOption.MEDIA,
+    icon: 'read-anything:animated-images',
+    title: 'mediaTitle',
+    itemType: SettingsItemType.MENU,
+  },
   [SettingsOption.LINE_SPACING]: {
     id: SettingsOption.LINE_SPACING,
-    icon: 'read-anything:line-spacing',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:format-line-spacing' :
+        'read-anything:line-spacing-old',
     title: 'lineSpacingTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.LETTER_SPACING]: {
     id: SettingsOption.LETTER_SPACING,
-    icon: 'read-anything:letter-spacing',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:format-letter-spacing-2' :
+        'read-anything:letter-spacing-old',
     title: 'letterSpacingTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.LINE_FOCUS]: {
     id: SettingsOption.LINE_FOCUS,
-    icon: 'read-anything:line-focus',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:wb-incandescent' :
+        'read-anything:line-focus-old',
     title: 'lineFocusLabel',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.PINNED_TO_TOOLBAR]: {
     id: SettingsOption.PINNED_TO_TOOLBAR,
-    icon: 'read-anything:pin',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:keep' :
+        'read-anything:pin-old',
     title: 'pinLabel',
     itemType: SettingsItemType.TOGGLE,
   },
   [SettingsOption.PRESENTATION]: {
     id: SettingsOption.PRESENTATION,
-    icon: 'read-anything:view',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:fullscreen' :
+        'read-anything:view-old',
     title: 'viewLabel',
+    itemType: SettingsItemType.MENU,
+  },
+  [SettingsOption.TEXT]: {
+    id: SettingsOption.TEXT,
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:font-download' :
+        'read-anything:font-old',
+    title: 'textSettingsTitle',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.TRANSLATION_REQUESTED]: {
@@ -129,13 +145,17 @@ const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
   },
   [SettingsOption.VOICE_SELECTION]: {
     id: SettingsOption.VOICE_SELECTION,
-    icon: 'read-anything:voice-selection',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:voice-selection' :
+        'read-anything:voice-selection-old',
     title: 'voiceSelectionLabel',
     itemType: SettingsItemType.MENU,
   },
   [SettingsOption.VOICE_HIGHLIGHT]: {
     id: SettingsOption.VOICE_HIGHLIGHT,
-    icon: 'read-anything:highlight-on',
+    icon: loadTimeData.getBoolean('webuiRoundedIconsEnabled') ?
+        'read-anything:ink-highlighter-move' :
+        'read-anything:highlight-on-old',
     title: 'voiceHighlightLabel',
     itemType: SettingsItemType.MENU,
   },
@@ -261,9 +281,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   private initializeMenuOptionsForImprovedReadAloud_(): SettingsOption[] {
     const optionIDs: SettingsOption[] = [
       SettingsOption.APPEARANCE,
-      SettingsOption.FONT,
-      SettingsOption.LINE_SPACING,
-      SettingsOption.LETTER_SPACING,
+      SettingsOption.TEXT,
       SettingsOption.VOICE_SELECTION,
       SettingsOption.VOICE_HIGHLIGHT,
     ];

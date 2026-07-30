@@ -14,6 +14,7 @@
 #include "base/version.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
@@ -464,17 +465,18 @@ class GlicActorPolicyCheckerBrowserTestManagedBrowser
                                        url_blocklist,
                                        /*await_list_update=*/true);
 
-    auto* actor_service = ActorKeyedService::Get(GetProfile());
     GlicActorPolicyChecker& policy_checker = GetPolicyChecker();
 
     EXPECT_EQ(expected_result.can_act_on_web, policy_checker.CanActOnWeb());
 
+    TaskId task_id =
+        GetActorService().CreateTask(MockGlicTaskSourceInfo(), &policy_checker);
+    ActorTask* task = GetActorService().GetTask(task_id);
+    ASSERT_TRUE(task);
+
     base::test::TestFuture<actor::MayActOnUrlBlockReason> allowed;
-    MayActOnUrl(url_to_check, /*allow_insecure_http=*/true, GetProfile(),
-                actor_service->GetJournal(), TaskId(123),
-                origin_gating::OriginGatingCache(
-                    actor::kGlicNavigationGatingUseSiteNotOrigin.Get()),
-                policy_checker, allowed.GetCallback());
+    task->GetExecutionEngine().IsAcceptableNavigationDestination(
+        url_to_check, allowed.GetCallback());
     EXPECT_EQ(expected_result.may_act_on_url_block_reason, allowed.Get());
   }
 
@@ -526,6 +528,47 @@ IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,
                                      false, 1);
 
   ExpectErrorResult(result, actor::mojom::ActionResultCode::kTaskPaused);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,
+                       ManagedEnterpriseAccountDoesNotRequireTierCheck) {
+  SimulatePrimaryAccountChangedSignIn(&kEnterpriseAccount);
+  GetProfile()->GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 0);
+
+  UpdateGeminiActOnWebPolicy(
+      glic::prefs::GlicActuationOnWebPolicyState::kEnabled);
+  EXPECT_TRUE(GetPolicyChecker().CanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().CannotActOnWebReason(), CannotActReason::kNone);
+}
+
+class GlicActorPolicyCheckerBrowserTestManagedBrowserFeatureDisabled
+    : public GlicActorPolicyCheckerBrowserTestManagedBrowser {
+ public:
+  GlicActorPolicyCheckerBrowserTestManagedBrowserFeatureDisabled() {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::
+            kGlicActorWorkspaceExemptFromTierCheckRegressionFixKillswitch);
+  }
+  ~GlicActorPolicyCheckerBrowserTestManagedBrowserFeatureDisabled() override =
+      default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    GlicActorPolicyCheckerBrowserTestManagedBrowserFeatureDisabled,
+    ManagedEnterpriseAccountRequiresTierCheckWhenFeatureDisabled) {
+  SimulatePrimaryAccountChangedSignIn(&kEnterpriseAccount);
+  GetProfile()->GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 0);
+
+  UpdateGeminiActOnWebPolicy(
+      glic::prefs::GlicActuationOnWebPolicyState::kEnabled);
+  EXPECT_FALSE(GetPolicyChecker().CanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().CannotActOnWebReason(),
+            CannotActReason::kAccountMissingChromeBenefits);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,

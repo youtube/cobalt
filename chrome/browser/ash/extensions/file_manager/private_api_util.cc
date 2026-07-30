@@ -773,14 +773,16 @@ drive::EventLogger* GetLogger(Profile* profile) {
   return service ? service->GetLogger() : nullptr;
 }
 
-std::vector<fmp::MountableGuest> CreateMountableGuestList(Profile* profile) {
+std::vector<fmp::MountableGuest> CreateMountableGuestList(
+    const PrefService& local_state,
+    Profile* profile) {
   auto* service = guest_os::GuestOsServiceFactory::GetForProfile(profile);
   if (!service) {
     return {};
   }
 
   bool local_user_files_allowed =
-      policy::local_user_files::LocalUserFilesAllowed();
+      policy::local_user_files::LocalUserFilesAllowed(local_state);
 
   auto* registry = service->MountProviderRegistry();
   std::vector<fmp::MountableGuest> guests;

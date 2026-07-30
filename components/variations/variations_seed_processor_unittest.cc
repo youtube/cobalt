@@ -24,6 +24,7 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/rand_util.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -237,6 +238,17 @@ class VariationsSeedProcessorTest : public ::testing::Test {
   void CreateTrialsFromSeed(const VariationsSeed& seed,
                             base::FeatureList* feature_list) {
     env.CreateTrialsFromSeed(seed, feature_list);
+  }
+
+  scoped_refptr<base::FieldTrial> CreateTrialFromStudy(
+      VariationsSeedProcessor& seed_processor,
+      const ProcessedStudy& processed_study,
+      const EntropyProviders& entropy_providers,
+      const VariationsLayers& layers,
+      base::FeatureList* feature_list,
+      bool simulated = false) {
+    return seed_processor.CreateTrialFromStudyImpl(
+        processed_study, entropy_providers, layers, feature_list, simulated);
   }
 
  protected:
@@ -2015,9 +2027,9 @@ TYPED_TEST(VariationsSeedProcessorTest, SimulateCreateTrialFromStudy_Basic) {
 
   // Run the simulation.
   scoped_refptr<base::FieldTrial> simulated_trial =
-      seed_processor.CreateTrialFromStudyForTesting(
-          processed_study, entropy_providers, layers, feature_list.get(),
-          /*simulated=*/true);
+      this->CreateTrialFromStudy(seed_processor, processed_study,
+                                 entropy_providers, layers, feature_list.get(),
+                                 /*simulated=*/true);
   ASSERT_TRUE(simulated_trial);
   EXPECT_EQ(simulated_trial->trial_name(), kStudyName);
   std::string simulated_group_name =
@@ -2043,8 +2055,8 @@ TYPED_TEST(VariationsSeedProcessorTest, SimulateCreateTrialFromStudy_Basic) {
   // Now, do the trial assignment for real -- we should end up in the same group
   // we simulated.
   feature_list = std::make_unique<base::FeatureList>();
-  seed_processor.CreateTrialFromStudyForTesting(
-      processed_study, entropy_providers, layers, feature_list.get());
+  this->CreateTrialFromStudy(seed_processor, processed_study, entropy_providers,
+                             layers, feature_list.get());
   // 1. Registered in field trial list.
   ASSERT_TRUE(base::FieldTrialList::Find(kStudyName));
   EXPECT_EQ(base::FieldTrialList::Find(kStudyName)->group_name(),
@@ -2065,9 +2077,9 @@ TYPED_TEST(VariationsSeedProcessorTest, SimulateCreateTrialFromStudy_Basic) {
     // For good measure, also try a simulation with a finalized FeatureList.
     // As simulations have no side-effects, the FeatureList should not be
     // modified (DCHECKs would be triggered if it were).
-    simulated_trial = seed_processor.CreateTrialFromStudyForTesting(
-        processed_study, entropy_providers, layers, feature_list_ptr,
-        /*simulated=*/true);
+    simulated_trial = this->CreateTrialFromStudy(
+        seed_processor, processed_study, entropy_providers, layers,
+        feature_list_ptr, /*simulated=*/true);
     ASSERT_TRUE(simulated_trial);
     EXPECT_EQ(simulated_trial->GetGroupNameWithoutActivation(),
               simulated_group_name);
@@ -2107,8 +2119,8 @@ TYPED_TEST(VariationsSeedProcessorTest,
   VariationsSeedProcessor seed_processor(sticky_activation_manager);
 
   // Do a real trial assignment for the study.
-  seed_processor.CreateTrialFromStudyForTesting(
-      processed_study, entropy_providers, layers, feature_list.get());
+  this->CreateTrialFromStudy(seed_processor, processed_study, entropy_providers,
+                             layers, feature_list.get());
   // 1. Registered in field trial list.
   ASSERT_TRUE(base::FieldTrialList::Find(kStudyName));
   std::string group_name = base::FieldTrialList::Find(kStudyName)->group_name();
@@ -2149,9 +2161,9 @@ TYPED_TEST(VariationsSeedProcessorTest,
   ProcessedStudy processed_study2;
   ASSERT_TRUE(processed_study2.Init(study2));
   scoped_refptr<base::FieldTrial> simulated_trial =
-      seed_processor.CreateTrialFromStudyForTesting(
-          processed_study2, entropy_providers, layers, feature_list_ptr,
-          /*simulated=*/true);
+      this->CreateTrialFromStudy(seed_processor, processed_study2,
+                                 entropy_providers, layers, feature_list_ptr,
+                                 /*simulated=*/true);
 
   ASSERT_TRUE(simulated_trial);
   EXPECT_EQ(simulated_trial->trial_name(), kStudyName);
@@ -2214,9 +2226,9 @@ TYPED_TEST(VariationsSeedProcessorTest,
 
   // Run simulation.
   scoped_refptr<base::FieldTrial> simulated_trial =
-      seed_processor.CreateTrialFromStudyForTesting(
-          processed_study, entropy_providers, layers, feature_list.get(),
-          /*simulated=*/true);
+      this->CreateTrialFromStudy(seed_processor, processed_study,
+                                 entropy_providers, layers, feature_list.get(),
+                                 /*simulated=*/true);
   ASSERT_TRUE(simulated_trial);
   EXPECT_EQ(simulated_trial->trial_name(), kStudyName);
   std::string simulated_group_name =
@@ -2229,6 +2241,42 @@ TYPED_TEST(VariationsSeedProcessorTest,
                                  simulated_group_name),
             EMPTY_ID);
   EXPECT_EQ(base::GetFieldTrialParamValue(kStudyName, "x"), "");
+}
+
+TYPED_TEST(VariationsSeedProcessorTest,
+           CreateTrialsFromSeed_SimulatesAndValidates) {
+  base::MetricsSubSampler::ScopedAlwaysSampleForTesting always_sample;
+  base::HistogramTester histogram_tester;
+
+  VariationsSeed seed;
+  Study* study = seed.add_study();
+  study->set_name("Study1");
+  study->set_default_experiment_name("Default");
+  study->set_activation_type(Study::ACTIVATE_ON_STARTUP);
+  AddExperiment("Default", 100, study);
+
+  this->CreateTrialsFromSeed(seed);
+
+  histogram_tester.ExpectUniqueSample(
+      "Variations.CreateTrial.SimulationMatches", true, 1);
+}
+
+TYPED_TEST(VariationsSeedProcessorTest,
+           CreateTrialsFromSeed_SimulationNotSampled) {
+  base::MetricsSubSampler::ScopedNeverSampleForTesting never_sample;
+  base::HistogramTester histogram_tester;
+
+  VariationsSeed seed;
+  Study* study = seed.add_study();
+  study->set_name("Study1");
+  study->set_default_experiment_name("Default");
+  study->set_activation_type(Study::ACTIVATE_ON_STARTUP);
+  AddExperiment("Default", 100, study);
+
+  this->CreateTrialsFromSeed(seed);
+
+  histogram_tester.ExpectTotalCount("Variations.CreateTrial.SimulationMatches",
+                                    0);
 }
 
 }  // namespace variations

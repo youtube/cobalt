@@ -1823,6 +1823,16 @@ chromium-metrics-reviews@google.com.
   <token key="Visibility" variants="Visibility"/>
 </histogram>
 
+<histogram name="Glic.Invoke.InvocationSource" enum="GlicInvocationSource"
+    expires_after="2027-06-01">
+  <owner>vollick@chromium.org</owner>
+  <owner>glic-dev@google.com</owner>
+  <summary>
+    Records the invocation source when a Glic invocation begins. Recorded each
+    time GlicInstanceCoordinatorImpl::InvokeInternal is called.
+  </summary>
+</histogram>
+
 <histogram name="Glic.InvokeResult" enum="GlicInvokeResult"
     expires_after="2027-06-01">
   <owner>vollick@chromium.org</owner>
@@ -2141,7 +2151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.PageContextFetcher.ScreenshotRedacted" enum="Boolean"
-    expires_after="2026-11-05">
+    expires_after="2027-01-10">
   <owner>linnan@google.com</owner>
   <owner>shivanisha@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
@@ -2266,6 +2276,35 @@ chromium-metrics-reviews@google.com.
     Record the current state when the panel is closed for multi instance
     supported clients.
   </summary>
+</histogram>
+
+<histogram name="Glic.Paste.AttemptedFormat.{CopySource}"
+    enum="GlicPasteFormat" expires_after="2027-01-01">
+  <owner>birnie@google.com</owner>
+  <owner>chrome-glic@google.com</owner>
+  <summary>
+    Records the format of the clipboard data when a user attempts to paste into
+    the Glic UI. Recorded unconditionally upon every paste attempt into Glic.
+  </summary>
+  <token key="CopySource">
+    <variant name="OS" summary="Copied from the OS or an external application"/>
+    <variant name="Web" summary="Copied from a WebContents within Chrome"/>
+  </token>
+</histogram>
+
+<histogram name="Glic.Paste.FailedEligibilityReason.{CopySource}"
+    enum="GlicPasteFailedEligibilityReason" expires_after="2027-01-01">
+  <owner>birnie@google.com</owner>
+  <owner>chrome-glic@google.com</owner>
+  <summary>
+    Records the reason a paste attempt was blocked by the Glic host's clipboard
+    eligibility checks. Only logged when a paste is actively denied (e.g.
+    because it originated from a restricted page).
+  </summary>
+  <token key="CopySource">
+    <variant name="OS" summary="Copied from the OS or an external application"/>
+    <variant name="Web" summary="Copied from a WebContents within Chrome"/>
+  </token>
 </histogram>
 
 <histogram name="Glic.PositionOnChrome.{Event}" enum="ChromeRelativePosition"

@@ -36,11 +36,9 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
-import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.R;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
-import org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsFragment.AutofillOptionsReferrer;
 import org.chromium.chrome.browser.autofill.settings.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
@@ -49,6 +47,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.autofill_ai.AutofillAiOptInStatus;
+import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -84,6 +83,7 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
     private final Runnable mRestartRunnable;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final Supplier<PropertyModel> mRestartConfirmationDialogModelSupplier;
+    private final SettingsCustomTabLauncher mCustomTabLauncher;
     private PropertyModel mModel;
     private Context mContext;
     private Activity mActivity;
@@ -93,11 +93,13 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
             Profile profile,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             Supplier<PropertyModel> restartConfirmationDialogModelSupplier,
-            Runnable restartRunnable) {
+            Runnable restartRunnable,
+            SettingsCustomTabLauncher customTabLauncher) {
         mProfile = profile;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mRestartConfirmationDialogModelSupplier = restartConfirmationDialogModelSupplier;
         mRestartRunnable = restartRunnable;
+        mCustomTabLauncher = customTabLauncher;
     }
 
     // ModalDialogProperties.Controller:
@@ -155,7 +157,7 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
         mModel.set(PERSONAL_CONTEXT_ENABLED, isPersonalContextOn());
         mModel.set(PERSONAL_CONTEXT_VISIBLE, isPersonalContextVisible());
         RecordHistogram.recordEnumeratedHistogram(
-                HISTOGRAM_REFERRER, referrer, AutofillOptionsReferrer.COUNT);
+                HISTOGRAM_REFERRER, referrer, AutofillOptionsReferrer.MAX_VALUE + 1);
     }
 
     void destroy() {
@@ -253,7 +255,7 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
     }
 
     private void onManageConnectedAppsClicked() {
-        AutofillUiUtils.openLink(
+        mCustomTabLauncher.openUrlInCct(
                 mContext, EntityDataManager.getPersonalContextManageConnectedAppsUrl());
         RecordUserAction.record(AutofillPersonalContextFragment.ACTION_MANAGE_CONNECTED_APPS);
     }

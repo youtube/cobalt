@@ -64,6 +64,7 @@ bool IsWebUiHostInDevUiDfm(const std::string& host) {
          host == chrome::kChromeUISignInInternalsHost ||
          host == chrome::kChromeUISiteEngagementHost ||
          host == chrome::kChromeUISnippetsInternalsHost ||
+         host == chrome::kChromeUISubresourceFilterInternalsHost ||
          host == chrome::kChromeUISyncInternalsHost ||
          host == chrome::kChromeUITranslateInternalsHost ||
          host == chrome::kChromeUIUsbInternalsHost ||
@@ -71,8 +72,6 @@ bool IsWebUiHostInDevUiDfm(const std::string& host) {
          host == chrome::kChromeUIWebApksHost ||
          host == chrome::kChromeUIWebRtcLogsHost ||
          host == commerce::kChromeUICommerceInternalsHost ||
-         host == content::kChromeUIPrivateAggregationInternalsHost ||
-         host == content::kChromeUIAttributionInternalsHost ||
          host == content::kChromeUIBlobInternalsHost ||
          host == content::kChromeUIGpuHost ||
          host == content::kChromeUIHistogramHost ||

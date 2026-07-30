@@ -1325,9 +1325,6 @@ class WebViewChromium
             // Check that the current thread is the UI thread, which will throw if it was
             // already started using a different thread as the UI thread.
             checkThread();
-            mContentsClientAdapter =
-                    mFactory.createWebViewContentsClientAdapter(mWebView, mContext);
-            mSharedWebViewChromium.init(mContentsClientAdapter);
 
             // This will run initForReal synchronously except when the experiment to defer running
             // Chromium startup is enabled.
@@ -1402,9 +1399,11 @@ class WebViewChromium
                             mContext,
                             new InternalAccessAdapter(),
                             mFactory.getWebViewDelegate()::drawWebViewFunctor,
-                            mContentsClientAdapter,
+                            awContents ->
+                                    new WebViewContentsClientAdapter(
+                                            awContents, mFactory.getWebViewDelegate()),
                             new AwContents.DependencyFactory());
-
+            mContentsClientAdapter = (WebViewContentsClientAdapter) mAwContents.getContentsClient();
             try (ScopedSysTraceEvent e2 =
                     ScopedSysTraceEvent.scoped("WebViewChromium.ContentSettingsAdapter")) {
                 mWebSettings = mFactory.createContentSettingsAdapter(mAwContents.getSettings());
@@ -2727,6 +2726,13 @@ class WebViewChromium
     @Override
     public void setFindListener(WebView.FindListener listener) {
         forbidBuilderConfiguration();
+        if (checkNeedsPost()) {
+            mFactory.addTask(
+                    () -> {
+                        setFindListener(listener);
+                    });
+            return;
+        }
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.SET_FIND_LISTENER")) {
             recordWebViewApiCall(
                     ApiCall.SET_FIND_LISTENER,
@@ -2881,19 +2887,13 @@ class WebViewChromium
     @Override
     public void setWebViewClient(WebViewClient client) {
         forbidBuilderConfiguration();
-        mSharedWebViewChromium.setWebViewClient(client);
-        if (checkNeedsPost()) {
-            mFactory.addTask(
-                    () -> {
-                        setWebViewClient(client);
-                    });
-            return;
-        }
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT);
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.SET_WEBVIEW_CLIENT")) {
             recordWebViewApiCall(
                     ApiCall.SET_WEBVIEW_CLIENT,
                     ApiCallUserAction.WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT);
             mAwContents.cancelAllPrerendering();
+            mSharedWebViewChromium.setWebViewClient(client);
             mContentsClientAdapter.setWebViewClient(mSharedWebViewChromium.getWebViewClient());
             mAwContents.onWebViewClientUpdated(client);
             if (client != null) {
@@ -2968,6 +2968,13 @@ class WebViewChromium
     @Override
     public void setDownloadListener(DownloadListener listener) {
         forbidBuilderConfiguration();
+        if (checkNeedsPost()) {
+            mFactory.addTask(
+                    () -> {
+                        setDownloadListener(listener);
+                    });
+            return;
+        }
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_DOWNLOAD_LISTENER")) {
             recordWebViewApiCall(
@@ -2980,14 +2987,7 @@ class WebViewChromium
     @Override
     public void setWebChromeClient(WebChromeClient client) {
         forbidBuilderConfiguration();
-        mSharedWebViewChromium.setWebChromeClient(client);
-        if (checkNeedsPost()) {
-            mFactory.addTask(
-                    () -> {
-                        setWebChromeClient(client);
-                    });
-            return;
-        }
+        mAwInit.triggerAndWaitForChromiumStarted(CallSite.WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_WEBCHROME_CLIENT")) {
             recordWebViewApiCall(
@@ -2995,6 +2995,7 @@ class WebViewChromium
                     ApiCallUserAction.WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT);
             mAwContents.cancelAllPrerendering();
             mWebSettings.getAwSettings().setFullscreenSupported(doesSupportFullscreen(client));
+            mSharedWebViewChromium.setWebChromeClient(client);
             mContentsClientAdapter.setWebChromeClient(mSharedWebViewChromium.getWebChromeClient());
             if (client != null) {
                 ApiImplementationLogger.logWebChromeClientImplementation(client);
@@ -3036,7 +3037,7 @@ class WebViewChromium
             while (clientClass != WebChromeClient.class && (!foundShowMethod || !foundHideMethod)) {
                 if (!foundShowMethod) {
                     try {
-                        var unused =
+                        var _ =
                                 clientClass.getDeclaredMethod(
                                         "onShowCustomView", View.class, CustomViewCallback.class);
                         foundShowMethod = true;
@@ -3047,7 +3048,7 @@ class WebViewChromium
 
                 if (!foundHideMethod) {
                     try {
-                        var unused = clientClass.getDeclaredMethod("onHideCustomView");
+                        var _ = clientClass.getDeclaredMethod("onHideCustomView");
                         foundHideMethod = true;
                     } catch (NoSuchMethodException e) {
                         // Intentionally empty.

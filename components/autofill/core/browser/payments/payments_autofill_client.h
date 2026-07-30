@@ -828,6 +828,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
       base::RepeatingCallback<void(SuggestionHidingReason)>
           on_suggestions_hidden,
       base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+      base::RepeatingClosure did_deselect_suggestion,
       base::RepeatingCallback<
           void(const Suggestion&,
                const AutofillSuggestionDelegate::SuggestionMetadata&)>
@@ -841,7 +842,8 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // Shows the Payments Churned Users UI. This UI is responsible for providing
   // users that have turned off autofill with a value prop to turn autofill back
   // on.
-  virtual void ShowPaymentsChurnedUsersUI() {}
+  virtual void ShowPaymentsChurnedUsersUI(base::OnceClosure accept_callback,
+                                          base::OnceClosure cancel_callback) {}
 };
 
 }  // namespace payments

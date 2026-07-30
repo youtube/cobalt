@@ -79,12 +79,16 @@ export function getHtml(this: ReadAnythingToolbarElement) {
         aria-label="$i18n{voiceSelectionLabel}"
         title="$i18n{voiceSelectionLabel}"
         aria-haspopup="menu"
-        iron-icon="read-anything:voice-selection"
+        iron-icon="${this.webuiRoundedIconsEnabled_
+            ? 'read-anything:voice-selection'
+            : 'read-anything:voice-selection-old'}"
         @click="${this.onVoiceSelectionMenuClick_}">
     </cr-icon-button>
 
     <cr-icon-button class="toolbar-button" id="highlight" tabindex="-1"
-        iron-icon="read-anything:highlight-on"
+        iron-icon="${this.webuiRoundedIconsEnabled_
+            ? 'read-anything:ink-highlighter-move'
+            : 'read-anything:highlight-on-old'}"
         title="${this.getHighlightButtonLabel_()}"
         aria-label="${this.getHighlightButtonLabel_()}"
         aria-haspopup="menu"
@@ -125,7 +129,9 @@ export function getHtml(this: ReadAnythingToolbarElement) {
         class="toolbar-button"
         title="$i18n{settingsLabel}"
         aria-haspopup="menu"
-        iron-icon="read-anything:settings"
+        iron-icon="${this.webuiRoundedIconsEnabled_
+            ? 'read-anything:settings'
+            : 'read-anything:settings-old'}"
         @click="${this.onMoreOptionsClick_}">
     </cr-icon-button>
     ${this.isImmersiveMode ? html`
@@ -189,7 +195,9 @@ export function getHtml(this: ReadAnythingToolbarElement) {
         id="font-size-decrease"
         aria-label="$i18n{decreaseFontSizeLabel}"
         title="$i18n{decreaseFontSizeLabel}"
-        iron-icon="read-anything:font-size-decrease"
+        iron-icon="${this.webuiRoundedIconsEnabled_
+            ? 'read-anything:remove'
+            : 'read-anything:font-size-decrease-old'}"
         @click="${this.onFontSizeDecreaseClick_}">
     </cr-icon-button>
     <cr-icon-button class="font-size" role="menuitem"
@@ -269,6 +277,23 @@ export function getHtml(this: ReadAnythingToolbarElement) {
       .presentationState="${this.presentationState}"
       @close-all-menus="${this.onCloseAllMenus_}">
   </appearance-menu>
+  <text-menu
+      id="textMenu"
+      class="settings-submenu"
+      non-modal
+      .settingsPrefs="${this.settingsPrefs}"
+      .areFontsLoaded="${this.areFontsLoaded_}"
+      .pageLanguage="${this.pageLanguage}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </text-menu>
+  <media-menu
+      id="mediaMenu"
+      class="settings-submenu"
+      non-modal
+      .settingsPrefs="${this.settingsPrefs}"
+      .isSpeechActive="${this.isSpeechActive}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </media-menu>
   <voice-selection-menu id="voiceSelectionMenu"
       class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
       .nonModal="${this.isImmersiveEnabled_}"

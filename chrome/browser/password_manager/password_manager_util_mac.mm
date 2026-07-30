@@ -6,8 +6,9 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #import <Foundation/Foundation.h>
-#include <Security/Authorization.h>
+#include <Security/Security.h>
 
+#include "base/apple/bridging.h"
 #include "base/apple/bundle_locations.h"
 #include "base/apple/foundation_util.h"
 #include "base/apple/osstatus_logging.h"
@@ -28,22 +29,25 @@ NSString* UserAuthenticationRightName() {
 
 bool EnsureAuthorizationRightExists() {
   NSString* right_name = UserAuthenticationRightName();
-  // If the authorization right already exists and is valid, there is nothing to
-  // do.
   base::apple::ScopedCFTypeRef<CFDictionaryRef> right_definition;
   if (AuthorizationRightGet(right_name.UTF8String,
                             right_definition.InitializeInto()) ==
-          errAuthorizationSuccess &&
-      right_definition) {
-    CFStringRef rule = base::apple::GetValueFromDictionary<CFStringRef>(
-        right_definition.get(), CFSTR("rule"));
-    if (rule &&
-        CFEqual(rule, CFSTR(kAuthorizationRuleAuthenticateAsSessionUser))) {
+      errAuthorizationSuccess) {
+    id rule = [base::apple::CFToNSPtrCast(right_definition.get())
+        objectForKey:@(kAuthorizationRightRule)];
+    if (NSString* rule_string = base::apple::ObjCCast<NSString>(rule);
+        [rule_string
+            isEqualToString:@(kAuthorizationRuleAuthenticateAsSessionUser)]) {
+      return true;
+    }
+    if (NSArray* rule_array = base::apple::ObjCCast<NSArray>(rule); [rule_array
+            containsObject:@(kAuthorizationRuleAuthenticateAsSessionUser)]) {
       return true;
     }
   }
 
-  // The authorization right does not exist or is invalid, so create it.
+  // The authorization right does not exist or does not match the desired rule,
+  // so create or overwrite it.
   base::mac::ScopedAuthorizationRef authorization =
       base::mac::CreateAuthorization();
   if (!authorization) {
@@ -53,7 +57,7 @@ bool EnsureAuthorizationRightExists() {
   // Create a right which requires that the user authenticate as the session
   // owner. The prompt must be specified each time the right is requested.
   OSStatus status =
-      AuthorizationRightSet(authorization, right_name.UTF8String,
+      AuthorizationRightSet(authorization.get(), right_name.UTF8String,
                             CFSTR(kAuthorizationRuleAuthenticateAsSessionUser),
                             nullptr, nullptr, nullptr);
   if (status != errAuthorizationSuccess) {

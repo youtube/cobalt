@@ -71,6 +71,7 @@
 <translation id="1239792311949352652">Comparte esta página rápidamente. Para editar esta combinación de teclas, ve a Configuración.</translation>
 <translation id="1240288207750131269">Cargando <ph name="LANG" /></translation>
 <translation id="124116460088058876">Más idiomas</translation>
+<translation id="1241381048229838873">Mostrar todos los marcadores</translation>
 <translation id="124678866338384709">Cierra la pestaña actual</translation>
 <translation id="1246905108078336582">¿Quitar la sugerencia del portapapeles?</translation>
 <translation id="1258753120186372309">Doodles de Google: <ph name="DOODLE_DESCRIPTION" /></translation>
@@ -233,7 +234,6 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="200114059308480249">¿Incluir texto cercano en las búsquedas de Google?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, pestaña de Incógnito silenciada fijada</translation>
 <translation id="2021896219286479412">Controles de pantalla completa</translation>
-<translation id="2022953316617983419">Código QR</translation>
 <translation id="2024195579772565064">Eliminar buscador</translation>
 <translation id="2029669011553795746">Aceptación de notificaciones de consejos abierta a media altura</translation>
 <translation id="2038563949887743358">Activar opción para ver como ordenador</translation>
@@ -558,6 +558,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="3331974543021145906">Información de la app</translation>
 <translation id="3334729583274622784">¿Cambiar la extensión del archivo?</translation>
 <translation id="333863344734218290">Te avisa de los sitios públicos y privados no seguros</translation>
+<translation id="3339788961947270565">Finalizando cierre</translation>
 <translation id="3340978935015468852">configuración</translation>
 <translation id="3351959803838327376">Mantén pulsado el sitio web y abre el menú</translation>
 <translation id="3359667936385849800">Usar proveedor de servicios actual</translation>
@@ -721,6 +722,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="4044708993631234325">Hoja inferior</translation>
 <translation id="4045441967987592849">Reabrir</translation>
 <translation id="4049920046559074950">Más opciones de <ph name="INSTANCE_TITLE" /></translation>
+<translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{Abrir en una ventana de Incógnito}other{Abrir todos (#) en una ventana de Incógnito}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> pestaña estándar con actividad nueva en grupos de pestañas compartidos}other{<ph name="TABS_COUNT_MANY" /> pestañas estándar con actividad nueva en grupos de pestañas compartidos}}</translation>
 <translation id="405365679581583349">Actualiza los Servicios de Google Play</translation>
 <translation id="405399507749852140">Recibe alertas si el precio baja en algún sitio</translation>
@@ -823,6 +825,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="442518031075347249">Ya no podrás usar tu tarjeta virtual con Google Play. <ph name="BEGIN_LINK1" />Más información sobre tarjetas virtuales<ph name="END_LINK1" /></translation>
 <translation id="442577985493096785">{TAB_COUNT,plural, =1{Se cerrarán la pestaña <ph name="TAB_TITLE" /> y <ph name="TAB_COUNT_ONE" /> más}other{Se cerrarán la pestaña <ph name="TAB_TITLE" /> y <ph name="TAB_COUNT_MANY" /> más}}</translation>
 <translation id="4430277756566635951">Se ha seleccionado <ph name="EMAIL" />. Elige una cuenta.</translation>
+<translation id="4430369329743628066">Añadida a Marcadores</translation>
 <translation id="4452411734226507615">Cerrar la pestaña <ph name="TAB_TITLE" /></translation>
 <translation id="4452548195519783679">Marcador añadido a <ph name="FOLDER_NAME" /></translation>
 <translation id="4460822871039013969"><ph name="TAB_TITLE" />, pestaña en grabación seleccionada fijada</translation>
@@ -1047,6 +1050,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> quiere usar información personal de tu cartera digital. Continúa solo si confías en este sitio. Hay sitios peligrosos que podrían intentar engañarte para que reveles datos como tu nombre y apellidos o tu número de identificación.</translation>
 <translation id="5395376160638294582">Asegúrate de que siempre puedas usar los datos de Chrome en tu cuenta de Google</translation>
 <translation id="539881862970320163">Contraseña segura sugerida. Teclado oculto.</translation>
+<translation id="5404274604891474619">No se puede editar el PDF</translation>
 <translation id="5409881200985013443">¿Enviar el código <ph name="ONE_TIME_CODE" /> a <ph name="CLIENT_NAME" />?</translation>
 <translation id="5410300144953132176"><ph name="OWNER_FULL_NAME" /> (<ph name="OWNER_EMAIL" />) quiere que te unas a un grupo de pestañas. Cualquier persona que tenga el enlace puede editar todas las pestañas, así que únete con prudencia. El enlace caduca en 48 horas.</translation>
 <translation id="5414836363063783498">Verificando…</translation>
@@ -1072,6 +1076,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="5517326820028369152">Hoja inferior de actividad reciente</translation>
 <translation id="5526281268548144413">No se puede cerrar en varias ventanas</translation>
 <translation id="5532536403031755365">Añade una capa adicional de seguridad frente a las amenazas online con la protección mejorada</translation>
+<translation id="5540127996007641535">{NUM_BOOKMARKS,plural, =1{Abrir marcador}other{Abrir todos (#)}}</translation>
 <translation id="5548606607480005320">Comprobación de seguridad</translation>
 <translation id="5554520618550346933">Cuando usas una contraseña, Chrome te avisa si se ha publicado online. Al hacerlo, tus contraseñas y nombres de usuario se cifran para que nadie pueda leerlos, ni siquiera Google.</translation>
 <translation id="5555525474779371165">Elige tu nivel de protección de Navegación segura</translation>
@@ -1127,7 +1132,6 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="5763514718066511291">Toca para copiar la URL de esta aplicación</translation>
 <translation id="5765517223145864268">Dinos tu opinión. O <ph name="BEGIN_LINK" />cambia los ajustes<ph name="END_LINK" />.</translation>
 <translation id="5776970333778123608">Datos no importantes</translation>
-<translation id="5788665823391532892">Notificar un problema...</translation>
 <translation id="5793665092639000975">Usando <ph name="SPACE_USED" /> de <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">Tema bloqueado</translation>
 <translation id="580893287573699959">Gestiona los temas y los sitios que te interesan</translation>
@@ -1179,6 +1183,7 @@ Es posible que tu cuenta de Google tenga otros tipos de historial de navegación
 <translation id="5995726099713306770">¿Volver a descargar esta página?</translation>
 <translation id="5998675059699164418">Tu organización requiere que inicies sesión para usar Chrome.</translation>
 <translation id="6000066717592683814">Mantener Google como motor de búsqueda predeterminado</translation>
+<translation id="6002122790816966947">Tus dispositivos</translation>
 <translation id="6011308810877101166">Mejorar las sugerencias de búsqueda</translation>
 <translation id="6013305291643746595">Ordenados por más antiguo</translation>
 <translation id="6022659036123304283">Personaliza Chrome</translation>
@@ -1245,6 +1250,7 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="6246073558347462570">Ventana emergente contextual</translation>
 <translation id="6247557882553405851">Gestor de contraseñas de Google</translation>
 <translation id="6248988683584659830">Buscar ajustes</translation>
+<translation id="6250486830372700930">También puedes eliminar extensiones de este dispositivo</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, pestaña de Incógnito fija en selección múltiple</translation>
 <translation id="6251449557817521191">Consulta tu historial de Chrome aquí</translation>
 <translation id="6254139308321626268">Estás viendo un archivo PDF</translation>
@@ -1420,7 +1426,9 @@ Por ejemplo, algunos sitios web pueden responder a la solicitud mostrándote anu
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> pestañas cerradas</translation>
 <translation id="6852437757508328589">{NUM_RESULTS,plural, =1{1 resultado encontrado}other{# resultados encontrados}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{Archivos de audio, 1 archivo de audio en la lista}other{Archivos de audio, # archivos de audio en la lista}}</translation>
+<translation id="6857043990326114901">Añadir carpeta…</translation>
 <translation id="685850645784703949">Discover de Google: desactivado</translation>
+<translation id="6858893072923394368">Añadir página…</translation>
 <translation id="6864459304226931083">Descargar imagen</translation>
 <translation id="686490460830618322">Hoja de filtros de aplicaciones</translation>
 <translation id="6865313869410766144">Datos para autocompletar formularios</translation>
@@ -1597,6 +1605,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="7475688122056506577">No se ha encontrado la tarjeta SD. Es posible que falten algunos de tus archivos.</translation>
 <translation id="7479104141328977413">Gestión de pestañas</translation>
 <translation id="7481312909269577407">Adelante</translation>
+<translation id="7481588001304663390">{NUM_BOOKMARKS,plural, =1{Abrir en un nuevo grupo de pestañas}other{Abrir todos (#) en un nuevo grupo de pestañas}}</translation>
 <translation id="7482656565088326534">Pestaña de vista previa</translation>
 <translation id="7484997419527351112">Discover: desactivado</translation>
 <translation id="7485033510383818941">Para actualizar el contenido del feed, desliza hacia abajo la página</translation>
@@ -1753,6 +1762,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="8103578431304235997">Pestaña de Incógnito</translation>
 <translation id="810433609302852">Hoja inferior de promoción de la función de notificaciones de consejos y pasos de uso</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
+<translation id="8109802255973641442">Eliminar extensiones y los datos que tienen guardados en este dispositivo</translation>
 <translation id="8110024788458304985">Ayudar a mejorar las funciones y el rendimiento de Chrome</translation>
 <translation id="8110087112193408731">¿Mostrar tu actividad de Chrome en Bienestar digital?</translation>
 <translation id="8118117428362942925">Si necesitas ayuda, pídesela a tu padre o madre (<ph name="PARENT_NAME" />)</translation>
@@ -1852,6 +1862,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="8460448946170646641">Revisa los controles principales de privacidad y seguridad</translation>
 <translation id="8460932807646981183">Gestionar buscadores y búsquedas en el sitio</translation>
 <translation id="8465252176946159372">No válido</translation>
+<translation id="8472353072135865937">{NUM_BOOKMARKS,plural, =1{Abrir en una ventana nueva}other{Abrir todos (#) en una ventana nueva}}</translation>
 <translation id="8473863474539038330">Direcciones y más</translation>
 <translation id="847433688444405067">Navega en diferentes dispositivos</translation>
 <translation id="8477178913400731244">Eliminar datos</translation>
@@ -1914,6 +1925,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="8738163682604285902">¿Ver modo Lectura?</translation>
 <translation id="8746155870861185046">Compartir resaltado</translation>
 <translation id="8748850008226585750">Contenidos ocultos</translation>
+<translation id="874918643257405732">Añadir esta pestaña a marcadores</translation>
 <translation id="8754448020583829686">Copiar sin enlace</translation>
 <translation id="8756969031206844760">¿Quieres actualizar la contraseña?</translation>
 <translation id="8765470054473112089">Al escribir en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a tu buscador predeterminado para que obtengas mejores sugerencias. Esta función está desactivada en el modo Incógnito.</translation>
@@ -2039,6 +2051,7 @@ Para cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chrome de
 <translation id="9212845824145208577">No se puede ir más abajo. Intenta empezar desde más abajo de la página.</translation>
 <translation id="9218430445555521422">Establecer como predeterminado</translation>
 <translation id="9219103736887031265">Imágenes</translation>
+<translation id="922152298093051471">Personalizar Chrome</translation>
 <translation id="9222198206152536936">Inicia sesión como <ph name="EMAIL" /> para acceder a tus pestañas y otros elementos en todos tus dispositivos</translation>
 <translation id="924447568950697217">Establece Chrome como navegador predeterminado</translation>
 <translation id="926205370408745186">Eliminar tu actividad de Chrome de Bienestar digital</translation>

@@ -27,9 +27,10 @@ enum class PersonalContextNonEligibilityReason {
   kNotOptedInToContext = 5,
   kNotPhotosAndWorkspaceAvailable = 6,
   kPersonalIntelligencePrefDisabled = 7,
-  kNotG1Subscriber = 8,
-  kNotAndroidPremiumDevice = 9,
-  kEligible = 10,
+  kNotGlicFirstRun = 8,
+  kNotG1Subscriber = 9,
+  kNotAndroidPremiumDevice = 10,
+  kEligible = 11,
   kMaxValue = kEligible
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:PersonalContextNonEligibilityReason)
@@ -39,8 +40,9 @@ enum class PersonalContextNonEligibilityReason {
 // entrypoint visibility.
 enum class PersonalContextEligibilityState {
   kDisabledNotEligible = 0,  // Not eligible.
-  kDisabledNeedsOptIn = 1,   // Not eligible, requires account opt-in.
-  kEligible = 2              // Eligible.
+  // TODO(crbug.com/494149753): Set to 1 once
+  // `kPersonalContextForceEnablementStateParam` is removed.
+  kEligible = 2  // Eligible.
 };
 
 // Defines the result of a PersonalContextService::FetchContext operation.

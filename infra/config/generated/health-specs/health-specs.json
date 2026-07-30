@@ -195,6 +195,27 @@
           }
         ]
       },
+      "ASAN Release Schema v1": {
+        "contact_team_email": "chrome-sanitizer-builder-owners@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "ASAN Release V8 Sandbox Testing": {
         "contact_team_email": "v8-infra@google.com",
         "problem_specs": [
@@ -259,27 +280,6 @@
         ]
       },
       "Android FYI Experimental Release (Pixel 6)": {
-        "contact_team_email": "chrome-gpu-infra@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "Android FYI Release (NVIDIA Shield TV)": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
           {
@@ -11666,26 +11666,6 @@
           }
         ]
       },
-      "mac-osxbeta-rel": {
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
       "mac-perfetto-rel": {
         "problem_specs": [
           {
@@ -11729,26 +11709,6 @@
       },
       "mac-rust-arm64-dbg": {
         "contact_team_email": "rust-in-chrome@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "mac-rust-x64-dbg": {
         "problem_specs": [
           {
             "name": "Unhealthy",

@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
+import org.robolectric.annotation.Config;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
@@ -24,8 +25,11 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.autofill.settings.FinancialAccountsManagementFragment;
 import org.chromium.chrome.browser.autofill.settings.NonCardPaymentMethodsManagementFragment;
+import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.components.browser_ui.settings.EmbeddableSettingsPage;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.base.TestActivity;
 
 /** Tests for SettingsNavigationImpl. */
@@ -35,8 +39,8 @@ public class SettingsNavigationImplTest {
     private final SettingsNavigationImpl mSettingsNavigationImpl;
 
     /** Fake settings fragment for testing. */
-    public static class FakeSettingsFragment extends Fragment {
-        public FakeSettingsFragment() {}
+    public static class FirstFakeSettingsFragment extends Fragment {
+        public FirstFakeSettingsFragment() {}
     }
 
     /** Another fake settings fragment for testing transitions. */
@@ -44,11 +48,27 @@ public class SettingsNavigationImplTest {
         public SecondFakeSettingsFragment() {}
     }
 
+    /** Fake embeddable settings fragment for testing SettingsInTab intent creation. */
+    public static class FakeEmbeddableSettingsFragment extends Fragment
+            implements EmbeddableSettingsPage {
+        public FakeEmbeddableSettingsFragment() {}
+
+        @Override
+        public org.chromium.base.supplier.MonotonicObservableSupplier<String> getPageTitle() {
+            return null;
+        }
+
+        @Override
+        public int getAnimationType() {
+            return AnimationType.PROPERTY;
+        }
+    }
+
     /** Subclass SettingsHostFragment to mock initial fragment instantiation. */
     public static class TestSettingsHostFragment extends SettingsHostFragment {
         @Override
         protected Fragment createInitialFragment() {
-            return new FakeSettingsFragment();
+            return new FirstFakeSettingsFragment();
         }
     }
 
@@ -83,6 +103,36 @@ public class SettingsNavigationImplTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
+    public void testCreateSettingsIntent_SettingsInTab_LaunchesChromeLauncherActivity() {
+        Intent intent =
+                mSettingsNavigationImpl.createSettingsIntent(
+                        mContext, FakeEmbeddableSettingsFragment.class);
+
+        assertEquals(Intent.ACTION_VIEW, intent.getAction());
+        assertEquals(UrlConstants.SETTINGS_URL, intent.getDataString());
+        assertEquals(ChromeLauncherActivity.class.getName(), intent.getComponent().getClassName());
+        assertEquals(
+                FakeEmbeddableSettingsFragment.class.getName(),
+                intent.getStringExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT));
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
+    public void
+            testCreateSettingsIntent_SettingsInTab_StandaloneFragment_LaunchesSettingsActivity() {
+        Intent intent =
+                mSettingsNavigationImpl.createSettingsIntent(
+                        mContext, FirstFakeSettingsFragment.class);
+
+        assertEquals(SettingsActivity.class.getName(), intent.getComponent().getClassName());
+        assertTrue(intent.getBooleanExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT_STANDALONE, false));
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
     public void testStartSettings_SettingsInTab_ShowsInHostFragment() {
         var scenario = Robolectric.buildActivity(TestActivity.class).setup();
         TestActivity activity = scenario.get();
@@ -103,6 +153,7 @@ public class SettingsNavigationImplTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
     public void testStartSettings_SettingsInTab_NonActivityContext_ShowsInHostFragment() {
         var scenario = Robolectric.buildActivity(TestActivity.class).setup();
         TestActivity activity = scenario.get();
@@ -129,6 +180,7 @@ public class SettingsNavigationImplTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
     public void testStartSettings_SettingsInTab_NullFragment_ShowsInitialFragment() {
         var scenario = Robolectric.buildActivity(TestActivity.class).setup();
         TestActivity activity = scenario.get();
@@ -151,6 +203,35 @@ public class SettingsNavigationImplTest {
         hostFragment.getChildFragmentManager().executePendingTransactions();
 
         // The initial fragment shown when Settings is started for the first time is shown.
-        assertTrue(hostFragment.getActiveFragment() instanceof FakeSettingsFragment);
+        assertTrue(hostFragment.getActiveFragment() instanceof FirstFakeSettingsFragment);
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.SETTINGS_IN_TAB})
+    @Config(qualifiers = "sw600dp")
+    public void testFinishCurrentSettings_SettingsInTab_DelegatesToHostFragment() {
+        var scenario = Robolectric.buildActivity(TestActivity.class).setup();
+        TestActivity activity = scenario.get();
+        TestSettingsHostFragment hostFragment = new TestSettingsHostFragment();
+        activity.getSupportFragmentManager()
+                .beginTransaction()
+                .add(
+                        android.R.id.content,
+                        hostFragment,
+                        SettingsHostFragment.SETTINGS_NATIVE_PAGE_TAG)
+                .commitNow();
+
+        // First show some other fragment.
+        mSettingsNavigationImpl.startSettings(activity, SecondFakeSettingsFragment.class, null);
+        hostFragment.getChildFragmentManager().executePendingTransactions();
+        Fragment active = hostFragment.getActiveFragment();
+        assertTrue(active instanceof SecondFakeSettingsFragment);
+
+        // Now call finishCurrentSettings on active fragment.
+        mSettingsNavigationImpl.finishCurrentSettings(active);
+        hostFragment.getChildFragmentManager().executePendingTransactions();
+
+        // Should return to initial fragment without casting activity to SettingsActivity.
+        assertTrue(hostFragment.getActiveFragment() instanceof FirstFakeSettingsFragment);
     }
 }

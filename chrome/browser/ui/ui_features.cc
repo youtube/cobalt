@@ -107,6 +107,8 @@ BASE_FEATURE(kDseIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables the feature to remove the last confirmation dialog when relaunching
 // to update Chrome.
 BASE_FEATURE(kFewerUpdateConfirmations, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLegacySearchIntegrityCheck, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -232,7 +234,7 @@ bool IsTabGroupMenuMoreEntryPointsEnabled() {
   return base::FeatureList::IsEnabled(kTabGroupMenuMoreEntryPoints);
 }
 
-BASE_FEATURE(kTabGroupHoverCards, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTabGroupHoverCards, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsTabGroupHoverCardsEnabled() {
   return base::FeatureList::IsEnabled(kTabGroupHoverCards);
@@ -353,40 +355,11 @@ BASE_FEATURE_PARAM(bool,
 );
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationZoom,
-                   &kPageActionsMigration,
-                   "zoom",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationAutofillMandatoryReauth,
-                   &kPageActionsMigration,
-                   "mandatory_reauth",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationVirtualCard,
                    &kPageActionsMigration,
                    "virtual_card",
                    true);
 
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationFilledCardInformation,
-                   &kPageActionsMigration,
-                   "filled_card_information",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationReadingMode,
-                   &kPageActionsMigration,
-                   "reading_mode",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationSavePayments,
-                   &kPageActionsMigration,
-                   "save_payments",
-                   true);
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationBookmarkStar,
                    &kPageActionsMigration,
@@ -566,13 +539,13 @@ BASE_FEATURE_PARAM(bool,
                    "vertical_tab_grab_handle_remove_always",
                    true);
 
-BASE_FEATURE(kOmniboxResizingPrioritization, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOmniboxResizingPrioritization, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kToolbarAppMenuLabelResizing, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kToolbarAppMenuLabelResizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kToolbarProfileChipResizing, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kToolbarProfileChipResizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kToolbarGlicButtonResizing, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kToolbarGlicButtonResizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOSCryptAsyncAvailabilityInfoBar,
 #if BUILDFLAG(IS_MAC)

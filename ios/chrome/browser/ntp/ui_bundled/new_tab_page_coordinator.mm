@@ -13,6 +13,7 @@
 #import "base/time/time.h"
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/feature_engagement/public/event_constants.h"
+#import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/feed/core/v2/public/common_enums.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
@@ -200,6 +201,7 @@
       _familyLinkUserCapabilitiesObserverBridge;
 
   BubbleViewControllerPresenter* _fakeboxLensIconBubblePresenter;
+  BubbleViewControllerPresenter* _aimBubblePresenter;
 }
 
 // Coordinator for the ContentSuggestions.
@@ -375,6 +377,11 @@
   [self configureContentSuggestionsCoordinator];
   self.feedMetricsRecorder.NTPActionsDelegate = self;
   [self configureNTPViewController];
+
+  id<PopupMenuCommands> popupMenuHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), PopupMenuCommands);
+  [self setBlueDotVisible:[popupMenuHandler hasBlueDotForOverflowMenu]];
+
   [self configureTabGroupIndicator];
 
   [self startObservers];
@@ -491,6 +498,10 @@
   _safariDataImportExportCoordinator = nil;
 
   [_fakeboxLensIconBubblePresenter dismissAnimated:NO];
+  _fakeboxLensIconBubblePresenter = nil;
+
+  [_aimBubblePresenter dismissAnimated:NO];
+  _aimBubblePresenter = nil;
 
   _identityManager = nullptr;
 
@@ -641,6 +652,26 @@
   [self presentLensIconBubbleNow];
 }
 
+- (void)presentAIModeBubble {
+  if (!IsLevelUpEnabled()) {
+    return;
+  }
+
+  if (!self.isScrolledToTop) {
+    __weak __typeof(self) weakSelf = self;
+    [UIView animateWithDuration:kMaterialDuration1
+        animations:^{
+          [weakSelf setContentOffsetToTop];
+        }
+        completion:^(BOOL finished) {
+          [weakSelf presentAIModeBubbleNow];
+        }];
+    return;
+  }
+
+  [self presentAIModeBubbleNow];
+}
+
 - (BOOL)isFeedVisible {
   return [self.NTPMediator isFeedHeaderVisible] && self.feedViewController;
 }
@@ -651,6 +682,10 @@
   [self stopAccountMenuCoordinator];
   [self stopSigninCoordinator];
   [self dismissCustomizationMenu];
+}
+
+- (void)setBlueDotVisible:(BOOL)visible {
+  [self.headerView setOverflowMenuBlueDot:visible];
 }
 
 #pragma mark - Initializers
@@ -821,10 +856,11 @@
   NTPMediator.feedVisibilityObserver = self;
   NTPMediator.feedControlDelegate = self;
   NTPMediator.NTPContentDelegate = self;
-  NTPMediator.headerConsumer = self.headerView;
   if (IsNTPRedesignEnabled()) {
+    NTPMediator.headerConsumer = self.NTPRedesignViewController;
     NTPMediator.consumer = self.NTPRedesignViewController;
   } else {
+    NTPMediator.headerConsumer = self.headerView;
     NTPMediator.consumer = self.NTPViewController;
   }
   PlaceholderService* placeholderService =
@@ -843,6 +879,8 @@
 // Binds properties to the New Tab Page view controller.
 - (void)configureViewControllerProperties:
     (NewTabPageViewController*)NTPViewController {
+  NTPViewController.layoutGuideCenter =
+      LayoutGuideCenterForBrowser(self.browser);
   NTPViewController.incognitoDisabled =
       IsIncognitoModeDisabled(self.prefService);
   NTPViewController.mutator = self.NTPMediator;
@@ -874,6 +912,13 @@
     self.NTPRedesignViewController.feedViewController = self.feedViewController;
     self.NTPRedesignViewController.mostVisitedViewController =
         self.contentSuggestionsCoordinator.viewController;
+    self.NTPRedesignViewController.NTPShortcutsHandler = self;
+    feature_engagement::Tracker* tracker =
+        feature_engagement::TrackerFactory::GetForProfile(self.profile);
+    BOOL showLensBadge =
+        tracker && tracker->ShouldTriggerHelpUI(
+                       feature_engagement::kIPHiOSHomepageLensNewBadge);
+    self.NTPRedesignViewController.useNewBadgeForLensButton = showLensBadge;
     [self configureMainViewControllerUsing:self.NTPRedesignViewController];
     return;
   }
@@ -1048,6 +1093,10 @@
 
 - (void)toolsMenuWasTapped:(UIView*)toolsMenu {
   CHECK(IsChromeNextIaEnabled());
+  base::RecordAction(base::UserMetricsAction("MobileToolbarShowMenuOnNTP"));
+  base::RecordAction(
+      base::UserMetricsAction("MobileToolbarNTPEntrypointShowMenu"));
+
   id<PopupMenuCommands> popupMenuHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), PopupMenuCommands);
   [popupMenuHandler showToolsMenuPopup];
@@ -1327,9 +1376,12 @@
   } else {
     id<FakeboxFocuser> fakeboxFocuserHandler = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), FakeboxFocuser);
+    id<FakeboxButtonsSnapshotProvider> snapshotProvider =
+        IsNTPRedesignEnabled() ? self.NTPRedesignViewController
+                               : self.headerView;
     [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
                                             pinned:[self isFakeboxPinned]
-                    fakeboxButtonsSnapshotProvider:self.headerView];
+                    fakeboxButtonsSnapshotProvider:snapshotProvider];
   }
 }
 
@@ -2010,6 +2062,35 @@
   }
   [presenter presentInViewController:activeVC anchorPoint:anchorPoint];
   _fakeboxLensIconBubblePresenter = presenter;
+}
+
+// Presents the AI Mode button IPH bubble without checking scroll position.
+- (void)presentAIModeBubbleNow {
+  NSString* text = l10n_util::GetNSString(IDS_IOS_LEVEL_UP_AI_SEARCH_IPH);
+  UIView* aimButton = [LayoutGuideCenterForBrowser(self.browser)
+      referencedViewUnderName:kNTPAIMButtonGuide];
+  if (!aimButton) {
+    return;
+  }
+  CGPoint anchorPoint = [aimButton.superview convertPoint:aimButton.frame.origin
+                                                   toView:nil];
+  anchorPoint.x += aimButton.frame.size.width / 2;
+  anchorPoint.y += aimButton.frame.size.height;
+
+  BubbleViewControllerPresenter* presenter =
+      [[BubbleViewControllerPresenter alloc]
+          initDefaultBubbleWithText:text
+                     arrowDirection:BubbleArrowDirectionUp
+                          alignment:BubbleAlignmentTopOrLeading
+                  dismissalCallback:nil];
+  // Discard if it doesn't fit in the view as it is currently shown.
+  UIViewController* viewController = [self activeViewController];
+  if (![presenter canPresentInView:viewController.view
+                       anchorPoint:anchorPoint]) {
+    return;
+  }
+  [presenter presentInViewController:viewController anchorPoint:anchorPoint];
+  _aimBubblePresenter = presenter;
 }
 
 #pragma mark - HomeCustomizationDelegate

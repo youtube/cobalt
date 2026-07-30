@@ -6,21 +6,28 @@
 
 #include <jni.h>
 
+#include <optional>
+
 #include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
+#include "base/android/jni_string.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/side_panel/internal/android/jni_headers/SidePanelCoordinatorAndroidImpl_jni.h"
-#include "chrome/browser/ui/side_panel/internal/android/side_panel_tab_list_observer_android.h"
+#include "chrome/browser/ui/side_panel/internal/android/side_panel_tab_model_observer.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums_utils.h"
 #include "chrome/browser/ui/side_panel/side_panel_metrics.h"
+#include "chrome/browser/ui/side_panel/side_panel_util.h"
+#include "third_party/jni_zero/jni_zero.h"
+
+// Must come after headers that provide symbols used by @JniType.
+#include "chrome/browser/ui/side_panel/internal/android/jni_headers/SidePanelCoordinatorAndroidImpl_jni.h"
 
 #define LOG_TAG "SidePanelCoordinatorAndroid"
 #define SPLOG(message)                                     \
@@ -37,9 +44,9 @@ const gfx::Rect kNoBounds(kInvalidCoordinate,
                           kInvalidCoordinate);
 }  // namespace
 
-using base::android::AttachCurrentThread;
-using base::android::JavaRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaRef;
+using jni_zero::ScopedJavaLocalRef;
 
 DEFINE_USER_DATA(SidePanelCoordinatorAndroid);
 
@@ -56,7 +63,9 @@ SidePanelCoordinatorAndroid::SidePanelCoordinatorAndroid(
     : SidePanelUIBase(browser),
       java_coordinator_(env, java_coordinator),
       scoped_unowned_user_data_(browser->GetUnownedUserDataHost(), *this),
-      tab_list_observer_(TabListInterface::From(browser), this) {
+      tab_model_observer_(
+          static_cast<TabModel*>(TabListInterface::From(browser)),
+          this) {
   SPLOG("SidePanelCoordinatorAndroid Constructor - browser: " << browser);
 }
 
@@ -66,12 +75,17 @@ SidePanelCoordinatorAndroid::~SidePanelCoordinatorAndroid() {
                                                       java_coordinator());
 }
 
-void SidePanelCoordinatorAndroid::Destroy(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::Destroy() {
   SPLOG("Destroy");
   delete this;
 }
 
-bool SidePanelCoordinatorAndroid::HasContentToShow(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::ClosePanel() {
+  SPLOG("ClosePanel");
+  SidePanelUI::Close();
+}
+
+bool SidePanelCoordinatorAndroid::HasContentToShow() {
   switch (state_) {
     case SidePanelState::kOpening:
     case SidePanelState::kShown:
@@ -100,7 +114,7 @@ bool SidePanelCoordinatorAndroid::HasContentToShow(JNIEnv* env) {
   }
 }
 
-void SidePanelCoordinatorAndroid::OnPanelOpened(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::OnPanelOpened() {
   SPLOG("OnPanelOpened");
   CHECK(state_ == SidePanelState::kOpening)
       << "Should only receive OnPanelOpened() when side panel is opening.";
@@ -108,7 +122,7 @@ void SidePanelCoordinatorAndroid::OnPanelOpened(JNIEnv* env) {
   state_ = SidePanelState::kShown;
 }
 
-void SidePanelCoordinatorAndroid::OnPanelClosed(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::OnPanelClosed() {
   SPLOG("OnPanelClosed");
   CHECK(state_ == SidePanelState::kClosing)
       << "Should only receive OnPanelClosed() when side panel is closing.";
@@ -157,7 +171,7 @@ void SidePanelCoordinatorAndroid::OnPanelClosed(JNIEnv* env) {
   state_ = SidePanelState::kClosed;
 }
 
-void SidePanelCoordinatorAndroid::OnPanelContentReplaced(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::OnPanelContentReplaced() {
   SPLOG("OnPanelContentReplaced");
 
   CHECK(pending_replaced_entry_);
@@ -225,7 +239,7 @@ void SidePanelCoordinatorAndroid::OnTabReparented(tabs::TabInterface* tab) {
 
   // In multi-tab windows, when the active tab is reparented out, the source
   // window activates another tab first. This triggers
-  // `SidePanelTabListObserverAndroid::OnActiveTabChanged()`, which already
+  // `SidePanelTabModelObserver::DidSelectTab()`, which already
   // closes or replaces the side panel before this method runs, making any
   // additional cleanup here unnecessary.
   auto* tab_list = TabListInterface::From(browser());
@@ -239,7 +253,7 @@ void SidePanelCoordinatorAndroid::OnTabReparented(tabs::TabInterface* tab) {
   //
   // In this case, because the source window is left with 0 tabs, Android's
   // `TabListInterface` cannot select a new active tab and never fires
-  // `SidePanelTabListObserverAndroid::OnActiveTabChanged()`. Thus, the source
+  // `SidePanelTabModelObserver::DidSelectTab()`. Thus, the source
   // window's side panel remains open and `current_key()` still matches the
   // reparented tab here.
   //
@@ -257,7 +271,7 @@ void SidePanelCoordinatorAndroid::OnTabReparented(tabs::TabInterface* tab) {
   }
 }
 
-void SidePanelCoordinatorAndroid::OnWillAutoClose(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::OnWillAutoClose() {
   SPLOG("OnWillAutoClose");
 
   if (has_insufficient_space_) {
@@ -276,7 +290,7 @@ void SidePanelCoordinatorAndroid::OnWillAutoClose(JNIEnv* env) {
   }
 }
 
-void SidePanelCoordinatorAndroid::OnWillAutoRestore(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::OnWillAutoRestore() {
   SPLOG("OnWillAutoRestore");
 
   if (!has_insufficient_space_) {
@@ -305,7 +319,7 @@ void SidePanelCoordinatorAndroid::OnWillAutoRestore(JNIEnv* env) {
   }
 }
 
-void SidePanelCoordinatorAndroid::Init(JNIEnv* env) {
+void SidePanelCoordinatorAndroid::Init() {
   SPLOG("Init");
   // During tab tear-off (multi-window), a new Activity is created and the
   // reparented tab is added to the tab model before this coordinator and
@@ -506,10 +520,13 @@ void SidePanelCoordinatorAndroid::StartOpeningPanel(
   // When the View is removed from the UI, it'll be put back into the cache.
   gfx::Rect start_bounds = last_starting_bounds_.value_or(kNoBounds);
   last_starting_bounds_.reset();
+  std::u16string_view title = SidePanelUtil::GetTitleText(entry, browser());
+
+  JNIEnv* env = AttachCurrentThread();
   Java_SidePanelCoordinatorAndroidImpl_startOpeningPanel(
-      AttachCurrentThread(), java_coordinator(), native_view->view(),
-      start_bounds.x(), start_bounds.y(), start_bounds.width(),
-      start_bounds.height(), suppress_animations);
+      env, java_coordinator(), native_view->view(), title,
+      entry->should_show_header(), start_bounds.x(), start_bounds.y(),
+      start_bounds.width(), start_bounds.height(), suppress_animations);
   entry->CacheView(std::move(native_view));
 }
 
@@ -579,8 +596,12 @@ void SidePanelCoordinatorAndroid::StartReplacingPanelContent(
   // Note: we don't clear the cached View for `current_entry`,
   // regardless of `hide_reason`. This mirrors the WML
   // `SidePanelCoordinator` behavior.
+  std::u16string_view title = SidePanelUtil::GetTitleText(new_entry, browser());
+
+  JNIEnv* env = AttachCurrentThread();
   Java_SidePanelCoordinatorAndroidImpl_startReplacingPanelContent(
-      AttachCurrentThread(), java_coordinator(), native_view->view());
+      env, java_coordinator(), native_view->view(), title,
+      new_entry->should_show_header());
   new_entry->CacheView(std::move(native_view));
 }
 

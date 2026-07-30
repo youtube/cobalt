@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
@@ -68,6 +69,7 @@ std::vector<base::FilePath> EnumerateAllImages(
 namespace ash {
 
 void EnumerateLocalWallpaperFiles(
+    const PrefService& local_state,
     Profile* profile,
     base::OnceCallback<void(const std::vector<base::FilePath>&)> callback) {
   const base::FilePath search_path =
@@ -76,7 +78,7 @@ void EnumerateLocalWallpaperFiles(
       kPngFilePattern, kJpgFilePattern, kJpegFilePattern};
 
   std::vector<base::FilePath> trash_paths;
-  if (file_manager::trash::IsTrashEnabledForProfile(profile)) {
+  if (file_manager::trash::IsTrashEnabledForProfile(local_state, profile)) {
     auto enabled_trash_locations =
         file_manager::trash::GenerateEnabledTrashLocationsForProfile(profile);
     for (const auto& it : enabled_trash_locations) {

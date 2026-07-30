@@ -156,13 +156,17 @@ bool GeminiTabHelper::HasObserver(GeminiTabHelperObserver* observer) {
 }
 
 void GeminiTabHelper::GeneratePageContext(
-    base::RepeatingCallback<void(GeminiPageContext*)> callback) {
+    base::RepeatingCallback<void(GeminiPageContext*)> callback,
+    bool is_background_tab) {
   page_context_consumer_callback_ = std::move(callback);
 
+  bool can_extract = CanExtractPageContextForGemini(is_background_tab);
+
   // Call back immediately if the page context cannot be extracted.
-  if (!CanExtractPageContextForGemini()) {
+  if (!can_extract) {
     if (page_context_consumer_callback_) {
-      page_context_consumer_callback_.Run(GetPartialPageContext());
+      page_context_consumer_callback_.Run(
+          GetPartialPageContext(is_background_tab));
     }
     return;
   }
@@ -255,9 +259,9 @@ UIImage* GeminiTabHelper::GetFavicon() {
   return current_favicon_;
 }
 
-GeminiPageContext* GeminiTabHelper::GetPartialPageContext(bool forced) {
-  bool is_eligible = forced ? CanExtractPageContextForWebState(web_state_)
-                            : CanExtractPageContextForGemini();
+GeminiPageContext* GeminiTabHelper::GetPartialPageContext(
+    bool is_background_tab) {
+  bool is_eligible = CanExtractPageContextForGemini(is_background_tab);
 
   return gemini::CreatePartialPageContextForWebState(web_state_, is_eligible);
 }
@@ -410,7 +414,7 @@ void GeminiTabHelper::WasShown(web::WebState* web_state) {
   // visible tab.
   if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
-  } else {
+  } else if (IsPageActionMenuEnabled()) {
     [gemini_handler_
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::
@@ -424,7 +428,7 @@ void GeminiTabHelper::WasHidden(web::WebState* web_state) {
   // immediately to ensure the hidden tab's content is detached and blocked.
   if (IsNextIaOrLiveMode()) {
     NotifyPageContextUpdated(web_state);
-  } else {
+  } else if (IsPageActionMenuEnabled()) {
     [gemini_handler_
         hideFloatyIfInvokedAnimated:NO
                          fromSource:gemini::FloatyUpdateSource::WebNavigation];
@@ -502,10 +506,12 @@ void GeminiTabHelper::DidFinishNavigation(
   } else {
     RecordGeminiPageAvailability(IOSGeminiPageAvailability::kUnavailable);
   }
-  [gemini_handler_
-      updateFloatyVisibilityIfEligibleAnimated:NO
-                                    fromSource:gemini::FloatyUpdateSource::
-                                                   WebNavigation];
+  if (IsPageActionMenuEnabled()) {
+    [gemini_handler_
+        updateFloatyVisibilityIfEligibleAnimated:NO
+                                      fromSource:gemini::FloatyUpdateSource::
+                                                     WebNavigation];
+  }
 
   const GURL& current_url = navigation_context->GetUrl().GetWithoutRef();
   if (previous_main_frame_url_ == current_url) {
@@ -830,9 +836,10 @@ void GeminiTabHelper::OnGeminiEligibilityOnDemandDecision(
                               it->second.decision, it->second.metadata);
 }
 
-bool GeminiTabHelper::CanExtractPageContextForGemini() {
+bool GeminiTabHelper::CanExtractPageContextForGemini(bool is_background_tab) {
   return CanExtractPageContextForWebState(web_state_) &&
-         (!IsNextIaOrLiveMode() || web_state_->IsVisible());
+         (is_background_tab || !IsNextIaOrLiveMode() ||
+          web_state_->IsVisible());
 }
 
 bool GeminiTabHelper::IsInGeminiLiveMode() const {

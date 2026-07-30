@@ -48,7 +48,7 @@ class TabIterator {
 
   TabIterator& operator++();
   TabIterator operator++(int);
-  bool operator==(TabIterator other) const;
+  bool operator==(const TabIterator& other) const;
   const sessions::tab_restore::Tab& operator*() const;
   const sessions::tab_restore::Tab* operator->() const;
 
@@ -62,6 +62,7 @@ class TabIterator {
   std::optional<std::vector<
       std::unique_ptr<sessions::tab_restore::Tab>>::const_reverse_iterator>
       current_tab_ = std::nullopt;
+  raw_ptr<const sessions::tab_restore::Tab> current_tab_ptr_ = nullptr;
 };
 
 // Provides the list of recently closed tabs to Java.
@@ -79,16 +80,13 @@ class RecentlyClosedTabsBridge : public sessions::TabRestoreServiceObserver {
                                 const base::android::JavaRef<jobject>& jentries,
                                 int32_t max_entry_count);
   bool OpenRecentlyClosedTab(JNIEnv* env,
-                             const base::android::JavaRef<jobject>& jtab_model,
+                             TabModel* model,
                              int32_t tab_session_id,
                              int32_t j_disposition);
-  bool OpenRecentlyClosedEntry(
-      JNIEnv* env,
-      const base::android::JavaRef<jobject>& jtab_model,
-      int32_t session_id);
-  bool OpenMostRecentlyClosedEntry(
-      JNIEnv* env,
-      const base::android::JavaRef<jobject>& jtab_model);
+  bool OpenRecentlyClosedEntry(JNIEnv* env,
+                               TabModel* model,
+                               int32_t session_id);
+  bool OpenMostRecentlyClosedEntry(JNIEnv* env, TabModel* model);
   void ClearRecentlyClosedEntries(JNIEnv* env);
   void ClearLeastRecentlyUsedClosedEntries(JNIEnv* env, int32_t num_to_remove);
 
@@ -109,7 +107,7 @@ class RecentlyClosedTabsBridge : public sessions::TabRestoreServiceObserver {
 
   void RestoreAndroidTabGroups(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& jtab_model,
+      TabModel* model,
       const std::map<tab_groups::TabGroupId,
                      AndroidLiveTabContextRestoreWrapper::TabGroup>& groups);
 

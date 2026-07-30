@@ -1791,12 +1791,6 @@ targets.binaries.generated_script(
 )
 
 targets.binaries.generated_script(
-    name = "ondevice_model_benchmark_tests",
-    label = "//components/optimization_guide/internal/testing:ondevice_model_benchmark_tests",
-    module_scheme = "flat",
-)
-
-targets.binaries.generated_script(
     name = "ondevice_api_scrape_tests",
     label = "//components/optimization_guide/internal/testing:ondevice_api_scrape_tests",
     skip_usage_check = True,
@@ -2340,14 +2334,6 @@ targets.binaries.generated_script(
         enable = True,
     ),
     module_scheme = "single",
-)
-
-targets.binaries.console_test_launcher(
-    name = "test_serde_json_lenient",
-    label = "//build/rust/tests/test_serde_json_lenient:test_serde_json_lenient",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-    module_scheme = "gtest",
 )
 
 targets.binaries.script(

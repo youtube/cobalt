@@ -73,6 +73,7 @@ class AutofillAiSaveUpdateEntityFlowManager;
 class SaveUpdateAddressProfileFlowManager;
 class AutofillMessageController;
 class AtMemoryBottomSheetBridge;
+class TouchToFillAutofillController;
 #endif
 
 class ActorKeyMetricsRecorder;
@@ -239,6 +240,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
   bool IsAutocompleteEnabled() const final;
   bool IsWalletPublicPassStorageEnabled() const final;
   bool IsPasswordManagerEnabled() const final;
+  bool UsesPlatformAutofill() const final;
   bool IsContextSecure() const final;
   LogManager* GetCurrentLogManager() final;
   autofill_metrics::FormInteractionsUkmLogger& GetFormInteractionsUkmLogger()
@@ -253,6 +255,10 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // on Android.
   AutofillSnackbarControllerImpl* GetAutofillSnackbarController() final;
 
+  bool ShowAmbientAutoFillNotice(
+      base::WeakPtr<TouchToFillAutofillDelegate> delegate) override;
+  void HideAmbientAutoFillNotice() override;
+
   void ShowAtMemoryBottomSheet(
       base::span<const Suggestion> suggestions,
       base::WeakPtr<AutofillSuggestionDelegate> delegate) final;
@@ -264,6 +270,10 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // The AutofillMessageController is used to show native Android messages via
   // the messages API.
   AutofillMessageController* GetAutofillMessageController();
+
+  void SetTouchToFillAutofillControllerForTesting(
+      std::unique_ptr<TouchToFillAutofillController>
+          touch_to_fill_autofill_controller);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
@@ -421,6 +431,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   std::unique_ptr<AutofillSnackbarControllerImpl>
       autofill_snackbar_controller_impl_;
   std::unique_ptr<AtMemoryBottomSheetBridge> at_memory_bottom_sheet_bridge_;
+  std::unique_ptr<TouchToFillAutofillController>
+      touch_to_fill_autofill_controller_;
 #else   // BUILDFLAG(IS_ANDROID)
   std::unique_ptr<AutofillFieldPromoController>
       autofill_field_promo_controller_;

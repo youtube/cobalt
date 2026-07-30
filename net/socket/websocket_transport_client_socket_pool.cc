@@ -32,11 +32,9 @@ namespace net {
 
 WebSocketTransportClientSocketPool::WebSocketTransportClientSocketPool(
     size_t socket_soft_cap,
-    SocketPoolAdditionalCapacity additional_capacity,
     const ProxyChain& proxy_chain,
     const CommonConnectJobParams* common_connect_job_params)
     : ClientSocketPool(socket_soft_cap,
-                       additional_capacity,
                        proxy_chain,
                        /*is_for_websockets=*/true,
                        common_connect_job_params,
@@ -60,8 +58,13 @@ void WebSocketTransportClientSocketPool::UnlockEndpoint(
   DCHECK(handle->is_initialized());
   DCHECK(handle->socket());
   IPEndPoint address;
-  if (handle->socket()->GetPeerAddress(&address) == OK)
-    websocket_endpoint_lock_manager->UnlockEndpoint(address);
+  if (handle->socket()->GetPeerAddress(&address) == OK) {
+    // WebSocketTransportClientSocketPool only operates on ClientSocketHandle
+    // objects, so `handle` is guaranteed to be a ClientSocketHandle.
+    auto* client_socket_handle = static_cast<ClientSocketHandle*>(handle);
+    websocket_endpoint_lock_manager->UnlockEndpoint(
+        address, client_socket_handle->group_id().network_anonymization_key());
+  }
 }
 
 int WebSocketTransportClientSocketPool::RequestSocket(

@@ -71,6 +71,7 @@
 <translation id="1239792311949352652">يتيح لك هذا الزر مشاركة هذه الصفحة بسرعة. ولتعديل هذا الاختصار، انتقِل إلى "الإعدادات".</translation>
 <translation id="1240288207750131269">جارٍ تحميل <ph name="LANG" /></translation>
 <translation id="124116460088058876">مزيد من اللغات</translation>
+<translation id="1241381048229838873">عرض كل الإشارات المرجعية</translation>
 <translation id="124678866338384709">إغلاق علامة التبويب الحالية</translation>
 <translation id="1246905108078336582">هل تريد إزالة اقتراح من الحافظة؟</translation>
 <translation id="1258753120186372309">‏ رسم شعار Google: <ph name="DOODLE_DESCRIPTION" /></translation>
@@ -233,7 +234,6 @@
 <translation id="200114059308480249">‏هل تريد تضمين النص المحيط في عمليات البحث على Google؟</translation>
 <translation id="2004096469149679223">‫"<ph name="TAB_TITLE" />"، علامة تبويب مثبَّتة ومكتومة الصوت في "وضع التصفّح المتخفي"</translation>
 <translation id="2021896219286479412">عناصر التحكم لموقع في وضع ملء الشاشة</translation>
-<translation id="2022953316617983419">رمز الاستجابة السريعة</translation>
 <translation id="2024195579772565064">حذف محرك البحث</translation>
 <translation id="2029669011553795746">تم فتح البطاقة السفلية لتفعيل إشعارات النصائح في نصف الشاشة</translation>
 <translation id="2038563949887743358">تفعيل طلب الموقع الإلكتروني لسطح المكتب</translation>
@@ -559,6 +559,7 @@
 <translation id="3331974543021145906">معلومات التطبيق</translation>
 <translation id="3334729583274622784">هل تريد تغيير امتداد الملف؟</translation>
 <translation id="333863344734218290">التحذير بشأن المواقع الإلكترونية العامة والخاصة غير الآمنة</translation>
+<translation id="3339788961947270565">جارٍ إيقاف التشغيل</translation>
 <translation id="3340978935015468852">الإعدادات</translation>
 <translation id="3351959803838327376">اضغط مع الاستمرار على الموقع الإلكتروني وافتح القائمة</translation>
 <translation id="3359667936385849800">استخدام مقدِّم الخدمة الحالي</translation>
@@ -722,6 +723,7 @@
 <translation id="4044708993631234325">بطاقة سفلية</translation>
 <translation id="4045441967987592849">إعادة فتح</translation>
 <translation id="4049920046559074950">خيارات إضافية لـ "<ph name="INSTANCE_TITLE" />"</translation>
+<translation id="4051569243832293689">{NUM_BOOKMARKS,plural, =1{فتح في نافذة التصفُّح المتخفي}zero{فتح الكل (#) في نافذة التصفُّح المتخفي}two{فتح الكل (#) في نافذة التصفُّح المتخفي}few{فتح الكل (#) في نافذة التصفُّح المتخفي}many{فتح الكل (#) في نافذة التصفُّح المتخفي}other{فتح الكل (#) في نافذة التصفُّح المتخفي}}</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{علامة تبويب عادية واحدة (<ph name="TABS_COUNT_ONE" />) تتضمّن نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}zero{‫<ph name="TABS_COUNT_MANY" /> علامة تبويب عادية تتضمّن نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}two{علامتا تبويب عاديتان (<ph name="TABS_COUNT_MANY" />) تتضمّنان نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}few{‫<ph name="TABS_COUNT_MANY" /> علامات تبويب عادية تتضمّن نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}many{‫<ph name="TABS_COUNT_MANY" /> علامة تبويب عادية تتضمّن نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}other{‫<ph name="TABS_COUNT_MANY" /> علامة تبويب عادية تتضمّن نشاطًا جديدًا في مجموعات علامات التبويب التي تمت مشاركتها}}</translation>
 <translation id="405365679581583349">‏تحديث "خدمات Google Play"</translation>
 <translation id="405399507749852140">يمكنك الحصول على تنبيهات في حال انخفاض السعر على أي موقع إلكتروني</translation>
@@ -824,6 +826,7 @@
 <translation id="442518031075347249">‏لن تتمكّن من استخدام بطاقتك الافتراضية هذه مجدّدًا مع خدمة Google Pay. <ph name="BEGIN_LINK1" />مزيد من المعلومات حول البطاقات الافتراضية<ph name="END_LINK1" /></translation>
 <translation id="442577985493096785">{TAB_COUNT,plural, =1{سيتم إغلاق "<ph name="TAB_TITLE" />" وعلامة تبويب واحدة أخرى (<ph name="TAB_COUNT_ONE" />)}zero{سيتم إغلاق "<ph name="TAB_TITLE" />" و<ph name="TAB_COUNT_MANY" /> علامة تبويب أخرى}two{سيتم إغلاق "<ph name="TAB_TITLE" />" وعلامتَي تبويب (<ph name="TAB_COUNT_MANY" />) أخريَين}few{سيتم إغلاق "<ph name="TAB_TITLE" />" و<ph name="TAB_COUNT_MANY" /> علامات تبويب أخرى}many{سيتم إغلاق "<ph name="TAB_TITLE" />" و<ph name="TAB_COUNT_MANY" /> علامة تبويب أخرى}other{سيتم إغلاق "<ph name="TAB_TITLE" />" و<ph name="TAB_COUNT_MANY" /> علامة تبويب أخرى}}</translation>
 <translation id="4430277756566635951">الحساب الذي تم اختياره حاليًا هو <ph name="EMAIL" />. اختَر حسابًا.</translation>
+<translation id="4430369329743628066">تمت إضافة إشارة</translation>
 <translation id="4452411734226507615">إغلاق علامة التبويب <ph name="TAB_TITLE" /></translation>
 <translation id="4452548195519783679">أُضيفَت إشارة مرجعية إلى <ph name="FOLDER_NAME" /></translation>
 <translation id="4460822871039013969">‫"<ph name="TAB_TITLE" />"، علامة تبويب مثبَّتة تسجّل وسائط وتم اختيارها</translation>
@@ -1048,6 +1051,7 @@
 <translation id="5390367025924544771">يريد <ph name="WEBSITE_ORIGIN" /> استخدام معلومات شخصية من محفظتك الرقمية. يُرجى المتابعة فقط إذا كنت تثق في هذا الموقع الإلكتروني، فقد تحاول المواقع الإلكترونية الخطيرة خداعك لكي تكشف عن معلومات مثل اسمك القانوني أو رقم بطاقتك الشخصية.</translation>
 <translation id="5395376160638294582">‏يُرجى التأكُّد من أنّه يمكنك استخدام بيانات Chrome في حسابك على Google في أي وقت.</translation>
 <translation id="539881862970320163">تم اقتراح كلمة مرور قوية. لوحة المفاتيح مخفية.</translation>
+<translation id="5404274604891474619">‏يتعذّر تعديل ملف PDF</translation>
 <translation id="5409881200985013443">هل المطلوب إرسال <ph name="ONE_TIME_CODE" /> إلى <ph name="CLIENT_NAME" />؟</translation>
 <translation id="5410300144953132176">تلقّيت دعوة من "<ph name="OWNER_FULL_NAME" />" ‏(<ph name="OWNER_EMAIL" />) للانضمام إلى مجموعة علامات تبويب. يمكن لأيّ مستخدم لديه الرابط تعديل جميع علامات التبويب، لذا يُرجى توخّي الحذر عند الانضمام. وتنتهي صلاحية الرابط بعد 48 ساعة.</translation>
 <translation id="5414836363063783498">جارٍ التحقق...</translation>
@@ -1073,6 +1077,7 @@
 <translation id="5517326820028369152">بطاقة الأنشطة الحديثة السفلية</translation>
 <translation id="5526281268548144413">لا يمكن إغلاق علامات التبويب في نوافذ متعددة</translation>
 <translation id="5532536403031755365">يمكنك إضافة طبقة حماية إضافية ضد التهديدات على الإنترنت باستخدام ميزة "الحماية المحسَّنة"</translation>
+<translation id="5540127996007641535">{NUM_BOOKMARKS,plural, =1{فتح إشارة}zero{فتح الكل (#)}two{فتح الكل (#)}few{فتح الكل (#)}many{فتح الكل (#)}other{فتح الكل (#)}}</translation>
 <translation id="5548606607480005320">التحقّق من الأمان</translation>
 <translation id="5554520618550346933">‏عندما تستخدم كلمة مرور، يحذّرك Chrome مما إذا كان قد تم نشرها على الإنترنت. وأثناء هذه العملية، يتم تشفير كلمات المرور وأسماء المستخدمين حتى لا يتمكّن أي طرف آخر من الاطّلاع عليها، بما في ذلك Google.</translation>
 <translation id="5555525474779371165">اختيار حماية "التصفُّح الآمن"</translation>
@@ -1128,7 +1133,6 @@
 <translation id="5763514718066511291">‏النقر لنسخ عنوان URL لهذا التطبيق</translation>
 <translation id="5765517223145864268">أخبِرنا عن تجربتك أو <ph name="BEGIN_LINK" />غيِّر إعداداتك<ph name="END_LINK" />.</translation>
 <translation id="5776970333778123608">بيانات غير مهمة</translation>
-<translation id="5788665823391532892">الإبلاغ عن مشكلة...</translation>
 <translation id="5793665092639000975">يتم استخدام <ph name="SPACE_USED" /> من أصل <ph name="SPACE_AVAILABLE" /></translation>
 <translation id="5797949256525811424">تم حظر الموضوع.</translation>
 <translation id="580893287573699959">إدارة المواضيع والمواقع الإلكترونية التي تهمّك</translation>
@@ -1180,6 +1184,7 @@
 <translation id="5995726099713306770">هل تريد تنزيل الصفحة مرة أخرى؟</translation>
 <translation id="5998675059699164418">‏تطلُب المؤسسة منك تسجيل الدخول للتمكّن من استخدام Chrome.</translation>
 <translation id="6000066717592683814">‏الاستمرار في استخدام محرك Google</translation>
+<translation id="6002122790816966947">أجهزتك</translation>
 <translation id="6011308810877101166">تحسين اقتراحات البحث</translation>
 <translation id="6013305291643746595">جارٍ الترتيب حسب الأقدم</translation>
 <translation id="6022659036123304283">‏اجعل Chrome متصفِّحك الدائم</translation>
@@ -1246,6 +1251,7 @@
 <translation id="6246073558347462570">نافذة منبثقة للسياق</translation>
 <translation id="6247557882553405851">‏مدير كلمات المرور في Google</translation>
 <translation id="6248988683584659830">البحث في الإعدادات</translation>
+<translation id="6250486830372700930">يمكنك أيضًا إزالة الإضافات من هذا الجهاز</translation>
 <translation id="6250847299079540062">‫"<ph name="TAB_TITLE" />"، علامة تبويب مثبّتة تم اختيارها عدة مرات في "وضع التصفّح المتخفي"</translation>
 <translation id="6251449557817521191">‏عرض سجلّ Chrome هنا</translation>
 <translation id="6254139308321626268">‏يتم الآن عرض ملف PDF</translation>
@@ -1421,7 +1427,9 @@
 <translation id="6850830437481525139">تم إغلاق <ph name="TAB_COUNT" /> علامة تبويب</translation>
 <translation id="6852437757508328589">{NUM_RESULTS,plural, =1{تم العثور على نتيجة واحدة}zero{تم العثور على # نتيجة}two{تم العثور على نتيجتَين}few{تم العثور على # نتائج}many{تم العثور على # نتيجة}other{تم العثور على # نتيجة}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{تحتوي القائمة على ملف صوتي واحد من إجمالي الملفات الصوتية.}zero{تحتوي القائمة على # ملف صوتي من إجمالي الملفات الصوتية.}two{تحتوي القائمة على ملفيَن صوتييَن من إجمالي الملفات الصوتية.}few{تحتوي القائمة على # ملفات صوتية من إجمالي الملفات الصوتية.}many{تحتوي القائمة على # ملفًا صوتيًا من إجمالي الملفات الصوتية.}other{تحتوي القائمة على # ملف صوتي من إجمالي الملفات الصوتية.}}</translation>
+<translation id="6857043990326114901">إضافة مجلد…</translation>
 <translation id="685850645784703949">‏ميزة "اقتراحات من Google" متوقفة</translation>
+<translation id="6858893072923394368">إضافة صفحة…</translation>
 <translation id="6864459304226931083">تنزيل الصورة</translation>
 <translation id="686490460830618322">ورقة بيانات فلتر التطبيقات</translation>
 <translation id="6865313869410766144">بيانات الملء التلقائي للنماذج</translation>
@@ -1544,7 +1552,7 @@
 <translation id="7248671827512403053">تطبيق</translation>
 <translation id="7253951228444156601">جارٍ التحقّق من كلمات المرور…</translation>
 <translation id="7260367682327802201">‏قد يتضمّن جهاز Android إعدادًا مشابهًا. في حال تفعيل الإعداد "قياس أداء الإعلانات" في Chrome وعلى جهاز Android، يمكن للشركات قياس مدى فعالية الإعلان المعروض على المواقع الإلكترونية التي تزورها والتطبيقات التي تستخدمها.</translation>
-<translation id="7265857422443387781">‏البحث في علامة التبويب باستخدام "عدسة Google" <ph name="BEGIN_NEW" />جديد<ph name="END_NEW" /></translation>
+<translation id="7265857422443387781">‏البحث بعلامة التبويب مع "عدسة Google" <ph name="BEGIN_NEW" />جديد<ph name="END_NEW" /></translation>
 <translation id="727288900855680735">هل المطلوب إرسال <ph name="ONE_TIME_CODE" /> إلى <ph name="ORIGIN" />؟</translation>
 <translation id="7274013316676448362">تم حظر الموقع.</translation>
 <translation id="7276868533747677875">‏إذا سبق لك تصدير كلمات المرور، يمكنك البحث عن ملف CSV على جهازك واستيرادها إلى مدير كلمات المرور المفضّل لديك.</translation>
@@ -1600,6 +1608,7 @@
 <translation id="7475688122056506577">‏لم يتم العثور على بطاقة SD. قد يكون بعض الملفات مفقودًا.</translation>
 <translation id="7479104141328977413">إدارة علامات التبويب</translation>
 <translation id="7481312909269577407">إلى الأمام</translation>
+<translation id="7481588001304663390">{NUM_BOOKMARKS,plural, =1{الفتح في مجموعة علامات تبويب جديدة}zero{فتح الكل (#) في مجموعة علامات تبويب جديدة}two{فتح الكل (#) في مجموعة علامات تبويب جديدة}few{فتح الكل (#) في مجموعة علامات تبويب جديدة}many{فتح الكل (#) في مجموعة علامات تبويب جديدة}other{فتح الكل (#) في مجموعة علامات تبويب جديدة}}</translation>
 <translation id="7482656565088326534">علامة تبويب المعاينة</translation>
 <translation id="7484997419527351112">الاقتراحات - غير مفعّلة</translation>
 <translation id="7485033510383818941">لإعادة تحميل محتوى الخلاصة، اسحب الصفحة إلى الأسفل.</translation>
@@ -1756,6 +1765,7 @@
 <translation id="8103578431304235997">علامة تبويب للتصفح المتخفي</translation>
 <translation id="810433609302852">بطاقة سفلية عن العرض الترويجي لميزة إشعارات النصائح وخطوات استخدامها</translation>
 <translation id="8105893657415066307"><ph name="DESCRIPTION" /> <ph name="SEPARATOR" /> <ph name="FILE_SIZE" /></translation>
+<translation id="8109802255973641442">إزالة الإضافات والبيانات التي تم حفظها على هذا الجهاز</translation>
 <translation id="8110024788458304985">‏المساعدة في تحسين ميزات Chrome وأدائه</translation>
 <translation id="8110087112193408731">‏هل تريد عرض نشاط Chrome في الرفاهية الرقمية؟</translation>
 <translation id="8118117428362942925">إذا احتجت للمساعدة، يمكنك طلبها من أحد والدَيك (<ph name="PARENT_NAME" />).</translation>
@@ -1856,6 +1866,7 @@
 <translation id="8460448946170646641">مراجعة العناصر الرئيسية للتحكّم في الخصوصية والأمان</translation>
 <translation id="8460932807646981183">إدارة محركات البحث وعمليات البحث في المواقع الإلكترونية</translation>
 <translation id="8465252176946159372">غير صالح</translation>
+<translation id="8472353072135865937">{NUM_BOOKMARKS,plural, =1{الفتح في نافذة جديدة}zero{فتح الكل (#) في نافذة جديدة}two{فتح الكل (#) في نافذة جديدة}few{فتح الكل (#) في نافذة جديدة}many{فتح الكل (#) في نافذة جديدة}other{فتح الكل (#) في نافذة جديدة}}</translation>
 <translation id="8473863474539038330">العناوين والمزيد</translation>
 <translation id="847433688444405067">التصفّح على جميع الأجهزة</translation>
 <translation id="8477178913400731244">حذف البيانات</translation>
@@ -1918,6 +1929,7 @@
 <translation id="8738163682604285902">عرض "وضع القراءة"؟</translation>
 <translation id="8746155870861185046">مشاركة النص المميّز</translation>
 <translation id="8748850008226585750">المحتوى مخفي</translation>
+<translation id="874918643257405732">وضع إشارة مرجعية لعلامة التبويب هذه</translation>
 <translation id="8754448020583829686">نسخ النص بدون الرابط</translation>
 <translation id="8756969031206844760">هل تريد تعديل كلمة المرور؟</translation>
 <translation id="8765470054473112089">‏عند الكتابة في شريط العناوين أو مربّع البحث، يرسل Chrome ما تكتبه إلى محرك البحث التلقائي للحصول على اقتراحات أفضل. يتم إيقاف هذا الإعداد في "وضع التصفّح المتخفي".</translation>
@@ -2043,6 +2055,7 @@
 <translation id="9212845824145208577">لا يمكن السحب أدنى من ذلك. يمكنك بدء سحب نافذة لقطة الشاشة من موضع أدنى في الصفحة.</translation>
 <translation id="9218430445555521422">الضبط كخيار تلقائي</translation>
 <translation id="9219103736887031265">الصور</translation>
+<translation id="922152298093051471">‏تخصيص Chrome</translation>
 <translation id="9222198206152536936">يتيح لك تسجيل الدخول بالحساب <ph name="EMAIL" /> الوصول إلى علامات التبويب وغيرها على جميع أجهزتك</translation>
 <translation id="924447568950697217">‏جعل Chrome المتصفح التلقائي</translation>
 <translation id="926205370408745186">‏إزالة نشاط Chrome من الرفاهية الرقمية</translation>

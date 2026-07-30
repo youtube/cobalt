@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -98,11 +99,13 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarManageable;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePageHost;
+import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.util.FirstDrawDetector;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -143,6 +146,9 @@ public class NewTabPage
     private static int sTotalCount;
 
     protected final Tab mTab;
+    private final long mNavigationStartMs;
+    private boolean mRecordedFcp;
+
     private final Supplier<@Nullable Tab> mActivityTabProvider;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
 
@@ -405,6 +411,7 @@ public class NewTabPage
      * @param moduleRegistrySupplier Supplier for the {@link ModuleRegistry}.
      * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController}.
      * @param topInsetProvider Provider for top insets.
+     * @param sideUiStateProviderSupplier Supplies the {@link SideUiStateProvider}.
      * @param startupMetricsTracker Used to record NTP startup metric.
      * @param backPressManager Manages back press dispatching.
      */
@@ -432,9 +439,12 @@ public class NewTabPage
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             TopInsetProvider topInsetProvider,
+            OneshotSupplier<SideUiStateProvider> sideUiStateProviderSupplier,
             StartupMetricsTracker startupMetricsTracker,
             BackPressManager backPressManager) {
         mConstructedTimeNs = System.nanoTime();
+        long startMs = tab.getNavigationStartMs();
+        mNavigationStartMs = startMs > 0 ? startMs : SystemClock.uptimeMillis();
         TraceEvent.begin(TAG);
 
         mActivity = activity;
@@ -530,8 +540,9 @@ public class NewTabPage
                         bottomSheetController,
                         modalDialogManager,
                         snackbarManager,
-                        mIsLff,
+                        isLff,
                         mTabStripHeightSupplier,
+                        sideUiStateProviderSupplier,
                         homeSurfaceTracker,
                         backPressManager);
 
@@ -598,7 +609,24 @@ public class NewTabPage
 
         updateNtpScrollListener(true);
 
+        recordFcpOnFirstDraw();
         TraceEvent.end(TAG);
+    }
+
+    private void recordFcpOnFirstDraw() {
+        View view = getView();
+        if (view == null) return;
+
+        FirstDrawDetector.waitForFirstDraw(
+                view,
+                () -> {
+                    if (mRecordedFcp) return;
+                    mRecordedFcp = true;
+                    long durationMs = SystemClock.uptimeMillis() - mNavigationStartMs;
+                    RecordHistogram.recordMediumTimesHistogram(
+                            "NewTabPage.LoadTime.FirstContentfulPaint",
+                            durationMs);
+                });
     }
 
     /**
@@ -721,7 +749,7 @@ public class NewTabPage
         if (!mIsLff) {
             mUseLightIconTint = applyWhiteBackgroundOnSearchBox;
         }
-        mNewTabPageCoordinator.onCustomizedBackgroundChanged(applyWhiteBackgroundOnSearchBox);
+        mNewTabPageCoordinator.onCustomizedBackgroundChanged();
     }
 
     /** Initializes whether to use a light tint color on icons of toolbar and status bar. */

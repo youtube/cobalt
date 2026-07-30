@@ -9,10 +9,8 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/supervised_user/child_accounts/list_family_members_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "components/prefs/pref_service.h"
 #include "components/supervised_user/core/browser/child_account_service.h"
 #include "components/supervised_user/core/common/features.h"
@@ -35,10 +33,8 @@ ChildAccountServiceFactory::ChildAccountServiceFactory()
           "ChildAccountService",
           supervised_user::BuildProfileSelectionsForRegularAndGuest()) {
   DependsOn(IdentityManagerFactory::GetInstance());
-  DependsOn(SyncServiceFactory::GetInstance());
   // Required to consume changes indicated by this service.
   DependsOn(supervised_user::SupervisedUserServiceFactory::GetInstance());
-  DependsOn(ListFamilyMembersServiceFactory::GetInstance());
 }
 
 ChildAccountServiceFactory::~ChildAccountServiceFactory() = default;
@@ -49,12 +45,9 @@ ChildAccountServiceFactory::BuildServiceInstanceForBrowserContext(
   Profile* profile = static_cast<Profile*>(context);
 
   CHECK(profile->GetPrefs());
-  CHECK(ListFamilyMembersServiceFactory::GetForProfile(profile));
   CHECK(supervised_user::SupervisedUserServiceFactory::GetForProfile(profile));
 
   return std::make_unique<supervised_user::ChildAccountService>(
       *profile->GetPrefs(), IdentityManagerFactory::GetForProfile(profile),
-      profile->GetURLLoaderFactory(),
-      base::BindOnce(&supervised_user::AssertChildStatusOfTheUser, profile),
-      *ListFamilyMembersServiceFactory::GetForProfile(profile));
+      base::BindOnce(&supervised_user::AssertChildStatusOfTheUser, profile));
 }

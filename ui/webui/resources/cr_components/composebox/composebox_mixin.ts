@@ -4,6 +4,8 @@
 
 import type {SearchAnimatedGlowElement} from '//resources/cr_components/search/animated_glow.js';
 import {ComposeboxContextAddedMethod, GlowAnimationState} from '//resources/cr_components/search/constants.js';
+import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
+import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {getInstance as getAnnouncerInstance} from '//resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import type {I18nMixinLitInterface} from '//resources/cr_elements/i18n_mixin_lit.js';
@@ -13,7 +15,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {hasKeyModifiers} from '//resources/js/util.js';
 import type {CrLitElement, PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SelectedFileInfo, SmartComposeStats, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {DriveDisclaimerStatus, DriveUploadError, SuggestInventory} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {DriveDisclaimerStatus, DriveUploadError, InputMethod, SuggestInventory} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -48,8 +50,11 @@ const PERMISSION_PROMPT_CSS_CLASS = 'permission-prompt-showing';
 type Constructor<T> = new (...args: any[]) => T;
 
 function dedupeTabs(restoredTabs: TabInfo[], recentTabs: TabInfo[]): TabInfo[] {
-  const restoredIds = new Set(restoredTabs.map(t => t.tabId));
-  return recentTabs.filter(t => !restoredIds.has(t.tabId));
+  const restoredUrlMap = new Map(restoredTabs.map(t => [t.tabId, t.url]));
+  return recentTabs.filter(t => {
+    const restoredUrl = restoredUrlMap.get(t.tabId);
+    return restoredUrl !== t.url;
+  });
 }
 
 export const ComposeboxEmbedderMixin =
@@ -57,7 +62,8 @@ export const ComposeboxEmbedderMixin =
     Constructor<I18nMixinLitInterface>&
     Constructor<ComposeboxEmbedderMixinInterface> => {
       class ComposeboxEmbedderMixin extends I18nMixinLit
-      (superClass) implements ComposeboxEmbedderMixinInterface {
+      (superClass) implements ComposeboxEmbedderMixinInterface,
+                              DragAndDropHost {
         static get properties() {
           return {
             addedTabsIds: {type: Object},
@@ -168,6 +174,7 @@ export const ComposeboxEmbedderMixin =
             tabSuggestions: {type: Array},
             tabSuggestionsState: {type: Number},
             aimThreadRestoredTabs: {type: Array},
+            tabDeselectionEnabled: {type: Boolean},
             transcript: {type: String},
             uploadButtonDisabled: {
               type: Boolean,
@@ -212,6 +219,8 @@ export const ComposeboxEmbedderMixin =
             getLoadTimeBoolean('composeboxSmartTabSharingVisible', false);
         accessor contextManagementInComposeboxEnabled: boolean =
             getLoadTimeBoolean('contextManagementInComposeboxEnabled', false);
+        accessor tabDeselectionEnabled: boolean = getLoadTimeBoolean(
+            'composeboxContextMenuEnableTabDeselection', false);
         contextMenuDescriptionEnabled: boolean =
             getLoadTimeBoolean('composeboxShowContextMenuDescription', false);
         accessor showContextMenuDescription: boolean =
@@ -336,6 +345,14 @@ export const ComposeboxEmbedderMixin =
         // =====================================================================
         // Lifecycle Hooks
         // =====================================================================
+
+        dragAndDropHandler: DragAndDropHandler;
+
+        constructor(...args: any[]) {
+          super(...args);
+          this.dragAndDropHandler =
+              new DragAndDropHandler(this, this.dragAndDropEnabled);
+        }
 
         override connectedCallback() {
           super.connectedCallback();
@@ -963,6 +980,8 @@ export const ComposeboxEmbedderMixin =
               this.smartComposeStats.acceptedCount++;
               this.smartComposeStats.charactersAccepted +=
                   this.smartComposeInlineHint.length;
+              this.getSearchboxHandler().setInputMethod(
+                  InputMethod.kSmartCompose);
               this.input = this.input + this.smartComposeInlineHint;
               this.smartComposeInlineHint = '';
               e.preventDefault();
@@ -1305,8 +1324,9 @@ export const ComposeboxEmbedderMixin =
         }
 
         async keepMenuOpenForMultiSelection() {
-          // Conditionally keep menu open only if context management is enabled.
-          // Otherwise, always keep menu open.
+          // When context management is enabled, selecting a tab closes the menu
+          // unless `keepMenuOpenOnTabSelect` is enabled.
+          // When context management is disabled, always keep the menu open.
           if (this.contextManagementInComposeboxEnabled &&
               !this.keepMenuOpenOnTabSelect) {
             return;
@@ -1400,26 +1420,31 @@ export const ComposeboxEmbedderMixin =
           this.focusInput();
         }
 
+        private getSortedTabSuggestions_(suggestions: TabInfo[]): TabInfo[] {
+          const selectedTabIds = new Set(this.addedTabsIds.keys());
+          const restoredTabIds = this.contextManagementInComposeboxEnabled ?
+              new Set(
+                  (this.aimThreadRestoredTabs || []).map(tab => tab.tabId)) :
+              new Set<number>();
+
+          const selected =
+              suggestions.filter(tab => selectedTabIds.has(tab.tabId));
+          const restored = suggestions.filter(
+              tab => restoredTabIds.has(tab.tabId) &&
+                  !selectedTabIds.has(tab.tabId));
+          const other = suggestions.filter(
+              tab => !selectedTabIds.has(tab.tabId) &&
+                  !restoredTabIds.has(tab.tabId));
+
+          return [...selected, ...restored, ...other];
+        }
+
         onContextMenuOpened() {
           this.browserTabContextAdded = false;
           this.contextMenuOpened = true;
           if (this.tabSuggestionsState === TabSuggestionsState.LOADED) {
-            const selectedTabIds = new Set(this.addedTabsIds.keys());
-            const restoredTabIds = this.contextManagementInComposeboxEnabled ?
-                new Set(
-                    (this.aimThreadRestoredTabs || []).map(tab => tab.tabId)) :
-                new Set<number>();
-
-            const selected = this.tabSuggestions.filter(
-                tab => selectedTabIds.has(tab.tabId));
-            const restored = this.tabSuggestions.filter(
-                tab => restoredTabIds.has(tab.tabId) &&
-                    !selectedTabIds.has(tab.tabId));
-            const other = this.tabSuggestions.filter(
-                tab => !selectedTabIds.has(tab.tabId) &&
-                    !restoredTabIds.has(tab.tabId));
-
-            this.tabSuggestions = [...selected, ...restored, ...other];
+            this.tabSuggestions =
+                this.getSortedTabSuggestions_(this.tabSuggestions);
             if (this.inputState) {
               const {allowedInputTypes, disabledInputTypes} = this.inputState;
               if (allowedInputTypes.includes(InputType.kBrowserTab) &&
@@ -2109,6 +2134,11 @@ export const ComposeboxEmbedderMixin =
           this.onFileContextAdded(attachment);
         }
 
+        getDropTarget(): {addDroppedFiles(files: FileList): void}&HTMLElement {
+          return this as unknown as {addDroppedFiles(files: FileList): void} &
+              HTMLElement;
+        }
+
         addDroppedFiles(files: FileList|null) {
           this.processFiles(files);
           recordContextAdditionMethod(
@@ -2382,24 +2412,33 @@ export const ComposeboxEmbedderMixin =
               this.deleteFile(uuid, /*fromUserAction=*/ false);
             });
 
+            if (this.tabDeselectionEnabled) {
+              const openTabUrls = new Map(tabs.map(t => [t.tabId, t.url]));
+              const closedOrNavigatedRestoredTabs =
+                  this.aimThreadRestoredTabs.filter(tab => {
+                    const currentUrl = openTabUrls.get(tab.tabId);
+                    return !currentUrl || currentUrl !== tab.url;
+                  });
+              closedOrNavigatedRestoredTabs.forEach(tab => {
+                this.getSearchboxHandler().deleteTabContext(tab.tabId);
+              });
+              this.aimThreadRestoredTabs =
+                  this.aimThreadRestoredTabs.filter(tab => {
+                    const currentUrl = openTabUrls.get(tab.tabId);
+                    return currentUrl && currentUrl === tab.url;
+                  });
+            }
+
             const restored = this.contextManagementInComposeboxEnabled ?
                 (this.aimThreadRestoredTabs || []) :
                 [];
 
             const processedRecentTabs = dedupeTabs(restored, tabs);
 
-            const selectedTabIds = new Set(this.addedTabsIds.keys());
-
-            const selectedRecent = processedRecentTabs.filter(
-                tab => selectedTabIds.has(tab.tabId));
-            const unselectedRecent = processedRecentTabs.filter(
-                tab => !selectedTabIds.has(tab.tabId));
-
-            this.tabSuggestions = [
-              ...selectedRecent,
+            this.tabSuggestions = this.getSortedTabSuggestions_([
+              ...processedRecentTabs,
               ...restored,
-              ...unselectedRecent,
-            ];
+            ]);
             this.tabSuggestionsState = TabSuggestionsState.LOADED;
 
             if (this.inputState) {
@@ -2637,8 +2676,10 @@ export const ComposeboxEmbedderMixin =
       return ComposeboxEmbedderMixin;
     };
 
-export interface ComposeboxEmbedderMixinInterface extends
-    I18nMixinLitInterface {
+export interface ComposeboxEmbedderMixinInterface extends I18nMixinLitInterface,
+                                                          DragAndDropHost {
+  dragAndDropHandler: DragAndDropHandler;
+  getDropTarget(): {addDroppedFiles(files: FileList): void}&HTMLElement;
   suggestInventory: SuggestInventory|null;
   submitting: boolean;
   addedTabsIds: Map<number, UnguessableToken>;
@@ -2709,6 +2750,7 @@ export interface ComposeboxEmbedderMixinInterface extends
   submitButtonIconType: SubmitButtonIconType;
   tabSuggestions: TabInfo[];
   tabSuggestionsState: TabSuggestionsState;
+  tabDeselectionEnabled: boolean;
   transcript: string;
   uploadButtonDisabled: boolean;
   composeboxNoFlickerSuggestionsFix: boolean;

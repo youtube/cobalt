@@ -8,6 +8,8 @@
 
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/i18n/language_tag.h"
+#include "base/i18n/tag_converters.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -25,9 +27,11 @@ namespace keys = manifest_keys;
 namespace errors = manifest_errors;
 
 // static
+const char* LocaleInfo::kManifestDataKey = keys::kDefaultLocale;
+
+// static
 const std::string& LocaleInfo::GetDefaultLocale(const Extension* extension) {
-  const LocaleInfo* info = static_cast<const LocaleInfo*>(
-      extension->GetManifestData(keys::kDefaultLocale));
+  const LocaleInfo* info = extension->GetManifestData<LocaleInfo>();
   return info ? info->default_locale : base::EmptyString();
 }
 
@@ -40,13 +44,15 @@ bool DefaultLocaleHandler::Parse(Extension* extension, std::u16string* error) {
   const std::string* default_locale =
       extension->manifest()->FindStringPath(keys::kDefaultLocale);
   if (default_locale == nullptr ||
-      !l10n_util::IsValidLocaleSyntax(*default_locale)) {
+      !base::i18n::LanguageTagConverter::GetInstance()
+           .FromString(*default_locale)
+           .has_value()) {
     *error = manifest_errors::kInvalidDefaultLocale16;
     return false;
   }
   info->default_locale = *default_locale;
 
-  extension->SetManifestData(keys::kDefaultLocale, std::move(info));
+  extension->SetManifestData(std::move(info));
   return true;
 }
 

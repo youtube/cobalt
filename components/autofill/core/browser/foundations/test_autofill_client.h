@@ -134,6 +134,8 @@ class TestAutofillClientTemplate : public T {
 
   bool IsOffTheRecord() const override { return is_off_the_record_; }
 
+  bool UsesPlatformAutofill() const override { return false; }
+
   AutofillCrowdsourcingManager& GetCrowdsourcingManager() override {
     if (!crowdsourcing_manager_) {
       crowdsourcing_manager_ =
@@ -438,9 +440,24 @@ class TestAutofillClientTemplate : public T {
   void set_is_glic_enabled(bool enabled) { is_glic_enabled_ = enabled; }
 
   bool IsAutofillEnabled() const override {
-    return IsAutofillProfileEnabled() ||
-           AutofillClient::GetPaymentsAutofillClient()
-               ->IsAutofillPaymentMethodsEnabled();
+    if (IsAutofillProfileEnabled() ||
+        AutofillClient::GetPaymentsAutofillClient()
+            ->IsAutofillPaymentMethodsEnabled()) {
+      return true;
+    }
+
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillEnableAutofillSettingsEnterprisePolicy)) {
+      return !IsAutofillTypeBlockedByPolicy(
+                 GURL(),
+                 AutofillClient::AutofillPolicyDataCategory::kIdentityDocs) ||
+             !IsAutofillTypeBlockedByPolicy(
+                 GURL(), AutofillClient::AutofillPolicyDataCategory::kTravel) ||
+             !IsAutofillTypeBlockedByPolicy(
+                 GURL(), AutofillClient::AutofillPolicyDataCategory::kShopping);
+    }
+
+    return false;
   }
 
   bool IsAutofillProfileEnabled() const override {
@@ -508,6 +525,9 @@ class TestAutofillClientTemplate : public T {
 
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
       std::string histogram) const override {
+    if (device_authenticator_) {
+      return std::move(device_authenticator_);
+    }
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_CHROMEOS)
     return std::make_unique<device_reauth::MockDeviceAuthenticator>();
@@ -555,6 +575,25 @@ class TestAutofillClientTemplate : public T {
   bool is_personal_context_ambient_autofill_notice_acknowledged() const {
     return is_personal_context_ambient_autofill_notice_acknowledged_;
   }
+#if BUILDFLAG(IS_ANDROID)
+  bool ShowAmbientAutoFillNotice(
+      base::WeakPtr<TouchToFillAutofillDelegate> delegate) override {
+    show_ambient_autofill_notice_called_ = true;
+    return show_ambient_autofill_notice_result_;
+  }
+  bool show_ambient_autofill_notice_called() const {
+    return show_ambient_autofill_notice_called_;
+  }
+  void set_show_ambient_autofill_notice_result(bool result) {
+    show_ambient_autofill_notice_result_ = result;
+  }
+  void HideAmbientAutoFillNotice() override {
+    hide_ambient_autofill_notice_called_ = true;
+  }
+  bool hide_ambient_autofill_notice_called() const {
+    return hide_ambient_autofill_notice_called_;
+  }
+#endif
 
   bool ShouldShowPersonalContextAtMemoryNotice() const override {
     return should_show_personal_context_at_memory_notice_;
@@ -617,6 +656,11 @@ class TestAutofillClientTemplate : public T {
             kAutofillPredictionImprovementsEnterprisePolicyAllowed,
         std::to_underlying(optimization_guide::model_execution::prefs::
                                ModelExecutionEnterprisePolicyValue::kAllow),
+        PrefRegistry::LOSSY_PREF);
+    GetPrefs()->registry()->RegisterIntegerPref(
+        optimization_guide::prefs::kGeminiSettings,
+        std::to_underlying(
+            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled),
         PrefRegistry::LOSSY_PREF);
 
     identity_test_environment().MakePrimaryAccountAvailable(
@@ -730,6 +774,11 @@ class TestAutofillClientTemplate : public T {
 
   void set_supports_device_reauth(bool supports_device_reauth) {
     supports_device_reauth_ = supports_device_reauth;
+  }
+
+  void set_device_authenticator(
+      std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator) {
+    device_authenticator_ = std::move(authenticator);
   }
 
   void set_crowdsourcing_manager(
@@ -900,10 +949,16 @@ class TestAutofillClientTemplate : public T {
 
   bool supports_device_reauth_ = true;
 
+  mutable std::unique_ptr<device_reauth::DeviceAuthenticator>
+      device_authenticator_;
+
   bool is_tab_in_actor_mode_ = false;
 
   bool should_show_personal_context_ambient_autofill_notice_ = false;
   bool is_personal_context_ambient_autofill_notice_acknowledged_ = false;
+  bool show_ambient_autofill_notice_called_ = false;
+  bool show_ambient_autofill_notice_result_ = false;
+  bool hide_ambient_autofill_notice_called_ = false;
   bool should_show_personal_context_at_memory_notice_ = false;
   bool is_personal_context_at_memory_notice_acknowledged_ = false;
 

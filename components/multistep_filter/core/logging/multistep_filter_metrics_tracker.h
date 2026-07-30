@@ -8,9 +8,11 @@
 #include <optional>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/data_models/url_filter_suggestion.h"
+#include "components/multistep_filter/core/prefs/retention_state_snapshot.h"
 
 namespace multistep_filter {
 
@@ -20,52 +22,10 @@ struct FilterNavigationMetadata;
 // holistic UMA metrics for the Multistep Filter feature.
 class MultistepFilterMetricsTracker {
  public:
-  MultistepFilterMetricsTracker();
-  MultistepFilterMetricsTracker(const MultistepFilterMetricsTracker&) = delete;
-  MultistepFilterMetricsTracker& operator=(
-      const MultistepFilterMetricsTracker&) = delete;
-  ~MultistepFilterMetricsTracker();
-
-  // --- 1. NAVIGATION FINISH ---
-  // Triggered when ANY navigation in the tab completes (or fails).
-  void OnNavigationFinished(const FilterNavigationMetadata& metadata);
-
-  // --- 2. SUGGESTION IMPRESSION LIFE-CYCLE ---
-  // Triggered when the suggestion UI cue is shown to the user (initial bubble
-  // or page action icon). Starts the impression tracking session.
-  void OnSuggestionShown(const UrlFilterSuggestion& suggestion);
-
-  // --- 2.1. SUGGESTION REOPEN ---
-  // Triggered once if the user re-opens the cue from the Omnibox.
-  void OnSuggestionReopened();
-
-  // --- 2.2. SUGGESTION USER INTERACTION ---
-  // Triggered when the user interacts with the suggestion UI or a
-  // navigation/tab close discards the suggestion.
-  void OnSuggestionUserInteraction(SuggestionUserDecision decision);
-
-  // --- 3. SUGGESTION APPLICATION LIFE-CYCLE ---
-  // Triggered when the suggestion application extraction is finished.
-  // `was_applied_successfully` is true if the navigation completed successfully
-  // and the extracted annotations matched the filters the user decided to apply
-  // before the navigation.
-  void OnSuggestionApplicationAnnotationExtractionFinished(
-      bool was_applied_successfully);
-
- private:
-  // Internal helper to calculate and flush UMA for pending suggestion UI
-  // sessions.
-  void FlushSuggestionUiSession(SuggestionUserDecision final_decision);
-
-  // Internal helper to calculate and flush UMA for pending suggestion
-  // application sessions.
-  void FlushSuggestionApplicationSession(bool was_applied_successfully);
-
   struct NavigationSession {
-    base::TimeTicks navigation_start_time;
     base::TimeTicks navigation_finish_time;
     bool is_back_navigation = false;
-  } current_navigation_;
+  };
 
   // Tracks the UI lifecycle of a multistep filter suggestion.
   //
@@ -82,10 +42,9 @@ class MultistepFilterMetricsTracker {
     SuggestionUserDecision user_decision = SuggestionUserDecision::kIgnored;
     base::TimeTicks suggestion_shown_time;
     base::TimeTicks suggestion_accepted_time;
+    RetentionStateSnapshot retention_snapshot;
+    bool is_preserved_same_page = false;
   };
-
-  // The current UI session, if any.
-  std::optional<SuggestionUiSession> current_ui_session_;
 
   // Tracks the lifecycle of a suggestion application.
   //
@@ -98,13 +57,106 @@ class MultistepFilterMetricsTracker {
   struct SuggestionApplicationSession {
     UrlFilterSuggestion suggestion;
     bool is_error_page = false;
-    // TODO(crbug.com/531717350): Populate and use this field to measure
-    // suggestion application latency.
     base::TimeTicks suggestion_accepted_time;
+    RetentionStateSnapshot retention_snapshot;
   };
+
+  // Tracks the user's behavior after accepting a suggestion.
+  //
+  // A session starts when the navigation triggered by accepting a suggestion
+  // finishes (either successfully or with an error). It tracks subsequent
+  // navigations and tab closure to log post-application behavior within a
+  // session window.
+  struct PostSuggestionApplicationSession {
+    // The time when the navigation triggered by the accepted suggestion
+    // finished. This marks the start of the post-application session window.
+    base::TimeTicks post_suggestion_window_start_time;
+    // Whether the first navigation after the suggestion application has been
+    // logged. If true, any subsequent navigations within the session window
+    // will be ignored.
+    bool has_logged_first_navigation = false;
+  };
+
+  MultistepFilterMetricsTracker();
+  MultistepFilterMetricsTracker(const MultistepFilterMetricsTracker&) = delete;
+  MultistepFilterMetricsTracker& operator=(
+      const MultistepFilterMetricsTracker&) = delete;
+  ~MultistepFilterMetricsTracker();
+
+  // --- 1. NAVIGATION FINISH ---
+  // Triggered when ANY navigation in the tab completes (or fails).
+  void OnNavigationFinished(const FilterNavigationMetadata& metadata);
+
+  // --- 2. SUGGESTION IMPRESSION LIFE-CYCLE ---
+  // Triggered when the suggestion UI cue is shown to the user (initial bubble
+  // or page action icon). Starts the impression tracking session.
+  void OnSuggestionShown(const UrlFilterSuggestion& suggestion,
+                         const RetentionStateSnapshot& retention_snapshot);
+
+  // --- 2.1. SUGGESTION REOPEN ---
+  // Triggered once if the user re-opens the cue from the Omnibox.
+  void OnSuggestionReopened();
+
+  // --- 2.2. SUGGESTION USER INTERACTION ---
+  // Triggered when the user interacts with the suggestion UI or a
+  // navigation/tab close discards the suggestion.
+  void OnSuggestionUserInteraction(SuggestionUserDecision decision);
+
+  // --- 2.3. PRESERVED SUGGESTION CLEARED ---
+  // Triggered when a preserved suggestion for same page navigation is cleared
+  // (e.g. because new suggestion generation failed).
+  void OnPreservedSuggestionCleared();
+
+  // --- 3. SUGGESTION APPLICATION LIFE-CYCLE ---
+  // Triggered when the suggestion application extraction is finished.
+  // `was_applied_successfully` is true if the navigation completed successfully
+  // and the extracted annotations matched the filters the user decided to apply
+  // before the navigation.
+  // If successful, this starts a post-application session to track behavior
+  // within a session window (controlled by
+  // `kMultistepFilterPostApplicationSessionDuration`).
+  void OnSuggestionApplicationAnnotationExtractionFinished(
+      bool was_applied_successfully);
+
+ private:
+  // Internal helper to calculate and flush UMA for pending suggestion UI
+  // sessions.
+  void FlushSuggestionUiSession(SuggestionUserDecision final_decision);
+
+  // Internal helper to calculate and flush UMA for pending suggestion
+  // application sessions.
+  void FlushSuggestionApplicationSession(bool was_applied_successfully);
+
+  // Internal helper to track navigation after a suggestion was successfully
+  // applied. Only tracks the first non-ignored navigation within the session
+  // window (controlled by `kMultistepFilterPostApplicationSessionDuration`).
+  void TrackPostSuggestionApplicationNavigation(
+      const FilterNavigationMetadata& metadata);
+
+  // Internal helper to flush UMA for the post-suggestion application session
+  // (e.g. on tab close or when a new session starts). Only applicable for
+  // successful suggestion applications. The window duration is controlled by
+  // `kMultistepFilterPostApplicationSessionDuration`.
+  void FlushPostSuggestionApplicationSession();
+
+  // The current navigation session.
+  NavigationSession current_navigation_;
+  // The current UI session, if any.
+  std::optional<SuggestionUiSession> current_ui_session_;
   // The current suggestion application session, if any.
   std::optional<SuggestionApplicationSession>
       current_suggestion_application_session_;
+  // The retention state snapshot of the last accepted suggestion. It is
+  // set when a suggestion is accepted, and cleared when the next navigation
+  // finishes (either consumed by the application session or discarded).
+  std::optional<RetentionStateSnapshot>
+      last_accepted_suggestion_retention_snapshot_;
+  // The current post-suggestion application session, if any. This is only
+  // created for successful suggestion applications to track behavior within a
+  // session window (controlled by
+  // `kMultistepFilterPostApplicationSessionDuration`).
+  std::optional<PostSuggestionApplicationSession>
+      current_post_suggestion_application_session_;
 };
 
 }  // namespace multistep_filter

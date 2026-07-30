@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "autofill_address_util.h"
 #include "base/check.h"
 #include "base/containers/to_vector.h"
 #include "base/notreached.h"
@@ -496,6 +495,8 @@ AddressUIComponentIconType GetAddressUIComponentIconTypeForFieldType(
     case FLIGHT_RESERVATION_FLIGHT_NUMBER:
     case FLIGHT_RESERVATION_TICKET_NUMBER:
     case FLIGHT_RESERVATION_CONFIRMATION_CODE:
+    case FLIGHT_RESERVATION_DEPARTURE_AIRPORT:
+    case FLIGHT_RESERVATION_ARRIVAL_AIRPORT:
     case FLIGHT_RESERVATION_DEPARTURE_DATE:
     case ORDER_ID:
     case ORDER_DATE:

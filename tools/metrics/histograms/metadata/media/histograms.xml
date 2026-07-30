@@ -806,7 +806,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.Audio.Android.AAudio.CallbackSizeDistribution.{Direction}"
-    units="frames" expires_after="2026-10-31">
+    units="frames" expires_after="2027-01-10">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -819,7 +819,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.Audio.Android.AAudio.CallbackTransitionsPer1000.{Direction}"
-    units="transitions" expires_after="2026-10-31">
+    units="transitions" expires_after="2027-01-10">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -830,7 +830,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudio.InputTimestampDiscontinuitySize"
-    units="ms" expires_after="2026-10-31">
+    units="ms" expires_after="2027-01-10">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -1456,6 +1456,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.Audio.Capture.Win.InitDeviceInUseRetryOutcome"
+    enum="WASAPIInputDeviceInUseRetryOutcome" expires_after="2027-05-15">
+  <owner>henrika@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    The outcome of attempts to initialize the WASAPI audio input stream on
+    Windows when the first attempt failed with AUDCLNT_E_DEVICE_IN_USE. Records
+    whether retries succeeded or failed, or if no retries occurred because the
+    feature was disabled. This is logged once per stream open attempt if and
+    only if the first call to IAudioClient::Initialize returns
+    AUDCLNT_E_DEVICE_IN_USE.
+  </summary>
+</histogram>
+
 <histogram name="Media.Audio.Capture.Win.InitError.FormatRelated"
     enum="AudioStreamFormatRelatedInitError" expires_after="2026-11-15">
   <owner>fhernqvist@google.com</owner>
@@ -1495,6 +1509,18 @@ chromium-metrics-reviews@google.com.
     WASAPIAudioInputStream::InitializeAudioEngine on Windows. E_ACCESSDENIED is
     intentionally excluded and is tracked by
     Media.Audio.Capture.Win.SystemPermissionDenied instead.
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Capture.Win.InitializeSucceeded" enum="Boolean"
+    expires_after="2027-05-15">
+  <owner>henrika@chromium.org</owner>
+  <owner>fhernqvist@google.com</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Logs whether IAudioClient::Initialize() succeeded (after all retries) in
+    WASAPIAudioInputStream::InitializeAudioEngine on Windows. Logged once per
+    stream initialization.
   </summary>
 </histogram>
 
@@ -1636,6 +1662,68 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the audio decoder type used for a playback session. Recorded when
     the metrics provider is destructed.
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Iamf.InitStatus" enum="DecoderStatus"
+    expires_after="2027-06-30">
+  <owner>lowkey@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the outcome of the IamfAudioDecoder initialization, including
+    success or specific failure reasons. It is recorded once per decoder during
+    initialization within IamfAudioDecoder::Initialize().
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Iamf.InputChannelCount" units="channels"
+    expires_after="2027-06-30">
+  <owner>lowkey@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the number of spatial audio channels in the input IAMF stream. It is
+    recorded once per decoder during successful initialization within
+    IamfAudioDecoder::Initialize().
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Iamf.MixMode" enum="IamfMixMode"
+    expires_after="2027-06-30">
+  <owner>lowkey@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records whether the IAMF decoder upmixed, downmixed, or passed through the
+    input channel layout to the requested output layout. It is recorded once per
+    decoder during successful initialization within
+    IamfAudioDecoder::Initialize().
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Iamf.OutputLayout" enum="IamfOutputLayout"
+    expires_after="2027-06-30">
+  <owner>lowkey@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the IAMF output layout requested or configured by the decoder. It is
+    recorded once per decoder during successful initialization within
+    IamfAudioDecoder::VerifyStreamParameters().
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Iamf.UsageTime" units="ms"
+    expires_after="2027-06-30">
+  <owner>lowkey@google.com</owner>
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the total duration of audio successfully decoded by the
+    IamfAudioDecoder in a single session. It is recorded once per decoder when
+    the decoder is destroyed within IamfAudioDecoder::~IamfAudioDecoder(),
+    provided there was at least one successful temporal unit decoded.
   </summary>
 </histogram>
 
@@ -2911,7 +2999,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.AutoPictureInPicture.EnterPictureInPicture.AutomaticReason.{AutomaticReason}.PromptResultV2"
-    enum="MediaAutoPictureInPicturePromptResult" expires_after="2026-10-25">
+    enum="MediaAutoPictureInPicturePromptResult" expires_after="2027-01-10">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -4966,6 +5054,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the result of trying to get the application ID of an application
     whose window was selected in the getDisplayMedia() media picker on Windows.
+  </summary>
+</histogram>
+
+<histogram name="Media.GetDisplayMedia.Constraints.AudioSelection"
+    enum="GetDisplayMediaBooleanConstraint" expires_after="2027-07-16">
+  <owner>agpalak@chromium.org</owner>
+  <owner>tovep@chromium.org</owner>
+  <owner>rtc-meet-in-chrome@google.com</owner>
+  <summary>
+    Records whether getDisplayMedia was called with the audioSelection
+    constraint.
   </summary>
 </histogram>
 
@@ -7713,7 +7812,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.Ui.GetDisplayMedia.AudioCapturePermissionChecker.Interactions"
-    enum="AudioCapturePermissionCheckerInteractions" expires_after="2026-11-11">
+    enum="AudioCapturePermissionCheckerInteractions" expires_after="2027-01-10">
   <owner>kron@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
   <summary>
@@ -8826,7 +8925,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoEncoder.{Usage}.{Impl}.Status" enum="EncoderStatus"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>hiroh@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>

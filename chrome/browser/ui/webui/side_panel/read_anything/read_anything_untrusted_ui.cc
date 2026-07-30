@@ -58,6 +58,8 @@ ReadAnythingUntrustedUI::ReadAnythingUntrustedUI(content::WebUI* web_ui)
       {"lineSpacingTitle", IDS_READING_MODE_LINE_SPACING_COMBOBOX_LABEL},
       {"fontNameTitle", IDS_READING_MODE_FONT_NAME_COMBOBOX_LABEL},
       {"appearanceTitle", IDS_READING_MODE_APPEARANCE_LABEL},
+      {"textSettingsTitle", IDS_READING_MODE_TEXT_STYLE_LABEL},
+      {"mediaTitle", IDS_READING_MODE_MEDIA_LABEL},
       {"themeTitle", IDS_READING_MODE_COLORS_COMBOBOX_LABEL},
       {"letterSpacingTitle", IDS_READING_MODE_LETTER_SPACING_COMBOBOX_LABEL},
       {"fontSizeTitle", IDS_READING_MODE_FONT_SIZE},
@@ -232,6 +234,15 @@ ReadAnythingUntrustedUI::ReadAnythingUntrustedUI(content::WebUI* web_ui)
   source->SetDefaultResource(
       IDR_SIDE_PANEL_READ_ANYTHING_APP_READ_ANYTHING_HTML);
   source->AddResourcePaths(kSidePanelSharedResources);
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src 'self' chrome-untrusted://resources "
+      "chrome-untrusted://webui-test https://translate.googleapis.com "
+      "https://translate.google.com;");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ConnectSrc,
+      "connect-src 'self' https://translate.googleapis.com "
+      "https://translate.google.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
       "script-src 'self' chrome-untrusted://resources "

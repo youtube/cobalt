@@ -33,6 +33,7 @@ BASE_DECLARE_FEATURE(kCtrlTabMru);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
+BASE_DECLARE_FEATURE(kLegacySearchIntegrityCheck);
 #endif
 
 BASE_DECLARE_FEATURE(kImportExportFlags);
@@ -303,12 +304,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 // The following feature params indicate whether individual features should
 // have their page actions controlled using the new framework.
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationVirtualCard);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFilledCardInformation);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationReadingMode);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSavePayments);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationBookmarkStar);
 
 BASE_DECLARE_FEATURE(kPageActionsPrioritySelector);

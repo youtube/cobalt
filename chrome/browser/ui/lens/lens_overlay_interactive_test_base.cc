@@ -58,6 +58,10 @@ bool TestingAimEligibilityService::IsAimEligible() const {
   return is_aim_eligible_;
 }
 
+bool TestingAimEligibilityService::IsCobrowseServerEligible() const {
+  return is_cobrowse_eligible_;
+}
+
 bool TestingAimEligibilityService::IsCobrowseEligible() const {
   return is_cobrowse_eligible_;
 }
@@ -112,6 +116,7 @@ void LensOverlayInteractiveTestBase::SetUpFeatureList() {
                              {{"use-pdfs-as-context", "true"},
                               {"auto-focus-searchbox", "false"}}}},
       /*disabled_features=*/{contextual_tasks::kContextualTasks,
+                             contextual_tasks::kContextualTasksSidePanel,
                              features::kNonBlockingOsClipboardReads});
 }
 

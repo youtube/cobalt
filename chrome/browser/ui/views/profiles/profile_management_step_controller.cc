@@ -6,8 +6,6 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/metrics/histogram_functions.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/profiles/delete_profile_helper.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -29,14 +27,12 @@
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.h"
-#include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/regional_capabilities/regional_capabilities_metrics.h"
 #include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "google_apis/gaia/core_account_id.h"
 
 namespace {
 class ProfilePickerAppStepController : public ProfileManagementStepController {
@@ -406,6 +402,9 @@ class DeviceSignalsDisclaimerStepController
                 &DeviceSignalsDisclaimerStepController::OnLoadFinished,
                 weak_ptr_factory_.GetWeakPtr()));
 
+    // TODO(b/535164842): Once the refreshed profile picker UI is launched this
+    // screen will be inconsistent with the rest of the flow. This screen should
+    // be then updated to match the new flow.
     host()->ShowScreen(web_contents_,
                        GURL(chrome::kChromeUIManagedUserProfileNoticeUrl),
                        std::move(navigation_finished_closure));
@@ -436,7 +435,8 @@ class DeviceSignalsDisclaimerStepController
     // If the account info is empty the disclaimer can still be shown,
     // it is only used for the profile pic with a fallback available.
     auto params = signin::EnterpriseProfileCreationDialogParams::
-        CreateForDeviceSignalsDisclaimer(account_info, std::move(callback_));
+        CreateForDeviceSignalsDisclaimer(account_info, std::move(callback_),
+                                         /*is_modal_dialog=*/false);
     managed_user_profile_notice_ui->Initialize(
         /*browser=*/nullptr,
         ManagedUserProfileNoticeUI::ScreenType::kDeviceSignalsDisclaimer,

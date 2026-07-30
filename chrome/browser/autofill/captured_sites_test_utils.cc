@@ -16,9 +16,11 @@
 #include "base/check_deref.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/strings/strcat.h"
@@ -30,6 +32,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
@@ -71,6 +74,8 @@
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "url/gurl.h"
+#include "url/scheme_host_port.h"
 
 using base::JSONParserOptions;
 using base::JSONReader;
@@ -555,127 +560,95 @@ Further instructions will be printed then.
   VLOG(1) << base::StringPrintf(msg, test_file_name, kCommandFileFlag);
 }
 
-// FrameObserver --------------------------------------------------------------
-IFrameWaiter::IFrameWaiter(content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents),
-      query_type_(URL),
-      target_frame_(nullptr) {}
-
-IFrameWaiter::~IFrameWaiter() = default;
-
-content::RenderFrameHost* IFrameWaiter::WaitForFrameMatchingName(
+content::RenderFrameHost* WaitForFrameMatchingName(
+    content::WebContents& web_contents,
     const std::string& name,
-    const base::TimeDelta timeout) {
-  content::RenderFrameHost* frame = FrameMatchingPredicateOrNullptr(
-      web_contents()->GetPrimaryPage(),
-      base::BindRepeating(&content::FrameMatchesName, name));
-  if (frame) {
+    base::TimeDelta timeout) {
+  return WaitForFrame(web_contents,
+                      base::BindRepeating(&content::FrameMatchesName, name),
+                      timeout);
+}
+
+content::RenderFrameHost* WaitForFrameMatchingOrigin(
+    content::WebContents& web_contents,
+    const url::SchemeHostPort& origin,
+    base::TimeDelta timeout) {
+  return WaitForFrame(
+      web_contents,
+      base::BindRepeating(
+          [](const url::SchemeHostPort& origin,
+             content::RenderFrameHost* frame) {
+            return url::SchemeHostPort(frame->GetLastCommittedURL()) == origin;
+          },
+          origin),
+      timeout);
+}
+
+content::RenderFrameHost* WaitForFrameMatchingUrl(
+    content::WebContents& web_contents,
+    const GURL& url,
+    base::TimeDelta timeout) {
+  return WaitForFrame(web_contents,
+                      base::BindRepeating(&content::FrameHasSourceUrl, url),
+                      timeout);
+}
+
+content::RenderFrameHost* WaitForFrame(
+    content::WebContents& web_contents,
+    base::RepeatingCallback<bool(content::RenderFrameHost*)> predicate,
+    base::TimeDelta timeout) {
+  class IframeWaiter : public content::WebContentsObserver {
+   public:
+    IframeWaiter(
+        content::WebContents* web_contents,
+        base::RepeatingCallback<bool(content::RenderFrameHost*)> predicate)
+        : content::WebContentsObserver(web_contents),
+          predicate_(std::move(predicate)) {}
+    IframeWaiter(const IframeWaiter&) = delete;
+    IframeWaiter& operator=(const IframeWaiter&) = delete;
+    ~IframeWaiter() override = default;
+
+    content::GlobalRenderFrameHostId Get() { return future_.Get(); }
+
+    // content::WebContentsObserver
+    void RenderFrameCreated(
+        content::RenderFrameHost* render_frame_host) override {
+      if (!future_.IsReady() && predicate_.Run(render_frame_host)) {
+        future_.SetValue(render_frame_host->GetGlobalId());
+      }
+    }
+
+    void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                       const GURL& validated_url) override {
+      if (!future_.IsReady() && predicate_.Run(render_frame_host)) {
+        future_.SetValue(render_frame_host->GetGlobalId());
+      }
+    }
+
+    void FrameNameChanged(content::RenderFrameHost* render_frame_host,
+                          const std::string& name) override {
+      if (!future_.IsReady() && predicate_.Run(render_frame_host)) {
+        future_.SetValue(render_frame_host->GetGlobalId());
+      }
+    }
+
+   private:
+    // When we detect that a frame satisfies the `predicate_`, we store its ID
+    // in `future_` and return it.
+    base::RepeatingCallback<bool(content::RenderFrameHost*)> predicate_;
+    base::test::TestFuture<content::GlobalRenderFrameHostId> future_;
+  };
+
+  if (content::RenderFrameHost* frame = FrameMatchingPredicateOrNullptr(
+          web_contents.GetPrimaryPage(), predicate)) {
     return frame;
-  } else {
-    query_type_ = NAME;
-    frame_name_ = name;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop_.QuitClosure(), timeout);
-    run_loop_.Run();
-    return target_frame_;
   }
-}
-
-content::RenderFrameHost* IFrameWaiter::WaitForFrameMatchingOrigin(
-    const GURL origin,
-    const base::TimeDelta timeout) {
-  content::RenderFrameHost* frame = FrameMatchingPredicateOrNullptr(
-      web_contents()->GetPrimaryPage(),
-      base::BindRepeating(&FrameHasOrigin, origin));
-  if (frame) {
-    return frame;
-  } else {
-    query_type_ = ORIGIN;
-    origin_ = origin;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop_.QuitClosure(), timeout);
-    run_loop_.Run();
-    return target_frame_;
-  }
-}
-
-content::RenderFrameHost* IFrameWaiter::WaitForFrameMatchingUrl(
-    const GURL url,
-    const base::TimeDelta timeout) {
-  content::RenderFrameHost* frame = FrameMatchingPredicateOrNullptr(
-      web_contents()->GetPrimaryPage(),
-      base::BindRepeating(&content::FrameHasSourceUrl, url));
-  if (frame) {
-    return frame;
-  } else {
-    query_type_ = URL;
-    url_ = url;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop_.QuitClosure(), timeout);
-    run_loop_.Run();
-    return target_frame_;
-  }
-}
-
-void IFrameWaiter::RenderFrameCreated(
-    content::RenderFrameHost* render_frame_host) {
-  if (!run_loop_.running())
-    return;
-  switch (query_type_) {
-    case NAME:
-      if (FrameMatchesName(frame_name_, render_frame_host))
-        run_loop_.Quit();
-      break;
-    case ORIGIN:
-      if (render_frame_host->GetLastCommittedURL().DeprecatedGetOriginAsURL() ==
-          origin_)
-        run_loop_.Quit();
-      break;
-    case URL:
-      if (FrameHasSourceUrl(url_, render_frame_host))
-        run_loop_.Quit();
-      break;
-    default:
-      break;
-  }
-}
-
-void IFrameWaiter::DidFinishLoad(content::RenderFrameHost* render_frame_host,
-                                 const GURL& validated_url) {
-  if (!run_loop_.running())
-    return;
-  switch (query_type_) {
-    case ORIGIN:
-      if (validated_url.DeprecatedGetOriginAsURL() == origin_)
-        run_loop_.Quit();
-      break;
-    case URL:
-      if (FrameHasSourceUrl(validated_url, render_frame_host))
-        run_loop_.Quit();
-      break;
-    default:
-      break;
-  }
-}
-
-void IFrameWaiter::FrameNameChanged(content::RenderFrameHost* render_frame_host,
-                                    const std::string& name) {
-  if (!run_loop_.running())
-    return;
-  switch (query_type_) {
-    case NAME:
-      if (FrameMatchesName(name, render_frame_host))
-        run_loop_.Quit();
-      break;
-    default:
-      break;
-  }
-}
-
-bool IFrameWaiter::FrameHasOrigin(const GURL& origin,
-                                  content::RenderFrameHost* frame) {
-  GURL url = frame->GetLastCommittedURL();
-  return (url.DeprecatedGetOriginAsURL() == origin.DeprecatedGetOriginAsURL());
+  IframeWaiter waiter(&web_contents, std::move(predicate));
+  base::test::ScopedRunLoopTimeout scoped_timeout(
+      FROM_HERE, timeout, base::BindRepeating([]() -> std::string {
+        return "IframeWaiter timed out waiting for iframe.";
+      }));
+  return content::RenderFrameHost::FromID(waiter.Get());
 }
 
 // WebPageReplayServerWrapper -------------------------------------------------
@@ -2009,8 +1982,6 @@ bool TestRecipeReplayer::GetTargetFrameFromAction(
       iframe_container->GetDict().FindByDottedPath("browserTest.origin");
   const base::Value* frame_url_container =
       iframe_container->GetDict().FindByDottedPath("browserTest.url");
-  IFrameWaiter iframe_waiter(GetWebContents());
-
   if (frame_name_container != nullptr && !frame_name_container->is_string()) {
     ADD_FAILURE() << "Iframe name is not a string!";
     return false;
@@ -2029,13 +2000,14 @@ bool TestRecipeReplayer::GetTargetFrameFromAction(
 
   if (frame_name_container != nullptr) {
     std::string frame_name = frame_name_container->GetString();
-    *frame = iframe_waiter.WaitForFrameMatchingName(frame_name);
+    *frame = WaitForFrameMatchingName(*GetWebContents(), frame_name);
   } else if (frame_origin_container != nullptr) {
     std::string frame_origin = frame_origin_container->GetString();
-    *frame = iframe_waiter.WaitForFrameMatchingOrigin(GURL(frame_origin));
+    *frame = WaitForFrameMatchingOrigin(
+        *GetWebContents(), url::SchemeHostPort(GURL(frame_origin)));
   } else if (frame_url_container != nullptr) {
     std::string frame_url = frame_url_container->GetString();
-    *frame = iframe_waiter.WaitForFrameMatchingUrl(GURL(frame_url));
+    *frame = WaitForFrameMatchingUrl(*GetWebContents(), GURL(frame_url));
   } else {
     ADD_FAILURE() << "The recipe does not specify a way to find the iframe!";
   }
@@ -2205,7 +2177,8 @@ bool TestRecipeReplayer::AllAssertionsPassed(
   if (frame.render_frame_host()->GetLifecycleState() !=
       content::RenderFrameHost::LifecycleState::kActive) {
     VLOG(1) << "Frame not active, not testing assertions. "
-            << (int)frame.render_frame_host()->GetLifecycleState();
+            << std::to_underlying(
+                   frame.render_frame_host()->GetLifecycleState());
     return false;
   }
   for (const std::string& assertion : assertions) {

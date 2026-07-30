@@ -18,7 +18,6 @@
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
-#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/omnibox/full_webui_omnibox_frame.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_full_popup_webui_content.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
@@ -29,8 +28,6 @@
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
-#include "components/omnibox/browser/autocomplete_controller.h"
-#include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "ui/views/focus/focus_manager.h"
@@ -185,9 +182,8 @@ void OmniboxPopupFullPresenter::SynchronizePopupBounds() {
   CHECK(results_frame);
   results_frame->SetElevation(target_elevation);
 
-  // Use the content height reported by WebUI. This avoids premature shrinking
-  // before the WebUI has had a chance to update its content.
-  widget_bounds.set_height(std::max(content_height_, default_height));
+  widget_bounds.set_height(content_height_ > 1 ? content_height_
+                                               : default_height);
 
   // Set width and height to at least their minimums (e.g. for permission
   // prompts).

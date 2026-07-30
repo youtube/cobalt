@@ -565,10 +565,6 @@ ci.thin_tester(
                 ],
                 remove_mixins = "mac_15_vm_optional",
             ),
-            # TODO(crbug.com/526983048): Can restore after fixing python crashes.
-            "chrome_wpt_tests": targets.mixin(
-                ci_only = True,
-            ),
             "telemetry_perf_unittests": targets.mixin(
                 ci_only = True,
             ),
@@ -670,10 +666,6 @@ ci.thin_tester(
                     "ci_only",
                 ],
                 remove_mixins = "mac_26_vm_optional",
-            ),
-            # TODO(crbug.com/526983048): Can restore after fixing python crashes.
-            "chrome_wpt_tests": targets.mixin(
-                ci_only = True,
             ),
             "telemetry_perf_unittests": targets.mixin(
                 ci_only = True,
@@ -1072,8 +1064,6 @@ ci.thin_tester(
             "mac_26_x64",
         ],
     ),
-    # TODO(crbug.com/530285559): Enable rotation when builder stabalizes.
-    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "mac",
         short_name = "26",
@@ -1275,6 +1265,7 @@ ios_builder(
                 "mac_toolchain",
             ],
             build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.ARM,
             target_bits = 64,
             target_platform = builder_config.target_platform.IOS,
         ),
@@ -1350,6 +1341,7 @@ ios_builder(
                 "mac_toolchain",
             ],
             build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.ARM,
             target_bits = 64,
             target_platform = builder_config.target_platform.IOS,
         ),
@@ -1417,6 +1409,7 @@ ios_builder(
                 "mac_toolchain",
             ],
             build_config = builder_config.build_config.DEBUG,
+            target_arch = builder_config.target_arch.ARM,
             target_bits = 64,
             target_platform = builder_config.target_platform.IOS,
         ),

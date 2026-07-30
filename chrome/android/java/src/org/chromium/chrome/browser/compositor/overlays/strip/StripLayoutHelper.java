@@ -22,7 +22,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.PointF;
@@ -76,6 +75,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTit
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnAccessibilityFocusHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnClickHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnKeyboardFocusHandler;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnLongClickHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripTabModelActionListener.ActionType;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator.AnchorInfo;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabLoadTrackerCallback;
@@ -123,7 +123,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetC
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinatorFactory;
 import org.chromium.chrome.browser.tasks.tab_management.TabListNotificationHandler;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
-import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
@@ -157,6 +156,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -172,6 +172,7 @@ public class StripLayoutHelper
                 StripLayoutViewOnClickHandler,
                 StripLayoutViewOnKeyboardFocusHandler,
                 StripLayoutViewOnAccessibilityFocusHandler,
+                StripLayoutViewOnLongClickHandler,
                 StripUpdateDelegate,
                 AnimationHost,
                 TabListNotificationHandler {
@@ -555,7 +556,6 @@ public class StripLayoutHelper
     private final Set<StripLayoutGroupTitle> mClosingGroupTitles = new HashSet<>();
 
     private final TintedCompositorButton mNewTabButton;
-    private final @Nullable CompositorButton mModelSelectorButton;
     private final TintedCompositorButton mTabSearchButton;
 
     // Layout Constants
@@ -687,6 +687,7 @@ public class StripLayoutHelper
 
     // Tab context menu.
     private final MultiInstanceManager mMultiInstanceManager;
+    private final @Nullable BooleanSupplier mCanActivateTabLayoutToggleMenuSupplier;
     // Set when showTabContextMenu is called for the first time.
     private @MonotonicNonNull TabContextMenuCoordinator mTabContextMenuCoordinator;
     private @MonotonicNonNull TabGroupListBottomSheetCoordinator
@@ -741,8 +742,6 @@ public class StripLayoutHelper
      * @param updateHost The parent {@link LayoutUpdateHost}.
      * @param renderHost The {@link LayoutRenderHost}.
      * @param incognito Whether or not this tab strip is incognito.
-     * @param modelSelectorButton The {@link CompositorButton} used to toggle between regular and
-     *     incognito models.
      * @param tabStripDragHandler The {@link TabStripDragHandler} instance to initiate drag and
      *     drop.
      * @param controlContainerView The {@link View} passed to {@link TabStripDragHandler} for drag
@@ -772,7 +771,6 @@ public class StripLayoutHelper
             LayoutUpdateHost updateHost,
             LayoutRenderHost renderHost,
             boolean incognito,
-            @Nullable CompositorButton modelSelectorButton,
             @Nullable TabStripDragHandler tabStripDragHandler,
             View controlContainerView,
             WindowAndroid windowAndroid,
@@ -785,11 +783,11 @@ public class StripLayoutHelper
             Supplier<TabBookmarker> tabBookmarkerSupplier,
             TabGroupListBottomSheetCoordinatorFactory tabGroupListBottomSheetCoordinatorFactory,
             SnackbarManager snackbarManager,
-            @Nullable ActivityResultTracker activityResultTracker) {
+            @Nullable ActivityResultTracker activityResultTracker,
+            @Nullable BooleanSupplier canActivateTabLayoutToggleMenuSupplier) {
         mGroupTitleDrawXOffset = TAB_OVERLAP_WIDTH_DP - FOLIO_FOOT_LENGTH_DP;
         mGroupTitleOverlapWidth = FOLIO_FOOT_LENGTH_DP - mGroupTitleDrawXOffset;
         mNewTabButtonWidth = BUTTON_BACKGROUND_SIZE_DP;
-        mModelSelectorButton = modelSelectorButton;
         mControlContainer = controlContainerView;
         mTabStripDragHandler = tabStripDragHandler;
         mWindowAndroid = windowAndroid;
@@ -798,6 +796,7 @@ public class StripLayoutHelper
         mDataSharingTabManager = dataSharingTabManager;
         mBottomSheetController = bottomSheetController;
         mMultiInstanceManager = multiInstanceManager;
+        mCanActivateTabLayoutToggleMenuSupplier = canActivateTabLayoutToggleMenuSupplier;
         mShareDelegateSupplier = shareDelegateSupplier;
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
         mTabGroupListBottomSheetCoordinatorFactory = tabGroupListBottomSheetCoordinatorFactory;
@@ -808,7 +807,9 @@ public class StripLayoutHelper
         Resources res = context.getResources();
         // Set tab search button background resource.
         mTabSearchButtonWidth =
-                ChromeFeatureList.sTabSearchForAL.isEnabled() ? BUTTON_BACKGROUND_SIZE_DP : 0.f;
+                ChromeFeatureList.sTabSearchForDesktop.isEnabled()
+                        ? BUTTON_BACKGROUND_SIZE_DP
+                        : 0.f;
         mTabSearchButton = createTabSearchButton(context, incognito, res);
 
         // Use toolbar menu button padding to align NTB with menu button.
@@ -950,19 +951,18 @@ public class StripLayoutHelper
         // Set an off-color background for the tab search button to distinguish it in the strip.
         // Note that if this is not set, it will match the color of the background around it.
         button.setBackgroundAlwaysVisible(true);
-        @ColorInt
-        int bgTint =
+        @ColorRes
+        int bgTintRes =
                 incognito
-                        ? context.getColor(R.color.white_alpha_20)
-                        : TabUiThemeProvider.getFaviconBackgroundColor(
-                                context, /* isIncognito= */ false);
-        button.setBackgroundTint(ColorStateList.valueOf(bgTint));
+                        ? R.color.tab_strip_tsb_bg_incognito_tint_list
+                        : R.color.tab_strip_tsb_bg_tint_list;
+        button.setBackgroundTint(context.getColorStateList(bgTintRes));
 
         button.setTint(ChromeColors.getPrimaryIconTint(context, incognito).getDefaultColor());
         button.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
         button.setAccessibilityDescription(
                 res.getString(R.string.accessibility_search_loupe_tooltip_text));
-        button.setVisible(ChromeFeatureList.sTabSearchForAL.isEnabled());
+        button.setVisible(ChromeFeatureList.sTabSearchForDesktop.isEnabled());
         return button;
     }
 
@@ -2343,7 +2343,7 @@ public class StripLayoutHelper
             return;
         }
 
-        // Get the bounding box of all strip views (excludes new tab and model selector buttons).
+        // Get the bounding box of all strip views (excludes new tab and trailing buttons).
         StripLayoutView firstStripView = mStripViews[0];
         StripLayoutView lastStripView = mStripViews[mStripViews.length - 1];
 
@@ -2504,8 +2504,6 @@ public class StripLayoutHelper
      */
     public void onLongPress(float x, float y) {
         resetTabCloseButtonPressedState();
-        // TODO(crbug.com/485925830): Refactor to a long-press handler, similar to the existing
-        //  click handler.
         StripLayoutView stripView = determineClickedView(x, y, /* buttons= */ 0);
 
         if (stripView == null) {
@@ -2521,7 +2519,7 @@ public class StripLayoutHelper
             mDelayedReorderView = stripView;
             mDelayedReorderInitialX = x;
         }
-        showContextMenu(stripView);
+        stripView.handleLongClick();
     }
 
     /** Returns {@code true} if a context menu triggered from long-pressing a view is showing. */
@@ -2659,7 +2657,8 @@ public class StripLayoutHelper
                             mSnackbarManager,
                             mActivityResultTracker,
                             mWindowAndroid.getModalDialogManager(),
-                            TabClosingSource.TABLET_TAB_STRIP);
+                            TabClosingSource.TABLET_TAB_STRIP,
+                            mCanActivateTabLayoutToggleMenuSupplier);
         }
         RectProvider anchorRectProvider = new RectProvider();
         anchorTab.getAnchorRect(anchorRectProvider.getRect());
@@ -2870,7 +2869,7 @@ public class StripLayoutHelper
             // Check whether the close button on the hovered tab is being hovered on.
             StripLayoutTabDelegate.updateTabCloseHoverState(hoveredTab, x, y);
         } else {
-            // Check whether the model selector, Glic, or new tab button is being hovered.
+            // Check whether the new tab or tab search button is being hovered.
             updateCompositorButtonHoverState(x, y, isTrailingButtonHovered);
         }
         mUpdateHost.requestUpdate();
@@ -2884,7 +2883,7 @@ public class StripLayoutHelper
      * @param isTrailingButtonHovered Whether a trailing button was hovered.
      */
     public void onHoverMove(float x, float y, boolean isTrailingButtonHovered) {
-        // Check whether the model selector, Glic, or new tab button is being hovered.
+        // Check whether the new tab or tab search button is being hovered.
         updateCompositorButtonHoverState(x, y, isTrailingButtonHovered);
 
         StripLayoutTab hoveredTab = getTabAtPosition(x);
@@ -2906,7 +2905,7 @@ public class StripLayoutHelper
         // TODO(crbug.com/419015257): Use inTabStrip to delay resize on tab close from mouse.
         clearLastHoveredTab();
 
-        // Clear tab strip button (NTB and MSB) hover state.
+        // Clear tab strip button hover state.
         clearCompositorButtonHoverStateIfNotClicked();
 
         // Trigger a resize, as the pointer has left the strip, and we no longer need to suppress.
@@ -2953,26 +2952,16 @@ public class StripLayoutHelper
         }
     }
 
-    /** Check whether the model selector or new tab button is being hovered. */
+    /** Check whether the new tab or tab search button is being hovered. */
     private void updateCompositorButtonHoverState(
             float x, float y, boolean isTrailingButtonHovered) {
-        boolean isModelSelectorHovered =
-                !isTrailingButtonHovered
-                        && mModelSelectorButton != null
-                        && mModelSelectorButton.checkClickedOrHovered(x, y);
         boolean isNewTabHovered =
-                !isTrailingButtonHovered
-                        && !isModelSelectorHovered
-                        && mNewTabButton.checkClickedOrHovered(x, y);
+                !isTrailingButtonHovered && mNewTabButton.checkClickedOrHovered(x, y);
         boolean isTabSearchHovered =
                 !isTrailingButtonHovered
-                        && !isModelSelectorHovered
                         && !isNewTabHovered
                         && mTabSearchButton.checkClickedOrHovered(x, y);
 
-        if (mModelSelectorButton != null && !isModelSelectorHovered) {
-            mModelSelectorButton.setHovered(false);
-        }
         if (!isNewTabHovered) {
             mNewTabButton.setHovered(false);
         }
@@ -2980,13 +2969,9 @@ public class StripLayoutHelper
             mTabSearchButton.setHovered(false);
         }
 
-        // There's a delay in updating NTB's position/touch target when the MSB
-        // initially appears on the strip, taking over NTB's position and moving NTB closer to the
-        // tabs. Consequently, hover highlights can be observed on multiple buttons. To address
-        // this, we allow only one button to be hovered at a time.
-        if (isModelSelectorHovered) {
-            assumeNonNull(mModelSelectorButton).setHovered(true);
-        } else if (isNewTabHovered) {
+        // Hover highlights can be observed on multiple buttons. To address this, we allow only one
+        // button to be hovered at a time.
+        if (isNewTabHovered) {
             mNewTabButton.setHovered(true);
         } else if (isTabSearchHovered) {
             mTabSearchButton.setHovered(true);
@@ -2995,9 +2980,6 @@ public class StripLayoutHelper
 
     /** Clear button hover state */
     private void clearCompositorButtonHoverStateIfNotClicked() {
-        if (mModelSelectorButton != null) {
-            mModelSelectorButton.setHovered(false);
-        }
         mNewTabButton.setHovered(false);
         mTabSearchButton.setHovered(false);
     }
@@ -3286,6 +3268,11 @@ public class StripLayoutHelper
         clearMultiSelection(/* clearAnchor= */ true, /* notifyObservers= */ true);
     }
 
+    @Override
+    public void onLongClick(StripLayoutView view) {
+        showContextMenu(view);
+    }
+
     private void handleTabSearchClick() {
         mLeadingButtonDelegate.onTabSearchClicked();
     }
@@ -3372,7 +3359,8 @@ public class StripLayoutHelper
                             mMultiInstanceManager,
                             mWindowAndroid,
                             mSnackbarManager,
-                            () -> handleNewTabClick(NewTabSource.EMPTY_SPACE_CONTEXT_MENU));
+                            () -> handleNewTabClick(NewTabSource.EMPTY_SPACE_CONTEXT_MENU),
+                            mCanActivateTabLayoutToggleMenuSupplier);
         }
 
         // Determine the anchor view rect to position the menu.
@@ -4355,6 +4343,8 @@ public class StripLayoutHelper
                 new StripLayoutGroupTitle(
                         mContext,
                         /* delegate= */ this,
+                        /* clickHandler= */ this,
+                        /* longClickHandler= */ this,
                         /* keyboardFocusHandler= */ this,
                         /* accessibilityFocusHandler= */ this,
                         mIncognito,
@@ -4608,6 +4598,7 @@ public class StripLayoutHelper
                         mContext,
                         Tab.INVALID_TAB_ID,
                         /* clickHandler= */ this,
+                        /* longClickHandler= */ this,
                         /* keyboardFocusHandler= */ this,
                         /* accessibilityFocusHandler= */ this,
                         mTabLoadTrackerHost,
@@ -4636,6 +4627,7 @@ public class StripLayoutHelper
                         mContext,
                         id,
                         /* clickHandler= */ this,
+                        /* longClickHandler= */ this,
                         /* keyboardFocusHandler= */ this,
                         /* accessibilityFocusHandler= */ this,
                         mTabLoadTrackerHost,
@@ -5090,7 +5082,7 @@ public class StripLayoutHelper
     private float calculateDeltaToMakeViewVisible(@Nullable StripLayoutView view) {
         if (view == null) return 0.f;
         // These are always in view.
-        if (view.equals(mNewTabButton) || view.equals(mModelSelectorButton)) return 0.f;
+        if (view.equals(mNewTabButton)) return 0.f;
         if (view instanceof StripLayoutTab tab && tab.getIsPinned()) return 0.f;
 
         // 1. Calculate the bounds to fully show the regular view on the left/right side of the
@@ -5173,24 +5165,6 @@ public class StripLayoutHelper
                         endOpacity,
                         ANIM_BUTTONS_FADE_MS)
                 .start();
-        CompositorAnimator.ofFloatProperty(
-                        mUpdateHost.getAnimationHandler(),
-                        mTabSearchButton,
-                        CompositorButton.OPACITY,
-                        mTabSearchButton.getOpacity(),
-                        endOpacity,
-                        ANIM_BUTTONS_FADE_MS)
-                .start();
-        if (mModelSelectorButton != null) {
-            CompositorAnimator.ofFloatProperty(
-                            mUpdateHost.getAnimationHandler(),
-                            mModelSelectorButton,
-                            CompositorButton.OPACITY,
-                            mModelSelectorButton.getOpacity(),
-                            endOpacity,
-                            ANIM_BUTTONS_FADE_MS)
-                    .start();
-        }
         if (mTrailingButtonDelegate != null) {
             mTrailingButtonDelegate.fadeCompositorButtons(visible);
         }

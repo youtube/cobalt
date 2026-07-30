@@ -6,18 +6,19 @@
 #define COMPONENTS_MULTISTEP_FILTER_CORE_MULTISTEP_FILTER_UTIL_H_
 
 #include <string>
+#include <string_view>
 
 class GURL;
 
 namespace multistep_filter {
 
+// Returns the eTLD+1 for `host`. If it doesn't exist,
+// returns `host` itself.
+std::string GetEtldPlusOneForHost(std::string_view host);
+
 // Returns the eTLD+1 for `url`. If it doesn't exist,
 // returns the host.
 std::string GetEtldPlusOne(const GURL& url);
-
-// Returns true if `url` is allowed by the `kMultistepFilterAllowedDomains`
-// feature param.
-bool IsUrlAllowed(const GURL& url);
 
 // Returns true if `url` and `other` have the same eTLD+1 or host.
 bool IsSameDomainOrHost(const GURL& url, const GURL& other);

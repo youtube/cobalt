@@ -105,6 +105,11 @@ public class HubToolbarCoordinator {
                 activity.getString(R.string.accessibility_tab_switcher_toolbar_btn_menu));
         menuButtonCoordinator.setMenuButton(mMenuButton);
 
+        ImageButton closeButton = hubToolbarView.findViewById(R.id.toolbar_close_button);
+        if (closeButton != null) {
+            closeButton.setOnClickListener(v -> exitHubRunnable.run());
+        }
+
         mIsAnimatingSupplier.addSyncObserver(mIsAnimatingObserver);
     }
 
@@ -135,6 +140,20 @@ public class HubToolbarCoordinator {
     /** Returns the button view for a given pane if present. */
     public @Nullable View getPaneButton(@PaneId int paneId) {
         return mMediator.getButton(paneId);
+    }
+
+    /** Set the scroll position and offset of the pane switcher. */
+    public void setPaneSwitcherScrollPosition(int position, float positionOffset) {
+        mHubToolbarView.setPaneSwitcherScrollPosition(position, positionOffset);
+    }
+
+    /**
+     * Blocks or unblocks tab selection callbacks during active swipe-to-switch gestures to prevent
+     * intermediate scroll position changes or simultaneous taps from firing extra pane selection
+     * events while a gesture is active.
+     */
+    public void setBlockTabSelectionCallback(boolean block) {
+        mHubToolbarView.setBlockTabSelectionCallback(block);
     }
 
     /** Returns whether the search box view is currently visible. */

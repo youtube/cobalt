@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/webui/policy_indicator_localized_strings_provider.h"
 #include "chrome/browser/ui/webui/sanitized_image/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/settings/safety_hub_handler.h"
+#include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -687,6 +688,11 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       base::FeatureList::IsEnabled(
           password_manager::features::kEnablePasswordManagerMojoApi));
 
+  source->AddBoolean(
+      "enablePasswordManagerMojoApiPhase2",
+      base::FeatureList::IsEnabled(
+          password_manager::features::kEnablePasswordManagerMojoApiPhase2));
+
   source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
                                             ? "webui-refresh-2026"
                                             : "");
@@ -694,6 +700,7 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
   content::URLDataSource::Add(
       profile, std::make_unique<FaviconSource>(
                    profile, chrome::FaviconUrlFormat::kFavicon2));
+  content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 
   return source;
 }
@@ -793,7 +800,7 @@ PasswordManagerUI::PasswordManagerUI(content::WebUI* web_ui)
   web_ui->AddMessageHandler(std::make_unique<ExtensionControlHandler>());
   web_ui->AddMessageHandler(std::make_unique<SafetyHubHandler>(profile));
   web_ui->AddMessageHandler(
-      std::make_unique<password_manager::PromoCardsHandler>(profile));
+      std::make_unique<password_manager::NotificationCardsHandler>(profile));
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   web_ui->AddMessageHandler(std::make_unique<settings::PasskeysHandler>());
 #endif

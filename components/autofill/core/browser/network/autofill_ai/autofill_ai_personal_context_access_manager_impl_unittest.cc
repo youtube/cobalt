@@ -11,11 +11,14 @@
 #include "base/containers/to_vector.h"
 #include "base/scoped_observation.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/gmock_move_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/network/autofill_ai/autofill_ai_personal_context_access_manager_impl_test_api.h"
 #include "components/autofill/core/browser/network/autofill_ai/personal_context_conversion_util.h"
 #include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
@@ -218,6 +221,31 @@ class AutofillAiPersonalContextAccessManagerImplTest : public testing::Test {
     access_manager().PrefetchContext(requested_types);
   }
 
+  // Prefetches a single masked Passport entity and returns its GUID.
+  EntityInstance::EntityId PrefetchMaskedPassportAndGetGuid(
+      std::string_view passport_number = "P123") {
+    personal_context::proto::ContextMemoryAmbientAutofillResponse
+        presence_response;
+    presence_response.add_entities()
+        ->mutable_sensitive_pii_presence()
+        ->set_type(SensitivePiiPresence::PASSPORT);
+    personal_context::proto::ContextMemoryAmbientAutofillResponse spii_response;
+    spii_response.add_entities()->mutable_passport()->set_number(
+        std::string(passport_number));
+
+    std::vector<EntityInstance> entities;
+    EXPECT_CALL(mock_observer(),
+                OnPrefetchContextComplete(_, Optional(IsEmpty())));
+    EXPECT_CALL(mock_observer(),
+                OnPrefetchContextComplete(_, Optional(Not(IsEmpty()))))
+        .WillOnce(SaveOptSpanToVector<1>(&entities));
+    PrefetchContextSync({EntityType(EntityTypeName::kPassport)},
+                        {EntityType(EntityTypeName::kPassport)},
+                        presence_response, spii_response);
+    CHECK_EQ(entities.size(), 1u);
+    return entities[0].guid();
+  }
+
  protected:
   TestingPrefServiceSimple pref_service_;
 
@@ -357,6 +385,382 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest, PrefetchContextFailure) {
   access_manager().PrefetchContext(requested_types);
   EXPECT_FALSE(
       access_manager().IsTypePrefetched(EntityType(EntityTypeName::kOrder)));
+}
+
+// Tests that trigger results (e.g. initiated, skipped due to fresh cache,
+// skipped due to backoff, skipped due to pending request in-flight) are
+// correctly logged.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchContextTriggerResultLogging) {
+  base::HistogramTester histogram_tester;
+  const std::vector<EntityType> requested_types = {
+      EntityType(EntityTypeName::kOrder)};
+
+  // Initial Prefetch (Cache Empty)
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      expected_response;
+  personal_context::proto::Entity* entity = expected_response.add_entities();
+  entity->mutable_order()->set_order_id("12345");
+
+  PrefetchContextSync(requested_types, {}, expected_response);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kInitiated,
+      1);
+
+  // Repeat Prefetch (Cache Fresh)
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kSkippedFreshCache,
+      1);
+
+  // Cache TTL Expired
+  FastForwardBy(base::Minutes(31));
+
+  personal_context::proto::Any any_presence_response;
+  expected_response.SerializeToString(any_presence_response.mutable_value());
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, _,
+          _, _))
+      .WillOnce(RunOnceCallback<3>(personal_context::FetchContextResult(
+          base::ok(std::move(any_presence_response)))));
+
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kInitiated,
+      2);
+
+  // Skipped in Backoff (After Failure)
+  FastForwardBy(base::Minutes(31));
+
+  personal_context::ContextMemoryError expected_error =
+      personal_context::ContextMemoryError::FromExecutionError(
+          personal_context::ContextMemoryError::ExecutionError::
+              kGenericFailure);
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, _,
+          _, _))
+      .WillOnce(RunOnceCallback<3>(personal_context::FetchContextResult(
+          base::unexpected(expected_error))));
+
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kInitiated,
+      3);
+
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kSkippedBackoff,
+      1);
+
+  // Skipped In-Flight (Request Pending)
+  // Fast forward out of backoff first to allow a new request to be initiated.
+  FastForwardBy(base::Minutes(31));
+
+  // Trigger a prefetch but do not complete the mock callback. This puts the
+  // request state in RequestStatus::kPending.
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, _,
+          _, _));
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kInitiated,
+      4);
+
+  // Call again while the previous request is still pending.
+  access_manager().PrefetchContext(requested_types);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kSkippedInFlight,
+      1);
+}
+
+// Tests that trigger results are only logged once per call to PrefetchContext,
+// even if multiple requested types yield the same result.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchContextTriggerResultLoggingMultipleTypes) {
+  base::HistogramTester histogram_tester;
+
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      expected_response;
+  personal_context::proto::Entity* entity = expected_response.add_entities();
+  entity->mutable_order()->set_order_id("12345");
+
+  // Since both types are initiated, we should only log `kInitiated` once.
+  PrefetchContextSync({EntityType(EntityTypeName::kOrder),
+                       EntityType(EntityTypeName::kPassport)},
+                      {EntityType(EntityTypeName::kPassport)},
+                      expected_response, expected_response);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.PersonalContext.Prefetch.TriggerResult",
+      AutofillAiPersonalContextAccessManagerImpl::PrefetchTriggerResult::
+          kInitiated,
+      1);
+}
+
+// Tests that request latency for fetching Non-SPII (masked) entities and
+// presence signals is correctly recorded.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchRequestLatencyLogging) {
+  base::HistogramTester histogram_tester;
+  const EntityType passport_type(EntityTypeName::kPassport);
+
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      presence_response;
+  personal_context::proto::ContextMemoryAmbientAutofillResponse spii_response;
+  spii_response.add_entities()->mutable_passport()->set_number("12345");
+
+  personal_context::proto::Any any_presence_response;
+  presence_response.SerializeToString(any_presence_response.mutable_value());
+
+  personal_context::proto::Any any_spii_response;
+  spii_response.SerializeToString(any_spii_response.mutable_value());
+
+  base::OnceCallback<void(personal_context::FetchContextResult)>
+      presence_callback;
+  base::OnceCallback<void(personal_context::FetchContextResult)> spii_callback;
+
+  // Expect the request for Non-SPII (masked) entities and SPII presence.
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL,
+          MatchContextFetchRequest(
+              std::vector<personal_context::proto::EntityType>{
+                  AutofillEntityTypeToPersonalContextEntityType(passport_type)},
+              true),
+          _, _))
+      .WillOnce(MoveArg<3>(&presence_callback));
+
+  // Expect the request to fetch SPII (masked) entities.
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL,
+          MatchContextFetchRequest(
+              std::vector<personal_context::proto::EntityType>{
+                  AutofillEntityTypeToPersonalContextEntityType(passport_type)},
+              false),
+          _, _))
+      .WillOnce(MoveArg<3>(&spii_callback));
+
+  // Trigger prefetch.
+  access_manager().PrefetchContext({passport_type});
+
+  // Fast forward by 100ms.
+  FastForwardBy(base::Milliseconds(100));
+
+  // Complete the Non-SPII and presence request.
+  std::move(presence_callback)
+      .Run(personal_context::FetchContextResult(
+          base::ok(std::move(any_presence_response))));
+
+  // Verify NonSpiiAndPresence latency is recorded.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Autofill.Ai.PersonalContext.RequestLatency.PrefetchNonSpiiAndPresence",
+      base::Milliseconds(100), 1);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.Ai.PersonalContext.RequestLatency.PrefetchSpiiMasked", 0);
+
+  // Fast forward by another 50ms (total 150ms).
+  FastForwardBy(base::Milliseconds(50));
+
+  // Complete the SPII masked data request.
+  std::move(spii_callback)
+      .Run(personal_context::FetchContextResult(
+          base::ok(std::move(any_spii_response))));
+
+  // Verify SpiiMasked latency is recorded.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Autofill.Ai.PersonalContext.RequestLatency.PrefetchSpiiMasked",
+      base::Milliseconds(150), 1);
+  histogram_tester.ExpectTotalCount(
+      "Autofill.Ai.PersonalContext.RequestLatency.PrefetchNonSpiiAndPresence",
+      1);
+}
+
+// Tests that request latency for unmasking sensitive PII entities is correctly
+// recorded.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       GetUnmaskedSpiiEntityRequestLatencyLogging) {
+  base::HistogramTester histogram_tester;
+  // Prefetch passport.
+  const std::vector<EntityType> requested_types = {
+      EntityType(EntityTypeName::kPassport)};
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      presence_response;
+  presence_response.add_entities()->mutable_sensitive_pii_presence()->set_type(
+      personal_context::proto::SensitivePiiPresence::PASSPORT);
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      expected_response;
+  personal_context::proto::Entity* entity = expected_response.add_entities();
+  entity->mutable_passport()->set_number("P123");
+
+  std::vector<EntityInstance> entities;
+  EXPECT_CALL(mock_observer(),
+              OnPrefetchContextComplete(_, Optional(IsEmpty())));
+  EXPECT_CALL(mock_observer(),
+              OnPrefetchContextComplete(_, Optional(Not(IsEmpty()))))
+      .WillOnce(SaveOptSpanToVector<1>(&entities));
+  PrefetchContextSync(requested_types, requested_types, presence_response,
+                      expected_response);
+
+  ASSERT_EQ(entities.size(), 1u);
+  EntityInstance::EntityId passport_guid = entities[0].guid();
+
+  base::OnceCallback<void(personal_context::FetchPiiEntitiesResult)> callback;
+  EXPECT_CALL(mock_personal_context_service(), FetchPiiEntities(_, _, _))
+      .WillOnce(MoveArg<2>(&callback));
+
+  base::test::TestFuture<std::optional<EntityInstance>> future;
+  access_manager().GetUnmaskedSpiiEntity(passport_guid, future.GetCallback());
+
+  // Fast forward by 456ms.
+  FastForwardBy(base::Milliseconds(456));
+
+  personal_context::proto::FetchPiiEntitiesResponse pii_response;
+  *pii_response.add_entities() = *entity;
+  std::move(callback).Run(personal_context::FetchPiiEntitiesResult(
+      base::ok(std::move(pii_response))));
+
+  ASSERT_TRUE(future.Get().has_value());
+  histogram_tester.ExpectUniqueTimeSample(
+      "Autofill.Ai.PersonalContext.RequestLatency.SpiiUnmasking",
+      base::Milliseconds(456), 1);
+}
+
+// Tests that total prefetch latency for Non-SPII entity types (which only
+// require a single request) is correctly recorded.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchTotalLatencyLogging_NonSpii) {
+  base::HistogramTester histogram_tester;
+  const std::vector<EntityType> requested_types = {
+      EntityType(EntityTypeName::kOrder)};
+
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      expected_response;
+  personal_context::proto::Entity* entity = expected_response.add_entities();
+  entity->mutable_order()->set_order_id("12345");
+
+  personal_context::proto::Any any_presence_response;
+  expected_response.SerializeToString(any_presence_response.mutable_value());
+
+  base::OnceCallback<void(personal_context::FetchContextResult)> callback;
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, _,
+          _, _))
+      .WillOnce(MoveArg<3>(&callback));
+
+  // Trigger prefetch.
+  access_manager().PrefetchContext(requested_types);
+
+  // Fast forward by 123 milliseconds.
+  base::TimeDelta latency = base::Milliseconds(123);
+  FastForwardBy(latency);
+
+  // Complete the request.
+  std::move(callback).Run(personal_context::FetchContextResult(
+      base::ok(std::move(any_presence_response))));
+
+  // Verify that the total latency is recorded to the histogram.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Autofill.Ai.PersonalContext.Prefetch.TotalLatency.Order", latency, 1);
+}
+
+// Tests that total prefetch latency for SPII entity types (which require
+// two requests to complete) is correctly recorded when the final request
+// completes.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchTotalLatencyLogging_Spii) {
+  base::HistogramTester histogram_tester;
+  const EntityType passport_type(EntityTypeName::kPassport);
+
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      presence_response;
+  personal_context::proto::ContextMemoryAmbientAutofillResponse spii_response;
+  spii_response.add_entities()->mutable_passport()->set_number("12345");
+
+  personal_context::proto::Any any_presence_response;
+  presence_response.SerializeToString(any_presence_response.mutable_value());
+
+  personal_context::proto::Any any_spii_response;
+  spii_response.SerializeToString(any_spii_response.mutable_value());
+
+  base::OnceCallback<void(personal_context::FetchContextResult)>
+      presence_callback;
+  base::OnceCallback<void(personal_context::FetchContextResult)> spii_callback;
+
+  // Expect Request 1 (collects presence).
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL,
+          MatchContextFetchRequest(
+              std::vector<personal_context::proto::EntityType>{
+                  AutofillEntityTypeToPersonalContextEntityType(passport_type)},
+              true),
+          _, _))
+      .WillOnce(MoveArg<3>(&presence_callback));
+
+  // Expect Request 2 (collects actual SPII entities).
+  EXPECT_CALL(
+      mock_personal_context_service(),
+      FetchContext(
+          personal_context::proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL,
+          MatchContextFetchRequest(
+              std::vector<personal_context::proto::EntityType>{
+                  AutofillEntityTypeToPersonalContextEntityType(passport_type)},
+              false),
+          _, _))
+      .WillOnce(MoveArg<3>(&spii_callback));
+
+  // Trigger prefetch.
+  access_manager().PrefetchContext({passport_type});
+
+  // Fast forward by 100ms.
+  FastForwardBy(base::Milliseconds(100));
+
+  // Complete Request 1 (collects presence signals).
+  std::move(presence_callback)
+      .Run(personal_context::FetchContextResult(
+          base::ok(std::move(any_presence_response))));
+
+  // Total latency is not logged yet.
+  histogram_tester.ExpectTotalCount(
+      "Autofill.Ai.PersonalContext.Prefetch.TotalLatency.Passport", 0);
+
+  // Fast forward by another 50ms (total 150ms).
+  FastForwardBy(base::Milliseconds(50));
+
+  // Complete Request 2 (collects actual entities).
+  std::move(spii_callback)
+      .Run(personal_context::FetchContextResult(
+          base::ok(std::move(any_spii_response))));
+
+  // Verify that the total prefetch latency (150ms) is recorded.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Autofill.Ai.PersonalContext.Prefetch.TotalLatency.Passport",
+      base::Milliseconds(150), 1);
 }
 
 // Tests that PrefetchContext marks requested types as prefetched even when the
@@ -712,7 +1116,11 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
 
   // No service call expected.
   EXPECT_CALL(mock_personal_context_service(), FetchPiiEntities).Times(0);
+  base::HistogramTester histogram_tester;
   EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport.guid()), passport);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kCacheHit, 1);
 }
 
 // Tests that GetUnmaskedSpiiEntity triggers a service call on cache miss
@@ -751,6 +1159,7 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
       .WillOnce(RunOnceCallback<2>(personal_context::FetchPiiEntitiesResult(
           base::ok(std::move(expected_response)))));
 
+  base::HistogramTester histogram_tester;
   // Call GetUnmaskedSpiiEntity.
   {
     std::optional<EntityInstance> result =
@@ -764,6 +1173,9 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
             ->GetCompleteRawInfo(),
         u"P123_UNMASKED");
   }
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kSuccess, 1);
 
   // Verify that the unmasked passport is now cached in the unmasked cache by
   // calling `GetUnmaskedSpiiEntitySync` again and ensuring no service call
@@ -776,6 +1188,9 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
     EXPECT_EQ(cached_result->guid(), passport_masked.guid());
     EXPECT_FALSE(cached_result->IsMaskedEntity());
   }
+  histogram_tester.ExpectBucketCount(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kCacheHit, 1);
 }
 
 // Tests that `GetUnmaskedSpiiEntity` returns `std::nullopt` immediately
@@ -786,7 +1201,10 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
 
   // No service call expected because it's not prefetched.
   EXPECT_CALL(mock_personal_context_service(), FetchPiiEntities).Times(0);
+  base::HistogramTester histogram_tester;
   EXPECT_EQ(GetUnmaskedSpiiEntitySync(unknown_id), std::nullopt);
+  histogram_tester.ExpectTotalCount("Autofill.Ai.Unmask.Result.PersonalContext",
+                                    0);
 }
 
 // Tests that `GetUnmaskedSpiiEntity` returns `std::nullopt` if the service call
@@ -821,7 +1239,51 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
       .WillOnce(RunOnceCallback<2>(personal_context::FetchPiiEntitiesResult(
           base::unexpected(expected_error))));
 
+  base::HistogramTester histogram_tester;
   EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport_guid), std::nullopt);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kNetworkError, 1);
+}
+
+// Tests that when the service call returns a 200 OK with no entities,
+// kEmptyResponse is logged to the Unmask.Result metric.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       GetUnmaskedSpiiEntity_EmptyResponse) {
+  EntityInstance::EntityId passport_guid = PrefetchMaskedPassportAndGetGuid();
+
+  personal_context::proto::FetchPiiEntitiesResponse empty_response;
+
+  EXPECT_CALL(mock_personal_context_service(), FetchPiiEntities(_, _, _))
+      .WillOnce(RunOnceCallback<2>(personal_context::FetchPiiEntitiesResult(
+          base::ok(std::move(empty_response)))));
+
+  base::HistogramTester histogram_tester;
+  EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport_guid), std::nullopt);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kEmptyResponse, 1);
+}
+
+// Tests that when the service call returns a ResponseParseError,
+// kParsingError is logged to the Unmask.Result metric.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       GetUnmaskedSpiiEntity_ResponseParseError) {
+  EntityInstance::EntityId passport_guid = PrefetchMaskedPassportAndGetGuid();
+
+  using personal_context::ContextMemoryError;
+  ContextMemoryError expected_error = ContextMemoryError::FromExecutionError(
+      ContextMemoryError::ExecutionError::kResponseParseError);
+
+  EXPECT_CALL(mock_personal_context_service(), FetchPiiEntities(_, _, _))
+      .WillOnce(RunOnceCallback<2>(personal_context::FetchPiiEntitiesResult(
+          base::unexpected(expected_error))));
+
+  base::HistogramTester histogram_tester;
+  EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport_guid), std::nullopt);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Ai.Unmask.Result.PersonalContext",
+      AutofillAiUnmaskResult::kParsingError, 1);
 }
 
 // Tests that when OnEligibilityStateChanged is called with a disabled state,
@@ -1119,6 +1581,98 @@ TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
   // 2. Call Prefetch again. Expect observer to be notified synchronously.
   EXPECT_CALL(observer, OnPrefetchContextComplete(_, Optional(IsEmpty())));
   access_manager().PrefetchContext({EntityType(EntityTypeName::kPassport)});
+}
+
+// Tests that unmasked SPII entities are cached with a configurable TTL.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       CacheUnmaskedSpiiEntity_TTL_Configurable) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAmbientAutofill,
+      {{features::kAutofillAmbientAutofillUnmaskedSpiiCacheTTL.name, "2m"}});
+
+  EntityInstance passport = test::GetPassportEntityInstance(
+      {.record_type = EntityInstance::RecordType::kPersonalContext});
+
+  test_api(access_manager()).CacheUnmaskedSpiiEntity(passport);
+  EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport.guid()), passport);
+
+  // Fast forward 90 seconds (still valid, past the default 1-min TTL).
+  FastForwardBy(base::Seconds(90));
+  EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport.guid()), passport);
+
+  // Fast forward another 31 seconds (expired, Total T = 121s).
+  FastForwardBy(base::Seconds(31));
+  EXPECT_EQ(GetUnmaskedSpiiEntitySync(passport.guid()), std::nullopt);
+}
+
+// Tests that presence signals are cached with a configurable TTL.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       CachePresenceSignal_TTL_Configurable) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAmbientAutofill,
+      {{features::kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL
+            .name,
+        "10m"}});
+
+  const EntityType passport_type(EntityTypeName::kPassport);
+
+  test_api(access_manager()).CachePresenceSignal(passport_type);
+  EXPECT_TRUE(test_api(access_manager()).IsPresenceSignalCached(passport_type));
+
+  // Fast forward 5 minutes (still valid).
+  FastForwardBy(base::Minutes(5));
+  EXPECT_TRUE(test_api(access_manager()).IsPresenceSignalCached(passport_type));
+
+  // Fast forward another 6 minutes (expired, Total T = 11m, past the 10m TTL).
+  FastForwardBy(base::Minutes(6));
+  EXPECT_FALSE(
+      test_api(access_manager()).IsPresenceSignalCached(passport_type));
+}
+
+// Tests that PrefetchContext uses the configurable TTL for cache freshness.
+TEST_F(AutofillAiPersonalContextAccessManagerImplTest,
+       PrefetchContext_TTL_Configurable) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAmbientAutofill,
+      {{features::kAutofillAmbientAutofillPrefetchedEntitiesAndSignalsCacheTTL
+            .name,
+        "10m"}});
+
+  personal_context::proto::ContextMemoryAmbientAutofillResponse
+      presence_response;
+  presence_response.add_entities()->mutable_sensitive_pii_presence()->set_type(
+      SensitivePiiPresence::PASSPORT);
+  personal_context::proto::ContextMemoryAmbientAutofillResponse spii_response;
+  spii_response.add_entities()->mutable_passport()->set_number("P123");
+
+  // 1. Initial prefetch at T = 0.
+  PrefetchContextSync({EntityType(EntityTypeName::kPassport)},
+                      {EntityType(EntityTypeName::kPassport)},
+                      presence_response, spii_response);
+  EXPECT_TRUE(
+      access_manager().IsTypePrefetched(EntityType(EntityTypeName::kPassport)));
+
+  // Fast forward 5 minutes (Passport still valid).
+  FastForwardBy(base::Minutes(5));
+  EXPECT_TRUE(
+      access_manager().IsTypePrefetched(EntityType(EntityTypeName::kPassport)));
+
+  // 2. Trigger a follow-up prefetch request for Passport at T = 5.
+  // Since the cache is still valid, no network request should be made.
+  EXPECT_CALL(mock_personal_context_service(), FetchContext).Times(0);
+  access_manager().PrefetchContext({EntityType(EntityTypeName::kPassport)});
+
+  // Fast forward another 6 minutes (Total T = 11, past the 10-min TTL).
+  // The original eviction task should have fired at T = 10 and cleared the
+  // cache.
+  EXPECT_CALL(mock_observer(), OnMaskedEntityTypeEvicted(
+                                   _, EntityType(EntityTypeName::kPassport)));
+  FastForwardBy(base::Minutes(6));
+  EXPECT_FALSE(
+      access_manager().IsTypePrefetched(EntityType(EntityTypeName::kPassport)));
 }
 
 // Tests that the state is reset when the personal context settings toggle is

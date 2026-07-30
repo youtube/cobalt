@@ -5,7 +5,7 @@
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button.h"
 
 #import "ios/chrome/browser/location_bar/ui_bundled/highlight_utils.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/elements/blue_dot_util.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_constants.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_buttons_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -15,9 +15,6 @@
 namespace {
 
 constexpr CGFloat kDisabledOpacity = 0.4;
-constexpr CGFloat kBlueDotRadius = 3;
-constexpr CGFloat kBlueDotMargin = 1;
-constexpr CGFloat kBlueDotWhiteBorderThickness = 2;
 
 // Returns the tint color to be used in the normal mode.
 UIColor* NormalTintColor() {
@@ -41,7 +38,6 @@ UIColor* NormalTintColor() {
 }
 
 @synthesize image = _image;
-@synthesize backgroundBlurView = _backgroundBlurView;
 
 - (instancetype)initWithImageLoader:(ToolbarButtonImageLoader)imageLoader
                           incognito:(BOOL)incognito {
@@ -54,34 +50,16 @@ UIColor* NormalTintColor() {
       [self.heightAnchor constraintEqualToConstant:kToolbarButtonSize],
     ]];
 
-    if (IsToolbarGlassPrototypeEnabled()) {
-      UIBlurEffect* blurEffect = [UIBlurEffect
-          effectWithStyle:incognito
-                              ? UIBlurEffectStyleSystemUltraThinMaterialDark
-                              : UIBlurEffectStyleSystemUltraThinMaterial];
-      _backgroundBlurView =
-          [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-      _backgroundBlurView.translatesAutoresizingMaskIntoConstraints = NO;
-      _backgroundBlurView.userInteractionEnabled = NO;
-      _backgroundBlurView.clipsToBounds = YES;
-      [self insertSubview:_backgroundBlurView belowSubview:self.imageView];
-      AddSameConstraints(self, _backgroundBlurView);
+    _backgroundView = [[UIView alloc] initWithFrame:CGRectZero];
+    _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+    _backgroundView.backgroundColor = ToolbarElementBackgroundColor(incognito);
+    _backgroundView.userInteractionEnabled = NO;
+    _backgroundView.clipsToBounds = YES;
+    [self insertSubview:_backgroundView belowSubview:self.imageView];
+    AddSameConstraints(self, _backgroundView);
 
-      ConfigureCornerRadiusForToolbarButtonContainer(_backgroundBlurView,
-                                                     self.traitCollection);
-    } else {
-      _backgroundView = [[UIView alloc] initWithFrame:CGRectZero];
-      _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
-      _backgroundView.backgroundColor =
-          ToolbarElementBackgroundColor(incognito);
-      _backgroundView.userInteractionEnabled = NO;
-      _backgroundView.clipsToBounds = YES;
-      [self insertSubview:_backgroundView belowSubview:self.imageView];
-      AddSameConstraints(self, _backgroundView);
-
-      ConfigureCornerRadiusForToolbarButtonContainer(_backgroundView,
-                                                     self.traitCollection);
-    }
+    ConfigureCornerRadiusForToolbarButtonContainer(_backgroundView,
+                                                   self.traitCollection);
 
     ConfigureShadowForToolbarElement(self);
 
@@ -164,24 +142,9 @@ UIColor* NormalTintColor() {
   }
   _hasBlueDot = hasBlueDot;
   if (hasBlueDot && !_blueDotView) {
-    _blueDotView = [[UIView alloc] initWithFrame:CGRectZero];
-    _blueDotView.translatesAutoresizingMaskIntoConstraints = NO;
-    _blueDotView.isAccessibilityElement = NO;
-    _blueDotView.backgroundColor = [UIColor colorNamed:kBlueColor];
-    _blueDotView.layer.cornerRadius = kBlueDotRadius;
     // Do not add the blue dot to the background as the background will be
     // masked.
-    [self insertSubview:_blueDotView belowSubview:self.imageView];
-
-    [NSLayoutConstraint activateConstraints:@[
-      [_blueDotView.widthAnchor constraintEqualToConstant:2 * kBlueDotRadius],
-      [_blueDotView.heightAnchor
-          constraintEqualToAnchor:_blueDotView.widthAnchor],
-      [_blueDotView.topAnchor constraintEqualToAnchor:self.topAnchor
-                                             constant:kBlueDotMargin],
-      [_blueDotView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor
-                                                  constant:-kBlueDotMargin],
-    ]];
+    _blueDotView = ConfigureAndAddBlueDotView(self);
   }
   _blueDotView.hidden = !hasBlueDot;
   if (hasBlueDot) {
@@ -195,24 +158,13 @@ UIColor* NormalTintColor() {
 
 #pragma mark - Private
 
-// Returns the active background container view.
-- (UIView*)backgroundContainer {
-  return IsToolbarGlassPrototypeEnabled() ? _backgroundBlurView
-                                          : _backgroundView;
-}
-
 // Updates the highlight visibility.
 - (void)updateHighlight {
   if (_iphHighlighted && !_hasBlueDot) {
     if (!_gradientView) {
       _gradientView = CreateIPHGradientView();
-      if (IsToolbarGlassPrototypeEnabled()) {
-        [_backgroundBlurView.contentView addSubview:_gradientView];
-        AddSameConstraints(_backgroundBlurView.contentView, _gradientView);
-      } else {
-        [_backgroundView addSubview:_gradientView];
-        AddSameConstraints(_backgroundView, _gradientView);
-      }
+      [_backgroundView addSubview:_gradientView];
+      AddSameConstraints(_backgroundView, _gradientView);
     }
     _gradientView.hidden = NO;
     ConfigureIPHImageStyleForImageView(self.imageView);
@@ -225,26 +177,7 @@ UIColor* NormalTintColor() {
 
 // Updates the mask on the background for the blue dot.
 - (void)updateMask {
-  UIView* container = [self backgroundContainer];
-  if (_hasBlueDot) {
-    CAShapeLayer* maskLayer = [CAShapeLayer layer];
-    UIBezierPath* path = [UIBezierPath bezierPathWithRect:container.bounds];
-    CGFloat centerX =
-        container.bounds.size.width - (kBlueDotMargin + kBlueDotRadius);
-    CGFloat centerY = kBlueDotMargin + kBlueDotRadius;
-    UIBezierPath* holePath = [UIBezierPath
-        bezierPathWithArcCenter:CGPointMake(centerX, centerY)
-                         radius:(kBlueDotWhiteBorderThickness + kBlueDotRadius)
-                     startAngle:0
-                       endAngle:2 * M_PI
-                      clockwise:YES];
-    [path appendPath:holePath];
-    maskLayer.path = path.CGPath;
-    maskLayer.fillRule = kCAFillRuleEvenOdd;
-    container.layer.mask = maskLayer;
-  } else {
-    container.layer.mask = nil;
-  }
+  UpdateBlueDotMaskForView(_backgroundView, _hasBlueDot);
 }
 
 // Updates the image visibility based on the visibility of the button.
@@ -296,7 +229,7 @@ UIColor* NormalTintColor() {
 // current size class of the UI. In windows with compact width, the
 // ToolbarButton should be square. Otherwise, they should be circular.
 - (void)updateShape {
-  ConfigureCornerRadiusForToolbarButtonContainer([self backgroundContainer],
+  ConfigureCornerRadiusForToolbarButtonContainer(_backgroundView,
                                                  self.traitCollection);
   [self updateMask];
 }

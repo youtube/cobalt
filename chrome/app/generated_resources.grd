@@ -301,6 +301,9 @@ are declared in tools/grit/grit_args.gni.
       <!-- Media Router specific strings -->
       <part file="media_router_strings.grdp" />
 
+      <!-- Notebooks specific strings -->
+      <part file="notebooks_strings.grdp" />
+
       <!-- Profiles specific strings -->
       <part file="profiles_strings.grdp" />
 
@@ -972,8 +975,8 @@ are declared in tools/grit/grit_args.gni.
             Help improve autofill
           </message>
           <!-- TODO(481979475): remove non translateable flag  -->
-          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY" desc="In Title Case: The name of Search and Fill From Anywhere command in the content area context menu" translateable="false">
-            Search and fill from anywhere
+          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY" desc="Main action pattern for enhanced autofill. It functions as a concise command in the content area context menu explaining that Chrome will locate relevant information and insert it into a form." translateable="false">
+            Find and fill
           </message>
           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD" desc="This is a context menu entry in the passwords submenu. It triggers the password selection bubble.">
             Select password
@@ -1325,8 +1328,8 @@ are declared in tools/grit/grit_args.gni.
             Help Improve Autofill
           </message>
           <!-- TODO(481979475): remove non translateable flag  -->
-          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY" desc="In Title Case: The name of Search and Fill From Anywhere command in the content area context menu" translateable="false">
-            Search and Fill From Anywhere
+          <message name="IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY" desc="In Title Case: Main action pattern for enhanced autofill. It functions as a concise command in the content area context menu explaining that Chrome will locate relevant information and insert it into a form." translateable="false">
+            Find and Fill
           </message>
           <!-- TODO(359570730): remove non translateable flag  -->
           <message name="IDS_CONTENT_CONTEXT_AUTOFILL_PREDICTION_IMPROVEMENTS" desc="In Title Case: The name of the Autofill manual fallback for payment methods attribute command in the content area context menu." translateable="false">
@@ -8616,10 +8619,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_ACTION_CHIP_CANVAS_BODY" desc="Body text in the canvas action chip describing the use of the chip.">
         Write, plan, code, and more
       </message>
-      <message name="IDS_NTP_ACTION_CHIP_STARTER_HEADING" desc="Heading of the conversation starter action chip on the NTP." translateable="false">
+      <message name="IDS_NTP_ACTION_CHIP_STARTER_HEADING" desc="Heading of the conversation starter action chip on the NTP.">
         Do more with AI Mode
       </message>
-      <message name="IDS_NTP_ACTION_CHIP_STARTER_BODY" desc="Body text in the conversation starter action chip describing the use of the chip." translateable="false">
+      <message name="IDS_NTP_ACTION_CHIP_STARTER_BODY" desc="Body text in the conversation starter action chip describing the use of the chip.">
         Create, plan, summarize
       </message>
       <message name="IDS_NTP_ACTION_CHIP_DISABLE_TEXT" desc="Text for menu option to disable action chip feature.">
@@ -8744,6 +8747,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_MODULES_DRIVE_SEE_MORE" desc="A label for the see more button in the Drive module.">
         See more
       </message>
+      <message name="IDS_NTP_MODULES_DRIVE_SEE_MORE_ACCNAME" is_accessibility_with_no_ui="true" desc="Screen reader announcement when the see more link is focused in the Drive module.">
+        See more in Google Drive
+      </message>
       <message name="IDS_NTP_MODULES_MICROSOFT_FILES_NAME" desc="Name of the Microsoft files module in sentence case shown in various UIs.">
         SharePoint and OneDrive files
       </message>
@@ -8838,7 +8844,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         See more
       </message>
       <message name="IDS_NTP_MODULES_CALENDAR_SEE_MORE_ACCNAME" is_accessibility_with_no_ui="true" desc="Screen reader announcement when the see more link is focused.">
-        See more meetings on your Calendar
+        See more in Google Calendar
       </message>
       <message name="IDS_NTP_MODULES_KALEIDOSCOPE_TITLE" desc="Title shown in the header of the Kaleidoscope module.">
         Top picks for you
@@ -8947,6 +8953,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_MODULES_MOST_RELEVANT_TAB_RESUMPTION_SEE_MORE" desc="A label for the see more button in the most relevant tab resumption module.">
         See more
+      </message>
+      <message name="IDS_NTP_MODULES_MOST_RELEVANT_TAB_RESUMPTION_SEE_MORE_ACCNAME" is_accessibility_with_no_ui="true" desc="Screen reader announcement when the see more link is focused.">
+        See more tabs
       </message>
       <message name="IDS_NTP_MODULES_MICROSOFT_AUTHENTICATION_NAME" desc="Name of the Microsoft Authentication module as shown in various UIs.">
         Microsoft Authentication
@@ -9596,6 +9605,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_APPEARANCE_LABEL" desc="Accessibility label for the appearance combobox of the reading mode feature.">
         Appearance
       </message>
+      <message name="IDS_READING_MODE_MEDIA_LABEL" desc="Accessibility label for the media combobox of the reading mode feature.">
+        Media
+      </message>
       <message name="IDS_READING_MODE_COLORS_COMBOBOX_LABEL" desc="Accessibility label for the colors combobox of the reading mode feature.">
         Color theme
       </message>
@@ -9619,6 +9631,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_READING_MODE_SPACING_COMBOBOX_VERY_WIDE" desc="Combobox option for setting letter spacing of text in the reading mode feature. Very wide means that letters are spaced very far apart.">
         Very wide
+      </message>
+      <message name="IDS_READING_MODE_TEXT_STYLE_LABEL" desc="Accessibility label for the text styling settings menu of the reading mode feature.">
+        Text
       </message>
       <message name="IDS_READING_MODE_DEFAULT_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature. This option corresponds to either the light or dark theme depending on the user's operating system theme.">
         Default
@@ -10877,6 +10892,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_EXTENSIONS_MENU_IPH_ENTRY_POINT_BODY" desc="">
         From here, you can see and manage extension permissions for the site you're on
       </message>
+      <if expr="enable_extensions_core">
+        <message name="IDS_EXTENSIONS_PINNED_BY_DEFAULT_IPH_BODY" desc="Body text for the promotional UI anchored to a newly installed extension showing that new extensions are pinned by default." formatter_data="android_java">
+          Newly added extensions are automatically pinned. Change this on the Extensions page.
+        </message>
+        <message name="IDS_EXTENSIONS_PINNED_BY_DEFAULT_IPH_GO_TO_EXTENSIONS" desc="Button text for the promotional UI anchored to a newly installed extension showing that new extensions are pinned by default. Clicking it takes the user to the Extensions settings page.">
+          Go to Extensions
+        </message>
+      </if>
       <message name="IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_IPH_ENTRY_POINT_TITLE" desc="Title text shown on promotional UI appearing when the request access button in the toolbar is visible.">
         {NUM_EXTENSIONS, plural,
           =1 {Choose if this extension can read or change this site}
@@ -13159,6 +13182,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_ANCHORED_MESSAGE_COLLAPSE_BUTTON_TOOLTIP" desc="Tooltip for the anchored message collapse button.">
           Hide details
         </message>
+        <message name="IDS_PAGE_ACTION_ANCHORED_MESSAGE_SHOWING" desc="Tooltip for a page action when its anchored message is showing.">
+          <ph name="ACTION_TOOLTIP">$1<ex>Bookmark this tab</ex></ph> - expanded contents shown
+        </message>
       <!-- /Page Action -->
 
       <!-- User Education -->
@@ -13703,19 +13729,16 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <if expr="use_titlecase">
         <then>
-          <message name="IDS_MENU_SEND_TAB_TO_SELF" desc="In Title Case: The label of a menu entry to share the current tab to other devices">
+          <message name="IDS_MENU_SEND_TAB_TO_SELF" desc="In Title Case: The label of a menu entry to share the current tab to another device">
             Send to Your &amp;Device
           </message>
         </then>
         <else>
-          <message name="IDS_MENU_SEND_TAB_TO_SELF" desc="The label of a menu entry to share the current tab to other devices">
+          <message name="IDS_MENU_SEND_TAB_TO_SELF" desc="The label of a menu entry to share the current tab to another device">
             Send to your &amp;device
           </message>
         </else>
       </if>
-      <message name="IDS_SEND_TAB_TO_SELF" desc="The title of an action or bubble letting the user share the current tab to other devices">
-        Send to your device
-      </message>
       <message name="IDS_SEND_TAB_TO_SELF_DEVICE_LABEL" desc="The label for a target device in the Send Tab to Self context menu, which includes the device name and its last active time.">
         <ph name="DEVICE_NAME">$1<ex>Pixel 9 Pro</ex></ph> (<ph name="LAST_ACTIVE_TIME">$2<ex>Active 5 mins ago</ex></ph>)
       </message>
@@ -13736,6 +13759,12 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_BODY" desc="Body label text of the send-tab-to-self sign-in promo bubble.">
         To send links between devices, ensure both are signed in to the same Google account.
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_VERIFY_ITS_YOU_PROMO_TITLE" desc="Title of the send-tab-to-self sign-in promo bubble when the user needs to verify their identity (reauthenticate).">
+        Send a link to another device
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_VERIFY_ITS_YOU_PROMO_LABEL" desc="Text when a user in the verify it's you (signin pending) state attempts to use send-tab-to-self.">
+        To send links, verify it’s you. You can send links when you’re signed in to the same Google Account on both devices.
       </message>
 
       <!-- Share via QR Code strings -->
@@ -13866,12 +13895,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE" desc="The label of item for click to call in context menu for showing device name when one device is available.">
           Call from <ph name="DEVICE_NAME">$1<ex>Jimmy's Pixel</ex></ph>
         </message>
-        <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES" desc="The label of item for shared clipboard in context menu when multiple devices are available.">
-          Copy to your device
-        </message>
-        <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE" desc="The label of item for shared clipboard in context menu for showing device name when one device is available.">
-          Copy to <ph name="DEVICE_NAME">$1<ex>Jimmy's Pixel</ex></ph>
-        </message>
         <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_NOTIFICATION_TITLE_UNKNOWN_DEVICE" desc="Title text displayed in a shared clipboard notification when the source device name is unknown.">
           Text shared from other device
         </message>
@@ -13892,12 +13915,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE" desc="In Title Case: The label of item for click to call in context menu when single device is available.">
           Call from <ph name="DEVICE_NAME">$1<ex>Jimmy's Pixel</ex></ph>
-        </message>
-        <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES" desc="In Title Case: The label of item for shared clipboard in context menu when multiple devices are available.">
-          Copy to Your Device
-        </message>
-        <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE" desc="In Title Case: The label of item for shared clipboard in context menu when single device is available.">
-          Copy to <ph name="DEVICE_NAME">$1<ex>Jimmy's Pixel</ex></ph>
         </message>
         <message name="IDS_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_NOTIFICATION_TITLE_UNKNOWN_DEVICE" desc="Title text displayed in a shared clipboard notification when the source device name is unknown.">
           Text shared from Other Device
@@ -16501,6 +16518,18 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_DISPLAY_MEDIA_PICKER_TEXT" desc="Text for the window picker dialog shown when a getDisplayMedia capture is requested by an app to be used by the app itself.">
         The site will be able to see the contents of your screen
       </message>
+      <message name="IDS_DISPLAY_MEDIA_PICKER_AUDIO_RECOMMENDED" desc="Warning text for the window picker dialog shown when getDisplayMedia requested audio preference is high.">
+        This site recommends sharing audio for full functionality
+      </message>
+      <message name="IDS_DISPLAY_MEDIA_PICKER_SHARE_SYSTEM_AUDIO_CHECKBOX" desc="Simplified checkbox label for sharing system audio.">
+        Share with system audio
+      </message>
+      <message name="IDS_DISPLAY_MEDIA_PICKER_SHARE_TAB_AUDIO_CHECKBOX" desc="Simplified checkbox label for sharing tab audio.">
+        Share with tab audio
+      </message>
+      <message name="IDS_DISPLAY_MEDIA_PICKER_CONFIRM_BUTTON_SHARE_WITH_AUDIO" desc="Confirmation button label when audio sharing is selected.">
+        Share with Audio
+      </message>
       <message name="IDS_DESKTOP_MEDIA_PICKER_TEXT_DELEGATED" desc="Text for the window picker dialog shown when desktop capture is requested by an app to be used by a tab.">
         <ph name="APP_NAME">$1<ex>Google Hangouts</ex></ph> wants to share the contents of your screen with <ph name="TARGET_NAME">$2<ex>https://google.com</ex></ph>.
       </message>
@@ -18307,6 +18336,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_DEEP_SCANNING_DIALOG_PASTE_BYPASS_JUSTIFICATION_LABEL" desc="Text displayed in the label above the bypass justification text area, explaining to the user that they have to enter a justification for pasting data even though there was a data loss prevention warning.">
       Please enter a reason for pasting this data:
     </message>
+    <message name="IDS_DEEP_SCANNING_DIALOG_COPY_BYPASS_JUSTIFICATION_LABEL" desc="Text displayed in the label above the bypass justification text area, explaining to the user that they have to enter a justification for copying data even though there was a data loss prevention warning.">
+      Please enter a reason for copying this data:
+    </message>
     <message name="IDS_DEEP_SCANNING_DIALOG_PRINT_BYPASS_JUSTIFICATION_LABEL" desc="Text displayed in the label above the bypass justification text area, explaining to the user that they have to enter a justification for printing a document or page even though there was a data loss prevention warning.">
       Please enter a reason for printing this data:
     </message>
@@ -18324,6 +18356,15 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_DEEP_SCANNING_DIALOG_SAVE_TO_CLOUD_STORAGE_MESSAGE" desc="Button text to allow the user to save a file to cloud storage">
       <ph name="FILE_NAME">$1<ex>foo.txt</ex></ph> has sensitive data. Your organization will let you save it to cloud storage or discard it
+    </message>
+    <message name="IDS_ENTERPRISE_COPY_WARNING_TOAST_BODY" desc="Text on a toast notification shown when copying content is warned by DLP.">
+      Your organization advises against copying this content
+    </message>
+    <message name="IDS_ENTERPRISE_COPY_WARNING_TOAST_BUTTON" desc="Button text on a toast notification to copy data anyway.">
+      Copy anyway
+    </message>
+    <message name="IDS_ENTERPRISE_COPY_BLOCKED_TOAST_BODY" desc="Text on a toast notification shown when copying content is blocked by DLP.">
+      Your organization blocked copying this content
     </message>
 
     <!-- Data sharing UI strings -->
@@ -18971,7 +19012,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Dismiss
       </message>
       <message name="IDS_PERFORMANCE_INTERVENTION_BUTTON_TOOLTIP" desc="The tooltip for the performance intervention toolbar button">
-        Perfomance issue alert
+        Performance issue alert
       </message>
       <message name="IDS_PERFORMANCE_INTERVENTION_BUTTON_ACCNAME" desc="The accessibility text for the performance intervention toolbar button">
         Performance issue alert
@@ -19051,6 +19092,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT" desc="Text that is shown in the Glic selection overlay preselection bubble. Informs the user to select text or image to ask Gemini.">
         Select any text or image to ask Gemini
+      </message>
+      <message name="IDS_TAB_GROUP_HEADER_CXMENU_ASK_GEMINI" translateable="false" desc="The label of the tab group context menu item to ask Gemini about the tab group.">
+        Ask Gemini about this group
       </message>
       <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
         Copied to clipboard
@@ -19349,7 +19393,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
     Add freehand drawings, signatures, and highlights with the new Draw tool
     </message>
     <message name="IDS_PDF_TEXT_ANNOTATIONS_IPH_BODY" desc="Content of in-product help to introduce the PDF Text Annotations feature.">
-    Add text with the new "Add text" tool
+    Add text annotations with the new "Add text annotations" tool
     </message>
 
     <!-- PDF Searchify elements. -->

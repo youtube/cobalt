@@ -9,9 +9,12 @@ import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.app.Activity;
+import android.view.View;
 
 import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
@@ -251,6 +254,39 @@ public class SettingsSearchCoordinatorTest {
                 () -> {
                     getSearchCoordinator().exitSearchState(/* clearFragment= */ true);
                     histograms.assertExpected();
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testFindViewById() {
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    SettingsSearchCoordinator searchCoordinator = getSearchCoordinator();
+                    assertNotNull(searchCoordinator);
+                    assertNotNull(searchCoordinator.findViewById(R.id.action_bar));
+                    assertNotNull(searchCoordinator.findViewById(R.id.app_bar_layout));
+                    assertNull(searchCoordinator.findViewById(View.NO_ID));
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testEnterSearchStateDoesNotCrash() {
+        mSettingsActivityTestRule.startSettingsActivity();
+        SettingsActivity activity = waitForSettingsActivity();
+        SettingsSearchCoordinator searchCoordinator = activity.getSearchCoordinatorForTesting();
+        assertNotNull(searchCoordinator);
+
+        // Search UI creation is asynchronous, so wait for the search box to be inflated.
+        CriteriaHelper.pollUiThread(() -> searchCoordinator.findViewById(R.id.search_box) != null);
+
+        // Verify enterSearchState completes without throwing IllegalStateException.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    searchCoordinator.enterSearchState(/* isRestored= */ false);
                 });
     }
 }

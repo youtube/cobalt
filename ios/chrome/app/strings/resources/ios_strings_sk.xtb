@@ -200,7 +200,7 @@
 <translation id="1617300545081951343">Platia naše <ph name="BEGIN_LINK" />zmluvné podmienky<ph name="END_LINK" />, <ph name="BEGIN_LINK" />kórejské zmluvné podmienky služieb určovania polohy<ph name="END_LINK" /> a <ph name="BEGIN_LINK" />oznámenie o ochrane súkromia<ph name="END_LINK" />. Gemini je umelá inteligencia a môže robiť chyby, a to aj v súvislosti s ľuďmi.</translation>
 <translation id="1620510694547887537">Kamera</translation>
 <translation id="1622717322707146952">Vyberte Pridať do Kalendára Google alebo Pridať do Kalendára Apple.</translation>
-<translation id="1629162218487290695">Overte svoju totožnosť…</translation>
+<translation id="1629162218487290695">Overiť svoju totožnosť…</translation>
 <translation id="1634520742547161889">MM/RR</translation>
 <translation id="1636234353664774105">Používajte túto funkciu navigácie a dostávajte trasy do cieľa s podrobnými pokynmi</translation>
 <translation id="1641113438599504367">Bezpečné prehliadanie</translation>
@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Ukladať heslá</translation>
 <translation id="1764070164487214210">Trasa</translation>
 <translation id="1764511703783285459">Druhý správca hesiel nezdieľal žiadne heslá ani prístupové kľúče</translation>
+<translation id="1765555082983153259">Chrome chce mať prístup k vášmu mikrofónu</translation>
 <translation id="1767766085187034454">Prekladač Google</translation>
 <translation id="1771016937398045251">Ponuka Nástroje</translation>
 <translation id="1772468122139624049">Karty sa nedajú znova načítať</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Panel s ponukami inteligentného zoradenia</translation>
 <translation id="1883255238294161206">Zbaliť zoznam</translation>
+<translation id="1883898928879467646">Karta bola odstránená</translation>
 <translation id="1888854257756214946">Vybrať heslo…</translation>
 <translation id="1890237935065108104">Toto nastavenie nie je k dispozícii.</translation>
 <translation id="1894023287452300670">Tu sledujte cenu</translation>
@@ -1620,6 +1622,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="6406506848690869874">Synchronizácia</translation>
 <translation id="6410390304316730527">Bezpečné prehliadanie vás chráni pred útočníkmi, ktorí vás môžu oklamať, aby ste urobili niečo nebezpečné, napríklad nainštalovali škodlivý softvér alebo odhalili osobné údaje, ako sú heslá, telefónne čísla alebo kreditné karty. Ak ho vypnete, pri prehliadaní neznámych alebo pochybných webov postupujte opatrne.</translation>
 <translation id="6410883413783534063">Otvorte karty a navštívte tak rôzne stránky naraz</translation>
+<translation id="6412195388778525440">Odstrániť kartu</translation>
 <translation id="6418346271604475326">Príprava PDF</translation>
 <translation id="6420292512900923139">Problém s importom údajov</translation>
 <translation id="6421038304268477484">Preložený text</translation>
@@ -2320,7 +2323,6 @@ Ak chcete pokračovať v počítači, prepnite na účet <ph name="OTHER_EMAIL"
 <translation id="8692689525339542358">Získajte ochranu pred nebezpečnými webmi, súbormi na stiahnutie a rozšíreniami.</translation>
 <translation id="8692897097252418799">Vyberte údaje, ktoré chcete exportovať</translation>
 <translation id="8694281486652655615">Zobrazí túto položku</translation>
-<translation id="8696297579102085705">Odoslať do zariadenia</translation>
 <translation id="8697136149718343437">Presunúť panel s adresou naspodok</translation>
 <translation id="869891660844655955">Koniec platnosti</translation>
 <translation id="8706253136355675497">Teplota</translation>
@@ -2463,6 +2465,7 @@ Ak chcete pokračovať v počítači, prepnite na účet <ph name="OTHER_EMAIL"
 <translation id="9149866541089851383">Upraviť...</translation>
 <translation id="9152637745605628097">Vyberte si z motívov, farieb alebo nahrajte obrázok</translation>
 <translation id="9159628751968616911">Odoslanie webovej stránky</translation>
+<translation id="9162412286847966593">Údaje a nahrávky vašej organizácie sa nebudú používať na zlepšovanie modelov generatívnej umelej inteligencie. <ph name="BEGIN_LINK" />Ochrana vášho súkromia a Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Zapnite automatické dopĺňanie hesiel</translation>
 <translation id="9165320910061267720">Ak chcete dostávať upozornenia na poklesy cien, musíte ich zapnúť v nastaveniach systému iOS.</translation>
 <translation id="9179151630575358778">Skryje túto položku</translation>

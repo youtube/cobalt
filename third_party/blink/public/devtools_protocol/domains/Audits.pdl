@@ -124,7 +124,6 @@ experimental domain Audits
 
   type MixedContentResourceType extends string
     enum
-      AttributionSrc
       Audio
       Beacon
       CSPReport
@@ -270,31 +269,6 @@ experimental domain Audits
       optional Network.IPAddressSpace resourceIPAddressSpace
       optional Network.ClientSecurityState clientSecurityState
 
-  type AttributionReportingIssueType extends string
-    enum
-      PermissionPolicyDisabled
-      UntrustworthyReportingOrigin
-      InsecureContext
-      # TODO(apaseltiner): Rename this to InvalidRegisterSourceHeader
-      InvalidHeader
-      InvalidRegisterTriggerHeader
-      SourceAndTriggerHeaders
-      SourceIgnored
-      TriggerIgnored
-      OsSourceIgnored
-      OsTriggerIgnored
-      InvalidRegisterOsSourceHeader
-      InvalidRegisterOsTriggerHeader
-      WebAndOsHeaders
-      NoWebOrOsSupport
-      NavigationRegistrationWithoutTransientUserActivation
-      InvalidInfoHeader
-      NoRegisterSourceHeader
-      NoRegisterTriggerHeader
-      NoRegisterOsSourceHeader
-      NoRegisterOsTriggerHeader
-      NavigationRegistrationUniqueScopeAlreadySet
-
   type SharedDictionaryError extends string
     enum
       UseErrorCrossOriginNoCorsRequest
@@ -367,15 +341,6 @@ experimental domain Audits
       InvalidAllowlistItemType
       ReportingEndpointNotToken
       InvalidUrlPattern
-
-  # Details for issues around "Attribution Reporting API" usage.
-  # Explainer: https://github.com/WICG/attribution-reporting-api
-  type AttributionReportingIssueDetails extends object
-    properties
-      AttributionReportingIssueType violationType
-      optional AffectedRequest request
-      optional DOM.BackendNodeId violatingNodeId
-      optional string invalidParameter
 
 # Details for issues about documents in Quirks Mode
 # or Limited Quirks Mode that affects page layouting.
@@ -778,6 +743,16 @@ experimental domain Audits
       # The stack trace at the time of the intervention.
       optional Runtime.StackTrace stackTrace
 
+  # Details for issues about lazy-loaded images without explicit dimensions.
+  type LazyLoadImageIssueDetails extends object
+    properties
+      # DOM node of the problematic HTMLImageElement.
+      DOM.BackendNodeId nodeId
+      # URL or src attribute of the image.
+      string url
+      # Frame containing the image.
+      Page.FrameId frameId
+
   # A unique identifier for the type of issue. Each type may use one of the
   # optional fields in InspectorIssueDetails to convey more specific
   # information about the kind of issue.
@@ -790,7 +765,6 @@ experimental domain Audits
       ContentSecurityPolicyIssue
       SharedArrayBufferIssue
       CorsIssue
-      AttributionReportingIssue
       QuirksModeIssue
       PartitioningBlobURLIssue
       # Deprecated
@@ -814,6 +788,7 @@ experimental domain Audits
       PerformanceIssue
       SelectivePermissionsInterventionIssue
       EmailVerificationRequestIssue
+      LazyLoadImageIssue
 
   # This struct holds a list of optional fields with additional information
   # specific to the kind of issue. When adding a new issue code, please also
@@ -827,7 +802,6 @@ experimental domain Audits
       optional ContentSecurityPolicyIssueDetails contentSecurityPolicyIssueDetails
       optional SharedArrayBufferIssueDetails sharedArrayBufferIssueDetails
       optional CorsIssueDetails corsIssueDetails
-      optional AttributionReportingIssueDetails attributionReportingIssueDetails
       optional QuirksModeIssueDetails quirksModeIssueDetails
       optional PartitioningBlobURLIssueDetails partitioningBlobURLIssueDetails
       deprecated optional NavigatorUserAgentIssueDetails navigatorUserAgentIssueDetails
@@ -850,6 +824,7 @@ experimental domain Audits
       optional PerformanceIssueDetails performanceIssueDetails
       optional SelectivePermissionsInterventionIssueDetails selectivePermissionsInterventionIssueDetails
       optional EmailVerificationRequestIssueDetails emailVerificationRequestIssueDetails
+      optional LazyLoadImageIssueDetails lazyLoadImageIssueDetails
 
   # A unique id for a DevTools inspector issue. Allows other entities (e.g.
   # exceptions, CDP message, console messages, etc.) to reference an issue.

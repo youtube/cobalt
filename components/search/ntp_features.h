@@ -35,6 +35,7 @@ BASE_DECLARE_FEATURE(kNtpBackgroundImageErrorDetection);
 BASE_DECLARE_FEATURE(kNtpCalendarModule);
 BASE_DECLARE_FEATURE(kNtpChromeCartModule);
 BASE_DECLARE_FEATURE(kNtpCustomizeChromeAutoOpen);
+BASE_DECLARE_FEATURE(kNtpCustomizeWebUiAndroid);
 BASE_DECLARE_FEATURE(kNtpDisableBrowserInitiatedLinks);
 BASE_DECLARE_FEATURE(kNtpDriveModule);
 BASE_DECLARE_FEATURE(kNtpDriveModuleHistorySyncRequirement);
@@ -54,6 +55,7 @@ BASE_DECLARE_FEATURE(kNtpModulesLoad);
 BASE_DECLARE_FEATURE(kNtpModuleSignInRequirement);
 BASE_DECLARE_FEATURE(kNtpOutlookCalendarModule);
 BASE_DECLARE_FEATURE(kNtpOneGoogleBar);
+BASE_DECLARE_FEATURE(kNtpScaledActionChips);
 BASE_DECLARE_FEATURE(kNtpSharepointModule);
 enum class NtpSharepointModuleDataType {
   kTrendingInsights,
@@ -89,6 +91,7 @@ BASE_DECLARE_FEATURE(kLightningTakeoverEdition);
 BASE_DECLARE_FEATURE(kNtpShortcutsRedesign);
 BASE_DECLARE_FEATURE(kNtpSimplificationBookmarkBar);
 BASE_DECLARE_FEATURE(kBookmarkBarUpdatesForTesting);
+BASE_DECLARE_FEATURE(kNtpThreadsRail);
 
 // Parameter for controlling the luminosity difference for NTP elements on light
 // backgrounds.

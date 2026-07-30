@@ -15,6 +15,7 @@
 #include "chrome/browser/sessions/session_service.h"
 #include "chrome/browser/sessions/session_service_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_init_state.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -76,14 +77,13 @@ class ExitTypeService::BrowserTabObserverImpl
 
   // BrowserCollectionObserver:
   void OnBrowserCreated(BrowserWindowInterface* browser) override {
-    if (browser->GetBrowserForMigrationOnly()->omit_from_session_restore() ||
+    if (BrowserInitState::From(browser)->omit_from_session_restore() ||
         !SessionService::IsRelevantWindowType(
             WindowTypeForBrowserType(browser->GetType()))) {
       return;
     }
-    if (browser->GetBrowserForMigrationOnly()
-            ->create_params()
-            .creation_source != Browser::CreationSource::kStartupCreator) {
+    if (BrowserInitState::From(browser)->create_params().creation_source !=
+        Browser::CreationSource::kStartupCreator) {
       // Ideally this would call directly to `service_`, but at the time this
       // is called it is too early to do that. So, this waits for the first tab
       // to be added.

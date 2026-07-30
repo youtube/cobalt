@@ -45,6 +45,17 @@ source_set("security_dialog_tracker") {
   public_deps = [ "//base" ]
 }
 
+source_set("windows_utils_views") {
+  sources = [ "windows_utils_views.cc" ]
+  deps = [
+    "//chrome/browser/extensions",
+    "//content/public/browser",
+    "//extensions/browser",
+    "//ui/base",
+    "//ui/views",
+  ]
+}
+
 source_set("test_support") {
   testonly = true
   sources = [
@@ -209,6 +220,7 @@ source_set("interactive_ui_tests") {
     "//chrome/browser/metrics/critical_user_journeys",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
+    "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/extensions:test_support",
     "//chrome/browser/ui/interaction",
@@ -220,6 +232,7 @@ source_set("interactive_ui_tests") {
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
     "//chrome/test/interaction",
+    "//chrome/test/user_education",
     "//components/custom_handlers",
     "//components/javascript_dialogs",
     "//content/test:test_support",

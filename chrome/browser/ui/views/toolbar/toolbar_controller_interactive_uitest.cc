@@ -17,6 +17,8 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar_controller_util.h"
@@ -135,18 +137,26 @@ class ToolbarControllerUiTest : public InteractiveFeaturePromoTest,
   bool WebUIButtonsEnabled() const { return GetParam(); }
 
   // Returns the minimum width the toolbar view can be without any ToolbarButton
-  // dropped out in ToolbarContainer. This function calculates the
-  // browser width where elements with flex order > kOrderOffset defined in
-  // ToolbarView should have minimum size. Since elements with flex order <=
-  // kOrderOffset happens to have minimum width == preferred width it has no
-  // effect on diff_sum.
+  // dropped out in ToolbarContainer.
   int GetOverflowThresholdWidthInToolbarContainer() {
-    int diff_sum = 0;
-    for (views::View* element : toolbar_container_view_->children()) {
-      diff_sum += element->GetPreferredSize().width() -
-                  element->GetMinimumSize().width();
+    const gfx::Size preferred_size =
+        toolbar_container_view_->GetPreferredSize();
+    int min_width = 0;
+    int max_width = preferred_size.width();
+    int threshold_width = min_width;
+
+    while (min_width <= max_width) {
+      const int mid_width = min_width + (max_width - min_width) / 2;
+      const gfx::Size target_size(mid_width, preferred_size.height());
+      if (toolbar_controller_->ShouldShowOverflowButton(target_size)) {
+        threshold_width = mid_width;
+        min_width = mid_width + 1;
+      } else {
+        max_width = mid_width - 1;
+      }
     }
-    return toolbar_container_view_->GetPreferredSize().width() - diff_sum;
+    // Adds 1 to get the smallest non-overflowing width.
+    return threshold_width + 1;
   }
 
   // Returns the minimum width the toolbar view can be without any elements
@@ -386,25 +396,39 @@ class ToolbarControllerUiTest : public InteractiveFeaturePromoTest,
   }
 
   auto PinBookmarkToToolbar() {
-    return Steps(Do([=, this]() {
-                   chrome::ExecuteCommand(browser(),
-                                          IDC_SHOW_BOOKMARK_SIDE_PANEL);
-                 }),
-                 WaitForShow(kSidePanelElementId),
-                 PressButton(kSidePanelPinButtonElementId),
-                 PressButton(kSidePanelCloseButtonElementId),
-                 WaitForHide(kSidePanelElementId));
+    return Steps(
+        Do([=, this]() {
+          chrome::ExecuteCommandWithContext(
+              browser(), IDC_SHOW_BOOKMARK_SIDE_PANEL,
+              actions::ActionInvocationContext::Builder()
+                  .SetProperty(
+                      kSidePanelOpenTriggerKey,
+                      static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                          SidePanelOpenTrigger::kToolbarButton))
+                  .Build());
+        }),
+        WaitForShow(kSidePanelElementId),
+        PressButton(kSidePanelPinButtonElementId),
+        PressButton(kSidePanelCloseButtonElementId),
+        WaitForHide(kSidePanelElementId));
   }
 
   auto PinReadingModeToToolbar() {
-    return Steps(Do([=, this]() {
-                   chrome::ExecuteCommand(browser(),
-                                          IDC_SHOW_READING_MODE_SIDE_PANEL);
-                 }),
-                 WaitForShow(kSidePanelElementId),
-                 PressButton(kSidePanelPinButtonElementId),
-                 PressButton(kSidePanelCloseButtonElementId),
-                 WaitForHide(kSidePanelElementId));
+    return Steps(
+        Do([=, this]() {
+          chrome::ExecuteCommandWithContext(
+              browser(), IDC_SHOW_READING_MODE_SIDE_PANEL,
+              actions::ActionInvocationContext::Builder()
+                  .SetProperty(
+                      kSidePanelOpenTriggerKey,
+                      static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                          SidePanelOpenTrigger::kToolbarButton))
+                  .Build());
+        }),
+        WaitForShow(kSidePanelElementId),
+        PressButton(kSidePanelPinButtonElementId),
+        PressButton(kSidePanelCloseButtonElementId),
+        WaitForHide(kSidePanelElementId));
   }
 
   auto PinActionsAndVerifyDisplayed(std::vector<actions::ActionId> ids) {
@@ -1060,7 +1084,14 @@ IN_PROC_BROWSER_TEST_P(ToolbarControllerUiTest,
 
       // Open bookmark side panel.
       Do([=, this]() {
-        chrome::ExecuteCommand(browser(), IDC_SHOW_BOOKMARK_SIDE_PANEL);
+        chrome::ExecuteCommandWithContext(
+            browser(), IDC_SHOW_BOOKMARK_SIDE_PANEL,
+            actions::ActionInvocationContext::Builder()
+                .SetProperty(
+                    kSidePanelOpenTriggerKey,
+                    static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                        SidePanelOpenTrigger::kToolbarButton))
+                .Build());
       }),
       WaitForShow(kSidePanelElementId), ForceForwardButtonOverflow(),
 

@@ -6,11 +6,12 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "base/check_deref.h"
+#include "base/system/sys_info.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "build/branding_buildflags.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -87,7 +88,9 @@ class AtMemoryEnablementUtilsTest : public testing::Test {
     feature_list_.InitAndEnableFeatureWithParameters(
         features::kAutofillAtMemory, {{"at_memory_eligible_tiers", ""}});
     autofill_client().GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings, 0);
+        optimization_guide::prefs::kGeminiSettings,
+        std::to_underlying(
+            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
     // Enable the toggle by default in tests since it represents the default
     // active state.
     autofill_client().GetPrefs()->SetUserPref(
@@ -117,7 +120,6 @@ class AtMemoryEnablementUtilsTest : public testing::Test {
   const GURL form_url_{"https://example.com/form"};
 };
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 // Tests that `MayPerformAtMemoryAction` returns false when AtMemory is
 // disabled.
@@ -145,10 +147,10 @@ TEST_F(AtMemoryEnablementUtilsTest,
       .WillRepeatedly(
           Return(personal_context::PersonalContextEligibilityState::kEligible));
 
-  // Value 1 means not available.
-  // components/policy/resources/templates/policy_definitions/GenerativeAI/GeminiSettings.yaml
   autofill_client().GetPrefs()->SetInteger(
-      optimization_guide::prefs::kGeminiSettings, 1);
+      optimization_guide::prefs::kGeminiSettings,
+      std::to_underlying(
+          optimization_guide::prefs::GeminiSettingsPolicyState::kDisabled));
 
   EXPECT_FALSE(MayPerformAtMemoryAction(
       AtMemoryAction::kTriggerSearchUI, autofill_client(),
@@ -230,16 +232,6 @@ TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_States) {
           Return(personal_context::PersonalContextEligibilityState::kEligible));
   EXPECT_TRUE(MayPerformAtMemoryAction(
       AtMemoryAction::kAllowCustomizeAtMemoryShortcut, autofill_client()));
-
-  // State: kDisabledNeedsOptIn
-  EXPECT_CALL(personal_context_service_, GetEligibilityState)
-      .WillOnce(Return(personal_context::PersonalContextEligibilityState::
-                           kDisabledNeedsOptIn));
-  autofill_client().GetPrefs()->SetUserPref(
-      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
-      base::Value(false));
-  EXPECT_FALSE(MayPerformAtMemoryAction(AtMemoryAction::kShowAtMemoryInSettings,
-                                        autofill_client()));
 
   // State: kDisabledNotEligible
   EXPECT_CALL(personal_context_service_, GetEligibilityState)
@@ -395,6 +387,56 @@ TEST_F(AtMemoryEnablementUtilsTest,
       autofill_client().GetLastCommittedPrimaryMainFrameURL()));
 }
 
+#if BUILDFLAG(IS_ANDROID)
+// Tests that a user is eligible for AtMemory if their device is a premium
+// Android device, even if their subscription tier is not eligible.
+TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_DeviceEligible) {
+  EXPECT_CALL(personal_context_service_, GetEligibilityState)
+      .WillRepeatedly(
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
+
+  const std::string actual_model_name = base::SysInfo::HardwareModelName();
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAtMemory,
+      {{"at_memory_eligible_tiers", "2"},
+       {"at_memory_enabled_devices",
+        "some-other-device," + actual_model_name}});
+
+  // User is not in the correct subscription tier, but the device is eligible.
+  autofill_client().GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+
+  EXPECT_TRUE(MayPerformAtMemoryAction(
+      AtMemoryAction::kTriggerSearchUI, autofill_client(),
+      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
+}
+
+// Tests that a user is NOT eligible for AtMemory if their device is not listed
+// in the enabled devices list and their subscription tier is also not eligible.
+TEST_F(AtMemoryEnablementUtilsTest,
+       MayPerformAtMemoryAction_DeviceNotEligible) {
+  EXPECT_CALL(personal_context_service_, GetEligibilityState)
+      .WillRepeatedly(
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAtMemory,
+      {{"at_memory_eligible_tiers", "2"},
+       {"at_memory_enabled_devices", "some-other-device,another-device"}});
+
+  // Neither user subscription tier nor device is eligible.
+  autofill_client().GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+
+  EXPECT_FALSE(MayPerformAtMemoryAction(
+      AtMemoryAction::kTriggerSearchUI, autofill_client(),
+      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Tests that `MayPerformAtMemoryAction` returns false when the domain is
 // blocklisted by the optimization guide.
 TEST_F(AtMemoryEnablementUtilsTest,
@@ -436,8 +478,10 @@ class AtMemoryEnablementUtilsFeatureCheckedLastTest : public testing::Test {
     registry_->RegisterBooleanPref(
         personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
         true);
-    registry_->RegisterIntegerPref(optimization_guide::prefs::kGeminiSettings,
-                                   0);
+    registry_->RegisterIntegerPref(
+        optimization_guide::prefs::kGeminiSettings,
+        std::to_underlying(
+            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
     pref_service_ = std::make_unique<TestPrefService>(pref_store_, registry_);
 
     autofill_client_.set_last_committed_primary_main_frame_url(
@@ -518,27 +562,7 @@ TEST_F(AtMemoryEnablementUtilsFeatureCheckedLastTest, NotEligible) {
   EXPECT_EQ(pref_store_->call_count(), 0);
 }
 
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-// Tests for non-branded Chromium builds.
-#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-// Tests that `MayPerformAtMemoryAction` returns false for non-branded Chromium
-// build even when all conditions are met.
-TEST_F(AtMemoryEnablementUtilsTest,
-       MayPerformAtMemoryAction_SupportedAndToggleOn) {
-  EXPECT_CALL(personal_context_service_, GetEligibilityState)
-      .WillRepeatedly(
-          Return(personal_context::PersonalContextEligibilityState::kEligible));
-  autofill_client().GetPrefs()->SetUserPref(
-      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
-      base::Value(true));
-  EXPECT_FALSE(MayPerformAtMemoryAction(
-      AtMemoryAction::kTriggerSearchUI, autofill_client(),
-      autofill_client().GetLastCommittedPrimaryMainFrameURL()));
-}
-#endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA)
 class AtMemoryEnablementUtilsWithGroupsTest
     : public AtMemoryEnablementUtilsTest {
  protected:
@@ -621,7 +645,7 @@ TEST_F(AtMemoryEnablementUtilsWithGroupsTest,
       AtMemoryAction::kTriggerSearchUI, autofill_client(),
       autofill_client().GetLastCommittedPrimaryMainFrameURL()));
 }
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_FUCHSIA)
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 }  // namespace
 }  // namespace autofill

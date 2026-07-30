@@ -49,9 +49,15 @@ class TabContextSyncService : public KeyedService {
       const ContainerId& container_id,
       base::OnceCallback<void(std::optional<std::string>)> cb) = 0;
 
-  // Returns the delegate responsible for integrating with sync.
+  // Return the delegates responsible for integrating with sync.
   virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
-  GetSyncControllerDelegate() = 0;
+  GetSyncControllerDelegateForContainer() = 0;
+  virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
+  GetSyncControllerDelegateForItem() = 0;
+
+  // Returns true if the service's underlying bridges are ready and tracking
+  // sync metadata. Intended for test synchronization.
+  virtual bool IsActiveForTesting() const = 0;
 };
 
 }  // namespace sync_tab_context

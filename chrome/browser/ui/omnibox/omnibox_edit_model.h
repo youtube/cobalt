@@ -27,6 +27,7 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox.mojom-shared.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
+#include "components/omnibox/browser/searchbox_utils.h"
 #include "components/omnibox/common/omnibox_focus_state.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -96,9 +97,6 @@ class OmniboxEditModel {
     // Called when the results changed and the entire popup needs to be redrawn,
     // opened, or closed.
     virtual void OnContentsChanged() = 0;
-
-    // The keyword state has changed.
-    virtual void OnKeywordStateChanged(bool is_keyword_selected) = 0;
 
     // Time when a character is inserted into the model.
     virtual void OnCharTyped(base::TimeTicks timestamp) = 0;
@@ -278,6 +276,9 @@ class OmniboxEditModel {
   // Virtual for testing.
   virtual void OpenAiMode(AimActivation activation);
 
+  // Opens the composebox for the AskG flow by setting the popup state.
+  virtual void OpenComposeboxForAskG();
+
   // Returns true if the popup is open and is in in AI-Mode.
   bool PopupInAiMode() const;
 
@@ -306,7 +307,9 @@ class OmniboxEditModel {
   OmniboxFocusState focus_state() const { return focus_state_; }
   bool has_focus() const { return focus_state_ != OMNIBOX_FOCUS_NONE; }
 
-  base::TimeTicks last_omnibox_focus() const { return last_omnibox_focus_; }
+  base::TimeTicks last_omnibox_focus() const {
+    return metrics_tracker_.last_omnibox_focus();
+  }
 
   // This is the same as when the Omnibox is visibly focused.
   bool is_caret_visible() const {
@@ -849,19 +852,8 @@ class OmniboxEditModel {
   // should always be up-to-date.
   AutocompleteMatch current_match_;
 
-  // We keep track of when the user last focused on the omnibox.
-  base::TimeTicks last_omnibox_focus_;
-
-  // Indicates whether the current interaction with the Omnibox resulted in
-  // navigation (true), or user leaving the omnibox without taking any action
-  // (false).
-  // The value is initialized when the Omnibox receives focus and available for
-  // use when the focus is about to be cleared.
-  bool focus_resulted_in_navigation_ = false;
-
-  // We keep track of when the user began modifying the omnibox text.
-  // This should be valid whenever user_input_in_progress_ is true.
-  base::TimeTicks time_user_first_modified_omnibox_;
+  // Tracks searchbox focus and navigation metrics.
+  searchbox::InteractionMetricsTracker metrics_tracker_;
 
   // Inline autocomplete is allowed if the user has not just deleted text, and
   // no temporary text is showing.  In this case, inline_autocompletion_ is

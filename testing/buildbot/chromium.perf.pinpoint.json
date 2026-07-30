@@ -156,7 +156,7 @@
           "hard_timeout": 14400,
           "io_timeout": 21600,
           "service_account": "chrome-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 11
+          "shards": 5
         },
         "test": "performance_test_suite_android_trichrome_chrome_google_bundle",
         "trigger_script": {
@@ -1965,7 +1965,7 @@
           "can_use_on_swarming_builders": true,
           "dimensions": {
             "gpu": "102b:0536-4.5.0.5",
-            "os": "Windows-11-22631.2428",
+            "os": "Windows-11-26200",
             "pool": "chrome.tests.perf",
             "synthetic_product_name": "PowerEdge R350 (Dell Inc.)"
           },
@@ -2011,7 +2011,7 @@
           "can_use_on_swarming_builders": true,
           "dimensions": {
             "gpu": "102b:0536-4.5.0.5",
-            "os": "Windows-11-22631.2428",
+            "os": "Windows-11-26200",
             "pool": "chrome.tests.perf",
             "synthetic_product_name": "PowerEdge R350 (Dell Inc.)"
           },

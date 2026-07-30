@@ -53,8 +53,6 @@ class PersonalContextAutofillUtilTest : public testing::Test {
         /*disabled_features=*/{});
     client_.GetPrefs()->SetInteger(
         subscription_eligibility::prefs::kAiSubscriptionTier, 1);
-    client_.GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings, 0);
     client_.SetUpPrefsAndIdentityForAutofillAi();
     client_.set_entity_data_manager(std::make_unique<EntityDataManager>(
         client_.GetPrefs(), client_.GetIdentityManager(),
@@ -86,7 +84,6 @@ TEST_F(PersonalContextAutofillUtilTest,
   };
 
   EXPECT_FALSE(check_state(kDisabledNotEligible));
-  EXPECT_FALSE(check_state(kDisabledNeedsOptIn));
   EXPECT_TRUE(check_state(kEligible));
 
   EXPECT_FALSE(ShouldShowPersonalContextAutofillSetting(
@@ -113,6 +110,19 @@ TEST_F(PersonalContextAutofillUtilTest,
   ON_CALL(service, GetEligibilityState())
       .WillByDefault(Return(PersonalContextEligibilityState::kEligible));
 
+  EXPECT_TRUE(ShouldShowPersonalContextAutofillSetting(client_, &service));
+}
+
+TEST_F(PersonalContextAutofillUtilTest,
+       ShouldShowPersonalContextAutofillSetting_AtMemoryEnabled) {
+  NiceMock<MockPersonalContextEligibilityService> service;
+  ON_CALL(service, GetEligibilityState())
+      .WillByDefault(Return(PersonalContextEligibilityState::kEligible));
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillAtMemory},
+      /*disabled_features=*/{features::kAutofillAmbientAutofill});
   EXPECT_TRUE(ShouldShowPersonalContextAutofillSetting(client_, &service));
 }
 

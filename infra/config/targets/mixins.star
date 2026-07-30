@@ -555,6 +555,13 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "fuchsia-orchestrate",
+    args = [
+        "--orchestrate",
+    ],
+)
+
+targets.mixin(
     name = "upload_inv_extended_properties",
     resultdb = targets.resultdb(
         enable = True,
@@ -670,19 +677,6 @@ targets.mixin(
             "cpu": "x86-64",
             "gpu": "none",
             "os": "Ubuntu-22.04",
-            "pool": "chromium.tests.gpu",
-        },
-    ),
-)
-
-targets.mixin(
-    name = "gpu_nvidia_shield_tv_stable",
-    swarming = targets.swarming(
-        dimensions = {
-            "os": "Android",
-            "device_type": "mdarcy",
-            "device_os": "PPR1.180610.011",
-            "device_os_type": "userdebug",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -1552,7 +1546,7 @@ targets.mixin(
             "cpu": "arm64",
             "gpu": "apple:m2",
             "mac_model": "Mac14,7",
-            "os": "Mac-14.4.1|Mac-26.5.1",
+            "os": "Mac-26.5.1",
             "pool": "chromium.tests.gpu",
             "display_attached": "1",
             "hidpi": "1",
@@ -2154,8 +2148,8 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2184-32.0.15.8180",
-            "os": "Windows-11-26100",
+            "gpu": "10de:2184-32.0.16.1074",
+            "os": "Windows-11-26200",
             "pool": "chromium.tests.gpu",
         },
     ),

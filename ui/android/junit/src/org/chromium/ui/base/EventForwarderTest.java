@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verify;
 
 import android.content.ClipData;
 import android.content.ClipDescription;
+import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
 import android.view.DragEvent;
@@ -29,6 +30,8 @@ import android.view.MotionEvent;
 import android.view.MotionEvent.PointerCoords;
 import android.view.Surface;
 import android.view.View;
+
+import androidx.test.InstrumentationRegistry;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,8 +46,13 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.ui.util.MotionEventUtils;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 /** Tests logic in the {@link EventForwarder} class. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -248,45 +256,62 @@ public class EventForwarderTest {
     }
 
     @Test
-    public void testDragDropEvent() {
+    @EnableFeatures(UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_FILES)
+    public void testDragDropEvent() throws IOException {
         // Text.
         validateDragDropEvent(
                 new String[] {"text/plain"},
                 new ClipData.Item[] {new ClipData.Item("text content")},
-                new String[][] {}, // expectedFilenames
-                "text content", // expectedText
-                null, // expectedHtml
-                null); // expectedUrl
+                /* expectedFilenames= */ new String[][] {},
+                /* expectedText= */ "text content",
+                /* expectedHtml= */ null,
+                /* expectedUrl= */ null);
 
         // Html.
         validateDragDropEvent(
                 new String[] {"text/html"},
                 new ClipData.Item[] {new ClipData.Item("text content", "html content")},
-                new String[][] {}, // expectedFilenames
-                "text content", // expectedText
-                "html content", // expectedHtml
-                null); // expectedUrl
+                /* expectedFilenames= */ new String[][] {},
+                /* expectedText= */ "text content",
+                /* expectedHtml= */ "html content",
+                /* expectedUrl= */ null);
 
         // Url.
         validateDragDropEvent(
                 new String[] {"text/x-moz-url"},
                 new ClipData.Item[] {new ClipData.Item("url content")},
-                new String[][] {}, // expectedFilenames
-                "url content", // expectedText
-                null, // expectedHtml
-                "url content"); // expectedUrl
+                /* expectedFilenames= */ new String[][] {},
+                /* expectedText= */ "url content",
+                /* expectedHtml= */ null,
+                /* expectedUrl= */ "url content");
 
         // Files.
         validateDragDropEvent(
                 new String[] {"image/jpeg", "text/plain"},
                 new ClipData.Item[] {
-                    new ClipData.Item(Uri.parse("image.jpg")),
-                    new ClipData.Item(Uri.parse("hello.txt"))
+                    new ClipData.Item(Uri.parse("/foo/image.jpg")),
+                    new ClipData.Item(Uri.parse("/foo/hello.txt"))
                 },
-                new String[][] {{"image.jpg", ""}, {"hello.txt", ""}}, // expectedFilenames
-                null, // expectedText
-                null, // expectedHtml
-                null); // expectedUrl
+                /* expectedFilenames= */ new String[][] {
+                    {"/foo/image.jpg", ""}, {"/foo/hello.txt", ""}
+                },
+                /* expectedText= */ null,
+                /* expectedHtml= */ null,
+                /* expectedUrl= */ null);
+
+        // Internal Files disallowed.
+        Context context = InstrumentationRegistry.getTargetContext();
+        File fileUnderDataDir = new File(context.getDataDir(), "test.txt");
+        Files.writeString(fileUnderDataDir.toPath(), "file content");
+        validateDragDropEvent(
+                new String[] {"text/plain"},
+                new ClipData.Item[] {
+                    new ClipData.Item(Uri.parse(fileUnderDataDir.getAbsolutePath())),
+                },
+                /* expectedFilenames= */ new String[][] {},
+                /* expectedText= */ null,
+                /* expectedHtml= */ null,
+                /* expectedUrl= */ null);
     }
 
     @Test
@@ -620,11 +645,16 @@ public class EventForwarderTest {
                 .startFling(
                         eq(NATIVE_EVENT_FORWARDER_ID),
                         eq(eventTime3),
+                        eq(10f),
+                        eq(20f),
+                        eq(10f),
+                        eq(20f),
                         velocityXCaptor.capture(),
                         anyFloat(),
                         eq(false),
                         eq(false),
-                        eq(true));
+                        eq(true),
+                        eq(false));
         Assert.assertTrue(
                 "VelocityX should be positive for swipe right", velocityXCaptor.getValue() > 0);
 

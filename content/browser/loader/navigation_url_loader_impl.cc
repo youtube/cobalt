@@ -28,7 +28,6 @@
 #include "build/build_config.h"
 #include "components/download/public/common/download_stats.h"
 #include "content/browser/about_url_loader_factory.h"
-#include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/data_url_loader_factory.h"
@@ -172,12 +171,11 @@ class NavigationLoaderInterceptorBrowserContainer
       const network::ResourceRequest& request,
       network::mojom::URLResponseHeadPtr* response_head,
       mojo::ScopedDataPipeConsumerHandle* response_body,
-      mojo::PendingRemote<network::mojom::URLLoader>* loader,
       mojo::PendingReceiver<network::mojom::URLLoaderClient>* client_receiver,
       blink::ThrottlingURLLoader* url_loader,
       bool* skip_other_interceptors) override {
     return browser_interceptor_->MaybeCreateLoaderForResponse(
-        status, request, response_head, response_body, loader, client_receiver,
+        status, request, response_head, response_body, client_receiver,
         url_loader);
   }
 
@@ -348,18 +346,6 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
       is_storage_access_grant_eligible && is_same_origin_initiator
           ? net::StorageAccessApiStatus::kAccessViaAPI
           : net::StorageAccessApiStatus::kNone;
-
-  WebContentsImpl* web_contents = static_cast<WebContentsImpl*>(
-      WebContents::FromFrameTreeNodeId(frame_tree_node->frame_tree_node_id()));
-  new_request->attribution_reporting_support =
-      web_contents ? web_contents->GetAttributionSupport()
-                   : AttributionManager::GetAttributionSupport(
-                         /*client_os_disabled=*/false);
-
-  new_request->attribution_reporting_eligibility =
-      request_info.begin_params->impression.has_value()
-          ? network::mojom::AttributionReportingEligibility::kNavigationSource
-          : network::mojom::AttributionReportingEligibility::kUnset;
 
   new_request->shared_storage_writable_eligible =
       request_info.shared_storage_writable_eligible;
@@ -1117,11 +1103,10 @@ NavigationURLLoaderImpl::LoaderHolder::Unbind() {
     // TODO(https://crbug.com/40251638): Clean up this behavior if needed.
     return url_loader_->Unbind();
   } else {
-    // TODO(https://crbug.com/434182226): Turn this to `CHECK()`.
     DUMP_WILL_BE_CHECK_EQ(state_, State::kLoadingViaReceiver);
     state_ = State::kUnbound;
     return network::mojom::URLLoaderClientEndpoints::New(
-        std::move(response_url_loader_), response_loader_receiver_.Unbind());
+        mojo::NullRemote(), response_loader_receiver_.Unbind());
   }
 }
 
@@ -1465,6 +1450,7 @@ void NavigationURLLoaderImpl::OnReceiveResponse(
 
   response_body_ = std::move(response_body);
   received_response_ = true;
+  CancelNavigationTimeout();
 
   if (!head_update_params_.load_timing_info.service_worker_start_time
            .is_null()) {
@@ -1945,8 +1931,8 @@ bool NavigationURLLoaderImpl::MaybeCreateLoaderForResponse(
 
     if (interceptor->MaybeCreateLoaderForResponse(
             status, resource_request(), response, &response_body_,
-            loader_holder_.response_url_loader(), &response_client_receiver,
-            loader_holder_.url_loader(), &skip_other_interceptors)) {
+            &response_client_receiver, loader_holder_.url_loader(),
+            &skip_other_interceptors)) {
       loader_holder_.BindReceiver(
           std::move(response_client_receiver),
           GetUIThreadTaskRunner({BrowserTaskType::kNavigationNetworkResponse}));

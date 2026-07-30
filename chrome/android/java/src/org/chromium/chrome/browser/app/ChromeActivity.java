@@ -181,6 +181,7 @@ import org.chromium.chrome.browser.provider.PageContentProviderMetrics;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.screenshot_protection.ScreenshotProtectionController;
 import org.chromium.chrome.browser.selection.SelectionPopupBackPressHandler;
+import org.chromium.chrome.browser.settings.SettingsInTab;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegateImpl;
@@ -209,7 +210,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.task_manager.TaskManager;
 import org.chromium.chrome.browser.task_manager.TaskManagerFactory;
-import org.chromium.chrome.browser.theme.ThemeModuleUtils;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.translate.TranslateBridge;
@@ -1287,11 +1287,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     protected void applyThemeOverlays() {
-        // Apply the theme overlay before applying dynamic colors in the super's call. The order
-        // ensures the color attributes for dynamic colors are not overridden by the overlay.
-        if (ThemeModuleUtils.isEnabled()) {
-            applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_ExpressiveUpdate);
-        }
 
         if (!HubUtils.isGtsUpdateEnabled()) {
             applySingleThemeOverlay(R.style.HubToolbarActionButtonStyleOverlay_Baseline);
@@ -2864,7 +2859,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         int type = Profile.getBrowserProfileTypeFromProfile(getCurrentTabModel().getProfile());
 
         if (id == R.id.preferences_id) {
-            if (ChromeFeatureList.isEnabled(ChromeFeatureList.SETTINGS_IN_TAB)) {
+            if (SettingsInTab.isEnabled()) {
                 LoadUrlParams params =
                         new LoadUrlParams(UrlConstants.SETTINGS_URL, PageTransition.LINK);
                 // Settings are associated with the on-the-record profile, never incognito.
@@ -2908,7 +2903,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return true;
         }
 
-        if (id == R.id.feedback_form || id == R.id.report_issue_menu_id) {
+        if (id == R.id.feedback_form) {
             if (!FeedbackPolicyManager.getInstance().isUserFeedbackAllowed()) {
                 return true;
             }
@@ -2925,6 +2920,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         if (id == R.id.about_chrome_menu_id) {
             SettingsNavigationFactory.createSettingsNavigation()
                     .startSettings(this, AboutChromeSettings.class);
+            RecordUserAction.record("MobileMenuAboutChrome");
             return true;
         }
 
@@ -3001,6 +2997,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             BookmarkOpener opener =
                     new BookmarkOpenerImpl(mBookmarkModelSupplier, this, getComponentName());
             opener.openBookmarkInCurrentTab(bookmarkId, currentTab.isIncognito());
+            RecordUserAction.record("MobileMenuOpenBookmark");
             return true;
         }
 
@@ -3011,6 +3008,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                     getTabModelSelector(),
                     menuItemData.getInt(AppMenuPropertiesDelegateImpl.TAB_ID_BUNDLE_KEY),
                     TabSelectionType.FROM_USER);
+            RecordUserAction.record("MobileMenuSelectTabFromGroup");
             return true;
         }
 
@@ -3036,15 +3034,21 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
 
         if (id == R.id.offline_page_id) {
-            DownloadUtils.downloadOfflinePage(this, currentTab, /* fromAppMenu= */ true);
             RecordUserAction.record("MobileMenuDownloadPage");
-            return true;
+            if (DownloadUtils.isAllowedToDownloadPage(currentTab)) {
+                DownloadUtils.downloadOfflinePage(this, currentTab, /* fromAppMenu= */ true);
+                return true;
+            }
+            return false;
         }
 
         if (id == R.id.download_page_id) {
-            DownloadUtils.downloadOfflinePage(this, currentTab, /* fromAppMenu= */ true);
             RecordUserAction.record("MobileMenuItemDownloadPage");
-            return true;
+            if (DownloadUtils.isAllowedToDownloadPage(currentTab)) {
+                DownloadUtils.downloadOfflinePage(this, currentTab, /* fromAppMenu= */ true);
+                return true;
+            }
+            return false;
         }
 
         if (id == R.id.reload_menu_id) {
@@ -3171,8 +3175,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return true;
         }
 
-        if (id == R.id.task_manager
-                && ChromeFeatureList.isEnabled(ChromeFeatureList.TASK_MANAGER_CLANK)) {
+        if (id == R.id.task_manager && TaskManager.isEnabled()) {
             TaskManager taskManager = TaskManagerFactory.createTaskManager();
             taskManager.launch(ContextUtils.getApplicationContext());
             if (fromMenu) {

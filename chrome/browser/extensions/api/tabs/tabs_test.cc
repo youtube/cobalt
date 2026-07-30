@@ -1983,16 +1983,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardedProperty) {
 
   // To avoid flakes when focus changes, set the active tab strip model
   // explicitly.
-  resource_coordinator::GetTabLifecycleUnitSource()
-      ->SetFocusedTabStripModelForTesting(browser()->tab_strip_model());
-  // Ensure the focused tab strip model is reset.
-  // TODO(devlin): Update SetFocusedTabStripModelForTesting() to return a
-  // base::AutoReset<> to avoid this ScopedClosureRunner.
-  base::ScopedClosureRunner reset_focused_tab_strip_model(base::BindOnce(
-      [](resource_coordinator::TabLifecycleUnitSource* source) {
-        source->SetFocusedTabStripModelForTesting(nullptr);
-      },
-      resource_coordinator::GetTabLifecycleUnitSource()));
+  auto focused_tab_strip_model_override =
+      resource_coordinator::GetTabLifecycleUnitSource()
+          ->SetFocusedTabStripModelForTesting(browser()->tab_strip_model());
 
   // Create two additional tabs and wait for them to finish loading.
   content::OpenURLParams params(GURL(url::kAboutBlankURL), content::Referrer(),
@@ -3178,9 +3171,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsZoomTest, CannotZoomInvalidTab) {
   error = RunSetZoomSettingsExpectError(bogus_id, "manual", "per-tab");
   EXPECT_TRUE(base::MatchPattern(error, ExtensionTabUtil::kTabNotFoundError));
 
-  const char kNewTestTabArgs[] = "chrome://version";
-  params = GetOpenParams(kNewTestTabArgs);
-  web_contents = browser()->OpenURL(params, /*navigation_handle_callback=*/{});
+  const char kNewTestTabArgs[] = "chrome://version/";
+  web_contents = OpenUrlAndWaitForLoad(GURL(kNewTestTabArgs));
   tab_id = ExtensionTabUtil::GetTabId(web_contents);
 
   // Test chrome.tabs.setZoom().
@@ -3189,6 +3181,44 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsZoomTest, CannotZoomInvalidTab) {
       base::MatchPattern(error, manifest_errors::kCannotAccessChromeUrl));
 
   // chrome.tabs.setZoomSettings().
+  error = RunSetZoomSettingsExpectError(tab_id, "manual", "per-tab");
+  EXPECT_TRUE(
+      base::MatchPattern(error, manifest_errors::kCannotAccessChromeUrl));
+}
+
+// Tests that tabs.zoom properly looks at the committed (not visible) URLs.
+// Regression test for crbug.com/533021205.
+IN_PROC_BROWSER_TEST_F(ExtensionTabsZoomTest,
+                       ZoomingRestrictedURLsChecksCommittedURL) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Open a restricted URL and wait for it to load.
+  const char kRestrictedUrl[] = "chrome://version/";
+  content::WebContents* web_contents =
+      OpenUrlAndWaitForLoad(GURL(kRestrictedUrl));
+  int tab_id = ExtensionTabUtil::GetTabId(web_contents);
+
+  ASSERT_EQ(GURL(kRestrictedUrl), web_contents->GetLastCommittedURL());
+  ASSERT_EQ(GURL(kRestrictedUrl), web_contents->GetVisibleURL());
+
+  // Start a browser-initiated navigation to an unrestricted URL, but do not
+  // wait for it to commit.
+  GURL unrestricted_url = embedded_test_server()->GetURL("/title1.html");
+  content::NavigationController::LoadURLParams load_params(unrestricted_url);
+  web_contents->GetController().LoadURLWithParams(load_params);
+
+  // The visible URL should update immediately to the pending navigation target.
+  ASSERT_EQ(unrestricted_url, web_contents->GetVisibleURL());
+  // The committed URL should still be the restricted one.
+  ASSERT_EQ(GURL(kRestrictedUrl), web_contents->GetLastCommittedURL());
+
+  // Attempt to set zoom. It should fail because the committed URL is
+  // restricted.
+  std::string error = RunSetZoomExpectError(tab_id, 3.14159);
+  EXPECT_TRUE(
+      base::MatchPattern(error, manifest_errors::kCannotAccessChromeUrl));
+
+  // Attempt to set zoom settings. It should also fail.
   error = RunSetZoomSettingsExpectError(tab_id, "manual", "per-tab");
   EXPECT_TRUE(
       base::MatchPattern(error, manifest_errors::kCannotAccessChromeUrl));

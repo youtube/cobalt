@@ -67,6 +67,7 @@
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_tab_button.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
+#include "chrome/browser/ui/views/extensions/extensions_container_views.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_button.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_coordinator.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
@@ -258,6 +259,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ToolbarView, kToolbarElementId);
 
 ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
     : AnimationDelegateViews(this),
+      glic_button_controller_(glic::GlicButtonController::From(browser)),
       browser_(browser),
       browser_view_(browser_view),
       app_menu_icon_controller_(browser->GetProfile(), this),
@@ -284,11 +286,10 @@ ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
   mouse_watcher_ = std::make_unique<views::MouseWatcher>(
       std::make_unique<views::MouseWatcherViewHost>(this, gfx::Insets()), this);
 
-  glic::GlicNudgeController* glic_nudge_controller =
-      browser_->browser_window_features()->glic_nudge_controller();
 
   // `glic_nudge_controller` will be null if feature is not enabled.
-  if (glic_nudge_controller) {
+  if (glic::GlicNudgeController* glic_nudge_controller =
+          glic::GlicNudgeController::From(browser_)) {
     glic_nudge_controller->SetVerticalTabsDelegate(this);
   }
 }
@@ -779,8 +780,8 @@ void ToolbarView::OnGlicButtonClicked() {
   }
 
   glic::mojom::InvocationSource source;
-  if (button_controller_) {
-    source = button_controller_->GetInvocationSource(
+  if (glic_button_controller_) {
+    source = glic_button_controller_->GetInvocationSource(
         glic_button_->GetIsShowingNudge(), /*is_toolbar=*/true);
   } else {
     source = glic_button_->GetIsShowingNudge()
@@ -1105,10 +1106,6 @@ void ToolbarView::SetGlicActorShowState(bool show) {
   UpdateGlicActorVisibility();
 }
 
-void ToolbarView::SetButtonController(glic::GlicButtonController* controller) {
-  button_controller_ = controller;
-}
-
 void ToolbarView::SetGlicShowState(bool show) {
   should_show_glic_button_ = show;
   UpdateGlicButtonVisibility();
@@ -1237,18 +1234,14 @@ void ToolbarView::ShowIntentPickerBubble(
     const std::optional<url::Origin>& initiating_origin,
     IntentPickerResponse callback) {
   std::optional<ui::ElementIdentifier> higlighted_element;
-  if (bubble_type != IntentPickerBubbleView::BubbleType::kClickToCall) {
-    if (GetIntentChipButton()) {
-      higlighted_element = kIntentChipElementId;
-    } else if (GetPageActionViewInterface(kActionShowIntentPicker)) {
-      higlighted_element = kIntentPickerPageActionElementId;
-    } else {
-      return;
-    }
+  if (GetIntentChipButton()) {
+    higlighted_element = kIntentChipElementId;
+  } else if (GetPageActionViewInterface(kActionShowIntentPicker)) {
+    higlighted_element = kIntentPickerPageActionElementId;
+  } else {
+    return;
   }
 
-  // At this point, we either have a highlighted_element or it's a ClickToCall
-  // bubble which doesn't have a corresponding page action button to highlight.
   IntentPickerBubbleView::ShowBubble(
       GetBubbleAnchor(std::nullopt), higlighted_element, bubble_type,
       GetWebContents(), std::move(app_info), show_stay_in_chrome,
@@ -1277,6 +1270,10 @@ views::Button* ToolbarView::GetChromeLabsButton() const {
 
 ExtensionsToolbarButton* ToolbarView::GetExtensionsButton() const {
   return extensions_container_->GetExtensionsButton();
+}
+
+views::LabelButton* ToolbarView::GetGlicButton() {
+  return glic_button_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1666,7 +1663,10 @@ void ToolbarView::UpdateTypeAndSeverity(
   }
 }
 
-ExtensionsToolbarDesktop* ToolbarView::GetExtensionsToolbarDesktop() {
+ExtensionsContainerViews* ToolbarView::GetExtensionsContainerViews() {
+  if (features::IsWebUIExtensionsContainerEnabled()) {
+    return toolbar_webview_->extensions_container_views();
+  }
   return extensions_container_;
 }
 
@@ -1686,8 +1686,10 @@ gfx::Size ToolbarView::GetToolbarButtonSize() const {
 }
 
 views::BubbleAnchor ToolbarView::GetDefaultExtensionDialogAnchor() {
-  if (extensions_container_ && extensions_container_->GetVisible()) {
-    return views::BubbleAnchor(extensions_container_->GetExtensionsButton());
+  ExtensionsContainerViews* extensions_container =
+      GetExtensionsContainerViews();
+  if (extensions_container && extensions_container->IsVisible()) {
+    return extensions_container->GetExtensionsButtonAnchor();
   }
   auto* control = GetAppMenuControl();
   return control ? control->GetAnchor() : views::BubbleAnchor();
@@ -1802,21 +1804,12 @@ views::BubbleAnchor ToolbarView::GetPageActionBubbleAnchor(
 }
 
 void ToolbarView::ZoomChangedForActiveTab(bool can_show_bubble) {
-  if (IsPageActionMigrated(PageActionIconType::kZoom)) {
-    auto* zoom_view_controller = browser_->GetActiveTabInterface()
-                                     ->GetTabFeatures()
-                                     ->zoom_view_controller();
-    CHECK(zoom_view_controller);
-    zoom_view_controller->UpdatePageActionIconAndBubbleVisibility(
-        /*prefer_to_show_bubble=*/can_show_bubble, /*from_user_gesture=*/false);
-    return;
-  }
-
-  // Other impls are expected to only launch after page action migration.
-  if (location_bar_view_) {
-    location_bar_view_->page_action_icon_controller()->ZoomChangedForActiveTab(
-        can_show_bubble);
-  }
+  auto* zoom_view_controller = browser_->GetActiveTabInterface()
+                                   ->GetTabFeatures()
+                                   ->zoom_view_controller();
+  CHECK(zoom_view_controller);
+  zoom_view_controller->UpdatePageActionIconAndBubbleVisibility(
+      /*prefer_to_show_bubble=*/can_show_bubble, /*from_user_gesture=*/false);
 }
 
 AvatarToolbarButtonInterface* ToolbarView::GetAvatarToolbarButtonInterface() {

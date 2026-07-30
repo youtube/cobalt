@@ -774,6 +774,10 @@
       base_feature: "none",
     },
     {
+      name: "AutoDarkModeSVGSizeThreshold",
+      status: "stable",
+    },
+    {
       name: "Autofill",
       public: true,
       status: "test",
@@ -1022,6 +1026,12 @@
       status: "stable",
     },
     {
+      // Enables the <camera> and <microphone> HTML elements, allowing sites to
+      // embed camera and microphone permission request controls directly in the page.
+      // https://chromestatus.com/feature/5153829504024576
+      name: "CameraAndMicrophoneElements",
+    },
+    {
       name: "Canvas2dCanvasFilter",
       status: "experimental",
     },
@@ -1130,6 +1140,18 @@
       // Signals. See https://crrev.com/c/4544201 and https://crbug.com/1458640.
       name: "CCTNewRFMPushBehavior",
       base_feature_status: "enabled",
+    },
+    {
+      // Compression Dictionary Transport: Align handling of crossorigin
+      // attribute on the spec.
+      name: "CDTNewCrossOriginHandling",
+      status: "test",
+    },
+    {
+      // Compression Dictionary Transport: Align handling of referrerpolicy
+      // attribute and referrer on the spec.
+      name: "CDTNewReferrerAndReferrerPolicyHandling",
+      status: "test",
     },
     {
       name: "CheckableInputTypeLayoutInline",
@@ -1295,7 +1317,7 @@
     },
     {
       name: "CompositeClipPathAnimation",
-      status: "experimental",
+      status: "stable",
       public: true,
     },
     {
@@ -1530,10 +1552,11 @@
       status: "stable",
     },
     {
+      // Ship in M152, should be removed in M154.
       // https://drafts.csswg.org/css-color-5/#relative-alpha
       // https://chromestatus.com/feature/5070160203481088
       name: "CSSAlphaColorFunction",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Allows using counter() and counters() in alt text (after / in content property).
@@ -2286,7 +2309,7 @@
     },
     {
       name: "DeviceOrientationRequestPermission",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "DevicePosture",
@@ -3375,6 +3398,16 @@
       },
       base_feature: "none",
     },
+    // When a Web application calls getDisplayMedia(), allow a hint to be
+    // provided as to whether the Web application prefers prioritizing audio
+    // capture.
+    //
+    // https://w3c.github.io/mediacapture-screen-share/#dom-displaymediastreamoptions-audioselection
+    {
+      name: "GetDisplayMediaAudioSelection",
+      depends_on: ["GetDisplayMedia"],
+      status: "experimental",
+    },
     {
       name: "GetDisplayMediaRequiresUserActivation",
       depends_on: ["GetDisplayMedia"],
@@ -3550,6 +3583,13 @@
       status: "stable",
     },
     {
+      // Killswitch for crbug.com/40727112: emit a bogus comment for an
+      // incomplete markup declaration at end of input instead of dropping the
+      // rest of the document.
+      name: "HTMLParserTruncatedMarkupDeclaration",
+      status: "stable",
+    },
+    {
       // A flag, just for local testing to make the
       // HTML parser yield more often and take longer to resume.
       // This helps when debugging flaky tests caused by parser
@@ -3610,6 +3650,12 @@
       origin_trial_os: [ "win" ],
       base_feature: "none",
       public: true,
+    },
+    {
+      // Support for https://www.w3.org/TR/IFT/. Tracked at
+      // https://chromestatus.com/feature/5135917565214720.
+      name: "IncrementalFontTransfer",
+      status: "test",
     },
     {
       name: "InertElementNonEditable",
@@ -3828,6 +3874,17 @@
       }
     },
     {
+      // Keeps the legacy container attributes (startContainer/endContainer)
+      // on AbstractRange. These attributes move to a new NodeRange interface
+      // between AbstractRange and Range/StaticRange. This is forced to the
+      // inverse of the global OpaqueRange runtime flag in
+      // content/child/runtime_features.cc. Remove when the OpaqueRange flag is
+      // removed. crbug.com/421421332
+      name: "LegacyAbstractRange",
+      base_feature: "none",
+      status: "stable",
+    },
+    {
       // Makes light dismiss for popovers and dialogs use the click event
       // instead of pointerdown and pointerup in order to fix light dismiss
       // bugs for touch inputs.
@@ -3842,6 +3899,15 @@
     {
       name: "ListOwnerMustHaveCSSBox",
       status: "stable",
+    },
+    {
+      // Reverse origin trial allowing sites to opt out of Local Network Access
+      // restrictions for WebRTC.
+      name: "LocalNetworkAccessForWebRTCOptOut",
+      origin_trial_feature_name: "LocalNetworkAccessForWebRTCOptOut",
+      origin_trial_type: "deprecation",
+      origin_trial_allows_insecure: true,
+      base_feature: "none",
     },
     {
       // Reverse origin trial allowing Local Network Access requests on
@@ -3912,6 +3978,14 @@
       origin_trial_feature_name: "LongAnimationFrameStyleDuration",
       origin_trial_allows_third_party: true,
       status: "experimental",
+    },
+    {
+      // Extends the Long Animation Frame (LoAF) API to Web Workers. Reports a
+      // long task blocking a worker's event loop as a "long-animation-frame"
+      // entry, observable from inside the worker. See the loaf-congested-moments
+      // explainer: https://github.com/WICG/delayed-message-timing
+      name: "LongAnimationFrameWorker",
+      status: "test",
     },
     {
       // Long press on a link selects the link text instead of bringing up
@@ -4182,14 +4256,6 @@
       status: "stable",
     },
     {
-      name: "NavigateEventAddHandlerOnPrecommit",
-      status: "stable",
-    },
-    {
-      name: "NavigateEventClearOnRestore",
-      status: "stable",
-    },
-    {
       name: "NavigateEventDeferCrossDocumentCommit",
       status: "experimental",
     },
@@ -4365,7 +4431,7 @@
       // for encapsulated content within <textarea> and <input> elements.
       // crbug.com/421421332
       name: "OpaqueRange",
-      origin_trial_feature_name: "OpaqueRange",
+      public: true,
       status: "experimental",
     },
     {
@@ -4948,6 +5014,13 @@
       status: "stable",
     },
     {
+      // Sets Range boundaries relative to a sibling node lazily, avoiding the
+      // O(n) Node::NodeIndex()/NodeTraversal::ChildAt walks so that selectNode()
+      // is O(1) instead of O(n). See crbug.com/515812864.
+      name: "RangeBoundaryFastPath",
+      status: "stable",
+    },
+    {
       name: "RasterInducingScroll",
       status: {
         "Linux": "stable",
@@ -5137,6 +5210,11 @@
     {
       name: "RequestMainFrameAfterFirstVideoFrame",
       status: "stable",
+    },
+    {
+      name: "RequestStorageAccessFor",
+      status: "stable",
+      base_feature: "StorageAccessAPIRelatedWebsiteSets",
     },
     {
       name: "ResolveVarStylesOnCopy",
@@ -5361,6 +5439,11 @@
       status: "stable",
     },
     {
+      // Killswitch M151.
+      name: "ScrollingContentsCullRectOnScrollNode",
+      status: "stable",
+    },
+    {
       // https://github.com/w3c/csswg-drafts/issues/9576
       name: "ScrollIntoViewAlignAuto",
       status: "experimental",
@@ -5457,9 +5540,9 @@
       // overlapping browser UI.
       // TODO(https://issues.chromium.org/issues/511869411): Remove this flag
       // after it has been shipped for long enough.
-      // Shipped in M150, changed slightly in M151, safe to remove in M153.
+      // Shipped in M150, changed slightly in M151, disabled in M151-M152.
       name: "SelectAnchorInViewport",
-      status: "stable",
+      status: "experimental",
     },
     {
       // SelectAudioOutput API
@@ -5681,7 +5764,7 @@
       // Reference Target allows IDREF attributes to refer inside Shadow DOM.
       // crbug.com/346835896
       name: "ShadowRootReferenceTarget",
-      status: "experimental",
+      status: "stable",
       origin_trial_feature_name: "ShadowRootReferenceTarget"
     },
     {
@@ -5693,7 +5776,7 @@
       // Lets declarative shadow roots opt into manual slot assignment.
       // crbug.com/493315747
       name: "ShadowRootSlotAssignment",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SharedArrayBuffer",
@@ -5861,10 +5944,13 @@
       status: "stable",
     },
     {
-      // Source-specific multicast support in the Direct Sockets API.
+      // Source-specific multicast support in the Direct Sockets API. Not
+      // depends_on: ["DirectSockets"] — DirectSockets is enabled per-context
+      // (isolated contexts) rather than via the static flag, so a static
+      // dependency would keep this feature off everywhere it matters. Actual
+      // exposure is gated by MulticastController's Exposed() clause.
       name: "SourceSpecificMulticastInDirectSockets",
       status: "test",
-      depends_on: ["DirectSockets"],
     },
     {
       // Whether spatial navigation should use cursor inheritance to exclude
@@ -6859,6 +6945,10 @@
       name: "WebAudioConfigurableRenderQuantum",
       origin_trial_feature_name: "WebAudioConfigurableRenderQuantum",
       status: "experimental",
+    },
+    {
+      name: "WebAudioRustFft",
+      status: "stable",
     },
     // WebAuth is disabled on Android versions prior to N (7.0) due to lack of
     // supporting APIs, see runtime_features.cc.

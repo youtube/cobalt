@@ -13,8 +13,10 @@
 #include "chrome/browser/autofill/autofill_uitest_util.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -102,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest, ShowBubble) {
 
   controller->Initialize(suggestions, on_suggestions_shown_callback.Get(),
                          base::DoNothing(), base::DoNothing(),
-                         base::DoNothing());
+                         base::DoNothing(), base::DoNothing());
 
   EXPECT_CALL(on_suggestions_shown_callback, Run(testing::SizeIs(1)));
 
@@ -127,7 +129,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
   suggestions.emplace_back(suggestion);
 
   controller->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
-                         base::DoNothing(), base::DoNothing());
+                         base::DoNothing(), base::DoNothing(),
+                         base::DoNothing());
 
   controller->QueueOrShowBubble();
 
@@ -164,7 +167,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
   suggestions.emplace_back(suggestion);
 
   controller->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
-                         base::DoNothing(), base::DoNothing());
+                         base::DoNothing(), base::DoNothing(),
+                         base::DoNothing());
 
   controller->QueueOrShowBubble();
 
@@ -190,7 +194,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
   suggestions.emplace_back(u"Visa •••• 1112", SuggestionType::kCreditCardEntry);
 
   controller->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
-                         base::DoNothing(), base::DoNothing());
+                         base::DoNothing(), base::DoNothing(),
+                         base::DoNothing());
 
   controller->QueueOrShowBubble();
 
@@ -217,9 +222,9 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
   base::MockRepeatingCallback<void(SuggestionHidingReason)>
       on_suggestions_hidden_callback;
 
-  controller->Initialize(suggestions, base::DoNothing(),
-                         on_suggestions_hidden_callback.Get(),
-                         base::DoNothing(), base::DoNothing());
+  controller->Initialize(
+      suggestions, base::DoNothing(), on_suggestions_hidden_callback.Get(),
+      base::DoNothing(), base::DoNothing(), base::DoNothing());
 
   controller->QueueOrShowBubble();
 
@@ -230,6 +235,62 @@ IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
               Run(SuggestionHidingReason::kUserAborted));
 
   bubble_view->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
+                       DeselectSuggestionTriggersCallback) {
+  auto* controller = GetBubbleController();
+  ASSERT_TRUE(controller);
+
+  // Add one suggestion.
+  std::vector<Suggestion> suggestions;
+  suggestions.emplace_back(u"Visa •••• 1111", SuggestionType::kCreditCardEntry);
+
+  base::MockRepeatingClosure did_deselect_suggestion_callback;
+
+  controller->Initialize(
+      suggestions, base::DoNothing(), base::DoNothing(), base::DoNothing(),
+      did_deselect_suggestion_callback.Get(), base::DoNothing());
+
+  controller->QueueOrShowBubble();
+
+  auto* bubble_view = GetBubbleView();
+  ASSERT_TRUE(bubble_view);
+
+  // Verify one suggestion is shown.
+  std::vector<views::Button*> buttons = GetSuggestions(bubble_view);
+  ASSERT_EQ(buttons.size(), 1u);
+
+  // Expect the callback to run once when the bubble is hidden.
+  EXPECT_CALL(did_deselect_suggestion_callback, Run()).Times(1);
+
+  bubble_view->Hide();
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxAutofillBubbleViewBrowserTest,
+                       ActionItemUpdatedWithBubbleVisibility) {
+  auto* controller = GetBubbleController();
+  ASSERT_TRUE(controller);
+
+  actions::ActionItem* action = actions::ActionManager::Get().FindAction(
+      kActionAutofillPayment, browser()->GetActions()->root_action_item());
+  ASSERT_NE(action, nullptr);
+  EXPECT_FALSE(action->GetIsShowingBubble());
+
+  // Initialize and show bubble.
+  controller->Initialize(
+      {Suggestion(u"Visa •••• 1111", SuggestionType::kCreditCardEntry)},
+      base::DoNothing(), base::DoNothing(), base::DoNothing(),
+      base::DoNothing(), base::DoNothing());
+  controller->QueueOrShowBubble();
+
+  auto* bubble_view = GetBubbleView();
+  ASSERT_NE(bubble_view, nullptr);
+  EXPECT_TRUE(action->GetIsShowingBubble());
+
+  // Close bubble.
+  bubble_view->Hide();
+  EXPECT_FALSE(action->GetIsShowingBubble());
 }
 
 }  // namespace

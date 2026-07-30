@@ -50,18 +50,11 @@ std::unique_ptr<PolicyContainerPolicies> GetHistoryPolicies(
 
 NavigationPolicyContainerBuilder::NavigationPolicyContainerBuilder(
     RenderFrameHostImpl* parent,
-    std::unique_ptr<PolicyContainerPolicies> initiator_policies,
     const FrameNavigationEntry* history_entry)
     : parent_policies_(GetParentPolicies(parent)),
-      initiator_policies_(std::move(initiator_policies)),
       history_policies_(GetHistoryPolicies(history_entry)) {}
 
 NavigationPolicyContainerBuilder::~NavigationPolicyContainerBuilder() = default;
-
-const PolicyContainerPolicies*
-NavigationPolicyContainerBuilder::InitiatorPolicies() const {
-  return initiator_policies_.get();
-}
 
 const PolicyContainerPolicies*
 NavigationPolicyContainerBuilder::ParentPolicies() const {
@@ -93,7 +86,8 @@ void NavigationPolicyContainerBuilder::SetIsOriginPotentiallyTrustworthy(
 
 void NavigationPolicyContainerBuilder::SetCrossOriginIsolationEnabledByDIP() {
   DCHECK(HasComputedPolicies());
-  host_->SetCrossOriginIsolationEnabledByDIP();
+  host_->SetCrossOriginIsolationEnabledByDIP(
+      base::PassKey<NavigationPolicyContainerBuilder>());
 }
 
 void NavigationPolicyContainerBuilder::SetCrossOriginIsolationKeyOverride(
@@ -104,7 +98,8 @@ void NavigationPolicyContainerBuilder::SetCrossOriginIsolationKeyOverride(
   CHECK(!SiteIsolationPolicy::UseDedicatedProcessesForAllSites() &&
         !SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled() &&
         !ShouldUseDefaultSiteInstanceGroup());
-  host_->set_cross_origin_isolation_key_override(coi_key);
+  host_->set_cross_origin_isolation_key_override(
+      coi_key, base::PassKey<NavigationPolicyContainerBuilder>());
 }
 
 void NavigationPolicyContainerBuilder::AddContentSecurityPolicy(
@@ -130,9 +125,12 @@ void NavigationPolicyContainerBuilder::SetConnectionAllowlists(
 
 void NavigationPolicyContainerBuilder::SetCrossOriginOpenerPolicy(
     network::CrossOriginOpenerPolicy coop) {
-  DCHECK(!HasComputedPolicies());
-
-  delivered_policies_.cross_origin_opener_policy = coop;
+  if (HasComputedPolicies()) {
+    host_->set_cross_origin_opener_policy(
+        coop, base::PassKey<NavigationPolicyContainerBuilder>());
+  } else {
+    delivered_policies_.cross_origin_opener_policy = std::move(coop);
+  }
 }
 
 void NavigationPolicyContainerBuilder::SetCrossOriginEmbedderPolicy(
@@ -263,7 +261,9 @@ void NavigationPolicyContainerBuilder::IncorporateDeliveredPoliciesForLocalURL(
 }
 
 PolicyContainerPolicies
-NavigationPolicyContainerBuilder::ComputeInheritedPolicies(const GURL& url) {
+NavigationPolicyContainerBuilder::ComputeInheritedPolicies(
+    const GURL& url,
+    const PolicyContainerPolicies* initiator_policies) {
   DCHECK(url.SchemeIsLocal()) << url << " should not inherit policies";
 
   if (url.IsAboutSrcdoc()) {
@@ -272,8 +272,8 @@ NavigationPolicyContainerBuilder::ComputeInheritedPolicies(const GURL& url) {
     return parent_policies_->Clone();
   }
 
-  if (initiator_policies_) {
-    return initiator_policies_->Clone();
+  if (initiator_policies) {
+    return initiator_policies->Clone();
   }
 
   return PolicyContainerPolicies();
@@ -281,6 +281,7 @@ NavigationPolicyContainerBuilder::ComputeInheritedPolicies(const GURL& url) {
 
 PolicyContainerPolicies NavigationPolicyContainerBuilder::ComputeFinalPolicies(
     NavigationHandle* navigation_handle,
+    const PolicyContainerPolicies* initiator_policies,
     bool is_inside_mhtml,
     network::mojom::WebSandboxFlags frame_sandbox_flags,
     bool is_credentialless) {
@@ -300,7 +301,7 @@ PolicyContainerPolicies NavigationPolicyContainerBuilder::ComputeFinalPolicies(
     // history navigation we will have CSP: something twice.
     policies = history_policies_->Clone();
   } else {
-    policies = ComputeInheritedPolicies(url);
+    policies = ComputeInheritedPolicies(url, initiator_policies);
     IncorporateDeliveredPoliciesForLocalURL(policies);
 
     // TODO(crbug.com/40053796): Persist the policy container for URLs with
@@ -333,14 +334,15 @@ PolicyContainerPolicies NavigationPolicyContainerBuilder::ComputeFinalPolicies(
 
 void NavigationPolicyContainerBuilder::ComputePolicies(
     NavigationHandle* navigation_handle,
+    const PolicyContainerPolicies* initiator_policies,
     bool is_inside_mhtml,
     network::mojom::WebSandboxFlags frame_sandbox_flags,
     bool is_credentialless,
     bool is_secure_context_root) {
   DCHECK(!HasComputedPolicies());
   ComputeIsWebSecureContext(is_secure_context_root);
-  SetFinalPolicies(ComputeFinalPolicies(navigation_handle, is_inside_mhtml,
-                                        frame_sandbox_flags,
+  SetFinalPolicies(ComputeFinalPolicies(navigation_handle, initiator_policies,
+                                        is_inside_mhtml, frame_sandbox_flags,
                                         is_credentialless));
 }
 
@@ -350,7 +352,8 @@ bool NavigationPolicyContainerBuilder::HasComputedPolicies() const {
 
 void NavigationPolicyContainerBuilder::SetAllowTopNavigationWithoutUserGesture(
     bool allow_top) {
-  host_->SetCanNavigateTopWithoutUserGesture(allow_top);
+  host_->SetCanNavigateTopWithoutUserGesture(
+      allow_top, base::PassKey<NavigationPolicyContainerBuilder>());
 }
 
 void NavigationPolicyContainerBuilder::SetFinalPolicies(

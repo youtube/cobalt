@@ -33,13 +33,14 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.shadows.ShadowLooper;
 
-import org.chromium.base.FeatureOverrides;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
+import org.chromium.chrome.browser.lens.LensSupportStatusHelper;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.tab.Tab;
@@ -55,6 +56,7 @@ import java.util.function.Function;
 
 /** Unit tests for {@link LensOverlayCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@EnableFeatures(ChromeFeatureList.LENS_OVERLAY_ANDROID)
 public class LensOverlayCoordinatorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -75,14 +77,6 @@ public class LensOverlayCoordinatorUnitTest {
     @Before
     public void setUp() {
         LensOverlayCoordinatorJni.setInstanceForTesting(mLensOverlayCoordinatorJniMock);
-
-        FeatureOverrides.newBuilder()
-                .enable(ChromeFeatureList.LENS_OVERLAY_ANDROID)
-                .param(
-                        ChromeFeatureList.LENS_OVERLAY_ANDROID,
-                        "implementation_type",
-                        LensOverlayCoordinator.LENS_OVERLAY_IMPL_INTENT)
-                .apply();
 
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
 
@@ -122,6 +116,62 @@ public class LensOverlayCoordinatorUnitTest {
         // Verify that it returns false and does not call into C++.
         assertFalse(started);
         verify(mLensOverlayCoordinatorJniMock, never()).showUI(any(Long.class), any(Integer.class));
+    }
+
+    @Test
+    public void start_Success() {
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+
+        // Mock JNI to return true.
+        when(mLensOverlayCoordinatorJniMock.showUI(any(Long.class), any(Integer.class)))
+                .thenReturn(true);
+
+        // Attempt to start the overlay.
+        boolean started = coordinator.start(LensOverlayInvocationSource.APP_MENU);
+
+        // Verify that it returns true.
+        assertTrue(started);
+        // Verify that the showing state is set to true.
+        assertTrue(LensOverlayTabHelper.isOverlayShowing(mTab));
+        // Verify JNI call.
+        verify(mLensOverlayCoordinatorJniMock, times(1))
+                .showUI(any(Long.class), eq(LensOverlayInvocationSource.APP_MENU));
+    }
+
+    @Test
+    public void start_JniFailure() {
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+
+        // Mock JNI to return false (e.g., RenderWidgetHostView was null).
+        when(mLensOverlayCoordinatorJniMock.showUI(any(Long.class), any(Integer.class)))
+                .thenReturn(false);
+
+        // Attempt to start the overlay.
+        boolean started = coordinator.start(LensOverlayInvocationSource.APP_MENU);
+
+        // Verify that it returns false.
+        assertFalse(started);
+        // Verify that the showing state was reset to false.
+        assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));
+    }
+
+    @Test
+    public void onScreenshotCaptured_TabDestroyed() {
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+
+        // Simulate that the overlay is currently showing.
+        LensOverlayTabHelper.setOverlayShowing(mTab, true);
+
+        // Simulate that the tab's WebContents has been destroyed.
+        when(mTab.getWebContents()).thenReturn(null);
+
+        Bitmap mockBitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+
+        // Trigger the callback.
+        coordinator.onScreenshotCaptured(mockBitmap);
+
+        // Verify that the showing state was reset to false.
+        assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));
     }
 
     @Test
@@ -281,16 +331,13 @@ public class LensOverlayCoordinatorUnitTest {
     }
 
     @Test
+    @EnableFeatures(
+            ChromeFeatureList.LENS_OVERLAY_ANDROID
+                    + ":"
+                    + LensSupportStatusHelper.LENS_OVERLAY_IMPL_TYPE
+                    + "/"
+                    + LensSupportStatusHelper.LENS_OVERLAY_IMPL_WEBUI)
     public void onScreenshotCaptured_WebUIFlow() {
-        // Override implementation type to WebUI.
-        FeatureOverrides.newBuilder()
-                .enable(ChromeFeatureList.LENS_OVERLAY_ANDROID)
-                .param(
-                        ChromeFeatureList.LENS_OVERLAY_ANDROID,
-                        "implementation_type",
-                        LensOverlayCoordinator.LENS_OVERLAY_IMPL_WEBUI)
-                .apply();
-
         // Use a spy to stub the branching methods.
         LensOverlayCoordinator coordinator = spy(LensOverlayCoordinator.getOrCreateForTab(mTab));
         doReturn(true).when(coordinator).startWebUIFlow(any());

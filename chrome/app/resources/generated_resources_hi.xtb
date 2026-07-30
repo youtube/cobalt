@@ -1187,7 +1187,6 @@
 <translation id="1910721550319506122">आपका स्वागत है!</translation>
 <translation id="1910736334623230603">एक से ज़्यादा इमेज नहीं खोजी जा सकतीं. एक बार में एक ही इमेज जोड़ें.</translation>
 <translation id="1910908536872421421">Chrome for Testing v<ph name="BROWSER_VERSION" /> सिर्फ़ ऑटोमेटेड टेस्टिंग के लिए है. सामान्य ब्राउज़िंग के लिए, Chrome के ऐसे स्टैंडर्ड वर्शन का इस्तेमाल करें जो अपने-आप अपडेट होता है.</translation>
-<translation id="1912867150686509584">अपने कैलेंडर पर और मीटिंग देखें</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{उस टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहा है}one{उस टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहा है}other{उन टैब को रोक दें जो आपके ब्राउज़र की स्पीड को धीमा कर रहे हैं}}</translation>
 <translation id="1913749768968678106">कास्ट, सेव, और शेयर करें</translation>
 <translation id="19147273405311768">टूलबार को डिफ़ॉल्ट सेटिंग पर रीसेट करें</translation>
@@ -1227,12 +1226,14 @@
 <translation id="1933489278505808700">पढ़ने और बदलाव करने की अनुमति है</translation>
 <translation id="1935303383381416800">आपकी जगह की जानकारी देखने की अनुमति है</translation>
 <translation id="193565226207940518">सहायता टूल</translation>
+<translation id="1935995810530254458">फिर भी कॉपी करें</translation>
 <translation id="1936157145127842922">फ़ोल्डर में दिखाएं</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{पेज को रीडिंग लिस्ट में जोड़ा गया}one{पेज को रीडिंग लिस्ट में जोड़ा गया}other{पेज, रीडिंग लिस्ट में जोड़े गए}}</translation>
 <translation id="1936931585862840749">बताएं कि आपको कितनी कॉपी प्रिंट करनी है (1 से <ph name="MAX_COPIES" />).</translation>
 <translation id="1938351510777341717">बाहरी निर्देश</translation>
 <translation id="1940221956626514677">टूलबार को पसंद के मुताबिक बनाएं</translation>
 <translation id="1940546824932169984">कनेक्ट किए गए डिवाइस</translation>
+<translation id="194081218158106711">बदले गए पासवर्ड की पुष्टि की जा रही है...</translation>
 <translation id="1941410638996203291">शुरुआत का समय <ph name="TIME" /></translation>
 <translation id="1941553344801134989">वर्शन: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">एडमिन ने आपके खाते को कॉन्फ़िगर किया, ताकि वह Microsoft OneDrive से अपने-आप कनेक्ट हो जाए. हालांकि, इस दौरान कोई गड़बड़ी हुई.</translation>
@@ -1501,6 +1502,7 @@
 <translation id="2158475082070321257">हाइलाइट किए गए टेक्स्ट का लिंक कॉपी करें</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758"><ph name="EXTENSION_NAME" /> के लिए <ph name="SHORTCUT" /> का दायरा</translation>
+<translation id="2161656808144014275">लेख संदेश</translation>
 <translation id="216169395504480358">वाई-फ़ाई  जोड़ें...</translation>
 <translation id="2162705204091149050">अपने ब्राउज़र, ओएस, डिवाइस, इंस्टॉल किए गए सॉफ़्टवेयर, और फ़ाइलों के बारे में जानें</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" />, <ph name="THIRD_SWITCH" />, और 1 और स्विच ऐक्सेस बटन</translation>
@@ -4268,6 +4270,7 @@
 <translation id="4274673989874969668">जब आप कोई साइट छोड़ते हैं, तो वह कुछ कामों को पूरा करने के लिए, सिंक करने की सुविधा का इस्तेमाल जारी रख सकती है, जैसे कि फ़ोटो अपलोड करना या चैट मैसेज भेजना</translation>
 <translation id="4275291496240508082">डिवाइस शुरू होने की आवाज़</translation>
 <translation id="4275397969489577657">इवेंट स्ट्रीम में लॉग इन करना चालू करें</translation>
+<translation id="4275663329226226506">मीडिया</translation>
 <translation id="4275788652681621337">साइड पैनल बंद करें</translation>
 <translation id="4275830172053184480">अपना डिवाइस फिर से प्रारंभ करें</translation>
 <translation id="4276390967705106170">नए ब्राउज़र टैब में खोलें</translation>
@@ -4755,6 +4758,7 @@
 <translation id="4657914796247705218">TrackPoint की रफ़्तार</translation>
 <translation id="4658648180588730283"><ph name="APPLICATION_NAME" /> ऐप्लिकेशन को ऑफ़लाइन इस्तेमाल नहीं किया जा सकता.</translation>
 <translation id="465878909996028221">ब्राउज़र रीडायरेक्ट के लिए सिर्फ़ एचटीटीपी, एचटीटीपीएस और फ़ाइल प्रोटोकॉल काम करते हैं.</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /> <ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">जब आप अपने Google खाते में लॉग इन करते हैं, तो यह सुविधा चालू हो जाती है.</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{इमेज}one{# इमेज}other{# इमेज}}</translation>
 <translation id="4660540330091848931">साइज़ बदला जा रहा है</translation>
@@ -5096,7 +5100,6 @@
 <translation id="4906490889887219338">नेटवर्क फ़ाइल शेयर सेट अप या प्रबंधित करें. <ph name="LINK_BEGIN" />ज़्यादा जानें<ph name="LINK_END" /></translation>
 <translation id="4906679076183257864">डिफ़ॉल्ट पर रीसेट करें</translation>
 <translation id="4907129260985716018">चुनें कि यह एक्सटेंशन कब आपके साइट डेटा को पढ़ और बदल सकता है</translation>
-<translation id="4908076691331874303">इस साइट के लिए छिपाया गया है</translation>
 <translation id="4908811072292128752">एक बार में दो साइटें ब्राउज़ करने के लिए नया टैब खोलें</translation>
 <translation id="4910241725741323970">यह ऐप्लिकेशन पहले से इंस्टॉल है</translation>
 <translation id="4912643508233590958">इस्तेमाल नहीं किए जा रहे प्रोसेसर को जगाना</translation>
@@ -5334,6 +5337,7 @@
 <translation id="5096775069898886423">सुरक्षित कनेक्शन की सुविधा न देने वाली साइटों पर विज़िट करने से पहले आपको चेतावनी मिलेगी</translation>
 <translation id="5097002363526479830">नेटवर्क से कनेक्ट करने में विफल '<ph name="NAME" />': <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">आपने जिन साइटों पर विज़िट किया है वे आपकी दिलचस्पी का अनुमान लगा सकती हैं और फिर आपके ब्राउज़ करने पर, इस हिसाब से विज्ञापन दिखा सकती हैं</translation>
+<translation id="5097472729724586429">नए टूल, "टेक्स्ट एनोटेशन जोड़ें" की मदद से टेक्स्ट एनोटेशन जोड़ें</translation>
 <translation id="5097649414558628673">टूल: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">कर्सर के रुकने पर अपने-आप क्लिक होगा</translation>
 <translation id="5098963855433723436">इससे एक अलग ऐप्लिकेशन विंडो खुलती है</translation>
@@ -5398,6 +5402,7 @@
 <translation id="5146235736676876345">अपने हिसाब से चुनें</translation>
 <translation id="5146896637028965135">सिस्टम की आवाज़</translation>
 <translation id="5147113439721488265">सुझाव</translation>
+<translation id="5148020348702787234">लिंक भेजने के लिए, अपनी पहचान की पुष्टि करें. दोनों डिवाइसों पर एक ही Google खाते से साइन करने पर, लिंक भेजे जा सकते हैं.</translation>
 <translation id="5148285448107770349">पासवर्ड कम से कम आठ वर्णों का होना चाहिए</translation>
 <translation id="5149602533174716626">वीडियो फ़्रेम कॉपी करें</translation>
 <translation id="5150254825601720210">Netscape प्रमाणपत्र SSL सर्वर नाम</translation>
@@ -6362,7 +6367,6 @@
 <translation id="5932881020239635062">सीरियल</translation>
 <translation id="5933522550144185133"><ph name="APP_NAME" /> आपके कैमरे और माइक्रोफ़ोन का इस्तेमाल कर रहा है</translation>
 <translation id="5935158534896975820">प्रमाणपत्र के लिए अनुरोध किया जा रहा है (सर्वर का इंतज़ार है)</translation>
-<translation id="5935554994339565449">नए "टेक्स्ट जोड़ें" टूल की मदद से टेक्स्ट जोड़ें</translation>
 <translation id="5936065461722368675">पूरे पेज का अनुवाद करें</translation>
 <translation id="5937977334791924341"><ph name="APP" /> का लोगो</translation>
 <translation id="5938002010494270685">सुरक्षा बेहतर बनाने की सुविधा मौजूद है</translation>
@@ -8920,6 +8924,7 @@
 <translation id="7933486544522242079">&amp;सेव और शेयर करें</translation>
 <translation id="7933518760693751884">बुकमार्क आइकॉन पर क्लिक करके, किसी पेज को बाद में पढ़ने के लिए सेव करें</translation>
 <translation id="7933634003144813719">शेयर किए गए फ़ोल्डर प्रबंधित करें</translation>
+<translation id="7935072572536724392">ऑटोमैटिक तरीके से पासवर्ड बदलने की सुविधा काम नहीं कर रही है</translation>
 <translation id="7936195481975600746">स्क्रीन शेयर करने के लिए, अपने सिस्टम के स्क्रीन पिकर का इस्तेमाल करें</translation>
 <translation id="7937809006412909895">गड़बड़ी की जानकारी का डेटा इकट्ठा किया जा रहा है</translation>
 <translation id="7938881824185772026">Labs</translation>
@@ -9057,6 +9062,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{रीडिंग लिस्ट}=1{रीडिंग लिस्ट ({SELECTED_ITEMS})}one{रीडिंग लिस्ट ({SELECTED_ITEMS})}other{रीडिंग लिस्ट ({SELECTED_ITEMS})}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> - अनुमति मांगी गई है, जवाब देने के लिए ⌘ + Option + अप ऐरो बटन दबाएं</translation>
 <translation id="8030169304546394654">डिसकनेक्ट किया गया</translation>
+<translation id="8030814978699290230">साइन इन करने की कोशिश की जा रही है...</translation>
 <translation id="8030852056903932865">अनुमति दें</translation>
 <translation id="8033827949643255796">चयनित</translation>
 <translation id="8033958968890501070">समय खत्म</translation>
@@ -9470,6 +9476,7 @@
 <translation id="8343578633847737325">हाल ही की चैट और थ्रेड</translation>
 <translation id="8345848587667658367">अब आपके पास अपने फ़ोन में मौजूद हाल ही की फ़ोटो, मीडिया, सूचनाएं, और ऐप्लिकेशन देखने का विकल्प है</translation>
 <translation id="8347227221149377169">प्रिंट जॉब</translation>
+<translation id="8347728744337089388">अपने डिवाइस पर भेजें</translation>
 <translation id="8348430946834215779">जब भी हो सके एचटीटीपीएस का इस्तेमाल करें. ऐसा करने से, आपको उन साइटों के लोड होने से पहले चेतावनी मिलेगी जो एचटीटीपीएस पर काम नहीं करतीं</translation>
 <translation id="8348896480272971199">अपने इंटरनेट कनेक्शन की जांच करें और फिर से कोशिश करें.</translation>
 <translation id="8349305172487531364">बुकमार्क बार</translation>
@@ -9519,6 +9526,7 @@
 <translation id="8382197851871630452">मौजूदा जगह का मौसम</translation>
 <translation id="8382913212082956454">ईमेल पते की कॉपी बनाएं</translation>
 <translation id="8383614331548401927">वेलकम रीकैप</translation>
+<translation id="8387157483437834731">पासवर्ड बदल दिया गया है</translation>
 <translation id="8387361103813440603">आपकी जगह की जानकारी देखने की अनुमति नहीं है</translation>
 <translation id="8389492867173948260">इस एक्सटेंशन को आपकी विज़िट की जाने वाली वेबसाइटों पर मौजूद आपका डेटा पढ़ने और बदलने की अनुमति दें</translation>
 <translation id="8390449457866780408">सर्वर अनुपलब्‍ध है.</translation>
@@ -9913,7 +9921,6 @@
 <translation id="8693862390730570097">"लिखने में मेरी मदद करो" सुविधा को अपने-आप चालू होने की अनुमति न दें</translation>
 <translation id="8694596275649352090">स्लीप मोड (कम बैटरी मोड) में रहने या लिड के बंद होने पर लॉक करें</translation>
 <translation id="8695825812785969222">&amp;स्‍थान खोलें...</translation>
-<translation id="8696297579102085705">अपने डिवाइस पर भेजें</translation>
 <translation id="869884720829132584">ऐप्लिकेशन मेन्यू</translation>
 <translation id="869891660844655955">खत्म होने की तारीख</translation>
 <translation id="8699296325072357994">पासवर्ड वाले पेजों का कॉन्टेंट और उससे जुड़ी जानकारी, Google को भेजी जाती है. साथ ही, इसकी मैन्युअल तरीके से समीक्षा की जाती है. आपका पासवर्ड एन्क्रिप्ट (सुरक्षित) किया जाता है और किसी को भी नहीं दिखता है. <ph name="PASSWORD_CHANGE" /></translation>
@@ -10261,6 +10268,7 @@
 <translation id="8967427617812342790">रीडिंग लिस्ट में जोड़ें</translation>
 <translation id="8968527460726243404">ChromeOS सिस्‍टम इमेज राइटर</translation>
 <translation id="8968766641738584599">कार्ड सेव करें</translation>
+<translation id="8970232194848546151">किसी दूसरे डिवाइस पर लिंक भेजें</translation>
 <translation id="8970887620466824814">कुछ गड़बड़ी हुई.</translation>
 <translation id="89720367119469899">Escape</translation>
 <translation id="8972513834460200407">यह पक्का करने के लिए कृपया अपने नेटवर्क एडमिन से बात करें कि फ़ायरवॉल Google के सर्वर से होने वाले डाउनलोड को ब्लॉक नहीं कर रहा है.</translation>
@@ -10527,6 +10535,7 @@
 <translation id="9151906066336345901">end</translation>
 <translation id="9152503903192861480">एआई मोड में खोलें</translation>
 <translation id="9153367754133725216">लॉन्चर और खोज के नतीजों में, नए ऐप्लिकेशन और वेब कॉन्टेंट के लिए सुझाव देखें. इससे सुझावों को बेहतर बनाने के लिए आंकड़े सिर्फ़ तब भेजे जाते हैं, जब आपने ChromeOS को क्रैश रिपोर्ट, ऐप्लिकेशन की परफ़ॉर्मेंस से जुड़ी जानकारी, और इसके इस्तेमाल से जुड़ा डेटा भेजने का विकल्प चुना हो.</translation>
+<translation id="9153451439615847952">सूचनाएं और अलर्ट मिलने के दौरान, बैकग्राउंड में चल रहे ऑडियो को कम करें</translation>
 <translation id="9154194610265714752">अपडेट किया गया</translation>
 <translation id="915485121129452731">पेन टैबलेट</translation>
 <translation id="9155344700756733162">चुने हुए रंग से सही का निशान हटाएं</translation>
@@ -10604,6 +10613,7 @@
 <translation id="9220820413868316583">उंगली उठाएं और फिर से कोशिश करें.</translation>
 <translation id="922152298093051471">Chrome को पसंद के मुताबिक बनाएं</translation>
 <translation id="9222839391870847423">अवधि: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">अपने डिवाइस पर भेजें</translation>
 <translation id="923467487918828349">सभी दिखाएं</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{इसे मैनेज करने के लिए एक्सटेंशन खोलें}one{इसे मैनेज करने के लिए एक्सटेंशन खोलें}other{उन्हें मैनेज करने के लिए एक्सटेंशन खोलें}}</translation>
 <translation id="924818813611903184">ChromeOS की सेटिंग में भाषाएं मैनेज करें</translation>

@@ -134,13 +134,12 @@ class PhoneObject final {
   const std::u16string& GetFormattedNumber() const;
   std::u16string GetNationallyFormattedNumber() const;
   const std::u16string& GetWholeNumber() const;
-  std::string GetRegionCode() const;
-
 
   bool IsValidNumber() const { return i18n_number_ != nullptr; }
 
  private:
-  // The region code for this phone number, inferred during parsing.
+  // The region code for this phone number, inferred during parsing. May be
+  // empty if the number is invalid or does not have a region.
   std::string region_;
 
   // The parsed number and its components.

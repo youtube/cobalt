@@ -29,6 +29,9 @@
 #include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_entry.h"
+#include "chrome/browser/profiles/profile_attributes_init_params.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
@@ -156,6 +159,12 @@ void AppMenuBrowserTest::ShowUi(const std::string& name) {
        AppMenuModel::kProfileMenuPlaceholder},
       {"profile_menu_in_app_menu_signin_not_allowed",
        AppMenuModel::kProfileMenuPlaceholder},
+      {"profile_menu_in_app_menu_no_ring",
+       AppMenuModel::kProfileMenuPlaceholder},
+      {"profile_menu_in_app_menu_single_ring",
+       AppMenuModel::kProfileMenuPlaceholder},
+      {"profile_menu_in_app_menu_two_consecutive_rings",
+       AppMenuModel::kProfileMenuPlaceholder},
   });
   const auto id_entry = kSubmenus.find(name);
   if (id_entry == kSubmenus.end()) {
@@ -262,15 +271,7 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main) {
   ShowAndVerifyUi();
 }
 
-// TODO(crbug.com/343368219): Flaky on Windows 10 x64 builds.
-#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_X86_64)
-#define MAYBE_InvokeUi_main_upgrade_available \
-  DISABLED_InvokeUi_main_upgrade_available
-#else
-#define MAYBE_InvokeUi_main_upgrade_available InvokeUi_main_upgrade_available
-#endif
-IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
-                       MAYBE_InvokeUi_main_upgrade_available) {
+IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, InvokeUi_main_upgrade_available) {
   UpgradeDetector::GetInstance()->set_upgrade_notification_stage_for_testing(
       UpgradeDetector::UPGRADE_ANNOYANCE_CRITICAL);
   UpgradeDetector::GetInstance()->NotifyUpgradeForTesting();
@@ -455,6 +456,96 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest,
   ShowAndVerifyUi();
 }
 
+class AppMenuAiRingBrowserTest : public AppMenuBrowserTest {
+ public:
+  AppMenuAiRingBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        switches::kEnableAiSubscriptionAvatarRing);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(AppMenuAiRingBrowserTest,
+                       InvokeUi_profile_menu_in_app_menu_no_ring) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+
+  // Profiles without rings.
+  base::FilePath path1 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params1;
+  params1.profile_path = path1;
+  params1.profile_name = u"Profile 1";
+  storage.AddProfile(std::move(params1));
+
+  base::FilePath path2 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params2;
+  params2.profile_path = path2;
+  params2.profile_name = u"Profile 2";
+  storage.AddProfile(std::move(params2));
+
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(AppMenuAiRingBrowserTest,
+                       InvokeUi_profile_menu_in_app_menu_single_ring) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+
+  // Profile with ring
+  base::FilePath path1 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params1;
+  params1.profile_path = path1;
+  params1.profile_name = u"Profile 1";
+  storage.AddProfile(std::move(params1));
+  storage.GetProfileAttributesWithPath(path1)->SetAiSubscriptionTier(1);
+
+  // Profile without ring
+  base::FilePath path2 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params2;
+  params2.profile_path = path2;
+  params2.profile_name = u"Profile 2";
+  storage.AddProfile(std::move(params2));
+
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(
+    AppMenuAiRingBrowserTest,
+    InvokeUi_profile_menu_in_app_menu_two_consecutive_rings) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+
+  // Profile with ring
+  base::FilePath path1 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params1;
+  params1.profile_path = path1;
+  params1.profile_name = u"Profile 1";
+  storage.AddProfile(std::move(params1));
+  storage.GetProfileAttributesWithPath(path1)->SetAiSubscriptionTier(1);
+
+  // Profile with ring
+  base::FilePath path2 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params2;
+  params2.profile_path = path2;
+  params2.profile_name = u"Profile 2";
+  storage.AddProfile(std::move(params2));
+  storage.GetProfileAttributesWithPath(path2)->SetAiSubscriptionTier(1);
+
+  // Profile without ring
+  base::FilePath path3 = profile_manager->GenerateNextProfileDirectoryPath();
+  ProfileAttributesInitParams params3;
+  params3.profile_path = path3;
+  params3.profile_name = u"Profile 3";
+  storage.AddProfile(std::move(params3));
+
+  ShowAndVerifyUi();
+}
+
 #endif
 
 // Test case for Safety Hub notification.
@@ -490,9 +581,9 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, Safety_Hub_shown_notification) {
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-class AppMenuProfileAiRingBrowserTest : public AppMenuBrowserTest {
+class AppMenuProfileGradientRingBrowserTest : public AppMenuBrowserTest {
  public:
-  AppMenuProfileAiRingBrowserTest() {
+  AppMenuProfileGradientRingBrowserTest() {
     scoped_feature_list_.InitAndEnableFeature(
         switches::kEnableAiSubscriptionAvatarRing);
   }
@@ -536,8 +627,8 @@ class AppMenuProfileAiRingBrowserTest : public AppMenuBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(AppMenuProfileAiRingBrowserTest,
-                       ProfileMenuIconHasAiRing) {
+IN_PROC_BROWSER_TEST_F(AppMenuProfileGradientRingBrowserTest,
+                       ProfileMenuIconHasGradientRing) {
   // Sign in with an image to get a non-placeholder avatar.
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->GetProfile());

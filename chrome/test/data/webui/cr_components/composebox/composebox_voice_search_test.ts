@@ -7,7 +7,7 @@ import 'chrome://resources/cr_components/composebox/composebox.js';
 import 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
 
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
-import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import {PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ComposeboxProxyImpl, createAutocompleteMatch} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import type {ComposeboxVoiceSearchElement} from 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
 import {VoiceSearchAction, VoiceSearchError} from 'chrome://resources/cr_components/composebox/composebox_voice_search.js';
@@ -70,7 +70,7 @@ suite('ComposeboxVoiceSearch', () => {
     handler = installMock(
         PageHandlerRemote,
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
-            mock, new PageCallbackRouter(), new SearchboxPageHandlerRemote(),
+            mock, new SearchboxPageHandlerRemote(),
             new SearchboxPageCallbackRouter())));
     assertTrue(!!handler);
     searchboxHandler = installMock(
@@ -517,6 +517,54 @@ suite('ComposeboxVoiceSearch', () => {
             metrics.count(
                 'VoiceSearch.Action.NTP_REALBOX',
                 VoiceSearchAction.ERROR_CANCELING));
+      });
+
+  test(
+      'NO_MATCH error renders Try Again link and hides Details link',
+      async () => {
+        const voiceSearchElement = await openVoiceSearchUI();
+        voiceSearchElement.hasErrorTimer = true;
+
+        // Verify initially both links are not visible.
+        assertFalse(isVisible(voiceSearchElement.shadowRoot.querySelector('#tryAgainLink')));
+        assertFalse(isVisible(voiceSearchElement.shadowRoot.querySelector('#details')));
+
+        // Trigger NO_MATCH error.
+        mockSpeechRecognition.onnomatch!(new Event('nomatch'));
+        await microtasksFinished();
+
+        // Verify `tryAgainLink` is visible and `details` link is hidden.
+        const tryAgainLink =
+            voiceSearchElement.shadowRoot.querySelector<HTMLElement>(
+                '#tryAgainLink');
+        const detailsLink =
+            voiceSearchElement.shadowRoot.querySelector<HTMLElement>(
+                '#details');
+
+        assertTrue(isVisible(tryAgainLink));
+        assertFalse(isVisible(detailsLink));
+
+        assertTrue(!!tryAgainLink);
+        tryAgainLink.click();
+        await microtasksFinished();
+        assertEquals(2, mockSpeechRecognition.startCount);
+        assertEquals(null, voiceSearchElement['error_']);
+        assertEquals('', voiceSearchElement['errorMessage_']);
+
+        // Trigger other error (like `audio-capture`).
+        mockSpeechRecognition.onerror!
+            ({error: 'audio-capture'} as any);
+        await microtasksFinished();
+
+        // Verify `tryAgainLink` is hidden and `details` link is visible.
+        const tryAgainLink2 =
+            voiceSearchElement.shadowRoot.querySelector<HTMLElement>(
+                '#tryAgainLink');
+        const detailsLink2 =
+            voiceSearchElement.shadowRoot.querySelector<HTMLElement>(
+                '#details');
+        assertFalse(isVisible(tryAgainLink2));
+        assertTrue(isVisible(detailsLink2));
       });
 
   test('voice search button does not show when disabled', async () => {

@@ -49,12 +49,13 @@ constexpr size_t kMaxPlayStoreResults = 12;
 }  // namespace
 
 std::unique_ptr<SearchController> CreateSearchController(
+    PrefService* local_state,
     Profile* profile,
     AppListModelUpdater* model_updater,
     AppListControllerDelegate* list_controller,
     ash::AppListNotifier* notifier) {
   auto controller = std::make_unique<SearchController>(
-      model_updater, list_controller, notifier, profile);
+      local_state, model_updater, list_controller, notifier, profile);
   controller->Initialize();
 
   // Add search providers.
@@ -71,8 +72,9 @@ std::unique_ptr<SearchController> CreateSearchController(
   // on Chrome OS.
   if (!profile->IsGuestSession()) {
     controller->AddProvider(std::make_unique<FileSearchProvider>(
-        profile, base::FileEnumerator::FileType::FILES |
-                     base::FileEnumerator::FileType::DIRECTORIES));
+        local_state, profile,
+        base::FileEnumerator::FileType::FILES |
+            base::FileEnumerator::FileType::DIRECTORIES));
     controller->AddProvider(std::make_unique<DriveSearchProvider>(profile));
     controller->AddProvider(std::make_unique<SystemInfoCardProvider>(profile));
     if (search_features::IsLauncherImageSearchEnabled()) {

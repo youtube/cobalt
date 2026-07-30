@@ -6,13 +6,17 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
+#include "base/base64.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -28,6 +32,7 @@
 #include "components/sharing_message/proto/sharing_message.pb.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "crypto/keypair.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,13 +47,17 @@ namespace {
 
 constexpr int64_t kDefaultSequenceNumber = 42;
 constexpr char kDefaultServerConfig[] = "test_config";
+constexpr char kDefaultP256dh[] = "test_p256dh";
+constexpr char kDefaultAuthSecret[] = "test_auth_secret";
 
 components_sharing_message::SharingMessage CreateTriggeringMessage(
     int64_t sequence_number = kDefaultSequenceNumber,
     const std::string& server_config = kDefaultServerConfig) {
   components_sharing_message::SharingMessage message;
-  message.mutable_server_channel_configuration()->set_configuration(
-      server_config);
+  auto* channel = message.mutable_server_channel_configuration();
+  channel->set_configuration(server_config);
+  channel->set_p256dh(kDefaultP256dh);
+  channel->set_auth_secret(kDefaultAuthSecret);
   auto* triggering = message.mutable_glic_experimental_triggering();
   triggering->mutable_task_metadata()->set_sender_sequence_number(
       sequence_number);
@@ -78,6 +87,9 @@ class GlicExperimentalTriggeringMessageHandlerBrowserTest
             "./glic_experimental_triggering_message_handler_browsertest.js") {
     feature_list_.InitWithFeaturesAndParameters(
         {{features::kGlicExperimentalTriggering, {}},
+         {features::kGlicExperimentalTriggeringScreenshot, {}},
+         {features::kGlicActor,
+          {{features::kGlicActorPolicyControlExemption.name, "true"}}},
          {features::kGlicExperimentalTriggeringOptInTabFocus,
           {{"glic-experimental-triggering-tab-focus-hosts",
             "127.0.0.1,localhost"},
@@ -204,6 +216,9 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
 
   auto [server_channel, received_message] = future.Take();
   EXPECT_EQ(server_channel.configuration(), "test_config");
+  EXPECT_EQ(server_channel.p256dh(), kDefaultP256dh);
+  EXPECT_EQ(server_channel.auth_secret(), kDefaultAuthSecret);
+  EXPECT_FALSE(received_message.has_server_channel_configuration());
   EXPECT_TRUE(received_message.has_glic_experimental_triggering());
   EXPECT_FALSE(
       received_message.glic_experimental_triggering().context_id().empty());
@@ -260,6 +275,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   ExecuteJsTest();
 
   auto message1 = future.Take();
+  EXPECT_FALSE(message1.has_server_channel_configuration());
   EXPECT_EQ(message1.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
@@ -270,6 +286,7 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
             42);
 
   auto message2 = future.Take();
+  EXPECT_FALSE(message2.has_server_channel_configuration());
   EXPECT_EQ(message2.glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
@@ -656,6 +673,141 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
+                       testHandlesContinueActuationRequestSuccessfully) {
+  OptIn();
+  // --- Step 1: Start Actuation ---
+  auto start_message = CreateTriggeringMessage(kDefaultSequenceNumber);
+  auto* start_triggering = start_message.mutable_glic_experimental_triggering();
+  start_triggering->set_context_id("test-context-id");
+  start_triggering->mutable_request()->mutable_trigger_actuation_request();
+
+  int initial_tab_count = GetTabListInterface()->GetTabCount();
+
+  base::test::TestFuture<components_sharing_message::SharingMessage> future;
+  EXPECT_CALL(mock_sharing_message_sender_,
+              SendMessageToServerTarget(_, _, _, _))
+      .WillRepeatedly(
+          [&](const components_sharing_message::ServerChannelConfiguration&,
+              base::TimeDelta,
+              components_sharing_message::SharingMessage message,
+              SharingMessageSender::ResponseCallback) {
+            future.SetValue(std::move(message));
+            return base::OnceClosure();
+          });
+
+  auto start_response = SendMessageAndWait(std::move(start_message));
+  ASSERT_TRUE(start_response);
+  EXPECT_TRUE(start_response->has_glic_experimental_triggering());
+  EXPECT_EQ(start_response->glic_experimental_triggering()
+                .response()
+                .task_update()
+                .state(),
+            components_sharing_message::GlicExperimentalTriggering::
+                ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+
+  // Verify that the instance is bound to the newly created tab.
+  auto* new_tab = GetTabListInterface()->GetTab(initial_tab_count);
+  ASSERT_TRUE(new_tab);
+  ASSERT_OK(WaitForGlicInstanceBoundToTab(new_tab));
+
+  ExecuteJsTest();
+
+  // --- Step 2: Continue Actuation ---
+  auto continue_message = CreateTriggeringMessage(kDefaultSequenceNumber + 1);
+  auto* continue_triggering =
+      continue_message.mutable_glic_experimental_triggering();
+  continue_triggering->set_context_id("test-context-id");
+  continue_triggering->mutable_request()
+      ->mutable_continue_actuation_request()
+      ->set_continuation_prompt("continuation prompt");
+
+  auto response = SendMessageAndWait(std::move(continue_message));
+  ASSERT_TRUE(response);
+  EXPECT_TRUE(response->has_glic_experimental_triggering());
+  EXPECT_EQ(response->glic_experimental_triggering().context_id(),
+            "test-context-id");
+  EXPECT_EQ(
+      response->glic_experimental_triggering().response().task_update().state(),
+      components_sharing_message::GlicExperimentalTriggering::
+          ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+  EXPECT_EQ(response->glic_experimental_triggering()
+                .task_metadata()
+                .sender_sequence_number(),
+            1);
+  EXPECT_EQ(response->glic_experimental_triggering()
+                .task_metadata()
+                .last_seen_sequence_number(),
+            kDefaultSequenceNumber + 1);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
+                       testContinueActuationTargetsCorrectTab) {
+  OptIn();
+  // --- Step 1: Start Actuation ---
+  auto start_message = CreateTriggeringMessage(kDefaultSequenceNumber);
+  auto* start_triggering = start_message.mutable_glic_experimental_triggering();
+  start_triggering->set_context_id("test-context-id");
+  start_triggering->mutable_request()->mutable_trigger_actuation_request();
+
+  int initial_tab_count = GetTabListInterface()->GetTabCount();
+
+  base::test::TestFuture<components_sharing_message::SharingMessage> future;
+  EXPECT_CALL(mock_sharing_message_sender_,
+              SendMessageToServerTarget(_, _, _, _))
+      .WillRepeatedly(
+          [&](const components_sharing_message::ServerChannelConfiguration&,
+              base::TimeDelta,
+              components_sharing_message::SharingMessage message,
+              SharingMessageSender::ResponseCallback) {
+            future.SetValue(std::move(message));
+            return base::OnceClosure();
+          });
+
+  auto start_response = SendMessageAndWait(std::move(start_message));
+  ASSERT_TRUE(start_response);
+
+  auto* tab2 = GetTabListInterface()->GetTab(initial_tab_count);
+  ASSERT_TRUE(tab2);
+  ASSERT_OK(WaitForGlicInstanceBoundToTab(tab2));
+
+  ExecuteJsTest();
+
+  auto response_msg = future.Take();
+  std::string conversation_id = response_msg.glic_experimental_triggering()
+                                    .task_metadata()
+                                    .conversation_id();
+  ASSERT_FALSE(conversation_id.empty());
+
+  // Switch back to Tab 1 (making it active)
+  GetTabListInterface()->ActivateTab(
+      GetTabListInterface()->GetTab(0)->GetHandle());
+
+  // --- Step 2: Continue Actuation ---
+  auto continue_message = CreateTriggeringMessage(kDefaultSequenceNumber + 1);
+  auto* continue_triggering =
+      continue_message.mutable_glic_experimental_triggering();
+  continue_triggering->set_context_id("test-context-id");
+  continue_triggering->mutable_task_metadata()->set_conversation_id(
+      conversation_id);
+  auto* continue_req = continue_triggering->mutable_request()
+                           ->mutable_continue_actuation_request();
+  continue_req->set_continuation_prompt("continuation prompt");
+
+  auto response = SendMessageAndWait(std::move(continue_message));
+  ASSERT_TRUE(response);
+
+  // Verify that no new tab was created (we still only have Tab 1 and Tab 2)
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), initial_tab_count + 1);
+
+  EXPECT_EQ(response->glic_experimental_triggering().context_id(),
+            "test-context-id");
+  EXPECT_EQ(response->glic_experimental_triggering()
+                .task_metadata()
+                .sender_sequence_number(),
+            2);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
                        RejectRequestWhenNotOptedIn) {
   // Ensure we are NOT opted in.
   auto* glic_service = glic::GlicKeyedService::Get(GetProfile());
@@ -957,6 +1109,119 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
+                       testHandlesGetScreenshotRequestSuccessfully) {
+  OptIn();
+
+  // 1. Send an actuation request to open Glic and bind it to the tab.
+  auto actuation_message = CreateTriggeringMessage(101);
+  actuation_message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_trigger_actuation_request();
+
+  base::test::TestFuture<components_sharing_message::ServerChannelConfiguration,
+                         components_sharing_message::SharingMessage>
+      actuation_future;
+  SetupMessageSenderMock(&actuation_future);
+
+  int initial_tab_count = GetTabListInterface()->GetTabCount();
+  auto actuation_reply = SendMessageAndWait(std::move(actuation_message));
+  ASSERT_TRUE(actuation_reply);
+  ASSERT_TRUE(actuation_reply->has_glic_experimental_triggering());
+  std::string context_id =
+      actuation_reply->glic_experimental_triggering().context_id();
+
+  // Verify that the instance is bound to the tab.
+  ASSERT_EQ(GetTabListInterface()->GetTabCount(), initial_tab_count + 1);
+  auto* new_tab = GetTabListInterface()->GetTab(initial_tab_count);
+  ASSERT_TRUE(new_tab);
+  ASSERT_OK(WaitForGlicInstanceBoundToTab(new_tab));
+
+  // Activate the background tab where Glic is opened so it is focused and
+  // eligible for screenshot.
+  GetTabListInterface()->ActivateTab(new_tab->GetHandle());
+  ASSERT_EQ(GetTabListInterface()->GetActiveTab(), new_tab);
+
+  // Run the JS side to subscribe.
+  ExecuteJsTest();
+
+  // Consume the actuation completion update.
+  ASSERT_TRUE(actuation_future.Wait());
+  auto [actuation_channel, actuation_response] = actuation_future.Take();
+  EXPECT_EQ(actuation_channel.configuration(), "test_config");
+  ASSERT_TRUE(actuation_response.has_glic_experimental_triggering());
+
+  auto* glic_service = glic::GlicKeyedService::Get(GetProfile());
+  ASSERT_TRUE(glic_service);
+  glic::GlicInstance* instance = glic_service->GetInstanceForTab(new_tab);
+  ASSERT_TRUE(instance);
+  TestResult<actor::TaskId> task_id = CreateActorTask(instance);
+  ASSERT_OK(task_id);
+  actor::ActorKeyedService* actor_service =
+      actor::ActorKeyedService::Get(GetProfile());
+  ASSERT_TRUE(actor_service);
+  actor::ActorTask* task = actor_service->GetTask(task_id.value());
+  ASSERT_TRUE(task);
+  task->ObserveTabOnce(new_tab->GetHandle());
+
+  // 2. Prepare and send the GetScreenshotRequest.
+  // Use deterministic test vector (X9.62 uncompressed P-256 point) instead of
+  // dynamically generating randomized key pairs.
+  std::string public_key_str;
+  ASSERT_TRUE(base::Base64Decode(
+      "BFlvj1VrkwP8pxa1zSiJZzZ7yeMEO1DOPSbNw6XV8NK3Xo++7ql9NTcxNaciYM2eQ/"
+      "G1ebnwrtRrHyMXEDhN5ck=",
+      &public_key_str));
+  std::string auth_secret_str(16, 'a');
+
+  auto screenshot_message = CreateTriggeringMessage(102);
+  screenshot_message.mutable_glic_experimental_triggering()->set_context_id(
+      context_id);
+  auto* screenshot_req =
+      screenshot_message.mutable_glic_experimental_triggering()
+          ->mutable_request()
+          ->mutable_get_screenshot_request();
+  screenshot_req->set_public_key(public_key_str);
+  screenshot_req->set_auth_secret(auth_secret_str);
+
+  base::test::TestFuture<components_sharing_message::ServerChannelConfiguration,
+                         components_sharing_message::SharingMessage>
+      screenshot_future;
+  SetupMessageSenderMock(&screenshot_future);
+
+  // Send the screenshot request.
+  auto screenshot_reply = SendMessageAndWait(std::move(screenshot_message));
+  ASSERT_TRUE(screenshot_reply);
+  ASSERT_TRUE(screenshot_reply->has_glic_experimental_triggering());
+  EXPECT_EQ(screenshot_reply->glic_experimental_triggering()
+                .response()
+                .task_update()
+                .state(),
+            components_sharing_message::GlicExperimentalTriggering::
+                ExperimentalTriggeringResponse::TaskUpdate::STARTING);
+
+  // 3. Verify the screenshot response contains the uploaded token.
+  ASSERT_TRUE(screenshot_future.Wait());
+  auto [server_channel, received_message] = screenshot_future.Take();
+  EXPECT_EQ(server_channel.configuration(), "test_config");
+  EXPECT_EQ(server_channel.p256dh(), kDefaultP256dh);
+  EXPECT_EQ(server_channel.auth_secret(), kDefaultAuthSecret);
+  EXPECT_FALSE(received_message.has_server_channel_configuration());
+  ASSERT_TRUE(received_message.has_glic_experimental_triggering());
+  ASSERT_TRUE(received_message.glic_experimental_triggering().has_response());
+
+  const auto& response =
+      received_message.glic_experimental_triggering().response();
+  ASSERT_TRUE(response.has_screenshot_result());
+
+  const auto& result = response.screenshot_result();
+  EXPECT_EQ(result.status(),
+            components_sharing_message::GlicExperimentalTriggering::
+                ExperimentalTriggeringResponse::ScreenshotResult::SUCCESS);
+  EXPECT_EQ(result.file_token(), "mock_file_token_from_client");
+  EXPECT_TRUE(result.error_message().empty());
+}
+
 class GlicExperimentalTriggeringOpenWindowTest
     : public GlicExperimentalTriggeringMessageHandlerBrowserTest {
  public:
@@ -1007,6 +1272,94 @@ IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringOpenWindowTest,
 
   // Verify that a new window was created.
   EXPECT_EQ(GetAllBrowserWindowInterfaces().size(), initial_browser_count + 1);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
+                       AutoGeneratesContextIdWhenAbsent) {
+  OptIn();
+
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()->clear_context_id();
+  message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_trigger_actuation_request();
+
+  base::test::TestFuture<
+      std::unique_ptr<components_sharing_message::ResponseMessage>>
+      done_future;
+  handler_->OnMessage(std::move(message), done_future.GetCallback());
+
+  EXPECT_TRUE(done_future.Wait());
+  auto response = done_future.Take();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->has_glic_experimental_triggering());
+
+  std::string generated_context_id =
+      response->glic_experimental_triggering().context_id();
+  EXPECT_FALSE(generated_context_id.empty());
+  EXPECT_EQ(handler_->GetUpdatesHandlerMapSizeForTesting(), 1u);
+
+  components_sharing_message::SharingMessage stop_message =
+      CreateTriggeringMessage();
+  stop_message.mutable_glic_experimental_triggering()->set_context_id(
+      generated_context_id);
+  stop_message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_stop_actuation_request()
+      ->set_stop_reason("STOPPED_BY_USER");
+
+  base::test::TestFuture<
+      std::unique_ptr<components_sharing_message::ResponseMessage>>
+      stop_future;
+  handler_->OnMessage(std::move(stop_message), stop_future.GetCallback());
+
+  EXPECT_TRUE(stop_future.Wait());
+  EXPECT_EQ(handler_->GetUpdatesHandlerMapSizeForTesting(), 0u);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicExperimentalTriggeringMessageHandlerBrowserTest,
+                       AutoGeneratesContextIdWhenEmpty) {
+  OptIn();
+
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()->set_context_id("");
+  message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_trigger_actuation_request();
+
+  base::test::TestFuture<
+      std::unique_ptr<components_sharing_message::ResponseMessage>>
+      done_future;
+  handler_->OnMessage(std::move(message), done_future.GetCallback());
+
+  EXPECT_TRUE(done_future.Wait());
+  auto response = done_future.Take();
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(response->has_glic_experimental_triggering());
+
+  std::string generated_context_id =
+      response->glic_experimental_triggering().context_id();
+  EXPECT_FALSE(generated_context_id.empty());
+  EXPECT_EQ(handler_->GetUpdatesHandlerMapSizeForTesting(), 1u);
+
+  components_sharing_message::SharingMessage stop_message =
+      CreateTriggeringMessage();
+  stop_message.mutable_glic_experimental_triggering()->set_context_id(
+      generated_context_id);
+  stop_message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_stop_actuation_request()
+      ->set_stop_reason("STOPPED_BY_USER");
+
+  base::test::TestFuture<
+      std::unique_ptr<components_sharing_message::ResponseMessage>>
+      stop_future;
+  handler_->OnMessage(std::move(stop_message), stop_future.GetCallback());
+
+  EXPECT_TRUE(stop_future.Wait());
+  EXPECT_EQ(handler_->GetUpdatesHandlerMapSizeForTesting(), 0u);
 }
 
 using TaskUpdate = components_sharing_message::GlicExperimentalTriggering::
@@ -1084,6 +1437,40 @@ components_sharing_message::SharingMessage BuildSameVersionMessage() {
   return message;
 }
 
+components_sharing_message::SharingMessage BuildNoTaskMetadataMessage() {
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()->clear_task_metadata();
+  message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_trigger_actuation_request();
+  return message;
+}
+
+components_sharing_message::SharingMessage BuildGetScreenshotMessage() {
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()
+      ->mutable_request()
+      ->mutable_get_screenshot_request();
+  return message;
+}
+
+components_sharing_message::SharingMessage BuildInnerPayloadNotSetMessage() {
+  components_sharing_message::SharingMessage message =
+      CreateTriggeringMessage();
+  message.mutable_glic_experimental_triggering()->mutable_request();
+  return message;
+}
+
+components_sharing_message::SharingMessage
+BuildNoServerChannelNoTaskMetadataMessage() {
+  components_sharing_message::SharingMessage message =
+      BuildNoTaskMetadataMessage();
+  message.clear_server_channel_configuration();
+  return message;
+}
+
 class GlicExperimentalTriggeringMessageHandlerResponseTest
     : public GlicExperimentalTriggeringMessageHandlerBrowserTest,
       public testing::WithParamInterface<TestScenarioParam> {};
@@ -1115,19 +1502,29 @@ IN_PROC_BROWSER_TEST_P(GlicExperimentalTriggeringMessageHandlerResponseTest,
 
   ASSERT_TRUE(response);
   ASSERT_TRUE(response->has_glic_experimental_triggering());
+  EXPECT_FALSE(response->glic_experimental_triggering().context_id().empty());
   ASSERT_TRUE(response->glic_experimental_triggering().has_response());
   ASSERT_TRUE(
       response->glic_experimental_triggering().response().has_task_update());
   const auto& task_update =
       response->glic_experimental_triggering().response().task_update();
+  EXPECT_TRUE(task_update.has_state());
   EXPECT_EQ(task_update.state(), GetParam().expected_task_update->state);
+  EXPECT_TRUE(task_update.has_data_type());
   EXPECT_EQ(task_update.data_type(),
             GetParam().expected_task_update->data_type);
+  EXPECT_TRUE(task_update.has_data());
   EXPECT_EQ(task_update.data(), GetParam().expected_task_update->data);
+  EXPECT_TRUE(response->glic_experimental_triggering()
+                  .task_metadata()
+                  .has_sender_sequence_number());
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .sender_sequence_number(),
             GetParam().expected_sender_sequence_number);
+  EXPECT_TRUE(response->glic_experimental_triggering()
+                  .task_metadata()
+                  .has_last_seen_sequence_number());
   EXPECT_EQ(response->glic_experimental_triggering()
                 .task_metadata()
                 .last_seen_sequence_number(),
@@ -1138,6 +1535,11 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     GlicExperimentalTriggeringMessageHandlerResponseTest,
     testing::Values(
+        TestScenarioParam{"NoTaskMetadata", BuildNoTaskMetadataMessage(),
+                          std::nullopt},
+        TestScenarioParam{"NoServerChannelNoTaskMetadata",
+                          BuildNoServerChannelNoTaskMetadataMessage(),
+                          std::nullopt},
         TestScenarioParam{
             "NoServerChannelConfig",
             BuildNoServerChannelExperimentalTriggeringMessage(),
@@ -1150,6 +1552,16 @@ INSTANTIATE_TEST_SUITE_P(
             ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
                                "Received GlicExperimentalTriggering "
                                "message with no request payload."}},
+        TestScenarioParam{
+            "InnerPayloadNotSet", BuildInnerPayloadNotSetMessage(),
+            ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                               "Received GlicExperimentalTriggering message "
+                               "with no actionable request."}},
+        TestScenarioParam{
+            "GetScreenshotRequest", BuildGetScreenshotMessage(),
+            ExpectedTaskUpdate{
+                TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,
+                "No active Glic instance available for screenshot."}},
         TestScenarioParam{
             "NoBrowserWindow", BuildNoVersionNoBrowserWindowMessage(),
             ExpectedTaskUpdate{TaskUpdate::FAILED, TaskUpdate::ERROR_MESSAGE,

@@ -189,6 +189,14 @@ public interface BottomSheetContent {
     }
 
     /**
+     * @return Whether this content covers the bottom controls (e.g. bottom navigation bar)
+     *         from the bottom of the screen with zero bottom margin, even when unscrimmed.
+     */
+    default boolean coversBottomControls() {
+        return false;
+    }
+
+    /**
      * Returns whether this sheet content has a solid background color. Return false when the sheet
      * is showing complex content like tab content / a page preview.
      */
@@ -390,6 +398,14 @@ public interface BottomSheetContent {
      *     If false, it will return to its opening state.
      */
     default boolean shouldRestoreStateOnUnsuppress() {
+        return true;
+    }
+
+    /**
+     * @return Whether this content supports rendering specifically configured for large form factor
+     *     devices (e.g., width constraints, specific background styling).
+     */
+    default boolean supportsLargeFormFactor() {
         return true;
     }
 }

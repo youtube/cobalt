@@ -17,9 +17,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/autofill/payments/filled_card_information_icon_view.h"
-#include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_icon_view.h"
-#include "chrome/browser/ui/views/autofill/payments/save_payment_icon_view.h"
 #include "chrome/browser/ui/views/autofill/payments/virtual_card_enroll_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
@@ -27,9 +24,7 @@
 #include "chrome/browser/ui/views/optimization_guide/optimization_guide_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_container.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_params.h"
-#include "chrome/browser/ui/views/page_action/zoom_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_dialog_view.h"
-#include "chrome/browser/ui/views/sharing/sharing_icon_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/features.h"
@@ -103,42 +98,11 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                       params.browser, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
         break;
-      case PageActionIconType::kMandatoryReauth:
-        add_page_action_icon(
-            type, std::make_unique<autofill::MandatoryReauthIconView>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate));
-        break;
-      case PageActionIconType::kSaveCard:
-        add_page_action_icon(
-            type, std::make_unique<autofill::SavePaymentIconView>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate,
-                      IDC_SAVE_CREDIT_CARD_FOR_PAGE));
-        break;
-      case PageActionIconType::kSaveIban:
-        add_page_action_icon(
-            type,
-            std::make_unique<autofill::SavePaymentIconView>(
-                params.command_updater, params.icon_label_bubble_delegate,
-                params.page_action_icon_delegate, IDC_SAVE_IBAN_FOR_PAGE));
-        break;
       case PageActionIconType::kVirtualCardEnroll:
         add_page_action_icon(
             type, std::make_unique<autofill::VirtualCardEnrollIconView>(
                       params.command_updater, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
-        break;
-      case PageActionIconType::kFilledCardInformation:
-        add_page_action_icon(
-            type, std::make_unique<autofill::FilledCardInformationIconView>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate));
-        break;
-      case PageActionIconType::kZoom:
-        zoom_icon_ = add_page_action_icon(
-            type, std::make_unique<ZoomView>(params.icon_label_bubble_delegate,
-                                             params.page_action_icon_delegate));
         break;
       case PageActionIconType::kOptimizationGuide:
         add_page_action_icon(
@@ -157,9 +121,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
   }
 
   if (params.browser) {
-    zoom_observation_.Observe(zoom::ZoomEventManager::GetForBrowserContext(
-        params.browser->GetProfile()));
-
     pref_change_registrar_.Init(params.browser->GetProfile()->GetPrefs());
     pref_change_registrar_.Add(
         omnibox::kShowGoogleLensShortcut,
@@ -248,12 +209,6 @@ void PageActionIconController::OnPageActionIconViewClicked(
   RecordClickMetrics(GetIconType(view), view);
 }
 
-void PageActionIconController::ZoomChangedForActiveTab(bool can_show_bubble) {
-  if (zoom_icon_) {
-    zoom_icon_->ZoomChangedForActiveTab(can_show_bubble);
-  }
-}
-
 std::vector<const PageActionIconView*>
 PageActionIconController::GetPageActionIconViewsForTesting() const {
   std::vector<const PageActionIconView*> icon_views;
@@ -261,10 +216,6 @@ PageActionIconController::GetPageActionIconViewsForTesting() const {
                          std::back_inserter(icon_views),
                          &IconViews::value_type::second);
   return icon_views;
-}
-
-void PageActionIconController::OnDefaultZoomLevelChanged() {
-  ZoomChangedForActiveTab(false);
 }
 
 void PageActionIconController::UpdateWebContents(

@@ -746,23 +746,29 @@ void PreloadHelper::ModulePreloadIfNeeded(
   // referrerpolicy attribute." [spec text]
   // |referrer_policy| parameter is the value of the referrerpolicy attribute.
 
-  // Step 12. "Let options be a script fetch options whose cryptographic nonce
+  // Step 12. "Let fetch priority be the current state of the element's
+  // fetchpriority attribute." [spec text]
+  // |fetch_priority_hint| parameter is the value of the fetchpriority
+  // attribute.
+
+  // Step 13. "Let options be a script fetch options whose cryptographic nonce
   // is cryptographic nonce, integrity metadata is integrity metadata, parser
   // metadata is "not-parser-inserted", credentials mode is credentials mode,
-  // and referrer policy is referrer policy." [spec text]
+  // referrer policy is referrer policy, and fetch priority is fetch priority."
+  // [spec text]
   ModuleScriptFetchRequest request(
       params.href, module_type, context_type, destination,
-      ScriptFetchOptions(params.nonce, integrity_metadata, integrity_value,
-                         kNotParserInserted, credentials_mode,
-                         params.referrer_policy,
-                         mojom::blink::FetchPriorityHint::kAuto,
-                         RenderBlockingBehavior::kNonBlocking),
+      ScriptFetchOptions(
+          params.nonce, integrity_metadata, integrity_value, kNotParserInserted,
+          credentials_mode, params.referrer_policy,
+          GetFetchPriorityAttributeValue(params.fetch_priority_hint),
+          RenderBlockingBehavior::kNonBlocking),
       RuntimeEnabledFeatures::ModulePreloadReferrerEnabled()
           ? Referrer::ClientReferrerString()
           : Referrer::NoReferrer(),
       TextPosition::MinimumPosition(), ModuleImportPhase::kEvaluation);
 
-  // Step 13. "Fetch a modulepreload module script graph given url, destination,
+  // Step 14. "Fetch a modulepreload module script graph given url, destination,
   // settings object, and options. Wait until the algorithm asynchronously
   // completes with result." [spec text]
   //
@@ -1044,10 +1050,17 @@ void PreloadHelper::FetchCompressionDictionaryIfNeeded(
            << params.href.GetString().Utf8();
   ResourceRequest resource_request(params.href);
 
-  resource_request.SetReferrerString(Referrer::NoReferrer());
-  resource_request.SetCredentialsMode(network::mojom::CredentialsMode::kOmit);
-  resource_request.SetReferrerPolicy(network::mojom::ReferrerPolicy::kNever);
-  resource_request.SetMode(network::mojom::RequestMode::kCors);
+  if (!RuntimeEnabledFeatures::CDTNewCrossOriginHandlingEnabled()) {
+    resource_request.SetMode(network::mojom::RequestMode::kCors);
+    resource_request.SetCredentialsMode(network::mojom::CredentialsMode::kOmit);
+  }
+  if (RuntimeEnabledFeatures::
+          CDTNewReferrerAndReferrerPolicyHandlingEnabled()) {
+    resource_request.SetReferrerPolicy(params.referrer_policy);
+  } else {
+    resource_request.SetReferrerString(Referrer::NoReferrer());
+    resource_request.SetReferrerPolicy(network::mojom::ReferrerPolicy::kNever);
+  }
   resource_request.SetRequestDestination(
       network::mojom::RequestDestination::kDictionary);
 
@@ -1056,6 +1069,16 @@ void PreloadHelper::FetchCompressionDictionaryIfNeeded(
   options.initiator_info.name = fetch_initiator_type_names::kLink;
 
   FetchParameters link_fetch_params(std::move(resource_request), options);
+  if (RuntimeEnabledFeatures::CDTNewCrossOriginHandlingEnabled()) {
+    CrossOriginAttributeValue cross_origin = params.cross_origin;
+    // Default to anonymous.
+    // https://github.com/whatwg/html/pull/11620
+    if (cross_origin == kCrossOriginAttributeNotSet) {
+      cross_origin = kCrossOriginAttributeAnonymous;
+    }
+    link_fetch_params.SetCrossOriginAccessControl(
+        document.GetExecutionContext()->GetSecurityOrigin(), cross_origin);
+  }
   IdleRequestOptions* idle_options = IdleRequestOptions::Create();
   ScriptedIdleTaskController::From(*document.GetExecutionContext())
       .RegisterCallback(MakeGarbageCollected<LoadDictionaryWhenIdleTask>(

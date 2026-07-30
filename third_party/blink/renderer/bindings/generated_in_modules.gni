@@ -1312,10 +1312,6 @@ generated_dictionary_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_svc_output_metadata.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_event_init.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_event_init.h",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier_classify_options.cc",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier_classify_options.h",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier_create_options.cc",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier_create_options.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_content_embedding.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_content_embedding.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_semantic_embedder_create_options.cc",
@@ -1522,6 +1518,8 @@ generated_enumeration_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_context_state.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_sample_format.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_sample_format.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_selection_preference_enum.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_selection_preference_enum.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_sink_type.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_audio_sink_type.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_automation_rate.cc",
@@ -3003,8 +3001,6 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_event.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_manager.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_manager.h",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier.cc",
-  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_classifier.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_semantic_embedder.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_semantic_embedder.h",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_decoder.cc",
@@ -3523,6 +3519,10 @@ if (!is_ios) {
 # we need to compile in the same way as would happen when current_os="android".
 if (!target_os_is_android) {
   generated_dictionary_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_group_options.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_group_options.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_membership.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_membership.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_socket_open_info.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_socket_open_info.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_socket_options.cc",
@@ -3551,6 +3551,10 @@ if (!target_os_is_android) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_udp_socket.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_controller.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_multicast_controller.h",
+  ]
+  generated_union_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_union_multicastmembership_string.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_union_multicastmembership_string.h",
   ]
   generated_enumeration_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_socket_dns_query_type.cc",

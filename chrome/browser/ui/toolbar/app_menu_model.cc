@@ -75,6 +75,8 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_context_menu_delegate.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/recent_tabs_sub_menu_model.h"
@@ -129,6 +131,7 @@
 #include "components/send_tab_to_self/features.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/features.h"
@@ -544,12 +547,13 @@ ProfileSubMenuModel::ProfileSubMenuModel(
             ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
                 avatar_image, avatar_icon_size, avatar_icon_size,
                 profiles::SHAPE_CIRCLE));
-        // TODO(crbug.com/530147081): Clarify the AI ring may show up for users
+        // TODO(crbug.com/530147081): Clarify if the ring may show up for users
         // with a placeholder icon. Signed in users should have always an
         // account_info and thus they will never have a placeholder icon.
-        if (IsAiSubscriptionRingEnabled(profile)) {
-          avatar_image_model_ = ui::ImageModel::FromImageSkia(AddAiRingToAvatar(
-              avatar_model, *color_provider, avatar_icon_size));
+        if (ShouldShowAvatarGradientRing(profile)) {
+          avatar_image_model_ =
+              ui::ImageModel::FromImageSkia(AddLinearGradientRingToAvatar(
+                  avatar_model, *color_provider, avatar_icon_size));
         } else {
           avatar_image_model_ = avatar_model;
         }
@@ -576,16 +580,28 @@ ProfileSubMenuModel::ProfileSubMenuModel(
     for (ProfileAttributesEntry* profile_entry : profile_entries) {
       std::u16string display_name = GetProfileMenuDisplayName(profile_entry);
       int menu_id = GetAndIncrementNextMenuID();
+
+      ui::ImageModel avatar_model =
+          ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
+              profile_entry->GetAvatarIcon(
+                  avatar_icon_size, /*use_high_res_file=*/true, icon_params),
+              avatar_icon_size, avatar_icon_size, profiles::SHAPE_CIRCLE));
+
+      if (base::FeatureList::IsEnabled(
+              switches::kEnableAiSubscriptionAvatarRing) &&
+          profile_entry->GetAiSubscriptionTier() > 0) {
+        avatar_model =
+            ui::ImageModel::FromImageSkia(AddLinearGradientRingToAvatar(
+                avatar_model, *color_provider, avatar_icon_size));
+      }
+
       AddItemWithIcon(
           menu_id,
           ui::EscapeMenuLabelAmpersands(gfx::TruncateString(
               display_name,
               GetLayoutConstant(LayoutConstant::kAppMenuMaximumCharacterLength),
               gfx::CHARACTER_BREAK)),
-          ui::ImageModel::FromImage(profiles::GetSizedAvatarIcon(
-              profile_entry->GetAvatarIcon(
-                  avatar_icon_size, /*use_high_res_file=*/true, icon_params),
-              avatar_icon_size, avatar_icon_size, profiles::SHAPE_CIRCLE)));
+          avatar_model);
       other_profiles_.insert({menu_id, profile_entry->GetPath()});
     }
 
@@ -1368,7 +1384,14 @@ void AppMenuModel::ExecuteCommand(int command_id, int event_flags) {
   }
 
   LogMenuMetrics(command_id);
-  chrome::ExecuteCommand(browser_, command_id);
+  actions::ActionInvocationContext context =
+      actions::ActionInvocationContext::Builder()
+          .SetProperty(
+              kSidePanelOpenTriggerKey,
+              static_cast<std::underlying_type_t<SidePanelOpenTrigger>>(
+                  SidePanelOpenTrigger::kAppMenu))
+          .Build();
+  chrome::ExecuteCommandWithContext(browser_, command_id, std::move(context));
 }
 
 void AppMenuModel::LogSafetyHubInteractionMetrics(
@@ -2320,7 +2343,7 @@ void AppMenuModel::Build() {
 #endif
     AddItemWithStringIdAndVectorIcon(
         this, IDC_CONTENT_CONTEXT_LENS_OVERLAY,
-        lens::GetLensOverlayEntrypointLabelAltIds(IDS_SHOW_LENS_OVERLAY), icon);
+        lens::GetLensOverlayEntrypointLabelAltIds(), icon);
     const int lens_command_index =
         GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_OVERLAY).value();
     SetElementIdentifierAt(lens_command_index, kShowLensOverlay);

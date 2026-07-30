@@ -56,7 +56,6 @@ class ContextualTasksComposeboxHandler
       Profile* profile,
       content::WebContents* web_contents,
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
-      mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
       mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
@@ -108,8 +107,10 @@ class ContextualTasksComposeboxHandler
       const std::optional<contextual_search::ContextUploadErrorType>&
           error_type) override;
 
-  void CreateAndSendQueryMessage(const std::string& query,
-                                 bool is_voice_search);
+  void CreateAndSendQueryMessage(
+      const std::string& query,
+      bool is_voice_search,
+      const std::map<std::string, std::string>& additional_cgi_params = {});
 
   void ResetInputStateModel() override;
   void UpdateStateFromUrl(const GURL& url) override;
@@ -183,7 +184,8 @@ class ContextualTasksComposeboxHandler
       std::string query,
       std::optional<base::Uuid> original_task_id,
       std::optional<base::UnguessableToken> overlay_token,
-      bool is_voice_search);
+      bool is_voice_search,
+      const std::map<std::string, std::string>& additional_cgi_params = {});
 
   // Called when side panel navigation is complete to trigger Lens overlay if
   // it was configured to auto-trigger on navigation.

@@ -1187,7 +1187,6 @@
 <translation id="1910721550319506122">স্বাগতম!</translation>
 <translation id="1910736334623230603">একাধিক ছবি সার্চ করা যাবে না। একবারে একটি ছবি যোগ করুন।</translation>
 <translation id="1910908536872421421">Chrome for Testing v<ph name="BROWSER_VERSION" /> শুধু অটোমেটেড টেস্টিংয়ের জন্য ব্যবহার করা হয়। নিয়মিত ব্রাউজ করার জন্য Chrome-এর স্ট্যান্ডার্ড ভার্সন ব্যবহার করুন যা অটোমেটিক আপডেট হয়।</translation>
-<translation id="1912867150686509584">আপনার Calendar-এ আরও মিটিং দেখুন</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{আপনার ব্রাউজারের গতি কমিয়ে দেয় যে ট্যাব, সেটি পজ করুন}one{আপনার ব্রাউজারের গতি কমিয়ে দেয় যে ট্যাব, সেটি পজ করুন}other{আপনার ব্রাউজারের গতি কমিয়ে দেয় যে ট্যাবগুলি, তা পজ করুন}}</translation>
 <translation id="1913749768968678106">কাস্ট, সেভ ও শেয়ার করুন</translation>
 <translation id="19147273405311768">টুলবার ডিফল্ট সেটিংসে রিস্টোর করুন</translation>
@@ -1227,12 +1226,14 @@
 <translation id="1933489278505808700">পড়ার ও পরিবর্তন করার অনুমতি দেওয়া হয়েছে</translation>
 <translation id="1935303383381416800">আপনার লোকেশন দেখার অনুমতি দেওয়া হয়েছে</translation>
 <translation id="193565226207940518">সাপোর্ট টুল</translation>
+<translation id="1935995810530254458">যেকোনওভাবে কপি করুন</translation>
 <translation id="1936157145127842922">ফোল্ডারে দেখান</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{পড়ার তালিকায় পৃষ্ঠা যোগ করা হয়েছে}one{পড়ার তালিকায় পৃষ্ঠা যোগ করা হয়েছে}other{পড়ার তালিকায় পৃষ্ঠাগুলি যোগ করা হয়েছে}}</translation>
 <translation id="1936931585862840749">কতগুলি কপি প্রিন্ট হবে তা নির্দিষ্ট করতে একটি সংখ্যা ব্যবহার করুন (১ থেকে <ph name="MAX_COPIES" />-এর মধ্যে)।</translation>
 <translation id="1938351510777341717">এক্সটার্নাল কমান্ড</translation>
 <translation id="1940221956626514677">টুলবার কাস্টমাইজ করুন</translation>
 <translation id="1940546824932169984">সংযুক্ত ডিভাইস</translation>
+<translation id="194081218158106711">পরিবর্তিত পাসওয়ার্ড কনফার্ম করা হচ্ছে...</translation>
 <translation id="1941410638996203291">শুরু করার সময় <ph name="TIME" /></translation>
 <translation id="1941553344801134989">ভার্সন: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">Microsoft OneDrive-এ অটোমেটিক কানেক্ট করা জন্য আপনার অ্যাডমিনিস্ট্রেটর আপনার অ্যাকাউন্ট কনফিগার করেছেন, তবে কোনও সমস্যা হয়েছে।</translation>
@@ -1501,6 +1502,7 @@
 <translation id="2158475082070321257">হাইলাইট করা টেক্সটের লিঙ্ক কপি করুন</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758"><ph name="EXTENSION_NAME" />-এর জন্য <ph name="SHORTCUT" />-এর স্কোপ</translation>
+<translation id="2161656808144014275">পাঠ্য</translation>
 <translation id="216169395504480358">Wi-fi জুড়ুন ...</translation>
 <translation id="2162705204091149050">আপনার ব্রাউজার, OS, ডিভাইস, ইনস্টল করা সফ্টওয়্যার এবং ফাইলের ব্যাপারে তথ্য পড়ুন</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" />, <ph name="THIRD_SWITCH" /> এবং আরও একটি সুইচ</translation>
@@ -1547,6 +1549,7 @@
 <translation id="2199298570273670671">সমস্যা</translation>
 <translation id="2200094388063410062">ইমেল</translation>
 <translation id="2200781749203116929">ChromeOS সিস্টেম লগ</translation>
+<translation id="2202391868799679245">কীবোর্ড শর্টকাট চালু করুন</translation>
 <translation id="2203088913459920044">নামে অক্ষর, সংখ্যা ও বিশেষ অক্ষর ব্যবহার করা যেতে পারে</translation>
 <translation id="220321590587754225">কানেক্ট করা যায়নি। আবার চেষ্টা করুন।</translation>
 <translation id="2203903197029773650">আপনি Google অ্যাকাউন্ট দিয়ে সাইন-ইন করলে <ph name="BRAND" /> আপনার পাসওয়ার্ড চেক করতে পারবে</translation>
@@ -4268,6 +4271,7 @@
 <translation id="4274673989874969668">সাইট থেকে আপনি বেরিয়ে আসার পরে, টাস্ক শেষ করতে ফটো আপলোড করা অথবা চ্যাট মেসেজ পাঠানোর মতো সিঙ্ক করা চলতে থাকতে পারে</translation>
 <translation id="4275291496240508082">ডিভাইস স্টার্ট করার সময় হওয়া শব্দ</translation>
 <translation id="4275397969489577657">ইভেন্ট স্ট্রিম লগ-ইন চালু করুন</translation>
+<translation id="4275663329226226506">মাধ্যম</translation>
 <translation id="4275788652681621337">সাইড প্যানেল বন্ধ করুন</translation>
 <translation id="4275830172053184480">আপনার ডিভাইস বন্ধ করে চালু করুন</translation>
 <translation id="4276390967705106170">নতুন ব্রাউজার ট্যাবে খুলুন</translation>
@@ -4755,6 +4759,7 @@
 <translation id="4657914796247705218">TrackPoint-এর স্পিড</translation>
 <translation id="4658648180588730283">অফলাইন হওয়ায় <ph name="APPLICATION_NAME" /> অ্যাপ্লিকেশনটি উপলভ্য নেই।</translation>
 <translation id="465878909996028221">ব্রাউজার রিডাইরেক্টের জন্য শুধুমাত্র http, https ও ফাইল প্রটোকল কাজ করে।</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /> <ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">আপনার Google অ্যাকাউন্টে সাইন-ইন করলে এই ফিচারটি চালু হয়ে যাবে।</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{ছবি}one{#টি ছবি}other{#টি ছবি}}</translation>
 <translation id="4660540330091848931">রিসাইজ করা হচ্ছে</translation>
@@ -5334,6 +5339,7 @@
 <translation id="5096775069898886423">যেসব সাইটে সুরক্ষিত কানেকশনের সুবিধা কাজ করে না, সেই সব সাইট দেখার আগে সতর্কতা পান</translation>
 <translation id="5097002363526479830">'<ph name="NAME" />': <ph name="DETAILS" /> নেটওয়ার্কে সংযোগ করা গেল না </translation>
 <translation id="5097349930204431044">আপনি কী পছন্দ করেন তা আপনার দেখা সাইটগুলি নির্ধারণ করতে পারে এবং তারপরে ব্রাউজ করার সাথে সাথে বিজ্ঞাপন সাজেস্ট করে</translation>
+<translation id="5097472729724586429">নতুন "টেক্সট অ্যানোটেশন যোগ করুন" টুল ব্যবহার করে টেক্সট অ্যানোটেশন যোগ করুন</translation>
 <translation id="5097649414558628673">টুল: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">কার্সর থেমে যাওয়া মাত্রই অটোমেটিক ক্লিক করুন</translation>
 <translation id="5098963855433723436">আলাদা অ্যাপ্লিকেশনে খোলে</translation>
@@ -5398,6 +5404,7 @@
 <translation id="5146235736676876345">নিজের ইচ্ছামতো বেছে নিন</translation>
 <translation id="5146896637028965135">সিস্টেম ভয়েস</translation>
 <translation id="5147113439721488265">সাজেশন</translation>
+<translation id="5148020348702787234">লিঙ্ক পাঠাতে, নিজের পরিচয় যাচাই করান। আপনি দু'টি ডিভাইস থেকে একই Google অ্যাকাউন্টে সাইন-ইন করে থাকলে লিঙ্ক পাঠাতে পারবেন।</translation>
 <translation id="5148285448107770349">পাসওয়ার্ড অন্তত ৮টি অক্ষরের হতে হবে</translation>
 <translation id="5149602533174716626">ভিডিও ফ্রেম কপি করুন</translation>
 <translation id="5150254825601720210">Netscape সার্টিফিকেট SSL সার্ভার নাম</translation>
@@ -6364,7 +6371,6 @@
 <translation id="5932881020239635062">ক্রমিক নং</translation>
 <translation id="5933522550144185133"><ph name="APP_NAME" /> আপনার ক্যামেরা এবং মাইক্রোফোন ব্যবহার করছে।</translation>
 <translation id="5935158534896975820">সার্টিফিকেটে স্বাক্ষর করার অনুরোধ তৈরি করা হচ্ছে (সার্ভারের জন্য অপেক্ষা করা হচ্ছে)</translation>
-<translation id="5935554994339565449">নতুন "টেক্সট যোগ করুন" টুল ব্যবহার করে টেক্সট যোগ করুন</translation>
 <translation id="5936065461722368675">সম্পূর্ণ পৃষ্ঠা অনুবাদ করুন</translation>
 <translation id="5937977334791924341"><ph name="APP" /> লোগো</translation>
 <translation id="5938002010494270685">নিরাপত্তার আপগ্রেড উপলভ্য</translation>
@@ -8923,6 +8929,7 @@
 <translation id="7933486544522242079">&amp;সেভ ও শেয়ার করুন</translation>
 <translation id="7933518760693751884">কোনও পৃষ্ঠা পরে দেখার জন্য সেভ করতে চাইলে, বুকমার্ক আইকনে ক্লিক করুন</translation>
 <translation id="7933634003144813719">শেয়ার্ড ফোল্ডার ম্যানেজ করুন</translation>
+<translation id="7935072572536724392">অটোমেটিক পাসওয়ার্ড পরিবর্তন করা যায়নি</translation>
 <translation id="7936195481975600746">আপনার স্ক্রিন শেয়ার করতে সিস্টেমের স্ক্রিন পিকার ব্যবহার করুন</translation>
 <translation id="7937809006412909895">ডায়াগনস্টিক ডেটা সংগ্রহ করা হচ্ছে</translation>
 <translation id="7938881824185772026">ল্যাবসমূহ</translation>
@@ -9060,6 +9067,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{পড়ার তালিকা}=1{পড়ার তালিকা ({SELECTED_ITEMS}টি)}one{পড়ার তালিকা ({SELECTED_ITEMS}টি)}other{পড়ার তালিকা ({SELECTED_ITEMS}টি)}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> - অনুমতি চাওয়া হয়েছে, উত্তর দিতে ⌘ + 'বিকল্প' বোতাম + 'নিম্নমুখী তীরচিহ্ন' বোতাম প্রেস করুন</translation>
 <translation id="8030169304546394654">সংযোগ বিচ্ছিন্ন</translation>
+<translation id="8030814978699290230">সাইন-ইন করার চেষ্টা করা হচ্ছে...</translation>
 <translation id="8030852056903932865">অনুমতি দিন</translation>
 <translation id="8033827949643255796">নির্বাচিত</translation>
 <translation id="8033958968890501070">সময় শেষ হয়ে গেছে</translation>
@@ -9473,6 +9481,7 @@
 <translation id="8343578633847737325">সাম্প্রতিক চ্যাট ও থ্রেড</translation>
 <translation id="8345848587667658367">আপনি এখন আপনার ফোনের সাম্প্রতিক ফটো, মিডিয়া, বিজ্ঞপ্তি এবং অ্যাপ দেখতে পারেন</translation>
 <translation id="8347227221149377169">প্রিন্ট করার কাজগুলি</translation>
+<translation id="8347728744337089388">আপনার ডিভাইসে পাঠান</translation>
 <translation id="8348430946834215779">যখনই সম্ভব, তখনই HTTPS ব্যবহার করুন এবং এখানে কাজ করে না এমন সাইট লোড করার আগে সতর্কতা পান</translation>
 <translation id="8348896480272971199">ইন্টারনেট কানেকশন চেক করে আবার চেষ্টা করুন।</translation>
 <translation id="8349305172487531364">বুকমার্কস বার</translation>
@@ -9522,6 +9531,7 @@
 <translation id="8382197851871630452">স্থানীয় আবহাওয়া</translation>
 <translation id="8382913212082956454">ও ইমেল অ্যাড্রেস কপি করুন</translation>
 <translation id="8383614331548401927">ওয়েলকাম রিক্যাপ</translation>
+<translation id="8387157483437834731">পাসওয়ার্ড পরিবর্তন করা হয়েছে</translation>
 <translation id="8387361103813440603">আপনার লোকেশন দেখার অনুমতি দেওয়া হয়নি</translation>
 <translation id="8389492867173948260">আপনার দেখা ওয়েবসাইটে আপনার সমস্ত ডেটা পড়ার এবং পরিবর্তন করার জন্য এই এক্সটেনশনটিকে অনুমতি দিন:</translation>
 <translation id="8390449457866780408">সার্ভার অনুপলব্ধ৷</translation>
@@ -9916,7 +9926,6 @@
 <translation id="8693862390730570097">"আমাকে লিখতে সাহায্য করো" ফিচারকে অটোমেটিক খোলার অনুমতি দেবেন না</translation>
 <translation id="8694596275649352090">স্লিপ মোড বা যখন ঢাকনাটি বন্ধ থাকবে তখন বন্ধ করুন</translation>
 <translation id="8695825812785969222">Open &amp;Location...</translation>
-<translation id="8696297579102085705">আপনার ডিভাইসে পাঠান</translation>
 <translation id="869884720829132584">অ্যাপ্লিকেশনস মেনু</translation>
 <translation id="869891660844655955">মেয়াদকাল সমাপ্তির তারিখ</translation>
 <translation id="8699296325072357994">পাসওয়ার্ড পৃষ্ঠা ও সম্পর্কিত তথ্য থেকে পাওয়া কন্টেন্ট Google-এ পাঠানো হয় এবং হিউম্যান রিভিউয়ার তা পর্যালোচনা করে দেখেন। আপনার পাসওয়ার্ড এনক্রিপ্ট করা আছে এবং কখনই এটি অন্য কেউ দেখতে পাবে না। <ph name="PASSWORD_CHANGE" /></translation>
@@ -10264,6 +10273,7 @@
 <translation id="8967427617812342790">পড়ার তালিকায় যোগ করুন</translation>
 <translation id="8968527460726243404">ChromeOS সিস্টেম ছবি রচয়িতা</translation>
 <translation id="8968766641738584599">কার্ড সেভ করুন</translation>
+<translation id="8970232194848546151">অন্য ডিভাইসে লিঙ্ক পাঠানো</translation>
 <translation id="8970887620466824814">কিছু সমস্যা হয়েছে।</translation>
 <translation id="89720367119469899">অব্যাহতি</translation>
 <translation id="8972513834460200407">Google সার্ভারগুলি থেকে ডাউনলোডগুলিকে ফায়ারওয়াল ব্লক করছে না তা নিশ্চিত করতে অনুগ্রহ করে আপনার নেটওয়ার্ক অ্যাডমিনিস্ট্রেটরের মাধ্যমে পরীক্ষা করুন৷</translation>
@@ -10530,6 +10540,7 @@
 <translation id="9151906066336345901">end</translation>
 <translation id="9152503903192861480">AI মোডে খুলুন</translation>
 <translation id="9153367754133725216">লঞ্চার ও সার্চ ফলাফলে ওয়েব কন্টেন্ট ও নতুন অ্যাপের জন্য সাজেশন দেখুন। ChromeOS-এ ক্র্যাশ রিপোর্ট ও ডায়াগনস্টিকস এবং ব্যবহারের ডেটা পাঠানোর বিকল্প বেছে নিয়ে থাকলেই শুধুমাত্র সাজেশন উন্নত করতে পরিসংখ্যান পাঠান।</translation>
+<translation id="9153451439615847952">বিজ্ঞপ্তি ও সতর্কতা মেসেজের জন্য ব্যাকগ্রাউন্ড অডিও কমান</translation>
 <translation id="9154194610265714752">আপডেট রয়েছে</translation>
 <translation id="915485121129452731">পেন ট্যাবলেট</translation>
 <translation id="9155344700756733162">রঙ বাদ দিন</translation>
@@ -10607,6 +10618,7 @@
 <translation id="9220820413868316583">তুলে নিন এবং আবার চেষ্টা করুন।</translation>
 <translation id="922152298093051471">Chrome কাস্টমাইজ করুন</translation>
 <translation id="9222839391870847423">সময়সীমা: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">আপনার ডিভাইসে পাঠান</translation>
 <translation id="923467487918828349">সমস্ত দেখান</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{এটি ম্যানেজ করতে, এক্সটেনশন খুলুন}one{এটি ম্যানেজ করতে, এক্সটেনশন খুলুন}other{এটি ম্যানেজ করতে, এক্সটেনশন খুলুন}}</translation>
 <translation id="924818813611903184">ChromeOS সেটিংসে ভাষা ম্যানেজ করুন</translation>

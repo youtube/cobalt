@@ -24,10 +24,12 @@
 #include "components/omnibox/browser/omnibox_client.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/browser/searchbox_utils.h"
 #include "components/omnibox/common/input_state.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/omnibox_proto/chrome_searchbox_stats.pb.h"
 #include "third_party/omnibox_proto/model_mode.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "ui/gfx/vector_icon_types.h"
@@ -140,6 +142,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                              bool via_keyboard) override;
   void SetSmartComposeStats(
       searchbox::mojom::SmartComposeStatsPtr smart_compose_stats) override {}
+  void SetInputMethod(searchbox::mojom::InputMethod input_method) override;
   void SetPopupSelection(
       searchbox::mojom::OmniboxPopupSelectionPtr selection) override;
   void OpenPopupSelection(uint32_t result_sequence_id,
@@ -210,9 +213,12 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, AutocompleteController_Start);
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest,
                            AutocompleteController_StartWithSuggestInventory);
+  FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, SetInputMethodTest);
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, RealboxUpdatesEditModelInput);
   FRIEND_TEST_ALL_PREFIXES(LensSearchboxHandlerTest,
                            Lens_AutocompleteController_Start);
+  FRIEND_TEST_ALL_PREFIXES(WebuiOmniboxHandlerTest,
+                           OpenAutocompleteMatch_KeyboardModifiers);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
                            QueryAutocomplete_SetsLensInputs);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
@@ -260,9 +266,19 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   std::unique_ptr<OmniboxClient> client_;
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
 
+  searchbox::InteractionMetricsTracker metrics_tracker_;
+
   base::ScopedObservation<AutocompleteController,
                           AutocompleteController::Observer>
       autocomplete_controller_observation_{this};
+
+  // TODO(crbug.com/534328951): This is not ideal state to keep in the
+  //   SearchboxHandler since it related to the `AutocompleteInput`. Instead
+  //   create the AutocompleteInput first.
+  // This is needed in order to keep track of the last input method without
+  // needing to call an async getter from the `page_`.
+  omnibox::metrics::ChromeSearchboxStats::InputMethod input_method_ =
+      omnibox::metrics::ChromeSearchboxStats::KEYBOARD;
 
   mojo::Receiver<searchbox::mojom::PageHandler> page_handler_;
   mojo::Remote<searchbox::mojom::Page> page_;
@@ -307,6 +323,13 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                           bookmarks::BookmarkModel* bookmark_model,
                           const omnibox::GroupConfigMap& suggestion_groups_map,
                           const TemplateURLService* turl_service) const;
+  virtual WindowOpenDisposition ComputeWindowOpenDisposition(
+      uint8_t mouse_button,
+      bool alt_key,
+      bool ctrl_key,
+      bool meta_key,
+      bool shift_key,
+      bool via_keyboard);
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_CR_COMPONENTS_SEARCHBOX_SEARCHBOX_HANDLER_H_

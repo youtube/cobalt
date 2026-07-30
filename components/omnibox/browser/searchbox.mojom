@@ -280,6 +280,17 @@ enum SuggestInventory {
   kConversationStarters = 4,
 };
 
+// LINT.IfChange(InputMethod)
+enum InputMethod {
+  kKeyboard = 1,
+  kPaste = 2,
+  kSpeech = 6,
+  kTab = 8,
+  kLensCamera = 10,
+  kSmartCompose = 11,
+};
+// LINT.ThenChange(//third_party/omnibox_proto/chrome_searchbox_stats.proto:InputMethod)
+
 // Information about a successfully processed Drive file.
 struct DriveFile {
   // The UnguessableToken acts as a secure, cross-process identifier. The WebUI
@@ -355,6 +366,10 @@ interface PageHandler {
 
   // Sets the Smart Compose stats to be passed during the next navigation.
   SetSmartComposeStats(SmartComposeStats smart_compose_stats);
+
+  // Sets the WebUI-specific input method. Used to for querying autocomplete
+  // and gets reset in the browser every time autocomplete is queried.
+  SetInputMethod(InputMethod input_method);
 
   // Sets the native OmniboxEditModel popup selection.
   // TODO(crbug.com/483117840): This drives some omnibox state affecting
@@ -536,9 +551,6 @@ interface Page {
   //  OmniboxViewViews and can be eliminated once we have full webui popup.
   SetAimButtonVisible(bool visible);
 
-  // Called when the keyword mode state changes.
-  SetKeywordSelected(bool is_keyword_selected);
-
   // Called to set searchbox input.
   SetInputText(string input);
 
@@ -567,7 +579,12 @@ interface Page {
   // Updates the automatically suggested tab context on the UI. This call will
   // replace the previously auto suggested tab with the new tab. If the provided
   // tab is null, the suggested tab should be removed from the UI.
-  UpdateAutoSuggestedTabContext(TabInfo? tab);
+  // `invocation_source` is the string representation of the
+  // `lens::LensOverlayInvocationSource` enum that triggered the active Lens
+  // search session (e.g. "OmniboxPageAction"), obtained via existing
+  // `lens::InvocationSourceToString()`. Passed as a string to avoid exposing
+  // platform-specific type enum in this shared interface.
+  UpdateAutoSuggestedTabContext(TabInfo? tab, string? invocation_source);
 
   // Called when Lens search eligibility changes.
   UpdateLensSearchEligibility(bool eligible);

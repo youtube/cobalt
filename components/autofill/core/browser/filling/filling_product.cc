@@ -20,7 +20,7 @@
 namespace autofill {
 
 // LINT.IfChange(FillingProductToString)
-std::string FillingProductToString(FillingProduct filling_product) {
+std::string_view FillingProductToString(FillingProduct filling_product) {
   switch (filling_product) {
     case FillingProduct::kNone:
       return "None";
@@ -121,6 +121,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kUndoOrClear:
       return FillingProduct::kNone;
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiOtherShipments:
     case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kFetchingAmbientData:
     case SuggestionType::kFillAutofillAi:

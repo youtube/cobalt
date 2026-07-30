@@ -193,6 +193,8 @@ auto EqUpdate(const StoredCredential& cred) {
 
 }  // namespace
 
+// TODO(crbug.com/535284793): Refactor tests to use the fake backend instead of
+// mocks.
 class PasswordStoreTest : public testing::Test {
  public:
   PasswordStoreTest(const PasswordStoreTest&) = delete;
@@ -755,6 +757,39 @@ TEST_F(PasswordStoreTest,
   store->ShutdownOnUIThread();
 }
 
+TEST_F(PasswordStoreTest, DoNotCallOnErrorStateChangedIfErrorStateIsIdentical) {
+  const StoredCredential kTestForm = MakeStoredCredential(kTestWebRealm1);
+  MockPasswordStoreObserver mock_observer;
+  auto [store, mock_backend] = CreateUnownedStoreWithOwnedMockBackend();
+  EXPECT_CALL(*mock_backend, InitBackend)
+      .WillOnce(WithArg<2>([](base::OnceCallback<void(bool)> completion) {
+        std::move(completion).Run(true);
+      }));
+  store->Init();
+  store->AddObserver(&mock_observer);
+
+  EXPECT_CALL(*mock_backend,
+              AddLoginAsync(MatchesCredential(CopyableStoredCredential(
+                                CloneStoredCredential(kTestForm))),
+                            _))
+      .WillOnce(WithArg<1>([&](PasswordChangesOrErrorReply reply) -> void {
+        std::move(reply).Run(PasswordChangesOrError(kBackendError));
+      }))
+      .WillOnce(WithArg<1>([&](PasswordChangesOrErrorReply reply) -> void {
+        std::move(reply).Run(PasswordChangesOrError(kBackendError));
+      }));
+
+  EXPECT_CALL(mock_observer,
+              OnErrorStateChanged(store.get(), ActionableError::kInactionable))
+      .Times(1);
+  store->AddLogin(CloneStoredCredential(kTestForm));
+  store->AddLogin(CloneStoredCredential(kTestForm));
+  WaitForPasswordStore();
+
+  store->RemoveObserver(&mock_observer);
+  store->ShutdownOnUIThread();
+}
+
 TEST_F(PasswordStoreTest, DoNotCallOnLoginsChangedIfUpdateReturnsError) {
   const StoredCredential kTestForm = MakeStoredCredential(kTestWebRealm1);
   MockPasswordStoreObserver mock_observer;
@@ -1049,6 +1084,40 @@ TEST_F(PasswordStoreTest,
       .Times(0);
   EXPECT_CALL(mock_observer,
               OnErrorStateChanged(store.get(), ActionableError::kInactionable));
+
+  remote_form_changes_received.Run(std::nullopt);
+
+  WaitForPasswordStore();
+
+  store->RemoveObserver(&mock_observer);
+  store->ShutdownOnUIThread();
+}
+#else
+// Tests that on non-Android platforms, when remote changes callback is called
+// with std::nullopt (no changelist provided), the store propagates
+// ActionableError::kNoError to observers via OnErrorStateChanged.
+TEST_F(PasswordStoreTest,
+       OnErrorStateChangedFlowOnNonAndroidRemoteChangesNullopt) {
+  base::test::ScopedFeatureList feature_list(
+      features::kPasswordStorePropagatesActionableErrors);
+
+  MockPasswordStoreObserver mock_observer;
+  auto [store, mock_backend] = CreateUnownedStoreWithOwnedMockBackend();
+
+  PasswordStoreBackend::RemoteChangesReceived remote_form_changes_received;
+  EXPECT_CALL(*mock_backend, InitBackend)
+      .WillOnce(testing::WithArgs<0, 2>(
+          [&](PasswordStoreBackend::RemoteChangesReceived remote_changes,
+              base::OnceCallback<void(bool)> completion) {
+            remote_form_changes_received = std::move(remote_changes);
+            std::move(completion).Run(true);
+          }));
+
+  store->Init();
+  store->AddObserver(&mock_observer);
+
+  EXPECT_CALL(mock_observer,
+              OnErrorStateChanged(store.get(), ActionableError::kNoError));
 
   remote_form_changes_received.Run(std::nullopt);
 

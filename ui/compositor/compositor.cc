@@ -62,7 +62,9 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator_collection.h"
 #include "ui/compositor/overscroll/scroll_input_handler.h"
+#include "ui/display/display.h"
 #include "ui/display/display_switches.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/icc_profile.h"
@@ -80,9 +82,8 @@ namespace ui {
 #if !BUILDFLAG(IS_IOS)
 Compositor::PendingBeginFrameArgs::PendingBeginFrameArgs(
     const viz::BeginFrameArgs& args,
-    bool force,
     base::OnceCallback<void(const viz::BeginFrameAck&)> callback)
-    : args(args), force(force), callback(std::move(callback)) {}
+    : args(args), callback(std::move(callback)) {}
 
 Compositor::PendingBeginFrameArgs::~PendingBeginFrameArgs() = default;
 #endif
@@ -399,7 +400,7 @@ void Compositor::SetExternalBeginFrameController(
         *pending_begin_frame_args_);
 #else
     external_begin_frame_controller_->IssueExternalBeginFrame(
-        pending_begin_frame_args_->args, pending_begin_frame_args_->force,
+        pending_begin_frame_args_->args,
         std::move(pending_begin_frame_args_->callback));
 #endif
     pending_begin_frame_args_.reset();
@@ -550,6 +551,14 @@ void Compositor::SetVSyncDisplayID(const int64_t display_id) {
   }
 
   display_id_ = display_id;
+
+  display::Display display;
+  if (display::Screen::Get() &&
+      display::Screen::Get()->GetDisplayWithDisplayId(display_id, &display)) {
+    if (display.display_frequency() > 0) {
+      refresh_rate_ = display.display_frequency();
+    }
+  }
 
   if (display_private_) {
     display_private_->SetVSyncDisplayID(display_id);
@@ -754,17 +763,16 @@ void Compositor::IssueExternalBeginFrameNoAck(const viz::BeginFrameArgs& args) {
 #else
 void Compositor::IssueExternalBeginFrame(
     const viz::BeginFrameArgs& args,
-    bool force,
     base::OnceCallback<void(const viz::BeginFrameAck&)> callback) {
   if (!external_begin_frame_controller_) {
     // IssueExternalBeginFrame() shouldn't be called again before the previous
     // begin frame is acknowledged.
     DCHECK(!pending_begin_frame_args_);
-    pending_begin_frame_args_.emplace(args, force, std::move(callback));
+    pending_begin_frame_args_.emplace(args, std::move(callback));
     return;
   }
   external_begin_frame_controller_->IssueExternalBeginFrame(
-      args, force, std::move(callback));
+      args, std::move(callback));
 }
 #endif
 

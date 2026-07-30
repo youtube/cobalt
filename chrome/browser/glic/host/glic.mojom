@@ -41,6 +41,12 @@ enum GlicExperimentalTriggeringState {
   kReady = 2,
 };
 
+// @generate glic_api
+enum FileUploadPolicyState {
+  kEnabled = 0,
+  kDisabled = 1,
+};
+
 // Struct containing data about eligibility for GLIC.
 struct ProfileEnablement {
   // Whether the GLIC feature is enabled.
@@ -622,6 +628,10 @@ struct WebClientInitialState {
   GeminiEnterpriseSettings? gemini_enterprise_settings;
   // Whether features::kGlicActorAutofillOneTimePassword is enabled.
   bool enable_gmail_otp_opt_in;
+  // Whether the Gmail OTP confirmation dialog is enabled.
+  bool enable_gmail_otp_confirmation;
+  // Whether file upload is allowed by the enterprise policy.
+  FileUploadPolicyState file_upload_policy_state;
 };
 
 // @generate glic_api
@@ -1147,8 +1157,15 @@ interface ActorClient {
   NotifyActorTaskStateChanged(int32 task_id, ActorTaskState state);
 
   // Requests the web client to show the Gmail OTP opt-in dialog to the user.
-  RequestToShowGmailOtpOptInDialog(int32 task_id)
+  RequestToShowGmailOtpOptInDialog(
+      actor.webui.mojom.GmailOtpOptInRequest request)
       => (actor.webui.mojom.GmailOtpOptInResult result);
+
+  // Requests the web client to show the Gmail OTP confirmation dialog to the
+  // user.
+  RequestToShowGmailOtpConfirmationDialog(
+      actor.webui.mojom.GmailOtpConfirmationRequest request)
+      => (actor.webui.mojom.GmailOtpConfirmationResult result);
 };
 
 // @generate glic_api
@@ -2226,8 +2243,7 @@ interface ExperimentalTriggeringUpdatesHandler {
 interface ExperimentalTriggeringClient {
   // Requests the web client to upload a screenshot of the target tab's
   // web contents to remote storage.
-  UploadEncryptedScreenshot(Screenshot screenshot)
-      => (string? file_token);
+  UploadEncryptedScreenshot(Screenshot screenshot) => (string? file_token);
 
   // Register a handler to observe Glic updates.
   GetExperimentalTriggeringUpdates(
@@ -2261,6 +2277,10 @@ interface WebClient {
   // The Microphone permission has changed either by action within the web
   // client or by user action in the glic settings.
   NotifyMicrophonePermissionStateChanged(bool enabled);
+
+  // Informs the web client that the enterprise policy for file upload has
+  // changed.
+  NotifyFileUploadStateChanged(FileUploadPolicyState state);
 
   // Requests the web client to stop microphone recording.
   StopMicrophone() => ();
@@ -2707,6 +2727,8 @@ enum HostCapability {
   kImgWebDragDrop = 12,
   // Indicates that the host does not show the WebUi preloader.
   kNoWebUiLoader = 13,
+  // Indicates that the host enforces paste eligibility checks.
+  kEnforcesPasteEligibility = 14,
 };
 
 // @generate glic_api

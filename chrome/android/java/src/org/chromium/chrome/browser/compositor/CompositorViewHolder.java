@@ -716,7 +716,7 @@ public class CompositorViewHolder extends FrameLayout
         mLastViewportHeightForWebContentsSizing = null;
         mLastStableOutsetModeWebContentsHeight = null;
 
-        mOnViewportInsetsChanged = (unused) -> handleWindowInsetChanged();
+        mOnViewportInsetsChanged = _ -> handleWindowInsetChanged();
         mApplicationBottomInsetSupplier
                 .getSupplier()
                 .addSyncObserverAndPostIfNonNull(mOnViewportInsetsChanged);
@@ -2421,6 +2421,12 @@ public class CompositorViewHolder extends FrameLayout
                                     MotionEventUtils.MOTION_EVENT_BUTTON_NONE,
                                     0);
                     return true;
+                case AccessibilityNodeInfoCompat.ACTION_LONG_CLICK:
+                    VirtualView view = mVirtualViews.get(virtualViewId);
+                    if (view.hasLongClickAction()) {
+                        return view.handleLongClick();
+                    }
+                    return false;
             }
             return false;
         }

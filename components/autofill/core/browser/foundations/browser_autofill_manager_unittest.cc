@@ -42,7 +42,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_format_string.h"
@@ -748,6 +747,7 @@ class MockTouchToFillAutofillDelegate : public TouchToFillAutofillDelegate {
   MOCK_METHOD(void, HideTouchToFill, (), (override));
   MOCK_METHOD(void, OnShow, (), (override));
   MOCK_METHOD(void, OnNoticeAcknowledged, (), (override));
+  MOCK_METHOD(void, OnSettingsLinkClicked, (), (override));
   MOCK_METHOD(void, OnDismissed, (), (override));
 };
 
@@ -800,7 +800,10 @@ class MockAmountExtractionManager : public payments::AmountExtractionManager {
                FillingProduct filling_product,
                FieldType field_type),
               (const, override));
-  MOCK_METHOD(void, TriggerCheckoutAmountExtraction, (), (override));
+  MOCK_METHOD(void,
+              TriggerCheckoutAmountExtraction,
+              (AmountExtractionCallback),
+              (override));
 };
 
 class TestBrowserAutofillManager : public autofill::TestBrowserAutofillManager {
@@ -1365,7 +1368,6 @@ class BrowserAutofillManagerTest
   syncer::TestSyncService sync_service_;
 };
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 class BrowserAutofillManagerAtMemoryTest : public BrowserAutofillManagerTest {
  public:
@@ -1378,7 +1380,9 @@ class BrowserAutofillManagerAtMemoryTest : public BrowserAutofillManagerTest {
         /*disabled_features=*/{});
 
     autofill_client().GetPrefs()->registry()->RegisterIntegerPref(
-        optimization_guide::prefs::kGeminiSettings, 0);
+        optimization_guide::prefs::kGeminiSettings,
+        std::to_underlying(
+            optimization_guide::prefs::GeminiSettingsPolicyState::kEnabled));
     autofill_client().GetPrefs()->SetBoolean(
         personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
         true);
@@ -1520,7 +1524,6 @@ TEST_F(BrowserAutofillManagerAtMemoryTest, TriggerDroppedWhenFieldUrlBlocked) {
   // Trigger should be dropped, no suggestions returned.
   EXPECT_FALSE(external_delegate()->on_suggestions_returned_seen());
 }
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 TEST_F(BrowserAutofillManagerTest, IgnoreInactivityQueryIfPopupVisible) {
   FormData form = CreateTestAddressFormData();
@@ -5399,8 +5402,9 @@ TEST_F(BrowserAutofillManagerTest, DidShowSuggestions_FormNonSecureContext) {
   // Submit search query. This should invoke Query on mock query service.
   base::RepeatingCallback<void(accessibility_annotator::MemorySearchResults)>
       search_callback;
-  EXPECT_CALL(*mock_query_service_ptr, Query(std::u16string_view(u"query"), _))
-      .WillOnce(testing::SaveArg<1>(&search_callback));
+  EXPECT_CALL(*mock_query_service_ptr,
+              Query(std::u16string_view(u"query"), _, _, _))
+      .WillOnce(testing::SaveArg<3>(&search_callback));
   autofill_manager().GetAtMemoryManager().OnSearchSubmitted(u"query");
   ASSERT_FALSE(search_callback.is_null());
 
@@ -6269,12 +6273,13 @@ TEST_F(BrowserAutofillManagerTest_MockAutofillAi_WithModel, CacheResultUsed) {
   using FieldIdentifier = AutofillAiModelCache::FieldIdentifier;
   using ModelFieldPrediction = AutofillAiModelCache::FieldPrediction;
   auto predictions = base::flat_map<FieldIdentifier, ModelFieldPrediction>(
-      {std::pair{FieldIdentifier{.signature = field_signature1},
-                 ModelFieldPrediction(PASSPORT_NUMBER)},
+      {std::pair{
+           FieldIdentifier{.signature = field_signature1},
+           ModelFieldPrediction({PASSPORT_NUMBER, NATIONAL_ID_CARD_NUMBER})},
        std::pair{
            FieldIdentifier{.signature = field_signature2},
            ModelFieldPrediction(
-               PASSPORT_ISSUE_DATE,
+               {PASSPORT_ISSUE_DATE},
                AutofillFormatString(u"D.M.YYYY", FormatString_Type_DATE))}});
 
   EXPECT_CALL(cache(), Contains(form_signature)).WillOnce(Return(true));
@@ -6293,7 +6298,7 @@ TEST_F(BrowserAutofillManagerTest_MockAutofillAi_WithModel, CacheResultUsed) {
   EXPECT_THAT(fs->field(1)->Type().GetAutofillAiTypes(),
               ElementsAre(NAME_LAST));
   EXPECT_THAT(fs->field(2)->Type().GetAutofillAiTypes(),
-              ElementsAre(PASSPORT_NUMBER));
+              ElementsAre(PASSPORT_NUMBER, NATIONAL_ID_CARD_NUMBER));
   EXPECT_THAT(fs->field(3)->Type().GetAutofillAiTypes(),
               ElementsAre(PASSPORT_ISSUE_DATE));
   ASSERT_TRUE(fs->field(3)->format_string().has_value());
@@ -6323,11 +6328,11 @@ TEST_F(BrowserAutofillManagerTest_MockAutofillAi_WithModel,
   using ModelFieldPrediction = AutofillAiModelCache::FieldPrediction;
   auto predictions = base::flat_map<FieldIdentifier, ModelFieldPrediction>(
       {std::pair{FieldIdentifier{.signature = field_signature1},
-                 ModelFieldPrediction(PASSPORT_NUMBER)},
+                 ModelFieldPrediction({PASSPORT_NUMBER})},
        std::pair{
            FieldIdentifier{.signature = field_signature2},
            ModelFieldPrediction(
-               PASSPORT_ISSUE_DATE,
+               {PASSPORT_ISSUE_DATE},
                AutofillFormatString(u"D.M.YYYY", FormatString_Type_DATE))}});
 
   ON_CALL(cache(), Contains(form_signature)).WillByDefault(Return(true));
@@ -6348,14 +6353,16 @@ TEST_F(BrowserAutofillManagerTest, OnFocusOnFormField_FocusReporting) {
 
   // Observe form and retrieve pointers.
   FormsSeen({form});
-  const FormStructure* parsed_form =
-      autofill_manager().FindCachedFormById(form.global_id());
-  ASSERT_TRUE(parsed_form);
   const AutofillField* field0 =
-      parsed_form->GetFieldById(form.fields()[0].global_id());
+      autofill_manager()
+          .FindFormAndField(form.global_id(), form.fields()[0].global_id())
+          .autofill_field;
   const AutofillField* field1 =
-      parsed_form->GetFieldById(form.fields()[1].global_id());
-  ASSERT_TRUE(field0 && field1);
+      autofill_manager()
+          .FindFormAndField(form.global_id(), form.fields()[1].global_id())
+          .autofill_field;
+  ASSERT_TRUE(field0);
+  ASSERT_TRUE(field1);
 
   // On page load nothing should be labeled as `was_focused`
   EXPECT_FALSE(field0->was_focused());
@@ -6375,11 +6382,15 @@ TEST_F(BrowserAutofillManagerTest, OnFocusOnFormField_FocusReporting) {
   FormsSeen({form});
 
   // Verify that the focus states carry over when the form is parsed again.
-  parsed_form = autofill_manager().FindCachedFormById(form.global_id());
-  ASSERT_TRUE(parsed_form);
-  field0 = parsed_form->GetFieldById(form.fields()[0].global_id());
-  field1 = parsed_form->GetFieldById(form.fields()[1].global_id());
-  ASSERT_TRUE(field0 && field1);
+  field0 = autofill_manager()
+               .FindFormAndField(form.global_id(), form.fields()[0].global_id())
+               .autofill_field;
+  field1 = autofill_manager()
+               .FindFormAndField(form.global_id(), form.fields()[1].global_id())
+               .autofill_field;
+  ASSERT_TRUE(field0);
+  ASSERT_TRUE(field1);
+
   EXPECT_TRUE(field0->was_focused());
   EXPECT_TRUE(field1->was_focused());
 }

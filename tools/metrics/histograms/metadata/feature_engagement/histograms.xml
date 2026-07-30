@@ -244,6 +244,9 @@ chromium-metrics-reviews@google.com.
       summary="message shown informing users they can manage their extensions
                in the extensions menu found in the toolbar."/>
   <variant name="IPH_ExtensionsMenu" summary="extensions menu opened"/>
+  <variant name="IPH_ExtensionsPinnedByDefault"
+      summary="message shown informing users that extensions are pinned by
+               default"/>
   <variant name="IPH_ExtensionsRequestAccessButton"
       summary="extensions request access button shown"/>
   <variant name="IPH_ExtensionsZeroStatePromo"
@@ -617,6 +620,9 @@ chromium-metrics-reviews@google.com.
       summary="read later bottom sheet entry point"/>
   <variant name="IPH_ReadLaterContextMenu"
       summary="read later context menu entry point"/>
+  <variant name="IPH_RecentTabs"
+      summary="prompting the user that they can find their recently closed
+               tabs and windows in the 'Recent tabs' surface"/>
   <variant name="IPH_ReopenTab" summary="reopening closed tabs"/>
   <variant name="IPH_RequestDesktopSiteAppMenu"
       summary="(obsolete) educating users about using the desktop site app

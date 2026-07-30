@@ -15,12 +15,15 @@
 #include "components/navigation_metrics/navigation_metrics.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
+#include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
+#include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #if !BUILDFLAG(IS_IOS)
 #include "components/omnibox/browser/geolocation_header_service.h"
 #endif  // !BUILDFLAG(IS_IOS)
+#include "base/metrics/histogram_functions.h"
 #include "components/omnibox/browser/history_fuzzy_provider.h"
 #include "components/omnibox/browser/history_url_provider.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -37,35 +40,58 @@
 
 using metrics::OmniboxEventProto;
 
+namespace {
+
+void ClassifyString(OmniboxClient* client,
+                    const std::u16string& text,
+                    AutocompleteMatch* match,
+                    GURL* alternate_nav_url) {
+  DCHECK(match);
+  client->GetAutocompleteClassifier()->Classify(
+      text, false, false, client->GetPageClassification(/*is_prefetch=*/false),
+      match, alternate_nav_url);
+}
+
+}  // namespace
+
 namespace searchbox {
+
+InteractionMetricsTracker::InteractionMetricsTracker() = default;
+
+InteractionMetricsTracker::~InteractionMetricsTracker() = default;
+
+void InteractionMetricsTracker::FocusChanged(bool focused) {
+  if (focused) {
+    last_omnibox_focus_ = base::TimeTicks::Now();
+    focus_resulted_in_navigation_ = false;
+  } else {
+    if (!last_omnibox_focus_.is_null()) {
+      base::UmaHistogramBoolean("Omnibox.FocusResultedInNavigation",
+                                focus_resulted_in_navigation_);
+    }
+    last_omnibox_focus_ = base::TimeTicks();
+  }
+}
 
 void OpenMatch(
     AutocompleteController* autocomplete_controller,
     OmniboxClient* client,
+    const AutocompleteInput& input,
     OmniboxPopupSelection selection,
     AutocompleteMatch match,
     WindowOpenDisposition disposition,
-    base::TimeTicks searchbox_focused_timestamp,
-    base::TimeTicks first_modification_timestamp,
-    base::TimeTicks match_selection_timestamp,
-    OmniboxEventProto::KeywordModeEntryMethod keyword_mode_entry_method) {
+    const InteractionMetricsTracker& metrics_tracker,
+    OmniboxEventProto::KeywordModeEntryMethod keyword_mode_entry_method,
+    const std::u16string& pasted_text) {
   const base::TimeTicks now = base::TimeTicks::Now();
-
-  // TODO(crbug.com/530254690): Use the input associated with the result
-  //  holding the match.
-  const AutocompleteInput& input = autocomplete_controller->input();
   const AutocompleteResult& result = autocomplete_controller->result();
-
-  // TODO(crbug.com/530287131): Determine whether this still needs to be
-  //  received and used here.
-  const std::u16string pasted_text;
 
   // If the user is executing an action, this will be non-null and some match
   // opening and metrics behavior will be adjusted accordingly.
   OmniboxAction* action = nullptr;
   if (selection.state == OmniboxPopupSelection::NORMAL &&
       match.takeover_action) {
-    DCHECK_NE(match_selection_timestamp, base::TimeTicks());
+    DCHECK_NE(metrics_tracker.match_selection_timestamp(), base::TimeTicks());
     action = match.takeover_action.get();
   } else if (selection.IsAction()) {
     DCHECK_LT(selection.action_index, match.actions.size());
@@ -95,7 +121,7 @@ void OpenMatch(
   }
 
   base::TimeDelta elapsed_time_since_user_first_modified_omnibox =
-      now - first_modification_timestamp;
+      now - metrics_tracker.time_user_first_modified_omnibox();
   autocomplete_controller
       ->UpdateMatchDestinationURLWithAdditionalSearchboxStats(
           elapsed_time_since_user_first_modified_omnibox, &match);
@@ -133,9 +159,9 @@ void OpenMatch(
   }
   base::TimeDelta elapsed_time_since_user_focused_searchbox =
       default_time_delta;
-  if (!searchbox_focused_timestamp.is_null()) {
+  if (!metrics_tracker.last_omnibox_focus().is_null()) {
     elapsed_time_since_user_focused_searchbox =
-        now - searchbox_focused_timestamp;
+        now - metrics_tracker.last_omnibox_focus();
     // Only record focus to open time when a focus actually happened (as
     // opposed to, say, dragging a link onto the omnibox).
     omnibox::LogFocusToOpenTime(
@@ -164,9 +190,9 @@ void OpenMatch(
 
       /*is_popup_open=*/true,
       dropdown_ignored ? OmniboxPopupSelection(0) : selection, disposition,
-      /*is_paste_and_go=*/false, SessionID::InvalidValue(), page_classification,
-      elapsed_time_since_user_first_modified_omnibox, completed_length,
-      elapsed_time_since_last_change_to_default_match,
+      /*is_paste_and_go=*/!pasted_text.empty(), SessionID::InvalidValue(),
+      page_classification, elapsed_time_since_user_first_modified_omnibox,
+      completed_length, elapsed_time_since_last_change_to_default_match,
       dropdown_ignored ? fake_single_entry_result : result, destination_url,
       is_incognito, input.IsZeroSuggest(), match.session);
   DCHECK(dropdown_ignored ||
@@ -265,21 +291,19 @@ void OpenMatch(
 
   if (action) {
     client->ExecuteAction(
-        action, disposition, match_selection_timestamp,
+        action, disposition, metrics_tracker.match_selection_timestamp(),
         *(autocomplete_controller->autocomplete_provider_client()));
     return;
   }
 
   RecordNonActionSearchMetrics(template_url_service, match, is_incognito,
-                               match_selection_timestamp);
+                               metrics_tracker.match_selection_timestamp());
 
   bookmarks::BookmarkModel* bookmark_model = client->GetBookmarkModel();
   if (bookmark_model && bookmark_model->IsBookmarked(destination_url)) {
     client->OnBookmarkLaunched();
   }
 
-  // TODO(crbug.com/531810530): Ensure this doesn't need to be plumbed in
-  //  as with OmniboxEditModel::OpenMatch. Might be refactored there too.
   GURL alternate_nav_url = AutocompleteResult::ComputeAlternateNavUrl(
       input, match, autocomplete_controller->autocomplete_provider_client());
 
@@ -298,11 +322,52 @@ void OpenMatch(
       destination_url, match.post_content.get(), disposition,
       ui::PageTransitionFromInt(match.transition |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
-      match.type, match_selection_timestamp,
+      match.type, metrics_tracker.match_selection_timestamp(),
       input.added_default_scheme_to_typed_url(),
       input.typed_url_had_http_scheme() &&
           match.type == AutocompleteMatchType::URL_WHAT_YOU_TYPED,
       input.text(), match, alternative_nav_match);
+}
+
+bool CanPasteAndGo(OmniboxClient* client, const std::u16string& text) {
+  if (!client->IsPasteAndGoEnabled()) {
+    return false;
+  }
+
+  AutocompleteMatch match;
+  ClassifyString(client, text, &match, nullptr);
+  return match.destination_url.is_valid();
+}
+
+void PasteAndGo(AutocompleteController* autocomplete_controller,
+                OmniboxClient* client,
+                const std::u16string& text,
+                const InteractionMetricsTracker& metrics_tracker,
+                metrics::OmniboxEventProto::KeywordModeEntryMethod
+                    keyword_mode_entry_method) {
+  DCHECK(CanPasteAndGo(client, text));
+
+  AutocompleteInput input = autocomplete_controller->input();
+  AutocompleteMatch match;
+  GURL alternate_nav_url;
+  ClassifyString(client, text, &match, &alternate_nav_url);
+
+  GURL upgraded_url;
+  if (match.type == AutocompleteMatchType::URL_WHAT_YOU_TYPED &&
+      client->ShouldDefaultTypedNavigationsToHttps() &&
+      AutocompleteInput::ShouldUpgradeToHttps(text, match.destination_url, 0,
+                                              false, &upgraded_url)) {
+    DCHECK(upgraded_url.is_valid());
+    match.destination_url = upgraded_url;
+    input.set_added_default_scheme_to_typed_url(true);
+  } else {
+    input.set_added_default_scheme_to_typed_url(false);
+  }
+
+  OpenMatch(autocomplete_controller, client, input,
+            OmniboxPopupSelection(OmniboxPopupSelection::kNoMatch), match,
+            WindowOpenDisposition::CURRENT_TAB, metrics_tracker,
+            keyword_mode_entry_method, text);
 }
 
 void RecordNonActionSearchMetrics(TemplateURLService* template_url_service,
@@ -349,6 +414,62 @@ void RecordSuggestionUsedMetrics(const AutocompleteMatch& match) {
                                 match.rich_autocompletion_triggered);
   LOCAL_HISTOGRAM_BOOLEAN("Omnibox.EventCount", true);
   omnibox::answer_data_parser::LogAnswerUsed(match.answer_type);
+}
+
+WindowOpenDisposition ComputeOpenDispositionFromModifiersAndLogToUma(
+    bool shift,
+    bool control,
+    bool alt,
+    bool command) {
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(OpenMatchWithKeyboardModifiers)
+  enum class OpenMatchWithKeyboardModifiers {
+    kNoModifier = 0,
+    kCtrl = 1,
+    kAlt = 2,
+    kCtrlAlt = 3,
+    kShiftCommand = 4,
+    kCtrlShiftCommand = 5,
+    kAltShift = 6,
+    kCtrlAltShift = 7,
+    kCommand = 8,
+    kCtrlCommand = 9,
+    kShift = 10,
+    kCtrlShift = 11,
+    kMaxValue = kCtrlShift,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:OpenMatchWithKeyboardModifiers)
+
+  WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB;
+  OpenMatchWithKeyboardModifiers metric_value;
+  if (alt && !shift) {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrlAlt
+                           : OpenMatchWithKeyboardModifiers::kAlt;
+    disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  } else if (shift && command) {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrlShiftCommand
+                           : OpenMatchWithKeyboardModifiers::kShiftCommand;
+    disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  } else if (alt && shift) {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrlAltShift
+                           : OpenMatchWithKeyboardModifiers::kAltShift;
+    disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  } else if (command && !shift) {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrlCommand
+                           : OpenMatchWithKeyboardModifiers::kCommand;
+    disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  } else if (shift && !alt) {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrlShift
+                           : OpenMatchWithKeyboardModifiers::kShift;
+    disposition = WindowOpenDisposition::NEW_WINDOW;
+  } else {
+    metric_value = control ? OpenMatchWithKeyboardModifiers::kCtrl
+                           : OpenMatchWithKeyboardModifiers::kNoModifier;
+  }
+  base::UmaHistogramEnumeration("Omnibox.OpenMatchWithKeyboardModifiers",
+                                metric_value);
+  return disposition;
 }
 
 }  // namespace searchbox

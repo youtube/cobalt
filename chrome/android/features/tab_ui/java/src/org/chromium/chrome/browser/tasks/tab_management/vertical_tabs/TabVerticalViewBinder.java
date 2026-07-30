@@ -40,6 +40,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListViewBinderUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListProperties.RailCollapseState;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
@@ -104,7 +106,7 @@ class TabVerticalViewBinder {
         } else if (TabProperties.ACTOR_UI_STATE == propertyKey) {
             TabListViewBinderUtils.setupActorIndicator(model, view);
             updateIcons(model, view);
-        } else if (TabProperties.IS_RAIL_COLLAPSED == propertyKey) {
+        } else if (TabProperties.RAIL_COLLAPSE_STATE == propertyKey) {
             updateTabItemSize(
                     model,
                     view,
@@ -134,7 +136,7 @@ class TabVerticalViewBinder {
             view.setContentDescription(model.get(TabProperties.TITLE));
         } else if (TabProperties.IS_SELECTED == propertyKey) {
             updatePinnedColors(model, view);
-        } else if (TabProperties.IS_RAIL_COLLAPSED == propertyKey) {
+        } else if (TabProperties.RAIL_COLLAPSE_STATE == propertyKey) {
             Resources resources = view.getContext().getResources();
             updateTabItemSize(
                     model,
@@ -167,7 +169,7 @@ class TabVerticalViewBinder {
             updateChevronRotation(model, view);
             TabListViewBinderUtils.updateContentDescription(model, view);
             updateAccessibilityDelegate(model, view);
-        } else if (TabProperties.IS_RAIL_COLLAPSED == propertyKey) {
+        } else if (TabProperties.RAIL_COLLAPSE_STATE == propertyKey) {
             updateTabItemSize(
                     model,
                     view,
@@ -220,9 +222,10 @@ class TabVerticalViewBinder {
         updateIcons(model, view, view.isHovered());
     }
 
-    // TODO(b/527641177): Add icons for pinned tab and check priorities.
+    // TODO(crbug.com/527641177): Add icons for pinned tab and check priorities.
     private static void updateIcons(PropertyModel model, ViewGroup view, boolean isHovered) {
-        boolean isRailCollapsed = model.get(TabProperties.IS_RAIL_COLLAPSED);
+        boolean isRailCollapsed =
+                model.get(TabProperties.RAIL_COLLAPSE_STATE) == RailCollapseState.COLLAPSED;
         boolean isSelected = model.get(TabProperties.IS_SELECTED);
 
         View actionButton = view.findViewById(R.id.action_button);
@@ -402,8 +405,8 @@ class TabVerticalViewBinder {
                     /* startToStart= */ PARENT_ID,
                     /* endToStart= */ UNSET,
                     /* endToEnd= */ PARENT_ID,
-                    /* marginStartId= */ 0,
-                    /* marginEndId= */ 0);
+                    /* marginStartDimenId= */ 0,
+                    /* marginEndDimenId= */ 0);
         } else {
             configureConstraints(
                     view, startToStart, endToStart, endToEnd, marginStartDimenId, marginEndDimenId);
@@ -415,13 +418,16 @@ class TabVerticalViewBinder {
             int startToStart,
             int endToStart,
             int endToEnd,
-            int marginStartId,
-            int marginEndId) {
+            int marginStartDimenId,
+            int marginEndDimenId) {
         if (view.getLayoutParams() instanceof ConstraintLayout.LayoutParams params) {
             Resources resources = view.getResources();
             int marginStart =
-                    marginStartId != 0 ? resources.getDimensionPixelSize(marginStartId) : 0;
-            int marginEnd = marginEndId != 0 ? resources.getDimensionPixelSize(marginEndId) : 0;
+                    marginStartDimenId != 0
+                            ? resources.getDimensionPixelSize(marginStartDimenId)
+                            : 0;
+            int marginEnd =
+                    marginEndDimenId != 0 ? resources.getDimensionPixelSize(marginEndDimenId) : 0;
 
             if (params.startToStart == startToStart
                     && params.endToStart == endToStart
@@ -531,7 +537,8 @@ class TabVerticalViewBinder {
 
     private static void updateTabItemSize(
             PropertyModel model, ViewGroup view, int expandedWidth, int expandedHeight) {
-        boolean isRailCollapsed = model.get(TabProperties.IS_RAIL_COLLAPSED);
+        boolean isRailCollapsed =
+                model.get(TabProperties.RAIL_COLLAPSE_STATE) == RailCollapseState.COLLAPSED;
         Context context = view.getContext();
         ViewGroup.LayoutParams params = view.getLayoutParams();
         if (params == null) return;
@@ -553,7 +560,8 @@ class TabVerticalViewBinder {
         TextView titleView = view.findViewById(titleViewId);
         if (titleView == null) return;
 
-        boolean isRailCollapsed = model.get(TabProperties.IS_RAIL_COLLAPSED);
+        boolean isRailCollapsed =
+                model.get(TabProperties.RAIL_COLLAPSE_STATE) == RailCollapseState.COLLAPSED;
         if (isRailCollapsed) {
             titleView.setVisibility(View.GONE);
         } else {
@@ -609,17 +617,16 @@ class TabVerticalViewBinder {
 
     private static void updateChildRowPadding(PropertyModel model, View view) {
         boolean isInGroup = model.get(TabProperties.TAB_GROUP_ID) != null;
-        boolean isRailCollapsed = model.get(TabProperties.IS_RAIL_COLLAPSED);
+        boolean isRailCollapsed =
+                model.get(TabProperties.RAIL_COLLAPSE_STATE) == RailCollapseState.COLLAPSED;
 
         int marginStart = 0;
-        Resources resources = view.getResources();
         if (isRailCollapsed) {
-            marginStart =
-                    resources.getDimensionPixelSize(
-                            R.dimen.vertical_tab_child_collapsed_margin_start);
+            marginStart = getCollapsedChildMarginStart(view.getContext());
         } else if (isInGroup) {
             marginStart =
-                    resources.getDimensionPixelSize(R.dimen.vertical_tab_child_nesting_margin);
+                    view.getResources()
+                            .getDimensionPixelSize(R.dimen.vertical_tab_child_nesting_margin);
         }
 
         if (view.getLayoutParams() instanceof ViewGroup.MarginLayoutParams params) {
@@ -630,8 +637,28 @@ class TabVerticalViewBinder {
         }
     }
 
+    /**
+     * Calculates the start margin in pixels for a tab item when the rail is collapsed.
+     *
+     * <p>Horizontally centers the tab item within the collapsed rail container. Because the parent
+     * RecyclerView is asymmetric due to the scrollbar end margin, the child item's start margin is
+     * explicitly computed as: (rail_collapsed_width - tab_item_collapsed_size) / 2 -
+     * rail_horizontal_margin.
+     */
+    @VisibleForTesting
+    static int getCollapsedChildMarginStart(Context context) {
+        Resources resources = context.getResources();
+        int railWidth =
+                ViewUtils.dpToPx(context, VerticalTabUtils.SIDE_UI_CONTAINER_COLLAPSED_WIDTH_DP);
+        int itemSize = resources.getDimensionPixelSize(R.dimen.vertical_tab_item_collapsed_size);
+        int railStartMargin =
+                resources.getDimensionPixelSize(R.dimen.vertical_tabs_rail_horizontal_margin);
+        return (railWidth - itemSize) / 2 - railStartMargin;
+    }
+
     private static void updateParentPadding(PropertyModel model, ViewGroup view) {
-        boolean isRailCollapsed = model.get(TabProperties.IS_RAIL_COLLAPSED);
+        boolean isRailCollapsed =
+                model.get(TabProperties.RAIL_COLLAPSE_STATE) == RailCollapseState.COLLAPSED;
         Context context = view.getContext();
         Resources resources = context.getResources();
         if (isRailCollapsed) {
@@ -677,10 +704,10 @@ class TabVerticalViewBinder {
                     boolean isSelected = model.get(TabProperties.IS_SELECTED);
                     switch (motionEvent.getAction()) {
                         case MotionEvent.ACTION_HOVER_ENTER:
-                            // TODO(b/527641177): Maybe show a darker background color for action
-                            // button when it's being hovered?
-                            // TODO(b/533531896): Action button hovering is not stable when there
-                            // are pinned tabs.
+                            // TODO(crbug.com/527641177): Maybe show a darker background color for
+                            // action button when it's being hovered?
+                            // TODO(crbug.com/533531896): Action button hovering is not stable when
+                            // there are pinned tabs.
                             if (!isSelected) {
                                 ViewCompat.setBackgroundTintList(
                                         view,

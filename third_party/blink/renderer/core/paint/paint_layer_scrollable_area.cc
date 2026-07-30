@@ -1907,6 +1907,29 @@ void PaintLayerScrollableArea::RemoveScrollbarsForReconstruction() {
   }
 }
 
+void PaintLayerScrollableArea::DidUpdateCullRect() {
+  last_cull_rect_update_scroll_position_ = ScrollPosition();
+
+  if (RuntimeEnabledFeatures::ScrollingContentsCullRectOnScrollNodeEnabled()) {
+    auto& fragment = GetLayoutBox()->GetMutableForPainting().FirstFragment();
+    if (auto* properties = fragment.PaintProperties()) {
+      if (auto* scroll_node = properties->MutableScroll()) {
+        scroll_node->SetScrollingContentsCullRect(
+            fragment.GetContentsCullRect().Rect());
+        if (auto* compositor =
+                GetLayoutBox()->GetFrameView()->GetPaintArtifactCompositor()) {
+          if (compositor->DirectlyUpdateScrollingContentsCullRect(
+                  *scroll_node)) {
+            scroll_node->CompositorSimpleValuesUpdated();
+          } else {
+            compositor->SetNeedsUpdate();
+          }
+        }
+      }
+    }
+  }
+}
+
 CompositorElementId PaintLayerScrollableArea::GetScrollCornerElementId() const {
   CompositorElementId scrollable_element_id = GetScrollElementId();
   DCHECK(scrollable_element_id);
@@ -3137,9 +3160,19 @@ bool PaintLayerScrollableArea::MayCompositeScrollbar(
   if (scrollbar.IsCustomScrollbar()) {
     return false;
   }
+  // Disable composited scrollbars under canvas.
+  const auto* box = GetLayoutBox();
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+          box->GetDocument().GetExecutionContext()) &&
+      IsA<Element>(box->GetNode()) &&
+      To<Element>(box->GetNode())->IsInCanvasSubtree()) {
+    return false;
+  }
   // Compositing of scrollbar is decided in PaintArtifactCompositor. We assume
   // compositing here so that paint invalidation will be skipped here. We'll
   // invalidate raster if needed after paint, without paint invalidation.
+  // TODO(crbug.com/40517276): The above comment doesn't apply to
+  // RasterInducingScroll.
   return true;
 }
 

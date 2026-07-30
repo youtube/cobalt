@@ -154,7 +154,14 @@ static_library("safe_browsing") {
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/toasts/api:toasts",
+
+      # Shows the safe_browsing views dialogs (toolkit_views only), which in
+      # turn include this target's chrome_password_protection_service.h.
+      "//chrome/browser/ui/views/safe_browsing",
     ]
+
+    allow_circular_includes_from +=
+        [ "//chrome/browser/ui/views/safe_browsing" ]
   }
 
   if (safe_browsing_mode != 0) {
@@ -220,6 +227,8 @@ static_library("safe_browsing") {
       "trigger_creator.h",
       "url_lookup_service_factory.h",
       "user_interaction_observer.h",
+      "v5_get_hash_protocol_manager_factory.h",
+      "v5_search_hashes_cache_factory.h",
     ]
     sources += [
       "chrome_client_side_detection_host_delegate.cc",
@@ -281,6 +290,8 @@ static_library("safe_browsing") {
       "trigger_creator.cc",
       "url_lookup_service_factory.cc",
       "user_interaction_observer.cc",
+      "v5_get_hash_protocol_manager_factory.cc",
+      "v5_search_hashes_cache_factory.cc",
     ]
     if (is_android) {
       public += [
@@ -306,8 +317,6 @@ static_library("safe_browsing") {
       "//chrome/browser/permissions:permissions_proto",
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
-    ]
-    deps += [
       "//chrome/browser/search_engines",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/safety_hub",
@@ -344,6 +353,8 @@ static_library("safe_browsing") {
       "//components/safe_browsing/core/browser:token_fetcher",
       "//components/safe_browsing/core/browser:verdict_cache_manager",
       "//components/safe_browsing/core/browser/db:allowlist_checker_client",
+      "//components/safe_browsing/core/browser/db:v5_get_hash_protocol_manager",
+      "//components/safe_browsing/core/browser/db:v5_search_hashes_cache",
       "//components/safe_browsing/core/browser/password_protection",
       "//components/safe_browsing/core/browser/password_protection:password_reuse_detection_manager_client",
       "//components/safe_browsing/core/browser/realtime:enterprise_url_lookup_service",
@@ -374,7 +385,6 @@ static_library("safe_browsing") {
     if (safe_browsing_mode == 1) {
       # "Safe Browsing Full" files in addition to the "basic" ones to use for
       # full safe browsing. This has some in common with "mobile."
-      deps += [ "//chrome/browser/ui/tabs:tab_strip" ]
       public += [
         "chrome_safe_browsing_hats_delegate.h",
         "download_protection/download_feedback.h",
@@ -437,7 +447,6 @@ static_library("safe_browsing") {
         "ohttp_key_service_factory.h",
         "services_delegate_desktop.h",
         "tailored_security/notification_handler_desktop.h",
-        "v5_search_hashes_cache_factory.h",
       ]
       sources += [
         "chrome_safe_browsing_hats_delegate.cc",
@@ -497,7 +506,6 @@ static_library("safe_browsing") {
         "ohttp_key_service_factory.cc",
         "services_delegate_desktop.cc",
         "tailored_security/notification_handler_desktop.cc",
-        "v5_search_hashes_cache_factory.cc",
       ]
       if (is_mac) {
         public += [
@@ -529,7 +537,9 @@ static_library("safe_browsing") {
         "//build:branding_buildflags",
         "//build:chromeos_buildflags",
         "//chrome/app/vector_icons",
+        "//chrome/browser/safe_browsing/incident_reporting:state_store_data_proto",
         "//chrome/browser/ui/hats",
+        "//chrome/browser/ui/tabs:tab_strip",
         "//chrome/common",
         "//chrome/common/extensions",
         "//chrome/services/file_util/public/cpp",
@@ -547,7 +557,6 @@ static_library("safe_browsing") {
         "//components/safe_browsing/core/browser:verdict_cache_manager",
         "//components/safe_browsing/core/browser/db",
         "//components/safe_browsing/core/browser/db:sb_store",
-        "//components/safe_browsing/core/browser/db:v5_search_hashes_cache",
         "//components/safe_browsing/core/browser/hashprefix_realtime:hash_realtime_service",
         "//components/safe_browsing/core/browser/realtime:policy_engine",
         "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
@@ -565,10 +574,7 @@ static_library("safe_browsing") {
       if (is_mac) {
         deps += [ "//chrome/common/safe_browsing:disk_image_type_sniffer_mac" ]
       } else if (is_win) {
-        deps += [
-          "//chrome/browser/safe_browsing/incident_reporting:state_store_data_proto",
-          "//chrome/common:version_header",
-        ]
+        deps += [ "//chrome/common:version_header" ]
       }
       if (is_chromeos) {
         deps += [
@@ -722,11 +728,20 @@ source_set("metrics_collector") {
 
 source_set("unit_tests") {
   testonly = true
+
+  # Some of these tests declare file-scope objects with non-trivial destructors
+  # (e.g. client_side_detection_host_unittest.cc).
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
   sources = [
     "advanced_protection_status_manager_factory_unittest.cc",
     "advanced_protection_status_manager_unittest.cc",
     "application_advanced_protection_status_detector_unittest.cc",
+    "gemini_antiscam_protection/gemini_antiscam_protection_service_factory_unittest.cc",
     "metrics/bundled_settings_metrics_provider_unittest.cc",
+    "notification_content_detection/notification_content_detection_service_factory_unittest.cc",
+    "notification_telemetry/notification_telemetry_service_factory_unittest.cc",
+    "notification_telemetry/notification_telemetry_service_unittest.cc",
   ]
 
   deps = [
@@ -747,20 +762,230 @@ source_set("unit_tests") {
   ]
 
   if (safe_browsing_mode != 0) {
-    sources += [ "gemini_antiscam_protection/gemini_antiscam_protection_service_unittest.cc" ]
+    sources += [
+      "chrome_password_protection_service_unittest.cc",
+      "chrome_ui_manager_delegate_unittest.cc",
+      "chrome_user_population_helper_unittest.cc",
+      "client_side_detection_host_unittest.cc",
+      "download_protection/download_item_metadata_unittest.cc",
+      "download_protection/download_protection_service_unittest.cc",
+      "download_protection/download_protection_unittest_util.cc",
+      "download_protection/download_protection_unittest_util.h",
+      "download_protection/download_protection_util_unittest.cc",
+      "download_protection/download_request_maker_unittest.cc",
+      "download_protection/file_analyzer_unittest.cc",
+      "download_protection/file_system_access_metadata_unittest.cc",
+      "gemini_antiscam_protection/gemini_antiscam_protection_service_unittest.cc",
+      "notification_content_detection/notification_content_detection_util_unittest.cc",
+      "threat_details_unittest.cc",
+    ]
     deps += [
+      "//chrome/browser/enterprise/connectors/test:test_support",
       "//chrome/browser/history",
       "//chrome/browser/optimization_guide",
       "//chrome/browser/optimization_guide:test_support",
+      "//chrome/browser/password_manager/factories",
+      "//chrome/browser/policy:test_support",
+      "//chrome/browser/safe_browsing:verdict_cache_manager_factory",
+      "//chrome/browser/sync",
+      "//chrome/common/safe_browsing:archive_analyzer_results",
+      "//chrome/common/safe_browsing:binary_feature_extractor",
+      "//chrome/common/safe_browsing:mock_binary_feature_extractor",
+      "//components/autofill/content/browser:test_support",
+      "//components/enterprise/connectors/core:test_support",
+      "//components/enterprise/obfuscation/core:enterprise_obfuscation",
+      "//components/file_access:test_support",
+      "//components/optimization_guide/core:model_execution_test_support",
+      "//components/safe_browsing/content/browser",
+      "//components/safe_browsing/content/browser:client_side_detection_images_cache",
+      "//components/safe_browsing/content/browser:client_side_detection_service",
+      "//components/safe_browsing/content/browser:credit_card_form_event",
+      "//components/safe_browsing/content/browser:safe_browsing_blocking_page",
+      "//components/safe_browsing/content/browser:safe_browsing_service",
+      "//components/safe_browsing/content/browser/notification_content_detection",
+      "//components/safe_browsing/content/browser/notification_content_detection:notifications_global_cache_list",
+      "//components/safe_browsing/content/browser/notification_content_detection:test_utils",
+      "//components/safe_browsing/content/browser/password_protection",
+      "//components/safe_browsing/content/browser/web_ui",
+      "//components/safe_browsing/content/common:file_type_policies",
+      "//components/safe_browsing/content/common:file_type_policies_test_support",
+      "//components/safe_browsing/content/common:interfaces",
+      "//components/safe_browsing/core/browser:client_side_detection_service_base",
+      "//components/safe_browsing/core/browser:intelligent_scan_delegate",
+      "//components/safe_browsing/core/browser:referring_app_info",
+      "//components/safe_browsing/core/browser:token_fetcher",
+      "//components/safe_browsing/core/browser:token_fetcher_testing_helper",
+      "//components/safe_browsing/core/browser:verdict_cache_manager",
+      "//components/safe_browsing/core/browser/sync",
       "//components/safe_browsing/core/common/proto:csd_proto",
+      "//components/ukm:test_support",
+      "//third_party/zlib/google:zip",
     ]
+
+    if (is_android) {
+      deps += [ "//chrome/browser/password_manager/android:unit_tests" ]
+    }
+
+    if (enterprise_cloud_content_analysis) {
+      sources += [
+        "chrome_enterprise_url_lookup_service_factory_unittest.cc",
+        "chrome_enterprise_url_lookup_service_unittest.cc",
+      ]
+      deps += [ "//components/safe_browsing/core/browser/realtime:enterprise_url_lookup_service" ]
+    }
+  }
+
+  if (safe_browsing_mode == 0) {
+    # The notification-service factory unit tests above are unconditional, but
+    # the optimization_guide deps they need can't be added to the base deps
+    # without forming a //chrome/browser dependency cycle on safe_browsing_mode
+    # != 0 (safe_browsing is reachable from the browser monolith there). The
+    # mode != 0 block already supplies these deps for modes 1/2; supply them
+    # here for mode 0 (e.g. android-cast).
+    deps += [
+      "//chrome/browser/optimization_guide",
+      "//chrome/browser/optimization_guide:test_support",
+      "//components/safe_browsing/content/browser/notification_content_detection:notifications_global_cache_list",
+      "//components/safe_browsing/content/browser/notification_content_detection:test_utils",
+    ]
+  }
+
+  if (safe_browsing_mode == 1) {
+    sources += [
+      "advanced_protection_status_manager_desktop_unittest.cc",
+      "chrome_password_reuse_detection_manager_client_unittest.cc",
+      "chrome_ping_manager_factory_unittest.cc",
+      "client_side_detection_intelligent_scan_delegate_desktop_unittest.cc",
+      "client_side_detection_intelligent_scan_delegate_factory_unittest.cc",
+      "client_side_detection_service_factory_unittest.cc",
+      "client_side_detection_service_unittest.cc",
+      "cloud_content_scanning/cloud_binary_upload_service_unittest.cc",
+      "cloud_content_scanning/deep_scanning_utils_unittest.cc",
+      "cloud_content_scanning/file_analysis_request_unittest.cc",
+      "extension_telemetry/activity_log_ingester_unittest.cc",
+      "extension_telemetry/cookies_get_all_signal_processor_unittest.cc",
+      "extension_telemetry/cookies_get_all_signal_unittest.cc",
+      "extension_telemetry/cookies_get_signal_processor_unittest.cc",
+      "extension_telemetry/cookies_get_signal_unittest.cc",
+      "extension_telemetry/declarative_net_request_action_signal_processor_unittest.cc",
+      "extension_telemetry/declarative_net_request_action_signal_unittest.cc",
+      "extension_telemetry/declarative_net_request_signal_processor_unittest.cc",
+      "extension_telemetry/dom_access_signal_processor_unittest.cc",
+      "extension_telemetry/dom_access_signal_unittest.cc",
+      "extension_telemetry/extension_js_callstacks_unittest.cc",
+      "extension_telemetry/extension_telemetry_config_manager_unittest.cc",
+      "extension_telemetry/extension_telemetry_file_processor_unittest.cc",
+      "extension_telemetry/extension_telemetry_persister_unittest.cc",
+      "extension_telemetry/extension_telemetry_service_unittest.cc",
+      "extension_telemetry/extension_telemetry_uploader_unittest.cc",
+      "extension_telemetry/potential_password_theft_signal_processor_unittest.cc",
+      "extension_telemetry/remote_host_contacted_signal_processor_unittest.cc",
+      "extension_telemetry/remote_host_contacted_signal_unittest.cc",
+      "extension_telemetry/script_injection_signal_processor_unittest.cc",
+      "extension_telemetry/script_injection_signal_unittest.cc",
+      "extension_telemetry/search_hijacking_detector_unittest.cc",
+      "extension_telemetry/tabs_api_signal_processor_unittest.cc",
+      "extension_telemetry/tabs_api_signal_unittest.cc",
+      "extension_telemetry/tabs_execute_script_signal_processor_unittest.cc",
+      "external_app_redirect_checking_unittest.cc",
+      "hash_realtime_service_factory_unittest.cc",
+      "incident_reporting/binary_integrity_incident_unittest.cc",
+      "incident_reporting/delayed_callback_runner_unittest.cc",
+      "incident_reporting/download_metadata_manager_unittest.cc",
+      "incident_reporting/extension_data_collection_unittest.cc",
+      "incident_reporting/incident_report_uploader_impl_unittest.cc",
+      "incident_reporting/incident_reporting_service_unittest.cc",
+      "incident_reporting/last_download_finder_unittest.cc",
+      "incident_reporting/mock_incident_receiver.cc",
+      "incident_reporting/mock_incident_receiver.h",
+      "incident_reporting/platform_state_store_unittest.cc",
+      "incident_reporting/preference_validation_delegate_unittest.cc",
+      "incident_reporting/state_store_unittest.cc",
+      "incident_reporting/tracked_preference_incident_unittest.cc",
+      "ohttp_key_service_factory_unittest.cc",
+      "phishy_interaction_tracker_unittest.cc",
+      "safe_browsing_service_unittest.cc",
+      "tailored_security/chrome_tailored_security_service_unittest.cc",
+      "tailored_security/message_retry_handler_unittest.cc",
+      "tailored_security/tailored_security_url_observer_unittest.cc",
+      "verdict_cache_manager_factory_unittest.cc",
+    ]
+
+    deps += [
+      "//chrome/browser/content_settings",
+      "//chrome/browser/enterprise",
+      "//chrome/browser/enterprise/connectors/test:test_support",
+      "//chrome/browser/prefs",
+      "//chrome/browser/safe_browsing:test_support",
+      "//chrome/browser/safe_browsing/incident_reporting:state_store_data_proto",
+      "//chrome/browser/search_engines",
+      "//components/enterprise/common/proto:connectors_proto",
+      "//components/enterprise/connectors/core",
+      "//components/enterprise/obfuscation/core:enterprise_obfuscation",
+      "//components/history/content/browser",
+      "//components/optimization_guide/core:test_support",
+      "//components/safe_browsing/content/browser/password_protection",
+      "//components/safe_browsing/content/browser/password_protection:mock_password_protection",
+      "//components/safe_browsing/core/browser",
+      "//components/safe_browsing/core/browser:token_fetcher",
+      "//components/safe_browsing/core/browser:token_fetcher_testing_helper",
+      "//components/safe_browsing/core/common:safe_browsing_policy_handler",
+      "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
+      "//components/safe_browsing/core/common/proto:csd_proto",
+      "//extensions/browser",
+      "//extensions/common",
+    ]
+
+    if (is_chromeos) {
+      deps += [ "//chrome/browser/ash/login/users" ]
+    }
+
+    if (is_mac) {
+      sources += [
+        "incident_reporting/binary_integrity_analyzer_mac_unittest.cc",
+        "signature_evaluator_mac_unittest.cc",
+      ]
+      deps += [ "//chrome/common:constants" ]
+    }
+
+    if (is_win) {
+      sources += [
+        "incident_reporting/binary_integrity_analyzer_win_unittest.cc",
+        "incident_reporting/environment_data_collection_win_unittest.cc",
+        "incident_reporting/module_integrity_unittest_util_win.cc",
+        "incident_reporting/module_integrity_unittest_util_win.h",
+        "incident_reporting/module_integrity_verifier_win_unittest.cc",
+        "incident_reporting/platform_state_store_win_unittest.cc",
+      ]
+      data_deps = [
+        "//chrome/browser/safe_browsing/incident_reporting/verifier_test:verifier_test_dll_1",
+        "//chrome/browser/safe_browsing/incident_reporting/verifier_test:verifier_test_dll_2",
+      ]
+    }
   }
 
   if (is_android) {
     deps += [ "android:test_support" ]
   }
+
+  if (safe_browsing_mode == 2 && is_android) {
+    sources += [
+      "android/client_side_detection_intelligent_scan_delegate_android_unittest.cc",
+      "android/password_reuse_controller_android_unittest.cc",
+      "safe_browsing_pref_change_handler_android_unittest.cc",
+      "tailored_security/chrome_tailored_security_service_android_unittest.cc",
+      "tailored_security/consented_message_android_unittest.cc",
+      "telemetry/android/android_telemetry_service_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//components/messages/android:test_support",
+    ]
+  }
   if (is_win || is_mac || is_linux || is_chromeos) {
     sources += [
+      "generated_safe_browsing_pref_unittest.cc",
+      "generated_security_settings_bundle_pref_unittest.cc",
       "safe_browsing_pref_change_handler_unittest.cc",
       "security_settings_bundle_pref_change_handler_unittest.cc",
       "security_settings_bundle_toast_helper_unittest.cc",
@@ -831,6 +1056,18 @@ source_set("test_support") {
     deps += [
       "android:test_support",
       "android:test_support_java",
+    ]
+  }
+
+  if (enable_extensions) {
+    sources += [
+      "test_extension_event_observer.cc",
+      "test_extension_event_observer.h",
+    ]
+    deps += [
+      "//chrome/browser/extensions",
+      "//chrome/common/extensions/api",
+      "//extensions:test_support",
     ]
   }
 }

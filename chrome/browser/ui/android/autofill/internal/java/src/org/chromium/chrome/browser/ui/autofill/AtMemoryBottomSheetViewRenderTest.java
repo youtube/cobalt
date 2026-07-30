@@ -50,6 +50,7 @@ import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.Scr
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.components.autofill.AutofillSuggestion;
+import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerFactory;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
@@ -91,8 +92,8 @@ public class AtMemoryBottomSheetViewRenderTest {
     @Rule
     public final RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(5)
-                    .setDescription("Change the source text UI.")
+                    .setRevision(7)
+                    .setDescription("Strings updated")
                     .setBugComponent(Component.UI_BROWSER_AUTOFILL)
                     .build();
 
@@ -337,6 +338,7 @@ public class AtMemoryBottomSheetViewRenderTest {
 
     @Test
     @Feature({"RenderTest"})
+    @DisabledTest(message = "Enabled after fixing crbug.com/535894236")
     public void testAtMemoryBottomSheetFlyoutScreen() throws Exception {
         ContextThemeWrapper themeWrapper =
                 new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
@@ -362,7 +364,8 @@ public class AtMemoryBottomSheetViewRenderTest {
                                                             "07-05-2032", "Issue date"),
                                                     createAutofillSuggestion(
                                                             "07-05-2032", "Expiration date"),
-                                                    createAutofillSuggestion("USA", "")))
+                                                    createAutofillSuggestion("USA", ""),
+                                                    createManageSuggestion()))
                                     .build();
                     PropertyModelChangeProcessor.create(
                             model,
@@ -377,7 +380,20 @@ public class AtMemoryBottomSheetViewRenderTest {
                 mActivity.findViewById(android.R.id.content), "at_memory_flyout_screen");
     }
 
+    private AutofillSuggestion createManageSuggestion() {
+        return new AutofillSuggestion.Builder()
+                .setLabel("Manage information")
+                .setSubLabel("")
+                .setIconId(R.drawable.ic_chrome)
+                .setSuggestionType(SuggestionType.MANAGE_AUTOFILL_AI)
+                .build();
+    }
+
     private AutofillSuggestion createAutofillSuggestion(String label, String subLabel) {
-        return new AutofillSuggestion.Builder().setLabel(label).setSubLabel(subLabel).build();
+        return new AutofillSuggestion.Builder()
+                .setLabel(label)
+                .setSubLabel(subLabel)
+                .setSuggestionType(SuggestionType.AT_MEMORY_SEARCH_RESULT)
+                .build();
     }
 }

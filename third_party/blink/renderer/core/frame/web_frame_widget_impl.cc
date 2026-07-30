@@ -82,6 +82,7 @@
 #include "third_party/blink/renderer/core/core_initializer.h"
 #include "third_party/blink/renderer/core/css/media_value_change.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
@@ -173,6 +174,7 @@
 #include "third_party/blink/renderer/platform/widget/input/main_thread_event_queue.h"
 #include "third_party/blink/renderer/platform/widget/input/widget_input_handler_manager.h"
 #include "third_party/blink/renderer/platform/widget/widget_base.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -198,6 +200,54 @@
 namespace blink {
 
 namespace {
+
+// Used for IME operations which can accept a target node for composition. Focus
+// will temporarily be set to the target node for the operation, then restored.
+class TargetImeNodeFocusChangeScope {
+  STACK_ALLOCATED();
+
+ public:
+  explicit TargetImeNodeFocusChangeScope(DOMNodeIdType target_dom_node_id) {
+    if (target_dom_node_id.is_null()) {
+      return;
+    }
+    Node* node = DOMNodeIds::NodeForId(target_dom_node_id.value());
+    if (!node) {
+      return;
+    }
+    Element* element = DynamicTo<Element>(node);
+    if (!element) {
+      element = node->parentElement();
+    }
+    if (!element) {
+      return;
+    }
+    document_ = &element->GetDocument();
+    previous_focused_ = document_->FocusedElement();
+    if (previous_focused_ != element) {
+      focus_changed_ = true;
+      element->Focus();
+    }
+  }
+
+  ~TargetImeNodeFocusChangeScope() {
+    if (!focus_changed_ || !document_) {
+      return;
+    }
+    if (previous_focused_) {
+      if (previous_focused_->isConnected()) {
+        previous_focused_->Focus();
+      }
+    } else {
+      document_->ClearFocusedElement();
+    }
+  }
+
+ private:
+  Document* document_ = nullptr;
+  Element* previous_focused_ = nullptr;
+  bool focus_changed_ = false;
+};
 
 using ::ui::mojom::blink::DragOperation;
 
@@ -1550,31 +1600,6 @@ void WebFrameWidgetImpl::UpdateCompositorScrollState(
   if (commit_data.scroll_end_data.done_containers.size()) {
     SendEndOfScrollEvents(commit_data);
   }
-
-  if (!commit_data.scroll_timing_infos.empty()) {
-    ProcessScrollTimingData(commit_data);
-  }
-}
-
-void WebFrameWidgetImpl::ProcessScrollTimingData(
-    const cc::CompositorCommitData& commit_data) {
-  LocalDOMWindow* dom_window = LocalRootImpl()->GetFrame()->DomWindow();
-  // Compositor only populates `scroll_timing_infos` when the feature is on.
-  CHECK(RuntimeEnabledFeatures::ScrollPerformanceTimingEnabled(dom_window));
-
-  WindowPerformance* performance =
-      DOMWindowPerformance::performance(*dom_window);
-
-  for (const auto& timing : commit_data.scroll_timing_infos) {
-    // `ScrollTimingController` only enqueues records after assigning both
-    // `end_time` and `input_type`, so dereferencing here is safe.
-    // `target` may be null if the scrollable container was disposed before the
-    // commit reaches us; `AddScrollTiming` tolerates a null target.
-    Node* target =
-        View()->FindNodeFromScrollableCompositorElementId(timing.element_id);
-    performance->AddScrollTiming(timing.start_time, *timing.end_time,
-                                 *timing.input_type, target);
-  }
 }
 
 void WebFrameWidgetImpl::UpdateAnimatedImageState(
@@ -1759,8 +1784,8 @@ void WebFrameWidgetImpl::OnTaskCompletedForFrame(
     base::TimeTicks end_time,
     LocalFrame* frame) {
   if (animation_frame_timing_monitor_) {
-    animation_frame_timing_monitor_->OnTaskCompleted(start_time, end_time,
-                                                     frame);
+    animation_frame_timing_monitor_->OnMainThreadTaskCompleted(start_time,
+                                                               end_time, frame);
   }
 }
 
@@ -2772,7 +2797,10 @@ void WebFrameWidgetImpl::UnboundedContextDestroyed() {
     return;
   }
   if (unbounded_surface_state_->active_element_) {
-    unbounded_surface_state_->active_element_->SetUnboundedElementActive(false);
+    // The context is being destroyed, so we should suppress event dispatch
+    // to avoid executing script during teardown.
+    unbounded_surface_state_->active_element_->SetUnboundedElementActive(
+        false, UnboundedEvents::kSuppress);
   }
   unbounded_surface_state_ = nullptr;
   if (auto* host = LayerTreeHost()) {
@@ -4205,10 +4233,14 @@ bool WebFrameWidgetImpl::SetComposition(
     const gfx::Range& replacement_range,
     int selection_start,
     int selection_end,
-    mojom::blink::ImeState ime_state) {
+    mojom::blink::ImeState ime_state,
+    DOMNodeIdType target_dom_node_id) {
+  TargetImeNodeFocusChangeScope focus_scope(target_dom_node_id);
+
   WebInputMethodController* controller = GetActiveWebInputMethodController();
-  if (!controller)
+  if (!controller) {
     return false;
+  }
 
   return controller->SetComposition(
       text, base::ToVector(ime_text_spans),
@@ -4223,10 +4255,15 @@ void WebFrameWidgetImpl::CommitText(
     const String& text,
     const Vector<ui::ImeTextSpan>& ime_text_spans,
     const gfx::Range& replacement_range,
-    int relative_cursor_pos) {
+    int relative_cursor_pos,
+    DOMNodeIdType target_dom_node_id) {
+  TargetImeNodeFocusChangeScope focus_scope(target_dom_node_id);
+
   WebInputMethodController* controller = GetActiveWebInputMethodController();
-  if (!controller)
+  if (!controller) {
     return;
+  }
+
   controller->CommitText(
       text, base::ToVector(ime_text_spans),
       replacement_range.IsValid()
@@ -4475,31 +4512,62 @@ WebFrameWidgetImpl::GetLastCursorAnchorInfoForTesting() {
   return last_cursor_anchor_info_;
 }
 
-void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
+mojom::blink::InputCursorAnchorInfoPtr
+WebFrameWidgetImpl::CalculateCursorAnchorInfo(bool update_requested) {
 #if BUILDFLAG(IS_ANDROID)
   Element* focused_element = FocusedElement();
   if (!focused_element) {
-    return;
+    return nullptr;
   }
 
   // Only update cursor for active text controls or contenteditable elements.
   if (TextControlElement* text_control = ToTextControlOrNull(focused_element);
       (!text_control || text_control->IsDisabledOrReadOnly()) &&
       !IsEditable(*focused_element)) {
-    return;
+    return nullptr;
   }
   LayoutObject* layout_object = focused_element->GetLayoutObject();
   if (!layout_object) {
-    return;
+    return nullptr;
+  }
+
+  WebInputMethodController* controller = GetActiveWebInputMethodController();
+  gfx::RectF editor_bounds;
+  std::optional<gfx::Rect> insertion_marker_info = std::nullopt;
+
+  if (focused_element->GetDocument()
+          .GetFrame()
+          ->GetInputMethodController()
+          .GetActiveEditContext() &&
+      controller) {
+    gfx::Rect edit_context_control_bounds;
+    gfx::Rect edit_context_selection_bounds;
+
+    controller->GetLayoutBounds(&edit_context_control_bounds,
+                                &edit_context_selection_bounds);
+
+    editor_bounds = gfx::RectF(LocalRootImpl()->GetFrameView()->FrameToScreen(
+        edit_context_control_bounds));
+    insertion_marker_info =
+        widget_base_->BlinkSpaceToEnclosedDIPs(edit_context_selection_bounds);
+  } else {
+    gfx::Rect focus_caret;
+    gfx::Rect anchor_caret;
+
+    editor_bounds = gfx::RectF(LocalRootImpl()->GetFrameView()->FrameToScreen(
+        focused_element->VisibleBoundsInLocalRoot()));
+    CalculateSelectionBounds(anchor_caret, focus_caret);
+
+    if (focus_caret != gfx::Rect{}) {
+      insertion_marker_info =
+          widget_base_->BlinkSpaceToEnclosedDIPs(focus_caret);
+    }
   }
 
   Vector<gfx::Rect> character_bounds;
   GetCompositionCharacterBoundsInWindow(&character_bounds);
   Vector<gfx::Rect> line_bounds = CalculateVisibleLineBoundsOnScreen();
 
-  gfx::RectF editor_bounds =
-      gfx::RectF(LocalRootImpl()->GetFrameView()->FrameToScreen(
-          focused_element->VisibleBoundsInLocalRoot()));
   float device_scale_factor = widget_base_->GetScreenInfo().device_scale_factor;
   gfx::RectF handwriting_bounds(editor_bounds);
   // See kStylusWritableAdjustmentSizeDip in
@@ -4514,20 +4582,22 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
               .VisitedDependentColor(GetCSSPropertyColor())
               .Rgb());
 
-  // Calculate the caret location.
-  std::optional<gfx::Rect> insertion_marker_info = std::nullopt;
-  gfx::Rect focus_caret = {};
-  gfx::Rect anchor_caret = {};
-  CalculateSelectionBounds(anchor_caret, focus_caret);
-  if (focus_caret != gfx::Rect{}) {
-    insertion_marker_info = widget_base_->BlinkSpaceToEnclosedDIPs(focus_caret);
-  }
+  return mojom::blink::InputCursorAnchorInfo::New(
+      character_bounds, std::move(editor_bounds_info),
+      std::move(text_appearance_info), line_bounds,
+      std::move(insertion_marker_info), update_requested);
+#else
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
 
+void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
+#if BUILDFLAG(IS_ANDROID)
   mojom::blink::InputCursorAnchorInfoPtr cursor_anchor_info =
-      mojom::blink::InputCursorAnchorInfo::New(
-          character_bounds, std::move(editor_bounds_info),
-          std::move(text_appearance_info), line_bounds,
-          std::move(insertion_marker_info), update_requested);
+      CalculateCursorAnchorInfo(update_requested);
+  if (!cursor_anchor_info) {
+    return;
+  }
 
   if (!update_requested && last_cursor_anchor_info_ == cursor_anchor_info) {
     return;

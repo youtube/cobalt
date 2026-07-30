@@ -1177,7 +1177,6 @@
 <translation id="1910721550319506122">स्वागतम्!</translation>
 <translation id="1910736334623230603">एकभन्दा बढी फोटोहरू खोज्न मिल्दैन। एक पटकमा एउटा मात्र फोटो हाल्नुहोस्।</translation>
 <translation id="1910908536872421421">Chrome for Testing को संस्करण <ph name="BROWSER_VERSION" /> स्वचालित परीक्षण गर्ने प्रयोजनका लागि मात्र बनाइएको हो। अन्य प्रयोजनका लागि वेब ब्राउज गर्न Chrome को सामान्य संस्करण प्रयोग गर्नुहोस्। सामान्य संस्करण स्वतः अपडेट हुन्छ।</translation>
-<translation id="1912867150686509584">आफ्नो पात्रोमा सेभ गरिएका थप मिटिङ हेर्नुहोस्</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{आफ्नो ब्राउजर सुस्त बनाउने ट्याब पज गर्नुहोस्}other{आफ्नो ब्राउजर सुस्त बनाउने ट्याबहरू पज गर्नुहोस्}}</translation>
 <translation id="1913749768968678106">कास्ट, सेभ र सेयर गर्नुहोस्</translation>
 <translation id="19147273405311768">टुलबार रिसेट गरी डिफल्ट सेटिङ लागू गर्नुहोस्</translation>
@@ -1217,12 +1216,14 @@
 <translation id="1933489278505808700">रिड गर्ने तथा बदल्ने अनुमति दिइएको छ</translation>
 <translation id="1935303383381416800">तपाईंको स्थान हेर्ने अनुमति दिइएका साइटहरू</translation>
 <translation id="193565226207940518">सहायता टुल</translation>
+<translation id="1935995810530254458">जे भए पनि कपी गर्नुहोस्</translation>
 <translation id="1936157145127842922">फोल्डरमा देखाउनुहोस्</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{यो पेज रिडिङ लिस्टमा हालिएको छ}other{यी पेजहरू रिडिङ लिस्टमा हालिएका छन्}}</translation>
 <translation id="1936931585862840749">प्रिन्ट गर्नु पर्ने प्रतिको सङ्ख्या तोक्न (१ देखि <ph name="MAX_COPIES" /> सम्मको) कुनै सङ्ख्या प्रयोग गर्नुहोस्।</translation>
 <translation id="1938351510777341717">बाह्य आदेश</translation>
 <translation id="1940221956626514677">टुलबार कस्टमाइज गर्नुहोस्</translation>
 <translation id="1940546824932169984">कनेक्ट गरिएका डिभाइस</translation>
+<translation id="194081218158106711">परिवर्तन गरिएको पासवर्ड पुष्टि गरिँदै छ...</translation>
 <translation id="1941410638996203291">सुरु हुने समय: <ph name="TIME" /></translation>
 <translation id="1941553344801134989">संस्करण: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">तपाईंका एड्मिनले तपाईंको खाता Microsoft OneDrive मा स्वतः कनेक्ट हुने गरी कन्फिगर गर्नुभएको छ तर कुनै समस्या आयो।</translation>
@@ -1491,6 +1492,7 @@
 <translation id="2158475082070321257">हाइलाइट गरिएको पाठको लिंक कपी गर्नुहोस्</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758"><ph name="EXTENSION_NAME" /> का लागि <ph name="SHORTCUT" /> को स्कोप</translation>
+<translation id="2161656808144014275">पाठ</translation>
 <translation id="216169395504480358">Wi-Fi थप्नुहोस्...</translation>
 <translation id="2162705204091149050">तपाईंका ब्राउजर, OS, डिभाइस, इन्स्टल गरिएका सफ्टवेयर र फाइलहरूसम्बन्धी जानकारी पढ्नुहोस्</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" />, <ph name="SECOND_SWITCH" />, <ph name="THIRD_SWITCH" /> र थप एउटा स्विच</translation>
@@ -1537,6 +1539,7 @@
 <translation id="2199298570273670671">त्रुटि</translation>
 <translation id="2200094388063410062">E-mail</translation>
 <translation id="2200781749203116929">ChromeOS सिस्टम लगहरू</translation>
+<translation id="2202391868799679245">किबोर्ड सर्टकट अन गर्नुहोस्</translation>
 <translation id="2203088913459920044">नाममा अक्षर, सङ्ख्या तथा विशेष वर्णहरू प्रयोग गर्न मिल्छ</translation>
 <translation id="220321590587754225">कनेक्ट गर्न सकिएन। फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="2203903197029773650">तपाईंले आफ्नो Google खातामा साइन इन गरेपछि मात्र <ph name="BRAND" /> ले तपाईंका पासवर्डहरू जाँच गर्न सक्छ</translation>
@@ -4253,6 +4256,7 @@
 <translation id="4274673989874969668">तपाईंले कुनै साइट बन्द गर्नुभयो भने त्यसले सामान्यतया फोटो अपलोड गर्ने वा च्याट म्यासेज पठाउने जस्ता कार्यहरू पूरा गर्न सिंक गर्ने कार्य जारी राख्न सक्छ</translation>
 <translation id="4275291496240508082">यन्त्र अन गर्दा आवाज आओस्</translation>
 <translation id="4275397969489577657">घटनाका स्ट्रिमसम्बन्धी लगइनहरू सक्षम पार्नुहोस्</translation>
+<translation id="4275663329226226506">मिडिया</translation>
 <translation id="4275788652681621337">साइड प्यानल बन्द गर्नुहोस्</translation>
 <translation id="4275830172053184480">आफ्नो यन्त्रलाई फेरि सुरु गर्नुहोस्</translation>
 <translation id="4276390967705106170">नयाँ ब्राउजर ट्याबमा खोल्नुहोस्</translation>
@@ -4740,6 +4744,7 @@
 <translation id="4657914796247705218">TrackPoint को गति</translation>
 <translation id="4658648180588730283"><ph name="APPLICATION_NAME" /> एप इन्टरनेट नभएका बेला उपलब्ध हुँदैन।</translation>
 <translation id="465878909996028221">ब्राउजर रिडिरेक्ट गर्न http, https तथा फाइल प्रोटोकललाई मात्र समर्थन गरिन्छ।</translation>
+<translation id="4658821552705754298"><ph name="ITEM_NAME" /> <ph name="CATEGORY_NAME" /></translation>
 <translation id="4659126640776004816">तपाईंले आफ्नो Google खातामा साइन इन गर्दा यो सुविधा सक्रिय गरिन्छ।</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{फोटो}other{# वटा फोटो}}</translation>
 <translation id="4660540330091848931">आकार बदल्दै</translation>
@@ -5319,6 +5324,7 @@
 <translation id="5096775069898886423">सुरक्षित कनेक्सन प्रयोग गर्न नमिल्ने साइटका हकमा उक्त साइटमा जानुअघि नै चेतावनी प्राप्त गर्नुहोस्</translation>
 <translation id="5097002363526479830">नेटवर्क '<ph name="NAME" />' मा जडान हुन असफल भयो: <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">तपाईंले खोल्ने साइटहरूले तपाईंलाई मन पर्ने कुराहरू निर्धारण गरी तपाईंले ब्राउज गर्ने क्रममा तपाईंको रुचिअनुसारका विज्ञापन देखाउन सक्छन्</translation>
+<translation id="5097472729724586429">"टेक्स्ट एनोटेसन हाल्नुहोस्" नामक नयाँ टुल प्रयोग गरी टेक्स्ट एनोटेसन हाल्नुहोस्</translation>
 <translation id="5097649414558628673">टुल: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">कर्सर रोकिँदा स्वतः क्लिक गर्नुहोस्</translation>
 <translation id="5098963855433723436">छुट्टै एपमा खुल्छ</translation>
@@ -5383,6 +5389,7 @@
 <translation id="5146235736676876345">आफ्नै पासवर्ड रोज्नुहोस्</translation>
 <translation id="5146896637028965135">सिस्टम भ्वाइस</translation>
 <translation id="5147113439721488265">सिफारिस</translation>
+<translation id="5148020348702787234">लिंकहरू पठाउन आफ्नो पहिचान पुष्टि गर्नुहोस्। तपाईंले दुवै डिभाइसमा एउटै Google खाता प्रयोग गरी साइन इन गर्नुभएको छ भने तपाईं लिंकहरू पठाउन सक्नुहुन्छ।</translation>
 <translation id="5148285448107770349">पासवर्ड कम्तीमा पनि ८ वर्णको हुनु पर्छ</translation>
 <translation id="5149602533174716626">भिडियो फ्रेम कपी गर्नुहोस्</translation>
 <translation id="5150254825601720210">नेटस्केप प्रमाणपत्र SSL सर्भर नाम</translation>
@@ -6346,7 +6353,6 @@
 <translation id="5932881020239635062">क्रम संख्या</translation>
 <translation id="5933522550144185133"><ph name="APP_NAME" /> ले तपाईंको क्यामेरा र माइक्रोफोन प्रयोग गर्दै छ</translation>
 <translation id="5935158534896975820">प्रमाणपत्रमा हस्ताक्षर गर्ने अनुरोध तयार पार्दै (सर्भरमा प्रतीक्षा गर्दै)</translation>
-<translation id="5935554994339565449">"टेक्स्ट हाल्नुहोस्" नामक नयाँ टुल प्रयोग गरी टेक्स्ट हाल्नुहोस्</translation>
 <translation id="5936065461722368675">पूरै पेज अनुवाद गर्नुहोस्</translation>
 <translation id="5937977334791924341"><ph name="APP" /> को लोगो</translation>
 <translation id="5938002010494270685">सुरक्षासम्बन्धी अपडेट उपलब्ध छ</translation>
@@ -8902,6 +8908,7 @@
 <translation id="7933486544522242079">सेभ र सेयर गर्नुहोस्</translation>
 <translation id="7933518760693751884">कुनै पृष्ठ पछि पढ्ने प्रयोजनका लागि सुरक्षित गर्न 'बुकमार्क' जनाउने आइकनमा क्लिक गर्नुहोस्</translation>
 <translation id="7933634003144813719">साझा फोल्डरहरूको व्यवस्थापन गर्नुहोस्</translation>
+<translation id="7935072572536724392">पासवर्ड स्वतः परिवर्तन गर्न सकिएन</translation>
 <translation id="7936195481975600746">आफ्नो स्क्रिन सेयर गर्न आफ्नो सिस्टमको स्क्रिन पिकर प्रयोग गर्नुहोस्</translation>
 <translation id="7937809006412909895">डाइग्नोस्टिक डेटा सङ्कलन गरिँदै छ</translation>
 <translation id="7938881824185772026">Labs</translation>
@@ -9039,6 +9046,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{रिडिङ लिस्ट}=1{रिडिङ लिस्ट ({SELECTED_ITEMS})}other{रिडिङ लिस्ट ({SELECTED_ITEMS})}}</translation>
 <translation id="8029492516535178472"><ph name="WINDOW_TITLE" /> - अनुमति मागियो, यस सम्बन्धमा कारबाही गर्न ⌘ + Option + अप एरो थिच्नुहोस्</translation>
 <translation id="8030169304546394654">जडान विच्छेद भयो</translation>
+<translation id="8030814978699290230">साइन इन गर्न खोजिँदै छ...</translation>
 <translation id="8030852056903932865">अनुमोदन गर्नुहोस्</translation>
 <translation id="8033827949643255796">चयन गरिएको</translation>
 <translation id="8033958968890501070">समयावधि सकियो</translation>
@@ -9452,6 +9460,7 @@
 <translation id="8343578633847737325">हालसालैका च्याट तथा थ्रेडहरू</translation>
 <translation id="8345848587667658367">तपाईं अब आफ्नो फोनका हालसालैका फोटो, मिडिया, सूचना तथा एपहरू हेर्न सक्नुहुन्छ</translation>
 <translation id="8347227221149377169">प्रिन्टसम्बन्धी कार्यहरू</translation>
+<translation id="8347728744337089388">आफ्नो डिभाइसमा पठाउनुहोस्</translation>
 <translation id="8348430946834215779">सम्भव भएसम्म HTTPS प्रयोग गर्नुहोस् र HTTPS नचल्ने साइट लोड गर्नुअघि चेतावनी प्राप्त गर्नुहोस्</translation>
 <translation id="8348896480272971199">आफ्नो इन्टरनेट जाँच्नुहोस् र फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="8349305172487531364">बुकमार्क पट्टी</translation>
@@ -9501,6 +9510,7 @@
 <translation id="8382197851871630452">स्थानीय मौसम</translation>
 <translation id="8382913212082956454">&amp;इमेल ठेगानाको प्रतिलिपी बनाउनुहोस्</translation>
 <translation id="8383614331548401927">स्वागत रिक्याप</translation>
+<translation id="8387157483437834731">पासवर्ड परिवर्तन गरिएको छ</translation>
 <translation id="8387361103813440603">तपाईंको स्थान हेर्ने अनुमति नदिइएका साइटहरू</translation>
 <translation id="8389492867173948260">यो विस्तारलाई तपाईं जाने वेबसाइटहरूको तपाईंका सबै डेटा पढ्न र परिवर्तन गर्न दिनुहोस्।</translation>
 <translation id="8390449457866780408">सर्भर उपलब्ध छैन।</translation>
@@ -9895,7 +9905,6 @@
 <translation id="8693862390730570097">"मलाई लेख्न मद्दत गर" लाई स्वतः खुल्ने अनुमति नदिनुहोस्</translation>
 <translation id="8694596275649352090">स्लिप मोडमा हुँदा वा लिड बन्द गरेपछि लक गर्नुहोस्</translation>
 <translation id="8695825812785969222">स्थान &amp;खोल्नुहोस्...</translation>
-<translation id="8696297579102085705">आफ्नो डिभाइसमा पठाउनुहोस्</translation>
 <translation id="869884720829132584">एप्लिकेसनहर</translation>
 <translation id="869891660844655955">समाप्ति मिति</translation>
 <translation id="8699296325072357994">"पासवर्ड" पेजहरूमा भएका कन्टेन्ट र यससँग सम्बन्धित जानकारी Google मा पठाइन्छन् र समीक्षकहरू तिनको समीक्षा गर्छन्। तपाईंको पासवर्ड इन्क्रिप्ट गरिएको हुन्छ र कसैले कहिल्यै पनि उक्त पासवर्ड देख्दैनन्। <ph name="PASSWORD_CHANGE" /></translation>
@@ -10243,6 +10252,7 @@
 <translation id="8967427617812342790">पाठ्य सूचीमा थप्नुहोस्</translation>
 <translation id="8968527460726243404">ChromeOS प्रणाली फोटो लेखक</translation>
 <translation id="8968766641738584599">कार्ड सेभ गर्नुहोस्</translation>
+<translation id="8970232194848546151">अर्को डिभाइसमा लिंक पठाउनुहोस्</translation>
 <translation id="8970887620466824814">कुनै समस्या आयो।</translation>
 <translation id="89720367119469899">भाग</translation>
 <translation id="8972513834460200407">कृपया फायरवालले गूगल सर्भरहरूबाट डाउनलोडलाई अवरुद्ध नगरेको निश्चित गर्न तपाईंको नेटवर्क व्यवस्थापकसँग जाँच गर्नुहोस्।</translation>
@@ -10509,6 +10519,7 @@
 <translation id="9151906066336345901">इन्ड की</translation>
 <translation id="9152503903192861480">AI मोडमा खोल्नुहोस्</translation>
 <translation id="9153367754133725216">लन्चर र खोज परिणामहरूमा नयाँ एप र वेब सामग्रीसम्बन्धी सुझावहरू हेर्नुहोस्। तपाईंले क्र्यास रिपोर्ट र निदान तथा प्रयोगसम्बन्धी जानकारी ChromeOS मा पठाउने विकल्प रोज्नुभएको छ भने मात्र यसले सुझावहरूको गुणस्तर सुधार गर्ने प्रयोजनका लागि तथ्याङ्क पठाउँछ।</translation>
+<translation id="9153451439615847952">नोटिफिकेसन तथा अलर्टहरूका लागि ब्याकग्राउन्ड अडियो कम गर्नुहोस्</translation>
 <translation id="9154194610265714752">अपडेट भयो</translation>
 <translation id="915485121129452731">पेन ट्याब्लेट</translation>
 <translation id="9155344700756733162">रङको चयन रद्द गर्नुहोस्</translation>
@@ -10586,6 +10597,7 @@
 <translation id="9220820413868316583">औँला उठाई फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="922152298093051471">Chrome आफूले चाहे जस्तो बनाउनुहोस्</translation>
 <translation id="9222839391870847423">अवधि: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">आफ्नो डिभाइसमा पठाउनुहोस्</translation>
 <translation id="923467487918828349">सबै देखाउनुहोस्</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{यो व्यवस्थापन गर्न एक्स्टेन्सनहरू खोल्नुहोस्}other{यी व्यवस्थापन गर्न एक्स्टेन्सनहरू खोल्नुहोस्}}</translation>
 <translation id="924818813611903184">ChromeOS का सेटिङमा गई भाषाहरू व्यवस्थापन गर्नुहोस्</translation>

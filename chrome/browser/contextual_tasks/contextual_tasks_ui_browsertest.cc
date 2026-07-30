@@ -78,6 +78,7 @@ class MockContextualTasksPage : public contextual_tasks::mojom::Page {
   ~MockContextualTasksPage() override = default;
 
   MOCK_METHOD(void, SetOAuthToken, (const std::string& token), (override));
+  MOCK_METHOD(void, OnCookieSyncCompleted, (), (override));
   MOCK_METHOD(void, SetThreadTitle, (const std::string& title), (override));
   MOCK_METHOD(void, OnSidePanelStateChanged, (), (override));
   MOCK_METHOD(void,
@@ -162,7 +163,10 @@ class MockContextualTasksCookieSynchronizer
       : ContextualTasksCookieSynchronizer(context, identity_manager) {}
   ~MockContextualTasksCookieSynchronizer() override = default;
 
-  MOCK_METHOD(void, CopyCookiesToWebviewStoragePartition, (), (override));
+  MOCK_METHOD(void,
+              CopyCookiesToWebviewStoragePartition,
+              (base::OnceClosure callback),
+              (override));
 };
 
 }  // namespace
@@ -389,18 +393,15 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest, HandleLensButtonClick) {
   mojo::Remote<composebox::mojom::PageHandler> handler_remote(
       handler_receiver.InitWithNewPipeAndPassRemote());
 
-  mojo::PendingRemote<composebox::mojom::Page> composebox_page;
-  std::ignore = composebox_page.InitWithNewPipeAndPassReceiver();
-
   mojo::PendingReceiver<searchbox::mojom::PageHandler>
       searchbox_handler_receiver;
   mojo::PendingRemote<searchbox::mojom::Page> searchbox_page;
   std::ignore = searchbox_page.InitWithNewPipeAndPassReceiver();
 
   // Create PageHandler
-  controller_->CreatePageHandler(
-      std::move(composebox_page), std::move(handler_receiver),
-      std::move(searchbox_page), std::move(searchbox_handler_receiver));
+  controller_->CreatePageHandler(std::move(handler_receiver),
+                                 std::move(searchbox_page),
+                                 std::move(searchbox_handler_receiver));
 
   // Invoke button click
   handler_remote->HandleLensButtonClick();
@@ -451,7 +452,8 @@ class ContextualTasksUICookieSyncBrowserTest
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUICookieSyncBrowserTest,
                        OnInnerWebContentsCreated_TriggersCookieSync) {
-  EXPECT_CALL(*mock_synchronizer_, CopyCookiesToWebviewStoragePartition())
+  EXPECT_CALL(*mock_synchronizer_,
+              CopyCookiesToWebviewStoragePartition(testing::_))
       .Times(1);
 
   // Create inner contents to trigger the observer.
@@ -562,16 +564,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   mojo::PendingReceiver<composebox::mojom::PageHandler> handler_receiver;
   mojo::Remote<composebox::mojom::PageHandler> handler_remote(
       handler_receiver.InitWithNewPipeAndPassRemote());
-  mojo::PendingRemote<composebox::mojom::Page> composebox_page;
-  std::ignore = composebox_page.InitWithNewPipeAndPassReceiver();
   mojo::PendingReceiver<searchbox::mojom::PageHandler>
       searchbox_handler_receiver;
   mojo::PendingRemote<searchbox::mojom::Page> searchbox_page;
   std::ignore = searchbox_page.InitWithNewPipeAndPassReceiver();
 
-  controller_->CreatePageHandler(
-      std::move(composebox_page), std::move(handler_receiver),
-      std::move(searchbox_page), std::move(searchbox_handler_receiver));
+  controller_->CreatePageHandler(std::move(handler_receiver),
+                                 std::move(searchbox_page),
+                                 std::move(searchbox_handler_receiver));
 
   // Should succeed for http/https/file URLs.
   EXPECT_TRUE(controller_->CanUpdateSuggestedTabContext(
@@ -609,16 +609,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   mojo::PendingReceiver<composebox::mojom::PageHandler> handler_receiver;
   mojo::Remote<composebox::mojom::PageHandler> handler_remote(
       handler_receiver.InitWithNewPipeAndPassRemote());
-  mojo::PendingRemote<composebox::mojom::Page> composebox_page;
-  std::ignore = composebox_page.InitWithNewPipeAndPassReceiver();
   mojo::PendingReceiver<searchbox::mojom::PageHandler>
       searchbox_handler_receiver;
   mojo::PendingRemote<searchbox::mojom::Page> searchbox_page;
   std::ignore = searchbox_page.InitWithNewPipeAndPassReceiver();
 
-  controller_->CreatePageHandler(
-      std::move(composebox_page), std::move(handler_receiver),
-      std::move(searchbox_page), std::move(searchbox_handler_receiver));
+  controller_->CreatePageHandler(std::move(handler_receiver),
+                                 std::move(searchbox_page),
+                                 std::move(searchbox_handler_receiver));
 
   // Add a couple of exclusions and save to prefs.
   base::Time now = base::Time::Now();
@@ -942,16 +940,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   mojo::PendingReceiver<composebox::mojom::PageHandler> handler_receiver;
   mojo::Remote<composebox::mojom::PageHandler> handler_remote(
       handler_receiver.InitWithNewPipeAndPassRemote());
-  mojo::PendingRemote<composebox::mojom::Page> composebox_page;
-  std::ignore = composebox_page.InitWithNewPipeAndPassReceiver();
   mojo::PendingReceiver<searchbox::mojom::PageHandler>
       searchbox_handler_receiver;
   mojo::PendingRemote<searchbox::mojom::Page> searchbox_page;
   std::ignore = searchbox_page.InitWithNewPipeAndPassReceiver();
 
-  controller_->CreatePageHandler(
-      std::move(composebox_page), std::move(handler_receiver),
-      std::move(searchbox_page), std::move(searchbox_handler_receiver));
+  controller_->CreatePageHandler(std::move(handler_receiver),
+                                 std::move(searchbox_page),
+                                 std::move(searchbox_handler_receiver));
 
   controller_->OnInitComplete();
 

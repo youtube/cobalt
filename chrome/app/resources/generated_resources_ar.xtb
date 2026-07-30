@@ -381,7 +381,7 @@
 <translation id="1272079795634619415">إيقاف</translation>
 <translation id="1272508081857842302">فتح <ph name="BEGIN_LINK" />الروابط المتوافقة<ph name="END_LINK" /></translation>
 <translation id="1273937721055267968">حظر <ph name="DOMAIN" /></translation>
-<translation id="1274721046703404848">‏يمكنك إدارة عملية الربط بين خدمات "بحث Google" وتطبيقات Google Workspace، مثل Google Drive</translation>
+<translation id="1274721046703404848">‏يمكنك إدارة عملية الربط بين خدمات البحث وتطبيقات Google Workspace، مثل Google Drive</translation>
 <translation id="1274997165432133392">ملفات تعريف الارتباط والبيانات الأخرى للمواقع الإلكترونية</translation>
 <translation id="1275936815032730048">مفتاح مشغِّل التطبيقات + السهم المتّجه لليمين</translation>
 <translation id="1275963833368139883">عند البحث في سجلّ التصفّح، تستنِد الإجابات ونتائج البحث إلى محتوى الصفحة، ما يساهم في تحسين النتائج</translation>
@@ -1179,7 +1179,6 @@
 <translation id="1910721550319506122">مرحبًا!</translation>
 <translation id="1910736334623230603">يتعذّر البحث عن عدّة صور في آن واحد. يُرجى إضافة صورة واحدة في كل مرّة.</translation>
 <translation id="1910908536872421421">‏لا يتوفّر الإصدار ‎<ph name="BROWSER_VERSION" /> من متصفّح Chrome for Testing إلا لأغراض الاختبار المبرمَج. بالنسبة إلى التصفّح العادي، يمكنك استخدام إصدار عادي من Chrome يتم تحديثه تلقائيًا.</translation>
-<translation id="1912867150686509584">‏الاطّلاع على المزيد من الاجتماعات في "تقويم Google"</translation>
 <translation id="1913734973620799732">{NUM_TABS,plural, =1{إيقاف علامة التبويب التي تبطئ المتصفّح مؤقتًا}zero{إيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}two{إيقاف علامتَي التبويب اللتين تبطئان المتصفّح مؤقتًا}few{إيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}many{إيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}other{إيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}}</translation>
 <translation id="1913749768968678106">البثّ والحفظ والمشاركة</translation>
 <translation id="19147273405311768">إعادة ضبط شريط الأدوات على الإعدادات التلقائية</translation>
@@ -1219,12 +1218,14 @@
 <translation id="1933489278505808700">إضافة مسموح لها بقراءة محتوى الموقع الإلكتروني وتغييره</translation>
 <translation id="1935303383381416800">المواقع الإلكترونية التي يُسمح لها بالاطّلاع على موقعك الجغرافي</translation>
 <translation id="193565226207940518">أداة الدعم</translation>
+<translation id="1935995810530254458">النسخ على أيّ حال</translation>
 <translation id="1936157145127842922">عرض في المجلد</translation>
 <translation id="1936344977780165685">{PAGES,plural, =1{تمت إضافة الصفحة إلى "قائمة القراءة"}zero{تمت إضافة الصفحات إلى "قائمة القراءة"}two{تمت إضافة الصفحتَين إلى "قائمة القراءة"}few{تمت إضافة الصفحات إلى "قائمة القراءة"}many{تمت إضافة الصفحات إلى "قائمة القراءة"}other{تمت إضافة الصفحات إلى "قائمة القراءة"}}</translation>
 <translation id="1936931585862840749">استخدِم رقمًا للإشارة إلى عدد النُسخ المطلوب طباعتها (من 1 إلى <ph name="MAX_COPIES" />).</translation>
 <translation id="1938351510777341717">‏مفتاح Command الخارجي</translation>
 <translation id="1940221956626514677">تخصيص شريط الأدوات</translation>
 <translation id="1940546824932169984">الأجهزة المتصلة</translation>
+<translation id="194081218158106711">جارٍ التحقق من تغيير كلمة المرور...</translation>
 <translation id="1941410638996203291">وقت البدء: <ph name="TIME" /></translation>
 <translation id="1941553344801134989">الإصدار: <ph name="APP_VERSION" /></translation>
 <translation id="1941685451584875710">‏ضبطَ المشرف إعدادات حسابك لربطه بخدمة Microsoft OneDrive تلقائيًا، ولكن حدث خطأ.</translation>
@@ -1494,6 +1495,7 @@
 <translation id="2158475082070321257">نسخ الرابط المؤدي إلى نص محدد</translation>
 <translation id="2159488579268505102">USB-C</translation>
 <translation id="2161058806218011758">نطاق <ph name="SHORTCUT" /> للإضافة <ph name="EXTENSION_NAME" /></translation>
+<translation id="2161656808144014275">نص</translation>
 <translation id="216169395504480358">‏إضافة Wi-Fi...</translation>
 <translation id="2162705204091149050">الاطّلاع على معلومات عن المتصفّح ونظام التشغيل والجهاز والبرامج المُثبَّتة والملفات</translation>
 <translation id="2164131635608782358"><ph name="FIRST_SWITCH" /> و<ph name="SECOND_SWITCH" /> و<ph name="THIRD_SWITCH" /> ومفتاح تبديل آخر</translation>
@@ -1540,6 +1542,7 @@
 <translation id="2199298570273670671">خطأ</translation>
 <translation id="2200094388063410062">البريد الإلكتروني</translation>
 <translation id="2200781749203116929">‏سجلات نظام ChromeOS</translation>
+<translation id="2202391868799679245">تفعيل اختصارات لوحة المفاتيح</translation>
 <translation id="2203088913459920044">يمكن أن يحتوي الاسم على أحرف وأرقام ورموز خاصة.</translation>
 <translation id="220321590587754225">تعذّر الربط. يُرجى إعادة المحاولة.</translation>
 <translation id="2203903197029773650">‏يجب تسجيل الدخول إلى حسابك على Google ليتمكّن "<ph name="BRAND" />" من التحقّق من كلمات المرور.</translation>
@@ -2461,7 +2464,7 @@
 <translation id="2902127500170292085"><ph name="EXTENSION_NAME" /> يتعذر الاتصال بهذه الطابعة. تأكد من توصيل الطابعة، ثم أعد المحاولة.</translation>
 <translation id="2902312830803030883">مزيد من الإجراءات</translation>
 <translation id="2903457445916429186">فتح العناصر المحدّدة</translation>
-<translation id="2903764741244499151">يمكن للمواقع الإلكترونية فتح النوافذ في وضع "نافذة ضمن النافذة" تلقائيًا. ويتيح لك هذا الإعداد مواصلة مشاهدة فيديو مع إخلاء جزء من الشاشة لتنفيذ مهام أخرى.</translation>
+<translation id="2903764741244499151">يمكن للمواقع الإلكترونية فتح النوافذ في وضع "نافذة ضمن النافذة" تلقائيًا. ويتيح لك هذا الإعداد مواصلة مشاهدة الفيديو مع إخلاء جزء من الشاشة لتنفيذ مهام أخرى.</translation>
 <translation id="2903882649406874750">حظر <ph name="HOST" /> دائمًا من الوصول إلى أجهزة الاستشعار</translation>
 <translation id="2903925626657991994">لتغيير اختيار زر الماوس بين الزر الأيسر والزر الأيمن أو اختيار كليهما، يجب استخدام مفتاح ","</translation>
 <translation id="290415756080113152">عدم السماح للمواقع الإلكترونية بالبحث عن الطابعات أو استخدامها والتي يمكن لجهازك الوصول إليها</translation>
@@ -4256,6 +4259,7 @@
 <translation id="4274673989874969668">عندما تغادر موقعًا إلكترونيًا، يواصل هذا الموقع الإلكتروني عادةً عملية المزامنة لإكمال المهام، مثل تحميل الصور أو إرسال رسالة محادثة.</translation>
 <translation id="4275291496240508082">الصوت عند بدء التشغيل</translation>
 <translation id="4275397969489577657">تفعيل ميزة تسجيل بث الحدث</translation>
+<translation id="4275663329226226506">الوسائط</translation>
 <translation id="4275788652681621337">إغلاق اللوحة الجانبية</translation>
 <translation id="4275830172053184480">إعادة تشغيل جهازك</translation>
 <translation id="4276390967705106170">الفتح في علامة تبويب متصفِّح جديدة</translation>
@@ -4743,6 +4747,7 @@
 <translation id="4657914796247705218">‏سرعة TrackPoint</translation>
 <translation id="4658648180588730283">لا يتوفّر تطبيق "<ph name="APPLICATION_NAME" />" بلا اتصال بالإنترنت.</translation>
 <translation id="465878909996028221">‏يمكن إعادة توجيه المتصفّح باستخدام بروتوكولات الملف وhttp وhttps فقط.</translation>
+<translation id="4658821552705754298">‫"<ph name="ITEM_NAME" />"‏ "<ph name="CATEGORY_NAME" />"</translation>
 <translation id="4659126640776004816">‏عند تسجيل الدخول إلى حسابك على Google، يتم تفعيل هذه الميزة.</translation>
 <translation id="4660465405448977105">{COUNT,plural, =1{صورة واحدة}zero{# صورة}two{صورتان}few{# صور}many{# صورة}other{# صورة}}</translation>
 <translation id="4660540330091848931">جارٍ تغيير الحجم</translation>
@@ -5322,6 +5327,7 @@
 <translation id="5096775069898886423">بالنسبة إلى المواقع الإلكترونية التي لا تتيح الاتصالات الآمنة، ستتلقّى تحذيرًا قبل الانتقال إليها</translation>
 <translation id="5097002363526479830">تعذّر الاتصال بشبكة "<ph name="NAME" />": <ph name="DETAILS" /></translation>
 <translation id="5097349930204431044">يمكن للمواقع الإلكترونية التي تزورها تحديد اهتماماتك، ثم اقتراح إعلانات لك أثناء تصفحّك مواقع أخرى.</translation>
+<translation id="5097472729724586429">يمكنك إضافة تعليقات توضيحية نصية باستخدام أداة "إضافة تعليقات توضيحية نصية" الجديدة</translation>
 <translation id="5097649414558628673">الأداة: <ph name="PRINT_NAME" /></translation>
 <translation id="5097874180538493929">النقر تلقائيًا عند توقف المؤشر</translation>
 <translation id="5098963855433723436">يتم فتح الرابط في تطبيق منفصل</translation>
@@ -5386,6 +5392,7 @@
 <translation id="5146235736676876345">الاختيار الذاتي</translation>
 <translation id="5146896637028965135">صوت النظام</translation>
 <translation id="5147113439721488265">اقتراح</translation>
+<translation id="5148020348702787234">‏لإرسال الروابط، يجب تأكيد هويتك، وأن يتم تسجيل الدخول إلى حساب Google نفسه على الجهازَين.</translation>
 <translation id="5148285448107770349">يجب ألا تقل كلمة المرور عن 8 أحرف.</translation>
 <translation id="5149602533174716626">نس&amp;خ إطار الفيديو</translation>
 <translation id="5150254825601720210">‏اسم خادم بروتوكول SSL (طبقة المقابس الآمنة) لشهادة Netscape</translation>
@@ -6351,7 +6358,6 @@
 <translation id="5932881020239635062">الرقم التسلسلي</translation>
 <translation id="5933522550144185133">يستخدم تطبيق <ph name="APP_NAME" /> الكاميرا والميكروفون.</translation>
 <translation id="5935158534896975820">جارٍ تحضير طلب توقيع الشهادة (في انتظار الخادم)</translation>
-<translation id="5935554994339565449">إضافة نص باستخدام أداة "إضافة نص" الجديدة</translation>
 <translation id="5936065461722368675">ترجمة الصفحة بأكملها</translation>
 <translation id="5937977334791924341">شعار <ph name="APP" /></translation>
 <translation id="5938002010494270685">ترقية الأمان متاحة</translation>
@@ -8916,6 +8922,7 @@
 <translation id="7933486544522242079">&amp;حفظ ومشاركة</translation>
 <translation id="7933518760693751884">لحفظ إحدى الصفحات والاطّلاع عليها لاحقًا، انقر على رمز الإشارة المرجعية.</translation>
 <translation id="7933634003144813719">إدارة المجلدات التي تمت مشاركتها</translation>
+<translation id="7935072572536724392">تعذّر تغيير كلمة المرور تلقائيًا</translation>
 <translation id="7936195481975600746">لمشاركة شاشتك، استخدِم أداة اختيار الشاشة في النظام</translation>
 <translation id="7937809006412909895">جارٍ جمع بيانات التشخيص</translation>
 <translation id="7938881824185772026">مختبرات</translation>
@@ -9053,6 +9060,7 @@
 <translation id="8029412171914613589">{SELECTED_ITEMS,plural, =0{قائمة القراءة}=1{قائمة القراءة (عنصر واحد "{SELECTED_ITEMS}")}two{قائمة القراءة (عنصران "{SELECTED_ITEMS}")}few{قائمة القراءة ({SELECTED_ITEMS} عناصر)}many{قائمة القراءة ({SELECTED_ITEMS} عنصرًا)}other{قائمة القراءة ({SELECTED_ITEMS} عنصر)}}</translation>
 <translation id="8029492516535178472">‏<ph name="WINDOW_TITLE" /> - تم طلب الإذن، اضغط على ⌘ + Option + السهم المتجه للأعلى للاستجابة للطلب</translation>
 <translation id="8030169304546394654">غير متصل</translation>
+<translation id="8030814978699290230">جارٍ محاولة تسجيل الدخول…</translation>
 <translation id="8030852056903932865">أوافق</translation>
 <translation id="8033827949643255796">تم التحديد</translation>
 <translation id="8033958968890501070">انتهاء المهلة</translation>
@@ -9467,6 +9475,7 @@
 <translation id="8343578633847737325">المحادثات وسلاسل المحادثات الأخيرة</translation>
 <translation id="8345848587667658367">يمكنك الآن الاطّلاع على أحدث الصور والوسائط والإشعارات والتطبيقات المتوفّرة على هاتفك</translation>
 <translation id="8347227221149377169">مهام الطباعة</translation>
+<translation id="8347728744337089388">الإرسال إلى &amp;جهازك</translation>
 <translation id="8348430946834215779">‏استخدِم بروتوكول HTTPS كلما أمكن ذلك واحصل على تحذيرات قبل تحميل المواقع الإلكترونية غير المتوافقة معه</translation>
 <translation id="8348896480272971199">يُرجى التحقّق من اتصالك بالإنترنت وإعادة المحاولة.</translation>
 <translation id="8349305172487531364">شريط الإشارات</translation>
@@ -9516,6 +9525,7 @@
 <translation id="8382197851871630452">الطقس المحلّي</translation>
 <translation id="8382913212082956454">نسخ عنوان البريد الإل&amp;كتروني</translation>
 <translation id="8383614331548401927">الملخّص الترحيبي</translation>
+<translation id="8387157483437834731">تم تغيير كلمة المرور بنجاح</translation>
 <translation id="8387361103813440603">المواقع الإلكترونية التي لا يُسمح لها بالاطّلاع على موقعك الجغرافي</translation>
 <translation id="8389492867173948260">السماح لهذه الإضافة بقراءة جميع بياناتك وتغييرها على المواقع الإلكترونية التي تزورها:</translation>
 <translation id="8390449457866780408">الخادم غير متاح.</translation>
@@ -9910,7 +9920,6 @@
 <translation id="8693862390730570097">عدم السماح بفتح ميزة "ساعدني في الكتابة" تلقائيًا</translation>
 <translation id="8694596275649352090">قفل الجهاز عند دخوله وضع السكون أو عند إغلاق غطائه</translation>
 <translation id="8695825812785969222">فتح ال&amp;موقع...</translation>
-<translation id="8696297579102085705">الإرسال إلى جهازك</translation>
 <translation id="869884720829132584">قائمة التطبيقات</translation>
 <translation id="869891660844655955">تاريخ انتهاء الصلاحية</translation>
 <translation id="8699296325072357994">‏يتم إرسال محتوى صفحات كلمات المرور والمعلومات ذات الصلة إلى Google، ويراجعه فريق لدينا. يُرجى العلم أنّ كلمة المرور مشفَّرة ولا يمكن لأي شخص الاطّلاع عليها. <ph name="PASSWORD_CHANGE" /></translation>
@@ -10258,6 +10267,7 @@
 <translation id="8967427617812342790">الإضافة إلى قائمة القراءة</translation>
 <translation id="8968527460726243404">‏كاتب الصور لنظام ChromeOS</translation>
 <translation id="8968766641738584599">حفظ البطاقة</translation>
+<translation id="8970232194848546151">طريقة إرسال رابط إلى جهاز آخر</translation>
 <translation id="8970887620466824814">حدث خطأ.</translation>
 <translation id="89720367119469899">خروج</translation>
 <translation id="8972513834460200407">‏يُرجى التحقق مع مشرف الشبكة للتأكد من عدم حظر جدار الحماية للتنزيلات من خوادم Google.</translation>
@@ -10524,6 +10534,7 @@
 <translation id="9151906066336345901">‏مفتاح End</translation>
 <translation id="9152503903192861480">‏الفتح في "وضع AI"</translation>
 <translation id="9153367754133725216">‏يمكنك الاطّلاع على اقتراحات بشأن التطبيقات الجديدة ومحتوى الويب في "مشغّل التطبيقات" ونتائج البحث. لا يتم إرسال إحصاءات لتحسين الاقتراحات إلا إذا اخترت إرسال تقارير الأعطال وبيانات التشخيص وبيانات الاستخدام إلى ChromeOS.</translation>
+<translation id="9153451439615847952">خفض مستوى صوت الإشعارات والتنبيهات في الخلفية</translation>
 <translation id="9154194610265714752">تم التحديث</translation>
 <translation id="915485121129452731">جهاز لوحي مع قلم</translation>
 <translation id="9155344700756733162">إلغاء اختيار اللون</translation>
@@ -10601,6 +10612,7 @@
 <translation id="9220820413868316583">ارفع إصبعك ثم أعد المحاولة.</translation>
 <translation id="922152298093051471">‏تخصيص Chrome</translation>
 <translation id="9222839391870847423">المدة: <ph name="DURATION" /></translation>
+<translation id="923306663772315007">الإرسال إلى &amp;جهازك</translation>
 <translation id="923467487918828349">عرض الكل</translation>
 <translation id="923900195646492191">{NUM_EXTENSIONS,plural, =1{يُرجى فتح "الإضافات" لإدارتها.}zero{يُرجى فتح "الإضافات" لإدارتها.}two{يُرجى فتح "الإضافات" لإدارتها.}few{يُرجى فتح "الإضافات" لإدارتها.}many{يُرجى فتح "الإضافات" لإدارتها.}other{يُرجى فتح "الإضافات" لإدارتها.}}</translation>
 <translation id="924818813611903184">‏إدارة اللغات في إعدادات نظام التشغيل Chrome</translation>

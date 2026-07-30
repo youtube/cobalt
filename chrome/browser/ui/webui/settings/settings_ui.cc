@@ -92,6 +92,7 @@
 #include "chrome/browser/ui/webui/settings/settings_startup_pages_handler.h"
 #include "chrome/browser/ui/webui/settings/shared_settings_localized_strings_provider.h"
 #include "chrome/browser/ui/webui/settings/site_settings_handler.h"
+#include "chrome/browser/ui/webui/theme_source.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
@@ -310,10 +311,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                                                profile->GetPrefs()->GetBoolean(
                                                    prefs::kSigninAllowed));
 
-  html_source->AddBoolean(
-      "shouldUseMetricsConsentRestructure",
-      metrics::MetricsReportingChoiceService::
-          ShouldUseMetricsConsentRestructure(g_browser_process->local_state()));
+  html_source->AddBoolean("shouldUseMetricsConsentRestructure",
+                          metrics::MetricsReportingChoiceService::
+                              ShouldUseMetricsConsentRestructure());
 
   ProfileAttributesEntry* entry =
       g_browser_process->profile_manager()
@@ -363,7 +363,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(features::kPrivacyGuideForceAvailable) ||
       (!ShouldDisplayManagedUi(profile) && !profile->IsChild());
   html_source->AddBoolean("showPrivacyGuide", show_privacy_guide);
-
 
   html_source->AddBoolean("enableHandTrackingContentSetting",
 #if BUILDFLAG(ENABLE_VR)
@@ -429,10 +428,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                           base::FeatureList::IsEnabled(
                               autofill::features::kYourSavedInfoSettingsPage));
 
-  html_source->AddBoolean(
-      "enableYourSavedInfoShoppingPage",
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoSettingsPageShoppingIntegration));
+  html_source->AddBoolean("shoppingIntegrationEnabled",
+                          base::FeatureList::IsEnabled(
+                              autofill::features::kAutofillAmbientAutofill));
 
   AddSettingsPageUIHandler(std::make_unique<AboutHandler>(profile));
   AddSettingsPageUIHandler(std::make_unique<ResetSettingsHandler>(profile));
@@ -491,6 +489,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                    profile, chrome::FaviconUrlFormat::kFavicon2));
   content::URLDataSource::Add(profile,
                               std::make_unique<SanitizedImageSource>(profile));
+  content::URLDataSource::Add(profile, std::make_unique<ThemeSource>(profile));
 
   // Privacy Sandbox
   PrivacySandboxService* privacy_sandbox_service =
@@ -581,8 +580,7 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
 
   html_source->AddBoolean(
       "enableInlineCueMenuContentSetting",
-      base::FeatureList::IsEnabled(features::kGlicSelectionPrompt) &&
-          features::kGlicSelectionEnableSiteSettings.Get());
+      base::FeatureList::IsEnabled(features::kGlicSelectionPrompt));
 
   // AI
   bool show_glic_section = false;

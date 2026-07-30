@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include "base/i18n/language_tag.h"
+#include "base/i18n/tag_converters.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -28,6 +30,9 @@ TtsVoice::TtsVoice() : remote(false) {}
 TtsVoice::TtsVoice(const TtsVoice& other) = default;
 
 TtsVoice::~TtsVoice() = default;
+
+// static
+const char* TtsEngine::kManifestDataKey = keys::kTtsVoices;
 
 TtsEngine::TtsEngine() = default;
 TtsEngine::~TtsEngine() = default;
@@ -56,8 +61,9 @@ bool TtsEngine::Parse(const base::ListValue& tts_voices,
 
     const base::Value* lang = one_tts_voice.Find(keys::kTtsVoicesLang);
     if (lang) {
-      if (!lang->is_string() ||
-          !l10n_util::IsValidLocaleSyntax(lang->GetString())) {
+      if (!lang->is_string() || !base::i18n::LanguageTagConverter::GetInstance()
+                                     .FromString(lang->GetString())
+                                     .has_value()) {
         *error = errors::kInvalidTtsVoicesLang;
         return false;
       }
@@ -117,9 +123,7 @@ const std::vector<TtsVoice>* TtsEngine::GetTtsVoices(
 
 // static
 const TtsEngine* TtsEngine::GetTtsEngineInfo(const Extension* extension) {
-  const TtsEngine* info = static_cast<const TtsEngine*>(
-      extension->GetManifestData(keys::kTtsVoices));
-  return info;
+  return extension->GetManifestData<TtsEngine>();
 }
 
 TtsEngineManifestHandler::TtsEngineManifestHandler() = default;
@@ -195,7 +199,7 @@ bool TtsEngineManifestHandler::Parse(Extension* extension,
     return false;
   }
 
-  extension->SetManifestData(keys::kTtsVoices, std::move(info));
+  extension->SetManifestData(std::move(info));
   return true;
 }
 

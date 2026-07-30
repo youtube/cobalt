@@ -85,6 +85,11 @@ BASE_FEATURE(kAutofillPasswordSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+// When enabled, GetUserCacheDirectory on Android will append the relative path
+// of non-default partitions to the cache directory.
+BASE_FEATURE(kAndroidKeepProfilePartitionDirsInCacheDir,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enable boarding pass detector on Chrome Android.
 BASE_FEATURE(kBoardingPassDetector, base::FEATURE_DISABLED_BY_DEFAULT);
 const char kBoardingPassDetectorUrlParamName[] = "boarding_pass_detector_urls";
@@ -136,12 +141,25 @@ BASE_FEATURE(kPreinstalledWebAppAlwaysMigrateForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kRemoteActorCredentialSharing, base::FEATURE_DISABLED_BY_DEFAULT);
+// This parameter is for testing purposes only and must not be used in
+// production. It overrides the whitelisted origins with the specified host.
+const base::FeatureParam<std::string>
+    kRemoteActorCredentialSharingAllowedHostForTesting{
+        &kRemoteActorCredentialSharing, "allowed_host_for_testing", ""};
+#endif
+
+bool RemoteActorCredentialSharingEnabled() {
+#if !BUILDFLAG(IS_ANDROID)
+  return base::FeatureList::IsEnabled(features::kRemoteActorCredentialSharing);
+#else
+  return false;
+#endif
+}
+
 // Controls the enablement of structured metrics on Windows, Linux, and Mac.
 BASE_FEATURE(kChromeStructuredMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if !BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kContextContainers, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // Moves the Extensions "puzzle piece" icon from the title bar into the app menu
 // for web app windows.
@@ -188,7 +206,6 @@ BASE_FEATURE(kDisplayEdgeToEdgeFullscreen, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableFullscreenToAnyScreenAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Controls whether Chrome Apps are supported. See https://crbug.com/40186761.
@@ -449,6 +466,9 @@ BASE_FEATURE_ENUM_PARAM(GlicActorEnterprisePrefDefault,
 
 const base::FeatureParam<bool> kGlicActorPolicyControlExemption{
     &kGlicActor, "glic_actor_policy_control_exemption", false};
+
+BASE_FEATURE(kGlicActorWorkspaceExemptFromTierCheckRegressionFixKillswitch,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorPermissionsBypass, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -720,6 +740,11 @@ BASE_FEATURE_PARAM(std::string,
                    &kGlicLearnMoreURLConfig,
                    "glic-experimental-triggering-toggle-safety-url",
                    "https://support.google.com/chrome?p=gemini_spark_safety");
+// These URLs are passed to settings UI templates.
+// Note: Settings WebUI (glic_subpage.ts) matches these links by substring
+// ("use-policy" and "unexpected_results") to apply accessibility labels.
+// Finch configurations overriding these URLs should retain these substrings
+// or update the WebUI logic accordingly.
 BASE_FEATURE_PARAM(
     std::string,
     kGlicWebActuationToggleConsiderSafelyURL,
@@ -974,6 +999,8 @@ const base::FeatureParam<std::string> kGlicWebActuationAllowedTiers{
 BASE_FEATURE(kGlicWebActuationSettingsToggle,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicSettingsA11yContextFix, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicMetricsSession, base::FEATURE_ENABLED_BY_DEFAULT);
 // The duration of inactivity after which a session is considered ended.
 const base::FeatureParam<base::TimeDelta> kGlicMetricsSessionInactivityTimeout{
@@ -1005,35 +1032,17 @@ const base::FeatureParam<int> kGlicCompositeViewHeight{
 
 BASE_FEATURE(kGlicArchiveConversation, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicActorAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// The amount of time to wait for a fill to happen if no credit card fetch is
-// ongoing.
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kGlicActorAutofillFillingTimeout,
-                   &kGlicActorAutofill,
-                   "glic-actor-autofill-filling-timeout",
-                   base::Seconds(2));
-
-// The maximum amount of time to wait for a fill to happen (including credit
-// card fetches)
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kGlicActorAutofillMaximumTimeout,
-                   &kGlicActorAutofill,
-                   "glic-actor-autofill-maximum-timeout",
-                   base::Minutes(1));
-
 // Whether to enable OneTimePassword filling in Glic.
 // TODO(b/500683394): Clean up after launch.
 BASE_FEATURE(kGlicActorAutofillOneTimePassword,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether to click a field before filling it in Glic actor autofill.
-// This feature is also gated by |kGlicActorAutofill|.
+// This feature is also gated by |autofill::features::kGlicActorAutofill|.
 BASE_FEATURE(kGlicActorAutofillPreClick, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether to enable the section label in Glic actor autofill.
-// This feature is also gated by |kGlicActorAutofill|.
+// This feature is also gated by |autofill::features::kGlicActorAutofill|.
 BASE_FEATURE(kGlicActorAutofillSectionLabel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicGuestUrlPresets, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1044,11 +1053,6 @@ BASE_FEATURE(kGlicContextualCueBubble, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicClientZoomControl, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kActorFormFillingServiceEnableAddress,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kActorFormFillingServiceEnableCreditCard,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the `google-chrome://` URI scheme.
 BASE_FEATURE(kGoogleChromeScheme, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1319,6 +1323,9 @@ BASE_FEATURE(kInstantUsesSpareRenderer, base::FEATURE_DISABLED_BY_DEFAULT);
 // install untrusted Isolated Web Apps.
 BASE_FEATURE(kIsolatedWebAppDevMode, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the chrome://iwa-dev WebUI page.
+BASE_FEATURE(kIsolatedWebAppDevUi, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables users on unmanaged devices to install Isolated Web Apps.
 BASE_FEATURE(kIsolatedWebAppUnmanagedInstall,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1564,6 +1571,17 @@ const base::FeatureParam<base::TimeDelta> kSCTLogMaxIngestionRandomDelay{
     "sct_log_max_ingestion_random_delay",
     base::Hours(1),
 };
+
+// When enabled, an extension service worker's render process is given
+// foreground priority while the worker is STARTING. Extension service workers
+// are often started headlessly (e.g. to register webRequest listeners) with no
+// controllee or other foreground signal, so their process would otherwise be
+// left at background priority (which maps to EcoQoS on Windows). Under heavy
+// system load that lets the worker starve, miss the start timeout, get torn
+// down, and retry indefinitely (crbug.com/484218883). The boost is dropped once
+// the worker reaches RUNNING or stops.
+BASE_FEATURE(kServiceWorkerForegroundOnExtensionStartup,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Alternative to switches::kSitePerProcess, for turning on full site isolation.
 // Launch bug: https://crbug.com/810843.  This is a //chrome-layer feature to

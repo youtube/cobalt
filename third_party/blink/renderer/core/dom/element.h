@@ -53,6 +53,7 @@
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
+#include "third_party/blink/renderer/core/html/custom/custom_element_registry_assignment.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
@@ -145,7 +146,6 @@ class ScrollIntoViewOptions;
 class ScrollMarkerGroupData;
 class ScrollPromiseResolver;
 class ScrollResult;
-class ScrollMarkerPseudoElement;
 class ScrollToOptions;
 class SetHTMLOptions;
 class SetHTMLUnsafeOptions;
@@ -538,7 +538,7 @@ class CORE_EXPORT Element : public ContainerNode {
   // and MathMLElement but putting the implementation here allows us to use
   // NodeRareData to hold the data.
   const AtomicString& nonce() const;
-  void setNonce(const AtomicString&);
+  virtual void setNonce(const AtomicString&);
 
   // Call this to get the value of the id attribute for style resolution
   // purposes.  The value will already be lowercased if the document is in
@@ -1084,8 +1084,7 @@ class CORE_EXPORT Element : public ContainerNode {
   ShadowRoot& AttachShadowRootInternal(ShadowRootMode,
                                        FocusDelegation,
                                        SlotAssignmentMode,
-                                       CustomElementRegistry*,
-                                       bool waiting_for_scoped_registry,
+                                       CustomElementRegistryAssignment registry,
                                        bool serializable,
                                        bool clonable,
                                        const AtomicString& reference_target);
@@ -1661,11 +1660,11 @@ class CORE_EXPORT Element : public ContainerNode {
   // optimization where if the registry to be set is the same as element's tree
   // scope's registry, we don't store it in the element itself and rely on tree
   // scope to find the registry to save memory. In the scenario of cross scope
-  // adoption, we can set explicitly_set to true to force the registry storage
-  // so we can retain knowledge of the prior registry even when the scope is
-  // changed.
-  void SetCustomElementRegistry(CustomElementRegistry*,
-                                bool explicitly_set = false);
+  // adoption, we can set `always_retain_registry` to true to force registry
+  // storage so we can retain knowledge of the prior registry even when the
+  // scope is changed.
+  void SetCustomElementRegistry(CustomElementRegistryAssignment,
+                                bool always_retain_registry = false);
 
   // https://dom.spec.whatwg.org/#concept-element-is-value
   void SetIsValue(const AtomicString&);
@@ -2700,12 +2699,6 @@ class CORE_EXPORT Element : public ContainerNode {
       const QualifiedName& name,
       const GCedHeapVector<Member<Element>>* given_elements);
 
-  // Find the scroll-marker that should be active when told to scroll |this|
-  // into view.
-  ScrollMarkerPseudoElement* FindScrollMarkerForTargetedScroll();
-  // Let the appropriate scroll-marker-group know to pin its active
-  // scroll-marker due to a targeted scroll.
-  void NotifyScrollMarkerGroupOfTargetedScroll();
 
   // ContainerNode ends on a 32-bit member, so put this Member first
   // to eliminate padding.

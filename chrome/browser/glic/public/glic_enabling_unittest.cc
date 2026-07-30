@@ -754,6 +754,7 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
     if (IsSkipped()) {
       return;
     }
+    GlicEnabling::SetSystemRequirementMetForTesting(std::nullopt);
     identity_test_env_adaptor_.reset();
     profile_ = nullptr;
     FlushMessageLoop();
@@ -797,6 +798,8 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
 
   GlicEnabling::ProfileEnablement enablement =
       GlicEnabling::EnablementForProfile(profile());
+
+  EXPECT_FALSE(enablement.IsProfileEligible());
 
   // The button should be hidden in the UI because the main feature flag
   // kGlic is disabled.
@@ -898,12 +901,14 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   features.InitAndEnableFeature(
       features::kGlicAnchorEntryPointForOnboardedUsers);
 
-  // When global criteria fail, the anchor entry point feature flag still allows
-  // GetProfileReadyState() to compute a fallback state (kIneligibleAccount)
-  // internally. Note that the entry point button itself is hidden in this case
-  // by ShouldShowGlicButton() because kGlic is disabled.
+  // When kGlic is disabled (acting as a killswitch), it overrides the anchor
+  // entry point feature flag. Therefore, the anchor override is inactive and
+  // GetProfileReadyState() returns kIneligible rather than kIneligibleAccount.
+  // The entry point button itself is also hidden.
   EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
-            mojom::ProfileReadyState::kIneligibleAccount);
+            mojom::ProfileReadyState::kIneligible);
+  EXPECT_FALSE(
+      GlicEnabling::EnablementForProfile(profile()).ShouldShowGlicButton());
 }
 
 TEST_F(GlicEnablingAnchorEntryPointTestBase,
@@ -913,8 +918,8 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
       std::to_underlying(glic::prefs::FreStatus::kCompleted));
 
   base::test::ScopedFeatureList features;
-  features.InitAndEnableFeature(
-      features::kGlicAnchorEntryPointForOnboardedUsers);
+  features.InitWithFeatures(
+      {features::kGlicAnchorEntryPointForOnboardedUsers, features::kGlic}, {});
 
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile());
@@ -928,6 +933,28 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   // When anchored, capability failures map to kIneligibleAccount.
   EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
             mojom::ProfileReadyState::kIneligibleAccount);
+}
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase,
+       SystemRequirementFail_BypassesAnchorState) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      std::to_underlying(glic::prefs::FreStatus::kCompleted));
+
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {features::kGlicAnchorEntryPointForOnboardedUsers, features::kGlic}, {});
+
+  // Force system requirements to fail
+  GlicEnabling::SetSystemRequirementMetForTesting(false);
+
+  // The fallback anchor state should be rejected, resulting in a hard block.
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kIneligible);
+
+  // UI Entrypoints should be completely hidden.
+  EXPECT_FALSE(
+      GlicEnabling::EnablementForProfile(profile()).ShouldShowGlicButton());
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

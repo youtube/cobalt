@@ -7,18 +7,19 @@
 
 #import "base/memory/raw_ptr.h"
 #import "base/scoped_observation.h"
-#import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_capabilities_manager.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 
 class AuthenticationService;
 class GeminiService;
+class ProfileIOS;
 @class NSMutableDictionary;
 @class NSUserDefaults;
 
 class GeminiCapabilitiesManagerImpl : public GeminiCapabilitiesManager,
-                                      public signin::IdentityManager::Observer {
+                                      public GeminiService::Observer {
  public:
-  GeminiCapabilitiesManagerImpl(signin::IdentityManager* identity_manager,
+  GeminiCapabilitiesManagerImpl(ProfileIOS* profile,
                                 AuthenticationService* authentication_service,
                                 GeminiService* gemini_service);
   ~GeminiCapabilitiesManagerImpl() override;
@@ -29,21 +30,19 @@ class GeminiCapabilitiesManagerImpl : public GeminiCapabilitiesManager,
   // GeminiCapabilitiesManager implementation.
   void UpdateCapabilities() override;
 
-  // signin::IdentityManager::Observer implementation.
-  void OnPrimaryAccountChanged(
-      const signin::PrimaryAccountChangeEvent& event) override;
+  // GeminiService::Observer implementation.
+  void OnGeminiEligibilityChanged() override;
 
  private:
   // Helper methods to update specific capabilities.
   void UpdateSupportsAISummarization(NSMutableDictionary* capabilities);
   void UpdateHashedUserID(NSUserDefaults* shared_defaults,
                           bool has_primary_identity);
-  void UpdateUserEligibility(NSUserDefaults* shared_defaults,
-                             NSMutableDictionary* capabilities,
+  void UpdateUserEligibility(NSMutableDictionary* capabilities,
+                             bool user_eligible,
                              bool has_primary_identity);
-
-  // IdentityManager observed for primary account changes.
-  raw_ptr<signin::IdentityManager> identity_manager_;
+  // Profile associated with this manager.
+  raw_ptr<ProfileIOS> profile_;
 
   // AuthenticationService used to retrieve primary identity.
   raw_ptr<AuthenticationService> authentication_service_;
@@ -51,10 +50,9 @@ class GeminiCapabilitiesManagerImpl : public GeminiCapabilitiesManager,
   // GeminiService used to query user eligibility.
   raw_ptr<GeminiService> gemini_service_;
 
-  // Scoped observation for IdentityManager.
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
+  // Scoped observation for GeminiService.
+  base::ScopedObservation<GeminiService, GeminiService::Observer>
+      gemini_service_observation_{this};
 };
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_CAPABILITIES_MANAGER_IMPL_H_

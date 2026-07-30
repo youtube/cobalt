@@ -25,7 +25,6 @@
 #include <memory>
 #include <utility>
 
-#include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "services/network/public/mojom/web_client_hints_types.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
@@ -41,7 +40,6 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/increment_load_event_delay_count.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/frame_owner.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -118,7 +116,7 @@ class ImageLoader::Task {
       : loader_(loader), update_behavior_(update_behavior) {
     ExecutionContext* context = loader_->GetElement()->GetExecutionContext();
     async_task_context_.Schedule(context, "Image",
-                                 probe::AsyncTaskContext::ScanForAds::kTrue);
+                                 probe::AsyncTaskContext::StackOptions::kScan);
     world_ = context->GetCurrentWorld();
   }
 
@@ -504,15 +502,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
 
     DCHECK(document.GetFrame());
     auto* frame = document.GetFrame();
-
     if (IsA<HTMLImageElement>(GetElement())) {
-      if (GetElement()->FastHasAttribute(html_names::kAttributionsrcAttr) &&
-          frame->GetAttributionSrcLoader()->CanRegister(
-              url, To<HTMLImageElement>(GetElement()))) {
-        resource_request.SetAttributionReportingEligibility(
-            network::mojom::AttributionReportingEligibility::
-                kEventSourceOrTrigger);
-      }
       bool shared_storage_writable_opted_in =
           GetElement()->FastHasAttribute(
               html_names::kSharedstoragewritableAttr) &&
@@ -522,15 +512,6 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
           !SecurityOrigin::Create(url)->IsOpaque();
       resource_request.SetSharedStorageWritableOptedIn(
           shared_storage_writable_opted_in);
-      if (GetElement()->FastHasAttribute(html_names::kBrowsingtopicsAttr) &&
-          RuntimeEnabledFeatures::TopicsAPIEnabled(
-              GetElement()->GetExecutionContext()) &&
-          GetElement()->GetExecutionContext()->IsSecureContext()) {
-        resource_request.SetBrowsingTopics(true);
-        UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIImg);
-        Deprecation::CountDeprecation(GetElement()->GetExecutionContext(),
-                                      WebFeature::kTopicsAPIAll);
-      }
     }
 
     bool page_is_being_dismissed =

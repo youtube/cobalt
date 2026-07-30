@@ -111,6 +111,9 @@ declare namespace chrome {
     // Whether the Improved Read Aloud feature flag is enabled.
     let isImprovedReadAloudEnabled: boolean;
 
+    // Whether the Read Anything Improved UI feature flag is enabled.
+    let isReadAnythingImprovedUiEnabled: boolean;
+
     // Whether the Read Anything Translate Entry Point feature flag is enabled.
     let isReadAnythingTranslateEntryPointEnabled: boolean;
 
@@ -611,5 +614,8 @@ declare namespace chrome {
     // Called when the main frame undergoes a same document navigation (such as
     // a fragment navigation).
     let onMainFrameSameDocumentNavigation: (url: string) => void;
+
+    // Called to inform the web ui to play read aloud on open.
+    let setPlayOnOpen: (playOnOpen: boolean) => void;
   }
 }

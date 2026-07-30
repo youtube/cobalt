@@ -78,10 +78,6 @@ public class SharedWebViewChromium {
         return mAwContents.getRenderProcess();
     }
 
-    public void init(SharedWebViewContentsClientAdapter contentsClientAdapter) {
-        mContentsClientAdapter = contentsClientAdapter;
-    }
-
     public void initForReal(AwContents awContents) {
         assert ThreadUtils.runningOnUiThread();
 
@@ -90,6 +86,8 @@ public class SharedWebViewChromium {
                     "Cannot create multiple AwContents for the same SharedWebViewChromium");
         }
         mAwContents = awContents;
+        mContentsClientAdapter =
+                (SharedWebViewContentsClientAdapter) awContents.getContentsClient();
     }
 
     // Forbids later attempts to begin applying builder configuration on the WebView instance.
@@ -273,12 +271,15 @@ public class SharedWebViewChromium {
         RecordHistogram.recordBooleanHistogram(
                 "Android.WebView.Startup.CheckNeedsPost.IsChromiumInitialized",
                 mAwInit.isChromiumInitialized());
+        boolean needsPost = !mAwInit.isChromiumInitialized() || !ThreadUtils.runningOnUiThread();
+        if (!needsPost && mAwContents == null) {
+            throw new IllegalStateException("AwContents must be created if we are not posting!");
+        }
         if (mAwInit.isChromiumInitialized()) {
             RecordHistogram.recordBooleanHistogram(
                     "Android.WebView.Startup.CheckNeedsPost.CalledOnUiThread",
                     ThreadUtils.runningOnUiThread());
         }
-        boolean needsPost = mAwContents == null || !ThreadUtils.runningOnUiThread();
         return needsPost;
     }
 

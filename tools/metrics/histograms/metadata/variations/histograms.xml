@@ -65,6 +65,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Variations.ApplyRuntimeMutableChanges.Result"
+    enum="VariationsApplyRuntimeMutableChangesResult"
+    expires_after="2027-06-11">
+  <owner>lucnguyen@google.com</owner>
+  <owner>rogerm@google.com</owner>
+  <owner>asvitkine@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    The result of attempting to apply a runtime mutable study from a new
+    variations seed. Recorded for each runtime mutable study in the seed
+    whenever a new seed is successfully stored.
+  </summary>
+</histogram>
+
 <histogram name="Variations.AppSeedFreshness" units="minutes"
     expires_after="2026-12-13">
   <owner>ntfschr@chromium.org</owner>
@@ -77,6 +91,19 @@ chromium-metrics-reviews@google.com.
     was originally downloaded. Written every time the browser process
     initializes, but not if there was an error reading the seed, or no seed
     existed.
+  </summary>
+</histogram>
+
+<histogram name="Variations.CreateTrial.SimulationMatches" enum="Boolean"
+    expires_after="2027-07-17">
+  <owner>lucnguyen@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Whether creating a simulated field trial for a variations study results in
+    the same assigned group and nullability state as creating the actual field
+    trial for the study. Recorded for approximately 1% of studies when creating
+    trials from a variations seed at startup, excluding studies that already
+    exist or have feature conflicts.
   </summary>
 </histogram>
 

@@ -135,12 +135,18 @@ class EnumDefinition:
       else:
         prefix_to_strip = ''
 
+    prefix_re = None
+    if prefix_to_strip:
+      prefix_re = re.compile(r'\b' + re.escape(prefix_to_strip))
+
     def StripEntries(entries):
+      if not prefix_to_strip:
+        return entries
       ret = collections.OrderedDict()
       for k, v in entries.items():
         stripped_key = k.replace(prefix_to_strip, '', 1)
         if isinstance(v, str):
-          stripped_value = v.replace(prefix_to_strip, '')
+          stripped_value = prefix_re.sub('', v)
         else:
           stripped_value = v
         ret[stripped_key] = stripped_value
@@ -384,7 +390,9 @@ def DoGenerate(source_paths):
 
 def DoParseHeaderFile(path):
   with open(path, encoding='utf-8') as f:
-    return HeaderParser(f.readlines(), path).ParseDefinitions()
+    lines = f.readlines()
+    preprocessed_lines = java_cpp_utils.ProcessListMacros(lines)
+    return HeaderParser(preprocessed_lines, path).ParseDefinitions()
 
 
 def GenerateOutput(source_path, enum_definition):

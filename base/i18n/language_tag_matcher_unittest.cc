@@ -10,7 +10,6 @@
 
 #include "base/i18n/language_tag.h"
 #include "base/i18n/tag_converters.h"
-#include "base/i18n/tags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -403,6 +402,18 @@ TEST(LanguageTagMatcherTest, ChineseVariantsAndExtensions) {
     EXPECT_THAT(matcher.Match(LanguageTagOrDie("zh-Latn-wadegile")),
                 Optional(LanguageTagOrDie("zh-Latn")));
   }
+}
+
+TEST(LanguageTagMatcherTest, DefaultMatch) {
+  std::vector<LanguageTag> supported = {GetKnownLanguageTag("en-GB")};
+  LanguageTagMatcherWithDefault matcher = LanguageTagMatcherWithDefault::Create(
+      GetKnownLanguageTag("pt-BR"), supported);
+  EXPECT_THAT(matcher.Match(LanguageTagOrDie("en")),
+              GetKnownLanguageTag("en-GB"));
+  EXPECT_THAT(matcher.MatchOrDefault(LanguageTagOrDie("zh")),
+              GetKnownLanguageTag("pt-BR"));
+  EXPECT_THAT(matcher.MatchOrDefault(LanguageTagOrDie("und")),
+              GetKnownLanguageTag("pt-BR"));
 }
 
 }  // namespace

@@ -118,7 +118,7 @@ public class NativePageFactoryTest {
         private MockNativePageBuilder() {
             super(
                     null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null);
         }
 
         @Override
@@ -132,7 +132,7 @@ public class NativePageFactoryTest {
         }
 
         @Override
-        public NativePage buildRecentTabsPage(Tab tab) {
+        public NativePage buildRecentTabsPage(Tab tab, String url) {
             return new MockNativePage(NativePageType.RECENT_TABS);
         }
 
@@ -152,7 +152,7 @@ public class NativePageFactoryTest {
         mNativePageFactory =
                 new NativePageFactory(
                         null, null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null);
+                        null, null, null, null, null, null, null, null, null);
         mNativePageFactory.setNativePageBuilderForTesting(new MockNativePageBuilder());
         NativePageFactory.setPdfPageForTesting(mPdfPage);
         mPdfInfo = new PdfInfo();

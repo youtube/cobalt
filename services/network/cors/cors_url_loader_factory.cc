@@ -248,6 +248,7 @@ CorsURLLoaderFactory::CorsURLLoaderFactory(
           params->devtools_cookie_setting_overrides),
       is_main_frame_origin_recently_accessed_(
           params->is_main_frame_origin_recently_accessed),
+      is_outermost_main_frame_(params->is_outermost_main_frame),
       origin_access_list_(origin_access_list),
       owner_(owner),
       network_restrictions_id_(params->network_restrictions_id) {
@@ -626,6 +627,20 @@ bool CorsURLLoaderFactory::IsValidRequest(
           "CorsURLLoaderFactory: Internal load flag received");
       return false;
     }
+  }
+
+  if (!process_id_.is_browser() && request.is_outermost_main_frame &&
+      !is_outermost_main_frame_ &&
+      request.mode != mojom::RequestMode::kNavigate) {
+    // The request value is renderer-controlled, while the factory value is
+    // browser-derived. Initial empty documents in opener-retaining popups can
+    // legitimately use a factory inherited from their creating subframe.
+    // Canonicalize to the factory's less-privileged value so Network Service
+    // downstream cookie policy does not allow top-level storage-access.
+    request.is_outermost_main_frame = is_outermost_main_frame_;
+    UMA_HISTOGRAM_BOOLEAN(
+        "NetworkService.CorsURLLoaderFactory.IsOutermostMainFrameClamped",
+        true);
   }
 
   // Check if this is an untrusted factory being provided parameters that should

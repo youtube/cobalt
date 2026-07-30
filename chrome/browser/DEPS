@@ -236,6 +236,7 @@ include_rules = [
   "+components/network_time",
   "+components/no_state_prefetch/browser",
   "+components/no_state_prefetch/common",
+  "+components/notebooks/public",
   "+components/ntp_tiles",
   "+components/offline_items_collection/core",
   "+components/offline_pages/buildflags",
@@ -642,9 +643,6 @@ specific_include_rules = {
   ],
   "webauth_interactive_uitest.cc": [
     "+device/fido",
-  ],
-  "shared_storage_browsertest.cc": [
-    "+components/services/storage/shared_storage/shared_storage_manager.h",
   ],
   "fake_server_helper_android\\.cc": [
     "+components/saved_tab_groups",

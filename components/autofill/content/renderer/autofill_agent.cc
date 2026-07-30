@@ -66,6 +66,7 @@
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "content/public/renderer/render_frame.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
@@ -86,7 +87,9 @@
 #include "third_party/blink/public/web/web_range.h"
 #include "third_party/blink/public/web/web_script_source.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/events/blink/blink_event_util.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 
 using blink::WebAutofillClient;
@@ -623,6 +626,9 @@ void AutofillAgent::Reset() {
   input_warnings_.remove_listeners.clear();
   email_verification_observer_.Reset();
   javascript_autofill_tracker_.Reset();
+  // Runs Blink's observer disconnection closure
+  // (`VisibilityObserver::Disconnect()`) before being reset.
+  form_element_intersection_observer_.RunAndReset();
   ResetTokenBucket();
 }
 
@@ -1124,6 +1130,50 @@ bool AutofillAgent::DidReceiveKeyDown(const WebElement& element,
         input_element,
         AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown,
         /*form_cache=*/{}, password_request);
+    return false;  // Do not prevent default.
+  }
+
+  if (const blink::RendererPreferences* prefs = GetRendererPreferences();
+      prefs && prefs->autofill_shortcut_key_code != ui::VKEY_UNKNOWN &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillAtMemoryTriggerShortcut)) {
+    // The configured keyboard shortcut opens the Autofill AtMemory popup.
+    const ui::Accelerator expected_accelerator(
+        prefs->autofill_shortcut_key_code, prefs->autofill_shortcut_modifiers);
+    const ui::Accelerator actual_accelerator(
+        static_cast<ui::KeyboardCode>(event.windows_key_code),
+        ui::WebEventModifiersToEventFlags(event.GetModifiers()));
+
+    // Returns true if `event` may produce a character.
+    auto is_printable = [](const WebKeyboardEvent& event) {
+      if (base::IsAsciiControl(event.text[0])) {
+        return false;
+      }
+      if constexpr (BUILDFLAG(IS_MAC)) {
+        // On Mac, Meta+X is not printable but leads to `event.text[0] != 'X'`.
+        return !(event.GetModifiers() & blink::WebInputEvent::kMetaKey);
+      }
+      return true;
+    };
+
+    if (expected_accelerator == actual_accelerator && !is_printable(event)) {
+      if (auto control = element.DynamicTo<WebFormControlElement>();
+          control && form_util::IsTextAreaElementOrTextInput(control) &&
+          control.FormControlTypeForAutofill() !=
+              blink::mojom::FormControlType::kInputPassword) {
+        if (!actual_accelerator.IsRepeat()) {
+          ShowSuggestions(control, AutofillSuggestionTriggerSource::kAtMemory,
+                          SynchronousFormCache(), std::nullopt);
+        }
+        return true;  // Prevent default.
+      } else if (element.IsContentEditable()) {
+        if (!actual_accelerator.IsRepeat()) {
+          ShowSuggestionsForContentEditable(
+              element, AutofillSuggestionTriggerSource::kAtMemory);
+        }
+        return true;  // Prevent default.
+      }
+    }
   }
   return false;
 }
@@ -1878,6 +1928,23 @@ void AutofillAgent::UpdateEmailVerificationState(
       break;
   }
   input_element.SetEmailVerificationState(blink_state);
+}
+
+void AutofillAgent::ObserveFieldVisibility(
+    FieldRendererId field_id,
+    mojo::PendingRemote<mojom::AutofillVisibilityObserver> observer) {
+  if (WebFormControlElement element =
+          form_util::GetFormControlByRendererId(field_id)) {
+    mojo::Remote<mojom::AutofillVisibilityObserver> remote(std::move(observer));
+    auto callback = base::BindOnce(
+        [](mojo::Remote<mojom::AutofillVisibilityObserver> remote) {
+          remote->OnFieldBecameVisible();
+        },
+        std::move(remote));
+    form_element_intersection_observer_ = element.MonitorVisibility(
+        /*minimum_visible_duration=*/base::Milliseconds(800),
+        std::move(callback));
+  }
 }
 
 void AutofillAgent::DoFillFieldWithValue(std::u16string_view value,

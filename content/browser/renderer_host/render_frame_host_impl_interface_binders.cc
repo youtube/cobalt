@@ -14,7 +14,6 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
-#include "content/browser/attribution_reporting/attribution_host.h"
 #include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/file_system/file_system_manager_impl.h"
@@ -24,7 +23,6 @@
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
-#include "content/browser/shared_storage/shared_storage_document_service_impl.h"
 #include "content/common/dom_automation_controller.mojom.h"
 #include "content/common/frame.mojom.h"
 #include "content/public/browser/active_url_message_filter.h"
@@ -215,47 +213,6 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
           },
           base::Unretained(this)));
 
-  if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
-    associated_registry_->AddInterface<
-        blink::mojom::SharedStorageDocumentService>(base::BindRepeating(
-        [](RenderFrameHostImpl* impl,
-           mojo::PendingAssociatedReceiver<
-               blink::mojom::SharedStorageDocumentService> receiver) {
-          if (SharedStorageDocumentServiceImpl::GetForCurrentDocument(impl)) {
-            // TODO(crbug.com/401559926): The renderer somehow requested two
-            // SharedStorageDocumentServiceImpl associated with the same
-            // document. In theory, this shouldn't be possible, but in practice
-            // it does happen. We add diagnostics to help diagnose why.
-            SCOPED_CRASH_KEY_BOOL("RFHI", "IsInPrimaryMainFrame",
-                                  impl->IsInPrimaryMainFrame());
-            SCOPED_CRASH_KEY_BOOL(
-                "RFHI", "IsSameOriginToMainFrame",
-                impl->GetLastCommittedOrigin().IsSameOriginWith(
-                    impl->GetMainFrame()->GetLastCommittedOrigin()));
-            SCOPED_CRASH_KEY_BOOL("RFHI", "IsCrossProcessSubframe",
-                                  impl->IsCrossProcessSubframe());
-            SCOPED_CRASH_KEY_BOOL("RFHI", "HasPendingCommitNavigation",
-                                  impl->HasPendingCommitNavigation());
-            SCOPED_CRASH_KEY_BOOL(
-                "RFHI", "HasPendingCommitForXDocNav",
-                impl->HasPendingCommitForCrossDocumentNavigation());
-            SCOPED_CRASH_KEY_BOOL("RFHI", "IsPendingDeletion",
-                                  impl->IsPendingDeletion());
-            SCOPED_CRASH_KEY_BOOL("RFHI", "IsInBackForwardCache",
-                                  impl->IsInBackForwardCache());
-            SCOPED_CRASH_KEY_BOOL("RFHI", "BeforeUnloadTimedOut",
-                                  impl->BeforeUnloadTimedOut());
-            SCOPED_CRASH_KEY_BOOL("RFHI", "IsWaitingForUnloadACK",
-                                  impl->IsWaitingForUnloadACK());
-            base::debug::DumpWithoutCrashing();
-            SharedStorageDocumentServiceImpl::DeleteForCurrentDocument(impl);
-          }
-
-          SharedStorageDocumentServiceImpl::GetOrCreateForCurrentDocument(impl)
-              ->Bind(std::move(receiver));
-        },
-        base::Unretained(this)));
-  }
 
   if (is_main_frame()) {
     associated_registry_->AddInterface<blink::mojom::LocalMainFrameHost>(
@@ -314,15 +271,6 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
              mojo::PendingAssociatedReceiver<blink::mojom::DisplayCutoutHost>
                  receiver) {
             impl->delegate()->BindDisplayCutoutHost(impl, std::move(receiver));
-          },
-          base::Unretained(this)));
-
-  associated_registry_->AddInterface<blink::mojom::AttributionHost>(
-      base::BindRepeating(
-          [](RenderFrameHostImpl* impl,
-             mojo::PendingAssociatedReceiver<blink::mojom::AttributionHost>
-                 receiver) {
-            AttributionHost::BindReceiver(std::move(receiver), impl);
           },
           base::Unretained(this)));
 

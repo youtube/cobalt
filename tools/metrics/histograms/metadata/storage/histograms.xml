@@ -248,18 +248,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Clipboard.AsyncVirtualFileExtractionError"
-    enum="AsyncVirtualFileExtractionError" expires_after="2026-08-04">
-  <owner>dcheng@chromium.org</owner>
-  <owner>src/ui/base/clipboard/OWNERS</owner>
-  <summary>
-    Records errors that occur during async virtual file extraction on Windows.
-    These errors may happen when dragging virtual files (e.g., from Outlook) and
-    the COM marshaling or unmarshaling fails. Recorded when a specific error
-    condition is encountered.
-  </summary>
-</histogram>
-
 <histogram name="Clipboard.Read" enum="ClipboardFormatRead"
     expires_after="2026-12-27">
   <owner>huangdarwin@chromium.org</owner>
@@ -685,7 +673,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.QuotaCheckTime2.{QuotaCheckResult}" units="ms"
-    expires_after="2026-11-08">
+    expires_after="2027-01-10">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -3019,6 +3007,10 @@ chromium-metrics-reviews@google.com.
     <variant name="DeleteStorageKeysFromSession"
         summary="deleting metadata and optionally map data for specific
                  storage keys in a session"/>
+    <variant name="DestroyDatabase"
+        summary="destroying the on-disk database before opening a new one,
+                 during recovery or a clear-on-open backing mode for
+                 SessionStorage"/>
     <variant name="OpenDatabase2"
         summary="opening the database via DomStorageDatabase::Open"/>
     <variant name="PurgeOrigins"
@@ -3080,6 +3072,36 @@ chromium-metrics-reviews@google.com.
     Records data loss that occurs when browser shutdown discards pending
     changes.
   </summary>
+</histogram>
+
+<histogram name="Storage.{DomStorageType}.Sqlite.FreelistBytes" units="KB"
+    expires_after="2027-07-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>fergal@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Reclaimable space in the on-disk {DomStorageType} SQLite database, computed
+    as the freelist page count times the page size and sampled once when the
+    database is opened. This is the space a vacuum would return to the file
+    system. Only recorded for on-disk databases.
+  </summary>
+  <token key="DomStorageType" variants="DomStorageType"/>
+</histogram>
+
+<histogram name="Storage.{DomStorageType}.Sqlite.FreelistPercentage" units="%"
+    expires_after="2027-07-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>fergal@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Freelist pages as a percentage of total pages in the on-disk
+    {DomStorageType} SQLite database, sampled once when the database is opened.
+    Indicates how fragmented the database is. Only recorded for on-disk
+    databases.
+  </summary>
+  <token key="DomStorageType" variants="DomStorageType"/>
 </histogram>
 
 <histogram

@@ -125,7 +125,7 @@ import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.ui.base.ActivityResultTracker;
-import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.resources.ResourceManager;
 
@@ -165,7 +165,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private StripLayoutTab mHoveredStripTab;
     @Mock private ViewStub mTabHoverCardViewStub;
     @Mock private BrowserControlsStateProvider mBrowserControlStateProvider;
-    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private ActivityWindowAndroid mWindowAndroid;
     @Mock private ToolbarManager mToolbarManager;
     @Mock private StatusBarColorController mStatusBarColorController;
     @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
@@ -305,7 +305,8 @@ public class StripLayoutHelperManagerTest {
                         (preventClose, invocationSource) -> {},
                         mLeadingButtonDelegate,
                         mSideUiStateProviderSupplier,
-                        mTabObscuringHandler);
+                        mTabObscuringHandler,
+                        /* canActivateTabLayoutToggleMenuSupplier= */ null);
         ShadowLooper.idleMainLooper();
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
@@ -1312,6 +1313,7 @@ public class StripLayoutHelperManagerTest {
                         null,
                         null,
                         null,
+                        null,
                         callback,
                         mUpdateHost,
                         false,
@@ -1375,5 +1377,20 @@ public class StripLayoutHelperManagerTest {
         views.clear();
         mStripLayoutHelperManager.getVirtualViews(views);
         assertFalse("Should have virtual views again after unobscured", views.isEmpty());
+    }
+
+    @Test
+    public void testUrlTextChangeClearsHoverState() {
+        var activeLayoutHelper = mStripLayoutHelperManager.getActiveStripLayoutHelper();
+        activeLayoutHelper.setLastHoveredTabForTesting(mHoveredStripTab);
+        assertNotNull(
+                "Last hovered tab should be set initially.",
+                activeLayoutHelper.getLastHoveredTab());
+
+        mStripLayoutHelperManager.simulateUrlTextChangeForTesting("test");
+
+        assertNull(
+                "Last hovered tab should be cleared on URL text change.",
+                activeLayoutHelper.getLastHoveredTab());
     }
 }

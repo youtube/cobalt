@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_TOUCH_TO_FILL_AUTOFILL_ANDROID_TOUCH_TO_FILL_AUTOFILL_DELEGATE_ANDROID_IMPL_H_
 
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_autofill_delegate.h"
 
 namespace autofill {
@@ -32,10 +33,22 @@ class TouchToFillAutofillDelegateAndroidImpl
   void HideTouchToFill() override;
   void OnShow() override;
   void OnNoticeAcknowledged() override;
+  void OnSettingsLinkClicked() override;
   void OnDismissed() override;
 
  private:
+  enum class TouchToFillAutofillState {
+    kInactive,
+    kShowingPersonalContextNotice,
+  };
+
   const raw_ref<BrowserAutofillManager> manager_;
+
+  TouchToFillAutofillState ttf_autofill_state_ =
+      TouchToFillAutofillState::kInactive;
+
+  base::WeakPtrFactory<TouchToFillAutofillDelegateAndroidImpl>
+      weak_ptr_factory_{this};
 };
 
 }  // namespace autofill

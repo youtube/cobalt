@@ -250,6 +250,7 @@ using signin_metrics::PromoAction;
                             rect:itemView.bounds
                             view:itemView
         forceSnackbarOverToolbar:NO
+                  showUndoButton:NO
                       withSource:metricSignOut
                       completion:^(BOOL success, SceneState* scene_state) {
                         [weakSelf handleSignOutCompleted:success];
@@ -300,7 +301,7 @@ using signin_metrics::PromoAction;
     // simultaneous taps. See crbug.com/368310663.
     return;
   }
-  _UIBlocker = std::make_unique<ScopedUIBlocker>(sceneState);
+  _UIBlocker = ScopedUIBlocker::ProfileScoped(sceneState);
   [_viewController preventUserInteraction];
   __weak __typeof(self) weakSelf = self;
   GetApplicationContext()->GetSystemIdentityManager()->ForgetIdentity(

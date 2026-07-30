@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">የይለፍ ቃላትን አስቀምጥ</translation>
 <translation id="1764070164487214210">አቅጣጫዎች</translation>
 <translation id="1764511703783285459">ሌላኛው የይለፍ ቃል አስተዳዳሪ ምንም የይለፍ ቃላት ወይም የይለፍ ቁልፎች አላጋራም</translation>
+<translation id="1765555082983153259">«Chrome» ማይክሮፎንዎን መድረስ ይፈልጋል</translation>
 <translation id="1767766085187034454">Google ትርጉም</translation>
 <translation id="1771016937398045251">የመሣሪያዎች ምናሌ</translation>
 <translation id="1772468122139624049">ትሮችን እንደገና መጫን አልተቻለም</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">የዘመናዊ ድርድር የምናሌ አሞሌ</translation>
 <translation id="1883255238294161206">ዝርዝር ሰብስብ</translation>
+<translation id="1883898928879467646">ትር ተወግዷል</translation>
 <translation id="1888854257756214946">የይለፍ ቃል ይምረጡ…</translation>
 <translation id="1890237935065108104">ይህ ቅንብር አይገኝም።</translation>
 <translation id="1894023287452300670">ዋጋን እዚህ ይከታተሉ</translation>
@@ -1620,6 +1622,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="6406506848690869874">አመሳስል</translation>
 <translation id="6410390304316730527">የጥንቃቄ አሰሳ እንደ ተንኮል-አዘል ሶፍትዌር መጫን ያለ አደገኛ ነገር እንዲያደርጉ ወይም እንደ የይለፍ ቃላት፣ ስልክ ቁጥሮች ወይም ክሬዲት ካርዶች ያለ የግል መረጃን እንዲገልጡ እርስዎን ሊያታልሉዎ ከሚችሉ አጥቂዎች ይጠብቀዎታል። ካጠፉት ያልተለመደ ወይም ስማቸው ጥሩ ያልሆኑ ጣቢያዎችን ሲያስሱ ይጠንቀቁ።</translation>
 <translation id="6410883413783534063">በተመሳሳይ ጊዜ የተለያዩ ገጾችን ለመጎብኘት ትሮችን ይክፈቱ</translation>
+<translation id="6412195388778525440">ትርን አስወግድ</translation>
 <translation id="6418346271604475326">ፒዲኤፍ በመዘጋጀት ላይ</translation>
 <translation id="6420292512900923139">ውሂብዎን በማስመጣት ላይ ያለ ችግር</translation>
 <translation id="6421038304268477484">የተተረጎመ ጽሑፍ</translation>
@@ -2320,7 +2323,6 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="8692689525339542358">ከአደገኛ ጣቢያዎች፣ ውርዶች እና ቅጥያዎች ጥበቃ ያግኙ።</translation>
 <translation id="8692897097252418799">ወደ ውጭ መላክ የሚፈልጉትን ውሂብ ይምረጡ</translation>
 <translation id="8694281486652655615">ይህን ንጥል ያሳያል</translation>
-<translation id="8696297579102085705">ወደ የእርስዎ መሣሪያ ይላኩ</translation>
 <translation id="8697136149718343437">የአድራሻ አሞሌን ወደታች ይውሰዱ</translation>
 <translation id="869891660844655955">የሚያበቀበት ጊዜ</translation>
 <translation id="8706253136355675497">የሙቀት መጠን</translation>
@@ -2463,6 +2465,7 @@ Handoff እንዲሁም በSettings ውስጥ ባለው የGeneral ክፍል ላ
 <translation id="9149866541089851383">አርትዕ…</translation>
 <translation id="9152637745605628097">ከገጽታዎች፣ ቀለሞች ይምረጡ ወይም ምስል ይስቀሉ</translation>
 <translation id="9159628751968616911">ድረ-ገፅ ይላኩ</translation>
+<translation id="9162412286847966593">የድርጅትዎ ውሂብ እና ቅጂዎች ሰው ሠራሽ አስተውሎት አመንጪ ሞዴሎችን ለማሻሻል ጥቅም ላይ አይውሉም። <ph name="BEGIN_LINK" />የእርስዎ ግላዊነት እና Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">የይለፍ ቃላት በራስ ሰር ሙላን ያብሩ</translation>
 <translation id="9165320910061267720">የዋጋ ቅነሳ ማንቂያዎችን ማሳወቂያዎች ለማግኘት በእርስዎ iOS ቅንብሮች ውስጥ ማሳወቂያዎችን ማብራት ይኖርብዎታል።</translation>
 <translation id="9179151630575358778">ይህን ንጥል ይደብቃል</translation>

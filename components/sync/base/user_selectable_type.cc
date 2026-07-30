@@ -57,7 +57,7 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
   // TODO(crbug.com/476335087): In CL #3, map GEMINI_THREAD to an existing
   // selectable type or to a new one. The first option should be trivial, the
   // second requires touching UI code across platforms.
-  static_assert(64 == syncer::GetNumDataTypes(),
+  static_assert(66 == syncer::GetNumDataTypes(),
                 "Almost always when adding a new Data, you must tie it to "
                 "a UserSelectableType below (new or existing) so the user can "
                 "disable syncing of that data. Today you must also update the "
@@ -119,11 +119,13 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
               SESSIONS,
               {SESSIONS, SAVED_TAB_GROUP, SHARED_COMMENT, SHARED_TAB_GROUP_DATA,
                COLLABORATION_GROUP, SHARED_TAB_GROUP_ACCOUNT_DATA,
-               WORKSPACE_DESK, ENCRYPTED_TAB_CONTEXT_CONTAINER}};
+               WORKSPACE_DESK, ENCRYPTED_TAB_CONTEXT_CONTAINER,
+               ENCRYPTED_TAB_CONTEXT_ITEM, NOTEBOOK}};
 #else
       return {kTabsTypeName,
               SESSIONS,
-              {SESSIONS, WORKSPACE_DESK, ENCRYPTED_TAB_CONTEXT_CONTAINER}};
+              {SESSIONS, WORKSPACE_DESK, ENCRYPTED_TAB_CONTEXT_CONTAINER,
+               ENCRYPTED_TAB_CONTEXT_ITEM, NOTEBOOK}};
 #endif
     case UserSelectableType::kSavedTabGroups:
       // Note: Tab groups is presented as a separate type only on desktop.

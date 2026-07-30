@@ -28,6 +28,7 @@ import androidx.lifecycle.Lifecycle.State;
 import androidx.preference.Preference;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +42,7 @@ import org.robolectric.Shadows;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -50,6 +52,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
+import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.components.prefs.PrefChangeRegistrar;
 import org.chromium.components.prefs.PrefChangeRegistrarJni;
 import org.chromium.components.prefs.PrefService;
@@ -72,6 +75,7 @@ public class GlicSettingsUnitTest {
             new ActivityScenarioRule<>(TestActivity.class);
 
     private TestActivity mActivity;
+    private UserActionTester mUserActionTester;
 
     @Mock private Profile mProfileMock;
     @Mock private UserPrefs.Natives mUserPrefsJniMock;
@@ -83,9 +87,11 @@ public class GlicSettingsUnitTest {
     @Mock private GlicEnabling.Natives mGlicEnablingJniMock;
     @Mock private LocalStatePrefs.Natives mLocalStatePrefsJniMock;
     @Mock private PrefService mLocalPrefServiceMock;
+    @Mock private SettingsIndexData mSearchIndexDataMock;
 
     @Before
     public void setUp() {
+        mUserActionTester = new UserActionTester();
         UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
         PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJniMock);
         GlicKeyedServiceFactoryJni.setInstanceForTesting(mGlicKeyedServiceFactoryJniMock);
@@ -101,6 +107,13 @@ public class GlicSettingsUnitTest {
         doNothing().when(mCustomTabLauncher).openUrlInCct(any(Context.class), anyString());
 
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
+    }
+
+    @After
+    public void tearDown() {
+        if (mUserActionTester != null) {
+            mUserActionTester.tearDown();
+        }
     }
 
     private GlicSettings launchFragment() {
@@ -242,12 +255,14 @@ public class GlicSettingsUnitTest {
         // Test toggling on
         togglePreference.getOnPreferenceChangeListener().onPreferenceChange(togglePreference, true);
         verify(mPrefServiceMock).setBoolean(GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, true);
+        assertEquals(1, mUserActionTester.getActionCount("Glic.Settings.TabstripButton.Enabled"));
 
         // Test toggling off
         togglePreference
                 .getOnPreferenceChangeListener()
                 .onPreferenceChange(togglePreference, false);
         verify(mPrefServiceMock).setBoolean(GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, false);
+        assertEquals(1, mUserActionTester.getActionCount("Glic.Settings.TabstripButton.Disabled"));
     }
 
     @Test
@@ -480,5 +495,81 @@ public class GlicSettingsUnitTest {
                 "Preference glic_navigation_shortcut should be invisible with side panel FF"
                         + " disabled",
                 navShortcutPreference.isVisible());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testSearchIndex_SidePanelEnabled() {
+        GlicSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                RuntimeEnvironment.getApplication(), mSearchIndexDataMock, mProfileMock);
+        verify(mSearchIndexDataMock)
+                .removeEntryForKey(GlicSettings.class.getName(), GlicSettings.PREFERENCE_BUTTON);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testSearchIndex_BottomBarEnabled() {
+        GlicSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                RuntimeEnvironment.getApplication(), mSearchIndexDataMock, mProfileMock);
+        verify(mSearchIndexDataMock)
+                .removeEntryForKey(
+                        GlicSettings.class.getName(), GlicSettings.PREFERENCE_BUTTON_TOGGLE);
+        verify(mSearchIndexDataMock)
+                .removeEntryForKey(GlicSettings.class.getName(), GlicSettings.PREFERENCE_BUTTON);
+    }
+
+    @Test
+    @DisableFeatures({
+        ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
+        ChromeFeatureList.ANDROID_BOTTOM_BAR
+    })
+    public void testSearchIndex_GlicPinned() {
+        ChromeSharedPreferences.getInstance()
+                .writeInt(
+                        ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS,
+                        AdaptiveToolbarButtonVariant.GLIC);
+        GlicSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                RuntimeEnvironment.getApplication(), mSearchIndexDataMock, mProfileMock);
+        verify(mSearchIndexDataMock)
+                .removeEntryForKey(
+                        GlicSettings.class.getName(), GlicSettings.PREFERENCE_BUTTON_TOGGLE);
+        verify(mSearchIndexDataMock)
+                .updateEntryForKey(
+                        GlicSettings.class.getName(),
+                        GlicSettings.PREFERENCE_BUTTON,
+                        R.string.glic_button_entrypoint_pinned_label);
+        verify(mSearchIndexDataMock)
+                .updateEntrySummaryForKey(
+                        GlicSettings.class.getName(),
+                        GlicSettings.PREFERENCE_BUTTON,
+                        R.string.glic_button_entrypoint_label);
+    }
+
+    @Test
+    @DisableFeatures({
+        ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
+        ChromeFeatureList.ANDROID_BOTTOM_BAR
+    })
+    public void testSearchIndex_GlicUnpinned() {
+        ChromeSharedPreferences.getInstance()
+                .writeInt(
+                        ChromePreferenceKeys.ADAPTIVE_TOOLBAR_CUSTOMIZATION_SETTINGS,
+                        AdaptiveToolbarButtonVariant.AUTO);
+        GlicSettings.SEARCH_INDEX_DATA_PROVIDER.updateDynamicPreferences(
+                RuntimeEnvironment.getApplication(), mSearchIndexDataMock, mProfileMock);
+        verify(mSearchIndexDataMock)
+                .removeEntryForKey(
+                        GlicSettings.class.getName(), GlicSettings.PREFERENCE_BUTTON_TOGGLE);
+        verify(mSearchIndexDataMock)
+                .updateEntryForKey(
+                        GlicSettings.class.getName(),
+                        GlicSettings.PREFERENCE_BUTTON,
+                        R.string.glic_pin);
+        verify(mSearchIndexDataMock)
+                .updateEntrySummaryForKey(
+                        GlicSettings.class.getName(),
+                        GlicSettings.PREFERENCE_BUTTON,
+                        R.string.settings_glic_button_toggle_sublabel);
     }
 }

@@ -171,7 +171,6 @@ namespace network {
 class SharedURLLoaderFactory;
 class URLLoaderFactoryBuilder;
 namespace mojom {
-enum class AttributionSupport : int32_t;
 class TrustedHeaderClient;
 class URLLoader;
 class URLLoaderClient;
@@ -1099,110 +1098,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       bool is_server_auction,
       bool is_on_device_auction,
       AuctionResult result);
-
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class AttributionReportingOsApiState {
-    kDisabled = 0,
-    kEnabled = 1,
-    kMaxValue = kEnabled,
-  };
-
-  // Allows the embedder to control the type of attribution reporting allowed.
-  // Web, Os, both or none
-  virtual network::mojom::AttributionSupport GetAttributionSupport(
-      AttributionReportingOsApiState state,
-      bool client_os_disabled);
-
-  enum class AttributionReportingOperation {
-    kSource,
-    kTrigger,
-    kReport,
-    kSourceVerboseDebugReport,
-    kTriggerVerboseDebugReport,
-    kOsSource,
-    kOsTrigger,
-    kOsSourceVerboseDebugReport,
-    kOsTriggerVerboseDebugReport,
-    kSourceTransitionalDebugReporting,
-    kTriggerTransitionalDebugReporting,
-    kOsSourceTransitionalDebugReporting,
-    kOsTriggerTransitionalDebugReporting,
-    kSourceAggregatableDebugReport,
-    kTriggerAggregatableDebugReport,
-    kAny,
-  };
-
-  // Allows the embedder to control if Attribution Reporting API operations can
-  // happen in a given context. Origins must be provided for a given operation
-  // as follows:
-  //   - `kSource`, `kOsSource`, `kSourceTransitionalDebugReporting`,
-  //   `kSourceVerboseDebugReport`, `kSourceAggregatableDebugReport` and
-  //   `kOsSourceTransitionalDebugReporting` must provide a non-null
-  //   `source_origin` and `reporting_origin`
-  //   - `kTrigger`, `kOsTrigger`, `kTriggerTransitionalDebugReporting`,
-  //   `kTriggerVerboseDebugReport`, `kTriggerAggregatableDebugReport` and
-  //   `kOsTriggerTransitionalDebugReporting` must provide a non-null
-  //   `destination_origin` and `reporting_origin`
-  //   - `kReport` must provide all non-null origins
-  //   - `kAny` may provide all null origins. It checks whether conversion
-  //   measurement is allowed anywhere in `browser_context`, returning false if
-  //   Attribution Reporting is not allowed by default on any origin.
-  // `can_bypass` is an out parameter that is used for transitional debug
-  // reporting to indicate whether the result can be bypassed if disallowed.
-  // `can_bypass` is required to be non-null for
-  // `kSourceTransitionalDebugReporting`, `kOsSourceTransitionalDebugReporting`,
-  // `kTriggerTransitionalDebugReporting` and
-  // `kOsTriggerTransitionalDebugReporting`.
-  //
-  // TODO(crbug.com/40941634): Clean up `can_bypass` after the cookie
-  // deprecation experiment.
-  virtual bool IsAttributionReportingOperationAllowed(
-      content::BrowserContext* browser_context,
-      AttributionReportingOperation operation,
-      content::RenderFrameHost* rfh,
-      const url::Origin* source_origin,
-      const url::Origin* destination_origin,
-      const url::Origin* reporting_origin,
-      bool* can_bypass);
-
-  // Specifies whether an OS attribution event should register
-  // against the top level origin (web) or the app (OS) or if
-  // OS attribution is disabled.
-  enum class AttributionReportingOsRegistrar {
-    kWeb,
-    kOs,
-    kDisabled,
-  };
-
-  // Attribution reporting generates source and trigger events.
-  // An embedder can specify whether OS attribution source/trigger events
-  // should register against the top level origin (web) or the app (OS) or if
-  // OS attribution is disabled. The behaviour can be the same or different
-  // for source and trigger events so this struct is used to hold the behaviour
-  // for the different event types.
-  struct AttributionReportingOsRegistrars {
-    AttributionReportingOsRegistrar source_registrar;
-    AttributionReportingOsRegistrar trigger_registrar;
-
-    auto operator<=>(const AttributionReportingOsRegistrars&) const = default;
-  };
-
-  // Allows the embedder to control if OS attribution source/trigger events
-  // should register against the top level origin (web) or the app (OS) or if
-  // OS attribution is disabled.
-  virtual AttributionReportingOsRegistrars GetAttributionReportingOsRegistrars(
-      WebContents* web_contents);
-
-  // Allows the embedder to control if Attribution Reporting API is allowed in a
-  // given context. This method checks the API-level permission.
-  // `IsAttributionReportingOperationAllowed()` should be called to check the
-  // operation-level permission.
-  virtual bool IsAttributionReportingAllowedForContext(
-      content::BrowserContext* browser_context,
-      content::RenderFrameHost* rfh,
-      const url::Origin& context_origin,
-      const url::Origin& reporting_origin);
 
   // Allows the embedder to control if Shared Storage API operations can happen
   // in a given context.
@@ -2846,6 +2741,17 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool ShouldServiceWorkerInheritPolicyContainerFromCreator(
       const GURL& url);
 
+  // Returns true if a service worker with the given `script_url` that is
+  // currently starting up should be given foreground process priority for the
+  // duration of startup. This lets the embedder keep workers that are started
+  // headlessly (e.g. extension service workers servicing events such as
+  // webRequest/declarativeNetRequest, which often have no controllee or other
+  // foreground signal) from being starved at background priority before they
+  // finish starting. The boost is re-evaluated and dropped once the worker
+  // finishes starting or stops. See https://crbug.com/484218883.
+  virtual bool ShouldServiceWorkerRequireForegroundPriorityDuringStartup(
+      const GURL& script_url);
+
   // Allows the embedder to grant `child_id` access to additional origins.
   // This is needed for Service Workers running in non-web-safe origins.
   // This will only be called if the worker process is locked to the same
@@ -3468,6 +3374,14 @@ class CONTENT_EXPORT ContentBrowserClient {
       const GURL& url,
       const std::string& embedder_histogram_suffix);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Gives the content embedder a chance to allow a system UI popup request.
+  // System UI popups have the ability to extend beyond the bounds of the web
+  // contents, e.g. date/time pickers, select dropdowns, file choosers, and
+  // color pickers.
+  virtual bool ShouldAllowSystemUiPopups(WebContents* web_contents);
+#endif
+
   // Allows the embedder to modify the request headers for a prefetch request
   // initiated by `content::PrefetchContainer` (not by other prefetches).
   //
@@ -3502,10 +3416,8 @@ class CONTENT_EXPORT ContentBrowserClient {
   // cross-origin isolation will be applied instead, which applies web-visible
   // restrictions but does not give access to cross-origin isolated APIs.
   virtual bool OriginSupportsConcreteCrossOriginIsolation(
+      content::BrowserContext* browser_context,
       const url::Origin& origin);
-
-  // Returns true if the Attribution Internals WebUI should be enabled.
-  virtual bool IsAttributionInternalsWebUIEnabled();
 };
 
 }  // namespace content

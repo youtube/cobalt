@@ -135,7 +135,6 @@
 #import "ios/chrome/browser/personal_context/model/ios_personal_context_service_factory.h"
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/policy/model/cloud/user_policy_signin_service_factory.h"
-#import "ios/chrome/browser/policy/model/enterprise_management_metrics_service_factory.h"
 #import "ios/chrome/browser/policy/model/reporting/cloud_profile_reporting_service_factory_ios.h"
 #import "ios/chrome/browser/policy_url_blocking/model/policy_url_blocking_service_factory.h"
 #import "ios/chrome/browser/power_bookmarks/model/power_bookmark_service_factory.h"
@@ -155,6 +154,8 @@
 #import "ios/chrome/browser/safe_browsing/model/safe_browsing_helper_factory.h"
 #import "ios/chrome/browser/safe_browsing/model/safe_browsing_metrics_collector_factory.h"
 #import "ios/chrome/browser/safe_browsing/model/tailored_security/tailored_security_service_factory.h"
+#import "ios/chrome/browser/safe_browsing/model/v5_get_hash_protocol_manager_factory.h"
+#import "ios/chrome/browser/safe_browsing/model/v5_search_hashes_cache_factory.h"
 #import "ios/chrome/browser/safe_browsing/model/verdict_cache_manager_factory.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_service_factory.h"
@@ -285,7 +286,6 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   ios::WebDataServiceFactory::GetInstance();
   ios::WebHistoryServiceFactory::GetInstance();
   ios::ZeroSuggestCacheServiceFactory::GetInstance();
-  policy::EnterpriseManagementMetricsServiceFactory::GetInstance();
   policy::UserPolicySigninServiceFactory::GetInstance();
   safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetInstance();
   segmentation_platform::SegmentationPlatformServiceFactory::GetInstance();
@@ -433,6 +433,8 @@ void EnsureProfileKeyedServiceFactoriesBuilt() {
   UrlKeyedDataCollectionConsentHelperFactoryIOS::GetInstance();
   UrlLanguageHistogramFactory::GetInstance();
   UserUploadedImageManagerFactory::GetInstance();
+  V5GetHashProtocolManagerFactory::GetInstance();
+  V5SearchHashesCacheFactory::GetInstance();
   VariationsClientServiceFactory::GetInstance();
   VerdictCacheManagerFactory::GetInstance();
   VisitedURLRankingServiceFactory::GetInstance();

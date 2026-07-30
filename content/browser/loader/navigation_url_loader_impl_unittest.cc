@@ -158,7 +158,7 @@ class NavigationURLLoaderImplTest : public testing::Test {
             std::string() /* searchable_form_encoding */,
             GURL() /* client_side_redirect_url */,
             std::nullopt /* devtools_initiator_info */,
-            nullptr /* trust_token_params */, std::nullopt /* impression */,
+            nullptr /* trust_token_params */,
             base::TimeTicks() /* renderer_before_unload_start */,
             base::TimeTicks() /* renderer_before_unload_end */,
             base::TimeTicks() /* before_unload_dialog_opened */,
@@ -625,7 +625,6 @@ class TestAsyncInterceptor final : public NavigationLoaderInterceptor {
       const network::ResourceRequest& request,
       network::mojom::URLResponseHeadPtr* response_head,
       mojo::ScopedDataPipeConsumerHandle* response_body,
-      mojo::PendingRemote<network::mojom::URLLoader>* loader,
       mojo::PendingReceiver<network::mojom::URLLoaderClient>* client_receiver,
       blink::ThrottlingURLLoader* url_loader,
       bool* skip_other_interceptors) override {
@@ -665,7 +664,6 @@ class TestResponseInterceptor final : public NavigationLoaderInterceptor {
       const network::ResourceRequest& request,
       network::mojom::URLResponseHeadPtr* response_head,
       mojo::ScopedDataPipeConsumerHandle* response_body,
-      mojo::PendingRemote<network::mojom::URLLoader>* loader,
       mojo::PendingReceiver<network::mojom::URLLoaderClient>* client_receiver,
       blink::ThrottlingURLLoader* url_loader,
       bool* skip_other_interceptors) override {
@@ -1426,6 +1424,22 @@ TEST_F(NavigationURLLoaderImplTest, MAYBE_NavigationTimeoutRedirectTest) {
   delegate.WaitForRequestRedirected();
   delegate.WaitForRequestFailed();
   EXPECT_EQ(net::ERR_TIMED_OUT, delegate.net_error());
+}
+
+TEST_F(NavigationURLLoaderImplTest, NavigationTimeoutAfterResponseStartedTest) {
+  ASSERT_TRUE(http_test_server_.Start());
+  const GURL url = http_test_server_.GetURL("/echo");
+  TestNavigationURLLoaderDelegate delegate;
+  auto loader = CreateTestLoader(url, std::string(), "GET", &delegate);
+  loader->Start();
+  loader->SetNavigationTimeout(base::Seconds(30));
+  delegate.WaitForResponseStarted();
+
+  // Once response has started, OnReceiveResponse() cancels the navigation
+  // timeout timer. Advancing time past the timeout should not trigger the
+  // timer or cause any request failure.
+  task_environment_->FastForwardBy(base::Seconds(35));
+  EXPECT_EQ(net::OK, delegate.net_error());
 }
 
 // Verify that UKMs are recorded when OnAcceptCHFrameReceived is called.

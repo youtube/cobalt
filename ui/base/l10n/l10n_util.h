@@ -16,7 +16,9 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/span.h"
+#include "base/i18n/language_tag.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -104,25 +106,11 @@ COMPONENT_EXPORT(UI_BASE)
 std::u16string GetDisplayNameForCountry(std::string_view country_code,
                                         std::string_view display_locale);
 
-// Converts all - into _, to be consistent with ICU and file system names.
-COMPONENT_EXPORT(UI_BASE)
-std::string NormalizeLocale(std::string_view locale);
-
 // Produce a vector of parent locales for given locale.
 // It includes the current locale in the result.
 // sr_Cyrl_RS generates sr_Cyrl_RS, sr_Cyrl and sr.
 COMPONENT_EXPORT(UI_BASE)
 std::vector<std::string> GetParentLocales(std::string_view current_locale);
-
-// Checks if a string is plausibly a syntactically-valid locale string,
-// for cases where we want the valid input to be a locale string such as
-// 'en', 'pt-BR', 'fil', 'es-419', 'zh-Hans-CN', 'i-klingon' or
-// 'de_DE@collation=phonebook', but we don't want to limit it to
-// locales that Chrome actually knows about, so 'xx-YY' should be
-// accepted, but 'z', 'German', 'en-$1', or 'abcd-1234' should not.
-// Case-insensitive. Based on BCP 47, see:
-//   http://unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers
-COMPONENT_EXPORT(UI_BASE) bool IsValidLocaleSyntax(std::string_view locale);
 
 //
 // Mac Note: See l10n_util_mac.h for some NSString versions and other support.
@@ -303,7 +291,7 @@ COMPONENT_EXPORT(UI_BASE)
 std::vector<std::string_view> GetAcceptLanguageListForTesting();
 
 COMPONENT_EXPORT(UI_BASE)
-base::span<const std::string_view> GetPlatformLocalesForTesting();
+base::span<const base::i18n::LanguageTag> GetPlatformLocalesForTesting();
 
 }  // namespace l10n_util
 

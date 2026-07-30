@@ -285,6 +285,13 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
       ContextSupport* context_support,
       base::OnceCallback<void(std::unique_ptr<gfx::GpuFence>)> callback);
 
+  static uint64_t SignalLatestSyncToken(
+      std::vector<scoped_refptr<ClientSharedImage>> shared_images,
+      std::vector<SyncToken> sync_tokens,
+      base::OnceClosure callback,
+      ContextSupport* context_support,
+      uint64_t pending_callback_id);
+
   void UpdateDestructionSyncToken(const gpu::SyncToken& sync_token) {
     destruction_sync_token_ = sync_token;
   }
@@ -474,6 +481,9 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback);
+
+  SyncToken StoreSyncTokenInternal(const SyncToken& sync_token);
+  SyncToken GenSyncTokenInternal(InterfaceBase* ib);
 
   void RunOnTaskRunner(MappableBuffer::CopyNativeBufferToShMemCallback callback,
                        gfx::GpuMemoryBufferHandle buffer_handle,

@@ -34,7 +34,6 @@ class AutofillField;
 class AutofillProfile;
 class FormStructure;
 class LogBuffer;
-class PhoneCombineHelper;
 class SourceId;
 
 // Owned by `FormDataImporter`. Responsible for address-related form data
@@ -65,15 +64,13 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
   // AddressDataManager::Observer:
   void OnAddressDataChanged() override;
 
-  // Attempts to construct `ExtractedAddressProfile` by extracting values
+  // Attempts to construct `ExtractedAddressProfile`s by extracting values
   // from the fields in the `form`'s sections. Extraction can fail if the
   // fields' values don't pass validation. Apart from complete address profiles,
-  // partial profiles for silent updates are extracted. All are stored in
-  // `extracted_form_data`'s `extracted_address_profiles`.
-  // The function returns the number of _complete_ extracted profiles.
-  size_t ExtractAddressProfiles(
-      const FormStructure& form,
-      std::vector<ExtractedAddressProfile>* extracted_address_profiles);
+  // partial profiles for silent updates are extracted.
+  // The function returns all (both partial and complete) extracted profiles.
+  std::vector<ExtractedAddressProfile> ExtractAddressProfiles(
+      const FormStructure& form);
 
   // Processes the extracted address profiles. `extracted_address_profiles`
   // contains the addresses extracted from the form. `allow_prompt` denotes if a
@@ -90,6 +87,7 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
       const FormStructure& submitted_form) const;
 
   AddressDataManager& address_data_manager();
+  const AddressDataManager& address_data_manager() const;
 
   MultiStepImportMerger& multi_step_import_merger();
 
@@ -101,7 +99,7 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
   base::flat_map<FieldType, std::u16string> GetAddressObservedFieldValues(
       base::span<const AutofillField* const> section_fields,
       ProfileImportMetadata& import_metadata,
-      LogBuffer* import_log_buffer,
+      LogBuffer& import_log_buffer,
       bool& has_invalid_field_types,
       bool& has_multiple_distinct_email_addresses,
       bool& has_address_related_fields) const;
@@ -110,24 +108,22 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
   // the form. Used during `ExtractAddressProfileFromSection()`.
   AutofillProfile ConstructProfileFromObservedValues(
       const base::flat_map<FieldType, std::u16string>& observed_values,
-      LogBuffer* import_log_buffer,
+      LogBuffer& import_log_buffer,
       ProfileImportMetadata& import_metadata);
 
   // Helper method for `ExtractAddressProfiles` which only considers the fields
   // for the specified `section_fields`.
-  bool ExtractAddressProfileFromSection(
+  std::optional<ExtractedAddressProfile> ExtractAddressProfileFromSection(
       base::span<const AutofillField* const> section_fields,
       const GURL& source_url,
       mojom::SubmissionSource submission_source,
-      std::vector<ExtractedAddressProfile>* extracted_address_profiles,
-      LogBuffer* import_log_buffer);
+      LogBuffer& import_log_buffer);
 
-  // If the `profile`'s country is not empty, complements it with
-  // `AddressDataManager::GetDefaultCountryCodeForNewAddress()`, while logging
-  // to the `import_log_buffer`.
-  // Returns true if the country was complemented.
-  bool ComplementCountry(AutofillProfile& profile,
-                         LogBuffer* import_log_buffer);
+  // Returns the fallback value for the profile country. The following values
+  // are used, with decreasing priority: region of given phone number (if it is
+  // in international format), variation country, country of app locale.
+  std::u16string GetFallbackCountry(
+      const PhoneNumber::PhoneCombineHelper& combined_phone) const;
 
   // Sets the `profile`'s PHONE_HOME_WHOLE_NUMBER to the `combined_phone`, if
   // possible. The phone number's region is deduced based on the profile's

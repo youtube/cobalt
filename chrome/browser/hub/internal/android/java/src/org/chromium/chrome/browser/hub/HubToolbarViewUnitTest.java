@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.hub;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.hub.HubColorMixer.COLOR_MIXER;
+import static org.chromium.chrome.browser.hub.HubToolbarProperties.CLOSE_BUTTON_VISIBLE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.HAIRLINE_VISIBILITY;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.HUB_SEARCH_ENABLED_STATE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.IS_INCOGNITO;
@@ -233,6 +235,32 @@ public class HubToolbarViewUnitTest {
     }
 
     @Test
+    public void testPaneSwitcherScrollPosition() {
+        HubToolbarView hubToolbarView = mToolbarContainer.findViewById(R.id.hub_toolbar);
+        // Verify setPaneSwitcherScrollPosition executes cleanly without crash.
+        hubToolbarView.setPaneSwitcherScrollPosition(0, 0.5f);
+    }
+
+    @Test
+    public void testPaneSwitcherBlockTabSelectionCallback() {
+        FullButtonData fullButtonData = makeTestButtonData();
+        mPropertyModel.set(
+                PANE_SWITCHER_BUTTON_DATA, Arrays.asList(fullButtonData, fullButtonData));
+        HubToolbarView hubToolbarView = mToolbarContainer.findViewById(R.id.hub_toolbar);
+
+        // When tab selection callback is blocked, tab.select() on an unselected tab should not
+        // trigger onPress.
+        hubToolbarView.setBlockTabSelectionCallback(true);
+        mPaneSwitcher.getTabAt(0).select();
+        assertEquals(0, mOnButtonHelper.getCallCount());
+
+        // When unblocked, selecting tab triggers onPress normally.
+        hubToolbarView.setBlockTabSelectionCallback(false);
+        mPaneSwitcher.getTabAt(1).select();
+        assertEquals(1, mOnButtonHelper.getCallCount());
+    }
+
+    @Test
     public void testPaneSwitcherContentDescription() {
         FullButtonData fullButtonData = makeTestButtonData();
         mPropertyModel.set(
@@ -314,10 +342,27 @@ public class HubToolbarViewUnitTest {
     @Test
     public void testMenuButtonWrapperVisibility() {
         mPropertyModel.set(MENU_BUTTON_VISIBLE, false);
-        assertEquals(View.INVISIBLE, mMenuButtonWrapper.getVisibility());
+        assertEquals(View.GONE, mMenuButtonWrapper.getVisibility());
 
         mPropertyModel.set(MENU_BUTTON_VISIBLE, true);
         assertEquals(View.VISIBLE, mMenuButtonWrapper.getVisibility());
+    }
+
+    @Test
+    public void testCloseButtonVisibility() {
+        View closeButton = mToolbarContainer.findViewById(R.id.toolbar_close_button);
+        if (mIsXrDevice) {
+            assertNull(closeButton);
+            return;
+        }
+
+        assertEquals(View.GONE, closeButton.getVisibility());
+
+        mPropertyModel.set(CLOSE_BUTTON_VISIBLE, true);
+        assertEquals(View.VISIBLE, closeButton.getVisibility());
+
+        mPropertyModel.set(CLOSE_BUTTON_VISIBLE, false);
+        assertEquals(View.GONE, closeButton.getVisibility());
     }
 
     @Test

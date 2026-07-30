@@ -12,7 +12,10 @@ import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.transition.Transition;
+import android.view.InputDevice;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.PointerIcon;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -146,6 +149,19 @@ public class ActorOverlayCoordinatorTest {
                         mProfileSupplier,
                         mSideUiStateProvider);
         mLayoutManagerSupplier.set(mLayoutManager);
+    }
+
+    private void dispatchHover(ActorOverlayView view, int action, float x, float y) {
+        MotionEvent event = MotionEvent.obtain(0, 0, action, x, y, 0);
+        view.dispatchHoverEvent(event);
+        event.recycle();
+    }
+
+    private boolean hasStateHovered(int[] state) {
+        for (int attr : state) {
+            if (attr == android.R.attr.state_hovered) return true;
+        }
+        return false;
     }
 
     @Test
@@ -708,6 +724,80 @@ public class ActorOverlayCoordinatorTest {
 
         clickListener.onClick(mView);
         verify(activeTask).takeOverTask();
+    }
+
+    @Test
+    public void testHoverStateWithTakeOverTaskButton() {
+        View button = mView.getTakeOverButton();
+        Assert.assertNotNull(button);
+        button.setVisibility(View.VISIBLE);
+
+        // Measure and layout so children have bounds.
+        mView.measure(
+                View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY));
+        mView.layout(0, 0, 800, 600);
+
+        // Initially not hovered.
+        mView.setHovered(false);
+        button.setHovered(false);
+        mView.refreshDrawableState();
+        Assert.assertFalse(hasStateHovered(mView.getDrawableState()));
+
+        // Directly hovering over ActorOverlayView.
+        mView.setHovered(true);
+        mView.refreshDrawableState();
+        Assert.assertTrue(hasStateHovered(mView.getDrawableState()));
+
+        // Hovering over the take over button (ActorOverlayView itself is no longer hovered).
+        mView.setHovered(false);
+        float buttonX = button.getX() + button.getWidth() / 2f;
+        float buttonY = button.getY() + button.getHeight() / 2f;
+        dispatchHover(mView, MotionEvent.ACTION_HOVER_ENTER, buttonX, buttonY);
+        Assert.assertTrue(hasStateHovered(mView.getDrawableState()));
+
+        // Exiting hover completely.
+        dispatchHover(mView, MotionEvent.ACTION_HOVER_EXIT, buttonX, buttonY);
+        Assert.assertFalse(hasStateHovered(mView.getDrawableState()));
+    }
+
+    @Test
+    public void testInputInterception() {
+        MotionEvent.PointerProperties pp = new MotionEvent.PointerProperties();
+        pp.id = 0;
+        pp.toolType = MotionEvent.TOOL_TYPE_MOUSE;
+
+        MotionEvent.PointerCoords pc = new MotionEvent.PointerCoords();
+        pc.x = 100f;
+        pc.y = 100f;
+
+        MotionEvent mouseEvent =
+                MotionEvent.obtain(
+                        0,
+                        0,
+                        MotionEvent.ACTION_SCROLL,
+                        1,
+                        new MotionEvent.PointerProperties[] {pp},
+                        new MotionEvent.PointerCoords[] {pc},
+                        0,
+                        0,
+                        1.0f,
+                        1.0f,
+                        0,
+                        0,
+                        InputDevice.SOURCE_MOUSE,
+                        0);
+
+        Assert.assertTrue(mView.onGenericMotionEvent(mouseEvent));
+        mouseEvent.recycle();
+
+        PointerIcon expectedIcon =
+                PointerIcon.getSystemIcon(mView.getContext(), PointerIcon.TYPE_NO_DROP);
+        Assert.assertEquals(expectedIcon, mView.getPointerIcon());
+
+        PointerIcon expectedButtonIcon =
+                PointerIcon.getSystemIcon(mView.getContext(), PointerIcon.TYPE_HAND);
+        Assert.assertEquals(expectedButtonIcon, mView.getTakeOverButton().getPointerIcon());
     }
 
     @Test

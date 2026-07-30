@@ -68,6 +68,7 @@ class PerformanceInterventionButton;
 
 namespace views {
 class FlexLayout;
+class LabelButton;
 }  // namespace views
 
 namespace glic {
@@ -185,6 +186,8 @@ class ToolbarView : public views::AccessiblePaneView,
   MediaToolbarButtonView* media_button() const { return media_button_; }
   HomeButton* home_button() const { return home_; }
 
+  views::LabelButton* GetGlicButton();
+
   // TODO(crbug.com/513238408): Remove this once toolbar layout/overflow is
   // fixed.
   AvatarToolbarButton* avatar_toolbar_button() { return avatar_; }
@@ -233,7 +236,6 @@ class ToolbarView : public views::AccessiblePaneView,
   // GlicSplitButtonDelegate:
   void SetGlicShowState(bool show) override;
   void SetGlicPanelIsOpen(bool open) override;
-  void SetButtonController(glic::GlicButtonController* controller) override;
   // Called when the glic nudge UI needs to be triggered. `label' holds the
   // nudge label. `anchored_message_text` and `prompt_suggestion` are unused in
   // this UI.
@@ -280,7 +282,7 @@ class ToolbarView : public views::AccessiblePaneView,
       AppMenuIconController::TypeAndSeverity type_and_severity) override;
 
   // ToolbarButtonProvider:
-  ExtensionsToolbarDesktop* GetExtensionsToolbarDesktop() override;
+  ExtensionsContainerViews* GetExtensionsContainerViews() override;
   PinnedToolbarActions* GetPinnedToolbarActions() override;
   gfx::Size GetToolbarButtonSize() const override;
   views::BubbleAnchor GetDefaultExtensionDialogAnchor() override;
@@ -397,7 +399,7 @@ class ToolbarView : public views::AccessiblePaneView,
   raw_ptr<glic::ToolbarGlicButton> glic_button_ = nullptr;
   raw_ptr<glic::ToolbarGlicActorTaskIcon> glic_actor_task_icon_ = nullptr;
   raw_ptr<ToolbarDivider> glic_button_divider_ = nullptr;
-  raw_ptr<glic::GlicButtonController> button_controller_ = nullptr;
+  raw_ptr<glic::GlicButtonController> glic_button_controller_ = nullptr;
 
   // When locked, the container is unable to change its expanded state.
   // Changes will be staged until after this is unlocked.

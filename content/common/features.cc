@@ -586,8 +586,10 @@ BASE_FEATURE(kPermissionsPolicyVerificationInContent,
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // When enabled, OnMouseEvent uses the event's actual pointer type for
-// last_pointer_type_ instead of unconditionally reporting kMouse.
-BASE_FEATURE(kMouseEventPenPointerType, base::FEATURE_ENABLED_BY_DEFAULT);
+// last_pointer_type_ instead of unconditionally reporting kMouse, and skips
+// updating last_pointer_type_ for synthesized mouse events so that a preceding
+// pen/touch pointer type is not clobbered.
+BASE_FEATURE(kMouseEventPreservePointerType, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, responses with an operative Cookie-Indices will not be used
 // if the relevant cookie values have changed.
@@ -654,6 +656,13 @@ BASE_FEATURE(kProgressiveAccessibilityPhase2,
 // startup.
 BASE_FEATURE(kReduceMojoURLLoaderFactoryCloning,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls whether lazy URLLoaderFactory cloning is used for service worker
+// fallback factory.
+BASE_FEATURE_PARAM(bool,
+                   kUseLazyURLLoaderFactoryForServiceWorkerFallback,
+                   &kReduceMojoURLLoaderFactoryCloning,
+                   false);
 
 // Causes hidden tabs with crashed subframes to be marked for reload, meaning
 // that if a user later switches to that tab, the current page will be
@@ -801,6 +810,11 @@ BASE_FEATURE(kServiceWorkerVerifyMainScriptUrl,
 // functional events complete (spec step 8) and on worker start failure
 // (spec step 5), per the "Fire Functional Event" spec algorithm.
 BASE_FEATURE(kServiceWorkerSoftUpdateOnFunctionalEvent,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, stricter and aligned context validation is performed for
+// ServiceWorker start checks and message event dispatching.
+BASE_FEATURE(kServiceWorkerStrictContextValidation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the browser process will derive the secure context state of a

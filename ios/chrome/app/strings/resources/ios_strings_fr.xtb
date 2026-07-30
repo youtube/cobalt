@@ -245,6 +245,7 @@
 <translation id="1752547299766512813">Enreg. mots de passe</translation>
 <translation id="1764070164487214210">Itinéraire</translation>
 <translation id="1764511703783285459">L'autre gestionnaire de mots de passe n'a partagé aucuns mots de passe ni clés d'accès</translation>
+<translation id="1765555082983153259">Chrome souhaite accéder à votre micro</translation>
 <translation id="1767766085187034454">Google Traduction</translation>
 <translation id="1771016937398045251">Menu "Outils"</translation>
 <translation id="1772468122139624049">Impossible d'actualiser les onglets</translation>
@@ -285,6 +286,7 @@
 <translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Barre de menu de tri intelligent</translation>
 <translation id="1883255238294161206">Réduire la liste</translation>
+<translation id="1883898928879467646">Onglet supprimé</translation>
 <translation id="1888854257756214946">Sélectionner un mot de passe…</translation>
 <translation id="1890237935065108104">Ce paramètre n'est pas disponible.</translation>
 <translation id="1894023287452300670">Effectuez le suivi du prix ici</translation>
@@ -1620,6 +1622,7 @@ Handoff doit également être activé dans la section "Général" des paramètre
 <translation id="6406506848690869874">Synchronisation</translation>
 <translation id="6410390304316730527">La fonctionnalité Navigation sécurisée vous protège contre les pirates informatiques qui pourraient vous inciter à effectuer des opérations dangereuses, comme installer des logiciels malveillants ou divulguer des informations personnelles (mots de passe, numéros de téléphone ou numéros de carte de crédit, par exemple). Si vous la désactivez, faites preuve de vigilance lorsque vous consultez des sites Web inconnus ou peu fiables.</translation>
 <translation id="6410883413783534063">Ouvrez des onglets pour consulter plusieurs pages en même temps</translation>
+<translation id="6412195388778525440">Supprimer l'onglet</translation>
 <translation id="6418346271604475326">PDF en prépa.</translation>
 <translation id="6420292512900923139">Problème lors de l'importation de vos données</translation>
 <translation id="6421038304268477484">Texte traduit</translation>
@@ -2320,7 +2323,6 @@ Pour continuer depuis votre ordinateur, connectez-vous à <ph name="OTHER_EMAIL"
 <translation id="8692689525339542358">Protégez-vous contre les sites, extensions et téléchargements dangereux.</translation>
 <translation id="8692897097252418799">Choisissez les données que vous souhaitez exporter</translation>
 <translation id="8694281486652655615">Affiche cet élément</translation>
-<translation id="8696297579102085705">Envoyer sur votre appareil</translation>
 <translation id="8697136149718343437">Déplacer la barre d'adresse vers le bas</translation>
 <translation id="869891660844655955">Date d'expiration</translation>
 <translation id="8706253136355675497">Température</translation>
@@ -2463,6 +2465,7 @@ Pour continuer depuis votre ordinateur, connectez-vous à <ph name="OTHER_EMAIL"
 <translation id="9149866541089851383">Modifier...</translation>
 <translation id="9152637745605628097">Choisissez parmi des thèmes et des couleurs, ou importez une image</translation>
 <translation id="9159628751968616911">Envoyer la page Web</translation>
+<translation id="9162412286847966593">Les données et enregistrements de votre organisation ne seront pas utilisés pour améliorer les modèles d'IA générative. <ph name="BEGIN_LINK" />Votre confidentialité et Gemini<ph name="END_LINK" /></translation>
 <translation id="9162432979321511934">Activez "Préremplir les mots de passe"</translation>
 <translation id="9165320910061267720">Pour recevoir des alertes en cas de baisse de prix, vous devez activer les notifications dans les paramètres iOS.</translation>
 <translation id="9179151630575358778">Masque cet élément</translation>

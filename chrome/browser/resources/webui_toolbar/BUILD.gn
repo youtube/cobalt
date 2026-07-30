@@ -81,12 +81,12 @@ build_webui("build") {
     "back_forward_button.ts",
     "battery_saver_button.html.ts",
     "battery_saver_button.ts",
-    "battery_saver_button_icons.html.ts",
     "browser_proxy.ts",
     "content_setting_icon.html.ts",
     "content_setting_icon.ts",
     "content_settings_icons.html.ts",
     "content_settings_icons.ts",
+    "cr_lazy_iconset.ts",
     "extension.html.ts",
     "extension.ts",
     "extensions.html.ts",
@@ -153,6 +153,7 @@ build_webui("build") {
     "toolbar_button.css",
     "toolbar_chip_button.css",
     "toolbar_divider.css",
+    "webui_toolbar_shared_vars.css",
   ]
 
   # ts_composite is needed for JS tests to depend on this.

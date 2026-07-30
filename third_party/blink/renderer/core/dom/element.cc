@@ -1164,15 +1164,23 @@ Node* Element::Clone(Document& factory,
       // 6.4 Run attach a shadow root with copy, node's shadow root's mode,
       // true, node’s shadow root’s delegates focus, and node’s shadow root’s
       // slot assignment.
-      const bool waiting_for_scoped_registry =
-          RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
-          !shadow_root_registry && shadow_root->IsWaitingForScopedRegistry();
+      CustomElementRegistryAssignment registry_assignment =
+          CustomElementRegistryAssignment::Inherit();
+      if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+        registry_assignment =
+            shadow_root->IsWaitingForScopedRegistry()
+                ? CustomElementRegistryAssignment::Wait()
+                : CustomElementRegistryAssignment::ResolveNullableRegistry(
+                      shadow_root_registry,
+                      CustomElementRegistryAssignment::NullRegistryFallback::
+                          kInherit);
+      }
       ShadowRoot& cloned_shadow_root = copy->AttachShadowRootInternal(
           shadow_root->GetMode(),
           shadow_root->delegatesFocus() ? FocusDelegation::kDelegateFocus
                                         : FocusDelegation::kNone,
-          shadow_root->GetSlotAssignmentMode(), shadow_root_registry,
-          waiting_for_scoped_registry, shadow_root->serializable(),
+          shadow_root->GetSlotAssignmentMode(), registry_assignment,
+          shadow_root->serializable(),
           /*clonable=*/true, shadow_root->referenceTarget());
 
       // 6.5 Set copy’s shadow root’s declarative to node’s shadow root’s
@@ -2290,123 +2298,7 @@ void Element::scrollIntoViewWithOptions(const ScrollIntoViewOptions* options,
   ScrollIntoViewNoVisualUpdate(std::move(params), container, false, resolver);
 }
 
-// TODO(crbug.com/385129957): This only searches up to the nearest scroll
-// container. Ancestor scroll containers might also need to be notified.
-void Element::NotifyScrollMarkerGroupOfTargetedScroll() {
-  if (ScrollMarkerPseudoElement* marker = FindScrollMarkerForTargetedScroll()) {
-    if (ScrollMarkerGroupPseudoElement* group = marker->ScrollMarkerGroup()) {
-      group->PinSelectedMarker(marker);
-    }
-  }
-}
 
-ScrollMarkerPseudoElement* Element::FindScrollMarkerForTargetedScroll() {
-  if (auto* this_marker = DynamicTo<ScrollMarkerPseudoElement>(this)) {
-    // This itself is a scroll-marker.
-    return this_marker;
-  } else if (PseudoElement* scroll_marker =
-                 GetPseudoElement(kPseudoIdScrollMarker)) {
-    // This itself has a scroll-marker.
-    return DynamicTo<ScrollMarkerPseudoElement>(scroll_marker);
-  }
-
-  LayoutObject* target_obj = GetLayoutObject();
-  if (!target_obj) {
-    return nullptr;
-  }
-
-  // Search for the scroll-marker before |this| in pre-order.
-  ScrollMarkerPseudoElement* dom_marker = nullptr;
-  for (LayoutObject* obj = target_obj->PreviousInPreOrder(); obj;
-       obj = obj->PreviousInPreOrder()) {
-    if (obj->IsScrollContainerWithScrollMarkerGroup()) {
-      // Don't escape the target's nearest containing
-      // scroll-marker-group-generating containing scroll container.
-      break;
-    }
-    auto* obj_node = obj->GetNode();
-    if (!obj_node) {
-      continue;
-    }
-    if (ScrollMarkerPseudoElement* marker_node =
-            DynamicTo<ScrollMarkerPseudoElement>(obj_node)) {
-      dom_marker = marker_node;
-      break;
-    } else if (auto* obj_element = DynamicTo<Element>(obj_node)) {
-      if (ScrollMarkerPseudoElement* previous_marker =
-              DynamicTo<ScrollMarkerPseudoElement>(
-                  obj_element->GetPseudoElement(kPseudoIdScrollMarker))) {
-        dom_marker = previous_marker;
-        break;
-      }
-    }
-  }
-
-  // We might have found a marker before |this| in DOM-order, but we need to do
-  // one last check for whether the scroll target is within a
-  // scroll-marker-generating ::column which might be preferable to the
-  // already-found marker.
-  const LayoutBox* containing_box = target_obj->ContainingScrollContainer();
-  while (containing_box) {
-    if (containing_box->IsScrollContainerWithScrollMarkerGroup()) {
-      break;
-    }
-    containing_box = containing_box->ContainingScrollContainer();
-  }
-
-  if (!containing_box) {
-    return dom_marker;
-  }
-  const Element* containing_element =
-      DynamicTo<Element>(containing_box->GetNode());
-  if (!containing_element) {
-    return dom_marker;
-  }
-  const ColumnPseudoElementsVector* cols =
-      containing_element->GetColumnPseudoElements();
-  if (!cols) {
-    return dom_marker;
-  }
-  const LayoutBox* target_box = GetLayoutBox();
-  PhysicalRect scroll_target_rect = target_box->LocalToAncestorRect(
-      target_box->PhysicalBorderBoxRect(), containing_box);
-  ScrollableArea* current_scroll_area = containing_box->GetScrollableArea();
-  if (current_scroll_area) {
-    // Account for scroll translation.
-    scroll_target_rect.Move(current_scroll_area->LocalToScrollOriginOffset());
-  } else {
-    NOTREACHED();
-  }
-  for (const ColumnPseudoElement* column_pseudo : *cols) {
-    ScrollMarkerPseudoElement* column_marker =
-        DynamicTo<ScrollMarkerPseudoElement>(
-            column_pseudo->GetPseudoElement(kPseudoIdScrollMarker));
-    const PhysicalRect& column_rect = column_pseudo->ColumnRect();
-    if (column_marker && column_rect.Intersects(scroll_target_rect)) {
-      if (!dom_marker) {
-        // We didn't have a scroll-marker from the DOM search to begin, the
-        // ::column::scroll-marker we found will have to do.
-        return column_marker;
-      }
-      // If we already had a marker from the initial DOM search,
-      // we should figure out whether |dom_marker| belongs to an element that
-      // was flowed the scroll-marker-generating ::column, in which case
-      // |dom_marker| is the preferred scroll marker. Otherwise the
-      // scroll-marker belonging to the ::column is preferred.
-      LayoutBox* dom_marker_box =
-          dom_marker->UltimateOriginatingElement().GetLayoutBox();
-      PhysicalRect dom_search_target_rect = dom_marker_box->LocalToAncestorRect(
-          dom_marker_box->PhysicalBorderBoxRect(), containing_box);
-      if (current_scroll_area) {
-        dom_search_target_rect.Move(
-            current_scroll_area->LocalToScrollOriginOffset());
-      }
-      return column_rect.Intersects(dom_search_target_rect) ? dom_marker
-                                                            : column_marker;
-    }
-  }
-  return dom_marker;
-}
 
 void Element::ScrollIntoViewNoVisualUpdate(
     mojom::blink::ScrollIntoViewParamsPtr params,
@@ -2440,7 +2332,6 @@ void Element::ScrollIntoViewNoVisualUpdate(
     return;
   }
 
-  NotifyScrollMarkerGroupOfTargetedScroll();
 
   PhysicalRect bounds = BoundingBoxForScrollIntoView();
   scroll_into_view_util::ScrollRectToVisible(
@@ -4402,12 +4293,78 @@ void Element::MovedFrom(ContainerNode& old_parent) {
   }
 }
 
+#if DCHECK_IS_ON()
+void VerifySubtreeIsInCanvas(const Element& element, bool value) {
+  if (IsA<HTMLCanvasElement>(element)) {
+    // When the verifier starts with an element outside the tree that should
+    // have value false, but then reaches a canvas within the subtree (e.g.
+    // in an iframe or nested), we should set the expected value back to true.
+    value = true;
+  }
+  DCHECK(element.IsCanvasOrInCanvasSubtree() == value);
+  if (ShadowRoot* shadow_root = element.GetShadowRoot()) {
+    for (Element& child : ElementTraversal::ChildrenOf(*shadow_root)) {
+      VerifySubtreeIsInCanvas(child, value);
+    }
+  }
+  if (auto* slot = ToHTMLSlotElementIfSupportsAssignmentOrNull(element)) {
+    for (Node* node : slot->AssignedNodesNoRecalc()) {
+      if (auto* child = DynamicTo<Element>(node)) {
+        VerifySubtreeIsInCanvas(*child, value);
+      }
+    }
+  }
+  if (const auto* frame_owner = DynamicTo<HTMLFrameOwnerElement>(element)) {
+    if (Document* inner_document = frame_owner->contentDocument()) {
+      if (Element* root = inner_document->documentElement()) {
+        VerifySubtreeIsInCanvas(*root, value);
+      }
+    }
+  }
+  for (Element& child : ElementTraversal::ChildrenOf(element)) {
+    if (child.AssignedSlotWithoutRecalc()) {
+      continue;
+    }
+    VerifySubtreeIsInCanvas(child, value);
+  }
+}
+#endif
+
 void Element::SetIsCanvasOrInCanvasSubtree(bool value) {
-  if (value == IsCanvasOrInCanvasSubtree()) {
+  if (IsA<HTMLCanvasElement>(*this)) {
+    value = true;
+  }
+
+  if (value != IsCanvasOrInCanvasSubtree()) {
+    SetElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree, value);
+    DidChangeIsCanvasOrInCanvasSubtree();
+  } else {
+#if DCHECK_IS_ON()
+    if (!GetDocument().IsSlotAssignmentRecalcForbidden()) {
+      VerifySubtreeIsInCanvas(*this, value);
+    }
+#endif
     return;
   }
-  SetElementFlag(ElementFlags::kIsCanvasOrInCanvasSubtree, value);
-  DidChangeIsCanvasOrInCanvasSubtree();
+
+  if (ShadowRoot* shadow_root = GetShadowRoot()) {
+    for (Element& child : ElementTraversal::ChildrenOf(*shadow_root)) {
+      child.SetIsCanvasOrInCanvasSubtree(value);
+    }
+  }
+  if (auto* slot = ToHTMLSlotElementIfSupportsAssignmentOrNull(*this)) {
+    for (Node* node : slot->AssignedNodesNoRecalc()) {
+      if (auto* child = DynamicTo<Element>(node)) {
+        child->SetIsCanvasOrInCanvasSubtree(value);
+      }
+    }
+  }
+  for (Element& child : ElementTraversal::ChildrenOf(*this)) {
+    if (!child.IsPseudoElement() && child.AssignedSlotWithoutRecalc()) {
+      continue;
+    }
+    child.SetIsCanvasOrInCanvasSubtree(value);
+  }
 }
 
 void Element::DidChangeIsCanvasOrInCanvasSubtree() {
@@ -4420,6 +4377,33 @@ void Element::DidChangeIsCanvasOrInCanvasSubtree() {
         .InvalidateDisplayItemClient(*layout_object,
                                      PaintInvalidationReason::kUncacheable);
   }
+}
+
+bool Element::IsInCanvasSubtree() const {
+  auto& document = GetDocument();
+  const Element* parent = nullptr;
+  if (document.IsFlatTreeTraversalForbidden() ||
+      document.IsInSlotAssignmentRecalc()) {
+    if (IsPseudoElement()) {
+      parent = ParentOrShadowHostElement();
+    } else if (const auto* slot = AssignedSlotWithoutRecalc()) {
+      parent = slot;
+    } else {
+      parent = ParentOrShadowHostElement();
+    }
+  } else {
+    parent = FlatTreeTraversal::ParentElementSkippingSlots(*this);
+  }
+  if (parent) {
+    return parent->IsCanvasOrInCanvasSubtree();
+  }
+
+  if (!isConnected()) {
+    return false;
+  }
+
+  auto* owner = document.LocalOwner();
+  return owner && owner->IsCanvasOrInCanvasSubtree();
 }
 
 void Element::RemovedFrom(ContainerNode& insertion_point) {
@@ -7429,20 +7413,29 @@ CustomElementRegistry* Element::customElementRegistry(
   return GetTreeScope().customElementRegistry(script_state);
 }
 
-void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
-                                       bool explicitly_set) {
+void Element::SetCustomElementRegistry(
+    CustomElementRegistryAssignment assignment,
+    bool always_retain_registry) {
   DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
+
+  const NodeRareData* data = RareData();
+  if (assignment.IsInherit()) {
+    DCHECK(!data || !data->HasCustomElementRegistrySet());
+    return;
+  }
+
+  CustomElementRegistry* registry =
+      assignment.IsExplicit() ? assignment.Registry() : nullptr;
   // If the registry is the same as the tree scope's registry, we typically
   // can clear the registry field in rare data and have the registry implicitly
   // inferred to save memory. We can disable this optimization behavior by
-  // "explicitly_set" flag so we can ensure the registry is retained in
-  // scenarios like cross document/scope adoption.
-  if (registry == GetTreeScope().customElementRegistry() && !explicitly_set) {
+  // `always_retain_registry` so we can ensure the registry is retained in
+  // scenarios like cross-document/scope adoption.
+  if (registry == GetTreeScope().customElementRegistry() &&
+      !always_retain_registry) {
     // Only touch rare data if it already exists and has a registry set.
-    if (const NodeRareData* data = RareData()) {
-      if (data->HasCustomElementRegistrySet()) {
-        EnsureRareData().ClearCustomElementRegistry();
-      }
+    if (data && data->HasCustomElementRegistrySet()) {
+      EnsureRareData().ClearCustomElementRegistry();
     }
   } else {
     data_ = EnsureRareData().SetCustomElementRegistry(registry);
@@ -7667,10 +7660,12 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
   // If the user explicitly passed customElementRegistry: null in the
   // ShadowRootInit dictionary, the shadow root is intentionally waiting for a
   // scoped registry to be assigned later.
-  const bool waiting_for_scoped_registry = scoped_registry && !registry;
   ShadowRoot& shadow_root = AttachShadowRootInternal(
-      mode, focus_delegation, slot_assignment, registry,
-      waiting_for_scoped_registry, serializable, clonable, reference_target);
+      mode, focus_delegation, slot_assignment,
+      CustomElementRegistryAssignment::ResolveNullableRegistry(
+          registry,
+          CustomElementRegistryAssignment::NullRegistryFallback::kWait),
+      serializable, clonable, reference_target);
 
   // Ensure that the returned shadow root is not marked as declarative so that
   // attachShadow() calls after the first one do not succeed for a shadow host
@@ -7704,21 +7699,22 @@ bool Element::AttachDeclarativeShadowRoot(
   CHECK(mode == ShadowRootMode::kOpen || mode == ShadowRootMode::kClosed);
 
   CustomElementRegistry* registry = nullptr;
-  // Get global registry of the document by default.
-  if (auto* window = GetDocument().domWindow()) {
-    registry = window->customElements();
-  }
-
-  // If the declarative shadow root is waiting a scoped registry, set
-  // the current registry to null explicitly.
-  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
-      waiting_for_scoped_registry) {
-    registry = nullptr;
+  // Use the document's global registry by default unless waiting for one.
+  if (!waiting_for_scoped_registry) {
+    if (auto* window = GetDocument().domWindow()) {
+      registry = window->customElements();
+    }
   }
 
   ShadowRoot& shadow_root = AttachShadowRootInternal(
-      mode, focus_delegation, slot_assignment, registry,
-      waiting_for_scoped_registry, serializable, clonable, reference_target);
+      mode, focus_delegation, slot_assignment,
+      waiting_for_scoped_registry
+          ? CustomElementRegistryAssignment::Wait()
+          : CustomElementRegistryAssignment::ResolveNullableRegistry(
+                registry,
+                CustomElementRegistryAssignment::NullRegistryFallback::
+                    kInherit),
+      serializable, clonable, reference_target);
   // 10.8.5. Set declarative shadow host element's shadow host's "is declarative
   // shadow root" property to true.
   shadow_root.SetIsDeclarativeShadowRoot(true);
@@ -7750,8 +7746,7 @@ ShadowRoot& Element::AttachShadowRootInternal(
     ShadowRootMode type,
     FocusDelegation focus_delegation,
     SlotAssignmentMode slot_assignment_mode,
-    CustomElementRegistry* registry,
-    bool waiting_for_scoped_registry,
+    CustomElementRegistryAssignment registry,
     bool serializable,
     bool clonable,
     const AtomicString& reference_target) {
@@ -7764,11 +7759,6 @@ ShadowRoot& Element::AttachShadowRootInternal(
   DCHECK(reference_target.IsNull() ||
          RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
              GetExecutionContext()));
-  // A null registry combined with `waiting_for_scoped_registry == true`
-  // explicitly marks the shadow root as waiting for a scoped registry. A null
-  // registry combined with `waiting_for_scoped_registry == false` means
-  // "inherit the tree scope's registry" (the default fall-through).
-  DCHECK(!waiting_for_scoped_registry || !registry);
 
   GetDocument().SetContainsShadowRoot();
 
@@ -7792,15 +7782,7 @@ ShadowRoot& Element::AttachShadowRootInternal(
   shadow_root.SetIsDeclarativeShadowRoot(false);
 
   // 12. Set shadow's custom element registry to registry.
-  // Note: Only set when the caller has an actual registry or has explicitly
-  // indicated that the shadow root should wait for a scoped registry. A bare
-  // null registry (e.g., when a declarative shadow root is parsed inside a
-  // template document that has no associated window) must NOT mark the tree
-  // scope as waiting; otherwise `customElementRegistry()` would keep returning
-  // null even after the shadow root is adopted into a real document, blocking
-  // custom element upgrades.
-  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
-      (registry || waiting_for_scoped_registry)) {
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
     shadow_root.SetCustomElementRegistry(registry);
   }
   // 11. Set shadow’s serializable to serializable.
@@ -7824,8 +7806,7 @@ ShadowRoot& Element::AttachShadowRootInternal(
 ShadowRoot& Element::AttachShadowRootForTesting(ShadowRootMode type) {
   return AttachShadowRootInternal(type, FocusDelegation::kNone,
                                   SlotAssignmentMode::kNamed,
-                                  /*registry*/ nullptr,
-                                  /*waiting_for_scoped_registry*/ false,
+                                  CustomElementRegistryAssignment::Inherit(),
                                   /*serializable*/ false,
                                   /*clonable*/ false,
                                   /*reference_target*/ g_null_atom);
@@ -8459,9 +8440,14 @@ void Element::Focus(const FocusParams& params) {
 }
 
 void Element::SetFocused(bool now_focused, mojom::blink::FocusType focus_type) {
-  EnsureRareData().SetWasLastFocusFromUserGesture(
-      focus_type != mojom::blink::FocusType::kNone &&
-      focus_type != mojom::blink::FocusType::kScript);
+  // FocusType::kPage represents a page-level focus change (e.g. switching
+  // tabs) rather than focusing a different element, so preserve the existing
+  // value in that case.
+  if (focus_type != mojom::blink::FocusType::kPage) {
+    EnsureRareData().SetWasLastFocusFromUserGesture(
+        focus_type != mojom::blink::FocusType::kNone &&
+        focus_type != mojom::blink::FocusType::kScript);
+  }
   // Recurse up author shadow trees to mark shadow hosts if it matches :focus.
   // TODO(kochi): Handle UA shadows which marks multiple nodes as focused such
   // as <input type="date"> the same way as author shadow.
@@ -10452,18 +10438,6 @@ bool Element::ShouldStoreComputedStyle(const ComputedStyle& style) const {
   }
 
   return style.Display() == EDisplay::kContents;
-}
-
-bool Element::IsInCanvasSubtree() const {
-  auto* parent = ParentOrShadowHostElement();
-  if (parent) {
-    return parent->IsCanvasOrInCanvasSubtree();
-  }
-  if (!isConnected()) {
-    return false;
-  }
-  auto* owner = GetDocument().LocalOwner();
-  return owner && owner->IsCanvasOrInCanvasSubtree();
 }
 
 AtomicString Element::ComputeInheritedLanguage() const {

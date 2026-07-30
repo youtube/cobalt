@@ -103,6 +103,7 @@ source_set("impl") {
     "//components/device_event_log",
     "//components/drive",
     "//components/enterprise/buildflags",
+    "//components/pdf/common:constants",
     "//components/policy/core/common",
     "//components/pref_registry",
     "//components/prefs",
@@ -236,7 +237,6 @@ source_set("unit_tests") {
     ]
     deps += [
       "//ash/constants",
-      "//chrome/browser/ash/crosapi",
       "//chrome/browser/ash/login/users:test_support",
       "//chrome/browser/ash/printing",
       "//chrome/browser/ash/printing:test_support",

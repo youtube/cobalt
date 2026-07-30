@@ -48,12 +48,28 @@ enum class DecisionSource {
   // Predicate that allows if the origins in question are same-origin with each
   // other.
   kAllowSameOrigin,
+  // Predicate that allows if the destination is a localhost URL with an http or
+  // https scheme.
+  kAllowHttpLocalhost,
+  // Predicate that allows if the destination is about:blank.
+  kAllowAboutBlank,
   // Predicate that allows if the user has already confirmed the origin in
   // question.
   kCacheWithUserConfirmation,
   // Predicate that allows if the origin is already present in the cache and the
   // delegate does not require user confirmation for that origin.
   kCacheWithoutUserConfirmation,
+  // Evaluates the destination against an enterprise policy allow/blocklist. The
+  // delegate provides the embedder-specific logic via
+  // `Delegate::EvaluateEnterprisePolicy`.
+  kEnterprisePolicy,
+  // Predicate that blocks if the destination's host is an IP address.
+  kForbidIpAddress,
+  // Predicate that blocks if the destination's scheme is not https.
+  kRequireHttps,
+  // Predicate that blocks if the destination's scheme is neither https nor
+  // http.
+  kRequireHttpsOrHttp,
   // No decision was reached before the OriginGating framework ran out of
   // predicates to run.
   kNoVerdict,

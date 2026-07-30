@@ -205,7 +205,6 @@ public class StripLayoutHelperTest {
     @Mock private LayoutManagerHost mManagerHost;
     @Mock private LayoutUpdateHost mUpdateHost;
     @Mock private LayoutRenderHost mRenderHost;
-    @Mock private CompositorButton mModelSelectorBtn;
     @Mock private TabUngrouper mTabUngrouper;
     @Mock private View mControlContainer;
     @Mock private StripTabHoverCardView mTabHoverCardView;
@@ -1718,7 +1717,7 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_DESKTOP)
     public void testTabSearchButtonVisibility_FlagEnabled() {
         initializeTest(false, false, 0, 1);
         mStripLayoutHelper.onSizeChanged(
@@ -1736,7 +1735,7 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    @DisableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_DESKTOP)
     public void testTabSearchButtonVisibility_FlagDisabled() {
         initializeTest(false, false, 0, 1);
         mStripLayoutHelper.onSizeChanged(
@@ -1754,7 +1753,7 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_AL)
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_DESKTOP)
     public void testTabSearchButtonHoverHighlightProperties() {
         initializeTest(false, false, 0, 1);
         mStripLayoutHelper.onSizeChanged(
@@ -1762,12 +1761,103 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLayout(TIMESTAMP);
 
         TintedCompositorButton button = mStripLayoutHelper.getTabSearchButton();
-        button.setHovered(true);
-        assertTrue("Tab Search button should be hovered", button.isHovered());
 
+        // Verify tab search button hover highlight default tint.
+        button.setHovered(true);
+        int defaultHoverBackgroundTint = mActivity.getColor(R.color.tab_strip_button_bg_hover_tint);
+        assertEquals(
+                "Tab Search button hover highlight default tint is not as expected",
+                defaultHoverBackgroundTint,
+                button.getBackgroundTint());
+
+        // Verify tab search button hover highlight pressed tint.
         button.setHovered(false);
         button.setPressed(true, true);
-        assertTrue("Tab Search button should be pressed", button.isPressed());
+        int pressedHoverBackgroundTint =
+                mActivity.getColor(R.color.tab_strip_button_bg_peripheral_pressed_tint);
+        assertEquals(
+                "Tab Search button hover highlight pressed tint is not as expected",
+                pressedHoverBackgroundTint,
+                button.getBackgroundTint());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_DESKTOP)
+    public void testTabSearchButtonHoverHighlightProperties_Incognito() {
+        initializeTest(false, /* incognito= */ true, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        TintedCompositorButton button = mStripLayoutHelper.getTabSearchButton();
+
+        // Verify tab search button incognito hover highlight default tint.
+        button.setHovered(true);
+        int defaultHoverBackgroundIncognitoTint =
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_hover_tint);
+        assertEquals(
+                "Tab Search button hover highlight default tint is not as expected",
+                defaultHoverBackgroundIncognitoTint,
+                button.getBackgroundTint());
+
+        // Verify tab search button incognito hover highlight pressed tint.
+        button.setHovered(false);
+        button.setPressed(true, true);
+        int hoverBackgroundPressedIncognitoColor =
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint);
+        assertEquals(
+                "Tab Search button hover highlight pressed tint is not as expected",
+                hoverBackgroundPressedIncognitoColor,
+                button.getBackgroundTint());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_SEARCH_FOR_DESKTOP)
+    public void testSetCompositorButtonsVisible_TabSearchButtonExcluded() {
+        initializeTest(false, false, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        // Verify initial state.
+        TintedCompositorButton tabSearchButton = mStripLayoutHelper.getTabSearchButton();
+        CompositorButton newTabButton = mStripLayoutHelper.getNewTabButton();
+        assertEquals(
+                "Initial tab search button opacity should be 1.f",
+                1.f,
+                tabSearchButton.getOpacity(),
+                EPSILON);
+        assertEquals(
+                "Initial new tab button opacity should be 1.f",
+                1.f,
+                newTabButton.getOpacity(),
+                EPSILON);
+
+        // Hide compositor buttons.
+        mStripLayoutHelper.setCompositorButtonsVisible(false);
+
+        // Verify new tab button opacity is animated/set to 0.f.
+        assertEquals(
+                "New tab button opacity should be 0.f", 0.f, newTabButton.getOpacity(), EPSILON);
+        // Verify tab search button is excluded and stays at 1.f.
+        assertEquals(
+                "Tab search button opacity should remain 1.f",
+                1.f,
+                tabSearchButton.getOpacity(),
+                EPSILON);
+
+        // Show compositor buttons.
+        mStripLayoutHelper.setCompositorButtonsVisible(true);
+
+        // Verify new tab button opacity is animated/set to 1.f.
+        assertEquals(
+                "New tab button opacity should be 1.f", 1.f, newTabButton.getOpacity(), EPSILON);
+        // Verify tab search button opacity remains 1.f.
+        assertEquals(
+                "Tab search button opacity should remain 1.f",
+                1.f,
+                tabSearchButton.getOpacity(),
+                EPSILON);
     }
 
     @Test
@@ -2926,6 +3016,12 @@ public class StripLayoutHelperTest {
         when(tabs[1].getCloseButton()).thenReturn(closeButton);
         when(closeButton.getParentView()).thenReturn(tabs[1]);
         when(closeButton.getType()).thenReturn(ButtonType.TAB_CLOSE);
+        when(closeButton.handleLongClick())
+                .thenAnswer(
+                        inv -> {
+                            mStripLayoutHelper.onLongClick(closeButton);
+                            return true;
+                        });
         mStripLayoutHelper.setTabAtPositionForTesting(tabs[1]);
         mStripLayoutHelper.onLongPress(150f, 0f);
 
@@ -4898,7 +4994,6 @@ public class StripLayoutHelperTest {
                         mUpdateHost,
                         mRenderHost,
                         incognito,
-                        mModelSelectorBtn,
                         mTabStripDragHandler,
                         mControlContainer,
                         mWindowAndroid,
@@ -4911,7 +5006,8 @@ public class StripLayoutHelperTest {
                         () -> mTabBookmarker,
                         mBottomSheetCoordinatorFactory,
                         mSnackbarManager,
-                        mActivityResultTracker);
+                        mActivityResultTracker,
+                        /* canActivateTabLayoutToggleMenuSupplier= */ null);
         // Inject the test IPH controller so that setTabModel doesn't try to construct a real one
         // (which would call into TrackerFactory native).
         helper.setTabStripIphControllerForTesting(mController);
@@ -4956,6 +5052,12 @@ public class StripLayoutHelperTest {
         when(tab.getWidth()).thenReturn(tabWidth);
         when(tab.getTabId()).thenReturn(id);
         when(tab.getDrawX()).thenReturn(drawX);
+        when(tab.handleLongClick())
+                .thenAnswer(
+                        inv -> {
+                            mStripLayoutHelper.onLongClick(tab);
+                            return true;
+                        });
         return tab;
     }
 

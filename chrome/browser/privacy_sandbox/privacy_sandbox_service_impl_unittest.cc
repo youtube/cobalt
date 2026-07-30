@@ -573,7 +573,6 @@ TEST_F(PrivacySandboxServiceAdPrivacyUxDeprecationTest,
   EXPECT_FALSE(
       prefs()->GetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled));
   uint64_t expected_measurement_mask =
-      content::BrowsingDataRemover::DATA_TYPE_ATTRIBUTION_REPORTING |
       content::BrowsingDataRemover::DATA_TYPE_AGGREGATION_SERVICE |
       content::BrowsingDataRemover::DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL;
   EXPECT_EQ(browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
@@ -852,7 +851,6 @@ TEST_F(PrivacySandboxServiceTest, DisablingAdMeasurementePrefClearsData) {
   prefs()->SetBoolean(prefs::kPrivacySandboxM1AdMeasurementEnabled, false);
   EXPECT_EQ(
       browsing_data_remover()->GetLastUsedRemovalMaskForTesting(),
-      content::BrowsingDataRemover::DATA_TYPE_ATTRIBUTION_REPORTING |
           content::BrowsingDataRemover::DATA_TYPE_AGGREGATION_SERVICE |
           content::BrowsingDataRemover::DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL);
   EXPECT_EQ(browsing_data_remover()->GetLastUsedBeginTimeForTesting(),
@@ -1901,7 +1899,7 @@ TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxAdMeasurementPolicy) {
                          url::Origin::Create(GURL("https://top-frame.com"))},
                         {kAdMeasurementReportingOrigin,
                          url::Origin::Create(GURL("https://embedded.com"))}},
-              TestOutput{{kIsAttributionReportingAllowed, false}});
+              TestOutput{{kIsPrivateAggregationAllowed, false}});
 }
 
 class PrivacySandboxNoticeFrameworkResultCallbackUnitTest

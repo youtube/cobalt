@@ -14,6 +14,7 @@
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -247,7 +248,7 @@ TEST(PhoneNumberTest, InferCountryCallingCode) {
             phone.GetInfo(PHONE_HOME_CITY_AND_NUMBER, kLocale));
 }
 
-// Test that cached phone numbers are correctly invalidated and updated.
+// Tests that cached phone numbers are correctly invalidated and updated.
 TEST(PhoneNumberTest, UpdateCachedPhoneNumber) {
   AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
   profile.SetRawInfo(ADDRESS_HOME_COUNTRY, u"US");
@@ -267,12 +268,16 @@ TEST(PhoneNumberTest, UpdateCachedPhoneNumber) {
 
   // Now try parsing using the correct locale.  Note that the profile's country
   // code should override the app locale, which is still set to "US".
-  profile.SetRawInfo(ADDRESS_HOME_COUNTRY, u"GB");
   phone.SetRawInfo(PHONE_HOME_WHOLE_NUMBER, u"07023456789");
+  // Set profile country after phone number to ensure the change of the profile
+  // country triggers the cache invalidation.
+  profile.SetRawInfo(ADDRESS_HOME_COUNTRY, u"GB");
   EXPECT_EQ(u"70", phone.GetInfo(PHONE_HOME_CITY_CODE, "US"));
 }
 
-TEST(PhoneNumberTest, PhoneCombineHelper) {
+// Tests that `PhoneCombineHelper` can construct a valid phone number from its
+// collected phone components.
+TEST(PhoneCombineHelperTest, SetInfoAndParseNumber) {
   // PhoneCombineHelper is largely covered via PhoneImportAndGetTest. This
   // just tests some remaining edge cases:
 
@@ -284,19 +289,39 @@ TEST(PhoneNumberTest, PhoneCombineHelper) {
 
   // Ensure parsing is possible when falling back to detecting the country code
   // based on the app locale.
-  std::u16string parsed_phone;
-  PhoneNumber::PhoneCombineHelper number2;
-  number2.SetInfo(PHONE_HOME_CITY_CODE, u"650");
-  number2.SetInfo(PHONE_HOME_NUMBER_PREFIX, u"234");
-  number2.SetInfo(PHONE_HOME_NUMBER_SUFFIX, u"5682");
-  EXPECT_TRUE(number2.ParseNumber(
-      // No country code is specified here:
-      AutofillProfile(i18n_model_definition::kLegacyHierarchyCountryCode),
-      kLocale, &parsed_phone));
-  EXPECT_EQ(u"(650) 234-5682", parsed_phone);
+  PhoneNumber::PhoneCombineHelper helper;
+  helper.SetInfo(PHONE_HOME_CITY_CODE, u"650");
+  helper.SetInfo(PHONE_HOME_NUMBER_PREFIX, u"234");
+  helper.SetInfo(PHONE_HOME_NUMBER_SUFFIX, u"5682");
+
+  std::optional<std::u16string> parsed_phone =
+      helper.ParseNumber(AutofillCountry::CountryCodeForLocale(kLocale));
+  ASSERT_TRUE(parsed_phone);
+  EXPECT_EQ(*parsed_phone, u"(650) 234-5682");
 }
 
-TEST(PhoneNumberTest, HelperSetsAllPhoneFieldTypes) {
+// Tests the construction of a `PhoneCombineHelper` instance from a collection
+// of observed field values.
+TEST(PhoneCombineHelperTest, FromObservedValues) {
+  const base::flat_map<FieldType, std::u16string> observed_values = {
+      // Valid phone number components.
+      {PHONE_HOME_CITY_CODE, u"650"},
+      {PHONE_HOME_NUMBER_PREFIX, u"234"},
+      {PHONE_HOME_NUMBER_SUFFIX, u"5682"},
+      // Unrelated field, should be ignored.
+      {EMAIL_ADDRESS, u"test@example.com"}};
+
+  const PhoneNumber::PhoneCombineHelper helper =
+      PhoneNumber::PhoneCombineHelper::FromObservedValues(observed_values);
+
+  std::optional<std::u16string> parsed_phone =
+      helper.ParseNumber(AutofillCountry::CountryCodeForLocale(kLocale));
+  ASSERT_TRUE(parsed_phone);
+  EXPECT_EQ(*parsed_phone, u"(650) 234-5682");
+}
+
+// Tests that `PhoneCombineHelper` can handle all types of phone fields.
+TEST(PhoneCombineHelperTest, SetsAllPhoneFieldTypes) {
   AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
   PhoneNumber phone_number(&profile);
 
@@ -310,6 +335,52 @@ TEST(PhoneNumberTest, HelperSetsAllPhoneFieldTypes) {
     PhoneNumber::PhoneCombineHelper helper;
     helper.SetInfo(type, u"123");
   });
+}
+
+// Tests retrieving the region code from a whole phone number.
+TEST(PhoneCombineHelperTest, GetRegionCodeWholeNumber) {
+  PhoneNumber::PhoneCombineHelper helper;
+  helper.SetInfo(PHONE_HOME_WHOLE_NUMBER, u"+43 1 2345678");
+
+  const std::optional<std::u16string> region = helper.GetRegionCode();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(u"AT", *region);
+}
+
+// Tests retrieving the region code from a combined phone number.
+TEST(PhoneCombineHelperTest, GetRegionCodeCombinedNumber) {
+  const base::flat_map<FieldType, std::u16string> observed_values = {
+      // Valid phone number components.
+      {PHONE_HOME_COUNTRY_CODE, u"+1"},
+      {PHONE_HOME_CITY_CODE, u"650"},
+      {PHONE_HOME_NUMBER_PREFIX, u"234"},
+      {PHONE_HOME_NUMBER_SUFFIX, u"5682"}};
+
+  const PhoneNumber::PhoneCombineHelper helper =
+      PhoneNumber::PhoneCombineHelper::FromObservedValues(observed_values);
+
+  const std::optional<std::u16string> region = helper.GetRegionCode();
+  ASSERT_TRUE(region);
+  EXPECT_EQ(u"US", *region);
+}
+
+// Tests that no region is determined for national whole number, but
+// international phone number components (to be consistent with the behavior of
+// `ParseNumber`).
+TEST(PhoneCombineHelperTest, GetRegionCodeNationalWholeNumber) {
+  const base::flat_map<FieldType, std::u16string> observed_values = {
+      // National whole phone number.
+      {PHONE_HOME_WHOLE_NUMBER, u"0174 12 34 567"},
+      // International phone number components.
+      {PHONE_HOME_COUNTRY_CODE, u"+1"},
+      {PHONE_HOME_CITY_CODE, u"650"},
+      {PHONE_HOME_NUMBER_PREFIX, u"234"},
+      {PHONE_HOME_NUMBER_SUFFIX, u"5682"}};
+
+  const PhoneNumber::PhoneCombineHelper helper =
+      PhoneNumber::PhoneCombineHelper::FromObservedValues(observed_values);
+
+  EXPECT_FALSE(helper.GetRegionCode());
 }
 
 TEST(PhoneNumberTest, InternationalPhoneHomeCityAndNumber_US) {

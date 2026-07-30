@@ -36,9 +36,7 @@ BASE_DECLARE_FEATURE(kGlicOnboardingMetricsMigration);
 
 BASE_DECLARE_FEATURE(kGlicSelectionPrompt);
 extern const base::FeatureParam<bool> kGlicSelectionPromptUpdatesOnly;
-extern const base::FeatureParam<bool> kGlicSelectionPromptEnablePinning;
 extern const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList;
-extern const base::FeatureParam<bool> kGlicSelectionEnableSiteSettings;
 extern const base::FeatureParam<bool> kGlicSelectionShowCopyButtons;
 extern const base::FeatureParam<bool> kGlicSelectionAutoSendPrompt;
 extern const base::FeatureParam<std::string> kGlicSelectionPromptCta;
@@ -121,8 +119,14 @@ BASE_DECLARE_FEATURE(kGlicAnchorEntryPointForOnboardedUsers);
 BASE_DECLARE_FEATURE(kGlicProcessCounterAbuseVerdict);
 BASE_DECLARE_FEATURE(kGlicNoWebUiLoader);
 BASE_DECLARE_FEATURE(kGlicGeminiEnterpriseSettingsEnabled);
+BASE_DECLARE_FEATURE(kGlicGeminiEnterpriseConsentEnabled);
 
 BASE_DECLARE_FEATURE(kGlicHotkeyLocalScope);
+
+BASE_DECLARE_FEATURE(kGlicPasteEligibilityCheck);
+BASE_DECLARE_FEATURE(kGlicWebPasteEligibilityCheck);
+
+BASE_DECLARE_FEATURE(kGlicTabGroups);
 }  // namespace features
 
 #endif  // CHROME_BROWSER_GLIC_PUBLIC_FEATURES_H_

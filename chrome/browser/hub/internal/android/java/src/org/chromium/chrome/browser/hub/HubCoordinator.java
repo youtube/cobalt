@@ -28,7 +28,7 @@ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.hub.HubPaneHostView.OnPaneSwipeListener;
+import org.chromium.chrome.browser.hub.HubPaneHostView.PaneViewProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
@@ -44,7 +44,7 @@ import java.util.List;
 
 /** Root coordinator of the Hub. */
 @NullMarked
-public class HubCoordinator implements PaneHubController, BackPressHandler, OnPaneSwipeListener {
+public class HubCoordinator implements PaneHubController, BackPressHandler, PaneViewProvider {
     private final FrameLayout mContainerView;
     private final ViewGroup mMainHubParent;
     private final PaneManager mPaneManager;
@@ -172,14 +172,14 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
 
         HubPaneHostView hubPaneHostView = mContainerView.findViewById(R.id.hub_pane_host);
         hubPaneHostView.setXrSpaceModeObservableSupplier(xrSpaceModeObservableSupplier);
-        hubPaneHostView.setOnPaneSwipeListener(this);
 
         mHubPaneHostCoordinator =
                 new HubPaneHostCoordinator(
                         hubPaneHostView,
                         paneManager.getFocusedPaneSupplier(),
                         hubColorMixer,
-                        defaultPaneId);
+                        /* defaultPaneId= */ defaultPaneId,
+                        this);
 
         NullableObservableSupplier<View> overlayViewSupplier =
                 mPaneManager
@@ -309,50 +309,65 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
     }
 
     @Override
-    public void onPaneSwipe(boolean isSwipeLeft) {
+    public @Nullable View prepareAndGetAdjacentPaneView(boolean isSwipeLeft) {
+        Pane nextPane = getAdjacentPane(isSwipeLeft);
+        if (nextPane != null) {
+            nextPane.notifyLoadHint(LoadHint.WARM);
+            return nextPane.getRootView();
+        }
+        return null;
+    }
+
+    @Override
+    public void onSwipeSwitchComplete(boolean isSwipeLeft) {
         Pane currentPane = getFocusedPane();
-        if (currentPane == null) return;
+        if (currentPane != null) {
+            RecordUserAction.record("Android.Hub.PaneSwiped");
+            String direction = isSwipeLeft ? "Left" : "Right";
+            RecordHistogram.recordEnumeratedHistogram(
+                    "Android.Hub.PaneSwiped." + direction, currentPane.getPaneId(), PaneId.COUNT);
+        }
 
-        RecordUserAction.record("Android.Hub.PaneSwiped");
-        String direction = isSwipeLeft ? "Left" : "Right";
-        RecordHistogram.recordEnumeratedHistogram(
-                "Android.Hub.PaneSwiped." + direction, currentPane.getPaneId(), PaneId.COUNT);
+        mHubToolbarCoordinator.setBlockTabSelectionCallback(false);
 
-        List<Integer> orderedPaneIds =
-                mPaneManager.getPaneOrderController().getPaneOrder().asList();
-        int currentPaneIndex = orderedPaneIds.indexOf(currentPane.getPaneId());
-        if (currentPaneIndex == INVALID_PANE_SWITCHER_INDEX) return;
-
-        int nextPaneIndex =
-                getAdjacentActivePaneIndex(currentPaneIndex, isSwipeLeft, orderedPaneIds);
-
-        if (nextPaneIndex != INVALID_PANE_SWITCHER_INDEX) {
-            @PaneId int nextPaneId = orderedPaneIds.get(nextPaneIndex);
-            mPaneManager.focusPane(nextPaneId);
+        Pane nextPane = getAdjacentPane(isSwipeLeft);
+        if (nextPane != null) {
+            mPaneManager.focusPane(nextPane.getPaneId());
         }
     }
 
-    private int getAdjacentActivePaneIndex(
-            int currentPaneIndex, boolean isSwipeLeft, List<Integer> orderedPaneIds) {
-        int paneCount = orderedPaneIds.size();
-        if (paneCount <= 1) return INVALID_PANE_SWITCHER_INDEX;
-
-        // Find the next available pane to switch to.
-        for (int i = 1; i < paneCount; i++) {
-            int nextPaneIndex;
-            if (isSwipeLeft) {
-                nextPaneIndex = (currentPaneIndex + i) % paneCount;
-            } else {
-                nextPaneIndex = (currentPaneIndex - i + paneCount) % paneCount;
-            }
-
-            @PaneId int nextPaneId = orderedPaneIds.get(nextPaneIndex);
-            Pane pane = mPaneManager.getPaneForId(nextPaneId);
-            if (pane != null && pane.getReferenceButtonDataSupplier().get() != null) {
-                return nextPaneIndex;
-            }
+    @Override
+    public void onSwipeSwitchCancel(boolean isSwipeLeft) {
+        Pane nextPane = getAdjacentPane(isSwipeLeft);
+        if (nextPane != null) {
+            nextPane.notifyLoadHint(LoadHint.WARM);
         }
-        return INVALID_PANE_SWITCHER_INDEX;
+        mHubToolbarCoordinator.setBlockTabSelectionCallback(false);
+    }
+
+    @Override
+    public void onSwipeDragProgress(float progress, boolean isSwipeLeft) {
+        Pane currentPane = getFocusedPane();
+        Pane nextPane = getAdjacentPane(isSwipeLeft);
+        if (currentPane == null || nextPane == null) return;
+
+        mHubToolbarCoordinator.setBlockTabSelectionCallback(true);
+
+        List<Integer> activePaneIds = mPaneManager.getActivePaneOrder();
+        int currentActiveIndex = activePaneIds.indexOf(currentPane.getPaneId());
+        int nextActiveIndex = activePaneIds.indexOf(nextPane.getPaneId());
+        if (currentActiveIndex == INVALID_PANE_SWITCHER_INDEX
+                || nextActiveIndex == INVALID_PANE_SWITCHER_INDEX) {
+            return;
+        }
+
+        int targetActiveIndex = currentActiveIndex + (isSwipeLeft ? 1 : -1);
+        if (nextActiveIndex == targetActiveIndex) {
+            float absoluteScroll = currentActiveIndex + (isSwipeLeft ? progress : -progress);
+            int scrollPosition = (int) absoluteScroll;
+            float scrollOffset = absoluteScroll - scrollPosition;
+            mHubToolbarCoordinator.setPaneSwitcherScrollPosition(scrollPosition, scrollOffset);
+        }
     }
 
     private boolean selectCurrentTabAndHideHub() {
@@ -379,6 +394,46 @@ public class HubCoordinator implements PaneHubController, BackPressHandler, OnPa
     /** Returns whether the hub has a bottom toolbar. */
     public boolean hasBottomToolbar() {
         return mHubBottomToolbarCoordinator != null;
+    }
+
+    private @Nullable Pane getAdjacentPane(boolean isSwipeLeft) {
+        Pane currentPane = getFocusedPane();
+        if (currentPane == null) return null;
+
+        List<Integer> orderedPaneIds =
+                mPaneManager.getPaneOrderController().getPaneOrder().asList();
+        int currentPaneIndex = orderedPaneIds.indexOf(currentPane.getPaneId());
+        if (currentPaneIndex == INVALID_PANE_SWITCHER_INDEX) return null;
+
+        int nextPaneIndex =
+                getAdjacentActivePaneIndex(currentPaneIndex, isSwipeLeft, orderedPaneIds);
+        if (nextPaneIndex == INVALID_PANE_SWITCHER_INDEX) return null;
+
+        @PaneId int nextPaneId = orderedPaneIds.get(nextPaneIndex);
+        return mPaneManager.getPaneForId(nextPaneId);
+    }
+
+    private int getAdjacentActivePaneIndex(
+            int currentPaneIndex, boolean isSwipeLeft, List<Integer> orderedPaneIds) {
+        int paneCount = orderedPaneIds.size();
+        if (paneCount <= 1) return INVALID_PANE_SWITCHER_INDEX;
+
+        // Find the next available pane to switch to.
+        for (int i = 1; i < paneCount; i++) {
+            int nextPaneIndex;
+            if (isSwipeLeft) {
+                nextPaneIndex = (currentPaneIndex + i) % paneCount;
+            } else {
+                nextPaneIndex = (currentPaneIndex - i + paneCount) % paneCount;
+            }
+
+            @PaneId int nextPaneId = orderedPaneIds.get(nextPaneIndex);
+            Pane pane = mPaneManager.getPaneForId(nextPaneId);
+            if (pane != null && pane.getReferenceButtonDataSupplier().get() != null) {
+                return nextPaneIndex;
+            }
+        }
+        return INVALID_PANE_SWITCHER_INDEX;
     }
 
     private @Nullable Pane getFocusedPane() {

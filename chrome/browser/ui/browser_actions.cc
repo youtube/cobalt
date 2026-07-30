@@ -617,11 +617,9 @@ void BrowserActions::InitializeSidePanelActions() {
                 bwi))
             .SetActionId(kActionSidePanelShowLensOverlayResults)
             .SetText(l10n_util::GetStringUTF16(
-                lens::GetLensOverlayEntrypointLabelAltIds(
-                    IDS_SHOW_LENS_OVERLAY)))
+                lens::GetLensOverlayEntrypointLabelAltIds()))
             .SetTooltipText(l10n_util::GetStringUTF16(
-                lens::GetLensOverlayEntrypointLabelAltIds(
-                    IDS_SIDE_PANEL_LENS_OVERLAY_TOOLBAR_TOOLTIP)))
+                lens::GetLensOverlayEntrypointLabelAltIds()))
             .SetImage(ui::ImageModel::FromVectorIcon(
                 icon, ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetProperty(actions::kActionItemPinnableKey,
@@ -1425,7 +1423,7 @@ void BrowserActions::InitializeChromeMenuActions() {
                           page_action_trigger));
                 }
 
-                chrome::ExecuteCommand(bwi, IDC_BOOKMARK_THIS_TAB);
+                chrome::BookmarkCurrentTab(bwi);
               },
               bwi))
           .SetActionId(kActionBookmarkThisTab)
@@ -2066,7 +2064,11 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
           base::BindRepeating(
               [](BrowserWindowInterface* bwi, actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
-                chrome::ExecuteCommand(bwi, IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR);
+                bwi->GetFeatures()
+                    .browser_command_controller()
+                    ->ShowCustomizeChromeSidePanel(
+                        SidePanelOpenTrigger::kAppMenu,
+                        CustomizeChromeSection::kToolbar);
               },
               bwi))
           .SetActionId(kActionSidePanelShowCustomizeChromeToolbar)
@@ -4116,6 +4118,20 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
               },
               bwi))
           .SetActionId(kActionShowGoogleLensShortcut)
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                if (!bwi) {
+                  return;
+                }
+                chrome::ExecLensOverlay(bwi);
+              },
+              bwi))
+          .SetActionId(kActionShowLensOverlayFromAppMenu)
           .Build());
 
   root_action_item_->AddChild(

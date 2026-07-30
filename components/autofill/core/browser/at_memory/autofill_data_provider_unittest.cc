@@ -294,7 +294,7 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_CreditCardData) {
                          u"My Credit Card"),
               IsMetadata(MemoryDataType::kCreditCardSecurityCode,
                          std::u16string(3, kMidlineEllipsisPlainDot))),
-          /*is_obfuscated=*/false, credit_card.guid())));
+          /*is_obfuscated=*/true, credit_card.guid())));
 
   std::vector<MemorySearchResult> cvc_results = RetrieveAllHelper(
       retriever(),
@@ -315,7 +315,7 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_CreditCardData) {
               IsMetadata(
                   MemoryDataType::kCreditCardNumber,
                   credit_card.ObfuscatedNumberWithVisibleLastFourDigits())),
-          /*is_obfuscated=*/false, credit_card.guid())));
+          /*is_obfuscated=*/true, credit_card.guid())));
 
   std::vector<MemorySearchResult> name_results = RetrieveAllHelper(
       retriever(),
@@ -385,6 +385,81 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_CreditCardData_EmptyFields) {
           /*is_obfuscated=*/false, credit_card.guid())));
 }
 
+// Tests that `RetrieveAll` obfuscates CVC with the number of dots matching the
+// length of the unobfuscated CVC.
+TEST_F(AutofillDataProviderTest,
+       RetrieveAll_CreditCardData_CvcObfuscationLength) {
+  // Card with 4-digit CVC (e.g. American Express with CVC 1234).
+  CreditCard amex_card_with_cvc =
+      test::WithCvc(test::GetCreditCard2(), u"1234");
+  amex_card_with_cvc.SetExpirationYear(2030);
+  amex_card_with_cvc.SetExpirationMonth(10);
+  client().GetPersonalDataManager().test_payments_data_manager().AddCreditCard(
+      amex_card_with_cvc);
+
+  // American Express card without stored CVC (shouldn't be offered).
+  CreditCard amex_card_without_cvc = test::GetCreditCard2();
+  amex_card_without_cvc.set_guid(test::MakeGuid(2));
+  amex_card_without_cvc.SetExpirationYear(2030);
+  amex_card_without_cvc.SetExpirationMonth(10);
+  client().GetPersonalDataManager().test_payments_data_manager().AddCreditCard(
+      amex_card_without_cvc);
+
+  // Direct retrieval for `kCreditCardSecurityCode` should return 4 dots for
+  // card with 4-digit CVC.
+  std::vector<MemorySearchResult> cvc_results = RetrieveAllHelper(
+      retriever(),
+      accessibility_annotator::MemoryDataType::kCreditCardSecurityCode);
+  EXPECT_THAT(
+      cvc_results,
+      UnorderedElementsAre(IsMemorySearchResult(
+          std::u16string(4, kMidlineEllipsisPlainDot),
+          GetMemoryDataTypeNameForI18n(MemoryDataType::kCreditCardSecurityCode),
+          UnorderedElementsAre(
+              IsMetadata(MemoryDataType::kCreditCardNameOnCard,
+                         amex_card_with_cvc.GetRawInfo(CREDIT_CARD_NAME_FULL)),
+              IsMetadata(MemoryDataType::kCreditCardExpirationDate,
+                         amex_card_with_cvc.GetRawInfo(
+                             CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR)),
+              IsMetadata(MemoryDataType::kCreditCardNumber,
+                         amex_card_with_cvc
+                             .ObfuscatedNumberWithVisibleLastFourDigits())),
+          /*is_obfuscated=*/true, amex_card_with_cvc.guid())));
+
+  // Metadata retrieval for `kCreditCardNumber` should include CVC metadata
+  // with 4 dots for the card with stored 4-digit CVC, and omit CVC metadata
+  // for the card without a stored CVC.
+  std::vector<MemorySearchResult> number_results = RetrieveAllHelper(
+      retriever(), accessibility_annotator::MemoryDataType::kCreditCardNumber);
+  EXPECT_THAT(
+      number_results,
+      UnorderedElementsAre(
+          IsMemorySearchResult(
+              amex_card_with_cvc.ObfuscatedNumberWithVisibleLastFourDigits(),
+              GetMemoryDataTypeNameForI18n(MemoryDataType::kCreditCardNumber),
+              UnorderedElementsAre(
+                  IsMetadata(
+                      MemoryDataType::kCreditCardNameOnCard,
+                      amex_card_with_cvc.GetRawInfo(CREDIT_CARD_NAME_FULL)),
+                  IsMetadata(MemoryDataType::kCreditCardExpirationDate,
+                             amex_card_with_cvc.GetRawInfo(
+                                 CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR)),
+                  IsMetadata(MemoryDataType::kCreditCardSecurityCode,
+                             std::u16string(4, kMidlineEllipsisPlainDot))),
+              /*is_obfuscated=*/true, amex_card_with_cvc.guid()),
+          IsMemorySearchResult(
+              amex_card_without_cvc.ObfuscatedNumberWithVisibleLastFourDigits(),
+              GetMemoryDataTypeNameForI18n(MemoryDataType::kCreditCardNumber),
+              UnorderedElementsAre(
+                  IsMetadata(
+                      MemoryDataType::kCreditCardNameOnCard,
+                      amex_card_without_cvc.GetRawInfo(CREDIT_CARD_NAME_FULL)),
+                  IsMetadata(MemoryDataType::kCreditCardExpirationDate,
+                             amex_card_without_cvc.GetRawInfo(
+                                 CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR))),
+              /*is_obfuscated=*/true, amex_card_without_cvc.guid())));
+}
+
 // Tests that RetrieveAll correctly fetches and formats data from
 // EntityDataManager (Autofill AI).
 TEST_F(AutofillDataProviderTest, RetrieveAll_AutofillAiEntityData) {
@@ -398,7 +473,7 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_AutofillAiEntityData) {
   EXPECT_THAT(
       results,
       ElementsAre(IsMemorySearchResult(
-          u"123456", u"Vehicle",
+          u"123456", u"License plate",
           ElementsAre(
               IsMetadata(MemoryDataType::kVehicleMake, u"BMW"),
               IsMetadata(MemoryDataType::kVehicleModel, u"Series 2"),
@@ -422,7 +497,8 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_PassportData) {
 
   auto it = std::find_if(
       results.begin(), results.end(), [](const MemorySearchResult& r) {
-        return r.type == accessibility_annotator::MemoryDataType::kPassportFull;
+        return r.type ==
+               accessibility_annotator::MemoryDataType::kPassportNumber;
       });
   ASSERT_NE(it, results.end());
 
@@ -474,7 +550,7 @@ TEST_F(AutofillDataProviderTest, RetrieveAll_VehicleFallbackToFirstNonEmpty) {
   EXPECT_THAT(
       results,
       ElementsAre(IsMemorySearchResult(
-          u"BMW", u"Vehicle",
+          u"BMW", u"Make",
           ElementsAre(
               IsMetadata(MemoryDataType::kVehicleModel, u"Series 2"),
               IsMetadata(MemoryDataType::kVehiclePlateState, u"California"),

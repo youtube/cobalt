@@ -4,11 +4,9 @@
 
 #include "chrome/browser/ui/views/page_action/webui_page_action_control.h"
 
-#include <optional>
 #include <utility>
 #include <variant>
 
-#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ref.h"
 #include "base/notreached.h"
@@ -18,7 +16,10 @@
 #include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_model.h"
 #include "chrome/browser/ui/page_action/page_action_triggers.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/views/page_action/page_action_view_util.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "components/tabs/public/tab_interface.h"
 #include "mojo/public/mojom/base/error.mojom.h"
@@ -278,6 +279,7 @@ class WebUIPageActionControl::WebUIPageActionDelegate
 
   // The last state sent to the WebUI. Null if the action was not visible.
   toolbar_ui_api::mojom::PageActionStatePtr old_state_;
+  bool was_chip_visible_ = false;
 };
 
 void WebUIPageActionControl::WebUIPageActionDelegate::SetController(
@@ -285,6 +287,7 @@ void WebUIPageActionControl::WebUIPageActionDelegate::SetController(
   observation_.Reset();
   action_item_subscription_ = {};
   controller_ = controller;
+  was_chip_visible_ = false;
 
   if (controller_) {
     controller_->RegisterCallbacks(page_actions::PageActionPassKey(),
@@ -303,6 +306,14 @@ void WebUIPageActionControl::WebUIPageActionDelegate::SetController(
 
 void WebUIPageActionControl::WebUIPageActionDelegate::OnPageActionModelChanged(
     const page_actions::PageActionModelInterface& model) {
+  const bool is_chip_visible =
+      model.GetVisible() && model.ShouldShowSuggestionChip();
+
+  if (model.GetShouldAnnounceChip() && !was_chip_visible_ && is_chip_visible) {
+    owner_->AnnounceAlert(model.GetText());
+  }
+  was_chip_visible_ = is_chip_visible;
+
   toolbar_ui_api::mojom::PageActionStatePtr new_state = GetState();
 
   if (!old_state_.Equals(new_state)) {
@@ -317,6 +328,7 @@ void WebUIPageActionControl::WebUIPageActionDelegate::
   observation_.Reset();
   action_item_subscription_ = {};
   controller_ = nullptr;
+  was_chip_visible_ = false;
   if (old_state_) {
     old_state_ = nullptr;
     owner_->NotifyPageActionStateChanged();
@@ -344,19 +356,17 @@ void WebUIPageActionControl::WebUIPageActionDelegate::NotifyClick(
     PageActionTrigger trigger) {
   click_callback_.Run(trigger);
 
-  action_item_->InvokeAction(
+  auto builder =
       actions::ActionInvocationContext::Builder()
-          .SetProperty(
-              page_actions::kPageActionTriggerKey,
-              static_cast<
-                  std::underlying_type_t<page_actions::PageActionTrigger>>(
-                  trigger))
-          .SetProperty(
-              page_actions::kPageActionEntryPointKey,
-              static_cast<
-                  std::underlying_type_t<page_actions::PageActionEntryPoint>>(
-                  page_actions::PageActionEntryPoint::kSuggestionChip))
-          .Build());
+          .SetProperty(page_actions::kPageActionTriggerKey, trigger)
+          .SetProperty(page_actions::kPageActionEntryPointKey,
+                       page_actions::PageActionEntryPoint::kSuggestionChip);
+  if (auto side_panel_trigger =
+          GetSidePanelOpenTriggerForPageAction(action_item_->GetActionId())) {
+    builder = std::move(builder).SetProperty(kSidePanelOpenTriggerKey,
+                                             *side_panel_trigger);
+  }
+  action_item_->InvokeAction(std::move(builder).Build());
 }
 
 void WebUIPageActionControl::WebUIPageActionDelegate::
@@ -468,6 +478,12 @@ void WebUIPageActionControl::OnPageActionChipShowingChanged(
 void WebUIPageActionControl::NotifyPageActionStateChanged() {
   if (webui_delegate_) {
     webui_delegate_->OnPageActionChanged(GetPageActionStates());
+  }
+}
+
+void WebUIPageActionControl::AnnounceAlert(const std::u16string& announcement) {
+  if (webui_delegate_) {
+    webui_delegate_->AnnounceAlert(announcement);
   }
 }
 

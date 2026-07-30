@@ -821,6 +821,7 @@ chromium-metrics-reviews@google.com.
       label="ProfileContentSettingsPartitionedExceptionsInlineCueMenu"/>
   <int value="100384" label="ProfileDefaultContentSettingValuesInlineCueMenu"/>
   <int value="100385" label="ExtensionsPinnedByDefault"/>
+  <int value="100386" label="AudioFocusEnforcementEnabled"/>
 <!-- LINT.ThenChange(/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc:ChromeSyncablePref)-->
 
 <!-- LINT.IfChange(IosSyncablePref) -->
@@ -1052,6 +1053,8 @@ chromium-metrics-reviews@google.com.
   <int value="79" label="(Obsolete) Accessibility Annotation"/>
   <int value="80" label="Themes (Android)"/>
   <int value="81" label="Encrypted Tab Context Container"/>
+  <int value="82" label="Encrypted Tab Context Item"/>
+  <int value="83" label="Notebook"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->
@@ -1682,6 +1685,7 @@ chromium-metrics-reviews@google.com.
   <int value="190" label="kAutofillValuableMetadataFailedToLoadMetadata"/>
   <int value="191" label="kDataTypeControllerInFailedState"/>
   <int value="192" label="kBookmarksLocalCountExceededLimitAfterInitialMerge"/>
+  <int value="193" label="kTabContextContainerFailedToDeserializeSpecifics"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/model/model_error.h:Type) -->

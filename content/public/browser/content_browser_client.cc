@@ -108,9 +108,6 @@
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
 #endif
 
-using AttributionReportType =
-    content::ContentBrowserClient::AttributionReportingOsRegistrar;
-
 namespace content {
 
 std::unique_ptr<BrowserMainParts> ContentBrowserClient::CreateBrowserMainParts(
@@ -662,43 +659,6 @@ void ContentBrowserClient::OnAuctionComplete(
     bool is_server_auction,
     bool is_on_device_auction,
     AuctionResult result) {}
-
-network::mojom::AttributionSupport ContentBrowserClient::GetAttributionSupport(
-    AttributionReportingOsApiState state,
-    bool client_os_disabled) {
-  switch (state) {
-    case AttributionReportingOsApiState::kDisabled:
-      return network::mojom::AttributionSupport::kWeb;
-    case AttributionReportingOsApiState::kEnabled:
-      return client_os_disabled ? network::mojom::AttributionSupport::kWeb
-                                : network::mojom::AttributionSupport::kWebAndOs;
-  }
-}
-
-bool ContentBrowserClient::IsAttributionReportingOperationAllowed(
-    content::BrowserContext* browser_context,
-    AttributionReportingOperation operation,
-    content::RenderFrameHost* rfh,
-    const url::Origin* source_origin,
-    const url::Origin* destination_origin,
-    const url::Origin* reporting_origin,
-    bool* can_bypass) {
-  return true;
-}
-
-ContentBrowserClient::AttributionReportingOsRegistrars
-ContentBrowserClient::GetAttributionReportingOsRegistrars(
-    WebContents* web_contents) {
-  return {AttributionReportType::kWeb, AttributionReportType::kWeb};
-}
-
-bool ContentBrowserClient::IsAttributionReportingAllowedForContext(
-    content::BrowserContext* browser_context,
-    content::RenderFrameHost* rfh,
-    const url::Origin& context_origin,
-    const url::Origin& reporting_origin) {
-  return true;
-}
 
 bool ContentBrowserClient::IsSharedStorageAllowed(
     content::BrowserContext* browser_context,
@@ -1646,6 +1606,12 @@ bool ContentBrowserClient::ShouldServiceWorkerInheritPolicyContainerFromCreator(
   return url.SchemeIsLocal();
 }
 
+bool ContentBrowserClient::
+    ShouldServiceWorkerRequireForegroundPriorityDuringStartup(
+        const GURL& script_url) {
+  return false;
+}
+
 void ContentBrowserClient::GrantAdditionalRequestPrivilegesToWorkerProcess(
     int child_id,
     const GURL& script_url) {}
@@ -2109,11 +2075,8 @@ void ContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
     network::mojom::NetworkContextParams* params) {}
 
 bool ContentBrowserClient::OriginSupportsConcreteCrossOriginIsolation(
+    content::BrowserContext* browser_context,
     const url::Origin& origin) {
-  return true;
-}
-
-bool ContentBrowserClient::IsAttributionInternalsWebUIEnabled() {
   return true;
 }
 
@@ -2121,5 +2084,12 @@ bool ContentBrowserClient::IsFullscreenAllowedForUnfocusedWebContents(
     content::WebContents* unfocused_web_contents) {
   return false;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+bool ContentBrowserClient::ShouldAllowSystemUiPopups(
+    content::WebContents* web_contents) {
+  return true;
+}
+#endif
 
 }  // namespace content

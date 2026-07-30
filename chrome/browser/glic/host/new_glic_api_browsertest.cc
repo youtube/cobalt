@@ -183,6 +183,7 @@ using ::testing::UnorderedElementsAre;
 std::vector<std::string> GetTestSuiteNames() {
   std::vector<std::string> names = {
       "NewGlicApiTest",
+      "NewGlicApiTestNoFloatyOrLiveMode",
       "NewGlicApiTestForNoWebUiLoader",
       "NewGlicApiTestWithFastTimeout",
       "NewGlicApiTestWithWebContentsWarming",
@@ -199,6 +200,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiScrollToTest",
       "NewGlicApiTestWithExperimentalTriggeringScreenshot",
 #if !BUILDFLAG(IS_ANDROID)
+      "NewGlicApiTestWithFileUploadPolicyEnabled",
       "NewGlicApiTestWithSkills",
       "NewGlicApiTestWithNewTabDaisyChain",
 #endif
@@ -359,6 +361,20 @@ class NewGlicApiTest : public GlicApiBrowserTest,
   base::test::ScopedFeatureList features_;
 };
 
+class NewGlicApiTestNoFloatyOrLiveMode : public NewGlicApiTest {
+ public:
+  NewGlicApiTestNoFloatyOrLiveMode() {
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {},
+        /*disabled_features=*/
+        {features::kGlicLiveMode});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 class NewGlicApiTestWithFastTimeout : public NewGlicApiTest {
  public:
   NewGlicApiTestWithFastTimeout() {
@@ -433,7 +449,7 @@ class NewGlicApiTestWithWebContentsWarming : public NewGlicApiTest {
 
   void SetUpOnMainThread() override {
     NewGlicApiTest::SetUpOnMainThread();
-    coordinator().GetWebContentsWarmingPoolForTesting().Clear(std::nullopt);
+    coordinator().GetWebContentsWarmingPoolForTesting().Shutdown();
   }
 
  private:
@@ -508,6 +524,42 @@ class NewGlicApiTestWithExperimentalTriggeringScreenshot
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextDisabled,
                        testDefaultTabContextApiIsUndefinedWhenFeatureDisabled) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testCanAttachPanelDetachedTabClosed \
+  DISABLED_testCanAttachPanelDetachedTabClosed
+#else
+#define MAYBE_testCanAttachPanelDetachedTabClosed \
+  testCanAttachPanelDetachedTabClosed
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextDisabled,
+                       MAYBE_testCanAttachPanelDetachedTabClosed) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  // Save first tab.
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetActiveTab();
+
+  // Runs the JS test until the first `advanceToNextStep()`.
+  ExecuteJsTest();
+
+  // The JS test is now paused.
+  // Add a new tab to keep the browser alive before closing the active tab.
+  CreateAndActivateTab(
+      embedded_test_server()->GetURL("/glic/browser_tests/test.html"));
+  first_tab->Close();
+
+  // Continue the JS test to verify canAttachPanel becomes false.
+  ContinueJsTest();
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testAttachPanel DISABLED_testAttachPanel
+#else
+#define MAYBE_testAttachPanel testAttachPanel
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testAttachPanel) {
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
 }
@@ -739,6 +791,226 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCanAttachPanelDetached) {
   ExecuteJsTest();
 }
 
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testDetachPanel DISABLED_testDetachPanel
+#else
+#define MAYBE_testDetachPanel testDetachPanel
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testDetachPanel) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testMultiplePanelsAttachedAndDetached \
+  DISABLED_testMultiplePanelsAttachedAndDetached
+#else
+#define MAYBE_testMultiplePanelsAttachedAndDetached \
+  testMultiplePanelsAttachedAndDetached
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       MAYBE_testMultiplePanelsAttachedAndDetached) {
+  // Save first tab (already active and navigated in SetUpOnMainThread).
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetActiveTab();
+
+  // Create a second tab.
+  tabs::TabInterface* second_tab = CreateAndActivateTab(
+      embedded_test_server()->GetURL("/glic/browser_tests/test.html"));
+
+  // Go back to the first tab.
+  ActivateTab(first_tab);
+
+  // Open Glic for the first tab.
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab0_instance = GetInstanceForTab(first_tab);
+  ASSERT_TRUE(tab0_instance);
+
+  // Execute test on the first tab instance.
+  ExecuteJsTest({.params = base::Value("first"), .instance = tab0_instance});
+
+  // Select the second tab and open glic.
+  ActivateTab(second_tab);
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab1_instance = GetInstanceForTab(second_tab);
+  ASSERT_TRUE(tab1_instance);
+
+  // Execute test on the second instance.
+  ExecuteJsTest({.params = base::Value("second"), .instance = tab1_instance});
+
+  // Continue on the first tab.
+  ContinueJsTest({.instance = tab0_instance});
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testThereCanOnlyBeOneFloaty DISABLED_testThereCanOnlyBeOneFloaty
+#else
+#define MAYBE_testThereCanOnlyBeOneFloaty testThereCanOnlyBeOneFloaty
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testThereCanOnlyBeOneFloaty) {
+  // Save first tab (already active and navigated in SetUpOnMainThread).
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetActiveTab();
+
+  // Create a second tab.
+  tabs::TabInterface* second_tab = CreateAndActivateTab(
+      embedded_test_server()->GetURL("/glic/browser_tests/test.html"));
+
+  // Go back to the first tab.
+  ActivateTab(first_tab);
+
+  // Open Glic for the first tab.
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab0_instance = GetInstanceForTab(first_tab);
+  ASSERT_TRUE(tab0_instance);
+
+  // Execute test on the first tab instance.
+  ExecuteJsTest({.params = base::Value("first"), .instance = tab0_instance});
+  // Verify that the first tab instance is detached before opening the second
+  // tab.
+  ASSERT_EQ(mojom::PanelStateKind::kDetached,
+            tab0_instance->GetPanelState().kind);
+
+  // Select the second tab, open Floaty, and execute the test on the second
+  // instance.
+  ActivateTab(second_tab);
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab1_instance = GetInstanceForTab(second_tab);
+  ASSERT_TRUE(tab1_instance);
+  ExecuteJsTest({.params = base::Value("second"), .instance = tab1_instance});
+
+  // Continue on the first tab. Verify there's only one Floaty.
+  ContinueJsTest({.instance = tab0_instance});
+
+  ASSERT_EQ(mojom::PanelStateKind::kDetached,
+            tab1_instance->GetPanelState().kind);
+  ASSERT_EQ(mojom::PanelStateKind::kHidden,
+            tab0_instance->GetPanelState().kind);
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testSwitchConversationWithEmptyId \
+  DISABLED_testSwitchConversationWithEmptyId
+#else
+#define MAYBE_testSwitchConversationWithEmptyId \
+  testSwitchConversationWithEmptyId
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       MAYBE_testSwitchConversationWithEmptyId) {
+  glic::GlicHistogramTester histogram_tester;
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  ExecuteJsTest({.params = base::Value("initiateSwitch")});
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return histogram_tester.GetBucketCount(
+               "Glic.Interaction.SwitchConversationTarget",
+               GlicSwitchConversationTarget::kStartNewConversation) == 1;
+  }));
+
+  // Verify that the active instance now has no conversation ID (std::nullopt)
+  // because it switched to a new conversation with an empty ID.
+  ASSERT_FALSE(GetOnlyGlicInstance()->conversation_id());
+
+  // Verify that GetConversationInfo() returns the info for the new
+  // conversation.
+  mojom::ConversationInfoPtr retrieved_info =
+      GetOnlyGlicInstance()->GetConversationInfo();
+  EXPECT_EQ("", retrieved_info->conversation_id);
+  EXPECT_EQ("Empty Switched Title", retrieved_info->conversation_title);
+  EXPECT_EQ("test_client_data_from_ts", retrieved_info->client_data);
+
+  // Verify that client data was received by the new client.
+  ExecuteJsTest({.params = base::Value("verifyNewInstance")});
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testTabSwitchDoesNotLogActivationMetric \
+  DISABLED_testTabSwitchDoesNotLogActivationMetric
+#else
+#define MAYBE_testTabSwitchDoesNotLogActivationMetric \
+  testTabSwitchDoesNotLogActivationMetric
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       MAYBE_testTabSwitchDoesNotLogActivationMetric) {
+  glic::GlicHistogramTester histogram_tester;
+  // Save first tab (already active and navigated in SetUpOnMainThread).
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetActiveTab();
+
+  // Open Glic for the first tab.
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab0_instance = GetInstanceForTab(first_tab);
+  ASSERT_TRUE(tab0_instance);
+
+  ExecuteJsTest({.params = base::Value("first"), .instance = tab0_instance});
+
+  // Open a second tab and navigate it.
+  tabs::TabInterface* second_tab =
+      CreateAndActivateTab(GetTestUrl("page.html"));
+
+  // Open Glic for the second tab.
+  ASSERT_OK(OpenGlicForActiveTab());
+  GlicInstanceImpl* tab1_instance = GetInstanceForTab(second_tab);
+  ASSERT_TRUE(tab1_instance);
+
+  ExecuteJsTest({.params = base::Value("second"), .instance = tab1_instance});
+
+  auto* service = GlicKeyedServiceFactory::GetGlicKeyedService(GetProfile());
+  auto& coordinator = static_cast<GlicInstanceCoordinatorImpl&>(
+      service->instance_coordinator());
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return coordinator.GetInstances().size() == 1u; }));
+  ASSERT_EQ("A", GetOnlyGlicInstance()->conversation_id());
+
+  // Switch back to the first tab.
+  ActivateTab(first_tab);
+
+  // The original switch to tab 2 deactivated the first instance so this is
+  // expected to log once when we reactivate the first instance in tab 2.
+  histogram_tester.ExpectTotalCount("Glic.Instance.TimeSinceLastActive", 1);
+
+  // Switch back to the second tab.
+  ActivateTab(second_tab);
+
+  // active instance switching to the same instance in a new tab DOES NOT log
+  // the TimeSinceLastActive metric.
+  histogram_tester.ExpectTotalCount("Glic.Instance.TimeSinceLastActive", 1);
+
+  ContinueJsTest({.instance = GetOnlyGlicInstance()});
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testDetachDoesNotLogActivationMetric \
+  DISABLED_testDetachDoesNotLogActivationMetric
+#else
+#define MAYBE_testDetachDoesNotLogActivationMetric \
+  testDetachDoesNotLogActivationMetric
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
+                       MAYBE_testDetachDoesNotLogActivationMetric) {
+  glic::GlicHistogramTester histogram_tester;
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest({.params = base::Value("registerAndDetach")});
+
+  // Verify conversation ID.
+  ASSERT_EQ("A", GetOnlyGlicInstance()->conversation_id());
+
+  // Verify no spurious activation metric.
+  histogram_tester.ExpectTotalCount("Glic.Instance.TimeSinceLastActive", 0);
+}
+
+#if defined(NOT_VETTED_ON_ANDROID)
+#define MAYBE_testDetachPanelNoFloatyOrLiveMode \
+  DISABLED_testDetachPanelNoFloatyOrLiveMode
+#else
+#define MAYBE_testDetachPanelNoFloatyOrLiveMode \
+  testDetachPanelNoFloatyOrLiveMode
+#endif
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestNoFloatyOrLiveMode,
+                       MAYBE_testDetachPanelNoFloatyOrLiveMode) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
 class NewGlicApiTestWithWebActuationSettingEnabled : public NewGlicApiTest {
  public:
   NewGlicApiTestWithWebActuationSettingEnabled() {
@@ -793,6 +1065,36 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+class NewGlicApiTestWithFileUploadPolicyEnabled : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithFileUploadPolicyEnabled() {
+    feature_list_.InitWithFeatures({features::kGlicDragAndDropFileUpload,
+                                    features::kGlicWebDragAndDropFileUpload},
+                                   {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithFileUploadPolicyEnabled,
+                       testGetFileUploadAllowedCapability) {
+  // Set default state to allowed
+  GetProfile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicFileUploadAllowed,
+      std::to_underlying(glic::prefs::GlicFileUploadPolicyState::kEnabled));
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  // Change pref to disabled
+  GetProfile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicFileUploadAllowed,
+      std::to_underlying(glic::prefs::GlicFileUploadPolicyState::kDisabled));
+  ContinueJsTest();
+}
+#endif
 
 class NewGlicApiTestWithContextualCueing : public NewGlicApiTest {
  public:
@@ -2214,7 +2516,9 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiMultiProfileTest, testGetContextCrossProfile) {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebContentsWarming,
                        testWebClientReadyOnFullLoad) {
-  coordinator().GetWebContentsWarmingPoolForTesting().EnsurePreload();
+  ASSERT_TRUE(coordinator()
+                  .GetWebContentsWarmingPoolForTesting()
+                  .MaybeStartInitialWarming());
   ASSERT_OK(RunUntilEqual(
       [&]() {
         return coordinator()
@@ -2871,6 +3175,11 @@ INSTANTIATE_TEST_SUITE_P(,
                          &WithTestParams::PrintTestVariant);
 
 INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestNoFloatyOrLiveMode,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithFastTimeout,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
@@ -2945,8 +3254,12 @@ INSTANTIATE_TEST_SUITE_P(,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 
-// TODO(b/520114620): Skills are not supported yet on Android.
 #if !BUILDFLAG(IS_ANDROID)
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithFileUploadPolicyEnabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+// TODO(b/520114620): Skills are not supported yet on Android.
 INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithSkills,
                          DefaultTestParamSet(),
@@ -2984,6 +3297,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GlicApiScrollToTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithExperimentalTriggeringScreenshot);
 #if !BUILDFLAG(IS_ANDROID)
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithFileUploadPolicyEnabled);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestWithSkills);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithNewTabDaisyChain);

@@ -483,9 +483,23 @@ void ChromeAutofillClientIOS::HideSuggestions(
 }
 
 bool ChromeAutofillClientIOS::IsAutofillEnabled() const {
-  return IsAutofillProfileEnabled() ||
-         AutofillClient::GetPaymentsAutofillClient()
-             ->IsAutofillPaymentMethodsEnabled();
+  if (IsAutofillProfileEnabled() || AutofillClient::GetPaymentsAutofillClient()
+                                        ->IsAutofillPaymentMethodsEnabled()) {
+    return true;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableAutofillSettingsEnterprisePolicy)) {
+    const GURL& url = GetLastCommittedPrimaryMainFrameURL();
+    return !IsAutofillTypeBlockedByPolicy(
+               url, AutofillPolicyDataCategory::kIdentityDocs) ||
+           !IsAutofillTypeBlockedByPolicy(
+               url, AutofillPolicyDataCategory::kTravel) ||
+           !IsAutofillTypeBlockedByPolicy(
+               url, AutofillPolicyDataCategory::kShopping);
+  }
+
+  return false;
 }
 
 bool ChromeAutofillClientIOS::IsAutofillProfileEnabled() const {
@@ -522,6 +536,10 @@ bool ChromeAutofillClientIOS::IsAutocompleteEnabled() const {
 bool ChromeAutofillClientIOS::IsPasswordManagerEnabled() const {
   return GetPrefs()->GetBoolean(
       password_manager::prefs::kCredentialsEnableService);
+}
+
+bool ChromeAutofillClientIOS::UsesPlatformAutofill() const {
+  return false;
 }
 
 bool ChromeAutofillClientIOS::IsContextSecure() const {

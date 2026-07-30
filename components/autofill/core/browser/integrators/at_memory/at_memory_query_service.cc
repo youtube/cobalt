@@ -23,17 +23,25 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_data_type_util.h"
+#include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/at_memory/autofill_data_provider.h"
-#include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service_delegate.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/device_reauth/device_authenticator.h"
 #include "components/personal_context/core/personal_context_debug_features.h"
 #include "components/personal_context/core/personal_context_service.h"
 #include "components/personal_context/proto/context_memory_service.pb.h"
 #include "components/personal_context/proto/features/at_memory.pb.h"
-#include "components/personal_context/proto/features/common_data.pb.h"
 #include "net/base/network_change_notifier.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "url/gurl.h"
 
 namespace autofill {
 
@@ -312,9 +320,13 @@ GetSupportedLocalDataTypes() {
 
 personal_context::proto::AtMemoryQueryRequest BuildAtMemoryQueryRequest(
     std::u16string_view query,
+    const GURL& url,
+    std::u16string_view title,
     const std::string& locale) {
   personal_context::proto::AtMemoryQueryRequest request;
   request.set_input_query(base::UTF16ToUTF8(query));
+  request.set_url(url.spec());
+  request.set_title(base::UTF16ToUTF8(title));
   request.set_locale(locale);
   for (auto type : GetSupportedLocalDataTypes()) {
     request.add_supported_local_data_types(type);
@@ -356,27 +368,168 @@ size_t CountFilterWordMatchesInEntry(
   return count;
 }
 
+// Returns a string_view to the value of the given `type` in the `result`, or
+// `std::nullopt` if it doesn't exist. This checks both the primary result type
+// and the `metadata_list`. If the attribute was the primary attribute when
+// creating the result from an entity, it might have been omitted from the
+// `metadata_list`. In that case, we can use `result.type`
+// to identify it.
+std::optional<std::u16string_view> GetValueForMemoryDataType(
+    const MemorySearchResult& result,
+    MemoryDataType type) {
+  if (result.type == type) {
+    return result.value;
+  }
+  auto it = std::ranges::find(result.metadata_list, type, &EntryMetadata::type);
+  if (it != result.metadata_list.end()) {
+    return it->value;
+  }
+  return std::nullopt;
+}
+
+// Returns whether two results are considered duplicates and should be merged.
+// To be a duplicate, both results must have the exact same textual `value`.
+// Since two identical values (e.g. "Peter") could come from two different
+// real-world entities (e.g. two separate passports), we also need to ensure
+// they originate from the same real-world entity.
+//
+// For Autofill AI Entities, we determine if they come from the same real-world
+// entity by checking if they satisfy "merge constraints" from the entity schema
+// (e.g. if both search results belong to passports with the same passport
+// number). If they do and their `value`s match, we deduplicate them so we
+// don't show the user two identical suggestions.
+//
+// For other Autofill data types (Addresses, CreditCards, Ibans) and unknown
+// types, determining if they come from the same real-world entity is done by
+// checking that there is no contradicting metadata.
+bool AreResultsDuplicates(const MemorySearchResult& a,
+                          const MemorySearchResult& b) {
+  if (a.type != b.type) {
+    return false;
+  }
+  if (a.type == MemoryDataType::kUnknown &&
+      (a.type_name != b.type_name || a.type_name.empty())) {
+    return false;
+  }
+  if (a.value != b.value) {
+    return false;
+  }
+
+  std::optional<AtMemoryDataType> at_memory_type = ToAtMemoryDataType(a.type);
+  std::optional<EntityType> entity_type;
+  if (at_memory_type) {
+    std::visit(
+        absl::Overload([&](const EntityType& e_type) { entity_type = e_type; },
+                       [&](const AttributeType& a_type) {
+                         // Extract the parent entity type to use its merge
+                         // constraints for deduplication.
+                         entity_type = a_type.entity_type();
+                       },
+                       [](const auto&) {}),
+        *at_memory_type);
+  }
+
+  if (entity_type) {
+    // For Autofill AI entities, we can use merge constraints to evaluate if
+    // `a` and `b` correspond to the same entity.
+    for (const DenseSet<AttributeType>& constraint :
+         entity_type->merge_constraints()) {
+      if (std::ranges::all_of(constraint, [&](AttributeType attr_type) {
+            MemoryDataType mem_type = AttributeTypeToMemoryDataType(attr_type);
+            std::optional<std::u16string_view> val_a =
+                GetValueForMemoryDataType(a, mem_type);
+            std::optional<std::u16string_view> val_b =
+                GetValueForMemoryDataType(b, mem_type);
+            return val_a && val_b && *val_a == *val_b;
+          })) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  auto has_contradicting_metadata = [](const MemorySearchResult& result,
+                                       const EntryMetadata& meta) {
+    return std::ranges::any_of(
+        result.metadata_list, [&meta](const EntryMetadata& result_meta) {
+          return result_meta.type == meta.type &&
+                 result_meta.type_name == meta.type_name &&
+                 result_meta.value != meta.value;
+        });
+  };
+
+  return std::ranges::all_of(a.metadata_list,
+                             [&](const EntryMetadata& meta_a) {
+                               return !has_contradicting_metadata(b, meta_a);
+                             }) &&
+         std::ranges::all_of(b.metadata_list, [&](const EntryMetadata& meta_b) {
+           return !has_contradicting_metadata(a, meta_b);
+         });
+}
+
+// Returns the number of metadata fields in the result that have a non-empty
+// value.
+int CountNonEmptyMetadata(const MemorySearchResult& result) {
+  return std::ranges::count_if(
+      result.metadata_list,
+      [](const EntryMetadata& meta) { return !meta.value.empty(); });
+}
+
+// Returns whether the result has Autofill as a source.
+bool IsAutofillSourced(const MemorySearchResult& result) {
+  return std::ranges::contains(result.sources, MemoryEntrySourceType::kAutofill,
+                               &MemoryEntrySource::type);
+}
+
+// Primary logic for resolving duplicates.
+// Returns `true` if `first` should be preferred over `second`.
+// Specifically:
+// 1. Pick explicitly saved local Autofill entities first.
+// 2. Otherwise pick the one with more valid metadata fields.
+// 3. In case of a tie, prioritize Autofill-sourced provider if possible.
+bool PreferFirstResult(const MemorySearchResult& first,
+                       const MemorySearchResult& second) {
+  bool first_is_local = first.is_local;
+  bool second_is_local = second.is_local;
+  if (first_is_local != second_is_local) {
+    return first_is_local;
+  }
+
+  int first_metadata = CountNonEmptyMetadata(first);
+  int second_metadata = CountNonEmptyMetadata(second);
+  if (first_metadata != second_metadata) {
+    return first_metadata > second_metadata;
+  }
+
+  bool first_is_autofill = IsAutofillSourced(first);
+  bool second_is_autofill = IsAutofillSourced(second);
+  if (first_is_autofill != second_is_autofill) {
+    return first_is_autofill;
+  }
+
+  return true;
+}
+
 // Deduplicates search results in `MemorySearchResults`.
-// An entry is considered a duplicate if its `type`, `value` and its
-// `metadata_list` are identical to an entry already in the unique set.
-// The first occurrence of a duplicate entry is preserved, maintaining its
-// relative order and other fields (like confidence_score). The `sources` of
-// subsequent duplicates are merged into the preserved entry.
+// For Autofill AI entities, we use merge constraints to evaluate if results
+// correspond to the same underlying entity. When duplicates are found, only the
+// "better" result is kept. The better result is determined by
+// `PreferFirstResult()`, which prioritizes locally stored entities (like
+// addresses or credit cards) and falls back to comparing which result has
+// more complete metadata. The `sources` from the discarded duplicate are
+// intentionally not merged, as we only want to keep the actually relevant
+// sources that link to the correct "manage" UI surface for the kept entry.
 void DeduplicateResults(std::vector<MemorySearchResult>& results) {
   std::vector<MemorySearchResult> unique_results;
   unique_results.reserve(results.size());
   for (MemorySearchResult& result : results) {
     auto it = std::ranges::find_if(
         unique_results, [&result](const MemorySearchResult& existing) {
-          return existing.type == result.type &&
-                 existing.value == result.value &&
-                 existing.metadata_list == result.metadata_list;
+          return AreResultsDuplicates(existing, result);
         });
     if (it != unique_results.end()) {
-      for (MemoryEntrySource& source : result.sources) {
-        if (!std::ranges::contains(it->sources, source)) {
-          it->sources.push_back(std::move(source));
-        }
+      if (!PreferFirstResult(*it, result)) {
+        *it = std::move(result);
       }
     } else {
       unique_results.push_back(std::move(result));
@@ -385,9 +538,34 @@ void DeduplicateResults(std::vector<MemorySearchResult>& results) {
   results = std::move(unique_results);
 }
 
+// Reorders secondary metadata attributes in each suggestion by uniqueness.
+// Attributes with lower frequency of the same type (more unique values for a
+// given attribute type across all suggestions) appear first. Ties preserve
+// their original relative order.
+// TODO(crbug.com/535951437): Improve handling on `MemoryDataType::kUnknown`
+// results.
+void ReorderMetadataByUniqueness(std::vector<MemorySearchResult>& results) {
+  absl::flat_hash_map<std::pair<MemoryDataType, std::u16string>, size_t>
+      frequency_map;
+  for (const MemorySearchResult& result : results) {
+    for (const EntryMetadata& metadata : result.metadata_list) {
+      frequency_map[{metadata.type, metadata.value}]++;
+    }
+  }
+
+  for (MemorySearchResult& result : results) {
+    std::ranges::stable_sort(result.metadata_list,
+                             /*comp=*/{},
+                             /*proj=*/[&frequency_map](const EntryMetadata& m) {
+                               return frequency_map[{m.type, m.value}];
+                             });
+  }
+}
+
 // Filters search results by retaining only those entries that have the maximum
-// number of matching filter words. If `filter_words` is empty or if no entry
-// matches any filter word, all entries are returned.
+// number of matching filter words. If `filter_words` is empty, all entries are
+// returned. If `filter_words` is provided but no entry matches any filter word,
+// an empty vector is returned.
 std::vector<MemorySearchResult> FilterResults(
     const std::vector<MemorySearchResult>& entries,
     const base::flat_set<std::u16string>& filter_words) {
@@ -396,10 +574,13 @@ std::vector<MemorySearchResult> FilterResults(
   }
 
   std::vector<MemorySearchResult> filtered_entries;
-  filtered_entries.reserve(entries.size());
   size_t max_matches = 0;
   for (const MemorySearchResult& entry : entries) {
     size_t count = CountFilterWordMatchesInEntry(entry, filter_words);
+    if (count <= 0) {
+      continue;
+    }
+
     if (count > max_matches) {
       max_matches = count;
       filtered_entries.clear();
@@ -611,37 +792,185 @@ void QueryPersonalContextDebug(
           [](base::RepeatingCallback<void(MemorySearchResults)> update_cb,
              std::vector<MemorySearchResult> results) {
             DeduplicateResults(results);
+            ReorderMetadataByUniqueness(results);
             update_cb.Run(MemorySearchResults(
                 MemorySearchStatus::kFinalResponseSuccess, std::move(results)));
           },
           std::move(update_callback)));
 }
 
+// Extracts the unmasked PII value from `entity` based on the requested
+// `data_type`.
+std::optional<std::u16string> GetUnmaskedPiiFromEntity(
+    const personal_context::proto::Entity& entity,
+    MemoryDataType data_type) {
+  switch (data_type) {
+    case MemoryDataType::kPassportNumber:
+    case MemoryDataType::kPassportFull:
+      if (entity.has_passport()) {
+        return base::UTF8ToUTF16(entity.passport().number());
+      }
+      break;
+    case MemoryDataType::kDriversLicenseNumber:
+    case MemoryDataType::kDriversLicenseFull:
+      if (entity.has_drivers_license()) {
+        return base::UTF8ToUTF16(entity.drivers_license().number());
+      }
+      break;
+    case MemoryDataType::kNationalIdCardNumber:
+    case MemoryDataType::kNationalIdCardFull:
+      if (entity.has_national_id()) {
+        return base::UTF8ToUTF16(entity.national_id().number());
+      }
+      break;
+    case MemoryDataType::kKnownTravelerNumberNumber:
+    case MemoryDataType::kKnownTravelerNumberFull:
+      if (entity.has_known_traveler_number()) {
+        return base::UTF8ToUTF16(entity.known_traveler_number().number());
+      }
+      break;
+    case MemoryDataType::kUnknown:
+    case MemoryDataType::kNameFull:
+    case MemoryDataType::kAddressFull:
+    case MemoryDataType::kAddressStreetAddress:
+    case MemoryDataType::kAddressCity:
+    case MemoryDataType::kAddressState:
+    case MemoryDataType::kAddressZip:
+    case MemoryDataType::kAddressCountry:
+    case MemoryDataType::kPhone:
+    case MemoryDataType::kEmail:
+    case MemoryDataType::kCompanyName:
+    case MemoryDataType::kIban:
+    case MemoryDataType::kIbanNickname:
+    case MemoryDataType::kVehicle:
+    case MemoryDataType::kVehicleMake:
+    case MemoryDataType::kVehicleModel:
+    case MemoryDataType::kVehicleYear:
+    case MemoryDataType::kVehicleOwner:
+    case MemoryDataType::kVehiclePlateNumber:
+    case MemoryDataType::kVehiclePlateState:
+    case MemoryDataType::kVehicleVin:
+    case MemoryDataType::kPassportName:
+    case MemoryDataType::kPassportCountry:
+    case MemoryDataType::kPassportIssueDate:
+    case MemoryDataType::kPassportExpirationDate:
+    case MemoryDataType::kFlightReservationFull:
+    case MemoryDataType::kFlightReservationFlightNumber:
+    case MemoryDataType::kFlightReservationTicketNumber:
+    case MemoryDataType::kFlightReservationConfirmationCode:
+    case MemoryDataType::kFlightReservationPassengerName:
+    case MemoryDataType::kFlightReservationDepartureAirport:
+    case MemoryDataType::kFlightReservationArrivalAirport:
+    case MemoryDataType::kFlightReservationDepartureDate:
+    case MemoryDataType::kFlightReservationArrivalDate:
+    case MemoryDataType::kShipmentFull:
+    case MemoryDataType::kShipmentTrackingNumber:
+    case MemoryDataType::kShipmentAssociatedOrderId:
+    case MemoryDataType::kShipmentDeliveryAddress:
+    case MemoryDataType::kShipmentDeliveryZipCode:
+    case MemoryDataType::kShipmentCarrierName:
+    case MemoryDataType::kShipmentCarrierDomain:
+    case MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case MemoryDataType::kShipmentShippedDate:
+    case MemoryDataType::kNationalIdCardName:
+    case MemoryDataType::kNationalIdCardCountry:
+    case MemoryDataType::kNationalIdCardIssueDate:
+    case MemoryDataType::kNationalIdCardExpirationDate:
+    case MemoryDataType::kRedressNumberFull:
+    case MemoryDataType::kRedressNumberName:
+    case MemoryDataType::kRedressNumberNumber:
+    case MemoryDataType::kKnownTravelerNumberName:
+    case MemoryDataType::kKnownTravelerNumberExpirationDate:
+    case MemoryDataType::kDriversLicenseName:
+    case MemoryDataType::kDriversLicenseState:
+    case MemoryDataType::kDriversLicenseIssueDate:
+    case MemoryDataType::kDriversLicenseExpirationDate:
+    case MemoryDataType::kOrderFull:
+    case MemoryDataType::kOrderId:
+    case MemoryDataType::kOrderAccount:
+    case MemoryDataType::kOrderDate:
+    case MemoryDataType::kOrderMerchantName:
+    case MemoryDataType::kOrderMerchantDomain:
+    case MemoryDataType::kOrderProductNames:
+    case MemoryDataType::kOrderGrandTotal:
+    case MemoryDataType::kCreditCardNumber:
+    case MemoryDataType::kCreditCardExpirationDate:
+    case MemoryDataType::kCreditCardSecurityCode:
+    case MemoryDataType::kCreditCardNameOnCard:
+    case MemoryDataType::kCreditCardNickname:
+      return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+// Runs the callback asynchronously on the current sequenced task runner.
+// Used to ensure consistently asynchronous callback execution across all paths,
+// including fast-fail and cancellation paths.
+void RunCallbackAsync(
+    AtMemoryQueryService::FetchUnmaskedPiiEntitiesCallback callback,
+    AtMemoryQueryService::SpiiRetrievalResult result) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
+}
+
+// Called when `PersonalContextService` returns the unmasked PII entities.
+// Extracts the unmasked string matching `data_type` and runs the `callback`
+// with the result or a failure reason.
+void OnFetchPiiEntityCompleted(
+    MemoryDataType data_type,
+    AtMemoryQueryService::FetchUnmaskedPiiEntitiesCallback callback,
+    personal_context::FetchPiiEntitiesResult result) {
+  if (!result.response.has_value() || result.response->entities().empty()) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(
+            AtMemoryQueryService::SpiiRetrievalFailureReason::kFetchFailed));
+    return;
+  }
+
+  std::optional<std::u16string> unmasked_value =
+      GetUnmaskedPiiFromEntity(result.response->entities(0), data_type);
+  if (!unmasked_value || unmasked_value->empty()) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(
+            AtMemoryQueryService::SpiiRetrievalFailureReason::kParseFailed));
+    return;
+  }
+
+  RunCallbackAsync(std::move(callback), std::move(*unmasked_value));
+}
+
 }  // namespace
 
 AtMemoryQueryService::AtMemoryQueryService(
-    std::unique_ptr<AtMemoryQueryServiceDelegate> delegate,
     std::unique_ptr<AutofillDataProvider> data_provider,
     personal_context::PersonalContextService* personal_context_service,
     const std::string& locale)
-    : delegate_(std::move(delegate)),
-      data_provider_(std::move(data_provider)),
+    : data_provider_(std::move(data_provider)),
       personal_context_service_(personal_context_service),
       locale_(locale) {}
 
 AtMemoryQueryService::~AtMemoryQueryService() = default;
 
 void AtMemoryQueryService::Shutdown() {
-  weak_ptr_factory_.InvalidateWeakPtrs();
+  query_weak_ptr_factory_.InvalidateWeakPtrs();
+  pii_unmasking_weak_ptr_factory_.InvalidateWeakPtrs();
   data_provider_.reset();
   personal_context_service_ = nullptr;
+  if (device_authenticator_) {
+    device_authenticator_->Cancel();
+    device_authenticator_.reset();
+  }
 }
 
 void AtMemoryQueryService::Query(
     std::u16string_view query,
+    const GURL& url,
+    std::u16string_view title,
     base::RepeatingCallback<void(MemorySearchResults)> callback) {
   // Invalidate any in-flight queries.
-  weak_ptr_factory_.InvalidateWeakPtrs();
+  query_weak_ptr_factory_.InvalidateWeakPtrs();
 
   if (net::NetworkChangeNotifier::IsOffline()) {
     callback.Run(MemorySearchResults(MemorySearchStatus::kNoConnectionFailure));
@@ -659,7 +988,7 @@ void AtMemoryQueryService::Query(
   }
 
   personal_context::proto::AtMemoryQueryRequest request_metadata =
-      BuildAtMemoryQueryRequest(query, locale_);
+      BuildAtMemoryQueryRequest(query, url, title, locale_);
 
   personal_context::ContextMemoryRequestOptions options;
   options.request_timeout = features::kAutofillAtMemoryRequestTimeout.Get();
@@ -667,7 +996,47 @@ void AtMemoryQueryService::Query(
       personal_context::proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY,
       request_metadata, options,
       base::BindOnce(&AtMemoryQueryService::OnPersonalContextRetrieved,
-                     weak_ptr_factory_.GetWeakPtr(), callback));
+                     query_weak_ptr_factory_.GetWeakPtr(), callback));
+}
+
+void AtMemoryQueryService::AuthenticateAndFetchPiiEntity(
+    const AutofillClient& client,
+    const std::u16string& auth_message,
+    std::u16string_view masked_value,
+    accessibility_annotator::MemoryDataType data_type,
+    base::span<const accessibility_annotator::EntryMetadata> metadata_list,
+    FetchUnmaskedPiiEntitiesCallback callback) {
+  if (device_authenticator_) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(SpiiRetrievalFailureReason::kReauthInProgress));
+    return;
+  }
+
+  if (net::NetworkChangeNotifier::IsOffline()) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(SpiiRetrievalFailureReason::kNoConnection));
+    return;
+  }
+
+  device_authenticator_ =
+      client.GetDeviceAuthenticator("Autofill.AtMemory.ReauthToUnmask");
+  if (!device_authenticator_ ||
+      !device_authenticator_->CanAuthenticateWithBiometricOrScreenLock()) {
+    device_authenticator_.reset();
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(SpiiRetrievalFailureReason::kReauthFailed));
+    return;
+  }
+
+  device_authenticator_->AuthenticateWithMessage(
+      auth_message,
+      base::BindOnce(&AtMemoryQueryService::OnAuthenticationCompleted,
+                     pii_unmasking_weak_ptr_factory_.GetWeakPtr(),
+                     std::u16string(masked_value), data_type,
+                     base::ToVector(metadata_list), std::move(callback)));
 }
 
 void AtMemoryQueryService::OnPersonalContextRetrieved(
@@ -702,8 +1071,7 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
       break;
     case AtMemoryQueryResponse::QUERY_CLASSIFICATION_UNSUPPORTED:
     case AtMemoryQueryResponse::QUERY_CLASSIFICATION_SENSITIVE:
-      // TODO(crbug.com/532082682): Clarify what
-      // `QUERY_CLASSIFICATION_SENSITIVE` should result in.
+    case AtMemoryQueryResponse::QUERY_CLASSIFICATION_RECITATION:
       run_callback(MemorySearchStatus::kUnsupportedQuery);
       return;
     case AtMemoryQueryResponse::QUERY_CLASSIFICATION_UNSPECIFIED:
@@ -735,6 +1103,7 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
     std::vector<MemorySearchResult> ranked_results =
         RankResults(/*local_results=*/{}, std::move(remote_results));
     DeduplicateResults(ranked_results);
+    ReorderMetadataByUniqueness(ranked_results);
     run_callback(MemorySearchStatus::kFinalResponseSuccess,
                  std::move(ranked_results));
     return;
@@ -743,7 +1112,7 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
   data_provider_->RetrieveAll(
       local_data_types,
       base::BindOnce(&AtMemoryQueryService::OnLocalDataRetrieved,
-                     weak_ptr_factory_.GetWeakPtr(), callback,
+                     query_weak_ptr_factory_.GetWeakPtr(), callback,
                      std::move(remote_results), std::move(filter_words),
                      std::move(result.server_request_id)));
 }
@@ -764,11 +1133,48 @@ void AtMemoryQueryService::OnLocalDataRetrieved(
   std::vector<MemorySearchResult> ranked_results =
       RankResults(std::move(filtered_local_results), std::move(remote_results));
   DeduplicateResults(ranked_results);
+  ReorderMetadataByUniqueness(ranked_results);
 
   MemorySearchResults search_results(MemorySearchStatus::kFinalResponseSuccess,
                                      std::move(ranked_results));
   search_results.server_request_id = std::move(server_request_id);
   callback.Run(std::move(search_results));
+}
+
+void AtMemoryQueryService::OnAuthenticationCompleted(
+    std::u16string masked_value,
+    accessibility_annotator::MemoryDataType data_type,
+    std::vector<accessibility_annotator::EntryMetadata> metadata_list,
+    FetchUnmaskedPiiEntitiesCallback callback,
+    bool auth_succeeded) {
+  device_authenticator_.reset();
+  if (!auth_succeeded) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(SpiiRetrievalFailureReason::kReauthFailed));
+    return;
+  }
+
+  if (!personal_context_service_) {
+    RunCallbackAsync(
+        std::move(callback),
+        base::unexpected(SpiiRetrievalFailureReason::kFetchFailed));
+    return;
+  }
+
+  personal_context::proto::FetchPiiEntitiesRequest request;
+  request.set_feature(
+      personal_context::proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY);
+  *request.add_masked_entities() =
+      ToPersonalContextEntity(masked_value, data_type, metadata_list);
+
+  personal_context::ContextMemoryRequestOptions options;
+  options.request_timeout = features::kAutofillAtMemoryRequestTimeout.Get();
+
+  personal_context_service_->FetchPiiEntities(
+      request, options,
+      base::BindOnce(OnFetchPiiEntityCompleted, data_type,
+                     std::move(callback)));
 }
 
 }  // namespace autofill

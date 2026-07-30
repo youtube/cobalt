@@ -454,6 +454,8 @@ chromium-metrics-reviews@google.com.
       summary="explicitly requesting expiration date"/>
   <variant name=".SavingWithCvc"
       summary="saved security code at the same time"/>
+  <variant name=".SavingWithoutCvc"
+      summary="did not save security code at the same time"/>
 </variants>
 
 <variants name="AutofillCreditCardType">
@@ -551,7 +553,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="EMAIL_ADDRESS"/>
   <variant name="EMAIL_OR_LOYALTY_MEMBERSHIP_ID"/>
   <variant name="EMPTY_TYPE"/>
+  <variant name="FLIGHT_RESERVATION_ARRIVAL_AIRPORT"/>
   <variant name="FLIGHT_RESERVATION_CONFIRMATION_CODE"/>
+  <variant name="FLIGHT_RESERVATION_DEPARTURE_AIRPORT"/>
   <variant name="FLIGHT_RESERVATION_DEPARTURE_DATE"/>
   <variant name="FLIGHT_RESERVATION_FLIGHT_NUMBER"/>
   <variant name="FLIGHT_RESERVATION_TICKET_NUMBER"/>
@@ -1907,6 +1911,66 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
+<histogram name="Autofill.Ai.PersonalContext.Cache.ReadinessOnFirstInteraction"
+    enum="AutofillAiPersonalContextCacheReadinessOnFirstInteraction"
+    expires_after="2026-12-12">
+  <owner>vidhanj@google.com</owner>
+  <owner>vizcay@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Logs the exact state of the prefetch cache when the user first
+    focuses/clicks an Ambient Autofill supported field. Recorded at most once
+    per page load.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.Ai.PersonalContext.Prefetch.TotalLatency{EntityType}"
+    units="ms" expires_after="2026-12-12">
+  <owner>vidhanj@google.com</owner>
+  <owner>vizcay@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the total prefetch latency (in milliseconds) for the Personal
+    Context prefetch request of {EntityType} data. Recorded when the prefetch
+    state for the entity type transitions to success.
+  </summary>
+  <token key="EntityType" variants="Autofill.Ai.EntityType"/>
+</histogram>
+
+<histogram name="Autofill.Ai.PersonalContext.Prefetch.TriggerResult"
+    enum="AutofillAiPersonalContextPrefetchTriggerResult"
+    expires_after="2026-12-12">
+  <owner>vidhanj@google.com</owner>
+  <owner>vizcay@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the unique prefetch trigger outcomes present in a batch of requested
+    entity types during Ambient Autofill prefetch. Logged at most once per
+    outcome type per prefetch request. Recorded on page load / form analysis for
+    eligible profiles.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.Ai.PersonalContext.RequestLatency.{RequestType}"
+    units="ms" expires_after="2026-12-12">
+  <owner>vidhanj@google.com</owner>
+  <owner>vizcay@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the request latency (in milliseconds) for the Personal Context
+    network request for {RequestType}. Recorded when the network request
+    completes.
+  </summary>
+  <token key="RequestType">
+    <variant name="PrefetchNonSpiiAndPresence"
+        summary="prefetching Non-SPII (masked) entities and presence signals"/>
+    <variant name="PrefetchSpiiMasked"
+        summary="prefetching masked sensitive PII (SPII) entities"/>
+    <variant name="SpiiUnmasking"
+        summary="unmasking sensitive PII (SPII) entities"/>
+  </token>
+</histogram>
+
 <histogram name="Autofill.Ai.PromptSuppression.{PromptType}{EntityType}"
     enum="Boolean" expires_after="2026-12-12">
   <owner>jihadghanna@google.com</owner>
@@ -1999,6 +2063,21 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.Ai.Unmask.Result{RecordType}"
+    enum="AutofillAiUnmaskResult" expires_after="2027-03-09">
+  <owner>tobson@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the result of the unmasking flow for a sensitive Autofill AI entity.
+    Emitted immediately when unmasked data is retrieved from the local cache,
+    when the unmasking network request completes, or when device
+    re-authentication fails.
+
+    {RecordType}
+  </summary>
+  <token key="RecordType" variants="Autofill.Ai.EntityRecordType"/>
+</histogram>
+
 <histogram name="Autofill.Ai.WalletContextualSurfacingEnabled" enum="Boolean"
     expires_after="2026-12-12">
   <owner>jihadghanna@google.com</owner>
@@ -2010,7 +2089,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Ai.{PromptType}.AllEntities"
-    enum="AutofillAiBubbleResult" expires_after="2026-11-08">
+    enum="AutofillAiBubbleResult" expires_after="2027-01-10">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2168,6 +2247,18 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.AtMemory.AcceptedSuggestionDataSources"
+    enum="AutofillAtMemoryAcceptedSuggestionDataSourcesBitmask"
+    expires_after="2027-03-09">
+  <owner>ireneuszszulc@google.com</owner>
+  <owner>rahimis@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records a bitmask of the data sources that provided the accepted AtMemory
+    suggestion. Emitted every time a user accepts a search result.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.AtMemory.AcceptedSuggestionDataType"
     enum="MemoryDataType" expires_after="2027-03-09">
   <owner>ireneuszszulc@google.com</owner>
@@ -2205,17 +2296,27 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
-<histogram name="Autofill.AtMemory.Funnel.TimeToFetchUnmasked" units="ms"
+<!-- LINT.IfChange(Autofill.AtMemory.Latency.FetchPii) -->
+
+<histogram name="Autofill.AtMemory.Latency.FetchPii.{source}" units="ms"
     expires_after="2027-03-09">
   <owner>picarella@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
-    Records the duration (latency) from the time a PII suggestion (IBAN, Credit
-    Card, or sensitive Autofill AI data) is requested, to the time the unmasked
-    value is successfully obtained. Recorded only for successful unmasking
+    Records the duration (latency) from the time a {source} suggestion is
+    requested, to the time the unmasked value is successfully obtained. Recorded
+    when the suggestion UI is closed. Recorded only for successful unmasking
     flows.
   </summary>
+  <token key="source">
+    <variant name="AutofillAi" summary="Autofill AI"/>
+    <variant name="CreditCard" summary="Credit Card"/>
+    <variant name="Iban" summary="IBAN"/>
+    <variant name="PersonalContext" summary="Personal Context"/>
+  </token>
 </histogram>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/at_memory/at_memory_metrics_recorder.h:FetchPiiSource) -->
 
 <histogram name="Autofill.AtMemory.Latency.Query" units="ms"
     expires_after="2027-03-09">
@@ -2260,6 +2361,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Records whether at least one search query was submitted while the AtMemory
     search bar was displayed. Emitted when the search bar is hidden, provided it
     was successfully shown.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.AtMemory.ReauthToUnmask"
+    enum="DeviceReauth.ReauthResult" expires_after="2027-03-09">
+  <owner>picarella@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Recorded whenever the user interacts with reauthentication in order to fill
+    an AtMemory entity that contains sensitive data, or when such
+    reauthentication is skipped for a well-defined reason.
   </summary>
 </histogram>
 
@@ -3467,6 +3579,18 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
   <token key="CardNetwork" variants="Autofill.CreditCardNetwork"/>
   <token key="FormEventWithMetadata" variants="Autofill.FormEventWithMetadata"/>
+</histogram>
+
+<histogram name="Autofill.CreditCardImportCandidateHasNumericCvc"
+    enum="Boolean" expires_after="2026-12-30">
+  <owner>schwering@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records whether a credit card import candidate's CVC consists only of
+    digits. This is recorded when a credit card import candidate has a non-empty
+    CVC and saving that candidate is offered to the user. It is recorded on all
+    platforms. One cause for non-digit CVCs is obfuscation.
+  </summary>
 </histogram>
 
 <histogram
@@ -6473,7 +6597,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.PaymentsDataManager.LocalCardAdded" enum="Boolean"
-    expires_after="2026-10-01">
+    expires_after="2027-01-10">
   <owner>darwinyang@google.com</owner>
   <owner>smcgruer@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
@@ -6613,6 +6737,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="AutofillPopupInteractionLevel"
       variants="AutofillPopupInteractionLevel"/>
   <token key="FillingProduct" variants="Autofill.FillingProduct"/>
+</histogram>
+
+<histogram name="Autofill.PopupUpdateIgnored.ProductMismatch" units="count"
+    expires_after="M159">
+  <owner>ireneuszszulc@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Recorded when an Autofill popup update is ignored because the main filling
+    product of the new suggestions differs from the active popup's product. The
+    value is a compound integer: (old_product &lt;&lt; 8) | new_product, where
+    old_product and new_product are values of the Autofill.FillingProduct enum.
+    This metric is temporary and should be removed after M159.
+  </summary>
 </histogram>
 
 <histogram name="Autofill.ProfileDeleted.ImplicitAccountNameEmail"
@@ -8717,9 +8854,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
   <token key="SuggestionType">
     <variant name=""/>
+    <variant name=".Address"/>
     <variant name=".Autocomplete"/>
     <variant name=".CreditCard"/>
-    <variant name=".Profile"/>
   </token>
 </histogram>
 

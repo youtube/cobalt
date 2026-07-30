@@ -146,8 +146,17 @@ std::string_view GetStringNameForModelExecutionFeature(
       return "ContextualCueing";
     case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_UPDATER_CHAT:
       return "UpdaterChat";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_CARD_RECOMMENDATIONS:
+      return "CardRecommendations";
     case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_CONTEXT_HUB:
       return "ContextHub";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_READ_ALOUD_GENERATE_TEXT:
+      return "ReadAloudGenerateText";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_READ_ALOUD_SYNTHESIZE:
+      return "ReadAloudSynthesize";
     case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_UNSPECIFIED:
       return "Unknown";
       // Must be in sync with the ModelExecutionFeature variant in

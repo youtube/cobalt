@@ -9,6 +9,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/byte_size.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
@@ -43,7 +44,7 @@
 // Records |bytes| to |histogram_name| in kilobytes.
 #define PAGE_BYTES_HISTOGRAM(histogram_name, bytes)                \
   base::UmaHistogramCustomCounts(histogram_name, bytes.InKiB(), 1, \
-                                 base::MiB(500).InKiB(), 50)
+                                 base::MiBU(500).InKiB(), 50)
 
 // Up to 1 minute with 50 buckets.
 #define INPUT_DELAY_HISTOGRAM(name, sample)                          \
@@ -184,10 +185,6 @@ std::optional<base::TimeDelta> GetNonPrerenderingBackgroundStartTiming(
 bool EventOccurredBeforeNonPrerenderingBackgroundStart(
     const PageLoadMetricsObserverDelegate& delegate,
     const base::TimeDelta& event);
-bool EventOccurredBeforeNonPrerenderingBackgroundStart(
-    const PageLoadMetricsObserverDelegate& delegate,
-    const page_load_metrics::mojom::PageLoadTiming& timing,
-    const base::TimeDelta& event);
 
 // Corrects an event with navigation start origin as navigation/activation
 // start origin.
@@ -197,10 +194,6 @@ bool EventOccurredBeforeNonPrerenderingBackgroundStart(
 // are truncated as zero.
 base::TimeDelta CorrectEventAsNavigationOrActivationOrigined(
     const PageLoadMetricsObserverDelegate& delegate,
-    const base::TimeDelta& event);
-base::TimeDelta CorrectEventAsNavigationOrActivationOrigined(
-    const PageLoadMetricsObserverDelegate& delegate,
-    const page_load_metrics::mojom::PageLoadTiming& timing,
     const base::TimeDelta& event);
 
 PageAbortInfo GetPageAbortInfo(const PageLoadMetricsObserverDelegate& delegate);

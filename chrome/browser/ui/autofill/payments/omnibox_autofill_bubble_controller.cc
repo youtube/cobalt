@@ -5,7 +5,9 @@
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -18,6 +20,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
@@ -48,12 +51,19 @@ OmniboxAutofillBubbleController::OmniboxAutofillBubbleController(
     tabs::TabInterface& tab_interface,
     content::WebContents* web_contents)
     : AutofillBubbleControllerBase(web_contents),
+      tab_interface_(tab_interface),
       scoped_unowned_user_data_(tab_interface.GetUnownedUserDataHost(), *this),
       payments_data_manager_(PersonalDataManagerFactory::GetForBrowserContext(
                                  web_contents->GetBrowserContext())
                                  ->payments_data_manager()) {}
 
-OmniboxAutofillBubbleController::~OmniboxAutofillBubbleController() = default;
+OmniboxAutofillBubbleController::~OmniboxAutofillBubbleController() {
+  if (IsShowingBubble()) {
+    if (actions::ActionItem* action_item = GetActionItem()) {
+      action_item->SetIsShowingBubble(false);
+    }
+  }
+}
 
 void OmniboxAutofillBubbleController::Initialize(
     std::vector<Suggestion> suggestions,
@@ -61,6 +71,7 @@ void OmniboxAutofillBubbleController::Initialize(
         on_suggestions_shown,
     base::RepeatingCallback<void(SuggestionHidingReason)> on_suggestions_hidden,
     base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
+    base::RepeatingClosure did_deselect_suggestion,
     base::RepeatingCallback<
         void(const Suggestion&,
              const AutofillSuggestionDelegate::SuggestionMetadata&)>
@@ -69,6 +80,7 @@ void OmniboxAutofillBubbleController::Initialize(
   on_suggestions_shown_callback_ = std::move(on_suggestions_shown);
   on_suggestions_hidden_callback_ = std::move(on_suggestions_hidden);
   did_select_suggestion_callback_ = std::move(did_select_suggestion);
+  did_deselect_suggestion_callback_ = std::move(did_deselect_suggestion);
   did_accept_suggestion_callback_ = std::move(did_accept_suggestion);
 }
 
@@ -88,9 +100,7 @@ OmniboxAutofillBubbleController::GetBubbleControllerBaseWeakPtr() {
 }
 
 void OmniboxAutofillBubbleController::DoShowBubble() {
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
+  BrowserWindowInterface* browser = tab_interface_->GetBrowserWindowInterface();
   if (!browser) {
     return;
   }
@@ -102,6 +112,10 @@ void OmniboxAutofillBubbleController::DoShowBubble() {
           browser_window->GetAutofillBubbleHandler()->ShowOmniboxAutofillBubble(
               web_contents(), this)) {
     SetBubbleView(*bubble_view);
+
+    if (actions::ActionItem* action_item = GetActionItem()) {
+      action_item->SetIsShowingBubble(true);
+    }
   }
 }
 
@@ -135,11 +149,22 @@ void OmniboxAutofillBubbleController::OnSuggestionsShown() {
   }
 }
 
+void OmniboxAutofillBubbleController::OnSuggestionDeselected() {
+  if (did_deselect_suggestion_callback_) {
+    did_deselect_suggestion_callback_.Run();
+  }
+}
+
 void OmniboxAutofillBubbleController::OnBubbleClosed(
     PaymentsUiClosedReason reason) {
   if (on_suggestions_hidden_callback_) {
     on_suggestions_hidden_callback_.Run(ToSuggestionHidingReason(reason));
   }
+
+  if (actions::ActionItem* action_item = GetActionItem()) {
+    action_item->SetIsShowingBubble(false);
+  }
+
   ResetBubbleViewAndInformBubbleManager();
 }
 
@@ -163,6 +188,21 @@ void OmniboxAutofillBubbleController::OnSuggestionAccepted(
 base::WeakPtr<OmniboxAutofillBubbleController>
 OmniboxAutofillBubbleController::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
+}
+
+actions::ActionItem* OmniboxAutofillBubbleController::GetActionItem() {
+  BrowserWindowInterface* browser_window =
+      tab_interface_->GetBrowserWindowInterface();
+  if (!browser_window) {
+    return nullptr;
+  }
+  actions::ActionItem* root_action_item =
+      browser_window->GetActions()->root_action_item();
+  if (!root_action_item) {
+    return nullptr;
+  }
+  return actions::ActionManager::Get().FindAction(kActionAutofillPayment,
+                                                  root_action_item);
 }
 
 }  // namespace autofill

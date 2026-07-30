@@ -38,6 +38,7 @@ source_set("browser") {
 
   deps = [
     "//base",
+    "//components/content_settings/core/browser",
     "//components/keyed_service/core",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -96,7 +97,10 @@ source_set("client_side_detection_service_base") {
     "//components/safe_browsing/core/common/phishing_classifier",
     "//components/safe_browsing/core/common/proto:client_model_proto",
     "//components/safe_browsing/core/common/proto:csd_proto",
+    "//google_apis",
     "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//third_party/tflite_support",
     "//third_party/tflite_support:tflite_support_proto",
     "//url",
@@ -124,6 +128,7 @@ source_set("client_side_detection_service_base_unittest") {
     "//components/safe_browsing/core/common/fbs:client_model",
     "//components/safe_browsing/core/common/proto:client_model_proto",
     "//components/safe_browsing/core/common/proto:csd_proto",
+    "//services/network:test_support",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -394,5 +399,33 @@ source_set("user_population_unittest") {
     "//components/unified_consent",
     "//components/version_info",
     "//testing/gtest",
+  ]
+}
+
+source_set("suspicious_site_warning_allowlist") {
+  sources = [
+    "suspicious_site_warning_allowlist.cc",
+    "suspicious_site_warning_allowlist.h",
+  ]
+  deps = [
+    "//base",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//url",
+  ]
+}
+
+source_set("suspicious_site_warning_allowlist_unittest") {
+  testonly = true
+  sources = [ "suspicious_site_warning_allowlist_unittest.cc" ]
+  deps = [
+    ":suspicious_site_warning_allowlist",
+    "//base",
+    "//base/test:test_support",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//components/sync_preferences:test_support",
+    "//testing/gtest",
+    "//url",
   ]
 }

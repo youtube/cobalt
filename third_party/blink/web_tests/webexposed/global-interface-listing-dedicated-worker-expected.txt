@@ -1660,6 +1660,19 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter startTime
 [Worker]     method constructor
 [Worker]     method toJSON
+[Worker] interface PerformanceLongAnimationFrameTiming : PerformanceEntry
+[Worker]     attribute @@toStringTag
+[Worker]     getter blockingDuration
+[Worker]     getter firstUIEventTimestamp
+[Worker]     getter layoutDuration
+[Worker]     getter renderStart
+[Worker]     getter scriptCount
+[Worker]     getter scripts
+[Worker]     getter styleAndLayoutStart
+[Worker]     getter styleDuration
+[Worker]     getter userTimingEntries
+[Worker]     method constructor
+[Worker]     method toJSON
 [Worker] interface PerformanceMark : PerformanceEntry
 [Worker]     attribute @@toStringTag
 [Worker]     getter detail
@@ -1713,6 +1726,22 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter workerMatchedSourceType
 [Worker]     getter workerRouterEvaluationStart
 [Worker]     getter workerStart
+[Worker]     method constructor
+[Worker]     method toJSON
+[Worker] interface PerformanceScriptTiming : PerformanceEntry
+[Worker]     attribute @@toStringTag
+[Worker]     getter executionStart
+[Worker]     getter forcedLayoutDuration
+[Worker]     getter forcedStyleAndLayoutDuration
+[Worker]     getter forcedStyleDuration
+[Worker]     getter invoker
+[Worker]     getter invokerType
+[Worker]     getter pauseDuration
+[Worker]     getter sourceCharPosition
+[Worker]     getter sourceColumn
+[Worker]     getter sourceFunctionName
+[Worker]     getter sourceLine
+[Worker]     getter sourceURL
 [Worker]     method constructor
 [Worker]     method toJSON
 [Worker] interface PerformanceServerTiming
@@ -2289,8 +2318,8 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker] interface TrustedParserOptions
 [Worker]     attribute @@toStringTag
 [Worker]     getter runScripts
-[Worker]     getter sanitizer
 [Worker]     method constructor
+[Worker]     method sanitizer
 [Worker] interface TrustedScript
 [Worker]     static method fromLiteral
 [Worker]     attribute @@toStringTag
@@ -4115,7 +4144,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method open
 [Worker]     method overrideMimeType
 [Worker]     method send
-[Worker]     method setAttributionReporting
 [Worker]     method setPrivateToken
 [Worker]     method setRequestHeader
 [Worker]     setter onreadystatechange

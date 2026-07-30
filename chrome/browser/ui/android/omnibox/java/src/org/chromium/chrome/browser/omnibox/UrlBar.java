@@ -498,7 +498,6 @@ public class UrlBar extends AutocompleteEditText {
                                 return mManageSearchEnginesCallback;
                             }
                         });
-        setOnCreateContextMenuListener(mContextMenuHelper);
         enforceMaxTextHeight();
         setPrivateImeOptions(IME_OPTION_RESTRICT_STYLUS_WRITING_AREA);
     }
@@ -883,6 +882,13 @@ public class UrlBar extends AutocompleteEditText {
             return true;
         }
 
+        if (id == R.id.url_bar_always_show_ai_mode) {
+            if (mShowAiModeCallback != null) {
+                mShowAiModeCallback.onResult(!mShowAiMode);
+            }
+            return true;
+        }
+
         if (mTextContextMenuDelegate == null) return super.onTextContextMenuItem(id);
 
         boolean isCutOption = false;
@@ -998,28 +1004,28 @@ public class UrlBar extends AutocompleteEditText {
             }
         }
 
-        if (mManageSearchEnginesCallback == null
-                || !OmniboxFeatures.sOmniboxSiteSearch.isEnabled()
-                || OmniboxFeatures.sOmniboxListMenuContextMenu.isEnabled()) {
-            return;
+        if (mManageSearchEnginesCallback != null
+                && OmniboxFeatures.sOmniboxSiteSearch.isEnabled()
+                && menu.findItem(R.id.url_bar_manage_search_engines) == null) {
+            MenuItem item =
+                    menu.add(
+                            Menu.NONE,
+                            R.id.url_bar_manage_search_engines,
+                            Menu.CATEGORY_SECONDARY,
+                            getContext().getString(R.string.manage_search_engines_and_site_search));
+            item.setOnMenuItemClickListener(
+                    clickedItem -> {
+                        if (mManageSearchEnginesCallback != null) {
+                            mManageSearchEnginesCallback.run();
+                        }
+                        return true;
+                    });
         }
 
-        if (menu.findItem(R.id.url_bar_manage_search_engines) != null) {
-            return;
+        if (OmniboxFeatures.sOmniboxListMenuContextMenu.isEnabled() && mContextMenuHelper != null) {
+            mContextMenuHelper.showListMenu(menu);
+            menu.clear();
         }
-        MenuItem item =
-                menu.add(
-                        Menu.NONE,
-                        R.id.url_bar_manage_search_engines,
-                        Menu.CATEGORY_SECONDARY,
-                        getContext().getString(R.string.manage_search_engines_and_site_search));
-        item.setOnMenuItemClickListener(
-                clickedItem -> {
-                    if (mManageSearchEnginesCallback != null) {
-                        mManageSearchEnginesCallback.run();
-                    }
-                    return true;
-                });
     }
 
     /**
@@ -1309,11 +1315,31 @@ public class UrlBar extends AutocompleteEditText {
 
             Layout textLayout = assumeNonNull(getLayout());
 
-            int finalVisibleCharIndex =
-                    textLayout
-                            .getPaint()
-                            .getOffsetForAdvance(
-                                    url, 0, urlTextLength, 0, urlTextLength, false, measuredWidth);
+            boolean hasEllipsis = false;
+            EllipsisSpan[] spans = null;
+            if (shouldApplyBoundsEllipsis()) {
+                spans = url.getSpans(0, urlTextLength, EllipsisSpan.class);
+                hasEllipsis = spans != null && spans.length > 0;
+            }
+
+            int finalVisibleCharIndex;
+            if (hasEllipsis) {
+                assert spans != null && spans.length == 1
+                        : "Should never apply more than a single EllipsisSpan";
+                finalVisibleCharIndex = url.getSpanStart(spans[0]);
+            } else {
+                finalVisibleCharIndex =
+                        textLayout
+                                .getPaint()
+                                .getOffsetForAdvance(
+                                        url,
+                                        0,
+                                        urlTextLength,
+                                        0,
+                                        urlTextLength,
+                                        false,
+                                        measuredWidth);
+            }
 
             RecordHistogram.recordCount1000Histogram(
                     "Omnibox.NumberOfVisibleCharacters", finalVisibleCharIndex);
@@ -1328,7 +1354,7 @@ public class UrlBar extends AutocompleteEditText {
                 // the hint.
                 return null;
             } else {
-                if (BuildConfig.ENABLE_ASSERTS) {
+                if (BuildConfig.ENABLE_ASSERTS && !hasEllipsis) {
                     float horizontal =
                             textLayout.getPrimaryHorizontal(finalVisibleCharIndexExclusive);
                     float width = (float) measuredWidth;
@@ -1336,6 +1362,11 @@ public class UrlBar extends AutocompleteEditText {
                     assert MathUtils.areFloatsEqual(horizontal, width) || horizontal > width
                             : "finalVisibleCharIndex is too small: "
                                     + String.valueOf(finalVisibleCharIndexExclusive)
+                                    + " "
+                                    + String.valueOf(horizontal)
+                                    + " "
+                                    + String.valueOf(width)
+                                    + " "
                                     + ". If discovered locally please update crbug.com/40067648"
                                     + " with the url.";
                 }

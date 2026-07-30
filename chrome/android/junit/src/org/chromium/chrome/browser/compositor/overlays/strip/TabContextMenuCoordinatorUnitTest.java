@@ -434,7 +434,8 @@ public class TabContextMenuCoordinatorUnitTest {
                         mSnackbarManager,
                         mActivityResultTracker,
                         mModalDialogManager,
-                        TabClosingSource.TABLET_TAB_STRIP);
+                        TabClosingSource.TABLET_TAB_STRIP,
+                        /* canActivateTabLayoutToggleMenuSupplier= */ null);
     }
 
     @Test
@@ -2623,6 +2624,43 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
+    public void testCloseOtherTabs_mouseClick() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        long downMotionTime = SystemClock.uptimeMillis();
+        FakeListViewTouchTracker listViewTouchTracker = new FakeListViewTouchTracker();
+        listViewTouchTracker.setLastSingleTapUpInfo(
+                MotionEventTestUtils.createMouseMotionInfo(
+                        downMotionTime,
+                        /* eventTime= */ downMotionTime + 50,
+                        MotionEvent.ACTION_UP));
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_other_tabs_menu_id,
+                new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)),
+                /* collaborationId= */ null,
+                listViewTouchTracker);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTab2, mTabOutsideOfGroup))
+                                .allowUndo(false)
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
     public void testCloseOtherTabs_multipleTabs_hidden() {
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -2703,6 +2741,43 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
+    public void testCloseTabsToTheRight_mouseClick() {
+        mTabModel.addTab(
+                mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTab2, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
+        mTabModel.addTab(
+                mTabOutsideOfGroup,
+                -1,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        long downMotionTime = SystemClock.uptimeMillis();
+        FakeListViewTouchTracker listViewTouchTracker = new FakeListViewTouchTracker();
+        listViewTouchTracker.setLastSingleTapUpInfo(
+                MotionEventTestUtils.createMouseMotionInfo(
+                        downMotionTime,
+                        /* eventTime= */ downMotionTime + 50,
+                        MotionEvent.ACTION_UP));
+
+        mOnItemClickedCallback.onClick(
+                R.id.close_tabs_to_the_right_menu_id,
+                new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)),
+                /* collaborationId= */ null,
+                listViewTouchTracker);
+
+        verify(mTabRemover)
+                .closeTabs(
+                        TabClosureParams.closeTabs(List.of(mTab2, mTabOutsideOfGroup))
+                                .allowUndo(false)
+                                .hideTabGroups(true)
+                                .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                .build(),
+                        /* allowDialog= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
     public void testCloseTabsToTheRight_multipleTabs() {
         mTabModel.addTab(
                 mTab1, -1, TabLaunchType.FROM_CHROME_UI, TabCreationState.LIVE_IN_FOREGROUND);
@@ -2757,12 +2832,7 @@ public class TabContextMenuCoordinatorUnitTest {
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
                 modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
 
-        assertNull(
-                "'New tab to the right' should be filtered out from the Vertical Tabs menu.",
-                findItemByMenuId(modelList, R.id.new_tab_to_the_right_menu_id));
-        assertNull(
-                "'Close tabs to the right' should be filtered out from the Vertical Tabs menu.",
-                findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id));
+        verifyVerticalTabsDirectionalLabels(modelList);
     }
 
     @Test
@@ -2777,17 +2847,32 @@ public class TabContextMenuCoordinatorUnitTest {
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
                 modelList, new AnchorInfo(TAB_ID, List.of(TAB_ID, TAB_ID_2)));
 
-        assertNull(
-                "'New tab to the right' should be filtered out in Multi-Select Mode.",
-                findItemByMenuId(modelList, R.id.new_tab_to_the_right_menu_id));
-        assertNull(
-                "'Close tabs to the right' should be filtered out in Multi-Select Mode.",
-                findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id));
+        verifyVerticalTabsDirectionalLabels(modelList);
     }
 
     // --------------------------------------------------------------//
     // ----------------------  UTILITY METHODS ----------------------//
     // --------------------------------------------------------------//
+
+    private void verifyVerticalTabsDirectionalLabels(ModelList modelList) {
+        ListItem newTabBelowItem = findItemByMenuId(modelList, R.id.new_tab_to_the_right_menu_id);
+        assertNotNull(
+                "'New tab below' should be present in the Vertical Tabs menu.", newTabBelowItem);
+        assertEquals(
+                "Title resource should match 'New tab below'.",
+                mActivity.getResources().getString(R.string.new_tab_below_menu_item),
+                newTabBelowItem.model.get(TITLE));
+
+        ListItem closeTabsBelowItem =
+                findItemByMenuId(modelList, R.id.close_tabs_to_the_right_menu_id);
+        assertNotNull(
+                "'Close tabs below' should be present in the Vertical Tabs menu.",
+                closeTabsBelowItem);
+        assertEquals(
+                "Title resource should match 'Close tabs below'.",
+                mActivity.getResources().getString(R.string.close_tabs_below_menu_item),
+                closeTabsBelowItem.model.get(TITLE));
+    }
 
     private void prepareCoordinatorWithTabs() {
         ChromeSharedPreferences.getInstance()
@@ -2870,6 +2955,44 @@ public class TabContextMenuCoordinatorUnitTest {
 
         verify((MenuOrKeyboardActionController) mockMenuActivity, times(1))
                 .onMenuOrKeyboardAction(eq(R.id.toggle_tab_layout_menu_id), eq(false));
+    }
+
+    @Test
+    @EnableFeatures({ChromeFeatureList.ANDROID_VERTICAL_TABS})
+    @Config(qualifiers = "sw600dp")
+    public void buildMenuActionItems_VerticalTabs_DisabledWhenCannotActivate() {
+        mTabContextMenuCoordinator =
+                TabContextMenuCoordinator.createContextMenuCoordinator(
+                        () -> mTabModel,
+                        mBottomSheetCoordinator,
+                        mTabGroupCreationCallback,
+                        mMultiInstanceManager,
+                        ObservableSuppliers.createMonotonic(mShareDelegate),
+                        mWindowAndroid,
+                        mActivity,
+                        () -> mTabBookmarker,
+                        mReorderFunction,
+                        mSnackbarManager,
+                        mActivityResultTracker,
+                        mModalDialogManager,
+                        TabClosingSource.TABLET_TAB_STRIP,
+                        () -> false);
+
+        mTabModel.addTab(
+                mTab1,
+                TabModel.INVALID_TAB_INDEX,
+                TabLaunchType.FROM_CHROME_UI,
+                TabCreationState.LIVE_IN_FOREGROUND);
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
+
+        ListItem verticalTabsItem = findItemByMenuId(modelList, R.id.toggle_tab_layout_menu_id);
+        assertNotNull("Toggle layout menu item should be present", verticalTabsItem);
+        assertFalse(
+                "Toggle layout menu item should be disabled when canActivate is false",
+                verticalTabsItem.model.get(ENABLED));
     }
 
     private void verifyAddToGroupSubmenuForTabOutsideOfGroup(

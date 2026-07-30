@@ -118,7 +118,6 @@ import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPageUma;
 import org.chromium.chrome.browser.offlinepages.OfflinePageTabData;
 import org.chromium.chrome.browser.omaha.UpdateMenuItemHelper;
-import org.chromium.chrome.browser.omnibox.BackKeyBehaviorDelegate;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
@@ -139,6 +138,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfAndroidBridge;
 import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfCoordinator;
 import org.chromium.chrome.browser.share.send_tab_to_self.ShareEntryPoint;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
@@ -1165,6 +1165,7 @@ public class ToolbarManager
                         mWindowAndroid,
                         () -> mLocationBarModel.getUrlBarData().url,
                         () -> getUrlBarViewRectProvider(),
+                        this::isSendTabToSelfAvailable,
                         this::onSendTabToSelfClicked);
         OnLongClickListener onLongClickListener =
                 mToolbarLongPressMenuHandler.getOnLongClickListener();
@@ -1319,7 +1320,7 @@ public class ToolbarManager
                             mIncognitoStateProvider,
                             activityLifecycleDispatcher,
                             mOverrideUrlLoadingDelegate,
-                            new BackKeyBehaviorDelegate() {},
+                            () -> false,
                             toolbarPageInfo::show,
                             IntentHandler::bringTabGroupToFront,
                             NewTabPageUma::recordOmniboxNavigation,
@@ -2343,7 +2344,10 @@ public class ToolbarManager
             Tab tab = mLocationBarModel.getTab();
             assumeNonNull(tab);
             NativePage nativePage = tab.getNativePage();
-            return nativePage instanceof IncognitoNewTabPage;
+            // Check nativePage instance and fallback to URL check to handle tab navigation
+            // transitions before the NativePage instance is instantiated/updated.
+            return nativePage instanceof IncognitoNewTabPage
+                    || (tab.isIncognito() && UrlUtilities.isNtpUrl(tab.getUrl()));
         }
         return false;
     }
@@ -3625,6 +3629,11 @@ public class ToolbarManager
         return mLocationBar.getOmniboxStub();
     }
 
+    /** Returns the {@link OneshotSupplier} of {@link OmniboxStub}. */
+    public OneshotSupplier<OmniboxStub> getOmniboxStubSupplier() {
+        return mOmniboxStubSupplier;
+    }
+
     public @Nullable VoiceRecognitionHandler getVoiceRecognitionHandler() {
         return mLocationBar.getVoiceRecognitionHandler();
     }
@@ -3657,6 +3666,15 @@ public class ToolbarManager
 
         layoutParams.topMargin = margin;
         mControlContainer.setLayoutParams(layoutParams);
+    }
+
+    private boolean isSendTabToSelfAvailable(GURL url) {
+        Profile profile = mProfileSupplier.get();
+        if (profile == null) {
+            return false;
+        }
+        return SendTabToSelfAndroidBridge.getEntryPointDisplayReason(profile, url.getSpec())
+                != null;
     }
 
     private void onSendTabToSelfClicked() {

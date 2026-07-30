@@ -167,6 +167,9 @@ OmniboxEverywhereUI::OmniboxEverywhereUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
           base::FeatureList::IsEnabled(omnibox::kContextManagementInOmnibox) &&
           base::FeatureList::IsEnabled(omnibox::kTabFaviconChipsToCoins));
+  source->AddBoolean(
+      "composeboxSkillsEnabled",
+      base::FeatureList::IsEnabled(omnibox::kComposeboxSkillsOmniboxEverywhere));
 
   source->AddString("searchboxLayoutMode", "TallBottomContext");
   source->AddString(
@@ -207,19 +210,15 @@ void OmniboxEverywhereUI::BindInterface(
 }
 
 void OmniboxEverywhereUI::CreatePageHandler(
-    mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<composebox::mojom::PageHandler> pending_page_handler,
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler) {
-  DCHECK(pending_page.is_valid());
-
   // TODO(crbug.com/526629960): Create new EverywhereComposeboxHandler or allow
   // the ComposeboxHandler to parameterize the OmniboxClient.
   composebox_handler_ = std::make_unique<ComposeboxEverywhereHandler>(
-      std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler), std::move(pending_searchbox_page),
-      profile_, web_ui()->GetWebContents(),
+      std::move(pending_page_handler), std::move(pending_searchbox_handler),
+      std::move(pending_searchbox_page), profile_, web_ui()->GetWebContents(),
       base::BindRepeating(
           &OmniboxEverywhereUI::GetOrCreateContextualSessionHandle,
           base::Unretained(this)),
